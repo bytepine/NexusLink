@@ -54,12 +54,15 @@ graph TB
 
 ### 核心抽象
 
-```
-FNexusCapability（抽象基类）
-├── BuildDefinition()  ← 子类声明元数据（名称、描述、Schema、标签）
-├── Execute()          ← 子类实现业务逻辑
-├── Run()              ← 基类通用守卫（参数校验 + 计时 + 调用 Execute）
-└── GetDefinition()    ← 懒加载缓存
+```mermaid
+classDiagram
+    class FNexusCapability {
+        <<abstract>>
+        +BuildDefinition() 子类声明元数据
+        +Execute() 子类实现业务逻辑
+        +Run() 参数校验与计时
+        +GetDefinition() 懒加载缓存
+    }
 ```
 
 ### 自注册机制
@@ -78,12 +81,13 @@ REGISTER_MCP_CAPABILITY(FNexusSearchAssetCapability);
 
 ### 域分类目录
 
-```
-Capabilities/
-├── Asset/          资产 CRUD（蓝图、材质、结构体、动画、数据表、Widget...）
-├── Editor/         编辑器工具（截图、PIE 控制、日志获取...）
-├── Lua/            UnLua 集成（Lua 绑定查询、运行时调试...）
-└── Runtime/        运行时操作（Actor/Widget 查询与修改...）
+```mermaid
+flowchart LR
+    Root["Capabilities/"]
+    Root --> Asset["Asset/<br/>蓝图·材质·结构体·动画·Widget…"]
+    Root --> Editor["Editor/<br/>截图·PIE·日志…"]
+    Root --> Lua["Lua/<br/>UnLua 绑定与运行时"]
+    Root --> Runtime["Runtime/<br/>Actor·Widget 运行时"]
 ```
 
 ### Tool 与 Capability 解耦

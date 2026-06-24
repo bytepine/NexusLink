@@ -157,12 +157,21 @@ NexusLink 将能力分为两层：
 - 代理（Rider / VSCode）连接 UE 后缓存握手内容；断开时清空，重连后自动刷新。
 
 **典型调用流程（SearchMode）**：
-```
-search_capabilities(query="blueprint variable")
-→ 返回 get_asset_blueprint、manage_asset_blueprint 及其 schema
 
-call_capability(capability="manage_asset_blueprint", arguments={"assetPath":"/Game/BP_Player","action":"add_variable",...})
-→ 执行并返回结果
+```mermaid
+sequenceDiagram
+    participant AI as AI 客户端
+    participant Search as search_capabilities
+    participant Call as call_capability
+    participant Cap as Capability
+
+    AI->>Search: query="blueprint variable"
+    Search-->>AI: get_asset_blueprint、manage_asset_blueprint + schema
+
+    AI->>Call: capability="manage_asset_blueprint", arguments={...}
+    Call->>Cap: Run(arguments)
+    Cap-->>Call: 执行结果
+    Call-->>AI: 结构化响应
 ```
 
 **批量调用**：`call_capability` 支持 `calls=[{capability, arguments?}, ...]`，按顺序执行，单条失败不中断其余条目。

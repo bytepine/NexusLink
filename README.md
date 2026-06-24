@@ -8,18 +8,24 @@
 
 ## 架构概览
 
-```
-NexusLink 插件
-├── FNexusMcpServer ─── HTTP + WebSocket 服务器
-│   ├── POST /stream ─── MCP Streamable HTTP（per-session 会话隔离）
-│   ├── GET  /status ──── 无状态探测（返回项目信息 + WS 端口）
-│   └── WebSocket ──────── 供 Rider / VSCode 代理长连接通信
-├── FNexusMcpDispatcher ─── JSON-RPC 分发（SearchMode / MultiTool 双模式）
-├── FNexusMcpToolRegistry ── 工具注册表 + REGISTER_MCP_TOOL 宏
-├── FNexusMcpTool ────────── 工具基类（3 个元工具）
-├── FNexusCapabilityRegistry ── Capability 全局注册表（与 Tool 完全解耦，按名 O(1) 查找）
-└── FNexusCapability ─────────── Capability 基类（原子工作单元，独立注册，独立调用）
-    └── FNexusMultiSectionCapability ── sections[] 批量分发框架
+```mermaid
+flowchart TB
+    subgraph NL["NexusLink 插件"]
+        Server["FNexusMcpServer<br/>HTTP + WebSocket"]
+        Disp["FNexusMcpDispatcher<br/>SearchMode / MultiTool"]
+        ToolReg["FNexusMcpToolRegistry<br/>REGISTER_MCP_TOOL"]
+        Tool["FNexusMcpTool<br/>3 个元工具"]
+        CapReg["FNexusCapabilityRegistry<br/>O(1) 按名查找"]
+        Cap["FNexusCapability<br/>原子工作单元"]
+        Multi["FNexusMultiSectionCapability<br/>sections[] 批量"]
+    end
+
+    Server --> Stream["POST /stream<br/>MCP Streamable HTTP"]
+    Server --> Status["GET /status<br/>无状态探测"]
+    Server --> WS["WebSocket<br/>Rider / VSCode 长连接"]
+    Server --> Disp
+    Disp --> ToolReg --> Tool
+    Tool --> CapReg --> Cap --> Multi
 ```
 
 ### 暴露模式（ToolsListMode）

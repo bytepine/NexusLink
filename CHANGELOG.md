@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Docs
+
+- docs: 架构与流程图改用 Mermaid（README、architecture、usage-guide）
+
 ## [1.13.1] - 2026-06-24
 
 ### Changed
