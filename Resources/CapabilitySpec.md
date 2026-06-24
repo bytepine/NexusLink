@@ -196,7 +196,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 4. .cpp 末尾 REGISTER_MCP_CAPABILITY(YourCapClass)
 5. 编译后观察 Output Log，无 ensureMsgf 警告
 6. 过提交前自检清单（§4）
-7. 同步更新 nexus-unreal/CHANGELOG.md [Unreleased]
+7. 同步更新 `CHANGELOG.md` `[Unreleased]`
 8. 同步 [`InitializeInstructions.SearchMode.md`](InitializeInstructions.SearchMode.md) / [`InitializeInstructions.MultiTool.md`](InitializeInstructions.MultiTool.md)（见 §6.6）
 ```
 
