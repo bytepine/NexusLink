@@ -182,7 +182,7 @@ sequenceDiagram
 
 ### 2.8 挂载 AIRules（IDE 侧工作流 Rule）
 
-插件提供 [`AIRules.mdc`](Resources/AIRules.mdc)：**不**通过 MCP 注入，需手动复制到**游戏项目** IDE Rules，与握手 Instructions 互补。
+插件提供 [`AIRules.mdc`](../Resources/AIRules.mdc)：**不**通过 MCP 注入，需手动复制到**游戏项目** IDE Rules，与握手 Instructions 互补。
 
 **适用场景**：反馈中出现 `search_zero`（用业务词搜 capability）、缺 `assetPath`、`search_capabilities` 误包进 `call_capability` 等流程问题。
 

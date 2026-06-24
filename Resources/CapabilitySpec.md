@@ -204,7 +204,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 
 ## 6. Capability 命名规范
 
-> AI 路由与注册期校验的权威来源。`.cursor/rules/项目规范.mdc` §6 为速查；完整例外表在 [`InitializeInstructions.SearchMode.md`](InitializeInstructions.SearchMode.md)。
+> AI 路由与注册期校验的权威来源；完整例外表见 [`InitializeInstructions.SearchMode.md`](InitializeInstructions.SearchMode.md)。
 
 ### 6.1 全局格式
 
@@ -253,17 +253,17 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 
 - 兄弟：`get`↔`manage`（资产）、`get`↔`set`（property）、`get`↔`interact`（命令）。
 - **禁止**指向未注册名；`audit_capability_naming.py` 在 CI / `run_e2e` 前校验。
-- 变更 cap 名或路由：§6 登记表 + **SearchMode + MultiTool** + `build_tool_reference.py` + CHANGELOG。
+- 变更 cap 名或路由：§6 登记表 + **SearchMode + MultiTool** + `scripts/build_tool_reference.py` + CHANGELOG。
 
 ---
 
-*本规范由 `CapabilitySpec.md` 权威维护；`.cursor/rules/项目规范.mdc` §6 为速查索引。*
+*本规范为 Capability 元数据权威文档；§6 命名速查、§8 Utils 速查。*
 
 ---
 
 ## 8. Utils 模块规范
 
-> 新增或修改任何 `Utils/` 下的工具类时，必须遵循本节。`.cursor/rules/项目规范.mdc` §7 为速查索引。
+> 新增或修改任何 `Utils/` 下的工具类时，必须遵循本节（§8 速查）。
 
 ### 7.1 分层模型
 
@@ -319,7 +319,7 @@ public:
 
 ### 7.5 跨版本兼容（权威详版）
 
-> 速查：`.cursor/rules/项目规范.mdc` §1。`audit_capability_naming.py` 会拒绝 **NexusLink 全模块**（除 `NexusVersionCompat.h`）出现 `NX_UE_AT_LEAST(`。
+> `audit_capability_naming.py` 会拒绝 **NexusLink 全模块**（除 `NexusVersionCompat.h`）出现 `NX_UE_AT_LEAST(`。
 
 **三层分工**
 
