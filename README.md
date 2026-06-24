@@ -262,10 +262,10 @@ flowchart TB
 - **L1 C++ Automation**（`Source/NexusLinkTests/`）：纯工具函数 + 插件加载 + Capability 注册表冒烟 + `FNexusResponseCompactorUtils` 全量断言。需通过 UEEditor-Cmd 手动触发：
 
   ```bash
-  UEEditor-Cmd Nexus.uproject -ExecCmds="Automation RunTests NexusLink.; Quit" -unattended -nullrhi -NoSound -NoSplash
+  UEEditor-Cmd YourProject.uproject -ExecCmds="Automation RunTests NexusLink.; Quit" -unattended -nullrhi -NoSound -NoSplash
   ```
 
-- **L2 pytest E2E**（宿主推游戏工程 `Tests/`，如 [NexusUnreal](https://github.com/bytepine/NexusUnreal)）：通过 `call_capability` 对所有 Capability 做端到端回归（SearchMode 下调用，不依赖 MultiTool）：
+- **L2 pytest E2E**（在宿主推游戏工程的 `Tests/` 目录自行维护）：通过 `call_capability` 对所有 Capability 做端到端回归（SearchMode 下调用，不依赖 MultiTool）：
 
   ```powershell
   pip install -r Tests/requirements.txt

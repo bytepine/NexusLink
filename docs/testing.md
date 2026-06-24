@@ -1,9 +1,8 @@
 # pytest E2E 测试指南
 
-> 本指南描述在**宿主推 UE 游戏工程**中运行 NexusLink L2 回归测试。参考实现见 [NexusUnreal](https://github.com/bytepine/NexusUnreal) 的 `Tests/` 目录。
+> 本指南描述在**宿主推 UE 游戏工程**中运行 NexusLink L2 回归测试。须在工程中自建 `Tests/`、`Script/run_e2e.py` 等目录（本仓库仅提供插件源码，不含示例测试工程）。
 
-
-本目录是 NexusLink 的第二层测试（L2），通过 MCP HTTP 协议对 **3 个元工具 + 91 个 Capability**（`WITH_GAS=0` 时为 81）做真实端到端验证。第一层（L1，C++ Automation）跑 utility 单测，见 `Source/NexusLinkTests/`。
+L2 通过 MCP HTTP 协议对 **3 个元工具 + 91 个 Capability**（`WITH_GAS=0` 时为 81）做真实端到端验证。L1（C++ Automation）见 `Source/NexusLinkTests/`。
 
 ## 工具模型说明
 
@@ -43,7 +42,7 @@ pytest Tests --ue-url http://127.0.0.1:45000/stream
 ```bash
 pytest Tests \
     --ue-root "C:/Program Files/Epic Games/UE_5.4" \
-    --uproject "Nexus.uproject"
+    --uproject "/path/to/YourProject.uproject"
 ```
 
 或用 `run_e2e.py` 包装：
@@ -63,7 +62,7 @@ python Script/run_e2e.py --ue-url http://127.0.0.1:45000/stream
 
 ## 覆盖映射
 
-Tests 目录文件与原 `TEST_CHECKLIST.md` 阶段一一对应：
+Tests 目录建议按功能域拆分 `test_*.py`，与下列阶段对应：
 
 | 阶段 | 测试文件 |
 |---|---|
@@ -83,5 +82,5 @@ Tests 目录文件与原 `TEST_CHECKLIST.md` 阶段一一对应：
 
 - 写入测试**必须**走 `test_ns` fixture 得到的 `/Game/_McpTest/<ts>/` 命名空间，禁碰业务资产。
 - 任意单工具失败不影响其他用例；用例间不要共享可变状态（除 session 级 fixture）。
-- 新增 Capability → 同步在对应 `test_*.py` 写至少一个 happy-path 用例，并更新 `TEST_CHECKLIST.md`。
-- 全量回归测试依赖 NexusWork 工作区的 `mcp-regression-test` skill（需实机 UE）。
+- 新增 Capability → 同步在对应 `test_*.py` 写至少一个 happy-path 用例。
+- 全量回归需实机 UE Editor 且已勾选 **启用 MCP 服务器**。

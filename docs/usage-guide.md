@@ -114,7 +114,7 @@ NexusLink 内置端到端的 AI 使用反馈系统，**所有数据只落本地 
 ```json
 {
   "mcpServers": {
-    "nexus-unreal": {
+    "nexus-link": {
       "url": "http://127.0.0.1:45000/stream"
     }
   }
@@ -123,7 +123,7 @@ NexusLink 内置端到端的 AI 使用反馈系统，**所有数据只落本地 
 
 **CodeBuddy / Windsurf**（Streamable HTTP）：
 ```json
-"nexus-unreal": {
+"nexus-link": {
   "url": "http://127.0.0.1:45000/stream",
   "transportType": "streamable-http"
 }
@@ -247,7 +247,7 @@ sequenceDiagram
 ```json
 {
   "mcpServers": {
-    "nexus-unreal": {
+    "nexus-rider": {
       "url": "http://127.0.0.1:6800/stream"
     }
   }
@@ -307,7 +307,7 @@ sequenceDiagram
 ```json
 {
   "mcpServers": {
-    "nexus-unreal": {
+    "nexus-vscode": {
       "url": "http://127.0.0.1:6900/stream"
     }
   }
