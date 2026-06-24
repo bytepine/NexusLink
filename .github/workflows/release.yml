@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "nexus-link-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: nexus-link
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse version from tag
+        id: meta
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#nexus-link-v}"
+          if [ -z "$VERSION" ] || [ "$VERSION" = "$TAG" ]; then
+            echo "Invalid tag: $TAG" >&2
+            exit 1
+          fi
+          FILE_VERSION="$(tr -d '\r\n' < VERSION)"
+          if [ "$FILE_VERSION" != "$VERSION" ]; then
+            echo "VERSION ($FILE_VERSION) != tag ($VERSION)" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build plugin zip
+        run: |
+          python scripts/build_unreal.py --version "${{ steps.meta.outputs.version }}" --output release/
+
+      - name: Extract release notes
+        run: |
+          python scripts/extract_release_notes.py \
+            --version "${{ steps.meta.outputs.version }}" \
+            --output release-notes.md
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: NexusLink v${{ steps.meta.outputs.version }}
+          body_path: release-notes.md
+          files: release/nexus-mcp-unreal-${{ steps.meta.outputs.version }}.zip
+          generate_release_notes: false

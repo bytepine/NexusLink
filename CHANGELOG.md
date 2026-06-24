@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Chore
+
+- chore(ci): 新增 tag 触发 Release workflow，CI 自动打包并发布 GitHub Release
+
 ### Docs
 
 - docs: 架构与流程图改用 Mermaid（README、architecture、usage-guide）
