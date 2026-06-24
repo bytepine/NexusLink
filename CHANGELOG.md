@@ -7,6 +7,14 @@
 
 ## [Unreleased]
 
+### Docs
+
+- docs: README 补充发版流程（与 NexusRider / NexusVSCode 一致）
+
+### Chore
+
+- chore(ci): Release 强制 `--verify` 门禁，正文仅来源于 CHANGELOG 段落（禁手写 Release 说明）
+
 ### Fixed
 
 - fix(search_capabilities): `UNexusLinkSettings` 空指针统一防护，消除 ForwardNull 静态分析告警
