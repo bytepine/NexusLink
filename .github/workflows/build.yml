@@ -1,0 +1,28 @@
+name: Build
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  package:
+    name: nexus-link-package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify plugin descriptor
+        run: python -c "import json; json.load(open('NexusLink.uplugin'))"
+
+      - name: Package zip (smoke)
+        run: python scripts/build_unreal.py --version 0.0.0-ci --output /tmp/nexuslink-release
+
+      - name: List artifact
+        run: ls -la /tmp/nexuslink-release

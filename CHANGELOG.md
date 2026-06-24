@@ -7,13 +7,21 @@
 
 ## [Unreleased]
 
+## [1.13.1] - 2026-06-24
+
 ### Changed
 
 - docs: 插件文档迁入独立仓（README、docs/、CHANGELOG、VERSION）
+- chore: 新增 `scripts/build_unreal.py` 与 GitHub Actions 打包工作流
 
-- fix(unreal): `manage_asset_blueprint` connect 修复 `TryCreateConnection` 失败静默成功；`FindBPPin` 支持 `pinFriendlyName` 匹配；引脚未找到时列出可用 pinName；补 `manage_blueprint_wires/graph/component` 旧名映射
-- docs: 同步 v1.13.0 能力与 `tool-reference`（notifies、ProgressBar、move_node、search 别名、save deferred）；补 E2E 回归用例
-- docs: 全量文档对齐 — README 功能描述补全、ZH_DESCRIPTIONS/ZH_WHEN_TO_USE 覆写补全、SearchMode 路由与 AI_NAVIGATION 域计数修正；新增 `audit_doc_sync.py` 门禁脚本
+### Fixed
+
+- `manage_asset_blueprint` connect 修复 `TryCreateConnection` 失败静默成功；`FindBPPin` 支持 `pinFriendlyName` 匹配；引脚未找到时列出可用 pinName；补 `manage_blueprint_wires/graph/component` 旧名映射
+
+### Docs
+
+- 同步 v1.13.0 能力与 `tool-reference`（notifies、ProgressBar、move_node、search 别名、save deferred）；补 E2E 回归用例
+- 全量文档对齐 — README 功能描述补全、ZH_DESCRIPTIONS/ZH_WHEN_TO_USE 覆写补全、SearchMode 路由修正；新增 `audit_doc_sync.py` 门禁脚本
 
 ## [1.13.0] - 2026-06-23
 

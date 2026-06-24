@@ -46,6 +46,7 @@
 Binaries/
 Intermediate/
 Build/
+release/
 
 # UBT / MSBuild 中间文件
 obj/

@@ -1,5 +1,7 @@
 ﻿# NexusLink — UE MCP 插件
 
+**当前版本：1.13.1** · 仓库 [bytepine/NexusLink](https://github.com/bytepine/NexusLink)
+
 基于 Unreal Engine 的 MCP 集成插件，将 UE 项目上下文通过 MCP 协议暴露给 AI 工具。
 
 > 支持 UE 4.26 及以上所有版本（含 UE5）
@@ -267,6 +269,14 @@ NexusLink 插件
   报告输出到 `Saved/Logs/TestReport.xml`。详情见 [docs/testing.md](docs/testing.md)。
 
 **新增 Capability 时**：在宿主推游戏工程 `Tests/test_*.py` 对应阶段文件中同步添加至少一个 happy-path 用例，使用 `client.call_capability("cap_name", {...})` 调用形式。
+
+## 本地打包
+
+```bash
+py scripts/build_unreal.py --version 1.13.1 --output release/
+```
+
+产物：`release/nexus-mcp-unreal-<version>.zip`，解压到 UE 项目 `Plugins/Developer/`。
 
 ## License
 
