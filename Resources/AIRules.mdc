@@ -1,0 +1,83 @@
+---
+description: NexusLink MCP 四步工作流与禁止项（复制到项目 .cursor/rules/ 后按需填写「项目定制」段）
+alwaysApply: false
+---
+
+# NexusLink AI 工作流（IDE 侧 Rule）
+
+> **与 MCP 握手指令的分工**
+> - **InitializeInstructions**（UE 握手自动注入）：Capability 路由表、元工具约束、读写命名规范。
+> - **本 Rule**（IDE 侧挂载）：强化「先发现工具 → 再找路径 → 再读写」顺序；禁止猜 cap 名/路径；填写项目级 `pathFilter` 前缀。
+>
+> 源文件：`Plugins/Developer/NexusLink/Resources/AIRules.mdc` — 升级插件后 diff 同步到项目副本。
+
+---
+
+## 1. 四步流程（强制）
+
+涉及 UE 资产 / PIE / 蓝图 / Widget / 材质 / 行为树 / GAS / Lua 等时，**本回合必须先 MCP**，再回答：
+
+| 步 | 工具 | 说明 |
+|---|------|------|
+| 1 发现 Capability | `search_capabilities` | `query` 用 1–2 个**工具域**词（blueprint、behavior tree、gameplay ability）；**禁止**用业务功能名、资产名 |
+| 2 发现资产路径 | `search_asset` | 必须 `assetType` + 功能级 `pathFilter`；业务词/资产名片段放 `query` 或 `nameFilter` |
+| 3 读/写 | `get_asset_*` / `manage_asset_*` / `list_runtime_*` 等 | `assetPath` 等参数**只**用上一步返回的 path |
+| 4 落盘 | `save_asset` | 改过磁盘资产后必须调用 |
+
+**元工具** `search_capabilities`、`call_capability`、`submit_feedback` 须 **MCP `tools/call` 直接调用**，禁止 `call_capability(capability="search_capabilities", …)`。
+
+---
+
+## 2. 禁止项
+
+- ❌ 臆造 `get_asset` 聚合工具（正确格式：`get_asset_<type>`，如 `get_asset_blueprint`）
+- ❌ 用 `ChestPVE`、`Dice`、`Attack` 等业务词搜 `search_capabilities`
+- ❌ 猜测 `/Game/...` 路径；禁止 `assetType=all` + 裸 `/Game/` 无过滤
+- ❌ 未 `search_asset` 就调 `get_asset_*`（缺 `assetPath`）
+- ❌ 未 PIE / UnLua 未就绪就调 `eval_runtime_lua` 等运行时 Lua 工具
+- ❌ 看到 `_feedbackHint` 不 `submit_feedback`
+
+---
+
+## 3. 常见意图 → 工具链（示例）
+
+| 用户意图 | 流程 |
+|----------|------|
+| 查蓝图变量/Graph | `search_capabilities(query="blueprint")` → `search_asset(assetType=Blueprint, pathFilter=…)` → `get_asset_blueprint` |
+| 查行为树结构/装饰器 | `search_asset(assetType=BehaviorTree, …)` → `get_asset_behavior_tree` |
+| 查 GA 配置 | `search_asset(assetType=GameplayAbility, …)` → `get_asset_gameplay_ability` |
+| PIE 黑板/活动节点 | `get_runtime_actor_behavior_tree`（需 PIE） |
+| 玩法设计文档 | 走项目**知识库 MCP**（若有），不走 NexusLink 资产搜索 |
+
+---
+
+## 4. 项目定制（复制到项目后填写）
+
+> 本节仅写在**游戏项目**的 Rule 副本中，勿改插件内模板。
+
+| 项 | 填写 |
+|----|------|
+| 默认 `pathFilter` 前缀 | `<!-- 例：/Game/YourFeature/ -->` |
+| 模块/目录对照（可选） | `<!-- 例：ChestPVE → /Game/Features/ChestPVE/ -->` |
+| 项目 fork 的定制 Capability 名（可选） | `<!-- 例：无则删除本行 -->` |
+| 知识库 MCP 名（可选） | `<!-- 例：search_knowledge → 玩法文档；NexusLink → UE 资产 -->` |
+
+---
+
+## 5. 挂载方式
+
+### Cursor
+
+1. 复制本文件到游戏项目：`.cursor/rules/nexuslink-workflow.mdc`
+2. 填写 §4「项目定制」
+3. Cursor Settings → Rules：确认该 Rule 已启用（`alwaysApply: false` 时由 Agent 按 description 拉取）
+
+### Knot / 其他 IDE
+
+1. 将 §1–§3 内容粘贴为项目 Rules（与 InitializeInstructions 互补，不重复路由表）
+2. §4 填写项目信息
+
+### 维护
+
+- 插件升级后：对比 `Resources/AIRules.mdc` 与项目副本，合并通用段更新
+- Capability 路由变更：仍以 UE 内 `InitializeInstructions.*.md` 为准，本 Rule 只约束流程与禁止项

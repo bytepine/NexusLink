@@ -1,0 +1,67 @@
+# ============================================
+# NexusLink — UE 插件 .gitignore
+# ============================================
+
+# Visual Studio
+.vs/
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.ipa
+
+# UE 可重新生成的工程文件
+*.xcodeproj
+*.xcworkspace
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+
+# 插件构建产物
+Binaries/
+Intermediate/
+Build/
+
+# UBT / MSBuild 中间文件
+obj/
+bin/
+
+# 编辑器运行时反馈目录
+.nexus-feedback/
+
+# OS 生成文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日志与临时文件
+*.log
+*.tmp
+*.bak
+*.swp
+*~
