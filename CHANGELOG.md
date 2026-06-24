@@ -7,9 +7,12 @@
 
 ## [Unreleased]
 
+- chore(unreal): `NexusLink.uplugin` 声明 `GameplayAbilities` / `Niagara` 插件依赖，与 `NexusLink.Build.cs` 可选模块链接一致
+
 ### Docs
 
 - docs: README 补充发版流程（与 NexusRider / NexusVSCode 一致）
+- docs(testing): 宿主 E2E 策略——默认 headless、不可覆盖打标走 GUI、全量 `--gui`/`--full`
 
 ### Chore
 

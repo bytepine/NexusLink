@@ -83,4 +83,6 @@ Tests 目录建议按功能域拆分 `test_*.py`，与下列阶段对应：
 - 写入测试**必须**走 `test_ns` fixture 得到的 `/Game/_McpTest/<ts>/` 命名空间，禁碰业务资产。
 - 任意单工具失败不影响其他用例；用例间不要共享可变状态（除 session 级 fixture）。
 - 新增 Capability → 同步在对应 `test_*.py` 写至少一个 happy-path 用例。
-- 全量回归需实机 UE Editor 且已勾选 **启用 MCP 服务器**。
+- **默认验证**：宿主工程 `py Script/run_e2e.py`（headless，快）。
+- **命令行无法覆盖**（PIE / UnLua / 视口-RHI）→ 用例打 `l4_runtime` / `lua` / `requires_gui`；须在 `py Script/run_e2e.py --gui` 下通过。
+- **全量回归**：`--gui` 或 `--full`（GUI Editor），含上述打标用例。
