@@ -1,5 +1,7 @@
 ﻿# NexusLink — UE MCP 插件
 
+**语言 / Language**: **简体中文** · [English](README.en.md)
+
 **当前版本：1.13.1** · 仓库 [bytepine/NexusLink](https://github.com/bytepine/NexusLink)
 
 基于 Unreal Engine 的 MCP 集成插件，将 UE 项目上下文通过 MCP 协议暴露给 AI 工具。

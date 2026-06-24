@@ -11,6 +11,7 @@
 
 - docs: 架构与流程图改用 Mermaid（README、architecture、usage-guide）
 - docs: 移除对私有仓 NexusUnreal / NexusWork 的引用
+- docs: 新增英文 README（README.en.md）与中英文顶部语言切换
 
 ## [1.13.1] - 2026-06-24
 
