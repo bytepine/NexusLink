@@ -26,6 +26,10 @@ namespace
 	static ECapabilityLookupStatus ResolveCapabilityByName(
 		const FString& Name, const UNexusLinkSettings* Settings, const FCapRecord*& OutRecord)
 	{
+		if (!Settings)
+		{
+			return ECapabilityLookupStatus::NotFound;
+		}
 		OutRecord = FNexusCapabilityRegistry::Get().FindRecordByName(Name);
 		if (!OutRecord)
 		{
@@ -70,6 +74,8 @@ namespace
 	                                            const UNexusLinkSettings* Settings,
 	                                            TArray<TSharedPtr<FJsonValue>>& OutArr, int32 MaxResults = 5)
 	{
+		if (!Settings) return;
+
 		struct FScored
 		{
 			int32 Score = 0;
@@ -165,6 +171,15 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		FJsonSerializer::Serialize(Output.ToSharedRef(), W);
 		return OutStr;
 	};
+
+	if (!Settings)
+	{
+		Output->SetStringField(TEXT("errorKind"), TEXT("internal"));
+		Output->SetStringField(TEXT("error"), TEXT("NexusLink 设置不可用（引擎可能正在退出）。"));
+		Result.StructuredContent = Output;
+		Result.OutputText = SerializeOutput();
+		return Result;
+	}
 
 	// ── capabilityName 精确查询：直接返回完整参数列表 ──────────────────────────
 	FString CapabilityName;
@@ -278,7 +293,7 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 	Scored.StableSort([](const FScored& A, const FScored& B){ return A.Score > B.Score; });
 
 	const int32 TotalBeforeTrunc = Scored.Num();
-	const int32 MaxResults = Settings ? Settings->MaxSearchResults : 8;
+	const int32 MaxResults = Settings->MaxSearchResults;
 	if (!bRelaxedMatch && MaxResults > 0 && Scored.Num() > MaxResults)
 		Scored.SetNum(MaxResults);
 
