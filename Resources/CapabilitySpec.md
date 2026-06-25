@@ -240,6 +240,8 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 | Lua (13, `WITH_UNLUA`) | `eval_runtime_lua`, `dofile_runtime_lua`, `gc_runtime_lua`, `hotreload_runtime_lua`, `set_runtime_lua`, `get_runtime_lua_env`, `get_runtime_lua_value`, `get_runtime_lua_loaded`, `get_runtime_lua_stack`, `get_runtime_lua_metatable`, `get_runtime_lua_object`, `get_runtime_lua_memory`, `get_asset_lua_binding` |
 | Runtime 非标 | `diff_runtime_actors`, `get_runtime_slate_widget` |
 | GAS (`WITH_GAS=1`, 11) | `create/get/manage_asset_gameplay_ability`, `create/get/manage_asset_gameplay_effect`, `create/get/manage_asset_attribute_set`, `get_runtime_actor_ability_system`, `interact_runtime_actor_ability_system` |
+| StateTree (`WITH_STATETREE=1`, UE 5.5+, 1) | `get_asset_state_tree` |
+| MVVM (`WITH_MVVM=1`, UE 5.5+, 1) | `get_asset_view_model` |
 
 ### 6.5 禁止复活与计划缺口
 
@@ -337,7 +339,7 @@ public:
 3. 逻辑下沉 Utils（≥2 调用点或单点 ≥3 行 `#if`）；资产只读字段优先 `FNexusAssetUtils`。
 4. `build_test`：`UE_4.26` 必过；触及引擎 API 时加 `UE_5.0`、`UE_5.6`；`audit_capability_naming.py` PASS。
 
-**可选插件**：`WITH_GAS` / `WITH_NIAGARA` / `WITH_UNLUA` 整 `.cpp` 文件守卫 + `Build.cs` 探测；文件内仍禁止裸 `NX_UE_AT_LEAST`。
+**可选插件**：`WITH_GAS` / `WITH_NIAGARA` / `WITH_UNLUA` / `WITH_STATETREE` / `WITH_MVVM` 整 `.cpp` 文件守卫 + `Build.cs` 探测；文件内仍禁止裸 `NX_UE_AT_LEAST`。
 
 **已登记宏（节选，完整列表以 `NexusVersionCompat.h` 为准）**
 

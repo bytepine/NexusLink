@@ -36,7 +36,7 @@
 ---
 
 <!-- 自动生成，由 build_tool_reference.py 产出；以下内容请勿手工修改 -->
-<!-- 共 107 个 Capability + 3 个元工具 -->
+<!-- 共 109 个 Capability + 3 个元工具 -->
 
 ## 目录
 
@@ -457,6 +457,20 @@
 
 ---
 
+### `get_asset_state_tree`
+
+检查 StateTree 结构快照。Schema/States 树/Evaluators/参数；只读。UE 5.5+。
+
+**适用场景**：读 StateTree 结构：Schema/States/Evaluators/迁移/条件/参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | StateTree 资产路径（/Game/…/ST_Foo） |
+
+**相关 Capability**：`search_asset`、`get_asset_behavior_tree`、`get_asset_refs`、`save_asset`
+
+---
+
 ### `get_asset_static_mesh`
 
 检查 StaticMesh LOD、包围盒、材质槽与碰撞摘要；只读。
@@ -484,6 +498,20 @@
 | `assetPaths` | `string` |  | 多个 Texture2D 路径（批量） |
 
 **相关 Capability**：`manage_asset_texture`、`search_asset`、`get_asset_refs`、`save_asset`
+
+---
+
+### `get_asset_view_model`
+
+检查 WBP 上的 MVVM ViewModel 列表与 Binding 快照。只读。UE 5.5+。
+
+**适用场景**：读 Widget 蓝图上挂载的 MVVM ViewModel 列表、属性绑定（源↔目标/方向/转换）
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | Widget 蓝图资产路径（/Game/…/WBP_Foo） |
+
+**相关 Capability**：`get_asset_user_widget`、`manage_asset_user_widget`、`search_asset`、`get_asset_blueprint`
 
 ---
 

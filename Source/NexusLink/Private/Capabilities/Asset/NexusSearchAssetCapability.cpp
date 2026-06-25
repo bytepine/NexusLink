@@ -38,6 +38,9 @@
 #if WITH_NIAGARA
 #include "NiagaraSystem.h"
 #endif
+#if WITH_STATETREE
+#include "StateTree.h"
+#endif
 #include "NexusMcpTool.h"
 
 /** query 空白分词 AND：每个 token 须在 name/path/assetType/parentClass/rowStruct/parentMaterial 中至少一处命中。 */
@@ -91,6 +94,16 @@ static FString NormalizeAssetTypeShortcut(const FString& TypeLower)
 		return TEXT("gameplayeffect");
 	}
 #endif
+#if WITH_STATETREE
+	if (TypeLower == TEXT("st") || TypeLower == TEXT("state_tree"))
+	{
+		return TEXT("statetree");
+	}
+#endif
+	if (TypeLower == TEXT("viewmodel") || TypeLower == TEXT("mvvm"))
+	{
+		return TEXT("widget");
+	}
 	return TypeLower;
 }
 
@@ -426,6 +439,20 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		}
 #endif
 
+#if WITH_STATETREE
+		if (bIsAll || TypeLower == TEXT("statetree") || TypeLower == TEXT("state_tree"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UStateTree::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("StateTree"));
+		}
+#endif
+
 #if WITH_GAS
 		auto AddGasBlueprintEntries = [&](const TCHAR* ParentSubstr, const TCHAR* OutType)
 		{
@@ -478,6 +505,9 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			&& TypeLower != TEXT("world") && TypeLower != TEXT("level") && TypeLower != TEXT("map")
 #if WITH_NIAGARA
 			&& TypeLower != TEXT("niagarasystem") && TypeLower != TEXT("niagara_system")
+#endif
+#if WITH_STATETREE
+			&& TypeLower != TEXT("statetree") && TypeLower != TEXT("state_tree")
 #endif
 #if WITH_GAS
 			&& TypeLower != TEXT("gameplayability") && TypeLower != TEXT("gameplay_ability")

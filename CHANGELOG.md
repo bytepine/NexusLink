@@ -7,6 +7,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- feat(statetree): 新增 `get_asset_state_tree` 只读能力（UE 5.5+）：检查 `UStateTree` 资产的 Schema、SubTrees 状态树（递归 States/Tasks/EnterConditions/Transitions/Children）、Evaluators、GlobalTasks（5.5+）、参数数量
+- feat(mvvm): 新增 `get_asset_view_model` 只读能力（UE 5.5+）：从 Widget 蓝图 MVVM 扩展读取 ViewModel 列表（类/创建方式/名称）及 Binding 快照（SourcePath↔DestinationPath/BindingType/enabled/compile）
+- feat(build): `NexusLink.Build.cs` 新增 `WITH_STATETREE` / `WITH_MVVM` 可选模块探测（仿 GAS 模式）：`StateTree.uplugin` / `ModelViewViewModel.uplugin` 存在且引擎 ≥ 5.5 时自动链接；环境变量 `WITH_STATETREE` / `WITH_MVVM` 可强制开关；UE 4.26 / 5.0–5.4 编译为空
+- feat(search): `search_asset` 新增 `StateTree` / `st` 资产类型快捷词；`mvvm` / `viewmodel` 归一到 `widget` 搜索
+- feat(compat): `NexusVersionCompat.h` 新增 `NX_UE_HAS_STATETREE_GLOBAL_TASKS`（5.5+）和 `NX_UE_HAS_MVVM_EVENTS_CONDITIONS`（5.5+）语义宏
+- docs: `CapabilitySpec.md` §6.4 登记 `get_asset_state_tree` / `get_asset_view_model`；`InitializeInstructions.SearchMode.md` 补路由表行与触发关键词
+- test: 新增 `StateTreeMvvmCapabilityTests.cpp`：元数据/注册表/参数校验/无效路径四类 UE Automation 测试，覆盖 `#if WITH_STATETREE` / `#if WITH_MVVM` 门控与 `search_asset` 类型归一逻辑
+
 - chore(unreal): `NexusLink.uplugin` 声明 `GameplayAbilities` / `Niagara` 插件依赖，与 `NexusLink.Build.cs` 可选模块链接一致
 
 ### Docs

@@ -262,6 +262,88 @@ public class NexusLink : ModuleRules
 			PublicDefinitions.Add("WITH_NIAGARA=0");
 		}
 
+		// ── 可选 StateTree 支持（UE 5.5+ 且引擎 StateTree 插件存在时链接）──────────
+		// UE 5.5 以下 StateTree API 不稳定（Experimental）；5.5 起接口固化、可用于检查资产。
+		bool bHasStateTree = false;
+		bool bEngineIsUE55Plus = (Target.Version.MajorVersion > 5)
+			|| (Target.Version.MajorVersion == 5 && Target.Version.MinorVersion >= 5);
+
+		if (bEngineIsUE55Plus)
+		{
+			foreach (string Dir in PluginSearchDirs)
+			{
+				if (bHasStateTree) break;
+				try
+				{
+					foreach (string File in System.IO.Directory.GetFiles(
+						Dir, "StateTree.uplugin", System.IO.SearchOption.AllDirectories))
+					{
+						bHasStateTree = true;
+						break;
+					}
+				}
+				catch (System.Exception) { }
+			}
+		}
+
+		string EnvStateTree = System.Environment.GetEnvironmentVariable("WITH_STATETREE");
+		if (EnvStateTree == "1") bHasStateTree = true;
+		if (EnvStateTree == "0") bHasStateTree = false;
+
+		if (bHasStateTree)
+		{
+			PrivateDependencyModuleNames.Add("StateTreeModule");
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("StateTreeEditorModule");
+			}
+			PublicDefinitions.Add("WITH_STATETREE=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_STATETREE=0");
+		}
+
+		// ── 可选 UMG MVVM 支持（UE 5.5+ 且引擎 ModelViewViewModel 插件存在时链接）──
+		// MVVM 自 UE 5.1 引入，但 5.5 起 API 稳定可靠；编辑器侧数据在 Blueprint 扩展中。
+		bool bHasMvvm = false;
+
+		if (bEngineIsUE55Plus)
+		{
+			foreach (string Dir in PluginSearchDirs)
+			{
+				if (bHasMvvm) break;
+				try
+				{
+					foreach (string File in System.IO.Directory.GetFiles(
+						Dir, "ModelViewViewModel.uplugin", System.IO.SearchOption.AllDirectories))
+					{
+						bHasMvvm = true;
+						break;
+					}
+				}
+				catch (System.Exception) { }
+			}
+		}
+
+		string EnvMvvm = System.Environment.GetEnvironmentVariable("WITH_MVVM");
+		if (EnvMvvm == "1") bHasMvvm = true;
+		if (EnvMvvm == "0") bHasMvvm = false;
+
+		if (bHasMvvm)
+		{
+			PrivateDependencyModuleNames.Add("ModelViewViewModel");
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("ModelViewViewModelBlueprint");
+			}
+			PublicDefinitions.Add("WITH_MVVM=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_MVVM=0");
+		}
+
 		if (bHasUnLua)
 		{
 			PublicDependencyModuleNames.Add("Lua");

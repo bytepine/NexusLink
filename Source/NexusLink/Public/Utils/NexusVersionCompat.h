@@ -60,6 +60,12 @@
 #define NX_UE_HAS_TAG_SEARCHABLE_REFERENCERS NX_UE_AT_LEAST(5, 0) // AssetRegistry GetReferencers(SearchableName) 按 GameplayTag 查引用
 #define NX_UE_HAS_K2_PIN_REAL              NX_UE_AT_LEAST(5, 0) // UEdGraphSchema_K2::PC_Real（UE4 仅 PC_Float）
 
+// ── StateTree 版本兼容 ──
+// UE5.5 起 UStateTreeEditorData 新增 GlobalTasks 字段（全局任务节点列表）
+#define NX_UE_HAS_STATETREE_GLOBAL_TASKS       NX_UE_AT_LEAST(5, 5)
+// UE5.5 起 UMVVMBlueprintView 新增 Events/Conditions 字段
+#define NX_UE_HAS_MVVM_EVENTS_CONDITIONS       NX_UE_AT_LEAST(5, 5)
+
 // ── UnLua 版本兼容 ──
 // UNLUA_VERSION_MAJOR 由 NexusLink.Build.cs 从 UnLua.uplugin VersionName 自动注入
 // 1.X: FLuaContext + GLuaCxt，无 HotReload

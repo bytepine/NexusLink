@@ -6,7 +6,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 
 `UE` `Unreal` `蓝图` `Blueprint` `资产` `Asset` `Widget` `UMG` `材质` `Material`
 `行为树` `BehaviorTree` `动画蓝图` `ABP` `DataAsset` `数据表` `DataTable`
-`PIE` `Actor` `GAS` `GameplayAbility` `Niagara` `关卡` `Level` `Lua`
+`PIE` `Actor` `GAS` `GameplayAbility` `Niagara` `StateTree` `状态树` `MVVM` `ViewModel` `关卡` `Level` `Lua`
 `Montage` `黑板` `Blackboard` `骨骼` `Skeleton` `贴图` `Texture`
 
 ## 首要动作（强制）
@@ -47,6 +47,8 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 | 播放/停止蒙太奇（PIE） | `interact_runtime_actor_animation`（`action=play_montage|stop_montage|…`） |
 | PIE 技能/GE/属性快照 | `get_runtime_actor_ability_system` |
 | PIE 施放技能 / Apply GE / 改属性 | `interact_runtime_actor_ability_system` |
+| StateTree 结构（States/Tasks/Transitions/Evaluators） | `get_asset_state_tree`（需引擎启用 StateTree，UE 5.5+） |
+| Widget 蓝图 MVVM ViewModel 列表 / Binding 绑定 | `get_asset_view_model`（需引擎启用 MVVM，UE 5.5+） |
 | 未知 Capability | `search_capabilities`（直接调 MCP 元工具） |
 
 ## 工具模型
