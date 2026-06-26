@@ -84,14 +84,17 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install markdown-link-check
         run: npm install -g markdown-link-check
 
       - name: Check markdown links
         run: |
-          find . -name "*.md" -not -path "./.git/*" \
-            | xargs -I{} markdown-link-check {} --config .mlc-config.json
+          STATUS=0
+          while IFS= read -r file; do
+            markdown-link-check "$file" --config .mlc-config.json --quiet || STATUS=1
+          done < <(find . -name "*.md" -not -path "./.git/*")
+          exit $STATUS

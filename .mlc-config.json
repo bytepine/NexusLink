@@ -2,11 +2,14 @@
   "ignorePatterns": [
     { "pattern": "^http://127\\.0\\.0\\.1" },
     { "pattern": "^http://localhost" },
+    { "pattern": "^https://github\\.com" },
     { "pattern": "^https://marketplace\\.visualstudio\\.com" },
-    { "pattern": "^https://open-vsx\\.org" }
+    { "pattern": "^https://open-vsx\\.org" },
+    { "pattern": "^https://keepachangelog\\.com" },
+    { "pattern": "^https://semver\\.org" }
   ],
   "retryOn429": true,
-  "retryCount": 3,
-  "fallbackRetryDelay": "30s",
+  "retryCount": 2,
+  "fallbackRetryDelay": "10s",
   "aliveStatusCodes": [200, 206]
 }
