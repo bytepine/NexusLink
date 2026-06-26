@@ -18,11 +18,80 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Verify plugin descriptor
-        run: python -c "import json; json.load(open('NexusLink.uplugin'))"
+      - name: Validate JSON files
+        run: |
+          python -c "import json; json.load(open('NexusLink.uplugin'))"
+          python -c "import json; json.load(open('Resources/ProxyConfig.json'))"
+
+      - name: Validate VERSION format
+        run: |
+          python -c "
+          import re, sys
+          v = open('VERSION').read().strip()
+          if not re.fullmatch(r'\d+\.\d+\.\d+(\S*)?', v):
+              print(f'[ERROR] Invalid VERSION: {v}', file=sys.stderr); sys.exit(1)
+          print(f'[OK] VERSION: {v}')
+          "
+
+      - name: Validate CHANGELOG structure
+        run: |
+          python -c "
+          import re, sys
+          text = open('CHANGELOG.md', encoding='utf-8').read()
+          sections = re.findall(r'^## \[([^\]]+)\]', text, re.MULTILINE)
+          if not sections:
+              print('[ERROR] CHANGELOG.md has no sections', file=sys.stderr); sys.exit(1)
+          if 'Unreleased' not in sections:
+              print('[ERROR] CHANGELOG.md missing [Unreleased] section', file=sys.stderr); sys.exit(1)
+          released = [s for s in sections if s != 'Unreleased']
+          print(f'[OK] CHANGELOG.md: {len(released)} released versions, [Unreleased] present')
+          "
+
+      - name: Smoke-run build_tool_reference.py
+        continue-on-error: true
+        run: |
+          python scripts/build_tool_reference.py
+          git diff --exit-code docs/tool-reference.md \
+            || echo "[WARN] docs/tool-reference.md may be out of date (run: python scripts/build_tool_reference.py)"
 
       - name: Package zip (smoke)
         run: python scripts/build_unreal.py --version 0.0.0-ci --output /tmp/nexuslink-release
 
       - name: List artifact
         run: ls -la /tmp/nexuslink-release
+
+  scripts-test:
+    name: nexus-link-scripts-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test deps
+        run: pip install pytest
+
+      - name: Run script unit tests
+        run: pytest scripts/tests/ -v
+
+  link-check:
+    name: nexus-link-markdown-links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install markdown-link-check
+        run: npm install -g markdown-link-check
+
+      - name: Check markdown links
+        run: |
+          find . -name "*.md" -not -path "./.git/*" \
+            | xargs -I{} markdown-link-check {} --config .mlc-config.json

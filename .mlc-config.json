@@ -1,0 +1,12 @@
+{
+  "ignorePatterns": [
+    { "pattern": "^http://127\\.0\\.0\\.1" },
+    { "pattern": "^http://localhost" },
+    { "pattern": "^https://marketplace\\.visualstudio\\.com" },
+    { "pattern": "^https://open-vsx\\.org" }
+  ],
+  "retryOn429": true,
+  "retryCount": 3,
+  "fallbackRetryDelay": "30s",
+  "aliveStatusCodes": [200, 206]
+}
