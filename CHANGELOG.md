@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Chore
+
+- chore: 更新插件图标 `Resources/Icon128.png`（128×128），与 Rider / VSCode 代理统一为六边形 + 连接枢纽品牌视觉
+
 ### Added
 
 - feat(statetree): 新增 `get_asset_state_tree` 只读能力（UE 5.5+）：检查 `UStateTree` 资产的 Schema、SubTrees 状态树（递归 States/Tasks/EnterConditions/Transitions/Children）、Evaluators、GlobalTasks（5.5+）、参数数量
