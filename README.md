@@ -2,7 +2,7 @@
 
 **语言 / Language**: **简体中文** · [English](README.en.md)
 
-**当前版本：1.13.1** · 仓库 [bytepine/NexusLink](https://github.com/bytepine/NexusLink)
+仓库：[bytepine/NexusLink](https://github.com/bytepine/NexusLink)
 
 基于 Unreal Engine 的 MCP 集成插件，将 UE 项目上下文通过 MCP 协议暴露给 AI 工具。
 
@@ -282,7 +282,7 @@ flowchart TB
 ## 本地打包
 
 ```bash
-py scripts/build_unreal.py --version 1.13.1 --output release/
+py scripts/build_unreal.py --version <version> --output release/
 ```
 
 产物：`release/nexus-mcp-unreal-<version>.zip`，解压到 UE 项目 `Plugins/Developer/`。

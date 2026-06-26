@@ -2,7 +2,7 @@
 
 # NexusLink — UE MCP Plugin
 
-**Current version: 1.13.1** · Repository [bytepine/NexusLink](https://github.com/bytepine/NexusLink)
+Repository: [bytepine/NexusLink](https://github.com/bytepine/NexusLink)
 
 An MCP integration plugin for Unreal Engine that exposes UE project context to AI tools via the MCP protocol.
 
@@ -282,7 +282,7 @@ Two-layer automation framework:
 ## Local Packaging
 
 ```bash
-py scripts/build_unreal.py --version 1.13.1 --output release/
+py scripts/build_unreal.py --version <version> --output release/
 ```
 
 Output: `release/nexus-mcp-unreal-<version>.zip` — extract to UE project `Plugins/Developer/`.

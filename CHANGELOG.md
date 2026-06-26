@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Docs
+
+- docs: README 移除「当前版本」行与本地打包示例中的具体版本号（改为 `<version>` 占位），避免随发版漂移；保留 UE 4.26+ 兼容声明
+
 ### Chore
 
 - chore: 更新插件图标 `Resources/Icon128.png`（128×128），与 Rider / VSCode 代理统一为六边形 + 连接枢纽品牌视觉
