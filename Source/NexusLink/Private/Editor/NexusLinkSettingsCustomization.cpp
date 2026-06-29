@@ -402,6 +402,30 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 				return FReply::Handled();
 			})
 		]
+		// 浏览器预填 GitHub Issue
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(0.0f, 2.0f, 4.0f, 6.0f)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("FbCreateIssue", "创建 GitHub Issue"))
+			.ToolTipText(LOCTEXT("FbCreateIssueTip", "根据当前反馈数据在浏览器打开 GitHub Issue 预填页（需手动提交）"))
+			.OnClicked_Lambda([]() -> FReply
+			{
+				if (FNexusFeedback::GetRecordCount() == 0)
+				{
+					FMessageDialog::Open(EAppMsgType::Ok,
+						LOCTEXT("FbIssueEmpty", "暂无反馈数据，请先使用 search_capabilities / call_capability 等工具触发记录。"));
+					return FReply::Handled();
+				}
+				if (!FNexusFeedback::OpenIssuePrefillInBrowser())
+				{
+					FMessageDialog::Open(EAppMsgType::Ok,
+						LOCTEXT("FbIssueFailed", "无法打开浏览器预填页，请检查 Issue 目标仓库设置。"));
+				}
+				return FReply::Handled();
+			})
+		]
 		// 清空
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -416,12 +440,12 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 					LOCTEXT("FbClearConfirm", "确定要清空所有反馈数据吗？此操作不可撤销。"));
 				if (Ret == EAppReturnType::Yes)
 				{
-			FNexusFeedback::Clear();
-			}
-			return FReply::Handled();
-		})
-	]
-];
+					FNexusFeedback::Clear();
+				}
+				return FReply::Handled();
+			})
+		]
+	];
 
 	// ── MCP Capabilities 分类 ────────────────────────────────────────────────
 	IDetailCategoryBuilder& CapCategory = DetailBuilder.EditCategory(

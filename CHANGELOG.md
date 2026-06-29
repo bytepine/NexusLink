@@ -9,6 +9,7 @@
 
 ### Fixed
 
+- fix(compat): `BuildRedactedArgsSnapshot` 使用 `FString(*Pair.Key)` 替换直接赋值，修复 UE 5.8 中 `FJsonObject::Values` Key 类型由 `FString` 变更为 `UE::FSharedString` 导致的 C2664 编译错误；全版本（UE 4.26–5.8）PASS=10
 - fix(ci): link-check 忽略 Markdown 页内锚点（`#...`）；`markdown-link-check` 无法校验中文标题 fragment，会误报 404
 
 ### Docs
@@ -20,6 +21,14 @@
 - chore: 更新插件图标 `Resources/Icon128.png`（128×128），与 Rider / VSCode 代理统一为六边形 + 连接枢纽品牌视觉
 
 ### Added
+
+- feat(feedback): 报告/环境/指纹增强（P2）——`BuildEnvironmentBlock` 补充 `ToolsListMode`（SearchMode/MultiTool）、反馈条数与时间窗（最早 ts ~ 最晚 ts）；Markdown 报告新增 §8「错误指纹 Top 5（去重聚合）」（`NormalizeForThrottle(errorText)` 做指纹归并，表格含指纹/次数/代表样本）；Issue 草稿新增「搜索无命中 Top Query」段（`search_zero` 条目 Top 5 query 汇总）；测试补齐：报告含 §8 段、环境含 `ToolsListMode`
+
+- feat(feedback): ArgsDigest 改脱敏参数快照——`call_arg_invalid`/`call_fatal` 两类自动埋点的 `ArgsDigest` 字段从「参数 key 名列表」改为脱敏 condensed JSON 摘要：敏感 key（`password/token/secret/apikey/api_key`，大小写不敏感）值替换为 `"<redacted>"`，整体截断 200 字符；`FNexusFeedback::BuildRedactedArgsSnapshot` 提升为公开 API（可测试）；`NexusLink.Feedback.RedactedArgsSnapshot` 自动化测试覆盖：普通 key 保留、敏感 key 脱敏、超长截断、空参数四档
+
+- feat(feedback): Issue 草稿排障增强——`BuildIssueDraftFromRecords` 新增「## 最小复现（自动选取）」块（按权重 `call_arg_invalid×30 > call_fatal×30 > misuse×20 > …` 选 Top1 记录，输出 `ts/tool/capability/errorText/argsDigest/attemptedArgs/actualError/expectedField/query`）；「AI 上报」段改为结构化字段优先（`attemptedArgs/actualError/expectedField` 各成行，`note` 作补充）；Issue 标题改为 `[NexusLink] <capability>: <规则化错误>` 而非分类计数；`IssuePrefill` 自动化测试补齐断言（标题含 capability、正文含「最小复现」/`attemptedArgs`/`expectedField`/AI 上报段）
+
+- feat(feedback): 浏览器预填 GitHub Issue——`UNexusLinkSettings` 新增可配置 `FeedbackIssueRepo`（`owner/repo` 或 GitHub URL，默认 `bytepine/NexusLink`）；设置面板 **创建 GitHub Issue** 按钮读取当前 `feedback.jsonl` 生成标题/正文并在浏览器打开 `issues/new?title=&body=`（不清空数据）；`ExportReport` 报告末尾新增 §8 预填草稿与链接；`FNexusFeedback::BuildIssueDraft` / `BuildIssuePrefillUrl` / `OpenIssuePrefillInBrowser` 公开 API
 
 - feat(statetree): 新增 `get_asset_state_tree` 只读能力（UE 5.5+）：检查 `UStateTree` 资产的 Schema、SubTrees 状态树（递归 States/Tasks/EnterConditions/Transitions/Children）、Evaluators、GlobalTasks（5.5+）、参数数量
 - feat(mvvm): 新增 `get_asset_view_model` 只读能力（UE 5.5+）：从 Widget 蓝图 MVVM 扩展读取 ViewModel 列表（类/创建方式/名称）及 Binding 快照（SourcePath↔DestinationPath/BindingType/enabled/compile）

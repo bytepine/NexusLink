@@ -26,6 +26,8 @@ struct FCallCapabilityRedundantEntry
 static FCriticalSection GCallCapabilityRedundantMutex;
 static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 
+// 脱敏参数快照统一走 FNexusFeedback::BuildRedactedArgsSnapshot（公开 API，避免重复实现）。
+
 	/** 从 cap 的 Inner arguments 中提取首个 identity 字段值（用于 redundant_call key）。 */
 	static FString ExtractIdentityKey(const TSharedPtr<FJsonObject>& Inner)
 	{
@@ -213,12 +215,7 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 
 		if (!CapResult.FatalError.IsEmpty())
 		{
-			FString Digest;
-			for (const auto& Pair : Inner->Values)
-			{
-				if (!Digest.IsEmpty()) Digest += TEXT(",");
-				Digest += Pair.Key;
-			}
+			const FString Digest = FNexusFeedback::BuildRedactedArgsSnapshot(Inner);
 
 			if (CapResult.bIsArgInvalid)
 			{

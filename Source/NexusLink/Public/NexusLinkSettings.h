@@ -185,6 +185,16 @@ public:
 	int32 MaxArchiveCount = 20;
 
 	/**
+	 * GitHub Issue 预填目标仓库。
+	 * 支持 `owner/repo`（默认 bytepine/NexusLink）或完整 GitHub 仓库/Issue 页 URL。
+	 * 用于设置面板「创建 GitHub Issue」与导出报告中的预填链接。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "AI 反馈",
+		meta = (DisplayName = "Issue 目标仓库",
+			ToolTip = "owner/repo 或 https://github.com/owner/repo；留空则默认 bytepine/NexusLink"))
+	FString FeedbackIssueRepo;
+
+	/**
 	 * 已禁用的 Capability 名集合（cap 名全局唯一，不再带 host 前缀）。
 	 * 首次启动默认全部启用，可在设置面板按分类切换。
 	 */

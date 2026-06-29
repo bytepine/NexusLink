@@ -63,6 +63,28 @@ struct NEXUSLINK_API FNexusFeedback
 	 */
 	static FString ExportReport();
 
+	/** Issue 预填草稿（标题 + Markdown 正文）。 */
+	struct FIssueDraft
+	{
+		FString Title;
+		FString Body;
+	};
+
+	/** 从当前 feedback.jsonl 生成 Issue 草稿（不清空、不归档）。 */
+	static bool BuildIssueDraft(FIssueDraft& OutDraft);
+
+	/** 构建 GitHub issues/new 预填 URL（title/body 经 UrlEncode）。 */
+	static FString BuildIssuePrefillUrl(const FString& Title, const FString& Body);
+
+	/** 读取当前 pending 反馈并在浏览器打开 GitHub Issue 预填页；无数据返回 false。 */
+	static bool OpenIssuePrefillInBrowser();
+
+	/**
+	 * 构建脱敏参数快照（condensed JSON，敏感 key 值替换为 "<redacted>"，截断 200 字符）。
+	 * 供测试与调试使用；生产路径由 call_capability 内部自动调用。
+	 */
+	static FString BuildRedactedArgsSnapshot(const TSharedPtr<FJsonObject>& Args);
+
 	/** 清空主 feedback.jsonl（不归档）。 */
 	static void Clear();
 

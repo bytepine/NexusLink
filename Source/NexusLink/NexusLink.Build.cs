@@ -26,6 +26,7 @@ public class NexusLink : ModuleRules
 				"Networking",
 				"Json",
 				"JsonUtilities",
+				"HTTP",
 				// UE 5.0+ 将模块 HttpServer 重命名为 HTTPServer
 				Target.GetType().GetProperty("Version") != null ? "HTTPServer" : "HttpServer",
 				"WebSocketNetworking",

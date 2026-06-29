@@ -10,9 +10,15 @@
 #include "Serialization/JsonReader.h"
 #include "HAL/FileManager.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/PlatformProcess.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/DateTime.h"
+#include "Misc/App.h"
+#include "Misc/EngineVersion.h"
+#include "GenericPlatform/GenericPlatformHttp.h"
+#include "GenericPlatform/GenericPlatformProperties.h"
+#include "Interfaces/IPluginManager.h"
 #include "Internationalization/Regex.h"
 
 // ── 进程内节流表（category+capability+errorPrefix → 上次记录时间）─────────────
@@ -236,6 +242,440 @@ namespace NexusFeedbackInternal
 		FString V;
 		O->TryGetStringField(Key, V);
 		return V;
+	}
+
+	/** 读取 jsonl 文件为记录数组；文件不存在或为空时返回空数组。 */
+	static TArray<TSharedPtr<FJsonObject>> LoadRecordsFromJsonl(const FString& JsonlFile)
+	{
+		TArray<TSharedPtr<FJsonObject>> Result;
+		if (!IFileManager::Get().FileExists(*JsonlFile))
+		{
+			return Result;
+		}
+		TArray<FString> Lines;
+		if (!FFileHelper::LoadFileToStringArray(Lines, *JsonlFile))
+		{
+			return Result;
+		}
+		return ParseLines(Lines);
+	}
+
+	static TArray<TSharedPtr<FJsonObject>> LoadCurrentRecords()
+	{
+		return LoadRecordsFromJsonl(FNexusFeedback::GetFeedbackDir() / TEXT("feedback.jsonl"));
+	}
+
+	/** 解析设置中的仓库字段，得到 issues/new 基础 URL。 */
+	static FString ResolveIssueNewBaseUrl()
+	{
+		const UNexusLinkSettings* S = UNexusLinkSettings::Get();
+		FString Input = S ? S->FeedbackIssueRepo.TrimStartAndEnd() : FString();
+		if (Input.IsEmpty())
+		{
+			Input = TEXT("bytepine/NexusLink");
+		}
+
+		auto BuildFromOwnerRepo = [](const FString& OwnerRepo) -> FString
+		{
+			return FString::Printf(TEXT("https://github.com/%s/issues/new"), *OwnerRepo);
+		};
+
+		if (Input.Contains(TEXT("github.com"), ESearchCase::IgnoreCase))
+		{
+			FString OwnerRepo;
+			const int32 HostIdx = Input.Find(TEXT("github.com"), ESearchCase::IgnoreCase);
+			FString AfterHost = Input.Mid(HostIdx + FString(TEXT("github.com")).Len());
+			AfterHost.TrimStartInline();
+			if (AfterHost.StartsWith(TEXT("/"))) AfterHost = AfterHost.Mid(1);
+			if (AfterHost.StartsWith(TEXT(":"))) AfterHost = AfterHost.Mid(1);
+			TArray<FString> Parts;
+			AfterHost.ParseIntoArray(Parts, TEXT("/"), true);
+			if (Parts.Num() >= 2)
+			{
+				FString Repo = Parts[1];
+				Repo.RemoveFromEnd(TEXT(".git"));
+				int32 QPos = INDEX_NONE;
+				if (Repo.FindChar(TEXT('?'), QPos)) Repo = Repo.Left(QPos);
+				if (Repo.FindChar(TEXT('#'), QPos)) Repo = Repo.Left(QPos);
+				OwnerRepo = Parts[0] / Repo;
+				return BuildFromOwnerRepo(OwnerRepo);
+			}
+		}
+
+		if (!Input.Contains(TEXT("://")))
+		{
+			return BuildFromOwnerRepo(Input);
+		}
+
+		return BuildFromOwnerRepo(TEXT("bytepine/NexusLink"));
+	}
+
+	/** 环境指纹行（Issue 正文头），可选接受记录集合以填充条数与时间窗。 */
+	static FString BuildEnvironmentBlock(
+		const TArray<TSharedPtr<FJsonObject>>* Records = nullptr)
+	{
+		FString PluginVer = TEXT("unknown");
+		if (const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("NexusLink")))
+		{
+			PluginVer = Plugin->GetDescriptor().VersionName;
+			if (PluginVer.IsEmpty())
+			{
+				PluginVer = FString::FromInt(Plugin->GetDescriptor().Version);
+			}
+		}
+
+		const UNexusLinkSettings* S = UNexusLinkSettings::Get();
+		const FString ToolsMode = (S && S->ToolsListMode == ENexusToolsListMode::MultiTool)
+			? TEXT("MultiTool") : TEXT("SearchMode");
+
+		const FEngineVersion EngVer     = FEngineVersion::Current();
+		const FString PlatformName      = FString(ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
+		const TCHAR*  ProjectName       = FApp::GetProjectName();
+		FString Md;
+		Md += TEXT("## 环境\n\n");
+		Md += FString::Printf(
+			TEXT("- UE %d.%d.%d · NexusLink %s · %s\n"),
+			EngVer.GetMajor(), EngVer.GetMinor(), EngVer.GetPatch(),
+			*PluginVer, *PlatformName);
+		Md += FString::Printf(TEXT("- 项目: %s · ToolsListMode: %s\n"),
+			ProjectName ? ProjectName : TEXT("(unknown)"), *ToolsMode);
+
+		// 条数 + 时间窗（仅在有记录时输出）
+		if (Records && Records->Num() > 0)
+		{
+			FString EarliestTs, LatestTs;
+			for (const auto& R : *Records)
+			{
+				const FString Ts = GetStr(R, TEXT("ts"));
+				if (Ts.IsEmpty()) continue;
+				if (EarliestTs.IsEmpty() || Ts < EarliestTs) EarliestTs = Ts;
+				if (LatestTs.IsEmpty()   || Ts > LatestTs)   LatestTs   = Ts;
+			}
+			Md += FString::Printf(TEXT("- 反馈条数: %d"), Records->Num());
+			if (!EarliestTs.IsEmpty())
+			{
+				Md += FString::Printf(TEXT(" · 时间窗: %s ~ %s"), *EarliestTs, *LatestTs);
+			}
+			Md += TEXT("\n");
+		}
+
+		Md += TEXT("\n");
+		return Md;
+	}
+
+	/** 加权优先级：category → int，值越大越优先作为最小复现代表。 */
+	static int32 CategoryWeight(const FString& Cat)
+	{
+		if (Cat == TEXT("call_arg_invalid")) return 30;
+		if (Cat == TEXT("call_fatal"))       return 30;
+		if (Cat == TEXT("misuse"))           return 20;
+		if (Cat == TEXT("schema_guess"))     return 20;
+		if (Cat == TEXT("wrong_tool"))       return 20;
+		if (Cat == TEXT("call_unknown"))     return 15;
+		if (Cat == TEXT("call_disabled"))    return 10;
+		if (Cat == TEXT("redundant_call"))   return  5;
+		if (Cat == TEXT("slow_call"))        return  5;
+		return 1;
+	}
+
+	/** 从记录生成 Issue 标题与正文（正文不含 URL 长度兜底截断）。 */
+	static void BuildIssueDraftFromRecords(const TArray<TSharedPtr<FJsonObject>>& Records,
+	                                       FString& OutTitle, FString& OutBody)
+	{
+		OutTitle.Reset();
+		OutBody.Reset();
+		if (Records.Num() == 0)
+		{
+			return;
+		}
+
+		// ── 分类计数 ──────────────────────────────────────────────────────────
+		TMap<FString, int32> CatCount;
+		for (const auto& R : Records)
+		{
+			const FString Cat = GetStr(R, TEXT("category"));
+			if (!Cat.IsEmpty())
+			{
+				int32& V = CatCount.FindOrAdd(Cat);
+				V++;
+			}
+		}
+
+		TArray<TPair<FString, int32>> CatArr;
+		for (const auto& P : CatCount) CatArr.Add(P);
+		CatArr.Sort([](const TPair<FString, int32>& A, const TPair<FString, int32>& B)
+		{
+			const int32 WA = CategoryWeight(A.Key);
+			const int32 WB = CategoryWeight(B.Key);
+			if (WA != WB) return WA > WB;
+			return A.Value > B.Value;
+		});
+
+		// ── 选最小复现代表记录（按权重）────────────────────────────────────
+		TSharedPtr<FJsonObject> BestRecord;
+		int32 BestWeight = -1;
+		for (const auto& R : Records)
+		{
+			const FString Cat = GetStr(R, TEXT("category"));
+			const int32 W = CategoryWeight(Cat);
+			if (W > BestWeight)
+			{
+				BestWeight = W;
+				BestRecord = R;
+			}
+		}
+
+		// ── 标题：优先 [NexusLink] <capability>: <规则化错误> ─────────────
+		if (BestRecord.IsValid())
+		{
+			const FString Cap = GetStr(BestRecord, TEXT("capability"));
+			const FString Err = GetStr(BestRecord, TEXT("errorText"));
+			if (!Cap.IsEmpty() && !Err.IsEmpty())
+			{
+				const FString NormErr = ::NormalizeForThrottle(Err);
+				OutTitle = FString::Printf(TEXT("[NexusLink] %s: %s"), *Cap, *NormErr);
+			}
+			else if (!Cap.IsEmpty())
+			{
+				const FString Cat = GetStr(BestRecord, TEXT("category"));
+				OutTitle = FString::Printf(TEXT("[NexusLink] %s (%s)"), *Cap, *Cat);
+			}
+		}
+
+		// 回退：category×N 形式
+		if (OutTitle.IsEmpty())
+		{
+			OutTitle = TEXT("[NexusLink Feedback] ");
+			int32 TitleParts = 0;
+			for (const auto& P : CatArr)
+			{
+				if (TitleParts >= 3) break;
+				if (TitleParts > 0) OutTitle += TEXT(" · ");
+				OutTitle += FString::Printf(TEXT("%s×%d"), *P.Key, P.Value);
+				TitleParts++;
+			}
+		}
+		if (OutTitle.Len() > 120) OutTitle = OutTitle.Left(117) + TEXT("...");
+
+		// ── 环境 ──────────────────────────────────────────────────────────────
+		OutBody += BuildEnvironmentBlock(&Records);
+
+		// ── 最小复现（自动选取）──────────────────────────────────────────────
+		if (BestRecord.IsValid())
+		{
+			OutBody += TEXT("## 最小复现（自动选取）\n\n");
+			const auto AppendField = [&](const TCHAR* Label, const FString& Val)
+			{
+				if (!Val.IsEmpty())
+				{
+					const FString Snip = Val.Len() > 200 ? Val.Left(200) + TEXT("…") : Val;
+					OutBody += FString::Printf(TEXT("- **%s**: `%s`\n"), Label, *Snip);
+				}
+			};
+			AppendField(TEXT("时间"),         GetStr(BestRecord, TEXT("ts")));
+			AppendField(TEXT("category"),     GetStr(BestRecord, TEXT("category")));
+			AppendField(TEXT("tool"),         GetStr(BestRecord, TEXT("tool")));
+			AppendField(TEXT("capability"),   GetStr(BestRecord, TEXT("capability")));
+			AppendField(TEXT("errorText"),    GetStr(BestRecord, TEXT("errorText")));
+			AppendField(TEXT("argsDigest"),   GetStr(BestRecord, TEXT("argsDigest")));
+			AppendField(TEXT("attemptedArgs"),GetStr(BestRecord, TEXT("attemptedArgs")));
+			AppendField(TEXT("actualError"),  GetStr(BestRecord, TEXT("actualError")));
+			AppendField(TEXT("expectedField"),GetStr(BestRecord, TEXT("expectedField")));
+			AppendField(TEXT("query"),        GetStr(BestRecord, TEXT("query")));
+			OutBody += TEXT("\n");
+		}
+
+		// ── 摘要 ──────────────────────────────────────────────────────────────
+		OutBody += FString::Printf(TEXT("## 摘要\n\n总条数：**%d**\n\n"), Records.Num());
+		OutBody += TEXT("| category | 次数 |\n|---|---|\n");
+		for (const auto& P : CatArr)
+		{
+			OutBody += FString::Printf(TEXT("| `%s` | %d |\n"), *P.Key, P.Value);
+		}
+		OutBody += TEXT("\n");
+
+		// ── search_zero Top query（仅在 Issue 草稿中展示，Markdown §2 有更详细版本）──
+		{
+			TMap<FString, int32> QueryCount;
+			for (const auto& R : Records)
+			{
+				if (GetStr(R, TEXT("category")) != TEXT("search_zero")) continue;
+				const FString Q = GetStr(R, TEXT("query"));
+				if (!Q.IsEmpty()) { int32& V = QueryCount.FindOrAdd(Q); V++; }
+			}
+			if (QueryCount.Num() > 0)
+			{
+				TArray<TPair<FString, int32>> QArr;
+				for (const auto& P : QueryCount) QArr.Add(P);
+				QArr.Sort([](const TPair<FString, int32>& A, const TPair<FString, int32>& B)
+				{
+					return A.Value > B.Value;
+				});
+				OutBody += TEXT("## 搜索无命中 Top Query\n\n");
+				int32 Shown = 0;
+				for (const auto& P : QArr)
+				{
+					if (++Shown > 5) break;
+					OutBody += FString::Printf(TEXT("- `%s` ×%d\n"), *P.Key, P.Value);
+				}
+				OutBody += TEXT("\n");
+			}
+		}
+
+		// ── Top Capability 误用（call_*）─────────────────────────────────────
+		{
+			TMap<FString, int32> CapTotal;
+			TMap<FString, FString> CapSample;
+			for (const auto& R : Records)
+			{
+				const FString Cat = GetStr(R, TEXT("category"));
+				if (!Cat.StartsWith(TEXT("call_"))) continue;
+				const FString Cap    = GetStr(R, TEXT("capability"));
+				const FString CapKey = Cap.IsEmpty() ? TEXT("(unknown)") : Cap;
+				int32& V = CapTotal.FindOrAdd(CapKey);
+				V++;
+				if (!CapSample.Contains(CapKey))
+				{
+					const FString Err = GetStr(R, TEXT("errorText"));
+					if (!Err.IsEmpty()) CapSample.Add(CapKey, Err);
+				}
+			}
+			if (CapTotal.Num() > 0)
+			{
+				OutBody += TEXT("## Top Capability 误用\n\n");
+				TArray<TPair<FString, int32>> CapArr;
+				for (const auto& P : CapTotal) CapArr.Add(P);
+				CapArr.Sort([](const TPair<FString, int32>& A, const TPair<FString, int32>& B)
+				{
+					return A.Value > B.Value;
+				});
+				int32 Shown = 0;
+				for (const auto& P : CapArr)
+				{
+					if (++Shown > 5) break;
+					OutBody += FString::Printf(TEXT("- `%s` ×%d"), *P.Key, P.Value);
+					if (const FString* Sample = CapSample.Find(P.Key))
+					{
+						const FString Snip = Sample->Len() > 100 ? Sample->Left(100) + TEXT("…") : *Sample;
+						OutBody += FString::Printf(TEXT(" — %s"), *Snip);
+					}
+					OutBody += TEXT("\n");
+				}
+				OutBody += TEXT("\n");
+			}
+		}
+
+		// ── AI 手动上报（结构化字段优先）────────────────────────────────────
+		{
+			struct FManualEntry
+			{
+				FString Category;
+				FString AttemptedArgs;
+				FString ActualError;
+				FString ExpectedField;
+				FString Note;
+			};
+			TArray<FManualEntry> ManualEntries;
+			for (const auto& R : Records)
+			{
+				const FString Cat = GetStr(R, TEXT("category"));
+				if (Cat != TEXT("wrong_tool") && Cat != TEXT("schema_guess") && Cat != TEXT("misuse")) continue;
+				FManualEntry E;
+				E.Category      = Cat;
+				E.AttemptedArgs = GetStr(R, TEXT("attemptedArgs"));
+				E.ActualError   = GetStr(R, TEXT("actualError"));
+				E.ExpectedField = GetStr(R, TEXT("expectedField"));
+				E.Note          = GetStr(R, TEXT("note"));
+				ManualEntries.Add(E);
+			}
+			if (ManualEntries.Num() > 0)
+			{
+				OutBody += TEXT("## AI 上报\n\n");
+				int32 Shown = 0;
+				for (const FManualEntry& E : ManualEntries)
+				{
+					if (++Shown > 3) break;
+					OutBody += FString::Printf(TEXT("**%s**\n"), *E.Category);
+					if (!E.AttemptedArgs.IsEmpty())
+					{
+						const FString V = E.AttemptedArgs.Len() > 150 ? E.AttemptedArgs.Left(150) + TEXT("…") : E.AttemptedArgs;
+						OutBody += FString::Printf(TEXT("- attemptedArgs: `%s`\n"), *V);
+					}
+					if (!E.ActualError.IsEmpty())
+					{
+						const FString V = E.ActualError.Len() > 150 ? E.ActualError.Left(150) + TEXT("…") : E.ActualError;
+						OutBody += FString::Printf(TEXT("- actualError: `%s`\n"), *V);
+					}
+					if (!E.ExpectedField.IsEmpty())
+					{
+						OutBody += FString::Printf(TEXT("- expectedField: `%s`\n"), *E.ExpectedField);
+					}
+					if (!E.Note.IsEmpty())
+					{
+						const FString V = E.Note.Len() > 150 ? E.Note.Left(150) + TEXT("…") : E.Note;
+						OutBody += FString::Printf(TEXT("- note: %s\n"), *V);
+					}
+					OutBody += TEXT("\n");
+				}
+			}
+		}
+
+		OutBody += TEXT("## 复现步骤\n\n（请补充）\n\n");
+		OutBody += TEXT("---\n\n由 NexusLink 反馈系统自动生成。\n");
+	}
+
+	/** GitHub GET 预填 URL 安全长度：正文过长时截断并提示查看本地报告。 */
+	static constexpr int32 GIssueBodyMaxChars = 3500;
+
+	static FString TruncateIssueBodyForUrl(const FString& Body)
+	{
+		if (Body.Len() <= GIssueBodyMaxChars)
+		{
+			return Body;
+		}
+		return Body.Left(GIssueBodyMaxChars)
+			+ TEXT("\n\n…（正文已截断，完整数据请导出 Markdown 报告或查看 .nexus-feedback/）");
+	}
+
+	static FString BuildIssuePrefillUrlInternal(const FString& Title, const FString& Body)
+	{
+		const FString BaseUrl = ResolveIssueNewBaseUrl();
+		const FString EncTitle = FGenericPlatformHttp::UrlEncode(Title);
+		const FString EncBody  = FGenericPlatformHttp::UrlEncode(TruncateIssueBodyForUrl(Body));
+		return FString::Printf(TEXT("%s?title=%s&body=%s"), *BaseUrl, *EncTitle, *EncBody);
+	}
+
+	/** 在 Markdown 报告末尾追加 Issue 预填段。 */
+	static void AppendIssuePrefillSection(FString& Md, const TArray<TSharedPtr<FJsonObject>>& Records)
+	{
+		if (Records.Num() == 0)
+		{
+			return;
+		}
+
+		FString Title, Body;
+		BuildIssueDraftFromRecords(Records, Title, Body);
+		const FString PrefillUrl = BuildIssuePrefillUrlInternal(Title, Body);
+		const FString BaseUrl = ResolveIssueNewBaseUrl();
+
+		Md += TEXT("---\n\n");
+		Md += TEXT("## §8 GitHub Issue 预填\n\n");
+		Md += FString::Printf(
+			TEXT("目标仓库：[issues/new](%s)\n\n"),
+			*BaseUrl);
+		Md += TEXT("在设置面板点击 **创建 GitHub Issue** 可在浏览器打开预填页；或复制下方草稿：\n\n");
+		Md += FString::Printf(TEXT("**标题：** %s\n\n"), *Title);
+		Md += TEXT("```markdown\n");
+		Md += Body;
+		Md += TEXT("```\n\n");
+		if (PrefillUrl.Len() <= 6000)
+		{
+			Md += FString::Printf(TEXT("预填链接：<%s>\n"), *PrefillUrl);
+		}
+		else
+		{
+			Md += TEXT("预填链接过长，请使用设置面板 **创建 GitHub Issue** 按钮打开浏览器。\n");
+		}
 	}
 
 	/** 构建 category → count 摘要 JSON 对象（用于 last_summary.json）。 */
@@ -579,9 +1019,128 @@ namespace NexusFeedbackInternal
 			}
 		}
 
+		// §8 错误指纹 Top 5（跨 capability 去重聚合）
+		{
+			TMap<FString, int32> FingerprintCount;
+			TMap<FString, FString> FingerprintSample;  // 指纹 → 代表原始 errorText
+			for (const auto& R : Records)
+			{
+				const FString Cat = GetStr(R, TEXT("category"));
+				if (!Cat.StartsWith(TEXT("call_")) && Cat != TEXT("call_arg_invalid")
+					&& Cat != TEXT("call_fatal")) continue;
+				const FString Err = GetStr(R, TEXT("errorText"));
+				if (Err.IsEmpty()) continue;
+				const FString FP = NormalizeForThrottle(Err);
+				int32& V = FingerprintCount.FindOrAdd(FP);
+				V++;
+				if (!FingerprintSample.Contains(FP)) FingerprintSample.Add(FP, Err);
+			}
+			Md += TEXT("## §8 错误指纹 Top 5（去重聚合）\n\n");
+			if (FingerprintCount.Num() == 0)
+			{
+				Md += TEXT("_无数据_\n\n");
+			}
+			else
+			{
+				TArray<TPair<FString, int32>> FPArr;
+				for (const auto& P : FingerprintCount) FPArr.Add(P);
+				FPArr.Sort([](const TPair<FString,int32>& A, const TPair<FString,int32>& B)
+				{
+					return A.Value > B.Value;
+				});
+				Md += TEXT("| 指纹（规则化） | 次数 | 代表错误样本 |\n|---|---|---|\n");
+				int32 Cnt = 0;
+				for (const auto& P : FPArr)
+				{
+					if (++Cnt > 5) break;
+					const FString FPLabel = P.Key.Len() > 50 ? P.Key.Left(50) + TEXT("…") : P.Key;
+					const FString Sample  = FingerprintSample.FindRef(P.Key);
+					const FString Snip    = Sample.Len() > 80 ? Sample.Left(80) + TEXT("…") : Sample;
+					Md += FString::Printf(TEXT("| `%s` | %d | %s |\n"), *FPLabel, P.Value, *Snip);
+				}
+				Md += TEXT("\n");
+			}
+		}
+
+		AppendIssuePrefillSection(Md, Records);
 		return Md;
 	}
 } // namespace NexusFeedbackInternal
+
+bool FNexusFeedback::BuildIssueDraft(FIssueDraft& OutDraft)
+{
+	const TArray<TSharedPtr<FJsonObject>> Records = NexusFeedbackInternal::LoadCurrentRecords();
+	if (Records.Num() == 0)
+	{
+		OutDraft.Title.Reset();
+		OutDraft.Body.Reset();
+		return false;
+	}
+	NexusFeedbackInternal::BuildIssueDraftFromRecords(Records, OutDraft.Title, OutDraft.Body);
+	return !OutDraft.Title.IsEmpty();
+}
+
+FString FNexusFeedback::BuildIssuePrefillUrl(const FString& Title, const FString& Body)
+{
+	return NexusFeedbackInternal::BuildIssuePrefillUrlInternal(Title, Body);
+}
+
+FString FNexusFeedback::BuildRedactedArgsSnapshot(const TSharedPtr<FJsonObject>& Args)
+{
+	if (!Args.IsValid() || Args->Values.Num() == 0)
+	{
+		return FString();
+	}
+
+	auto IsSensitiveKey = [](const FString& Key) -> bool
+	{
+		const FString Lower = Key.ToLower();
+		return Lower.Contains(TEXT("password"))
+			|| Lower.Contains(TEXT("token"))
+			|| Lower.Contains(TEXT("secret"))
+			|| Lower.Contains(TEXT("apikey"))
+			|| Lower.Contains(TEXT("api_key"));
+	};
+
+	TSharedPtr<FJsonObject> Redacted = MakeShared<FJsonObject>();
+	for (const auto& Pair : Args->Values)
+	{
+		// FJsonObject::Values key 在 UE 5.8+ 为 UE::FSharedString，不能隐式转 FString；
+		// operator*() 两者均返回 const TCHAR*，用此方式跨版本兼容。
+		const FString PairKey(*Pair.Key);
+		if (IsSensitiveKey(PairKey))
+		{
+			Redacted->SetStringField(PairKey, TEXT("<redacted>"));
+		}
+		else
+		{
+			Redacted->SetField(PairKey, Pair.Value);
+		}
+	}
+
+	FString Out;
+	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W =
+		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Out);
+	FJsonSerializer::Serialize(Redacted.ToSharedRef(), W);
+
+	if (Out.Len() > 200)
+	{
+		Out = Out.Left(200) + TEXT("…");
+	}
+	return Out;
+}
+
+bool FNexusFeedback::OpenIssuePrefillInBrowser()
+{
+	FIssueDraft Draft;
+	if (!BuildIssueDraft(Draft))
+	{
+		return false;
+	}
+	const FString Url = BuildIssuePrefillUrl(Draft.Title, Draft.Body);
+	FPlatformProcess::LaunchURL(*Url, nullptr, nullptr);
+	return true;
+}
 
 FString FNexusFeedback::ExportReport()
 {
