@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- fix(ci): link-check 忽略 Markdown 页内锚点（`#...`）；`markdown-link-check` 无法校验中文标题 fragment，会误报 404
+
 ### Docs
 
 - docs: README 移除「当前版本」行与本地打包示例中的具体版本号（改为 `<version>` 占位），避免随发版漂移；保留 UE 4.26+ 兼容声明
