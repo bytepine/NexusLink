@@ -53,18 +53,29 @@ flowchart TB
 
 NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。日常开发推荐搭配 **IDE 代理**，由代理负责扫描 UE 实例、维持长连接、在多 Editor/PIE 间切换；AI 客户端只需连代理的固定端口。
 
-| 接入方式 | 端点 | IDE 代理 | 适用 |
-|----------|------|----------|------|
-| **Rider 代理** | `http://127.0.0.1:6800/stream` | [NexusRider](https://github.com/bytepine/NexusRider) · [Releases](https://github.com/bytepine/NexusRider/releases) | JetBrains Rider |
-| **VSCode/Cursor 代理** | `http://127.0.0.1:6900/stream` | [NexusVSCode](https://github.com/bytepine/NexusVSCode) · [Releases](https://github.com/bytepine/NexusVSCode/releases) · [Open VSX](https://open-vsx.org/extension/byteyang/nexus-mcp-vscode) | VSCode / Cursor / CodeBuddy / Windsurf |
-| **直连 UE** | `http://127.0.0.1:45000/stream` | 无 | 不用 IDE 插件；须自行指定 UE 端口 |
+### 获取 IDE 代理（推荐商店安装）
+
+| IDE 代理 | 推荐安装方式 | 备用 |
+|----------|-------------|------|
+| **NexusRider** | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/32499-nexus-mcp) — Rider **Settings → Plugins → Marketplace** 搜索 **Nexus MCP** | [GitHub Releases](https://github.com/bytepine/NexusRider/releases) 下载 zip |
+| **NexusVSCode** | 扩展商店搜索 **Nexus MCP** — [Open VSX](https://open-vsx.org/extension/byteyang/nexus-mcp-vscode)（Cursor / CodeBuddy / Windsurf 等）· [VS Marketplace](https://marketplace.visualstudio.com/items?itemName=byteyang.nexus-mcp-vscode) | [GitHub Releases](https://github.com/bytepine/NexusVSCode/releases) 下载 `.vsix` |
+
+> **优先从商店安装**，可自动更新；Releases / 本地 zip / `.vsix` 仅作离线或开发调试备用。
+
+| 接入方式 | 端点 | 适用 |
+|----------|------|------|
+| **Rider 代理** | `http://127.0.0.1:6800/stream` | JetBrains Rider |
+| **VSCode/Cursor 代理** | `http://127.0.0.1:6900/stream` | VSCode / Cursor / CodeBuddy / Windsurf |
+| **直连 UE** | `http://127.0.0.1:45000/stream` | 不用 IDE 插件；须自行指定 UE 端口 |
+
+源码与详细说明：[NexusRider](https://github.com/bytepine/NexusRider) · [NexusVSCode](https://github.com/bytepine/NexusVSCode)
 
 ### 推荐配合流程
 
 1. **UE 侧**：安装并启用本插件（见上一节），勾选 **启用 MCP 服务器**
-2. **IDE 侧**：安装对应代理并开启总开关
-   - Rider：`Settings → Tools → Nexus MCP → 启用 Nexus MCP 服务器`（须 **Open Project** 后）
-   - VSCode/Cursor：`Settings → nexusMcp.enabled`（扩展商店搜索 **Nexus MCP** 或从 Releases 安装 `.vsix`）
+2. **IDE 侧**：从商店安装对应代理并开启总开关
+   - Rider：Marketplace 安装 **Nexus MCP** → `Settings → Tools → Nexus MCP → 启用 Nexus MCP 服务器`（须 **Open Project** 后）
+   - VSCode/Cursor：扩展商店安装 **Nexus MCP** → `Settings → nexusMcp.enabled = true`
 3. **AI 客户端**：MCP 配置指向代理端口（非 UE 的 `45000`）
 
 ```json
