@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Docs
+
+- docs: README 新增「与 IDE 代理配合使用」——NexusRider / NexusVSCode 仓库与 Releases 链接、三种接入方式对比、推荐配合流程与 MCP 配置示例
+
 ### Chore
 
 - chore(release): 支持 Pre-release 发版流程——版本号 `X.Y.Z-beta.N` 触发 GitHub pre-release；`extract_release_notes.py` 支持 pre-release 版本校验

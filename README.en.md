@@ -49,6 +49,40 @@ Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://gith
 
 When unchecked: the toolbar shows no port, IDE proxies cannot discover the instance, and AI direct connections to `http://127.0.0.1:45000/stream` get no response. See the full user guide at [docs/usage-guide.md](docs/usage-guide.md) §2.
 
+## Using with IDE Proxies
+
+NexusLink is the **UE-side plugin** (HTTP `:45000` + WebSocket `:55000`). For daily development, use an **IDE proxy** to scan UE instances, keep long-lived connections, and switch between Editor/PIE targets; your AI client only needs a fixed proxy port.
+
+| Access | Endpoint | IDE proxy | For |
+|--------|----------|-----------|-----|
+| **Rider proxy** | `http://127.0.0.1:6800/stream` | [NexusRider](https://github.com/bytepine/NexusRider) · [Releases](https://github.com/bytepine/NexusRider/releases) | JetBrains Rider |
+| **VSCode/Cursor proxy** | `http://127.0.0.1:6900/stream` | [NexusVSCode](https://github.com/bytepine/NexusVSCode) · [Releases](https://github.com/bytepine/NexusVSCode/releases) · [Open VSX](https://open-vsx.org/extension/byteyang/nexus-mcp-vscode) | VSCode / Cursor / CodeBuddy / Windsurf |
+| **Direct to UE** | `http://127.0.0.1:45000/stream` | None | No IDE plugin; you manage UE ports yourself |
+
+### Recommended setup
+
+1. **UE**: Install and enable this plugin (above), check **Enable MCP Server**
+2. **IDE**: Install the matching proxy and turn on its master switch
+   - Rider: `Settings → Tools → Nexus MCP → Enable Nexus MCP server` (after **Open Project**)
+   - VSCode/Cursor: `Settings → nexusMcp.enabled` (search **Nexus MCP** in Extensions, or install `.vsix` from Releases)
+3. **AI client**: Point MCP config at the proxy port (not UE `45000`)
+
+```json
+{
+  "mcpServers": {
+    "nexus-unreal": {
+      "url": "http://127.0.0.1:6900/stream"
+    }
+  }
+}
+```
+
+For Rider, use `http://127.0.0.1:6800/stream`. The proxy connects to UE over WebSocket; tool capabilities match direct mode.
+
+> All three layers must be on: UE **Enable MCP Server** → IDE proxy **enabled** → AI client MCP config. **If any layer is off, nothing works.**
+>
+> Full install, status bar, and multi-instance switching: [docs/usage-guide.md](docs/usage-guide.md) §3 (Rider), §4 (VSCode/Cursor).
+
 ### Development Paths
 
 **Path A — Pure Tool** (lightweight tools without sections; override `ExecuteImpl` directly)
