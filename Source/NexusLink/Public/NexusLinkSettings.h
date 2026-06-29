@@ -195,6 +195,15 @@ public:
 	FString FeedbackIssueRepo;
 
 	/**
+	 * 启动时是否自动在后台检查 NexusLink 版本更新。
+	 * 有新版本时弹出非阻塞通知；无新版本或网络不通时静默。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "插件信息",
+		meta = (DisplayName = "启动时自动检查更新",
+			ToolTip = "勾选：编辑器启动后后台静默查询 GitHub Releases，有新版本时弹出通知；取消：禁用自动检查"))
+	bool bCheckUpdateOnStartup = true;
+
+	/**
 	 * 已禁用的 Capability 名集合（cap 名全局唯一，不再带 host 前缀）。
 	 * 首次启动默认全部启用，可在设置面板按分类切换。
 	 */

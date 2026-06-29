@@ -24,6 +24,9 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/MessageDialog.h"
 #include "Interfaces/IPluginManager.h"
+#include "NexusUpdateChecker.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "NexusLinkSettings"
 
@@ -328,6 +331,92 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 	}
 
 	CapTreeRoot = BuildCapGroupTree(CategoryCaps);
+
+	// ── 插件信息分类（置于最前）──────────────────────────────────────────────
+	IDetailCategoryBuilder& InfoCategory = DetailBuilder.EditCategory(
+		TEXT("插件信息"), LOCTEXT("PluginInfoCategory", "插件信息"), ECategoryPriority::Important);
+
+	InfoCategory.AddCustomRow(LOCTEXT("PluginVersion", "版本"))
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Text(LOCTEXT("PluginVersionLabel", "当前版本"))
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+	]
+	.ValueContent()
+	.HAlign(HAlign_Left)
+	[
+		SNew(SHorizontalBox)
+		// 版本号文本
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(0.0f, 0.0f, 8.0f, 0.0f)
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(FNexusUpdateChecker::GetCurrentVersion()))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		// 检查更新按钮
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("CheckUpdate", "检查更新"))
+			.ToolTipText(LOCTEXT("CheckUpdateTip", "从 GitHub Releases 获取 NexusLink 最新版本并与当前版本比较"))
+			.OnClicked_Lambda([]() -> FReply
+			{
+				// 立即弹出"正在检查…"通知，异步结果到达后就地更新
+				FNotificationInfo PendingInfo(LOCTEXT("CheckingUpdate", "正在检查 NexusLink 更新…"));
+				PendingInfo.bFireAndForget  = false;
+				PendingInfo.bUseSuccessFailIcons = true;
+				PendingInfo.bUseLargeFont   = false;
+				TWeakPtr<SNotificationItem> WeakNotif =
+					FSlateNotificationManager::Get().AddNotification(PendingInfo);
+
+				FNexusUpdateChecker::CheckAsync(
+					// OnSuccess
+					[WeakNotif](bool bHasUpdate, FString LatestVersion, FString CurrentVersion)
+					{
+						TSharedPtr<SNotificationItem> Notif = WeakNotif.Pin();
+						if (!Notif.IsValid()) { return; }
+
+						if (bHasUpdate)
+						{
+							Notif->SetText(FText::FromString(
+								FString::Printf(TEXT("NexusLink 有新版本可用：%s（当前 %s）"),
+									*LatestVersion, *CurrentVersion)));
+							Notif->SetHyperlink(
+								FSimpleDelegate::CreateLambda([]()
+								{
+									FPlatformProcess::LaunchURL(
+										TEXT("https://github.com/bytepine/NexusLink/releases"),
+										nullptr, nullptr);
+								}),
+								LOCTEXT("ReleasePageLink", "查看 Releases 页面"));
+						}
+						else
+						{
+							Notif->SetText(FText::FromString(
+								FString::Printf(TEXT("NexusLink 已是最新版本（%s）"), *CurrentVersion)));
+						}
+						Notif->SetCompletionState(SNotificationItem::CS_Success);
+						Notif->ExpireAndFadeout();
+					},
+					// OnError — 详细原因已由 UE_LOG 打印，通知只显示简短提示
+					[WeakNotif](FString /*ErrorDetail*/)
+					{
+						TSharedPtr<SNotificationItem> Notif = WeakNotif.Pin();
+						if (!Notif.IsValid()) { return; }
+						Notif->SetText(LOCTEXT("CheckUpdateFailed", "检查更新失败，请检查网络连接"));
+						Notif->SetCompletionState(SNotificationItem::CS_Fail);
+						Notif->ExpireAndFadeout();
+					}
+				);
+				return FReply::Handled();
+			})
+		]
+	];
 
 	// ── AI 反馈分类（置于 MCP Capabilities 之前）────────────────────────────
 	IDetailCategoryBuilder& FbCategory = DetailBuilder.EditCategory(

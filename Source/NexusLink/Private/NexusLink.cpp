@@ -10,10 +10,14 @@
 #include "Containers/Ticker.h"
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
+#include "HAL/PlatformProcess.h"
 #if WITH_EDITOR
 #include "Editor/NexusEditorStatusBar.h"
 #include "Editor/NexusLinkSettingsCustomization.h"
+#include "NexusUpdateChecker.h"
 #include "PropertyEditorModule.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FNexusLinkModule"
@@ -231,10 +235,48 @@ void FNexusLinkModule::OnPostEngineInit()
 	if (!Settings->bEnableMcpServer)
 	{
 		UE_LOG(LogNexusLink, Log, TEXT("MCP 服务器未启用，可在 Editor Preferences → Plugins → NexusLink 中开启"));
-		return;
+	}
+	else
+	{
+		TryStartMcpServer();
 	}
 
-	TryStartMcpServer();
+#if WITH_EDITOR
+	// 每会话启动时静默检查一次版本更新；仅当有新版本时弹出非阻塞通知
+	static bool bVersionChecked = false;
+	if (!bVersionChecked && Settings->bCheckUpdateOnStartup)
+	{
+		bVersionChecked = true;
+		CallNextTick([]()
+		{
+			FNexusUpdateChecker::CheckAsync(
+				[](bool bHasUpdate, FString LatestVersion, FString CurrentVersion)
+				{
+					if (!bHasUpdate)
+					{
+						return;
+					}
+					FNotificationInfo Info(FText::FromString(
+						FString::Printf(TEXT("NexusLink 有新版本可用：%s（当前 %s）"),
+							*LatestVersion, *CurrentVersion)));
+					Info.bFireAndForget = true;
+					Info.ExpireDuration = 10.0f;
+					Info.bUseSuccessFailIcons = true;
+					Info.bUseLargeFont = false;
+					Info.Hyperlink = FSimpleDelegate::CreateLambda([]()
+					{
+						FPlatformProcess::LaunchURL(
+							TEXT("https://github.com/bytepine/NexusLink/releases"),
+							nullptr, nullptr);
+					});
+					Info.HyperlinkText = LOCTEXT("UpdateNotifLink", "查看 Releases 页面");
+					FSlateNotificationManager::Get().AddNotification(Info)
+						->SetCompletionState(SNotificationItem::CS_Success);
+				}
+			);
+		});
+	}
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE
