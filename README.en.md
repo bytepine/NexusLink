@@ -2,8 +2,6 @@
 
 # NexusLink — UE MCP Plugin
 
-Repository: [bytepine/NexusLink](https://github.com/bytepine/NexusLink)
-
 An MCP integration plugin for Unreal Engine that exposes UE project context to AI tools via the MCP protocol.
 
 > Supports UE 4.26 and all later versions (including UE5)

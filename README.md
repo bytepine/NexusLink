@@ -2,8 +2,6 @@
 
 **语言 / Language**: **简体中文** · [English](README.en.md)
 
-仓库：[bytepine/NexusLink](https://github.com/bytepine/NexusLink)
-
 基于 Unreal Engine 的 MCP 集成插件，将 UE 项目上下文通过 MCP 协议暴露给 AI 工具。
 
 > 支持 UE 4.26 及以上所有版本（含 UE5）

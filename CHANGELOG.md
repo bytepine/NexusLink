@@ -9,6 +9,7 @@
 
 ### Docs
 
+- docs: README 移除顶部「仓库：bytepine/NexusLink」行（中英文）
 - docs: README「与 IDE 代理配合使用」补充商店优先安装——JetBrains Marketplace / Open VSX / VS Marketplace 直链，Releases 作备用
 
 ### Chore
