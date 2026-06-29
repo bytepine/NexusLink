@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [1.14.0-beta.1] - 2026-06-29
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Docs
 
 - docs: README 移除顶部「仓库：bytepine/NexusLink」行（中英文）
