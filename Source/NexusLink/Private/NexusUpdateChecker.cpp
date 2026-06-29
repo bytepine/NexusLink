@@ -17,64 +17,59 @@ namespace
 	// curl 自动跟随 302 至 .../releases/tag/<tag>，再从落地页 HTML 解析 tag。
 	static const TCHAR* GReleasesLatestUrl =
 		TEXT("https://github.com/bytepine/NexusLink/releases/latest");
+}
 
-	/** 从 .../releases/tag/<tag> 路径起始位置提取 tag（遇到引号/尖括号/查询符等终止）。 */
-	static FString ExtractTagAfter(const FString& Html, int32 From)
+/** 从 .../releases/tag/<tag> 路径起始位置提取 tag（遇到引号/尖括号/查询符等终止）。 */
+static FString ExtractTagAfter(const FString& Html, int32 From)
+{
+	static const FString Marker = TEXT("/releases/tag/");
+	const int32 Idx = Html.Find(Marker, ESearchCase::IgnoreCase, ESearchDir::FromStart, From);
+	if (Idx == INDEX_NONE) { return FString(); }
+
+	const int32 Start = Idx + Marker.Len();
+	int32 End = Start;
+	while (End < Html.Len())
 	{
-		static const FString Marker = TEXT("/releases/tag/");
-		const int32 Idx = Html.Find(Marker, ESearchCase::IgnoreCase, ESearchDir::FromStart, From);
-		if (Idx == INDEX_NONE) { return FString(); }
-
-		const int32 Start = Idx + Marker.Len();
-		int32 End = Start;
-		while (End < Html.Len())
+		const TCHAR C = Html[End];
+		if (C == TEXT('"') || C == TEXT('\'') || C == TEXT('<') || C == TEXT('>')
+			|| C == TEXT('?') || C == TEXT('&') || C == TEXT(' ')
+			|| C == TEXT('\n') || C == TEXT('\r') || C == TEXT('\\'))
 		{
-			const TCHAR C = Html[End];
-			if (C == TEXT('"') || C == TEXT('\'') || C == TEXT('<') || C == TEXT('>')
-				|| C == TEXT('?') || C == TEXT('&') || C == TEXT(' ')
-				|| C == TEXT('\n') || C == TEXT('\r') || C == TEXT('\\'))
-			{
-				break;
-			}
-			++End;
+			break;
 		}
-		return Html.Mid(Start, End - Start);
+		++End;
+	}
+	return Html.Mid(Start, End - Start);
+}
+
+FString FNexusUpdateChecker::ParseLatestTagFromReleasePage(const FString& Html)
+{
+	FString Tag;
+
+	const int32 OgIdx = Html.Find(TEXT("og:url"), ESearchCase::IgnoreCase);
+	if (OgIdx != INDEX_NONE)
+	{
+		Tag = ExtractTagAfter(Html, OgIdx);
+	}
+	if (Tag.IsEmpty())
+	{
+		const int32 CanonIdx = Html.Find(TEXT("rel=\"canonical\""), ESearchCase::IgnoreCase);
+		if (CanonIdx != INDEX_NONE)
+		{
+			Tag = ExtractTagAfter(Html, CanonIdx);
+		}
+	}
+	if (Tag.IsEmpty())
+	{
+		Tag = ExtractTagAfter(Html, 0);
 	}
 
-	/**
-	 * 从 Release 落地页 HTML 中解析 GitHub 标记的「Latest」版本 tag。
-	 * 优先 og:url / canonical（唯一且稳定），兜底取全文首个 /releases/tag/。
-	 * 返回去除前导 "v" 的版本号；未找到时返回空字符串。
-	 */
-	static FString ParseLatestTagFromReleasePage(const FString& Html)
+	Tag = Tag.TrimStartAndEnd();
+	if (Tag.StartsWith(TEXT("v"), ESearchCase::IgnoreCase))
 	{
-		FString Tag;
-
-		const int32 OgIdx = Html.Find(TEXT("og:url"), ESearchCase::IgnoreCase);
-		if (OgIdx != INDEX_NONE)
-		{
-			Tag = ExtractTagAfter(Html, OgIdx);
-		}
-		if (Tag.IsEmpty())
-		{
-			const int32 CanonIdx = Html.Find(TEXT("rel=\"canonical\""), ESearchCase::IgnoreCase);
-			if (CanonIdx != INDEX_NONE)
-			{
-				Tag = ExtractTagAfter(Html, CanonIdx);
-			}
-		}
-		if (Tag.IsEmpty())
-		{
-			Tag = ExtractTagAfter(Html, 0);
-		}
-
-		Tag = Tag.TrimStartAndEnd();
-		if (Tag.StartsWith(TEXT("v"), ESearchCase::IgnoreCase))
-		{
-			Tag = Tag.Mid(1);
-		}
-		return Tag;
+		Tag = Tag.Mid(1);
 	}
+	return Tag;
 }
 
 FString FNexusUpdateChecker::GetCurrentVersion()
@@ -156,7 +151,8 @@ void FNexusUpdateChecker::CheckAsync(
 			}
 
 			// 从重定向后的 Release 落地页解析 GitHub 标记的最新版本
-			const FString LatestVersion = ParseLatestTagFromReleasePage(Response->GetContentAsString());
+			const FString LatestVersion = FNexusUpdateChecker::ParseLatestTagFromReleasePage(
+				Response->GetContentAsString());
 			if (LatestVersion.IsEmpty())
 			{
 				DispatchError(TEXT("无法从 releases/latest 页面解析版本信息（可能尚无任何 Release）"));

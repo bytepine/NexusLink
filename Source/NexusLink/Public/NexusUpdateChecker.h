@@ -6,7 +6,7 @@
 
 /**
  * NexusLink 插件版本检查器。
- * 从 GitHub Releases API 获取最新版本，与当前 VERSION 文件中的版本比较。
+ * 从 GitHub releases/latest 重定向获取最新 Release tag，与 VERSION 文件比较。
  * 异步执行，不阻塞主线程；失败时静默忽略（用户网络不通时无副作用）。
  */
 struct NEXUSLINK_API FNexusUpdateChecker
@@ -15,7 +15,14 @@ struct NEXUSLINK_API FNexusUpdateChecker
 	static FString GetCurrentVersion();
 
 	/**
-	 * 异步向 GitHub Releases API 请求最新版本，在 GameThread 调用 OnSuccess。
+	 * 从 Release 落地页 HTML 解析 GitHub 标记的「Latest」版本 tag。
+	 * 优先 og:url / canonical，兜底取全文首个 /releases/tag/；去除前导 "v"。
+	 * 未找到时返回空字符串。
+	 */
+	static FString ParseLatestTagFromReleasePage(const FString& Html);
+
+	/**
+	 * 异步请求 GitHub releases/latest，在 GameThread 调用 OnSuccess。
 	 * 网络不通或解析失败时调用 OnError（若非空），并附带错误描述。
 	 * @param OnSuccess  参数：bHasUpdate, LatestVersion, CurrentVersion
 	 * @param OnError    可选；参数：ErrorDetail（人类可读的失败原因）

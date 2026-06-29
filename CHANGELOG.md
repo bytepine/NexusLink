@@ -22,7 +22,7 @@
 
 ### Added
 
-- feat(update-checker): 新增插件版本检查功能——`FNexusUpdateChecker`（`GetCurrentVersion` / `IsNewerVersion` / `CheckAsync`）；版本来源走 GitHub 官方 `releases/latest` 重定向端点（非 REST API，无速率限制、无需 Auth），自动跟随 302 后从 Release 落地页 `og:url`/`canonical` 解析最新 tag，全 UE 版本统一路径（不依赖 5.4+ 的 `GetEffectiveURL`）；编辑器设置面板新增「插件信息」分类，显示当前版本号 + 「检查更新」按钮（点击先弹「正在检查…」过渡态，结果就地更新为最新/已是最新/失败三态），并新增「启动时自动检查更新」开关（`bCheckUpdateOnStartup`，默认开启）；模块启动时按开关后台静默检查一次，有新版本时弹出含 Releases 页面超链接的通知；失败原因仅写入 `LogNexusUpdateChecker` 日志，通知只提示「检查更新失败，请检查网络连接」
+- feat(update-checker): 新增插件版本检查功能——`FNexusUpdateChecker`（`GetCurrentVersion` / `IsNewerVersion` / `CheckAsync`）；版本来源走 GitHub 官方 `releases/latest` 重定向端点（非 REST API，无速率限制、无需 Auth），自动跟随 302 后从 Release 落地页 `og:url`/`canonical` 解析最新 tag，全 UE 版本统一路径（不依赖 5.4+ 的 `GetEffectiveURL`）；编辑器设置面板新增「插件信息」分类，显示当前版本号 + 「检查更新」按钮（点击先弹「正在检查…」过渡态，结果就地更新为最新/已是最新/失败三态），并新增「启动时自动检查更新」开关（`bCheckUpdateOnStartup`，默认开启）；模块启动时按开关后台静默检查一次，有新版本时弹出含 Releases 页面超链接的通知；失败原因仅写入 `LogNexusUpdateChecker` 日志，通知只提示「检查更新失败，请检查网络连接」；`ParseLatestTagFromReleasePage` 提升为公开 API；`NexusLink.UpdateChecker.IsNewerVersion` / `ParseReleasePage` / `GetCurrentVersion` 三组 AutomationTest 覆盖 semver 比较、HTML 解析（og:url/canonical/fallback/无前导 v/空页）与 VERSION 读取冒烟
 
 - feat(feedback): 报告/环境/指纹增强（P2）——`BuildEnvironmentBlock` 补充 `ToolsListMode`（SearchMode/MultiTool）、反馈条数与时间窗（最早 ts ~ 最晚 ts）；Markdown 报告新增 §8「错误指纹 Top 5（去重聚合）」（`NormalizeForThrottle(errorText)` 做指纹归并，表格含指纹/次数/代表样本）；Issue 草稿新增「搜索无命中 Top Query」段（`search_zero` 条目 Top 5 query 汇总）；测试补齐：报告含 §8 段、环境含 `ToolsListMode`
 
