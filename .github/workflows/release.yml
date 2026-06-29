@@ -30,6 +30,11 @@ jobs:
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if echo "$VERSION" | grep -qE '\-beta(\.|$)'; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -58,3 +63,4 @@ jobs:
           files: release/nexus-mcp-unreal-${{ steps.meta.outputs.version }}.zip
           generate_release_notes: false
           overwrite: true
+          prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}

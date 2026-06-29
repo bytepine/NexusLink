@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Chore
+
+- chore(release): 支持 Pre-release 发版流程——版本号 `X.Y.Z-beta.N` 触发 GitHub pre-release；`extract_release_notes.py` 支持 pre-release 版本校验
+
 ### Fixed
 
 - fix(compat): `BuildRedactedArgsSnapshot` 使用 `FString(*Pair.Key)` 替换直接赋值，修复 UE 5.8 中 `FJsonObject::Values` Key 类型由 `FString` 变更为 `UE::FSharedString` 导致的 C2664 编译错误；全版本（UE 4.26–5.8）PASS=10

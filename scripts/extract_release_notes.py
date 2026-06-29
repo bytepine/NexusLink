@@ -3,9 +3,10 @@
 
 用法:
     python scripts/extract_release_notes.py --version <X.Y.Z> [--output <file>] [--verify]
+    python scripts/extract_release_notes.py --version <X.Y.Z-beta.N> --verify
 
---verify  发版前门禁：VERSION 与 --version 一致，且 CHANGELOG [X.Y.Z] 段落非空。
-          CI release.yml 与 release-version skill 均须带此参数。
+--verify  发版前门禁：VERSION 与 --version 一致，且 CHANGELOG [版本号] 段落非空。
+          支持 Release（X.Y.Z）与 Pre-release（X.Y.Z-beta.N）。CI release.yml 与 release-version skill 均须带此参数。
 """
 
 from __future__ import annotations
@@ -15,6 +16,11 @@ import re
 import sys
 
 _HEADING_RE = re.compile(r"^##\s+\[([^\]]+)\](?:\s+-\s+[^\n]+)?\s*$", re.MULTILINE)
+
+
+def is_prerelease_version(version: str) -> bool:
+    """版本号含 -beta 时为 GitHub Pre-release。"""
+    return "-beta" in version
 
 
 def read_version_file(path: str = "VERSION") -> str:
@@ -75,8 +81,9 @@ def main() -> int:
             sys.stdout.write("\n")
 
     if args.verify:
+        channel = "Pre-release" if is_prerelease_version(args.version) else "Release"
         print(
-            f"[OK] GitHub Release 将使用 CHANGELOG [{args.version}]（{len(notes)} 字符）",
+            f"[OK] GitHub {channel} 将使用 CHANGELOG [{args.version}]（{len(notes)} 字符）",
             file=sys.stderr,
         )
     return 0
