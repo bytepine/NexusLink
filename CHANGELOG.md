@@ -7,6 +7,75 @@
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-07-02
+
+### Docs
+
+- docs: README 移除顶部「仓库：bytepine/NexusLink」行（中英文）
+- docs: README「与 IDE 代理配合使用」补充商店优先安装——JetBrains Marketplace / Open VSX / VS Marketplace 直链，Releases 作备用
+
+### Chore
+
+- chore(release): 支持 Pre-release 发版流程——版本号 `X.Y.Z-beta.N` 触发 GitHub pre-release；`extract_release_notes.py` 支持 pre-release 版本校验
+
+### Fixed
+
+- fix(compat): `BuildRedactedArgsSnapshot` 使用 `FString(*Pair.Key)` 替换直接赋值，修复 UE 5.8 中 `FJsonObject::Values` Key 类型由 `FString` 变更为 `UE::FSharedString` 导致的 C2664 编译错误；全版本（UE 4.26–5.8）PASS=10
+- fix(ci): link-check 忽略 Markdown 页内锚点（`#...`）；`markdown-link-check` 无法校验中文标题 fragment，会误报 404
+
+### Docs
+
+- docs: README 移除「当前版本」行与本地打包示例中的具体版本号（改为 `<version>` 占位），避免随发版漂移；保留 UE 4.26+ 兼容声明
+
+### Chore
+
+- chore: 更新插件图标 `Resources/Icon128.png`（128×128），与 Rider / VSCode 代理统一为六边形 + 连接枢纽品牌视觉
+
+### Added
+
+- feat(update-checker): 新增插件版本检查功能——`FNexusUpdateChecker`（`GetCurrentVersion` / `IsNewerVersion` / `CheckAsync`）；版本来源走 GitHub 官方 `releases/latest` 重定向端点（非 REST API，无速率限制、无需 Auth），自动跟随 302 后从 Release 落地页 `og:url`/`canonical` 解析最新 tag，全 UE 版本统一路径（不依赖 5.4+ 的 `GetEffectiveURL`）；编辑器设置面板新增「插件信息」分类，显示当前版本号 + 「检查更新」按钮（点击先弹「正在检查…」过渡态，结果就地更新为最新/已是最新/失败三态），并新增「启动时自动检查更新」开关（`bCheckUpdateOnStartup`，默认开启）；模块启动时按开关后台静默检查一次，有新版本时弹出含 Releases 页面超链接的通知；失败原因仅写入 `LogNexusUpdateChecker` 日志，通知只提示「检查更新失败，请检查网络连接」；`ParseLatestTagFromReleasePage` 提升为公开 API；`NexusLink.UpdateChecker.IsNewerVersion` / `ParseReleasePage` / `GetCurrentVersion` 三组 AutomationTest 覆盖 semver 比较、HTML 解析（og:url/canonical/fallback/无前导 v/空页）与 VERSION 读取冒烟
+
+- feat(feedback): 报告/环境/指纹增强（P2）——`BuildEnvironmentBlock` 补充 `ToolsListMode`（SearchMode/MultiTool）、反馈条数与时间窗（最早 ts ~ 最晚 ts）；Markdown 报告新增 §8「错误指纹 Top 5（去重聚合）」（`NormalizeForThrottle(errorText)` 做指纹归并，表格含指纹/次数/代表样本）；Issue 草稿新增「搜索无命中 Top Query」段（`search_zero` 条目 Top 5 query 汇总）；测试补齐：报告含 §8 段、环境含 `ToolsListMode`
+
+- feat(feedback): ArgsDigest 改脱敏参数快照——`call_arg_invalid`/`call_fatal` 两类自动埋点的 `ArgsDigest` 字段从「参数 key 名列表」改为脱敏 condensed JSON 摘要：敏感 key（`password/token/secret/apikey/api_key`，大小写不敏感）值替换为 `"<redacted>"`，整体截断 200 字符；`FNexusFeedback::BuildRedactedArgsSnapshot` 提升为公开 API（可测试）；`NexusLink.Feedback.RedactedArgsSnapshot` 自动化测试覆盖：普通 key 保留、敏感 key 脱敏、超长截断、空参数四档
+
+- feat(feedback): Issue 草稿排障增强——`BuildIssueDraftFromRecords` 新增「## 最小复现（自动选取）」块（按权重 `call_arg_invalid×30 > call_fatal×30 > misuse×20 > …` 选 Top1 记录，输出 `ts/tool/capability/errorText/argsDigest/attemptedArgs/actualError/expectedField/query`）；「AI 上报」段改为结构化字段优先（`attemptedArgs/actualError/expectedField` 各成行，`note` 作补充）；Issue 标题改为 `[NexusLink] <capability>: <规则化错误>` 而非分类计数；`IssuePrefill` 自动化测试补齐断言（标题含 capability、正文含「最小复现」/`attemptedArgs`/`expectedField`/AI 上报段）
+
+- feat(feedback): 浏览器预填 GitHub Issue——`UNexusLinkSettings` 新增可配置 `FeedbackIssueRepo`（`owner/repo` 或 GitHub URL，默认 `bytepine/NexusLink`）；设置面板 **创建 GitHub Issue** 按钮读取当前 `feedback.jsonl` 生成标题/正文并在浏览器打开 `issues/new?title=&body=`（不清空数据）；`ExportReport` 报告末尾新增 §8 预填草稿与链接；`FNexusFeedback::BuildIssueDraft` / `BuildIssuePrefillUrl` / `OpenIssuePrefillInBrowser` 公开 API
+
+- feat(statetree): 新增 `get_asset_state_tree` 只读能力（UE 5.5+）：检查 `UStateTree` 资产的 Schema、SubTrees 状态树（递归 States/Tasks/EnterConditions/Transitions/Children）、Evaluators、GlobalTasks（5.5+）、参数数量
+- feat(mvvm): 新增 `get_asset_view_model` 只读能力（UE 5.5+）：从 Widget 蓝图 MVVM 扩展读取 ViewModel 列表（类/创建方式/名称）及 Binding 快照（SourcePath↔DestinationPath/BindingType/enabled/compile）
+- feat(build): `NexusLink.Build.cs` 新增 `WITH_STATETREE` / `WITH_MVVM` 可选模块探测（仿 GAS 模式）：`StateTree.uplugin` / `ModelViewViewModel.uplugin` 存在且引擎 ≥ 5.5 时自动链接；环境变量 `WITH_STATETREE` / `WITH_MVVM` 可强制开关；UE 4.26 / 5.0–5.4 编译为空
+- feat(search): `search_asset` 新增 `StateTree` / `st` 资产类型快捷词；`mvvm` / `viewmodel` 归一到 `widget` 搜索
+- feat(compat): `NexusVersionCompat.h` 新增 `NX_UE_HAS_STATETREE_GLOBAL_TASKS`（5.5+）和 `NX_UE_HAS_MVVM_EVENTS_CONDITIONS`（5.5+）语义宏
+- docs: `CapabilitySpec.md` §6.4 登记 `get_asset_state_tree` / `get_asset_view_model`；`InitializeInstructions.SearchMode.md` 补路由表行与触发关键词
+- test: 新增 `StateTreeMvvmCapabilityTests.cpp`：元数据/注册表/参数校验/无效路径四类 UE Automation 测试，覆盖 `#if WITH_STATETREE` / `#if WITH_MVVM` 门控与 `search_asset` 类型归一逻辑
+
+- chore(unreal): `NexusLink.uplugin` 声明 `GameplayAbilities` / `Niagara` 插件依赖，与 `NexusLink.Build.cs` 可选模块链接一致
+
+### Docs
+
+- docs: README 补充发版流程（与 NexusRider / NexusVSCode 一致）
+- docs(testing): 宿主 E2E 策略——默认 headless、不可覆盖打标走 GUI、全量 `--gui`/`--full`
+
+### Chore
+
+- chore(ci): Release 强制 `--verify` 门禁，正文仅来源于 CHANGELOG 段落（禁手写 Release 说明）
+
+### Fixed
+
+- fix(search_capabilities): `UNexusLinkSettings` 空指针统一防护，消除 ForwardNull 静态分析告警
+
+### Chore
+
+- chore(ci): 新增 tag 触发 Release workflow，CI 自动打包并发布 GitHub Release
+
+### Docs
+
+- docs: 架构与流程图改用 Mermaid（README、architecture、usage-guide）
+- docs: 移除对私有仓 NexusUnreal / NexusWork 的引用
+- docs: 新增英文 README（README.en.md）与中英文顶部语言切换
+
 ## [1.14.0-beta.1] - 2026-06-29
 
 > ⚠️ Pre-release，非生产环境使用。
