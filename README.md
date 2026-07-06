@@ -45,6 +45,8 @@ flowchart TB
 2. 重启编辑器后，打开 **Edit → Editor Preferences → Plugins → NexusLink**
 3. 勾选 **启用 MCP 服务器**（**默认关闭**）——勾选后即时启动 HTTP（`POST /stream`）与 WebSocket，并注册实例供 Rider/VSCode 发现；取消勾选立即停止，**无需重启编辑器**
 
+> GAS / Niagara 相关 Capability 需在项目 `.uproject` 中启用 `GameplayAbilities` / `Niagara` 插件（`NexusLink.uplugin` 已声明依赖）。StateTree / MVVM 能力需 UE 5.5+ 且引擎内置对应插件可用。
+
 未勾选时：工具栏不显示端口、IDE 代理扫描不到实例、AI 直连 `http://127.0.0.1:45000/stream` 无响应。完整用户指南见 [docs/usage-guide.md](docs/usage-guide.md) §2。
 
 ## 与 IDE 代理配合使用
@@ -92,7 +94,9 @@ Rider 用户将 URL 改为 `http://127.0.0.1:6800/stream`。代理经 WebSocket 
 >
 > 详细安装、状态栏、多实例切换见 [docs/usage-guide.md](docs/usage-guide.md) §3（Rider）、§4（VSCode/Cursor）。
 
-### 开发路径
+---
+
+## 开发
 
 **路径 A — 纯 Tool**（轻量无 section 工具，直接重写 `ExecuteImpl`）
 1. 创建 `Private/Tools/<模块>/NexusMcpToolXxx.h/.cpp`，继承 `FNexusMcpTool`
@@ -108,6 +112,8 @@ Rider 用户将 URL 改为 `http://127.0.0.1:6800/stream`。代理经 WebSocket 
 ---
 
 ## 功能列表
+
+> 共 **109** 个 Capability（另 3 个 MCP 元工具）。`WITH_GAS=0` 时不注册 10 个 GAS cap；`WITH_NIAGARA=0` 时再减 1；`WITH_STATETREE=0` / `WITH_MVVM=0`（UE 5.5 以下恒为 0）各再减 1。完整参数见 [tool-reference.md](docs/tool-reference.md)。
 
 ### 元工具（Meta）
 
@@ -136,7 +142,7 @@ Rider 用户将 URL 改为 `http://127.0.0.1:6800/stream`。代理经 WebSocket 
 
 ### 通用资产工具
 
-- [x] `search_asset` — 搜索项目资产（assetType / pathFilter / nameFilter / query，分页）
+- [x] `search_asset` — 搜索项目资产（assetType / pathFilter / nameFilter / query，分页）；类型别名含 `StateTree`/`st`、`mvvm`/`viewmodel`（后者归一到 widget 搜）
 - [x] `get_asset_refs` — 查询资产依赖/引用（见编辑器工具段）
 - [x] `get_asset_lua_binding` — 查询蓝图的 UnLua 绑定（返回 bound/moduleName/filePath；若 `bound=false` 停止，不猜路径）
 - [x] `rename_asset` / `duplicate_asset` / `delete_asset` / `compile_blueprint`（`save_asset` 见编辑器工具段）
@@ -200,6 +206,13 @@ Rider 用户将 URL 改为 `http://127.0.0.1:6800/stream`。代理经 WebSocket 
 - [x] `create_asset_user_widget` — 创建新 WidgetBlueprint 资产（可指定父类）
 - [x] `get_asset_user_widget` — 读取 WidgetBlueprint 控件树（`widgets` 含 `layout`）+ UMG 动画列表（`sections=widgets|animations`）
 - [x] `manage_asset_user_widget` — 控件树批量管理（`add` / `remove` / `set_slot` / `set_property`；设计时操作）
+
+### StateTree / MVVM 工具（UE 5.5+，`WITH_STATETREE=1` / `WITH_MVVM=1` 时注册）
+
+> 引擎 ≥5.5 且 `StateTree` / `ModelViewViewModel` 插件存在时自动链接；环境变量 `WITH_STATETREE` / `WITH_MVVM` 可强制开关。
+
+- [x] `get_asset_state_tree` — 只读检查 StateTree 资产（Schema、SubTrees/States/Tasks/Conditions/Transitions、Evaluators、GlobalTasks、参数数量）
+- [x] `get_asset_view_model` — 只读读取 Widget 蓝图 MVVM 扩展（ViewModel 列表 + SourcePath↔DestinationPath Binding 快照）
 
 ### Lua 运行时工具（需要 UnLua 插件）
 
@@ -288,11 +301,15 @@ Rider 用户将 URL 改为 `http://127.0.0.1:6800/stream`。代理经 WebSocket 
 - [x] 端口自动分配，冲突时自动切换；实例注册机制支持零扫描发现（`{PID}.json` 写入临时目录）
 - [x] **按 Capability 启用/禁用**（`IsCapabilityEnabled`）：Editor Preferences → Plugins → NexusLink → Capabilities；支持分类级 / 单条级勾选
 - [x] **全工具响应默认值压缩**（`FNexusResponseCompactorUtils`）：递归扫描对象数组字段，主流值自动抽取为 `<field>_defaults`，降低响应体积；可通过设置面板 `响应默认值压缩` 全局关闭
+- [x] **AI 反馈闭环**：`search_capabilities` / `call_capability` 自动埋点 + `submit_feedback` 手动上报；数据落本地 `<ProjectRoot>/.nexus-feedback/`；设置面板可**导出 Markdown** 报告、**创建 GitHub Issue**（可配置 `FeedbackIssueRepo`）。详情见 [usage-guide §2.5](docs/usage-guide.md)
+- [x] **插件版本检查**：设置面板「插件信息」显示当前版本；支持手动**检查更新**与**启动时自动检查**（默认开），有新版本时通知并跳转 [Releases](https://github.com/bytepine/NexusLink/releases)
 
 ---
 
 ## 相关文档
 
+- [docs/usage-guide.md](docs/usage-guide.md) — 用户安装、设置面板与 IDE 代理接入指南
+- [docs/architecture.md](docs/architecture.md) — 架构设计（分层职责、Capability 系统、注册与分发流程）
 - [docs/tool-reference.md](docs/tool-reference.md) — Capability 完整参数手册（脚本生成，`py scripts/build_tool_reference.py` 更新）
 - [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) — Capability 元数据规范（命名 / 描述四段式 / 自检清单）
 - [Resources/InitializeInstructions.SearchMode.md](Resources/InitializeInstructions.SearchMode.md) — AI 握手时 SearchMode 工作流说明（**First Action** / Tool Model / Intent→Capability 路由 / Hard Rules）
@@ -332,11 +349,15 @@ py scripts/build_unreal.py --version <version> --output release/
 
 ### 发版（维护者）
 
-GitHub Release **正文唯一来源**为 `CHANGELOG.md` 的 `[X.Y.Z]` 段落（CI 经 `scripts/extract_release_notes.py --verify` 提取）。禁止网页手写 Release 说明或 `gh release create`。
+GitHub Release **正文唯一来源**为 `CHANGELOG.md` 对应版本段落（CI 经 `scripts/extract_release_notes.py --verify` 提取）。禁止网页手写 Release 说明或 `gh release create`。
+
+**正式版**（`X.Y.Z`）：
 
 1. 归档 `[Unreleased]` → `[X.Y.Z] - YYYY-MM-DD`，更新 `VERSION`
 2. `py scripts/extract_release_notes.py --version X.Y.Z --verify`（预览 stdout，确认无误）
 3. `git commit` → `git tag -a nexus-link-vX.Y.Z` → `git push origin HEAD` + `git push origin nexus-link-vX.Y.Z`
+
+**Pre-release**（`X.Y.Z-beta.N`）：步骤同上，tag 为 `nexus-link-vX.Y.Z-beta.N`；CI 创建 GitHub **Pre-release**。
 
 push tag 后 `.github/workflows/release.yml` 打包 `nexus-mcp-unreal-<ver>.zip` 并发布 Release。
 

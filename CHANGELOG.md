@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Docs
+
+- docs: README / README.en 补齐 `get_asset_state_tree` / `get_asset_view_model`、109 cap 计数、反馈闭环与版本检查、Pre-release 发版；独立「开发」节；`usage-guide` / `architecture` 同步 109 与设置项
+
 ## [1.14.0] - 2026-07-02
 
 ### Docs

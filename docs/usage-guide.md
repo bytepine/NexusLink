@@ -84,7 +84,8 @@ NexusLink 内置端到端的 AI 使用反馈系统，**所有数据只落本地 
   - `redundant_call` — 已对同一资产发过 `sections=["all"]` 后又发子 section
   - `slow_call` — 执行耗时超过 `SlowCallThresholdMs` 阈值
 - **手动上报**：AI 遇到无法自解决的痛点时调用 `submit_feedback` 显式记录
-- **导出**：设置面板「**导出 Markdown**」按钮生成聚合报告落盘到 `.nexus-feedback/report_<ts>.md`（含 §7 慢调用 Top 10），并归档清空 `feedback.jsonl`
+- **导出**：设置面板「**导出 Markdown**」按钮生成聚合报告落盘到 `.nexus-feedback/report_<ts>.md`（含慢调用 Top 10、错误指纹 Top 5 等），并归档清空 `feedback.jsonl`
+- **GitHub Issue**：设置面板「**创建 GitHub Issue**」读取 `feedback.jsonl` 生成标题/正文并在浏览器打开预填页面（可配置 `FeedbackIssueRepo`，默认 `bytepine/NexusLink`）
 
 完整工具 schema 见 [`tool-reference.md §submit_feedback`](./tool-reference.md#submit_feedback)。
 
@@ -94,15 +95,17 @@ NexusLink 内置端到端的 AI 使用反馈系统，**所有数据只落本地 
 
 | 设置 | 说明 |
 |------|------|
+| 插件信息 | 显示当前版本；**检查更新**按钮；**启动时自动检查更新**（默认开） |
 | 启用 MCP 服务器 | 总开关，**默认关闭**；勾选后启动 HTTP/WebSocket 并注册实例供 IDE 发现，可随时切换无需重启 |
 | 工具列表模式 | **SearchMode**（默认，3 个元工具）或 **MultiTool**（各 Capability 独立 Tool） |
 | Capabilities | 按分类 / 单条启用或禁用（影响 `tools/list` 与 `search_capabilities` 命中） |
 | 启用反馈采集 | 总开关；取消勾选后 auto/manual 都丢弃 |
+| Feedback Issue 仓库 | GitHub `owner/repo` 或 URL，供「创建 GitHub Issue」预填 |
 | 搜索过载阈值 / 最大搜索结果数 | 控制 `search_overflow` 与返回条数上限 |
 | 慢调用阈值 (ms) | 超过则记 `slow_call` |
 | 响应默认值压缩 | 全工具 JSON 响应自动抽取重复字段到 `*_defaults` |
 
-控制台行按钮：**打开目录** / **导出 Markdown**（生成报告并归档）。
+控制台行按钮：**打开目录** / **导出 Markdown**（生成报告并归档）/ **创建 GitHub Issue**。
 
 ---
 
@@ -136,7 +139,7 @@ NexusLink 内置端到端的 AI 使用反馈系统，**所有数据只落本地 
 NexusLink 将能力分为两层：
 
 - **MCP 元工具（3 个）**：`search_capabilities`、`call_capability`、`submit_feedback`。
-- **Capability（107 个，随插件条件略减）**：原子工作单元。`WITH_GAS=0` 时不注册 10 个 GAS 相关 cap（约 97 个）；`WITH_NIAGARA=0` 时再减 1。完整清单见 [`tool-reference.md`](./tool-reference.md)。
+- **Capability（109 个，随插件条件略减）**：原子工作单元。`WITH_GAS=0` 时不注册 10 个 GAS 相关 cap；`WITH_NIAGARA=0` 时再减 1；`WITH_STATETREE=0` / `WITH_MVVM=0`（UE 5.5 以下恒为 0）各再减 1。完整清单见 [`tool-reference.md`](./tool-reference.md)。
 
 **tools/list 暴露模式**（`Edit → Editor Preferences → Plugins → NexusLink → 工具列表模式`）：
 

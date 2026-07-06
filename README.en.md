@@ -45,6 +45,8 @@ Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://gith
 2. After restarting the editor, open **Edit → Editor Preferences → Plugins → NexusLink**
 3. Check **Enable MCP Server** (**off by default**) — once checked, HTTP (`POST /stream`) and WebSocket start immediately and the instance is registered for Rider/VSCode discovery; unchecking stops them immediately, **no editor restart required**
 
+> GAS / Niagara Capabilities require `GameplayAbilities` / `Niagara` enabled in the project `.uproject` (`NexusLink.uplugin` declares these dependencies). StateTree / MVVM Capabilities require UE 5.5+ with the corresponding engine plugins available.
+
 When unchecked: the toolbar shows no port, IDE proxies cannot discover the instance, and AI direct connections to `http://127.0.0.1:45000/stream` get no response. See the full user guide at [docs/usage-guide.md](docs/usage-guide.md) §2.
 
 ## Using with IDE Proxies
@@ -92,7 +94,9 @@ For Rider, use `http://127.0.0.1:6800/stream`. The proxy connects to UE over Web
 >
 > Full install, status bar, and multi-instance switching: [docs/usage-guide.md](docs/usage-guide.md) §3 (Rider), §4 (VSCode/Cursor).
 
-### Development Paths
+---
+
+## Development
 
 **Path A — Pure Tool** (lightweight tools without sections; override `ExecuteImpl` directly)
 1. Create `Private/Tools/<module>/NexusMcpToolXxx.h/.cpp`, inheriting `FNexusMcpTool`
@@ -108,6 +112,8 @@ For Rider, use `http://127.0.0.1:6800/stream`. The proxy connects to UE over Web
 ---
 
 ## Feature List
+
+> **109** Capabilities total (plus 3 MCP meta tools). With `WITH_GAS=0`, 10 GAS caps are omitted; with `WITH_NIAGARA=0`, one more; with `WITH_STATETREE=0` / `WITH_MVVM=0` (always 0 below UE 5.5), one each. Full parameters in [tool-reference.md](docs/tool-reference.md).
 
 ### Meta Tools
 
@@ -136,7 +142,7 @@ For Rider, use `http://127.0.0.1:6800/stream`. The proxy connects to UE over Web
 
 ### General Asset Tools
 
-- [x] `search_asset` — Search project assets (assetType / pathFilter / nameFilter / query, paginated)
+- [x] `search_asset` — Search project assets (assetType / pathFilter / nameFilter / query, paginated); type aliases include `StateTree`/`st`, `mvvm`/`viewmodel` (latter normalized to widget search)
 - [x] `get_asset_refs` — Query asset dependencies/referencers (see Editor Tools section)
 - [x] `get_asset_lua_binding` — Query Blueprint UnLua binding (returns bound/moduleName/filePath; if `bound=false`, stop — do not guess paths)
 - [x] `rename_asset` / `duplicate_asset` / `delete_asset` / `compile_blueprint` (`save_asset` see Editor Tools section)
@@ -200,6 +206,13 @@ For Rider, use `http://127.0.0.1:6800/stream`. The proxy connects to UE over Web
 - [x] `create_asset_user_widget` — Create new WidgetBlueprint asset (optional parent class)
 - [x] `get_asset_user_widget` — Read WidgetBlueprint widget tree (`widgets` includes `layout`) + UMG animation list (`sections=widgets|animations`)
 - [x] `manage_asset_user_widget` — Batch widget tree management (`add` / `remove` / `set_slot` / `set_property`; design-time operations)
+
+### StateTree / MVVM Tools (UE 5.5+, registered when `WITH_STATETREE=1` / `WITH_MVVM=1`)
+
+> Auto-linked on engine ≥5.5 when `StateTree` / `ModelViewViewModel` plugins exist; env vars `WITH_STATETREE` / `WITH_MVVM` can force on/off.
+
+- [x] `get_asset_state_tree` — Read-only StateTree asset inspection (Schema, SubTrees/States/Tasks/Conditions/Transitions, Evaluators, GlobalTasks, parameter count)
+- [x] `get_asset_view_model` — Read-only Widget Blueprint MVVM extension (ViewModel list + SourcePath↔DestinationPath Binding snapshot)
 
 ### Lua Runtime Tools (requires UnLua plugin)
 
@@ -288,11 +301,15 @@ For Rider, use `http://127.0.0.1:6800/stream`. The proxy connects to UE over Web
 - [x] Auto port allocation with conflict fallback; instance registration for zero-scan discovery (`{PID}.json` written to temp directory)
 - [x] **Per-Capability enable/disable** (`IsCapabilityEnabled`): Editor Preferences → Plugins → NexusLink → Capabilities; category-level / per-item toggles
 - [x] **Response default-value compaction for all tools** (`FNexusResponseCompactorUtils`): recursively scans object array fields, extracts dominant values as `<field>_defaults` to reduce response size; can be globally disabled via settings panel **Response Default Compaction**
+- [x] **AI feedback loop**: auto telemetry on `search_capabilities` / `call_capability` + manual `submit_feedback`; data stored locally under `<ProjectRoot>/.nexus-feedback/`; settings panel **Export Markdown** report and **Create GitHub Issue** (configurable `FeedbackIssueRepo`). See [usage-guide §2.5](docs/usage-guide.md)
+- [x] **Plugin version check**: settings panel **Plugin Info** shows current version; manual **Check for Updates** and **check on startup** (on by default); notification with link to [Releases](https://github.com/bytepine/NexusLink/releases) when newer
 
 ---
 
 ## Related Documentation
 
+- [docs/usage-guide.md](docs/usage-guide.md) — User install, settings panel, and IDE proxy setup
+- [docs/architecture.md](docs/architecture.md) — Architecture (layering, Capability system, registration & dispatch)
 - [docs/tool-reference.md](docs/tool-reference.md) — Full Capability parameter reference (script-generated; update with `py scripts/build_tool_reference.py`)
 - [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) — Capability metadata spec (naming / four-part description / self-check checklist)
 - [Resources/InitializeInstructions.SearchMode.md](Resources/InitializeInstructions.SearchMode.md) — SearchMode workflow for AI handshake (**First Action** / Tool Model / Intent→Capability routing / Hard Rules)
@@ -329,6 +346,20 @@ py scripts/build_unreal.py --version <version> --output release/
 ```
 
 Output: `release/nexus-mcp-unreal-<version>.zip` — extract to UE project `Plugins/Developer/`.
+
+### Release (maintainers)
+
+GitHub Release **body must come only** from the matching `CHANGELOG.md` section (CI via `scripts/extract_release_notes.py --verify`). Do not hand-write Release notes or use `gh release create`.
+
+**Stable** (`X.Y.Z`):
+
+1. Archive `[Unreleased]` → `[X.Y.Z] - YYYY-MM-DD`, update `VERSION`
+2. `py scripts/extract_release_notes.py --version X.Y.Z --verify` (preview stdout)
+3. `git commit` → `git tag -a nexus-link-vX.Y.Z` → `git push origin HEAD` + `git push origin nexus-link-vX.Y.Z`
+
+**Pre-release** (`X.Y.Z-beta.N`): same steps; tag `nexus-link-vX.Y.Z-beta.N`; CI creates a GitHub **Pre-release**.
+
+Pushing the tag triggers `.github/workflows/release.yml` to package `nexus-mcp-unreal-<ver>.zip` and publish the Release.
 
 ## License
 

@@ -20,7 +20,7 @@ graph TB
             ToolRegistry[FNexusMcpToolRegistry<br>工具注册表]
             CapRegistry[FNexusCapabilityRegistry<br>Capability 注册表]
             Tools[FNexusMcpTool<br>search / call / feedback]
-            Caps[FNexusCapability<br>107 原子能力]
+            Caps[FNexusCapability<br>109 原子能力]
         end
     end
 
@@ -46,7 +46,7 @@ graph TB
 | 协议层 | `FNexusMcpDispatcher` | JSON-RPC 2.0 解析、MCP 握手状态机、路由分发 |
 | 注册层 | `FNexusMcpToolRegistry` / `FNexusCapabilityRegistry` | 全局单例注册表，O(1) 按名查找 |
 | 工具层 | `FNexusMcpTool` | 3 个元工具：`search_capabilities` / `call_capability` / `submit_feedback` |
-| 能力层 | `FNexusCapability` | 107 个原子工作单元（`WITH_GAS=0` 时为 97；`WITH_NIAGARA=0` 时再减 1），按域分类 |
+| 能力层 | `FNexusCapability` | 109 个原子工作单元（`WITH_GAS=0` 减 10；`WITH_NIAGARA=0` 再减 1；`WITH_STATETREE=0` / `WITH_MVVM=0` 各再减 1），按域分类 |
 
 ---
 
@@ -113,7 +113,7 @@ sequenceDiagram
     Call-->>AI: 结构化结果
 ```
 
-AI 无需记忆全部 107 个 Capability 名称——先搜索再调用。
+AI 无需记忆全部 109 个 Capability 名称——先搜索再调用。
 
 ---
 
@@ -124,7 +124,7 @@ NexusLink 支持两种 `tools/list` 暴露模式，可在 Editor Preferences →
 | 模式 | tools/list 内容 | initialize.instructions | 适用场景 |
 |------|----------------|-------------------------|---------|
 | **SearchMode**（默认） | 3 个元工具 | `InitializeInstructions.SearchMode.md`（完整路由表 + 调用规范） | AI 通过 `search_capabilities` 按需发现，降低首次 token 开销 |
-| **MultiTool** | `submit_feedback` + 全部已启用 Capability（各作独立 MCP Tool，最多 107 个） | `InitializeInstructions.MultiTool.md`（精简全局约束） | 需要客户端一次性枚举全部能力的场景 |
+| **MultiTool** | `submit_feedback` + 全部已启用 Capability（各作独立 MCP Tool，最多 109 个） | `InitializeInstructions.MultiTool.md`（精简全局约束） | 需要客户端一次性枚举全部能力的场景 |
 
 模式切换或 Capability 变更时，NexusLink 自动广播 `notifications/tools/list_changed`。
 
