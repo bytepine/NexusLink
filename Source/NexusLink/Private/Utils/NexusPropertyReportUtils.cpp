@@ -15,7 +15,9 @@ TArray<TSharedPtr<FJsonValue>> FNexusPropertyReportUtils::BuildEditablePropsPage
 	const TArray<FString>&       PropertyPaths,
 	int32                        Offset,
 	int32                        Limit,
-	int32&                       OutTotal)
+	int32&                       OutTotal,
+	int32                        SubobjectDepth,
+	int32                        SubobjectMaxCount)
 {
 	// 先收集满足过滤条件的全部属性
 	TArray<TSharedPtr<FJsonObject>> All;
@@ -31,11 +33,47 @@ TArray<TSharedPtr<FJsonValue>> FNexusPropertyReportUtils::BuildEditablePropsPage
 		Entry->SetStringField(TEXT("name"), PN);
 		Entry->SetStringField(TEXT("type"), Prop->GetCPPType());
 
-		if (Instance)
+		void* ValuePtr = Instance ? Prop->ContainerPtrToValuePtr<void>(Instance) : nullptr;
+
+		if (ValuePtr)
 		{
 			FString Val;
-			FNexusPropertyUtils::ExportText(Prop, Val, Prop->ContainerPtrToValuePtr<void>(Instance));
+			FNexusPropertyUtils::ExportText(Prop, Val, ValuePtr);
 			if (!Val.IsEmpty()) Entry->SetStringField(TEXT("value"), Val);
+
+			// opt-in：递归展开 instanced/EditInline 子对象属性
+			if (SubobjectDepth > 0)
+			{
+				if (const FObjectProperty* ObjProp = CastField<FObjectProperty>(Prop))
+				{
+					const bool bInstanced = Prop->HasAnyPropertyFlags(CPF_InstancedReference);
+					const bool bEditInline = ObjProp->PropertyClass
+						&& ObjProp->PropertyClass->HasAnyClassFlags(CLASS_EditInlineNew);
+					if (bInstanced || bEditInline)
+					{
+						UObject* SubObj = ObjProp->GetObjectPropertyValue(ValuePtr);
+						if (SubObj)
+						{
+							int32 SubTotal = 0;
+							TArray<TSharedPtr<FJsonValue>> SubProps = BuildEditablePropsPage(
+								SubObj->GetClass(),
+								SubObj,
+								SubObj->GetClass(),
+								TEXT(""),
+								TArray<FString>(),
+								0,
+								SubobjectMaxCount,
+								SubTotal,
+								SubobjectDepth - 1,
+								SubobjectMaxCount);
+							if (SubProps.Num() > 0)
+							{
+								Entry->SetArrayField(TEXT("subProperties"), SubProps);
+							}
+						}
+					}
+				}
+			}
 		}
 
 		// 继承标记：属性的 OwnerClass 与叶类不同时标记

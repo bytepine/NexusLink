@@ -8,7 +8,8 @@
 #include "BehaviorTree/BTService.h"
 #include "BehaviorTree/BTTaskNode.h"
 
-/** 将 UObject 可编辑 UPROPERTY 序列化为 JSON 数组（不分页，带上限）。 */
+/** 将 UObject 可编辑 UPROPERTY 序列化为 JSON 数组（不分页，带上限）。
+ *  SubobjectDepth=2：递归展开 Task/Decorator 内层 instanced 子对象属性至 subProperties。*/
 static TArray<TSharedPtr<FJsonValue>> BuildEditableProps(const UObject* Obj, int32 MaxCount = 64)
 {
 	TArray<TSharedPtr<FJsonValue>> Result;
@@ -26,7 +27,9 @@ static TArray<TSharedPtr<FJsonValue>> BuildEditableProps(const UObject* Obj, int
 		TArray<FString>(),
 		0,
 		MaxCount,
-		Total);
+		Total,
+		/*SubobjectDepth=*/2,
+		/*SubobjectMaxCount=*/16);
 	return Result;
 }
 
@@ -40,6 +43,13 @@ static FString BuildChildPath(const FString& ParentPath, int32 ChildIndex)
 
 TSharedPtr<FJsonObject> FNexusBehaviorTreeInspectUtils::BuildBTNodeInfo(const UBTNode* Node, const FString& Path)
 {
+	// 初始化全局先序扁平序号计数器，根节点分配 0
+	int32 FlatCounter = 0;
+	return BuildBTNodeInfoRec(Node, Path, FlatCounter);
+}
+
+TSharedPtr<FJsonObject> FNexusBehaviorTreeInspectUtils::BuildBTNodeInfoRec(const UBTNode* Node, const FString& Path, int32& FlatCounter)
+{
 	if (!Node)
 	{
 		return nullptr;
@@ -49,6 +59,8 @@ TSharedPtr<FJsonObject> FNexusBehaviorTreeInspectUtils::BuildBTNodeInfo(const UB
 	NodeObj->SetStringField(TEXT("name"), Node->GetNodeName());
 	NodeObj->SetStringField(TEXT("class"), Node->GetClass()->GetName());
 	NodeObj->SetStringField(TEXT("path"), Path);
+	// 先序 DFS：进入本节点时分配序号，与 manage_asset_behavior_tree 的路径定位互补
+	NodeObj->SetNumberField(TEXT("flatIndex"), FlatCounter++);
 
 	TArray<TSharedPtr<FJsonValue>> NodeProps = BuildEditableProps(Node);
 	if (NodeProps.Num() > 0)
@@ -95,7 +107,8 @@ TSharedPtr<FJsonObject> FNexusBehaviorTreeInspectUtils::BuildBTNodeInfo(const UB
 			}
 
 			const FString ChildPath = BuildChildPath(Path, i);
-			TSharedPtr<FJsonObject> ChildObj = BuildBTNodeInfo(Child, ChildPath);
+			// 递归时传入计数器引用，保证全树先序连续
+			TSharedPtr<FJsonObject> ChildObj = BuildBTNodeInfoRec(Child, ChildPath, FlatCounter);
 			if (!ChildObj.IsValid())
 			{
 				continue;

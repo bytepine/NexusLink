@@ -9,6 +9,7 @@
 
 ### Added
 
+- feat(unreal): `get_asset_behavior_tree` 输出每个节点新增 `flatIndex`（全树先序 DFS 全局序号，根=0，与 `path`/`childIndex` 路径定位互补）；`FNexusPropertyReportUtils::BuildEditablePropsPage` 新增 opt-in 参数 `SubobjectDepth`（默认 0 零回归），BT 属性导出传 `SubobjectDepth=2`，递归展开 instanced/EditInline 子对象属性至 `subProperties`（解决如 `MoeAbleFindTargetsTask` 内层配置不可读问题）
 - feat(tier4c): 新增 MetaSoundPatch 能力（`create_asset_meta_sound_patch`，≥UE5.1 + `WITH_METASOUND`）；扩展 `get_asset_meta_sound` / `manage_asset_meta_sound` 自动兼容 `UMetaSoundPatch`（先尝试 Source，失败后 Patch）；≥5.3 通过 `IMetaSoundDocumentInterface` 统一读写，`RootMetaSoundDocument` 反射 bypass；`search_asset` 新增 `MetaSoundPatch` 类型分支；新增 `NX_UE_HAS_METASOUND_PATCH`（5.1+）宏
 - feat(tier4c): 新增 DataLayer 能力集（`create/get/manage_asset_data_layer`，≥UE5.1）：基于 `UDataLayerAsset`，支持 `GetType/SetType`（Runtime/Editor）与 `GetDebugColor/SetDebugColor`（`#RRGGBB`）；`search_asset` 新增 `DataLayerAsset / DataLayer` 类型；新增 `NX_UE_HAS_DATA_LAYER_ASSET`（5.1+）/ `NX_UE_HAS_DATA_LAYER_ASSET_BASE`（5.5+）宏
 - fix(compat): `PhysicsEngine/SkeletalBodySetup.h` 仅 UE5.5+ 存在，改用 `NX_UE_HAS_SKELETAL_BODY_SETUP_HEADER` 宏条件 include（修复 UE5.1/5.3 编译失败）
