@@ -53,44 +53,54 @@ When unchecked: the toolbar shows no port, IDE proxies cannot discover the insta
 
 NexusLink is the **UE-side plugin** (HTTP `:45000` + WebSocket `:55000`). For daily development, use an **IDE proxy** to scan UE instances, keep long-lived connections, and switch between Editor/PIE targets; your AI client only needs a fixed proxy port.
 
-### Get IDE proxies (marketplace recommended)
+### Get a client proxy / desktop app (marketplace recommended)
 
-| IDE proxy | Recommended | Fallback |
-|-----------|-------------|----------|
+| Client | Recommended | Fallback |
+|--------|-------------|----------|
 | **NexusRider** | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/32499-nexus-mcp) — Rider **Settings → Plugins → Marketplace**, search **Nexus MCP** | [GitHub Releases](https://github.com/bytepine/NexusRider/releases) zip |
 | **NexusVSCode** | Search **Nexus MCP** in Extensions — [Open VSX](https://open-vsx.org/extension/byteyang/nexus-mcp-vscode) (Cursor / CodeBuddy / Windsurf) · [VS Marketplace](https://marketplace.visualstudio.com/items?itemName=byteyang.nexus-mcp-vscode) | [GitHub Releases](https://github.com/bytepine/NexusVSCode/releases) `.vsix` |
+| **NexusDesktop** | [GitHub Releases](https://github.com/bytepine/NexusDesktop/releases) — `.zip` (Windows) / `.dmg` (macOS) | — |
 
-> **Prefer marketplace installs** for automatic updates; Releases / local zip / `.vsix` are for offline or dev use only.
+> **NexusRider / NexusVSCode**: prefer marketplace installs for automatic updates. **NexusDesktop**: a standalone desktop app — no IDE plugin needed, just double-click to run, then it lives in the system tray.
 
 | Access | Endpoint | For |
 |--------|----------|-----|
+| **NexusDesktop** | `http://127.0.0.1:6700/stream` | Standalone desktop app, no IDE needed, double-click to start |
 | **Rider proxy** | `http://127.0.0.1:6800/stream` | JetBrains Rider |
 | **VSCode/Cursor proxy** | `http://127.0.0.1:6900/stream` | VSCode / Cursor / CodeBuddy / Windsurf |
-| **Direct to UE** | `http://127.0.0.1:45000/stream` | No IDE plugin; you manage UE ports yourself |
+| **Direct to UE** | `http://127.0.0.1:45000/stream` | No proxy; manage UE ports yourself |
 
-Source & docs: [NexusRider](https://github.com/bytepine/NexusRider) · [NexusVSCode](https://github.com/bytepine/NexusVSCode)
+Source & docs: [NexusDesktop](https://github.com/bytepine/NexusDesktop) · [NexusRider](https://github.com/bytepine/NexusRider) · [NexusVSCode](https://github.com/bytepine/NexusVSCode)
 
 ### Recommended setup
 
 1. **UE**: Install and enable this plugin (above), check **Enable MCP Server**
-2. **IDE**: Install the matching proxy from marketplace and turn on its master switch
-   - Rider: Install **Nexus MCP** from Marketplace → `Settings → Tools → Nexus MCP → Enable Nexus MCP server` (after **Open Project**)
-   - VSCode/Cursor: Install **Nexus MCP** from Extensions → `Settings → nexusMcp.enabled = true`
-3. **AI client**: Point MCP config at the proxy port (not UE `45000`)
+2. **Client**: Choose any of the following
+   - **NexusDesktop** (no IDE needed): download from [Releases](https://github.com/bytepine/NexusDesktop/releases), run it, enable the proxy server in the tray menu
+   - **Rider**: Install **Nexus MCP** from Marketplace → `Settings → Tools → Nexus MCP → Enable Nexus MCP server` (after **Open Project**)
+   - **VSCode/Cursor**: Install **Nexus MCP** from Extensions → `Settings → nexusMcp.enabled = true`
+3. **AI client**: Point MCP config at the corresponding port
 
 ```json
 {
   "mcpServers": {
     "nexus-unreal": {
-      "url": "http://127.0.0.1:6900/stream"
+      "url": "http://127.0.0.1:6700/stream"
     }
   }
 }
 ```
 
-For Rider, use `http://127.0.0.1:6800/stream`. The proxy connects to UE over WebSocket; tool capabilities match direct mode.
+| Client | URL |
+|--------|-----|
+| NexusDesktop | `http://127.0.0.1:6700/stream` |
+| Rider proxy | `http://127.0.0.1:6800/stream` |
+| VSCode/Cursor proxy | `http://127.0.0.1:6900/stream` |
 
-> All three layers must be on: UE **Enable MCP Server** → IDE proxy **enabled** → AI client MCP config. **If any layer is off, nothing works.**
+Proxies connect to UE over WebSocket; tool capabilities match direct mode.
+
+> **NexusDesktop**: only two layers — UE **Enable MCP Server** + Desktop **Enable proxy** + AI client MCP config.
+> **IDE proxies**: all three layers must be on — UE **Enable MCP Server** → IDE proxy **enabled** → AI client MCP config. **If any layer is off, nothing works.**
 >
 > Full install, status bar, and multi-instance switching: [docs/usage-guide.md](docs/usage-guide.md) §3 (Rider), §4 (VSCode/Cursor).
 
