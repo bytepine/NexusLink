@@ -63,6 +63,9 @@ public class NexusLink : ModuleRules
 				"PropertyEditor",
 				"ContentBrowser",
 				"ContentBrowserData",
+				"LevelSequence",
+				"MovieScene",
+				"MovieSceneTracks",
 				}
 			);
 
@@ -343,6 +346,245 @@ public class NexusLink : ModuleRules
 		else
 		{
 			PublicDefinitions.Add("WITH_MVVM=0");
+		}
+
+		// ── 可选 EnhancedInput 支持（UE 5.0+；4.26 插件 API 不稳定，跳过）────────────
+		bool bHasEnhancedInput = false;
+		bool bEngineIsUE50Plus = Target.Version.MajorVersion >= 5;
+
+		if (bEngineIsUE50Plus)
+		{
+			foreach (string Dir in PluginSearchDirs)
+			{
+				if (bHasEnhancedInput) break;
+				try
+				{
+					foreach (string File in System.IO.Directory.GetFiles(
+						Dir, "EnhancedInput.uplugin", System.IO.SearchOption.AllDirectories))
+					{
+						bHasEnhancedInput = true;
+						break;
+					}
+				}
+				catch (System.Exception) { }
+			}
+		}
+
+		string EnvEnhancedInput = System.Environment.GetEnvironmentVariable("WITH_ENHANCED_INPUT");
+		if (EnvEnhancedInput == "1") bHasEnhancedInput = true;
+		if (EnvEnhancedInput == "0") bHasEnhancedInput = false;
+
+		if (bHasEnhancedInput)
+		{
+			PrivateDependencyModuleNames.Add("EnhancedInput");
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("EnhancedInputEditor");
+			}
+			PublicDefinitions.Add("WITH_ENHANCED_INPUT=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_ENHANCED_INPUT=0");
+		}
+
+		// ── 可选 ControlRig 支持（UE 5.0+；4.26 为 Experimental，API 不稳定，跳过）────────
+		bool bHasControlRig = false;
+
+		if (bEngineIsUE50Plus)
+		{
+			foreach (string Dir in PluginSearchDirs)
+			{
+				if (bHasControlRig) break;
+				try
+				{
+					foreach (string File in System.IO.Directory.GetFiles(
+						Dir, "ControlRig.uplugin", System.IO.SearchOption.AllDirectories))
+					{
+						bHasControlRig = true;
+						break;
+					}
+				}
+				catch (System.Exception) { }
+			}
+		}
+
+		string EnvControlRig = System.Environment.GetEnvironmentVariable("WITH_CONTROL_RIG");
+		if (EnvControlRig == "1") bHasControlRig = true;
+		if (EnvControlRig == "0") bHasControlRig = false;
+
+		if (bHasControlRig)
+		{
+			PrivateDependencyModuleNames.Add("ControlRig");
+			PrivateDependencyModuleNames.Add("RigVM");
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("ControlRigDeveloper");
+			}
+			PublicDefinitions.Add("WITH_CONTROL_RIG=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_CONTROL_RIG=0");
+		}
+
+		// ── 可选 IKRig 支持（UE 5.0+）──────────────────────────────────────────────────
+		bool bHasIKRig = false;
+
+		if (bEngineIsUE50Plus)
+		{
+			foreach (string Dir in PluginSearchDirs)
+			{
+				if (bHasIKRig) break;
+				try
+				{
+					foreach (string File in System.IO.Directory.GetFiles(
+						Dir, "IKRig.uplugin", System.IO.SearchOption.AllDirectories))
+					{
+						bHasIKRig = true;
+						break;
+					}
+				}
+				catch (System.Exception) { }
+			}
+		}
+
+		string EnvIKRig = System.Environment.GetEnvironmentVariable("WITH_IK_RIG");
+		if (EnvIKRig == "1") bHasIKRig = true;
+		if (EnvIKRig == "0") bHasIKRig = false;
+
+		if (bHasIKRig)
+		{
+			PrivateDependencyModuleNames.Add("IKRig");
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("IKRigEditor");
+				PrivateDependencyModuleNames.Add("IKRigDeveloper");
+			}
+			PublicDefinitions.Add("WITH_IK_RIG=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_IK_RIG=0");
+		}
+
+		// ── 可选 MetaSound 支持（UE 5.0+）──────────────────────────────────────────────
+		bool bHasMetaSound = false;
+
+		if (bEngineIsUE50Plus)
+		{
+			foreach (string Dir in PluginSearchDirs)
+			{
+				if (bHasMetaSound) break;
+				try
+				{
+					foreach (string File in System.IO.Directory.GetFiles(
+						Dir, "Metasound.uplugin", System.IO.SearchOption.AllDirectories))
+					{
+						bHasMetaSound = true;
+						break;
+					}
+				}
+				catch (System.Exception) { }
+			}
+		}
+
+		string EnvMetaSound = System.Environment.GetEnvironmentVariable("WITH_METASOUND");
+		if (EnvMetaSound == "1") bHasMetaSound = true;
+		if (EnvMetaSound == "0") bHasMetaSound = false;
+
+		if (bHasMetaSound)
+		{
+			PrivateDependencyModuleNames.AddRange(new string[] { "MetasoundEngine", "MetasoundFrontend", "MetasoundGraphCore" });
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("MetasoundEditor");
+			}
+			PublicDefinitions.Add("WITH_METASOUND=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_METASOUND=0");
+		}
+
+		// ── 可选 PCG 支持（UE 5.4+）────────────────────────────────────────────────────
+		bool bEngineIsUE54Plus = (Target.Version.MajorVersion > 5)
+			|| (Target.Version.MajorVersion == 5 && Target.Version.MinorVersion >= 4);
+		bool bHasPCG = false;
+
+		if (bEngineIsUE54Plus)
+		{
+			foreach (string Dir in PluginSearchDirs)
+			{
+				if (bHasPCG) break;
+				try
+				{
+					foreach (string File in System.IO.Directory.GetFiles(
+						Dir, "PCG.uplugin", System.IO.SearchOption.AllDirectories))
+					{
+						bHasPCG = true;
+						break;
+					}
+				}
+				catch (System.Exception) { }
+			}
+		}
+
+		string EnvPCG = System.Environment.GetEnvironmentVariable("WITH_PCG");
+		if (EnvPCG == "1") bHasPCG = true;
+		if (EnvPCG == "0") bHasPCG = false;
+
+		if (bHasPCG)
+		{
+			PrivateDependencyModuleNames.Add("PCG");
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("PCGEditor");
+			}
+			PublicDefinitions.Add("WITH_PCG=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_PCG=0");
+		}
+
+		// ── 可选 PoseSearch 支持（UE 5.4+）─────────────────────────────────────────────
+		bool bHasPoseSearch = false;
+
+		if (bEngineIsUE54Plus)
+		{
+			foreach (string Dir in PluginSearchDirs)
+			{
+				if (bHasPoseSearch) break;
+				try
+				{
+					foreach (string File in System.IO.Directory.GetFiles(
+						Dir, "PoseSearch.uplugin", System.IO.SearchOption.AllDirectories))
+					{
+						bHasPoseSearch = true;
+						break;
+					}
+				}
+				catch (System.Exception) { }
+			}
+		}
+
+		string EnvPoseSearch = System.Environment.GetEnvironmentVariable("WITH_POSE_SEARCH");
+		if (EnvPoseSearch == "1") bHasPoseSearch = true;
+		if (EnvPoseSearch == "0") bHasPoseSearch = false;
+
+		if (bHasPoseSearch)
+		{
+			PrivateDependencyModuleNames.Add("PoseSearch");
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("PoseSearchEditor");
+			}
+			PublicDefinitions.Add("WITH_POSE_SEARCH=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_POSE_SEARCH=0");
 		}
 
 		if (bHasUnLua)

@@ -32,6 +32,11 @@
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
+#if NX_UE_HAS_BLEND_SPACE_BASE
+#include "Animation/BlendSpaceBase.h"
+#endif
+#include "Animation/BlendSpace.h"
+#include "Animation/BlendSpace1D.h"
 #include "Sound/SoundWave.h"
 #include "Sound/SoundCue.h"
 #include "Engine/World.h"
@@ -40,6 +45,16 @@
 #endif
 #if WITH_STATETREE
 #include "StateTree.h"
+#endif
+#if WITH_METASOUND
+#include "MetasoundSource.h"
+#endif
+#if WITH_PCG
+#include "PCGGraph.h"
+#endif
+#if WITH_POSE_SEARCH
+#include "PoseSearch/PoseSearchDatabase.h"
+#include "PoseSearch/PoseSearchSchema.h"
 #endif
 #include "NexusMcpTool.h"
 
@@ -377,6 +392,22 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			for (const FAssetData& A : Assets) AddEntry(A, TEXT("AnimSequence"));
 		}
 
+		if (bIsAll || TypeLower == TEXT("blendspace") || TypeLower == TEXT("blend_space"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UBlendSpace::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets)
+			{
+				const bool b1D = A.GetClass() && A.GetClass()->IsChildOf(UBlendSpace1D::StaticClass());
+				AddEntry(A, b1D ? TEXT("BlendSpace1D") : TEXT("BlendSpace"));
+			}
+		}
+
 		if (bIsAll || TypeLower == TEXT("skeleton"))
 		{
 			FARFilter Filter;
@@ -453,6 +484,59 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		}
 #endif
 
+#if WITH_METASOUND
+		if (bIsAll || TypeLower == TEXT("metasoundsource") || TypeLower == TEXT("meta_sound_source") || TypeLower == TEXT("metasound"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UMetaSoundSource::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("MetaSoundSource"));
+		}
+#endif
+
+#if WITH_PCG
+		if (bIsAll || TypeLower == TEXT("pcggraph") || TypeLower == TEXT("pcg_graph") || TypeLower == TEXT("pcg"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UPCGGraph::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("PCGGraph"));
+		}
+#endif
+
+#if WITH_POSE_SEARCH
+		if (bIsAll || TypeLower == TEXT("posesearchdatabase") || TypeLower == TEXT("pose_search_database") || TypeLower == TEXT("posesearch"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UPoseSearchDatabase::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("PoseSearchDatabase"));
+		}
+		if (bIsAll || TypeLower == TEXT("posesearchschema") || TypeLower == TEXT("pose_search_schema"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UPoseSearchSchema::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("PoseSearchSchema"));
+		}
+#endif
+
 #if WITH_GAS
 		auto AddGasBlueprintEntries = [&](const TCHAR* ParentSubstr, const TCHAR* OutType)
 		{
@@ -508,6 +592,16 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 #endif
 #if WITH_STATETREE
 			&& TypeLower != TEXT("statetree") && TypeLower != TEXT("state_tree")
+#endif
+#if WITH_METASOUND
+			&& TypeLower != TEXT("metasoundsource") && TypeLower != TEXT("meta_sound_source") && TypeLower != TEXT("metasound")
+#endif
+#if WITH_PCG
+			&& TypeLower != TEXT("pcggraph") && TypeLower != TEXT("pcg_graph") && TypeLower != TEXT("pcg")
+#endif
+#if WITH_POSE_SEARCH
+			&& TypeLower != TEXT("posesearchdatabase") && TypeLower != TEXT("pose_search_database") && TypeLower != TEXT("posesearch")
+			&& TypeLower != TEXT("posesearchschema") && TypeLower != TEXT("pose_search_schema")
 #endif
 #if WITH_GAS
 			&& TypeLower != TEXT("gameplayability") && TypeLower != TEXT("gameplay_ability")

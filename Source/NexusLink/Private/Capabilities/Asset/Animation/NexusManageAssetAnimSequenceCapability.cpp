@@ -10,6 +10,12 @@
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
+#if NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL && WITH_EDITOR
+#include "Animation/AnimData/IAnimationDataController.h"
+#include "Animation/AnimData/AnimDataModel.h"
+#endif
+#include "Animation/AnimCurveTypes.h"
+#include "UObject/UnrealType.h"
 #include "NexusMcpTool.h"
 
 // ── 跨版本帧率设置辅助 ──────────────────────────────────────────────────────
@@ -123,28 +129,63 @@ static bool SetAnimSequenceRootMotion(UAnimSequence* Seq, const FString& ModeStr
 #endif
 }
 
+// ── 骨骼曲线关键帧辅助（UE5.6+ IAnimationDataController；旧版走 RawCurveData）──────────
+
+// 获取可写 FRawCurveTracks 指针（UE5.5+ RawCurveData 为 protected，通过反射访问）
+static FRawCurveTracks* GetRawCurveDataPtr(UAnimSequenceBase* SeqBase)
+{
+	if (!SeqBase) return nullptr;
+	FStructProperty* StructProp = FindFProperty<FStructProperty>(SeqBase->GetClass(), TEXT("RawCurveData"));
+	if (!StructProp) return nullptr;
+	return StructProp->ContainerPtrToValuePtr<FRawCurveTracks>(SeqBase);
+}
+
+// 跨版本获取曲线名
+// UE 4.26–5.2：Name (FSmartName) 公开，取 Name.DisplayName
+// UE 5.3+：CurveName 为 private，通过 GetName()/SetName() 访问
+static FName GetFloatCurveName(const FFloatCurve& FC)
+{
+#if NX_UE_HAS_FLOAT_CURVE_SMART_NAME
+	return FC.Name.DisplayName;
+#else
+	return FC.GetName();
+#endif
+}
+
+static void SetFloatCurveName(FFloatCurve& FC, const FName& InName)
+{
+#if NX_UE_HAS_FLOAT_CURVE_SMART_NAME
+	FC.Name.DisplayName = InName;
+#else
+	FC.SetName(InName);
+#endif
+}
+
 void FManageAssetAnimSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_anim_sequence");
-	Out.Description = TEXT("编辑 AnimSequence。action=add_notify|remove_notify|set_frame_rate|set_root_motion。");
+	Out.Description = TEXT("编辑 AnimSequence。action=add_notify|remove_notify|set_frame_rate|set_root_motion|add_float_curve|set_curve_key|remove_curve。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),    FNexusSchema::Str(TEXT("AnimSequence 资产路径")))
 		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("编辑操作"),
-			{ TEXT("add_notify"), TEXT("remove_notify"), TEXT("set_frame_rate"), TEXT("set_root_motion") }))
+			{ TEXT("add_notify"), TEXT("remove_notify"), TEXT("set_frame_rate"), TEXT("set_root_motion"),
+			  TEXT("add_float_curve"), TEXT("set_curve_key"), TEXT("remove_curve") }))
 		.Prop(TEXT("notifyName"),   FNexusSchema::Str(TEXT("Notify 名（add/remove）")))
 		.Prop(TEXT("notifyClass"),  FNexusSchema::Str(TEXT("Notify 类路径（add；默认 AnimNotify）")))
 		.Prop(TEXT("notifyIndex"),  FNexusSchema::Int(TEXT("Notify 索引（remove）")))
-		.Prop(TEXT("time"),         FNexusSchema::Num(TEXT("触发时间秒（add_notify）")))
+		.Prop(TEXT("time"),         FNexusSchema::Num(TEXT("触发时间秒（add_notify）或关键帧时间秒（set_curve_key）")))
 		.Prop(TEXT("duration"),     FNexusSchema::Num(TEXT("持续秒（State Notify 时 > 0）")))
 		.Prop(TEXT("frameRate"),    FNexusSchema::Num(TEXT("新帧率（set_frame_rate）")))
 		.Prop(TEXT("rootMotion"),   FNexusSchema::Str(TEXT("根运动模式：RootMotionFromEverything|RootMotionFromMontagesOnly|NoRootMotionExtraction")))
+		.Prop(TEXT("curveName"),    FNexusSchema::Str(TEXT("曲线名（add_float_curve / set_curve_key / remove_curve）")))
+		.Prop(TEXT("value"),        FNexusSchema::Num(TEXT("关键帧值（set_curve_key）")))
 		.Required({ TEXT("assetPath"), TEXT("action") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("notify"), TEXT("event"), TEXT("frame"), TEXT("fps"), TEXT("root motion") };
+	Out.ExtraSearchKeywords = { TEXT("notify"), TEXT("event"), TEXT("frame"), TEXT("fps"), TEXT("root motion"), TEXT("curve"), TEXT("keyframe") };
 	Out.RelatedCapabilities = { TEXT("get_asset_anim_sequence"), TEXT("get_asset_anim_montage") };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("增删 AnimNotify、改帧率/根运动；修改后需 save_asset 落盘");
+	Out.WhenToUse = TEXT("增删 AnimNotify、改帧率/根运动、管理浮点曲线；修改后需 save_asset 落盘");
 }
 
 FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -317,6 +358,149 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 			Entry->SetStringField(TEXT("rootMotion"), ModeName);
 			Entry->SetBoolField(TEXT("success"), true);
 			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+		}
+		else if (Action.Equals(TEXT("add_float_curve"), ESearchCase::IgnoreCase))
+		{
+			FString CurveName;
+			if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("curveName"), CurveName) || CurveName.IsEmpty())
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("add_float_curve 需要 curveName"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+#if NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL && WITH_EDITOR
+			IAnimationDataController& Controller = Seq->GetController();
+			const FAnimationCurveIdentifier CurveId(FName(*CurveName), ERawCurveTrackTypes::RCT_Float);
+			Controller.AddCurve(CurveId);
+			Seq->MarkPackageDirty();
+			Entry->SetStringField(TEXT("curveName"), CurveName);
+			Entry->SetBoolField(TEXT("success"), true);
+			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+#else
+			// UE4/UE5早期：通过反射访问 RawCurveData（UE5.5+ 为 protected）
+			FRawCurveTracks* Curves = GetRawCurveDataPtr(Seq);
+			if (!Curves)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("反射获取 RawCurveData 失败"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			const FName CN(*CurveName);
+			bool bAlreadyExists = false;
+			for (const FFloatCurve& FC : Curves->FloatCurves)
+				if (GetFloatCurveName(FC) == CN) { bAlreadyExists = true; break; }
+			if (bAlreadyExists)
+			{
+				Entry->SetStringField(TEXT("note"), FString::Printf(TEXT("曲线已存在: %s"), *CurveName));
+				Entry->SetBoolField(TEXT("success"), true);
+			}
+			else
+			{
+				FFloatCurve NewCurve;
+				SetFloatCurveName(NewCurve, CN);
+				Curves->FloatCurves.Add(NewCurve);
+				Seq->MarkPackageDirty();
+				Entry->SetStringField(TEXT("curveName"), CurveName);
+				Entry->SetBoolField(TEXT("success"), true);
+				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			}
+#endif
+		}
+		else if (Action.Equals(TEXT("set_curve_key"), ESearchCase::IgnoreCase))
+		{
+			FString CurveName;
+			if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("curveName"), CurveName) || CurveName.IsEmpty())
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("set_curve_key 需要 curveName"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+#if NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL && WITH_EDITOR
+			{
+				double KeyValue = 0.0;
+				if (Arguments.IsValid()) Arguments->TryGetNumberField(TEXT("value"), KeyValue);
+				IAnimationDataController& Controller = Seq->GetController();
+				const FAnimationCurveIdentifier CurveId(FName(*CurveName), ERawCurveTrackTypes::RCT_Float);
+				Controller.SetCurveKey(CurveId, FRichCurveKey(static_cast<float>(Time), static_cast<float>(KeyValue)));
+				Seq->MarkPackageDirty();
+				Entry->SetStringField(TEXT("curveName"), CurveName);
+				Entry->SetNumberField(TEXT("time"),      Time);
+				Entry->SetNumberField(TEXT("value"),     KeyValue);
+				Entry->SetBoolField(TEXT("success"), true);
+				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			}
+#else
+			double KeyValue = 0.0;
+			if (Arguments.IsValid()) Arguments->TryGetNumberField(TEXT("value"), KeyValue);
+			FRawCurveTracks* Curves = GetRawCurveDataPtr(Seq);
+			if (!Curves)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("反射获取 RawCurveData 失败"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			const FName CN(*CurveName);
+			FFloatCurve* FC = nullptr;
+			for (FFloatCurve& C : Curves->FloatCurves)
+				if (GetFloatCurveName(C) == CN) { FC = &C; break; }
+			if (!FC)
+			{
+				Entry->SetStringField(TEXT("error"),
+					FString::Printf(TEXT("曲线未找到: %s；先用 add_float_curve 创建"), *CurveName));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			FC->FloatCurve.AddKey(static_cast<float>(Time), static_cast<float>(KeyValue));
+			Seq->MarkPackageDirty();
+			Entry->SetStringField(TEXT("curveName"), CurveName);
+			Entry->SetNumberField(TEXT("time"),      Time);
+			Entry->SetNumberField(TEXT("value"),     KeyValue);
+			Entry->SetBoolField(TEXT("success"), true);
+			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+#endif
+		}
+		else if (Action.Equals(TEXT("remove_curve"), ESearchCase::IgnoreCase))
+		{
+			FString CurveName;
+			if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("curveName"), CurveName) || CurveName.IsEmpty())
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("remove_curve 需要 curveName"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+#if NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL && WITH_EDITOR
+			IAnimationDataController& Controller = Seq->GetController();
+			const FAnimationCurveIdentifier CurveId(FName(*CurveName), ERawCurveTrackTypes::RCT_Float);
+			Controller.RemoveCurve(CurveId);
+			Seq->MarkPackageDirty();
+			Entry->SetStringField(TEXT("curveName"), CurveName);
+			Entry->SetBoolField(TEXT("removed"), true);
+			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+#else
+			FRawCurveTracks* Curves = GetRawCurveDataPtr(Seq);
+			if (!Curves)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("反射获取 RawCurveData 失败"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			const FName CN(*CurveName);
+			int32 RemoveIdx = INDEX_NONE;
+			for (int32 i = 0; i < Curves->FloatCurves.Num(); ++i)
+				if (GetFloatCurveName(Curves->FloatCurves[i]) == CN) { RemoveIdx = i; break; }
+			if (RemoveIdx == INDEX_NONE)
+			{
+				Entry->SetStringField(TEXT("error"),
+					FString::Printf(TEXT("曲线未找到: %s"), *CurveName));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			Curves->FloatCurves.RemoveAt(RemoveIdx);
+			Seq->MarkPackageDirty();
+			Entry->SetStringField(TEXT("curveName"), CurveName);
+			Entry->SetBoolField(TEXT("removed"), true);
+			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+#endif
 		}
 		else
 		{

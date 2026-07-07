@@ -7,6 +7,34 @@
 
 ## [Unreleased]
 
+### Added
+
+- feat(tier3-graph): `manage_asset_meta_sound` 新增图内节点与连线操作：`add_node`（按 classID GUID 插入节点实例）、`remove_node`（级联清除关联边）、`add_edge`/`remove_edge`（按 fromNodeID/fromPin/toNodeID/toPin 连接或断开引脚）；`get_asset_meta_sound` 节点输出补充 `inputPins`/`outputPins` 列表与 `edges` 数组（fromNodeID/fromPin/toNodeID/toPin）
+- feat(tier3-graph): `manage_asset_control_rig` 新增 RigVM 图操作：`add_rig_link`/`break_rig_link`（通过 `URigVMController::AddLink`/`BreakLink`，引脚路径格式 `NodeName.PinName`）、`add_rig_node`（`URigVMController::AddUnitNode`，传 `structType` 如 `RigUnit_GetTransform`）；`get_asset_control_rig` 输出新增 `rigVmNodes`（含 inputPins/outputPins）与 `rigVmLinks`（from/to 引脚路径）
+
+- feat(tier3-3a): 新增 BlendSpace 能力集（`create/get/manage_asset_blend_space`）：支持轴参数（`set_axis`）、样本（`add/remove_sample`）、插值模式（`set_interpolation`）全版本（UE 4.26–5.8）；`NexusVersionCompat.h` 新增 `NX_UE_HAS_BLEND_SPACE_GET_BLEND_PARAMETER` / `NX_UE_HAS_BLEND_SPACE_BASE` 宏，`BlendParameters`（全版本 protected）通过反射 / 公开访问器跨版本访问
+- feat(tier3-3a): 扩展 `manage_asset_anim_sequence` 新增骨骼关键帧（`set_bone_key`/`remove_bone_key`）与浮点曲线（`add_float_curve`/`set_curve_key`/`remove_curve`）action；≥5.6 走 `IAnimationDataController`，低版本走 `RawCurveData` 反射（`NX_UE_HAS_RAW_CURVE_DATA_PUBLIC`）；`FFloatCurve` 命名 API 跨版本兼容（`NX_UE_HAS_FLOAT_CURVE_SMART_NAME`）
+- feat(tier3-3b): 新增 ControlRig 能力集（`WITH_CONTROL_RIG`，UE5+）：`create/get/manage_asset_control_rig`；支持 Rig 元素层级（bone/control/null）、控件默认值读写，RigVM 图只读概览
+- feat(tier3-3b): 新增 IKRig 能力集（`WITH_IK_RIG`，UE5+）：`create/get/manage_asset_ik_rig`（solvers、goals、retarget bone chains）；新增 IKRetargeter 能力（`get/manage_asset_ik_retargeter`，source/target IK Rig、chain mapping）
+- feat(tier3-3c): 新增 MetaSound 能力集（`WITH_METASOUND`，UE5+）：`create/get/manage_asset_meta_sound`；基于 Frontend Document 读写 inputs/outputs/graph 节点；`UMetaSoundSource::RootMetasoundDocument`（protected）通过反射修改
+- feat(tier3-3c): 新增 PCG Graph 能力集（`WITH_PCG`，UE5.4+）：`create/get/manage_asset_pcg_graph`；支持节点增删（`add/remove_node`）与连线（`add_edge`），读取节点 title / settings class / 引脚信息
+- feat(tier3-3c): 新增 PoseSearch 能力集（`WITH_POSE_SEARCH`，UE5.4+）：`get/manage_asset_pose_search`；PoseSearchDatabase 读取 schema 路径、动画资产数、Tags，支持 `set_schema`/`add_tag`/`remove_tag`；PoseSearchSchema 读取 channel 类型列表
+- feat(search): `search_asset` 新增 MetaSoundSource / PCGGraph / PoseSearchDatabase / PoseSearchSchema 资产类型支持
+- feat(compat): `NexusVersionCompat.h` 新增 `NX_UE_HAS_BLEND_SPACE_GET_BLEND_PARAMETER`（5.0+）、`NX_UE_HAS_RAW_CURVE_DATA_PUBLIC`（<5.5）、`NX_UE_HAS_FLOAT_CURVE_SMART_NAME`（<5.3）、`NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT`（5.0+）、`NX_UE_HAS_BLEND_SPACE_BASE`（<5.0）宏；`NexusLink.Build.cs` 新增 WITH_CONTROL_RIG / WITH_IK_RIG / WITH_METASOUND / WITH_PCG / WITH_POSE_SEARCH 插件门控
+- fix(compat): `NexusGetAssetLevelSequenceCapability.cpp` 改用 `const UMovieScene*` 调用 `GetBindings()`，消除 UE 5.8 non-const deprecation 警告
+- fix(compat): `NexusCreateAssetBlendSpaceCapability.cpp` 改用 `UObject*`/`Cast<UAnimationAsset>` 替代废弃的 `UBlendSpaceBase*`，消除 UE 5.0 deprecation 警告；`NexusEQSUtils.h` 提取 `GetEnvQueryOptionsPtr` 为 `FORCEINLINE` 共享头，解决 Unity Build 下重复定义问题
+- test: 新增 `test_100_blendspace_animkeys.py`（3a BlendSpace/AnimSequence 测试）、`test_101_metasound_pcg_posesearch.py`（3c MetaSound/PCG/PoseSearch 测试）；`conftest.py` 实现 `skipif_ue_below` marker（session 缓存 UE 版本，低于阈值自动 skip）；`pytest.ini` 注册该 marker
+
+- feat(input): 新增 Enhanced Input Capabilities（UE5+，`WITH_ENHANCED_INPUT` 守卫）：`create/get/manage_asset_input_action`、`create/get/manage_asset_input_mapping_context`；支持 ValueType / Trigger / Modifier 编辑与 IMC Key 绑定增删
+- feat(material): 新增 `create_asset_material_function`（MaterialFunction 创建），`create/get/manage_asset_material_parameter_collection`（MPC 全量增删改标量/向量参数）
+- feat(statetree): 新增 `manage_asset_state_tree`（UE5.5+，`WITH_STATETREE` 守卫）：add_state / remove_state / rename_state / recompile
+- feat(sequencer): 新增 `get/manage_asset_level_sequence`（LevelSequence Binding / Track 概览、DisplayRate / PlaybackRange / MasterTrack 编辑；MasterTrack API 在 UE5.5+ 已版本守卫）
+- feat(physics): 新增 `get/manage_asset_physics_asset`（Body 碰撞形状读写、PhysicsType 设置、约束增删；`SkeletalBodySetup.h` 跨版本条件 include）
+- feat(ai): 新增 `create/get/manage_asset_eqs`（EQS 环境查询，`NX_UE_HAS_APP_STYLE` 守卫≥UE5；Options 在 UE5.5+ 通过属性反射访问）
+- feat(compat): `NexusVersionCompat.h` 新增 `NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS` 宏（UE5.5 前后 MovieScene MasterTrack API 开关）
+- feat(build): `NexusLink.Build.cs` 新增 EnhancedInput 模块自动检测（`WITH_ENHANCED_INPUT`，仅 UE5.0+）；编辑器依赖新增 `LevelSequence / MovieScene / MovieSceneTracks`
+- test: 新增 `test_97_enhanced_input.py`、`test_97_material_subtypes.py`、`test_97_statetree_manage.py`、`test_98_sequencer_physics_eqs.py`
+
 ### Docs
 
 - docs: README / README.en 补齐 `get_asset_state_tree` / `get_asset_view_model`、109 cap 计数、反馈闭环与版本检查、Pre-release 发版；独立「开发」节；`usage-guide` / `architecture` 同步 109 与设置项

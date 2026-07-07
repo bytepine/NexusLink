@@ -44,6 +44,10 @@
 #define NX_UE_HAS_SKELETAL_MATERIAL_COMMON_HEADER NX_UE_AT_LEAST(5, 3) // FSkeletalMaterial 完整定义迁至 SkinnedAssetCommon.h
 #define NX_UE_HAS_ANIM_SEQUENCE_LOOP_FIELD NX_UE_AT_LEAST(5, 1) // UAnimSequence::bLoop（UE5.0 无此公开字段）
 #define NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL  NX_UE_AT_LEAST(5, 6) // 帧数/帧率走 IAnimationDataModel
+// UE 5.5+ RawCurveData 移至 protected，需通过反射访问
+#define NX_UE_HAS_RAW_CURVE_DATA_PUBLIC    (!NX_UE_AT_LEAST(5, 5))
+// UE 5.3+ FAnimCurveBase::Name (FSmartName) → CurveName (FName)
+#define NX_UE_HAS_FLOAT_CURVE_SMART_NAME   (!NX_UE_AT_LEAST(5, 3))
 // UE5.0–5.5：GetFrameRate() 已移除，改用 GetSamplingFrameRate() / GetNumberOfSampledKeys()
 #define NX_UE_HAS_ANIM_SEQUENCE_SAMPLING_API  (NX_UE_VERSION >= 500 && NX_UE_VERSION < 506)
 #define NX_UE_HAS_ANIM_SEQUENCE_ROOT_MOTION_MODE  NX_UE_AT_LEAST(5, 0) // UAnimSequence::RootMotionMode 枚举（UE4 为 bEnableRootMotion*）
@@ -65,6 +69,43 @@
 #define NX_UE_HAS_STATETREE_GLOBAL_TASKS       NX_UE_AT_LEAST(5, 5)
 // UE5.5 起 UMVVMBlueprintView 新增 Events/Conditions 字段
 #define NX_UE_HAS_MVVM_EVENTS_CONDITIONS       NX_UE_AT_LEAST(5, 5)
+
+// ── BlendSpace 版本兼容 ──
+// UE 5.0 已废弃 UBlendSpaceBase / BlendSpaceBase.h（5.1+ 正式移除合并）
+// 仅 4.26 需要包含该头；5.0 起 BlendSpace.h 已足够
+#define NX_UE_HAS_BLEND_SPACE_BASE  (!NX_UE_AT_LEAST(5, 0))
+// UE 5.5+ UBlendSpace::SampleData 变为 protected，需用 GetBlendSamples() 读，写仍走反射
+#define NX_UE_HAS_BLEND_SPACE_SAMPLE_DATA_PUBLIC  (!NX_UE_AT_LEAST(5, 5))
+// UE 5.0+ BlendParameters 为 protected，提供 GetBlendParameter(int32) 公开访问器
+#define NX_UE_HAS_BLEND_SPACE_GET_BLEND_PARAMETER  NX_UE_AT_LEAST(5, 0)
+
+// ── ControlRig 版本兼容 ──
+// UE 5.0+ ControlRig 作为独立插件，UE4.26 为 Experimental 且 API 不稳定
+#define NX_UE_HAS_CONTROL_RIG_STABLE  NX_UE_AT_LEAST(5, 0)
+// UE 5.4+ URigHierarchy API 变更：GetBones()/GetControls() → ForEach
+#define NX_UE_HAS_RIG_HIERARCHY_FOREACH  NX_UE_AT_LEAST(5, 4)
+
+// ── IKRig 版本兼容 ──
+// IKRig 插件仅存在于 UE 5.0+
+#define NX_UE_HAS_IK_RIG  NX_UE_AT_LEAST(5, 0)
+
+// ── MetaSound 版本兼容 ──
+// UE 5.0+ 提供 MetaSound；5.3+ Frontend API 引入 FMetaSoundFrontendDocument
+#define NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT  NX_UE_AT_LEAST(5, 3)
+
+// ── PCG 版本兼容 ──
+// PCG 插件 UE 5.2+ 存在；5.4+ API 趋稳
+#define NX_UE_HAS_PCG_STABLE  NX_UE_AT_LEAST(5, 4)
+// UE 5.5+ UPCGGraph 节点列表 API 变更
+#define NX_UE_HAS_PCG_GRAPH_NODES_ARRAY  (!NX_UE_AT_LEAST(5, 5))
+
+// ── PoseSearch 版本兼容 ──
+// PoseSearch 插件 UE 5.4+ 稳定
+#define NX_UE_HAS_POSE_SEARCH_STABLE  NX_UE_AT_LEAST(5, 4)
+
+// ── MovieScene 版本兼容 ──
+// UE 5.5 将 Master Tracks API（GetMasterTracks/AddMasterTrack/FindMasterTrack/RemoveMasterTrack）重构
+#define NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS  (!NX_UE_AT_LEAST(5, 5))
 
 // ── UnLua 版本兼容 ──
 // UNLUA_VERSION_MAJOR 由 NexusLink.Build.cs 从 UnLua.uplugin VersionName 自动注入
