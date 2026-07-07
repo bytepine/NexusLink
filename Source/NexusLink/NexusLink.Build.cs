@@ -38,6 +38,7 @@ public class NexusLink : ModuleRules
 			"ImageWrapper",
 			"AnimGraphRuntime",
 			"RenderCore",
+			"PhysicsCore",
 			}
 		);
 

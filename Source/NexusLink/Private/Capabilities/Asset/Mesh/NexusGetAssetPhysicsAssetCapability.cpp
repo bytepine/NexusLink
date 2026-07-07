@@ -8,10 +8,8 @@
 #include "Utils/NexusVersionCompat.h"
 #include "NexusMcpTool.h"
 #include "PhysicsEngine/PhysicsAsset.h"
-// UE 5.1+ 将 USkeletalBodySetup 移至独立头文件；4.26/5.0 通过 PhysicsAsset.h 已包含
-#if !NX_UE_HAS_FIND_FIRST_OBJECT
-// UE 4.x：USkeletalBodySetup 定义在 PhysicsAsset.h 内，无需单独 include
-#else
+// UE 5.5+ 将 USkeletalBodySetup 移至独立头文件；5.4 及以下通过 PhysicsAsset.h 已包含
+#if NX_UE_HAS_SKELETAL_BODY_SETUP_HEADER
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #endif
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"

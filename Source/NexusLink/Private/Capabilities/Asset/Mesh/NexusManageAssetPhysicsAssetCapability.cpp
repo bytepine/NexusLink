@@ -8,9 +8,7 @@
 #include "Utils/NexusVersionCompat.h"
 #include "NexusMcpTool.h"
 #include "PhysicsEngine/PhysicsAsset.h"
-#if !NX_UE_HAS_FIND_FIRST_OBJECT
-// UE 4.x：USkeletalBodySetup 定义在 PhysicsAsset.h 内
-#else
+#if NX_UE_HAS_SKELETAL_BODY_SETUP_HEADER
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #endif
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"

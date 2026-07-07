@@ -185,6 +185,12 @@ struct FNexusSchema
 		return P;
 	}
 
+	/** object[] 数组（items 为 anyOf 无约束 object），用于 operations 等动态结构字段。 */
+	static TSharedRef<FJsonObject> ArrOfObj(const TCHAR* Desc)
+	{
+		return ArrayOf(Desc, AnyObject(TEXT("")));
+	}
+
 	/** 通用 object（无 properties 限制）。 */
 	static TSharedRef<FJsonObject> AnyObject(const TCHAR* Desc)
 	{

@@ -139,7 +139,7 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 | **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO batch edit | All versions |
 | **Animation** | AnimSequence (keyframes/curves/notifies), AnimBlueprint (state machines), AnimMontage, BlendSpace (axes/samples), Skeleton / SkeletalMesh | All versions |
 | **Material** | Material / MaterialInstance / MaterialFunction / MaterialParameterCollection | All versions |
-| **Audio** | SoundWave, SoundCue, MetaSound (Frontend Document / graph node wiring) | MetaSound: UE 5.0+ |
+| **Audio** | SoundWave, SoundCue, MetaSound Source/Patch (Frontend Document / graph wiring), SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound: 5.0+, Patch: 5.1+ |
 | **AI** | BehaviorTree / Blackboard / EQS (Environment Query) / runtime AI state | All versions |
 | **GAS** | GameplayAbility / GameplayEffect / AttributeSet + runtime ASC | Requires `GameplayAbilities` plugin |
 | **Control Binding** | ControlRig (hierarchy + RigVM graph nodes/wiring), IKRig / IKRetargeter | UE 5.0+ |
@@ -147,6 +147,8 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 | **Layout / Data** | Struct, DataAsset, DataTable, Widget/UMG (widget tree/animations) | All versions |
 | **State / ViewModel** | StateTree (states/tasks/conditions/transitions), MVVM ViewModel / Binding | UE 5.5+ |
 | **Physics / Sequencer** | PhysicsAsset (bodies/constraints), LevelSequence (bindings/tracks) | All versions |
+| **Engine Core Assets** | Curve (Float/Vector/LinearColor/CurveTable), UserDefinedEnum, AnimComposite, PhysicalMaterial, TextureRenderTarget2D | All versions |
+| **World Partition** | DataLayerAsset (type / debug color) | UE 5.1+ |
 | **VFX** | NiagaraSystem (emitters/user parameters) | Requires Niagara plugin |
 | **Runtime** | Actor list/spawn/destroy/property read-write/diff; Widget runtime ops; AnimInstance state; GAS runtime ASC | Requires PIE/Game |
 | **Lua** | UnLua eval/dofile/hot-reload/globals/call stack/memory | Requires UnLua plugin |

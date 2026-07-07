@@ -13,33 +13,49 @@
 #include "MetasoundSource.h"
 #include "MetasoundFrontendDocument.h"
 #include "UObject/UnrealType.h"
+#if NX_UE_HAS_METASOUND_PATCH
+#include "Metasound.h"
+#endif
 
 void FManageAssetMetaSoundCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("manage_asset_meta_sound");
-	Out.Description = TEXT("修改 MetaSound Source：add_input/remove_input/add_output/remove_output/add_node/remove_node/add_edge/remove_edge。");
+	Out.Description = TEXT("修改 MetaSound Source / Patch（≥5.1）：add_input/remove_input/add_output/remove_output/add_node/remove_node/add_edge/remove_edge。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("MetaSound Source 资产路径")))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("MetaSound Source 或 Patch 资产路径")))
 		.Prop(TEXT("operations"), FNexusSchema::ArrOfObj(TEXT("操作列表")))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("metasound"), TEXT("audio"), TEXT("sound"), TEXT("input"), TEXT("output"), TEXT("node"), TEXT("edge"), TEXT("wire"), TEXT("connect") };
-	Out.RelatedCapabilities = { TEXT("get_asset_meta_sound"), TEXT("create_asset_meta_sound") };
-	Out.WhenToUse = TEXT("修改 MetaSound 接口/图：添加/删除 input、output、节点、连线；add_edge 用 fromNodeID/fromPin/toNodeID/toPin（节点 ID 从 get_asset_meta_sound 获取）");
+	Out.ExtraSearchKeywords = { TEXT("metasound"), TEXT("audio"), TEXT("sound"), TEXT("input"), TEXT("output"), TEXT("node"), TEXT("edge"), TEXT("wire"), TEXT("connect"), TEXT("patch") };
+	Out.RelatedCapabilities = { TEXT("get_asset_meta_sound"), TEXT("create_asset_meta_sound"), TEXT("create_asset_meta_sound_patch") };
+	Out.WhenToUse = TEXT("修改 MetaSound Source 或 Patch 的接口/图；add_edge 用 fromNodeID/fromPin/toNodeID/toPin（节点 ID 从 get_asset_meta_sound 获取）");
 }
 
 #if NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT
 
-// 获取 UMetaSoundSource::RootMetasoundDocument 的可变指针（通过反射绕过 protected 访问）
-static FMetasoundFrontendDocument* GetMutableDocument(UMetaSoundSource* Source)
+// 通过反射获取 FMetasoundFrontendDocument 可变指针，PropName 为各子类的属性名
+static FMetasoundFrontendDocument* GetMutableDocumentByProp(UObject* Asset, const TCHAR* PropName)
 {
-	if (!Source) return nullptr;
-	FProperty* Prop = Source->GetClass()->FindPropertyByName(TEXT("RootMetasoundDocument"));
+	if (!Asset) return nullptr;
+	FProperty* Prop = Asset->GetClass()->FindPropertyByName(PropName);
 	FStructProperty* StructProp = CastField<FStructProperty>(Prop);
 	if (!StructProp) return nullptr;
-	return StructProp->ContainerPtrToValuePtr<FMetasoundFrontendDocument>(Source);
+	return StructProp->ContainerPtrToValuePtr<FMetasoundFrontendDocument>(Asset);
 }
+
+// UMetaSoundSource 属性名（小写 's'）
+static FMetasoundFrontendDocument* GetMutableDocument(UMetaSoundSource* Source)
+{
+	return GetMutableDocumentByProp(Source, TEXT("RootMetasoundDocument"));
+}
+#if NX_UE_HAS_METASOUND_PATCH
+// UMetaSoundPatch 属性名（大写 'S'）
+static FMetasoundFrontendDocument* GetMutableDocumentPatch(UMetaSoundPatch* Patch)
+{
+	return GetMutableDocumentByProp(Patch, TEXT("RootMetaSoundDocument"));
+}
+#endif
 
 static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontendDocument* Doc,
 	TArray<TSharedPtr<FJsonValue>>& Results)
@@ -239,11 +255,22 @@ FCapabilityResult FManageAssetMetaSoundCapability::Execute(const TSharedPtr<FJso
 		FString AssetPath;
 		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
 
+		// 优先尝试 MetaSoundSource，失败后尝试 MetaSoundPatch（≥5.1）
+		UObject* SoundAsset = nullptr;
 		UMetaSoundSource* Source = FNexusAssetUtils::LoadAssetWithFallback<UMetaSoundSource>(AssetPath);
-		if (!Source)
+		if (Source) { SoundAsset = Source; }
+#if NX_UE_HAS_METASOUND_PATCH
+		UMetaSoundPatch* Patch = nullptr;
+		if (!SoundAsset)
+		{
+			Patch = FNexusAssetUtils::LoadAssetWithFallback<UMetaSoundPatch>(AssetPath);
+			if (Patch) { SoundAsset = Patch; }
+		}
+#endif
+		if (!SoundAsset)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
-				FString::Printf(TEXT("MetaSound Source 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("MetaSound Source / Patch 未找到: %s"), *AssetPath));
 			return;
 		}
 
@@ -256,7 +283,14 @@ FCapabilityResult FManageAssetMetaSoundCapability::Execute(const TSharedPtr<FJso
 		}
 
 #if NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT
-		FMetasoundFrontendDocument* Doc = GetMutableDocument(Source);
+		// 根据资产类型获取可变 Document
+		FMetasoundFrontendDocument* Doc = Source
+			? GetMutableDocument(Source)
+#if NX_UE_HAS_METASOUND_PATCH
+			: GetMutableDocumentPatch(Patch);
+#else
+			: nullptr;
+#endif
 		if (!Doc)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
@@ -272,7 +306,7 @@ FCapabilityResult FManageAssetMetaSoundCapability::Execute(const TSharedPtr<FJso
 			ApplyOperation(*OpObj, Doc, Results);
 		}
 
-		Source->MarkPackageDirty();
+		SoundAsset->MarkPackageDirty();
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("assetPath"), AssetPath);

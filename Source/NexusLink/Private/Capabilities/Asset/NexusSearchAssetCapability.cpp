@@ -40,6 +40,18 @@
 #include "Sound/SoundWave.h"
 #include "Sound/SoundCue.h"
 #include "Engine/World.h"
+#include "Curves/CurveFloat.h"
+#include "Curves/CurveVector.h"
+#include "Curves/CurveLinearColor.h"
+#include "Engine/CurveTable.h"
+#include "Engine/UserDefinedEnum.h"
+#include "Animation/AnimComposite.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Sound/SoundClass.h"
+#include "Sound/SoundAttenuation.h"
+#include "Sound/SoundConcurrency.h"
+#include "Sound/SoundSubmix.h"
 #if WITH_NIAGARA
 #include "NiagaraSystem.h"
 #endif
@@ -48,6 +60,13 @@
 #endif
 #if WITH_METASOUND
 #include "MetasoundSource.h"
+#include "Utils/NexusVersionCompat.h"
+#if NX_UE_HAS_METASOUND_PATCH
+#include "Metasound.h"
+#endif
+#endif
+#if NX_UE_HAS_DATA_LAYER_ASSET
+#include "WorldPartition/DataLayer/DataLayerAsset.h"
 #endif
 #if WITH_PCG
 #include "PCGGraph.h"
@@ -444,6 +463,150 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			for (const FAssetData& A : Assets) AddEntry(A, TEXT("SoundCue"));
 		}
 
+		if (bIsAll || TypeLower == TEXT("curvefloat") || TypeLower == TEXT("curve_float") || TypeLower == TEXT("curve"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UCurveFloat::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("CurveFloat"));
+		}
+
+		if (bIsAll || TypeLower == TEXT("curvevector") || TypeLower == TEXT("curve_vector"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UCurveVector::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("CurveVector"));
+		}
+
+		if (bIsAll || TypeLower == TEXT("curvelinearcolor") || TypeLower == TEXT("curve_linear_color"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UCurveLinearColor::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("CurveLinearColor"));
+		}
+
+		if (bIsAll || TypeLower == TEXT("curvetable") || TypeLower == TEXT("curve_table"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UCurveTable::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("CurveTable"));
+		}
+
+		if (bIsAll || TypeLower == TEXT("userdefinedelnum") || TypeLower == TEXT("enum") || TypeLower == TEXT("user_defined_enum"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UUserDefinedEnum::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("UserDefinedEnum"));
+		}
+
+		if (bIsAll || TypeLower == TEXT("animcomposite") || TypeLower == TEXT("anim_composite"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UAnimComposite::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("AnimComposite"));
+		}
+
+		if (bIsAll || TypeLower == TEXT("physicalmaterial") || TypeLower == TEXT("physical_material"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UPhysicalMaterial::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("PhysicalMaterial"));
+		}
+
+		if (bIsAll || TypeLower == TEXT("rendertarget") || TypeLower == TEXT("render_target") || TypeLower == TEXT("texturerendertarget2d"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UTextureRenderTarget2D::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("TextureRenderTarget2D"));
+		}
+
+		if (bIsAll || TypeLower == TEXT("soundclass") || TypeLower == TEXT("sound_class"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, USoundClass::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("SoundClass"));
+		}
+
+		if (bIsAll || TypeLower == TEXT("soundattenuation") || TypeLower == TEXT("sound_attenuation"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, USoundAttenuation::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("SoundAttenuation"));
+		}
+
+		if (bIsAll || TypeLower == TEXT("soundconcurrency") || TypeLower == TEXT("sound_concurrency"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, USoundConcurrency::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("SoundConcurrency"));
+		}
+
+		if (bIsAll || TypeLower == TEXT("soundsubmix") || TypeLower == TEXT("sound_submix"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, USoundSubmix::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("SoundSubmix"));
+		}
+
 		if (bIsAll || TypeLower == TEXT("world") || TypeLower == TEXT("level") || TypeLower == TEXT("map"))
 		{
 			FARFilter Filter;
@@ -496,7 +659,20 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			Registry.GetAssets(Filter, Assets);
 			for (const FAssetData& A : Assets) AddEntry(A, TEXT("MetaSoundSource"));
 		}
-#endif
+#if NX_UE_HAS_METASOUND_PATCH
+		if (bIsAll || TypeLower == TEXT("metasoundpatch") || TypeLower == TEXT("meta_sound_patch"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UMetaSoundPatch::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("MetaSoundPatch"));
+		}
+#endif // NX_UE_HAS_METASOUND_PATCH
+#endif // WITH_METASOUND
 
 #if WITH_PCG
 		if (bIsAll || TypeLower == TEXT("pcggraph") || TypeLower == TEXT("pcg_graph") || TypeLower == TEXT("pcg"))
@@ -570,6 +746,20 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		}
 #endif
 
+#if NX_UE_HAS_DATA_LAYER_ASSET
+		if (bIsAll || TypeLower == TEXT("datalayerasset") || TypeLower == TEXT("data_layer_asset") || TypeLower == TEXT("datalayer"))
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, UDataLayerAsset::StaticClass());
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TEXT("DataLayerAsset"));
+		}
+#endif
+
 		if (!bIsAll
 			&& TypeLower != TEXT("blueprint") && TypeLower != TEXT("widget")
 			&& TypeLower != TEXT("struct") && TypeLower != TEXT("datatable")
@@ -586,6 +776,18 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			&& TypeLower != TEXT("skeleton")
 			&& TypeLower != TEXT("soundwave") && TypeLower != TEXT("sound_wave")
 			&& TypeLower != TEXT("soundcue") && TypeLower != TEXT("sound_cue")
+			&& TypeLower != TEXT("curvefloat") && TypeLower != TEXT("curve_float") && TypeLower != TEXT("curve")
+			&& TypeLower != TEXT("curvevector") && TypeLower != TEXT("curve_vector")
+			&& TypeLower != TEXT("curvelinearcolor") && TypeLower != TEXT("curve_linear_color")
+			&& TypeLower != TEXT("curvetable") && TypeLower != TEXT("curve_table")
+			&& TypeLower != TEXT("userdefinedelnum") && TypeLower != TEXT("enum") && TypeLower != TEXT("user_defined_enum")
+			&& TypeLower != TEXT("animcomposite") && TypeLower != TEXT("anim_composite")
+			&& TypeLower != TEXT("physicalmaterial") && TypeLower != TEXT("physical_material")
+			&& TypeLower != TEXT("rendertarget") && TypeLower != TEXT("render_target") && TypeLower != TEXT("texturerendertarget2d")
+			&& TypeLower != TEXT("soundclass") && TypeLower != TEXT("sound_class")
+			&& TypeLower != TEXT("soundattenuation") && TypeLower != TEXT("sound_attenuation")
+			&& TypeLower != TEXT("soundconcurrency") && TypeLower != TEXT("sound_concurrency")
+			&& TypeLower != TEXT("soundsubmix") && TypeLower != TEXT("sound_submix")
 			&& TypeLower != TEXT("world") && TypeLower != TEXT("level") && TypeLower != TEXT("map")
 #if WITH_NIAGARA
 			&& TypeLower != TEXT("niagarasystem") && TypeLower != TEXT("niagara_system")
@@ -595,6 +797,7 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 #endif
 #if WITH_METASOUND
 			&& TypeLower != TEXT("metasoundsource") && TypeLower != TEXT("meta_sound_source") && TypeLower != TEXT("metasound")
+			&& TypeLower != TEXT("metasoundpatch") && TypeLower != TEXT("meta_sound_patch")
 #endif
 #if WITH_PCG
 			&& TypeLower != TEXT("pcggraph") && TypeLower != TEXT("pcg_graph") && TypeLower != TEXT("pcg")
@@ -607,6 +810,9 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			&& TypeLower != TEXT("gameplayability") && TypeLower != TEXT("gameplay_ability")
 			&& TypeLower != TEXT("gameplayeffect") && TypeLower != TEXT("gameplay_effect")
 			&& TypeLower != TEXT("attributeset") && TypeLower != TEXT("attribute_set")
+#endif
+#if NX_UE_HAS_DATA_LAYER_ASSET
+			&& TypeLower != TEXT("datalayerasset") && TypeLower != TEXT("data_layer_asset") && TypeLower != TEXT("datalayer")
 #endif
 			)
 		{

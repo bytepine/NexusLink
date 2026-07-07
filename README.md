@@ -139,7 +139,7 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 | **蓝图** | Blueprint 变量/函数/图节点/连线/组件/CDO 批量编辑 | 全版本 |
 | **动画** | AnimSequence（关键帧/曲线/Notify）、AnimBlueprint（状态机）、AnimMontage（Segment/Section）、BlendSpace（轴/样本）、Skeleton / SkeletalMesh | 全版本 |
 | **材质** | Material / MaterialInstance / MaterialFunction / MaterialParameterCollection | 全版本 |
-| **音频** | SoundWave、SoundCue、MetaSound（Frontend Document / 图节点连线） | MetaSound: UE 5.0+ |
+| **音频** | SoundWave、SoundCue、MetaSound Source/Patch（Frontend Document / 图节点连线）、SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound/Patch: UE 5.0+/5.1+ |
 | **AI** | BehaviorTree / Blackboard / EQS（环境查询）/ 运行时 AI 执行状态 | 全版本 |
 | **GAS** | GameplayAbility / GameplayEffect / AttributeSet + 运行时 ASC | 需 `GameplayAbilities` 插件 |
 | **控制绑定** | ControlRig（Rig 层级 + RigVM 图节点/连线）、IKRig / IKRetargeter | UE 5.0+ |
@@ -147,6 +147,8 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 | **布局/数据** | Struct、DataAsset、DataTable、Widget/UMG（控件树/动画）| 全版本 |
 | **状态/视图模型** | StateTree（状态/任务/条件/转换）、MVVM ViewModel / Binding | UE 5.5+ |
 | **物理 / 序列器** | PhysicsAsset（Body/Constraint）、LevelSequence（Binding/Track）| 全版本 |
+| **引擎核心小资产** | Curve（Float/Vector/LinearColor/CurveTable）、UserDefinedEnum、AnimComposite、PhysicalMaterial、TextureRenderTarget2D | 全版本 |
+| **World Partition** | DataLayerAsset（类型/调试颜色）| UE 5.1+ |
 | **特效** | NiagaraSystem（发射器/用户参数） | 需 Niagara 插件 |
 | **运行时** | Actor 列表/生成/销毁/属性读写/对比；Widget 运行时操作；AnimInstance 状态；GAS 运行时 ASC | 需 PIE/Game |
 | **Lua** | UnLua eval/dofile/热重载/全局变量/调用栈/内存 | 需 UnLua 插件 |

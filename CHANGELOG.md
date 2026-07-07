@@ -9,6 +9,12 @@
 
 ### Added
 
+- feat(tier4c): 新增 MetaSoundPatch 能力（`create_asset_meta_sound_patch`，≥UE5.1 + `WITH_METASOUND`）；扩展 `get_asset_meta_sound` / `manage_asset_meta_sound` 自动兼容 `UMetaSoundPatch`（先尝试 Source，失败后 Patch）；≥5.3 通过 `IMetaSoundDocumentInterface` 统一读写，`RootMetaSoundDocument` 反射 bypass；`search_asset` 新增 `MetaSoundPatch` 类型分支；新增 `NX_UE_HAS_METASOUND_PATCH`（5.1+）宏
+- feat(tier4c): 新增 DataLayer 能力集（`create/get/manage_asset_data_layer`，≥UE5.1）：基于 `UDataLayerAsset`，支持 `GetType/SetType`（Runtime/Editor）与 `GetDebugColor/SetDebugColor`（`#RRGGBB`）；`search_asset` 新增 `DataLayerAsset / DataLayer` 类型；新增 `NX_UE_HAS_DATA_LAYER_ASSET`（5.1+）/ `NX_UE_HAS_DATA_LAYER_ASSET_BASE`（5.5+）宏
+- fix(compat): `PhysicsEngine/SkeletalBodySetup.h` 仅 UE5.5+ 存在，改用 `NX_UE_HAS_SKELETAL_BODY_SETUP_HEADER` 宏条件 include（修复 UE5.1/5.3 编译失败）
+- feat(schema): `NexusMcpSchemaBuilder.h` 新增 `FNexusSchema::ArrOfObj()`（`ArrayOf + AnyObject` 快捷别名，补齐 operations 类型数组 schema）
+- test: 新增 `test_105_metasound_patch.py`（MetaSoundPatch create/get/manage/search，`skipif_ue_below(5,1)`）、`test_106_data_layer.py`（DataLayerAsset create/get/manage/search，`skipif_ue_below(5,1)`）
+
 - feat(tier3-graph): `manage_asset_meta_sound` 新增图内节点与连线操作：`add_node`（按 classID GUID 插入节点实例）、`remove_node`（级联清除关联边）、`add_edge`/`remove_edge`（按 fromNodeID/fromPin/toNodeID/toPin 连接或断开引脚）；`get_asset_meta_sound` 节点输出补充 `inputPins`/`outputPins` 列表与 `edges` 数组（fromNodeID/fromPin/toNodeID/toPin）
 - feat(tier3-graph): `manage_asset_control_rig` 新增 RigVM 图操作：`add_rig_link`/`break_rig_link`（通过 `URigVMController::AddLink`/`BreakLink`，引脚路径格式 `NodeName.PinName`）、`add_rig_node`（`URigVMController::AddUnitNode`，传 `structType` 如 `RigUnit_GetTransform`）；`get_asset_control_rig` 输出新增 `rigVmNodes`（含 inputPins/outputPins）与 `rigVmLinks`（from/to 引脚路径）
 
