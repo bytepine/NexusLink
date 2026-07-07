@@ -121,181 +121,35 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 
 ---
 
-## 功能列表
+## 功能覆盖
 
-> 共 **109** 个 Capability（另 3 个 MCP 元工具）。`WITH_GAS=0` 时不注册 10 个 GAS cap；`WITH_NIAGARA=0` 时再减 1；`WITH_STATETREE=0` / `WITH_MVVM=0`（UE 5.5 以下恒为 0）各再减 1。完整参数见 [tool-reference.md](docs/tool-reference.md)。
+> 完整参数手册见 [docs/tool-reference.md](docs/tool-reference.md)。
 
-### 元工具（Meta）
+### 元工具（3 个）
 
-- [x] `search_capabilities` — 按意图发现 Capability。失败看 `errorKind`（`not_found`/`disabled`/`disabled_only`）；`capabilityName` 精确查询或 `query` 1–2 词；嵌套 `parameters[]`（如 `widgets[].action` enum）
-- [x] `call_capability` — 执行 Capability；失败看 `errorKind`（`disabled` 勿重试）。旧名（如 `create_blackboard`）自动映射规范名。**单条** / **批量** `calls[]`
-- [x] `submit_feedback` — 上报工具/Capability 使用摩擦，持续改进发现与 schema。触发时机：重试 ≥2 次无进展 / 找不到合适 cap / schema 字段需要猜测 / 被迫 ≥3 串行调用
+- `search_capabilities` — 按意图/名称发现 Capability（失败看 `errorKind`）
+- `call_capability` — 执行 Capability，支持单条/批量 `calls[]`
+- `submit_feedback` — 上报使用摩擦，驱动改进
 
-### 编辑器工具（Editor）
+### 覆盖领域
 
-- [x] `get_editor_info` — 获取引擎版本、项目名、平台、构建配置
-- [x] `get_editor_context` — 只读编辑器上下文（`sections`：`selection_actors` / `selection_assets` / `content_browser_path`；editor World ≠ PIE）
-- [x] `search_console_variables` — 按子串搜索控制台变量名（只读，含当前值）
-- [x] `get_output_log` — 查询 UE 输出日志缓冲区（分类/详细程度/文本过滤 + offset/limit 分页，最近 2000 条）
-- [x] `set_log_capture_filter` — 动态设置日志捕获白名单（传空数组=捕获全部，传列表=只捕获指定分类）
-- [x] `save_asset` — 持久化保存资产（`assetPaths` 批量）；经 `SaveDirtyPackage` 落盘，Live Coding 时返回 `deferred=true`
-- [x] `delete_asset` — 删除单个资产包
-- [x] `rename_asset` — 重命名/移动资产（引擎自动重定向引用）
-- [x] `duplicate_asset` — 复制资产到新路径（任意类型，源资产不变）
-- [x] `export_asset` — 将资产导出到磁盘文件（Fbx/Stl 等，依类型）
-- [x] `reimport_asset` — 从源文件重新导入资产
-- [x] `control_pie` — 控制 PIE（start / stop / status）
-- [x] `exec_command` — 执行 UE 控制台命令并捕获输出
-- [x] `get_asset_refs` — 查询资产依赖项（dependencies）或引用者（referencers），支持递归/过滤/分页
-- [x] `get_gameplay_tags` — 查询 Gameplay Tags 层级树（section=hierarchy）、运行时 Actor 属性（section=actor）、资产属性（section=asset）、按 Tag 查引用资产（section=referencers，需 `tag`）
-- [x] `capture_viewport` — 截取编辑器窗口（`editor` / `editor_desktop` 整窗）、面板区域或 PIE 视口（PNG/JPG，支持按 Actor 包围盒裁切、按 UMG Widget 区域裁切、多视角拍摄）；截图存入 `Saved/NexusCaptures/`，自动保留最近 20 张
-
-### 通用资产工具
-
-- [x] `search_asset` — 搜索项目资产（assetType / pathFilter / nameFilter / query，分页）；类型别名含 `StateTree`/`st`、`mvvm`/`viewmodel`（后者归一到 widget 搜）
-- [x] `get_asset_refs` — 查询资产依赖/引用（见编辑器工具段）
-- [x] `get_asset_lua_binding` — 查询蓝图的 UnLua 绑定（返回 bound/moduleName/filePath；若 `bound=false` 停止，不猜路径）
-- [x] `rename_asset` / `duplicate_asset` / `delete_asset` / `compile_blueprint`（`save_asset` 见编辑器工具段）
-- [x] `get_asset_texture` — 读取 Texture2D（尺寸、压缩、sRGB、LOD）
-- [x] `get_asset_static_mesh` — 读取 StaticMesh（LOD、材质槽、碰撞摘要）
-- [x] `get_asset_anim_sequence` — 读取 AnimSequence（时长、帧率、帧数、骨骼引用、notifies 列表）
-- [x] `get_asset_skeletal_mesh` — 读取 SkeletalMesh（LOD、材质槽、骨骼、PhysicsAsset）
-- [x] `get_asset_skeleton` — 读取 Skeleton（骨骼树分页、Socket 摘要）
-- [x] `get_asset_sound_wave` — 读取 SoundWave（时长、采样率、声道）
-- [x] `get_asset_sound_cue` — 读取 SoundCue（时长、SoundNode 摘要）
-- [x] `get_asset_niagara_system` — 读取 NiagaraSystem（发射器列表；UE5+ 用户参数摘要；需 `WITH_NIAGARA=1`）
-- [x] `get_asset_level` — 只读检查关卡（UWorld 包）：`sections` `actors`（分页+过滤）/ `settings`（WorldSettings 摘要）；`editor_only`
-- [x] `manage_asset_texture` — 编辑 Texture2D 属性（压缩、sRGB、LODGroup 等）
-- [x] `manage_asset_static_mesh` — 编辑 StaticMesh 材质槽与属性
-- [x] `manage_asset_skeletal_mesh` — 编辑 SkeletalMesh 材质槽与属性
-- [x] `manage_asset_skeleton` — 管理 Skeleton Socket（增删改）
-- [x] `manage_asset_anim_sequence` — 编辑 AnimSequence（`add_notify` / `remove_notify` / `set_frame_rate` / `set_root_motion`）
-- [x] `manage_asset_sound_wave` — 编辑 SoundWave 属性（`action=set_property`）
-- [x] `manage_asset_sound_cue` — 编辑 SoundCue（`set_property` / `add_node` / `remove_node` / `connect_nodes`）
-- [x] `manage_asset_niagara_system` — 编辑 Niagara 系统（`set_property` / `set_user_parameter`；`WITH_NIAGARA=1`）
-- [x] `manage_asset_level` — 编辑关卡（`set_property` 改 WorldSettings；`spawn_actor` / `remove_actor` / `set_actor_property` 改磁盘 Actor；`editor_only`）
-
-### 蓝图工具（Blueprint）
-
-- [x] `create_asset_blueprint` — 创建新蓝图资产（可指定父类）
-- [x] `get_asset_blueprint` — 读取蓝图详情（sections：variables / functions / components / defaults / graphOverview / graphs / all）；自动检测 UnLua 绑定返回 `luaModule` + `luaFilePath`
-- [x] `manage_asset_blueprint` — 蓝图全功能批量编辑：变量 CRUD（add/remove_variable）、图表节点操作（add/remove/set_node）、连线操作（connect/disconnect）、SCS 组件（add/remove_component，Actor BP 专用）、CDO 默认值（set_defaults）
-
-### 动画资产工具
-
-- [x] `create_asset_anim_blueprint` — 创建 AnimBlueprint 资产（关联指定 Skeleton，自动编译）
-- [x] `get_asset_anim_blueprint` — 读取 ABP 结构（sections：variables / statemachines / defaults / graphOverview）
-- [x] `manage_asset_anim_blueprint` — 管理状态机（add/remove state_machine / state / transition）
-- [x] `create_asset_anim_montage` — 创建 AnimMontage 资产（关联指定 Skeleton）
-- [x] `get_asset_anim_montage` — 读取 AnimMontage（Slot/Segment 列表、Section 列表）
-- [x] `manage_asset_anim_montage` — 管理 AnimMontage Segment（add/remove_segment）和 Section（add/remove_section）
-
-### 材质工具（Material）
-
-- [x] `create_asset_material` — 创建 Material 或 MaterialInstance（可指定 materialDomain / parentMaterial）
-- [x] `get_asset_material` — 读取材质参数、节点图（sections：parameters / graph / all）
-- [x] `manage_asset_material` — 材质批量编辑入口（actions：set_param / add_node / remove_node / set_node / recompile；Texture 节点支持 defaultValue 绑定资产路径并推导 SamplerType）
-
-### 结构体工具（Struct）
-
-- [x] `create_asset_struct` — 创建新 UserDefinedStruct 资产
-- [x] `get_asset_struct` — 读取 Struct 字段列表（name/type/defaultValue）
-- [x] `manage_asset_struct_field` — Struct 字段批量管理（add/remove/set；支持改名/改类型/改默认值）
-
-### 数据资产工具（DataAsset / DataTable）
-
-- [x] `create_asset_data_asset` — 创建新 DataAsset 资产（需指定父类）
-- [x] `create_asset_data_table` — 创建新 DataTable 资产（需指定行结构体类名）
-- [x] `get_asset_data_asset` — 读取 DataAsset 属性
-- [x] `get_asset_data_table` — 读取 DataTable 行数据（支持 rowNames 过滤、分页）
-- [x] `manage_asset_data_asset` — 批量修改 DataAsset 字段（`action`：`set` / `reset`）
-- [x] `manage_asset_data_table` — DataTable 行批量增删改（action：add / remove / set）
-
-### 控件蓝图工具（Widget）
-
-- [x] `create_asset_user_widget` — 创建新 WidgetBlueprint 资产（可指定父类）
-- [x] `get_asset_user_widget` — 读取 WidgetBlueprint 控件树（`widgets` 含 `layout`）+ UMG 动画列表（`sections=widgets|animations`）
-- [x] `manage_asset_user_widget` — 控件树批量管理（`add` / `remove` / `set_slot` / `set_property`；设计时操作）
-
-### StateTree / MVVM 工具（UE 5.5+，`WITH_STATETREE=1` / `WITH_MVVM=1` 时注册）
-
-> 引擎 ≥5.5 且 `StateTree` / `ModelViewViewModel` 插件存在时自动链接；环境变量 `WITH_STATETREE` / `WITH_MVVM` 可强制开关。
-
-- [x] `get_asset_state_tree` — 只读检查 StateTree 资产（Schema、SubTrees/States/Tasks/Conditions/Transitions、Evaluators、GlobalTasks、参数数量）
-- [x] `get_asset_view_model` — 只读读取 Widget 蓝图 MVVM 扩展（ViewModel 列表 + SourcePath↔DestinationPath Binding 快照）
-
-### Lua 运行时工具（需要 UnLua 插件）
-
-- [x] `eval_runtime_lua` — 执行 Lua 代码片段（需 PIE/Game + UnLua）
-- [x] `dofile_runtime_lua` — 执行 Lua 文件（需 PIE/Game + UnLua）
-- [x] `set_runtime_lua` — 设置 Lua 全局变量
-- [x] `gc_runtime_lua` — 执行 Lua 垃圾回收
-- [x] `hotreload_runtime_lua` — 热重载 Lua 模块
-- [x] `get_runtime_lua_env` — 读取 Lua 全局环境表概览
-- [x] `get_runtime_lua_value` — 按路径读取 Lua 变量值
-- [x] `get_runtime_lua_loaded` — 列出已加载的 Lua 模块
-- [x] `get_runtime_lua_stack` — 读取 Lua 调用栈
-- [x] `get_runtime_lua_metatable` — 检查 Lua 对象元表
-- [x] `get_runtime_lua_object` — 读取运行时 Actor 的 Lua 实例数据
-- [x] `get_runtime_lua_memory` — Lua 内存统计
-- [x] `get_asset_lua_binding` — 查询蓝图的 UnLua 绑定（见通用资产工具）
-
-### 运行时工具（Runtime）— 需要 PIE/Game
-
-- [x] `list_runtime_actors` — 列出当前 World 中的 Actor（classFilter / nameFilter / tagFilter + 分页）
-- [x] `spawn_runtime_actor` — 批量生成 Actor（`spawns:[{blueprintPath?|className?,location?,rotation?}]`）
-- [x] `destroy_runtime_actor` — 销毁指定 Actor
-- [x] `get_runtime_actor_property` — 读取 Actor 属性（sections：components / attach_hierarchy / all；或 diagnose 预设；支持点号路径 + 容器下标；FUNC 调用）
-- [x] `set_runtime_actor_property` — 批量写入 Actor 属性（立即生效）
-- [x] `diff_runtime_actors` — 对比 Actor 属性差异（两两对比或批量基准模式）
-- [x] `get_runtime_actor_animation` — 查询 Actor AnimInstance 运行时状态（sections：state / slots / variables）
-- [x] `interact_runtime_actor_animation` — PIE 蒙太奇播放/停止（`action=play_montage|stop_montage|stop_all`）及 AnimInstance 变量写（`set_anim_variable`）
-- [x] `get_runtime_actor_behavior_tree` — 读取 Actor 上 AI 的运行时行为树执行状态（section=runtime）
-- [x] `interact_runtime_actor_behavior_tree` — 运行时设置黑板键、重启/停止行为树
-- [x] `list_runtime_widgets` — 列出运行时所有活跃 UserWidget
-- [x] `spawn_runtime_widget` — 在 PIE/Game 中创建 UserWidget 并 AddToViewport
-- [x] `destroy_runtime_widget` — 从视口移除并销毁运行时 UMG 面板
-- [x] `interact_runtime_widget` — 操作运行时控件（click / check / toggle / set / read；支持 Button/CheckBox/Slider/TextBlock/EditableText/ProgressBar）
-- [x] `get_runtime_widget_property` — 读取运行时 Widget 属性；无 `propertyPath` 时含 `layout`
-- [x] `set_runtime_widget_property` — 写入运行时 Widget 属性
-- [x] `get_runtime_slate_widget` — 通过 Widget Reflector 十六进制地址获取 Slate 控件信息（含 `layout`：锚点、AutoWrapText 等）
-
-### AI 工具（行为树 / Blackboard）
-
-- [x] `create_asset_behavior_tree` — 创建 BehaviorTree 资产（可选同时创建关联 BlackboardData）
-- [x] `create_asset_blackboard` — 独立创建空 BlackboardData 资产
-- [x] `get_asset_behavior_tree` — 读取行为树节点结构、路径索引与装饰器/服务属性
-- [x] `get_asset_blackboard` — 读取 Blackboard Keys
-- [x] `manage_asset_behavior_tree` — 管理行为树节点树（`set_root` / `add_node` / `remove_node` / `move_node` / 装饰器与服务 / `set_property`；`add_node` 支持 `childIndex`）
-- [x] `manage_asset_blackboard` — 批量增删/重命名 Blackboard Key（支持 bool/float/int/enum/string/name/vector/rotator/object/class）
-- [x] `get_runtime_actor_behavior_tree` — 运行时 AI 执行状态（见 Runtime 段）
-
-### GAS 工具（Gameplay Ability System，`WITH_GAS=1` 时注册）
-
-> 需在项目 `.uproject` 中启用 `GameplayAbilities` 插件。Graph 节点编辑仍走 `manage_asset_blueprint`。
-
-**Gameplay Ability**
-
-- [x] `create_asset_gameplay_ability` — 创建 GameplayAbility Blueprint（可指定父类）
-- [x] `get_asset_gameplay_ability` — 读取 GA CDO（sections：metadata / tags / costs / graphOverview）
-- [x] `manage_asset_gameplay_ability` — 修改 GA CDO：`set_tags`（Tag 容器 + mode）/ `set_policy`（实例化/网络策略）/ `set_cost_cooldown`（Cost/Cooldown GE 绑定）
-
-**Gameplay Effect**
-
-- [x] `create_asset_gameplay_effect` — 创建 GameplayEffect Blueprint
-- [x] `get_asset_gameplay_effect` — 读取 GE CDO（sections：policy / modifiers / tags / cues）
-- [x] `manage_asset_gameplay_effect` — 批量修改 GE：`set_policy`（Duration/Period）/ `set_tags` / `add_modifier` / `remove_modifier` / `set_modifier`
-
-**AttributeSet**
-
-- [x] `create_asset_attribute_set` — 创建 AttributeSet Blueprint
-- [x] `get_asset_attribute_set` — 读取 AttributeSet CDO 中全部 `FGameplayAttributeData` 属性（name / baseValue / currentValue）
-- [x] `manage_asset_attribute_set` — 批量 `set`/`reset` AttributeSet CDO 属性默认值
-
-**运行时**
-
-- [x] `get_runtime_actor_ability_system` — PIE 运行时读取 Actor ASC 快照（sections：abilities / effects / attributes；只读）
-- [x] `interact_runtime_actor_ability_system` — PIE 施放/取消 Ability、应用/移除 GE、修改 Attribute 基础值
+| 领域 | 能力范围 | 版本门控 |
+|------|---------|---------|
+| **编辑器上下文** | 编辑器信息/上下文、输出日志、控制台变量、视口截图、资产增删改/搜索/引用查询、PIE 控制、Gameplay Tags | 全版本 |
+| **蓝图** | Blueprint 变量/函数/图节点/连线/组件/CDO 批量编辑 | 全版本 |
+| **动画** | AnimSequence（关键帧/曲线/Notify）、AnimBlueprint（状态机）、AnimMontage（Segment/Section）、BlendSpace（轴/样本）、Skeleton / SkeletalMesh | 全版本 |
+| **材质** | Material / MaterialInstance / MaterialFunction / MaterialParameterCollection | 全版本 |
+| **音频** | SoundWave、SoundCue、MetaSound（Frontend Document / 图节点连线） | MetaSound: UE 5.0+ |
+| **AI** | BehaviorTree / Blackboard / EQS（环境查询）/ 运行时 AI 执行状态 | 全版本 |
+| **GAS** | GameplayAbility / GameplayEffect / AttributeSet + 运行时 ASC | 需 `GameplayAbilities` 插件 |
+| **控制绑定** | ControlRig（Rig 层级 + RigVM 图节点/连线）、IKRig / IKRetargeter | UE 5.0+ |
+| **程序化/动作** | PCG Graph（节点/连线）、PoseSearch（schema/database） | UE 5.4+ |
+| **布局/数据** | Struct、DataAsset、DataTable、Widget/UMG（控件树/动画）| 全版本 |
+| **状态/视图模型** | StateTree（状态/任务/条件/转换）、MVVM ViewModel / Binding | UE 5.5+ |
+| **物理 / 序列器** | PhysicsAsset（Body/Constraint）、LevelSequence（Binding/Track）| 全版本 |
+| **特效** | NiagaraSystem（发射器/用户参数） | 需 Niagara 插件 |
+| **运行时** | Actor 列表/生成/销毁/属性读写/对比；Widget 运行时操作；AnimInstance 状态；GAS 运行时 ASC | 需 PIE/Game |
+| **Lua** | UnLua eval/dofile/热重载/全局变量/调用栈/内存 | 需 UnLua 插件 |
 
 ---
 
@@ -375,4 +229,4 @@ push tag 后 `.github/workflows/release.yml` 打包 `nexus-mcp-unreal-<ver>.zip`
 
 [MIT](LICENSE) © byteyang
 
-> 新增/修改 Capability 时同步本文件功能列表，并运行 `py scripts/build_tool_reference.py` 重新生成 `docs/tool-reference.md`。
+> 新增/修改 Capability 后运行 `py scripts/build_tool_reference.py` 重新生成 `docs/tool-reference.md`。
