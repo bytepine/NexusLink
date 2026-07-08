@@ -215,7 +215,7 @@ Two-layer automation framework:
 py scripts/build_unreal.py --version <version> --output release/
 ```
 
-Output: `release/nexus-mcp-unreal-<version>.zip` — extract to UE project `Plugins/Developer/`.
+Output: `release/nexus-mcp-unreal-<version>.zip` (`EngineVersion: 4.26`, general install). Releases also include `nexus-mcp-unreal-<version>-ue5.8.zip` (Fab / UE 5.8). Extract to UE project `Plugins/Developer/`.
 
 ### Release (maintainers)
 
@@ -229,7 +229,7 @@ GitHub Release **body must come only** from the matching `CHANGELOG.md` section 
 
 **Pre-release** (`X.Y.Z-beta.N`): same steps; tag `nexus-link-vX.Y.Z-beta.N`; CI creates a GitHub **Pre-release**.
 
-Pushing the tag triggers `.github/workflows/release.yml` to package `nexus-mcp-unreal-<ver>.zip` and publish the Release.
+Pushing the tag triggers `.github/workflows/release.yml` to package `nexus-mcp-unreal-<ver>.zip` and `nexus-mcp-unreal-<ver>-ue5.8.zip`, then publish the Release.
 
 ## License
 

@@ -215,7 +215,7 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 py scripts/build_unreal.py --version <version> --output release/
 ```
 
-产物：`release/nexus-mcp-unreal-<version>.zip`，解压到 UE 项目 `Plugins/Developer/`。
+产物：`release/nexus-mcp-unreal-<version>.zip`（`EngineVersion: 4.26`，通用安装）；发版另附 `nexus-mcp-unreal-<version>-ue5.8.zip`（Fab / UE 5.8 专用）。解压到 UE 项目 `Plugins/Developer/`。
 
 ### 发版（维护者）
 
@@ -229,7 +229,7 @@ GitHub Release **正文唯一来源**为 `CHANGELOG.md` 对应版本段落（CI 
 
 **Pre-release**（`X.Y.Z-beta.N`）：步骤同上，tag 为 `nexus-link-vX.Y.Z-beta.N`；CI 创建 GitHub **Pre-release**。
 
-push tag 后 `.github/workflows/release.yml` 打包 `nexus-mcp-unreal-<ver>.zip` 并发布 Release。
+push tag 后 `.github/workflows/release.yml` 打包 `nexus-mcp-unreal-<ver>.zip` 与 `nexus-mcp-unreal-<ver>-ue5.8.zip` 并发布 Release。
 
 ## License
 
