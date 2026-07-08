@@ -87,6 +87,8 @@
 // UE 5.0 已废弃 UBlendSpaceBase / BlendSpaceBase.h（5.1+ 正式移除合并）
 // 仅 4.26 需要包含该头；5.0 起 BlendSpace.h 已足够
 #define NX_UE_HAS_BLEND_SPACE_BASE  (!NX_UE_AT_LEAST(5, 0))
+// FBlendSample::bIsValid 是 WITH_EDITORONLY_DATA 字段，Game 目标（WITH_EDITORONLY_DATA=0）不可访问
+#define NX_UE_HAS_BLEND_SAMPLE_IS_VALID  (WITH_EDITORONLY_DATA)
 // UE 5.5+ UBlendSpace::SampleData 变为 protected，需用 GetBlendSamples() 读，写仍走反射
 #define NX_UE_HAS_BLEND_SPACE_SAMPLE_DATA_PUBLIC  (!NX_UE_AT_LEAST(5, 5))
 // UE 5.0+ BlendParameters 为 protected，提供 GetBlendParameter(int32) 公开访问器

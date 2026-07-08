@@ -6,6 +6,7 @@
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Animation/AnimComposite.h"
+#include "Animation/Skeleton.h"
 #include "NexusMcpTool.h"
 
 void FGetAssetAnimCompositeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const

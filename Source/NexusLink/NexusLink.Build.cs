@@ -39,6 +39,10 @@ public class NexusLink : ModuleRules
 			"AnimGraphRuntime",
 			"RenderCore",
 			"PhysicsCore",
+			// LevelSequence 为 Runtime 模块，Game 目标亦需链接（get/manage_asset_level_sequence 依赖）
+			"LevelSequence",
+			"MovieScene",
+			"MovieSceneTracks",
 			}
 		);
 
@@ -64,9 +68,6 @@ public class NexusLink : ModuleRules
 				"PropertyEditor",
 				"ContentBrowser",
 				"ContentBrowserData",
-				"LevelSequence",
-				"MovieScene",
-				"MovieSceneTracks",
 				}
 			);
 

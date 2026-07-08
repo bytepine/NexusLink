@@ -6,10 +6,11 @@
 	"Description": "MCP (Model Context Protocol) server for Unreal Engine, enabling AI tools to access and control the UE editor.",
 	"Category": "Developer Tools",
 	"CreatedBy": "byteyang",
-	"CreatedByURL": "",
-	"DocsURL": "",
+	"CreatedByURL": "https://github.com/bytepine",
+	"DocsURL": "https://github.com/bytepine/NexusLink/blob/master/README.en.md",
 	"MarketplaceURL": "",
-	"SupportURL": "",
+	"SupportURL": "https://github.com/bytepine/NexusLink/issues",
+	"EngineVersion": "4.26",
 	"CanContainContent": false,
 	"IsBetaVersion": true,
 	"IsExperimentalVersion": false,
@@ -18,12 +19,20 @@
 		{
 			"Name": "NexusLink",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac"
+			]
 		},
 		{
 			"Name": "NexusLinkTests",
 			"Type": "DeveloperTool",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac"
+			]
 		}
 	],
 	"Plugins": [

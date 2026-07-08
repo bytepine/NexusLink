@@ -54,6 +54,10 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+#if !WITH_EDITOR
+		OutError = TEXT("manage_asset_level_sequence 仅在 Editor 版本中可用");
+		return;
+#else
 		FString AssetPath;
 		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
 		{
@@ -165,26 +169,28 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 					if (Class)
 					{
 #if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
-						// 避免重复添加同类 MasterTrack
-						bool bExists = false;
-						for (UMovieSceneTrack* Existing : Scene->GetMasterTracks())
+					// 避免重复添加同类 MasterTrack
+					bool bExists = false;
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					for (UMovieSceneTrack* Existing : Scene->GetMasterTracks())
+					{
+						if (Existing && Existing->GetClass() == Class)
 						{
-							if (Existing && Existing->GetClass() == Class)
-							{
-								bExists = true;
-								break;
-							}
+							bExists = true;
+							break;
 						}
-						if (bExists)
-						{
-							OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("已存在 %s MasterTrack"), *TrackClass));
-						}
-						else
-						{
-							UMovieSceneTrack* NewTrack = Scene->AddMasterTrack(Class);
-							OpResult->SetBoolField(TEXT("success"), NewTrack != nullptr);
-							if (NewTrack) bDirty = true;
-						}
+					}
+					if (bExists)
+					{
+						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("已存在 %s MasterTrack"), *TrackClass));
+					}
+					else
+					{
+						UMovieSceneTrack* NewTrack = Scene->AddMasterTrack(Class);
+						OpResult->SetBoolField(TEXT("success"), NewTrack != nullptr);
+						if (NewTrack) bDirty = true;
+					}
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #else
 						OpResult->SetStringField(TEXT("error"), TEXT("add_master_track 在 UE5.5+ 中暂不支持（API 已重构）"));
 #endif
@@ -213,10 +219,12 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 					else
 					{
 #if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
-						UMovieSceneTrack* Found = Scene->FindMasterTrack(Class);
-						bool bOk = Found && Scene->RemoveMasterTrack(*Found);
-						OpResult->SetBoolField(TEXT("success"), bOk);
-						if (bOk) bDirty = true;
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					UMovieSceneTrack* Found = Scene->FindMasterTrack(Class);
+					bool bOk = Found && Scene->RemoveMasterTrack(*Found);
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
+					OpResult->SetBoolField(TEXT("success"), bOk);
+					if (bOk) bDirty = true;
 #else
 						OpResult->SetStringField(TEXT("error"), TEXT("remove_master_track 在 UE5.5+ 中暂不支持（API 已重构）"));
 #endif
@@ -235,6 +243,7 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 		{
 			LS->MarkPackageDirty();
 		}
+#endif // WITH_EDITOR
 	});
 }
 

@@ -25,7 +25,7 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 if sys.stderr.encoding and sys.stderr.encoding.lower() != "utf-8":
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-# 仓级目录（不打进 UE 插件 zip）
+# 仓级目录（不打进 UE 插件 zip；Fab 提交亦应排除）
 EXCLUDE_DIRS = {
     "binaries",
     "intermediate",
@@ -36,6 +36,7 @@ EXCLUDE_DIRS = {
     "docs",
     "scripts",
     ".github",
+    ".pytest_cache",
     ".vs",
     ".idea",
     ".git",
@@ -50,6 +51,7 @@ EXCLUDE_ROOT_FILES = {
     "license",
     ".gitignore",
     ".gitattributes",
+    ".mlc-config.json",
 }
 
 EXCLUDE_EXTS = {
@@ -93,7 +95,14 @@ def build_zip(plugin_dir: str, version: str, output_dir: str) -> str:
             plugin_dir,
             tmp_plugin,
             ignore=shutil.ignore_patterns(
-                "Binaries", "Intermediate", "release", "docs", "scripts", ".github", ".git"
+                "Binaries",
+                "Intermediate",
+                "release",
+                "docs",
+                "scripts",
+                ".github",
+                ".git",
+                ".pytest_cache",
             ),
         )
 

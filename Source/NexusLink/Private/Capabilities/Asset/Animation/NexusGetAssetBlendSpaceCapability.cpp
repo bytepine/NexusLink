@@ -7,6 +7,7 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Animation/Skeleton.h"
+#include "Animation/AnimSequence.h"
 #if NX_UE_HAS_BLEND_SPACE_BASE
 #include "Animation/BlendSpaceBase.h"
 #endif
@@ -137,9 +138,11 @@ FCapabilityResult FGetAssetBlendSpaceCapability::Execute(const TSharedPtr<FJsonO
 				const FBlendSample& S = Samples[i];
 				TSharedPtr<FJsonObject> SObj = MakeShared<FJsonObject>();
 				SObj->SetNumberField(TEXT("index"), i);
-				SObj->SetNumberField(TEXT("x"),      S.SampleValue.X);
-				SObj->SetNumberField(TEXT("y"),      S.SampleValue.Y);
-				SObj->SetBoolField(TEXT("isValid"),  S.bIsValid);
+			SObj->SetNumberField(TEXT("x"),      S.SampleValue.X);
+			SObj->SetNumberField(TEXT("y"),      S.SampleValue.Y);
+#if NX_UE_HAS_BLEND_SAMPLE_IS_VALID
+			SObj->SetBoolField(TEXT("isValid"),  S.bIsValid);
+#endif
 				if (S.Animation)
 					SObj->SetStringField(TEXT("animation"), S.Animation->GetPathName());
 				SamplesArr.Add(MakeShared<FJsonValueObject>(SObj));

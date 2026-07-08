@@ -29,6 +29,10 @@ FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJs
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+#if !WITH_EDITOR
+		OutError = TEXT("get_asset_level_sequence 仅在 Editor 版本中可用");
+		return;
+#else
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
 		FString AssetPath;
@@ -136,6 +140,7 @@ FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJs
 		// Master tracks（Camera Cut、Audio 等无 Binding 的全局 Track，UE < 5.5）
 		TArray<TSharedPtr<FJsonValue>> MasterTrackArr;
 #if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		for (UMovieSceneTrack* MasterTrack : Scene->GetMasterTracks())
 		{
 			if (MasterTrack)
@@ -146,10 +151,12 @@ FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJs
 				MasterTrackArr.Add(MakeShared<FJsonValueObject>(TObj));
 			}
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 		OutEntry->SetArrayField(TEXT("masterTracks"), MasterTrackArr);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
+#endif // WITH_EDITOR
 	});
 }
 

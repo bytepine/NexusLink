@@ -155,9 +155,11 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetNumberField(TEXT("x"), X);
 				Op->TryGetNumberField(TEXT("y"), Y);
 				FBlendSample NewSample;
-				NewSample.Animation  = Anim;
-				NewSample.SampleValue = FVector(static_cast<float>(X), static_cast<float>(Y), 0.f);
-				NewSample.bIsValid    = true;
+			NewSample.Animation  = Anim;
+			NewSample.SampleValue = FVector(static_cast<float>(X), static_cast<float>(Y), 0.f);
+#if NX_UE_HAS_BLEND_SAMPLE_IS_VALID
+			NewSample.bIsValid    = true;
+#endif
 				const int32 NewIdx = SampleData->Add(NewSample);
 				bDirty = true;
 				ResEntry->SetNumberField(TEXT("sampleIndex"), NewIdx);

@@ -6,8 +6,12 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Engine/UserDefinedEnum.h"
-#include "Kismet2/EnumEditorUtils.h"
 #include "NexusMcpTool.h"
+
+// EnumEditorUtils 属于 UnrealEd（Editor-only），Game 目标不可用
+#if WITH_EDITOR
+#include "Kismet2/EnumEditorUtils.h"
+#endif
 
 void FCreateAssetEnumCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -27,6 +31,10 @@ FCapabilityResult FCreateAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+#if !WITH_EDITOR
+		OutError = TEXT("create_asset_enum 仅在 Editor 版本中可用");
+		return;
+#else
 		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
 		{
 			OutError = TEXT("缺少 assetPath");
@@ -61,6 +69,7 @@ FCapabilityResult FCreateAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 		Entry->SetNumberField(TEXT("entryCount"),   NewEnum->NumEnums() - 1); // 减去内部 _MAX
 		Entry->SetBoolField(TEXT("success"),        true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+#endif // WITH_EDITOR
 	});
 }
 
