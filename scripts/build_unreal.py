@@ -2,12 +2,12 @@
 build_unreal.py — NexusLink UE 插件打包（独立仓）
 
 用法:
-    python scripts/build_unreal.py --version <版本号> [--output <输出目录>]
+    python scripts/build_unreal.py --version <版本号> [--engine-version <引擎版>] [--output <输出目录>]
 
 说明:
     1. 复制插件源码到临时目录（排除 docs/、scripts/、release/ 等仓级文件）
-    2. 注入 NexusLink.uplugin VersionName
-    3. 输出 release/nexus-mcp-unreal-<ver>.zip（zip 内顶层为 NexusLink/）
+    2. 注入 NexusLink.uplugin VersionName；可选 --engine-version 覆盖 EngineVersion（Fab 多引擎版本提交）
+    3. 输出 release/nexus-mcp-unreal-<ver>[-ue<engine>].zip（zip 内顶层为 NexusLink/）
 """
 
 from __future__ import annotations
@@ -64,10 +64,12 @@ def repo_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def patch_uplugin_version(uplugin_path: str, version: str) -> None:
+def patch_uplugin(uplugin_path: str, version: str, engine_version: str | None = None) -> None:
     with open(uplugin_path, encoding="utf-8") as f:
         data = json.load(f)
     data["VersionName"] = version
+    if engine_version is not None:
+        data["EngineVersion"] = engine_version
     with open(uplugin_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent="\t", ensure_ascii=False)
         f.write("\n")
@@ -85,9 +87,17 @@ def should_exclude(rel_path: str, is_root_file: bool) -> bool:
     return ext.lower() in EXCLUDE_EXTS
 
 
-def build_zip(plugin_dir: str, version: str, output_dir: str) -> str:
+def build_zip(
+    plugin_dir: str,
+    version: str,
+    output_dir: str,
+    engine_version: str | None = None,
+) -> str:
     os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, f"nexus-mcp-unreal-{version}.zip")
+    zip_name = f"nexus-mcp-unreal-{version}"
+    if engine_version is not None:
+        zip_name += f"-ue{engine_version}"
+    output_path = os.path.join(output_dir, f"{zip_name}.zip")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_plugin = os.path.join(tmpdir, "NexusLink")
@@ -108,7 +118,7 @@ def build_zip(plugin_dir: str, version: str, output_dir: str) -> str:
 
         tmp_uplugin = os.path.join(tmp_plugin, "NexusLink.uplugin")
         if os.path.isfile(tmp_uplugin):
-            patch_uplugin_version(tmp_uplugin, version)
+            patch_uplugin(tmp_uplugin, version, engine_version)
 
         with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for root, dirs, files in os.walk(tmp_plugin):
@@ -128,6 +138,11 @@ def build_zip(plugin_dir: str, version: str, output_dir: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="打包 NexusLink UE 插件")
     parser.add_argument("--version", required=True)
+    parser.add_argument(
+        "--engine-version",
+        default=None,
+        help="覆盖 NexusLink.uplugin EngineVersion（如 Fab 提交 UE 5.8 包）",
+    )
     parser.add_argument("--output", default=None, help="默认 <repo>/release/")
     args = parser.parse_args()
 
@@ -138,9 +153,10 @@ def main() -> int:
         print(f"[ERROR] 非 NexusLink 仓根目录: {root}", file=sys.stderr)
         return 1
 
-    print(f"[build] NexusLink v{args.version}")
+    ev = args.engine_version
+    print(f"[build] NexusLink v{args.version}" + (f" (EngineVersion {ev})" if ev else ""))
     try:
-        path = build_zip(root, args.version, output_dir)
+        path = build_zip(root, args.version, output_dir, ev)
     except Exception as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         return 1

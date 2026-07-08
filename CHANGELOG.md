@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- chore(fab): `build_unreal.py` 新增 `--engine-version`，发版时可额外打出 Fab 用 UE 5.8 包（源码 `EngineVersion` 保持 `4.26`）
+
 ## [1.15.0] - 2026-07-08
 
 ### Added
