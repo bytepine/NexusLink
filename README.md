@@ -49,6 +49,10 @@ flowchart TB
 
 未勾选时：工具栏不显示端口、IDE 代理扫描不到实例、AI 直连 `http://127.0.0.1:45000/stream` 无响应。完整用户指南见 [docs/usage-guide.md](docs/usage-guide.md) §2。
 
+## 示例工程
+
+公开示例项目 [NexusUnreal](https://github.com/bytepine/NexusUnreal)（ThirdPerson 模板 + UnLua + MCP 回归测试）。插件以子模块挂载，**不随示例仓分发插件本体**；克隆须 `--recurse-submodules` 或单独安装插件。
+
 ## 与 IDE 代理配合使用
 
 NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。日常开发推荐搭配 **IDE 代理**，由代理负责扫描 UE 实例、维持长连接、在多 Editor/PIE 间切换；AI 客户端只需连代理的固定端口。

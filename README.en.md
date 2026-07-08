@@ -49,6 +49,10 @@ Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://gith
 
 When unchecked: the toolbar shows no port, IDE proxies cannot discover the instance, and AI direct connections to `http://127.0.0.1:45000/stream` get no response. See the full user guide at [docs/usage-guide.md](docs/usage-guide.md) §2.
 
+## Example Project
+
+Public sample project [NexusUnreal](https://github.com/bytepine/NexusUnreal) (ThirdPerson template + UnLua + MCP regression tests). The plugin is mounted as a git submodule and **is not bundled** with the example repo; clone with `--recurse-submodules` or install the plugin separately.
+
 ## Using with IDE Proxies
 
 NexusLink is the **UE-side plugin** (HTTP `:45000` + WebSocket `:55000`). For daily development, use an **IDE proxy** to scan UE instances, keep long-lived connections, and switch between Editor/PIE targets; your AI client only needs a fixed proxy port.

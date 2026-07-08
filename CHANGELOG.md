@@ -9,6 +9,7 @@
 
 ### Added
 
+- docs: README 新增公开示例工程 [NexusUnreal](https://github.com/bytepine/NexusUnreal) 链接（Fab Example Project）
 - chore(fab): `NexusLink.uplugin` 补充 `EngineVersion`（4.26）、`PlatformAllowList`（Win64/Mac）、`DocsURL`/`SupportURL`；`Config/FilterPlugin.ini` 白名单 `README.en.md` 与 `docs/`；`build_unreal.py` 排除 `.pytest_cache`、`.mlc-config.json` 等开发文件
 - feat(unreal): `get_asset_behavior_tree` 输出每个节点新增 `flatIndex`（全树先序 DFS 全局序号，根=0，与 `path`/`childIndex` 路径定位互补）；`FNexusPropertyReportUtils::BuildEditablePropsPage` 新增 opt-in 参数 `SubobjectDepth`（默认 0 零回归），BT 属性导出传 `SubobjectDepth=2`，递归展开 instanced/EditInline 子对象属性至 `subProperties`（解决如 `MoeAbleFindTargetsTask` 内层配置不可读问题）
 - feat(tier4c): 新增 MetaSoundPatch 能力（`create_asset_meta_sound_patch`，≥UE5.1 + `WITH_METASOUND`）；扩展 `get_asset_meta_sound` / `manage_asset_meta_sound` 自动兼容 `UMetaSoundPatch`（先尝试 Source，失败后 Patch）；≥5.3 通过 `IMetaSoundDocumentInterface` 统一读写，`RootMetaSoundDocument` 反射 bypass；`search_asset` 新增 `MetaSoundPatch` 类型分支；新增 `NX_UE_HAS_METASOUND_PATCH`（5.1+）宏
