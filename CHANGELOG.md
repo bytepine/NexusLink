@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-07-08
+
 ### Added
 
 - docs: README 新增公开示例工程 [NexusUnreal](https://github.com/bytepine/NexusUnreal) 链接（Fab Example Project）
