@@ -831,6 +831,13 @@
 | `offset` | `integer` |  | 分页偏移 |
 | `limit` | `integer` |  | 每页最大条数 |
 
+**`component` 段输出**：合并本 BP 自有 SCS 组件、父蓝图链继承的 SCS 组件、C++ 原生组件（`CreateDefaultSubobject`）三类来源，覆盖编辑器组件面板可见的全部组件。`components`（扁平，支持 `nameFilter`/分页）与 `hierarchy`（层级树，始终全量）中每条附：
+
+- `source`：`"owned"`（本 BP 新增）/ `"inherited"`（父蓝图链 SCS）/ `"native"`（C++ 原生）
+- `inherited`：`source != "owned"` 时为 `true`（与 `defaults` 段的 `inherited` 语义一致，便于统一判断）
+- `ownerBlueprint`：仅 `source="inherited"` 时给出，标明来源父蓝图名
+- 同名组件以更近层级为准（本 BP > 更近祖先 BP > 原生）
+
 **相关 Capability**：`manage_asset_blueprint`、`create_asset_blueprint`
 
 ---

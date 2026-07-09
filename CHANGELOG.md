@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- feat: `get_asset_blueprint` 的 `component` section 合并本 BP 自有 SCS 组件、父蓝图链继承 SCS 组件、C++ 原生组件（`CreateDefaultSubobject`）三类来源，覆盖编辑器组件面板可见的全部组件；每条附 `source`（`owned`/`inherited`/`native`）与 `inherited` 布尔标记（语义对齐 `defaults` 段），继承 SCS 组件额外附 `ownerBlueprint` 标明来源父蓝图；同名组件以更近层级为准。此前该 section 仅序列化本 BP 的 SCS 节点，无法区分自有/继承，也漏掉父类原生组件
+
 ### Changed
 
 - chore(fab): `build_unreal.py` 新增 `--engine-version`，发版时可额外打出 Fab 用 UE 5.8 包（源码 `EngineVersion` 保持 `4.26`）

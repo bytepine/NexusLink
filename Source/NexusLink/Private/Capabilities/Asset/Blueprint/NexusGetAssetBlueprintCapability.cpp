@@ -14,6 +14,8 @@
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Components/SceneComponent.h"
+#include "Components/ActorComponent.h"
+#include "GameFramework/Actor.h"
 
 #if WITH_EDITOR
 #include "EdGraph/EdGraph.h"
@@ -153,59 +155,181 @@ static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FBPQueryPa
 	return Info;
 }
 
-// 递归序列化单个 SCS 节点为含层级的 JSON 对象
-static TSharedPtr<FJsonObject> SerializeSCSNode(USCS_Node* Node)
+// 单条组件描述：合并 owned SCS / 父链继承 SCS / C++ 原生组件三类来源后的统一形态
+struct FBPComponentEntry
 {
-	if (!Node) return nullptr;
+	FString VariableName;
+	FString ComponentClass;
+	bool    bIsSceneComponent = false;
+	FString AttachParent;
+	FString Source; // "owned" | "inherited" | "native"
+	FString OwnerBlueprint; // 仅 inherited：来源父蓝图名
+};
+
+static TSharedPtr<FJsonObject> SerializeComponentEntry(const FBPComponentEntry& E)
+{
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-	Obj->SetStringField(TEXT("variableName"), Node->GetVariableName().ToString());
-	if (Node->ComponentTemplate)
+	Obj->SetStringField(TEXT("variableName"), E.VariableName);
+	if (!E.ComponentClass.IsEmpty())
 	{
-		Obj->SetStringField(TEXT("componentClass"), Node->ComponentTemplate->GetClass()->GetName());
-		Obj->SetBoolField(TEXT("isSceneComponent"), Node->ComponentTemplate->IsA(USceneComponent::StaticClass()));
+		Obj->SetStringField(TEXT("componentClass"), E.ComponentClass);
+		Obj->SetBoolField(TEXT("isSceneComponent"), E.bIsSceneComponent);
 	}
-	if (!Node->ParentComponentOrVariableName.IsNone())
-		Obj->SetStringField(TEXT("attachParent"), Node->ParentComponentOrVariableName.ToString());
-	if (Node->ChildNodes.Num() > 0)
-	{
-		TArray<TSharedPtr<FJsonValue>> Children;
-		for (USCS_Node* Child : Node->ChildNodes)
-		{
-			TSharedPtr<FJsonObject> ChildObj = SerializeSCSNode(Child);
-			if (ChildObj.IsValid()) Children.Add(MakeShared<FJsonValueObject>(ChildObj));
-		}
-		Obj->SetArrayField(TEXT("children"), Children);
-	}
+	if (!E.AttachParent.IsEmpty()) Obj->SetStringField(TEXT("attachParent"), E.AttachParent);
+	Obj->SetStringField(TEXT("source"), E.Source);
+	if (E.Source != TEXT("owned")) Obj->SetBoolField(TEXT("inherited"), true);
+	if (!E.OwnerBlueprint.IsEmpty()) Obj->SetStringField(TEXT("ownerBlueprint"), E.OwnerBlueprint);
 	return Obj;
+}
+
+// 本蓝图自有 SCS 节点（BP->SimpleConstructionScript 仅含本 BP 新增的组件）
+static void CollectOwnedSCSEntries(USimpleConstructionScript* SCS, TSet<FString>& UsedNames, TArray<FBPComponentEntry>& Out)
+{
+	if (!SCS) return;
+	for (USCS_Node* Node : SCS->GetAllNodes())
+	{
+		if (!Node) continue;
+		FBPComponentEntry E;
+		E.VariableName = Node->GetVariableName().ToString();
+		if (Node->ComponentTemplate)
+		{
+			E.ComponentClass = Node->ComponentTemplate->GetClass()->GetName();
+			E.bIsSceneComponent = Node->ComponentTemplate->IsA(USceneComponent::StaticClass());
+		}
+		if (!Node->ParentComponentOrVariableName.IsNone())
+			E.AttachParent = Node->ParentComponentOrVariableName.ToString();
+		E.Source = TEXT("owned");
+		Out.Add(E);
+		UsedNames.Add(E.VariableName);
+	}
+}
+
+#if WITH_EDITOR
+// 沿父类链向上找蓝图生成类，合并各级父蓝图自身 SCS 中新增的组件（同名以更近的层级为准）
+static void CollectInheritedSCSEntries(UClass* ParentClass, TSet<FString>& UsedNames, TArray<FBPComponentEntry>& Out)
+{
+	for (UClass* Cls = ParentClass; Cls; Cls = Cls->GetSuperClass())
+	{
+		UBlueprint* ParentBP = Cast<UBlueprint>(Cls->ClassGeneratedBy);
+		if (!ParentBP || !ParentBP->SimpleConstructionScript) continue;
+		for (USCS_Node* Node : ParentBP->SimpleConstructionScript->GetAllNodes())
+		{
+			if (!Node) continue;
+			const FString VarName = Node->GetVariableName().ToString();
+			if (UsedNames.Contains(VarName)) continue; // 更近层级（本 BP 或更近祖先）已覆盖，跳过
+			FBPComponentEntry E;
+			E.VariableName = VarName;
+			if (Node->ComponentTemplate)
+			{
+				E.ComponentClass = Node->ComponentTemplate->GetClass()->GetName();
+				E.bIsSceneComponent = Node->ComponentTemplate->IsA(USceneComponent::StaticClass());
+			}
+			if (!Node->ParentComponentOrVariableName.IsNone())
+				E.AttachParent = Node->ParentComponentOrVariableName.ToString();
+			E.Source = TEXT("inherited");
+			E.OwnerBlueprint = ParentBP->GetName();
+			Out.Add(E);
+			UsedNames.Add(VarName);
+		}
+	}
+}
+#endif // WITH_EDITOR
+
+// 沿父类链找最近的 C++ 原生类，读取其 CDO 上 CreateDefaultSubobject 生成的原生组件
+static void CollectNativeEntries(UClass* ParentClass, TSet<FString>& UsedNames, TArray<FBPComponentEntry>& Out)
+{
+	UClass* NativeAncestor = ParentClass;
+	while (NativeAncestor && !NativeAncestor->HasAnyClassFlags(CLASS_Native))
+		NativeAncestor = NativeAncestor->GetSuperClass();
+	if (!NativeAncestor) return;
+
+	AActor* NativeActor = Cast<AActor>(NativeAncestor->GetDefaultObject(false));
+	if (!NativeActor) return;
+
+	TInlineComponentArray<UActorComponent*> Comps;
+	NativeActor->GetComponents(Comps);
+	for (UActorComponent* Comp : Comps)
+	{
+		if (!Comp) continue;
+		const FString VarName = Comp->GetFName().ToString();
+		if (UsedNames.Contains(VarName)) continue; // 蓝图层已覆盖同名组件
+		FBPComponentEntry E;
+		E.VariableName = VarName;
+		E.ComponentClass = Comp->GetClass()->GetName();
+		E.bIsSceneComponent = Comp->IsA(USceneComponent::StaticClass());
+		if (USceneComponent* SceneComp = Cast<USceneComponent>(Comp))
+		{
+			if (SceneComp->GetAttachParent())
+				E.AttachParent = SceneComp->GetAttachParent()->GetFName().ToString();
+		}
+		E.Source = TEXT("native");
+		Out.Add(E);
+		UsedNames.Add(VarName);
+	}
+}
+
+// 由 attachParent 字段将扁平条目重建为层级树（跨 owned/inherited/native 三类来源）
+static TArray<TSharedPtr<FJsonValue>> BuildComponentHierarchy(const TArray<FBPComponentEntry>& Entries)
+{
+	TMap<FString, TSharedPtr<FJsonObject>> NodeMap;
+	TArray<FString> Order;
+	for (const FBPComponentEntry& E : Entries)
+	{
+		NodeMap.Add(E.VariableName, SerializeComponentEntry(E));
+		Order.Add(E.VariableName);
+	}
+
+	TArray<TSharedPtr<FJsonValue>> Roots;
+	for (int32 i = 0; i < Order.Num(); ++i)
+	{
+		const FBPComponentEntry& E = Entries[i];
+		TSharedPtr<FJsonObject> Obj = NodeMap[E.VariableName];
+		if (!E.AttachParent.IsEmpty() && NodeMap.Contains(E.AttachParent))
+		{
+			TSharedPtr<FJsonObject> ParentObj = NodeMap[E.AttachParent];
+			TArray<TSharedPtr<FJsonValue>> Children = ParentObj->HasField(TEXT("children"))
+				? ParentObj->GetArrayField(TEXT("children")) : TArray<TSharedPtr<FJsonValue>>();
+			Children.Add(MakeShared<FJsonValueObject>(Obj));
+			ParentObj->SetArrayField(TEXT("children"), Children);
+		}
+		else
+		{
+			Roots.Add(MakeShared<FJsonValueObject>(Obj));
+		}
+	}
+	return Roots;
 }
 
 static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FBPQueryParams& Q)
 {
 	TSharedPtr<FJsonObject> Info = MakeShared<FJsonObject>();
 
-	USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
-	if (!SCS)
+	if (!BP->SimpleConstructionScript)
 	{
-		// 非 Actor 蓝图无 SCS
+		// 非 Actor 蓝图无 SCS；仍可能有父链继承/原生组件（例如 GameplayAbility 等特殊 BP 极少见，此处按无组件处理）
 		Info->SetStringField(TEXT("note"), TEXT("Blueprint has no SimpleConstructionScript (not an Actor Blueprint)"));
 		Info->SetArrayField(TEXT("components"), TArray<TSharedPtr<FJsonValue>>());
+		Info->SetArrayField(TEXT("hierarchy"), TArray<TSharedPtr<FJsonValue>>());
 		return Info;
 	}
 
-	// 全量节点列表，用于过滤和分页
-	const TArray<USCS_Node*> AllNodes = SCS->GetAllNodes();
-	TArray<USCS_Node*> Filtered;
-	for (USCS_Node* Node : AllNodes)
+	// 依次合并：本 BP 自有 → 父蓝图链继承 → C++ 原生；同名以更近层级为准
+	TSet<FString> UsedNames;
+	TArray<FBPComponentEntry> AllEntries;
+	CollectOwnedSCSEntries(BP->SimpleConstructionScript, UsedNames, AllEntries);
+#if WITH_EDITOR
+	if (BP->ParentClass) CollectInheritedSCSEntries(BP->ParentClass, UsedNames, AllEntries);
+#endif
+	if (BP->ParentClass) CollectNativeEntries(BP->ParentClass, UsedNames, AllEntries);
+
+	// nameFilter 过滤（对变量名 / 组件类名）
+	TArray<FBPComponentEntry> Filtered;
+	for (const FBPComponentEntry& E : AllEntries)
 	{
-		if (!Node) continue;
-		if (!Q.NameFilter.IsEmpty())
-		{
-			const FString VarName   = Node->GetVariableName().ToString();
-			const FString ClassName = Node->ComponentTemplate ? Node->ComponentTemplate->GetClass()->GetName() : TEXT("");
-			if (!FNexusStringMatchUtils::Matches(VarName, Q.NameFilter) &&
-				!FNexusStringMatchUtils::Matches(ClassName, Q.NameFilter)) continue;
-		}
-		Filtered.Add(Node);
+		if (!Q.NameFilter.IsEmpty() &&
+			!FNexusStringMatchUtils::Matches(E.VariableName, Q.NameFilter) &&
+			!FNexusStringMatchUtils::Matches(E.ComponentClass, Q.NameFilter)) continue;
+		Filtered.Add(E);
 	}
 
 	const int32 Total = Filtered.Num();
@@ -215,32 +339,14 @@ static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FBPQuery
 	Info->SetNumberField(TEXT("offset"), Start);
 	Info->SetNumberField(TEXT("limit"),  Q.Limit);
 
-	// 扁平列表（支持 nameFilter + 分页）
+	// 扁平列表（支持 nameFilter + 分页），每条标注 source（owned/inherited/native）
 	TArray<TSharedPtr<FJsonValue>> FlatList;
 	for (int32 i = Start; i < End; ++i)
-	{
-		USCS_Node* Node = Filtered[i];
-		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-		Obj->SetStringField(TEXT("variableName"), Node->GetVariableName().ToString());
-		if (Node->ComponentTemplate)
-		{
-			Obj->SetStringField(TEXT("componentClass"), Node->ComponentTemplate->GetClass()->GetName());
-			Obj->SetBoolField(TEXT("isSceneComponent"), Node->ComponentTemplate->IsA(USceneComponent::StaticClass()));
-		}
-		if (!Node->ParentComponentOrVariableName.IsNone())
-			Obj->SetStringField(TEXT("attachParent"), Node->ParentComponentOrVariableName.ToString());
-		FlatList.Add(MakeShared<FJsonValueObject>(Obj));
-	}
+		FlatList.Add(MakeShared<FJsonValueObject>(SerializeComponentEntry(Filtered[i])));
 	Info->SetArrayField(TEXT("components"), FlatList);
 
-	// 层级树（始终输出，从 SCS 根节点递归构建）
-	TArray<TSharedPtr<FJsonValue>> Tree;
-	for (USCS_Node* Root : SCS->GetRootNodes())
-	{
-		TSharedPtr<FJsonObject> NodeObj = SerializeSCSNode(Root);
-		if (NodeObj.IsValid()) Tree.Add(MakeShared<FJsonValueObject>(NodeObj));
-	}
-	Info->SetArrayField(TEXT("hierarchy"), Tree);
+	// 层级树：始终基于合并后的全量条目构建（不受 nameFilter/分页影响）
+	Info->SetArrayField(TEXT("hierarchy"), BuildComponentHierarchy(AllEntries));
 
 	return Info;
 }
