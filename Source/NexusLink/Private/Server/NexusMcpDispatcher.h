@@ -75,6 +75,9 @@ private:
 	void HandleToolsList(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Params);
 	void HandleToolsCall(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Params);
 
+	/** 处理 IDE/Desktop 代理转发失败上报（nexus/proxy_feedback），落盘为 RecordAuto。 */
+	void HandleProxyFeedback(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Params);
+
 	FOnSendResponse SendCallback;
 	ENexusMcpSessionState State = ENexusMcpSessionState::WaitingForInitialize;
 

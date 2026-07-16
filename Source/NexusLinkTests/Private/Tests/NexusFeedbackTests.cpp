@@ -276,3 +276,58 @@ bool FNexusLinkFeedbackRedactedSnapshotTest::RunTest(const FString& /*Parameters
 
 	return true;
 }
+
+// ── 6. Proxy 反馈落盘（nexus/proxy_feedback → RecordAuto） ──────────────────
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FNexusLinkFeedbackProxyTest,
+	"NexusLink.Feedback.ProxyCategories",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNexusLinkFeedbackProxyTest::RunTest(const FString& /*Parameters*/)
+{
+	FNexusFeedbackTestScope Scope;
+
+	// 模拟三端各上报一次代理层失败（对应 nexus/proxy_feedback 的 RecordAuto 调用路径）
+	{
+		FNexusFeedback::FFields F;
+		F.Tool      = TEXT("search_capabilities");
+		F.Proxy     = TEXT("vscode");
+		F.ErrorText = TEXT("UE request timed out after 120s");
+		FNexusFeedback::RecordAuto(TEXT("proxy_timeout"), F);
+	}
+	{
+		FNexusFeedback::FFields F;
+		F.Tool  = TEXT("call_capability");
+		F.Proxy = TEXT("rider");
+		F.ErrorText = TEXT("No connected UE instance");
+		FNexusFeedback::RecordAuto(TEXT("proxy_disconnect"), F);
+	}
+	{
+		FNexusFeedback::FFields F;
+		F.Proxy = TEXT("desktop");
+		F.ErrorText = TEXT("连接失败：端口 45000 无响应");
+		FNexusFeedback::RecordAuto(TEXT("proxy_connect_fail"), F);
+	}
+
+	TestEqual(TEXT("3 distinct proxy_* records persisted"), FNexusFeedback::GetRecordCount(), 3);
+
+	const FString ReportPath = FNexusFeedback::ExportReport();
+	TestFalse(TEXT("ExportReport returns non-empty path"), ReportPath.IsEmpty());
+
+	if (!ReportPath.IsEmpty())
+	{
+		FString MdContent;
+		FFileHelper::LoadFileToString(MdContent, *ReportPath);
+
+		TestTrue(TEXT("Report has proxy section"), MdContent.Contains(TEXT("## §9 代理层错误")));
+		TestTrue(TEXT("Report mentions vscode proxy_timeout"),
+			MdContent.Contains(TEXT("vscode")) && MdContent.Contains(TEXT("proxy_timeout")));
+		TestTrue(TEXT("Report mentions rider proxy_disconnect"),
+			MdContent.Contains(TEXT("rider")) && MdContent.Contains(TEXT("proxy_disconnect")));
+		TestTrue(TEXT("Report mentions desktop proxy_connect_fail"),
+			MdContent.Contains(TEXT("desktop")) && MdContent.Contains(TEXT("proxy_connect_fail")));
+	}
+
+	return true;
+}

@@ -35,6 +35,9 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（**MultiTool 模式**）。
 
 ## 硬性规则
 
-- 参数符合 `inputSchema`；`get/manage_asset_*` 前先 `search_asset`。
+- 参数符合 `inputSchema`；字符串必填字段不得为空。
+- **`get_runtime_actor_property` 必填非空 `actorName`** — 先 `list_runtime_actors`。
+- **`exec_command` 必填非空 `command`**。
+- `get/manage_asset_*` 前先 `search_asset`。
 - `sections=["all"]` 后 30s 内禁子 section。
 - `submit_feedback` 触发条件同 SearchMode；**`_feedbackHint` 强制**。

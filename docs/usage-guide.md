@@ -77,12 +77,17 @@ NexusLink 内置端到端的 AI 使用反馈系统，**所有数据只落本地 
 - **自动埋点**：`search_capabilities` / `call_capability` 对以下信号自动落盘（30 秒内相同事件节流）：
   - `search_zero` — `search_capabilities` 无命中
   - `search_overflow` — `search_capabilities` 命中过多
-  - `call_unknown` — `call_capability` 找不到 capability（含误把元工具当 capability 调用）
+  - `call_unknown` — `call_capability` 找不到 capability（含误把元工具当 capability 调用）；或 AI 直接把 capability 名当独立 MCP 工具 `tools/call`（SearchMode 下应改用 `call_capability`，MultiTool 下则是拼错/幻觉的工具名）
   - `call_arg_invalid` — 参数校验失败（必填缺失、schema 不符、`search_asset` 过宽等）
-  - `call_disabled` — capability 被禁用
+  - `call_disabled` — capability 被禁用；或直接 `tools/call` 一个已禁用的 capability（MultiTool 模式）
   - `call_fatal` — capability 执行时致命错误
   - `redundant_call` — 已对同一资产发过 `sections=["all"]` 后又发子 section
   - `slow_call` — 执行耗时超过 `SlowCallThresholdMs` 阈值
+- **代理层埋点**（IDE/Desktop 代理经 `nexus/proxy_feedback` 上报，不经过任何 MCP 工具）：AI 调用还没到达 UE 就在中转层失败时，也会记录以下信号（同样 30 秒节流，字段含 `proxy: vscode|rider|desktop`）：
+  - `proxy_timeout` — 代理转发 `tools/call` 后 UE 未在时限内响应
+  - `proxy_disconnect` — 代理转发时 WebSocket 未连接/已断开
+  - `proxy_connect_fail` — 代理 `connect_unreal_instance` 连接失败
+  - 旧版代理（未实现该上报）或旧版 NexusLink（未实现该方法）均静默降级，不影响正常使用
 - **手动上报**：AI 遇到无法自解决的痛点时调用 `submit_feedback` 显式记录
 - **导出**：设置面板「**导出 Markdown**」按钮生成聚合报告落盘到 `.nexus-feedback/report_<ts>.md`（含慢调用 Top 10、错误指纹 Top 5 等），并归档清空 `feedback.jsonl`
 - **GitHub Issue**：设置面板「**创建 GitHub Issue**」读取 `feedback.jsonl` 生成标题/正文并在浏览器打开预填页面（可配置 `FeedbackIssueRepo`，默认 `bytepine/NexusLink`）
@@ -179,7 +184,7 @@ sequenceDiagram
 
 **批量调用**：`call_capability` 支持 `calls=[{capability, arguments?}, ...]`，按顺序执行，单条失败不中断其余条目。
 
-**失败时看 `errorKind`**（SearchMode / MultiTool 均适用）：`not_found`（未注册）、`disabled`（设置中已禁用）、`disabled_only`（模糊搜索仅命中已禁用项）。旧 Capability 名会自动映射到新规范名（如 `create_blackboard` → `create_asset_blackboard`）。
+**失败时看 `errorKind`**（SearchMode / MultiTool 均适用）：`not_found`（未注册）、`disabled`（设置中已禁用）、`disabled_only`（模糊搜索仅命中已禁用项）、`query_too_broad`（`search_capabilities` 单用过宽词，见 `suggestedQueries`）。旧 Capability 名会自动映射到新规范名（如 `create_blackboard` → `create_asset_blackboard`）。
 
 **编辑器只读示例（SearchMode）**：`get_editor_context`（选中 Actor/资产、Content Browser 路径）、`search_console_variables`（搜 CVar 名）、`capture_viewport`（含 `editor_desktop`）、`get_gameplay_tags`（`sections` 含 `referencers`，需 `tag`）。
 

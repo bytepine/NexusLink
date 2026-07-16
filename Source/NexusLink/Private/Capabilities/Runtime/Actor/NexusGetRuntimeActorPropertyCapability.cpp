@@ -375,7 +375,7 @@ void FGetRuntimeActorPropertyCapability::BuildDefinition(FNexusCapabilityDefinit
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("target"),        FNexusSchema::Enum(TEXT("分发目标（自动推断）"),
 		                                                 { TEXT("actor"), TEXT("widget"), TEXT("asset") }))
-		.Prop(TEXT("actorName"),     FNexusSchema::Str(TEXT("Actor 名/标签")))
+		.Prop(TEXT("actorName"),     FNexusSchema::Str(TEXT("Actor 名/标签（先 list_runtime_actors）")))
 		.Prop(TEXT("propertyPath"),  FNexusSchema::Str(TEXT("点分路径（单个）")))
 		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("点分路径（批量）")))
 		.Prop(TEXT("view"),          FNexusSchema::Enum(TEXT("Actor 树视图"),
@@ -384,6 +384,7 @@ void FGetRuntimeActorPropertyCapability::BuildDefinition(FNexusCapabilityDefinit
 		                                                 { TEXT("visibility"), TEXT("transform"),
 		                                                   TEXT("world_transform"), TEXT("rotation_chain"),
 		                                                   TEXT("defaults") }))
+		.Required({ TEXT("actorName") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("components"), TEXT("hierarchy"), TEXT("field"), TEXT("transform"), TEXT("character") };

@@ -65,7 +65,7 @@
 
 ### `search_capabilities`
 
-**首要入口** — 回答任何蓝图/Widget/材质/资产问题前应先调用。已知名称优先 `capabilityName=<精确名>`；`query` 用 1-2 词 AND 匹配。失败看 `errorKind`：`not_found`（不存在）/ `disabled`（设置已禁用）/ `disabled_only`（仅禁用 cap 命中，见 `disabledCapabilities[]`）；`query=get_asset` 零命中时 `hint` 会指向 `get_asset_<类型>` 路由。匹配 ≤2 返回完整 `parameters[]`。
+**首要入口** — 回答任何蓝图/Widget/材质/资产问题前应先调用。已知名称优先 `capabilityName=<精确名>`；`query` 用窄域 1-2 词 AND 匹配（如 `blueprint graph`）。**禁止**单用 `blueprint` / `asset` / `runtime` / `animation`（返回 `errorKind=query_too_broad` + `suggestedQueries`）。失败看 `errorKind`：`not_found` / `disabled` / `disabled_only` / `query_too_broad`；`query=get_asset` 零命中时 `hint` 会指向 `get_asset_<类型>` 路由。匹配 ≤2 返回完整 `parameters[]`。
 
 ---
 

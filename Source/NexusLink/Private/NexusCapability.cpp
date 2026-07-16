@@ -28,6 +28,7 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 		: MakeShared<FJsonObject>();
 
 	// required 字段校验（从缓存 Definition 的 InputSchema 读取）
+	// 字符串类型额外拒绝空串，避免 HasField=true 却 "" 漏到 Execute 被记成 call_fatal
 	const FNexusCapabilityDefinition& Def = GetDefinition();
 	if (Def.InputSchema.IsValid())
 	{
@@ -37,10 +38,25 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 			for (const TSharedPtr<FJsonValue>& V : *ReqArr)
 			{
 				FString Field;
-				if (V.IsValid() && V->TryGetString(Field) && !Args->HasField(Field))
+				if (!V.IsValid() || !V->TryGetString(Field) || Field.IsEmpty())
+				{
+					continue;
+				}
+				const TSharedPtr<FJsonValue>* FieldVal = Args->Values.Find(Field);
+				if (!FieldVal || !FieldVal->IsValid() || (*FieldVal)->IsNull())
 				{
 					return FCapabilityResult::MakeArgInvalid(FString::Printf(
 						TEXT("缺少必填字段 '%s'（Capability '%s'）"), *Field, *Def.Name));
+				}
+				if ((*FieldVal)->Type == EJson::String)
+				{
+					FString StrVal;
+					(*FieldVal)->TryGetString(StrVal);
+					if (StrVal.IsEmpty())
+					{
+						return FCapabilityResult::MakeArgInvalid(FString::Printf(
+							TEXT("必填字段 '%s' 不能为空（Capability '%s'）"), *Field, *Def.Name));
+					}
 				}
 			}
 		}

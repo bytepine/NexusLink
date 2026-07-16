@@ -120,12 +120,56 @@ namespace
 			OutArr.Add(MakeShared<FJsonValueObject>(S.Entry));
 		}
 	}
+	/** 单 token 过宽词：直接拒绝模糊搜索，迫使 Agent 收窄 query。 */
+	static bool IsOverBroadCapabilityQuery(const FString& TokenLower, TArray<FString>& OutSuggested)
+	{
+		OutSuggested.Reset();
+		if (TokenLower == TEXT("blueprint"))
+		{
+			OutSuggested = {
+				TEXT("blueprint graph"), TEXT("blueprint variable"), TEXT("get_asset_blueprint")
+			};
+			return true;
+		}
+		if (TokenLower == TEXT("asset"))
+		{
+			OutSuggested = {
+				TEXT("search asset"), TEXT("get asset"), TEXT("manage asset")
+			};
+			return true;
+		}
+		if (TokenLower == TEXT("runtime"))
+		{
+			OutSuggested = {
+				TEXT("runtime actor"), TEXT("runtime widget"), TEXT("runtime lua")
+			};
+			return true;
+		}
+		if (TokenLower == TEXT("animation"))
+		{
+			OutSuggested = {
+				TEXT("runtime animation"), TEXT("anim montage"), TEXT("anim blueprint")
+			};
+			return true;
+		}
+		return false;
+	}
+
+	static void EmitSuggestedQueries(TSharedPtr<FJsonObject>& Output, const TArray<FString>& Suggested)
+	{
+		TArray<TSharedPtr<FJsonValue>> Arr;
+		for (const FString& Q : Suggested)
+		{
+			Arr.Add(MakeShared<FJsonValueString>(Q));
+		}
+		Output->SetArrayField(TEXT("suggestedQueries"), Arr);
+	}
 } // namespace
 
 void FNexusMcpToolSearchCapabilities::BuildDefinition(FNexusMcpToolDefinition& Out) const
 {
 	Out.Name        = TEXT("search_capabilities");
-	Out.Description = TEXT("【阶段3 - 发现能力】查找可用 Capability，所有 UE 操作的第一步。\n触发条件：用户提到 UE/蓝图/Blueprint/Widget/UMG/材质/Material/资产/Asset/行为树/BehaviorTree/ABP/DataAsset/GAS/Niagara/关卡/Level/PIE/Actor 时，探测到实例后即可调用（只读发现，无需先 connect）。\n用法：已知名传 capabilityName=<精确名>；未知传 query=<1-2词>。匹配≤2 返回完整 parameters[]。\n约束：失败看 errorKind (not_found/disabled)；_feedbackHint 出现必须立即 submit_feedback。");
+	Out.Description = TEXT("【阶段3 - 发现能力】查找可用 Capability，所有 UE 操作的第一步。\n触发条件：用户提到 UE/蓝图/Blueprint/Widget/UMG/材质/Material/资产/Asset/行为树/BehaviorTree/ABP/DataAsset/GAS/Niagara/关卡/Level/PIE/Actor 时，探测到实例后即可调用（只读发现，无需先 connect）。\n用法：已知名传 capabilityName=<精确名>；未知传 query=<窄域 1-2词，如 blueprint graph>。禁止单用 blueprint/asset/runtime/animation。匹配≤2 返回完整 parameters[]。\n约束：失败看 errorKind (not_found/disabled/query_too_broad)；_feedbackHint 出现必须立即 submit_feedback。");
 
 	TSharedPtr<FJsonObject> Schema = MakeShared<FJsonObject>();
 	Schema->SetStringField(TEXT("type"), TEXT("object"));
@@ -133,7 +177,7 @@ void FNexusMcpToolSearchCapabilities::BuildDefinition(FNexusMcpToolDefinition& O
 	TSharedPtr<FJsonObject> QueryProp = MakeShared<FJsonObject>();
 	QueryProp->SetStringField(TEXT("type"), TEXT("string"));
 	QueryProp->SetStringField(TEXT("description"),
-		TEXT("用户提到蓝图/资产/Widget/UMG/材质/行为树/动画/Datatable/PIE 时填入关键词。1-2 词 AND 匹配 Capability 名；精确名返回完整 Schema。"));
+		TEXT("窄域关键词（如 blueprint graph）。禁止单用 blueprint/asset/runtime/animation；精确名用 capabilityName。"));
 
 	TSharedPtr<FJsonObject> NameProp = MakeShared<FJsonObject>();
 	NameProp->SetStringField(TEXT("type"), TEXT("string"));
@@ -231,6 +275,34 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		if (Status == ECapabilityLookupStatus::Disabled)
 		{
 			EmitCapabilityLookupError(Status, QueryTrimmed, Record, Output);
+			Result.StructuredContent = Output;
+			Result.OutputText = SerializeOutput();
+			return Result;
+		}
+	}
+
+	// ── 单 token 过宽词硬拦截（避免 category tag 命中整类导致 overflow）──────────
+	{
+		TArray<FString> GateTokens;
+		QueryTrimmed.ToLower().ParseIntoArrayWS(GateTokens);
+		TArray<FString> Suggested;
+		if (GateTokens.Num() == 1 && IsOverBroadCapabilityQuery(GateTokens[0], Suggested))
+		{
+			Output->SetStringField(TEXT("errorKind"), TEXT("query_too_broad"));
+			Output->SetNumberField(TEXT("totalCount"), 0);
+			Output->SetArrayField(TEXT("capabilities"), TArray<TSharedPtr<FJsonValue>>());
+			Output->SetStringField(TEXT("hint"), FString::Printf(
+				TEXT("query=\"%s\" 过宽（会匹配整类 Capability）。请改用 suggestedQueries 中的窄域词，或直接 capabilityName=<精确名>。"),
+				*GateTokens[0]));
+			EmitSuggestedQueries(Output, Suggested);
+			Output->SetStringField(TEXT("_feedbackHint"),
+				TEXT("建议 submit_feedback(category=\"search_overflow\") 上报过宽搜索"));
+			FNexusFeedback::FFields F;
+			F.Tool       = TEXT("search_capabilities");
+			F.Query      = QueryRaw;
+			F.MatchCount = 0;
+			F.Note       = TEXT("query_too_broad");
+			FNexusFeedback::RecordAuto(TEXT("search_overflow"), F);
 			Result.StructuredContent = Output;
 			Result.OutputText = SerializeOutput();
 			return Result;

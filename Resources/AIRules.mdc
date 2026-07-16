@@ -18,8 +18,8 @@ alwaysApply: false
 涉及 UE 资产 / PIE / 蓝图 / Widget / 材质 / 行为树 / GAS / Lua 等时，**本回合必须先 MCP**，再回答：
 
 | 步 | 工具 | 说明 |
-|---|------|------|
-| 1 发现 Capability | `search_capabilities` | `query` 用 1–2 个**工具域**词（blueprint、behavior tree、gameplay ability）；**禁止**用业务功能名、资产名 |
+|---|---|---|
+| 1 发现 Capability | `search_capabilities` | 已知 cap 名时**跳过**本步，直接 `call_capability`；未知时 `query` 用 1–2 个**窄域**词（如 `blueprint graph`、`runtime actor`、`behavior tree`）；**禁止**业务功能名、资产名，以及单用过宽词（见 §2） |
 | 2 发现资产路径 | `search_asset` | 必须 `assetType` + 功能级 `pathFilter`；业务词/资产名片段放 `query` 或 `nameFilter` |
 | 3 读/写 | `get_asset_*` / `manage_asset_*` / `list_runtime_*` 等 | `assetPath` 等参数**只**用上一步返回的 path |
 | 4 落盘 | `save_asset` | 改过磁盘资产后必须调用 |
@@ -32,8 +32,11 @@ alwaysApply: false
 
 - ❌ 臆造 `get_asset` 聚合工具（正确格式：`get_asset_<type>`，如 `get_asset_blueprint`）
 - ❌ 用 `ChestPVE`、`Dice`、`Attack` 等业务词搜 `search_capabilities`
+- ❌ `search_capabilities` 单用过宽词：`blueprint` / `asset` / `runtime` / `animation`（易 `search_overflow`；须加动作或子域，如 `blueprint variable`、`runtime actor`）
 - ❌ 猜测 `/Game/...` 路径；禁止 `assetType=all` + 裸 `/Game/` 无过滤
 - ❌ 未 `search_asset` 就调 `get_asset_*`（缺 `assetPath`）
+- ❌ `get_runtime_actor_*` / `set_runtime_actor_*` 缺 `actorName`（先 `list_runtime_actors` 再读写属性）
+- ❌ `exec_command` 缺非空 `command`
 - ❌ 未 PIE / UnLua 未就绪就调 `eval_runtime_lua` 等运行时 Lua 工具
 - ❌ 看到 `_feedbackHint` 不 `submit_feedback`
 
@@ -43,10 +46,12 @@ alwaysApply: false
 
 | 用户意图 | 流程 |
 |----------|------|
-| 查蓝图变量/Graph | `search_capabilities(query="blueprint")` → `search_asset(assetType=Blueprint, pathFilter=…)` → `get_asset_blueprint` |
+| 查蓝图变量/Graph | 直接 `search_asset(assetType=Blueprint, pathFilter=…)` → `get_asset_blueprint`；未知 cap 时再用 `search_capabilities(query="blueprint graph")` |
 | 查行为树结构/装饰器 | `search_asset(assetType=BehaviorTree, …)` → `get_asset_behavior_tree` |
 | 查 GA 配置 | `search_asset(assetType=GameplayAbility, …)` → `get_asset_gameplay_ability` |
-| PIE 黑板/活动节点 | `get_runtime_actor_behavior_tree`（需 PIE） |
+| PIE Actor 属性 | `list_runtime_actors` → `get_runtime_actor_property(actorName=…, propertyPaths=…)` |
+| PIE 黑板/活动节点 | `get_runtime_actor_behavior_tree`（需 PIE + `actorName`） |
+| 控制台命令 | `exec_command(command="…")`（`command` 必填且非空） |
 | 玩法设计文档 | 走项目**知识库 MCP**（若有），不走 NexusLink 资产搜索 |
 
 ---

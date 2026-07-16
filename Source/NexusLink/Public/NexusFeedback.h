@@ -11,12 +11,16 @@
  * 记录以下几类痛点并落盘到 .nexus-feedback/feedback.jsonl：
  *   - search_zero      : search_capabilities 无命中
  *   - search_overflow  : search_capabilities 命中过多（超过阈值）
- *   - call_unknown     : call_capability 找不到 capability
- *   - call_disabled    : call_capability 被禁用
+ *   - call_unknown     : call_capability 找不到 capability；或 AI 直接把 capability 名当独立 MCP 工具 tools/call
+ *                        （SearchMode 下应改用 call_capability，MultiTool 下则是拼错/幻觉的工具名）
+ *   - call_disabled    : call_capability 被禁用；或直接 tools/call 一个已禁用的 capability（MultiTool 模式）
  *   - call_arg_invalid : call_capability 参数校验失败（缺少 required 字段或类型不符），与 call_fatal 平级自动埋点
  *   - call_fatal       : call_capability 执行时致命错误（非参数校验问题）
  *   - redundant_call   : 同 capability + identity 的子 section 在短窗口内重复调用（前次已含 sections=["all"]）
  *   - slow_call        : capability 执行耗时超过 SlowCallThresholdMs 阈值
+ *   - proxy_timeout       : IDE/Desktop 代理转发 tools/call 超时（UE 未在时限内响应）
+ *   - proxy_disconnect    : IDE/Desktop 代理转发时 WebSocket 未连接/已断开
+ *   - proxy_connect_fail  : IDE/Desktop 代理 connect_unreal_instance 连接失败
  *   - wrong_tool       : AI 主动上报——选错工具
  *   - misuse           : AI 主动上报——参数/用法错误
  *   - schema_guess     : AI 主动上报——字段含义靠猜
@@ -37,6 +41,7 @@ struct NEXUSLINK_API FNexusFeedback
 		FString ArgsDigest;     ///< 参数 hash 摘要（call_fatal 使用）
 		FString ErrorText;      ///< 错误片段前 120 字符（call_* 类使用）
 		FString Note;           ///< AI 自由文本描述（manual 必填）
+		FString Proxy;          ///< 代理来源：vscode | rider | desktop（proxy_* 类使用）
 		// submit_feedback 结构化扩展字段
 		FString AttemptedArgs;  ///< 触发问题的参数摘要（submit_feedback 可选）
 		FString ActualError;    ///< 实际报错片段（submit_feedback 可选）

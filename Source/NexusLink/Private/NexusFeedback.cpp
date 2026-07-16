@@ -118,6 +118,8 @@ static FString BuildJsonLine(const FString& Kind, const FString& Category,
 		Obj->SetStringField(TEXT("errorText"), Fields.ErrorText.Left(120));
 	if (!Fields.Note.IsEmpty())
 		Obj->SetStringField(TEXT("note"), Fields.Note);
+	if (!Fields.Proxy.IsEmpty())
+		Obj->SetStringField(TEXT("proxy"), Fields.Proxy);
 	if (!Fields.AttemptedArgs.IsEmpty())
 		Obj->SetStringField(TEXT("attemptedArgs"), Fields.AttemptedArgs.Left(200));
 	if (!Fields.ActualError.IsEmpty())
@@ -372,7 +374,10 @@ namespace NexusFeedbackInternal
 		if (Cat == TEXT("schema_guess"))     return 20;
 		if (Cat == TEXT("wrong_tool"))       return 20;
 		if (Cat == TEXT("call_unknown"))     return 15;
+		if (Cat == TEXT("proxy_disconnect")) return 15;
+		if (Cat == TEXT("proxy_timeout"))    return 15;
 		if (Cat == TEXT("call_disabled"))    return 10;
+		if (Cat == TEXT("proxy_connect_fail")) return 10;
 		if (Cat == TEXT("redundant_call"))   return  5;
 		if (Cat == TEXT("slow_call"))        return  5;
 		return 1;
@@ -1057,6 +1062,44 @@ namespace NexusFeedbackInternal
 					const FString Sample  = FingerprintSample.FindRef(P.Key);
 					const FString Snip    = Sample.Len() > 80 ? Sample.Left(80) + TEXT("…") : Sample;
 					Md += FString::Printf(TEXT("| `%s` | %d | %s |\n"), *FPLabel, P.Value, *Snip);
+				}
+				Md += TEXT("\n");
+			}
+		}
+
+		// §9 代理层错误（proxy_*）：按 proxy × category 聚合，反映中转层（非 UE 内）失败
+		{
+			TMap<FString, int32> ProxyCatCount;  // key: "<proxy>|<category>"
+			for (const auto& R : Records)
+			{
+				const FString Cat = GetStr(R, TEXT("category"));
+				if (!Cat.StartsWith(TEXT("proxy_"))) continue;
+				const FString Proxy = GetStr(R, TEXT("proxy"));
+				const FString Key = (Proxy.IsEmpty() ? FString(TEXT("(unknown)")) : Proxy) + TEXT("|") + Cat;
+				int32& V = ProxyCatCount.FindOrAdd(Key);
+				V++;
+			}
+			Md += TEXT("## §9 代理层错误（proxy_*）\n\n");
+			if (ProxyCatCount.Num() == 0)
+			{
+				Md += TEXT("_无数据_\n\n");
+			}
+			else
+			{
+				TArray<TPair<FString, int32>> Arr;
+				for (const auto& P : ProxyCatCount) Arr.Add(P);
+				Arr.Sort([](const TPair<FString,int32>& A, const TPair<FString,int32>& B){ return A.Value > B.Value; });
+				Md += TEXT("| proxy | category | 次数 |\n|---|---|---|\n");
+				for (const auto& P : Arr)
+				{
+					FString Proxy = P.Key, Cat = P.Key;
+					int32 SepIdx = INDEX_NONE;
+					if (P.Key.FindChar(TEXT('|'), SepIdx))
+					{
+						Proxy = P.Key.Left(SepIdx);
+						Cat   = P.Key.Mid(SepIdx + 1);
+					}
+					Md += FString::Printf(TEXT("| `%s` | `%s` | %d |\n"), *Proxy, *Cat, P.Value);
 				}
 				Md += TEXT("\n");
 			}

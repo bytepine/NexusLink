@@ -110,7 +110,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 2. **资产 vs 运行时**：`*_asset_*` 操作磁盘；`*_runtime_*` 需 PIE/Game。
 3. **优先批量**：`assetPaths[]` / `actorNames[]` / `propertyPaths[]` / `sections[]`。
 4. **资产路径**：先 `search_asset`；禁止 `assetType=all` + 裸 `/Game/`。
-5. **未知 cap**：`search_capabilities`（元工具）；`capabilityName` 精确名或 `query` 1–2 词。失败看 `errorKind`：`not_found` / `disabled` / `disabled_only`（见 `disabledCapabilities[]`），勿与「未注册」混淆。`call_capability` 失败同样看 `errorKind`（`disabled` 禁止重试；旧名如 `create_blackboard` 已自动映射为 `create_asset_blackboard`）。
+5. **未知 cap**：`search_capabilities`（元工具）；`capabilityName` 精确名或 `query` 窄域 1–2 词（如 `blueprint graph`）。**禁止**单用 `blueprint` / `asset` / `runtime` / `animation`（`errorKind=query_too_broad`）。失败看 `errorKind`：`not_found` / `disabled` / `disabled_only` / `query_too_broad`（见 `disabledCapabilities[]` / `suggestedQueries[]`），勿与「未注册」混淆。`call_capability` 失败同样看 `errorKind`（`disabled` 禁止重试；旧名如 `create_blackboard` 已自动映射为 `create_asset_blackboard`）。
 
 ## 蓝图 / Lua / GAS 工作流
 
@@ -124,6 +124,9 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 
 - **元工具** — `search_capabilities` / `call_capability` / `submit_feedback` 须直接 `tools/call`。
 - `arguments` 必须是 **嵌套对象**。
+- **`search_capabilities` 禁止过宽单词** — 勿单用 `blueprint` / `asset` / `runtime` / `animation`；改用 `suggestedQueries` 或 `capabilityName`。
+- **`get_runtime_actor_property` 必填非空 `actorName`** — 先 `list_runtime_actors`。
+- **`exec_command` 必填非空 `command`**。
 - **`search_asset` 必须收窄** — 禁止 `assetType=all` + `/Game/` 无过滤。
 - 路径先 `search_asset` 验证；30 秒内 `sections=["all"]` 后禁止子 section（`redundant_call`）。
 - 重试 ≥2 / 无合适 cap / Schema 需猜测 / 串行 ≥3 次 → `submit_feedback`。

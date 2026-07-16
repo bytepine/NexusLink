@@ -9,10 +9,16 @@
 
 ### Added
 
+- feat(mcp): `HandleToolsCall` 对 `tools/list` 未命中的直接 `tools/call`（AI 把 capability 名当独立工具调用，未经 `call_capability`）新增自动埋点：SearchMode 下未命中且能在 `CapabilityRegistry` 命中同名 capability 时，记 `call_unknown` 并在 `errorText` 提示应改用 `call_capability`；MultiTool 下未命中/已禁用分别记 `call_unknown`/`call_disabled`，与 `call_capability` 自身的同名分类共用报告聚合
+- feat(mcp): 新增 WS 直连方法 `nexus/proxy_feedback`，供 IDE/Desktop 代理上报中转层失败（AI 调用未到达 UE 前即在代理断连/超时/连接失败），走 `FNexusFeedback::RecordAuto` 落盘为 `proxy_timeout`/`proxy_disconnect`/`proxy_connect_fail`（含 `proxy: vscode|rider|desktop` 来源字段），使中转层错误也能进入 `.nexus-feedback/` 反馈闭环；`ExportReport` 报告新增 §9 代理层错误小节（按 proxy × category 聚合）；旧版代理不发该请求、旧版 NexusLink 收到未知 method 时代理侧静默降级，互不影响
 - feat: `get_asset_blueprint` 的 `component` section 合并本 BP 自有 SCS 组件、父蓝图链继承 SCS 组件、C++ 原生组件（`CreateDefaultSubobject`）三类来源，覆盖编辑器组件面板可见的全部组件；每条附 `source`（`owned`/`inherited`/`native`）与 `inherited` 布尔标记（语义对齐 `defaults` 段），继承 SCS 组件额外附 `ownerBlueprint` 标明来源父蓝图；同名组件以更近层级为准。此前该 section 仅序列化本 BP 的 SCS 节点，无法区分自有/继承，也漏掉父类原生组件
 
 ### Changed
 
+- fix(mcp): `FNexusCapability::Run` 对 Schema `required` 字符串字段拒绝空串，统一走 `call_arg_invalid`（避免 `command=""` / 空 `actorName` 漏到 Execute 记成 `call_fatal`）
+- fix(mcp): `get_runtime_actor_property` 将 `actorName` 标为 Schema Required；描述提示先 `list_runtime_actors`
+- feat(mcp): `search_capabilities` 对单 token 过宽词（`blueprint`/`asset`/`runtime`/`animation`）硬拦截，返回 `errorKind=query_too_broad` + `suggestedQueries` + `_feedbackHint`（不再截断后仍返回 8 条候选）
+- docs: `InitializeInstructions.SearchMode/MultiTool` 与 `AIRules.mdc` 补过宽搜索 / `actorName` / `command` 硬约束；NexusWork `nexuslink-workflow.mdc` 同步
 - chore(fab): `build_unreal.py` 新增 `--engine-version`，发版时可额外打出 Fab 用 UE 5.8 包（源码 `EngineVersion` 保持 `4.26`）
 - chore(release): CI `release.yml` 同步上传 `nexus-mcp-unreal-<ver>-ue5.8.zip`（Fab / UE 5.8 专用）
 

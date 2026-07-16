@@ -6,6 +6,7 @@
 #include "NexusMcpToolRegistry.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusLinkSettings.h"
+#include "NexusFeedback.h"
 #include "Utils/NexusCapResultAdapter.h"
 #include "Utils/NexusResponseCompactorUtils.h"
 #include "Serialization/JsonReader.h"
@@ -487,11 +488,24 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 			const FCapRecord* Record = FNexusCapabilityRegistry::Get().FindRecordByName(ToolName);
 			if (!Record)
 			{
+				// AI 直接把未注册/拼错的名字当 MCP 工具调用（MultiTool 模式下每个 capability 即为独立 Tool）。
+				FNexusFeedback::FFields F;
+				F.Tool       = ToolName;
+				F.Capability = ToolName;
+				F.ErrorText  = FString::Printf(TEXT("工具未找到: %s"), *ToolName);
+				FNexusFeedback::RecordAuto(TEXT("call_unknown"), F);
+
 				SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("工具未找到: %s"), *ToolName));
 				return;
 			}
 			if (!Settings->IsCapabilityEnabled(Record->Def.Name))
 			{
+				FNexusFeedback::FFields F;
+				F.Tool       = ToolName;
+				F.Capability = Record->Def.Name;
+				F.ErrorText  = TEXT("已在设置中禁用");
+				FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
+
 				SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("Capability '%s' 已在设置中禁用。"), *Record->Def.Name));
 				return;
 			}
@@ -514,6 +528,21 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 
 			EmitToolResult(Id, ToolResult);
 			return;
+		}
+
+		// SearchMode 下 tools/list 只暴露 3 个元工具 + submit_feedback；此处未命中最常见的原因是
+		// AI 把 capability 名当作独立 MCP 工具直接 tools/call，而不是走 call_capability(capability=...)。
+		// 若该名字恰好能在 CapabilityRegistry 命中，判定为「误把 capability 当 tool 调用」，附带提示；
+		// 否则视为拼错/幻觉的普通未知工具名，两者均计入 call_unknown 便于报告聚合定位。
+		{
+			FNexusFeedback::FFields F;
+			F.Tool       = ToolName;
+			F.Capability = ToolName;
+			const bool bLooksLikeCapability = FNexusCapabilityRegistry::Get().FindRecordByName(ToolName) != nullptr;
+			F.ErrorText = bLooksLikeCapability
+				? FString::Printf(TEXT("工具未找到: %s（应改用 call_capability(capability=\"%s\")）"), *ToolName, *ToolName)
+				: FString::Printf(TEXT("工具未找到: %s"), *ToolName);
+			FNexusFeedback::RecordAuto(TEXT("call_unknown"), F);
 		}
 
 		SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("工具未找到: %s"), *ToolName));
@@ -617,6 +646,36 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 		ExecDurationMs, ResponseBytes);
 }
 
+void FNexusMcpDispatcher::HandleProxyFeedback(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Params)
+{
+	FString Category;
+	if (!Params.IsValid() || !NexusJsonGetString(Params, TEXT("category"), Category) || Category.IsEmpty())
+	{
+		SendError(Id, JsonRpcInvalidParams, TEXT("缺少必填字段：category"));
+		return;
+	}
+
+	FNexusFeedback::FFields Fields;
+	NexusJsonGetString(Params, TEXT("tool"),  Fields.Tool);
+	NexusJsonGetString(Params, TEXT("proxy"), Fields.Proxy);
+	NexusJsonGetString(Params, TEXT("note"),  Fields.Note);
+	FString ErrorText;
+	if (NexusJsonGetString(Params, TEXT("errorText"), ErrorText) ||
+		NexusJsonGetString(Params, TEXT("actualError"), ErrorText))
+	{
+		Fields.ErrorText = ErrorText;
+	}
+	NexusJsonGetString(Params, TEXT("attemptedArgs"), Fields.AttemptedArgs);
+
+	// 代理层事件走既有 30 秒节流，与其它 auto 类别一致；bEnableFeedback=false 时静默跳过。
+	FNexusFeedback::RecordAuto(Category, Fields);
+
+	TSharedPtr<FJsonObject> Out = MakeShared<FJsonObject>();
+	Out->SetBoolField(TEXT("ok"), true);
+	Out->SetStringField(TEXT("recorded"), FDateTime::UtcNow().ToIso8601());
+	SendResult(Id, Out);
+}
+
 void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendResponse PerRequestSend)
 {
 	TGuardValue<FOnSendResponse> CallbackGuard(SendCallback, MoveTemp(PerRequestSend));
@@ -680,6 +739,11 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 	{
 		// 返回 ProxyConfig.json 内容，供 IDE 代理动态获取连接工具描述与 AI 引导文案。
 		SendResult(Id, FNexusProxyConfig::BuildConfigObject());
+	}
+	else if (Method == TEXT("nexus/proxy_feedback"))
+	{
+		// IDE/Desktop 代理转发失败（断连/超时/连接失败）上报，落盘到 .nexus-feedback/。
+		HandleProxyFeedback(Id, Params);
 	}
 	else
 	{
