@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [1.15.1] - 2026-07-17
+
 ### Added
 
 - feat(mcp): `HandleToolsCall` 对 `tools/list` 未命中的直接 `tools/call`（AI 把 capability 名当独立工具调用，未经 `call_capability`）新增自动埋点：SearchMode 下未命中且能在 `CapabilityRegistry` 命中同名 capability 时，记 `call_unknown` 并在 `errorText` 提示应改用 `call_capability`；MultiTool 下未命中/已禁用分别记 `call_unknown`/`call_disabled`，与 `call_capability` 自身的同名分类共用报告聚合
