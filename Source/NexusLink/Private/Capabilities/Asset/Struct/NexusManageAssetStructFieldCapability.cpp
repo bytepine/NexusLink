@@ -20,6 +20,7 @@
 void FManageAssetStructFieldCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_struct_field");
+	Out.SearchAssetTypes = {TEXT("Struct")};
 	Out.Description = TEXT("批量编辑 UDS 字段：add/remove/modify；修改后自动编译。");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{

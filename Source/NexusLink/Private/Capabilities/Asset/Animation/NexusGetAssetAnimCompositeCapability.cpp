@@ -12,6 +12,7 @@
 void FGetAssetAnimCompositeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_anim_composite");
+	Out.SearchAssetTypes = {TEXT("AnimComposite")};
 	Out.Description = TEXT("读取 AnimComposite 合成轨道中的片段列表（animReference/startPos/duration/playRate）。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("AnimComposite 资产路径")))

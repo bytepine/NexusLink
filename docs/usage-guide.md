@@ -158,10 +158,10 @@ NexusLink 将能力分为两层：
 | 层 | 来源 | 作用 |
 |----|------|------|
 | **MCP 握手** | UE 内 `ProxyConfig.json` + `InitializeInstructions.*.md` | Capability 路由表、元工具约束、触发关键词（代理连接 UE 后自动注入） |
-| **IDE Rule（可选）** | 插件 `Resources/AIRules.mdc` → 复制到项目 `.cursor/rules/` | 强化四步流程、禁止猜 path/cap 名、填写项目 `pathFilter` 前缀 |
+| **IDE Rule（可选）** | 插件 `Resources/AIRules.mdc` → 复制到项目 `.cursor/rules/` | 强化四步流程、优先用 `search_asset` 的 `recommendedGet`/`recommendedManage`、禁止猜 path/cap 名、填写项目 `pathFilter` 前缀 |
 
 - 修改 Capability 路由 / 元工具行为：**只改 UE 插件**内 `InitializeInstructions` / `ProxyConfig`。
-- 减少 AI 用业务词搜工具、跳过 `search_asset` 等问题：在游戏项目挂载 **AIRules**（见下文 §2.8）。
+- 减少 AI 用业务词搜工具、跳过 `search_asset`、猜 `get_asset_*` 名等问题：在游戏项目挂载 **AIRules**（见下文 §2.8）。
 - 代理（Rider / VSCode）连接 UE 后缓存握手内容；断开时清空，重连后自动刷新。
 
 **典型调用流程（SearchMode）**：
@@ -169,18 +169,20 @@ NexusLink 将能力分为两层：
 ```mermaid
 sequenceDiagram
     participant AI as AI 客户端
-    participant Search as search_capabilities
+    participant SearchCap as search_capabilities
+    participant SearchAsset as search_asset
     participant Call as call_capability
-    participant Cap as Capability
 
-    AI->>Search: query="blueprint variable"
-    Search-->>AI: get_asset_blueprint、manage_asset_blueprint + schema
+    AI->>SearchAsset: assetType + pathFilter
+    SearchAsset-->>AI: path / assetType / recommendedGet / recommendedManage
 
-    AI->>Call: capability="manage_asset_blueprint", arguments={...}
-    Call->>Cap: Run(arguments)
-    Cap-->>Call: 执行结果
-    Call-->>AI: 结构化响应
+    AI->>Call: capability=recommendedGet, assetPath=path
+    Call-->>AI: 资产内容
+
+    Note over AI,SearchCap: 未知 cap 时再 search_capabilities
 ```
+
+**资产读写约定**：`search_asset` 每条结果带 `recommendedGet` / `recommendedManage`（由各 get/manage cap 的 `SearchAssetTypes` 声明汇聚）；后续调用优先用推荐名，勿凭类型名猜测。
 
 **批量调用**：`call_capability` 支持 `calls=[{capability, arguments?}, ...]`，按顺序执行，单条失败不中断其余条目。
 

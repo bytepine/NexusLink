@@ -10,6 +10,7 @@
 void FGetAssetEnumCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_enum");
+	Out.SearchAssetTypes = {TEXT("UserDefinedEnum")};
 	Out.Description = TEXT("读取 UserDefinedEnum 的枚举项（name/displayName/value）。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("枚举资产包路径")))

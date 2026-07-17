@@ -77,6 +77,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 | `Out.Tags` | 必填 | 至少含 1 个访问标签（`readonly`/`write`）+ 1 个分类标签 |
 | `Out.ExtraSearchKeywords` | 可选 | 口语词/同义词；禁重复 name token；注册期自动剥离 |
 | `Out.RelatedCapabilities` | 可选 | cap name 列表；有强关联兄弟 cap（get/manage 成对）时填 |
+| `Out.SearchAssetTypes` | 可选 | **资产 get/manage cap 必填**：与 `search_asset` 返回的 `assetType` 对齐（如 `{"Blueprint"}`）；注册期写入路由索引，供 `recommendedGet`/`recommendedManage` |
 | `Out.Prerequisites` | 可选 | 枚举值（见下表）；需要特定运行环境时填 |
 | `Out.WhenToUse` | 可选 | ≤40 字符；同前缀 cap ≥3 个、description 难以区分时填 |
 
@@ -176,6 +177,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 - [ ] **差异化**：同前缀 cap 的 Description 在 DIFFERENTIATOR 段有明显区分词
 - [ ] **Keywords**：ExtraSearchKeywords 均为口语词/同义词，无 name 已有词
 - [ ] **关联**：RelatedCapabilities 列出了强关联的兄弟 cap（get/manage 通常成对）
+- [ ] **SearchAssetTypes**：资产 `get_asset_*` / `manage_asset_*` 已声明对应 `assetType`（与 `search_asset` 返回值对齐）；非资产 cap 留空
 - [ ] **命名**：`Out.Name` 符合 §6 决策树；非 pattern cap 已登记 InitializeInstructions 例外表
 
 > 注册期 `FNexusCapabilityRegistry::Register()` 仅硬校验描述长度（≤100）与命名动词（§6）；§4 格式/重叠/关键词条数由 `Script/audit_capability_naming.py` CI 门禁负责，避免 Dev 构建启动时 ensure 闪退。
@@ -192,6 +194,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
       （继承 FNexusMultiSectionCapability 时用 BuildSchemaWithSections()）
    c. Out.Tags 至少填 readonly/write + 分类标签
    d. 按需填 Out.ExtraSearchKeywords / Out.RelatedCapabilities / Out.WhenToUse / Out.Prerequisites
+   e. 资产 get/manage：填 Out.SearchAssetTypes（如 `{"Blueprint"}`），search_asset 据此返回 recommendedGet/Manage
 3. 实现 Execute(Arguments)
 4. .cpp 末尾 REGISTER_MCP_CAPABILITY(YourCapClass)
 5. 编译后观察 Output Log，无 ensureMsgf 警告

@@ -18,6 +18,7 @@
 void FGetAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_user_widget");
+	Out.SearchAssetTypes = {TEXT("Widget")};
 	Out.Description = TEXT("从编辑器读 WBP 树与动画。回答 Widget 问题前必须先调；勿从源码推断。");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Widget };

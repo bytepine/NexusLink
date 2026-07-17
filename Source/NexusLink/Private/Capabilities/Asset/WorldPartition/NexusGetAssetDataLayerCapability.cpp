@@ -15,6 +15,7 @@
 void FGetAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("get_asset_data_layer");
+	Out.SearchAssetTypes = {TEXT("DataLayerAsset")};
 	Out.Description = TEXT("读取 DataLayer 资产属性：类型（Runtime/Editor）、调试颜色（≥UE5.1）。写用 manage_asset_data_layer。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataLayerAsset 路径")))

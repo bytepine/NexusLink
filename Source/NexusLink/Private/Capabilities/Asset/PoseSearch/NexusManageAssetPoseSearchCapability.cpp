@@ -15,6 +15,7 @@
 void FManageAssetPoseSearchCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("manage_asset_pose_search");
+	Out.SearchAssetTypes = {TEXT("PoseSearchDatabase"), TEXT("PoseSearchSchema")};
 	Out.Description = TEXT("管理 PoseSearchDatabase：set_schema/add_tag/remove_tag（UE 5.4+）。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PoseSearchDatabase 资产路径")))

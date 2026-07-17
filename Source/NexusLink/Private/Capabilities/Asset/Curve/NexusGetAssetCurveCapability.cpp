@@ -48,6 +48,7 @@ namespace NexusCurveUtils
 void FGetAssetCurveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_curve");
+	Out.SearchAssetTypes = {TEXT("CurveFloat"), TEXT("CurveVector"), TEXT("CurveLinearColor"), TEXT("CurveTable")};
 	Out.Description = TEXT("读取曲线资产（CurveFloat/Vector/LinearColor/CurveTable）的通道与关键帧。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))

@@ -18,6 +18,7 @@
 void FManageAssetInputMappingContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_input_mapping_context");
+	Out.SearchAssetTypes = {TEXT("InputMappingContext")};
 	Out.Description = TEXT("编辑 IMC：add_mapping/remove_mapping/clear_mappings。");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()

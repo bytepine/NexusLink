@@ -7,6 +7,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- feat(mcp): `search_asset` 每条结果除已有 `assetType` 外，新增 `recommendedGet` / `recommendedManage`；路由由各 get/manage cap 在 `BuildDefinition` 声明 `SearchAssetTypes`，注册期写入 Registry 索引（扩展新类型只需改对应 cap，无需中心映射表）；覆盖全部类型专用 get/manage（含 ControlRig/EQS/IKRig/Input/LevelSequence/MPC/PhysicsAsset 等），跨类型辅助 cap（`get_asset_refs`/`get_asset_lua_binding`）与 Widget 次要方面（`get_asset_view_model`）不声明以免覆盖主工具
+- docs: `CapabilitySpec` / `InitializeInstructions.SearchMode|MultiTool` / `ProxyConfig` / `AIRules` / `usage-guide` / README 同步 `recommendedGet`/`recommendedManage` 与 `SearchAssetTypes` 约定
+
 ### Changed
 
 - fix(release): CI `actions/checkout` 开启 `lfs: true`，发版/构建包不再把 `Resources/Icon128.png` 等 LFS 资产打成 pointer 文本；`build_unreal.py` 打包前检测 LFS pointer 并失败拦截

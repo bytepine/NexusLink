@@ -14,6 +14,7 @@
 void FManageAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_static_mesh");
+	Out.SearchAssetTypes = {TEXT("StaticMesh")};
 	Out.Description = TEXT("编辑 StaticMesh 属性。action=set_material_slot|set_property。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),      FNexusSchema::Str(TEXT("StaticMesh 资产路径")))

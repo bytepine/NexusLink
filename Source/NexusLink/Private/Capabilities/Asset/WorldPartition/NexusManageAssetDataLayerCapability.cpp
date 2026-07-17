@@ -15,6 +15,7 @@
 void FManageAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("manage_asset_data_layer");
+	Out.SearchAssetTypes = {TEXT("DataLayerAsset")};
 	Out.Description = TEXT("修改 DataLayer 资产属性（≥UE5.1，需要编辑器）：set_type（Runtime/Editor）、set_debug_color（#RRGGBB）。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataLayerAsset 路径")))

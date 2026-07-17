@@ -32,6 +32,7 @@ static USkeletalBodySetup* FindBodyByBone(UPhysicsAsset* PA, const FString& Bone
 void FManageAssetPhysicsAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_physics_asset");
+	Out.SearchAssetTypes = {TEXT("PhysicsAsset")};
 	Out.Description = TEXT("编辑 PhysicsAsset：set_physics_type/add_sphere/add_capsule/add_box/clear_shapes/add_constraint/remove_constraint。");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()

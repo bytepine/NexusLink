@@ -12,6 +12,7 @@
 void FManageAssetAnimCompositeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_anim_composite");
+	Out.SearchAssetTypes = {TEXT("AnimComposite")};
 	Out.Description = TEXT("编辑 AnimComposite 合成轨道片段。operations[].action: add_segment / remove_segment。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"),        FNexusSchema::Enum(TEXT("操作"),

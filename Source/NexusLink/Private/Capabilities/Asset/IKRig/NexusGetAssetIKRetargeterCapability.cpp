@@ -15,6 +15,7 @@
 void FGetAssetIKRetargeterCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_ik_retargeter");
+	Out.SearchAssetTypes = {TEXT("IKRetargeter")};
 	Out.Description = TEXT("读取 IKRetargeter：源/目标 IKRig、Chain Mapping 列表。写用 manage_asset_ik_retargeter。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("IKRetargeter 资产路径")))

@@ -11,6 +11,7 @@
 void FGetAssetSoundSubmixCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_sound_submix");
+	Out.SearchAssetTypes = {TEXT("SoundSubmix")};
 	Out.Description = TEXT("读取 SoundSubmix：outputVolume/wetLevel/dryLevel/effectChainCount/parentSubmix。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundSubmix 资产路径")))

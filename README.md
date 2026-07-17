@@ -119,8 +119,8 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 
 **路径 B — Capability**（主流路径，业务逻辑封装在 Capability，可独立调用）
 1. 创建 `Private/Capabilities/<分类>/NexusXxxCapability.h/.cpp`，继承 `FNexusCapability`（多 section 则继承 `FNexusMultiSectionCapability`）
-2. 实现 `BuildDefinition()` / `Execute()`；`.cpp` 末尾 `REGISTER_MCP_CAPABILITY(FNexusXxxCapability)`
-3. 遵循 [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md)（命名 / 四段式描述 / 自检清单）
+2. 实现 `BuildDefinition()` / `Execute()`；资产 get/manage 须填 `Out.SearchAssetTypes`（供 `search_asset` 返回 `recommendedGet`/`recommendedManage`）；`.cpp` 末尾 `REGISTER_MCP_CAPABILITY(FNexusXxxCapability)`
+3. 遵循 [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md)（命名 / 四段式描述 / `SearchAssetTypes` / 自检清单）
 4. Capability 通过 `call_capability` 元工具直接调用，或在 MultiTool 模式下作为独立 MCP Tool 暴露
 
 ---

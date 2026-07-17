@@ -30,6 +30,7 @@ static FGameplayTagContainer* GetGE_InheritedTagAddedMut(UObject* CDO, const TCH
 void FManageAssetGameplayEffectCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_gameplay_effect");
+	Out.SearchAssetTypes = {TEXT("GameplayEffect")};
 	Out.Description = TEXT("批量修改 GE CDO：ops[] 含 set_policy/set_tags/add_modifier/remove_modifier/set_modifier。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GameplayEffect Blueprint 路径")))

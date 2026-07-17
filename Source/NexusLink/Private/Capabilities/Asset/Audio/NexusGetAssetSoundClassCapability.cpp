@@ -10,6 +10,7 @@
 void FGetAssetSoundClassCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_sound_class");
+	Out.SearchAssetTypes = {TEXT("SoundClass")};
 	Out.Description = TEXT("读取 SoundClass：volume/pitch/lowPassFilter/parentClass/childClasses。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundClass 资产路径")))

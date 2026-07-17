@@ -15,6 +15,7 @@
 void FGetAssetIKRigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_ik_rig");
+	Out.SearchAssetTypes = {TEXT("IKRig"), TEXT("IKRigDefinition")};
 	Out.Description = TEXT("读取 IKRig 资产：预览网格/Solver 列表/BoneChain 列表。写用 manage_asset_ik_rig。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("IKRig 资产路径")))

@@ -12,6 +12,7 @@
 void FGetAssetAnimSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_anim_sequence");
+	Out.SearchAssetTypes = {TEXT("AnimSequence")};
 	Out.Description = TEXT("检查 AnimSequence 快照。时长/帧率/帧数/骨骼/notifies。写用 manage_asset_anim_sequence。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("AnimSequence 资产路径")))

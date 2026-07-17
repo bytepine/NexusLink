@@ -60,6 +60,7 @@ namespace NexusCurveManageUtils
 void FManageAssetCurveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_curve");
+	Out.SearchAssetTypes = {TEXT("CurveFloat"), TEXT("CurveVector"), TEXT("CurveLinearColor"), TEXT("CurveTable")};
 	Out.Description = TEXT("修改曲线资产关键帧。operations[].action: add_key / set_key / remove_key / set_interp（CurveTable 用 rowName 代替 channel）。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"),  FNexusSchema::Str(TEXT("add_key / set_key / remove_key / set_interp")))

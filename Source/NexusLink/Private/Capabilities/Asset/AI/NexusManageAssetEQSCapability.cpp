@@ -36,6 +36,7 @@ static UClass* FindEQSClassByName(const FString& ClassName)
 void FManageAssetEQSCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_eqs");
+	Out.SearchAssetTypes = {TEXT("EnvQuery")};
 	Out.Description = TEXT("编辑 EQS：add_option/remove_option/set_generator/add_test/remove_test。");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()

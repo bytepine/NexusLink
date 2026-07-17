@@ -20,6 +20,7 @@
 void FManageAssetMetaSoundCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("manage_asset_meta_sound");
+	Out.SearchAssetTypes = {TEXT("MetaSoundSource"), TEXT("MetaSoundPatch")};
 	Out.Description = TEXT("修改 MetaSound Source / Patch（≥5.1）：add_input/remove_input/add_output/remove_output/add_node/remove_node/add_edge/remove_edge。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("MetaSound Source 或 Patch 资产路径")))

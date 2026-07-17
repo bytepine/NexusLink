@@ -17,6 +17,7 @@
 void FManageAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("manage_asset_pcg_graph");
+	Out.SearchAssetTypes = {TEXT("PCGGraph")};
 	Out.Description = TEXT("管理 PCG Graph：add_node/remove_node/add_edge（UE 5.4+）。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PCG Graph 资产路径")))

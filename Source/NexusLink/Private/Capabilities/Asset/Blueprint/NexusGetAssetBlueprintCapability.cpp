@@ -358,6 +358,7 @@ struct FBPEntryLocal { FString Name; FString Kind; FString Type; FString SubType
 void FGetAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_blueprint");
+	Out.SearchAssetTypes = {TEXT("Blueprint")};
 	Out.Description = TEXT("从编辑器读 BP。回答蓝图问题前必须先调；禁止从源码推断。");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };

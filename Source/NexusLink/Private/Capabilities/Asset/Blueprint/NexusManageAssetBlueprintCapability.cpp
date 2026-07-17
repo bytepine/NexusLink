@@ -30,6 +30,7 @@
 void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_blueprint");
+	Out.SearchAssetTypes = {TEXT("Blueprint")};
 	Out.Description = TEXT("编辑 BP：图/变量/节点/连线、SCS、CDO。SCS/defaults 限 Actor BP。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),       FNexusSchema::Str(TEXT("蓝图资产路径")))

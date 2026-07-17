@@ -12,6 +12,7 @@
 void FManageAssetDataAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_data_asset");
+	Out.SearchAssetTypes = {TEXT("DataAsset")};
 	Out.Description = TEXT("批量编辑 DataAsset。set=ImportText 校验；reset=CDO；ops[] 非空。");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{

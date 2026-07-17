@@ -30,6 +30,7 @@ static bool JsonValueToImportString(const TSharedPtr<FJsonValue>& V, FString& Ou
 void FManageAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_data_table");
+	Out.SearchAssetTypes = {TEXT("DataTable")};
 	Out.Description = TEXT("批量编辑 DT 行：add/remove/set；ImportText 校验。");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{

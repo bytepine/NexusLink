@@ -21,6 +21,7 @@
 void FManageAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_gameplay_ability");
+	Out.SearchAssetTypes = {TEXT("GameplayAbility")};
 	Out.Description = TEXT("修改 GA CDO：set_tags/set_policy/set_cost_cooldown。Graph 编辑用 manage_asset_blueprint。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("GameplayAbility Blueprint 路径")))

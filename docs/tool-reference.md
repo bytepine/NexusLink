@@ -36,7 +36,7 @@
 ---
 
 <!-- 自动生成，由 build_tool_reference.py 产出；以下内容请勿手工修改 -->
-<!-- 共 109 个 Capability + 3 个元工具 -->
+<!-- 共 175 个 Capability + 3 个元工具 -->
 
 ## 目录
 
@@ -65,7 +65,7 @@
 
 ### `search_capabilities`
 
-**首要入口** — 回答任何蓝图/Widget/材质/资产问题前应先调用。已知名称优先 `capabilityName=<精确名>`；`query` 用窄域 1-2 词 AND 匹配（如 `blueprint graph`）。**禁止**单用 `blueprint` / `asset` / `runtime` / `animation`（返回 `errorKind=query_too_broad` + `suggestedQueries`）。失败看 `errorKind`：`not_found` / `disabled` / `disabled_only` / `query_too_broad`；`query=get_asset` 零命中时 `hint` 会指向 `get_asset_<类型>` 路由。匹配 ≤2 返回完整 `parameters[]`。
+**首要入口** — 回答任何蓝图/Widget/材质/资产问题前应先调用。已知名称优先 `capabilityName=<精确名>`；`query` 用 1-2 词 AND 匹配。失败看 `errorKind`：`not_found`（不存在）/ `disabled`（设置已禁用）/ `disabled_only`（仅禁用 cap 命中，见 `disabledCapabilities[]`）；`query=get_asset` 零命中时 `hint` 会指向 `get_asset_<类型>` 路由。匹配 ≤2 返回完整 `parameters[]`。
 
 ---
 
@@ -237,6 +237,66 @@
 
 ---
 
+### `create_asset_control_rig`
+
+创建空白 ControlRig Blueprint；用 manage 添加骨骼/控件。
+
+**适用场景**：创建空白 ControlRig Blueprint；UE5.0+ 专用
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产路径（包路径） |
+
+**相关 Capability**：`get_asset_control_rig`、`manage_asset_control_rig`
+
+---
+
+### `create_asset_curve`
+
+创建曲线资产：CurveFloat / CurveVector / CurveLinearColor / CurveTable。
+
+**适用场景**：创建空白曲线资产；用 manage 写入关键帧
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+| `curveType` | `string` |  | float（默认）/ vector / linear_color / curve_table |
+
+**相关 Capability**：`get_asset_curve`、`manage_asset_curve`
+
+---
+
+### `create_asset_data_layer`
+
+创建 DataLayer 资产（UDataLayerAsset，≥UE5.1）。type: Runtime 或 Editor。读用 get_asset_data_layer。
+
+**适用场景**：新建 World Partition DataLayer 资产（≥UE5.1），设置 Runtime/Editor 类型及调试颜色
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `packagePath` | `string` | ★ | 资产包路径，如 /Game/WorldData |
+| `assetName` | `string` | ★ | 资产名称 |
+| `type` | `string` |  | Runtime 或 Editor（默认 Runtime） |
+| `debugColor` | `string` |  | 调试颜色（十六进制 #RRGGBB 或颜色名，可选） |
+
+**相关 Capability**：`get_asset_data_layer`、`manage_asset_data_layer`、`search_asset`
+
+---
+
+### `create_asset_enum`
+
+创建 UserDefinedEnum（蓝图枚举）资产；用 manage 增删枚举项。
+
+**适用场景**：创建新的蓝图枚举资产
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 枚举资产包路径 |
+
+**相关 Capability**：`get_asset_enum`、`manage_asset_enum`
+
+---
+
 ### `create_asset_gameplay_ability`
 
 创建 GameplayAbility BP；语义字段用 `manage_asset_gameplay_ability`，Graph 用 `manage_asset_blueprint`。
@@ -264,6 +324,153 @@
 | `parentClass` | `string` |  | 父类名（默认 GameplayEffect） |
 
 **相关 Capability**：`get_asset_gameplay_effect`、`manage_asset_gameplay_effect`
+
+---
+
+### `create_asset_ik_rig`
+
+创建空白 IKRig 资产；可选关联预览 SkeletalMesh。
+
+**适用场景**：创建空白 IKRig 定义；UE5.0+ 专用
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产路径（包路径） |
+| `meshPath` | `string` |  | 可选：预览 SkeletalMesh 路径 |
+
+**相关 Capability**：`get_asset_ik_rig`、`manage_asset_ik_rig`、`get_asset_ik_retargeter`
+
+---
+
+### `create_asset_input_action`
+
+创建空白 UInputAction。指定 valueType 后可用 manage 添加 Trigger/Modifier。
+
+**适用场景**：新建 InputAction 资产；之后用 manage 配置 Trigger/Modifier
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径（/Game/…/IA_Jump） |
+
+**相关 Capability**：`get_asset_input_action`、`manage_asset_input_action`、`create_asset_input_mapping_context`
+
+---
+
+### `create_asset_input_mapping_context`
+
+创建空白 UInputMappingContext。用 manage 绑定 Action 与按键。
+
+**适用场景**：新建 InputMappingContext；之后用 manage 添加 Action-Key 绑定
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径（/Game/…/IMC_Default） |
+
+**相关 Capability**：`get_asset_input_mapping_context`、`manage_asset_input_mapping_context`、`create_asset_input_action`
+
+---
+
+### `create_asset_meta_sound`
+
+创建 MetaSound Source 资产。读用 get_asset_meta_sound。
+
+**适用场景**：新建 MetaSound Source 资产
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `packagePath` | `string` | ★ | 资产所在包路径，如 /Game/Audio |
+| `assetName` | `string` | ★ | 资产名称 |
+
+**相关 Capability**：`get_asset_meta_sound`、`manage_asset_meta_sound`、`search_asset`
+
+---
+
+### `create_asset_meta_sound_patch`
+
+创建 MetaSound Patch 资产（可复用子图，≥UE5.1）。读用 get_asset_meta_sound。
+
+**适用场景**：新建可复用 MetaSound Patch 子图资产（≥UE5.1）
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `packagePath` | `string` | ★ | 资产所在包路径，如 /Game/Audio |
+| `assetName` | `string` | ★ | 资产名称 |
+
+**相关 Capability**：`get_asset_meta_sound`、`manage_asset_meta_sound`、`search_asset`
+
+---
+
+### `create_asset_pcg_graph`
+
+创建 PCG Graph 资产。读用 get_asset_pcg_graph。
+
+**适用场景**：新建 PCG Graph 资产（UE 5.4+）
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `packagePath` | `string` | ★ | 资产所在包路径，如 /Game/PCG |
+| `assetName` | `string` | ★ | 资产名称 |
+
+**相关 Capability**：`get_asset_pcg_graph`、`manage_asset_pcg_graph`、`search_asset`
+
+---
+
+### `create_asset_render_target`
+
+创建 TextureRenderTarget2D 资产；用 manage 修改尺寸/格式。
+
+**适用场景**：创建渲染目标纹理资产
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+| `sizeX` | `integer` |  | 宽度（默认256） |
+| `sizeY` | `integer` |  | 高度（默认256） |
+
+**相关 Capability**：`get_asset_render_target`、`manage_asset_render_target`
+
+---
+
+### `create_asset_sound_attenuation`
+
+创建 SoundAttenuation 资产（声音衰减曲线/形状设置）。
+
+**适用场景**：创建声音衰减设置资产
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | SoundAttenuation 包路径 |
+
+**相关 Capability**：`get_asset_sound_attenuation`、`manage_asset_sound_attenuation`
+
+---
+
+### `create_asset_sound_class`
+
+创建 SoundClass 资产（音量/音高层级管理节点）。
+
+**适用场景**：创建 SoundClass 层级节点
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | SoundClass 包路径 |
+
+**相关 Capability**：`get_asset_sound_class`、`manage_asset_sound_class`
+
+---
+
+### `create_asset_sound_concurrency`
+
+创建 SoundConcurrency 资产（最大并发实例数限制）。
+
+**适用场景**：创建声音并发限制资产
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | SoundConcurrency 包路径 |
+| `maxCount` | `integer` |  | 最大并发实例数（默认16） |
+
+**相关 Capability**：`get_asset_sound_concurrency`、`manage_asset_sound_concurrency`
 
 ---
 
@@ -327,6 +534,59 @@
 
 ---
 
+### `get_asset_control_rig`
+
+读取 ControlRig Blueprint 层级（骨骼/控件/Null）与 RigVM 图（节点/引脚/连线）。写用 manage_asset_control_rig。
+
+**适用场景**：读取 ControlRig 层级元素与 RigVM 图节点/连线；写用 manage_asset_control_rig
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | ControlRig Blueprint 资产路径 |
+
+**相关 Capability**：`manage_asset_control_rig`、`create_asset_control_rig`、`get_asset_skeleton`
+
+---
+
+### `get_asset_curve`
+
+读取曲线资产（CurveFloat/Vector/LinearColor/CurveTable）的通道与关键帧。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+
+**相关 Capability**：`create_asset_curve`、`manage_asset_curve`
+
+---
+
+### `get_asset_data_layer`
+
+读取 DataLayer 资产属性：类型（Runtime/Editor）、调试颜色（≥UE5.1）。写用 manage_asset_data_layer。
+
+**适用场景**：读取 DataLayerAsset 的类型与调试颜色（≥UE5.1）
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | DataLayerAsset 路径 |
+| `assetPaths` | `string` |  | 批量路径 |
+
+**相关 Capability**：`manage_asset_data_layer`、`create_asset_data_layer`、`search_asset`
+
+---
+
+### `get_asset_enum`
+
+读取 UserDefinedEnum 的枚举项（name/displayName/value）。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 枚举资产包路径 |
+
+**相关 Capability**：`create_asset_enum`、`manage_asset_enum`
+
+---
+
 ### `get_asset_gameplay_ability`
 
 读 GA Blueprint CDO：`sections=metadata|tags|costs|graphOverview`；Graph 详情用 `get_asset_blueprint`。
@@ -357,6 +617,62 @@
 
 ---
 
+### `get_asset_ik_retargeter`
+
+读取 IKRetargeter：源/目标 IKRig、Chain Mapping 列表。写用 manage_asset_ik_retargeter。
+
+**适用场景**：读取 IKRetargeter 配置；写用 manage_asset_ik_retargeter
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | IKRetargeter 资产路径 |
+
+**相关 Capability**：`manage_asset_ik_retargeter`、`get_asset_ik_rig`
+
+---
+
+### `get_asset_ik_rig`
+
+读取 IKRig 资产：预览网格/Solver 列表/BoneChain 列表。写用 manage_asset_ik_rig。
+
+**适用场景**：读取 IKRig 结构概览；写用 manage_asset_ik_rig
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | IKRig 资产路径 |
+
+**相关 Capability**：`manage_asset_ik_rig`、`create_asset_ik_rig`、`get_asset_ik_retargeter`
+
+---
+
+### `get_asset_input_action`
+
+读取 InputAction 配置：ValueType/Trigger/Modifier/标志位。UE5+。
+
+**适用场景**：读 InputAction 的 ValueType、Trigger/Modifier 类名列表、标志位
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | InputAction 资产路径 |
+
+**相关 Capability**：`manage_asset_input_action`、`create_asset_input_action`、`get_asset_input_mapping_context`
+
+---
+
+### `get_asset_input_mapping_context`
+
+列举 InputMappingContext 全部 Action-Key 绑定及其 Trigger/Modifier 数量。UE5+。
+
+**适用场景**：读 IMC 的全部 Action-Key 绑定列表
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | InputMappingContext 资产路径 |
+
+**相关 Capability**：`manage_asset_input_mapping_context`、`create_asset_input_mapping_context`、`get_asset_input_action`
+
+---
+
 ### `get_asset_level`
 
 检查磁盘关卡（UWorld 包）Actor 列表与 WorldSettings；`editor_only`。
@@ -379,6 +695,35 @@
 
 ---
 
+### `get_asset_level_sequence`
+
+读取 LevelSequence 的时长/帧率、Binding 列表与 Track 类型概览。
+
+**适用场景**：读 LevelSequence 的 Binding/Track 列表、时长、帧率
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | LevelSequence 资产路径 |
+
+**相关 Capability**：`manage_asset_level_sequence`、`search_asset`、`save_asset`
+
+---
+
+### `get_asset_meta_sound`
+
+读取 MetaSound Source / MetaSound Patch：inputs/outputs/节点摘要（≥5.1 支持 Patch）。写用 manage_asset_meta_sound。
+
+**适用场景**：读取 MetaSound Source 或 Patch 的 inputs/outputs/节点；写用 manage_asset_meta_sound
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | MetaSound Source 或 Patch 资产路径 |
+| `assetPaths` | `string` |  | 多个路径（批量） |
+
+**相关 Capability**：`manage_asset_meta_sound`、`create_asset_meta_sound`、`create_asset_meta_sound_patch`、`search_asset`
+
+---
+
 ### `get_asset_niagara_system`
 
 检查 NiagaraSystem 发射器与用户参数；只读（需 `WITH_NIAGARA`）。
@@ -391,6 +736,62 @@
 | `assetPaths` | `string` |  | 多个 NiagaraSystem 路径（批量） |
 
 **相关 Capability**：`manage_asset_niagara_system`、`search_asset`、`get_asset_refs`、`save_asset`
+
+---
+
+### `get_asset_pcg_graph`
+
+读取 PCG Graph 节点列表及 pin 概览。写用 manage_asset_pcg_graph。
+
+**适用场景**：读取 PCG Graph 节点结构；写用 manage_asset_pcg_graph
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PCG Graph 资产路径 |
+| `assetPaths` | `string` |  | 多个路径（批量） |
+
+**相关 Capability**：`manage_asset_pcg_graph`、`create_asset_pcg_graph`、`search_asset`
+
+---
+
+### `get_asset_physical_material`
+
+读取 PhysicalMaterial：摩擦/弹性/密度/表面类型。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PhysicalMaterial 资产路径 |
+
+**相关 Capability**：`manage_asset_physical_material`
+
+---
+
+### `get_asset_physics_asset`
+
+列举 PhysicsAsset 的 Body（骨骼/碰撞形状）和 Constraint（约束关节）概览。
+
+**适用场景**：读 PhysicsAsset 的 Body 骨骼名/碰撞形状数量与 Constraint 列表
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PhysicsAsset 资产路径 |
+
+**相关 Capability**：`manage_asset_physics_asset`、`get_asset_skeletal_mesh`、`save_asset`
+
+---
+
+### `get_asset_pose_search`
+
+读取 PoseSearchDatabase 或 Schema 概览。写用 manage_asset_pose_search。
+
+**适用场景**：读取 PoseSearch 数据库 schema 及动画资产数量；写用 manage_asset_pose_search
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PoseSearchDatabase 或 Schema 资产路径 |
+| `assetPaths` | `string` |  | 多个路径（批量） |
+
+**相关 Capability**：`manage_asset_pose_search`、`search_asset`
 
 ---
 
@@ -412,6 +813,18 @@
 
 ---
 
+### `get_asset_render_target`
+
+读取 TextureRenderTarget2D：尺寸/格式/清除色/生成Mips。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | RenderTarget 资产路径 |
+
+**相关 Capability**：`create_asset_render_target`、`manage_asset_render_target`
+
+---
+
 ### `get_asset_skeletal_mesh`
 
 检查 SkeletalMesh LOD、材质槽、骨骼与 PhysicsAsset 摘要；只读。
@@ -427,6 +840,42 @@
 
 ---
 
+### `get_asset_sound_attenuation`
+
+读取 SoundAttenuation：shape/innerRadius/falloffDistance/bAttenuate/bSpatialize。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | SoundAttenuation 资产路径 |
+
+**相关 Capability**：`create_asset_sound_attenuation`、`manage_asset_sound_attenuation`
+
+---
+
+### `get_asset_sound_class`
+
+读取 SoundClass：volume/pitch/lowPassFilter/parentClass/childClasses。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | SoundClass 资产路径 |
+
+**相关 Capability**：`create_asset_sound_class`、`manage_asset_sound_class`
+
+---
+
+### `get_asset_sound_concurrency`
+
+读取 SoundConcurrency：maxCount/resolutionRule/retriggerTime。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | SoundConcurrency 资产路径 |
+
+**相关 Capability**：`create_asset_sound_concurrency`、`manage_asset_sound_concurrency`
+
+---
+
 ### `get_asset_sound_cue`
 
 检查 SoundCue 时长与 SoundNode 图摘要；只读。
@@ -439,6 +888,18 @@
 | `assetPaths` | `string` |  | 多个 SoundCue 路径（批量） |
 
 **相关 Capability**：`manage_asset_sound_cue`、`search_asset`、`get_asset_sound_wave`、`get_asset_refs`
+
+---
+
+### `get_asset_sound_submix`
+
+读取 SoundSubmix：outputVolume/wetLevel/dryLevel/effectChainCount/parentSubmix。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | SoundSubmix 资产路径 |
+
+**相关 Capability**：`manage_asset_sound_submix`、`search_asset`
 
 ---
 
@@ -530,6 +991,58 @@
 
 ---
 
+### `manage_asset_control_rig`
+
+编辑 ControlRig：层级（rename_element/set_control_color/add_null/remove_element）与 RigVM 图连线（add_rig_link/break_rig_link/add_rig_node）。
+
+**适用场景**：修改 ControlRig：层级元素增删/改色；RigVM 图节点增删与引脚连线（add_rig_link/break_rig_link）；需 save_asset 落盘
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | ControlRig Blueprint 资产路径 |
+
+**相关 Capability**：`get_asset_control_rig`、`create_asset_control_rig`
+
+---
+
+### `manage_asset_curve`
+
+修改曲线资产关键帧。operations[].action: add_key / set_key / remove_key / set_interp（CurveTable 用 rowName 代替 channel）。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+
+**相关 Capability**：`create_asset_curve`、`get_asset_curve`
+
+---
+
+### `manage_asset_data_layer`
+
+修改 DataLayer 资产属性（≥UE5.1，需要编辑器）：set_type（Runtime/Editor）、set_debug_color（#RRGGBB）。
+
+**适用场景**：修改 DataLayerAsset 的类型（Runtime/Editor）或调试颜色（≥UE5.1）
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | DataLayerAsset 路径 |
+
+**相关 Capability**：`get_asset_data_layer`、`create_asset_data_layer`
+
+---
+
+### `manage_asset_enum`
+
+修改 UserDefinedEnum 枚举项。operations[].action: add_entry / remove_entry / set_display_name。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 枚举资产包路径 |
+
+**相关 Capability**：`create_asset_enum`、`get_asset_enum`
+
+---
+
 ### `manage_asset_gameplay_ability`
 
 修改 GA CDO：`set_tags` / `set_policy` / `set_cost_cooldown`；Graph 编辑用 `manage_asset_blueprint`。
@@ -567,6 +1080,62 @@
 
 ---
 
+### `manage_asset_ik_retargeter`
+
+编辑 IKRetargeter：set_source_rig / set_target_rig / set_chain_source。
+
+**适用场景**：修改 IKRetargeter 绑定；修改后需 save_asset 落盘
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | IKRetargeter 资产路径 |
+
+**相关 Capability**：`get_asset_ik_retargeter`、`get_asset_ik_rig`
+
+---
+
+### `manage_asset_ik_rig`
+
+编辑 IKRig：set_preview_mesh / set_solver_enabled。
+
+**适用场景**：修改 IKRig 属性；修改后需 save_asset 落盘
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | IKRig 资产路径 |
+
+**相关 Capability**：`get_asset_ik_rig`、`create_asset_ik_rig`
+
+---
+
+### `manage_asset_input_action`
+
+编辑 InputAction：set_value_type/add_trigger/remove_trigger/add_modifier/remove_modifier/set_flags。
+
+**适用场景**：改 InputAction 的 ValueType/Trigger/Modifier/标志位
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | InputAction 资产路径 |
+
+**相关 Capability**：`get_asset_input_action`、`create_asset_input_action`
+
+---
+
+### `manage_asset_input_mapping_context`
+
+编辑 IMC：add_mapping/remove_mapping/clear_mappings。
+
+**适用场景**：往 IMC 里添加或移除 Action-Key 绑定
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | InputMappingContext 资产路径 |
+
+**相关 Capability**：`get_asset_input_mapping_context`、`create_asset_input_mapping_context`
+
+---
+
 ### `manage_asset_level`
 
 编辑关卡 WorldSettings 与磁盘 Actor：`set_property` / `spawn_actor` / `remove_actor` / `set_actor_property`；`editor_only`。
@@ -591,6 +1160,34 @@
 
 ---
 
+### `manage_asset_level_sequence`
+
+编辑 LevelSequence：set_display_rate/set_range/remove_binding/add_master_track/remove_master_track。
+
+**适用场景**：改 LevelSequence 的帧率/播放范围/Binding/MasterTrack
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | LevelSequence 资产路径 |
+
+**相关 Capability**：`get_asset_level_sequence`、`save_asset`
+
+---
+
+### `manage_asset_meta_sound`
+
+修改 MetaSound Source / Patch（≥5.1）：add_input/remove_input/add_output/remove_output/add_node/remove_node/add_edge/remove_edge。
+
+**适用场景**：修改 MetaSound Source 或 Patch 的接口/图；add_edge 用 fromNodeID/fromPin/toNodeID/toPin（节点 ID 从 get_asset_meta_sound 获取）
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | MetaSound Source 或 Patch 资产路径 |
+
+**相关 Capability**：`get_asset_meta_sound`、`create_asset_meta_sound`、`create_asset_meta_sound_patch`
+
+---
+
 ### `manage_asset_niagara_system`
 
 编辑 Niagara 系统：`set_property` / `set_user_parameter`；不编辑 Emitter 节点图（需 `WITH_NIAGARA`）。
@@ -608,6 +1205,76 @@
 | `value` | `string` |  | 新值字符串 |
 
 **相关 Capability**：`get_asset_niagara_system`、`search_asset`
+
+---
+
+### `manage_asset_pcg_graph`
+
+管理 PCG Graph：add_node/remove_node/add_edge（UE 5.4+）。
+
+**适用场景**：向 PCG Graph 添加/删除节点或连接 pin
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PCG Graph 资产路径 |
+
+**相关 Capability**：`get_asset_pcg_graph`、`create_asset_pcg_graph`
+
+---
+
+### `manage_asset_physical_material`
+
+设置 PhysicalMaterial 属性：friction / restitution / density / surfaceType / raiseMassToPower。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PhysicalMaterial 资产路径 |
+| `surfaceType` | `integer` |  | 表面类型枚举值（EPhysicalSurface int） |
+
+**相关 Capability**：`get_asset_physical_material`
+
+---
+
+### `manage_asset_physics_asset`
+
+编辑 PhysicsAsset：set_physics_type/add_sphere/add_capsule/add_box/clear_shapes/add_constraint/remove_constraint。
+
+**适用场景**：给 PhysicsAsset 的骨骼添加碰撞形状、设置 PhysicsType、添加/移除关节约束
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PhysicsAsset 资产路径 |
+
+**相关 Capability**：`get_asset_physics_asset`、`get_asset_skeletal_mesh`
+
+---
+
+### `manage_asset_pose_search`
+
+管理 PoseSearchDatabase：set_schema/add_tag/remove_tag（UE 5.4+）。
+
+**适用场景**：设置 PoseSearch Database 的 Schema 或修改 Tags
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PoseSearchDatabase 资产路径 |
+
+**相关 Capability**：`get_asset_pose_search`、`search_asset`
+
+---
+
+### `manage_asset_render_target`
+
+修改 TextureRenderTarget2D：sizeX/sizeY/formatValue/clearColor(r,g,b,a)。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | RenderTarget 资产路径 |
+| `sizeX` | `integer` |  | 宽度（≥1） |
+| `sizeY` | `integer` |  | 高度（≥1） |
+| `formatValue` | `integer` |  | ETextureRenderTargetFormat 枚举值：0=RGBA8,1=RGBA16f… |
+
+**相关 Capability**：`create_asset_render_target`、`get_asset_render_target`
 
 ---
 
@@ -629,6 +1296,45 @@
 | `value` | `string` |  | 属性新值（set_property） |
 
 **相关 Capability**：`get_asset_skeletal_mesh`、`get_asset_skeleton`
+
+---
+
+### `manage_asset_sound_attenuation`
+
+设置 SoundAttenuation：innerRadius/falloffDistance/shapeValue/bAttenuate/bSpatialize。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | SoundAttenuation 资产路径 |
+| `shapeValue` | `integer` |  | 形状枚举值：0=Sphere,1=Capsule,2=Box,3=Cone |
+
+**相关 Capability**：`get_asset_sound_attenuation`、`create_asset_sound_attenuation`
+
+---
+
+### `manage_asset_sound_class`
+
+设置 SoundClass 的 volume/pitch/lowPassFilter/attenuationScale。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | SoundClass 资产路径 |
+
+**相关 Capability**：`get_asset_sound_class`、`create_asset_sound_class`
+
+---
+
+### `manage_asset_sound_concurrency`
+
+设置 SoundConcurrency：maxCount/resolutionRuleValue/retriggerTime/limitToOwner。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | SoundConcurrency 资产路径 |
+| `maxCount` | `integer` |  | 最大并发实例数（≥1） |
+| `resolutionRuleValue` | `integer` |  | EMaxConcurrentResolutionRule int 值：0=PreventNew,1=StopOldest… |
+
+**相关 Capability**：`get_asset_sound_concurrency`、`create_asset_sound_concurrency`
 
 ---
 
@@ -657,6 +1363,18 @@
 
 ---
 
+### `manage_asset_sound_submix`
+
+设置 SoundSubmix 音量。UE4/5.0：outputVolume/wetLevel/dryLevel[0,1]；UE5.1+：outputVolumeDB/wetLevelDB/dryLevelDB(dB)。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | SoundSubmix 资产路径 |
+
+**相关 Capability**：`get_asset_sound_submix`
+
+---
+
 ### `manage_asset_sound_wave`
 
 编辑 SoundWave 属性：`action=set_property`（音量/循环/衰减等）。
@@ -673,6 +1391,20 @@
 | `value` | `string` |  | 属性新值字符串 |
 
 **相关 Capability**：`get_asset_sound_wave`、`get_asset_sound_cue`
+
+---
+
+### `manage_asset_state_tree`
+
+编辑 StateTree：add_state/remove_state/rename_state/recompile。UE 5.5+。
+
+**适用场景**：增删改 StateTree 的 State 节点，或触发重编译
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | StateTree 资产路径 |
+
+**相关 Capability**：`get_asset_state_tree`、`save_asset`
 
 ---
 
@@ -765,7 +1497,7 @@
 
 ### `search_asset`
 
-查找资产路径。**必须先调用**；须指定 `assetType` 和功能级 `pathFilter`；禁止猜测 `/Game/...` 路径。`assetType` 支持别名归一化（如 `Blueprints`→`blueprint`、`Widgets`→`widget`、`ga`/`ge`→GAS 类型）。返回名称+路径列表。
+查找资产路径。**必须先调用**；须指定 `assetType` 和功能级 `pathFilter`；禁止猜测 `/Game/...` 路径。`assetType` 支持别名归一化（如 `Blueprints`→`blueprint`、`Widgets`→`widget`、`ga`/`ge`→GAS 类型）。每条返回 `name`/`path`/`assetType` 以及 `recommendedGet`/`recommendedManage`（推荐读/写 Capability）。
 
 **适用场景**：先 search 再 get/manage；禁止猜路径
 
@@ -831,13 +1563,6 @@
 | `offset` | `integer` |  | 分页偏移 |
 | `limit` | `integer` |  | 每页最大条数 |
 
-**`component` 段输出**：合并本 BP 自有 SCS 组件、父蓝图链继承的 SCS 组件、C++ 原生组件（`CreateDefaultSubobject`）三类来源，覆盖编辑器组件面板可见的全部组件。`components`（扁平，支持 `nameFilter`/分页）与 `hierarchy`（层级树，始终全量）中每条附：
-
-- `source`：`"owned"`（本 BP 新增）/ `"inherited"`（父蓝图链 SCS）/ `"native"`（C++ 原生）
-- `inherited`：`source != "owned"` 时为 `true`（与 `defaults` 段的 `inherited` 语义一致，便于统一判断）
-- `ownerBlueprint`：仅 `source="inherited"` 时给出，标明来源父蓝图名
-- 同名组件以更近层级为准（本 BP > 更近祖先 BP > 原生）
-
 **相关 Capability**：`manage_asset_blueprint`、`create_asset_blueprint`
 
 ---
@@ -895,6 +1620,21 @@
 
 ---
 
+### `create_asset_anim_composite`
+
+创建 AnimComposite（动画合成）资产；用 manage 添加片段。
+
+**适用场景**：创建空白 AnimComposite；需要 skeletonPath 时绑定骨骼
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | AnimComposite 包路径 |
+| `skeletonPath` | `string` |  | 骨骼资产路径（可选） |
+
+**相关 Capability**：`get_asset_anim_composite`、`manage_asset_anim_composite`
+
+---
+
 ### `create_asset_anim_montage`
 
 为指定骨骼创建新 Montage 文件；使用 `manage_asset_anim_montage` 添加片段填充内容。
@@ -907,6 +1647,22 @@
 | `skeletonPath` | `string` | ★ | 骨骼资产路径 |
 
 **相关 Capability**：`manage_asset_anim_montage`、`get_asset_anim_montage`
+
+---
+
+### `create_asset_blend_space`
+
+创建 BlendSpace（2D）或 BlendSpace1D 资产；用 manage 配置轴参数与样本。
+
+**适用场景**：新建 BlendSpace；需要 skeletonPath；创建后用 manage 配置轴与样本
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产路径（包路径） |
+| `skeletonPath` | `string` | ★ | 关联骨骼路径 |
+| `blendSpaceType` | `string (enum)` |  | 类型：blend_space（2D，默认）或 blend_space_1d 枚举值：`blend_space` / `blend_space_1d` |
+
+**相关 Capability**：`get_asset_blend_space`、`manage_asset_blend_space`
 
 ---
 
@@ -924,6 +1680,18 @@
 | `nameFilter` | `string` |  | 变量/默认值名称过滤 |
 
 **相关 Capability**：`manage_asset_anim_blueprint`、`create_asset_anim_blueprint`
+
+---
+
+### `get_asset_anim_composite`
+
+读取 AnimComposite 合成轨道中的片段列表（animReference/startPos/duration/playRate）。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | AnimComposite 资产路径 |
+
+**相关 Capability**：`create_asset_anim_composite`、`manage_asset_anim_composite`
 
 ---
 
@@ -953,6 +1721,21 @@
 | `assetPaths` | `string` |  | 多个 AnimSequence 路径（批量） |
 
 **相关 Capability**：`manage_asset_anim_sequence`、`search_asset`、`get_asset_skeleton`、`get_asset_anim_montage`、`get_asset_refs`
+
+---
+
+### `get_asset_blend_space`
+
+读取 BlendSpace 快照：轴参数 + 样本列表。写用 manage_asset_blend_space。
+
+**适用场景**：读取 BlendSpace 轴定义与样本动画；写用 manage_asset_blend_space
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | BlendSpace 资产路径 |
+| `assetPaths` | `string` |  | 多个 BlendSpace 路径（批量） |
+
+**相关 Capability**：`manage_asset_blend_space`、`create_asset_blend_space`、`search_asset`
 
 ---
 
@@ -1033,6 +1816,18 @@
 
 ---
 
+### `manage_asset_anim_composite`
+
+编辑 AnimComposite 合成轨道片段。operations[].action: add_segment / remove_segment。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | AnimComposite 资产路径 |
+
+**相关 Capability**：`create_asset_anim_composite`、`get_asset_anim_composite`
+
+---
+
 ### `manage_asset_anim_montage`
 
 编辑 Montage 结构，支持增删槽位、片段和分段；需单独调用 `save_asset` 保存。
@@ -1064,13 +1859,28 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | AnimSequence 资产路径 |
-| `action` | `string (enum)` | ★ | 编辑操作 枚举值：`add_notify` / `remove_notify` / `set_frame_rate` / `set_root_motion` |
+| `action` | `string (enum)` | ★ | 编辑操作 枚举值：`add_notify` / `remove_notify` / `set_frame_rate` / `set_root_motion` / `add_float_curve` / `set_curve_key` / `remove_curve` |
 | `notifyName` | `string` |  | Notify 名（add/remove） |
 | `notifyClass` | `string` |  | Notify 类路径（add；默认 AnimNotify） |
 | `notifyIndex` | `integer` |  | Notify 索引（remove） |
 | `rootMotion` | `string` |  | 根运动模式：RootMotionFromEverything|RootMotionFromMontagesOnly|NoRootMotionExtraction |
+| `curveName` | `string` |  | 曲线名（add_float_curve / set_curve_key / remove_curve） |
 
 **相关 Capability**：`get_asset_anim_sequence`、`get_asset_anim_montage`
+
+---
+
+### `manage_asset_blend_space`
+
+编辑 BlendSpace：set_axis / add_sample / remove_sample。
+
+**适用场景**：配置 BlendSpace 轴参数或添加/删除动画样本；修改后需 save_asset 落盘
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | BlendSpace 资产路径 |
+
+**相关 Capability**：`get_asset_blend_space`、`create_asset_blend_space`
 
 ---
 
@@ -1115,6 +1925,35 @@
 
 ---
 
+### `create_asset_material_function`
+
+创建空白 UMaterialFunction。可设 description 和 bExposeToLibrary。
+
+**适用场景**：新建 MaterialFunction；之后用 manage_asset_material 添加节点
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径（/Game/…/MF_MyFunc） |
+| `description` | `string` |  | 函数描述（可选） |
+
+**相关 Capability**：`get_asset_material`、`manage_asset_material`、`create_asset_material`
+
+---
+
+### `create_asset_material_parameter_collection`
+
+创建空白 MaterialParameterCollection。用 manage 添加参数。
+
+**适用场景**：新建 MaterialParameterCollection；之后用 manage 添加标量/向量参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径（/Game/…/MPC_Global） |
+
+**相关 Capability**：`get_asset_material_parameter_collection`、`manage_asset_material_parameter_collection`
+
+---
+
 ### `get_asset_material`
 
 检查 Mat/MI/MF 节点图和参数。支持 `overview` / `params` / `graph` 段；可按名称过滤并分页。
@@ -1131,6 +1970,20 @@
 | `limit` | `integer` |  | 每页最大条数 |
 
 **相关 Capability**：`manage_asset_material`、`create_asset_material`
+
+---
+
+### `get_asset_material_parameter_collection`
+
+列举 MaterialParameterCollection 的标量/向量参数及其默认值。
+
+**适用场景**：读 MPC 的全部标量/向量参数名与默认值
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | MPC 资产路径（/Game/…/MPC_Foo） |
+
+**相关 Capability**：`manage_asset_material_parameter_collection`、`get_asset_material`、`manage_asset_material`
 
 ---
 
@@ -1156,6 +2009,20 @@
 | `targetInputName` | `string` |  | 目标输入引脚或材质属性名 |
 
 **相关 Capability**：`get_asset_material`、`create_asset_material`、`save_asset`
+
+---
+
+### `manage_asset_material_parameter_collection`
+
+增删改 MPC 的标量/向量参数（add_scalar/add_vector/remove/set_default）。
+
+**适用场景**：往 MPC 里增删改标量/向量参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | MPC 资产路径 |
+
+**相关 Capability**：`get_asset_material_parameter_collection`、`manage_asset_material`
 
 ---
 
@@ -1661,7 +2528,7 @@ PIE 读 Actor ASC 快照。`sections=abilities|effects|attributes`；写用 `int
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `target` | `string (enum)` |  | 分发目标（自动推断） 枚举值：`actor` / `widget` / `asset` |
-| `actorName` | `string` |  | Actor 名/标签 |
+| `actorName` | `string` | ★ | Actor 名/标签（先 list_runtime_actors） |
 | `propertyPath` | `string` |  | 点分路径（单个） |
 | `propertyPaths` | `string` |  | 点分路径（批量） |
 | `view` | `string (enum)` |  | Actor 树视图 枚举值：`components` / `attach_hierarchy` / `all` |
@@ -1878,6 +2745,20 @@ PIE 读 Actor ASC 快照。`sections=abilities|effects|attributes`；写用 `int
 
 ---
 
+### `create_asset_eqs`
+
+创建空白 UEnvQuery（EQS 环境查询）。用 manage 添加 Generator/Test。
+
+**适用场景**：新建 EQS 环境查询资产；之后用 manage_asset_eqs 添加 Generator/Test
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径（/Game/…/EQ_FindCover） |
+
+**相关 Capability**：`get_asset_eqs`、`manage_asset_eqs`、`create_asset_behavior_tree`
+
+---
+
 ### `get_asset_behavior_tree`
 
 检查行为树结构快照（含路径索引与节点/装饰器/服务属性）；只读，不做修改。
@@ -1904,6 +2785,20 @@ PIE 读 Actor ASC 快照。`sections=abilities|effects|attributes`；写用 `int
 | `nameFilter` | `string` |  | 黑板键名过滤 |
 
 **相关 Capability**：`manage_asset_blackboard`、`get_asset_behavior_tree`
+
+---
+
+### `get_asset_eqs`
+
+读取 EQS 的 Options/Generator/Test 概览。UE5+。
+
+**适用场景**：读 EQS 的 Option/Generator/Test 列表及测试类名
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | EnvQuery 资产路径 |
+
+**相关 Capability**：`manage_asset_eqs`、`create_asset_eqs`、`get_asset_behavior_tree`
 
 ---
 
@@ -1984,5 +2879,19 @@ PIE 读 Actor ASC 快照。`sections=abilities|effects|attributes`；写用 `int
 | `parentPath` | `string` |  | 父 BlackboardData 路径（仅 set_parent，空则清除） |
 
 **相关 Capability**：`get_asset_blackboard`、`create_asset_blackboard`、`save_asset`
+
+---
+
+### `manage_asset_eqs`
+
+编辑 EQS：add_option/remove_option/set_generator/add_test/remove_test。
+
+**适用场景**：往 EQS 里添加/删除 Option、设置 Generator、添加/删除 Test
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | EnvQuery 资产路径 |
+
+**相关 Capability**：`get_asset_eqs`、`create_asset_eqs`
 
 ---

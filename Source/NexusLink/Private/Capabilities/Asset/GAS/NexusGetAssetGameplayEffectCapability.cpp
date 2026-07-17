@@ -43,6 +43,7 @@ static TArray<TSharedPtr<FJsonValue>> GetGE_InheritedTagAdded(UObject* CDO, cons
 void FGetAssetGameplayEffectCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_gameplay_effect");
+	Out.SearchAssetTypes = {TEXT("GameplayEffect")};
 	Out.Description = TEXT("读 GE Blueprint。sections=policy|modifiers|tags|cues；只读。");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Gas };

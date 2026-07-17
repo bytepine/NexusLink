@@ -43,6 +43,7 @@ static float CalcSlotEndTime(const FSlotAnimationTrack& Track)
 void FManageAssetAnimMontageCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_anim_montage");
+	Out.SearchAssetTypes = {TEXT("AnimMontage")};
 	Out.Description = TEXT("编辑 Montage 结构。增删槽位/片段/分段；须 save_asset。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),        FNexusSchema::Str(TEXT("动画 Montage 资产路径")))

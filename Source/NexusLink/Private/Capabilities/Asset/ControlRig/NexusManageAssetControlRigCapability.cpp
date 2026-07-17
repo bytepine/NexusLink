@@ -19,6 +19,7 @@
 void FManageAssetControlRigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_control_rig");
+	Out.SearchAssetTypes = {TEXT("ControlRig"), TEXT("ControlRigBlueprint")};
 	Out.Description = TEXT("编辑 ControlRig：层级（rename_element/set_control_color/add_null/remove_element）与 RigVM 图连线（add_rig_link/break_rig_link/add_rig_node）。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),

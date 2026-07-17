@@ -17,6 +17,7 @@
 void FManageAssetSkeletalMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_skeletal_mesh");
+	Out.SearchAssetTypes = {TEXT("SkeletalMesh")};
 	Out.Description = TEXT("编辑 SkeletalMesh 属性。action=set_material_slot|set_property。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),      FNexusSchema::Str(TEXT("SkeletalMesh 资产路径")))

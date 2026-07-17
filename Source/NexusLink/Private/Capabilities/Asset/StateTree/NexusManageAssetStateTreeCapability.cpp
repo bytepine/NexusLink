@@ -22,6 +22,7 @@
 void FManageAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_state_tree");
+	Out.SearchAssetTypes = {TEXT("StateTree")};
 	Out.Description = TEXT("编辑 StateTree：add_state/remove_state/rename_state/recompile。UE 5.5+。");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()

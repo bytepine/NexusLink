@@ -12,6 +12,7 @@
 void FGetAssetBlackboardCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_blackboard");
+	Out.SearchAssetTypes = {TEXT("Blackboard")};
 	Out.Description = TEXT("检查 BB 键定义。返回名称与类型快照；只读。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("BlackboardData 资产路径")))

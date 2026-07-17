@@ -12,6 +12,7 @@
 void FManageAssetSoundWaveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_sound_wave");
+	Out.SearchAssetTypes = {TEXT("SoundWave")};
 	Out.Description = TEXT("编辑 SoundWave 属性。action=set_property。音量/循环等。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),    FNexusSchema::Str(TEXT("SoundWave 资产路径")))

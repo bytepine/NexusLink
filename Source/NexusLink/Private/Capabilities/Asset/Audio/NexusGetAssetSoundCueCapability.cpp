@@ -14,6 +14,7 @@
 void FGetAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_sound_cue");
+	Out.SearchAssetTypes = {TEXT("SoundCue")};
 	Out.Description = TEXT("检查 SoundCue 快照。时长/节点树摘要。写用 manage_asset_sound_cue。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundCue 资产路径")))

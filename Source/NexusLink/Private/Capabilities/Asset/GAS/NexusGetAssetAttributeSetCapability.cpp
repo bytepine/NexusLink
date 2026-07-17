@@ -16,6 +16,7 @@
 void FGetAssetAttributeSetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_attribute_set");
+	Out.SearchAssetTypes = {TEXT("AttributeSet")};
 	Out.Description = TEXT("读取 AttributeSet Blueprint 中全部 FGameplayAttributeData 属性的默认值；只读。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("AttributeSet Blueprint 路径")))

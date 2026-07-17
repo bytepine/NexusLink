@@ -12,6 +12,7 @@
 void FGetAssetSkeletonCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_skeleton");
+	Out.SearchAssetTypes = {TEXT("Skeleton")};
 	Out.Description = TEXT("检查 Skeleton 快照。骨骼树/Socket 分页。写用 manage_asset_skeleton。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Skeleton 资产路径")))

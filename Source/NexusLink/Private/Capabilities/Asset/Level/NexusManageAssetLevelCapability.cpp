@@ -88,6 +88,7 @@ static UClass* ResolveSpawnClass(const FString& ClassPath, const FString& Bluepr
 void FManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_level");
+	Out.SearchAssetTypes = {TEXT("World")};
 	Out.Description = TEXT("编辑关卡 WorldSettings 与 Actor。spawn/remove/set_property。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),    FNexusSchema::Str(TEXT("关卡资产路径（如 /Game/Maps/MyLevel）")))

@@ -125,6 +125,7 @@ static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, int3
 void FGetAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_state_tree");
+	Out.SearchAssetTypes = {TEXT("StateTree")};
 	Out.Description = TEXT("检查 StateTree 结构快照。Schema/States 树/Evaluators/参数；只读。UE 5.5+。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("StateTree 资产路径（/Game/…/ST_Foo）")))

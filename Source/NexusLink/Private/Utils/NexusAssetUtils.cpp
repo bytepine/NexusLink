@@ -1,6 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Utils/NexusAssetUtils.h"
+#include "NexusCapabilityRegistry.h"
 #include "Engine/Blueprint.h"
 #include "Engine/Texture2D.h"
 #include "Animation/AnimSequence.h"
@@ -383,6 +384,15 @@ bool FNexusAssetUtils::NotifyCompileAndSave(UPackage* Package, UBlueprint* Bluep
 	Package->MarkPackageDirty();
 	FAssetRegistryModule::AssetCreated(Blueprint);
 	return CompileAndSaveBlueprint(Package, Blueprint, PackagePath);
+}
+
+void FNexusAssetUtils::ResolveRecommendedCapabilities(
+	const FString& AssetType,
+	FString& OutRecommendedGet,
+	FString& OutRecommendedManage)
+{
+	FNexusCapabilityRegistry::Get().ResolveSearchAssetRoute(
+		AssetType, OutRecommendedGet, OutRecommendedManage);
 }
 
 UUserDefinedStruct* FNexusAssetUtils::FindStructByName(const FString& StructName)

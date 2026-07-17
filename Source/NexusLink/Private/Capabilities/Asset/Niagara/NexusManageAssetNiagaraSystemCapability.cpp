@@ -21,6 +21,7 @@
 void FManageAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_niagara_system");
+	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
 	Out.Description = TEXT("编辑 Niagara 系统。set_property/set_user_parameter；无 Emitter 图。");
 	Out.InputSchema = FNexusSchema::Object()

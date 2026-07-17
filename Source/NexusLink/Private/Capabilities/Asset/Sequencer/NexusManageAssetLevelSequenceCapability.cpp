@@ -18,6 +18,7 @@
 void FManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_level_sequence");
+	Out.SearchAssetTypes = {TEXT("LevelSequence")};
 	Out.Description = TEXT("编辑 LevelSequence：set_display_rate/set_range/remove_binding/add_master_track/remove_master_track。");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()

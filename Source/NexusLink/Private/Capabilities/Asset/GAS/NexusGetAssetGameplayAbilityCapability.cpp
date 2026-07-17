@@ -43,6 +43,7 @@ static FString GA_NetExecPolicyToStr(uint8 V)
 void FGetAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_gameplay_ability");
+	Out.SearchAssetTypes = {TEXT("GameplayAbility")};
 	Out.Description = TEXT("读 GA Blueprint。sections=metadata|tags|costs|graphOverview；只读。");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Gas };

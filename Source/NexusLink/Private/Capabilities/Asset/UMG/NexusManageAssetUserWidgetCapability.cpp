@@ -19,6 +19,7 @@
 void FManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_user_widget");
+	Out.SearchAssetTypes = {TEXT("Widget")};
 	Out.Description = TEXT("批量编辑 WBP。增删子控件、Canvas 布局与属性；须保存。");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{

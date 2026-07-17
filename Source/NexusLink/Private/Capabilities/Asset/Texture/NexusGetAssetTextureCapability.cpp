@@ -11,6 +11,7 @@
 void FGetAssetTextureCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_texture");
+	Out.SearchAssetTypes = {TEXT("Texture2D")};
 	Out.Description = TEXT("检查 Texture2D 快照。尺寸/压缩/sRGB/LOD。写用 manage_asset_texture。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Texture2D 资产路径")))

@@ -104,6 +104,7 @@ static void NotifyBehaviorTreeAssetChanged(UBehaviorTree* BT)
 void FManageAssetBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_behavior_tree");
+	Out.SearchAssetTypes = {TEXT("BehaviorTree")};
 	Out.Description = TEXT("批量编辑 BT 节点/装饰器/服务。运行时树与编辑器图同步刷新。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("行为树资产路径")))

@@ -10,6 +10,7 @@
 void FManageAssetPhysicalMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_physical_material");
+	Out.SearchAssetTypes = {TEXT("PhysicalMaterial")};
 	Out.Description = TEXT("设置 PhysicalMaterial 属性：friction / restitution / density / surfaceType / raiseMassToPower。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"),       FNexusSchema::Str(TEXT("PhysicalMaterial 资产路径")))

@@ -16,6 +16,7 @@
 void FGetAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("get_asset_pcg_graph");
+	Out.SearchAssetTypes = {TEXT("PCGGraph")};
 	Out.Description = TEXT("读取 PCG Graph 节点列表及 pin 概览。写用 manage_asset_pcg_graph。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PCG Graph 资产路径")))

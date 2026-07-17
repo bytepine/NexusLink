@@ -13,6 +13,7 @@
 void FGetAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_static_mesh");
+	Out.SearchAssetTypes = {TEXT("StaticMesh")};
 	Out.Description = TEXT("检查 StaticMesh 快照。LOD/材质槽/碰撞。写用 manage_asset_static_mesh。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("StaticMesh 资产路径")))

@@ -19,6 +19,7 @@
 void FGetAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_niagara_system");
+	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
 	Out.Description = TEXT("检查 NiagaraSystem 快照。发射器/用户参数。写用 manage_asset_niagara_system。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("NiagaraSystem 资产路径")))

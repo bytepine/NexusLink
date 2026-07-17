@@ -48,6 +48,7 @@ static TArray<TSharedPtr<FJsonValue>> BuildClassNameArray(const TArray<TObjectPt
 void FGetAssetInputActionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_input_action");
+	Out.SearchAssetTypes = {TEXT("InputAction")};
 	Out.Description = TEXT("读取 InputAction 配置：ValueType/Trigger/Modifier/标志位。UE5+。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputAction 资产路径")))

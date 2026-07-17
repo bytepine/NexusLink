@@ -19,6 +19,7 @@
 void FGetAssetBlendSpaceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_blend_space");
+	Out.SearchAssetTypes = {TEXT("BlendSpace"), TEXT("BlendSpace1D")};
 	Out.Description = TEXT("读取 BlendSpace 快照：轴参数 + 样本列表。写用 manage_asset_blend_space。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("BlendSpace 资产路径")))

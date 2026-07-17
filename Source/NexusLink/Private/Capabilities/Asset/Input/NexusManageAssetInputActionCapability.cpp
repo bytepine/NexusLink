@@ -32,6 +32,7 @@ static UClass* FindClassByShortName(const FString& ClassName)
 void FManageAssetInputActionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_input_action");
+	Out.SearchAssetTypes = {TEXT("InputAction")};
 	Out.Description = TEXT("编辑 InputAction：set_value_type/add_trigger/remove_trigger/add_modifier/remove_modifier/set_flags。");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()

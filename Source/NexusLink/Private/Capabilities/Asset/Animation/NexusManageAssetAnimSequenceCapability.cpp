@@ -164,6 +164,7 @@ static void SetFloatCurveName(FFloatCurve& FC, const FName& InName)
 void FManageAssetAnimSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_anim_sequence");
+	Out.SearchAssetTypes = {TEXT("AnimSequence")};
 	Out.Description = TEXT("编辑 AnimSequence。action=add_notify|remove_notify|set_frame_rate|set_root_motion|add_float_curve|set_curve_key|remove_curve。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),    FNexusSchema::Str(TEXT("AnimSequence 资产路径")))

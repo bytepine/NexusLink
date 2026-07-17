@@ -29,6 +29,7 @@ static TSharedPtr<FJsonObject> HandleDataAsset(UDataAsset* DA, const FString& Na
 void FGetAssetDataAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_data_asset");
+	Out.SearchAssetTypes = {TEXT("DataAsset")};
 	Out.Description = TEXT("读 DataAsset 属性。含类型/值/是否继承；可路径过滤。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("DataAsset 资产路径")))

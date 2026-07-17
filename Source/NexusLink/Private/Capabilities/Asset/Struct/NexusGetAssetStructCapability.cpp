@@ -52,6 +52,7 @@ static TSharedPtr<FJsonObject> HandleStruct(UUserDefinedStruct* Struct, const TA
 void FGetAssetStructCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_struct");
+	Out.SearchAssetTypes = {TEXT("Struct")};
 	Out.Description = TEXT("检查 UDS 字段定义。含 name/type/subType/defaultValue；可 propertyPaths 过滤。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("UserDefinedStruct 资产路径")))

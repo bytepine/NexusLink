@@ -20,6 +20,7 @@
 void FGetAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_anim_blueprint");
+	Out.SearchAssetTypes = {TEXT("AnimBlueprint")};
 	Out.Description = TEXT("检查 ABP 结构。sections=variables|statemachines|defaults|graphOverview。");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };

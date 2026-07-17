@@ -52,6 +52,7 @@ static TSharedPtr<FJsonObject> HandleDataTable(UDataTable* DT, const FString& Na
 void FGetAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_data_table");
+	Out.SearchAssetTypes = {TEXT("DataTable")};
 	Out.Description = TEXT("检查 DT 行或 Schema。mode=schema|rows；可 propertyPaths 过滤。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataTable 资产路径")))

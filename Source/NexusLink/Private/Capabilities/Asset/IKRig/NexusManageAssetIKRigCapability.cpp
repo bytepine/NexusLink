@@ -16,6 +16,7 @@
 void FManageAssetIKRigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_ik_rig");
+	Out.SearchAssetTypes = {TEXT("IKRig"), TEXT("IKRigDefinition")};
 	Out.Description = TEXT("编辑 IKRig：set_preview_mesh / set_solver_enabled。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),

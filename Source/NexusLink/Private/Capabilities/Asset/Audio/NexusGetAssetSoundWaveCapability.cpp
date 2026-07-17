@@ -11,6 +11,7 @@
 void FGetAssetSoundWaveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_sound_wave");
+	Out.SearchAssetTypes = {TEXT("SoundWave")};
 	Out.Description = TEXT("检查 SoundWave 快照。时长/采样率/声道。写用 manage_asset_sound_wave。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundWave 资产路径")))

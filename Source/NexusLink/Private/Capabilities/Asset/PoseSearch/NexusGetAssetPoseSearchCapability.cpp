@@ -15,6 +15,7 @@
 void FGetAssetPoseSearchCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("get_asset_pose_search");
+	Out.SearchAssetTypes = {TEXT("PoseSearchDatabase"), TEXT("PoseSearchSchema")};
 	Out.Description = TEXT("读取 PoseSearchDatabase 或 Schema 概览。写用 manage_asset_pose_search。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PoseSearchDatabase 或 Schema 资产路径")))

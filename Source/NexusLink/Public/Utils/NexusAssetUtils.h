@@ -170,4 +170,13 @@ public:
 	 *   FNexusAssetUtils::CompileAndSaveBlueprint(Package, Blueprint, PackagePath);
 	 */
 	static bool NotifyCompileAndSave(UPackage* Package, class UBlueprint* Blueprint, const FString& PackagePath);
+
+	/**
+	 * search_asset 路由提示：按返回的 assetType 从 Registry（各 cap 的 SearchAssetTypes）解析推荐读/写 Capability。
+	 * 无对应 cap 时 Out* 为空串（调用方勿写入 JSON 字段）。
+	 */
+	static void ResolveRecommendedCapabilities(
+		const FString& AssetType,
+		FString& OutRecommendedGet,
+		FString& OutRecommendedManage);
 };

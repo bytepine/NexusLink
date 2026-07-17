@@ -10,6 +10,7 @@
 void FGetAssetSoundConcurrencyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_sound_concurrency");
+	Out.SearchAssetTypes = {TEXT("SoundConcurrency")};
 	Out.Description = TEXT("读取 SoundConcurrency：maxCount/resolutionRule/retriggerTime。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundConcurrency 资产路径")))

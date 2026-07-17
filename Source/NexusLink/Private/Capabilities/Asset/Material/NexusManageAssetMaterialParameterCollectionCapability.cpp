@@ -14,6 +14,7 @@
 void FManageAssetMaterialParameterCollectionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_material_parameter_collection");
+	Out.SearchAssetTypes = {TEXT("MaterialParameterCollection")};
 	Out.Description = TEXT("增删改 MPC 的标量/向量参数（add_scalar/add_vector/remove/set_default）。");
 
 	TSharedPtr<FJsonObject> OpSchemaPtr = FNexusSchema::Object()

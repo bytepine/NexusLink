@@ -65,6 +65,7 @@ static void DestroyGraphNode(UEdGraphNode* Node)
 void FManageAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_anim_blueprint");
+	Out.SearchAssetTypes = {TEXT("AnimBlueprint")};
 	Out.Description = TEXT("编辑 ABP 状态机。增删 state_machine/state/transition；须保存。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),        FNexusSchema::Str(TEXT("动画蓝图资产路径")))

@@ -330,6 +330,7 @@ static void DoDisconnectAll(UMaterial* Mat, const TSharedPtr<FJsonObject>& Args,
 void FManageAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_material");
+	Out.SearchAssetTypes = {TEXT("Material"), TEXT("MaterialInstance")};
 	Out.Description = TEXT("批量编辑材质/MI：set_param/add_node/connect/recompile。");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{

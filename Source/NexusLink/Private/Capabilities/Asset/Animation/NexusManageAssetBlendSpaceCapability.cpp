@@ -28,6 +28,7 @@ static TArray<FBlendSample>* GetSampleDataPtr(UBlendSpace* BS)
 void FManageAssetBlendSpaceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_blend_space");
+	Out.SearchAssetTypes = {TEXT("BlendSpace"), TEXT("BlendSpace1D")};
 	Out.Description = TEXT("编辑 BlendSpace：set_axis / add_sample / remove_sample。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),

@@ -19,6 +19,7 @@
 void FManageAssetAttributeSetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_attribute_set");
+	Out.SearchAssetTypes = {TEXT("AttributeSet")};
 	Out.Description = TEXT("批量 set/reset AttributeSet CDO 的 FGameplayAttributeData 属性默认值。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("AttributeSet Blueprint 路径")))

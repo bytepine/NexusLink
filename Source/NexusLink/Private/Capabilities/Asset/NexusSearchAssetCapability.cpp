@@ -8,6 +8,7 @@
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusStringMatchUtils.h"
+#include "Utils/NexusAssetUtils.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/AssetData.h"
 #include "Engine/Blueprint.h"
@@ -144,7 +145,7 @@ static FString NormalizeAssetTypeShortcut(const FString& TypeLower)
 void FSearchAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("search_asset");
-	Out.Description = TEXT("查找资产路径。必须先调；指定 assetType+pathFilter；禁止猜 /Game 路径。");
+	Out.Description = TEXT("查找资产路径。必须先调；指定 assetType+pathFilter；禁止猜 /Game 路径。每条返回 assetType + recommendedGet/recommendedManage（读/写 Capability 提示）。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetType"),  FNexusSchema::Str(TEXT("Blueprint/Widget/Material/AnimSequence/SkeletalMesh/Skeleton/… 或 UClass；大项目避免 all"), TEXT("Blueprint")))
 		.Prop(TEXT("pathFilter"), FNexusSchema::Str(TEXT("功能级路径前缀（大项目勿用裸 /Game/）"), TEXT("/Game/Feature/")))
@@ -870,6 +871,16 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			EntryObj->SetStringField(TEXT("name"),      E.Name);
 			EntryObj->SetStringField(TEXT("path"),      E.Path);
 			EntryObj->SetStringField(TEXT("assetType"), E.Type);
+			FString RecommendedGet, RecommendedManage;
+			FNexusAssetUtils::ResolveRecommendedCapabilities(E.Type, RecommendedGet, RecommendedManage);
+			if (!RecommendedGet.IsEmpty())
+			{
+				EntryObj->SetStringField(TEXT("recommendedGet"), RecommendedGet);
+			}
+			if (!RecommendedManage.IsEmpty())
+			{
+				EntryObj->SetStringField(TEXT("recommendedManage"), RecommendedManage);
+			}
 			if (!E.ParentClass.IsEmpty())    EntryObj->SetStringField(TEXT("parentClass"),    E.ParentClass);
 			if (!E.RowStruct.IsEmpty())      EntryObj->SetStringField(TEXT("rowStruct"),      E.RowStruct);
 			if (!E.ParentMaterial.IsEmpty()) EntryObj->SetStringField(TEXT("parentMaterial"), E.ParentMaterial);

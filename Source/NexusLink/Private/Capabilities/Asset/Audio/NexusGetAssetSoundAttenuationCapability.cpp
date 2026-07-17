@@ -10,6 +10,7 @@
 void FGetAssetSoundAttenuationCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_sound_attenuation");
+	Out.SearchAssetTypes = {TEXT("SoundAttenuation")};
 	Out.Description = TEXT("读取 SoundAttenuation：shape/innerRadius/falloffDistance/bAttenuate/bSpatialize。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundAttenuation 资产路径")))

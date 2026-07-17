@@ -17,6 +17,7 @@
 void FManageAssetEnumCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_enum");
+	Out.SearchAssetTypes = {TEXT("UserDefinedEnum")};
 	Out.Description = TEXT("修改 UserDefinedEnum 枚举项。operations[].action: add_entry / remove_entry / set_display_name。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"),      FNexusSchema::Str(TEXT("add_entry / remove_entry / set_display_name")))

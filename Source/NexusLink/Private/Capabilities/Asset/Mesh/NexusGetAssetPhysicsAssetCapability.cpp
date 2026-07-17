@@ -32,6 +32,7 @@ static FString PhysicsTypeToStr(EPhysicsType Type)
 void FGetAssetPhysicsAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_physics_asset");
+	Out.SearchAssetTypes = {TEXT("PhysicsAsset")};
 	Out.Description = TEXT("列举 PhysicsAsset 的 Body（骨骼/碰撞形状）和 Constraint（约束关节）概览。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("PhysicsAsset 资产路径")))

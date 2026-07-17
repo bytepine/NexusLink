@@ -13,6 +13,7 @@
 void FGetAssetAnimMontageCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_anim_montage");
+	Out.SearchAssetTypes = {TEXT("AnimMontage")};
 	Out.Description = TEXT("检查 Montage 时间轴快照。只读，不触发播放。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("动画 Montage 资产路径")))

@@ -14,7 +14,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 你已连接 **实时 Unreal 编辑器**。用户问蓝图、Widget、材质、DataAsset、Actor、UI 等任何问题时：
 
 1. **必须先调 MCP** — 禁止凭记忆、猜测 `/Game/...` 路径或仅 grep 本地仓库作答。
-2. **读取流程**：`search_asset`（收窄 `assetType` + `pathFilter`）→ `get_asset_*` / `list_runtime_*` → 再分析或编辑。
+2. **读取流程**：`search_asset`（收窄 `assetType` + `pathFilter`）→ 用返回的 `path` + `recommendedGet`（写则用 `recommendedManage`）调对应 Capability → 再分析或编辑。
 3. 用户提到资产名且本回合 **尚未调 MCP** → **先调 MCP 再回复**。
 4. **IDE 侧可选**：游戏项目将 `Resources/AIRules.mdc` 复制到 `.cursor/rules/`，强化四步流程（见 `docs/usage-guide.md` §2.8）；业务词只用于 `search_asset`，不用于 `search_capabilities`。
 
@@ -23,7 +23,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 | 蓝图变量 / 函数 / Graph / 节点 | `get_asset_blueprint` |
 | 控件树 / UMG 动画 | `get_asset_user_widget`（`sections`：`widgets` / `animations`） |
 | 材质参数 / 节点图 | `get_asset_material` |
-| 查找资产路径 | `search_asset` |
+| 查找资产路径 | `search_asset`（返回 `path`/`assetType`/`recommendedGet`/`recommendedManage`；后续读写优先用推荐名） |
 | Texture2D / 贴图元数据 | `get_asset_texture` |
 | 编辑贴图属性 | `manage_asset_texture` |
 | StaticMesh / 静态网格元数据 | `get_asset_static_mesh` |
@@ -69,8 +69,9 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 
 ## 意图 → Capability 路由
 
-### 资产（磁盘 / 编辑器）— 先推导 cap 名
-- **CRUD 模式**：`{get|manage|create}_asset_{type}` — type ∈ `blueprint` / `material` / `anim_blueprint` / `anim_montage` / `user_widget` / `behavior_tree` / `blackboard` / `data_table` / `data_asset` / `struct`
+### 资产（磁盘 / 编辑器）— 先 search，再按推荐名调用
+- **首选**：`search_asset` → 用条目的 `recommendedGet` / `recommendedManage` + `path`（勿猜 cap 名）。
+- **CRUD 模式**（无推荐字段时再推导）：`{get|manage|create}_asset_{type}` — type ∈ `blueprint` / `material` / `anim_blueprint` / `anim_montage` / `user_widget` / `behavior_tree` / `blackboard` / `data_table` / `data_asset` / `struct`
 - 一个 (动词, 类型) 覆盖 **全部** 子方面。勿找 `manage_asset_blueprint_variable` 等。
 - **例外**：`manage_asset_struct_field`、`search_asset`、`get_asset_refs`、`get_asset_lua_binding`、`save_asset` / `rename_asset` / `duplicate_asset` / `delete_asset`
 
@@ -109,7 +110,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 1. **读 vs 写**：`get_*` / `list_*` / `search_*` 只读；`manage_*` / `set_*` / `create_*` / `delete_*` 改资产或属性；**`interact_*` 改运行时命令状态**（非 propertyPaths）。
 2. **资产 vs 运行时**：`*_asset_*` 操作磁盘；`*_runtime_*` 需 PIE/Game。
 3. **优先批量**：`assetPaths[]` / `actorNames[]` / `propertyPaths[]` / `sections[]`。
-4. **资产路径**：先 `search_asset`；禁止 `assetType=all` + 裸 `/Game/`。
+4. **资产路径**：先 `search_asset`；禁止 `assetType=all` + 裸 `/Game/`。读/写优先用返回的 `recommendedGet` / `recommendedManage` + `path`。
 5. **未知 cap**：`search_capabilities`（元工具）；`capabilityName` 精确名或 `query` 窄域 1–2 词（如 `blueprint graph`）。**禁止**单用 `blueprint` / `asset` / `runtime` / `animation`（`errorKind=query_too_broad`）。失败看 `errorKind`：`not_found` / `disabled` / `disabled_only` / `query_too_broad`（见 `disabledCapabilities[]` / `suggestedQueries[]`），勿与「未注册」混淆。`call_capability` 失败同样看 `errorKind`（`disabled` 禁止重试；旧名如 `create_blackboard` 已自动映射为 `create_asset_blackboard`）。
 
 ## 蓝图 / Lua / GAS 工作流
@@ -128,6 +129,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 - **`get_runtime_actor_property` 必填非空 `actorName`** — 先 `list_runtime_actors`。
 - **`exec_command` 必填非空 `command`**。
 - **`search_asset` 必须收窄** — 禁止 `assetType=all` + `/Game/` 无过滤。
+- **`search_asset` 之后** — 读用 `recommendedGet`，写用 `recommendedManage`；`assetPath` 只用返回的 `path`；无推荐字段时再按 CRUD 模式推导。
 - 路径先 `search_asset` 验证；30 秒内 `sections=["all"]` 后禁止子 section（`redundant_call`）。
 - 重试 ≥2 / 无合适 cap / Schema 需猜测 / 串行 ≥3 次 → `submit_feedback`。
 - **`_feedbackHint`** 出现时必须立即 `submit_feedback`。

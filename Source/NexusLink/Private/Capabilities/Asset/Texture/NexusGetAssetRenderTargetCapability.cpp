@@ -10,6 +10,7 @@
 void FGetAssetRenderTargetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_render_target");
+	Out.SearchAssetTypes = {TEXT("TextureRenderTarget2D")};
 	Out.Description = TEXT("读取 TextureRenderTarget2D：尺寸/格式/清除色/生成Mips。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("RenderTarget 资产路径")))

@@ -10,6 +10,7 @@
 void FGetAssetPhysicalMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_physical_material");
+	Out.SearchAssetTypes = {TEXT("PhysicalMaterial")};
 	Out.Description = TEXT("读取 PhysicalMaterial：摩擦/弹性/密度/表面类型。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PhysicalMaterial 资产路径")))

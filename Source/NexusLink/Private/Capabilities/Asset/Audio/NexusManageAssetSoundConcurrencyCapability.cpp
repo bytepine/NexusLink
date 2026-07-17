@@ -10,6 +10,7 @@
 void FManageAssetSoundConcurrencyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_sound_concurrency");
+	Out.SearchAssetTypes = {TEXT("SoundConcurrency")};
 	Out.Description = TEXT("设置 SoundConcurrency：maxCount/resolutionRuleValue/retriggerTime/limitToOwner。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"),          FNexusSchema::Str(TEXT("SoundConcurrency 资产路径")))

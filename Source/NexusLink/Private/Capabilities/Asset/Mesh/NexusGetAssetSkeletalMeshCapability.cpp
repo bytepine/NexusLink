@@ -18,6 +18,7 @@
 void FGetAssetSkeletalMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_skeletal_mesh");
+	Out.SearchAssetTypes = {TEXT("SkeletalMesh")};
 	Out.Description = TEXT("检查 SkeletalMesh 快照。LOD/材质槽/骨骼。写用 manage_asset_skeletal_mesh。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SkeletalMesh 资产路径")))

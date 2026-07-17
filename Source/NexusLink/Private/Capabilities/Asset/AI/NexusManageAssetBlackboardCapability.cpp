@@ -49,6 +49,7 @@ static UBlackboardKeyType* CreateBBKeyType(const FString& TypeStr, UBlackboardDa
 void FManageAssetBlackboardCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_blackboard");
+	Out.SearchAssetTypes = {TEXT("Blackboard")};
 	Out.Description = TEXT("批量编辑 BB 键：增删/重命名/改父 BB；须 save_asset。");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{

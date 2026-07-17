@@ -14,6 +14,7 @@
 void FManageAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_sound_cue");
+	Out.SearchAssetTypes = {TEXT("SoundCue")};
 	Out.Description = TEXT("编辑 SoundCue。set_property/add_node/remove_node/connect_nodes。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),       FNexusSchema::Str(TEXT("SoundCue 资产路径")))

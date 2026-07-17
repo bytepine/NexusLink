@@ -24,6 +24,13 @@ struct FCapRecord
 	{}
 };
 
+/** search_asset 按 assetType 解析出的推荐读/写 Capability。 */
+struct FNexusSearchAssetRoute
+{
+	FString RecommendedGet;
+	FString RecommendedManage;
+};
+
 /**
  * Capability 全局注册表 —— 全局单例。
  *
@@ -52,14 +59,26 @@ public:
 	const FCapRecord* FindRecordByName(const FString& CapabilityName) const;
 
 	/**
+	 * 按 search_asset 返回的 assetType 解析推荐 get/manage Capability。
+	 * 索引来自各 cap BuildDefinition 声明的 SearchAssetTypes；无声明时 Out* 为空。
+	 */
+	void ResolveSearchAssetRoute(
+		const FString& AssetType,
+		FString& OutRecommendedGet,
+		FString& OutRecommendedManage) const;
+
+	/**
 	 * 清空整个注册表（仅供测试使用：用例可临时注册若干 cap 跑 Execute，
 	 * 结束后调用本方法清场，避免污染下一条用例的全局表状态）。
 	 */
 	void Reset();
 
 private:
+	void IndexSearchAssetTypes(const FNexusCapabilityDefinition& Def);
+
 	TArray<FCapRecord>   Records;
 	TMap<FString, int32> NameIndex; // key 为 lower(Name) → Records 下标
+	TMap<FString, FNexusSearchAssetRoute> SearchAssetRouteIndex; // key 为 lower(assetType)
 };
 
 /**

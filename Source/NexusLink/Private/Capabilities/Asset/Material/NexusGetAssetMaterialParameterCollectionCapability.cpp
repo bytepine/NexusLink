@@ -11,6 +11,7 @@
 void FGetAssetMaterialParameterCollectionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_material_parameter_collection");
+	Out.SearchAssetTypes = {TEXT("MaterialParameterCollection")};
 	Out.Description = TEXT("列举 MaterialParameterCollection 的标量/向量参数及其默认值。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("MPC 资产路径（/Game/…/MPC_Foo）")))

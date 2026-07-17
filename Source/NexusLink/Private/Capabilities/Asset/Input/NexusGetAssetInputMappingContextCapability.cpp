@@ -15,6 +15,7 @@
 void FGetAssetInputMappingContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_input_mapping_context");
+	Out.SearchAssetTypes = {TEXT("InputMappingContext")};
 	Out.Description = TEXT("列举 InputMappingContext 全部 Action-Key 绑定及其 Trigger/Modifier 数量。UE5+。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputMappingContext 资产路径")))

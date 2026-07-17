@@ -10,6 +10,7 @@
 void FGetAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_level");
+	Out.SearchAssetTypes = {TEXT("World")};
 	Out.Description = TEXT("检查关卡快照。Actor 列表/WorldSettings。写用 manage_asset_level。");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };

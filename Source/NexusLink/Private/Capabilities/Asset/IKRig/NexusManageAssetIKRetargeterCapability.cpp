@@ -16,6 +16,7 @@
 void FManageAssetIKRetargeterCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_ik_retargeter");
+	Out.SearchAssetTypes = {TEXT("IKRetargeter")};
 	Out.Description = TEXT("编辑 IKRetargeter：set_source_rig / set_target_rig / set_chain_source。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),

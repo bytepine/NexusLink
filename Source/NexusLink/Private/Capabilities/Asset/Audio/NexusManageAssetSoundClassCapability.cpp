@@ -10,6 +10,7 @@
 void FManageAssetSoundClassCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_sound_class");
+	Out.SearchAssetTypes = {TEXT("SoundClass")};
 	Out.Description = TEXT("设置 SoundClass 的 volume/pitch/lowPassFilter/attenuationScale。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"),       FNexusSchema::Str(TEXT("SoundClass 资产路径")))

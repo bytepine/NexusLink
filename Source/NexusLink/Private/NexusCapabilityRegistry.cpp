@@ -188,6 +188,43 @@ void FNexusCapabilityRegistry::Register(TSharedRef<FNexusCapability> Cap)
 
 	const int32 Idx = Records.Add(MoveTemp(Record));
 	NameIndex.Add(NameLow, Idx);
+	IndexSearchAssetTypes(Records[Idx].Def);
+}
+
+void FNexusCapabilityRegistry::IndexSearchAssetTypes(const FNexusCapabilityDefinition& Def)
+{
+	if (Def.SearchAssetTypes.Num() == 0 || Def.Name.IsEmpty())
+	{
+		return;
+	}
+
+	const bool bIsGet = Def.Name.StartsWith(TEXT("get_asset_"));
+	const bool bIsManage = Def.Name.StartsWith(TEXT("manage_asset_"));
+	if (!bIsGet && !bIsManage)
+	{
+		ensureMsgf(false,
+			TEXT("[NexusCap] '%s' declares SearchAssetTypes but name is not get_asset_*/manage_asset_*"),
+			*Def.Name);
+		return;
+	}
+
+	for (const FString& AssetType : Def.SearchAssetTypes)
+	{
+		if (AssetType.IsEmpty())
+		{
+			continue;
+		}
+		FNexusSearchAssetRoute& Route = SearchAssetRouteIndex.FindOrAdd(AssetType.ToLower());
+		// 先注册者优先，避免 get_asset_view_model 等次要 cap 覆盖主读工具
+		if (bIsGet && Route.RecommendedGet.IsEmpty())
+		{
+			Route.RecommendedGet = Def.Name;
+		}
+		if (bIsManage && Route.RecommendedManage.IsEmpty())
+		{
+			Route.RecommendedManage = Def.Name;
+		}
+	}
 }
 
 const FCapRecord* FNexusCapabilityRegistry::FindRecordByName(const FString& CapabilityName) const
@@ -198,8 +235,27 @@ const FCapRecord* FNexusCapabilityRegistry::FindRecordByName(const FString& Capa
 	return &Records[*Idx];
 }
 
+void FNexusCapabilityRegistry::ResolveSearchAssetRoute(
+	const FString& AssetType,
+	FString& OutRecommendedGet,
+	FString& OutRecommendedManage) const
+{
+	OutRecommendedGet.Reset();
+	OutRecommendedManage.Reset();
+	if (AssetType.IsEmpty())
+	{
+		return;
+	}
+	if (const FNexusSearchAssetRoute* Route = SearchAssetRouteIndex.Find(AssetType.ToLower()))
+	{
+		OutRecommendedGet = Route->RecommendedGet;
+		OutRecommendedManage = Route->RecommendedManage;
+	}
+}
+
 void FNexusCapabilityRegistry::Reset()
 {
 	Records.Reset();
 	NameIndex.Reset();
+	SearchAssetRouteIndex.Reset();
 }

@@ -17,6 +17,7 @@
 void FGetAssetEQSCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_eqs");
+	Out.SearchAssetTypes = {TEXT("EnvQuery")};
 	Out.Description = TEXT("读取 EQS 的 Options/Generator/Test 概览。UE5+。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("EnvQuery 资产路径")))

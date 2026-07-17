@@ -11,6 +11,7 @@
 void FManageAssetSoundSubmixCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_sound_submix");
+	Out.SearchAssetTypes = {TEXT("SoundSubmix")};
 	Out.Description = TEXT("设置 SoundSubmix 音量。UE4/5.0：outputVolume/wetLevel/dryLevel[0,1]；UE5.1+：outputVolumeDB/wetLevelDB/dryLevelDB(dB)。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"),    FNexusSchema::Str(TEXT("SoundSubmix 资产路径")))

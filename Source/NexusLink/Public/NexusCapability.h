@@ -98,6 +98,13 @@ struct FNexusCapabilityDefinition
 	 */
 	TArray<FString> ExtraSearchKeywords;
 
+	/**
+	 * search_asset 类型路由声明：本 cap 对应的资产类型标签（与 search_asset 返回的 assetType 对齐）。
+	 * 注册期写入 Registry 索引：`get_asset_*` → recommendedGet，`manage_asset_*` → recommendedManage。
+	 * 新增资产类型 cap 时在此声明即可，无需改 search_asset 中心映射表。
+	 */
+	TArray<FString> SearchAssetTypes;
+
 	bool HasTag(const FString& Tag) const { return Tags.Contains(Tag); }
 };
 
@@ -163,7 +170,7 @@ protected:
 	/**
 	 * 填写本 Capability 的所有元数据：
 	 *   Out.Name / Out.Description / Out.InputSchema / Out.Tags
-	 *   Out.ExtraSearchKeywords / Out.RelatedCapabilities / Out.Prerequisites / Out.WhenToUse
+	 *   Out.ExtraSearchKeywords / Out.RelatedCapabilities / Out.SearchAssetTypes / Out.Prerequisites / Out.WhenToUse
 	 * 仅在首次 GetDefinition() 时调用一次，结果被实例级缓存。
 	 */
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const = 0;

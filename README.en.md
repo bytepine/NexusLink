@@ -119,8 +119,8 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 
 **Path B — Capability** (main path; business logic encapsulated in Capability, callable independently)
 1. Create `Private/Capabilities/<category>/NexusXxxCapability.h/.cpp`, inheriting `FNexusCapability` (or `FNexusMultiSectionCapability` for multi-section)
-2. Implement `BuildDefinition()` / `Execute()`; at the end of `.cpp`: `REGISTER_MCP_CAPABILITY(FNexusXxxCapability)`
-3. Follow [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) (naming / four-part description / self-check checklist)
+2. Implement `BuildDefinition()` / `Execute()`; asset get/manage must set `Out.SearchAssetTypes` (feeds `search_asset` → `recommendedGet`/`recommendedManage`); end of `.cpp`: `REGISTER_MCP_CAPABILITY(FNexusXxxCapability)`
+3. Follow [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) (naming / four-part description / `SearchAssetTypes` / self-check checklist)
 4. Capabilities are invoked directly via the `call_capability` meta tool, or exposed as standalone MCP Tools in MultiTool mode
 
 ---

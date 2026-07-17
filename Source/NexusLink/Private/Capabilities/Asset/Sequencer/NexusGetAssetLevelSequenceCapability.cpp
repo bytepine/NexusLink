@@ -15,6 +15,7 @@
 void FGetAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_level_sequence");
+	Out.SearchAssetTypes = {TEXT("LevelSequence")};
 	Out.Description = TEXT("读取 LevelSequence 的时长/帧率、Binding 列表与 Track 类型概览。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("LevelSequence 资产路径")))

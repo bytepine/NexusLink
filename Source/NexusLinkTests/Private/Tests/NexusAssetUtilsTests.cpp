@@ -59,3 +59,43 @@ bool FNexusLinkAssetUtilsTest::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FNexusLinkAssetUtilsRecommendCapsTest,
+	"NexusLink.Utils.AssetUtils.ResolveRecommendedCapabilities",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNexusLinkAssetUtilsRecommendCapsTest::RunTest(const FString& Parameters)
+{
+	// 依赖各 get/manage cap 静态注册时写入的 SearchAssetTypes 索引
+	FString GetCap, ManageCap;
+
+	FNexusAssetUtils::ResolveRecommendedCapabilities(TEXT("Blueprint"), GetCap, ManageCap);
+	TestEqual(TEXT("Blueprint get"), GetCap, FString(TEXT("get_asset_blueprint")));
+	TestEqual(TEXT("Blueprint manage"), ManageCap, FString(TEXT("manage_asset_blueprint")));
+
+	FNexusAssetUtils::ResolveRecommendedCapabilities(TEXT("Widget"), GetCap, ManageCap);
+	TestEqual(TEXT("Widget get"), GetCap, FString(TEXT("get_asset_user_widget")));
+	TestEqual(TEXT("Widget manage"), ManageCap, FString(TEXT("manage_asset_user_widget")));
+
+	FNexusAssetUtils::ResolveRecommendedCapabilities(TEXT("World"), GetCap, ManageCap);
+	TestEqual(TEXT("World get"), GetCap, FString(TEXT("get_asset_level")));
+	TestEqual(TEXT("World manage"), ManageCap, FString(TEXT("manage_asset_level")));
+
+	FNexusAssetUtils::ResolveRecommendedCapabilities(TEXT("Struct"), GetCap, ManageCap);
+	TestEqual(TEXT("Struct get"), GetCap, FString(TEXT("get_asset_struct")));
+	TestEqual(TEXT("Struct manage"), ManageCap, FString(TEXT("manage_asset_struct_field")));
+
+	FNexusAssetUtils::ResolveRecommendedCapabilities(TEXT("MaterialInstance"), GetCap, ManageCap);
+	TestEqual(TEXT("MaterialInstance get"), GetCap, FString(TEXT("get_asset_material")));
+
+	FNexusAssetUtils::ResolveRecommendedCapabilities(TEXT(""), GetCap, ManageCap);
+	TestTrue(TEXT("empty type clears get"), GetCap.IsEmpty());
+	TestTrue(TEXT("empty type clears manage"), ManageCap.IsEmpty());
+
+	FNexusAssetUtils::ResolveRecommendedCapabilities(TEXT("SomeUnknownUClass"), GetCap, ManageCap);
+	TestTrue(TEXT("unknown type clears get"), GetCap.IsEmpty());
+	TestTrue(TEXT("unknown type clears manage"), ManageCap.IsEmpty());
+
+	return true;
+}
