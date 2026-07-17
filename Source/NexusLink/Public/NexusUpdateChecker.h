@@ -6,12 +6,12 @@
 
 /**
  * NexusLink 插件版本检查器。
- * 从 GitHub releases/latest 重定向获取最新 Release tag，与 VERSION 文件比较。
+ * 从 GitHub releases/latest 重定向获取最新 Release tag，与 .uplugin VersionName 比较。
  * 异步执行，不阻塞主线程；失败时静默忽略（用户网络不通时无副作用）。
  */
 struct NEXUSLINK_API FNexusUpdateChecker
 {
-	/** 读取当前插件版本（从 VERSION 文件）；若无法读取则返回 "unknown"。 */
+	/** 读取当前插件版本（NexusLink.uplugin 的 VersionName）；若无法读取则返回 "unknown"。 */
 	static FString GetCurrentVersion();
 
 	/**

@@ -7,6 +7,12 @@
 
 ## [Unreleased]
 
+## [1.15.2] - 2026-07-17
+
+### Changed
+
+- fix(update-checker): `GetCurrentVersion` 改为读取 `NexusLink.uplugin` 的 `VersionName`（与 Feedback/ProxyConfig 一致）。发版 zip 本就不含仓内 `VERSION` 文件（`build_unreal.py` 排除并注入 VersionName），原先读 `VERSION` 会导致分发包始终显示 `unknown`
+
 ## [1.15.1] - 2026-07-17
 
 ### Added

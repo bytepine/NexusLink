@@ -98,7 +98,7 @@ bool FNexusLinkUpdateCheckerGetCurrentVersionTest::RunTest(const FString& /*Para
 	const FString Version = FNexusUpdateChecker::GetCurrentVersion();
 	TestFalse(TEXT("GetCurrentVersion not unknown"), Version.Equals(TEXT("unknown")));
 	TestFalse(TEXT("GetCurrentVersion not empty"), Version.IsEmpty());
-	// VERSION 文件格式为 X.Y.Z
+	// VersionName 格式为 X.Y.Z（源码树可为 0.0.0；发版 zip 由 build_unreal.py 注入真实版本）
 	TestTrue(TEXT("Version contains dot separator"), Version.Contains(TEXT(".")));
 	return true;
 }

@@ -5,8 +5,6 @@
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Interfaces/IPluginManager.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
 #include "Async/Async.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusUpdateChecker, Log, All);
@@ -79,13 +77,9 @@ FString FNexusUpdateChecker::GetCurrentVersion()
 	{
 		return TEXT("unknown");
 	}
-	const FString VersionFile = FPaths::Combine(Plugin->GetBaseDir(), TEXT("VERSION"));
-	FString Version;
-	if (FFileHelper::LoadFileToString(Version, *VersionFile))
-	{
-		return Version.TrimStartAndEnd();
-	}
-	return TEXT("unknown");
+	// 与 Feedback / ProxyConfig 一致：读 .uplugin 的 VersionName（发版 zip 由 build_unreal.py 注入；仓内 VERSION 不打进包）
+	const FString Version = Plugin->GetDescriptor().VersionName.TrimStartAndEnd();
+	return Version.IsEmpty() ? TEXT("unknown") : Version;
 }
 
 bool FNexusUpdateChecker::IsNewerVersion(const FString& A, const FString& B)
