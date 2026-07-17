@@ -163,7 +163,6 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 						EdData->SubTrees.Add(NewState);
 					}
 
-					OpResult->SetBoolField(TEXT("success"), true);
 					OpResult->SetStringField(TEXT("addedState"), StateName);
 					bDirty = true;
 				}
@@ -212,8 +211,8 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 								}
 							}
 						}
-						OpResult->SetBoolField(TEXT("success"), bRemoved);
 						if (bRemoved) bDirty = true;
+						else OpResult->SetStringField(TEXT("error"), TEXT("remove_state 失败"));
 					}
 				}
 			}
@@ -234,7 +233,6 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 					else
 					{
 						Target->Name = *NewName;
-						OpResult->SetBoolField(TEXT("success"), true);
 						bDirty = true;
 					}
 				}
@@ -243,7 +241,6 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 			{
 				// 触发 StateTree 重编译（标记脏，编辑器在保存时重编）
 				ST->MarkPackageDirty();
-				OpResult->SetBoolField(TEXT("success"), true);
 				OpResult->SetStringField(TEXT("note"), TEXT("已标记为脏；关闭/重新打开编辑器或调用 save_asset 后触发重编译"));
 			}
 			else

@@ -1,7 +1,7 @@
 {
   "protocolVersion": "2025-06-18",
   "minProxyVersion": "1.3.3",
-  "initializePrefix": "NexusLink MCP Proxy for Unreal Engine.\n\n## MUST USE MCP（禁止凭记忆 / 猜路径 / 仅 grep 仓库）\n用户消息含以下任一关键词时，本回合必须先调 MCP 再回答：UE、Unreal、蓝图、Blueprint、资产、Asset、Widget、UMG、材质、Material、行为树、BehaviorTree、ABP、DataAsset、DataTable、PIE、Actor、GAS、Niagara、关卡、Level、Lua、Montage、Blackboard、Skeleton、Texture。\n\n## 连接与首要动作\n- tools/list 已有 UE 工具（search_capabilities / call_capability 或 Capability 名）→ 直接调用，勿 list/connect。\n- tools/list 仅有 list_unreal_instances + connect_unreal_instance → 先 list → connect → 再 search_capabilities → call_capability。\n- 已连接时：未知 Capability 先 search_capabilities；读资产先 search_asset 收窄 pathFilter，再用返回的 recommendedGet/recommendedManage + path 读写（勿猜 cap 名）。\n- 禁止猜测 /Game/... 路径；用户提到具体资产名且本回合尚未调 MCP → 先调 MCP。",
+  "initializePrefix": "NexusLink MCP Proxy for Unreal Engine.\n\n## MUST USE MCP（禁止凭记忆 / 猜路径 / 仅 grep 仓库）\n用户消息含以下任一关键词时，本回合必须先调 MCP 再回答：UE、Unreal、蓝图、Blueprint、资产、Asset、Widget、UMG、材质、Material、行为树、BehaviorTree、ABP、DataAsset、DataTable、PIE、Actor、GAS、Niagara、关卡、Level、Lua、Montage、Blackboard、Skeleton、Texture。\n\n## 连接与首要动作\n- tools/list 已有 UE 工具（search_capabilities / call_capability 或 Capability 名）→ 直接调用，勿 list/connect。\n- tools/list 仅有 list_unreal_instances + connect_unreal_instance → 先 list → connect → 再 search_capabilities → call_capability。\n- 已连接时：未知 Capability 先 search_capabilities；读资产先 search_asset（顶层 assets；指定类型用顶层 recommendedGet/Manage + assets[].path）。\n- 禁止猜测 /Game/... 路径；用户提到具体资产名且本回合尚未调 MCP → 先调 MCP。",
   "localToolNames": [
     "list_unreal_instances",
     "connect_unreal_instance"

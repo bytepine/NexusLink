@@ -45,7 +45,7 @@ FCapabilityResult FGetAssetPoseSearchCapability::Execute(const TSharedPtr<FJsonO
 		for (const FString& AssetPath : Paths)
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), AssetPath);
+			Entry->SetStringField(TEXT("path"), AssetPath);
 
 			// 尝试加载 Database
 			if (UPoseSearchDatabase* DB = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchDatabase>(AssetPath))

@@ -59,7 +59,7 @@
 
 ### `call_capability`
 
-执行 Capability（在 search_asset / get_asset_* 之后）。失败看 errorKind：unknown/disabled/arg_invalid；disabled 勿重试。旧名（如 create_blackboard）自动映射规范名。批量 calls[] 与单条不可混用。
+执行 Capability（在 search_asset / get_asset_* 之后）。失败看 errorKind：unknown/disabled/arg_invalid；disabled 勿重试。旧名（如 create_blackboard）自动映射规范名。批量 calls[] 与单条不可混用。单条成功时字段在顶层（无 `results[{...}]`）；多条仍为 `results[]`。响应身份字段为 `path`（入参仍 `assetPath`）；`get_`/`manage_` 等价回显可省略。
 
 ---
 
@@ -1497,7 +1497,7 @@
 
 ### `search_asset`
 
-查找资产路径。**必须先调用**；须指定 `assetType` 和功能级 `pathFilter`；禁止猜测 `/Game/...` 路径。`assetType` 支持别名归一化（如 `Blueprints`→`blueprint`、`Widgets`→`widget`、`ga`/`ge`→GAS 类型）。每条返回 `name`/`path`/`assetType` 以及 `recommendedGet`/`recommendedManage`（推荐读/写 Capability）。
+查找资产路径。**必须先调用**；须指定 `assetType` 和功能级 `pathFilter`；禁止猜测 `/Game/...` 路径。返回顶层 `assets`/`totalCount`；指定具体 `assetType` 时顶层附 `recommendedGet`/`recommendedManage`（`all` 时推荐在每条上）。
 
 **适用场景**：先 search 再 get/manage；禁止猜路径
 

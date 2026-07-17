@@ -67,7 +67,6 @@ FCapabilityResult FCreateAssetMaterialParameterCollectionCapability::Execute(con
 		OutEntry->SetStringField(TEXT("assetType"), TEXT("MaterialParameterCollection"));
 		OutEntry->SetStringField(TEXT("name"),    MPC->GetName());
 		OutEntry->SetStringField(TEXT("path"),    FNexusAssetUtils::PackagePathOf(MPC));
-		OutEntry->SetBoolField(TEXT("success"),   true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 #endif
 	});

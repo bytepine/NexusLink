@@ -107,7 +107,6 @@ FCapabilityResult FCreateAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("path"),        NewBP->GetOutermost()->GetName());
 		Entry->SetStringField(TEXT("parentClass"), ParentClass->GetName());
-		Entry->SetBoolField(TEXT("success"),       true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	
 	});

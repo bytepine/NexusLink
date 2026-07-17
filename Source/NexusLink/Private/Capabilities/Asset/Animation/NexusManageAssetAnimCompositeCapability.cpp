@@ -103,7 +103,6 @@ FCapabilityResult FManageAssetAnimCompositeCapability::Execute(const TSharedPtr<
 #endif
 				const int32 NewIdx = Composite->AnimationTrack.AnimSegments.Add(NewSeg);
 				Entry->SetNumberField(TEXT("newIndex"), NewIdx);
-				Entry->SetBoolField(TEXT("success"), true);
 			}
 			else if (Action == TEXT("remove_segment"))
 			{
@@ -120,7 +119,6 @@ FCapabilityResult FManageAssetAnimCompositeCapability::Execute(const TSharedPtr<
 					continue;
 				}
 				Composite->AnimationTrack.AnimSegments.RemoveAt(Idx);
-				Entry->SetBoolField(TEXT("success"), true);
 			}
 			else
 			{

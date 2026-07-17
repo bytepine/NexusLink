@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Animation/NexusManageAssetAnimMontageCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -44,9 +45,8 @@ void FManageAssetAnimMontageCapability::BuildDefinition(FNexusCapabilityDefiniti
 {
 	Out.Name = TEXT("manage_asset_anim_montage");
 	Out.SearchAssetTypes = {TEXT("AnimMontage")};
-	Out.Description = TEXT("编辑 Montage 结构。增删槽位/片段/分段；须 save_asset。");
-	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),        FNexusSchema::Str(TEXT("动画 Montage 资产路径")))
+	Out.Description = TEXT("批量编辑 Montage 结构。增删槽位/片段/分段；须 save_asset。");
+	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),           FNexusSchema::Enum(TEXT("操作类型"),
 			{ TEXT("add_segment"), TEXT("remove_segment"), TEXT("add_section"), TEXT("remove_section") }))
 		// add_segment
@@ -61,7 +61,12 @@ void FManageAssetAnimMontageCapability::BuildDefinition(FNexusCapabilityDefiniti
 		.Prop(TEXT("sectionName"),      FNexusSchema::Str(TEXT("分段名（add_section / remove_section）")))
 		.Prop(TEXT("sectionStartTime"), FNexusSchema::Num(TEXT("Montage 内分段起始时间（秒）（add_section）")))
 		.Prop(TEXT("nextSectionName"),  FNexusSchema::Str(TEXT("循环下一分段（add_section，可选）")))
-		.Required({ TEXT("assetPath"), TEXT("action") })
+		.Required({ TEXT("action") })
+		.Build();
+	Out.InputSchema = FNexusSchema::Object()
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("动画 Montage 资产路径")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
@@ -77,27 +82,42 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 
-		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-
 		const FString AssetPath = Arguments->HasField(TEXT("assetPath")) ? Arguments->GetStringField(TEXT("assetPath")) : TEXT("");
 		if (AssetPath.IsEmpty()) { OutError = TEXT("assetPath 为必填项"); return; }
 
-		const FString Action = Arguments->HasField(TEXT("action")) ? Arguments->GetStringField(TEXT("action")).ToLower() : TEXT("");
-		if (Action.IsEmpty()) { OutError = TEXT("缺少 action"); return; }
-
 		UAnimMontage* Montage = FNexusAssetUtils::LoadAssetWithFallback<UAnimMontage>(AssetPath);
 		if (!Montage) { OutError = FString::Printf(TEXT("AnimMontage 未找到: %s"), *AssetPath); return; }
+
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0) { OutError = TEXT("缺少 operations 或为空"); return; }
+
+		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
+		{
+		const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
+		if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
+		const TSharedPtr<FJsonObject>& OpArgs = *OpObjPtr;
+
+		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
+		OutEntry->SetStringField(TEXT("path"), AssetPath);
+
+		const FString Action = OpArgs->HasField(TEXT("action")) ? OpArgs->GetStringField(TEXT("action")).ToLower() : TEXT("");
+		if (Action.IsEmpty())
+		{
+			OutEntry->SetStringField(TEXT("error"), TEXT("缺少 action"));
+			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
+			continue;
+		}
 
 		OutEntry->SetStringField(TEXT("action"), Action);
 
 		if (Action == TEXT("add_segment"))
 		{
-			const FString SeqPath = Arguments->HasField(TEXT("animSequencePath")) ? Arguments->GetStringField(TEXT("animSequencePath")) : TEXT("");
+			const FString SeqPath = OpArgs->HasField(TEXT("animSequencePath")) ? OpArgs->GetStringField(TEXT("animSequencePath")) : TEXT("");
 			if (SeqPath.IsEmpty())
 			{
 				OutEntry->SetStringField(TEXT("error"), TEXT("add_segment 需要 animSequencePath"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				return;
+				continue;
 			}
 
 			UAnimSequenceBase* AnimSeq = FNexusAssetUtils::LoadAssetWithFallback<UAnimSequenceBase>(SeqPath);
@@ -105,23 +125,23 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 			{
 				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("AnimSequence 未找到: %s"), *SeqPath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				return;
+				continue;
 			}
 
 			FString SlotNameStr = TEXT("DefaultSlot");
-			Arguments->TryGetStringField(TEXT("slotName"), SlotNameStr);
+			OpArgs->TryGetStringField(TEXT("slotName"), SlotNameStr);
 			const FName SlotName(*SlotNameStr);
 
 			const float FullLen       = AnimSeq->GetPlayLength();
-			const float AnimStartTime = Arguments->HasField(TEXT("animStartTime")) ? (float)Arguments->GetNumberField(TEXT("animStartTime")) : 0.0f;
-			const float AnimEndTime   = Arguments->HasField(TEXT("animEndTime"))   ? (float)Arguments->GetNumberField(TEXT("animEndTime"))   : FullLen;
+			const float AnimStartTime = OpArgs->HasField(TEXT("animStartTime")) ? (float)OpArgs->GetNumberField(TEXT("animStartTime")) : 0.0f;
+			const float AnimEndTime   = OpArgs->HasField(TEXT("animEndTime"))   ? (float)OpArgs->GetNumberField(TEXT("animEndTime"))   : FullLen;
 
 			const int32 SlotIdx = FindOrCreateSlot(Montage, SlotName);
 			FSlotAnimationTrack& Track = Montage->SlotAnimTracks[SlotIdx];
 
 			// 未指定 startPos 时自动追加到 slot 末尾
-			float StartPos = Arguments->HasField(TEXT("startPos"))
-				? (float)Arguments->GetNumberField(TEXT("startPos"))
+			float StartPos = OpArgs->HasField(TEXT("startPos"))
+				? (float)OpArgs->GetNumberField(TEXT("startPos"))
 				: CalcSlotEndTime(Track);
 
 		FAnimSegment Segment;
@@ -147,7 +167,7 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 		else if (Action == TEXT("remove_segment"))
 		{
 			FString SlotNameStr = TEXT("DefaultSlot");
-			Arguments->TryGetStringField(TEXT("slotName"), SlotNameStr);
+			OpArgs->TryGetStringField(TEXT("slotName"), SlotNameStr);
 			const FName SlotName(*SlotNameStr);
 
 			int32 SlotIdx = INDEX_NONE;
@@ -159,23 +179,23 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 			{
 				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("槽位 '%s' 未找到"), *SlotNameStr));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				return;
+				continue;
 			}
 
-			if (!Arguments->HasField(TEXT("segmentIndex")))
+			if (!OpArgs->HasField(TEXT("segmentIndex")))
 			{
 				OutEntry->SetStringField(TEXT("error"), TEXT("remove_segment 需要 segmentIndex"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				return;
+				continue;
 			}
-			const int32 SegIdx = (int32)Arguments->GetNumberField(TEXT("segmentIndex"));
+			const int32 SegIdx = (int32)OpArgs->GetNumberField(TEXT("segmentIndex"));
 
 			TArray<FAnimSegment>& Segs = Montage->SlotAnimTracks[SlotIdx].AnimTrack.AnimSegments;
 			if (SegIdx < 0 || SegIdx >= Segs.Num())
 			{
 				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("segmentIndex %d 超出范围 [0, %d)"), SegIdx, Segs.Num()));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				return;
+				continue;
 			}
 
 			Segs.RemoveAt(SegIdx);
@@ -186,11 +206,11 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 		else if (Action == TEXT("add_section"))
 		{
 			FString SectionName;
-			if (!Arguments->TryGetStringField(TEXT("sectionName"), SectionName) || SectionName.IsEmpty())
+			if (!OpArgs->TryGetStringField(TEXT("sectionName"), SectionName) || SectionName.IsEmpty())
 			{
 				OutEntry->SetStringField(TEXT("error"), TEXT("add_section 需要 sectionName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				return;
+				continue;
 			}
 
 			// 检查重名
@@ -200,14 +220,14 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 				{
 					OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("分段 '%s' 已存在"), *SectionName));
 					OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-					return;
+					continue;
 				}
 			}
 
 			float SectionStartTime = 0.0f;
-			if (Arguments->HasField(TEXT("sectionStartTime")))
+			if (OpArgs->HasField(TEXT("sectionStartTime")))
 			{
-				SectionStartTime = (float)Arguments->GetNumberField(TEXT("sectionStartTime"));
+				SectionStartTime = (float)OpArgs->GetNumberField(TEXT("sectionStartTime"));
 			}
 
 			FCompositeSection NewSection;
@@ -216,7 +236,7 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 			NewSection.SetTime(SectionStartTime);
 
 			FString NextSectionName;
-			if (Arguments->TryGetStringField(TEXT("nextSectionName"), NextSectionName) && !NextSectionName.IsEmpty())
+			if (OpArgs->TryGetStringField(TEXT("nextSectionName"), NextSectionName) && !NextSectionName.IsEmpty())
 			{
 				NewSection.NextSectionName = FName(*NextSectionName);
 			}
@@ -239,11 +259,11 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 		else if (Action == TEXT("remove_section"))
 		{
 			FString SectionName;
-			if (!Arguments->TryGetStringField(TEXT("sectionName"), SectionName) || SectionName.IsEmpty())
+			if (!OpArgs->TryGetStringField(TEXT("sectionName"), SectionName) || SectionName.IsEmpty())
 			{
 				OutEntry->SetStringField(TEXT("error"), TEXT("remove_section 需要 sectionName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				return;
+				continue;
 			}
 
 			const int32 Removed = Montage->CompositeSections.RemoveAll([&SectionName](const FCompositeSection& Sec)
@@ -267,7 +287,7 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-	
+		}
 	});
 }
 

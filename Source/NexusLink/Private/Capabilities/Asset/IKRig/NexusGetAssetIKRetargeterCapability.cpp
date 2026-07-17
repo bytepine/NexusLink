@@ -37,13 +37,13 @@ FCapabilityResult FGetAssetIKRetargeterCapability::Execute(const TSharedPtr<FJso
 		UIKRetargeter* Retargeter = FNexusAssetUtils::LoadAssetWithFallback<UIKRetargeter>(AssetPath);
 		if (!Retargeter)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				FString::Printf(TEXT("IKRetargeter 未找到: %s"), *AssetPath));
 			return;
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("assetPath"), AssetPath);
+		Entry->SetStringField(TEXT("path"), AssetPath);
 		Entry->SetStringField(TEXT("name"),      Retargeter->GetName());
 		Entry->SetStringField(TEXT("assetType"), TEXT("IKRetargeter"));
 

@@ -102,7 +102,6 @@ FCapabilityResult FManageAssetMaterialParameterCollectionCapability::Execute(con
 						Op->TryGetNumberField(TEXT("defaultValue"), DefaultVal);
 						NewParam.DefaultValue = static_cast<float>(DefaultVal);
 						MPC->ScalarParameters.Add(NewParam);
-						OpResult->SetBoolField(TEXT("success"), true);
 						bDirty = true;
 					}
 				}
@@ -134,7 +133,6 @@ FCapabilityResult FManageAssetMaterialParameterCollectionCapability::Execute(con
 							static_cast<float>(R), static_cast<float>(G),
 							static_cast<float>(B), static_cast<float>(A));
 						MPC->VectorParameters.Add(NewParam);
-						OpResult->SetBoolField(TEXT("success"), true);
 						bDirty = true;
 					}
 				}
@@ -155,7 +153,6 @@ FCapabilityResult FManageAssetMaterialParameterCollectionCapability::Execute(con
 						[&](const FCollectionVectorParameter& P) { return P.ParameterName.ToString().Equals(ParamName, ESearchCase::IgnoreCase); });
 					int32 Removed = (SBefore - MPC->ScalarParameters.Num()) + (VBefore - MPC->VectorParameters.Num());
 					OpResult->SetNumberField(TEXT("removedCount"), Removed);
-					OpResult->SetBoolField(TEXT("success"), Removed > 0);
 					if (Removed > 0) bDirty = true;
 				}
 			}
@@ -178,7 +175,6 @@ FCapabilityResult FManageAssetMaterialParameterCollectionCapability::Execute(con
 						double DefaultVal = Found->DefaultValue;
 						Op->TryGetNumberField(TEXT("defaultValue"), DefaultVal);
 						Found->DefaultValue = static_cast<float>(DefaultVal);
-						OpResult->SetBoolField(TEXT("success"), true);
 						bDirty = true;
 					}
 				}
@@ -208,7 +204,6 @@ FCapabilityResult FManageAssetMaterialParameterCollectionCapability::Execute(con
 						Found->DefaultValue = FLinearColor(
 							static_cast<float>(R), static_cast<float>(G),
 							static_cast<float>(B), static_cast<float>(A));
-						OpResult->SetBoolField(TEXT("success"), true);
 						bDirty = true;
 					}
 				}

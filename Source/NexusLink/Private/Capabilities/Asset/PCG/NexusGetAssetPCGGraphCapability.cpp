@@ -49,14 +49,14 @@ FCapabilityResult FGetAssetPCGGraphCapability::Execute(const TSharedPtr<FJsonObj
 			if (!Graph)
 			{
 				TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
-				ErrObj->SetStringField(TEXT("assetPath"), AssetPath);
+				ErrObj->SetStringField(TEXT("path"), AssetPath);
 				ErrObj->SetStringField(TEXT("error"), TEXT("PCG Graph 未找到"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(ErrObj));
 				continue;
 			}
 
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), Graph->GetPathName());
+			Entry->SetStringField(TEXT("path"), Graph->GetPathName());
 			Entry->SetStringField(TEXT("assetType"), TEXT("PCGGraph"));
 			Entry->SetStringField(TEXT("name"),      Graph->GetName());
 

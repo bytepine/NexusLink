@@ -68,7 +68,6 @@ FCapabilityResult FManageAssetRenderTargetCapability::Execute(const TSharedPtr<F
 		Entry->SetNumberField(TEXT("sizeX"),        RT->SizeX);
 		Entry->SetNumberField(TEXT("sizeY"),        RT->SizeY);
 		Entry->SetNumberField(TEXT("formatValue"),  (double)(int32)RT->RenderTargetFormat);
-		Entry->SetBoolField(TEXT("success"),        true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

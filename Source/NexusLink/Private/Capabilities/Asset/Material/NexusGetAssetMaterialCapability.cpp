@@ -176,7 +176,7 @@ bool FGetAssetMaterialCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Ar
 		return false;
 	}
 
-	OutEntry->SetStringField(TEXT("assetPath"), Path);
+	OutEntry->SetStringField(TEXT("path"), Path);
 
 	UObject* Obj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
 	if (!Obj)

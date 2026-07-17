@@ -78,7 +78,7 @@ static void QueryOneAssetRefsImpl(
 	for (int32 i = Start; i < End; ++i)
 	{
 		TSharedPtr<FJsonObject> Item = MakeShared<FJsonObject>();
-		Item->SetStringField(TEXT("assetPath"), Filtered[i]);
+		Item->SetStringField(TEXT("path"), Filtered[i]);
 		TArray<FAssetData> Assets;
 		Registry.GetAssetsByPackageName(*Filtered[i], Assets);
 		if (Assets.Num() > 0)

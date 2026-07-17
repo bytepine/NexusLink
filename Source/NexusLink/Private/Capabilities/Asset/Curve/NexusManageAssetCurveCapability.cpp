@@ -61,7 +61,7 @@ void FManageAssetCurveCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 {
 	Out.Name = TEXT("manage_asset_curve");
 	Out.SearchAssetTypes = {TEXT("CurveFloat"), TEXT("CurveVector"), TEXT("CurveLinearColor"), TEXT("CurveTable")};
-	Out.Description = TEXT("修改曲线资产关键帧。operations[].action: add_key / set_key / remove_key / set_interp（CurveTable 用 rowName 代替 channel）。");
+	Out.Description = TEXT("修改曲线资产关键帧。见 operations[].action（CurveTable 用 rowName 代替 channel）。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"),  FNexusSchema::Str(TEXT("add_key / set_key / remove_key / set_interp")))
 		.Prop(TEXT("channel"),     FNexusSchema::Str(TEXT("CurveFloat: 'Value'；Vector: X/Y/Z；Color: R/G/B/A")))
@@ -139,7 +139,6 @@ FCapabilityResult FManageAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 			{
 				const FKeyHandle Handle = Curve->AddKey(Time, Value);
 				Curve->SetKeyInterpMode(Handle, NexusCurveManageUtils::InterpFromStr(Interp));
-				Entry->SetBoolField(TEXT("success"), true);
 				Entry->SetNumberField(TEXT("time"), Time);
 				Entry->SetNumberField(TEXT("value"), Value);
 			}
@@ -154,7 +153,6 @@ FCapabilityResult FManageAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 				}
 				if (Op->HasField(TEXT("value")))  Curve->SetKeyValue(Handle, Value);
 				if (Op->HasField(TEXT("interp")))  Curve->SetKeyInterpMode(Handle, NexusCurveManageUtils::InterpFromStr(Interp));
-				Entry->SetBoolField(TEXT("success"), true);
 			}
 			else if (Action == TEXT("remove_key"))
 			{
@@ -166,7 +164,6 @@ FCapabilityResult FManageAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 					continue;
 				}
 				Curve->DeleteKey(Handle);
-				Entry->SetBoolField(TEXT("success"), true);
 			}
 			else if (Action == TEXT("set_interp"))
 			{
@@ -182,7 +179,6 @@ FCapabilityResult FManageAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 					for (auto It = Curve->GetKeyHandleIterator(); It; ++It)
 						Curve->SetKeyInterpMode(*It, NexusCurveManageUtils::InterpFromStr(Interp));
 				}
-				Entry->SetBoolField(TEXT("success"), true);
 			}
 			else
 			{

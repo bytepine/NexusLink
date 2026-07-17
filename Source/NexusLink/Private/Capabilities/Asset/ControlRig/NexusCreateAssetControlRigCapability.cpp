@@ -70,7 +70,6 @@ FCapabilityResult FCreateAssetControlRigCapability::Execute(const TSharedPtr<FJs
 		Entry->SetStringField(TEXT("name"),     CRBp->GetName());
 		Entry->SetStringField(TEXT("path"),     CRBp->GetPathName());
 		Entry->SetStringField(TEXT("assetType"), TEXT("ControlRigBlueprint"));
-		Entry->SetBoolField(TEXT("success"),    true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

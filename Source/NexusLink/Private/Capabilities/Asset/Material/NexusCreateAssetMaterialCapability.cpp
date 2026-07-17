@@ -218,7 +218,6 @@ FCapabilityResult FCreateAssetMaterialCapability::Execute(const TSharedPtr<FJson
 			OutEntry->SetStringField(TEXT("path"), FNexusAssetUtils::PackagePathOf(Mat));
 			OutEntry->SetStringField(TEXT("materialDomain"), DomainEcho);
 		}
-		OutEntry->SetBoolField(TEXT("success"), true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 #endif
 	});

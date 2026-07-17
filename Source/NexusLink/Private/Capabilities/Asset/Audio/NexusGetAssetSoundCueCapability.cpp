@@ -67,7 +67,7 @@ FCapabilityResult FGetAssetSoundCueCapability::Execute(const TSharedPtr<FJsonObj
 		for (const FString& Path : Paths)
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), Path);
+			Entry->SetStringField(TEXT("path"), Path);
 
 			USoundCue* Cue = FNexusAssetUtils::LoadAssetWithFallback<USoundCue>(Path);
 			if (!Cue)

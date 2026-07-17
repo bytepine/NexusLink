@@ -382,7 +382,7 @@ public:
 | offset / limit 分页切片 | `FNexusJsonUtils::ComputeSlice(Total, Offset, Limit, OutStart, OutEnd)` |
 | nameFilter / propertyPaths / sections 解析 | `FNexusJsonUtils::Parse*` 系列 |
 | 反射字段报告（DataTable/DataAsset/Struct 样式） | `FNexusPropertyReportUtils::BuildFieldReport(...)` |
-| Capability 返回壳 / entry 错误 | `FNexusCapabilityResultBuilder::AddEntry(...)` / `AddEntryError(...)` |
+| Capability 返回壳 / entry 错误 | `FNexusCapabilityResultBuilder::AddEntry(...)` / `AddEntryError(...)`；适配层 `AssembleStructuredContent`：`Entries.Num()==1` 提升到顶层，`Num()>1` 写 `results[]`；响应身份字段统一 `path`，`get_`/`manage_` 可 `StripRedundantPathEcho` |
 | 取运行时 World 并做错误兜底 | `FNexusRuntimeUtils::RequirePlayWorld(OutError)` |
 | 新建资产 finalize（MarkDirty + AssetCreated + Save） | `FNexusAssetUtils::NotifyAndSaveCreated(...)` / `NotifyCompileAndSave(...)` |
 
@@ -403,3 +403,18 @@ public:
 4. 未绕过 `NX_*` 宏（§7.5）
 5. 未引入新的重复 helper（应改走 §7.8 对应接口）
 6. Capability 实现未出现 §7.9 列出的禁止样板
+
+### 7.11 Manage / Create / Execute 契约（单资产多操作）
+
+批量范围仅限**单资产多操作**；跨 `assetPaths[]` 的多资产批量不在本契约范围内（保持各 cap 现状）。
+
+| 项 | 约定 |
+|---|---|
+| manage 命令列表 | Schema 只暴露 `operations: [{action, ...}]`（每项含 `action`），禁止再暴露 `ops` 或顶层裸 `action` |
+| Execute 读入 | 统一 `FNexusJsonUtils::ExtractOperations(Args)`：优先 `operations` → 回退 `ops`（旧字段过渡期兼容）→ 回退顶层 `action`+其余字段合成单元素数组（旧单操作 manage 过渡期兼容，不写进 Schema） |
+| 结果信封 | 禁止「一条 Entry + 内嵌 `results[]`」的双层包裹；每个 op 必须对应一条独立 `OutEntries.Add(...)`，交由适配层 `AssembleStructuredContent` 统一提升/包装 |
+| `success` 字段 | 成功不写 `success`（无 `error` 即成功）；失败写 `error`，允许保留 `success:false` 辅助阅读；禁止写「成功恒为 true」或条件判断结果恒为 true 的 `success` |
+| create 入参 | 统一暴露 `assetPath`；历史 `packagePath`+`assetName` 双字段 cap 短期可继续读入旧字段做兼容，但 Schema 优先 `assetPath` |
+| create 响应 | 成功条目必须含 `path` 字段 |
+| Execute 卫生 | 非 MultiSection 的 cap 优先 `FNexusCapabilityResultBuilder::Build`；资产定位统一 `RequireString` + `EmitError`（或对应 Fatal/`MakeArgInvalid`）；禁止裸 `SetStringField("error")` 作为唯一失败路径 |
+| 有意保留（不受本节约束） | 领域数组 `keys`/`rows`/`fields`/`widgets`；runtime `interact_*` / `control_pie` 的顶层 `action`（命令式语义，非批量操作列表）；元工具 `calls[]` |

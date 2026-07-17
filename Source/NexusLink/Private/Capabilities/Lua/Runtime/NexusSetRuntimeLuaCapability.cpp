@@ -107,7 +107,6 @@ FCapabilityResult FSetRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObject
 		lua_settop(L, StackTop);
 	}
 
-	Entry->SetBoolField(TEXT("success"), true);
 	R.Entries.Add(MakeShared<FJsonValueObject>(Entry));
 	return R;
 }

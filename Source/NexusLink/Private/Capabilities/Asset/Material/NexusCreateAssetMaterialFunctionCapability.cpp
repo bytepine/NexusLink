@@ -90,7 +90,6 @@ FCapabilityResult FCreateAssetMaterialFunctionCapability::Execute(const TSharedP
 		OutEntry->SetStringField(TEXT("assetType"), TEXT("MaterialFunction"));
 		OutEntry->SetStringField(TEXT("name"),    MF->GetName());
 		OutEntry->SetStringField(TEXT("path"),    FNexusAssetUtils::PackagePathOf(MF));
-		OutEntry->SetBoolField(TEXT("success"),   true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 #endif
 	});

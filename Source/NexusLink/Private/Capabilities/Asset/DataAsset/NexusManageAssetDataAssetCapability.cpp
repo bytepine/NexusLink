@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/DataAsset/NexusManageAssetDataAssetCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -13,7 +14,7 @@ void FManageAssetDataAssetCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("manage_asset_data_asset");
 	Out.SearchAssetTypes = {TEXT("DataAsset")};
-	Out.Description = TEXT("批量编辑 DataAsset。set=ImportText 校验；reset=CDO；ops[] 非空。");
+	Out.Description = TEXT("批量编辑 DataAsset。set=ImportText 校验；reset=CDO；operations[] 非空。");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
@@ -24,9 +25,9 @@ void FManageAssetDataAssetCapability::BuildDefinition(FNexusCapabilityDefinition
 		.Build();
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("DataAsset 资产路径")))
-		.Prop(TEXT("ops"),       FNexusSchema::ArrayOf(TEXT("批量属性操作（至少一项）"), ItemSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("ops") })
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataAsset 资产路径")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量属性操作（至少一项）"), ItemSchema.ToSharedRef()))
+		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -56,20 +57,15 @@ FCapabilityResult FManageAssetDataAssetCapability::Execute(const TSharedPtr<FJso
 		UDataAsset* DA = Cast<UDataAsset>(Obj);
 		if (!DA) { OutError = FString::Printf(TEXT("资产不是 DataAsset: %s"), *AssetPath); return; }
 
-		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
-		if (!Arguments->TryGetArrayField(TEXT("ops"), OpsArr) || !OpsArr)
+		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (OpsArr.Num() == 0)
 		{
-			OutError = TEXT("缺少 ops");
-			return;
-		}
-		if (OpsArr->Num() == 0)
-		{
-			OutError = TEXT("ops 不能为空");
+			OutError = TEXT("缺少 operations 或为空");
 			return;
 		}
 
 		bool bDidMutate = false;
-		for (const TSharedPtr<FJsonValue>& Val : *OpsArr)
+		for (const TSharedPtr<FJsonValue>& Val : OpsArr)
 		{
 			TSharedPtr<FJsonObject> Item = Val->AsObject();
 			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();

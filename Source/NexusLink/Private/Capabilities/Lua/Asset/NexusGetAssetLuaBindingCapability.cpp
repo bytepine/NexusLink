@@ -42,7 +42,7 @@ FCapabilityResult FGetAssetLuaBindingCapability::Execute(const TSharedPtr<FJsonO
 		return FCapabilityResult::MakeFatal(TEXT("assetPath 须指向 Blueprint 资产"));
 
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-	Entry->SetStringField(TEXT("assetPath"), AssetPath);
+	Entry->SetStringField(TEXT("path"), AssetPath);
 	if (BP->ParentClass)
 		Entry->SetStringField(TEXT("parentClass"), BP->ParentClass->GetName());
 

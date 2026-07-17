@@ -65,7 +65,7 @@ FCapabilityResult FGetAssetAnimSequenceCapability::Execute(const TSharedPtr<FJso
 		for (const FString& Path : Paths)
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), Path);
+			Entry->SetStringField(TEXT("path"), Path);
 
 			UAnimSequence* Seq = FNexusAssetUtils::LoadAssetWithFallback<UAnimSequence>(Path);
 			if (!Seq)

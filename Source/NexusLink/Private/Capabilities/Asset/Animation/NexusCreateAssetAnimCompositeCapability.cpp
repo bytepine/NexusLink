@@ -63,7 +63,6 @@ FCapabilityResult FCreateAssetAnimCompositeCapability::Execute(const TSharedPtr<
 		Entry->SetStringField(TEXT("name"),          Composite->GetName());
 		Entry->SetStringField(TEXT("path"),          Composite->GetPathName());
 		Entry->SetNumberField(TEXT("segmentCount"),  Composite->AnimationTrack.AnimSegments.Num());
-		Entry->SetBoolField(TEXT("success"),         true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

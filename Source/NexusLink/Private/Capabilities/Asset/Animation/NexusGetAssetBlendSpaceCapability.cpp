@@ -61,7 +61,7 @@ FCapabilityResult FGetAssetBlendSpaceCapability::Execute(const TSharedPtr<FJsonO
 		for (const FString& Path : Paths)
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), Path);
+			Entry->SetStringField(TEXT("path"), Path);
 
 			UBlendSpace* BS = FNexusAssetUtils::LoadAssetWithFallback<UBlendSpace>(Path);
 			if (!BS)

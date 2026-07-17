@@ -83,9 +83,9 @@ void FNexusEditorContextUtils::CollectSelectionAssets(
 
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 #if NX_UE_HAS_ASSET_SOFT_OBJECT_PATH
-		Obj->SetStringField(TEXT("assetPath"), Asset.GetSoftObjectPath().ToString());
+		Obj->SetStringField(TEXT("path"), Asset.GetSoftObjectPath().ToString());
 #else
-		Obj->SetStringField(TEXT("assetPath"), Asset.ObjectPath.ToString());
+		Obj->SetStringField(TEXT("path"), Asset.ObjectPath.ToString());
 #endif
 		Obj->SetStringField(TEXT("packageName"), Asset.PackageName.ToString());
 #if NX_UE_HAS_CLASS_PATHS

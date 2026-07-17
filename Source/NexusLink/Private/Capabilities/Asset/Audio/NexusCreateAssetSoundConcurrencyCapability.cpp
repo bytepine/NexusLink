@@ -58,7 +58,6 @@ FCapabilityResult FCreateAssetSoundConcurrencyCapability::Execute(const TSharedP
 		Entry->SetStringField(TEXT("name"),     SC->GetName());
 		Entry->SetStringField(TEXT("path"),     SC->GetPathName());
 		Entry->SetNumberField(TEXT("maxCount"), SC->Concurrency.MaxCount);
-		Entry->SetBoolField(TEXT("success"),    true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

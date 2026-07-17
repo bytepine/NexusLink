@@ -67,7 +67,6 @@ FCapabilityResult FCreateAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 		Entry->SetStringField(TEXT("name"),         NewEnum->GetName());
 		Entry->SetStringField(TEXT("path"),         NewEnum->GetPathName());
 		Entry->SetNumberField(TEXT("entryCount"),   NewEnum->NumEnums() - 1); // 减去内部 _MAX
-		Entry->SetBoolField(TEXT("success"),        true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 #endif // WITH_EDITOR
 	});

@@ -237,8 +237,12 @@ TSharedPtr<FJsonObject> FNexusCapabilityIndexUtils::BuildDirectory(const UNexusL
 		if (!Settings->IsCapabilityEnabled(Record.Def.Name)) continue;
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),        Record.Def.Name);
-		Entry->SetStringField(TEXT("description"), Record.Def.Description);
+		Entry->SetStringField(TEXT("name"), Record.Def.Name);
+		// 目录模式只返 name（+可选 whenToUse），详情靠 capabilityName 取 Schema
+		if (!Record.Def.WhenToUse.IsEmpty())
+		{
+			Entry->SetStringField(TEXT("whenToUse"), Record.Def.WhenToUse);
+		}
 
 		FString GroupTag;
 		for (const FString& Tag : Record.Def.Tags)

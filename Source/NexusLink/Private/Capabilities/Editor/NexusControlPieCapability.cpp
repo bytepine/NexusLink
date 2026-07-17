@@ -57,7 +57,6 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 			if (bSimulating) OutEntry->SetBoolField(TEXT("isPIESimulating"), true);
 			OutEntry->SetStringField(TEXT("state"), bRunning
 				? (bSimulating ? TEXT("simulating") : TEXT("playing")) : TEXT("stopped"));
-			OutEntry->SetBoolField(TEXT("success"), true);
 		}
 		else if (Action.Equals(TEXT("start"), ESearchCase::IgnoreCase))
 		{
@@ -95,7 +94,6 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 			}
 			GEditor->RequestPlaySession(Params);
 
-			OutEntry->SetBoolField(TEXT("success"), true);
 			OutEntry->SetStringField(TEXT("action"), TEXT("start"));
 			OutEntry->SetStringField(TEXT("mode"), Mode.ToLower());
 			OutEntry->SetStringField(TEXT("note"), TEXT("已请求启动 PIE；将在下一帧实际开始。"));
@@ -110,7 +108,6 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 				return;
 			}
 			GEditor->RequestEndPlayMap();
-			OutEntry->SetBoolField(TEXT("success"), true);
 			OutEntry->SetStringField(TEXT("action"), TEXT("stop"));
 			OutEntry->SetStringField(TEXT("note"), TEXT("已请求停止 PIE。"));
 		}

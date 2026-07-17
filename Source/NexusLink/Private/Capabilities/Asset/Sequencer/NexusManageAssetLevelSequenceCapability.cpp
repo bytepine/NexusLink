@@ -105,7 +105,6 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 				Op->TryGetNumberField(TEXT("denominator"), Den);
 				if (Den <= 0) Den = 1;
 				Scene->SetDisplayRate(FFrameRate(static_cast<int32>(Num), static_cast<int32>(Den)));
-				OpResult->SetBoolField(TEXT("success"), true);
 				OpResult->SetStringField(TEXT("displayRate"), FString::Printf(TEXT("%d/%d"), (int32)Num, (int32)Den));
 				bDirty = true;
 			}
@@ -124,7 +123,6 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 					FFrameNumber Start = bHasStart ? FFrameNumber(static_cast<int32>(StartFrame)) : Current.GetLowerBoundValue();
 					FFrameNumber End   = bHasEnd   ? FFrameNumber(static_cast<int32>(EndFrame))   : Current.GetUpperBoundValue();
 					Scene->SetPlaybackRange(TRange<FFrameNumber>(Start, End));
-					OpResult->SetBoolField(TEXT("success"), true);
 					bDirty = true;
 				}
 			}
@@ -144,9 +142,9 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 					}
 					else
 					{
-						bool bRemoved = Scene->RemovePossessable(Guid) || Scene->RemoveSpawnable(Guid);
-						OpResult->SetBoolField(TEXT("success"), bRemoved);
-						if (bRemoved) bDirty = true;
+					bool bRemoved = Scene->RemovePossessable(Guid) || Scene->RemoveSpawnable(Guid);
+					if (bRemoved) bDirty = true;
+					else OpResult->SetStringField(TEXT("error"), TEXT("remove_binding 未找到对应绑定"));
 					}
 				}
 			}
@@ -188,8 +186,8 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 					else
 					{
 						UMovieSceneTrack* NewTrack = Scene->AddMasterTrack(Class);
-						OpResult->SetBoolField(TEXT("success"), NewTrack != nullptr);
 						if (NewTrack) bDirty = true;
+						else OpResult->SetStringField(TEXT("error"), TEXT("add_master_track 失败"));
 					}
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #else
@@ -224,8 +222,8 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 					UMovieSceneTrack* Found = Scene->FindMasterTrack(Class);
 					bool bOk = Found && Scene->RemoveMasterTrack(*Found);
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
-					OpResult->SetBoolField(TEXT("success"), bOk);
 					if (bOk) bDirty = true;
+					else OpResult->SetStringField(TEXT("error"), TEXT("remove_master_track 未找到对应 Track"));
 #else
 						OpResult->SetStringField(TEXT("error"), TEXT("remove_master_track 在 UE5.5+ 中暂不支持（API 已重构）"));
 #endif

@@ -76,7 +76,6 @@ FCapabilityResult FCreateAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 		Entry->SetStringField(TEXT("name"), NewAsset->GetName());
 		Entry->SetStringField(TEXT("path"), NewAsset->GetPathName());
 		Entry->SetStringField(TEXT("curveType"), CurveType);
-		Entry->SetBoolField(TEXT("success"), true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

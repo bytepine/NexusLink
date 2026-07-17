@@ -73,14 +73,14 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 			if (!SoundAsset)
 			{
 				TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
-				ErrObj->SetStringField(TEXT("assetPath"), AssetPath);
+				ErrObj->SetStringField(TEXT("path"), AssetPath);
 				ErrObj->SetStringField(TEXT("error"), TEXT("MetaSound Source / Patch 未找到"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(ErrObj));
 				continue;
 			}
 
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), SoundAsset->GetPathName());
+			Entry->SetStringField(TEXT("path"), SoundAsset->GetPathName());
 			Entry->SetStringField(TEXT("assetType"), ActualType);
 			Entry->SetStringField(TEXT("name"),      SoundAsset->GetName());
 

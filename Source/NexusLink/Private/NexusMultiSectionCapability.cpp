@@ -148,8 +148,11 @@ FCapabilityResult FNexusMultiSectionCapability::RunMultiSection(const TSharedPtr
 			}
 		}
 
-		// 写覆盖列表
-		Entry->SetArrayField(TEXT("sections"), CoveredArr);
+		// 写覆盖列表：仅部分失败 / 有 sectionErrors 时回显（全成功则省略，省 token）
+		if (SectionErrors.Num() > 0 || CoveredArr.Num() != SectionList.Num())
+		{
+			Entry->SetArrayField(TEXT("sections"), CoveredArr);
+		}
 		if (SectionErrors.Num() > 0)
 		{
 			Entry->SetArrayField(TEXT("sectionErrors"), SectionErrors);

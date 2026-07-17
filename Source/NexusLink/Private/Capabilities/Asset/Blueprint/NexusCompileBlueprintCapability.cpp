@@ -87,7 +87,7 @@ FCapabilityResult FCompileBlueprintCapability::Execute(const TSharedPtr<FJsonObj
 		for (const FString& Path : Paths)
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), Path);
+			Entry->SetStringField(TEXT("path"), Path);
 
 			UBlueprint* BP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(Path);
 			if (!BP)
@@ -110,7 +110,6 @@ FCapabilityResult FCompileBlueprintCapability::Execute(const TSharedPtr<FJsonObj
 			}
 
 			const bool bHasCompilerErrors = (BP->Status == BS_Error);
-			Entry->SetBoolField(TEXT("success"), !bHasCompilerErrors);
 			Entry->SetStringField(TEXT("status"), BlueprintStatusToString(BP));
 			Entry->SetBoolField(TEXT("hasCompilerErrors"), bHasCompilerErrors);
 

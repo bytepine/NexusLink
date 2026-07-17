@@ -38,7 +38,7 @@ FCapabilityResult FManageAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 		UDataLayerAsset* DLA = FNexusAssetUtils::LoadAssetWithFallback<UDataLayerAsset>(AssetPath);
 		if (!DLA)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				FString::Printf(TEXT("DataLayerAsset 未找到: %s"), *AssetPath));
 			return;
 		}
@@ -46,11 +46,10 @@ FCapabilityResult FManageAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
 		if (!Arguments->TryGetArrayField(TEXT("operations"), OpsArr) || !OpsArr || OpsArr->IsEmpty())
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}}, TEXT("operations 数组为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("operations 数组为空"));
 			return;
 		}
 
-		TArray<TSharedPtr<FJsonValue>> Results;
 		for (const TSharedPtr<FJsonValue>& Val : *OpsArr)
 		{
 			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
@@ -61,6 +60,7 @@ FCapabilityResult FManageAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 			Op->TryGetStringField(TEXT("action"), Action);
 
 			TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
+			Result->SetStringField(TEXT("path"), AssetPath);
 			Result->SetStringField(TEXT("action"), Action);
 
 #if WITH_EDITOR
@@ -72,7 +72,6 @@ FCapabilityResult FManageAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 				if (TypeStr.Equals(TEXT("Editor"), ESearchCase::IgnoreCase))
 					LayerType = EDataLayerType::Editor;
 				DLA->SetType(LayerType);
-				Result->SetBoolField(TEXT("success"), true);
 				Result->SetStringField(TEXT("type"), TypeStr.IsEmpty() ? TEXT("Runtime") : TypeStr);
 			}
 			else if (Action == TEXT("set_debug_color"))
@@ -87,7 +86,6 @@ FCapabilityResult FManageAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 				{
 					FColor Color = FColor::FromHex(ColorStr);
 					DLA->SetDebugColor(Color);
-					Result->SetBoolField(TEXT("success"), true);
 					Result->SetStringField(TEXT("color"), Color.ToHex());
 				}
 			}
@@ -99,15 +97,10 @@ FCapabilityResult FManageAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 					*Action));
 			}
 
-			Results.Add(MakeShared<FJsonValueObject>(Result));
+			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 		}
 
 		DLA->MarkPackageDirty();
-
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("assetPath"), AssetPath);
-		Entry->SetArrayField(TEXT("results"), Results);
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 

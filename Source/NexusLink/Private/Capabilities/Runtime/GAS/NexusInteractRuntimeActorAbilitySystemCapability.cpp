@@ -231,7 +231,6 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 			}
 			Entry->SetStringField(TEXT("effectClass"), EffectClassName);
 			Entry->SetNumberField(TEXT("removedCount"), RemovedCount);
-			Entry->SetBoolField(TEXT("success"), RemovedCount > 0);
 		}
 		else if (Action.Equals(TEXT("set_attribute"), ESearchCase::IgnoreCase))
 		{
@@ -270,7 +269,6 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 			Entry->SetStringField(TEXT("attributeName"), AttrName);
 			Entry->SetNumberField(TEXT("oldBaseValue"), OldBase);
 			Entry->SetNumberField(TEXT("newBaseValue"), static_cast<float>(Value));
-			Entry->SetBoolField(TEXT("success"), true);
 		}
 		else
 		{

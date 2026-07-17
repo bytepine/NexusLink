@@ -105,8 +105,8 @@ FCapabilityResult FCreateAssetDataTableCapability::Execute(const TSharedPtr<FJso
 		NewDT->RowStruct = RowStruct;
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewDT, AssetPath);
 
+		OutEntry->SetStringField(TEXT("path"), AssetPath);
 		OutEntry->SetStringField(TEXT("name"), NewDT->GetName());
-		OutEntry->SetBoolField(TEXT("success"), true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});

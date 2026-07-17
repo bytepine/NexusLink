@@ -64,7 +64,7 @@ bool FGetAssetAnimBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject
 		return false;
 	}
 
-	OutEntry->SetStringField(TEXT("assetPath"), Path);
+	OutEntry->SetStringField(TEXT("path"), Path);
 
 	UAnimBlueprint* AnimBP = FNexusAssetUtils::LoadAssetWithFallback<UAnimBlueprint>(Path);
 	if (!AnimBP)

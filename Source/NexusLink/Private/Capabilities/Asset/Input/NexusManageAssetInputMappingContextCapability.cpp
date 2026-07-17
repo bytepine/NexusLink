@@ -96,7 +96,6 @@ FCapabilityResult FManageAssetInputMappingContextCapability::Execute(const TShar
 					NewMapping.Action = IA;
 					NewMapping.Key = Key;
 					IMC->Mappings.Add(NewMapping);
-					OpResult->SetBoolField(TEXT("success"), true);
 					OpResult->SetStringField(TEXT("addedKey"), KeyName);
 					bDirty = true;
 				}
@@ -128,7 +127,6 @@ FCapabilityResult FManageAssetInputMappingContextCapability::Execute(const TShar
 					});
 					int32 Removed = Before - IMC->Mappings.Num();
 					OpResult->SetNumberField(TEXT("removedCount"), Removed);
-					OpResult->SetBoolField(TEXT("success"), Removed > 0);
 					if (Removed > 0) bDirty = true;
 				}
 			}
@@ -137,7 +135,6 @@ FCapabilityResult FManageAssetInputMappingContextCapability::Execute(const TShar
 				int32 Count = IMC->Mappings.Num();
 				IMC->Mappings.Empty();
 				OpResult->SetNumberField(TEXT("clearedCount"), Count);
-				OpResult->SetBoolField(TEXT("success"), true);
 				bDirty = true;
 			}
 			else

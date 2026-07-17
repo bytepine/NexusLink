@@ -57,7 +57,6 @@ FCapabilityResult FCreateAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 
 		OutEntry->SetStringField(TEXT("name"),    BT->GetName());
 		OutEntry->SetStringField(TEXT("path"),    BT->GetPathName());
-		OutEntry->SetBoolField(TEXT("success"),   true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});

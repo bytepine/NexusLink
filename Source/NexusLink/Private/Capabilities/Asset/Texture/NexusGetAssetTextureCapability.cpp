@@ -64,7 +64,7 @@ FCapabilityResult FGetAssetTextureCapability::Execute(const TSharedPtr<FJsonObje
 		for (const FString& Path : Paths)
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), Path);
+			Entry->SetStringField(TEXT("path"), Path);
 
 			UTexture2D* Tex = FNexusAssetUtils::LoadAssetWithFallback<UTexture2D>(Path);
 			if (!Tex)

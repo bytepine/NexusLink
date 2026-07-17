@@ -63,7 +63,6 @@ FCapabilityResult FCreateAssetInputMappingContextCapability::Execute(const TShar
 
 		OutEntry->SetStringField(TEXT("name"), IMC->GetName());
 		OutEntry->SetStringField(TEXT("path"), FNexusAssetUtils::PackagePathOf(IMC));
-		OutEntry->SetBoolField(TEXT("success"), true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }

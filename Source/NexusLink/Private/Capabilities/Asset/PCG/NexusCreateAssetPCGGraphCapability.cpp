@@ -18,9 +18,8 @@ void FCreateAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition&
 	Out.Name        = TEXT("create_asset_pcg_graph");
 	Out.Description = TEXT("创建 PCG Graph 资产。读用 get_asset_pcg_graph。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("packagePath"), FNexusSchema::Str(TEXT("资产所在包路径，如 /Game/PCG")))
-		.Prop(TEXT("assetName"),   FNexusSchema::Str(TEXT("资产名称")))
-		.Required({ TEXT("packagePath"), TEXT("assetName") })
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("新 PCG Graph 资产完整路径，如 /Game/PCG/PCG_NewGraph")))
+		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("pcg"), TEXT("procedural"), TEXT("generation"), TEXT("graph") };
@@ -32,18 +31,23 @@ FCapabilityResult FCreateAssetPCGGraphCapability::Execute(const TSharedPtr<FJson
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString PackagePath, AssetName;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("packagePath"), PackagePath, OutEntries, {})) return;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetName"),   AssetName,   OutEntries, {})) return;
-
-		if (!PackagePath.EndsWith(TEXT("/")))
-			PackagePath += TEXT("/");
-		const FString FullPath = PackagePath + AssetName;
+		FString FullPath;
+		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), FullPath) || FullPath.IsEmpty())
+		{
+			// 兼容旧字段（过渡期）
+			FString PackagePath, AssetName;
+			if (!FNexusCapability::RequireString(Arguments, TEXT("packagePath"), PackagePath, OutEntries, {})) return;
+			if (!FNexusCapability::RequireString(Arguments, TEXT("assetName"),   AssetName,   OutEntries, {})) return;
+			if (!PackagePath.EndsWith(TEXT("/")))
+				PackagePath += TEXT("/");
+			FullPath = PackagePath + AssetName;
+		}
+		const FString AssetName = FPaths::GetBaseFilename(FullPath);
 
 		if (UPCGGraph* Existing = FNexusAssetUtils::LoadAssetWithFallback<UPCGGraph>(FullPath))
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), Existing->GetPathName());
+			Entry->SetStringField(TEXT("path"), Existing->GetPathName());
 			Entry->SetBoolField(TEXT("alreadyExists"), true);
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
@@ -52,7 +56,7 @@ FCapabilityResult FCreateAssetPCGGraphCapability::Execute(const TSharedPtr<FJson
 		UPackage* Package = CreatePackage(*FullPath);
 		if (!Package)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("packagePath"), PackagePath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), FullPath}},
 				TEXT("无法创建 Package"));
 			return;
 		}
@@ -71,7 +75,7 @@ FCapabilityResult FCreateAssetPCGGraphCapability::Execute(const TSharedPtr<FJson
 		FNexusAssetUtils::NotifyAndSaveCreated(Graph);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("assetPath"), Graph->GetPathName());
+		Entry->SetStringField(TEXT("path"), Graph->GetPathName());
 		Entry->SetStringField(TEXT("assetType"), TEXT("PCGGraph"));
 		Entry->SetBoolField(TEXT("created"), true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

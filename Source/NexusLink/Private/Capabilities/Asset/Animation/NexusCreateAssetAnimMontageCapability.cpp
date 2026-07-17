@@ -66,7 +66,6 @@ FCapabilityResult FCreateAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 		OutEntry->SetStringField(TEXT("name"),     Montage->GetName());
 		OutEntry->SetStringField(TEXT("path"),     Montage->GetPathName());
 		OutEntry->SetStringField(TEXT("skeleton"), Skeleton->GetPathName());
-		OutEntry->SetBoolField(TEXT("success"),    true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }

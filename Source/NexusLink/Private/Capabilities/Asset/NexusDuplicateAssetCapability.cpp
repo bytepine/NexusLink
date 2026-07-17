@@ -88,7 +88,6 @@ FCapabilityResult FDuplicateAssetCapability::Execute(const TSharedPtr<FJsonObjec
 		{
 			Entry->SetStringField(TEXT("sourcePath"), SrcPath);
 			Entry->SetStringField(TEXT("newPath"), NewPath);
-			Entry->SetBoolField(TEXT("success"), true);
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

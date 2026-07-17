@@ -14,7 +14,15 @@
 
 ### Changed
 
+- perf(mcp): `search_asset` 去掉 `results[{assets}]` 双层信封，分页与 `assets` 直接放顶层（`cap_first`/旧客户端已兼容顶层 `assets`）；指定具体 `assetType` 时 `recommendedGet`/`recommendedManage` 提到顶层，避免逐条重复（`all` 仍逐条保留）
+- perf(mcp): `get_asset_user_widget` 只回写规范包路径 `path`，不再双写 `assetPath`+`path`
+- perf(mcp): 写操作成功不再返回 `success:true`（无 `error` 即成功；保留 `success:false` / 条件布尔）；`search_capabilities` 空 query 目录仅返 `name`（+可选 `whenToUse`），description/Schema 改用 `capabilityName`
+- perf(mcp): 响应压缩 `MinCount` 3→2、`MinNetSaveBytes` 30→20（小列表也能抽 `*_defaults`）；多命中 `search_capabilities` 的 `relatedCapabilities` 去重本页已出现名并截断至 3；多 section get 全成功时省略 `sections` 回显（仅部分失败/`sectionErrors` 时保留）
+- perf(mcp): 单条 Capability 结果去掉 `results[{...}]` 信封——`Entries.Num()==1` 时字段提升到顶层（`call_capability` 与 MultiTool 共用 `AssembleStructuredContent`）；多条仍为 `results[]`
+- perf(mcp): 资产身份字段统一为响应侧 `path`（不再写 `assetPath`；入参仍为 `assetPath`）；`get_`/`manage_` 在单 `assetPath` 入参且与回显路径等价时省略 `path`（`StripRedundantPathEcho`）
 - fix(release): CI `actions/checkout` 开启 `lfs: true`，发版/构建包不再把 `Resources/Icon128.png` 等 LFS 资产打成 pointer 文本；`build_unreal.py` 打包前检测 LFS pointer 并失败拦截
+- perf(mcp): Capability 风格契约统一（单资产多操作范围）——`manage_*` 入参统一 `operations[]`（`ops`/顶层 `action` 过渡期兼容读入，`FNexusJsonUtils::ExtractOperations` 统一解析）；`manage_asset_meta_sound`/`manage_asset_pcg_graph`/`manage_asset_pose_search`/`manage_asset_data_layer` 去掉「一条 Entry + 内嵌 `results[]`」，改为一 op 一条 `OutEntries` Entry；去掉编译/导出/重导入/`remove_*` 计数/ControlRig/LevelSequence/StateTree/Input/MPC/MetaSound/`save` 顶层等冗余成功态 `success`（失败态 `success:false` 与条件布尔保留）；`create_asset_blueprint`/`create_asset_data_table` 补齐响应 `path`，`create_asset_meta_sound`/`create_asset_meta_sound_patch`/`create_asset_pcg_graph`/`create_asset_data_layer` 入参迁移至 `assetPath`（旧 `packagePath`+`assetName` 过渡期兼容读入）；`CapabilitySpec.md` 新增 Manage/Create/Execute 契约节
+- docs: 超长 manage Description（`anim_sequence`/`control_rig`/`meta_sound`/`sound_submix`/`curve`/`physics_asset`）收紧至 ≤100 字符
 
 ## [1.15.2] - 2026-07-17
 

@@ -87,7 +87,6 @@ FCapabilityResult FSpawnRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonO
 		Entry->SetStringField(TEXT("widgetName"),  Widget->GetName());
 		Entry->SetStringField(TEXT("widgetClass"), WidgetClass->GetName());
 		Entry->SetNumberField(TEXT("zOrder"),      ZOrder);
-		Entry->SetBoolField(TEXT("success"), true);
 		Entry->SetStringField(TEXT("note"), TEXT("用 list_runtime_widgets 枚举 Widget，用 interact_runtime_widget 操作"));
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	

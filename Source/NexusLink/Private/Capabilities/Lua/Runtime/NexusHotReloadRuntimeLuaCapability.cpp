@@ -39,7 +39,6 @@ FCapabilityResult FHotReloadRuntimeLuaCapability::Execute(const TSharedPtr<FJson
 	LuaEnv->HotReload();
 	const int32 MemAfterKB = lua_gc(L, LUA_GCCOUNT, 0);
 
-	Entry->SetBoolField(TEXT("success"),        true);
 	Entry->SetNumberField(TEXT("memoryBeforeKB"), MemBeforeKB);
 	Entry->SetNumberField(TEXT("memoryAfterKB"),  MemAfterKB);
 #else

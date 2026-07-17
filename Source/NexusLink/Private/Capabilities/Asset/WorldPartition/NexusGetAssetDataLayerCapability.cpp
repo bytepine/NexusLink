@@ -52,14 +52,14 @@ FCapabilityResult FGetAssetDataLayerCapability::Execute(const TSharedPtr<FJsonOb
 			if (!DLA)
 			{
 				TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
-				ErrObj->SetStringField(TEXT("assetPath"), AssetPath);
+				ErrObj->SetStringField(TEXT("path"), AssetPath);
 				ErrObj->SetStringField(TEXT("error"), TEXT("DataLayerAsset 未找到"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(ErrObj));
 				continue;
 			}
 
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), DLA->GetPathName());
+			Entry->SetStringField(TEXT("path"), DLA->GetPathName());
 			Entry->SetStringField(TEXT("assetType"), TEXT("DataLayerAsset"));
 			Entry->SetStringField(TEXT("name"),      DLA->GetName());
 

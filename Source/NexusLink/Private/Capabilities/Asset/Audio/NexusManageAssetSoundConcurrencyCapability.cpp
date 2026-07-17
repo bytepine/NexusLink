@@ -56,7 +56,6 @@ FCapabilityResult FManageAssetSoundConcurrencyCapability::Execute(const TSharedP
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),     SC->GetName());
 		Entry->SetNumberField(TEXT("maxCount"), SC->Concurrency.MaxCount);
-		Entry->SetBoolField(TEXT("success"),    true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

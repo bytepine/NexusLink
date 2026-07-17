@@ -513,7 +513,7 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 			// 直接执行 Capability
 			const double ExecStartSec = FPlatformTime::Seconds();
 			FCapabilityResult CapResult = Record->Instance->Run(Arguments);
-			FNexusMcpToolResult ToolResult = NexusCapResultAdapter::Convert(CapResult, Record->Def.Name);
+			FNexusMcpToolResult ToolResult = NexusCapResultAdapter::Convert(CapResult, Record->Def.Name, Arguments);
 			const double ExecDurationMs = (FPlatformTime::Seconds() - ExecStartSec) * 1000.0;
 			(void)ExecDurationMs; // 预留给未来慢调用检测
 

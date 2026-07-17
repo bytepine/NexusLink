@@ -94,7 +94,6 @@ FCapabilityResult FCreateAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 		Entry->SetStringField(TEXT("path"),     BSRaw->GetPathName());
 		Entry->SetStringField(TEXT("assetType"), ActualType);
 		Entry->SetStringField(TEXT("skeleton"), Skeleton->GetPathName());
-		Entry->SetBoolField(TEXT("success"),    true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

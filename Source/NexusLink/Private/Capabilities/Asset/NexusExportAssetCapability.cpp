@@ -60,7 +60,7 @@ FCapabilityResult FExportAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		UObject* Asset = FNexusAssetUtils::LoadAssetWithFallback<UObject>(AssetPath);
 		if (!Asset)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				FString::Printf(TEXT("资产未找到: %s"), *AssetPath));
 			return;
 		}
@@ -71,7 +71,7 @@ FCapabilityResult FExportAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		UExporter* Exporter = FindExporterForAsset(Asset);
 		if (!Exporter)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				TEXT("未找到适用的导出器"));
 			return;
 		}
@@ -99,11 +99,10 @@ FCapabilityResult FExportAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		const bool bSuccess = (ExportResult != 0);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("assetPath"), AssetPath);
+		Entry->SetStringField(TEXT("path"), AssetPath);
 		Entry->SetStringField(TEXT("assetClass"), Asset->GetClass()->GetName());
 		Entry->SetStringField(TEXT("outputPath"), OutputPath);
 		Entry->SetStringField(TEXT("exporter"), Exporter->GetClass()->GetName());
-		Entry->SetBoolField(TEXT("success"), bSuccess);
 		if (!bSuccess) Entry->SetStringField(TEXT("error"), TEXT("导出失败"));
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

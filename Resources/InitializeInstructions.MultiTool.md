@@ -10,7 +10,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（**MultiTool 模式**）。
 
 ## 首要动作（强制）
 
-已连接 UE：**先调 MCP** 再答蓝图/Widget/材质/资产问题。流程：`search_asset`（收窄类型+路径）→ 用返回的 `path` + `recommendedGet`（写用 `recommendedManage`）→ 再读写。
+已连接 UE：**先调 MCP** 再答蓝图/Widget/材质/资产问题。流程：`search_asset`（顶层 `assets`；指定类型看顶层 `recommendedGet`）→ 再读写。
 
 ## 命名与读写（与 SearchMode 一致）
 
@@ -21,10 +21,10 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（**MultiTool 模式**）。
 
 ## 决策规则
 
-1. **读 vs 写**：只读 `get/list/search`；`manage/set/create/delete` 写资产/属性；**`interact_*` 写运行时命令**。
+1. **读 vs 写**：只读 `get/list/search`；`manage/set/create/delete` 写资产/属性；**`interact_*` 写运行时命令**。写成功无 `success:true`，无 `error` 即成功。
 2. **资产 vs 运行时**：`*_asset_*` 编辑器磁盘；`*_runtime_*` 需 PIE。
 3. **Lua**：`hotreload_runtime_lua` 需 UnLua **2.x**（1.x 返回 error）。
-4. **批量优先**；**search_asset 必须收窄**；读/写优先用返回的 `recommendedGet` / `recommendedManage` + `path`。
+4. **批量优先**；**search_asset 必须收窄**；读/写优先用返回的 `recommendedGet` / `recommendedManage`（指定类型在顶层）+ `assets[].path`。
 5. **贴图/网格/动画/音频/VFX/关卡 资产 get/manage 成对**（无 `recommended*` 时兜底）：读 `get_asset_texture` / `manage_asset_texture`；`get_asset_static_mesh` / `manage_asset_static_mesh`；`get_asset_skeletal_mesh` / `manage_asset_skeletal_mesh`；`get_asset_anim_sequence` / `manage_asset_anim_sequence`；`get_asset_skeleton` / `manage_asset_skeleton`；`get_asset_sound_wave` / `manage_asset_sound_wave`；`get_asset_sound_cue` / `manage_asset_sound_cue`；`get_asset_niagara_system` / `manage_asset_niagara_system`（Niagara 需插件）；`get_asset_level` / `manage_asset_level`（`editor_only`）。PIE Actor 列表用 `list_runtime_actors`；PIE 动画读 `get_runtime_actor_animation`，写 `interact_runtime_actor_animation`。
 6. **GAS PIE**：只读 `get_runtime_actor_ability_system`；施放/Apply/改属性用 `interact_runtime_actor_ability_system`。
 7. **编辑器只读**：`get_editor_context`（选中 Actor/资产、Content Browser 路径）；`search_console_variables`；`capture_viewport` 含 `editor_desktop`；Tag 引用资产 `get_gameplay_tags`（`referencers` + `tag`）。

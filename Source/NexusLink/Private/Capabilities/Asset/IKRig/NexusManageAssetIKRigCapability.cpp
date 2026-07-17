@@ -45,7 +45,7 @@ FCapabilityResult FManageAssetIKRigCapability::Execute(const TSharedPtr<FJsonObj
 		UIKRigDefinition* IKRig = FNexusAssetUtils::LoadAssetWithFallback<UIKRigDefinition>(AssetPath);
 		if (!IKRig)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				FString::Printf(TEXT("IKRig 未找到: %s"), *AssetPath));
 			return;
 		}
@@ -53,7 +53,7 @@ FCapabilityResult FManageAssetIKRigCapability::Execute(const TSharedPtr<FJsonObj
 		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
 		if (!Arguments.IsValid() || !Arguments->TryGetArrayField(TEXT("operations"), OpsArr) || !OpsArr)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}}, TEXT("缺少 operations 数组"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 数组"));
 			return;
 		}
 
@@ -66,7 +66,7 @@ FCapabilityResult FManageAssetIKRigCapability::Execute(const TSharedPtr<FJsonObj
 			FString Action;
 			Op->TryGetStringField(TEXT("action"), Action);
 			TSharedPtr<FJsonObject> ResEntry = MakeShared<FJsonObject>();
-			ResEntry->SetStringField(TEXT("assetPath"), AssetPath);
+			ResEntry->SetStringField(TEXT("path"), AssetPath);
 			ResEntry->SetStringField(TEXT("action"), Action);
 
 			if (Action.Equals(TEXT("set_preview_mesh"), ESearchCase::IgnoreCase))
@@ -87,7 +87,6 @@ FCapabilityResult FManageAssetIKRigCapability::Execute(const TSharedPtr<FJsonObj
 				}
 				IKRig->SetPreviewMesh(Mesh, true);
 				bDirty = true;
-				ResEntry->SetBoolField(TEXT("success"), true);
 				ResEntry->SetStringField(TEXT("meshPath"), MeshPath);
 			}
 			else if (Action.Equals(TEXT("set_solver_enabled"), ESearchCase::IgnoreCase))
@@ -110,7 +109,6 @@ FCapabilityResult FManageAssetIKRigCapability::Execute(const TSharedPtr<FJsonObj
 #if WITH_EDITOR
 				Solvers[SolverIdx]->SetEnabled(bEnabled);
 				bDirty = true;
-				ResEntry->SetBoolField(TEXT("success"), true);
 				ResEntry->SetNumberField(TEXT("solverIndex"), SolverIdx);
 				ResEntry->SetBoolField(TEXT("enabled"), bEnabled);
 #else

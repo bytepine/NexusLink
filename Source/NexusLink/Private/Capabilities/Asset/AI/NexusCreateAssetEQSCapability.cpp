@@ -69,7 +69,6 @@ FCapabilityResult FCreateAssetEQSCapability::Execute(const TSharedPtr<FJsonObjec
 		OutEntry->SetStringField(TEXT("assetType"), TEXT("EnvQuery"));
 		OutEntry->SetStringField(TEXT("name"),    EQ->GetName());
 		OutEntry->SetStringField(TEXT("path"),    FNexusAssetUtils::PackagePathOf(EQ));
-		OutEntry->SetBoolField(TEXT("success"),   true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 #endif
 	});

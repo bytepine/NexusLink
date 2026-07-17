@@ -117,7 +117,6 @@ FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJ
 						IA->ValueType = EInputActionValueType::Axis3D;
 					else
 						IA->ValueType = EInputActionValueType::Boolean;
-					OpResult->SetBoolField(TEXT("success"), true);
 					bDirty = true;
 				}
 			}
@@ -139,7 +138,6 @@ FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJ
 					{
 						UInputTrigger* NewTrigger = NewObject<UInputTrigger>(IA, TriggerClass);
 						IA->Triggers.Add(NewTrigger);
-						OpResult->SetBoolField(TEXT("success"), true);
 						OpResult->SetStringField(TEXT("addedTrigger"), TriggerClass->GetName());
 						bDirty = true;
 					}
@@ -161,7 +159,6 @@ FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJ
 					});
 					int32 Removed = Before - IA->Triggers.Num();
 					OpResult->SetNumberField(TEXT("removedCount"), Removed);
-					OpResult->SetBoolField(TEXT("success"), Removed > 0);
 					if (Removed > 0) bDirty = true;
 				}
 			}
@@ -183,7 +180,6 @@ FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJ
 					{
 						UInputModifier* NewMod = NewObject<UInputModifier>(IA, ModClass);
 						IA->Modifiers.Add(NewMod);
-						OpResult->SetBoolField(TEXT("success"), true);
 						OpResult->SetStringField(TEXT("addedModifier"), ModClass->GetName());
 						bDirty = true;
 					}
@@ -205,7 +201,6 @@ FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJ
 					});
 					int32 Removed = Before - IA->Modifiers.Num();
 					OpResult->SetNumberField(TEXT("removedCount"), Removed);
-					OpResult->SetBoolField(TEXT("success"), Removed > 0);
 					if (Removed > 0) bDirty = true;
 				}
 			}
@@ -223,7 +218,6 @@ FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJ
 					IA->bReserveAllMappings = bReserveVal;
 					bDirty = true;
 				}
-				OpResult->SetBoolField(TEXT("success"), true);
 			}
 			else
 			{

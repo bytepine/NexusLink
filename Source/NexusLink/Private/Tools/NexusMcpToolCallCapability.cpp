@@ -16,6 +16,7 @@
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusCapabilityIndexUtils.h"
 #include "Utils/NexusCapabilityLegacyNames.h"
+#include "Utils/NexusCapResultAdapter.h"
 
 // ── 进程内 redundant_call LRU 表 ──────────────────────────────────────────────
 struct FCallCapabilityRedundantEntry
@@ -246,15 +247,9 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 			return R;
 		}
 
-		TSharedPtr<FJsonObject> Top = CapResult.TopFields.IsValid()
-			? CapResult.TopFields
-			: MakeShared<FJsonObject>();
-		if (CapResult.Entries.Num() > 0)
-		{
-			Top->SetArrayField(TEXT("results"), CapResult.Entries);
-		}
 		R.Status    = ECallCoreStatus::Ok;
-		R.TopOrWarn = Top;
+		R.TopOrWarn = NexusCapResultAdapter::AssembleStructuredContent(CapResult);
+		NexusCapResultAdapter::StripRedundantPathEcho(R.TopOrWarn, Inner, Record->Def.Name);
 		return R;
 	}
 

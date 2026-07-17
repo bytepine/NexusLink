@@ -63,7 +63,7 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 		UBlendSpace* BS = FNexusAssetUtils::LoadAssetWithFallback<UBlendSpace>(AssetPath);
 		if (!BS)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				FString::Printf(TEXT("BlendSpace 未找到: %s"), *AssetPath));
 			return;
 		}
@@ -71,7 +71,7 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
 		if (!Arguments.IsValid() || !Arguments->TryGetArrayField(TEXT("operations"), OpsArr) || !OpsArr)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				TEXT("缺少 operations 数组"));
 			return;
 		}
@@ -87,7 +87,7 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 			Op->TryGetStringField(TEXT("action"), Action);
 
 			TSharedPtr<FJsonObject> ResEntry = MakeShared<FJsonObject>();
-			ResEntry->SetStringField(TEXT("assetPath"), AssetPath);
+			ResEntry->SetStringField(TEXT("path"), AssetPath);
 			ResEntry->SetStringField(TEXT("action"),    Action);
 
 			if (Action.Equals(TEXT("set_axis"), ESearchCase::IgnoreCase))
@@ -126,7 +126,6 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 				if (Op->TryGetNumberField(TEXT("gridNum"), Grid)) Param->GridNum = static_cast<int32>(Grid);
 				bDirty = true;
 				ResEntry->SetNumberField(TEXT("axisIndex"), AxisIdx);
-				ResEntry->SetBoolField(TEXT("success"), true);
 			}
 			else if (Action.Equals(TEXT("add_sample"), ESearchCase::IgnoreCase))
 			{
@@ -165,7 +164,6 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 				bDirty = true;
 				ResEntry->SetNumberField(TEXT("sampleIndex"), NewIdx);
 				ResEntry->SetStringField(TEXT("animation"),   AnimPath);
-				ResEntry->SetBoolField(TEXT("success"),       true);
 			}
 			else if (Action.Equals(TEXT("remove_sample"), ESearchCase::IgnoreCase))
 			{

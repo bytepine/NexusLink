@@ -22,7 +22,7 @@
  *    `NexusMcpDispatcher` 在每次工具执行后自动对 `StructuredContent` 调用
  *    `AutoCompactRecursive`，递归遍历所有嵌套对象 / 数组并对"对象数组"字段启用
  *    `SetAutoDiscover(true)` 尝试抽取；满足三阈值则在同级写入 `<fieldName>_defaults`，
- *    否则条目保持原样。三阈值（`MinCount=3` / `MinMatchRatio=0.7` / `MinNetSaveBytes=30`）
+ *    否则条目保持原样。三阈值（`MinCount=2` / `MinMatchRatio=0.7` / `MinNetSaveBytes=20`）
  *    兜底避免小响应上产生负收益。
  *
  * 2) **手动模式（定制化场景）**：需要强制默认（`ForcedDefault`，如 `get_output_log`
@@ -42,11 +42,11 @@ class NEXUSLINK_API FNexusResponseCompactorUtils
 {
 public:
 	/** 候选字段至少需要 N 条数据才做统计抽取。 */
-	int32 MinCount = 3;
+	int32 MinCount = 2;
 	/** 主流值占比下限（相对于持有该字段的条目数）。 */
 	float MinMatchRatio = 0.7f;
 	/** 净收益字节下限，低于此值认为压缩不划算。 */
-	int32 MinNetSaveBytes = 30;
+	int32 MinNetSaveBytes = 20;
 
 	/** 声明一个需要运行时统计的候选字段。 */
 	void AddCandidate(const FString& FieldName);

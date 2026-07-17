@@ -66,7 +66,7 @@ FCapabilityResult FGetAssetStaticMeshCapability::Execute(const TSharedPtr<FJsonO
 		for (const FString& Path : Paths)
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), Path);
+			Entry->SetStringField(TEXT("path"), Path);
 
 			UStaticMesh* Mesh = FNexusAssetUtils::LoadAssetWithFallback<UStaticMesh>(Path);
 			if (!Mesh)

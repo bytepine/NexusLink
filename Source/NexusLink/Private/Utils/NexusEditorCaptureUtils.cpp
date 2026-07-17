@@ -567,7 +567,6 @@ static bool CapSaveAndBuildEntry(TArray<FColor>& Pixels, int32 W, int32 H,
 	OutEntry->SetStringField(TEXT("format"), Format);
 	OutEntry->SetNumberField(TEXT("width"), FinalW);
 	OutEntry->SetNumberField(TEXT("height"), FinalH);
-	OutEntry->SetBoolField(TEXT("success"), true);
 	if (ExtraFields.IsValid())
 	{
 		for (const auto& Pair : ExtraFields->Values)

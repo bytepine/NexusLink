@@ -19,11 +19,10 @@ void FCreateAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition
 	Out.Name        = TEXT("create_asset_data_layer");
 	Out.Description = TEXT("创建 DataLayer 资产（UDataLayerAsset，≥UE5.1）。type: Runtime 或 Editor。读用 get_asset_data_layer。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("packagePath"), FNexusSchema::Str(TEXT("资产包路径，如 /Game/WorldData")))
-		.Prop(TEXT("assetName"),   FNexusSchema::Str(TEXT("资产名称")))
+		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("新 DataLayer 资产完整路径，如 /Game/WorldData/DL_New")))
 		.Prop(TEXT("type"),        FNexusSchema::Str(TEXT("Runtime 或 Editor（默认 Runtime）")))
 		.Prop(TEXT("debugColor"),  FNexusSchema::Str(TEXT("调试颜色（十六进制 #RRGGBB 或颜色名，可选）")))
-		.Required({ TEXT("packagePath"), TEXT("assetName") })
+		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("datalayer"), TEXT("data layer"), TEXT("world partition"), TEXT("streaming"), TEXT("level") };
@@ -35,18 +34,23 @@ FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString PackagePath, AssetName;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("packagePath"), PackagePath, OutEntries, {})) return;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetName"),   AssetName,   OutEntries, {})) return;
-
-		if (!PackagePath.EndsWith(TEXT("/")))
-			PackagePath += TEXT("/");
-		const FString FullPath = PackagePath + AssetName;
+		FString FullPath;
+		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), FullPath) || FullPath.IsEmpty())
+		{
+			// 兼容旧字段（过渡期）
+			FString PackagePath, AssetName;
+			if (!FNexusCapability::RequireString(Arguments, TEXT("packagePath"), PackagePath, OutEntries, {})) return;
+			if (!FNexusCapability::RequireString(Arguments, TEXT("assetName"),   AssetName,   OutEntries, {})) return;
+			if (!PackagePath.EndsWith(TEXT("/")))
+				PackagePath += TEXT("/");
+			FullPath = PackagePath + AssetName;
+		}
+		const FString AssetName = FPaths::GetBaseFilename(FullPath);
 
 		if (FNexusAssetUtils::LoadAssetWithFallback<UDataLayerAsset>(FullPath))
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"),   FullPath);
+			Entry->SetStringField(TEXT("path"),   FullPath);
 			Entry->SetStringField(TEXT("assetType"),   TEXT("DataLayerAsset"));
 			Entry->SetBoolField(TEXT("alreadyExists"), true);
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
@@ -56,7 +60,7 @@ FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 		UPackage* Package = CreatePackage(*FullPath);
 		if (!Package)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("packagePath"), PackagePath}}, TEXT("无法创建 Package"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), FullPath}}, TEXT("无法创建 Package"));
 			return;
 		}
 
@@ -91,7 +95,7 @@ FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, DLA, FullPath);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("assetPath"), DLA->GetPathName());
+		Entry->SetStringField(TEXT("path"), DLA->GetPathName());
 		Entry->SetStringField(TEXT("assetType"), TEXT("DataLayerAsset"));
 		Entry->SetStringField(TEXT("type"),      DLA->GetType() == EDataLayerType::Runtime ? TEXT("Runtime") : TEXT("Editor"));
 		Entry->SetBoolField(TEXT("created"),     true);

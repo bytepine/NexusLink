@@ -69,7 +69,6 @@ FCapabilityResult FSetLogCaptureFilterCapability::Execute(const TSharedPtr<FJson
 			CatArr.Add(MakeShared<FJsonValueString>(Cat));
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		OutEntry->SetBoolField(TEXT("success"), true);
 		OutEntry->SetStringField(TEXT("captureFilter"), Categories.Num() == 0 ? TEXT("all") : TEXT("custom"));
 		OutEntry->SetArrayField(TEXT("categories"), CatArr);
 		OutEntry->SetStringField(TEXT("note"),

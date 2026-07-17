@@ -94,3 +94,26 @@ void FNexusJsonUtils::ComputeSlice(int32 Total, int32 Offset, int32 Limit,
 	OutStart = FMath::Min(Offset, Total);
 	OutEnd   = FMath::Min(OutStart + Limit, Total);
 }
+
+TArray<TSharedPtr<FJsonValue>> FNexusJsonUtils::ExtractOperations(const TSharedPtr<FJsonObject>& Args)
+{
+	TArray<TSharedPtr<FJsonValue>> Result;
+	if (!Args.IsValid()) return Result;
+
+	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
+	if (Args->TryGetArrayField(TEXT("operations"), Arr) && Arr)
+	{
+		return *Arr;
+	}
+	// 旧字段名兼容（过渡期，不写入 Schema）
+	if (Args->TryGetArrayField(TEXT("ops"), Arr) && Arr)
+	{
+		return *Arr;
+	}
+	// 顶层 action + 其余字段 → 合成单元素 operations（旧单操作 manage 过渡期兼容）
+	if (Args->HasField(TEXT("action")))
+	{
+		Result.Add(MakeShared<FJsonValueObject>(Args));
+	}
+	return Result;
+}

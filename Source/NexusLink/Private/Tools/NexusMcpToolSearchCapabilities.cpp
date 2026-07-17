@@ -251,7 +251,7 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 	if (QueryRaw.TrimStartAndEnd().IsEmpty())
 	{
 		Output->SetStringField(TEXT("hint"),
-			TEXT("完整 Capability 目录。使用 capabilityName=<名称> 获取参数 Schema。"));
+			TEXT("Capability 目录（仅 name）。用 capabilityName=<名称> 获取 description 与参数 Schema。"));
 		Output->SetObjectField(TEXT("directory"), FNexusCapabilityIndexUtils::BuildDirectory(Settings));
 		Result.StructuredContent = Output;
 		Result.OutputText = SerializeOutput();
@@ -370,6 +370,15 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		Scored.SetNum(MaxResults);
 
 	const bool bFull = Scored.Num() <= 2;
+	TSet<FString> HitNames;
+	for (const FScored& S : Scored)
+	{
+		if (S.Def)
+		{
+			HitNames.Add(S.Def->Name);
+		}
+	}
+
 	TArray<TSharedPtr<FJsonValue>> CapArr;
 	for (FScored& S : Scored)
 	{
@@ -385,12 +394,26 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 			{
 				if (!S.Def->WhenToUse.IsEmpty())
 					S.Entry->SetStringField(TEXT("whenToUse"), S.Def->WhenToUse);
+				// 多命中：related 去重（已在本页结果中的名不重复列），最多 3 条
 				if (S.Def->RelatedCapabilities.Num() > 0)
 				{
 					TArray<TSharedPtr<FJsonValue>> Arr;
 					for (const FString& R : S.Def->RelatedCapabilities)
+					{
+						if (HitNames.Contains(R))
+						{
+							continue;
+						}
 						Arr.Add(MakeShared<FJsonValueString>(R));
-					S.Entry->SetArrayField(TEXT("relatedCapabilities"), Arr);
+						if (Arr.Num() >= 3)
+						{
+							break;
+						}
+					}
+					if (Arr.Num() > 0)
+					{
+						S.Entry->SetArrayField(TEXT("relatedCapabilities"), Arr);
+					}
 				}
 			}
 		}

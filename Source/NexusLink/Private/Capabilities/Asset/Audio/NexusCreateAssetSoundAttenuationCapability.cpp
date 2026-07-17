@@ -62,7 +62,6 @@ FCapabilityResult FCreateAssetSoundAttenuationCapability::Execute(const TSharedP
 		Entry->SetStringField(TEXT("path"),           SA->GetPathName());
 		Entry->SetNumberField(TEXT("innerRadius"),    SA->Attenuation.AttenuationShapeExtents.X);
 		Entry->SetNumberField(TEXT("falloffDistance"),SA->Attenuation.FalloffDistance);
-		Entry->SetBoolField(TEXT("success"),          true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

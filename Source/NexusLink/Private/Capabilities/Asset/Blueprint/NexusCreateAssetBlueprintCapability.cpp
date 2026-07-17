@@ -82,8 +82,8 @@ FCapabilityResult FCreateAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 
 		FNexusAssetUtils::NotifyCompileAndSave(Package, NewBlueprint, AssetPath);
 
+		OutEntry->SetStringField(TEXT("path"),    AssetPath);
 		OutEntry->SetStringField(TEXT("name"),    NewBlueprint->GetName());
-		OutEntry->SetBoolField(TEXT("success"),   true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});

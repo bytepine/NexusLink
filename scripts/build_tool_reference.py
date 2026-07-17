@@ -93,7 +93,7 @@ ZH_DESCRIPTIONS: dict[str, str] = {
     "export_asset":       "将编辑器资产导出到磁盘文件（Fbx/Stl 等，依资产类型与 UE 导出器）。",
     "reimport_asset":     "从源文件重新导入资产，刷新已修改的外部资源。",
     "save_asset":         "将一个资产包持久化到磁盘。经 `SaveDirtyPackage` 先 `MarkPackageDirty` 再落盘；Live Coding 开启时仅标脏并返回 `deferred=true`。",
-    "search_asset":       "查找资产路径。**必须先调用**；须指定 `assetType` 和功能级 `pathFilter`；禁止猜测 `/Game/...` 路径。`assetType` 支持别名归一化（如 `Blueprints`→`blueprint`、`Widgets`→`widget`、`ga`/`ge`→GAS 类型）。每条返回 `name`/`path`/`assetType` 以及 `recommendedGet`/`recommendedManage`（推荐读/写 Capability）。",
+    "search_asset":       "查找资产路径。**必须先调用**；须指定 `assetType` 和功能级 `pathFilter`；禁止猜测 `/Game/...` 路径。返回顶层 `assets`/`totalCount`；指定具体 `assetType` 时顶层附 `recommendedGet`/`recommendedManage`（`all` 时推荐在每条上）。",
     "get_asset_blueprint":    "从编辑器读取 BP 结构。**回答蓝图问题前必须先调用**；禁止从源码推断。sections 可选 variable/function/component/graph 等。",
     # Blueprint
     "create_asset_blueprint": "以 UObject 子类为父类创建新 BP 资产，自动编译；用 manage 添加变量/节点/连线。",

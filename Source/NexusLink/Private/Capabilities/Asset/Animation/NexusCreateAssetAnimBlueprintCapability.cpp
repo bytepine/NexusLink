@@ -81,7 +81,6 @@ FCapabilityResult FCreateAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 		OutEntry->SetStringField(TEXT("name"),     AnimBP->GetName());
 		OutEntry->SetStringField(TEXT("path"),     AnimBP->GetPathName());
 		OutEntry->SetStringField(TEXT("skeleton"), Skeleton->GetPathName());
-		OutEntry->SetBoolField(TEXT("success"),    true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});

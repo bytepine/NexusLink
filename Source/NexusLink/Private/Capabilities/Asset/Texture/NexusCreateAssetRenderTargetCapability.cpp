@@ -65,7 +65,6 @@ FCapabilityResult FCreateAssetRenderTargetCapability::Execute(const TSharedPtr<F
 		Entry->SetStringField(TEXT("path"),    RT->GetPathName());
 		Entry->SetNumberField(TEXT("sizeX"),   RT->SizeX);
 		Entry->SetNumberField(TEXT("sizeY"),   RT->SizeY);
-		Entry->SetBoolField(TEXT("success"),   true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

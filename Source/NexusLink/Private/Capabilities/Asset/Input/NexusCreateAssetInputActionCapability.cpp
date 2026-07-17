@@ -81,7 +81,6 @@ FCapabilityResult FCreateAssetInputActionCapability::Execute(const TSharedPtr<FJ
 
 		OutEntry->SetStringField(TEXT("name"), IA->GetName());
 		OutEntry->SetStringField(TEXT("path"), FNexusAssetUtils::PackagePathOf(IA));
-		OutEntry->SetBoolField(TEXT("success"), true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }

@@ -172,7 +172,21 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FNexusLinkResponseCompactorThresholdsTest::RunTest(const FString& Parameters)
 {
-	// ─── MinCount：N=2 < 3 → 不统计抽取，快速 bail ───
+	// ─── MinCount：N=1 < 2 → 不统计抽取，快速 bail ───
+	{
+		TArray<TSharedPtr<FJsonValue>> Items = {
+			JObj({ {TEXT("name"), JStr(TEXT("A"))}, {TEXT("category"), JStr(TEXT("Weapon"))} }),
+		};
+		FNexusResponseCompactorUtils C;
+		C.AddCandidate(TEXT("category"));
+		C.CompactArray(Items);
+
+		TestFalse(TEXT("MinCount: N=1 skipped entirely"), C.HasDefaults());
+		TestTrue(TEXT("MinCount: fields kept intact"),
+			EntryObj(Items, 0)->HasField(TEXT("category")));
+	}
+
+	// ─── MinCount：N=2 且同值 → 可抽取 ───
 	{
 		TArray<TSharedPtr<FJsonValue>> Items = {
 			JObj({ {TEXT("name"), JStr(TEXT("A"))}, {TEXT("category"), JStr(TEXT("Weapon"))} }),
@@ -182,8 +196,8 @@ bool FNexusLinkResponseCompactorThresholdsTest::RunTest(const FString& Parameter
 		C.AddCandidate(TEXT("category"));
 		C.CompactArray(Items);
 
-		TestFalse(TEXT("MinCount: N=2 skipped entirely"), C.HasDefaults());
-		TestTrue(TEXT("MinCount: fields kept intact"),
+		TestTrue(TEXT("MinCount: N=2 same value compresses"), C.HasDefaults());
+		TestFalse(TEXT("MinCount: N=2 entry omits default category"),
 			EntryObj(Items, 0)->HasField(TEXT("category")));
 	}
 
@@ -204,7 +218,7 @@ bool FNexusLinkResponseCompactorThresholdsTest::RunTest(const FString& Parameter
 		TestFalse(TEXT("MinMatchRatio: 50% < 70% bail out"), C.HasDefaults());
 	}
 
-	// ─── MinNetSaveBytes：字段名 + 值太短导致节省字节 < 30 → 不抽取 ───
+	// ─── MinNetSaveBytes：字段名 + 值太短导致节省字节 < 阈值 → 不抽取 ───
 	// "t":1 大概每条 5 字节，N=4 条匹配时 SaveBytes ≈ (4-1)*(KeyCost + ValCost + 4) = 3*(5+16+4) ≈ 75
 	// 为触发此阈值，把 MinNetSaveBytes 放大到 1000
 	{

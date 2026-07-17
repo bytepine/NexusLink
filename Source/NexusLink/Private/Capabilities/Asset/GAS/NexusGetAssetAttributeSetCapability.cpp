@@ -45,7 +45,7 @@ FCapabilityResult FGetAssetAttributeSetCapability::Execute(const TSharedPtr<FJso
 		TArray<TSharedPtr<FJsonValue>> Attrs = FNexusGasUtils::SerializeGameplayAttributes(BP->GeneratedClass, CDO);
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		OutEntry->SetStringField(TEXT("assetPath"), AssetPath);
+		OutEntry->SetStringField(TEXT("path"), AssetPath);
 		OutEntry->SetStringField(TEXT("name"),      BP->GetName());
 		if (BP->ParentClass) OutEntry->SetStringField(TEXT("parentClass"), BP->ParentClass->GetName());
 		OutEntry->SetArrayField(TEXT("attributes"),  Attrs);

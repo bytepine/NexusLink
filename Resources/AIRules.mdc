@@ -20,8 +20,8 @@ alwaysApply: false
 | 步 | 工具 | 说明 |
 |---|---|---|
 | 1 发现 Capability | `search_capabilities` | 已知 cap 名时**跳过**本步，直接 `call_capability`；未知时 `query` 用 1–2 个**窄域**词（如 `blueprint graph`、`runtime actor`、`behavior tree`）；**禁止**业务功能名、资产名，以及单用过宽词（见 §2） |
-| 2 发现资产路径 | `search_asset` | 必须 `assetType` + 功能级 `pathFilter`；业务词/资产名片段放 `query` 或 `nameFilter`；结果含 `assetType` 与 `recommendedGet`/`recommendedManage`，第 3 步优先用推荐 Capability |
-| 3 读/写 | `get_asset_*` / `manage_asset_*` / `list_runtime_*` 等 | `assetPath` **只**用上一步 path；Capability 优先用上一步 `recommendedGet`/`recommendedManage` |
+| 2 发现资产路径 | `search_asset` | 必须 `assetType` + 功能级 `pathFilter`；返回顶层 `assets`；指定类型时顶层含 `recommendedGet`/`recommendedManage`，第 3 步优先用 |
+| 3 读/写 | `get_asset_*` / `manage_asset_*` / `list_runtime_*` 等 | `assetPath` **只**用 `assets[].path`；Capability 优先用 `recommendedGet`/`recommendedManage` |
 | 4 落盘 | `save_asset` | 改过磁盘资产后必须调用 |
 
 **元工具** `search_capabilities`、`call_capability`、`submit_feedback` 须 **MCP `tools/call` 直接调用**，禁止 `call_capability(capability="search_capabilities", …)`。
@@ -39,6 +39,7 @@ alwaysApply: false
 - ❌ `exec_command` 缺非空 `command`
 - ❌ 未 PIE / UnLua 未就绪就调 `eval_runtime_lua` 等运行时 Lua 工具
 - ❌ 看到 `_feedbackHint` 不 `submit_feedback`
+- ❌ 写操作成功却仍依赖响应里的 `success:true`（无 `error` 即成功；仅 `success:false` 表示显式失败）
 
 ---
 
@@ -46,9 +47,9 @@ alwaysApply: false
 
 | 用户意图 | 流程 |
 |----------|------|
-| 查蓝图变量/Graph | `search_asset(assetType=Blueprint, …)` → 用返回的 `recommendedGet`（通常 `get_asset_blueprint`）+ `path`；未知 cap 时再用 `search_capabilities(query="blueprint graph")` |
-| 查行为树结构/装饰器 | `search_asset(assetType=BehaviorTree, …)` → `recommendedGet`（通常 `get_asset_behavior_tree`） |
-| 查 GA 配置 | `search_asset(assetType=GameplayAbility, …)` → `recommendedGet`（通常 `get_asset_gameplay_ability`） |
+| 查蓝图变量/Graph | `search_asset(assetType=Blueprint, …)` → 顶层 `recommendedGet`（通常 `get_asset_blueprint`）+ `assets[].path`；未知 cap 时再用 `search_capabilities(query="blueprint graph")` |
+| 查行为树结构/装饰器 | `search_asset(assetType=BehaviorTree, …)` → 顶层 `recommendedGet`（通常 `get_asset_behavior_tree`） |
+| 查 GA 配置 | `search_asset(assetType=GameplayAbility, …)` → 顶层 `recommendedGet`（通常 `get_asset_gameplay_ability`） |
 | PIE Actor 属性 | `list_runtime_actors` → `get_runtime_actor_property(actorName=…, propertyPaths=…)` |
 | PIE 黑板/活动节点 | `get_runtime_actor_behavior_tree`（需 PIE + `actorName`） |
 | 控制台命令 | `exec_command(command="…")`（`command` 必填且非空） |

@@ -38,7 +38,7 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 		UPoseSearchDatabase* DB = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchDatabase>(AssetPath);
 		if (!DB)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				FString::Printf(TEXT("PoseSearchDatabase 未找到: %s"), *AssetPath));
 			return;
 		}
@@ -46,12 +46,11 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
 		if (!Arguments->TryGetArrayField(TEXT("operations"), OpsArr) || !OpsArr || OpsArr->IsEmpty())
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				TEXT("operations 数组为空"));
 			return;
 		}
 
-		TArray<TSharedPtr<FJsonValue>> Results;
 		bool bDirty = false;
 
 		for (const TSharedPtr<FJsonValue>& Val : *OpsArr)
@@ -63,6 +62,7 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 			(*OpObj)->TryGetStringField(TEXT("action"), Action);
 
 			TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
+			Result->SetStringField(TEXT("path"), AssetPath);
 			Result->SetStringField(TEXT("action"), Action);
 
 			if (Action == TEXT("set_schema"))
@@ -72,7 +72,7 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 				if (SchemaPath.IsEmpty())
 				{
 					Result->SetStringField(TEXT("error"), TEXT("set_schema 需要 schemaPath"));
-					Results.Add(MakeShared<FJsonValueObject>(Result));
+					OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 					continue;
 				}
 				UPoseSearchSchema* Schema = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchSchema>(SchemaPath);
@@ -80,12 +80,11 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 				{
 					Result->SetStringField(TEXT("error"),
 						FString::Printf(TEXT("PoseSearchSchema 未找到: %s"), *SchemaPath));
-					Results.Add(MakeShared<FJsonValueObject>(Result));
+					OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 					continue;
 				}
 				DB->Schema = Schema;
 				bDirty = true;
-				Result->SetBoolField(TEXT("success"), true);
 				Result->SetStringField(TEXT("schemaPath"), SchemaPath);
 			}
 			else if (Action == TEXT("add_tag"))
@@ -95,7 +94,7 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 				if (TagStr.IsEmpty())
 				{
 					Result->SetStringField(TEXT("error"), TEXT("add_tag 需要 tag 参数"));
-					Results.Add(MakeShared<FJsonValueObject>(Result));
+					OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 					continue;
 				}
 				const FName TagName(*TagStr);
@@ -104,7 +103,6 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 					DB->Tags.Add(TagName);
 					bDirty = true;
 				}
-				Result->SetBoolField(TEXT("success"), true);
 				Result->SetStringField(TEXT("tag"), TagStr);
 			}
 			else if (Action == TEXT("remove_tag"))
@@ -114,7 +112,6 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 				const FName TagName(*TagStr);
 				const int32 Removed = DB->Tags.Remove(TagName);
 				if (Removed > 0) bDirty = true;
-				Result->SetBoolField(TEXT("success"), Removed > 0);
 				if (Removed == 0)
 					Result->SetStringField(TEXT("error"), FString::Printf(TEXT("tag '%s' 不存在"), *TagStr));
 			}
@@ -124,15 +121,10 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 					FString::Printf(TEXT("未知 action '%s'，支持: set_schema/add_tag/remove_tag"), *Action));
 			}
 
-			Results.Add(MakeShared<FJsonValueObject>(Result));
+			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 		}
 
 		if (bDirty) DB->MarkPackageDirty();
-
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("assetPath"), AssetPath);
-		Entry->SetArrayField(TEXT("results"), Results);
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 

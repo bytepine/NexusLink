@@ -62,7 +62,7 @@ bool FGetAssetLevelCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
 		return false;
 	}
 
-	OutEntry->SetStringField(TEXT("assetPath"), AssetPath);
+	OutEntry->SetStringField(TEXT("path"), AssetPath);
 	OutEntry->SetStringField(TEXT("packagePath"), FNexusEditorLevelUtils::NormalizeLevelPackagePath(AssetPath));
 	OutEntry->SetStringField(TEXT("worldName"), World->GetName());
 	OutEntry->SetBoolField(TEXT("isEditorWorld"), bEditorWorld);

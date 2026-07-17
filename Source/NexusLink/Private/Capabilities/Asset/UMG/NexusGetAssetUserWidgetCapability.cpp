@@ -73,8 +73,8 @@ bool FGetAssetUserWidgetCapability::PrepareEntry(const TSharedPtr<FJsonObject>& 
 	}
 
 	const FString PkgPath = WBP->GetOutermost()->GetName();
-	OutEntry->SetStringField(TEXT("assetPath"), AssetPath);
-	OutEntry->SetStringField(TEXT("path"),       PkgPath);
+	// 身份字段统一为 path；与入参等价时由适配层 StripRedundantPathEcho 省略回显
+	OutEntry->SetStringField(TEXT("path"), PkgPath);
 
 	OutTargetOpaque = static_cast<void*>(WBP);
 	return true;

@@ -54,7 +54,6 @@ FCapabilityResult FManageAssetSoundClassCapability::Execute(const TSharedPtr<FJs
 		Entry->SetNumberField(TEXT("volume"),           SC->Properties.Volume);
 		Entry->SetNumberField(TEXT("pitch"),            SC->Properties.Pitch);
 		Entry->SetNumberField(TEXT("lowPassFilter"),    SC->Properties.LowPassFilterFrequency);
-		Entry->SetBoolField(TEXT("success"),            true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

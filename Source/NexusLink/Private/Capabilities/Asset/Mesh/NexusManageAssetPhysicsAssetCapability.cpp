@@ -33,7 +33,7 @@ void FManageAssetPhysicsAssetCapability::BuildDefinition(FNexusCapabilityDefinit
 {
 	Out.Name = TEXT("manage_asset_physics_asset");
 	Out.SearchAssetTypes = {TEXT("PhysicsAsset")};
-	Out.Description = TEXT("编辑 PhysicsAsset：set_physics_type/add_sphere/add_capsule/add_box/clear_shapes/add_constraint/remove_constraint。");
+	Out.Description = TEXT("编辑 PhysicsAsset 形状与约束。见 operations[].action。");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(
@@ -126,7 +126,6 @@ FCapabilityResult FManageAssetPhysicsAssetCapability::Execute(const TSharedPtr<F
 					BS->PhysicsType = EPhysicsType::PhysType_Kinematic;
 				else
 					BS->PhysicsType = EPhysicsType::PhysType_Default;
-				OpResult->SetBoolField(TEXT("success"), true);
 				bDirty = true;
 			}
 			else if (Action == TEXT("add_sphere"))
@@ -143,7 +142,6 @@ FCapabilityResult FManageAssetPhysicsAssetCapability::Execute(const TSharedPtr<F
 				Op->TryGetNumberField(TEXT("radius"), Radius);
 				Sphere.Radius = static_cast<float>(Radius);
 				BS->AggGeom.SphereElems.Add(Sphere);
-				OpResult->SetBoolField(TEXT("success"), true);
 				OpResult->SetNumberField(TEXT("radius"), Radius);
 				bDirty = true;
 			}
@@ -163,7 +161,6 @@ FCapabilityResult FManageAssetPhysicsAssetCapability::Execute(const TSharedPtr<F
 				Capsule.Radius     = static_cast<float>(Radius);
 				Capsule.Length     = static_cast<float>(HalfHeight * 2.0);
 				BS->AggGeom.SphylElems.Add(Capsule);
-				OpResult->SetBoolField(TEXT("success"), true);
 				bDirty = true;
 			}
 			else if (Action == TEXT("add_box"))
@@ -184,7 +181,6 @@ FCapabilityResult FManageAssetPhysicsAssetCapability::Execute(const TSharedPtr<F
 				Box.Y = static_cast<float>(Y * 2.0);
 				Box.Z = static_cast<float>(Z * 2.0);
 				BS->AggGeom.BoxElems.Add(Box);
-				OpResult->SetBoolField(TEXT("success"), true);
 				bDirty = true;
 			}
 			else if (Action == TEXT("clear_shapes"))
@@ -200,7 +196,6 @@ FCapabilityResult FManageAssetPhysicsAssetCapability::Execute(const TSharedPtr<F
 					BS->AggGeom.BoxElems.Empty();
 					BS->AggGeom.SphylElems.Empty();
 					BS->AggGeom.ConvexElems.Empty();
-					OpResult->SetBoolField(TEXT("success"), true);
 					bDirty = true;
 				}
 			}
@@ -218,7 +213,6 @@ FCapabilityResult FManageAssetPhysicsAssetCapability::Execute(const TSharedPtr<F
 					CT->DefaultInstance.ConstraintBone2 = *Bone2;
 					CT->DefaultInstance.JointName = *FString::Printf(TEXT("%s_%s"), *Bone1, *Bone2);
 					PA->ConstraintSetup.Add(CT);
-					OpResult->SetBoolField(TEXT("success"), true);
 					OpResult->SetStringField(TEXT("jointName"), CT->DefaultInstance.JointName.ToString());
 					bDirty = true;
 				}
@@ -234,7 +228,6 @@ FCapabilityResult FManageAssetPhysicsAssetCapability::Execute(const TSharedPtr<F
 				});
 				int32 Removed = Before - PA->ConstraintSetup.Num();
 				OpResult->SetNumberField(TEXT("removedCount"), Removed);
-				OpResult->SetBoolField(TEXT("success"), Removed > 0);
 				if (Removed > 0) bDirty = true;
 			}
 			else

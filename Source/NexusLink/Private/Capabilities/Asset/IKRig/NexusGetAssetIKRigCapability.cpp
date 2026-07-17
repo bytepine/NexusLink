@@ -37,13 +37,13 @@ FCapabilityResult FGetAssetIKRigCapability::Execute(const TSharedPtr<FJsonObject
 		UIKRigDefinition* IKRig = FNexusAssetUtils::LoadAssetWithFallback<UIKRigDefinition>(AssetPath);
 		if (!IKRig)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				FString::Printf(TEXT("IKRig 未找到: %s"), *AssetPath));
 			return;
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("assetPath"), AssetPath);
+		Entry->SetStringField(TEXT("path"), AssetPath);
 		Entry->SetStringField(TEXT("name"),      IKRig->GetName());
 		Entry->SetStringField(TEXT("assetType"), TEXT("IKRigDefinition"));
 

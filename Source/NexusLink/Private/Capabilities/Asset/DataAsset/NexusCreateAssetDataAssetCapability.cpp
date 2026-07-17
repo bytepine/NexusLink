@@ -88,7 +88,6 @@ FCapabilityResult FCreateAssetDataAssetCapability::Execute(const TSharedPtr<FJso
 		OutEntry->SetStringField(TEXT("name"), NewDA->GetName());
 		OutEntry->SetStringField(TEXT("path"), NewDA->GetOutermost()->GetName());
 		OutEntry->SetStringField(TEXT("parentClass"), ParentClass->GetName());
-		OutEntry->SetBoolField(TEXT("success"),        true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});

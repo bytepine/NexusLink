@@ -91,7 +91,6 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			OutEntry->SetStringField(TEXT("target"), Target);
 			if (Target == TEXT("list"))
 			{
-				OutEntry->SetBoolField(TEXT("success"), true);
 				OutEntry->SetStringField(TEXT("note"), TEXT("list 模式无需截图"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;

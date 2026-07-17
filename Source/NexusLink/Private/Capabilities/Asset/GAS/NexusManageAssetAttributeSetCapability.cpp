@@ -9,6 +9,7 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusGasUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusJsonUtils.h"
 #include "AttributeSet.h"
 #include "GameplayEffectTypes.h"
 #include "Engine/Blueprint.h"
@@ -23,8 +24,8 @@ void FManageAssetAttributeSetCapability::BuildDefinition(FNexusCapabilityDefinit
 	Out.Description = TEXT("批量 set/reset AttributeSet CDO 的 FGameplayAttributeData 属性默认值。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("AttributeSet Blueprint 路径")))
-		.Prop(TEXT("ops"),       FNexusSchema::StrArr(TEXT("操作数组；每项含 action(set/reset) + attributeName + 可选 baseValue")))
-		.Required({ TEXT("assetPath"), TEXT("ops") })
+		.Prop(TEXT("operations"), FNexusSchema::StrArr(TEXT("操作数组；每项含 action(set/reset) + attributeName + 可选 baseValue")))
+		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
 	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("attribute"), TEXT("default"), TEXT("health"), TEXT("stat") };
@@ -40,9 +41,10 @@ FCapabilityResult FManageAssetAttributeSetCapability::Execute(const TSharedPtr<F
 		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
 		{ OutError = TEXT("缺少 assetPath"); return; }
 
-		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
-		if (!Arguments->TryGetArrayField(TEXT("ops"), OpsArr) || !OpsArr || OpsArr->Num() == 0)
-		{ OutError = TEXT("ops 为必填且不能为空数组"); return; }
+		const TArray<TSharedPtr<FJsonValue>> OpsArrVal = FNexusJsonUtils::ExtractOperations(Arguments);
+		const TArray<TSharedPtr<FJsonValue>>* OpsArr = &OpsArrVal;
+		if (OpsArr->Num() == 0)
+		{ OutError = TEXT("operations 为必填且不能为空数组"); return; }
 
 		FString LoadError;
 		UBlueprint* BP = FNexusGasUtils::LoadAttributeSetBlueprint(AssetPath, LoadError);
@@ -110,9 +112,8 @@ FCapabilityResult FManageAssetAttributeSetCapability::Execute(const TSharedPtr<F
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 		FKismetEditorUtilities::CompileBlueprint(BP);
 
-		OutTop->SetStringField(TEXT("assetPath"), AssetPath);
+		OutTop->SetStringField(TEXT("path"), AssetPath);
 		OutTop->SetNumberField(TEXT("appliedOps"), Applied);
-		OutTop->SetBoolField(TEXT("success"),     true);
 	});
 }
 

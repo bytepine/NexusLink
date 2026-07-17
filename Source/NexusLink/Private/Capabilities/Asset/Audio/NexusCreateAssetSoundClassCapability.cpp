@@ -60,7 +60,6 @@ FCapabilityResult FCreateAssetSoundClassCapability::Execute(const TSharedPtr<FJs
 		Entry->SetStringField(TEXT("path"),    SC->GetPathName());
 		Entry->SetNumberField(TEXT("volume"),  SC->Properties.Volume);
 		Entry->SetNumberField(TEXT("pitch"),   SC->Properties.Pitch);
-		Entry->SetBoolField(TEXT("success"),   true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

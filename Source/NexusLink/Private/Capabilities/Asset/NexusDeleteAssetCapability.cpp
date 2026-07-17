@@ -131,7 +131,6 @@ FCapabilityResult FDeleteAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		if (bDeleted)
 		{
-			Entry->SetBoolField(TEXT("success"), true);
 		}
 		else
 		{

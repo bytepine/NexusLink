@@ -81,7 +81,7 @@ FCapabilityResult FGetAssetSkeletonCapability::Execute(const TSharedPtr<FJsonObj
 		for (const FString& Path : Paths)
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), Path);
+			Entry->SetStringField(TEXT("path"), Path);
 
 			USkeleton* Skeleton = FNexusAssetUtils::LoadAssetWithFallback<USkeleton>(Path);
 			if (!Skeleton)

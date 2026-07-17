@@ -12,7 +12,7 @@ class FJsonValue;
  * Capability 执行结果 —— 替代原 (OutEntries, OutTop, OutCapabilityError) 三出口，
  * 统一为单返回值，避免"两个出口同时写"的语义模糊。
  *
- *   - Entries    : 结果条目列表（等价旧 OutEntries）；Tool 端聚合为 results[]
+ *   - Entries    : 结果条目列表（等价旧 OutEntries）；适配层：Num()==1 提升到顶层，Num()>1 写入 results[]
  *   - TopFields  : 额外写到顶层的字段（等价旧 OutTop；按需构造，多数 cap 无需填）
  *   - FatalError : 非空表示致命错误，Tool 端归入 capabilityErrors[]；Entries 不写
  */

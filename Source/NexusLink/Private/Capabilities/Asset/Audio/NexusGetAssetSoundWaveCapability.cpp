@@ -64,7 +64,7 @@ FCapabilityResult FGetAssetSoundWaveCapability::Execute(const TSharedPtr<FJsonOb
 		for (const FString& Path : Paths)
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), Path);
+			Entry->SetStringField(TEXT("path"), Path);
 
 			USoundWave* Wave = FNexusAssetUtils::LoadAssetWithFallback<USoundWave>(Path);
 			if (!Wave)

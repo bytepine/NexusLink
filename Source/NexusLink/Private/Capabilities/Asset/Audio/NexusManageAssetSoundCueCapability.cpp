@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Audio/NexusManageAssetSoundCueCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -15,9 +16,8 @@ void FManageAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name = TEXT("manage_asset_sound_cue");
 	Out.SearchAssetTypes = {TEXT("SoundCue")};
-	Out.Description = TEXT("编辑 SoundCue。set_property/add_node/remove_node/connect_nodes。");
-	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),       FNexusSchema::Str(TEXT("SoundCue 资产路径")))
+	Out.Description = TEXT("批量编辑 SoundCue。operations[].action=set_property/add_node/remove_node/connect_nodes。");
+	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),          FNexusSchema::Enum(TEXT("操作"),
 			{ TEXT("set_property"), TEXT("add_node"), TEXT("remove_node"), TEXT("connect_nodes") }))
 		.Prop(TEXT("propertyPath"),    FNexusSchema::Str(TEXT("属性路径（set_property）")))
@@ -28,7 +28,12 @@ void FManageAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition&
 		.Prop(TEXT("childSlot"),       FNexusSchema::Int(TEXT("父节点子槽（add_node/connect_nodes）"), 0, 0))
 		.Prop(TEXT("nodeIndex"),       FNexusSchema::Int(TEXT("节点索引（remove_node）"), 0, 0))
 		.Prop(TEXT("childIndex"),      FNexusSchema::Int(TEXT("子节点索引（connect_nodes）"), 0, 0))
-		.Required({ TEXT("assetPath"), TEXT("action") })
+		.Required({ TEXT("action") })
+		.Build();
+	Out.InputSchema = FNexusSchema::Object()
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundCue 资产路径")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("cue"), TEXT("volume"), TEXT("pitch"), TEXT("node") };
@@ -41,67 +46,81 @@ FCapabilityResult FManageAssetSoundCueCapability::Execute(const TSharedPtr<FJson
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString AssetPath, Action;
+		FString AssetPath;
 		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("action"), Action, OutEntries, {{TEXT("assetPath"), AssetPath}})) return;
 
 		USoundCue* Cue = FNexusAssetUtils::LoadAssetWithFallback<USoundCue>(AssetPath);
 		if (!Cue)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				FString::Printf(TEXT("SoundCue 未找到: %s"), *AssetPath));
 			return;
 		}
 
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0)
+		{
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			return;
+		}
+
+		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
+		{
+		const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
+		if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
+		const TSharedPtr<FJsonObject>& OpArgs = *OpObjPtr;
+
+		FString Action;
+		OpArgs->TryGetStringField(TEXT("action"), Action);
+
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("assetPath"), AssetPath);
+		Entry->SetStringField(TEXT("path"), AssetPath);
 		Entry->SetStringField(TEXT("action"), Action);
 
 		if (Action.Equals(TEXT("set_property"), ESearchCase::IgnoreCase))
 		{
 			FString PropPath, Value;
-			if (!Arguments.IsValid()
-				|| !Arguments->TryGetStringField(TEXT("propertyPath"), PropPath) || PropPath.IsEmpty()
-				|| !Arguments->TryGetStringField(TEXT("value"), Value) || Value.IsEmpty())
+			if (!OpArgs.IsValid()
+				|| !OpArgs->TryGetStringField(TEXT("propertyPath"), PropPath) || PropPath.IsEmpty()
+				|| !OpArgs->TryGetStringField(TEXT("value"), Value) || Value.IsEmpty())
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("set_property 需要 propertyPath 和 value"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			FString OldVal, ActualVal, Err;
 			if (!FNexusPropertyUtils::WritePropertyAndEcho(Cue, { PropPath }, 0, Value, OldVal, ActualVal, Err))
 			{
 				Entry->SetStringField(TEXT("error"), Err);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			Cue->MarkPackageDirty();
 			Entry->SetStringField(TEXT("propertyPath"), PropPath);
 			if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
 			if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-			Entry->SetBoolField(TEXT("success"), true);
 			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
 		}
 		else if (Action.Equals(TEXT("add_node"), ESearchCase::IgnoreCase))
 		{
 			FString NodeClass, WavePath;
-			if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("nodeClass"), NodeClass) || NodeClass.IsEmpty())
+			if (!OpArgs.IsValid() || !OpArgs->TryGetStringField(TEXT("nodeClass"), NodeClass) || NodeClass.IsEmpty())
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("add_node 需要 nodeClass"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			int32 ParentIdx = -1;
 			int32 ChildSlot = 0;
-			if (Arguments->HasField(TEXT("parentNodeIndex")))
+			if (OpArgs->HasField(TEXT("parentNodeIndex")))
 			{
-				ParentIdx = static_cast<int32>(Arguments->GetNumberField(TEXT("parentNodeIndex")));
+				ParentIdx = static_cast<int32>(OpArgs->GetNumberField(TEXT("parentNodeIndex")));
 			}
-			if (Arguments->HasField(TEXT("childSlot")))
+			if (OpArgs->HasField(TEXT("childSlot")))
 			{
-				ChildSlot = static_cast<int32>(Arguments->GetNumberField(TEXT("childSlot")));
+				ChildSlot = static_cast<int32>(OpArgs->GetNumberField(TEXT("childSlot")));
 			}
-			Arguments->TryGetStringField(TEXT("soundWavePath"), WavePath);
+			OpArgs->TryGetStringField(TEXT("soundWavePath"), WavePath);
 			USoundWave* Wave = WavePath.IsEmpty()
 				? nullptr
 				: FNexusAssetUtils::LoadAssetWithFallback<USoundWave>(WavePath);
@@ -112,7 +131,7 @@ FCapabilityResult FManageAssetSoundCueCapability::Execute(const TSharedPtr<FJson
 			{
 				Entry->SetStringField(TEXT("error"), ClassErr);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			int32 NewIdx = -1;
 			FString OpErr;
@@ -120,61 +139,58 @@ FCapabilityResult FManageAssetSoundCueCapability::Execute(const TSharedPtr<FJson
 			{
 				Entry->SetStringField(TEXT("error"), OpErr);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			Entry->SetNumberField(TEXT("nodeIndex"), static_cast<double>(NewIdx));
 			Entry->SetStringField(TEXT("nodeClass"), Class->GetName());
-			Entry->SetBoolField(TEXT("success"), true);
 			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
 		}
 		else if (Action.Equals(TEXT("remove_node"), ESearchCase::IgnoreCase))
 		{
-			if (!Arguments.IsValid() || !Arguments->HasField(TEXT("nodeIndex")))
+			if (!OpArgs.IsValid() || !OpArgs->HasField(TEXT("nodeIndex")))
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("remove_node 需要 nodeIndex"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
-			const int32 NodeIdx = static_cast<int32>(Arguments->GetNumberField(TEXT("nodeIndex")));
+			const int32 NodeIdx = static_cast<int32>(OpArgs->GetNumberField(TEXT("nodeIndex")));
 			FString OpErr;
 			if (!FNexusSoundCueUtils::RemoveNode(Cue, NodeIdx, OpErr))
 			{
 				Entry->SetStringField(TEXT("error"), OpErr);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			Entry->SetNumberField(TEXT("removedNodeIndex"), static_cast<double>(NodeIdx));
-			Entry->SetBoolField(TEXT("success"), true);
 			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
 		}
 		else if (Action.Equals(TEXT("connect_nodes"), ESearchCase::IgnoreCase))
 		{
-			if (!Arguments.IsValid()
-				|| !Arguments->HasField(TEXT("childIndex")))
+			if (!OpArgs.IsValid()
+				|| !OpArgs->HasField(TEXT("childIndex")))
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("connect_nodes 需要 childIndex"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			int32 ParentIdx = -1;
 			int32 ChildSlot = 0;
-			const int32 ChildIdx = static_cast<int32>(Arguments->GetNumberField(TEXT("childIndex")));
-			if (Arguments->HasField(TEXT("parentNodeIndex")))
+			const int32 ChildIdx = static_cast<int32>(OpArgs->GetNumberField(TEXT("childIndex")));
+			if (OpArgs->HasField(TEXT("parentNodeIndex")))
 			{
-				ParentIdx = static_cast<int32>(Arguments->GetNumberField(TEXT("parentNodeIndex")));
+				ParentIdx = static_cast<int32>(OpArgs->GetNumberField(TEXT("parentNodeIndex")));
 			}
-			if (Arguments->HasField(TEXT("childSlot")))
+			if (OpArgs->HasField(TEXT("childSlot")))
 			{
-				ChildSlot = static_cast<int32>(Arguments->GetNumberField(TEXT("childSlot")));
+				ChildSlot = static_cast<int32>(OpArgs->GetNumberField(TEXT("childSlot")));
 			}
 			FString OpErr;
 			if (!FNexusSoundCueUtils::ConnectNodes(Cue, ParentIdx, ChildSlot, ChildIdx, OpErr))
 			{
 				Entry->SetStringField(TEXT("error"), OpErr);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
-			Entry->SetBoolField(TEXT("success"), true);
 			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
 		}
 		else
@@ -183,6 +199,7 @@ FCapabilityResult FManageAssetSoundCueCapability::Execute(const TSharedPtr<FJson
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		}
 	});
 }
 

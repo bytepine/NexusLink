@@ -61,7 +61,6 @@ FCapabilityResult FManageAssetPhysicalMaterialCapability::Execute(const TSharedP
 		Entry->SetNumberField(TEXT("restitution"), PM->Restitution);
 		Entry->SetNumberField(TEXT("density"),     PM->Density);
 		Entry->SetNumberField(TEXT("surfaceType"), (double)(int32)PM->SurfaceType.GetValue());
-		Entry->SetBoolField(TEXT("success"),       true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

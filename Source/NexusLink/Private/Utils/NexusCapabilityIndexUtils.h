@@ -47,6 +47,6 @@ public:
 	/** 将 RelatedCapabilities/Prerequisites/WhenToUse 附加到已有 JsonObject。 */
 	static void AttachMetaHints(TSharedPtr<FJsonObject>& Entry, const FNexusCapabilityDefinition& Def);
 
-	/** 构建按 tag 分组的 Capability 目录（query="" 时使用）。 */
+	/** 构建按 tag 分组的 Capability 目录（query="" 时使用；条目仅 name / 可选 whenToUse）。 */
 	static TSharedPtr<FJsonObject> BuildDirectory(const UNexusLinkSettings* Settings);
 };

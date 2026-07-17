@@ -145,7 +145,7 @@ static FString NormalizeAssetTypeShortcut(const FString& TypeLower)
 void FSearchAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("search_asset");
-	Out.Description = TEXT("查找资产路径。必须先调；指定 assetType+pathFilter；禁止猜 /Game 路径。每条返回 assetType + recommendedGet/recommendedManage（读/写 Capability 提示）。");
+	Out.Description = TEXT("查找资产路径。必须先调；指定 assetType+pathFilter。返回顶层 assets + recommendedGet/Manage（指定类型时）。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetType"),  FNexusSchema::Str(TEXT("Blueprint/Widget/Material/AnimSequence/SkeletalMesh/Skeleton/… 或 UClass；大项目避免 all"), TEXT("Blueprint")))
 		.Prop(TEXT("pathFilter"), FNexusSchema::Str(TEXT("功能级路径前缀（大项目勿用裸 /Game/）"), TEXT("/Game/Feature/")))
@@ -194,8 +194,7 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-
-		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
+		(void)OutEntries;
 
 		int32 Offset = 0;
 		int32 Limit  = 100;
@@ -863,6 +862,15 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		const int32 Total = AllEntries.Num();
 		int32 Start, End; FNexusJsonUtils::ComputeSlice(Total, Offset, Limit, Start, End);
 
+		// 指定具体 assetType（非 all）时，整页 recommended* 相同 → 提到顶层，避免逐条重复
+		const bool bHoistRecommended = !bIsAll && Start < End;
+		FString PageRecommendedGet, PageRecommendedManage;
+		if (bHoistRecommended)
+		{
+			FNexusAssetUtils::ResolveRecommendedCapabilities(
+				AllEntries[Start].Type, PageRecommendedGet, PageRecommendedManage);
+		}
+
 		TArray<TSharedPtr<FJsonValue>> PageArray;
 		for (int32 i = Start; i < End; ++i)
 		{
@@ -871,15 +879,19 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			EntryObj->SetStringField(TEXT("name"),      E.Name);
 			EntryObj->SetStringField(TEXT("path"),      E.Path);
 			EntryObj->SetStringField(TEXT("assetType"), E.Type);
-			FString RecommendedGet, RecommendedManage;
-			FNexusAssetUtils::ResolveRecommendedCapabilities(E.Type, RecommendedGet, RecommendedManage);
-			if (!RecommendedGet.IsEmpty())
+			if (!bHoistRecommended)
 			{
-				EntryObj->SetStringField(TEXT("recommendedGet"), RecommendedGet);
-			}
-			if (!RecommendedManage.IsEmpty())
-			{
-				EntryObj->SetStringField(TEXT("recommendedManage"), RecommendedManage);
+				// assetType=all / 混合页：逐条保留推荐，避免顶层单一值误导
+				FString RecommendedGet, RecommendedManage;
+				FNexusAssetUtils::ResolveRecommendedCapabilities(E.Type, RecommendedGet, RecommendedManage);
+				if (!RecommendedGet.IsEmpty())
+				{
+					EntryObj->SetStringField(TEXT("recommendedGet"), RecommendedGet);
+				}
+				if (!RecommendedManage.IsEmpty())
+				{
+					EntryObj->SetStringField(TEXT("recommendedManage"), RecommendedManage);
+				}
 			}
 			if (!E.ParentClass.IsEmpty())    EntryObj->SetStringField(TEXT("parentClass"),    E.ParentClass);
 			if (!E.RowStruct.IsEmpty())      EntryObj->SetStringField(TEXT("rowStruct"),      E.RowStruct);
@@ -887,11 +899,22 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			PageArray.Add(MakeShared<FJsonValueObject>(EntryObj));
 		}
 
-		OutEntry->SetNumberField(TEXT("totalCount"), Total);
-		OutEntry->SetNumberField(TEXT("offset"),     Start);
-		OutEntry->SetNumberField(TEXT("limit"),      Limit);
-		OutEntry->SetArrayField(TEXT("assets"),      PageArray);
-		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
+		// 分页与 assets 放顶层（与旧版顶层 assets 兼容；避免 results[{assets}] 双层信封）
+		OutTop->SetNumberField(TEXT("totalCount"), Total);
+		OutTop->SetNumberField(TEXT("offset"),     Start);
+		OutTop->SetNumberField(TEXT("limit"),      Limit);
+		if (bHoistRecommended)
+		{
+			if (!PageRecommendedGet.IsEmpty())
+			{
+				OutTop->SetStringField(TEXT("recommendedGet"), PageRecommendedGet);
+			}
+			if (!PageRecommendedManage.IsEmpty())
+			{
+				OutTop->SetStringField(TEXT("recommendedManage"), PageRecommendedManage);
+			}
+		}
+		OutTop->SetArrayField(TEXT("assets"), PageArray);
 	
 	});
 }

@@ -76,7 +76,7 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 			}
 
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), OrigPath);
+			Entry->SetStringField(TEXT("path"), OrigPath);
 
 			UPackage* Pkg = FindPackage(nullptr, *PackagePath);
 			if (!Pkg) Pkg = LoadPackage(nullptr, *PackagePath, LOAD_None);
@@ -96,7 +96,6 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 			if (bDeferred)
 			{
 				++DeferredCount;
-				Entry->SetBoolField(TEXT("success"), true);
 				Entry->SetBoolField(TEXT("deferred"), true);
 				if (!Note.IsEmpty())
 				{
@@ -106,7 +105,6 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 			else if (bOk)
 			{
 				++SavedCount;
-				Entry->SetBoolField(TEXT("success"), true);
 			}
 			else
 			{
@@ -127,7 +125,6 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 		{
 			OutTop->SetNumberField(TEXT("deferred"), DeferredCount);
 		}
-		OutTop->SetBoolField(TEXT("success"), FailedCount == 0);
 	#endif
 	
 	});

@@ -5,6 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusEditorLevelUtils.h"
 #include "Engine/World.h"
@@ -89,9 +90,8 @@ void FManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 {
 	Out.Name = TEXT("manage_asset_level");
 	Out.SearchAssetTypes = {TEXT("World")};
-	Out.Description = TEXT("编辑关卡 WorldSettings 与 Actor。spawn/remove/set_property。");
-	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),    FNexusSchema::Str(TEXT("关卡资产路径（如 /Game/Maps/MyLevel）")))
+	Out.Description = TEXT("批量编辑关卡 WorldSettings 与 Actor。operations[].action=spawn/remove/set_property。");
+	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("操作"),
 			{ TEXT("set_property"), TEXT("spawn_actor"), TEXT("remove_actor"), TEXT("set_actor_property") }))
 		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("WorldSettings 属性路径（set_property）")))
@@ -101,7 +101,12 @@ void FManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 		.Prop(TEXT("location"),     FNexusSchema::Str(TEXT("生成位置 x,y,z（spawn_actor）")))
 		.Prop(TEXT("rotation"),     FNexusSchema::Str(TEXT("生成旋转 pitch,yaw,roll（spawn_actor，可选）")))
 		.Prop(TEXT("actorName"),    FNexusSchema::Str(TEXT("Actor 名或 Label（remove/set_actor_property）")))
-		.Required({ TEXT("assetPath"), TEXT("action") })
+		.Required({ TEXT("action") })
+		.Build();
+	Out.InputSchema = FNexusSchema::Object()
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("关卡资产路径（如 /Game/Maps/MyLevel）")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("level"), TEXT("map"), TEXT("world"), TEXT("worldsettings"), TEXT("spawn") };
@@ -114,47 +119,62 @@ FCapabilityResult FManageAssetLevelCapability::Execute(const TSharedPtr<FJsonObj
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString AssetPath, Action;
+		FString AssetPath;
 		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("action"), Action, OutEntries, {{TEXT("assetPath"), AssetPath}})) return;
 
 		bool bEditorWorld = false;
 		FString LoadErr;
 		UWorld* World = FNexusEditorLevelUtils::LoadLevelWorldForWrite(AssetPath, bEditorWorld, LoadErr);
 		if (!World)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}}, LoadErr);
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, LoadErr);
 			return;
 		}
 
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0)
+		{
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			return;
+		}
+
+		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
+		{
+		const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
+		if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
+		const TSharedPtr<FJsonObject>& OpArgs = *OpObjPtr;
+
+		FString Action;
+		OpArgs->TryGetStringField(TEXT("action"), Action);
+
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("assetPath"), AssetPath);
+		Entry->SetStringField(TEXT("path"), AssetPath);
 		Entry->SetStringField(TEXT("action"), Action);
 		Entry->SetBoolField(TEXT("isEditorWorld"), bEditorWorld);
 
 		if (Action.Equals(TEXT("spawn_actor"), ESearchCase::IgnoreCase))
 		{
 			FString ClassPath, BlueprintPath, LocationStr, RotationStr;
-			if (Arguments.IsValid())
+			if (OpArgs.IsValid())
 			{
-				Arguments->TryGetStringField(TEXT("classPath"), ClassPath);
-				Arguments->TryGetStringField(TEXT("blueprintPath"), BlueprintPath);
-				Arguments->TryGetStringField(TEXT("location"), LocationStr);
-				Arguments->TryGetStringField(TEXT("rotation"), RotationStr);
+				OpArgs->TryGetStringField(TEXT("classPath"), ClassPath);
+				OpArgs->TryGetStringField(TEXT("blueprintPath"), BlueprintPath);
+				OpArgs->TryGetStringField(TEXT("location"), LocationStr);
+				OpArgs->TryGetStringField(TEXT("rotation"), RotationStr);
 			}
 			FVector Location(0.f, 0.f, 0.f);
 			if (!LocationStr.IsEmpty() && !NxParseVector3Text(LocationStr, Location))
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("location 格式应为 x,y,z"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			FRotator Rotation = FRotator::ZeroRotator;
 			if (!RotationStr.IsEmpty() && !NxParseRotatorText(RotationStr, Rotation))
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("rotation 格式应为 pitch,yaw,roll"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			FString ClassErr;
 			UClass* SpawnClass = ResolveSpawnClass(ClassPath, BlueprintPath, ClassErr);
@@ -162,7 +182,7 @@ FCapabilityResult FManageAssetLevelCapability::Execute(const TSharedPtr<FJsonObj
 			{
 				Entry->SetStringField(TEXT("error"), ClassErr);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			AActor* Spawned = nullptr;
 			FString SpawnErr;
@@ -170,72 +190,69 @@ FCapabilityResult FManageAssetLevelCapability::Execute(const TSharedPtr<FJsonObj
 			{
 				Entry->SetStringField(TEXT("error"), SpawnErr);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			Entry->SetStringField(TEXT("actorName"), Spawned->GetName());
 			Entry->SetStringField(TEXT("actorClass"), Spawned->GetClass()->GetName());
-			Entry->SetBoolField(TEXT("success"), true);
 			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
 		}
 		else if (Action.Equals(TEXT("remove_actor"), ESearchCase::IgnoreCase))
 		{
 			FString ActorName;
-			if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty())
+			if (!OpArgs.IsValid() || !OpArgs->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty())
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("remove_actor 需要 actorName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			AActor* Actor = FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(World, ActorName);
 			if (!Actor)
 			{
 				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor 未找到: %s"), *ActorName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			FString RemoveErr;
 			if (!FNexusEditorLevelUtils::RemoveLevelActor(World, Actor, RemoveErr))
 			{
 				Entry->SetStringField(TEXT("error"), RemoveErr);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			Entry->SetStringField(TEXT("removedActor"), ActorName);
-			Entry->SetBoolField(TEXT("success"), true);
 			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
 		}
 		else if (Action.Equals(TEXT("set_actor_property"), ESearchCase::IgnoreCase))
 		{
 			FString ActorName, PropPath, Value;
-			if (!Arguments.IsValid()
-				|| !Arguments->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty()
-				|| !Arguments->TryGetStringField(TEXT("propertyPath"), PropPath) || PropPath.IsEmpty()
-				|| !Arguments->TryGetStringField(TEXT("value"), Value) || Value.IsEmpty())
+			if (!OpArgs.IsValid()
+				|| !OpArgs->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty()
+				|| !OpArgs->TryGetStringField(TEXT("propertyPath"), PropPath) || PropPath.IsEmpty()
+				|| !OpArgs->TryGetStringField(TEXT("value"), Value) || Value.IsEmpty())
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("set_actor_property 需要 actorName、propertyPath、value"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			AActor* Actor = FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(World, ActorName);
 			if (!Actor)
 			{
 				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor 未找到: %s"), *ActorName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			FString OldVal, ActualVal, PropErr;
 			if (!FNexusPropertyUtils::WritePropertyAndEcho(Actor, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
 			{
 				Entry->SetStringField(TEXT("error"), PropErr);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			World->MarkPackageDirty();
 			Entry->SetStringField(TEXT("actorName"), ActorName);
 			Entry->SetStringField(TEXT("propertyPath"), PropPath);
 			if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
 			if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-			Entry->SetBoolField(TEXT("success"), true);
 			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
 		}
 		else if (Action.Equals(TEXT("set_property"), ESearchCase::IgnoreCase))
@@ -245,29 +262,28 @@ FCapabilityResult FManageAssetLevelCapability::Execute(const TSharedPtr<FJsonObj
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("关卡无 WorldSettings"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			FString PropPath, Value;
-			if (!Arguments.IsValid()
-				|| !Arguments->TryGetStringField(TEXT("propertyPath"), PropPath) || PropPath.IsEmpty()
-				|| !Arguments->TryGetStringField(TEXT("value"), Value) || Value.IsEmpty())
+			if (!OpArgs.IsValid()
+				|| !OpArgs->TryGetStringField(TEXT("propertyPath"), PropPath) || PropPath.IsEmpty()
+				|| !OpArgs->TryGetStringField(TEXT("value"), Value) || Value.IsEmpty())
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("set_property 需要 propertyPath 和 value"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			FString OldVal, ActualVal, PropErr;
 			if (!FNexusPropertyUtils::WritePropertyAndEcho(WorldSettings, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
 			{
 				Entry->SetStringField(TEXT("error"), PropErr);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			World->MarkPackageDirty();
 			Entry->SetStringField(TEXT("propertyPath"), PropPath);
 			if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
 			if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-			Entry->SetBoolField(TEXT("success"), true);
 			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
 		}
 		else
@@ -276,6 +292,7 @@ FCapabilityResult FManageAssetLevelCapability::Execute(const TSharedPtr<FJsonObj
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		}
 	});
 }
 

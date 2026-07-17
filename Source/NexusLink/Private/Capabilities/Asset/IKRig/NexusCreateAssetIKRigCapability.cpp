@@ -66,7 +66,6 @@ FCapabilityResult FCreateAssetIKRigCapability::Execute(const TSharedPtr<FJsonObj
 		Entry->SetStringField(TEXT("name"),      IKRig->GetName());
 		Entry->SetStringField(TEXT("path"),      IKRig->GetPathName());
 		Entry->SetStringField(TEXT("assetType"), TEXT("IKRigDefinition"));
-		Entry->SetBoolField(TEXT("success"),     true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

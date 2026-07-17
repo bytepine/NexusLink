@@ -62,7 +62,6 @@ FCapabilityResult FCreateAssetStructCapability::Execute(const TSharedPtr<FJsonOb
 
 		Entry->SetStringField(TEXT("name"),   NewStruct->GetName());
 		Entry->SetStringField(TEXT("path"),   NewStruct->GetPathName());
-		Entry->SetBoolField(TEXT("success"), true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	
 	});

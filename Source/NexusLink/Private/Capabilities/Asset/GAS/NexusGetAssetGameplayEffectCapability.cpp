@@ -84,7 +84,7 @@ bool FGetAssetGameplayEffectCapability::PrepareEntry(
 	UBlueprint* BP = FNexusGasUtils::LoadGameplayEffectBlueprint(Path, LoadError);
 	if (!BP) { OutError = LoadError; return false; }
 
-	OutEntry->SetStringField(TEXT("assetPath"), Path);
+	OutEntry->SetStringField(TEXT("path"), Path);
 	OutEntry->SetStringField(TEXT("name"),      BP->GetName());
 	if (BP->ParentClass) OutEntry->SetStringField(TEXT("parentClass"), BP->ParentClass->GetName());
 

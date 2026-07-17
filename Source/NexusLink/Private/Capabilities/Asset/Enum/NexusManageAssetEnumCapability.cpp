@@ -70,7 +70,6 @@ FCapabilityResult FManageAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 			{
 				FEnumEditorUtils::AddNewEnumeratorForUserDefinedEnum(Enum);
 				Entry->SetNumberField(TEXT("newIndex"), Enum->NumEnums() - 2); // 最新项（-2：跳 _MAX）
-				Entry->SetBoolField(TEXT("success"), true);
 			}
 			else if (Action == TEXT("remove_entry"))
 			{
@@ -88,7 +87,6 @@ FCapabilityResult FManageAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 					continue;
 				}
 				FEnumEditorUtils::RemoveEnumeratorFromUserDefinedEnum(Enum, Idx);
-				Entry->SetBoolField(TEXT("success"), true);
 			}
 			else if (Action == TEXT("set_display_name"))
 			{
@@ -124,7 +122,6 @@ FCapabilityResult FManageAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 					FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("set_display_name: 写入 DisplayNameMap 失败"));
 					continue;
 				}
-				Entry->SetBoolField(TEXT("success"), true);
 			}
 			else
 			{

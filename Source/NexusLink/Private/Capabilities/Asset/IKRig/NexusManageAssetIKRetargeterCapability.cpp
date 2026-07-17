@@ -45,7 +45,7 @@ FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 		UIKRetargeter* Retargeter = FNexusAssetUtils::LoadAssetWithFallback<UIKRetargeter>(AssetPath);
 		if (!Retargeter)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				FString::Printf(TEXT("IKRetargeter 未找到: %s"), *AssetPath));
 			return;
 		}
@@ -53,7 +53,7 @@ FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
 		if (!Arguments.IsValid() || !Arguments->TryGetArrayField(TEXT("operations"), OpsArr) || !OpsArr)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}}, TEXT("缺少 operations 数组"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 数组"));
 			return;
 		}
 
@@ -66,7 +66,7 @@ FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 			FString Action;
 			Op->TryGetStringField(TEXT("action"), Action);
 			TSharedPtr<FJsonObject> ResEntry = MakeShared<FJsonObject>();
-			ResEntry->SetStringField(TEXT("assetPath"), AssetPath);
+			ResEntry->SetStringField(TEXT("path"), AssetPath);
 			ResEntry->SetStringField(TEXT("action"), Action);
 
 			if (Action.Equals(TEXT("set_source_rig"), ESearchCase::IgnoreCase)
@@ -96,7 +96,6 @@ FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 				{
 					Prop->SetPropertyValue_InContainer(Retargeter, FSoftObjectPtr(IKRig));
 					bDirty = true;
-					ResEntry->SetBoolField(TEXT("success"), true);
 					ResEntry->SetStringField(TEXT("rigPath"), RigPath);
 				}
 				else
@@ -123,7 +122,6 @@ FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 				}
 				CS->SourceChain = FName(*SourceChain);
 				bDirty = true;
-				ResEntry->SetBoolField(TEXT("success"),    true);
 				ResEntry->SetStringField(TEXT("targetChain"), TargetChain);
 				ResEntry->SetStringField(TEXT("sourceChain"), SourceChain);
 			}

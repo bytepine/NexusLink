@@ -246,7 +246,7 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 		for (int32 i = Start; i < End; ++i)
 		{
 			TSharedPtr<FJsonObject> Item = MakeShared<FJsonObject>();
-			Item->SetStringField(TEXT("assetPath"), AllPaths[i]);
+			Item->SetStringField(TEXT("path"), AllPaths[i]);
 			Page.Add(MakeShared<FJsonValueObject>(Item));
 		}
 
@@ -271,7 +271,7 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 			return;
 		}
 
-		InOutDetail->SetStringField(TEXT("assetPath"),  AssetPath);
+		InOutDetail->SetStringField(TEXT("path"),  AssetPath);
 		InOutDetail->SetStringField(TEXT("assetClass"), Asset->GetClass()->GetName());
 
 		TArray<TSharedPtr<FJsonValue>> Tags;

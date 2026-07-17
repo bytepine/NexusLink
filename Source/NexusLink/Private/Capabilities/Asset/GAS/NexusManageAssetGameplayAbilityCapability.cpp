@@ -9,6 +9,7 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusGasUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusJsonUtils.h"
 #include "Abilities/GameplayAbility.h"
 #include "GameplayEffect.h"
 #include "Engine/Blueprint.h"
@@ -22,9 +23,8 @@ void FManageAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefi
 {
 	Out.Name = TEXT("manage_asset_gameplay_ability");
 	Out.SearchAssetTypes = {TEXT("GameplayAbility")};
-	Out.Description = TEXT("修改 GA CDO：set_tags/set_policy/set_cost_cooldown。Graph 编辑用 manage_asset_blueprint。");
-	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("GameplayAbility Blueprint 路径")))
+	Out.Description = TEXT("批量修改 GA CDO：operations[].action=set_tags/set_policy/set_cost_cooldown。Graph 编辑用 manage_asset_blueprint。");
+	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),        FNexusSchema::Enum(TEXT("操作类型"), { TEXT("set_tags"), TEXT("set_policy"), TEXT("set_cost_cooldown") }))
 		.Prop(TEXT("tagContainer"),  FNexusSchema::Enum(TEXT("Tag 容器名"),
 			{ TEXT("abilityTags"), TEXT("activationOwnedTags"), TEXT("activationRequiredTags"),
@@ -37,7 +37,12 @@ void FManageAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefi
 			{ TEXT("LocalPredicted"), TEXT("LocalOnly"), TEXT("ServerInitiated"), TEXT("ServerOnly") }))
 		.Prop(TEXT("costGE"),        FNexusSchema::Str(TEXT("Cost GE 资产路径（传空字符串清空）")))
 		.Prop(TEXT("cooldownGE"),    FNexusSchema::Str(TEXT("Cooldown GE 资产路径（传空字符串清空）")))
-		.Required({ TEXT("assetPath"), TEXT("action") })
+		.Required({ TEXT("action") })
+		.Build();
+	Out.InputSchema = FNexusSchema::Object()
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("GameplayAbility Blueprint 路径")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
 	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("ability"), TEXT("gameplay"), TEXT("ga"), TEXT("tag"), TEXT("policy"), TEXT("cost") };
@@ -49,11 +54,9 @@ FCapabilityResult FManageAssetGameplayAbilityCapability::Execute(const TSharedPt
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString AssetPath, Action;
-		if (!Arguments.IsValid()
-			|| !Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty()
-			|| !Arguments->TryGetStringField(TEXT("action"), Action) || Action.IsEmpty())
-		{ OutError = TEXT("assetPath 与 action 均为必填项"); return; }
+		FString AssetPath;
+		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
+		{ OutError = TEXT("assetPath 为必填项"); return; }
 
 		FString LoadError;
 		UBlueprint* BP = FNexusGasUtils::LoadGameplayAbilityBlueprint(AssetPath, LoadError);
@@ -63,16 +66,29 @@ FCapabilityResult FManageAssetGameplayAbilityCapability::Execute(const TSharedPt
 		UObject* CDO = BP->GeneratedClass->GetDefaultObject();
 		if (!CDO) { OutError = TEXT("无法获取 GameplayAbility CDO"); return; }
 
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0) { OutError = TEXT("缺少 operations 或为空"); return; }
+
+		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
+		{
+		const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
+		if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
+		const TSharedPtr<FJsonObject>& OpArgs = *OpObjPtr;
+
+		FString Action;
+		if (!OpArgs->TryGetStringField(TEXT("action"), Action) || Action.IsEmpty())
+		{ OutError = TEXT("operations[] 每项需要 action"); return; }
+
 		if (Action == TEXT("set_tags"))
 		{
 			FString ContainerName, Mode;
-			if (!Arguments->TryGetStringField(TEXT("tagContainer"), ContainerName) || ContainerName.IsEmpty())
+			if (!OpArgs->TryGetStringField(TEXT("tagContainer"), ContainerName) || ContainerName.IsEmpty())
 			{ OutError = TEXT("set_tags 需要 tagContainer"); return; }
-			if (!Arguments->TryGetStringField(TEXT("mode"), Mode) || Mode.IsEmpty()) Mode = TEXT("set");
+			if (!OpArgs->TryGetStringField(TEXT("mode"), Mode) || Mode.IsEmpty()) Mode = TEXT("set");
 
 			TArray<FString> Tags;
 			const TArray<TSharedPtr<FJsonValue>>* TagsArr = nullptr;
-			if (Arguments->TryGetArrayField(TEXT("tags"), TagsArr) && TagsArr)
+			if (OpArgs->TryGetArrayField(TEXT("tags"), TagsArr) && TagsArr)
 			{
 				for (const TSharedPtr<FJsonValue>& V : *TagsArr)
 				{ FString S; if (V.IsValid() && V->TryGetString(S)) Tags.Add(S); }
@@ -99,7 +115,7 @@ FCapabilityResult FManageAssetGameplayAbilityCapability::Execute(const TSharedPt
 		else if (Action == TEXT("set_policy"))
 		{
 			FString InstPolicyStr, NetPolicyStr;
-			if (Arguments->TryGetStringField(TEXT("instancingPolicy"), InstPolicyStr) && !InstPolicyStr.IsEmpty())
+			if (OpArgs->TryGetStringField(TEXT("instancingPolicy"), InstPolicyStr) && !InstPolicyStr.IsEmpty())
 			{
 				uint8 V = 0;
 				if      (InstPolicyStr == TEXT("NonInstanced"))          V = (uint8)EGameplayAbilityInstancingPolicy::NonInstanced;
@@ -108,7 +124,7 @@ FCapabilityResult FManageAssetGameplayAbilityCapability::Execute(const TSharedPt
 				else { OutError = FString::Printf(TEXT("无效的 instancingPolicy: %s"), *InstPolicyStr); return; }
 				NxGasSetEnumByte(CDO, TEXT("InstancingPolicy"), V);
 			}
-			if (Arguments->TryGetStringField(TEXT("netExecutionPolicy"), NetPolicyStr) && !NetPolicyStr.IsEmpty())
+			if (OpArgs->TryGetStringField(TEXT("netExecutionPolicy"), NetPolicyStr) && !NetPolicyStr.IsEmpty())
 			{
 				uint8 V = 0;
 				if      (NetPolicyStr == TEXT("LocalPredicted"))  V = (uint8)EGameplayAbilityNetExecutionPolicy::LocalPredicted;
@@ -122,7 +138,7 @@ FCapabilityResult FManageAssetGameplayAbilityCapability::Execute(const TSharedPt
 		else if (Action == TEXT("set_cost_cooldown"))
 		{
 			FString CostPath, CooldownPath;
-			if (Arguments->TryGetStringField(TEXT("costGE"), CostPath))
+			if (OpArgs->TryGetStringField(TEXT("costGE"), CostPath))
 			{
 				if (CostPath.IsEmpty())
 				{
@@ -136,7 +152,7 @@ FCapabilityResult FManageAssetGameplayAbilityCapability::Execute(const TSharedPt
 					NxGasSetClassProp(CDO, TEXT("CostGameplayEffectClass"), CostBP->GeneratedClass);
 				}
 			}
-			if (Arguments->TryGetStringField(TEXT("cooldownGE"), CooldownPath))
+			if (OpArgs->TryGetStringField(TEXT("cooldownGE"), CooldownPath))
 			{
 				if (CooldownPath.IsEmpty())
 				{
@@ -156,13 +172,12 @@ FCapabilityResult FManageAssetGameplayAbilityCapability::Execute(const TSharedPt
 			OutError = FString::Printf(TEXT("未知 action: %s （Graph 编辑用 manage_asset_blueprint）"), *Action);
 			return;
 		}
+		}
 
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 		FKismetEditorUtilities::CompileBlueprint(BP);
 
-		OutTop->SetStringField(TEXT("action"),    Action);
-		OutTop->SetStringField(TEXT("assetPath"), AssetPath);
-		OutTop->SetBoolField(TEXT("success"),     true);
+		OutTop->SetStringField(TEXT("path"), AssetPath);
 	});
 }
 

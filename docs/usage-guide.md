@@ -182,7 +182,11 @@ sequenceDiagram
     Note over AI,SearchCap: 未知 cap 时再 search_capabilities
 ```
 
-**资产读写约定**：`search_asset` 每条结果带 `recommendedGet` / `recommendedManage`（由各 get/manage cap 的 `SearchAssetTypes` 声明汇聚）；后续调用优先用推荐名，勿凭类型名猜测。
+**资产读写约定**：`search_asset` 返回顶层 `assets`（无 `results[{assets}]` 信封）；指定具体 `assetType` 时顶层附 `recommendedGet`/`recommendedManage`，`assetType=all` 时推荐在每条上。后续调用优先用推荐名 + `assets[].path`。
+
+**单条结果形状**：Capability `Entries` 仅 1 条时字段在顶层（无 `results[{...}]` 信封）；多条仍为 `results[]`。`call_capability` 的批量 `calls[]` 外层协议不变。
+
+**身份字段**：响应统一用 `path`（入参仍为 `assetPath`）。`get_`/`manage_` 在单路径调用且回显与入参等价时省略 `path`。
 
 **批量调用**：`call_capability` 支持 `calls=[{capability, arguments?}, ...]`，按顺序执行，单条失败不中断其余条目。
 

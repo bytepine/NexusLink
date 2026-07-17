@@ -20,7 +20,7 @@ void FManageAssetControlRigCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("manage_asset_control_rig");
 	Out.SearchAssetTypes = {TEXT("ControlRig"), TEXT("ControlRigBlueprint")};
-	Out.Description = TEXT("编辑 ControlRig：层级（rename_element/set_control_color/add_null/remove_element）与 RigVM 图连线（add_rig_link/break_rig_link/add_rig_node）。");
+	Out.Description = TEXT("编辑 ControlRig 层级与 RigVM 图连线/节点。见 operations[].action。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
 			{ TEXT("rename_element"), TEXT("set_control_color"), TEXT("add_null"), TEXT("remove_element"),
@@ -59,7 +59,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 		UControlRigBlueprint* CRBp = FNexusAssetUtils::LoadAssetWithFallback<UControlRigBlueprint>(AssetPath);
 		if (!CRBp)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				FString::Printf(TEXT("ControlRig Blueprint 未找到: %s"), *AssetPath));
 			return;
 		}
@@ -67,7 +67,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
 		if (!Arguments.IsValid() || !Arguments->TryGetArrayField(TEXT("operations"), OpsArr) || !OpsArr)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}}, TEXT("缺少 operations 数组"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 数组"));
 			return;
 		}
 
@@ -75,7 +75,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 		URigHierarchyController* Controller = Hier ? Hier->GetController(true) : nullptr;
 		if (!Controller)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}}, TEXT("无法获取 RigHierarchyController"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("无法获取 RigHierarchyController"));
 			return;
 		}
 
@@ -93,7 +93,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 			FString Action;
 			Op->TryGetStringField(TEXT("action"), Action);
 			TSharedPtr<FJsonObject> ResEntry = MakeShared<FJsonObject>();
-			ResEntry->SetStringField(TEXT("assetPath"), AssetPath);
+			ResEntry->SetStringField(TEXT("path"), AssetPath);
 			ResEntry->SetStringField(TEXT("action"), Action);
 
 			if (Action.Equals(TEXT("rename_element"), ESearchCase::IgnoreCase))
@@ -120,8 +120,8 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				}
 				const bool bOk = Controller->RenameElement(Key, FName(*NewName));
 				bDirty |= bOk;
-				ResEntry->SetBoolField(TEXT("success"), bOk);
-				ResEntry->SetStringField(TEXT("newName"), NewName);
+				if (!bOk) ResEntry->SetStringField(TEXT("error"), TEXT("rename_element 失败"));
+				else ResEntry->SetStringField(TEXT("newName"), NewName);
 			}
 			else if (Action.Equals(TEXT("set_control_color"), ESearchCase::IgnoreCase))
 			{
@@ -148,7 +148,6 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 					static_cast<float>(R), static_cast<float>(G),
 					static_cast<float>(B), static_cast<float>(A));
 				bDirty = true;
-				ResEntry->SetBoolField(TEXT("success"), true);
 			}
 			else if (Action.Equals(TEXT("add_null"), ESearchCase::IgnoreCase))
 			{
@@ -165,8 +164,8 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 					ParentKey = FRigElementKey(FName(*ParentName), ERigElementType::Bone);
 				const FRigElementKey NewKey = Controller->AddNull(FName(*ElemName), ParentKey);
 				bDirty = NewKey.IsValid();
-				ResEntry->SetBoolField(TEXT("success"), NewKey.IsValid());
-				ResEntry->SetStringField(TEXT("elementName"), ElemName);
+				if (!NewKey.IsValid()) ResEntry->SetStringField(TEXT("error"), TEXT("add_null 失败"));
+				else ResEntry->SetStringField(TEXT("elementName"), ElemName);
 			}
 			else if (Action.Equals(TEXT("remove_element"), ESearchCase::IgnoreCase))
 			{
@@ -205,7 +204,6 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				}
 				const bool bOk = VmCtrl->AddLink(SrcPin, DstPin, false);
 				bDirty |= bOk;
-				ResEntry->SetBoolField(TEXT("success"), bOk);
 				if (!bOk)
 					ResEntry->SetStringField(TEXT("error"), TEXT("AddLink 失败，检查引脚路径或类型兼容性"));
 			}
@@ -226,7 +224,6 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				}
 				const bool bOk = VmCtrl->BreakLink(SrcPin, DstPin, false);
 				bDirty |= bOk;
-				ResEntry->SetBoolField(TEXT("success"), bOk);
 				if (!bOk)
 					ResEntry->SetStringField(TEXT("error"), TEXT("BreakLink 失败，检查引脚路径是否已连接"));
 			}
@@ -263,7 +260,6 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				if (NewNode)
 				{
 					bDirty = true;
-					ResEntry->SetBoolField(TEXT("success"),   true);
 					ResEntry->SetStringField(TEXT("nodePath"), NewNode->GetNodePath());
 				}
 				else

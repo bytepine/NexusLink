@@ -43,13 +43,13 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 		UControlRigBlueprint* CRBp = FNexusAssetUtils::LoadAssetWithFallback<UControlRigBlueprint>(AssetPath);
 		if (!CRBp)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				FString::Printf(TEXT("ControlRig Blueprint 未找到: %s"), *AssetPath));
 			return;
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("assetPath"), AssetPath);
+		Entry->SetStringField(TEXT("path"), AssetPath);
 		Entry->SetStringField(TEXT("name"),      CRBp->GetName());
 		Entry->SetStringField(TEXT("assetType"), TEXT("ControlRigBlueprint"));
 

@@ -67,7 +67,6 @@ FCapabilityResult FCreateAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 
 		OutEntry->SetStringField(TEXT("name"),      BB->GetName());
 		OutEntry->SetStringField(TEXT("path"),      BB->GetPathName());
-		OutEntry->SetBoolField(TEXT("success"),     true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});

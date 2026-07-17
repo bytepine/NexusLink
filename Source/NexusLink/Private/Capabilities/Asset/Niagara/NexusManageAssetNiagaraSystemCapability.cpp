@@ -8,6 +8,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "NiagaraSystem.h"
@@ -23,26 +24,29 @@ void FManageAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.Name = TEXT("manage_asset_niagara_system");
 	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
-	Out.Description = TEXT("编辑 Niagara 系统。set_property/set_user_parameter；无 Emitter 图。");
-	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),      FNexusSchema::Str(TEXT("NiagaraSystem 资产路径")))
+	Out.Description = TEXT("批量编辑 Niagara 系统。operations[].action=set_property/set_user_parameter；无 Emitter 图。");
+	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),         FNexusSchema::Enum(TEXT("操作"),
 			{ TEXT("set_property"), TEXT("set_user_parameter") }))
 		.Prop(TEXT("propertyPath"),   FNexusSchema::Str(TEXT("属性路径（set_property）")))
 		.Prop(TEXT("parameterName"),  FNexusSchema::Str(TEXT("用户参数名（set_user_parameter）")))
 		.Prop(TEXT("value"),          FNexusSchema::Str(TEXT("新值字符串")))
-		.Required({ TEXT("assetPath"), TEXT("action") })
+		.Required({ TEXT("action") })
 		.Build();
 #else
-	Out.Description = TEXT("编辑 Niagara 系统属性。action=set_property；无 Emitter 图。");
-	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),    FNexusSchema::Str(TEXT("NiagaraSystem 资产路径")))
+	Out.Description = TEXT("批量编辑 Niagara 系统属性。operations[].action=set_property；无 Emitter 图。");
+	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("操作"), { TEXT("set_property") }))
 		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径")))
 		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("属性新值字符串")))
-		.Required({ TEXT("assetPath"), TEXT("action") })
+		.Required({ TEXT("action") })
 		.Build();
 #endif
+	Out.InputSchema = FNexusSchema::Object()
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("NiagaraSystem 资产路径")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("niagara"), TEXT("vfx"), TEXT("particle"), TEXT("fx"), TEXT("parameter") };
 	Out.RelatedCapabilities = { TEXT("get_asset_niagara_system"), TEXT("search_asset") };
@@ -123,28 +127,38 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString AssetPath, Action;
+		FString AssetPath;
 		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("action"), Action, OutEntries, {{TEXT("assetPath"), AssetPath}})) return;
 
 		UNiagaraSystem* System = FNexusAssetUtils::LoadAssetWithFallback<UNiagaraSystem>(AssetPath);
 		if (!System)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetPath"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
 				FString::Printf(TEXT("NiagaraSystem 未找到: %s"), *AssetPath));
 			return;
 		}
 
-		FString PropPath, ParamName, Value;
-		if (Arguments.IsValid())
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0)
 		{
-			Arguments->TryGetStringField(TEXT("propertyPath"), PropPath);
-			Arguments->TryGetStringField(TEXT("parameterName"), ParamName);
-			Arguments->TryGetStringField(TEXT("value"), Value);
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			return;
 		}
 
+		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
+		{
+		const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
+		if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
+		const TSharedPtr<FJsonObject>& OpArgs = *OpObjPtr;
+
+		FString Action, PropPath, ParamName, Value;
+		OpArgs->TryGetStringField(TEXT("action"), Action);
+		OpArgs->TryGetStringField(TEXT("propertyPath"), PropPath);
+		OpArgs->TryGetStringField(TEXT("parameterName"), ParamName);
+		OpArgs->TryGetStringField(TEXT("value"), Value);
+
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("assetPath"), AssetPath);
+		Entry->SetStringField(TEXT("path"), AssetPath);
 		Entry->SetStringField(TEXT("action"), Action);
 
 		if (Action.Equals(TEXT("set_property"), ESearchCase::IgnoreCase))
@@ -153,20 +167,19 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("set_property 需要 propertyPath 和 value"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			FString OldVal, ActualVal, Err;
 			if (!FNexusPropertyUtils::WritePropertyAndEcho(System, { PropPath }, 0, Value, OldVal, ActualVal, Err))
 			{
 				Entry->SetStringField(TEXT("error"), Err);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			System->MarkPackageDirty();
 			Entry->SetStringField(TEXT("propertyPath"), PropPath);
 			if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
 			if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-			Entry->SetBoolField(TEXT("success"), true);
 			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
 		}
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
@@ -176,19 +189,18 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("set_user_parameter 需要 parameterName 和 value"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			FString ParamErr;
 			if (!SetNiagaraUserParameter(System, ParamName, Value, ParamErr))
 			{
 				Entry->SetStringField(TEXT("error"), ParamErr);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				return;
+				continue;
 			}
 			System->MarkPackageDirty();
 			Entry->SetStringField(TEXT("parameterName"), ParamName);
 			Entry->SetStringField(TEXT("newValue"), Value);
-			Entry->SetBoolField(TEXT("success"), true);
 			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
 		}
 #endif
@@ -198,6 +210,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		}
 	});
 }
 

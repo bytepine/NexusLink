@@ -106,7 +106,6 @@ FCapabilityResult FManageAssetEQSCapability::Execute(const TSharedPtr<FJsonObjec
 			{
 				UEnvQueryOption* NewOpt = NewObject<UEnvQueryOption>(EQ, NAME_None, RF_Transactional);
 				Options->Add(NewOpt);
-				OpResult->SetBoolField(TEXT("success"), true);
 				OpResult->SetNumberField(TEXT("optionIndex"), Options->Num() - 1);
 				bDirty = true;
 			}
@@ -121,7 +120,6 @@ FCapabilityResult FManageAssetEQSCapability::Execute(const TSharedPtr<FJsonObjec
 				else
 				{
 					Options->RemoveAt(static_cast<int32>(Idx));
-					OpResult->SetBoolField(TEXT("success"), true);
 					bDirty = true;
 				}
 			}
@@ -149,7 +147,6 @@ FCapabilityResult FManageAssetEQSCapability::Execute(const TSharedPtr<FJsonObjec
 					{
 						UEnvQueryOption* Opt = (*Options)[static_cast<int32>(Idx)];
 						Opt->Generator = NewObject<UEnvQueryGenerator>(Opt, GenClass, NAME_None, RF_Transactional);
-						OpResult->SetBoolField(TEXT("success"), true);
 						bDirty = true;
 					}
 				}
@@ -179,7 +176,6 @@ FCapabilityResult FManageAssetEQSCapability::Execute(const TSharedPtr<FJsonObjec
 						UEnvQueryOption* Opt = (*Options)[static_cast<int32>(Idx)];
 						UEnvQueryTest* NewTest = NewObject<UEnvQueryTest>(Opt, TestClass, NAME_None, RF_Transactional);
 						Opt->Tests.Add(NewTest);
-						OpResult->SetBoolField(TEXT("success"), true);
 						OpResult->SetNumberField(TEXT("testIndex"), Opt->Tests.Num() - 1);
 						bDirty = true;
 					}
@@ -204,7 +200,6 @@ FCapabilityResult FManageAssetEQSCapability::Execute(const TSharedPtr<FJsonObjec
 					else
 					{
 						Opt->Tests.RemoveAt(static_cast<int32>(TestIdx));
-						OpResult->SetBoolField(TEXT("success"), true);
 						bDirty = true;
 					}
 				}

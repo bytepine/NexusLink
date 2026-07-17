@@ -91,7 +91,6 @@ FCapabilityResult FRenameAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		{
 			Entry->SetStringField(TEXT("oldPath"), OldPath);
 			Entry->SetStringField(TEXT("newPath"), NewPath);
-			Entry->SetBoolField(TEXT("success"), true);
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	

@@ -54,7 +54,7 @@ FCapabilityResult FReimportAssetCapability::Execute(const TSharedPtr<FJsonObject
 		{
 			UObject* Asset = FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("assetPath"), Path);
+			Entry->SetStringField(TEXT("path"), Path);
 
 			if (!Asset)
 			{
@@ -72,7 +72,6 @@ FCapabilityResult FReimportAssetCapability::Execute(const TSharedPtr<FJsonObject
 				bSuccess = !!ReimportMgr->Reimport(Asset);
 			}
 
-			Entry->SetBoolField(TEXT("success"), bSuccess);
 			if (!bSuccess)
 			{
 				Entry->SetStringField(TEXT("error"), TEXT("重导入失败（资产可能不支持重导入）"));

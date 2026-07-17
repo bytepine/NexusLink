@@ -12,7 +12,7 @@ void FManageAssetSoundSubmixCapability::BuildDefinition(FNexusCapabilityDefiniti
 {
 	Out.Name = TEXT("manage_asset_sound_submix");
 	Out.SearchAssetTypes = {TEXT("SoundSubmix")};
-	Out.Description = TEXT("设置 SoundSubmix 音量。UE4/5.0：outputVolume/wetLevel/dryLevel[0,1]；UE5.1+：outputVolumeDB/wetLevelDB/dryLevelDB(dB)。");
+	Out.Description = TEXT("设置 SoundSubmix 音量（UE5.1+ 用 dB 字段，见 InputSchema）。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"),    FNexusSchema::Str(TEXT("SoundSubmix 资产路径")))
 		.Prop(TEXT("outputVolume"),     FNexusSchema::Num(TEXT("输出音量线性 [0,1]（UE4/5.0）")))
@@ -68,7 +68,6 @@ FCapabilityResult FManageAssetSoundSubmixCapability::Execute(const TSharedPtr<FJ
 		Entry->SetNumberField(TEXT("wetLevelDB"),     SM->WetLevelModulation.Value);
 		Entry->SetNumberField(TEXT("dryLevelDB"),     SM->DryLevelModulation.Value);
 #endif
-		Entry->SetBoolField(TEXT("success"),   true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
