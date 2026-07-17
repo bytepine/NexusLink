@@ -42,16 +42,17 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 				{
 					continue;
 				}
-				const TSharedPtr<FJsonValue>* FieldVal = Args->Values.Find(Field);
-				if (!FieldVal || !FieldVal->IsValid() || (*FieldVal)->IsNull())
+				// 用 TryGetField，勿直接 Values.Find(FString)：UE 5.8+ Values 键为 FSharedString
+				const TSharedPtr<FJsonValue> FieldVal = Args->TryGetField(Field);
+				if (!FieldVal.IsValid() || FieldVal->IsNull())
 				{
 					return FCapabilityResult::MakeArgInvalid(FString::Printf(
 						TEXT("缺少必填字段 '%s'（Capability '%s'）"), *Field, *Def.Name));
 				}
-				if ((*FieldVal)->Type == EJson::String)
+				if (FieldVal->Type == EJson::String)
 				{
 					FString StrVal;
-					(*FieldVal)->TryGetString(StrVal);
+					FieldVal->TryGetString(StrVal);
 					if (StrVal.IsEmpty())
 					{
 						return FCapabilityResult::MakeArgInvalid(FString::Printf(

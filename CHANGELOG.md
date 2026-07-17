@@ -15,6 +15,7 @@
 
 ### Changed
 
+- fix(compat): `FNexusCapability::Run` 必填字段校验改用 `TryGetField`，勿直接 `Values.Find(FString)`（UE 5.8+ `FJsonObject::Values` 键为 `FSharedString`，否则 C2665）
 - fix(mcp): `FNexusCapability::Run` 对 Schema `required` 字符串字段拒绝空串，统一走 `call_arg_invalid`（避免 `command=""` / 空 `actorName` 漏到 Execute 记成 `call_fatal`）
 - fix(mcp): `get_runtime_actor_property` 将 `actorName` 标为 Schema Required；描述提示先 `list_runtime_actors`
 - feat(mcp): `search_capabilities` 对单 token 过宽词（`blueprint`/`asset`/`runtime`/`animation`）硬拦截，返回 `errorKind=query_too_broad` + `suggestedQueries` + `_feedbackHint`（不再截断后仍返回 8 条候选）
