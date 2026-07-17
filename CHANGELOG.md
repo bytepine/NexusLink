@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- fix(release): CI `actions/checkout` 开启 `lfs: true`，发版/构建包不再把 `Resources/Icon128.png` 等 LFS 资产打成 pointer 文本；`build_unreal.py` 打包前检测 LFS pointer 并失败拦截
+
 ## [1.15.2] - 2026-07-17
 
 ### Changed

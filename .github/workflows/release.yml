@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 必须拉取 LFS 实体（如 Resources/Icon128.png），否则 zip 会打进 pointer 文本
+          lfs: true
 
       - name: Parse version from tag
         id: meta

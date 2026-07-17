@@ -59,9 +59,47 @@ EXCLUDE_EXTS = {
     ".log", ".tmp", ".bak",
 }
 
+# Git LFS pointer 文件头（CI 未 lfs pull 时工作区仍是该文本，不可打进发布包）
+_LFS_POINTER_PREFIX = b"version https://git-lfs.github.com/spec/v1"
+_LFS_POINTER_MAX_BYTES = 1024
+
 
 def repo_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def is_lfs_pointer(path: str) -> bool:
+    """工作区文件是否仍为 Git LFS pointer（未 smudge / 未 lfs pull）。"""
+    try:
+        if os.path.getsize(path) > _LFS_POINTER_MAX_BYTES:
+            return False
+        with open(path, "rb") as f:
+            head = f.read(len(_LFS_POINTER_PREFIX) + 8)
+    except OSError:
+        return False
+    return head.startswith(_LFS_POINTER_PREFIX)
+
+
+def assert_no_lfs_pointers(plugin_dir: str) -> None:
+    """打包前扫描：若仍有 LFS pointer 则失败，避免把 pointer 文本打进 zip。"""
+    bad: list[str] = []
+    for root, dirs, files in os.walk(plugin_dir):
+        dirs[:] = [d for d in dirs if d.lower() not in EXCLUDE_DIRS]
+        for filename in files:
+            abs_file = os.path.join(root, filename)
+            rel = os.path.relpath(abs_file, plugin_dir).replace("\\", "/")
+            is_root = "/" not in rel
+            if should_exclude(rel, is_root):
+                continue
+            if is_lfs_pointer(abs_file):
+                bad.append(rel)
+    if bad:
+        listed = "\n  - ".join(bad)
+        raise RuntimeError(
+            "检测到 Git LFS pointer（未拉取实体文件），拒绝打包。\n"
+            "  请在 CI checkout 设置 lfs: true，或本地执行 git lfs pull。\n"
+            f"  - {listed}"
+        )
 
 
 def patch_uplugin(uplugin_path: str, version: str, engine_version: str | None = None) -> None:
@@ -98,6 +136,9 @@ def build_zip(
     if engine_version is not None:
         zip_name += f"-ue{engine_version}"
     output_path = os.path.join(output_dir, f"{zip_name}.zip")
+
+    # 在复制前校验源树，避免 LFS pointer 进入临时目录后再报错
+    assert_no_lfs_pointers(plugin_dir)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_plugin = os.path.join(tmpdir, "NexusLink")
