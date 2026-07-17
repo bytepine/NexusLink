@@ -2,6 +2,8 @@
 
 #include "NexusMultiSectionCapability.h"
 #include "NexusMcpSchemaBuilder.h"
+#include "NexusMcpTool.h"
+#include "Utils/NexusPackageLedger.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 
@@ -53,6 +55,11 @@ TSharedPtr<FJsonObject> FNexusMultiSectionCapability::BuildSchemaWithSections() 
 FCapabilityResult FNexusMultiSectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return RunMultiSection(Arguments);
+}
+
+bool FNexusMultiSectionCapability::ShouldAutoUnloadIntrospected() const
+{
+	return GetDefinition().HasTag(FNexusMcpTags::Readonly);
 }
 
 FCapabilityResult FNexusMultiSectionCapability::RunMultiSection(const TSharedPtr<FJsonObject>& Args) const
@@ -159,6 +166,12 @@ FCapabilityResult FNexusMultiSectionCapability::RunMultiSection(const TSharedPtr
 		}
 
 		Result.Entries.Add(MakeShared<FJsonValueObject>(Entry));
+
+		// 每条 entry 处理完后检查内存高水位阈值；只读 cap 命中即整批卸载本次调用引入的包（不影响本条已产出的 JSON）
+		if (ShouldAutoUnloadIntrospected())
+		{
+			FNexusPackageLedger::MaybeFlush();
+		}
 	}
 
 	return Result;

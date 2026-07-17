@@ -410,7 +410,7 @@ bool FGetAssetBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject>& A
 		return false;
 	}
 
-	UObject* Obj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
+	UObject* Obj = FNexusAssetUtils::LoadAssetTracked<UObject>(Path);
 	if (!Obj)
 	{
 		OutError = FString::Printf(TEXT("资产未找到: %s"), *Path);

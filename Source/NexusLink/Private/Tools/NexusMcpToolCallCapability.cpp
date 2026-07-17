@@ -17,6 +17,7 @@
 #include "Utils/NexusCapabilityIndexUtils.h"
 #include "Utils/NexusCapabilityLegacyNames.h"
 #include "Utils/NexusCapResultAdapter.h"
+#include "Utils/NexusPackageLedger.h"
 
 // ── 进程内 redundant_call LRU 表 ──────────────────────────────────────────────
 struct FCallCapabilityRedundantEntry
@@ -293,6 +294,8 @@ void FNexusMcpToolCallCapability::BuildDefinition(FNexusMcpToolDefinition& Out) 
 		      FNexusSchema::AnyObject(TEXT("单次调用的嵌套参数")))
 		.Prop(TEXT("calls"),
 		      FNexusSchema::ArrayOf(TEXT("批量：有序列表 [{capability,arguments?},...]"), CallItemSchema.ToSharedRef()))
+		.Prop(TEXT("keepLoaded"),
+		      FNexusSchema::Bool(TEXT("true 时本次调用（单条或整批 calls）不自动卸载引入的包，默认 false"), true, false))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 }
@@ -301,6 +304,17 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 {
 	FNexusMcpToolResult Result;
 	const TSharedPtr<FJsonObject> Args = Arguments.IsValid() ? Arguments : MakeShared<FJsonObject>();
+
+	// 内存高水位批量驱逐：每次调用重置基线；keepLoaded=true 时本次调用（单条或整批 calls）整体不自动卸载。
+	// RAII 保证无论从哪个分支 return，本次调用结束时都会尝试一次批尾强制 flush（未被抑制时）。
+	FNexusPackageLedger::Get().ResetBaseline();
+	bool bKeepLoaded = false;
+	Args->TryGetBoolField(TEXT("keepLoaded"), bKeepLoaded);
+	FNexusPackageLedger::Get().SetSuppressedForThisCall(bKeepLoaded);
+	struct FLedgerFlushGuard
+	{
+		~FLedgerFlushGuard() { FNexusPackageLedger::FlushRemainingUnlessSuppressed(); }
+	} LedgerFlushGuard;
 
 	const TArray<TSharedPtr<FJsonValue>>* CallsArr = nullptr;
 	const bool bHasCallsKey = Args->TryGetArrayField(TEXT("calls"), CallsArr);

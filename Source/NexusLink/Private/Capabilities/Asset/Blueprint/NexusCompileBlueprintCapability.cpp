@@ -5,6 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusPackageLedger.h"
 #include "Engine/Blueprint.h"
 #include "NexusMcpTool.h"
 
@@ -89,7 +90,7 @@ FCapabilityResult FCompileBlueprintCapability::Execute(const TSharedPtr<FJsonObj
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 			Entry->SetStringField(TEXT("path"), Path);
 
-			UBlueprint* BP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(Path);
+			UBlueprint* BP = FNexusAssetUtils::LoadAssetTracked<UBlueprint>(Path);
 			if (!BP)
 			{
 				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Blueprint 未找到: %s"), *Path));
@@ -114,6 +115,9 @@ FCapabilityResult FCompileBlueprintCapability::Execute(const TSharedPtr<FJsonObj
 			Entry->SetBoolField(TEXT("hasCompilerErrors"), bHasCompilerErrors);
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+
+			// 未保存的编译结果包会 dirty，Flush 内部会自动跳过；仅 saveToDisk 落盘后的包才可能被本轮卸载
+			FNexusPackageLedger::MaybeFlush();
 		}
 #endif
 	});

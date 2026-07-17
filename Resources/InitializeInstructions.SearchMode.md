@@ -73,7 +73,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 - **首选**：`search_asset` → 用 `assets[].path` + `recommendedGet`/`recommendedManage`（指定类型在顶层，混合搜索在条目上）调用，勿猜 cap 名。
 - **CRUD 模式**（无推荐字段时再推导）：`{get|manage|create}_asset_{type}` — type ∈ `blueprint` / `material` / `anim_blueprint` / `anim_montage` / `user_widget` / `behavior_tree` / `blackboard` / `data_table` / `data_asset` / `struct`
 - 一个 (动词, 类型) 覆盖 **全部** 子方面。勿找 `manage_asset_blueprint_variable` 等。
-- **例外**：`manage_asset_struct_field`、`search_asset`、`get_asset_refs`、`get_asset_lua_binding`、`save_asset` / `rename_asset` / `duplicate_asset` / `delete_asset`
+- **例外**：`manage_asset_struct_field`、`search_asset`、`get_asset_refs`、`get_asset_lua_binding`、`save_asset` / `rename_asset` / `duplicate_asset` / `delete_asset` / `unload_asset`
 
 ### 运行时（PIE / Game）— 先推导 cap 名
 - **模式**：`{verb}_runtime_{target}[_aspect]` — 动词：`list` / `get` / `set` / `spawn` / `destroy` / `interact` / `diff`

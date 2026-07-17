@@ -84,6 +84,15 @@ protected:
 	 */
 	virtual TArray<TSharedPtr<FJsonObject>> ExpandPerEntry(const TSharedPtr<FJsonObject>& Args) const { return {}; }
 
+	/**
+	 * 是否在每个 entry 处理完后检查内存高水位阈值、按需整批卸载本次调用引入的包
+	 * （FNexusPackageLedger，见 NexusPackageLedger.h）。
+	 * 默认：只读 Capability（带 FNexusMcpTags::Readonly 标签）为 true；写类 Capability 为 false
+	 * （写操作可能故意留 dirty 待后续 save_asset，不应被自动卸载打断）。
+	 * 子类通常无需 override：PrepareEntry/ExecuteSection 内改用 FNexusAssetUtils::LoadAssetTracked 加载即可接入本机制。
+	 */
+	virtual bool ShouldAutoUnloadIntrospected() const;
+
 private:
 	FCapabilityResult RunMultiSection(const TSharedPtr<FJsonObject>& Args) const;
 };

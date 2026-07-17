@@ -9,6 +9,7 @@
 
 ### Added
 
+- feat(mcp): 新增内存高水位批量驱逐机制（`FNexusPackageLedger`），解决批量读蓝图等资产时 `LoadObject` 后包常驻不释放导致编辑器内存暴涨的问题——只弱引用记账「本次调用引入的包」，累积到阈值（数量/内存高水位任一命中）再整批 `UnloadPackages` + 一次 `KEEPFLAGS` GC，绝不 `AddToRoot`/改对象 flag，不阻碍引擎自身 GC，也能感知台账内包已被引擎自动回收（静默剔除，不当错误）；`get_asset_blueprint`/`compile_blueprint` 接入 `LoadAssetTracked`，`FNexusMultiSectionCapability` 子类默认按 `readonly` 标签自动启用（写类 cap 默认关闭，避免打断故意保留的 dirty 修改）。设置面板新增「内存管理」分类：`bAutoUnloadIntrospectedPackages`（默认开）/`FlushThresholdCount`（默认 16）/`MemoryHighWaterMB`（默认 1024，均可在编辑器偏好中随时调整、无需重启）；`call_capability` 新增 `keepLoaded` 参数（默认 false）可整体关闭本次调用的自动卸载；新增手动兜底 `unload_asset` Capability（`assetPaths[]`+`bSkipDirty`+`bForceGC`）供批量读取后需要立即释放内存时调用
 - feat(mcp): `search_asset` 每条结果除已有 `assetType` 外，新增 `recommendedGet` / `recommendedManage`；路由由各 get/manage cap 在 `BuildDefinition` 声明 `SearchAssetTypes`，注册期写入 Registry 索引（扩展新类型只需改对应 cap，无需中心映射表）；覆盖全部类型专用 get/manage（含 ControlRig/EQS/IKRig/Input/LevelSequence/MPC/PhysicsAsset 等），跨类型辅助 cap（`get_asset_refs`/`get_asset_lua_binding`）与 Widget 次要方面（`get_asset_view_model`）不声明以免覆盖主工具
 - docs: `CapabilitySpec` / `InitializeInstructions.SearchMode|MultiTool` / `ProxyConfig` / `AIRules` / `usage-guide` / README 同步 `recommendedGet`/`recommendedManage` 与 `SearchAssetTypes` 约定
 

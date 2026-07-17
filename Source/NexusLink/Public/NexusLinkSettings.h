@@ -119,6 +119,38 @@ public:
 		meta = (DisplayName = "日志分类白名单", ToolTip = "留空=捕获全部；填写后只捕获指定分类（大小写不敏感）"))
 	TArray<FString> LogCaptureCategories;
 
+	// ── 内存管理 ───────────────────────────────────────────────────────────────
+
+	/**
+	 * 批量读取资产（如 get_asset_blueprint 批量调用）时，是否自动整批卸载 NexusLink 本次调用
+	 * 引入的包（读取前不在内存、由本次加载带入的包），避免内存持续增长。
+	 * 只影响本次调用引入的包；用户已打开/已加载的资产不受影响。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "内存管理",
+		meta = (DisplayName = "自动卸载读取引入的包",
+			ToolTip = "勾选：只读调用按阈值整批卸载 NexusLink 自己加载进来的包；取消：保持加载（现状行为）"))
+	bool bAutoUnloadIntrospectedPackages = true;
+
+	/**
+	 * 累积引入的包数量达到此值即整批卸载 + 一次 GC。
+	 * 设为 0 表示不按数量触发，只按内存高水位触发。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "内存管理",
+		meta = (DisplayName = "卸载阈值（包数量）", EditCondition = "bAutoUnloadIntrospectedPackages",
+			ToolTip = "累积引入的包数达到此值即整批卸载；0 = 只按内存高水位触发",
+			ClampMin = "0", ClampMax = "512"))
+	int32 FlushThresholdCount = 16;
+
+	/**
+	 * 进程物理内存较本次调用起点增长超过此值（MB）即整批卸载 + 一次 GC。
+	 * 设为 0 表示不按内存触发，只按数量触发。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "内存管理",
+		meta = (DisplayName = "内存高水位（MB）", EditCondition = "bAutoUnloadIntrospectedPackages",
+			ToolTip = "进程物理内存较调用起点增长超过此值即整批卸载；0 = 关闭内存触发",
+			ClampMin = "0", ClampMax = "65536"))
+	int32 MemoryHighWaterMB = 1024;
+
 	// ── AI 反馈 ────────────────────────────────────────────────────────────────
 
 	/**

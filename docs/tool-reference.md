@@ -36,7 +36,7 @@
 ---
 
 <!-- 自动生成，由 build_tool_reference.py 产出；以下内容请勿手工修改 -->
-<!-- 共 175 个 Capability + 3 个元工具 -->
+<!-- 共 176 个 Capability + 3 个元工具 -->
 
 ## 目录
 
@@ -59,7 +59,7 @@
 
 ### `call_capability`
 
-执行 Capability（在 search_asset / get_asset_* 之后）。失败看 errorKind：unknown/disabled/arg_invalid；disabled 勿重试。旧名（如 create_blackboard）自动映射规范名。批量 calls[] 与单条不可混用。单条成功时字段在顶层（无 `results[{...}]`）；多条仍为 `results[]`。响应身份字段为 `path`（入参仍 `assetPath`）；`get_`/`manage_` 等价回显可省略。
+执行 Capability（在 search_asset / get_asset_* 之后）。失败看 errorKind：unknown/disabled/arg_invalid；disabled 勿重试。旧名（如 create_blackboard）自动映射规范名。批量 calls[] 与单条不可混用。
 
 ---
 
@@ -274,8 +274,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `packagePath` | `string` | ★ | 资产包路径，如 /Game/WorldData |
-| `assetName` | `string` | ★ | 资产名称 |
+| `assetPath` | `string` | ★ | 新 DataLayer 资产完整路径，如 /Game/WorldData/DL_New |
 | `type` | `string` |  | Runtime 或 Editor（默认 Runtime） |
 | `debugColor` | `string` |  | 调试颜色（十六进制 #RRGGBB 或颜色名，可选） |
 
@@ -378,8 +377,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `packagePath` | `string` | ★ | 资产所在包路径，如 /Game/Audio |
-| `assetName` | `string` | ★ | 资产名称 |
+| `assetPath` | `string` | ★ | 新 MetaSound 资产完整路径，如 /Game/Audio/MS_NewSound |
 
 **相关 Capability**：`get_asset_meta_sound`、`manage_asset_meta_sound`、`search_asset`
 
@@ -393,8 +391,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `packagePath` | `string` | ★ | 资产所在包路径，如 /Game/Audio |
-| `assetName` | `string` | ★ | 资产名称 |
+| `assetPath` | `string` | ★ | 新 MetaSound Patch 资产完整路径，如 /Game/Audio/MSP_NewPatch |
 
 **相关 Capability**：`get_asset_meta_sound`、`manage_asset_meta_sound`、`search_asset`
 
@@ -408,8 +405,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `packagePath` | `string` | ★ | 资产所在包路径，如 /Game/PCG |
-| `assetName` | `string` | ★ | 资产名称 |
+| `assetPath` | `string` | ★ | 新 PCG Graph 资产完整路径，如 /Game/PCG/PCG_NewGraph |
 
 **相关 Capability**：`get_asset_pcg_graph`、`manage_asset_pcg_graph`、`search_asset`
 
@@ -985,7 +981,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | AttributeSet Blueprint 路径 |
-| `ops` | `string` | ★ | 操作数组；每项含 action(set/reset) + attributeName + 可选 baseValue |
+| `operations` | `string` | ★ | 操作数组；每项含 action(set/reset) + attributeName + 可选 baseValue |
 
 **相关 Capability**：`get_asset_attribute_set`、`save_asset`、`create_asset_attribute_set`
 
@@ -993,7 +989,7 @@
 
 ### `manage_asset_control_rig`
 
-编辑 ControlRig：层级（rename_element/set_control_color/add_null/remove_element）与 RigVM 图连线（add_rig_link/break_rig_link/add_rig_node）。
+编辑 ControlRig 层级与 RigVM 图连线/节点。见 operations[].action。
 
 **适用场景**：修改 ControlRig：层级元素增删/改色；RigVM 图节点增删与引脚连线（add_rig_link/break_rig_link）；需 save_asset 落盘
 
@@ -1007,7 +1003,7 @@
 
 ### `manage_asset_curve`
 
-修改曲线资产关键帧。operations[].action: add_key / set_key / remove_key / set_interp（CurveTable 用 rowName 代替 channel）。
+修改曲线资产关键帧。见 operations[].action（CurveTable 用 rowName 代替 channel）。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -1052,14 +1048,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | GameplayAbility Blueprint 路径 |
-| `action` | `string (enum)` | ★ | 操作类型 枚举值：`set_tags` / `set_policy` / `set_cost_cooldown` |
-| `tagContainer` | `string (enum)` |  | Tag 容器名 枚举值：`abilityTags` / `activationOwnedTags` / `activationRequiredTags` / `activationBlockedTags` / `cancelAbilitiesWithTag` / `blockAbilitiesWithTag` |
-| `tags` | `string` |  | Tag 字符串数组 |
-| `mode` | `string (enum)` |  | set/add/remove 枚举值：`set` / `add` / `remove` |
-| `instancingPolicy` | `string (enum)` |  | 实例化策略 枚举值：`NonInstanced` / `InstancedPerActor` / `InstancedPerExecution` |
-| `netExecutionPolicy` | `string (enum)` |  | 网络执行策略 枚举值：`LocalPredicted` / `LocalOnly` / `ServerInitiated` / `ServerOnly` |
-| `costGE` | `string` |  | Cost GE 资产路径（传空字符串清空） |
-| `cooldownGE` | `string` |  | Cooldown GE 资产路径（传空字符串清空） |
 
 **相关 Capability**：`get_asset_gameplay_ability`、`save_asset`、`manage_asset_blueprint`
 
@@ -1074,7 +1062,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | GameplayEffect Blueprint 路径 |
-| `ops` | `string` | ★ | 操作数组；每项为含 action 字段的 JSON 对象 |
+| `operations` | `string` | ★ | 操作数组；每项为含 action 字段的 JSON 对象 |
 
 **相关 Capability**：`get_asset_gameplay_effect`、`save_asset`、`create_asset_gameplay_effect`
 
@@ -1147,14 +1135,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 关卡资产路径（如 /Game/Maps/MyLevel） |
-| `action` | `string (enum)` | ★ | 操作 枚举值：`set_property` / `spawn_actor` / `remove_actor` / `set_actor_property` |
-| `propertyPath` | `string` |  | WorldSettings 属性路径（set_property） |
-| `value` | `string` |  | 属性新值字符串 |
-| `classPath` | `string` |  | Actor 类名（spawn_actor） |
-| `blueprintPath` | `string` |  | Blueprint 路径（spawn_actor） |
-| `location` | `string` |  | 生成位置 x,y,z（spawn_actor） |
-| `rotation` | `string` |  | 生成旋转 pitch,yaw,roll（spawn_actor，可选） |
-| `actorName` | `string` |  | Actor 名或 Label（remove/set_actor_property） |
 
 **相关 Capability**：`get_asset_level`、`search_asset`
 
@@ -1176,13 +1156,13 @@
 
 ### `manage_asset_meta_sound`
 
-修改 MetaSound Source / Patch（≥5.1）：add_input/remove_input/add_output/remove_output/add_node/remove_node/add_edge/remove_edge。
+?? MetaSound Source/Patch ???????????UE5.1??? operations[].action?
 
-**适用场景**：修改 MetaSound Source 或 Patch 的接口/图；add_edge 用 fromNodeID/fromPin/toNodeID/toPin（节点 ID 从 get_asset_meta_sound 获取）
+**适用场景**：?? MetaSound Source ? Patch ???/??add_edge ? fromNodeID/fromPin/toNodeID/toPin??? ID ? get_asset_meta_sound ???
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MetaSound Source 或 Patch 资产路径 |
+| `assetPath` | `string` | ★ | MetaSound Source ? Patch ???? |
 
 **相关 Capability**：`get_asset_meta_sound`、`create_asset_meta_sound`、`create_asset_meta_sound_patch`
 
@@ -1199,10 +1179,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | NiagaraSystem 资产路径 |
-| `action` | `string (enum)` | ★ | 操作 枚举值：`set_property` / `set_user_parameter` |
-| `propertyPath` | `string` |  | 属性路径（set_property） |
-| `parameterName` | `string` |  | 用户参数名（set_user_parameter） |
-| `value` | `string` |  | 新值字符串 |
 
 **相关 Capability**：`get_asset_niagara_system`、`search_asset`
 
@@ -1237,7 +1213,7 @@
 
 ### `manage_asset_physics_asset`
 
-编辑 PhysicsAsset：set_physics_type/add_sphere/add_capsule/add_box/clear_shapes/add_constraint/remove_constraint。
+编辑 PhysicsAsset 形状与约束。见 operations[].action。
 
 **适用场景**：给 PhysicsAsset 的骨骼添加碰撞形状、设置 PhysicsType、添加/移除关节约束
 
@@ -1289,11 +1265,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | SkeletalMesh 资产路径 |
-| `action` | `string (enum)` | ★ | 操作 枚举值：`set_material_slot` / `set_property` |
-| `slotIndex` | `integer` |  | 材质槽索引（set_material_slot） |
-| `materialPath` | `string` |  | 材质资产路径（set_material_slot） |
-| `propertyPath` | `string` |  | 属性路径（set_property） |
-| `value` | `string` |  | 属性新值（set_property） |
 
 **相关 Capability**：`get_asset_skeletal_mesh`、`get_asset_skeleton`
 
@@ -1349,15 +1320,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | SoundCue 资产路径 |
-| `action` | `string (enum)` | ★ | 操作 枚举值：`set_property` / `add_node` / `remove_node` / `connect_nodes` |
-| `propertyPath` | `string` |  | 属性路径（set_property） |
-| `value` | `string` |  | 属性新值字符串 |
-| `nodeClass` | `string` |  | SoundNode 类名（add_node，如 SoundNodeWavePlayer） |
-| `soundWavePath` | `string` |  | SoundWave 路径（WavePlayer 可选） |
-| `parentNodeIndex` | `integer` |  | 父节点索引（add_node/connect_nodes） |
-| `childSlot` | `integer` |  | 父节点子槽（add_node/connect_nodes） |
-| `nodeIndex` | `integer` |  | 节点索引（remove_node） |
-| `childIndex` | `integer` |  | 子节点索引（connect_nodes） |
 
 **相关 Capability**：`get_asset_sound_cue`、`get_asset_sound_wave`
 
@@ -1365,7 +1327,7 @@
 
 ### `manage_asset_sound_submix`
 
-设置 SoundSubmix 音量。UE4/5.0：outputVolume/wetLevel/dryLevel[0,1]；UE5.1+：outputVolumeDB/wetLevelDB/dryLevelDB(dB)。
+设置 SoundSubmix 音量（UE5.1+ 用 dB 字段，见 InputSchema）。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -1386,9 +1348,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | SoundWave 资产路径 |
-| `action` | `string (enum)` | ★ | 操作 枚举值：`set_property` |
-| `propertyPath` | `string` |  | 属性路径（如 Volume/Looping） |
-| `value` | `string` |  | 属性新值字符串 |
 
 **相关 Capability**：`get_asset_sound_wave`、`get_asset_sound_cue`
 
@@ -1419,11 +1378,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | StaticMesh 资产路径 |
-| `action` | `string (enum)` | ★ | 操作 枚举值：`set_material_slot` / `set_property` |
-| `slotIndex` | `integer` |  | 材质槽索引（set_material_slot） |
-| `materialPath` | `string` |  | 材质资产路径（set_material_slot） |
-| `propertyPath` | `string` |  | 属性路径（set_property） |
-| `value` | `string` |  | 属性新值（set_property） |
 
 **相关 Capability**：`get_asset_static_mesh`、`search_asset`
 
@@ -1440,9 +1394,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | Texture 资产路径 |
-| `action` | `string (enum)` | ★ | 操作 枚举值：`set_property` |
-| `propertyPath` | `string` |  | 属性路径（如 CompressionSettings/sRGB/LODGroup） |
-| `value` | `string` |  | 属性新值字符串 |
 
 **相关 Capability**：`get_asset_texture`、`search_asset`
 
@@ -1514,6 +1465,21 @@
 
 ---
 
+### `unload_asset`
+
+手动卸载已加载资产包。兜底用；日常无需调用，内存高水位机制会自动卸载。
+
+**适用场景**：批量读取后内存仍偏高、需立即释放时手动调用
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` |  | 单个资产路径 |
+| `assetPaths` | `string` |  | 多个资产路径（批量） |
+
+**相关 Capability**：`save_asset`、`get_asset_blueprint`
+
+---
+
 ## 蓝图工具
 
 ### `compile_blueprint`
@@ -1576,28 +1542,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 蓝图资产路径 |
-| `action` | `string (enum)` | ★ | 操作类型 枚举值：`add_variable` / `remove_variable` / `add_node` / `remove_node` / `set_node` / `connect` / `disconnect` / `disconnect_all` / `add_component` / `remove_component` / `set_component_property` / `set_defaults` |
-| `graphName` | `string` |  | 图名（节点/连线操作） |
-| `variableName` | `string` |  | 变量或节点变量名 |
-| `variableType` | `string` |  | 基本或对象类型（add_variable） |
-| `defaultValue` | `string` |  | 默认值（add_variable） |
-| `category` | `string` |  | 编辑器分类（add_variable） |
-| `nodeId` | `string` |  | 节点 GUID（remove/set_node） |
-| `nodeClass` | `string` |  | K2Node 类（add_node） |
-| `functionName` | `string` |  | CallFunction：函数名 |
-| `functionClass` | `string` |  | CallFunction：所属类 |
-| `comment` | `string` |  | 节点注释（set_node） |
-| `pinName` | `string` |  | 要设默认值的引脚（set_node） |
-| `pinDefaultValue` | `string` |  | 引脚新默认值 |
-| `sourceNodeId` | `string` |  | 源节点 GUID（连线操作） |
-| `sourcePinName` | `string` |  | 源引脚名 |
-| `targetNodeId` | `string` |  | 目标节点 GUID（connect/disconnect） |
-| `targetPinName` | `string` |  | 目标引脚名 |
-| `componentClass` | `string` |  | 组件类名（add_component），如 StaticMeshComponent |
-| `componentName` | `string` |  | SCS 变量名（add/remove/set_component_property） |
-| `attachTo` | `string` |  | 父组件变量名（add_component）；省略则用默认场景根 |
-| `propertyPath` | `string` |  | 属性路径，点分记法如 RelativeLocation.X（set_component_property/set_defaults） |
-| `value` | `string` |  | 字符串值，如 (X=100,Y=0,Z=50) 或 true（set_component_property/set_defaults） |
 
 **相关 Capability**：`get_asset_blueprint`、`create_asset_blueprint`、`save_asset`
 
@@ -1806,11 +1750,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 动画蓝图资产路径 |
-| `action` | `string (enum)` | ★ | 操作类型 枚举值：`add_state_machine` / `remove_state_machine` / `add_state` / `remove_state` / `add_transition` / `remove_transition` |
-| `graphName` | `string` |  | 所属 AnimGraph 名（默认 AnimGraph） |
-| `stateMachineName` | `string` |  | 状态机名（boundgraph 名） |
-| `stateName` | `string` |  | 状态名（add/remove_state、过渡源） |
-| `targetStateName` | `string` |  | 过渡目标状态名 |
 
 **相关 Capability**：`get_asset_anim_blueprint`、`create_asset_anim_blueprint`、`save_asset`
 
@@ -1837,12 +1776,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 动画 Montage 资产路径 |
-| `action` | `string (enum)` | ★ | 操作类型 枚举值：`add_segment` / `remove_segment` / `add_section` / `remove_section` |
-| `animSequencePath` | `string` |  | AnimSequence 路径（add_segment） |
-| `slotName` | `string` |  | 槽位名 |
-| `segmentIndex` | `integer` |  | 要删除的片段索引（remove_segment） |
-| `sectionName` | `string` |  | 分段名（add_section / remove_section） |
-| `nextSectionName` | `string` |  | 循环下一分段（add_section，可选） |
 
 **相关 Capability**：`get_asset_anim_montage`、`create_asset_anim_montage`、`save_asset`
 
@@ -1859,12 +1792,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | AnimSequence 资产路径 |
-| `action` | `string (enum)` | ★ | 编辑操作 枚举值：`add_notify` / `remove_notify` / `set_frame_rate` / `set_root_motion` / `add_float_curve` / `set_curve_key` / `remove_curve` |
-| `notifyName` | `string` |  | Notify 名（add/remove） |
-| `notifyClass` | `string` |  | Notify 类路径（add；默认 AnimNotify） |
-| `notifyIndex` | `integer` |  | Notify 索引（remove） |
-| `rootMotion` | `string` |  | 根运动模式：RootMotionFromEverything|RootMotionFromMontagesOnly|NoRootMotionExtraction |
-| `curveName` | `string` |  | 曲线名（add_float_curve / set_curve_key / remove_curve） |
 
 **相关 Capability**：`get_asset_anim_sequence`、`get_asset_anim_montage`
 
@@ -1895,12 +1822,6 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | Skeleton 资产路径 |
-| `action` | `string (enum)` | ★ | Socket 操作 枚举值：`add_socket` / `remove_socket` / `modify_socket` |
-| `socketName` | `string` |  | Socket 名 |
-| `boneName` | `string` |  | 挂载骨骼名（add/modify） |
-| `location` | `string` |  | 位置 X,Y,Z（add/modify） |
-| `rotation` | `string` |  | 旋转 P,Y,R（add/modify） |
-| `scale` | `string` |  | 缩放 X,Y,Z（add/modify） |
 
 **相关 Capability**：`get_asset_skeleton`、`get_asset_skeletal_mesh`
 
@@ -2848,17 +2769,6 @@ PIE 读 Actor ASC 快照。`sections=abilities|effects|attributes`；写用 `int
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 行为树资产路径 |
-| `action` | `string (enum)` | ★ | 操作类型 枚举值：`set_root` / `add_node` / `remove_node` / `move_node` / `add_decorator` / `remove_decorator` / `add_service` / `remove_service` / `set_blackboard` / `set_property` |
-| `nodeClass` | `string` |  | 节点类名（set_root/add_node/add_decorator/add_service） |
-| `nodeName` | `string` |  | 显示名覆盖（可选） |
-| `parentPath` | `string` |  | 从根起的点分子节点索引，如 '' 或 '0.1' |
-| `childIndex` | `integer` |  | 子槽索引（add_node/move_node/装饰器/服务） |
-| `targetPath` | `string` |  | 目标节点点分路径（remove_node/move_node/set_property） |
-| `targetIndex` | `integer` |  | decorators[]/services[] 中要删改的索引 |
-| `blackboardPath` | `string` |  | BlackboardData 资产路径（set_blackboard） |
-| `targetType` | `string (enum)` |  | set_property 的目标类型 枚举值：`node` / `decorator` / `service` |
-| `propertyName` | `string` |  | 要设置的 UPROPERTY 名（set_property） |
-| `propertyValue` | `string` |  | 文本值，ImportText 格式（set_property） |
 
 **相关 Capability**：`get_asset_behavior_tree`、`manage_asset_blackboard`、`save_asset`
 

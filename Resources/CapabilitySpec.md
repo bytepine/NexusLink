@@ -219,7 +219,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 
 - **默认**：`{get|manage|create}_asset_{type}`（`blueprint` / `material` / `user_widget` / `anim_blueprint` / …）。
 - **Manage** = 磁盘资产结构性增删改（节点、行、字段、片段）；**禁止**用于 PIE 播放、GA 施放等运行时命令。
-- **通用例外（完整名）**：`search_asset`、`save_asset`、`rename_asset`、`duplicate_asset`、`delete_asset`、`get_asset_refs`、`get_asset_lua_binding`、`manage_asset_struct_field`。
+- **通用例外（完整名）**：`search_asset`、`save_asset`、`rename_asset`、`duplicate_asset`、`delete_asset`、`unload_asset`、`get_asset_refs`、`get_asset_lua_binding`、`manage_asset_struct_field`。
 
 ### 6.3 Runtime（PIE / Game）
 
@@ -234,12 +234,12 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 
 ### 6.4 例外登记表（非 Asset/Runtime pattern）
 
-须在 Instructions「例外」段与下表 **1:1**（共 16 + 条件 GAS 11）：
+须在 Instructions「例外」段与下表 **1:1**（共 17 + 条件 GAS 11）：
 
 | 分类 | Capability |
 |------|------------|
 | Editor (8) | `capture_viewport`, `compile_blueprint`, `control_pie`, `exec_command`, `get_editor_info`, `get_gameplay_tags`, `get_output_log`, `set_log_capture_filter` |
-| 通用资产 (6) | 见 §6.2 例外行 |
+| 通用资产 (7) | 见 §6.2 例外行 |
 | Lua (13, `WITH_UNLUA`) | `eval_runtime_lua`, `dofile_runtime_lua`, `gc_runtime_lua`, `hotreload_runtime_lua`, `set_runtime_lua`, `get_runtime_lua_env`, `get_runtime_lua_value`, `get_runtime_lua_loaded`, `get_runtime_lua_stack`, `get_runtime_lua_metatable`, `get_runtime_lua_object`, `get_runtime_lua_memory`, `get_asset_lua_binding` |
 | Runtime 非标 | `diff_runtime_actors`, `get_runtime_slate_widget` |
 | GAS (`WITH_GAS=1`, 11) | `create/get/manage_asset_gameplay_ability`, `create/get/manage_asset_gameplay_effect`, `create/get/manage_asset_attribute_set`, `get_runtime_actor_ability_system`, `interact_runtime_actor_ability_system` |

@@ -12,6 +12,7 @@
 #include "UObject/Package.h"
 #include "UObject/Class.h"
 #include "Utils/NexusVersionCompat.h"
+#include "Utils/NexusPackageLedger.h"
 
 class UWidgetBlueprint;
 class UWidget;
@@ -78,6 +79,35 @@ public:
 		{
 			const FString Fallback = AssetPath + TEXT(".") + FPaths::GetBaseFilename(AssetPath);
 			Asset = LoadObject<TAsset>(nullptr, *Fallback);
+		}
+		return Asset;
+	}
+
+	/**
+	 * 加载资产并记账到 FNexusPackageLedger（内存高水位批量驱逐机制）：
+	 * 若加载前该包未驻留内存，视为"本次引入"，登记后交由台账在阈值命中时整批卸载 + GC。
+	 * 行为等价 LoadAssetWithFallback，仅多一步记账；用户已打开/已加载的包不受影响。
+	 */
+	template <typename TAsset>
+	static TAsset* LoadAssetTracked(const FString& AssetPath)
+	{
+		if (AssetPath.IsEmpty()) return nullptr;
+
+		FString PackageName = AssetPath;
+		int32 DotIdx;
+		if (PackageName.FindChar(TEXT('.'), DotIdx))
+		{
+			PackageName = PackageName.Left(DotIdx);
+		}
+		const bool bAlreadyResident = (FindPackage(nullptr, *PackageName) != nullptr);
+
+		TAsset* Asset = LoadAssetWithFallback<TAsset>(AssetPath);
+		if (Asset && !bAlreadyResident)
+		{
+			if (UPackage* Pkg = Asset->GetOutermost())
+			{
+				FNexusPackageLedger::Get().NoteIntroduced(Pkg);
+			}
 		}
 		return Asset;
 	}

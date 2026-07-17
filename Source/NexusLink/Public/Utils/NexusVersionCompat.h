@@ -17,6 +17,7 @@
 
 // ── 语义别名：按 API 变更点命名 ──
 
+#define NX_UE_HAS_UNLOAD_PACKAGES_DIRTY_FLAG  NX_UE_AT_LEAST(5, 0)  // UPackageTools::UnloadPackages(Packages, Err, bUnloadDirtyPackages) 第三参数仅 5.0+（4.26/4.27 只有 2 参重载）
 #define NX_UE_HAS_APP_STYLE            NX_UE_AT_LEAST(5, 0)  // FEditorStyle::Get() → FAppStyle::Get()（Styling/AppStyle.h）
 #define NX_UE_HAS_FTSTICKER            NX_UE_AT_LEAST(5, 0)  // FTicker → FTSTicker
 #define NX_UE_HAS_SAVE_PACKAGE_ARGS    NX_UE_AT_LEAST(5, 0)  // UPackage::SavePackage(FSavePackageArgs)
