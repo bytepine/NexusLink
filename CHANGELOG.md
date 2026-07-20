@@ -25,6 +25,7 @@
 - perf(mcp): Capability 风格契约统一（单资产多操作范围）——`manage_*` 入参统一 `operations[]`（`ops`/顶层 `action` 过渡期兼容读入，`FNexusJsonUtils::ExtractOperations` 统一解析）；`manage_asset_meta_sound`/`manage_asset_pcg_graph`/`manage_asset_pose_search`/`manage_asset_data_layer` 去掉「一条 Entry + 内嵌 `results[]`」，改为一 op 一条 `OutEntries` Entry；去掉编译/导出/重导入/`remove_*` 计数/ControlRig/LevelSequence/StateTree/Input/MPC/MetaSound/`save` 顶层等冗余成功态 `success`（失败态 `success:false` 与条件布尔保留）；`create_asset_blueprint`/`create_asset_data_table` 补齐响应 `path`，`create_asset_meta_sound`/`create_asset_meta_sound_patch`/`create_asset_pcg_graph`/`create_asset_data_layer` 入参迁移至 `assetPath`（旧 `packagePath`+`assetName` 过渡期兼容读入）；`CapabilitySpec.md` 新增 Manage/Create/Execute 契约节
 - docs: 超长 manage Description（`anim_sequence`/`control_rig`/`meta_sound`/`sound_submix`/`curve`/`physics_asset`）收紧至 ≤100 字符
 - fix(mcp): `manage_asset_gameplay_ability` Description 103→≤100，消除注册期 `Description.Len() <= 100` ensure
+- fix(mcp): 移除 Capability Description ≤100 注册期 `ensureMsgf` 硬拦（改为 `CapabilitySpec` 建议值，避免静态初始化刷 UAT ensure）
 
 ## [1.15.2] - 2026-07-17
 

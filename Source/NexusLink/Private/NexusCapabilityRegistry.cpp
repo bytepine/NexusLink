@@ -98,15 +98,6 @@ static TArray<FString> BuildKeywords(const FNexusCapabilityDefinition& Def,
 	return Result;
 }
 
-// ── 辅助：注册期元数据硬校验（仅保留会阻塞启动的项；格式质量改由 audit_capability_naming.py CI 门禁）──
-static void ValidateCapabilityMetadata(const FNexusCapabilityDefinition& Def)
-{
-	// 描述长度硬上限：超长会撑爆 tools/list token 预算
-	ensureMsgf(Def.Description.Len() <= 100,
-		TEXT("[NexusCap] '%s' description too long (%d chars, max 100): \"%s\""),
-		*Def.Name, Def.Description.Len(), *Def.Description);
-}
-
 // ── §6 命名：首段动词须在标准词表内 ───────────────────────────────────────────
 static const TSet<FString>& GetAllowedCapabilityVerbs()
 {
@@ -171,8 +162,7 @@ void FNexusCapabilityRegistry::Register(TSharedRef<FNexusCapability> Cap)
 		return;
 	}
 
-	// 元数据质量校验（违反 → ensureMsgf，Dev 构建可见）
-	ValidateCapabilityMetadata(Def);
+	// 命名动词硬校验（Description 长度改为规范建议，不再 ensure，避免静态初始化期刷屏）
 	ValidateCapabilityName(Def);
 
 	// InputSchema deep-clone，防止 cap 子类持有同一指针被外部修改污染

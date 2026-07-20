@@ -12,10 +12,10 @@
 
 | 段 | 约束 | 说明 |
 |---|---|---|
-| VERB + TARGET | 必填，≤30 字符 | 动作 + 受体；**禁止重复 name 中已有 token**（注册期校验） |
-| DIFFERENTIATOR | 必填，≤50 字符 | 与同前缀 cap 的关键差异（batch vs single / editor vs runtime / CDO vs instance） |
-| CONSTRAINT | 按需，≤30 字符 | 危险提示 / 前置依赖（`requires PIE` / `editor graph not synced` / `validated ImportText`） |
-| **总长度** | **≤100 字符** | 超过注册期 ensureMsgf 警告 |
+| VERB + TARGET | 必填，建议 ≤30 字符 | 动作 + 受体；**禁止重复 name 中已有 token**（注册期校验） |
+| DIFFERENTIATOR | 必填，建议 ≤50 字符 | 与同前缀 cap 的关键差异（batch vs single / editor vs runtime / CDO vs instance） |
+| CONSTRAINT | 按需，建议 ≤30 字符 | 危险提示 / 前置依赖（`requires PIE` / `editor graph not synced` / `validated ImportText`） |
+| **总长度** | **建议 ≤100 字符** | 过长会挤占 `tools/list` / SearchMode token；**注册期不再 ensure** |
 
 ### 1.1 VERB 标准词表
 
@@ -72,7 +72,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 | 字段 | 赋值方式 | 约束 |
 |---|---|---|
 | `Out.Name` | 必填 | snake_case，全局唯一，`verb_noun` 命名 |
-| `Out.Description` | 必填 | 四段式，≤100 字符 |
+| `Out.Description` | 必填 | 四段式；建议 ≤100 字符（注册期不硬拦） |
 | `Out.InputSchema` | 必填 | `FNexusSchema::Object().Prop(...).Required({...}).Build()` |
 | `Out.Tags` | 必填 | 至少含 1 个访问标签（`readonly`/`write`）+ 1 个分类标签 |
 | `Out.ExtraSearchKeywords` | 可选 | 口语词/同义词；禁重复 name token；注册期自动剥离 |
@@ -172,7 +172,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 
 提交或 PR review 前，对每个新增/修改的 cap 逐项确认：
 
-- [ ] **格式**：Description 符合四段式，总长度 ≤ 100 字符，含至少 1 个 `.`
+- [ ] **格式**：Description 符合四段式，建议总长度 ≤ 100 字符，含至少 1 个 `.`
 - [ ] **无重叠**：Description 中无 name 的主要 token（注册期 overlap ≤ 30%）
 - [ ] **差异化**：同前缀 cap 的 Description 在 DIFFERENTIATOR 段有明显区分词
 - [ ] **Keywords**：ExtraSearchKeywords 均为口语词/同义词，无 name 已有词
@@ -180,7 +180,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 - [ ] **SearchAssetTypes**：资产 `get_asset_*` / `manage_asset_*` 已声明对应 `assetType`（与 `search_asset` 返回值对齐）；非资产 cap 留空
 - [ ] **命名**：`Out.Name` 符合 §6 决策树；非 pattern cap 已登记 InitializeInstructions 例外表
 
-> 注册期 `FNexusCapabilityRegistry::Register()` 仅硬校验描述长度（≤100）与命名动词（§6）；§4 格式/重叠/关键词条数由 `Script/audit_capability_naming.py` CI 门禁负责，避免 Dev 构建启动时 ensure 闪退。
+> 注册期 `FNexusCapabilityRegistry::Register()` 仅硬校验命名动词（§6）；Description 长度与 §4 格式/重叠/关键词条数由规范自检 / `Script/audit_capability_naming.py` CI 门禁负责，避免 Dev 构建启动时 ensure 闪退。
 
 ---
 

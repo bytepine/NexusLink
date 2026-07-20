@@ -45,7 +45,7 @@ struct FCapabilityResult
 /**
  * Capability 元数据定义 —— Capability 与 Tool 已完全解耦，所有元信息在自身上。
  *
- * 描述格式（四段式，≤100 字符）：
+ * 描述格式（四段式，建议 ≤100 字符）：
  *   [VERB] [TARGET]. [DIFFERENTIATOR]. [CONSTRAINT?]
  * 详见 CapabilitySpec.md。
  */
@@ -55,9 +55,9 @@ struct FNexusCapabilityDefinition
 	FString Name;
 
 	/**
-	 * Capability 描述（四段式，≤100 字符）：
+	 * Capability 描述（四段式，建议 ≤100 字符）：
 	 *   [VERB TARGET]. [DIFFERENTIATOR]. [CONSTRAINT?]
-	 * 注册期自动校验：长度 / name token 重叠率 / 段数（至少含 1 个 '.'）。
+	 * 长度不再注册期 ensure；命名动词等见 CapabilitySpec / Registry。
 	 */
 	FString Description;
 
