@@ -23,7 +23,7 @@ void FManageAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefi
 {
 	Out.Name = TEXT("manage_asset_gameplay_ability");
 	Out.SearchAssetTypes = {TEXT("GameplayAbility")};
-	Out.Description = TEXT("批量修改 GA CDO：operations[].action=set_tags/set_policy/set_cost_cooldown。Graph 编辑用 manage_asset_blueprint。");
+	Out.Description = TEXT("批量修改 GA CDO：tags/policy/cost_cooldown。图编辑用 manage_asset_blueprint。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),        FNexusSchema::Enum(TEXT("操作类型"), { TEXT("set_tags"), TEXT("set_policy"), TEXT("set_cost_cooldown") }))
 		.Prop(TEXT("tagContainer"),  FNexusSchema::Enum(TEXT("Tag 容器名"),
