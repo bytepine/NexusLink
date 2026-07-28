@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- fix(compat): `NX_UE_HAS_MATERIAL_DOMAIN_HEADER` / `NX_UE_HAS_SKELETAL_MATERIAL_COMMON_HEADER`（及同门槛 `NX_UE_HAS_SCOPED_MATERIAL_DOMAIN`）门槛从 5.3 下调至 5.2——UE5.2 起 `Material.h`/`SkeletalMesh.h` 仅前向声明，须显式包含 `MaterialDomain.h` / `SkinnedAssetCommon.h`，否则 C2027
+
 ### Added
 
 - feat(mcp): 新增内存高水位批量驱逐机制（`FNexusPackageLedger`），解决批量读蓝图等资产时 `LoadObject` 后包常驻不释放导致编辑器内存暴涨的问题——只弱引用记账「本次调用引入的包」，累积到阈值（数量/内存高水位任一命中）再整批 `UnloadPackages` + 一次 `KEEPFLAGS` GC，绝不 `AddToRoot`/改对象 flag，不阻碍引擎自身 GC，也能感知台账内包已被引擎自动回收（静默剔除，不当错误）；`get_asset_blueprint`/`compile_blueprint` 接入 `LoadAssetTracked`，`FNexusMultiSectionCapability` 子类默认按 `readonly` 标签自动启用（写类 cap 默认关闭，避免打断故意保留的 dirty 修改）。设置面板新增「内存管理」分类：`bAutoUnloadIntrospectedPackages`（默认开）/`FlushThresholdCount`（默认 16）/`MemoryHighWaterMB`（默认 1024，均可在编辑器偏好中随时调整、无需重启）；`call_capability` 新增 `keepLoaded` 参数（默认 false）可整体关闭本次调用的自动卸载；新增手动兜底 `unload_asset` Capability（`assetPaths[]`+`bSkipDirty`+`bForceGC`）供批量读取后需要立即释放内存时调用

@@ -34,8 +34,8 @@
 #define NX_UE_HAS_EXPORT_TEXT_DIRECT   NX_UE_AT_LEAST(5, 5)  // ExportTextItem_Direct → ExportText_Direct
 #define NX_UE_HAS_STRUCT_UTILS_HEADER  NX_UE_AT_LEAST(5, 5)  // Engine/UserDefinedStruct.h → StructUtils/
 #define NX_UE_HAS_MATERIAL_EDITOR_ONLY_DATA NX_UE_AT_LEAST(5, 1) // UMaterial::Expressions → GetEditorOnlyData()
-#define NX_UE_HAS_SCOPED_MATERIAL_DOMAIN   NX_UE_AT_LEAST(5, 3) // MD_Surface → EMaterialDomain::Surface
-#define NX_UE_HAS_MATERIAL_DOMAIN_HEADER   NX_UE_AT_LEAST(5, 3) // EMaterialDomain 移至独立 MaterialDomain.h（UE5.3+；UE4 中由 Material.h 直接提供）
+#define NX_UE_HAS_SCOPED_MATERIAL_DOMAIN   NX_UE_AT_LEAST(5, 2) // 与 MATERIAL_DOMAIN_HEADER 同门槛（历史别名；枚举值仍为 MD_*）
+#define NX_UE_HAS_MATERIAL_DOMAIN_HEADER   NX_UE_AT_LEAST(5, 2) // EMaterialDomain 移至独立 MaterialDomain.h（UE5.2+；5.1 及更早由 Material.h 完整提供）
 #define NX_UE_HAS_ALLOW_SHRINKING_ENUM     NX_UE_AT_LEAST(5, 5) // TArray::Pop(bool) → Pop(EAllowShrinking)
 #define NX_UE_HAS_ANIM_SEGMENT_ACCESSOR    NX_UE_AT_LEAST(5, 1) // FAnimSegment::AnimReference 在 5.1 开始 deprecated（5.6 变 protected），需用 GetAnimReference()/SetAnimReference()
 #define NX_UE_HAS_STATIC_MESH_ACCESSORS    NX_UE_AT_LEAST(4, 27) // UStaticMesh::StaticMaterials/BodySetup → GetStaticMaterials()/GetBodySetup()
@@ -43,7 +43,7 @@
 #define NX_UE_HAS_SKELETAL_MESH_SKELETON_ACCESSOR NX_UE_AT_LEAST(4, 27) // USkeletalMesh::Skeleton → GetSkeleton()（4.27 起 deprecated 直访）
 #define NX_UE_HAS_UMG_SLOT_GETTERS               NX_UE_AT_LEAST(5, 1)  // UPanelSlot 布局字段 getter（5.1 起 deprecated 直访）
 #define NX_UE_HAS_SLATE_BOX_PANEL_SLOT_GETTERS   NX_UE_AT_LEAST(5, 0)  // SBoxPanel::FSlot GetPadding/GetHorizontalAlignment；SHorizontalBox::GetSlot
-#define NX_UE_HAS_SKELETAL_MATERIAL_COMMON_HEADER NX_UE_AT_LEAST(5, 3) // FSkeletalMaterial 完整定义迁至 SkinnedAssetCommon.h
+#define NX_UE_HAS_SKELETAL_MATERIAL_COMMON_HEADER NX_UE_AT_LEAST(5, 2) // FSkeletalMaterial 完整定义在 SkinnedAssetCommon.h；5.2+ SkeletalMesh.h 仅前向声明
 #define NX_UE_HAS_ANIM_SEQUENCE_LOOP_FIELD NX_UE_AT_LEAST(5, 1) // UAnimSequence::bLoop（UE5.0 无此公开字段）
 #define NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL  NX_UE_AT_LEAST(5, 6) // 帧数/帧率走 IAnimationDataModel
 // UE 5.5+ RawCurveData 移至 protected，需通过反射访问

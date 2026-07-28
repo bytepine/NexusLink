@@ -6,10 +6,8 @@
 #include "Utils/NexusMaterialUtils.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Materials/Material.h"
-#if NX_UE_HAS_SCOPED_MATERIAL_DOMAIN
 #if NX_UE_HAS_MATERIAL_DOMAIN_HEADER
 #include "MaterialDomain.h"
-#endif
 #endif
 #include "Materials/MaterialInstanceConstant.h"
 #if WITH_EDITOR
