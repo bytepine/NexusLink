@@ -89,6 +89,7 @@ NexusLink 内置端到端的 AI 使用反馈系统，**所有数据只落本地 
   - `proxy_connect_fail` — 代理 `connect_unreal_instance` 连接失败
   - 旧版代理（未实现该上报）或旧版 NexusLink（未实现该方法）均静默降级，不影响正常使用
 - **手动上报**：AI 遇到无法自解决的痛点时调用 `submit_feedback` 显式记录
+- **环境指纹**：每条 jsonl 落盘时自动写入 `pluginVersion` / `ueVersion` / `toolsListMode` / `platform`（调用方无需传）；导出报告与 Issue 草稿优先用记录内版本，避免归档后不知当时插件版本
 - **导出**：设置面板「**导出 Markdown**」按钮生成聚合报告落盘到 `.nexus-feedback/report_<ts>.md`（含慢调用 Top 10、错误指纹 Top 5 等），并归档清空 `feedback.jsonl`
 - **GitHub Issue**：设置面板「**创建 GitHub Issue**」读取 `feedback.jsonl` 生成标题/正文并在浏览器打开预填页面（可配置 `FeedbackIssueRepo`，默认 `bytepine/NexusLink`）
 

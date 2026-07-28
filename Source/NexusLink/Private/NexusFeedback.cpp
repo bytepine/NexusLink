@@ -95,6 +95,40 @@ static FString DateTimeToIso8601(const FDateTime& DT)
 		DT.GetHour(), DT.GetMinute(), DT.GetSecond());
 }
 
+/** 当前进程 NexusLink 插件 VersionName（失败时 "unknown"）。 */
+static FString GetLivePluginVersion()
+{
+	if (const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("NexusLink")))
+	{
+		FString Ver = Plugin->GetDescriptor().VersionName;
+		if (Ver.IsEmpty())
+		{
+			Ver = FString::FromInt(Plugin->GetDescriptor().Version);
+		}
+		if (!Ver.IsEmpty())
+		{
+			return Ver;
+		}
+	}
+	return TEXT("unknown");
+}
+
+/** 当前引擎版本字符串，如 "4.26.2"。 */
+static FString GetLiveUeVersion()
+{
+	const FEngineVersion EngVer = FEngineVersion::Current();
+	return FString::Printf(TEXT("%d.%d.%d"),
+		EngVer.GetMajor(), EngVer.GetMinor(), EngVer.GetPatch());
+}
+
+/** 当前 ToolsListMode 字符串。 */
+static FString GetLiveToolsListMode()
+{
+	const UNexusLinkSettings* S = UNexusLinkSettings::Get();
+	return (S && S->ToolsListMode == ENexusToolsListMode::MultiTool)
+		? TEXT("MultiTool") : TEXT("SearchMode");
+}
+
 /** 将一条反馈序列化为 JSON 字符串（condensed 单行）。 */
 static FString BuildJsonLine(const FString& Kind, const FString& Category,
                               const FNexusFeedback::FFields& Fields)
@@ -103,6 +137,13 @@ static FString BuildJsonLine(const FString& Kind, const FString& Category,
 	Obj->SetStringField(TEXT("ts"),       DateTimeToIso8601(FDateTime::UtcNow()));
 	Obj->SetStringField(TEXT("kind"),     Kind);
 	Obj->SetStringField(TEXT("category"), Category);
+
+	// 落盘时写入环境指纹，归档后仍可追溯当时版本（不依赖导出时进程）
+	Obj->SetStringField(TEXT("pluginVersion"), GetLivePluginVersion());
+	Obj->SetStringField(TEXT("ueVersion"),     GetLiveUeVersion());
+	Obj->SetStringField(TEXT("toolsListMode"), GetLiveToolsListMode());
+	Obj->SetStringField(TEXT("platform"),
+		FString(ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName())));
 
 	if (!Fields.Tool.IsEmpty())
 		Obj->SetStringField(TEXT("tool"), Fields.Tool);
@@ -312,33 +353,71 @@ namespace NexusFeedbackInternal
 		return BuildFromOwnerRepo(TEXT("bytepine/NexusLink"));
 	}
 
-	/** 环境指纹行（Issue 正文头），可选接受记录集合以填充条数与时间窗。 */
+	/** 将字段计数字典格式化为展示串：单值直接返回，多值写成 `a×n / b×m`。 */
+	static FString FormatVersionCounts(const TMap<FString, int32>& Counts, const FString& Fallback)
+	{
+		if (Counts.Num() == 0)
+		{
+			return Fallback;
+		}
+		TArray<TPair<FString, int32>> Arr;
+		for (const auto& P : Counts)
+		{
+			Arr.Add(P);
+		}
+		Arr.Sort([](const TPair<FString, int32>& A, const TPair<FString, int32>& B)
+		{
+			if (A.Value != B.Value) return A.Value > B.Value;
+			return A.Key < B.Key;
+		});
+		if (Arr.Num() == 1)
+		{
+			return Arr[0].Key;
+		}
+		FString Out;
+		for (const auto& P : Arr)
+		{
+			if (!Out.IsEmpty()) Out += TEXT(" / ");
+			Out += FString::Printf(TEXT("%s×%d"), *P.Key, P.Value);
+		}
+		return Out;
+	}
+
+	/** 环境指纹行（报告头 / Issue 正文头）；优先用记录内落盘版本，旧记录无字段时回退当前进程。 */
 	static FString BuildEnvironmentBlock(
 		const TArray<TSharedPtr<FJsonObject>>* Records = nullptr)
 	{
-		FString PluginVer = TEXT("unknown");
-		if (const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("NexusLink")))
+		FString PluginVer = GetLivePluginVersion();
+		FString UeVer     = GetLiveUeVersion();
+		FString ToolsMode = GetLiveToolsListMode();
+		FString PlatformName = FString(ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
+
+		if (Records && Records->Num() > 0)
 		{
-			PluginVer = Plugin->GetDescriptor().VersionName;
-			if (PluginVer.IsEmpty())
+			TMap<FString, int32> PluginCounts, UeCounts, ModeCounts, PlatCounts;
+			for (const auto& R : *Records)
 			{
-				PluginVer = FString::FromInt(Plugin->GetDescriptor().Version);
+				const FString PV = GetStr(R, TEXT("pluginVersion"));
+				if (!PV.IsEmpty()) { int32& V = PluginCounts.FindOrAdd(PV); V++; }
+				const FString UV = GetStr(R, TEXT("ueVersion"));
+				if (!UV.IsEmpty()) { int32& V = UeCounts.FindOrAdd(UV); V++; }
+				const FString TM = GetStr(R, TEXT("toolsListMode"));
+				if (!TM.IsEmpty()) { int32& V = ModeCounts.FindOrAdd(TM); V++; }
+				const FString PL = GetStr(R, TEXT("platform"));
+				if (!PL.IsEmpty()) { int32& V = PlatCounts.FindOrAdd(PL); V++; }
 			}
+			PluginVer    = FormatVersionCounts(PluginCounts, PluginVer);
+			UeVer        = FormatVersionCounts(UeCounts, UeVer);
+			ToolsMode    = FormatVersionCounts(ModeCounts, ToolsMode);
+			PlatformName = FormatVersionCounts(PlatCounts, PlatformName);
 		}
 
-		const UNexusLinkSettings* S = UNexusLinkSettings::Get();
-		const FString ToolsMode = (S && S->ToolsListMode == ENexusToolsListMode::MultiTool)
-			? TEXT("MultiTool") : TEXT("SearchMode");
-
-		const FEngineVersion EngVer     = FEngineVersion::Current();
-		const FString PlatformName      = FString(ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
-		const TCHAR*  ProjectName       = FApp::GetProjectName();
+		const TCHAR* ProjectName = FApp::GetProjectName();
 		FString Md;
 		Md += TEXT("## 环境\n\n");
 		Md += FString::Printf(
-			TEXT("- UE %d.%d.%d · NexusLink %s · %s\n"),
-			EngVer.GetMajor(), EngVer.GetMinor(), EngVer.GetPatch(),
-			*PluginVer, *PlatformName);
+			TEXT("- UE %s · NexusLink %s · %s\n"),
+			*UeVer, *PluginVer, *PlatformName);
 		Md += FString::Printf(TEXT("- 项目: %s · ToolsListMode: %s\n"),
 			ProjectName ? ProjectName : TEXT("(unknown)"), *ToolsMode);
 
@@ -724,6 +803,7 @@ namespace NexusFeedbackInternal
 		FString Md;
 		const FString Ts = DateTimeToIso8601(FDateTime::UtcNow());
 		Md += FString::Printf(TEXT("# NexusLink Capability 反馈报告\n\n生成时间：%s\n\n"), *Ts);
+		Md += BuildEnvironmentBlock(&Records);
 
 		// §0 趋势（仅在有上期数据时输出）
 		if (PrevCatSummary.IsValid())

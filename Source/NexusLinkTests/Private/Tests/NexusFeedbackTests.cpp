@@ -6,6 +6,8 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 #include "NexusFeedback.h"
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -73,6 +75,31 @@ bool FNexusLinkFeedbackRoundTripTest::RunTest(const FString& /*Parameters*/)
 
 	TestEqual(TEXT("RecordCount after 3 writes"), FNexusFeedback::GetRecordCount(), 3);
 
+	// 落盘行须含环境指纹（pluginVersion / ueVersion），避免归档后不知版本
+	{
+		const FString JsonlPath = FNexusFeedback::GetFeedbackDir() / TEXT("feedback.jsonl");
+		TArray<FString> Lines;
+		FFileHelper::LoadFileToStringArray(Lines, *JsonlPath);
+		int32 VersionedLines = 0;
+		for (const FString& Line : Lines)
+		{
+			FString Trimmed = Line;
+			Trimmed.TrimStartAndEndInline();
+			if (Trimmed.IsEmpty()) continue;
+			TSharedPtr<FJsonObject> Obj;
+			const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Trimmed);
+			if (!FJsonSerializer::Deserialize(Reader, Obj) || !Obj.IsValid()) continue;
+			FString PluginVer, UeVer;
+			Obj->TryGetStringField(TEXT("pluginVersion"), PluginVer);
+			Obj->TryGetStringField(TEXT("ueVersion"), UeVer);
+			if (!PluginVer.IsEmpty() && !UeVer.IsEmpty())
+			{
+				++VersionedLines;
+			}
+		}
+		TestEqual(TEXT("Each jsonl line has pluginVersion+ueVersion"), VersionedLines, 3);
+	}
+
 	// 导出报告
 	const FString ReportPath = FNexusFeedback::ExportReport();
 	TestFalse(TEXT("ExportReport returns non-empty path"), ReportPath.IsEmpty());
@@ -87,6 +114,8 @@ bool FNexusLinkFeedbackRoundTripTest::RunTest(const FString& /*Parameters*/)
 		FFileHelper::LoadFileToString(MdContent, *ReportPath);
 		TestTrue(TEXT("Report contains totalCount line"),
 			MdContent.Contains(TEXT("总条数：**3**")));
+		TestTrue(TEXT("Report has env section"), MdContent.Contains(TEXT("## 环境")));
+		TestTrue(TEXT("Report env has NexusLink version"), MdContent.Contains(TEXT("NexusLink")));
 
 		// 归档 jsonl 存在（feedback_<ts>.jsonl）
 		const FString ArchiveDir = FNexusFeedback::GetFeedbackDir() / TEXT("archive");
@@ -205,9 +234,11 @@ bool FNexusLinkFeedbackIssuePrefillTest::RunTest(const FString& /*Parameters*/)
 	// 标题：应含 capability 名（get_asset）
 	TestTrue(TEXT("Title contains capability"), Draft.Title.Contains(TEXT("get_asset")));
 
-	// 正文：环境段（含 ToolsListMode）
+	// 正文：环境段（含 ToolsListMode + 落盘版本）
 	TestTrue(TEXT("Body has env section"),      Draft.Body.Contains(TEXT("## 环境")));
 	TestTrue(TEXT("Body env has ToolsListMode"),Draft.Body.Contains(TEXT("ToolsListMode")));
+	TestTrue(TEXT("Body env has NexusLink version"), Draft.Body.Contains(TEXT("NexusLink")));
+	TestTrue(TEXT("Body env has UE version"),   Draft.Body.Contains(TEXT("UE ")));
 	// 正文：最小复现段
 	TestTrue(TEXT("Body has repro section"),  Draft.Body.Contains(TEXT("## 最小复现")));
 	// 正文：结构化字段展示

@@ -26,6 +26,10 @@
  *   - schema_guess     : AI 主动上报——字段含义靠猜
  *   - other            : 其他
  *
+ * 每条 JSONL 落盘时自动写入环境指纹（无需调用方传入）：
+ *   pluginVersion / ueVersion / toolsListMode / platform
+ * 导出报告与 Issue 草稿优先使用记录内版本（多版本时按次数列出），无字段的旧记录回退到当前进程。
+ *
  * 所有方法均为静态，无需实例化。
  * 总开关由 UNexusLinkSettings::bEnableFeedback 控制。
  */
