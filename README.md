@@ -173,6 +173,8 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 - [x] **全工具响应默认值压缩**（`FNexusResponseCompactorUtils`）：递归扫描对象数组字段，主流值自动抽取为 `<field>_defaults`，降低响应体积；可通过设置面板 `响应默认值压缩` 全局关闭
 - [x] **AI 反馈闭环**：`search_capabilities` / `call_capability` 自动埋点 + `submit_feedback` 手动上报；数据落本地 `<ProjectRoot>/.nexus-feedback/`；设置面板可**导出 Markdown** 报告、**创建 GitHub Issue**（可配置 `FeedbackIssueRepo`）。详情见 [usage-guide §2.5](docs/usage-guide.md)
 - [x] **插件版本检查**：设置面板「插件信息」显示当前版本；支持手动**检查更新**与**启动时自动检查**（默认开），有新版本时通知并跳转 [Releases](https://github.com/bytepine/NexusLink/releases)
+- [x] **内存高水位批量驱逐**（`FNexusPackageLedger`）：只读批量读资产时弱引用记账本次引入的包，达数量/内存阈值后整批卸载 + GC；设置面板「内存管理」可调；`call_capability.keepLoaded` / `unload_asset` 兜底
+- [x] **`search_asset` 推荐工具**：结果附 `recommendedGet` / `recommendedManage`（由各 cap 的 `SearchAssetTypes` 声明）
 
 ---
 

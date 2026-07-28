@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [1.15.3] - 2026-07-28
+
 ### Fixed
 
 - fix(compat): `NX_UE_HAS_MATERIAL_DOMAIN_HEADER` / `NX_UE_HAS_SKELETAL_MATERIAL_COMMON_HEADER`（及同门槛 `NX_UE_HAS_SCOPED_MATERIAL_DOMAIN`）门槛从 5.3 下调至 5.2——UE5.2 起 `Material.h`/`SkeletalMesh.h` 仅前向声明，须显式包含 `MaterialDomain.h` / `SkinnedAssetCommon.h`，否则 C2027
