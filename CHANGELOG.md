@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- fix(mcp): `GetAllowedCapabilityVerbs` 补齐 `unload`，消除 `unload_asset` 注册期 ensure（CapabilitySpec §1.1 / §6.2 已登记但词表漏项）
+
 ### Added
 
 - feat(feedback): 每条 `feedback.jsonl` 落盘自动写入 `pluginVersion` / `ueVersion` / `toolsListMode` / `platform`；Markdown 报告头与 Issue 环境段优先用记录内版本（多版本按次数列出），旧记录无字段时回退当前进程

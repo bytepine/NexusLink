@@ -107,6 +107,7 @@ static const TSet<FString>& GetAllowedCapabilityVerbs()
 		const TCHAR* Allowed[] = {
 			TEXT("search"), TEXT("list"), TEXT("get"), TEXT("set"), TEXT("manage"),
 			TEXT("create"), TEXT("delete"), TEXT("rename"), TEXT("duplicate"), TEXT("save"),
+			TEXT("unload"),
 			TEXT("spawn"), TEXT("destroy"), TEXT("diff"), TEXT("interact"), TEXT("control"),
 			TEXT("exec"), TEXT("eval"), TEXT("dofile"), TEXT("gc"), TEXT("hotreload"), TEXT("capture"),
 			TEXT("compile"), TEXT("export"), TEXT("reimport"),

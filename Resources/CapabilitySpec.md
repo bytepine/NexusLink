@@ -31,6 +31,7 @@
 | `Rename` | 移动/重命名资产 | `rename_asset` |
 | `Duplicate` | 复制资产到新路径 | `duplicate_asset` |
 | `Save` | 持久化脏标记资产 | `save_asset` |
+| `Unload` | 从内存卸载已加载资产包 | `unload_asset` |
 | `Spawn` | 运行时实例化 | `spawn_runtime_actor`, `spawn_runtime_widget` |
 | `Destroy` | 运行时移除实例 | `destroy_runtime_actor` |
 | `Diff` | 对比两个实体的属性差异 | `diff_runtime_actors` |
