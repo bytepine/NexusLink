@@ -119,7 +119,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 2. **非 Actor BP**：`manage_asset_blueprint` 禁止 `add_component` / `set_defaults`（仅 Actor BP）。
 3. **Lua**：先 `get_asset_lua_binding`；`bound=false` 则停止。
 4. **GAS 资产**：语义字段走 `get/manage_asset_gameplay_*`；Graph 仍走 `manage_asset_blueprint`。
-5. **行为树**：`manage_asset_behavior_tree` 改后 `save_asset`；编辑器 Graph 与运行时树同步刷新。
+5. **行为树**：`manage_asset_behavior_tree` 改后 `save_asset`；替换类型用 `replace_node`（勿 `remove+add`）；图与运行时不一致时用 `sync_graph`；写操作前若编辑器已打开该资产会被关闭（不保存）。
 
 ## 硬性规则
 

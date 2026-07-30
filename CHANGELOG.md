@@ -7,9 +7,22 @@
 
 ## [Unreleased]
 
+### Added
+
+- feat(mcp): `manage_asset_behavior_tree` 新增 `replace_node`（就地换类型、保留槽位 decorators/services，并反射同步 EdGraph `NodeInstance`）与 `sync_graph`（按结构位置整体重建 Graph↔RootNode）；写操作前关闭已打开的 BT 编辑器 Tab，避免旧 Graph 冲正
+
 ### Fixed
 
+- fix(mcp): `manage_asset_behavior_tree` `sync_graph` 子节点按 `NodePosX` 排序后再逐位配对——引擎编译 Graph→BT 时同样是 `LinkedTo.Sort(FCompareNodeXLocation())`，此前用 `LinkedTo` 原始顺序会在连线顺序与画面左右顺序不一致时把 `NodeInstance` 配错位置
+- fix(mcp): `manage_asset_behavior_tree` 读 `UAIGraphNode::SubNodes` 改走 `FObjectPropertyBase` 反射取值——UE5 起该字段为 `TArray<TObjectPtr<>>`，裸 `reinterpret_cast` 在 late-resolve 下会读到未解析句柄
+- fix(mcp): `manage_asset_behavior_tree` `replace_node` 换 Composite 时迁移旧节点的 `Children`/`Services`（返回 `movedChildren`/`movedServices`），此前整棵子树会被静默丢弃
+- fix(mcp): `manage_asset_behavior_tree` `set_property` 属性缺失的报错信息类名与属性名顺序颠倒
 - fix(mcp): `manage_asset_behavior_tree` `add_node` 创建 `FBTCompositeChild` 前显式清零 `ChildComposite`/`ChildTask`，避免未赋值一侧残留脏指针
+
+### Changed
+
+- perf(mcp): `manage_asset_behavior_tree` Description 由约 500 字符收紧至 ≤100（CapabilitySpec §1），详细图同步边界移入 `docs/tool-reference.md`；`WhenToUse`/`ExtraSearchKeywords` 同步补充 replace/sync 语义
+- feat(mcp): `manage_asset_behavior_tree` 关闭编辑器 Tab（不保存）时顶层返回 `editorClosed`，且改到 `operations` 校验通过后再执行；`properties[]` 单项失败不再静默吞掉，改为回 `propertyErrors[]`；点分路径段非纯数字时报路径非法（此前 `Atoi` 会静默当成索引 0）
 - fix(mcp): `manage_asset_behavior_tree` 批量操作改为结束后统一 `PostEditChange`（避免多次通知损坏节点指针）；`set_property` 对 `GetClass()` 为空做防护；`add_node` 支持 `properties[{name,value}]` 创建时设初值，降低后续 `set_property` 因类卸载崩溃的风险
 - fix(mcp): `GetAllowedCapabilityVerbs` 补齐 `unload`，消除 `unload_asset` 注册期 ensure（CapabilitySpec §1.1 / §6.2 已登记但词表漏项）
 

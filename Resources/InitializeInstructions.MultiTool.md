@@ -31,7 +31,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（**MultiTool 模式**）。
 
 ## 蓝图 / Lua / GAS
 
-同 SearchMode：`get_asset_blueprint` 先于图编辑；Lua 先 `get_asset_lua_binding`；GAS Graph 走 `manage_asset_blueprint`；行为树改后 `save_asset`。
+同 SearchMode：`get_asset_blueprint` 先于图编辑；Lua 先 `get_asset_lua_binding`；GAS Graph 走 `manage_asset_blueprint`；行为树改后 `save_asset`（替换用 `replace_node`，图错位用 `sync_graph`）。
 
 ## 硬性规则
 

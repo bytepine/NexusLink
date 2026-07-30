@@ -2762,9 +2762,18 @@ PIE 读 Actor ASC 快照。`sections=abilities|effects|attributes`；写用 `int
 
 ### `manage_asset_behavior_tree`
 
-批量编辑 BT 节点/装饰器/服务：`move_node` 与 `set_property` 等；改后刷新编辑器 BT 图。
+批量编辑 BT 节点/装饰器/服务。`replace_node` 就地换类型并尽量同步 EdGraph `NodeInstance`；`sync_graph` 按结构位置整体重建 Graph↔RootNode；写操作前会关闭已打开的编辑器 Tab（不保存）。
 
-**适用场景**：写操作：增删/移动节点、装饰器、服务，设置属性
+**适用场景**：写操作：增删/替换/移动节点、装饰器、服务，设置属性；修复图与运行时树错位
+
+**图同步边界**：
+
+- `replace_node` 靠"本次被替换掉的旧节点指针"定位图节点，只对本次替换有效；成功与否见返回的 `graphSynced`。
+- 更早改过 `RootNode` 导致图错位时用 `sync_graph`：不依赖旧指针，按结构位置（`Children` 左右顺序、`decorators`/`services` 数量）逐位重建对应关系；数量对不上的位置在 `warnings[]` 列出。
+- `add_node` / `set_root` 不会创建可视化图节点，`sync_graph` 也无法为其配对，需在编辑器里手动补齐。
+- 写操作前若该资产在编辑器中打开会被关闭且**不保存**，编辑器内未保存的改动会丢失；发生时顶层返回 `editorClosed: true`。
+- `replace_node` 换 Composite 时会把旧节点的子树与服务迁移到新节点，迁移数量见 `movedChildren` / `movedServices`。
+- `add_node` / `replace_node` 的 `properties[]` 若有项失败（属性不存在或 `ImportText` 失败），会在该条目的 `propertyErrors[]` 列出，其余项照常应用。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
