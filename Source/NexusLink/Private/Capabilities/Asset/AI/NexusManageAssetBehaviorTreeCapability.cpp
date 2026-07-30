@@ -124,6 +124,7 @@ void FManageAssetBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinit
 			{ TEXT("node"), TEXT("decorator"), TEXT("service") }))
 		.Prop(TEXT("propertyName"),  FNexusSchema::Str(TEXT("要设置的 UPROPERTY 名（set_property）")))
 		.Prop(TEXT("propertyValue"), FNexusSchema::Str(TEXT("文本值，ImportText 格式（set_property）")))
+		.Prop(TEXT("properties"),  FNexusSchema::ArrOfObj(TEXT("add_node 初始属性 [{name,value}]")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
@@ -210,9 +211,6 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 			}
 			BT->RootNode = NewRoot;
 			BT->MarkPackageDirty();
-#if WITH_EDITOR
-			NotifyBehaviorTreeAssetChanged(BT);
-#endif
 			Entry->SetStringField(TEXT("nodeClass"), Class->GetName());
 		}
 		// ── add_node ───────────────────────────────────────────────────────────────
@@ -255,6 +253,9 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 			}
 
 			FBTCompositeChild NewChild;
+			NewChild.ChildComposite = nullptr;
+			NewChild.ChildTask = nullptr;
+			UBTNode* CreatedNode = nullptr;
 			if (bIsComposite)
 			{
 				UBTCompositeNode* NewComp = NewObject<UBTCompositeNode>(BT, Class);
@@ -264,6 +265,7 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 					NewComp->NodeName = NodeName;
 				}
 				NewChild.ChildComposite = NewComp;
+				CreatedNode = NewComp;
 			}
 			else
 			{
@@ -274,6 +276,35 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 					NewTask->NodeName = NodeName;
 				}
 				NewChild.ChildTask = NewTask;
+				CreatedNode = NewTask;
+			}
+
+			// 支持在创建节点时直接设置初始属性（避免后续 set_property 因类卸载而崩溃）
+			if (CreatedNode && OpArgs->HasField(TEXT("properties")))
+			{
+				const TArray<TSharedPtr<FJsonValue>>& PropsArr = OpArgs->GetArrayField(TEXT("properties"));
+				UClass* CreatedClass = CreatedNode->GetClass();
+				for (const TSharedPtr<FJsonValue>& PropVal : PropsArr)
+				{
+					const TSharedPtr<FJsonObject>* PropObjPtr = nullptr;
+					if (!PropVal.IsValid() || !PropVal->TryGetObject(PropObjPtr) || !PropObjPtr) continue;
+					const TSharedPtr<FJsonObject>& PropObj = *PropObjPtr;
+
+					FString PropName, PropValue;
+					if (!PropObj->TryGetStringField(TEXT("name"), PropName) || PropName.IsEmpty()) continue;
+					if (!PropObj->TryGetStringField(TEXT("value"), PropValue)) continue;
+
+					FProperty* Prop = CreatedClass ? CreatedClass->FindPropertyByName(*PropName) : nullptr;
+					if (Prop)
+					{
+						void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(CreatedNode);
+#if NX_UE_HAS_IMPORT_TEXT_DIRECT
+						Prop->ImportText_Direct(*PropValue, ValuePtr, CreatedNode, PPF_None);
+#else
+						Prop->ImportText(*PropValue, ValuePtr, PPF_None, CreatedNode);
+#endif
+					}
+				}
 			}
 
 			const int32 InsertIdx = [&]() -> int32
@@ -287,9 +318,6 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 			}();
 			Parent->Children.Insert(NewChild, InsertIdx);
 			BT->MarkPackageDirty();
-#if WITH_EDITOR
-			NotifyBehaviorTreeAssetChanged(BT);
-#endif
 
 			const FString AddedPath = ParentPath.IsEmpty()
 				? FString::FromInt(InsertIdx)
@@ -350,9 +378,6 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 			}();
 			DstParent->Children.Insert(MovedChild, InsertIdx);
 			BT->MarkPackageDirty();
-#if WITH_EDITOR
-			NotifyBehaviorTreeAssetChanged(BT);
-#endif
 
 			const FString NewPath = NewParentPath.IsEmpty()
 				? FString::FromInt(InsertIdx)
@@ -382,9 +407,6 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 
 			Parent->Children.RemoveAt(ChildIdx);
 			BT->MarkPackageDirty();
-#if WITH_EDITOR
-			NotifyBehaviorTreeAssetChanged(BT);
-#endif
 			Entry->SetStringField(TEXT("removedPath"), TargetPath);
 		}
 		// ── add_decorator ──────────────────────────────────────────────────────────
@@ -439,9 +461,6 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 			}
 			const int32 AddedIdx = Parent->Children[ChildIdx].Decorators.Add(Dec);
 			BT->MarkPackageDirty();
-#if WITH_EDITOR
-			NotifyBehaviorTreeAssetChanged(BT);
-#endif
 
 			Entry->SetStringField(TEXT("nodeClass"),   Class->GetName());
 			Entry->SetStringField(TEXT("parentPath"),  ParentPath);
@@ -485,9 +504,6 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 
 		Decs.RemoveAt(TargetIdx);
 			BT->MarkPackageDirty();
-#if WITH_EDITOR
-			NotifyBehaviorTreeAssetChanged(BT);
-#endif
 			Entry->SetStringField(TEXT("parentPath"), ParentPath);
 			Entry->SetNumberField(TEXT("childIndex"), ChildIdx);
 			Entry->SetNumberField(TEXT("removedIndex"), TargetIdx);
@@ -531,9 +547,6 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 			}
 			const int32 AddedIdx = Parent->Services.Add(Svc);
 			BT->MarkPackageDirty();
-#if WITH_EDITOR
-			NotifyBehaviorTreeAssetChanged(BT);
-#endif
 
 			Entry->SetStringField(TEXT("nodeClass"),  Class->GetName());
 			Entry->SetStringField(TEXT("parentPath"), ParentPath);
@@ -565,9 +578,6 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 
 			Parent->Services.RemoveAt(TargetIdx);
 			BT->MarkPackageDirty();
-#if WITH_EDITOR
-			NotifyBehaviorTreeAssetChanged(BT);
-#endif
 			Entry->SetStringField(TEXT("parentPath"),   ParentPath);
 			Entry->SetNumberField(TEXT("removedIndex"), TargetIdx);
 		}
@@ -592,9 +602,6 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 
 			BT->BlackboardAsset = BBAsset;
 			BT->MarkPackageDirty();
-#if WITH_EDITOR
-			NotifyBehaviorTreeAssetChanged(BT);
-#endif
 			Entry->SetStringField(TEXT("blackboardPath"), BBAsset->GetPathName());
 		}
 		// ── set_property ───────────────────────────────────────────────────────────
@@ -696,10 +703,17 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 			}
 
 			// 通过反射设置属性
-			FProperty* Prop = TargetNode->GetClass()->FindPropertyByName(*PropertyName);
+			UClass* TargetNodeClass = TargetNode->GetClass();
+			if (!TargetNodeClass)
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("节点 '%s' 的 GetClass() 返回空（可能类已被卸载）"), *TargetNode->GetName()));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				continue;
+			}
+			FProperty* Prop = TargetNodeClass->FindPropertyByName(*PropertyName);
 			if (!Prop)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("在 %s 上未找到属性 '%s'"), *PropertyName, *TargetNode->GetClass()->GetName()));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("在 %s 上未找到属性 '%s'"), *PropertyName, *TargetNodeClass->GetName()));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -718,9 +732,6 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 			}
 
 			BT->MarkPackageDirty();
-#if WITH_EDITOR
-			NotifyBehaviorTreeAssetChanged(BT);
-#endif
 			Entry->SetStringField(TEXT("targetType"),    TargetType);
 			Entry->SetStringField(TEXT("propertyName"),  PropertyName);
 			Entry->SetStringField(TEXT("propertyValue"), PropertyValue);
@@ -732,6 +743,11 @@ FCapabilityResult FManageAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 		}
+
+		// 所有操作完成后统一通知一次（避免多次 PostEditChange 导致节点指针损坏）
+#if WITH_EDITOR
+		NotifyBehaviorTreeAssetChanged(BT);
+#endif
 	});
 }
 

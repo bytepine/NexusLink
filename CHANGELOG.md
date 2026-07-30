@@ -9,6 +9,8 @@
 
 ### Fixed
 
+- fix(mcp): `manage_asset_behavior_tree` `add_node` 创建 `FBTCompositeChild` 前显式清零 `ChildComposite`/`ChildTask`，避免未赋值一侧残留脏指针
+- fix(mcp): `manage_asset_behavior_tree` 批量操作改为结束后统一 `PostEditChange`（避免多次通知损坏节点指针）；`set_property` 对 `GetClass()` 为空做防护；`add_node` 支持 `properties[{name,value}]` 创建时设初值，降低后续 `set_property` 因类卸载崩溃的风险
 - fix(mcp): `GetAllowedCapabilityVerbs` 补齐 `unload`，消除 `unload_asset` 注册期 ensure（CapabilitySpec §1.1 / §6.2 已登记但词表漏项）
 
 ### Added
