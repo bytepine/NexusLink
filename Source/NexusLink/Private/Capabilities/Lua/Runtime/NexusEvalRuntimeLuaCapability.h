@@ -7,11 +7,12 @@
 #if WITH_UNLUA
 
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 struct lua_State;
 
 /** manage_runtime_lua_eval — 执行 Lua 表达式或代码段。 */
-class FEvalRuntimeLuaCapability : public FNexusCapability
+class FEvalRuntimeLuaCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -7,11 +7,12 @@
 #if WITH_UNLUA
 
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 struct lua_State;
 
 /** get_runtime_lua_object — 读取运行时 UObject 的实例/类 Lua 表。 */
-class FGetRuntimeLuaObjectCapability : public FNexusCapability
+class FGetRuntimeLuaObjectCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

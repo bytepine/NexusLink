@@ -386,7 +386,7 @@ void FGetRuntimeActorPropertyCapability::BuildDefinition(FNexusCapabilityDefinit
 		                                                   TEXT("defaults") }))
 		.Required({ TEXT("actorName") })
 		.Build();
-	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
+	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("components"), TEXT("hierarchy"), TEXT("field"), TEXT("transform"), TEXT("character") };
 	Out.RelatedCapabilities = { TEXT("set_runtime_actor_property"), TEXT("list_runtime_actors") };
 	Out.Prerequisites = { TEXT("pie") };

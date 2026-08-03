@@ -7,11 +7,12 @@
 #if WITH_UNLUA
 
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 struct lua_State;
 
 /** get_runtime_lua_metatable — 读取目标值的 metatable 概览及 __index 链。 */
-class FGetRuntimeLuaMetatableCapability : public FNexusCapability
+class FGetRuntimeLuaMetatableCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

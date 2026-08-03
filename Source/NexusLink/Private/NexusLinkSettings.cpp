@@ -5,6 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusLink.h"
 #include "Server/NexusMcpServer.h"
+#include "Utils/NexusHostUtils.h"
 
 UNexusLinkSettings::UNexusLinkSettings()
 {

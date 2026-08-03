@@ -7,11 +7,12 @@
 #if WITH_UNLUA
 
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 struct lua_State;
 
 /** get_runtime_lua_memory — 返回 Lua VM 当前内存占用。 */
-class FGetRuntimeLuaMemoryCapability : public FNexusCapability
+class FGetRuntimeLuaMemoryCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

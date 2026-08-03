@@ -9,6 +9,7 @@
 #include "NexusFeedback.h"
 #include "Utils/NexusCapResultAdapter.h"
 #include "Utils/NexusResponseCompactorUtils.h"
+#include "Utils/NexusHostUtils.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
@@ -318,6 +319,10 @@ void FNexusMcpDispatcher::HandleToolsList(const TSharedPtr<FJsonValue>& Id, cons
 		for (const FCapRecord& Record : AllRecords)
 		{
 			if (!Settings->IsCapabilityEnabled(Record.Def.Name))
+			{
+				continue;
+			}
+			if (!FNexusHostUtils::IsCapabilityVisibleOnHost(Record))
 			{
 				continue;
 			}

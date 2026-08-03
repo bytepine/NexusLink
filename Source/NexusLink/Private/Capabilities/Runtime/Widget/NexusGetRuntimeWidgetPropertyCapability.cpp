@@ -54,7 +54,7 @@ void FGetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityDefini
 		.Prop(TEXT("propertyPath"),  FNexusSchema::Str(TEXT("点分路径（单个）")))
 		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("点分路径（批量）")))
 		.Build();
-	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
+	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("field"), TEXT("brush"), TEXT("slot"), TEXT("value") };
 	Out.RelatedCapabilities = { TEXT("set_runtime_widget_property"), TEXT("list_runtime_widgets") };
 	Out.Prerequisites = { TEXT("pie") };

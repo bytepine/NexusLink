@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 /** list_actors 的 Capability —— 带过滤和分页列举当前 World 中的 Actor。*/
-class FListRuntimeActorsCapability : public FNexusCapability
+class FListRuntimeActorsCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

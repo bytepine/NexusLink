@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 /** spawn_actor 的 Capability —— 生成单个 Actor（blueprintPath 或 className）。*/
-class FSpawnRuntimeActorCapability : public FNexusCapability
+class FSpawnRuntimeActorCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -7,9 +7,10 @@
 #if WITH_UNLUA
 
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 /** manage_runtime_lua_hotreload — 触发 UnLua 2.X HotReload。 */
-class FHotReloadRuntimeLuaCapability : public FNexusCapability
+class FHotReloadRuntimeLuaCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

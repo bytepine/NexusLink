@@ -7,12 +7,13 @@
 #if WITH_GAS
 
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 /**
  * interact_runtime_actor_ability_system — PIE 运行时对 Actor ASC 执行写操作。
  * action=activate_ability|cancel_ability|apply_effect|remove_effect|set_attribute。
  */
-class FInteractRuntimeActorAbilitySystemCapability : public FNexusCapability
+class FInteractRuntimeActorAbilitySystemCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

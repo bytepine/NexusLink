@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 class UWorld;
 
@@ -13,7 +14,7 @@ class UWorld;
  * 命中条件：target=="actor" 或（未显式指定 target 时）有 actorName。
  * Execute 处理单个 Actor，生成一条 entry。
  */
-class FGetRuntimeActorPropertyCapability : public FNexusCapability
+class FGetRuntimeActorPropertyCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

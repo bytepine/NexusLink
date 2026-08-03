@@ -7,11 +7,12 @@
 #if WITH_UNLUA
 
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 struct lua_State;
 
 /** get_runtime_lua_value — 按点分路径读取单个 Lua 值。 */
-class FGetRuntimeLuaValueCapability : public FNexusCapability
+class FGetRuntimeLuaValueCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

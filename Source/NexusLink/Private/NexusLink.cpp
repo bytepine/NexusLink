@@ -65,6 +65,12 @@ static bool IsMcpServerRequested()
 
 void FNexusLinkModule::StartupModule()
 {
+#if UE_BUILD_SHIPPING
+	// Shipping 包：模块加载后立即空返回，不注册任何子系统 / 不启 MCP
+	UE_LOG(LogNexusLink, Log, TEXT("Shipping 构建：NexusLink 插件不启动"));
+	return;
+#endif
+
 	// 尽早注册日志捕获器，确保不遗漏启动阶段的日志
 	LogCapture = MakeUnique<FNexusLogCapture>();
 	LogCapture->Register();

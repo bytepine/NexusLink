@@ -18,6 +18,7 @@
 #include "Utils/NexusCapabilityLegacyNames.h"
 #include "Utils/NexusCapResultAdapter.h"
 #include "Utils/NexusPackageLedger.h"
+#include "Utils/NexusHostUtils.h"
 
 // ── 进程内 redundant_call LRU 表 ──────────────────────────────────────────────
 struct FCallCapabilityRedundantEntry
@@ -117,6 +118,7 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 		RedundantWarn,
 		Unknown,
 		Disabled,
+		Unavailable,
 		ArgInvalid,
 		Fatal
 	};
@@ -156,6 +158,19 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 			return R;
 		}
 		R.Record = Record;
+
+		if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*Record))
+		{
+			R.Status = ECallCoreStatus::Unavailable;
+			{
+				FNexusFeedback::FFields F;
+				F.Tool       = TEXT("call_capability");
+				F.Capability = Record->Def.Name;
+				F.ErrorText  = TEXT("当前宿主不可用（仅 runtime）");
+				FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
+			}
+			return R;
+		}
 
 		const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
 		if (!Settings->IsCapabilityEnabled(Record->Def.Name))
@@ -277,7 +292,7 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 void FNexusMcpToolCallCapability::BuildDefinition(FNexusMcpToolDefinition& Out) const
 {
 	Out.Name = TEXT("call_capability");
-	Out.Description = TEXT("【阶段4 - 执行操作】通过 capability 执行读写或交互。\n触发条件：search_capabilities 返回参数 Schema 后调用。\n前置依赖：必须先 search_capabilities 获取参数格式。\n用法：单条 capability+arguments；批量 calls=[{capability,arguments},...]。\n约束：失败看 errorKind (unknown/disabled/arg_invalid)；disabled 勿重试；_feedbackHint 必须 submit_feedback。");
+	Out.Description = TEXT("【阶段4 - 执行操作】通过 capability 执行读写或交互。\n触发条件：search_capabilities 返回参数 Schema 后调用。\n前置依赖：必须先 search_capabilities 获取参数格式。\n用法：单条 capability+arguments；批量 calls=[{capability,arguments},...]。\n约束：失败看 errorKind (unknown/disabled/unavailable/arg_invalid)；disabled 勿重试；_feedbackHint 必须 submit_feedback。");
 
 	const TSharedPtr<FJsonObject> CallItemSchema = FNexusSchema::Object()
 		.Prop(TEXT("capability"),
@@ -402,6 +417,19 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				}
 				++FailureCount;
 				break;
+			case ECallCoreStatus::Unavailable:
+				Item->SetStringField(TEXT("error"), FString::Printf(
+					TEXT("Capability '%s' 在当前宿主不可用（Dedicated Server / Game 仅暴露 Runtime 基类 Capability）。"),
+					*Core.Record->Def.Name));
+				Item->SetStringField(TEXT("errorKind"), TEXT("unavailable"));
+				Item->SetStringField(TEXT("hint"),
+					TEXT("勿重试。请改用 runtime 类 Capability，或连到完整 Editor 实例。"));
+				if (!Core.RequestedCapName.Equals(Core.Record->Def.Name, ESearchCase::IgnoreCase))
+				{
+					Item->SetStringField(TEXT("requestedCapability"), Core.RequestedCapName);
+				}
+				++FailureCount;
+				break;
 		case ECallCoreStatus::ArgInvalid:
 			{
 				FString ErrMsg;
@@ -477,6 +505,22 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				ErrMsg,
 				Core.Record->Def.Name,
 				TEXT("勿重试同名 cap。请在编辑器 编辑→项目设置→NexusLink 启用该 Capability，或改用只读方案。"),
+				Core.RequestedCapName);
+			Result.StructuredContent = Err;
+			SerializeObjToString(Err, Result.ErrorText);
+		}
+		return Result;
+	case ECallCoreStatus::Unavailable:
+		{
+			Result.bIsError = true;
+			const FString ErrMsg = FString::Printf(
+				TEXT("Capability '%s' 在当前宿主不可用（Dedicated Server / Game 仅暴露 Runtime 基类 Capability）。"),
+				*Core.Record->Def.Name);
+			TSharedPtr<FJsonObject> Err = BuildCallErrorObject(
+				TEXT("unavailable"),
+				ErrMsg,
+				Core.Record->Def.Name,
+				TEXT("勿重试。请改用 runtime 类 Capability，或连到完整 Editor 实例。"),
 				Core.RequestedCapName);
 			Result.StructuredContent = Err;
 			SerializeObjToString(Err, Result.ErrorText);

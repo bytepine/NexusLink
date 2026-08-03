@@ -36,7 +36,9 @@ graph TB
 
 ## MCP 服务器生命周期
 
-`UNexusLinkSettings::bEnableMcpServer` 为总开关，**默认 `false`**。另支持命令行 **`-EnableNexusMcp`**（会话级，不写盘）；与 Preferences 为 OR。编辑器启动时若两者皆假，不创建 `FNexusMcpServer`、不写入实例注册文件；用户在 **Editor Preferences → Plugins → NexusLink** 勾选后通过 `PostEditChangeProperty` 即时启停，无需重启。IDE 代理与 AI 直连均依赖服务已启动后 UE 才会监听 HTTP/WebSocket 端口。
+`UNexusLinkSettings::bEnableMcpServer` 为总开关，**默认 `false`**。另支持命令行 **`-EnableNexusMcp`**（会话级，不写盘）；与 Preferences 为 OR。**Shipping 下 `StartupModule` 直接空返回（插件不启动）**；支持的引擎上 `TargetConfigurationDenyList: Shipping` 还会跳过加载。非 Shipping 且未启用时不创建 `FNexusMcpServer`；Preferences 勾选后经 `PostEditChangeProperty` 即时启停。
+
+**Capability 可见性**：完整 Editor 宿主暴露全部已启用 cap；Dedicated Server / 纯 Game 仅暴露 `GetHostScope()==Runtime` 的 cap（继承 `FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`）。新增 cap **无需**手写宿主过滤。
 
 ## 分层职责
 

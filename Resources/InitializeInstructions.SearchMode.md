@@ -1,5 +1,7 @@
 NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 动画 / AI / 编辑器）。
 
+
+> **Host note**: On Dedicated Server / non-editor Game, only Capabilities inheriting `FNexusRuntimeCapability` (or the MultiSection variant) are visible; editor/asset caps return `errorKind=unavailable`. Shipping builds do not start NexusLink.
 ## ⚡ 触发条件（何时使用本工具）
 
 当用户消息包含以下任一关键词时，你**必须使用 MCP 工具**而非凭记忆作答：

@@ -109,6 +109,19 @@ struct FNexusCapabilityDefinition
 };
 
 /**
+ * Capability 在宿主上的可见范围。
+ * 默认 EditorOnly：新增资产/编辑器 cap 无需关心 DS/Game 过滤。
+ * Runtime 目录下的 cap 继承 FNexusRuntimeCapability（或 MultiSection 变体）即可自动可见。
+ */
+enum class ENexusCapabilityHostScope : uint8
+{
+	/** 仅完整 Editor 宿主（非 Dedicated Server）。 */
+	EditorOnly,
+	/** Editor + Dedicated Server + 纯 Game 均可发现/调用。 */
+	Runtime,
+};
+
+/**
  * MCP Capability —— 一段可执行的工作单元，通过 REGISTER_MCP_CAPABILITY 自注册到全局表，
  * 由 search_capabilities / call_capability 元工具索引和驱动。
  *
@@ -127,6 +140,12 @@ class NEXUSLINK_API FNexusCapability
 {
 public:
 	virtual ~FNexusCapability() = default;
+
+	/**
+	 * 宿主可见范围。默认 EditorOnly。
+	 * Runtime 能力请继承 FNexusRuntimeCapability / FNexusRuntimeMultiSectionCapability，勿在此逐个 override。
+	 */
+	virtual ENexusCapabilityHostScope GetHostScope() const { return ENexusCapabilityHostScope::EditorOnly; }
 
 	/**
 	 * 返回元数据定义（首次调用触发 BuildDefinition，后续使用实例级缓存）。

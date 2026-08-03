@@ -46,7 +46,7 @@ void FSetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.Name = TEXT("set_runtime_widget_property");
 	Out.Description = TEXT("批量修改运行时 UMG 字段。updates[] 含控件名/路径/值。");
 	Out.InputSchema = FNexusSchema::EmptyObject();
-	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
+	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("field"), TEXT("brush"), TEXT("value"), TEXT("mutate") };
 	Out.RelatedCapabilities = { TEXT("get_runtime_widget_property") };
 	Out.Prerequisites = { TEXT("pie") };

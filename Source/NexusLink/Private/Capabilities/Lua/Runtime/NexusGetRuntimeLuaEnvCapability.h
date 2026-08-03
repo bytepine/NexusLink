@@ -7,11 +7,12 @@
 #if WITH_UNLUA
 
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 struct lua_State;
 
 /** get_runtime_lua_env — 列出 _G 或指定 table 的 keys。 */
-class FGetRuntimeLuaEnvCapability : public FNexusCapability
+class FGetRuntimeLuaEnvCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

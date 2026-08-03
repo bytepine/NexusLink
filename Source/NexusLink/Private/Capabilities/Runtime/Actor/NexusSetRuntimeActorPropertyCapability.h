@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 class UWorld;
 
@@ -13,7 +14,7 @@ class UWorld;
  * 命中条件：target=="actor" 或（无 target 且无顶层 assetPath 时）首条 update 有 actorName。
  * Execute 展开 updates[] 数组，每项独立写入。
  */
-class FSetRuntimeActorPropertyCapability : public FNexusCapability
+class FSetRuntimeActorPropertyCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

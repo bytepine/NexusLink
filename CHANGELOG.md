@@ -10,7 +10,14 @@
 ### Added
 
 - feat(server): 新增命令行开关 **`-EnableNexusMcp`**——会话级强制启动 MCP/WebSocket（不改 Preferences、不 `SaveConfig`）；与 `bEnableMcpServer` 为 OR，适合 `-server` / headless / 无 UI 启动
+- docs(host): 补齐打断遗漏——元工具 Description 含 unavailable、CapabilitySpec 自检项、InitializeInstructions/README 宿主说明
+- feat(host):  `FNexusHostUtils` + **`FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`**——Shipping 下 StartupModule 空返回（不启动）；DS/Game 仅暴露 `GetHostScope()==Runtime` 的 cap；新增运行时能力只需换基类，**不必**再处理宿主过滤 / Shipping
 - feat(mcp): `get_asset_refs` 扩展继承查询——`direction` 新增 `children`（直接子类）/`descendants`（全部子孙）/`parent`/`ancestors`（父类链）；新增 `assetTypeFilter`；`refs[]` 补齐 `name`/`parentClass`，继承方向含 `depth`（蓝图扫 `ParentClass`，材质扫 MI `Parent`）
+
+### Changed
+
+- chore(plugin): `NexusLink.uplugin` 主模块 `Type` 由 `Editor` 改为 **`Runtime`**，使 `-server` / Game 目标也能加载插件（MCP 仍默认关；Shipping 不启动；靠 Preferences 或 `-EnableNexusMcp` 开启）
+- refactor(host): Runtime/Lua Runtime 目录下 Capability 统一改继承 Runtime 基类；宿主过滤改为 `GetHostScope()`，不再依赖手写 `runtime` 标签
 - feat(mcp): `manage_asset_behavior_tree` 新增 `replace_node`（就地换类型、保留槽位 decorators/services，并反射同步 EdGraph `NodeInstance`）与 `sync_graph`（按结构位置整体重建 Graph↔RootNode）；写操作前关闭已打开的 BT 编辑器 Tab，避免旧 Graph 冲正
 
 ### Fixed

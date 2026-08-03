@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 /** spawn_widget 的 Capability —— 在 PIE/Game 中生成 UserWidget 并挂到 Viewport。*/
-class FSpawnRuntimeWidgetCapability : public FNexusCapability
+class FSpawnRuntimeWidgetCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

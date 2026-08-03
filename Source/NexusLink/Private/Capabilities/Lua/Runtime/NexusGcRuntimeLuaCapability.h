@@ -7,11 +7,12 @@
 #if WITH_UNLUA
 
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 struct lua_State;
 
 /** manage_runtime_lua_gc — 控制 Lua GC（collect/stop/restart/count）。 */
-class FGcRuntimeLuaCapability : public FNexusCapability
+class FGcRuntimeLuaCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

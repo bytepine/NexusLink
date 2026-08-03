@@ -7,6 +7,7 @@
 #include "NexusLinkSettings.h"
 #include "NexusMcpToolRegistry.h"
 #include "Utils/NexusCapabilityIndexUtils.h"
+#include "Utils/NexusHostUtils.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
@@ -19,10 +20,11 @@ namespace
 	{
 		Enabled,
 		NotFound,
-		Disabled
+		Disabled,
+		Unavailable
 	};
 
-	/** 按名解析（大小写不敏感）；与 call_capability 一致区分不存在 vs 设置禁用。 */
+	/** 按名解析（大小写不敏感）；与 call_capability 一致区分不存在 vs 设置禁用 vs 宿主不可用。 */
 	static ECapabilityLookupStatus ResolveCapabilityByName(
 		const FString& Name, const UNexusLinkSettings* Settings, const FCapRecord*& OutRecord)
 	{
@@ -34,6 +36,10 @@ namespace
 		if (!OutRecord)
 		{
 			return ECapabilityLookupStatus::NotFound;
+		}
+		if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*OutRecord))
+		{
+			return ECapabilityLookupStatus::Unavailable;
 		}
 		if (!Settings->IsCapabilityEnabled(OutRecord->Def.Name))
 		{
@@ -63,6 +69,16 @@ namespace
 			return;
 		}
 		check(Record);
+		if (Status == ECapabilityLookupStatus::Unavailable)
+		{
+			Output->SetStringField(TEXT("errorKind"), TEXT("unavailable"));
+			Output->SetStringField(TEXT("capabilityName"), Record->Def.Name);
+			Output->SetStringField(TEXT("error"),
+				FString::Printf(
+					TEXT("Capability '%s' 在当前宿主不可用（Dedicated Server / Game 仅暴露 Runtime 基类 Capability）。"),
+					*Record->Def.Name));
+			return;
+		}
 		Output->SetStringField(TEXT("errorKind"), TEXT("disabled"));
 		Output->SetStringField(TEXT("capabilityName"), Record->Def.Name);
 		Output->SetStringField(TEXT("error"),
@@ -86,6 +102,7 @@ namespace
 		for (const FCapRecord& Record : FNexusCapabilityRegistry::Get().GetAllRecords())
 		{
 			if (Settings->IsCapabilityEnabled(Record.Def.Name)) continue;
+			if (!FNexusHostUtils::IsCapabilityVisibleOnHost(Record)) continue;
 
 			int32 Score = 0;
 			int32 Matched = 0;
@@ -169,7 +186,7 @@ namespace
 void FNexusMcpToolSearchCapabilities::BuildDefinition(FNexusMcpToolDefinition& Out) const
 {
 	Out.Name        = TEXT("search_capabilities");
-	Out.Description = TEXT("【阶段3 - 发现能力】查找可用 Capability，所有 UE 操作的第一步。\n触发条件：用户提到 UE/蓝图/Blueprint/Widget/UMG/材质/Material/资产/Asset/行为树/BehaviorTree/ABP/DataAsset/GAS/Niagara/关卡/Level/PIE/Actor 时，探测到实例后即可调用（只读发现，无需先 connect）。\n用法：已知名传 capabilityName=<精确名>；未知传 query=<窄域 1-2词，如 blueprint graph>。禁止单用 blueprint/asset/runtime/animation。匹配≤2 返回完整 parameters[]。\n约束：失败看 errorKind (not_found/disabled/query_too_broad)；_feedbackHint 出现必须立即 submit_feedback。");
+	Out.Description = TEXT("【阶段3 - 发现能力】查找可用 Capability，所有 UE 操作的第一步。\n触发条件：用户提到 UE/蓝图/Blueprint/Widget/UMG/材质/Material/资产/Asset/行为树/BehaviorTree/ABP/DataAsset/GAS/Niagara/关卡/Level/PIE/Actor 时，探测到实例后即可调用（只读发现，无需先 connect）。\n用法：已知名传 capabilityName=<精确名>；未知传 query=<窄域 1-2词，如 blueprint graph>。禁止单用 blueprint/asset/runtime/animation。匹配≤2 返回完整 parameters[]。\n约束：失败看 errorKind (not_found/disabled/unavailable/query_too_broad)；_feedbackHint 出现必须立即 submit_feedback。");
 
 	TSharedPtr<FJsonObject> Schema = MakeShared<FJsonObject>();
 	Schema->SetStringField(TEXT("type"), TEXT("object"));
@@ -272,7 +289,7 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 			Result.OutputText = SerializeOutput();
 			return Result;
 		}
-		if (Status == ECapabilityLookupStatus::Disabled)
+		if (Status == ECapabilityLookupStatus::Disabled || Status == ECapabilityLookupStatus::Unavailable)
 		{
 			EmitCapabilityLookupError(Status, QueryTrimmed, Record, Output);
 			Result.StructuredContent = Output;
@@ -326,6 +343,7 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 	for (const FCapRecord& Record : FNexusCapabilityRegistry::Get().GetAllRecords())
 	{
 		if (!Settings->IsCapabilityEnabled(Record.Def.Name)) continue;
+		if (!FNexusHostUtils::IsCapabilityVisibleOnHost(Record)) continue;
 		const int32 Score = FNexusCapabilityIndexUtils::ScoreCapability(Tokens, Record.Keywords);
 		if (Score <= 0) continue;
 		TSharedPtr<FJsonObject> E = MakeShared<FJsonObject>();
@@ -344,6 +362,7 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		for (const FCapRecord& Record : FNexusCapabilityRegistry::Get().GetAllRecords())
 		{
 			if (!Settings->IsCapabilityEnabled(Record.Def.Name)) continue;
+			if (!FNexusHostUtils::IsCapabilityVisibleOnHost(Record)) continue;
 			int32 Matched = 0;
 			const int32 Score = FNexusCapabilityIndexUtils::ScoreCapabilityPartial(Tokens, Record.Keywords, Matched);
 			if (Score <= 0) continue;

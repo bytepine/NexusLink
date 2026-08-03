@@ -3,6 +3,7 @@
 #include "NexusCapability.h"
 #include "NexusFeedback.h"
 #include "NexusLinkSettings.h"
+#include "NexusMcpTool.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 
@@ -15,6 +16,12 @@ const FNexusCapabilityDefinition& FNexusCapability::GetDefinition() const
 	if (!bDefBuilt)
 	{
 		BuildDefinition(CachedDef);
+		// Runtime 宿主范围：自动补分类标签，BuildDefinition 无需手写（亦可手写，幂等）
+		if (GetHostScope() == ENexusCapabilityHostScope::Runtime
+			&& !CachedDef.HasTag(FNexusMcpTags::Runtime))
+		{
+			CachedDef.Tags.Add(FNexusMcpTags::Runtime);
+		}
 		bDefBuilt = true;
 	}
 	return CachedDef;

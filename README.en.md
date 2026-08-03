@@ -44,7 +44,7 @@ Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://gith
 1. Place the plugin in your project's `Plugins/Developer/NexusLink`, then enable it under **Edit → Plugins → Developer → NexusLink**
 2. After restarting the editor, open **Edit → Editor Preferences → Plugins → NexusLink**
 3. Check **Enable MCP Server** (**off by default**) — once checked, HTTP (`POST /stream`) and WebSocket start immediately and the instance is registered for Rider/VSCode discovery; unchecking stops them immediately, **no editor restart required**
-4. (Optional) For headless / `-server` / no-UI launches, pass **`-EnableNexusMcp`** (session-only, does not write settings; OR with Preferences)
+4. (Optional) For headless / `-server` / no-UI launches, pass **`-EnableNexusMcp`** (session-only, does not write settings; OR with Preferences). **Disabled in Shipping** (`StartupModule` no-op); DS/Game only expose Runtime-base Capabilities; Dedicated Server / Game hosts only expose `runtime`-tagged Capabilities
 
 > GAS / Niagara Capabilities require `GameplayAbilities` / `Niagara` enabled in the project `.uproject` (`NexusLink.uplugin` declares these dependencies). StateTree / MVVM Capabilities require UE 5.5+ with the corresponding engine plugins available.
 

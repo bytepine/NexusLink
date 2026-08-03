@@ -68,6 +68,17 @@ virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;
 virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) const override;
 ```
 
+**基类选择（宿主可见性，无需在 BuildDefinition 里处理）：**
+
+| 场景 | 继承 |
+|------|------|
+| 资产 / 编辑器能力（默认） | `FNexusCapability` 或 `FNexusMultiSectionCapability` |
+| PIE / Game / Dedicated Server 运行时能力 | `FNexusRuntimeCapability` 或 `FNexusRuntimeMultiSectionCapability` |
+
+- 默认 `GetHostScope()=EditorOnly`：完整 Editor 可见；DS/纯 Game 自动隐藏
+- Runtime 基类：`GetHostScope()=Runtime`，DS/Game 自动可见；`GetDefinition` 会幂等补上 `runtime` 分类标签
+- **Shipping**：StartupModule 直接空返回，插件不启动；与单个 Capability 无关
+
 `BuildDefinition` 中按需设置以下字段：
 
 | 字段 | 赋值方式 | 约束 |
@@ -112,8 +123,10 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 | `struct` | 分类 | UserDefinedStruct 资产 |
 | `data` | 分类 | DataTable / DataAsset |
 | `widget` | 分类 | UMG / WidgetBlueprint |
-| `runtime` | 分类 | 运行时（PIE/Game）操作 |
+| `runtime` | 分类 | 运行时（PIE/Game）操作；Runtime 基类会自动补上，亦可手写 |
 | `gas` | 分类 | GameplayAbility System（`WITH_GAS=1` 时注册） |
+
+> **宿主过滤不看 Tags**：DS/Game 可见性由 `GetHostScope()`（基类）决定，勿再靠手写 `runtime`/`editor` 标签做门控。
 
 ### 2.4 Prerequisites 枚举值
 
@@ -180,6 +193,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 - [ ] **关联**：RelatedCapabilities 列出了强关联的兄弟 cap（get/manage 通常成对）
 - [ ] **SearchAssetTypes**：资产 `get_asset_*` / `manage_asset_*` 已声明对应 `assetType`（与 `search_asset` 返回值对齐）；非资产 cap 留空
 - [ ] **命名**：`Out.Name` 符合 §6 决策树；非 pattern cap 已登记 InitializeInstructions 例外表
+- [ ] 运行时（PIE/Game/DS）能力继承 `FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`（资产/编辑器能力保持默认基类）
 
 > 注册期 `FNexusCapabilityRegistry::Register()` 仅硬校验命名动词（§6）；Description 长度与 §4 格式/重叠/关键词条数由规范自检 / `Script/audit_capability_naming.py` CI 门禁负责，避免 Dev 构建启动时 ensure 闪退。
 

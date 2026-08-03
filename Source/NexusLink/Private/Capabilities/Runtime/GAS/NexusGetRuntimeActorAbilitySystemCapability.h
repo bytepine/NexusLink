@@ -5,14 +5,14 @@
 
 #if WITH_GAS
 
-#include "NexusMultiSectionCapability.h"
+#include "NexusRuntimeMultiSectionCapability.h"
 
 /**
  * get_runtime_actor_ability_system — PIE 运行时读取 Actor 的 AbilitySystemComponent 快照。
  * sections: abilities / effects / attributes。
  * 只读；不提供 Grant/Apply/Remove 写操作。
  */
-class FGetRuntimeActorAbilitySystemCapability : public FNexusMultiSectionCapability
+class FGetRuntimeActorAbilitySystemCapability : public FNexusRuntimeMultiSectionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

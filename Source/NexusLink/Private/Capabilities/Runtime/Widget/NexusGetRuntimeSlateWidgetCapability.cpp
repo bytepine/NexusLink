@@ -55,7 +55,7 @@ void FGetRuntimeSlateWidgetCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Prop(TEXT("address"), FNexusSchema::Str(TEXT("Widget Reflector 提供的十六进制地址")))
 		.Required({ TEXT("address") })
 		.Build();
-	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Widget };
+	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Widget, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("reflector"), TEXT("native"), TEXT("swidget"), TEXT("address"), TEXT("layout") };
 	Out.RelatedCapabilities = { TEXT("list_runtime_widgets") };
 	Out.Prerequisites = { TEXT("pie") };

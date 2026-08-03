@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
 /** interact_runtime_actor_animation — PIE 下控制 Actor 蒙太奇播放与 AnimInstance 变量。*/
-class FInteractRuntimeActorAnimationCapability : public FNexusCapability
+class FInteractRuntimeActorAnimationCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

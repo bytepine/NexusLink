@@ -4,6 +4,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusLinkSettings.h"
 #include "NexusCapability.h"
+#include "Utils/NexusHostUtils.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 
@@ -235,6 +236,7 @@ TSharedPtr<FJsonObject> FNexusCapabilityIndexUtils::BuildDirectory(const UNexusL
 	for (const FCapRecord& Record : FNexusCapabilityRegistry::Get().GetAllRecords())
 	{
 		if (!Settings->IsCapabilityEnabled(Record.Def.Name)) continue;
+		if (!FNexusHostUtils::IsCapabilityVisibleOnHost(Record)) continue;
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Record.Def.Name);
