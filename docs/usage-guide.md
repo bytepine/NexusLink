@@ -48,20 +48,32 @@ flowchart TB
 
 ### 2.2 启用 MCP 服务器（必做）
 
-MCP HTTP/WebSocket **默认不启动**，需在设置中手动开启：
+MCP HTTP/WebSocket **默认不启动**，任选以下方式开启：
+
+**方式 A — 设置面板（持久）**
 
 1. 打开 **Edit → Editor Preferences → Plugins → NexusLink**
 2. 在 **服务器** 分类下勾选 **启用 MCP 服务器**
 3. 保存后**即时生效**，无需重启编辑器；取消勾选会立即停止 HTTP/WebSocket 并注销实例
 
-> 代理模式（Rider / VSCode）与直连模式均依赖 UE 侧服务已开启；未勾选时 IDE 扫描不到实例、`GET /status` 无响应。
+**方式 B — 命令行（仅本进程会话，不写盘）**
+
+启动编辑器时追加 `-EnableNexusMcp`，适合 `-server` / headless / 无 UI：
+
+```bat
+UE4Editor.exe YourProject.uproject -server -EnableNexusMcp
+```
+
+Preferences 勾选与 `-EnableNexusMcp` 为 **OR**：任一为真即启动。CLI 不会改写 `bEnableMcpServer`，Preferences 面板可仍显示关闭。
+
+> 代理模式（Rider / VSCode）与直连模式均依赖 UE 侧服务已开启；未开启时 IDE 扫描不到实例、`GET /status` 无响应。
 
 ### 2.3 确认运行状态
 
-勾选 **启用 MCP 服务器** 后：
+启用 MCP 后：
 - **Level Editor 工具栏**出现状态组件，显示当前 MCP 端口号，Hover 查看完整端口信息
 - **编辑器视口右侧**覆盖层显示 MCP/WS 端口号（可在设置中关闭）
-- 输出日志中可看到 `NexusLink 服务器已启动` 或 `MCP 服务器未启用，可在 Editor Preferences → Plugins → NexusLink 中开启`
+- 输出日志中可看到 `NexusLink 服务器已启动`，或未启用时的提示（含 Preferences / `-EnableNexusMcp`）
 
 ### 2.4 端口说明
 
@@ -102,7 +114,7 @@ NexusLink 内置端到端的 AI 使用反馈系统，**所有数据只落本地 
 | 设置 | 说明 |
 |------|------|
 | 插件信息 | 显示当前版本；**检查更新**按钮；**启动时自动检查更新**（默认开） |
-| 启用 MCP 服务器 | 总开关，**默认关闭**；勾选后启动 HTTP/WebSocket 并注册实例供 IDE 发现，可随时切换无需重启 |
+| 启用 MCP 服务器 | 总开关，**默认关闭**；勾选后启动 HTTP/WebSocket 并注册实例供 IDE 发现，可随时切换无需重启；无 UI 时可用命令行 **`-EnableNexusMcp`**（会话级，不写盘） |
 | 工具列表模式 | **SearchMode**（默认，3 个元工具）或 **MultiTool**（各 Capability 独立 Tool） |
 | Capabilities | 按分类 / 单条启用或禁用（影响 `tools/list` 与 `search_capabilities` 命中） |
 | 启用反馈采集 | 总开关；取消勾选后 auto/manual 都丢弃 |

@@ -9,7 +9,9 @@
 #include "Editor/NexusLogCapture.h"
 #include "Containers/Ticker.h"
 #include "Misc/App.h"
+#include "Misc/CommandLine.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/Parse.h"
 #include "HAL/PlatformProcess.h"
 #if WITH_EDITOR
 #include "Editor/NexusEditorStatusBar.h"
@@ -45,6 +47,20 @@ static void CallNextTick(TFunction<void()> Callback)
 		}),
 		0.0f
 	);
+}
+
+/**
+ * Preferences 勾选或命令行 -EnableNexusMcp 任一为真即请求启动 MCP。
+ * CLI 仅本进程会话生效，不改 bEnableMcpServer、不 SaveConfig。
+ */
+static bool IsMcpServerRequested()
+{
+	const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
+	if (Settings && Settings->bEnableMcpServer)
+	{
+		return true;
+	}
+	return FParse::Param(FCommandLine::Get(), TEXT("EnableNexusMcp"));
 }
 
 void FNexusLinkModule::StartupModule()
@@ -134,8 +150,7 @@ bool FNexusLinkModule::TryStartMcpServer()
 		return true;
 	}
 
-	const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
-	if (!Settings || !Settings->bEnableMcpServer)
+	if (!IsMcpServerRequested())
 	{
 		return false;
 	}
@@ -232,9 +247,10 @@ void FNexusLinkModule::OnPostEngineInit()
 		LogCapture->SetCategoryWhitelist(Settings->LogCaptureCategories);
 	}
 
-	if (!Settings->bEnableMcpServer)
+	if (!IsMcpServerRequested())
 	{
-		UE_LOG(LogNexusLink, Log, TEXT("MCP 服务器未启用，可在 Editor Preferences → Plugins → NexusLink 中开启"));
+		UE_LOG(LogNexusLink, Log,
+			TEXT("MCP 服务器未启用，可在 Editor Preferences → Plugins → NexusLink 中开启，或启动参数加 -EnableNexusMcp"));
 	}
 	else
 	{

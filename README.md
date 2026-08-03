@@ -44,10 +44,11 @@ flowchart TB
 1. 将插件放入项目的 `Plugins/Developer/NexusLink`，在 **Edit → Plugins → Developer → NexusLink** 中启用
 2. 重启编辑器后，打开 **Edit → Editor Preferences → Plugins → NexusLink**
 3. 勾选 **启用 MCP 服务器**（**默认关闭**）——勾选后即时启动 HTTP（`POST /stream`）与 WebSocket，并注册实例供 Rider/VSCode 发现；取消勾选立即停止，**无需重启编辑器**
+4. （可选）无 UI / `-server` / headless 启动时可加 **`-EnableNexusMcp`**（会话级，不写盘；与 Preferences 为 OR）
 
 > GAS / Niagara 相关 Capability 需在项目 `.uproject` 中启用 `GameplayAbilities` / `Niagara` 插件（`NexusLink.uplugin` 已声明依赖）。StateTree / MVVM 能力需 UE 5.5+ 且引擎内置对应插件可用。
 
-未勾选时：工具栏不显示端口、IDE 代理扫描不到实例、AI 直连 `http://127.0.0.1:45000/stream` 无响应。完整用户指南见 [docs/usage-guide.md](docs/usage-guide.md) §2。
+未启用时：工具栏不显示端口、IDE 代理扫描不到实例、AI 直连 `http://127.0.0.1:45000/stream` 无响应。完整用户指南见 [docs/usage-guide.md](docs/usage-guide.md) §2。
 
 ## 示例工程
 
@@ -167,7 +168,7 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 - [x] **SearchMode**（默认）：tools/list 仅暴露 3 个元工具，AI 通过 `search_capabilities` 按需发现能力
 - [x] **MultiTool**：tools/list 暴露全部已启用 Capability（各作独立 MCP Tool）+ `submit_feedback`；无 `search_capabilities` / `call_capability`
 - [x] Capability 变更或模式切换时广播 `notifications/tools/list_changed`
-- [x] **启用 MCP 服务器**总开关（默认关闭）：Editor Preferences → Plugins → NexusLink → 服务器；勾选后即时启动 HTTP/WebSocket 并注册实例
+- [x] **启用 MCP 服务器**总开关（默认关闭）：Editor Preferences → Plugins → NexusLink → 服务器；勾选后即时启动 HTTP/WebSocket 并注册实例；命令行 **`-EnableNexusMcp`** 可会话级强制开启（不写盘）
 - [x] 端口自动分配，冲突时自动切换；实例注册机制支持零扫描发现（`{PID}.json` 写入临时目录）
 - [x] **按 Capability 启用/禁用**（`IsCapabilityEnabled`）：Editor Preferences → Plugins → NexusLink → Capabilities；支持分类级 / 单条级勾选
 - [x] **全工具响应默认值压缩**（`FNexusResponseCompactorUtils`）：递归扫描对象数组字段，主流值自动抽取为 `<field>_defaults`，降低响应体积；可通过设置面板 `响应默认值压缩` 全局关闭

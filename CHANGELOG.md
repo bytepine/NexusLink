@@ -9,6 +9,7 @@
 
 ### Added
 
+- feat(server): 新增命令行开关 **`-EnableNexusMcp`**——会话级强制启动 MCP/WebSocket（不改 Preferences、不 `SaveConfig`）；与 `bEnableMcpServer` 为 OR，适合 `-server` / headless / 无 UI 启动
 - feat(mcp): `get_asset_refs` 扩展继承查询——`direction` 新增 `children`（直接子类）/`descendants`（全部子孙）/`parent`/`ancestors`（父类链）；新增 `assetTypeFilter`；`refs[]` 补齐 `name`/`parentClass`，继承方向含 `depth`（蓝图扫 `ParentClass`，材质扫 MI `Parent`）
 - feat(mcp): `manage_asset_behavior_tree` 新增 `replace_node`（就地换类型、保留槽位 decorators/services，并反射同步 EdGraph `NodeInstance`）与 `sync_graph`（按结构位置整体重建 Graph↔RootNode）；写操作前关闭已打开的 BT 编辑器 Tab，避免旧 Graph 冲正
 

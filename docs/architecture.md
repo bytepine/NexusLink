@@ -36,13 +36,13 @@ graph TB
 
 ## MCP 服务器生命周期
 
-`UNexusLinkSettings::bEnableMcpServer` 为总开关，**默认 `false`**。编辑器启动时若未勾选，不创建 `FNexusMcpServer`、不写入实例注册文件；用户在 **Editor Preferences → Plugins → NexusLink** 勾选后通过 `PostEditChangeProperty` 即时启停，无需重启。IDE 代理与 AI 直连均依赖此开关为真后 UE 才会监听 HTTP/WebSocket 端口。
+`UNexusLinkSettings::bEnableMcpServer` 为总开关，**默认 `false`**。另支持命令行 **`-EnableNexusMcp`**（会话级，不写盘）；与 Preferences 为 OR。编辑器启动时若两者皆假，不创建 `FNexusMcpServer`、不写入实例注册文件；用户在 **Editor Preferences → Plugins → NexusLink** 勾选后通过 `PostEditChangeProperty` 即时启停，无需重启。IDE 代理与 AI 直连均依赖服务已启动后 UE 才会监听 HTTP/WebSocket 端口。
 
 ## 分层职责
 
 | 层次 | 组件 | 职责 |
 |------|------|------|
-| 网络层 | `FNexusMcpServer` | HTTP + WebSocket 服务器，管理连接与会话隔离（受 `bEnableMcpServer` 控制） |
+| 网络层 | `FNexusMcpServer` | HTTP + WebSocket 服务器，管理连接与会话隔离（受 `bEnableMcpServer` / `-EnableNexusMcp` 控制） |
 | 协议层 | `FNexusMcpDispatcher` | JSON-RPC 2.0 解析、MCP 握手状态机、路由分发 |
 | 注册层 | `FNexusMcpToolRegistry` / `FNexusCapabilityRegistry` | 全局单例注册表，O(1) 按名查找 |
 | 工具层 | `FNexusMcpTool` | 3 个元工具：`search_capabilities` / `call_capability` / `submit_feedback` |
