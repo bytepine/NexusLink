@@ -7,10 +7,373 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusStringMatchUtils.h"
 #include "Utils/NexusVersionCompat.h"
+#include "Utils/NexusPropertyUtils.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/AssetData.h"
 #include "Misc/PackageName.h"
+#include "Engine/Blueprint.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "NexusMcpTool.h"
+
+namespace NexusAssetRefsPrivate
+{
+	struct FRefItem
+	{
+		FString Path;
+		FString Name;
+		FString AssetType;
+		FString ParentClass;
+		int32 Depth = 0;
+	};
+
+	static FString ToPackageName(const FString& AssetPath)
+	{
+		if (AssetPath.Contains(TEXT(".")))
+			return FPackageName::ObjectPathToPackageName(AssetPath);
+		return AssetPath;
+	}
+
+	static FString GetAssetTypeString(const FAssetData& Asset)
+	{
+#if NX_UE_HAS_CLASS_PATHS
+		return Asset.AssetClassPath.GetAssetName().ToString();
+#else
+		return Asset.AssetClass.ToString();
+#endif
+	}
+
+	static void FillFromAssetData(const FAssetData& Asset, FRefItem& Out)
+	{
+		Out.Path = Asset.PackageName.ToString();
+		Out.Name = Asset.AssetName.ToString();
+		Out.AssetType = GetAssetTypeString(Asset);
+		Asset.GetTagValue(TEXT("ParentClass"), Out.ParentClass);
+		if (Out.ParentClass.IsEmpty())
+			Asset.GetTagValue(TEXT("Parent"), Out.ParentClass);
+	}
+
+	static FString NormalizeParentObjectPath(const FString& ParentTag)
+	{
+		if (ParentTag.IsEmpty()) return FString();
+		FString ObjectPath = FPackageName::ExportTextPathToObjectPath(ParentTag);
+		if (ObjectPath.IsEmpty()) ObjectPath = ParentTag;
+		return ObjectPath;
+	}
+
+	/** ParentClass/Parent 标签是否指向 TargetPackage（BP 为 AssetName_C；材质为 AssetName）。 */
+	static bool ParentTagMatchesPackage(const FString& ParentTag, const FString& TargetPackage, const FString& TargetAssetName)
+	{
+		if (ParentTag.IsEmpty() || TargetPackage.IsEmpty()) return false;
+
+		const FString ObjectPath = NormalizeParentObjectPath(ParentTag);
+
+		// 原生类路径：/Script/Module.ClassName
+		if (TargetAssetName.IsEmpty())
+		{
+			if (ObjectPath.Equals(TargetPackage, ESearchCase::IgnoreCase))
+				return true;
+			if (ParentTag.Contains(TargetPackage))
+				return true;
+			return false;
+		}
+
+		const FString ExpectedGen = TargetPackage + TEXT(".") + TargetAssetName + TEXT("_C");
+		const FString ExpectedAsset = TargetPackage + TEXT(".") + TargetAssetName;
+		if (ObjectPath.Equals(ExpectedGen, ESearchCase::IgnoreCase)
+			|| ObjectPath.Equals(ExpectedAsset, ESearchCase::IgnoreCase))
+		{
+			return true;
+		}
+
+		// 路径写法差异兜底
+		if (ParentTag.Contains(ExpectedGen) || ParentTag.Contains(ExpectedAsset))
+			return true;
+		return false;
+	}
+
+	static FString ParentTagToPackage(const FString& ParentTag)
+	{
+		const FString ObjectPath = NormalizeParentObjectPath(ParentTag);
+		if (ObjectPath.IsEmpty()) return FString();
+		if (ObjectPath.StartsWith(TEXT("/Script/")))
+			return ObjectPath; // 原生类保留完整路径
+		if (ObjectPath.Contains(TEXT(".")))
+			return FPackageName::ObjectPathToPackageName(ObjectPath);
+		return ObjectPath;
+	}
+
+	static bool PassesAssetTypeFilter(const FString& AssetType, const FString& AssetTypeFilter)
+	{
+		if (AssetTypeFilter.IsEmpty()) return true;
+		return FNexusStringMatchUtils::Matches(AssetType, AssetTypeFilter);
+	}
+
+	static TSharedPtr<FJsonObject> RefItemToJson(const FRefItem& Item, bool bIncludeDepth)
+	{
+		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+		Obj->SetStringField(TEXT("path"), Item.Path);
+		if (!Item.Name.IsEmpty())
+			Obj->SetStringField(TEXT("name"), Item.Name);
+		if (!Item.AssetType.IsEmpty())
+			Obj->SetStringField(TEXT("assetType"), Item.AssetType);
+		if (!Item.ParentClass.IsEmpty())
+			Obj->SetStringField(TEXT("parentClass"), Item.ParentClass);
+		if (bIncludeDepth)
+			Obj->SetNumberField(TEXT("depth"), Item.Depth);
+		return Obj;
+	}
+
+	static bool TryGetPrimaryAsset(IAssetRegistry& Registry, const FString& PackageName, FAssetData& OutAsset)
+	{
+		TArray<FAssetData> Assets;
+		Registry.GetAssetsByPackageName(FName(*PackageName), Assets);
+		if (Assets.Num() == 0) return false;
+		OutAsset = Assets[0];
+		return true;
+	}
+
+	static void CollectBlueprintLikeAssets(IAssetRegistry& Registry, TArray<FAssetData>& OutAssets)
+	{
+		FARFilter Filter;
+		NEXUS_FILTER_ADD_CLASS(Filter, UBlueprint::StaticClass());
+		Filter.bRecursiveClasses = true;
+		Registry.GetAssets(Filter, OutAssets);
+	}
+
+	static void CollectMaterialInstanceAssets(IAssetRegistry& Registry, TArray<FAssetData>& OutAssets)
+	{
+		FARFilter Filter;
+		NEXUS_FILTER_ADD_CLASS(Filter, UMaterialInstanceConstant::StaticClass());
+		Filter.bRecursiveClasses = true;
+		Registry.GetAssets(Filter, OutAssets);
+	}
+
+	/** 直接子类：ParentClass/Parent 标签精确指向目标包。 */
+	static void GatherDirectChildren(
+		IAssetRegistry& Registry,
+		const FString& TargetPackage,
+		const FString& TargetAssetName,
+		const FString& TargetAssetType,
+		TArray<FRefItem>& Out)
+	{
+		const bool bMaterialLike = TargetAssetType.Contains(TEXT("Material"))
+			&& !TargetAssetType.Contains(TEXT("MaterialInstance"));
+
+		TArray<FAssetData> Candidates;
+		if (bMaterialLike)
+			CollectMaterialInstanceAssets(Registry, Candidates);
+		else
+			CollectBlueprintLikeAssets(Registry, Candidates);
+
+		TSet<FString> Seen;
+		for (const FAssetData& A : Candidates)
+		{
+			const FString Pkg = A.PackageName.ToString();
+			if (Pkg == TargetPackage || Seen.Contains(Pkg)) continue;
+
+			FString ParentTag;
+			if (bMaterialLike)
+				A.GetTagValue(TEXT("Parent"), ParentTag);
+			else
+				A.GetTagValue(TEXT("ParentClass"), ParentTag);
+
+			if (!ParentTagMatchesPackage(ParentTag, TargetPackage, TargetAssetName))
+				continue;
+
+			Seen.Add(Pkg);
+			FRefItem Item;
+			FillFromAssetData(A, Item);
+			Item.Depth = 1;
+			Out.Add(MoveTemp(Item));
+		}
+	}
+
+	/** 递归子孙：BFS，按直接父链扩展。 */
+	static void GatherDescendants(
+		IAssetRegistry& Registry,
+		const FString& RootPackage,
+		const FString& RootAssetName,
+		const FString& RootAssetType,
+		TArray<FRefItem>& Out)
+	{
+		struct FNode { FString Package; FString AssetName; FString AssetType; int32 Depth; };
+		TArray<FNode> Queue;
+		Queue.Add({ RootPackage, RootAssetName, RootAssetType, 0 });
+		TSet<FString> Visited;
+		Visited.Add(RootPackage);
+
+		while (Queue.Num() > 0)
+		{
+			const FNode Current = Queue[0];
+			Queue.RemoveAt(0);
+
+			TArray<FRefItem> Direct;
+			GatherDirectChildren(Registry, Current.Package, Current.AssetName, Current.AssetType, Direct);
+			for (FRefItem& Child : Direct)
+			{
+				if (Visited.Contains(Child.Path)) continue;
+				Visited.Add(Child.Path);
+				Child.Depth = Current.Depth + 1;
+				FNode Next;
+				Next.Package = Child.Path;
+				Next.AssetName = Child.Name;
+				Next.AssetType = Child.AssetType;
+				Next.Depth = Child.Depth;
+				Out.Add(Child);
+				Queue.Add(MoveTemp(Next));
+			}
+		}
+	}
+
+	/** 父类/祖先链：沿 ParentClass/Parent 标签向上。 */
+	static void GatherAncestors(
+		IAssetRegistry& Registry,
+		const FString& StartPackage,
+		bool bDirectOnly,
+		TArray<FRefItem>& Out)
+	{
+		FString CurrentPackage = StartPackage;
+		TSet<FString> Visited;
+		int32 Depth = 0;
+		const int32 MaxHops = bDirectOnly ? 1 : 64;
+
+		while (Depth < MaxHops)
+		{
+			if (Visited.Contains(CurrentPackage)) break;
+			Visited.Add(CurrentPackage);
+
+			FAssetData Asset;
+			FString ParentTag;
+			if (TryGetPrimaryAsset(Registry, CurrentPackage, Asset))
+			{
+				Asset.GetTagValue(TEXT("ParentClass"), ParentTag);
+				if (ParentTag.IsEmpty())
+					Asset.GetTagValue(TEXT("Parent"), ParentTag);
+			}
+			if (ParentTag.IsEmpty()) break;
+
+			++Depth;
+			FRefItem Item;
+			Item.Depth = Depth;
+			Item.ParentClass = ParentTag;
+
+			const FString ParentPkg = ParentTagToPackage(ParentTag);
+			Item.Path = ParentPkg;
+
+			FAssetData ParentAsset;
+			if (!ParentPkg.StartsWith(TEXT("/Script/")) && TryGetPrimaryAsset(Registry, ParentPkg, ParentAsset))
+			{
+				FillFromAssetData(ParentAsset, Item);
+				Item.Depth = Depth;
+				Item.ParentClass = ParentTag;
+				Out.Add(Item);
+				CurrentPackage = ParentPkg;
+			}
+			else
+			{
+				// 原生类或未登记资产：作为链终点写出
+				Item.Name = FPackageName::GetShortName(NormalizeParentObjectPath(ParentTag));
+				Item.AssetType = TEXT("Class");
+				Out.Add(Item);
+				break;
+			}
+
+			if (bDirectOnly) break;
+		}
+	}
+
+	static void GatherPackageRefs(
+		IAssetRegistry& Registry,
+		const FString& PackageName,
+		bool bReferencers,
+		bool bRecursive,
+		TArray<FRefItem>& Out)
+	{
+		TArray<FName> RawResults;
+		const FName PackageFName(*PackageName);
+
+		auto GatherRecursive = [&]()
+		{
+			TSet<FName> Visited;
+			TArray<FName> Stack;
+			Stack.Add(PackageFName);
+			while (Stack.Num() > 0)
+			{
+				FName Current = Stack.Pop();
+				if (Visited.Contains(Current)) continue;
+				Visited.Add(Current);
+				TArray<FName> Neighbors;
+				if (bReferencers) Registry.GetReferencers(Current, Neighbors);
+				else              Registry.GetDependencies(Current, Neighbors);
+				for (const FName& N : Neighbors)
+				{
+					if (!Visited.Contains(N))
+					{
+						RawResults.AddUnique(N);
+						Stack.Add(N);
+					}
+				}
+			}
+		};
+
+		if (bRecursive) GatherRecursive();
+		else if (bReferencers) Registry.GetReferencers(PackageFName, RawResults);
+		else Registry.GetDependencies(PackageFName, RawResults);
+
+		for (const FName& Name : RawResults)
+		{
+			const FString PathStr = Name.ToString();
+			if (PathStr == PackageName) continue;
+			FRefItem Item;
+			Item.Path = PathStr;
+			FAssetData Asset;
+			if (TryGetPrimaryAsset(Registry, PathStr, Asset))
+				FillFromAssetData(Asset, Item);
+			Out.Add(MoveTemp(Item));
+		}
+	}
+
+	static void EmitPagedRefs(
+		const TArray<FRefItem>& All,
+		const FString& NameFilter,
+		const FString& AssetTypeFilter,
+		int32 Offset,
+		int32 Limit,
+		bool bIncludeDepth,
+		TSharedPtr<FJsonObject>& OutEntry)
+	{
+		TArray<FRefItem> Filtered;
+		Filtered.Reserve(All.Num());
+		for (const FRefItem& Item : All)
+		{
+			if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(Item.Path, NameFilter)
+				&& !FNexusStringMatchUtils::Matches(Item.Name, NameFilter))
+			{
+				continue;
+			}
+			if (!PassesAssetTypeFilter(Item.AssetType, AssetTypeFilter))
+				continue;
+			Filtered.Add(Item);
+		}
+
+		Filtered.Sort([](const FRefItem& A, const FRefItem& B)
+		{
+			if (A.Depth != B.Depth) return A.Depth < B.Depth;
+			return A.Path < B.Path;
+		});
+
+		const int32 Total = Filtered.Num();
+		int32 Start, End;
+		FNexusJsonUtils::ComputeSlice(Total, Offset, Limit, Start, End);
+
+		TArray<TSharedPtr<FJsonValue>> Page;
+		for (int32 i = Start; i < End; ++i)
+			Page.Add(MakeShared<FJsonValueObject>(RefItemToJson(Filtered[i], bIncludeDepth)));
+
+		OutEntry->SetNumberField(TEXT("totalCount"), Total);
+		OutEntry->SetArrayField(TEXT("refs"), Page);
+	}
+}
 
 static void QueryOneAssetRefsImpl(
 	IAssetRegistry& Registry,
@@ -18,108 +381,100 @@ static void QueryOneAssetRefsImpl(
 	const FString& Direction,
 	bool bRecursive,
 	const FString& NameFilter,
+	const FString& AssetTypeFilter,
 	int32 Offset,
 	int32 Limit,
 	TSharedPtr<FJsonObject>& OutEntry)
 {
-	FString PackageName = AssetPath;
-	if (PackageName.Contains(TEXT(".")))
-		PackageName = FPackageName::ObjectPathToPackageName(AssetPath);
+	using namespace NexusAssetRefsPrivate;
 
-	TArray<FName> RawResults;
-	const FName PackageFName(*PackageName);
+	const FString PackageName = ToPackageName(AssetPath);
+	OutEntry->SetStringField(TEXT("assetPath"), PackageName);
+	OutEntry->SetStringField(TEXT("direction"), Direction);
 
-	// TSet 查重复，避免 TArray::Contains 的 O(n) 开销
-	auto GatherRecursive = [&](bool bReferencers)
+	FAssetData TargetAsset;
+	FString TargetAssetName;
+	FString TargetAssetType;
+	if (TryGetPrimaryAsset(Registry, PackageName, TargetAsset))
 	{
-		TSet<FName> Visited;
-		TArray<FName> Stack;
-		Stack.Add(PackageFName);
-		while (Stack.Num() > 0)
-		{
-			FName Current = Stack.Pop();
-			if (Visited.Contains(Current)) continue;
-			Visited.Add(Current);
-			TArray<FName> Neighbors;
-			if (bReferencers) Registry.GetReferencers(Current, Neighbors);
-			else              Registry.GetDependencies(Current, Neighbors);
-			for (const FName& N : Neighbors)
-			{
-				if (!Visited.Contains(N)) { RawResults.AddUnique(N); Stack.Add(N); }
-			}
-		}
-	};
-
-	if (Direction == TEXT("referencers"))
-	{
-		if (bRecursive) GatherRecursive(true);
-		else            Registry.GetReferencers(PackageFName, RawResults);
+		TargetAssetName = TargetAsset.AssetName.ToString();
+		TargetAssetType = GetAssetTypeString(TargetAsset);
+		OutEntry->SetStringField(TEXT("assetType"), TargetAssetType);
+		FString OwnParent;
+		TargetAsset.GetTagValue(TEXT("ParentClass"), OwnParent);
+		if (OwnParent.IsEmpty())
+			TargetAsset.GetTagValue(TEXT("Parent"), OwnParent);
+		if (!OwnParent.IsEmpty())
+			OutEntry->SetStringField(TEXT("parentClass"), OwnParent);
 	}
 	else
 	{
-		if (bRecursive) GatherRecursive(false);
-		else            Registry.GetDependencies(PackageFName, RawResults);
+		TargetAssetName = FPackageName::GetShortName(PackageName);
 	}
 
-	TArray<FString> Filtered;
-	for (const FName& Name : RawResults)
+	TArray<FRefItem> Items;
+	bool bIncludeDepth = false;
+
+	if (Direction == TEXT("referencers") || Direction == TEXT("dependencies"))
 	{
-		const FString PathStr = Name.ToString();
-		if (PathStr == PackageName) continue;
-		if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(PathStr, NameFilter)) continue;
-		Filtered.Add(PathStr);
+		GatherPackageRefs(Registry, PackageName, Direction == TEXT("referencers"), bRecursive, Items);
 	}
-	Filtered.Sort();
-
-	const int32 Total = Filtered.Num();
-	int32 Start, End; FNexusJsonUtils::ComputeSlice(Total, Offset, Limit, Start, End);
-
-	TArray<TSharedPtr<FJsonValue>> Page;
-	for (int32 i = Start; i < End; ++i)
+	else if (Direction == TEXT("children"))
 	{
-		TSharedPtr<FJsonObject> Item = MakeShared<FJsonObject>();
-		Item->SetStringField(TEXT("path"), Filtered[i]);
-		TArray<FAssetData> Assets;
-		Registry.GetAssetsByPackageName(*Filtered[i], Assets);
-		if (Assets.Num() > 0)
-		{
-#if NX_UE_HAS_CLASS_PATHS
-			Item->SetStringField(TEXT("assetType"), Assets[0].AssetClassPath.GetAssetName().ToString());
-#else
-			Item->SetStringField(TEXT("assetType"), Assets[0].AssetClass.ToString());
-#endif
-		}
-		Page.Add(MakeShared<FJsonValueObject>(Item));
+		bIncludeDepth = true;
+		if (bRecursive)
+			GatherDescendants(Registry, PackageName, TargetAssetName, TargetAssetType, Items);
+		else
+			GatherDirectChildren(Registry, PackageName, TargetAssetName, TargetAssetType, Items);
+	}
+	else if (Direction == TEXT("descendants"))
+	{
+		bIncludeDepth = true;
+		GatherDescendants(Registry, PackageName, TargetAssetName, TargetAssetType, Items);
+	}
+	else if (Direction == TEXT("parent"))
+	{
+		bIncludeDepth = true;
+		GatherAncestors(Registry, PackageName, /*bDirectOnly=*/true, Items);
+	}
+	else if (Direction == TEXT("ancestors"))
+	{
+		bIncludeDepth = true;
+		GatherAncestors(Registry, PackageName, /*bDirectOnly=*/false, Items);
 	}
 
-	OutEntry->SetNumberField(TEXT("totalCount"), Total);
-	OutEntry->SetArrayField(TEXT("refs"), Page);
+	EmitPagedRefs(Items, NameFilter, AssetTypeFilter, Offset, Limit, bIncludeDepth, OutEntry);
 }
 
 void FGetAssetRefsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_refs");
-	Out.Description = TEXT("查包依赖或引用方。direction=dependencies|referencers；可选递归。");
+	Out.Description = TEXT("查依赖/引用/继承。direction 含 children|ancestors；可按类型过滤。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("要查询的资产路径")))
-		.Prop(TEXT("direction"),  FNexusSchema::Enum(TEXT("查询方向（默认 dependencies）"), { TEXT("dependencies"), TEXT("referencers") }))
-		.Prop(TEXT("recursive"),  FNexusSchema::Bool(TEXT("递归收集"), false))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("路径子串过滤")))
+		.Prop(TEXT("direction"),  FNexusSchema::Enum(
+			TEXT("dependencies=依赖; referencers=引用方; children=直接子类; descendants=全部子孙; parent=直接父类; ancestors=父类链"),
+			{ TEXT("dependencies"), TEXT("referencers"), TEXT("children"), TEXT("descendants"), TEXT("parent"), TEXT("ancestors") }))
+		.Prop(TEXT("recursive"),  FNexusSchema::Bool(TEXT("包依赖/引用递归；children 时等价 descendants"), false))
+		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("路径或名称子串过滤")))
+		.Prop(TEXT("assetTypeFilter"), FNexusSchema::Str(TEXT("按 assetType 子串过滤，如 Blueprint / MaterialInstance")))
 		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("分页偏移"), 0, 0))
 		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("每页最大条数"), 100, 1, 500))
 		.Required({ TEXT("assetPath") })
 		.Build();
-	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("references"), TEXT("deps"), TEXT("usage"), TEXT("links"), TEXT("callers") };
-	Out.RelatedCapabilities = { TEXT("search_asset") };
+	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
+	Out.ExtraSearchKeywords = {
+		TEXT("references"), TEXT("deps"), TEXT("usage"), TEXT("links"), TEXT("callers"),
+		TEXT("inheritance"), TEXT("subclass"), TEXT("parent"), TEXT("children"), TEXT("descendants")
+	};
+	Out.RelatedCapabilities = { TEXT("search_asset"), TEXT("get_asset_blueprint") };
+	Out.WhenToUse = TEXT("查引用/依赖，或蓝图继承子类与父链");
 }
 
 FCapabilityResult FGetAssetRefsCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
-
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-
 		FString AssetPath;
 		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
 		{
@@ -130,14 +485,24 @@ FCapabilityResult FGetAssetRefsCapability::Execute(const TSharedPtr<FJsonObject>
 		FString Direction = TEXT("dependencies");
 		Arguments->TryGetStringField(TEXT("direction"), Direction);
 		Direction = Direction.ToLower();
-		if (Direction != TEXT("dependencies") && Direction != TEXT("referencers"))
+		const bool bValidDirection =
+			Direction == TEXT("dependencies") || Direction == TEXT("referencers")
+			|| Direction == TEXT("children") || Direction == TEXT("descendants")
+			|| Direction == TEXT("parent") || Direction == TEXT("ancestors");
+		if (!bValidDirection)
 		{
-			OutError = FString::Printf(TEXT("无效的 direction '%s'；期望 dependencies 或 referencers"), *Direction);
+			OutError = FString::Printf(
+				TEXT("无效的 direction '%s'；期望 dependencies|referencers|children|descendants|parent|ancestors"),
+				*Direction);
 			return;
 		}
+
 		const bool bRecursive = Arguments->HasField(TEXT("recursive")) && Arguments->GetBoolField(TEXT("recursive"));
 		FString NameFilter;
 		Arguments->TryGetStringField(TEXT("nameFilter"), NameFilter);
+		FString AssetTypeFilter;
+		Arguments->TryGetStringField(TEXT("assetTypeFilter"), AssetTypeFilter);
+
 		int32 Offset = 0, Limit = 100;
 		if (Arguments->HasField(TEXT("offset")))
 			Offset = FMath::Max(0, static_cast<int32>(Arguments->GetNumberField(TEXT("offset"))));
@@ -147,11 +512,9 @@ FCapabilityResult FGetAssetRefsCapability::Execute(const TSharedPtr<FJsonObject>
 		IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		QueryOneAssetRefsImpl(Registry, AssetPath, Direction, bRecursive, NameFilter, Offset, Limit, Entry);
+		QueryOneAssetRefsImpl(Registry, AssetPath, Direction, bRecursive, NameFilter, AssetTypeFilter, Offset, Limit, Entry);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-	
 	});
 }
 
 REGISTER_MCP_CAPABILITY(FGetAssetRefsCapability)
-

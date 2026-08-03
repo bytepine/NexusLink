@@ -793,19 +793,25 @@
 
 ### `get_asset_refs`
 
-查找包的依赖项或引用方。`direction` 可取：`dependencies`（依赖项）/ `referencers`（被引用方）；可选递归查找。
+查包依赖、引用方，或蓝图/材质继承关系。
 
-**适用场景**：查资产依赖/被引用；direction=dependencies|referencers，可选递归
+**适用场景**：依赖/被引用；查继承自该蓝图的子类；向上看父类链
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 要查询的资产路径 |
-| `direction` | `string (enum)` |  | 查询方向（默认 dependencies） 枚举值：`dependencies` / `referencers` |
-| `nameFilter` | `string` |  | 路径子串过滤 |
+| `direction` | `string (enum)` |  | 默认 `dependencies`。`dependencies` / `referencers`（包级）；`children`（直接子类）/ `descendants`（全部子孙）；`parent`（直接父类）/ `ancestors`（父类链） |
+| `recursive` | `boolean` |  | 包依赖/引用递归；`children` + `recursive=true` 等价 `descendants` |
+| `nameFilter` | `string` |  | 路径或名称子串过滤 |
+| `assetTypeFilter` | `string` |  | 按结果 `assetType` 子串过滤（如 `Blueprint`） |
 | `offset` | `integer` |  | 分页偏移 |
 | `limit` | `integer` |  | 每页最大条数 |
 
-**相关 Capability**：`search_asset`
+**返回要点**（`results[0]`）：
+- `refs[]`：`path` / `name` / `assetType` / `parentClass`；继承方向另含 `depth`
+- `children`/`descendants` 扫描 Blueprint（含 Widget/AnimBP）的 `ParentClass` 标签；材质则扫 MaterialInstance 的 `Parent`
+
+**相关 Capability**：`search_asset`、`get_asset_blueprint`
 
 ---
 

@@ -160,7 +160,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 | `bt node`, `task`, `service`, `decorator` | `get_asset_behavior_tree`, `manage_asset_behavior_tree` |
 | `pie`, `play in editor`, `simulate` | `control_pie` |
 | `diff`, `compare`, `delta` | `diff_runtime_actors` |
-| `ref`, `dependency`, `reference`, `referencer` | `get_asset_refs` |
+| `ref`, `dependency`, `reference`, `referencer`, `inheritance`, `subclass`, `parent class` | `get_asset_refs` |
 | `unlua`, `hot reload`, `lua bind` | `hotreload_runtime_lua`, `get_asset_lua_binding` |
 | `slider`, `button`, `text`, `image`, `checkbox` | `interact_runtime_widget`, `get_runtime_widget_property` |
 | `struct field`, `struct type` | `manage_asset_struct_field`, `get_asset_struct` |

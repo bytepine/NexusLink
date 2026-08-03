@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** get_asset_refs 工具的唯一 Capability —— 通过 AssetRegistry 查询资产依赖/引用。 */
+/** get_asset_refs：包依赖/引用方，以及蓝图/材质继承（children/descendants/parent/ancestors）。 */
 class FGetAssetRefsCapability : public FNexusCapability
 {
 protected:
