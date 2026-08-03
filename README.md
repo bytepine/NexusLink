@@ -44,7 +44,7 @@ flowchart TB
 1. 将插件放入项目的 `Plugins/Developer/NexusLink`，在 **Edit → Plugins → Developer → NexusLink** 中启用
 2. 重启编辑器后，打开 **Edit → Editor Preferences → Plugins → NexusLink**
 3. 勾选 **启用 MCP 服务器**（**默认关闭**）——勾选后即时启动 HTTP（`POST /stream`）与 WebSocket，并注册实例供 Rider/VSCode 发现；取消勾选立即停止，**无需重启编辑器**
-4. （可选）无 UI / `-server` / headless 启动时可加 **`-EnableNexusMcp`**（会话级，不写盘；与 Preferences 为 OR）。**Shipping 下插件不启动**；DS/Game 仅 Runtime 基类 Capability 可见；Dedicated Server / Game 仅暴露 `runtime` Capability
+4. （可选）无 UI / `-server` / headless 启动时可加 **`-EnableNexusMcp`** / console `NexusLink.EnableMcp`（会话级，不写盘；与 Preferences 为 OR）。**Shipping 下插件不启动**；DS/Game 仅 Runtime 基类 Capability 可见；Dedicated Server / Game 仅暴露 `runtime` Capability
 
 > GAS / Niagara 相关 Capability 需在项目 `.uproject` 中启用 `GameplayAbilities` / `Niagara` 插件（`NexusLink.uplugin` 已声明依赖）。StateTree / MVVM 能力需 UE 5.5+ 且引擎内置对应插件可用。
 

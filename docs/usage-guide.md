@@ -71,6 +71,18 @@ UE4Editor.exe YourProject.uproject -server -EnableNexusMcp
 
 Preferences 勾选与 `-EnableNexusMcp` 为 **OR**：任一为真即启动。CLI 不会改写 `bEnableMcpServer`，Preferences 面板可仍显示关闭。
 
+**方式 C — 控制台（仅本进程会话，不写盘）**
+
+游戏/编辑器控制台执行：
+
+```
+NexusLink.EnableMcp 1   ; 开启
+NexusLink.EnableMcp 0   ; 关闭
+NexusLink.EnableMcp     ; 查看当前 on/off
+```
+
+不改 Preferences；Shipping 下插件未启动，命令不可用。
+
 > 代理模式（Rider / VSCode）与直连模式均依赖 UE 侧服务已开启；未开启时 IDE 扫描不到实例、`GET /status` 无响应。
 
 ### 2.3 确认运行状态

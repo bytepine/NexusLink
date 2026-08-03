@@ -13,6 +13,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/Parse.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/IConsoleManager.h"
 #if WITH_EDITOR
 #include "Editor/NexusEditorStatusBar.h"
 #include "Editor/NexusLinkSettingsCustomization.h"
@@ -52,8 +53,9 @@ static void CallNextTick(TFunction<void()> Callback)
 /**
  * Preferences 勾选或命令行 -EnableNexusMcp 任一为真即请求启动 MCP。
  * CLI 仅本进程会话生效，不改 bEnableMcpServer、不 SaveConfig。
+ * 控制台 NexusLink.EnableMcp 不经此函数，直接调 TryStart/Stop。
  */
-static bool IsMcpServerRequested()
+static bool IsMcpServerRequestedAtStartup()
 {
 	const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
 	if (Settings && Settings->bEnableMcpServer)
@@ -88,6 +90,13 @@ void FNexusLinkModule::StartupModule()
 #else
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FNexusLinkModule::OnPostEngineInit);
 #endif
+
+	EnableMcpConsoleCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("NexusLink.EnableMcp"),
+		TEXT("会话级启停 MCP（不写 Preferences）。用法: NexusLink.EnableMcp 1|0；无参数打印当前状态。Shipping 无效。"),
+		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FNexusLinkModule::HandleEnableMcpCommand),
+		ECVF_Default);
+
 	UE_LOG(LogNexusLink, Log, TEXT("NexusLink 模块已加载，等待引擎初始化完成..."));
 }
 
@@ -98,6 +107,12 @@ void FNexusLinkModule::ShutdownModule()
 #else
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 #endif
+
+	if (EnableMcpConsoleCommand)
+	{
+		IConsoleManager::Get().UnregisterConsoleObject(EnableMcpConsoleCommand);
+		EnableMcpConsoleCommand = nullptr;
+	}
 
 #if WITH_EDITOR
 	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
@@ -154,11 +169,6 @@ bool FNexusLinkModule::TryStartMcpServer()
 	if (McpServer.IsValid() && McpServer->IsRunning())
 	{
 		return true;
-	}
-
-	if (!IsMcpServerRequested())
-	{
-		return false;
 	}
 
 	// 端口从默认值开始自动寻找可用端口，冲突时向上顺延（无需用户手动配置）
@@ -253,10 +263,10 @@ void FNexusLinkModule::OnPostEngineInit()
 		LogCapture->SetCategoryWhitelist(Settings->LogCaptureCategories);
 	}
 
-	if (!IsMcpServerRequested())
+	if (!IsMcpServerRequestedAtStartup())
 	{
 		UE_LOG(LogNexusLink, Log,
-			TEXT("MCP 服务器未启用，可在 Editor Preferences → Plugins → NexusLink 中开启，或启动参数加 -EnableNexusMcp"));
+			TEXT("MCP 服务器未启用。可在 Preferences 勾选、启动参数 -EnableNexusMcp，或控制台 NexusLink.EnableMcp 1"));
 	}
 	else
 	{
@@ -299,6 +309,51 @@ void FNexusLinkModule::OnPostEngineInit()
 		});
 	}
 #endif
+}
+
+void FNexusLinkModule::HandleEnableMcpCommand(const TArray<FString>& Args)
+{
+	const bool bRunning = McpServer.IsValid() && McpServer->IsRunning();
+	if (Args.Num() < 1)
+	{
+		UE_LOG(LogNexusLink, Log, TEXT("NexusLink.EnableMcp 当前=%s（用法: NexusLink.EnableMcp 1|0）"),
+			bRunning ? TEXT("on") : TEXT("off"));
+		return;
+	}
+
+	const FString& Arg0 = Args[0];
+	const bool bEnable =
+		Arg0 == TEXT("1")
+		|| Arg0.Equals(TEXT("true"), ESearchCase::IgnoreCase)
+		|| Arg0.Equals(TEXT("on"), ESearchCase::IgnoreCase);
+
+	const bool bDisable =
+		Arg0 == TEXT("0")
+		|| Arg0.Equals(TEXT("false"), ESearchCase::IgnoreCase)
+		|| Arg0.Equals(TEXT("off"), ESearchCase::IgnoreCase);
+
+	if (!bEnable && !bDisable)
+	{
+		UE_LOG(LogNexusLink, Warning, TEXT("NexusLink.EnableMcp 参数无效 '%s'（期望 1|0）"), *Arg0);
+		return;
+	}
+
+	if (bEnable)
+	{
+		if (TryStartMcpServer())
+		{
+			UE_LOG(LogNexusLink, Log, TEXT("NexusLink.EnableMcp: MCP 已开启（会话级，未写 Preferences）"));
+		}
+		else
+		{
+			UE_LOG(LogNexusLink, Error, TEXT("NexusLink.EnableMcp: 启动失败"));
+		}
+	}
+	else
+	{
+		StopMcpServer();
+		UE_LOG(LogNexusLink, Log, TEXT("NexusLink.EnableMcp: MCP 已关闭（会话级，未写 Preferences）"));
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

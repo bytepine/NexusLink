@@ -9,6 +9,7 @@
 
 ### Added
 
+- feat(server): 控制台命令 **`NexusLink.EnableMcp 1|0`**——会话级启停 MCP（不写 Preferences）；无参数打印 on/off；Shipping 下无效
 - feat(server): 新增命令行开关 **`-EnableNexusMcp`**——会话级强制启动 MCP/WebSocket（不改 Preferences、不 `SaveConfig`）；与 `bEnableMcpServer` 为 OR，适合 `-server` / headless / 无 UI 启动
 - docs(host): 补齐打断遗漏——元工具 Description 含 unavailable、CapabilitySpec 自检项、InitializeInstructions/README 宿主说明
 - feat(host):  `FNexusHostUtils` + **`FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`**——Shipping 下 StartupModule 空返回（不启动）；DS/Game 仅暴露 `GetHostScope()==Runtime` 的 cap；新增运行时能力只需换基类，**不必**再处理宿主过滤 / Shipping
