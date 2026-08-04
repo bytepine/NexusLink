@@ -16,7 +16,12 @@ bool FNexusHostUtils::IsFullEditorCapabilityHost()
 
 bool FNexusHostUtils::IsCapabilityVisibleOnHost(const FCapRecord& Record)
 {
-	if (IsFullEditorCapabilityHost())
+	return IsCapabilityVisibleOnHost(Record, IsFullEditorCapabilityHost());
+}
+
+bool FNexusHostUtils::IsCapabilityVisibleOnHost(const FCapRecord& Record, bool bFullEditorHost)
+{
+	if (bFullEditorHost)
 	{
 		return true;
 	}

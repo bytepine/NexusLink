@@ -21,4 +21,10 @@ struct NEXUSLINK_API FNexusHostUtils
 
 	/** 当前宿主是否可发现/调用该 Capability（看 GetHostScope，不看 Tags）。 */
 	static bool IsCapabilityVisibleOnHost(const FCapRecord& Record);
+
+	/**
+	 * 可见性判定（显式宿主标志，供单元测试模拟 DS/Game）。
+	 * 生产路径走无参重载，内部传入 IsFullEditorCapabilityHost()。
+	 */
+	static bool IsCapabilityVisibleOnHost(const FCapRecord& Record, bool bFullEditorHost);
 };

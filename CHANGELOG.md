@@ -9,6 +9,7 @@
 
 ### Added
 
+- test(host): L1 Automation `NexusLink.Host.*`（`ScopeAndRuntimeTag` / `Visibility` / `RegistryScope`）——基类 HostScope、`GetDefinition` 幂等补 `runtime` 标签、注册表抽检；`FNexusHostUtils::IsCapabilityVisibleOnHost(Record, bFullEditorHost)` 重载供模拟 DS/Game
 - feat(server): 控制台命令 **`NexusLink.EnableMcp 1|0`**——会话级启停 MCP（不写 Preferences）；无参数打印 on/off；Shipping 下无效
 - feat(server): 新增命令行开关 **`-EnableNexusMcp`**——会话级强制启动 MCP/WebSocket（不改 Preferences、不 `SaveConfig`）；与 `bEnableMcpServer` 为 OR，适合 `-server` / headless / 无 UI 启动
 - docs(host): 补齐打断遗漏——元工具 Description 含 unavailable、CapabilitySpec 自检项、InitializeInstructions/README 宿主说明
@@ -23,6 +24,7 @@
 
 ### Fixed
 
+- test(smoke): `NexusLink.Smoke.PluginAndRegistry` 对齐 SearchMode——断言 ToolRegistry 仅 3 个元工具，关键能力改查 `CapabilityRegistry`（旧断言仍按 MultiTool 全量 Tool 表，导致恒失败）
 - fix(mcp): `manage_asset_behavior_tree` `sync_graph` 子节点按 `NodePosX` 排序后再逐位配对——引擎编译 Graph→BT 时同样是 `LinkedTo.Sort(FCompareNodeXLocation())`，此前用 `LinkedTo` 原始顺序会在连线顺序与画面左右顺序不一致时把 `NodeInstance` 配错位置
 - fix(mcp): `manage_asset_behavior_tree` 读 `UAIGraphNode::SubNodes` 改走 `FObjectPropertyBase` 反射取值——UE5 起该字段为 `TArray<TObjectPtr<>>`，裸 `reinterpret_cast` 在 late-resolve 下会读到未解析句柄
 - fix(mcp): `manage_asset_behavior_tree` `replace_node` 换 Composite 时迁移旧节点的 `Children`/`Services`（返回 `movedChildren`/`movedServices`），此前整棵子树会被静默丢弃
