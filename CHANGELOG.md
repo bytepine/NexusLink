@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-08-04
+
 ### Added
 
 - test(host): L1 Automation `NexusLink.Host.*`（`ScopeAndRuntimeTag` / `Visibility` / `RegistryScope`）——基类 HostScope、`GetDefinition` 幂等补 `runtime` 标签、注册表抽检；`FNexusHostUtils::IsCapabilityVisibleOnHost(Record, bFullEditorHost)` 重载供模拟 DS/Game
@@ -18,13 +20,14 @@
 
 ### Changed
 
-- docs: README / README.en 对齐 Unreleased——宿主过滤改 `GetHostScope`/Runtime 基类表述；功能表补 `get_asset_refs` 继承方向、BT `replace_node`/`sync_graph`、BP Event/BeginPlay、Montage 时长；开发路径注明 Runtime 基类；框架特性补 `NexusLink.EnableMcp` 与 feedback 环境字段
+- docs: README / README.en 对齐本版本——宿主过滤改 `GetHostScope`/Runtime 基类表述；功能表补 `get_asset_refs` 继承方向、BT `replace_node`/`sync_graph`、BP Event/BeginPlay、Montage 时长；开发路径注明 Runtime 基类；框架特性补 `NexusLink.EnableMcp` 与 feedback 环境字段
 - chore(plugin): `NexusLink.uplugin` 主模块 `Type` 由 `Editor` 改为 **`Runtime`**，使 `-server` / Game 目标也能加载插件（MCP 仍默认关；Shipping 不启动；靠 Preferences 或 `-EnableNexusMcp` 开启）
 - refactor(host): Runtime/Lua Runtime 目录下 Capability 统一改继承 Runtime 基类；宿主过滤改为 `GetHostScope()`，不再依赖手写 `runtime` 标签
 - feat(mcp): `manage_asset_behavior_tree` 新增 `replace_node`（就地换类型、保留槽位 decorators/services，并反射同步 EdGraph `NodeInstance`）与 `sync_graph`（按结构位置整体重建 Graph↔RootNode）；写操作前关闭已打开的 BT 编辑器 Tab，避免旧 Graph 冲正
 
 ### Fixed
 
+- fix(compat): Montage `add_segment`/`remove_segment` 刷新时长改走 `SetCompositeLength`（UE5+）；UE4 Editor 仍用 `SetSequenceLength`，Game 目标直写 `SequenceLength`——修复 5.2+ `SetSequenceLength` 已移除且 `SequenceLength` 为 protected 的编译失败
 - fix(mcp): `create_asset_blueprint` 对 Actor 子类确保 EventGraph 含启用态 `ReceiveBeginPlay`（headless/无 DefaultEventNodes 时图为空）
 - feat(mcp): `manage_asset_blueprint` `add_node` 支持 `K2Node_Event`（`functionName=ReceiveBeginPlay`）
 - fix(mcp): `FNexusStringMatchUtils::Matches` 默认子串改为不区分大小写（与注释一致）

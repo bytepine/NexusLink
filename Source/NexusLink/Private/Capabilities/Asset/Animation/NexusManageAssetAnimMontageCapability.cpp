@@ -158,12 +158,12 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 
 			Track.AnimTrack.AnimSegments.Add(Segment);
 			// 同步 Montage 总时长，否则 Montage_Play 对空长度返回 0
-			// UE4：SetSequenceLength 仅 WITH_EDITOR；BuildPlugin/Game 目标直接写 SequenceLength
+			// UE5：SetCompositeLength；UE4 Editor：SetSequenceLength；UE4 Game：直写 SequenceLength
 			const float NewLen = Montage->CalculateSequenceLength();
-#if NX_UE_HAS_ANIM_SEQUENCE_SET_LENGTH
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+#if NX_UE_HAS_ANIM_COMPOSITE_SET_LENGTH
+			Montage->SetCompositeLength(NewLen);
+#elif WITH_EDITOR
 			Montage->SetSequenceLength(NewLen);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #else
 			Montage->SequenceLength = NewLen;
 #endif
@@ -213,10 +213,10 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 
 			Segs.RemoveAt(SegIdx);
 			const float NewLen = Montage->CalculateSequenceLength();
-#if NX_UE_HAS_ANIM_SEQUENCE_SET_LENGTH
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+#if NX_UE_HAS_ANIM_COMPOSITE_SET_LENGTH
+			Montage->SetCompositeLength(NewLen);
+#elif WITH_EDITOR
 			Montage->SetSequenceLength(NewLen);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #else
 			Montage->SequenceLength = NewLen;
 #endif
