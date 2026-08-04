@@ -93,7 +93,7 @@ void FNexusLinkModule::StartupModule()
 
 	EnableMcpConsoleCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("NexusLink.EnableMcp"),
-		TEXT("会话级启停 MCP（不写 Preferences）。用法: NexusLink.EnableMcp 1|0；无参数打印当前状态。Shipping 无效。"),
+		HELP_TEXT("会话级启停 MCP（不写 Preferences）。用法: NexusLink.EnableMcp 1|0；无参数打印当前状态。Shipping 无效。"),
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FNexusLinkModule::HandleEnableMcpCommand),
 		ECVF_Default);
 

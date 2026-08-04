@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- fix(compat): `RegisterConsoleCommand` 帮助串改用 `HELP_TEXT`（`NexusVersionCompat` 在标准 UE 上回退为 `TEXT`）——兼容定义了 `ENGINE_STRIP_HELP_TEXT` / `HELPCHAR` 的定制引擎（宽字符 `TEXT` 与 ANSI `HELPCHAR*` 类型不匹配）
+
 ## [1.16.0] - 2026-08-04
 
 ### Added

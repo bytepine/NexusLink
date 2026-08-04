@@ -15,6 +15,12 @@
 
 #define NX_UE_AT_LEAST(Major, Minor)  (NX_UE_VERSION >= (Major) * 100 + (Minor))
 
+// 定制引擎若定义 ENGINE_STRIP_HELP_TEXT，会把 Console Help 改为 HELPCHAR* 并提供 HELP_TEXT；
+// 标准 UE 无此宏。RegisterConsoleCommand 帮助串统一走 HELP_TEXT，避免 TEXT(宽字符) 与 HELPCHAR(ANSI) 不匹配。
+#ifndef HELP_TEXT
+#define HELP_TEXT(x) TEXT(x)
+#endif
+
 // ── 语义别名：按 API 变更点命名 ──
 
 #define NX_UE_HAS_UNLOAD_PACKAGES_DIRTY_FLAG  NX_UE_AT_LEAST(5, 0)  // UPackageTools::UnloadPackages(Packages, Err, bUnloadDirtyPackages) 第三参数仅 5.0+（4.26/4.27 只有 2 参重载）
