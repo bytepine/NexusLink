@@ -44,7 +44,7 @@ flowchart TB
 1. 将插件放入项目的 `Plugins/Developer/NexusLink`，在 **Edit → Plugins → Developer → NexusLink** 中启用
 2. 重启编辑器后，打开 **Edit → Editor Preferences → Plugins → NexusLink**
 3. 勾选 **启用 MCP 服务器**（**默认关闭**）——勾选后即时启动 HTTP（`POST /stream`）与 WebSocket，并注册实例供 Rider/VSCode 发现；取消勾选立即停止，**无需重启编辑器**
-4. （可选）无 UI / `-server` / headless 启动时可加 **`-EnableNexusMcp`** / console `NexusLink.EnableMcp`（会话级，不写盘；与 Preferences 为 OR）。**Shipping 下插件不启动**；DS/Game 仅 Runtime 基类 Capability 可见；Dedicated Server / Game 仅暴露 `runtime` Capability
+4. （可选）无 UI / `-server` / headless 启动时可加 **`-EnableNexusMcp`** 或控制台 **`NexusLink.EnableMcp 1|0`**（会话级，不写盘；与 Preferences 为 OR）。**Shipping 下插件不启动**；Dedicated Server / 纯 Game 仅暴露继承 **`FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`**（`GetHostScope()==Runtime`）的 Capability（`errorKind=unavailable`）
 
 > GAS / Niagara 相关 Capability 需在项目 `.uproject` 中启用 `GameplayAbilities` / `Niagara` 插件（`NexusLink.uplugin` 已声明依赖）。StateTree / MVVM 能力需 UE 5.5+ 且引擎内置对应插件可用。
 
@@ -119,7 +119,7 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 3. `.cpp` 末尾 `REGISTER_MCP_TOOL(FNexusMcpToolXxx)`
 
 **路径 B — Capability**（主流路径，业务逻辑封装在 Capability，可独立调用）
-1. 创建 `Private/Capabilities/<分类>/NexusXxxCapability.h/.cpp`，继承 `FNexusCapability`（多 section 则继承 `FNexusMultiSectionCapability`）
+1. 创建 `Private/Capabilities/<分类>/NexusXxxCapability.h/.cpp`，继承 `FNexusCapability`（多 section 则继承 `FNexusMultiSectionCapability`）；**DS/Game 可见**的运行时能力改继承 **`FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`**（不必再手写 `runtime` 标签）
 2. 实现 `BuildDefinition()` / `Execute()`；资产 get/manage 须填 `Out.SearchAssetTypes`（供 `search_asset` 返回 `recommendedGet`/`recommendedManage`）；`.cpp` 末尾 `REGISTER_MCP_CAPABILITY(FNexusXxxCapability)`
 3. 遵循 [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md)（命名 / 四段式描述 / `SearchAssetTypes` / 自检清单）
 4. Capability 通过 `call_capability` 元工具直接调用，或在 MultiTool 模式下作为独立 MCP Tool 暴露
@@ -140,12 +140,12 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 
 | 领域 | 能力范围 | 版本门控 |
 |------|---------|---------|
-| **编辑器上下文** | 编辑器信息/上下文、输出日志、控制台变量、视口截图、资产增删改/搜索/引用查询、PIE 控制、Gameplay Tags | 全版本 |
-| **蓝图** | Blueprint 变量/函数/图节点/连线/组件/CDO 批量编辑 | 全版本 |
-| **动画** | AnimSequence（关键帧/曲线/Notify）、AnimBlueprint（状态机）、AnimMontage（Segment/Section）、BlendSpace（轴/样本）、Skeleton / SkeletalMesh | 全版本 |
+| **编辑器上下文** | 编辑器信息/上下文、输出日志、控制台变量、视口截图、资产增删改/搜索、**引用与继承查询**（`get_asset_refs`：`dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`）、PIE 控制、Gameplay Tags | 全版本 |
+| **蓝图** | Blueprint 变量/函数/图节点/连线/组件/CDO；`create` 对 Actor 补 BeginPlay；`manage` 支持 `K2Node_Event` | 全版本 |
+| **动画** | AnimSequence（关键帧/曲线/Notify）、AnimBlueprint（状态机）、AnimMontage（Segment/Section，增删后同步时长）、BlendSpace（轴/样本）、Skeleton / SkeletalMesh | 全版本 |
 | **材质** | Material / MaterialInstance / MaterialFunction / MaterialParameterCollection | 全版本 |
 | **音频** | SoundWave、SoundCue、MetaSound Source/Patch（Frontend Document / 图节点连线）、SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound/Patch: UE 5.0+/5.1+ |
-| **AI** | BehaviorTree / Blackboard / EQS（环境查询）/ 运行时 AI 执行状态 | 全版本 |
+| **AI** | BehaviorTree（含 `replace_node` / `sync_graph`）/ Blackboard / EQS（环境查询）/ 运行时 AI 执行状态 | 全版本 |
 | **GAS** | GameplayAbility / GameplayEffect / AttributeSet + 运行时 ASC | 需 `GameplayAbilities` 插件 |
 | **控制绑定** | ControlRig（Rig 层级 + RigVM 图节点/连线）、IKRig / IKRetargeter | UE 5.0+ |
 | **程序化/动作** | PCG Graph（节点/连线）、PoseSearch（schema/database） | UE 5.4+ |
@@ -168,11 +168,12 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 - [x] **SearchMode**（默认）：tools/list 仅暴露 3 个元工具，AI 通过 `search_capabilities` 按需发现能力
 - [x] **MultiTool**：tools/list 暴露全部已启用 Capability（各作独立 MCP Tool）+ `submit_feedback`；无 `search_capabilities` / `call_capability`
 - [x] Capability 变更或模式切换时广播 `notifications/tools/list_changed`
-- [x] **启用 MCP 服务器**总开关（默认关闭）：Editor Preferences → Plugins → NexusLink → 服务器；勾选后即时启动 HTTP/WebSocket 并注册实例；命令行 **`-EnableNexusMcp`** 可会话级强制开启（不写盘）
+- [x] **启用 MCP 服务器**总开关（默认关闭）：Editor Preferences → Plugins → NexusLink → 服务器；勾选后即时启动 HTTP/WebSocket 并注册实例；命令行 **`-EnableNexusMcp`** 或控制台 **`NexusLink.EnableMcp`** 可会话级启停（不写盘；与 Preferences 为 OR）
+- [x] **宿主过滤**：主模块 `Type: Runtime`（可进 `-server`/Game）；Shipping 不启动；DS/Game 仅 `GetHostScope()==Runtime` 的 Capability 可见（继承 Runtime 基类即可）
 - [x] 端口自动分配，冲突时自动切换；实例注册机制支持零扫描发现（`{PID}.json` 写入临时目录）
 - [x] **按 Capability 启用/禁用**（`IsCapabilityEnabled`）：Editor Preferences → Plugins → NexusLink → Capabilities；支持分类级 / 单条级勾选
 - [x] **全工具响应默认值压缩**（`FNexusResponseCompactorUtils`）：递归扫描对象数组字段，主流值自动抽取为 `<field>_defaults`，降低响应体积；可通过设置面板 `响应默认值压缩` 全局关闭
-- [x] **AI 反馈闭环**：`search_capabilities` / `call_capability` 自动埋点 + `submit_feedback` 手动上报；数据落本地 `<ProjectRoot>/.nexus-feedback/`；设置面板可**导出 Markdown** 报告、**创建 GitHub Issue**（可配置 `FeedbackIssueRepo`）。详情见 [usage-guide §2.5](docs/usage-guide.md)
+- [x] **AI 反馈闭环**：`search_capabilities` / `call_capability` 自动埋点 + `submit_feedback` 手动上报；数据落本地 `<ProjectRoot>/.nexus-feedback/`（含 `pluginVersion`/`ueVersion` 等环境字段）；设置面板可**导出 Markdown** 报告、**创建 GitHub Issue**（可配置 `FeedbackIssueRepo`）。详情见 [usage-guide §2.5](docs/usage-guide.md)
 - [x] **插件版本检查**：设置面板「插件信息」显示当前版本；支持手动**检查更新**与**启动时自动检查**（默认开），有新版本时通知并跳转 [Releases](https://github.com/bytepine/NexusLink/releases)
 - [x] **内存高水位批量驱逐**（`FNexusPackageLedger`）：只读批量读资产时弱引用记账本次引入的包，达数量/内存阈值后整批卸载 + GC；设置面板「内存管理」可调；`call_capability.keepLoaded` / `unload_asset` 兜底
 - [x] **`search_asset` 推荐工具**：结果附 `recommendedGet` / `recommendedManage`（由各 cap 的 `SearchAssetTypes` 声明）

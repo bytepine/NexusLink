@@ -5,11 +5,16 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "K2Node_Event.h"
+#include "EdGraph/EdGraph.h"
 #endif
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Blueprint.h"
+#include "GameFramework/Actor.h"
 #include "NexusMcpTool.h"
 
 void FCreateAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -80,10 +85,50 @@ FCapabilityResult FCreateAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 		if (!NewBlueprint)
 		{ FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(TEXT("Blueprint 创建失败: %s"), *AssetPath)); return; }
 
+		// headless / DefaultEventNodes 未注册时 CreateBlueprint 可能不生成 BeginPlay。
+		// 手动补启用态 ReceiveBeginPlay；勿 MarkBlueprintAsStructurallyModified（骨架重编译可能清图）。
+		int32 BeginPlayEnsured = 0;
+		if (ParentClass->IsChildOf(AActor::StaticClass()) && NewBlueprint->UbergraphPages.Num() > 0)
+		{
+			UEdGraph* Uber = NewBlueprint->UbergraphPages[0];
+			if (!FBlueprintEditorUtils::FindOverrideForFunction(
+				NewBlueprint, AActor::StaticClass(), FName(TEXT("ReceiveBeginPlay"))))
+			{
+				UK2Node_Event* EventNode = NewObject<UK2Node_Event>(Uber);
+				EventNode->SetFlags(RF_Transactional);
+				EventNode->EventReference.SetExternalMember(FName(TEXT("ReceiveBeginPlay")), AActor::StaticClass());
+				EventNode->bOverrideFunction = true;
+				Uber->AddNode(EventNode, /*bFromUI=*/false, /*bSelectNewNode=*/false);
+				EventNode->CreateNewGuid();
+				EventNode->PostPlacedNewNode();
+				EventNode->AllocateDefaultPins();
+				EventNode->NodePosX = 0;
+				EventNode->NodePosY = 0;
+				// 若仍是 Ghost（引擎默认生成路径），改为启用以便 connect
+				EventNode->SetEnabledState(ENodeEnabledState::Enabled, /*bUserAction=*/true);
+				BeginPlayEnsured = 1;
+			}
+			else
+			{
+				if (UK2Node_Event* Existing = FBlueprintEditorUtils::FindOverrideForFunction(
+					NewBlueprint, AActor::StaticClass(), FName(TEXT("ReceiveBeginPlay"))))
+				{
+					Existing->SetEnabledState(ENodeEnabledState::Enabled, /*bUserAction=*/true);
+					BeginPlayEnsured = 2;
+				}
+			}
+			FBlueprintEditorUtils::MarkBlueprintAsModified(NewBlueprint);
+		}
+
 		FNexusAssetUtils::NotifyCompileAndSave(Package, NewBlueprint, AssetPath);
 
 		OutEntry->SetStringField(TEXT("path"),    AssetPath);
 		OutEntry->SetStringField(TEXT("name"),    NewBlueprint->GetName());
+		OutEntry->SetNumberField(TEXT("beginPlayEnsured"), BeginPlayEnsured);
+		if (NewBlueprint->UbergraphPages.Num() > 0)
+		{
+			OutEntry->SetNumberField(TEXT("eventGraphNodeCount"), NewBlueprint->UbergraphPages[0]->Nodes.Num());
+		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});

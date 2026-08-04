@@ -54,11 +54,14 @@ FCapabilityResult FCreateAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
 
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UUserDefinedEnum* NewEnum = NewObject<UUserDefinedEnum>(Package, *AssetName, RF_Public | RF_Standalone | RF_Transactional);
+		// 必须走 CreateUserDefinedEnum：内部 SetEnums(..., Namespaced)；裸 NewObject 的 CppForm 默认 Regular，
+		// 再调 AddNewEnumerator 会触发 UserDefinedEnum.cpp ensure(CppForm == Namespaced) 崩溃。
+		UEnum* Created = FEnumEditorUtils::CreateUserDefinedEnum(
+			Package, *AssetName, RF_Public | RF_Standalone | RF_Transactional);
+		UUserDefinedEnum* NewEnum = Cast<UUserDefinedEnum>(Created);
 		if (!NewEnum) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("枚举对象创建失败")); return; }
 
-		NewEnum->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
-		// 添加默认首项，使枚举有效
+		// 添加默认首项，使枚举有效（Create 时 names 为空，尚无用户可见 enumerator）
 		FEnumEditorUtils::AddNewEnumeratorForUserDefinedEnum(NewEnum);
 
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewEnum, AssetPath);

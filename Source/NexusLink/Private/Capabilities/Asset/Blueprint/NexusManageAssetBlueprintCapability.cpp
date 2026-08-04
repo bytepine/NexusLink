@@ -19,6 +19,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_CallFunction.h"
+#include "K2Node_Event.h"
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -378,25 +379,32 @@ FCapabilityResult FManageAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 			if (NodeClass == TEXT("K2Node_CallFunction"))
 			{
 				if (!OpArgs->HasField(TEXT("functionName"))) { Entry->SetStringField(TEXT("error"), TEXT("K2Node_CallFunction 需要 functionName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				const FString FuncName  = OpArgs->GetStringField(TEXT("functionName"));
-				const FString FuncClass = OpArgs->HasField(TEXT("functionClass")) ? OpArgs->GetStringField(TEXT("functionClass")) : TEXT("");
+				const FString FuncName = OpArgs->GetStringField(TEXT("functionName"));
+				FString FuncClassName;
+				OpArgs->TryGetStringField(TEXT("functionClass"), FuncClassName);
 
 				UFunction* Func = nullptr;
-				if (!FuncClass.IsEmpty())
+				if (!FuncClassName.IsEmpty())
 				{
-					UClass* C = FNexusAssetUtils::FindClassWithUPrefix(FuncClass);
-					if (C) Func = C->FindFunctionByName(*FuncName);
+					if (UClass* Owner = FNexusAssetUtils::FindClassWithUPrefix(FuncClassName))
+						Func = Owner->FindFunctionByName(*FuncName);
 				}
 				if (!Func)
 				{
-					int32 N = 0;
-					for (TObjectIterator<UClass> It; It && N < 5000; ++It, ++N) { Func = It->FindFunctionByName(*FuncName); if (Func) break; }
+					for (TObjectIterator<UClass> It; It; ++It)
+					{
+						if (UFunction* F = It->FindFunctionByName(*FuncName))
+						{ Func = F; break; }
+					}
 				}
 				if (!Func)
 				{
 					const FString K2Name = TEXT("K2_") + FuncName;
-					int32 N = 0;
-					for (TObjectIterator<UClass> It; It && N < 5000; ++It, ++N) { Func = It->FindFunctionByName(*K2Name); if (Func) break; }
+					for (TObjectIterator<UClass> It; It; ++It)
+					{
+						if (UFunction* F = It->FindFunctionByName(*K2Name))
+						{ Func = F; break; }
+					}
 				}
 				if (!Func) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("函数 '%s' 未找到（已尝试 'K2_%s'）"), *FuncName, *FuncName)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
 
@@ -407,6 +415,33 @@ FCapabilityResult FManageAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 				Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
 				Node->NodePosX = PosX; Node->NodePosY = PosY;
 				NewNode = Node;
+			}
+			else if (NodeClass == TEXT("K2Node_Event"))
+			{
+				// functionName：ReceiveBeginPlay / BeginPlay；functionClass 默认 Actor
+				if (!OpArgs->HasField(TEXT("functionName"))) { Entry->SetStringField(TEXT("error"), TEXT("K2Node_Event 需要 functionName（如 ReceiveBeginPlay）")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+				FString EventName = OpArgs->GetStringField(TEXT("functionName"));
+				if (EventName == TEXT("BeginPlay")) EventName = TEXT("ReceiveBeginPlay");
+				FString EventClassName = TEXT("Actor");
+				OpArgs->TryGetStringField(TEXT("functionClass"), EventClassName);
+				UClass* EventClass = FNexusAssetUtils::FindClassWithUPrefix(EventClassName);
+				if (!EventClass) EventClass = AActor::StaticClass();
+				if (UK2Node_Event* Existing = FBlueprintEditorUtils::FindOverrideForFunction(BP, EventClass, FName(*EventName)))
+				{
+					Existing->SetEnabledState(ENodeEnabledState::Enabled, true);
+					NewNode = Existing;
+				}
+				else
+				{
+					UK2Node_Event* Node = NewObject<UK2Node_Event>(Graph);
+					Node->SetFlags(RF_Transactional);
+					Node->EventReference.SetExternalMember(FName(*EventName), EventClass);
+					Node->bOverrideFunction = true;
+					Graph->AddNode(Node, false, false);
+					Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
+					Node->NodePosX = PosX; Node->NodePosY = PosY;
+					NewNode = Node;
+				}
 			}
 			else if (NodeClass == TEXT("K2Node_VariableGet") || NodeClass == TEXT("K2Node_VariableSet"))
 			{

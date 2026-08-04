@@ -3,6 +3,7 @@
 #include "Capabilities/Asset/Animation/NexusManageAssetAnimMontageCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -156,6 +157,16 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 			Segment.LoopingCount   = 1;
 
 			Track.AnimTrack.AnimSegments.Add(Segment);
+			// 同步 Montage 总时长，否则 Montage_Play 对空长度返回 0
+			// UE4：SetSequenceLength 仅 WITH_EDITOR；BuildPlugin/Game 目标直接写 SequenceLength
+			const float NewLen = Montage->CalculateSequenceLength();
+#if NX_UE_HAS_ANIM_SEQUENCE_SET_LENGTH
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			Montage->SetSequenceLength(NewLen);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#else
+			Montage->SequenceLength = NewLen;
+#endif
 			Montage->MarkPackageDirty();
 
 			OutEntry->SetStringField(TEXT("slotName"),         SlotNameStr);
@@ -163,7 +174,9 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 			OutEntry->SetNumberField(TEXT("startPos"),         StartPos);
 			OutEntry->SetNumberField(TEXT("animStartTime"),    AnimStartTime);
 			OutEntry->SetNumberField(TEXT("animEndTime"),      AnimEndTime);
-			OutEntry->SetNumberField(TEXT("segmentIndex"),     Track.AnimTrack.AnimSegments.Num() - 1);	}
+			OutEntry->SetNumberField(TEXT("segmentIndex"),     Track.AnimTrack.AnimSegments.Num() - 1);
+			OutEntry->SetNumberField(TEXT("sequenceLength"),   Montage->GetPlayLength());
+		}
 		else if (Action == TEXT("remove_segment"))
 		{
 			FString SlotNameStr = TEXT("DefaultSlot");
@@ -199,9 +212,18 @@ FCapabilityResult FManageAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 			}
 
 			Segs.RemoveAt(SegIdx);
+			const float NewLen = Montage->CalculateSequenceLength();
+#if NX_UE_HAS_ANIM_SEQUENCE_SET_LENGTH
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			Montage->SetSequenceLength(NewLen);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#else
+			Montage->SequenceLength = NewLen;
+#endif
 			Montage->MarkPackageDirty();
 			OutEntry->SetStringField(TEXT("slotName"), SlotNameStr);
 			OutEntry->SetNumberField(TEXT("segmentIndex"), SegIdx);
+			OutEntry->SetNumberField(TEXT("sequenceLength"), Montage->GetPlayLength());
 		}
 		else if (Action == TEXT("add_section"))
 		{

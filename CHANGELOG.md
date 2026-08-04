@@ -18,12 +18,18 @@
 
 ### Changed
 
+- docs: README / README.en 对齐 Unreleased——宿主过滤改 `GetHostScope`/Runtime 基类表述；功能表补 `get_asset_refs` 继承方向、BT `replace_node`/`sync_graph`、BP Event/BeginPlay、Montage 时长；开发路径注明 Runtime 基类；框架特性补 `NexusLink.EnableMcp` 与 feedback 环境字段
 - chore(plugin): `NexusLink.uplugin` 主模块 `Type` 由 `Editor` 改为 **`Runtime`**，使 `-server` / Game 目标也能加载插件（MCP 仍默认关；Shipping 不启动；靠 Preferences 或 `-EnableNexusMcp` 开启）
 - refactor(host): Runtime/Lua Runtime 目录下 Capability 统一改继承 Runtime 基类；宿主过滤改为 `GetHostScope()`，不再依赖手写 `runtime` 标签
 - feat(mcp): `manage_asset_behavior_tree` 新增 `replace_node`（就地换类型、保留槽位 decorators/services，并反射同步 EdGraph `NodeInstance`）与 `sync_graph`（按结构位置整体重建 Graph↔RootNode）；写操作前关闭已打开的 BT 编辑器 Tab，避免旧 Graph 冲正
 
 ### Fixed
 
+- fix(mcp): `create_asset_blueprint` 对 Actor 子类确保 EventGraph 含启用态 `ReceiveBeginPlay`（headless/无 DefaultEventNodes 时图为空）
+- feat(mcp): `manage_asset_blueprint` `add_node` 支持 `K2Node_Event`（`functionName=ReceiveBeginPlay`）
+- fix(mcp): `FNexusStringMatchUtils::Matches` 默认子串改为不区分大小写（与注释一致）
+- fix(mcp): `manage_asset_anim_montage` 的 `add_segment`/`remove_segment` 后刷新 `SequenceLength`——此前时长仍为 0，`Montage_Play` 返回 length=0
+- fix(mcp): `create_asset_enum` 改用 `FEnumEditorUtils::CreateUserDefinedEnum`——裸 `NewObject` 未设 `CppForm::Namespaced`，随后 `AddNewEnumerator` 触发 `UserDefinedEnum.cpp` ensure 崩溃
 - test(smoke): `NexusLink.Smoke.PluginAndRegistry` 对齐 SearchMode——断言 ToolRegistry 仅 3 个元工具，关键能力改查 `CapabilityRegistry`（旧断言仍按 MultiTool 全量 Tool 表，导致恒失败）
 - fix(mcp): `manage_asset_behavior_tree` `sync_graph` 子节点按 `NodePosX` 排序后再逐位配对——引擎编译 Graph→BT 时同样是 `LinkedTo.Sort(FCompareNodeXLocation())`，此前用 `LinkedTo` 原始顺序会在连线顺序与画面左右顺序不一致时把 `NodeInstance` 配错位置
 - fix(mcp): `manage_asset_behavior_tree` 读 `UAIGraphNode::SubNodes` 改走 `FObjectPropertyBase` 反射取值——UE5 起该字段为 `TArray<TObjectPtr<>>`，裸 `reinterpret_cast` 在 late-resolve 下会读到未解析句柄

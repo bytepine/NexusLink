@@ -3,6 +3,7 @@
 #include "Editor/NexusLogCapture.h"
 #include "Utils/NexusStringMatchUtils.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "Misc/ScopeLock.h"
 #include "HAL/PlatformTime.h"
 
 FNexusLogCapture* FNexusLogCapture::Singleton = nullptr;

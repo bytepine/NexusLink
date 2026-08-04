@@ -38,6 +38,7 @@
 #define NX_UE_HAS_MATERIAL_DOMAIN_HEADER   NX_UE_AT_LEAST(5, 2) // EMaterialDomain 移至独立 MaterialDomain.h（UE5.2+；5.1 及更早由 Material.h 完整提供）
 #define NX_UE_HAS_ALLOW_SHRINKING_ENUM     NX_UE_AT_LEAST(5, 5) // TArray::Pop(bool) → Pop(EAllowShrinking)
 #define NX_UE_HAS_ANIM_SEGMENT_ACCESSOR    NX_UE_AT_LEAST(5, 1) // FAnimSegment::AnimReference 在 5.1 开始 deprecated（5.6 变 protected），需用 GetAnimReference()/SetAnimReference()
+#define NX_UE_HAS_ANIM_SEQUENCE_SET_LENGTH NX_UE_AT_LEAST(5, 0) // UAnimSequenceBase::SetSequenceLength（UE4 仅 UAnimCompositeBase 且 WITH_EDITOR）
 #define NX_UE_HAS_STATIC_MESH_ACCESSORS    NX_UE_AT_LEAST(4, 27) // UStaticMesh::StaticMaterials/BodySetup → GetStaticMaterials()/GetBodySetup()
 #define NX_UE_HAS_SKELETAL_MESH_ACCESSORS  NX_UE_HAS_STATIC_MESH_ACCESSORS // USkeletalMesh::Materials/PhysicsAsset → GetMaterials()/GetPhysicsAsset()
 #define NX_UE_HAS_SKELETAL_MESH_SKELETON_ACCESSOR NX_UE_AT_LEAST(4, 27) // USkeletalMesh::Skeleton → GetSkeleton()（4.27 起 deprecated 直访）

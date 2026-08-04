@@ -44,7 +44,7 @@ Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://gith
 1. Place the plugin in your project's `Plugins/Developer/NexusLink`, then enable it under **Edit → Plugins → Developer → NexusLink**
 2. After restarting the editor, open **Edit → Editor Preferences → Plugins → NexusLink**
 3. Check **Enable MCP Server** (**off by default**) — once checked, HTTP (`POST /stream`) and WebSocket start immediately and the instance is registered for Rider/VSCode discovery; unchecking stops them immediately, **no editor restart required**
-4. (Optional) For headless / `-server` / no-UI launches, pass **`-EnableNexusMcp`** / console `NexusLink.EnableMcp` (session-only, does not write settings; OR with Preferences). **Disabled in Shipping** (`StartupModule` no-op); DS/Game only expose Runtime-base Capabilities; Dedicated Server / Game hosts only expose `runtime`-tagged Capabilities
+4. (Optional) For headless / `-server` / no-UI launches, pass **`-EnableNexusMcp`** or console **`NexusLink.EnableMcp 1|0`** (session-only, does not write settings; OR with Preferences). **Disabled in Shipping** (`StartupModule` no-op). Dedicated Server / pure Game only expose Capabilities that inherit **`FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`** (`GetHostScope()==Runtime`; others return `errorKind=unavailable`)
 
 > GAS / Niagara Capabilities require `GameplayAbilities` / `Niagara` enabled in the project `.uproject` (`NexusLink.uplugin` declares these dependencies). StateTree / MVVM Capabilities require UE 5.5+ with the corresponding engine plugins available.
 
@@ -119,7 +119,7 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 3. At the end of `.cpp`: `REGISTER_MCP_TOOL(FNexusMcpToolXxx)`
 
 **Path B — Capability** (main path; business logic encapsulated in Capability, callable independently)
-1. Create `Private/Capabilities/<category>/NexusXxxCapability.h/.cpp`, inheriting `FNexusCapability` (or `FNexusMultiSectionCapability` for multi-section)
+1. Create `Private/Capabilities/<category>/NexusXxxCapability.h/.cpp`, inheriting `FNexusCapability` (or `FNexusMultiSectionCapability` for multi-section). For Capabilities visible on **DS/Game**, inherit **`FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`** instead (no hand-written `runtime` tag required)
 2. Implement `BuildDefinition()` / `Execute()`; asset get/manage must set `Out.SearchAssetTypes` (feeds `search_asset` → `recommendedGet`/`recommendedManage`); end of `.cpp`: `REGISTER_MCP_CAPABILITY(FNexusXxxCapability)`
 3. Follow [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) (naming / four-part description / `SearchAssetTypes` / self-check checklist)
 4. Capabilities are invoked directly via the `call_capability` meta tool, or exposed as standalone MCP Tools in MultiTool mode
@@ -140,12 +140,12 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 
 | Domain | Capabilities | Version Gate |
 |--------|-------------|-------------|
-| **Editor Context** | Editor info/context, output log, console variables, viewport capture, asset CRUD/search/refs, PIE control, Gameplay Tags | All versions |
-| **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO batch edit | All versions |
-| **Animation** | AnimSequence (keyframes/curves/notifies), AnimBlueprint (state machines), AnimMontage, BlendSpace (axes/samples), Skeleton / SkeletalMesh | All versions |
+| **Editor Context** | Editor info/context, output log, console variables, viewport capture, asset CRUD/search, **refs & inheritance** (`get_asset_refs`: `dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`), PIE control, Gameplay Tags | All versions |
+| **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO; Actor `create` ensures BeginPlay; `manage` supports `K2Node_Event` | All versions |
+| **Animation** | AnimSequence (keyframes/curves/notifies), AnimBlueprint (state machines), AnimMontage (segments/sections; length refreshed after edit), BlendSpace (axes/samples), Skeleton / SkeletalMesh | All versions |
 | **Material** | Material / MaterialInstance / MaterialFunction / MaterialParameterCollection | All versions |
 | **Audio** | SoundWave, SoundCue, MetaSound Source/Patch (Frontend Document / graph wiring), SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound: 5.0+, Patch: 5.1+ |
-| **AI** | BehaviorTree / Blackboard / EQS (Environment Query) / runtime AI state | All versions |
+| **AI** | BehaviorTree (incl. `replace_node` / `sync_graph`) / Blackboard / EQS / runtime AI state | All versions |
 | **GAS** | GameplayAbility / GameplayEffect / AttributeSet + runtime ASC | Requires `GameplayAbilities` plugin |
 | **Control Binding** | ControlRig (hierarchy + RigVM graph nodes/wiring), IKRig / IKRetargeter | UE 5.0+ |
 | **Procedural / Motion** | PCG Graph (nodes/edges), PoseSearch (schema/database) | UE 5.4+ |
@@ -168,12 +168,15 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 - [x] **SearchMode** (default): tools/list exposes only 3 meta tools; AI discovers capabilities on demand via `search_capabilities`
 - [x] **MultiTool**: tools/list exposes all enabled Capabilities (each as a separate MCP Tool) + `submit_feedback`; no `search_capabilities` / `call_capability`
 - [x] Broadcast `notifications/tools/list_changed` on Capability change or mode switch
-- [x] **Enable MCP Server** master switch (off by default): Editor Preferences → Plugins → NexusLink → Server; checking starts HTTP/WebSocket immediately and registers instance; CLI **`-EnableNexusMcp`** forces a session-only enable (no disk write)
+- [x] **Enable MCP Server** master switch (off by default): Editor Preferences → Plugins → NexusLink → Server; checking starts HTTP/WebSocket immediately and registers instance; CLI **`-EnableNexusMcp`** or console **`NexusLink.EnableMcp`** for session-only enable/disable (no disk write; OR with Preferences)
+- [x] **Host filtering**: main module `Type: Runtime` (loads under `-server`/Game); no-op in Shipping; DS/Game only expose `GetHostScope()==Runtime` Capabilities (inherit Runtime base classes)
 - [x] Auto port allocation with conflict fallback; instance registration for zero-scan discovery (`{PID}.json` written to temp directory)
 - [x] **Per-Capability enable/disable** (`IsCapabilityEnabled`): Editor Preferences → Plugins → NexusLink → Capabilities; category-level / per-item toggles
 - [x] **Response default-value compaction for all tools** (`FNexusResponseCompactorUtils`): recursively scans object array fields, extracts dominant values as `<field>_defaults` to reduce response size; can be globally disabled via settings panel **Response Default Compaction**
-- [x] **AI feedback loop**: auto telemetry on `search_capabilities` / `call_capability` + manual `submit_feedback`; data stored locally under `<ProjectRoot>/.nexus-feedback/`; settings panel **Export Markdown** report and **Create GitHub Issue** (configurable `FeedbackIssueRepo`). See [usage-guide §2.5](docs/usage-guide.md)
+- [x] **AI feedback loop**: auto telemetry on `search_capabilities` / `call_capability` + manual `submit_feedback`; data under `<ProjectRoot>/.nexus-feedback/` (records include `pluginVersion`/`ueVersion`); settings panel **Export Markdown** / **Create GitHub Issue** (configurable `FeedbackIssueRepo`). See [usage-guide §2.5](docs/usage-guide.md)
 - [x] **Plugin version check**: settings panel **Plugin Info** shows current version; manual **Check for Updates** and **check on startup** (on by default); notification with link to [Releases](https://github.com/bytepine/NexusLink/releases) when newer
+- [x] **Memory high-water batch eviction** (`FNexusPackageLedger`): weakly track packages loaded by read-only introspection; batch unload + GC at count/MB thresholds; settings **Memory**; `call_capability.keepLoaded` / `unload_asset` escape hatches
+- [x] **`search_asset` tool hints**: results include `recommendedGet` / `recommendedManage` (from each cap’s `SearchAssetTypes`)
 
 ---
 

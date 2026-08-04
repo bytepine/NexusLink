@@ -34,6 +34,6 @@ bool FNexusStringMatchUtils::Matches(const FString& Text, const FString& Pattern
 	}
 
 	// 默认：子串匹配（不区分大小写）
-	return Text.Contains(Pattern);
+	return Text.Contains(Pattern, ESearchCase::IgnoreCase);
 }
 
