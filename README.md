@@ -32,10 +32,26 @@ flowchart TB
 
 | 模式 | tools/list 返回 | initialize.instructions | 适用场景 |
 |---|---|---|---|
-| **SearchMode**（默认） | 3 个元工具 | `InitializeInstructions.SearchMode.md`（完整路由表） | AI 按需 `search_capabilities` 发现 |
-| **MultiTool** | 全部已启用 Capability（各作独立 Tool）+ `submit_feedback` | `InitializeInstructions.MultiTool.md`（精简约束） | 需要 tools/list 一次性枚举所有能力的场景 |
+| **SearchMode**（默认） | 3 个元工具 | `InitializeInstructions.SearchMode.md`（完整路由表） | AI 按需 `search_capabilities` 发现；**日常推荐** |
+| **MultiTool** | 全部已启用 Capability（各作独立 Tool）+ `submit_feedback` | `InitializeInstructions.MultiTool.md`（精简约束） | 客户端必须一次性枚举全部能力时 |
 
 模式切换路径：Editor → Editor Preferences → Plugins → NexusLink → **工具列表模式**。Capability 变更时自动广播 `notifications/tools/list_changed`。
+
+#### Token 开销对比（为何默认 SearchMode）
+
+MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮次**重新注入 prompt。固定开销粗估如下（176 Capability、源码 schema 解析、chars÷4；不含 call 返回体与对话历史）：
+
+| 分量 | SearchMode | MultiTool | 差额 |
+|---|---|---|---|
+| tools/list | 3 tools · ~0.3k tok | 177 tools · ~16.9k tok | **+16.6k** |
+| initialize.instructions | ~2.0k | ~0.7k | −1.3k |
+| **每轮固定合计** | **~2.3k** | **~17.6k** | **~7.6× / +15.3k** |
+
+- SearchMode：小 tools/list + 大路由表；按需 `search_capabilities` 换取单份 schema（「发现税」一次性）。
+- MultiTool：instructions 更短，但把全部 Capability schema 每轮塞进 prompt（「全量 schema 税」每轮都付；中位单工具定义 ~86 tok）。
+- 典型任务累计（省略相同 call 返回）：已知 1×search+1×call 约 **3.7×**；中等 2×search+3×call 约 **4.4×**；重会话 4×search+8×call 约 **4.9×**。即便零次 search、只靠路由表直调，固定税仍恒为 **7.6×**。
+
+**建议**：日常与长会话保持 **SearchMode**。仅当客户端无法遵循 search→call、或必须一次枚举全 Tool 时再切 MultiTool，并尽量在设置里关掉无关 Capability 以降税。UE 在线时可用宿主工程 `Script/measure_token_baseline.py` 复核 live `tools/list`。
 
 ## 安装与启用
 

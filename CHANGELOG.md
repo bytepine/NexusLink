@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- docs: README / README.en / architecture / usage-guide 补充 SearchMode vs MultiTool **Token 开销对比**（固定上下文 ~2.3k vs ~17.6k tok/轮，约 7.6×；推荐日常保持 SearchMode）；Capability 计数文档对齐为 176
+
 ### Fixed
 
 - fix(compat): `RegisterConsoleCommand` 帮助串改用 `HELP_TEXT`（`NexusVersionCompat` 在标准 UE 上回退为 `TEXT`）——兼容定义了 `ENGINE_STRIP_HELP_TEXT` / `HELPCHAR` 的定制引擎（宽字符 `TEXT` 与 ANSI `HELPCHAR*` 类型不匹配）

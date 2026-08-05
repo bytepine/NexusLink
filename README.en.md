@@ -32,10 +32,26 @@ flowchart TB
 
 | Mode | tools/list returns | initialize.instructions | Use case |
 |---|---|---|---|
-| **SearchMode** (default) | 3 meta tools | `InitializeInstructions.SearchMode.md` (full routing table) | AI discovers capabilities on demand via `search_capabilities` |
-| **MultiTool** | All enabled Capabilities (each as a separate Tool) + `submit_feedback` | `InitializeInstructions.MultiTool.md` (concise constraints) | Scenarios that need tools/list to enumerate all capabilities at once |
+| **SearchMode** (default) | 3 meta tools | `InitializeInstructions.SearchMode.md` (full routing table) | AI discovers capabilities on demand via `search_capabilities`; **recommended for daily use** |
+| **MultiTool** | All enabled Capabilities (each as a separate Tool) + `submit_feedback` | `InitializeInstructions.MultiTool.md` (concise constraints) | When the client must enumerate all capabilities in one tools/list |
 
 Mode switch path: Editor → Editor Preferences → Plugins → NexusLink → **Tools List Mode**. When Capabilities change, `notifications/tools/list_changed` is broadcast automatically.
+
+#### Token cost comparison (why SearchMode is the default)
+
+Most MCP clients re-inject `tools/list` + `initialize.instructions` **on every model turn**. Fixed-overhead rough estimate (176 Capabilities, schemas parsed from source, chars÷4; excludes call payloads and chat history):
+
+| Component | SearchMode | MultiTool | Delta |
+|---|---|---|---|
+| tools/list | 3 tools · ~0.3k tok | 177 tools · ~16.9k tok | **+16.6k** |
+| initialize.instructions | ~2.0k | ~0.7k | −1.3k |
+| **Fixed total / turn** | **~2.3k** | **~17.6k** | **~7.6× / +15.3k** |
+
+- SearchMode: tiny tools/list + larger routing table; fetch a single schema via `search_capabilities` on demand (one-time “discovery tax”).
+- MultiTool: shorter instructions, but every Capability schema is stuffed into the prompt each turn (“full schema tax” every turn; median tool def ~86 tok).
+- Typical task totals (same call results omitted): known 1×search+1×call ≈ **3.7×**; medium 2×search+3×call ≈ **4.4×**; heavy 4×search+8×call ≈ **4.9×**. Even with zero searches (routing-table-only), the fixed tax stays **7.6×**.
+
+**Recommendation**: keep **SearchMode** for daily and long sessions. Switch to MultiTool only when the client cannot follow search→call or must list every Tool at once — and disable unused Capabilities in settings to cut the tax. With UE online, re-check live `tools/list` via the host project’s `Script/measure_token_baseline.py`.
 
 ## Installation & Enablement
 
