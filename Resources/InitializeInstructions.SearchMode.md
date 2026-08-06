@@ -1,137 +1,55 @@
 NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 动画 / AI / 编辑器）。
 
-
-> **Host note**: On Dedicated Server / non-editor Game, only Capabilities inheriting `FNexusRuntimeCapability` (or the MultiSection variant) are visible; editor/asset caps return `errorKind=unavailable`. Shipping builds do not start NexusLink.
-## ⚡ 触发条件（何时使用本工具）
-
-当用户消息包含以下任一关键词时，你**必须使用 MCP 工具**而非凭记忆作答：
-
-`UE` `Unreal` `蓝图` `Blueprint` `资产` `Asset` `Widget` `UMG` `材质` `Material`
-`行为树` `BehaviorTree` `动画蓝图` `ABP` `DataAsset` `数据表` `DataTable`
-`PIE` `Actor` `GAS` `GameplayAbility` `Niagara` `StateTree` `状态树` `MVVM` `ViewModel` `关卡` `Level` `Lua`
-`Montage` `黑板` `Blackboard` `骨骼` `Skeleton` `贴图` `Texture`
-
-## 首要动作（强制）
-
-你已连接 **实时 Unreal 编辑器**。用户问蓝图、Widget、材质、DataAsset、Actor、UI 等任何问题时：
-
-1. **必须先调 MCP** — 禁止凭记忆、猜测 `/Game/...` 路径或仅 grep 本地仓库作答。
-2. **读取流程**：`search_asset`（收窄 `assetType` + `pathFilter`）→ 用返回的 `assets[].path` + 顶层/`assets[]` 的 `recommendedGet`（写用 `recommendedManage`）→ 再分析或编辑。
-3. 用户提到资产名且本回合 **尚未调 MCP** → **先调 MCP 再回复**。
-4. **IDE 侧可选**：游戏项目将 `Resources/AIRules.mdc` 复制到 `.cursor/rules/`，强化四步流程（见 `docs/usage-guide.md` §2.8）；业务词只用于 `search_asset`，不用于 `search_capabilities`。
-
-| 用户意图 | MCP 调用 |
-|---|---|
-| 蓝图变量 / 函数 / Graph / 节点 | `get_asset_blueprint` |
-| 控件树 / UMG 动画 | `get_asset_user_widget`（`sections`：`widgets` / `animations`） |
-| 材质参数 / 节点图 | `get_asset_material` |
-| 查找资产路径 | `search_asset`（顶层 `assets`/`totalCount`；指定类型时顶层 `recommendedGet`/`recommendedManage`，`assetType=all` 时推荐在每条上） |
-| Texture2D / 贴图元数据 | `get_asset_texture` |
-| 编辑贴图属性 | `manage_asset_texture` |
-| StaticMesh / 静态网格元数据 | `get_asset_static_mesh` |
-| 编辑 StaticMesh | `manage_asset_static_mesh` |
-| AnimSequence 元数据 | `get_asset_anim_sequence` |
-| 编辑 AnimSequence | `manage_asset_anim_sequence` |
-| SkeletalMesh 元数据 | `get_asset_skeletal_mesh` |
-| 编辑 SkeletalMesh | `manage_asset_skeletal_mesh` |
-| Skeleton 骨骼树 | `get_asset_skeleton`（`offset`/`limit` 分页） |
-| 编辑 Skeleton Socket | `manage_asset_skeleton` |
-| SoundWave / SoundCue | `get_asset_sound_wave` / `get_asset_sound_cue` |
-| 编辑 SoundWave / SoundCue | `manage_asset_sound_wave` / `manage_asset_sound_cue` |
-| Niagara 系统元数据 | `get_asset_niagara_system`（需引擎启用 Niagara） |
-| 编辑 Niagara 系统 | `manage_asset_niagara_system` |
-| 关卡布局 / WorldSettings | `get_asset_level`（`sections`：`actors` / `settings`；磁盘关卡，非 PIE） |
-| 编辑关卡 WorldSettings 或磁盘 Actor | `manage_asset_level`（`set_property` / `spawn_actor` / `remove_actor` / `set_actor_property`） |
-| 导出资产到磁盘文件 | `export_asset` |
-| 重新导入外部源文件 | `reimport_asset` |
-| 显式编译蓝图 | `compile_blueprint`（可选 `saveToDisk`） |
-| 运行时动画状态（PIE） | `get_runtime_actor_animation` |
-| 播放/停止蒙太奇（PIE） | `interact_runtime_actor_animation`（`action=play_montage|stop_montage|…`） |
-| PIE 技能/GE/属性快照 | `get_runtime_actor_ability_system` |
-| PIE 施放技能 / Apply GE / 改属性 | `interact_runtime_actor_ability_system` |
-| StateTree 结构（States/Tasks/Transitions/Evaluators） | `get_asset_state_tree`（需引擎启用 StateTree，UE 5.5+） |
-| Widget 蓝图 MVVM ViewModel 列表 / Binding 绑定 | `get_asset_view_model`（需引擎启用 MVVM，UE 5.5+） |
-| 未知 Capability | `search_capabilities`（直接调 MCP 元工具） |
+> Host note: Dedicated Server / non-editor Game 仅 `FNexusRuntimeCapability*` 可见；Shipping 不启动。触发关键词见代理 `initializePrefix`。
 
 ## 工具模型
 
-3 个 MCP 元工具：`search_capabilities`、`call_capability`、`submit_feedback`。  
-其余均为 **Capability**，只能通过 `call_capability` 调用。
+元工具：`search_capabilities`、`call_capability`、`submit_feedback`（直接 `tools/call`）。其余为 Capability，经 `call_capability(capability, arguments)`；`arguments` 须为嵌套对象。
 
-## 命名与读写（§6 摘要）
+## 首要动作
 
-| 动词 | 用途 | 示例 |
-|---|---|---|
-| `get` / `list` / `search` | 只读 | `get_asset_blueprint`, `search_asset` |
-| `set` | **仅** `*_property` + `propertyPaths` | `set_runtime_actor_property` |
-| `interact` | 多 `action` 命令（非 propertyPaths） | `interact_runtime_widget`、`interact_runtime_actor_animation` |
-| `manage` | **仅** 磁盘 `*_asset_*` 结构编辑 | `manage_asset_blueprint` |
+已连接 UE：先 MCP，禁止猜 `/Game/...` 或仅 grep 仓库。读资产：`search_asset`（收窄 `assetType` + `pathFilter`）→ `assets[].path` + `recommendedGet`/`recommendedManage`（指定类型在顶层，`all` 在条目上）→ 再读写。未知 cap → `search_capabilities`。业务词只用于 `search_asset`，不用于 `search_capabilities`。
 
-**禁止工具名**：`manage_animation`、`set_runtime_actor_animation`。
+## Token 预算
 
-## 意图 → Capability 路由
+- 响应体是主要开销：`sections` 取窄（勿 `all`）、`limit` 从小取；读日志 `get_output_log` ≤50 条并配 `categoryFilter` / `verbosity` / `textFilter`，不够再 `offset` 翻页。
+- 多步操作用 `call_capability(calls=[{capability,arguments},…])` 一轮完成；参数层同样批量：`assetPaths[]` / `actorNames[]` / `propertyPaths[]` / `sections[]`。
 
-### 资产（磁盘 / 编辑器）— 先 search，再按推荐名调用
-- **首选**：`search_asset` → 用 `assets[].path` + `recommendedGet`/`recommendedManage`（指定类型在顶层，混合搜索在条目上）调用，勿猜 cap 名。
-- **CRUD 模式**（无推荐字段时再推导）：`{get|manage|create}_asset_{type}` — type ∈ `blueprint` / `material` / `anim_blueprint` / `anim_montage` / `user_widget` / `behavior_tree` / `blackboard` / `data_table` / `data_asset` / `struct`
-- 一个 (动词, 类型) 覆盖 **全部** 子方面。勿找 `manage_asset_blueprint_variable` 等。
-- **例外**：`manage_asset_struct_field`、`search_asset`、`get_asset_refs`、`get_asset_lua_binding`、`save_asset` / `rename_asset` / `duplicate_asset` / `delete_asset` / `unload_asset`
+## 命名
 
-### 运行时（PIE / Game）— 先推导 cap 名
-- **模式**：`{verb}_runtime_{target}[_aspect]` — 动词：`list` / `get` / `set` / `spawn` / `destroy` / `interact` / `diff`
-- **目标**：`actor`（+ `_property` / `_animation` / `_behavior_tree`）、`widget`（+ `_property`）、`slate_widget`
-- **动画**：读 `get_runtime_actor_animation`；写 `interact_runtime_actor_animation`（`action=play_montage|stop_montage|…`）
-- **非模式 cap**：`interact_runtime_widget`、`diff_runtime_actors`、`get_runtime_slate_widget`
-
-### Lua（UnLua + PIE）
-- `{eval|dofile|gc|hotreload}_runtime_lua` · `get_runtime_lua_*` · `set_runtime_lua`（全局）· `get_asset_lua_binding`；`hotreload_runtime_lua` 需 **UnLua 2.x**（1.x 返回 error，不执行热重载）
-
-### GAS（`WITH_GAS=1`）
-| 用户意图 | Capability |
+| 动词 | 用途 |
 |---|---|
-| GA / GE / AttributeSet 资产配置 | `get/manage/create_asset_gameplay_*` / `get/manage/create_asset_attribute_set` |
-| GA Graph 节点 | `manage_asset_blueprint` |
-| PIE ASC 快照（只读） | `get_runtime_actor_ability_system` |
-| PIE 施放技能 / Apply GE / 改属性 | `interact_runtime_actor_ability_system` |
-| Gameplay Tag 字典 / 按 Tag 查引用资产 | `get_gameplay_tags`（`referencers` 需 `tag`） |
+| `get` / `list` / `search` | 只读 |
+| `set` | 仅 `*_property` + `propertyPaths` |
+| `interact` | `action` 命令（非 propertyPaths） |
+| `manage` | 仅磁盘 `*_asset_*` 结构编辑 |
 
-### 编辑器 / 杂项（不可推导，枚举）
-| 意图 | Capability |
-|---|---|
-| PIE 启停 | `control_pie`（`action`；`mode`=viewport/simulate） |
-| 控制台命令 | `exec_command` |
-| 搜索 CVar 名 | `search_console_variables` |
-| 截图 | `capture_viewport`（含 `editor_desktop`） |
-| 编辑器选中 / Content Browser 路径 | `get_editor_context` |
-| Gameplay Tags | `get_gameplay_tags` |
-| Output Log | `get_output_log` / `set_log_capture_filter` |
-| 引擎/项目信息 | `get_editor_info` |
+禁止：`manage_animation`、`set_runtime_actor_animation`。
 
-## 决策规则
+## 路由（模式 + 例外）
 
-1. **读 vs 写**：`get_*` / `list_*` / `search_*` 只读；`manage_*` / `set_*` / `create_*` / `delete_*` 改资产或属性；**`interact_*` 改运行时命令状态**（非 propertyPaths）。写操作成功**不**返回 `success:true`，无 `error` 即成功（`success:false` 仅表示显式失败）。
-2. **资产 vs 运行时**：`*_asset_*` 操作磁盘；`*_runtime_*` 需 PIE/Game。
-3. **优先批量**：`assetPaths[]` / `actorNames[]` / `propertyPaths[]` / `sections[]`。
-4. **资产路径**：先 `search_asset`；禁止 `assetType=all` + 裸 `/Game/`。读/写优先用返回的 `recommendedGet` / `recommendedManage` + `path`。
-5. **未知 cap**：`search_capabilities`（元工具）；`capabilityName` 精确名或 `query` 窄域 1–2 词（如 `blueprint graph`）。`query=""` 仅返按 tag 分组的 **name** 目录（无 description），细节用 `capabilityName`。**禁止**单用 `blueprint` / `asset` / `runtime` / `animation`（`errorKind=query_too_broad`）。失败看 `errorKind`：`not_found` / `disabled` / `disabled_only` / `query_too_broad`（见 `disabledCapabilities[]` / `suggestedQueries[]`），勿与「未注册」混淆。`call_capability` 失败同样看 `errorKind`（`disabled` 禁止重试；旧名如 `create_blackboard` 已自动映射为 `create_asset_blackboard`）。
+**资产**：首选 `search_asset` → `recommended*`；无推荐时 `{get|manage|create}_asset_{type}` — type ∈ `blueprint` / `material` / `anim_blueprint` / `anim_montage` / `user_widget` / `behavior_tree` / `blackboard` / `data_table` / `data_asset` / `struct` / `texture` / `static_mesh` / `skeletal_mesh` / `anim_sequence` / `skeleton` / `sound_wave` / `sound_cue` / `niagara_system` / `level` / `state_tree`。一 (动词, 类型) 覆盖全部子方面（勿找 `manage_asset_blueprint_variable` 等）。例外：`manage_asset_struct_field`、`get_asset_refs`、`get_asset_lua_binding`、`get_asset_view_model`、`export_asset`、`reimport_asset`、`compile_blueprint`、`save_asset` / `rename_asset` / `duplicate_asset` / `delete_asset` / `unload_asset`。
 
-## 蓝图 / Lua / GAS 工作流
+**运行时**：`{verb}_runtime_{target}[_aspect]`（`list`/`get`/`set`/`spawn`/`destroy`/`interact`/`diff`；target=`actor`/`widget`/`slate_widget`，actor 可加 `_property`/`_animation`/`_behavior_tree`/`_ability_system`）。动画：读 `get_runtime_actor_animation`，写 `interact_runtime_actor_animation`。非模式：`interact_runtime_widget`、`diff_runtime_actors`、`get_runtime_slate_widget`。
 
-1. **蓝图写入**：先 `get_asset_blueprint(sections=["graphOverview"])` — `graphName` 用返回图名。
-2. **非 Actor BP**：`manage_asset_blueprint` 禁止 `add_component` / `set_defaults`（仅 Actor BP）。
-3. **Lua**：先 `get_asset_lua_binding`；`bound=false` 则停止。
-4. **GAS 资产**：语义字段走 `get/manage_asset_gameplay_*`；Graph 仍走 `manage_asset_blueprint`。
-5. **行为树**：`manage_asset_behavior_tree` 改后 `save_asset`；替换类型用 `replace_node`（勿 `remove+add`）；图与运行时不一致时用 `sync_graph`；写操作前若编辑器已打开该资产会被关闭（不保存）。
+**Lua**：`{eval|dofile|gc|hotreload}_runtime_lua` · `get_runtime_lua_*` · `set_runtime_lua` · `get_asset_lua_binding`；`hotreload_runtime_lua` 需 UnLua **2.x**。
+
+**GAS**：资产 `get/manage/create_asset_gameplay_*` / `attribute_set`；Graph → `manage_asset_blueprint`；PIE 读 `get_runtime_actor_ability_system`、写 `interact_runtime_actor_ability_system`；Tag → `get_gameplay_tags`（`referencers` 需 `tag`）。
+
+**编辑器**：`control_pie`、`exec_command`、`search_console_variables`、`capture_viewport`、`get_editor_context`、`get_output_log` / `set_log_capture_filter`、`get_editor_info`。
+
+## 工作流要点
+
+1. 蓝图写前：`get_asset_blueprint(sections=["graphOverview"])`，`graphName` 用返回图名；非 Actor BP 禁 `add_component` / `set_defaults`。
+2. Lua：先 `get_asset_lua_binding`；`bound=false` 则停止。
+3. 行为树：改后 `save_asset`；换类型用 `replace_node`；图错位用 `sync_graph`。
 
 ## 硬性规则
 
-- **元工具** — `search_capabilities` / `call_capability` / `submit_feedback` 须直接 `tools/call`。
-- `arguments` 必须是 **嵌套对象**。
-- **`search_capabilities` 禁止过宽单词** — 勿单用 `blueprint` / `asset` / `runtime` / `animation`；改用 `suggestedQueries` 或 `capabilityName`。
-- **`get_runtime_actor_property` 必填非空 `actorName`** — 先 `list_runtime_actors`。
-- **`exec_command` 必填非空 `command`**。
-- **`search_asset` 必须收窄** — 禁止 `assetType=all` + `/Game/` 无过滤。
-- **`search_asset` 之后** — 读用 `recommendedGet`，写用 `recommendedManage`（指定 `assetType` 时在响应顶层；`all` 时在 `assets[]` 条目上）；`assetPath` 用 `assets[].path`；无推荐字段时再按 CRUD 模式推导。
-- 路径先 `search_asset` 验证；30 秒内 `sections=["all"]` 后禁止子 section（`redundant_call`）。
-- 重试 ≥2 / 无合适 cap / Schema 需猜测 / 串行 ≥3 次 → `submit_feedback`。
-- **`_feedbackHint`** 出现时必须立即 `submit_feedback`。
+- 写成功**不**返回 `success:true`，无 `error` 即成功；`interact_*` 改运行时命令态（非 propertyPaths）。
+- `*_asset_*` 磁盘；`*_runtime_*` 需 PIE/Game。
+- `search_asset` 禁止 `assetType=all` + 裸 `/Game/`；之后用 `recommended*` + `path`。
+- `search_capabilities`：先按上述命名模式推名传 `capabilityName`（一次拿全 `parameters[]`），推不出再用窄域 1–2 词 `query`（如 `blueprint graph`）；`query=""` 仅 name 目录；**禁止**单用 `blueprint` / `asset` / `runtime` / `animation`（`query_too_broad`）。失败看 `errorKind` / `suggestedQueries`；`call_capability` 遇 `disabled` 勿重试。
+- `get_runtime_actor_property` 必填非空 `actorName`（先 `list_runtime_actors`）；`exec_command` 必填非空 `command`。
+- `sections=["all"]` 后 30s 内禁子 section（`redundant_call`）。
+- 重试 ≥2 / 无合适 cap / Schema 需猜 / 串行 ≥3 → `submit_feedback`；**`_feedbackHint` 强制**。

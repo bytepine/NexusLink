@@ -185,8 +185,8 @@ NexusLink 将能力分为两层：
 
 | 模式 | tools/list 内容 | 说明 |
 |------|----------------|------|
-| **SearchMode**（默认） | 仅 3 个元工具 | AI 用 `search_capabilities` 发现能力，再用 `call_capability` 执行；**不要**把元工具名当作 `capability` 传入。固定上下文约 **~2.3k tok/轮**，日常与长会话推荐 |
-| **MultiTool** | `submit_feedback` + 各已启用 Capability（各为独立 MCP Tool） | **无** `search_capabilities` / `call_capability`；直接 `tools/call` 对应 Tool 名。固定上下文约 **~17.6k tok/轮（~7.6×）**；仅当客户端必须一次枚举全 Tool 时使用，并关掉无关 Capability |
+| **SearchMode**（默认） | 仅 3 个元工具 | AI 用 `search_capabilities` 发现能力，再用 `call_capability` 执行；**不要**把元工具名当作 `capability` 传入。固定上下文约 **~1.4k tok/轮**，日常与长会话推荐 |
+| **MultiTool** | `submit_feedback` + 各已启用 Capability（各为独立 MCP Tool） | **无** `search_capabilities` / `call_capability`；直接 `tools/call` 对应 Tool 名。固定上下文约 **~17.6k tok/轮（~12.6×）**；仅当客户端必须一次枚举全 Tool 时使用，并关掉无关 Capability |
 
 Token 拆解与任务场景对比见 [README §暴露模式 / Token 开销对比](../README.md#暴露模式toolslistmode)。
 

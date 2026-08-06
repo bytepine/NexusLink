@@ -9,7 +9,9 @@
 
 ### Changed
 
-- docs: README / README.en / architecture / usage-guide 补充 SearchMode vs MultiTool **Token 开销对比**（固定上下文 ~2.3k vs ~17.6k tok/轮，约 7.6×；推荐日常保持 SearchMode）；Capability 计数文档对齐为 176
+- perf(mcp): 压缩 `InitializeInstructions.SearchMode.md`（删触发词复读与可推导 intent 大表，合并决策/硬规则）——Upstream ~2.0k→~1.1k tok；握手合计 ~2.3k→~1.4k；`ProxyConfig.initializePrefix` 补 StateTree/MVVM 并固定「以 tools/list 判连接」提示
+- perf(mcp): `InitializeInstructions.SearchMode.md` 新增 **Token 预算** 段——响应体优先收窄（窄 `sections`、小 `limit`，日志 ≤50 条配 `categoryFilter`/`verbosity`/`textFilter` 再翻页）、多步走 `call_capability(calls=[…])` 一轮完成、`search_capabilities` 优先 `capabilityName` 一次取全 `parameters[]`；净增 ~90 tok，换掉单次全量日志读取（实测 `get_output_log(limit=500)` ≈ 26k tok）与每次多余往返（约 1.5–2.5k tok/次）
+- docs: README / README.en / architecture / usage-guide Token 开销对比同步为 ~1.4k vs ~17.6k（约 12.6×）；Capability 计数 176
 
 ### Fixed
 

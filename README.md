@@ -32,7 +32,7 @@ flowchart TB
 
 | 模式 | tools/list 返回 | initialize.instructions | 适用场景 |
 |---|---|---|---|
-| **SearchMode**（默认） | 3 个元工具 | `InitializeInstructions.SearchMode.md`（完整路由表） | AI 按需 `search_capabilities` 发现；**日常推荐** |
+| **SearchMode**（默认） | 3 个元工具 | `InitializeInstructions.SearchMode.md`（精简路由 / 硬规则） | AI 按需 `search_capabilities` 发现；**日常推荐** |
 | **MultiTool** | 全部已启用 Capability（各作独立 Tool）+ `submit_feedback` | `InitializeInstructions.MultiTool.md`（精简约束） | 客户端必须一次性枚举全部能力时 |
 
 模式切换路径：Editor → Editor Preferences → Plugins → NexusLink → **工具列表模式**。Capability 变更时自动广播 `notifications/tools/list_changed`。
@@ -44,12 +44,12 @@ MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮�
 | 分量 | SearchMode | MultiTool | 差额 |
 |---|---|---|---|
 | tools/list | 3 tools · ~0.3k tok | 177 tools · ~16.9k tok | **+16.6k** |
-| initialize.instructions | ~2.0k | ~0.7k | −1.3k |
-| **每轮固定合计** | **~2.3k** | **~17.6k** | **~7.6× / +15.3k** |
+| initialize.instructions | ~1.1k | ~0.7k | −0.4k |
+| **每轮固定合计** | **~1.4k** | **~17.6k** | **~12.6× / +16.2k** |
 
-- SearchMode：小 tools/list + 大路由表；按需 `search_capabilities` 换取单份 schema（「发现税」一次性）。
-- MultiTool：instructions 更短，但把全部 Capability schema 每轮塞进 prompt（「全量 schema 税」每轮都付；中位单工具定义 ~86 tok）。
-- 典型任务累计（省略相同 call 返回）：已知 1×search+1×call 约 **3.7×**；中等 2×search+3×call 约 **4.4×**；重会话 4×search+8×call 约 **4.9×**。即便零次 search、只靠路由表直调，固定税仍恒为 **7.6×**。
+- SearchMode：小 tools/list + 精简路由；按需 `search_capabilities` 换取单份 schema（「发现税」一次性）。
+- MultiTool：instructions 略短，但把全部 Capability schema 每轮塞进 prompt（「全量 schema 税」每轮都付；中位单工具定义 ~86 tok）。
+- 典型任务累计（省略相同 call 返回）：已知 1×search+1×call 约 **3.7×**；中等 2×search+3×call 约 **4.4×**；重会话 4×search+8×call 约 **4.9×**。即便零次 search、只靠路由直调，固定税仍恒约 **12.6×**。
 
 **建议**：日常与长会话保持 **SearchMode**。仅当客户端无法遵循 search→call、或必须一次枚举全 Tool 时再切 MultiTool，并尽量在设置里关掉无关 Capability 以降税。UE 在线时可用宿主工程 `Script/measure_token_baseline.py` 复核 live `tools/list`。
 
@@ -202,7 +202,7 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 - [docs/architecture.md](docs/architecture.md) — 架构设计（分层职责、Capability 系统、注册与分发流程）
 - [docs/tool-reference.md](docs/tool-reference.md) — Capability 完整参数手册（脚本生成，`py scripts/build_tool_reference.py` 更新）
 - [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) — Capability 元数据规范（命名 / 描述四段式 / 自检清单）
-- [Resources/InitializeInstructions.SearchMode.md](Resources/InitializeInstructions.SearchMode.md) — AI 握手时 SearchMode 工作流说明（**First Action** / Tool Model / Intent→Capability 路由 / Hard Rules）
+- [Resources/InitializeInstructions.SearchMode.md](Resources/InitializeInstructions.SearchMode.md) — AI 握手时 SearchMode 工作流说明（工具模型 / 模式路由 / 硬规则；触发词在 `ProxyConfig.initializePrefix`）
 - [Resources/InitializeInstructions.MultiTool.md](Resources/InitializeInstructions.MultiTool.md) — MultiTool 模式精简约束
 - [Resources/AIRules.mdc](Resources/AIRules.mdc) — IDE 侧 AI 工作流 Rule 模板（复制到游戏项目 `.cursor/rules/`，见 [usage-guide §2.8](docs/usage-guide.md)）
 - [docs/testing.md](docs/testing.md) — pytest E2E 回归测试套件

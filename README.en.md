@@ -32,7 +32,7 @@ flowchart TB
 
 | Mode | tools/list returns | initialize.instructions | Use case |
 |---|---|---|---|
-| **SearchMode** (default) | 3 meta tools | `InitializeInstructions.SearchMode.md` (full routing table) | AI discovers capabilities on demand via `search_capabilities`; **recommended for daily use** |
+| **SearchMode** (default) | 3 meta tools | `InitializeInstructions.SearchMode.md` (compact routing / hard rules) | AI discovers capabilities on demand via `search_capabilities`; **recommended for daily use** |
 | **MultiTool** | All enabled Capabilities (each as a separate Tool) + `submit_feedback` | `InitializeInstructions.MultiTool.md` (concise constraints) | When the client must enumerate all capabilities in one tools/list |
 
 Mode switch path: Editor → Editor Preferences → Plugins → NexusLink → **Tools List Mode**. When Capabilities change, `notifications/tools/list_changed` is broadcast automatically.
@@ -44,12 +44,12 @@ Most MCP clients re-inject `tools/list` + `initialize.instructions` **on every m
 | Component | SearchMode | MultiTool | Delta |
 |---|---|---|---|
 | tools/list | 3 tools · ~0.3k tok | 177 tools · ~16.9k tok | **+16.6k** |
-| initialize.instructions | ~2.0k | ~0.7k | −1.3k |
-| **Fixed total / turn** | **~2.3k** | **~17.6k** | **~7.6× / +15.3k** |
+| initialize.instructions | ~1.1k | ~0.7k | −0.4k |
+| **Fixed total / turn** | **~1.4k** | **~17.6k** | **~12.6× / +16.2k** |
 
-- SearchMode: tiny tools/list + larger routing table; fetch a single schema via `search_capabilities` on demand (one-time “discovery tax”).
-- MultiTool: shorter instructions, but every Capability schema is stuffed into the prompt each turn (“full schema tax” every turn; median tool def ~86 tok).
-- Typical task totals (same call results omitted): known 1×search+1×call ≈ **3.7×**; medium 2×search+3×call ≈ **4.4×**; heavy 4×search+8×call ≈ **4.9×**. Even with zero searches (routing-table-only), the fixed tax stays **7.6×**.
+- SearchMode: tiny tools/list + compact routing; fetch a single schema via `search_capabilities` on demand (one-time “discovery tax”).
+- MultiTool: slightly shorter instructions, but every Capability schema is stuffed into the prompt each turn (“full schema tax” every turn; median tool def ~86 tok).
+- Typical task totals (same call results omitted): known 1×search+1×call ≈ **3.7×**; medium 2×search+3×call ≈ **4.4×**; heavy 4×search+8×call ≈ **4.9×**. Even with zero searches (routing-only), the fixed tax stays about **12.6×**.
 
 **Recommendation**: keep **SearchMode** for daily and long sessions. Switch to MultiTool only when the client cannot follow search→call or must list every Tool at once — and disable unused Capabilities in settings to cut the tax. With UE online, re-check live `tools/list` via the host project’s `Script/measure_token_baseline.py`.
 
@@ -202,7 +202,7 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 - [docs/architecture.md](docs/architecture.md) — Architecture (layering, Capability system, registration & dispatch)
 - [docs/tool-reference.md](docs/tool-reference.md) — Full Capability parameter reference (script-generated; update with `py scripts/build_tool_reference.py`)
 - [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) — Capability metadata spec (naming / four-part description / self-check checklist)
-- [Resources/InitializeInstructions.SearchMode.md](Resources/InitializeInstructions.SearchMode.md) — SearchMode workflow for AI handshake (**First Action** / Tool Model / Intent→Capability routing / Hard Rules)
+- [Resources/InitializeInstructions.SearchMode.md](Resources/InitializeInstructions.SearchMode.md) — SearchMode workflow for AI handshake (tool model / pattern routing / hard rules; trigger keywords live in `ProxyConfig.initializePrefix`)
 - [Resources/InitializeInstructions.MultiTool.md](Resources/InitializeInstructions.MultiTool.md) — MultiTool mode concise constraints
 - [Resources/AIRules.mdc](Resources/AIRules.mdc) — IDE-side AI workflow Rule template (copy to game project `.cursor/rules/`; see [usage-guide §2.8](docs/usage-guide.md))
 - [docs/testing.md](docs/testing.md) — pytest E2E regression test suite
