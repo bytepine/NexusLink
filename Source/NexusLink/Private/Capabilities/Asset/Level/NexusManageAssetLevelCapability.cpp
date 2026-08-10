@@ -55,11 +55,11 @@ static bool NxParseRotatorText(const FString& Text, FRotator& OutRot)
 	return true;
 }
 
-static UClass* ResolveSpawnClass(const FString& ClassPath, const FString& BlueprintPath, FString& OutError)
+static UClass* ResolveSpawnClass(const FString& ClassName, const FString& AssetPath, FString& OutError)
 {
-	if (!BlueprintPath.IsEmpty())
+	if (!AssetPath.IsEmpty())
 	{
-		if (UBlueprint* BP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(BlueprintPath))
+		if (UBlueprint* BP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(AssetPath))
 		{
 			if (BP->GeneratedClass)
 			{
@@ -68,20 +68,20 @@ static UClass* ResolveSpawnClass(const FString& ClassPath, const FString& Bluepr
 			OutError = TEXT("Blueprint 无 GeneratedClass");
 			return nullptr;
 		}
-		OutError = FString::Printf(TEXT("Blueprint 未找到: %s"), *BlueprintPath);
+		OutError = FString::Printf(TEXT("Blueprint 未找到: %s"), *AssetPath);
 		return nullptr;
 	}
-	if (!ClassPath.IsEmpty())
+	if (!ClassName.IsEmpty())
 	{
-		UClass* Class = FNexusAssetUtils::FindClassWithUPrefix(ClassPath);
+		UClass* Class = FNexusAssetUtils::FindClassWithUPrefix(ClassName);
 		if (Class && Class->IsChildOf(AActor::StaticClass()))
 		{
 			return Class;
 		}
-		OutError = FString::Printf(TEXT("classPath '%s' 未找到或不是 Actor 子类"), *ClassPath);
+		OutError = FString::Printf(TEXT("className '%s' 未找到或不是 Actor 子类"), *ClassName);
 		return nullptr;
 	}
-	OutError = TEXT("spawn_actor 需要 classPath 或 blueprintPath");
+	OutError = TEXT("spawn_actor 需要 className 或 assetPath");
 	return nullptr;
 }
 }
@@ -96,8 +96,8 @@ void FManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 			{ TEXT("set_property"), TEXT("spawn_actor"), TEXT("remove_actor"), TEXT("set_actor_property") }))
 		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("WorldSettings 属性路径（set_property）")))
 		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("属性新值字符串")))
-		.Prop(TEXT("classPath"),    FNexusSchema::Str(TEXT("Actor 类名（spawn_actor）")))
-		.Prop(TEXT("blueprintPath"), FNexusSchema::Str(TEXT("Blueprint 路径（spawn_actor）")))
+		.Prop(TEXT("className"),    FNexusSchema::Str(TEXT("Actor 类名（spawn_actor）")))
+		.Prop(TEXT("assetPath"),    FNexusSchema::Str(TEXT("Blueprint 路径（spawn_actor）")))
 		.Prop(TEXT("location"),     FNexusSchema::Str(TEXT("生成位置 x,y,z（spawn_actor）")))
 		.Prop(TEXT("rotation"),     FNexusSchema::Str(TEXT("生成旋转 pitch,yaw,roll（spawn_actor，可选）")))
 		.Prop(TEXT("actorName"),    FNexusSchema::Str(TEXT("Actor 名或 Label（remove/set_actor_property）")))
@@ -154,11 +154,11 @@ FCapabilityResult FManageAssetLevelCapability::Execute(const TSharedPtr<FJsonObj
 
 		if (Action.Equals(TEXT("spawn_actor"), ESearchCase::IgnoreCase))
 		{
-			FString ClassPath, BlueprintPath, LocationStr, RotationStr;
+			FString ClassName, SpawnAssetPath, LocationStr, RotationStr;
 			if (OpArgs.IsValid())
 			{
-				OpArgs->TryGetStringField(TEXT("classPath"), ClassPath);
-				OpArgs->TryGetStringField(TEXT("blueprintPath"), BlueprintPath);
+				OpArgs->TryGetStringField(TEXT("className"), ClassName);
+				OpArgs->TryGetStringField(TEXT("assetPath"), SpawnAssetPath);
 				OpArgs->TryGetStringField(TEXT("location"), LocationStr);
 				OpArgs->TryGetStringField(TEXT("rotation"), RotationStr);
 			}
@@ -177,7 +177,7 @@ FCapabilityResult FManageAssetLevelCapability::Execute(const TSharedPtr<FJsonObj
 				continue;
 			}
 			FString ClassErr;
-			UClass* SpawnClass = ResolveSpawnClass(ClassPath, BlueprintPath, ClassErr);
+			UClass* SpawnClass = ResolveSpawnClass(ClassName, SpawnAssetPath, ClassErr);
 			if (!SpawnClass)
 			{
 				Entry->SetStringField(TEXT("error"), ClassErr);

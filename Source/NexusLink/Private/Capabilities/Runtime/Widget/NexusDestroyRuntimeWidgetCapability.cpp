@@ -14,7 +14,7 @@ void FDestroyRuntimeWidgetCapability::BuildDefinition(FNexusCapabilityDefinition
 	Out.Description = TEXT("从视口移除并销毁运行时 UMG 面板。按 widgetName 定位。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("widgetName"), FNexusSchema::Str(TEXT("要销毁的 UserWidget 实例名")))
-		.Prop(TEXT("ownerWidget"), FNexusSchema::Str(TEXT("Owner UserWidget 类/名过滤（可选）")))
+		.Prop(TEXT("ownerClass"), FNexusSchema::Str(TEXT("Owner UserWidget 类/名过滤（可选）")))
 		.Required({ TEXT("widgetName") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Runtime };
@@ -34,7 +34,7 @@ FCapabilityResult FDestroyRuntimeWidgetCapability::Execute(const TSharedPtr<FJso
 			OutError = TEXT("缺少 widgetName");
 			return;
 		}
-		if (Arguments.IsValid()) Arguments->TryGetStringField(TEXT("ownerWidget"), OwnerFilter);
+		if (Arguments.IsValid()) Arguments->TryGetStringField(TEXT("ownerClass"), OwnerFilter);
 
 		FString WorldError;
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(WorldError);

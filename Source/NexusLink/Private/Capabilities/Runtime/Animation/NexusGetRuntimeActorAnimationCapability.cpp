@@ -47,7 +47,6 @@ TSharedPtr<FJsonObject> FGetRuntimeActorAnimationCapability::BuildCapabilitySche
 {
 	return FNexusSchema::Object()
 		.Prop(TEXT("actorName"),   FNexusSchema::Str(TEXT("Actor 名")))
-		.Prop(TEXT("actorNames"),  FNexusSchema::StrArr(TEXT("多个 Actor 名（批量）")))
 		.Prop(TEXT("nameFilter"),  FNexusSchema::Str(TEXT("变量/槽位名过滤")))
 		.Build();
 }
@@ -214,32 +213,6 @@ void FGetRuntimeActorAnimationCapability::ExecuteSection(const FString&         
 	{
 		OutError = FString::Printf(TEXT("未处理的 section '%s'"), *SectionName);
 	}
-}
-
-TArray<TSharedPtr<FJsonObject>> FGetRuntimeActorAnimationCapability::ExpandPerEntry(
-	const TSharedPtr<FJsonObject>& Args) const
-{
-	const TArray<TSharedPtr<FJsonValue>>* NamesArr = nullptr;
-	if (!Args.IsValid() || !Args->TryGetArrayField(TEXT("actorNames"), NamesArr) || !NamesArr || NamesArr->Num() == 0)
-	{
-		return {};
-	}
-
-	TArray<TSharedPtr<FJsonObject>> Result;
-	for (const TSharedPtr<FJsonValue>& V : *NamesArr)
-	{
-		FString Name;
-		if (!V.IsValid() || !V->TryGetString(Name) || Name.IsEmpty()) { continue; }
-
-		TSharedPtr<FJsonObject> EntryArgs = MakeShared<FJsonObject>();
-		for (const auto& Pair : Args->Values)
-		{
-			if (Pair.Key != TEXT("actorNames")) { EntryArgs->SetField(Pair.Key, Pair.Value); }
-		}
-		EntryArgs->SetStringField(TEXT("actorName"), Name);
-		Result.Add(EntryArgs);
-	}
-	return Result;
 }
 
 REGISTER_MCP_CAPABILITY(FGetRuntimeActorAnimationCapability)

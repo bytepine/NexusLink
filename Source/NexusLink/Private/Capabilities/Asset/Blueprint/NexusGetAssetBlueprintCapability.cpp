@@ -571,12 +571,6 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 	}
 }
 
-TArray<TSharedPtr<FJsonObject>> FGetAssetBlueprintCapability::ExpandPerEntry(
-	const TSharedPtr<FJsonObject>& Args) const
-{
-	return {};
-}
-
 REGISTER_MCP_CAPABILITY(FGetAssetBlueprintCapability)
 
 

@@ -35,7 +35,6 @@ TSharedPtr<FJsonObject> FGetAssetAnimBlueprintCapability::BuildCapabilitySchema(
 {
 	return FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("动画蓝图资产路径")))
-		.Prop(TEXT("assetPaths"), FNexusSchema::StrArr(TEXT("多个动画蓝图路径（批量）")))
 		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("变量/默认值名称过滤")))
 		.Build();
 }
@@ -208,32 +207,6 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 	{
 		OutError = FString::Printf(TEXT("未处理的 section '%s'"), *SectionName);
 	}
-}
-
-TArray<TSharedPtr<FJsonObject>> FGetAssetAnimBlueprintCapability::ExpandPerEntry(
-	const TSharedPtr<FJsonObject>& Args) const
-{
-	const TArray<TSharedPtr<FJsonValue>>* PathsArr = nullptr;
-	if (!Args.IsValid() || !Args->TryGetArrayField(TEXT("assetPaths"), PathsArr) || !PathsArr || PathsArr->Num() == 0)
-	{
-		return {};
-	}
-
-	TArray<TSharedPtr<FJsonObject>> Result;
-	for (const TSharedPtr<FJsonValue>& V : *PathsArr)
-	{
-		FString Path;
-		if (!V.IsValid() || !V->TryGetString(Path) || Path.IsEmpty()) { continue; }
-
-		TSharedPtr<FJsonObject> EntryArgs = MakeShared<FJsonObject>();
-		for (const auto& Pair : Args->Values)
-		{
-			if (Pair.Key != TEXT("assetPaths")) { EntryArgs->SetField(Pair.Key, Pair.Value); }
-		}
-		EntryArgs->SetStringField(TEXT("assetPath"), Path);
-		Result.Add(EntryArgs);
-	}
-	return Result;
 }
 
 REGISTER_MCP_CAPABILITY(FGetAssetAnimBlueprintCapability)

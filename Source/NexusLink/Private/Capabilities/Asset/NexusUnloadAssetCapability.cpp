@@ -15,9 +15,9 @@ void FUnloadAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) co
 	Out.Description = TEXT("手动卸载已加载资产包。兜底用；日常无需调用，内存高水位机制会自动卸载。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("单个资产路径")))
-		.Prop(TEXT("assetPaths"), FNexusSchema::StrArr(TEXT("多个资产路径（批量）")))
 		.Prop(TEXT("bSkipDirty"), FNexusSchema::Bool(TEXT("true 时跳过未保存修改的包（默认 true，建议保持）"), true, true))
 		.Prop(TEXT("bForceGC"),   FNexusSchema::Bool(TEXT("卸载后是否触发一次 KEEPFLAGS GC（默认 true）"), true, true))
+		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("unload"), TEXT("memory"), TEXT("gc"), TEXT("package"), TEXT("release") };
@@ -33,54 +33,29 @@ FCapabilityResult FUnloadAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		OutError = TEXT("unload_asset 仅在编辑器模式可用");
 		return;
 #else
-		TArray<FString> Paths;
+		FString Path;
 		bool bSkipDirty = true;
 		bool bForceGC = true;
-		if (Arguments.IsValid())
+		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
 		{
-			FString Single;
-			if (Arguments->TryGetStringField(TEXT("assetPath"), Single) && !Single.IsEmpty())
-			{
-				Paths.Add(Single);
-			}
-			const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
-			if (Arguments->TryGetArrayField(TEXT("assetPaths"), Arr) && Arr)
-			{
-				for (const TSharedPtr<FJsonValue>& V : *Arr)
-				{
-					FString P;
-					if (V.IsValid() && V->TryGetString(P) && !P.IsEmpty())
-					{
-						Paths.AddUnique(P);
-					}
-				}
-			}
-			Arguments->TryGetBoolField(TEXT("bSkipDirty"), bSkipDirty);
-			Arguments->TryGetBoolField(TEXT("bForceGC"), bForceGC);
-		}
-		if (Paths.Num() == 0)
-		{
-			OutError = TEXT("需要 assetPath 或 assetPaths");
+			OutError = TEXT("需要 assetPath");
 			return;
 		}
+		Arguments->TryGetBoolField(TEXT("bSkipDirty"), bSkipDirty);
+		Arguments->TryGetBoolField(TEXT("bForceGC"), bForceGC);
 
-		// 解析每个路径对应的已驻留包（未加载过的路径无需处理，直接视为 alreadyUnloaded）
-		TMap<FString, UPackage*> PathToPackage;
-		TArray<UPackage*> Candidates;
-		for (const FString& Path : Paths)
+		// 解析路径对应的已驻留包（未加载过的路径无需处理，直接视为 alreadyUnloaded）
+		FString PackageName = Path;
+		int32 DotIdx;
+		if (PackageName.FindChar(TEXT('.'), DotIdx))
 		{
-			FString PackageName = Path;
-			int32 DotIdx;
-			if (PackageName.FindChar(TEXT('.'), DotIdx))
-			{
-				PackageName = PackageName.Left(DotIdx);
-			}
-			UPackage* Pkg = FindPackage(nullptr, *PackageName);
-			PathToPackage.Add(Path, Pkg);
-			if (Pkg)
-			{
-				Candidates.AddUnique(Pkg);
-			}
+			PackageName = PackageName.Left(DotIdx);
+		}
+		UPackage* Pkg = FindPackage(nullptr, *PackageName);
+		TArray<UPackage*> Candidates;
+		if (Pkg)
+		{
+			Candidates.Add(Pkg);
 		}
 
 		TArray<UPackage*> Skipped;
@@ -88,30 +63,26 @@ FCapabilityResult FUnloadAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			FNexusPackageLedger::UnloadPackagesSafely(Candidates, bSkipDirty, bForceGC, &Skipped);
 
 		int32 UnloadedCount = 0, SkippedCount = 0, AlreadyUnloadedCount = 0;
-		for (const FString& Path : Paths)
-		{
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), Path);
+		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+		Entry->SetStringField(TEXT("path"), Path);
 
-			UPackage* Pkg = PathToPackage.FindRef(Path);
-			if (!Pkg)
-			{
-				Entry->SetStringField(TEXT("status"), TEXT("alreadyUnloaded"));
-				++AlreadyUnloadedCount;
-			}
-			else if (Skipped.Contains(Pkg))
-			{
-				Entry->SetStringField(TEXT("status"), TEXT("skipped"));
-				Entry->SetStringField(TEXT("reason"), TEXT("dirty 或编辑器已打开或引擎内建包，未卸载"));
-				++SkippedCount;
-			}
-			else
-			{
-				Entry->SetStringField(TEXT("status"), TEXT("unloaded"));
-				++UnloadedCount;
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		if (!Pkg)
+		{
+			Entry->SetStringField(TEXT("status"), TEXT("alreadyUnloaded"));
+			++AlreadyUnloadedCount;
 		}
+		else if (Skipped.Contains(Pkg))
+		{
+			Entry->SetStringField(TEXT("status"), TEXT("skipped"));
+			Entry->SetStringField(TEXT("reason"), TEXT("dirty 或编辑器已打开或引擎内建包，未卸载"));
+			++SkippedCount;
+		}
+		else
+		{
+			Entry->SetStringField(TEXT("status"), TEXT("unloaded"));
+			++UnloadedCount;
+		}
+		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 
 		OutTop->SetNumberField(TEXT("unloaded"), UnloadedCount);
 		OutTop->SetNumberField(TEXT("skipped"), SkippedCount);

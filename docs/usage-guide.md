@@ -225,9 +225,28 @@ sequenceDiagram
 
 **身份字段**：响应统一用 `path`（入参仍为 `assetPath`）。`get_`/`manage_` 在单路径调用且回显与入参等价时省略 `path`。
 
-**批量调用**：`call_capability` 支持 `calls=[{capability, arguments?}, ...]`，按顺序执行，单条失败不中断其余条目。
+**单目标与批量（Breaking）**：
 
-**失败时看 `errorKind`**（SearchMode / MultiTool 均适用）：`not_found`（未注册）、`disabled`（设置中已禁用）、`disabled_only`（模糊搜索仅命中已禁用项）、`query_too_broad`（`search_capabilities` 单用过宽词，见 `suggestedQueries`）。旧 Capability 名会自动映射到新规范名（如 `create_blackboard` → `create_asset_blackboard`）。
+- Capability **仅单目标**：`assetPath` / `actorName` / `widgetName`；禁止 `assetPaths` / `actorNames` / `widgetNames`。
+- 跨目标批量（SearchMode）：`call_capability(calls=[{capability, arguments?}, ...])`，按序执行，单条失败不中断其余。
+- 单目标内集合保留：`sections` / `propertyPaths` / `operations` / `updates`。
+- manage 顶层操作容器统一为 `operations[]`（禁止 `fields`/`rows`/`keys`/`widgets`/`ops`/裸 `action` 合成）。
+- get 侧仅 `propertyPaths[]`；set_* 用 `updates[].propertyPath`。
+
+**Breaking 映射摘要**：
+
+| 旧键 | 权威键 |
+|------|--------|
+| `newPath` | `destAssetPath` |
+| `blueprintPath` | `assetPath`（spawn） |
+| `classPath` | `className` |
+| `ownerWidget` | `ownerClass` |
+| `filePath` | `scriptPath` |
+| Lua `path` | `luaPath` |
+
+旧键不兼容 → `arg_invalid`。完整契约见 [`CapabilitySpec.md`](../Resources/CapabilitySpec.md) §7.11–§7.12。
+
+**失败时看 `errorKind`**（SearchMode / MultiTool 均适用）：`not_found`（未注册）、`disabled`（设置中已禁用）、`disabled_only`（模糊搜索仅命中已禁用项）、`query_too_broad`（`search_capabilities` 单用过宽词，见 `suggestedQueries`）、`arg_invalid`（未知键/旧键/schema 不符）。旧 Capability 名会自动映射到新规范名（如 `create_blackboard` → `create_asset_blackboard`）；**旧参数键不会映射**。
 
 **编辑器只读示例（SearchMode）**：`get_editor_context`（选中 Actor/资产、Content Browser 路径）、`search_console_variables`（搜 CVar 名）、`capture_viewport`（含 `editor_desktop`）、`get_gameplay_tags`（`sections` 含 `referencers`，需 `tag`）。
 

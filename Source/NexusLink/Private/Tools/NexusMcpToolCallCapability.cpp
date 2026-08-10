@@ -34,18 +34,12 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 	/** 从 cap 的 Inner arguments 中提取首个 identity 字段值（用于 redundant_call key）。 */
 	static FString ExtractIdentityKey(const TSharedPtr<FJsonObject>& Inner)
 	{
-		for (const TCHAR* Key : { TEXT("assetPath"), TEXT("actorName"), TEXT("widgetName"), TEXT("assetPaths") })
+		// 仅认单数定位键；跨目标由 call_capability.calls[] 拆分，不再读 assetPaths 等批量键
+		for (const TCHAR* Key : { TEXT("assetPath"), TEXT("actorName"), TEXT("widgetName") })
 		{
 			FString Val;
 			if (Inner->TryGetStringField(Key, Val) && !Val.IsEmpty())
 				return Val;
-			// assetPaths 可能是数组，取首元
-			const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
-			if (Inner->TryGetArrayField(Key, Arr) && Arr && Arr->Num() > 0 && (*Arr)[0].IsValid())
-			{
-				if ((*Arr)[0]->TryGetString(Val) && !Val.IsEmpty())
-					return Val;
-			}
 		}
 		return FString();
 	}

@@ -18,8 +18,7 @@ void FGetAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& O
 	Out.SearchAssetTypes = {TEXT("DataLayerAsset")};
 	Out.Description = TEXT("读取 DataLayer 资产属性：类型（Runtime/Editor）、调试颜色（≥UE5.1）。写用 manage_asset_data_layer。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataLayerAsset 路径")))
-		.Prop(TEXT("assetPaths"), FNexusSchema::StrArr(TEXT("批量路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("DataLayerAsset 路径")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
@@ -32,56 +31,46 @@ FCapabilityResult FGetAssetDataLayerCapability::Execute(const TSharedPtr<FJsonOb
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		TArray<FString> Paths;
-		FString Single;
-		if (Arguments->TryGetStringField(TEXT("assetPath"), Single) && !Single.IsEmpty())
-			Paths.Add(Single);
-		const TArray<TSharedPtr<FJsonValue>>* Arr;
-		if (Arguments->TryGetArrayField(TEXT("assetPaths"), Arr))
-			for (auto& V : *Arr) { FString S; if (V->TryGetString(S) && !S.IsEmpty()) Paths.AddUnique(S); }
-
-		if (Paths.IsEmpty())
+		FString AssetPath;
+		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
 		{
-			FNexusCapability::EmitError(OutEntries, {}, TEXT("assetPath 为空"));
+			OutError = TEXT("需要 assetPath");
 			return;
 		}
 
-		for (const FString& AssetPath : Paths)
+		UDataLayerAsset* DLA = FNexusAssetUtils::LoadAssetWithFallback<UDataLayerAsset>(AssetPath);
+		if (!DLA)
 		{
-			UDataLayerAsset* DLA = FNexusAssetUtils::LoadAssetWithFallback<UDataLayerAsset>(AssetPath);
-			if (!DLA)
-			{
-				TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
-				ErrObj->SetStringField(TEXT("path"), AssetPath);
-				ErrObj->SetStringField(TEXT("error"), TEXT("DataLayerAsset 未找到"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(ErrObj));
-				continue;
-			}
-
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), DLA->GetPathName());
-			Entry->SetStringField(TEXT("assetType"), TEXT("DataLayerAsset"));
-			Entry->SetStringField(TEXT("name"),      DLA->GetName());
-
-			// 类型
-			const EDataLayerType LayerType = DLA->GetType();
-			FString TypeStr;
-			switch (LayerType)
-			{
-			case EDataLayerType::Runtime: TypeStr = TEXT("Runtime"); break;
-			case EDataLayerType::Editor:  TypeStr = TEXT("Editor");  break;
-			default:                      TypeStr = TEXT("Unknown"); break;
-			}
-			Entry->SetStringField(TEXT("type"),       TypeStr);
-			Entry->SetNumberField(TEXT("typeValue"),   static_cast<int32>(LayerType));
-			Entry->SetBoolField(TEXT("isRuntime"),     DLA->IsRuntime());
-
-			// 调试颜色
-			const FColor DebugColor = DLA->GetDebugColor();
-			Entry->SetStringField(TEXT("debugColor"), DebugColor.ToHex());
-
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+			TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
+			ErrObj->SetStringField(TEXT("path"), AssetPath);
+			ErrObj->SetStringField(TEXT("error"), TEXT("DataLayerAsset 未找到"));
+			OutEntries.Add(MakeShared<FJsonValueObject>(ErrObj));
+			return;
 		}
+
+		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+		Entry->SetStringField(TEXT("path"), DLA->GetPathName());
+		Entry->SetStringField(TEXT("assetType"), TEXT("DataLayerAsset"));
+		Entry->SetStringField(TEXT("name"),      DLA->GetName());
+
+		// 类型
+		const EDataLayerType LayerType = DLA->GetType();
+		FString TypeStr;
+		switch (LayerType)
+		{
+		case EDataLayerType::Runtime: TypeStr = TEXT("Runtime"); break;
+		case EDataLayerType::Editor:  TypeStr = TEXT("Editor");  break;
+		default:                      TypeStr = TEXT("Unknown"); break;
+		}
+		Entry->SetStringField(TEXT("type"),       TypeStr);
+		Entry->SetNumberField(TEXT("typeValue"),   static_cast<int32>(LayerType));
+		Entry->SetBoolField(TEXT("isRuntime"),     DLA->IsRuntime());
+
+		// 调试颜色
+		const FColor DebugColor = DLA->GetDebugColor();
+		Entry->SetStringField(TEXT("debugColor"), DebugColor.ToHex());
+
+		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 

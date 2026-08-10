@@ -12,7 +12,7 @@ class UMaterialExpression;
 /**
  * get_asset 的 Material / MaterialInstanceConstant / MaterialFunction 子能力。
  * 继承 FNexusMultiSectionCapability，sections=["overview","params","graph"]。
- * 默认 section：overview。支持 assetPaths[] 批量查询。
+ * 默认 section：overview。单目标 assetPath；跨目标用 call_capability.calls[]。
  */
 class FGetAssetMaterialCapability : public FNexusMultiSectionCapability
 {
@@ -38,5 +38,4 @@ protected:
 	                            void*                          TargetOpaque,
 	                            TSharedPtr<FJsonObject>&       InOutDetail,
 	                            FString&                       OutError) const override;
-	virtual TArray<TSharedPtr<FJsonObject>> ExpandPerEntry(const TSharedPtr<FJsonObject>& Args) const override;
 };

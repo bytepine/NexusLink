@@ -14,7 +14,7 @@ void FGetRuntimeLuaEnvCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 	Out.Name = TEXT("get_runtime_lua_env");
 	Out.Description = TEXT("枚举 _G 或嵌套表键。支持 nameFilter+limit。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("path"),       FNexusSchema::Str(TEXT("点分表路径；省略则为 _G")))
+		.Prop(TEXT("luaPath"),    FNexusSchema::Str(TEXT("点分表路径；省略则为 _G")))
 		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("键名过滤；支持 /regex/、^前缀、后缀$")))
 		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("最大返回条数"), 100, 1, 500))
 		.Build();
@@ -36,7 +36,7 @@ FCapabilityResult FGetRuntimeLuaEnvCapability::Execute(const TSharedPtr<FJsonObj
 	const int32 StackTop = lua_gettop(L);
 
 	FString TablePath;
-	Arguments->TryGetStringField(TEXT("path"), TablePath);
+	Arguments->TryGetStringField(TEXT("luaPath"), TablePath);
 
 	if (TablePath.IsEmpty())
 	{
@@ -45,14 +45,14 @@ FCapabilityResult FGetRuntimeLuaEnvCapability::Execute(const TSharedPtr<FJsonObj
 	else if (!FNexusLuaUtils::ResolveLuaPath(L, TablePath))
 	{
 		lua_settop(L, StackTop);
-		EmitError(R.Entries, {{TEXT("path"), TablePath}}, FString::Printf(TEXT("路径 '%s' 未找到"), *TablePath));
+		EmitError(R.Entries, {{TEXT("luaPath"), TablePath}}, FString::Printf(TEXT("路径 '%s' 未找到"), *TablePath));
 		return R;
 	}
 
 	if (!lua_istable(L, -1))
 	{
 		lua_settop(L, StackTop);
-		EmitError(R.Entries, {{TEXT("path"), TablePath}}, FString::Printf(TEXT("'%s' 不是 table"), *TablePath));
+		EmitError(R.Entries, {{TEXT("luaPath"), TablePath}}, FString::Printf(TEXT("'%s' 不是 table"), *TablePath));
 		return R;
 	}
 

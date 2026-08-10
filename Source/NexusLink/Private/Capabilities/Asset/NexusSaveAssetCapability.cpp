@@ -17,8 +17,8 @@ void FSaveAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) cons
 	Out.Name = TEXT("save_asset");
 	Out.Description = TEXT("持久化资产包到磁盘。先 MarkPackageDirty 再落盘。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("单个资产路径")))
-		.Prop(TEXT("assetPaths"), FNexusSchema::StrArr(TEXT("多个资产路径（批量）")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("单个资产路径")))
+		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("persist"), TEXT("commit"), TEXT("flush"), TEXT("package"), TEXT("disk") };
@@ -35,30 +35,10 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 		OutError = TEXT("save_asset 仅在编辑器模式可用");
 		return;
 	#else
-		TArray<FString> Paths;
-		if (Arguments.IsValid())
+		FString OrigPath;
+		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), OrigPath) || OrigPath.IsEmpty())
 		{
-			FString Single;
-			if (Arguments->TryGetStringField(TEXT("assetPath"), Single) && !Single.IsEmpty())
-			{
-				Paths.Add(Single);
-			}
-			const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
-			if (Arguments->TryGetArrayField(TEXT("assetPaths"), Arr) && Arr)
-			{
-				for (const TSharedPtr<FJsonValue>& V : *Arr)
-				{
-					FString P;
-					if (V.IsValid() && V->TryGetString(P) && !P.IsEmpty())
-					{
-						Paths.AddUnique(P);
-					}
-				}
-			}
-		}
-		if (Paths.Num() == 0)
-		{
-			OutError = TEXT("需要 assetPath 或 assetPaths");
+			OutError = TEXT("需要 assetPath");
 			return;
 		}
 
@@ -66,29 +46,27 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 		int32 FailedCount = 0;
 		int32 DeferredCount = 0;
 
-		for (const FString& OrigPath : Paths)
+		FString PackagePath = OrigPath;
+		int32 DotIdx;
+		if (PackagePath.FindLastChar(TEXT('.'), DotIdx))
 		{
-			FString PackagePath = OrigPath;
-			int32 DotIdx;
-			if (PackagePath.FindLastChar(TEXT('.'), DotIdx))
-			{
-				PackagePath = PackagePath.Left(DotIdx);
-			}
+			PackagePath = PackagePath.Left(DotIdx);
+		}
 
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), OrigPath);
+		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+		Entry->SetStringField(TEXT("path"), OrigPath);
 
-			UPackage* Pkg = FindPackage(nullptr, *PackagePath);
-			if (!Pkg) Pkg = LoadPackage(nullptr, *PackagePath, LOAD_None);
-			if (!Pkg)
-			{
-				++FailedCount;
-				Entry->SetBoolField(TEXT("success"), false);
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("%s（包未找到）"), *PackagePath));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-
+		UPackage* Pkg = FindPackage(nullptr, *PackagePath);
+		if (!Pkg) Pkg = LoadPackage(nullptr, *PackagePath, LOAD_None);
+		if (!Pkg)
+		{
+			++FailedCount;
+			Entry->SetBoolField(TEXT("success"), false);
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("%s（包未找到）"), *PackagePath));
+			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		}
+		else
+		{
 			bool bDeferred = false;
 			FString Note;
 			const bool bOk = FNexusAssetUtils::SaveDirtyPackage(Pkg, PackagePath, OrigPath, bDeferred, Note);

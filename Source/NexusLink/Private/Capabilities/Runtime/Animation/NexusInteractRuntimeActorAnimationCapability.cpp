@@ -29,31 +29,6 @@ static UAnimInstance* FindAnimInstanceForInteract(AActor* Actor)
 	return nullptr;
 }
 
-static void CollectActorNames(const TSharedPtr<FJsonObject>& Args, TArray<FString>& OutNames)
-{
-	OutNames.Reset();
-	if (!Args.IsValid()) return;
-
-	FString Single;
-	if (Args->TryGetStringField(TEXT("actorName"), Single) && !Single.IsEmpty())
-	{
-		OutNames.Add(Single);
-	}
-
-	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
-	if (Args->TryGetArrayField(TEXT("actorNames"), Arr) && Arr)
-	{
-		for (const TSharedPtr<FJsonValue>& V : *Arr)
-		{
-			FString N;
-			if (V.IsValid() && V->TryGetString(N) && !N.IsEmpty())
-			{
-				OutNames.AddUnique(N);
-			}
-		}
-	}
-}
-
 void FInteractRuntimeActorAnimationCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("interact_runtime_actor_animation");
@@ -62,13 +37,12 @@ void FInteractRuntimeActorAnimationCapability::BuildDefinition(FNexusCapabilityD
 		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("动画命令"),
 			{ TEXT("play_montage"), TEXT("stop_montage"), TEXT("stop_all"), TEXT("set_anim_variable") }))
 		.Prop(TEXT("actorName"),    FNexusSchema::Str(TEXT("Actor 名")))
-		.Prop(TEXT("actorNames"),   FNexusSchema::StrArr(TEXT("多个 Actor 名（批量）")))
 		.Prop(TEXT("montagePath"),  FNexusSchema::Str(TEXT("蒙太奇资产路径（play/stop）")))
 		.Prop(TEXT("playRate"),     FNexusSchema::Num(TEXT("播放速率"), 1.0))
 		.Prop(TEXT("startSection"), FNexusSchema::Str(TEXT("起始 Section 名（play_montage）")))
 		.Prop(TEXT("variableName"), FNexusSchema::Str(TEXT("AnimInstance 变量名（set_anim_variable）")))
 		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("变量新值字符串（set_anim_variable）")))
-		.Required({ TEXT("action") })
+		.Required({ TEXT("action"), TEXT("actorName") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("play"), TEXT("montage"), TEXT("stop"), TEXT("anim"), TEXT("slot") };
@@ -87,11 +61,10 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 			return;
 		}
 
-		TArray<FString> ActorNames;
-		CollectActorNames(Arguments, ActorNames);
-		if (ActorNames.Num() == 0)
+		FString ActorName;
+		if (!Arguments->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty())
 		{
-			OutError = TEXT("需要 actorName 或 actorNames");
+			OutError = TEXT("需要 actorName");
 			return;
 		}
 
@@ -100,118 +73,112 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 
 		FString MontagePath, StartSection, VarName, VarValue;
 		double PlayRate = 1.0;
-		if (Arguments.IsValid())
+		Arguments->TryGetStringField(TEXT("montagePath"), MontagePath);
+		Arguments->TryGetStringField(TEXT("startSection"), StartSection);
+		Arguments->TryGetStringField(TEXT("variableName"), VarName);
+		Arguments->TryGetStringField(TEXT("value"), VarValue);
+		Arguments->TryGetNumberField(TEXT("playRate"), PlayRate);
+
+		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+		Entry->SetStringField(TEXT("actorName"), ActorName);
+		Entry->SetStringField(TEXT("action"), Action);
+
+		AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
+		if (!Actor)
 		{
-			Arguments->TryGetStringField(TEXT("montagePath"), MontagePath);
-			Arguments->TryGetStringField(TEXT("startSection"), StartSection);
-			Arguments->TryGetStringField(TEXT("variableName"), VarName);
-			Arguments->TryGetStringField(TEXT("value"), VarValue);
-			Arguments->TryGetNumberField(TEXT("playRate"), PlayRate);
-		}
-
-		for (const FString& ActorName : ActorNames)
-		{
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("actorName"), ActorName);
-			Entry->SetStringField(TEXT("action"), Action);
-
-			AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
-			if (!Actor)
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor 未找到: %s"), *ActorName));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-
-			UAnimInstance* AnimInst = FindAnimInstanceForInteract(Actor);
-			if (!AnimInst)
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("无 AnimInstance"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-
-			if (Action.Equals(TEXT("play_montage"), ESearchCase::IgnoreCase))
-			{
-				if (MontagePath.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("play_montage 需要 montagePath"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				UAnimMontage* Montage = LoadObject<UAnimMontage>(nullptr, *MontagePath);
-				if (!Montage)
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("蒙太奇加载失败: %s"), *MontagePath));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				const float Len = AnimInst->Montage_Play(Montage, static_cast<float>(PlayRate));
-				if (!StartSection.IsEmpty())
-				{
-					AnimInst->Montage_JumpToSection(FName(*StartSection), Montage);
-				}
-				Entry->SetStringField(TEXT("montage"), Montage->GetName());
-				Entry->SetNumberField(TEXT("length"), Len);
-				Entry->SetBoolField(TEXT("playing"), AnimInst->Montage_IsPlaying(Montage));
-			}
-			else if (Action.Equals(TEXT("stop_montage"), ESearchCase::IgnoreCase))
-			{
-				if (MontagePath.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("stop_montage 需要 montagePath"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				UAnimMontage* Montage = LoadObject<UAnimMontage>(nullptr, *MontagePath);
-				if (!Montage)
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("蒙太奇加载失败: %s"), *MontagePath));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				AnimInst->Montage_Stop(0.f, Montage);
-				Entry->SetStringField(TEXT("montage"), Montage->GetName());
-				Entry->SetBoolField(TEXT("stopped"), true);
-			}
-			else if (Action.Equals(TEXT("stop_all"), ESearchCase::IgnoreCase))
-			{
-				AnimInst->StopAllMontages(0.f);
-				Entry->SetBoolField(TEXT("stoppedAll"), true);
-			}
-			else if (Action.Equals(TEXT("set_anim_variable"), ESearchCase::IgnoreCase))
-			{
-				if (VarName.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_anim_variable 需要 variableName"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				FProperty* Prop = AnimInst->GetClass()->FindPropertyByName(FName(*VarName));
-				if (!Prop)
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("变量未找到: %s"), *VarName));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				FString OldVal, ActualVal, Err;
-				if (!FNexusPropertyUtils::WritePropertyAndEcho(AnimInst, { VarName }, 0, VarValue, OldVal, ActualVal, Err))
-				{
-					Entry->SetStringField(TEXT("error"), Err);
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				Entry->SetStringField(TEXT("variableName"), VarName);
-				if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
-				if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-			}
-			else
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
-			}
-
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor 未找到: %s"), *ActorName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+			return;
 		}
+
+		UAnimInstance* AnimInst = FindAnimInstanceForInteract(Actor);
+		if (!AnimInst)
+		{
+			Entry->SetStringField(TEXT("error"), TEXT("无 AnimInstance"));
+			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+			return;
+		}
+
+		if (Action.Equals(TEXT("play_montage"), ESearchCase::IgnoreCase))
+		{
+			if (MontagePath.IsEmpty())
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("play_montage 需要 montagePath"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			UAnimMontage* Montage = LoadObject<UAnimMontage>(nullptr, *MontagePath);
+			if (!Montage)
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("蒙太奇加载失败: %s"), *MontagePath));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			const float Len = AnimInst->Montage_Play(Montage, static_cast<float>(PlayRate));
+			if (!StartSection.IsEmpty())
+			{
+				AnimInst->Montage_JumpToSection(FName(*StartSection), Montage);
+			}
+			Entry->SetStringField(TEXT("montage"), Montage->GetName());
+			Entry->SetNumberField(TEXT("length"), Len);
+			Entry->SetBoolField(TEXT("playing"), AnimInst->Montage_IsPlaying(Montage));
+		}
+		else if (Action.Equals(TEXT("stop_montage"), ESearchCase::IgnoreCase))
+		{
+			if (MontagePath.IsEmpty())
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("stop_montage 需要 montagePath"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			UAnimMontage* Montage = LoadObject<UAnimMontage>(nullptr, *MontagePath);
+			if (!Montage)
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("蒙太奇加载失败: %s"), *MontagePath));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			AnimInst->Montage_Stop(0.f, Montage);
+			Entry->SetStringField(TEXT("montage"), Montage->GetName());
+			Entry->SetBoolField(TEXT("stopped"), true);
+		}
+		else if (Action.Equals(TEXT("stop_all"), ESearchCase::IgnoreCase))
+		{
+			AnimInst->StopAllMontages(0.f);
+			Entry->SetBoolField(TEXT("stoppedAll"), true);
+		}
+		else if (Action.Equals(TEXT("set_anim_variable"), ESearchCase::IgnoreCase))
+		{
+			if (VarName.IsEmpty())
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("set_anim_variable 需要 variableName"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			FProperty* Prop = AnimInst->GetClass()->FindPropertyByName(FName(*VarName));
+			if (!Prop)
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("变量未找到: %s"), *VarName));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			FString OldVal, ActualVal, Err;
+			if (!FNexusPropertyUtils::WritePropertyAndEcho(AnimInst, { VarName }, 0, VarValue, OldVal, ActualVal, Err))
+			{
+				Entry->SetStringField(TEXT("error"), Err);
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			Entry->SetStringField(TEXT("variableName"), VarName);
+			if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
+			if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
+		}
+		else
+		{
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+		}
+
+		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 

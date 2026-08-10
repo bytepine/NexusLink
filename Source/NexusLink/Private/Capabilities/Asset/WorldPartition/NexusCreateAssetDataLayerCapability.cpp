@@ -37,13 +37,8 @@ FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 		FString FullPath;
 		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), FullPath) || FullPath.IsEmpty())
 		{
-			// 兼容旧字段（过渡期）
-			FString PackagePath, AssetName;
-			if (!FNexusCapability::RequireString(Arguments, TEXT("packagePath"), PackagePath, OutEntries, {})) return;
-			if (!FNexusCapability::RequireString(Arguments, TEXT("assetName"),   AssetName,   OutEntries, {})) return;
-			if (!PackagePath.EndsWith(TEXT("/")))
-				PackagePath += TEXT("/");
-			FullPath = PackagePath + AssetName;
+			OutError = TEXT("缺少必填参数 assetPath");
+			return;
 		}
 		const FString AssetName = FPaths::GetBaseFilename(FullPath);
 

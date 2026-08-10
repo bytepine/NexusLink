@@ -51,7 +51,7 @@ void FInteractRuntimeWidgetCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Prop(TEXT("action"),      FNexusSchema::Enum(TEXT("交互操作"),
 			{ TEXT("click"), TEXT("check"), TEXT("uncheck"), TEXT("toggle"), TEXT("set"), TEXT("read") }))
 		.Prop(TEXT("value"),       FNexusSchema::Str(TEXT("action=set 时的新值")))
-		.Prop(TEXT("ownerWidget"), FNexusSchema::Str(TEXT("Owner UserWidget 类/名过滤")))
+		.Prop(TEXT("ownerClass"),  FNexusSchema::Str(TEXT("Owner UserWidget 类/名过滤")))
 		.Required({ TEXT("widgetName"), TEXT("action") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
@@ -74,8 +74,8 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 			OutError = TEXT("需要 widgetName 与 action");
 			return;
 		}
-		Arguments->TryGetStringField(TEXT("value"),       Value);
-		Arguments->TryGetStringField(TEXT("ownerWidget"), OwnerFilter);
+		Arguments->TryGetStringField(TEXT("value"),      Value);
+		Arguments->TryGetStringField(TEXT("ownerClass"), OwnerFilter);
 
 		UWorld* World = nullptr;
 		for (TObjectIterator<UWorld> It; It; ++It)
@@ -100,7 +100,7 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 
 		Entry->SetStringField(TEXT("widgetName"),  Target->GetName());
 		Entry->SetStringField(TEXT("widgetClass"), Target->GetClass()->GetName());
-		Entry->SetStringField(TEXT("ownerWidget"), OwnerName);
+		Entry->SetStringField(TEXT("ownerClass"), OwnerName);
 
 		if (UButton* Btn = Cast<UButton>(Target))
 		{

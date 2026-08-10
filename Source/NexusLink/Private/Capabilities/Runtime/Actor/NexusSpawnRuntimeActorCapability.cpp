@@ -15,10 +15,10 @@
 void FSpawnRuntimeActorCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("spawn_runtime_actor");
-	Out.Description = TEXT("在 PIE 实例化 Actor。blueprintPath 或 className；可设位置/旋转。");
+	Out.Description = TEXT("在 PIE 实例化 Actor。assetPath 或 className；可设位置/旋转。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("blueprintPath"), FNexusSchema::Str(TEXT("蓝图路径（与 className 二选一）")))
-		.Prop(TEXT("className"),     FNexusSchema::Str(TEXT("原生类名（与 blueprintPath 二选一）")))
+		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("蓝图路径（与 className 二选一）")))
+		.Prop(TEXT("className"),     FNexusSchema::Str(TEXT("原生类名（与 assetPath 二选一）")))
 		.Prop(TEXT("locationX"),     FNexusSchema::Num(TEXT("生成 X"), 0.0))
 		.Prop(TEXT("locationY"),     FNexusSchema::Num(TEXT("生成 Y"), 0.0))
 		.Prop(TEXT("locationZ"),     FNexusSchema::Num(TEXT("生成 Z"), 0.0))
@@ -57,10 +57,10 @@ FCapabilityResult FSpawnRuntimeActorCapability::Execute(const TSharedPtr<FJsonOb
 		);
 
 		UClass* SpawnClass = nullptr;
-		if (Arguments->HasField(TEXT("blueprintPath")))
+		if (Arguments->HasField(TEXT("assetPath")))
 		{
-			const FString BpPath = Arguments->GetStringField(TEXT("blueprintPath"));
-			Entry->SetStringField(TEXT("blueprintPath"), BpPath);
+			const FString BpPath = Arguments->GetStringField(TEXT("assetPath"));
+			Entry->SetStringField(TEXT("assetPath"), BpPath);
 			UBlueprint* BP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(BpPath);
 			if (!BP || !BP->GeneratedClass)
 			{
@@ -89,7 +89,7 @@ FCapabilityResult FSpawnRuntimeActorCapability::Execute(const TSharedPtr<FJsonOb
 		}
 		else
 		{
-			OutError = TEXT("需要 blueprintPath 或 className");
+			OutError = TEXT("需要 assetPath 或 className");
 			return;
 		}
 

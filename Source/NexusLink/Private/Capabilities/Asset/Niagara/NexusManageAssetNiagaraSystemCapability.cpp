@@ -25,20 +25,21 @@ void FManageAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
 	Out.Description = TEXT("批量编辑 Niagara 系统。operations[].action=set_property/set_user_parameter；无 Emitter 图。");
+	// propertyPath 仅声明于 operations item；顶层不重复
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),         FNexusSchema::Enum(TEXT("操作"),
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
 			{ TEXT("set_property"), TEXT("set_user_parameter") }))
-		.Prop(TEXT("propertyPath"),   FNexusSchema::Str(TEXT("属性路径（set_property）")))
-		.Prop(TEXT("parameterName"),  FNexusSchema::Str(TEXT("用户参数名（set_user_parameter）")))
-		.Prop(TEXT("value"),          FNexusSchema::Str(TEXT("新值字符串")))
+		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径（set_property）")))
+		.Prop(TEXT("parameterName"), FNexusSchema::Str(TEXT("用户参数名（set_user_parameter）")))
+		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("新值字符串")))
 		.Required({ TEXT("action") })
 		.Build();
 #else
 	Out.Description = TEXT("批量编辑 Niagara 系统属性。operations[].action=set_property；无 Emitter 图。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("操作"), { TEXT("set_property") }))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径")))
-		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("属性新值字符串")))
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"), { TEXT("set_property") }))
+		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径（set_property）")))
+		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("新值字符串")))
 		.Required({ TEXT("action") })
 		.Build();
 #endif

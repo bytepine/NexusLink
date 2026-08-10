@@ -24,7 +24,7 @@
 > - 过滤参数支持四种匹配模式：子串（`Player`）、前缀（`^BP_`）、后缀（`Actor$`）、正则（`/^BP_.+$/`）
 > - 列表工具均支持 `offset`（默认 0）和 `limit`（默认 100，上限 500）分页
 > - 标记 ★ 的参数为必填
-> - **批量参数单/复数容错**：所有暴露复数参数（`assetPaths` / `actorNames` / `widgetNames` / `rowNames` / `propertyPaths` / `variables` / `components` / `fields` / `widgets` / `nodes` / `wires` / `operations` / `rows` / `updates` / `spawns` 等）的工具，运行时允许调用方传对应的单数键（`assetPath` / `actorName` / `variable` / `update` ...），会被自动包装成单元素数组继续执行。Schema 仍只宣传复数形态，仅作运行时容错兜底，不要依赖单数形态做新功能设计
+> - **单目标 + 跨目标批量（Breaking）**：Capability 仅单目标（`assetPath` / `actorName` / `widgetName`）；跨目标用 `call_capability(calls=[{capability,arguments?},...])`。单目标内集合保留 `sections` / `propertyPaths` / `operations` / `updates`。禁止 `assetPaths`/`actorNames`/`widgetNames` 及旧键（`blueprintPath`→`assetPath`，`newPath`→`destAssetPath`，`ownerWidget`→`ownerClass`，`filePath`→`scriptPath`，Lua `path`→`luaPath`，顶层 `fields`/`rows`/`keys`/`widgets`→`operations`）；旧键 → `arg_invalid`
 > - **响应默认值压缩（全工具默认启用）**：`NexusMcpDispatcher` 在每次工具执行后、序列化前对 `structuredContent` 做一次**递归自动扫描**——遍历所有嵌套层级里的"对象数组"字段 `K`，对其中每个标量字段做分布统计，主流值满足三阈值（`MinCount=3` / `MinMatchRatio=0.7` / `MinNetSaveBytes=30`）时抽到同级 `<K>_defaults`，条目里等于该默认值的同名字段随即省略。内置身份字段排除集（`name` / `path` / `assetPath` / `nodeId` / `tag` / `message` / `timestamp` / `frame` / `id` / `label` / `title` / `text` / `error`）永远不会进入 defaults。
 >
 >   **消费侧合并规则**：遍历条目时先拿 `<K>_defaults` 作为底，再用条目自身字段覆写（`{**defaults, **entry}`）；条目缺少某字段时视为等于 defaults 值。

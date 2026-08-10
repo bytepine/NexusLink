@@ -5,6 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusJsonUtils.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
@@ -65,9 +66,9 @@ void FManageAssetBlackboardCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Build();
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("BlackboardData 或 BehaviorTree 资产路径")))
-		.Prop(TEXT("keys"),      FNexusSchema::ArrayOf(TEXT("批量键操作"), ItemSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("keys") })
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("BlackboardData 或 BehaviorTree 资产路径")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量键操作"), ItemSchema.ToSharedRef()))
+		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
@@ -90,14 +91,14 @@ FCapabilityResult FManageAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 		UBlackboardData* BB = LoadBlackboardFromPath(AssetPath);
 		if (!BB) { OutError = FString::Printf(TEXT("BlackboardData 未找到: %s"), *AssetPath); return; }
 
-		const TArray<TSharedPtr<FJsonValue>>* KeysArr = nullptr;
-		if (!Arguments->TryGetArrayField(TEXT("keys"), KeysArr) || !KeysArr)
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("缺少 keys");
+			OutError = TEXT("缺少 operations 或为空");
 			return;
 		}
 
-		for (const TSharedPtr<FJsonValue>& Val : *KeysArr)
+		for (const TSharedPtr<FJsonValue>& Val : Ops)
 		{
 			TSharedPtr<FJsonObject> Item    = Val->AsObject();
 			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();

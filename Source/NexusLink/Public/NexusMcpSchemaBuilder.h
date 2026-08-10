@@ -46,6 +46,8 @@ struct FNexusSchema
 			, Properties(MakeShared<FJsonObject>())
 		{
 			Schema->SetStringField(TEXT("type"), TEXT("object"));
+			// 默认拒绝未声明键；动态字段请用 AnyObject()（显式 additionalProperties:true）
+			Schema->SetBoolField(TEXT("additionalProperties"), false);
 		}
 
 		FObjectBuilder& Prop(const TCHAR* Name, const TSharedRef<FJsonObject>& P)
@@ -191,22 +193,24 @@ struct FNexusSchema
 		return ArrayOf(Desc, AnyObject(TEXT("")));
 	}
 
-	/** 通用 object（无 properties 限制）。 */
+	/** 通用 object（动态字段）：显式 additionalProperties:true，Run 前校验不拒未知键。 */
 	static TSharedRef<FJsonObject> AnyObject(const TCHAR* Desc)
 	{
 		TSharedRef<FJsonObject> P = MakeShared<FJsonObject>();
 		P->SetStringField(TEXT("type"), TEXT("object"));
 		P->SetStringField(TEXT("description"), Desc);
+		P->SetBoolField(TEXT("additionalProperties"), true);
 		return P;
 	}
 
 	static FObjectBuilder Object() { return FObjectBuilder(); }
 
-	/** 空 schema：{ "type": "object" }，用于无参数工具（Dispatcher 已会兜底，这里仅显式化）。 */
+	/** 空 schema：无参工具；additionalProperties:false，拒绝任意入参键。 */
 	static TSharedPtr<FJsonObject> EmptyObject()
 	{
 		TSharedRef<FJsonObject> P = MakeShared<FJsonObject>();
 		P->SetStringField(TEXT("type"), TEXT("object"));
+		P->SetBoolField(TEXT("additionalProperties"), false);
 		return P;
 	}
 };

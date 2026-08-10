@@ -13,14 +13,26 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 ## Token 预算
 
 - 响应体是主要开销：`sections` 取窄（勿 `all`）、`limit` 从小取；读日志 `get_output_log` ≤50 条并配 `categoryFilter` / `verbosity` / `textFilter`，不够再 `offset` 翻页。
-- 多步操作用 `call_capability(calls=[{capability,arguments},…])` 一轮完成；参数层同样批量：`assetPaths[]` / `actorNames[]` / `propertyPaths[]` / `sections[]`。
+- **单目标**：Capability 仅 `assetPath` / `actorName` / `widgetName`；跨目标批量用 `call_capability(calls=[{capability,arguments},…])` 一轮完成。单目标内集合保留 `sections` / `propertyPaths` / `operations` / `updates`。
+- `search_capabilities` 优先 `capabilityName` 一次取全 `parameters[]`。
+
+## 参数契约（Breaking）
+
+| 权威 | 说明 |
+|---|---|
+| 单目标 + `calls[]` | 禁止 `assetPaths`/`actorNames`/`widgetNames`；跨目标只走元工具 `calls[]` |
+| manage → `operations[]` | 禁止顶层 `fields`/`rows`/`keys`/`widgets`/`ops`/裸 `action` 合成 |
+| get → `propertyPaths[]` | 写操作用 `updates[].propertyPath` |
+| 重命名 | `newPath`→`destAssetPath`；`blueprintPath`→`assetPath`；`ownerWidget`→`ownerClass`；`filePath`→`scriptPath`；Lua `path`→`luaPath`；`classPath`→`className` |
+
+旧键一律 `arg_invalid`，无别名兼容。
 
 ## 命名
 
 | 动词 | 用途 |
 |---|---|
 | `get` / `list` / `search` | 只读 |
-| `set` | 仅 `*_property` + `propertyPaths` |
+| `set` | 仅 `*_property` + `updates[]` |
 | `interact` | `action` 命令（非 propertyPaths） |
 | `manage` | 仅磁盘 `*_asset_*` 结构编辑 |
 

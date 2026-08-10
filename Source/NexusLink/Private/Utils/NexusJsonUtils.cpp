@@ -105,15 +105,5 @@ TArray<TSharedPtr<FJsonValue>> FNexusJsonUtils::ExtractOperations(const TSharedP
 	{
 		return *Arr;
 	}
-	// 旧字段名兼容（过渡期，不写入 Schema）
-	if (Args->TryGetArrayField(TEXT("ops"), Arr) && Arr)
-	{
-		return *Arr;
-	}
-	// 顶层 action + 其余字段 → 合成单元素 operations（旧单操作 manage 过渡期兼容）
-	if (Args->HasField(TEXT("action")))
-	{
-		Result.Add(MakeShared<FJsonValueObject>(Args));
-	}
 	return Result;
 }

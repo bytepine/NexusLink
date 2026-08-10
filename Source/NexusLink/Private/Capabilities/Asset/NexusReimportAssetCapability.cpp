@@ -16,8 +16,7 @@ void FReimportAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) 
 	Out.Name = TEXT("reimport_asset");
 	Out.Description = TEXT("重新导入资产源文件。刷新已修改的外部资源。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("资产路径")))
-		.Prop(TEXT("assetPaths"), FNexusSchema::StrArr(TEXT("多个资产路径（批量）")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产路径")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -31,54 +30,39 @@ FCapabilityResult FReimportAssetCapability::Execute(const TSharedPtr<FJsonObject
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		TArray<FString> Paths;
-		if (Arguments.IsValid())
+		FString Path;
+		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
 		{
-			FString Single;
-			if (Arguments->TryGetStringField(TEXT("assetPath"), Single) && !Single.IsEmpty())
-				Paths.Add(Single);
-			const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
-			if (Arguments->TryGetArrayField(TEXT("assetPaths"), Arr) && Arr)
-			{
-				for (const auto& V : *Arr)
-				{
-					FString P;
-					if (V.IsValid() && V->TryGetString(P) && !P.IsEmpty())
-						Paths.AddUnique(P);
-				}
-			}
+			OutError = TEXT("需要 assetPath");
+			return;
 		}
-		if (Paths.Num() == 0) { OutError = TEXT("需要 assetPath 或 assetPaths"); return; }
 
-		for (const FString& Path : Paths)
+		UObject* Asset = FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
+		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+		Entry->SetStringField(TEXT("path"), Path);
+
+		if (!Asset)
 		{
-			UObject* Asset = FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), Path);
-
-			if (!Asset)
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("资产未找到: %s"), *Path));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-
-			Entry->SetStringField(TEXT("assetClass"), Asset->GetClass()->GetName());
-
-			// 通过 FReimportManager 执行重导入（跨版本：UE4 返回 bool，UE5 返回 EReimportResult）
-			bool bSuccess = false;
-			if (FReimportManager* ReimportMgr = FReimportManager::Instance())
-			{
-				bSuccess = !!ReimportMgr->Reimport(Asset);
-			}
-
-			if (!bSuccess)
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("重导入失败（资产可能不支持重导入）"));
-			}
-
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("资产未找到: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+			return;
 		}
+
+		Entry->SetStringField(TEXT("assetClass"), Asset->GetClass()->GetName());
+
+		// 通过 FReimportManager 执行重导入（跨版本：UE4 返回 bool，UE5 返回 EReimportResult）
+		bool bSuccess = false;
+		if (FReimportManager* ReimportMgr = FReimportManager::Instance())
+		{
+			bSuccess = !!ReimportMgr->Reimport(Asset);
+		}
+
+		if (!bSuccess)
+		{
+			Entry->SetStringField(TEXT("error"), TEXT("重导入失败（资产可能不支持重导入）"));
+		}
+
+		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 

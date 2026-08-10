@@ -61,9 +61,7 @@ public:
 
 	/**
 	 * 统一提取 manage_* 类 Capability 的批量操作数组。
-	 * 优先级：`operations` → 回退 `ops`（旧字段，过渡期兼容）→ 回退顶层 `action`+其余字段
-	 * 合成单元素数组（旧单操作 manage 过渡期兼容）。
-	 * Schema 只暴露 `operations`；本 helper 仅用于 Execute 内部读入，不影响对外契约。
+	 * 仅接受 `operations[]`；不认 `ops`、不把顶层 `action` 合成单元素数组（见 CapabilitySpec §7.11）。
 	 */
 	static TArray<TSharedPtr<FJsonValue>> ExtractOperations(const TSharedPtr<FJsonObject>& Args);
 };

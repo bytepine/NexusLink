@@ -5,6 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusPinTypeUtils.h"
 #if NX_UE_HAS_STRUCT_UTILS_HEADER
 #include "StructUtils/UserDefinedStruct.h"
@@ -35,9 +36,9 @@ void FManageAssetStructFieldCapability::BuildDefinition(FNexusCapabilityDefiniti
 		.Build();
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("UserDefinedStruct 资产路径（共用）")))
-		.Prop(TEXT("fields"),    FNexusSchema::ArrayOf(TEXT("批量字段操作"), ItemSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("fields") })
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("UserDefinedStruct 资产路径（共用）")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量字段操作"), ItemSchema.ToSharedRef()))
+		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Struct };
@@ -70,27 +71,22 @@ FCapabilityResult FManageAssetStructFieldCapability::Execute(const TSharedPtr<FJ
 		UUserDefinedStruct* Struct = FNexusAssetUtils::LoadAssetWithFallback<UUserDefinedStruct>(AssetPath);
 		if (!Struct) { OutError = FString::Printf(TEXT("UserDefinedStruct 未找到: %s"), *AssetPath); return; }
 
-		const TArray<TSharedPtr<FJsonValue>>* FieldsArr = nullptr;
-		if (!Arguments->TryGetArrayField(TEXT("fields"), FieldsArr) || !FieldsArr)
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("缺少 fields");
-			return;
-		}
-		if (FieldsArr->Num() == 0)
-		{
-			OutError = TEXT("fields 不能为空");
+			OutError = TEXT("缺少 operations 或为空");
 			return;
 		}
 
 		bool bDidMutate = false;
-		for (const TSharedPtr<FJsonValue>& Val : *FieldsArr)
+		for (const TSharedPtr<FJsonValue>& Val : Ops)
 		{
 			TSharedPtr<FJsonObject> Item = Val->AsObject();
 			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
 			if (!Item.IsValid())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("无效的 field 项"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("无效的 operation 项"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}

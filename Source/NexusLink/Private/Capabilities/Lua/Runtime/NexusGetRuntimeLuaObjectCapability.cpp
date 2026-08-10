@@ -44,7 +44,7 @@ void FGetRuntimeLuaObjectCapability::BuildDefinition(FNexusCapabilityDefinition&
 	Out.Description = TEXT("读 UnLua 绑定 Actor/UObject 的实例 Lua 表。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("actorName"), FNexusSchema::Str(TEXT("运行时 Actor 名")))
-		.Prop(TEXT("path"),          FNexusSchema::Str(TEXT("Lua 表内点分子路径")))
+		.Prop(TEXT("luaPath"),       FNexusSchema::Str(TEXT("Lua 表内点分子路径")))
 		.Prop(TEXT("nameFilter"),    FNexusSchema::Str(TEXT("键名过滤；支持 /regex/、^前缀、后缀$")))
 		.Prop(TEXT("limit"),         FNexusSchema::Int(TEXT("最大返回键数"), 100, 1, 500))
 		.Build();
@@ -86,7 +86,7 @@ FCapabilityResult FGetRuntimeLuaObjectCapability::Execute(const TSharedPtr<FJson
 
 	FString Path, NameFilter;
 	int32 Limit = 100;
-	Arguments->TryGetStringField(TEXT("path"), Path);
+	Arguments->TryGetStringField(TEXT("luaPath"), Path);
 	Arguments->TryGetStringField(TEXT("nameFilter"), NameFilter);
 	if (Arguments->HasField(TEXT("limit")))
 		Limit = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 500);

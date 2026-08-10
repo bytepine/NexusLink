@@ -143,7 +143,6 @@ TSharedPtr<FJsonObject> FGetAssetMaterialCapability::BuildCapabilitySchema() con
 {
 	return FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("Material/MI/MaterialFunction 资产路径")))
-		.Prop(TEXT("assetPaths"),    FNexusSchema::StrArr(TEXT("多个材质资产路径（批量）")))
 		.Prop(TEXT("nameFilter"),    FNexusSchema::Str(TEXT("参数/节点名过滤")))
 		.Prop(TEXT("includePins"),   FNexusSchema::Bool(TEXT("包含引脚详情（graph）"), true, true))
 		.Prop(TEXT("includeWires"),  FNexusSchema::Bool(TEXT("包含连线信息（graph）"), true, true))
@@ -342,39 +341,6 @@ void FGetAssetMaterialCapability::ExecuteSection(const FString&                 
 	{
 		OutError = FString::Printf(TEXT("未处理的 section '%s'"), *SectionName);
 	}
-}
-
-TArray<TSharedPtr<FJsonObject>> FGetAssetMaterialCapability::ExpandPerEntry(
-	const TSharedPtr<FJsonObject>& Args) const
-{
-	const TArray<TSharedPtr<FJsonValue>>* PathsArr = nullptr;
-	if (!Args.IsValid() || !Args->TryGetArrayField(TEXT("assetPaths"), PathsArr) || !PathsArr || PathsArr->Num() == 0)
-	{
-		return {};
-	}
-
-	TArray<TSharedPtr<FJsonObject>> Result;
-	for (const TSharedPtr<FJsonValue>& V : *PathsArr)
-	{
-		FString Path;
-		if (!V.IsValid() || !V->TryGetString(Path) || Path.IsEmpty())
-		{
-			// 无效/空项：插入一个带 error 的占位 entry，让基类生成对应 error entry
-			TSharedPtr<FJsonObject> ErrArgs = MakeShared<FJsonObject>();
-			ErrArgs->SetStringField(TEXT("assetPath"), TEXT(""));
-			Result.Add(ErrArgs);
-			continue;
-		}
-
-		TSharedPtr<FJsonObject> EntryArgs = MakeShared<FJsonObject>();
-		for (const auto& Pair : Args->Values)
-		{
-			if (Pair.Key != TEXT("assetPaths")) { EntryArgs->SetField(Pair.Key, Pair.Value); }
-		}
-		EntryArgs->SetStringField(TEXT("assetPath"), Path);
-		Result.Add(EntryArgs);
-	}
-	return Result;
 }
 
 REGISTER_MCP_CAPABILITY(FGetAssetMaterialCapability)

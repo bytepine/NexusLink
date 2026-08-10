@@ -6,9 +6,9 @@
 #include "NexusRuntimeMultiSectionCapability.h"
 
 /**
- * get_actor_animation —— 查询单个/多个 Actor 上 AnimInstance 的运行时状态/插槽/变量。
+ * get_actor_animation —— 查询单个 Actor 上 AnimInstance 的运行时状态/插槽/变量。
  * 继承 FNexusMultiSectionCapability，sections=["state","slots","variables"]。
- * 默认 section：state。支持 actorNames[] 批量查询。
+ * 默认 section：state。单目标 actorName；跨目标用 call_capability.calls[]。
  */
 class FGetRuntimeActorAnimationCapability : public FNexusRuntimeMultiSectionCapability
 {
@@ -27,5 +27,4 @@ protected:
 	                            void*                          TargetOpaque,
 	                            TSharedPtr<FJsonObject>&       InOutDetail,
 	                            FString&                       OutError) const override;
-	virtual TArray<TSharedPtr<FJsonObject>> ExpandPerEntry(const TSharedPtr<FJsonObject>& Args) const override;
 };

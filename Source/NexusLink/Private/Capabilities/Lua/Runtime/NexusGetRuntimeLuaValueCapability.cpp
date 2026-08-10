@@ -14,7 +14,7 @@ void FGetRuntimeLuaValueCapability::BuildDefinition(FNexusCapabilityDefinition& 
 	Out.Name = TEXT("get_runtime_lua_value");
 	Out.Description = TEXT("按点路径读 Lua 全局或嵌套字段。返回类型与值。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("path"), FNexusSchema::Str(TEXT("Lua 点分路径")))
+		.Required(TEXT("luaPath"), FNexusSchema::Str(TEXT("Lua 点分路径")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("variable"), TEXT("field"), TEXT("path"), TEXT("global"), TEXT("dot") };
@@ -33,16 +33,17 @@ FCapabilityResult FGetRuntimeLuaValueCapability::Execute(const TSharedPtr<FJsonO
 	FCapabilityResult R;
 
 	FString Path;
-	if (!RequireString(Arguments, TEXT("path"), Path, R.Entries))
+	if (!RequireString(Arguments, TEXT("luaPath"), Path, R.Entries))
 		return R;
 
 	const int32 StackTop = lua_gettop(L);
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+	Entry->SetStringField(TEXT("luaPath"), Path);
 
 	if (!FNexusLuaUtils::ResolveLuaPath(L, Path))
 	{
 		lua_settop(L, StackTop);
-		EmitError(R.Entries, {{TEXT("path"), Path}},
+		EmitError(R.Entries, {{TEXT("luaPath"), Path}},
 			FString::Printf(TEXT("路径 '%s' 未找到（nil 或中间节点不是 table）"), *Path));
 		return R;
 	}

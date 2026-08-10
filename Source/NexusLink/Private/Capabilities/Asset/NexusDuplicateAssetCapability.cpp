@@ -16,9 +16,9 @@ void FDuplicateAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out)
 	Out.Name = TEXT("duplicate_asset");
 	Out.Description = TEXT("复制编辑器资产到新路径。源资产不变。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("源资产路径")))
-		.Prop(TEXT("newPath"),   FNexusSchema::Str(TEXT("新完整资产路径（包路径 + 资产名）")))
-		.Required({ TEXT("assetPath"), TEXT("newPath") })
+		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("源资产路径")))
+		.Prop(TEXT("destAssetPath"), FNexusSchema::Str(TEXT("目标完整资产路径（包路径 + 资产名）")))
+		.Required({ TEXT("assetPath"), TEXT("destAssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("copy"), TEXT("clone"), TEXT("duplicate"), TEXT("blueprint"), TEXT("bp") };
@@ -35,28 +35,28 @@ FCapabilityResult FDuplicateAssetCapability::Execute(const TSharedPtr<FJsonObjec
 			return;
 		}
 
-		FString SrcPath, NewPath;
+		FString SrcPath, DestAssetPath;
 		if (!Arguments->TryGetStringField(TEXT("assetPath"), SrcPath) || SrcPath.IsEmpty())
 		{
 			OutError = TEXT("assetPath 为必填项");
 			return;
 		}
-		if (!Arguments->TryGetStringField(TEXT("newPath"), NewPath) || NewPath.IsEmpty())
+		if (!Arguments->TryGetStringField(TEXT("destAssetPath"), DestAssetPath) || DestAssetPath.IsEmpty())
 		{
-			OutError = TEXT("缺少 newPath");
+			OutError = TEXT("缺少 destAssetPath");
 			return;
 		}
 
 		FText PathErrText;
-		if (!FPackageName::IsValidLongPackageName(NewPath, false, &PathErrText))
+		if (!FPackageName::IsValidLongPackageName(DestAssetPath, false, &PathErrText))
 		{
-			OutError = FString::Printf(TEXT("无效的 newPath: %s"), *PathErrText.ToString());
+			OutError = FString::Printf(TEXT("无效的 destAssetPath: %s"), *PathErrText.ToString());
 			return;
 		}
 
-		if (FPackageName::DoesPackageExist(NewPath))
+		if (FPackageName::DoesPackageExist(DestAssetPath))
 		{
-			OutError = FString::Printf(TEXT("目标已存在: %s"), *NewPath);
+			OutError = FString::Printf(TEXT("目标已存在: %s"), *DestAssetPath);
 			return;
 		}
 
@@ -72,8 +72,8 @@ FCapabilityResult FDuplicateAssetCapability::Execute(const TSharedPtr<FJsonObjec
 			return;
 		}
 
-		const FString NewName    = FPaths::GetBaseFilename(NewPath);
-		const FString NewPkgPath = FPaths::GetPath(NewPath);
+		const FString NewName    = FPaths::GetBaseFilename(DestAssetPath);
+		const FString NewPkgPath = FPaths::GetPath(DestAssetPath);
 
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
 		UObject* NewAsset = AssetTools.DuplicateAsset(NewName, NewPkgPath, SrcAsset);
@@ -82,12 +82,12 @@ FCapabilityResult FDuplicateAssetCapability::Execute(const TSharedPtr<FJsonObjec
 		if (!NewAsset)
 		{
 			Entry->SetBoolField(TEXT("success"), false);
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("复制失败: %s -> %s"), *SrcPath, *NewPath));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("复制失败: %s -> %s"), *SrcPath, *DestAssetPath));
 		}
 		else
 		{
 			Entry->SetStringField(TEXT("sourcePath"), SrcPath);
-			Entry->SetStringField(TEXT("newPath"), NewPath);
+			Entry->SetStringField(TEXT("destAssetPath"), DestAssetPath);
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

@@ -5,6 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Engine/DataTable.h"
 #include "NexusMcpTool.h"
@@ -48,9 +49,9 @@ void FManageAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition
 		ItemSchema->GetObjectField(TEXT("properties"))->SetObjectField(TEXT("fields"), FieldsSchema);
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("DataTable 资产路径（共用）")))
-		.Prop(TEXT("rows"),      FNexusSchema::ArrayOf(TEXT("批量行操作（至少一项）"), ItemSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("rows") })
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataTable 资产路径（共用）")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量行操作（至少一项）"), ItemSchema.ToSharedRef()))
+		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -83,20 +84,15 @@ FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJso
 		UDataTable* DT = FNexusAssetUtils::LoadAssetWithFallback<UDataTable>(AssetPath);
 		if (!DT) { OutError = FString::Printf(TEXT("DataTable 未找到: %s"), *AssetPath); return; }
 
-		const TArray<TSharedPtr<FJsonValue>>* RowsArr = nullptr;
-		if (!Arguments->TryGetArrayField(TEXT("rows"), RowsArr) || !RowsArr)
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("缺少 rows");
-			return;
-		}
-		if (RowsArr->Num() == 0)
-		{
-			OutError = TEXT("rows 不能为空");
+			OutError = TEXT("缺少 operations 或为空");
 			return;
 		}
 
 		bool bDidMutate = false;
-		for (const TSharedPtr<FJsonValue>& Val : *RowsArr)
+		for (const TSharedPtr<FJsonValue>& Val : Ops)
 		{
 			TSharedPtr<FJsonObject> Item = Val->AsObject();
 			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();

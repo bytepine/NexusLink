@@ -16,9 +16,9 @@ void FRenameAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) co
 	Out.Name = TEXT("rename_asset");
 	Out.Description = TEXT("移动或重命名资产。自动生成重定向器修复引用。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("当前资产路径")))
-		.Prop(TEXT("newPath"),   FNexusSchema::Str(TEXT("新完整资产路径")))
-		.Required({ TEXT("assetPath"), TEXT("newPath") })
+		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("当前资产路径")))
+		.Prop(TEXT("destAssetPath"), FNexusSchema::Str(TEXT("目标完整资产路径")))
+		.Required({ TEXT("assetPath"), TEXT("destAssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("move"), TEXT("relocate"), TEXT("path"), TEXT("redirect"), TEXT("package") };
@@ -37,28 +37,28 @@ FCapabilityResult FRenameAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			return;
 		}
 
-		FString OldPath, NewPath;
+		FString OldPath, DestAssetPath;
 		if (!Arguments->TryGetStringField(TEXT("assetPath"), OldPath) || OldPath.IsEmpty())
 		{
 			OutError = TEXT("assetPath 为必填项");
 			return;
 		}
-		if (!Arguments->TryGetStringField(TEXT("newPath"), NewPath) || NewPath.IsEmpty())
+		if (!Arguments->TryGetStringField(TEXT("destAssetPath"), DestAssetPath) || DestAssetPath.IsEmpty())
 		{
-			OutError = TEXT("缺少 newPath");
+			OutError = TEXT("缺少 destAssetPath");
 			return;
 		}
 
 		FText PathErrText;
-		if (!FPackageName::IsValidLongPackageName(NewPath, false, &PathErrText))
+		if (!FPackageName::IsValidLongPackageName(DestAssetPath, false, &PathErrText))
 		{
-			OutError = FString::Printf(TEXT("无效的 newPath: %s"), *PathErrText.ToString());
+			OutError = FString::Printf(TEXT("无效的 destAssetPath: %s"), *PathErrText.ToString());
 			return;
 		}
 
-		if (FPackageName::DoesPackageExist(NewPath))
+		if (FPackageName::DoesPackageExist(DestAssetPath))
 		{
-			OutError = FString::Printf(TEXT("目标已存在: %s"), *NewPath);
+			OutError = FString::Printf(TEXT("目标已存在: %s"), *DestAssetPath);
 			return;
 		}
 
@@ -73,8 +73,8 @@ FCapabilityResult FRenameAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			return;
 		}
 
-		const FString NewName    = FPaths::GetBaseFilename(NewPath);
-		const FString NewPkgPath = FPaths::GetPath(NewPath);
+		const FString NewName    = FPaths::GetBaseFilename(DestAssetPath);
+		const FString NewPkgPath = FPaths::GetPath(DestAssetPath);
 
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
 		TArray<FAssetRenameData> RenameData;
@@ -85,12 +85,12 @@ FCapabilityResult FRenameAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		if (!bOk)
 		{
 			Entry->SetBoolField(TEXT("success"), false);
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("重命名失败: %s -> %s"), *OldPath, *NewPath));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("重命名失败: %s -> %s"), *OldPath, *DestAssetPath));
 		}
 		else
 		{
 			Entry->SetStringField(TEXT("oldPath"), OldPath);
-			Entry->SetStringField(TEXT("newPath"), NewPath);
+			Entry->SetStringField(TEXT("destAssetPath"), DestAssetPath);
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	

@@ -112,7 +112,7 @@ static void ResolveBatchActorProperties(
 	Detail->SetArrayField(TEXT("results"), Results);
 }
 
-// ????????? diagnose / section / propertyPaths / propertyPath / ?????????????????
+// 分发：diagnose / view / propertyPaths[]；否则展开可编辑属性与组件列表
 static bool ReadActorPropertyDispatch(
 	AActor* Actor,
 	const TSharedPtr<FJsonObject>& Arguments,
@@ -313,24 +313,19 @@ static bool ReadActorPropertyDispatch(
 		return false;
 	}
 
-	// ?? C??????????��??
+	// 分支 C：仅 propertyPaths[]；缺省则展开可编辑属性与组件列表
 	if (Arguments->HasField(TEXT("propertyPaths")))
 	{
 		const TArray<TSharedPtr<FJsonValue>>& PathsArr = Arguments->GetArrayField(TEXT("propertyPaths"));
 		TArray<FString> Paths;
 		for (const TSharedPtr<FJsonValue>& V : PathsArr) { Paths.Add(V->AsString()); }
-		ResolveBatchActorProperties(Actor, Paths, Detail);
-		return true;
+		if (Paths.Num() > 0)
+		{
+			ResolveBatchActorProperties(Actor, Paths, Detail);
+			return true;
+		}
 	}
 
-	// ?? D????��?? / ?????
-	FString PropertyPath;
-	if (Arguments->HasField(TEXT("propertyPath")))
-	{
-		PropertyPath = Arguments->GetStringField(TEXT("propertyPath"));
-	}
-
-	if (PropertyPath.IsEmpty())
 	{
 		TArray<TSharedPtr<FJsonValue>> Children;
 		FNexusPropertyUtils::CollectEditableProperties(Actor, Children);
@@ -349,19 +344,6 @@ static bool ReadActorPropertyDispatch(
 		Detail->SetArrayField(TEXT("children"), Children);
 		return true;
 	}
-
-	TSharedPtr<FJsonObject> PropResult = MakeShared<FJsonObject>();
-	FString PropError;
-	if (!FNexusRuntimeUtils::ResolveActorPropertyPath(Actor, PropertyPath, PropResult, PropError))
-	{
-		Error = PropError;
-		return false;
-	}
-	for (const auto& Pair : PropResult->Values)
-	{
-		Detail->SetField(Pair.Key, Pair.Value);
-	}
-	return true;
 }
 
 // ?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?[
@@ -376,7 +358,6 @@ void FGetRuntimeActorPropertyCapability::BuildDefinition(FNexusCapabilityDefinit
 		.Prop(TEXT("target"),        FNexusSchema::Enum(TEXT("分发目标（自动推断）"),
 		                                                 { TEXT("actor"), TEXT("widget"), TEXT("asset") }))
 		.Prop(TEXT("actorName"),     FNexusSchema::Str(TEXT("Actor 名/标签（先 list_runtime_actors）")))
-		.Prop(TEXT("propertyPath"),  FNexusSchema::Str(TEXT("点分路径（单个）")))
 		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("点分路径（批量）")))
 		.Prop(TEXT("view"),          FNexusSchema::Enum(TEXT("Actor 树视图"),
 		                                                 { TEXT("components"), TEXT("attach_hierarchy"), TEXT("all") }))

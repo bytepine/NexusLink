@@ -33,9 +33,27 @@ void FManageAssetGameplayEffectCapability::BuildDefinition(FNexusCapabilityDefin
 	Out.Name = TEXT("manage_asset_gameplay_effect");
 	Out.SearchAssetTypes = {TEXT("GameplayEffect")};
 	Out.Description = TEXT("批量修改 GE CDO：operations[] 含 set_policy/set_tags/add_modifier/remove_modifier/set_modifier。");
+	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
+		.Prop(TEXT("action"),         FNexusSchema::Enum(TEXT("操作类型"),
+			{ TEXT("set_policy"), TEXT("set_tags"), TEXT("add_modifier"), TEXT("remove_modifier"), TEXT("set_modifier") }))
+		.Prop(TEXT("durationPolicy"), FNexusSchema::Enum(TEXT("时长策略（set_policy）"),
+			{ TEXT("Instant"), TEXT("Infinite"), TEXT("HasDuration") }))
+		.Prop(TEXT("duration"),       FNexusSchema::Num(TEXT("时长（set_policy）")))
+		.Prop(TEXT("period"),         FNexusSchema::Num(TEXT("周期（set_policy）")))
+		.Prop(TEXT("tagContainer"),   FNexusSchema::Enum(TEXT("Tag 容器（set_tags）"),
+			{ TEXT("gameplayEffectTags"), TEXT("grantedTags"), TEXT("blockedAbilityTags") }))
+		.Prop(TEXT("tags"),           FNexusSchema::StrArr(TEXT("Tag 字符串数组（set_tags）")))
+		.Prop(TEXT("mode"),           FNexusSchema::Enum(TEXT("set/add/remove"), { TEXT("set"), TEXT("add"), TEXT("remove") }))
+		.Prop(TEXT("attribute"),      FNexusSchema::Str(TEXT("属性名（add_modifier）")))
+		.Prop(TEXT("modifierOp"),     FNexusSchema::Enum(TEXT("修饰运算（add_modifier）"),
+			{ TEXT("Add"), TEXT("Multiply"), TEXT("Divide"), TEXT("Override") }))
+		.Prop(TEXT("magnitude"),      FNexusSchema::Num(TEXT("幅值（add_modifier/set_modifier）")))
+		.Prop(TEXT("index"),          FNexusSchema::Num(TEXT("modifier 索引（remove_modifier/set_modifier）")))
+		.Required({ TEXT("action") })
+		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GameplayEffect Blueprint 路径")))
-		.Prop(TEXT("operations"), FNexusSchema::StrArr(TEXT("操作数组；每项为含 action 字段的 JSON 对象")))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("GameplayEffect Blueprint 路径")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };

@@ -5,6 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusWidgetLayoutUtils.h"
 #include "Utils/NexusPropertyUtils.h"
@@ -45,9 +46,9 @@ void FManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Build();
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("WidgetBlueprint 资产路径（共用）")))
-		.Prop(TEXT("widgets"),   FNexusSchema::ArrayOf(TEXT("批量 Widget 操作"), ItemSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("widgets") })
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("WidgetBlueprint 资产路径（共用）")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量 Widget 操作"), ItemSchema.ToSharedRef()))
+		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Widget };
@@ -81,27 +82,22 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 		if (!WBP)           { OutError = FString::Printf(TEXT("WidgetBlueprint 未找到: %s"), *AssetPath); return; }
 		if (!WBP->WidgetTree) { OutError = TEXT("WidgetTree 不可用"); return; }
 
-		const TArray<TSharedPtr<FJsonValue>>* WidgetsArr = nullptr;
-		if (!Arguments->TryGetArrayField(TEXT("widgets"), WidgetsArr) || !WidgetsArr)
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("缺少 widgets");
-			return;
-		}
-		if (WidgetsArr->Num() == 0)
-		{
-			OutError = TEXT("widgets 不能为空");
+			OutError = TEXT("缺少 operations 或为空");
 			return;
 		}
 
 		bool bDidMutate = false;
-		for (const TSharedPtr<FJsonValue>& Val : *WidgetsArr)
+		for (const TSharedPtr<FJsonValue>& Val : Ops)
 		{
 			TSharedPtr<FJsonObject> Item = Val->AsObject();
 			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
 			if (!Item.IsValid())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("无效的 widget 项"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("无效的 operation 项"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}

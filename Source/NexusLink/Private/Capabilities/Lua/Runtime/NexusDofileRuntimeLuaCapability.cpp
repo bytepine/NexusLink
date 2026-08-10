@@ -15,7 +15,7 @@ void FDofileRuntimeLuaCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 	Out.Name = TEXT("dofile_runtime_lua");
 	Out.Description = TEXT("从 Content/Script/ 加载执行 .lua。相对路径；需 UnLua+PIE。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("filePath"), FNexusSchema::Str(TEXT("Lua 文件路径（相对 Content/Script/）")))
+		.Required(TEXT("scriptPath"), FNexusSchema::Str(TEXT("Lua 文件路径（相对 Content/Script/）")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("require"), TEXT("script"), TEXT("file"), TEXT("load"), TEXT("execute") };
@@ -32,13 +32,13 @@ FCapabilityResult FDofileRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObj
 
 	FCapabilityResult R;
 
-	FString FilePath;
-	if (!RequireString(Arguments, TEXT("filePath"), FilePath, R.Entries))
+	FString ScriptPath;
+	if (!RequireString(Arguments, TEXT("scriptPath"), ScriptPath, R.Entries))
 		return R;
 
-	FString AbsPath = FPaths::IsRelative(FilePath)
-		? FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Script"), FilePath)
-		: FilePath;
+	FString AbsPath = FPaths::IsRelative(ScriptPath)
+		? FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Script"), ScriptPath)
+		: ScriptPath;
 	FPaths::NormalizeFilename(AbsPath);
 
 	if (!FPaths::FileExists(AbsPath))
@@ -51,7 +51,7 @@ FCapabilityResult FDofileRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObj
 	{
 		FString ErrMsg = UTF8_TO_TCHAR(lua_tostring(L, -1));
 		lua_settop(L, StackTop);
-		EmitError(R.Entries, {{TEXT("filePath"), AbsPath}}, FString::Printf(TEXT("Lua 加载错误: %s"), *ErrMsg));
+		EmitError(R.Entries, {{TEXT("scriptPath"), AbsPath}}, FString::Printf(TEXT("Lua 加载错误: %s"), *ErrMsg));
 		return R;
 	}
 
@@ -59,12 +59,12 @@ FCapabilityResult FDofileRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObj
 	{
 		FString ErrMsg = UTF8_TO_TCHAR(lua_tostring(L, -1));
 		lua_settop(L, StackTop);
-		EmitError(R.Entries, {{TEXT("filePath"), AbsPath}}, FString::Printf(TEXT("Lua 执行错误: %s"), *ErrMsg));
+		EmitError(R.Entries, {{TEXT("scriptPath"), AbsPath}}, FString::Printf(TEXT("Lua 执行错误: %s"), *ErrMsg));
 		return R;
 	}
 
 	const int32 NumResults = lua_gettop(L) - StackTop;
-	Entry->SetStringField(TEXT("filePath"), AbsPath);
+	Entry->SetStringField(TEXT("scriptPath"), AbsPath);
 
 	if (NumResults == 1)
 	{

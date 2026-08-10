@@ -82,6 +82,9 @@ jobs:
       - name: Run script unit tests
         run: pytest scripts/tests/ -v
 
+      - name: Audit capability params
+        run: python scripts/audit_capability_params.py
+
   link-check:
     name: nexus-link-markdown-links
     runs-on: ubuntu-latest

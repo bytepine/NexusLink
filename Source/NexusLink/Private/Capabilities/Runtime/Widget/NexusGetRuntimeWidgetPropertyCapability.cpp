@@ -47,11 +47,10 @@ static void ReadRuntimeWidgetPropertyImpl(UWidget* Widget, const FString& Proper
 void FGetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_widget_property");
-	Out.Description = TEXT("读运行时 UMG 元素字段。widgetName+ownerClass 定位；无 propertyPath 时含 layout。");
+	Out.Description = TEXT("读运行时 UMG 元素字段。widgetName+ownerClass 定位；无 propertyPaths 时含 layout。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("widgetName"),    FNexusSchema::Str(TEXT("运行时 Widget 名")))
 		.Prop(TEXT("ownerClass"),    FNexusSchema::Str(TEXT("UserWidget 过滤")))
-		.Prop(TEXT("propertyPath"),  FNexusSchema::Str(TEXT("点分路径（单个）")))
 		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("点分路径（批量）")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
@@ -77,17 +76,9 @@ FCapabilityResult FGetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<
 		FString OwnerClass;
 		Arguments->TryGetStringField(TEXT("ownerClass"), OwnerClass);
 
-		// propertyPaths / propertyPath ????????????"?? children"
+		// 仅接受 propertyPaths[]；缺省则展开 children + layout
 		TArray<FString> PropertyPaths;
 		FNexusPropertyUtils::ReadStringArray(Arguments, TEXT("propertyPaths"), PropertyPaths);
-		if (PropertyPaths.Num() == 0)
-		{
-			FString Single;
-			if (Arguments->TryGetStringField(TEXT("propertyPath"), Single) && !Single.IsEmpty())
-			{
-				PropertyPaths.Add(Single);
-			}
-		}
 
 		UWidget* Widget = FNexusRuntimeUtils::FindRuntimeWidget(OwnerClass, WN);
 		if (!Widget)

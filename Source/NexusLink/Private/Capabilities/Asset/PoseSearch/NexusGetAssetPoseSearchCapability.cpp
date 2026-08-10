@@ -18,8 +18,7 @@ void FGetAssetPoseSearchCapability::BuildDefinition(FNexusCapabilityDefinition& 
 	Out.SearchAssetTypes = {TEXT("PoseSearchDatabase"), TEXT("PoseSearchSchema")};
 	Out.Description = TEXT("读取 PoseSearchDatabase 或 Schema 概览。写用 manage_asset_pose_search。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PoseSearchDatabase 或 Schema 资产路径")))
-		.Prop(TEXT("assetPaths"), FNexusSchema::StrArr(TEXT("多个路径（批量）")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PoseSearchDatabase 或 Schema 资产路径")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
@@ -32,67 +31,61 @@ FCapabilityResult FGetAssetPoseSearchCapability::Execute(const TSharedPtr<FJsonO
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		TArray<FString> Paths;
-		FString Single;
-		if (Arguments->TryGetStringField(TEXT("assetPath"), Single) && !Single.IsEmpty())
-			Paths.Add(Single);
-		const TArray<TSharedPtr<FJsonValue>>* Arr;
-		if (Arguments->TryGetArrayField(TEXT("assetPaths"), Arr))
-			for (auto& V : *Arr) { FString S; if (V->TryGetString(S) && !S.IsEmpty()) Paths.AddUnique(S); }
-
-		if (Paths.IsEmpty()) { OutError = TEXT("assetPath 为空"); return; }
-
-		for (const FString& AssetPath : Paths)
+		FString AssetPath;
+		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
 		{
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
-
-			// 尝试加载 Database
-			if (UPoseSearchDatabase* DB = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchDatabase>(AssetPath))
-			{
-				Entry->SetStringField(TEXT("assetType"), TEXT("PoseSearchDatabase"));
-				Entry->SetStringField(TEXT("name"), DB->GetName());
-
-				if (DB->Schema)
-					Entry->SetStringField(TEXT("schema"), DB->Schema->GetPathName());
-
-				Entry->SetNumberField(TEXT("animationAssetCount"), DB->GetNumAnimationAssets());
-
-				// Tags
-				TArray<TSharedPtr<FJsonValue>> TagsArr;
-				for (const FName& Tag : DB->Tags)
-					TagsArr.Add(MakeShared<FJsonValueString>(Tag.ToString()));
-				Entry->SetArrayField(TEXT("tags"), TagsArr);
-
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-
-			// 尝试加载 Schema
-			if (UPoseSearchSchema* Schema = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchSchema>(AssetPath))
-			{
-				Entry->SetStringField(TEXT("assetType"), TEXT("PoseSearchSchema"));
-				Entry->SetStringField(TEXT("name"), Schema->GetName());
-
-				// Channels
-				TArray<TSharedPtr<FJsonValue>> ChArr;
-				for (const UPoseSearchFeatureChannel* Ch : Schema->Channels)
-				{
-					if (!Ch) continue;
-					TSharedPtr<FJsonObject> ChObj = MakeShared<FJsonObject>();
-					ChObj->SetStringField(TEXT("class"), Ch->GetClass()->GetName());
-					ChArr.Add(MakeShared<FJsonValueObject>(ChObj));
-				}
-				Entry->SetArrayField(TEXT("channels"), ChArr);
-				Entry->SetNumberField(TEXT("channelCount"), Schema->Channels.Num());
-
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-
-			Entry->SetStringField(TEXT("error"), TEXT("未找到 PoseSearchDatabase 或 PoseSearchSchema"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+			OutError = TEXT("需要 assetPath");
+			return;
 		}
+
+		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+		Entry->SetStringField(TEXT("path"), AssetPath);
+
+		// 尝试加载 Database
+		if (UPoseSearchDatabase* DB = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchDatabase>(AssetPath))
+		{
+			Entry->SetStringField(TEXT("assetType"), TEXT("PoseSearchDatabase"));
+			Entry->SetStringField(TEXT("name"), DB->GetName());
+
+			if (DB->Schema)
+				Entry->SetStringField(TEXT("schema"), DB->Schema->GetPathName());
+
+			Entry->SetNumberField(TEXT("animationAssetCount"), DB->GetNumAnimationAssets());
+
+			// Tags
+			TArray<TSharedPtr<FJsonValue>> TagsArr;
+			for (const FName& Tag : DB->Tags)
+				TagsArr.Add(MakeShared<FJsonValueString>(Tag.ToString()));
+			Entry->SetArrayField(TEXT("tags"), TagsArr);
+
+			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+			return;
+		}
+
+		// 尝试加载 Schema
+		if (UPoseSearchSchema* Schema = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchSchema>(AssetPath))
+		{
+			Entry->SetStringField(TEXT("assetType"), TEXT("PoseSearchSchema"));
+			Entry->SetStringField(TEXT("name"), Schema->GetName());
+
+			// Channels
+			TArray<TSharedPtr<FJsonValue>> ChArr;
+			for (const UPoseSearchFeatureChannel* Ch : Schema->Channels)
+			{
+				if (!Ch) continue;
+				TSharedPtr<FJsonObject> ChObj = MakeShared<FJsonObject>();
+				ChObj->SetStringField(TEXT("class"), Ch->GetClass()->GetName());
+				ChArr.Add(MakeShared<FJsonValueObject>(ChObj));
+			}
+			Entry->SetArrayField(TEXT("channels"), ChArr);
+			Entry->SetNumberField(TEXT("channelCount"), Schema->Channels.Num());
+
+			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+			return;
+		}
+
+		Entry->SetStringField(TEXT("error"), TEXT("未找到 PoseSearchDatabase 或 PoseSearchSchema"));
+		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 

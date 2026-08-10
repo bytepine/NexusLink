@@ -9,12 +9,26 @@
 
 ### Changed
 
+- **BREAKING** feat(schema): 参数统一框架层——`FNexusSchema::Object()`/`EmptyObject()` 默认 `additionalProperties:false`，`AnyObject()` 显式 `true`；`FNexusCapability::Run` 在 required 之后、Execute 之前按 InputSchema 递归严格校验（未知键/type/required/enum/array items/嵌套 object），失败一律 `MakeArgInvalid`；`ExtractOperations` 仅认 `operations[]`（删除 `ops`/顶层 `action` 回退）；CapabilitySpec §7.11 改为 Breaking 权威契约，新增 §7.12 参数权威表/迁移
+- **BREAKING** refactor(schema): Capability 仅单目标——删除 `assetPaths`/`actorNames`/`widgetNames`（save/unload/reimport/compile 与各 get_*、runtime animation 等）；跨目标批量只用 `call_capability.calls[]`；去掉对应 `ExpandPerEntry` 批量展开
+- **BREAKING** refactor(schema): 参数重命名（不保留旧别名）——`newPath`→`destAssetPath`（duplicate/rename_asset）；`ownerWidget`→`ownerClass`（destroy/interact_runtime_widget）；`blueprintPath`→`assetPath`（spawn_runtime_actor、manage_asset_level spawn）；`classPath`→`className`（manage_asset_level spawn）；`filePath`→`scriptPath`（dofile_runtime_lua）；`path`→`luaPath`（get_runtime_lua_env/object/value/metatable、set_runtime_lua）；create MetaSound/Patch/PCG/DataLayer 去掉 `packagePath`+`assetName` 回退，仅 `assetPath`；get_runtime_actor/widget_property 入参仅 `propertyPaths[]`（写操作条目内 `propertyPath` 保留）
+- **BREAKING** refactor(schema): manage 顶层批量容器统一为 `operations[]`——`manage_asset_struct_field`（原 `fields`）、`manage_asset_data_table`（原 `rows`）、`manage_asset_blackboard`（原 `keys`）、`manage_asset_user_widget`（原 `widgets`）；单操作属性 manage（sound_attenuation/class/concurrency/submix、physical_material、render_target）改为 `operations[{action:set,...}]`；不保留旧顶层别名；Execute 经 `ExtractOperations` 读入
+- fix(schema): `manage_asset_gameplay_effect` / `manage_asset_attribute_set` 的 `operations` 由 `StrArr` 改为带 OpSchema 的 `ArrayOf`（对齐 `manage_asset_gameplay_ability`）
+- feat(schema): `set_runtime_widget_property` 补齐 `updates[]` Schema（`propertyPath`/`value`/`widgetName`/`ownerClass`；item required `propertyPath`+`value`；顶层 required `updates`）
+- refactor(schema): `manage_asset_niagara_system` 合并重复 `propertyPath` 声明，仅保留在 `operations` item 内
 - perf(mcp): 压缩 `InitializeInstructions.SearchMode.md`（删触发词复读与可推导 intent 大表，合并决策/硬规则）——Upstream ~2.0k→~1.1k tok；握手合计 ~2.3k→~1.4k；`ProxyConfig.initializePrefix` 补 StateTree/MVVM 并固定「以 tools/list 判连接」提示
 - perf(mcp): `InitializeInstructions.SearchMode.md` 新增 **Token 预算** 段——响应体优先收窄（窄 `sections`、小 `limit`，日志 ≤50 条配 `categoryFilter`/`verbosity`/`textFilter` 再翻页）、多步走 `call_capability(calls=[…])` 一轮完成、`search_capabilities` 优先 `capabilityName` 一次取全 `parameters[]`；净增 ~90 tok，换掉单次全量日志读取（实测 `get_output_log(limit=500)` ≈ 26k tok）与每次多余往返（约 1.5–2.5k tok/次）
+- docs: `InitializeInstructions.SearchMode|MultiTool` / `AIRules.mdc` / `usage-guide` / `tool-reference.header` 同步单目标 + `calls[]` 批量与 Breaking 参数映射（删旧 `assetPaths[]`/`actorNames[]` 批量表述）；`build_tool_reference` 重生
 - docs: README / README.en / architecture / usage-guide Token 开销对比同步为 ~1.4k vs ~17.6k（约 12.6×）；Capability 计数 176
+
+### Added
+
+- feat(ci): 新增 `scripts/audit_capability_params.py` 参数静态审计门禁（CapabilitySpec §7.11/§7.12：单目标、禁止旧键、manage→`operations`、set_*_property→`updates`）；`scripts/tests/test_audit_capability_params.py` + CI `scripts-test` / `run_e2e` 接入
+- test(capability): Automation `NexusLink.Capability.StrictSchemaArgInvalid` / `ExtractOperationsOnlyOperations`——未知键与旧键 `arg_invalid`、`operations` 仅认新字段
 
 ### Fixed
 
+- fix(docs): `scripts/build_tool_reference.py` 正确解析 `Bool` / `Num` / `ArrayOf` / `ArrOfObj` / `AnyObject`、嵌套 item Schema 与元工具 InputSchema（跳过嵌套 `Object()…Build()` 误截断）
 - fix(compat): `RegisterConsoleCommand` 帮助串改用 `HELP_TEXT`（`NexusVersionCompat` 在标准 UE 上回退为 `TEXT`）——兼容定义了 `ENGINE_STRIP_HELP_TEXT` / `HELPCHAR` 的定制引擎（宽字符 `TEXT` 与 ANSI `HELPCHAR*` 类型不匹配）
 
 ## [1.16.0] - 2026-08-04

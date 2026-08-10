@@ -45,7 +45,21 @@ void FSetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityDefini
 {
 	Out.Name = TEXT("set_runtime_widget_property");
 	Out.Description = TEXT("批量修改运行时 UMG 字段。updates[] 含控件名/路径/值。");
-	Out.InputSchema = FNexusSchema::EmptyObject();
+	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
+	{
+		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
+			.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("点分路径")))
+			.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("新值字符串")))
+			.Prop(TEXT("widgetName"),   FNexusSchema::Str(TEXT("Widget 名")))
+			.Prop(TEXT("ownerClass"),   FNexusSchema::Str(TEXT("UserWidget 过滤")))
+			.Required({ TEXT("propertyPath"), TEXT("value") })
+			.Build();
+
+		return FNexusSchema::Object()
+			.Prop(TEXT("updates"), FNexusSchema::ArrayOf(TEXT("批量更新"), ItemSchema.ToSharedRef()))
+			.Required({ TEXT("updates") })
+			.Build();
+	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("field"), TEXT("brush"), TEXT("value"), TEXT("mutate") };
 	Out.RelatedCapabilities = { TEXT("get_runtime_widget_property") };

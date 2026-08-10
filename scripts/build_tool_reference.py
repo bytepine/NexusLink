@@ -174,7 +174,7 @@ ZH_DESCRIPTIONS: dict[str, str] = {
     "list_runtime_widgets":          "枚举 PIE/Game 视口中的 UMG UserWidget 实例，支持按类型/名称/显示文本过滤。",
     "set_runtime_actor_property":    "批量修改运行时场景对象的可编辑字段，`updates` 数组中每项对应一个结果。",
     "set_runtime_widget_property":   "批量修改运行时 UMG 元素的字段；`updates[]` 每项含控件名、属性路径和目标值。",
-    "spawn_runtime_actor":           "在 PIE 世界中实例化场景实体，接受 `blueprintPath` 或 `className`，位置/旋转可指定；自动处理碰撞偏移。",
+    "spawn_runtime_actor":           "在 PIE 世界中实例化场景实体，接受 `assetPath` 或 `className`，位置/旋转可指定；自动处理碰撞偏移。",
     "spawn_runtime_widget":          "在 PIE/Game 视口中创建并显示 UMG 面板，接受 WidgetBlueprint 的资产路径和 `zOrder`。",
     # AI
     "create_asset_behavior_tree":       "创建新的行为树文件，初始为空。通过 `manage_asset_behavior_tree` 的 `set_blackboard` 关联黑板，之后再填充节点。",
@@ -285,7 +285,7 @@ ZH_WHEN_TO_USE: dict[str, str] = {
     "list_runtime_widgets":        "枚举 PIE/Game 视口 UMG 实例；类/名/displayText 过滤",
     "set_runtime_actor_property":  "运行时修改 Actor 的实时字段",
     "set_runtime_widget_property": "运行时修改 UMG 元素的实时字段",
-    "spawn_runtime_actor":         "在 PIE 实例化 Actor；blueprintPath 或 className；可设位置/旋转",
+    "spawn_runtime_actor":         "在 PIE 实例化 Actor；assetPath 或 className；可设位置/旋转",
     "spawn_runtime_widget":        "在 PIE/Game 视口创建显示 UMG 面板；assetPath+zOrder",
     "destroy_runtime_widget":      "销毁运行时 UMG 面板",
     "get_runtime_actor_ability_system": "PIE 读 ASC 快照",
@@ -327,30 +327,16 @@ RE_TAG_ACCESS   = re.compile(r'FNexusMcpTags::(Readonly|Write)\b')
 RE_TEXT_VALUES  = re.compile(r'TEXT\("([^"]+)"\)')
 RE_USE_SECTIONS = re.compile(r'BuildSchemaWithSections\(\)')
 
-# 单行 .Prop / .Required（Str / Int 描述在同行 TEXT 内）
-RE_PROP_INLINE_STR = re.compile(
-    r'\.(Prop|Required)\s*\(\s*TEXT\("([^"]+)"\)\s*,\s*FNexusSchema::Str(?:Arr)?\s*\(\s*TEXT\("((?:[^"\\]|\\.)*)"\)',
-)
-RE_PROP_INLINE_INT = re.compile(
-    r'\.(Prop|Required)\s*\(\s*TEXT\("([^"]+)"\)\s*,\s*FNexusSchema::Int\s*\(\s*TEXT\("((?:[^"\\]|\\.)*)"\)',
-)
-RE_PROP_INLINE_ENUM_START = re.compile(
-    r'\.(Prop|Required)\s*\(\s*TEXT\("([^"]+)"\)\s*,\s*FNexusSchema::Enum\s*\(\s*TEXT\("((?:[^"\\]|\\.)*)"\)',
-)
 # .Required({TEXT("a"), TEXT("b")})
 RE_REQUIRED_LIST = re.compile(r'\.Required\s*\(\s*\{([^}]+)\}\s*\)')
-# FNexusSchema::Enum(TEXT("label"), {TEXT("v1"), TEXT("v2"), ...})
-RE_ENUM_BLOCK   = re.compile(
-    r'FNexusSchema::Enum\s*\(\s*TEXT\("([^"]*)"\)\s*,\s*\{([^}]+)\}',
+# .Prop / .Required(TEXT("name"), FNexusSchema::Type(
+RE_PROP_TYPED = re.compile(
+    r'\.(Prop|Required)\s*\(\s*TEXT\("([^"]+)"\)\s*,\s*FNexusSchema::'
+    r'(StrArr|Str|Int|Bool|Num|EnumArr|Enum|ArrayOf|ArrOfObj|AnyObject)\s*\(',
 )
 # GetSectionNames return { TEXT("a"), ... }
 RE_SECTION_RETURN = re.compile(
     r'GetSectionNames\(\)\s*(?:const\s*)?\{.*?return\s*\{([^}]+)\}',
-    re.DOTALL,
-)
-# BuildCapabilitySchema / Out.InputSchema 中 FNexusSchema::Object()…Build() 链（避免 .Required({}) 的 } 截断）
-RE_SCHEMA_OBJECT_CHAIN = re.compile(
-    r'FNexusSchema::Object\(\)(.*?)\.Build\(\s*\)',
     re.DOTALL,
 )
 
@@ -359,36 +345,84 @@ def extract_text_values(raw: str) -> list[str]:
     return RE_TEXT_VALUES.findall(raw)
 
 
+def _extract_object_chain_after(text: str, start: int) -> str:
+    """从 start 起提取第一个 FNexusSchema::Object()…匹配 .Build()，跳过嵌套 Object()。"""
+    key = "FNexusSchema::Object()"
+    idx = text.find(key, start)
+    if idx < 0:
+        return ""
+    pos = idx + len(key)
+    depth = 1
+    i = pos
+    n = len(text)
+    while i < n and depth > 0:
+        if text.startswith(key, i):
+            depth += 1
+            i += len(key)
+            continue
+        if text.startswith(".Build()", i):
+            depth -= 1
+            if depth == 0:
+                return text[pos:i]
+            i += len(".Build()")
+            continue
+        i += 1
+    return ""
+
+
 def extract_schema_object_chain(text: str, anchor: str | None = None) -> str:
     """
     从 C++ 源码提取 FNexusSchema::Object()…Build() 之间的链式调用文本。
     anchor 为 'BuildCapabilitySchema' 或 'InputSchema' 时仅在对应函数/赋值块内搜索。
+    嵌套 Object()…Build()（如 ArrayOf 内联 item）不会被误截断。
+    若 InputSchema 为 lambda/IIFE（先建 ItemSchema 再 return Object），优先取 return 链。
     """
-    search_text = text
+    search_from = 0
+    region_end = len(text)
     if anchor == "BuildCapabilitySchema":
         m = re.search(
             r"BuildCapabilitySchema\s*\(\s*\)\s*const\s*\{",
             text,
         )
         if m:
-            search_text = text[m.start() :]
+            search_from = m.start()
     elif anchor == "InputSchema":
         m = re.search(r"Out\.InputSchema\s*=", text)
         if m:
-            search_text = text[m.start() :]
+            search_from = m.start()
 
-    m_chain = RE_SCHEMA_OBJECT_CHAIN.search(search_text)
-    return m_chain.group(1) if m_chain else ""
+    region = text[search_from:region_end]
+    mret = re.search(r"return\s+FNexusSchema::Object\(\)", region)
+    if mret:
+        chain = _extract_object_chain_after(region, mret.start())
+        if chain:
+            return chain
+    return _extract_object_chain_after(region, 0)
+
+
+def _first_text_literal(s: str) -> str:
+    m = re.search(r'TEXT\("((?:[^"\\]|\\.)*)"\)', s)
+    return m.group(1) if m else ""
+
+
+def _extract_enum_values_after_desc(call_body: str) -> list[str]:
+    """从 Enum(TEXT(desc), { TEXT(v)... } [, TEXT(default)]) 提取枚举值（不含 default）。"""
+    m = re.search(r"\{([^}]*)\}", call_body)
+    if not m:
+        return []
+    return extract_text_values(m.group(1))
 
 
 # 参数说明兜底（C++ 未写描述或解析失败时）
 COMMON_PARAM_DESCRIPTIONS: dict[str, str] = {
     "assetPath":       "资产包路径（须先 `search_asset` 取得，格式 `/Game/...`）",
-    "assetPaths":      "资产包路径数组（批量）",
+    "destAssetPath":   "目标完整资产路径（包路径 + 资产名）",
     "sections":        "查询段（可多选）；见各 cap 支持的 section 列表",
     "propertyPaths":   "反射属性路径（点分，如 `Health` / `Mesh.RelativeLocation`）",
+    "propertyPath":    "单条反射属性路径（operations/updates 条目内）",
     "actorName":       "运行时 Actor 名称（PIE 世界中 `GetName()`）",
-    "actorNames":      "Actor 名称数组（批量）",
+    "widgetName":      "运行时 Widget 名称",
+    "ownerClass":      "Owner UserWidget 类名过滤",
     "classFilter":     "类名过滤（子串/通配，可选）",
     "nameFilter":      "名称或标签过滤（可选）",
     "tagFilter":       "Actor Tag 精确匹配（可选）",
@@ -401,11 +435,17 @@ COMMON_PARAM_DESCRIPTIONS: dict[str, str] = {
     "capabilityName":  "Capability 精确名称（`search_capabilities` 短路）",
     "arguments":       "传给 Capability 的 JSON 对象（须嵌套，勿摊平到顶层）",
     "calls":           "批量调用列表：`[{capability, arguments}, ...]`",
+    "operations":      "批量操作列表：`[{action, ...}, ...]`",
+    "updates":         "批量属性更新：`[{propertyPath, value, ...}, ...]`",
     "action":          "操作名（见各 cap 文档枚举）",
     "mode":            "模式（见各 cap 文档枚举）",
     "direction":       "依赖方向：`dependencies` / `referencers`",
     "category":        "反馈或日志分类",
     "note":            "补充说明（可选）",
+    "scriptPath":      "Lua 脚本路径（相对 Content/Script/）",
+    "luaPath":         "Lua 点分路径",
+    "className":       "原生 UClass 名",
+    "keepLoaded":      "true 时本次调用不自动卸载引入的包",
 }
 
 
@@ -430,28 +470,79 @@ def infer_category(cpp_path: Path) -> str:
     return "通用资产工具"
 
 
-def parse_schema_block(text: str) -> tuple[list[dict[str, Any]], set[str]]:
+def _map_type(schema_type: str) -> str:
+    return {
+        "Str":       "string",
+        "StrArr":    "string[]",
+        "Num":       "number",
+        "Int":       "integer",
+        "Bool":      "boolean",
+        "Enum":      "string (enum)",
+        "EnumArr":   "string[]",
+        "AnyObject": "object",
+        "ArrayOf":   "object[]",
+        "ArrOfObj":  "object[]",
+        "Array":     "array",
+    }.get(schema_type, "string")
+
+
+def _parse_item_schema_props(full_text: str, schema_chain: str, array_call_body: str) -> list[dict[str, Any]]:
+    """尝试解析 ArrayOf 的 item Object Schema（变量引用或内联 Object）。"""
+    # 内联：ArrayOf(desc, FNexusSchema::Object()…Build())
+    inline = _extract_object_chain_after(array_call_body, 0)
+    if inline.strip():
+        nested, _ = parse_schema_block(inline)
+        return nested
+
+    # 变量：ArrayOf(desc, OpSchema.ToSharedRef()) / ItemSchema
+    m = re.search(
+        r',\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:\.ToSharedRef\s*\(\s*\))?\s*$',
+        array_call_body.strip(),
+        re.DOTALL,
+    )
+    if not m:
+        return []
+    var = m.group(1)
+    pat = re.compile(
+        rf'(?:const\s+)?(?:TSharedPtr|TSharedRef)\s*<\s*FJsonObject\s*>\s+{re.escape(var)}\s*=\s*FNexusSchema::Object\(\)'
+        rf'|(?:const\s+)?auto\s+{re.escape(var)}\s*=\s*FNexusSchema::Object\(\)'
+        rf'|{re.escape(var)}\s*=\s*FNexusSchema::Object\(\)'
+    )
+    vm = pat.search(full_text)
+    if not vm:
+        return []
+    item_chain = _extract_object_chain_after(full_text, vm.start())
+    if not item_chain:
+        return []
+    nested, _ = parse_schema_block(item_chain)
+    return nested
+
+
+def parse_schema_block(
+    text: str,
+    *,
+    full_source: str | None = None,
+) -> tuple[list[dict[str, Any]], set[str]]:
     """
     从 C++ schema 文本片段中提取 (params_list, required_set)。
-    params_list 每项为 {"name", "type", "description", ["enum"]}。
+    params_list 每项为 {"name", "type", "description", ["enum"], ["items"]}。
+    full_source 用于解析 ArrayOf 引用的 OpSchema / ItemSchema 变量。
     """
     params: list[dict[str, Any]] = []
     required_fields: set[str] = set()
 
-    # 先收集 .Required({...}) 列表
     for m in RE_REQUIRED_LIST.finditer(text):
         for v in extract_text_values(m.group(1)):
             required_fields.add(v)
 
-    # 预收集文本中所有 Enum 块（label → values），供后续 Prop 行关联
-    enum_map: dict[str, list[str]] = {}
-    for m in RE_ENUM_BLOCK.finditer(text):
-        label = m.group(1)
-        vals  = extract_text_values(m.group(2))
-        if vals:
-            enum_map[label] = vals
-
-    def _add_param(method: str, pname: str, schema_type: str, desc: str, enum_vals: list[str] | None = None) -> None:
+    def _add_param(
+        method: str,
+        pname: str,
+        schema_type: str,
+        desc: str,
+        enum_vals: list[str] | None = None,
+        items: list[dict[str, Any]] | None = None,
+    ) -> None:
         if pname in seen:
             return
         seen.add(pname)
@@ -462,57 +553,45 @@ def parse_schema_block(text: str) -> tuple[list[dict[str, Any]], set[str]]:
             "type":        _map_type(schema_type),
             "description": desc,
         }
-        if schema_type == "Enum" or enum_vals:
-            p["type"] = "string (enum)"
+        if schema_type in {"Enum", "EnumArr"} or enum_vals:
+            if schema_type == "EnumArr":
+                p["type"] = "string[]"
+            else:
+                p["type"] = "string (enum)"
             if enum_vals:
                 p["enum"] = enum_vals
+        if items:
+            p["items"] = items
         params.append(p)
 
     seen: set[str] = set()
-    lines = text.splitlines()
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        m_str = RE_PROP_INLINE_STR.search(line)
-        if m_str:
-            _add_param(m_str.group(1), m_str.group(2), "Str", m_str.group(3))
+    src_for_items = full_source if full_source is not None else text
+
+    for m in RE_PROP_TYPED.finditer(text):
+        method, pname, schema_type = m.group(1), m.group(2), m.group(3)
+        body_start = m.end()
+        depth = 1
+        i = body_start
+        while i < len(text) and depth > 0:
+            ch = text[i]
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
             i += 1
-            continue
-        m_int = RE_PROP_INLINE_INT.search(line)
-        if m_int:
-            _add_param(m_int.group(1), m_int.group(2), "Int", m_int.group(3))
-            i += 1
-            continue
-        m_enum = RE_PROP_INLINE_ENUM_START.search(line)
-        if m_enum:
-            method, pname, desc = m_enum.group(1), m_enum.group(2), m_enum.group(3)
-            # Enum 值列表可能跨多行，直到含 `}` 的闭合
-            block = line[m_enum.end() :]
-            j = i + 1
-            while j < len(lines) and "}" not in block:
-                block += "\n" + lines[j]
-                j += 1
-            vals = extract_text_values(block)
-            _add_param(method, pname, "Enum", desc, vals or None)
-            i = j
-            continue
-        i += 1
+        call_body = text[body_start : i - 1]
+        desc = _first_text_literal(call_body)
+        enum_vals: list[str] | None = None
+        items: list[dict[str, Any]] | None = None
+        if schema_type in {"Enum", "EnumArr"}:
+            enum_vals = _extract_enum_values_after_desc(call_body) or None
+        if schema_type in {"ArrayOf", "ArrOfObj"}:
+            nested = _parse_item_schema_props(src_for_items, text, call_body)
+            if nested:
+                items = nested
+        _add_param(method, pname, schema_type, desc, enum_vals, items)
 
     return params, required_fields
-
-
-def _map_type(schema_type: str) -> str:
-    return {
-        "Str":       "string",
-        "StrArr":    "string[]",
-        "Num":       "number",
-        "Int":       "integer",
-        "Bool":      "boolean",
-        "Enum":      "string (enum)",
-        "AnyObject": "object",
-        "ArrayOf":   "array",
-        "Array":     "array",
-    }.get(schema_type, "string")
 
 
 def parse_section_names(text: str) -> list[str]:
@@ -567,7 +646,7 @@ def parse_capability(cpp_path: Path) -> dict[str, Any] | None:
     if RE_USE_SECTIONS.search(text):
         schema_text = extract_schema_object_chain(text, "BuildCapabilitySchema")
         if schema_text:
-            params, req = parse_schema_block(schema_text)
+            params, req = parse_schema_block(schema_text, full_source=text)
             cap["params"]   = params
             cap["required"] = req
         cap["sections"] = parse_section_names(text)
@@ -576,7 +655,7 @@ def parse_capability(cpp_path: Path) -> dict[str, Any] | None:
         if not schema_text:
             schema_text = extract_schema_object_chain(text)
         if schema_text:
-            params, req = parse_schema_block(schema_text)
+            params, req = parse_schema_block(schema_text, full_source=text)
             cap["params"]   = params
             cap["required"] = req
 
@@ -608,7 +687,7 @@ def parse_meta_tool(cpp_path: Path) -> dict[str, Any] | None:
 
     schema_text = extract_schema_object_chain(text, "InputSchema")
     if schema_text:
-        params, req = parse_schema_block(schema_text)
+        params, req = parse_schema_block(schema_text, full_source=text)
         tool["params"]   = params
         tool["required"] = req
 
@@ -661,6 +740,15 @@ def render_cap_section(cap: dict[str, Any]) -> str:
             if "enum" in p:
                 enum_vals = " / ".join(f'`{v}`' for v in p["enum"])
                 desc_p = f'{desc_p} 枚举值：{enum_vals}' if desc_p else f'枚举值：{enum_vals}'
+            items = p.get("items") or []
+            if items:
+                item_bits = []
+                for it in items:
+                    bit = f'`{it["name"]}`'
+                    if it.get("enum"):
+                        bit += "(" + "/".join(it["enum"][:8]) + ("…" if len(it["enum"]) > 8 else "") + ")"
+                    item_bits.append(bit)
+                desc_p = (desc_p + "；" if desc_p else "") + "item: " + ", ".join(item_bits)
             lines.append(f'| `{p["name"]}` | `{typ}` | {req_mark} | {desc_p} |')
         lines.append("")
 

@@ -419,17 +419,40 @@ public:
 5. 未引入新的重复 helper（应改走 §7.8 对应接口）
 6. Capability 实现未出现 §7.9 列出的禁止样板
 
-### 7.11 Manage / Create / Execute 契约（单资产多操作）
+### 7.11 Manage / Create / Execute 契约（Breaking 权威）
 
-批量范围仅限**单资产多操作**；跨 `assetPaths[]` 的多资产批量不在本契约范围内（保持各 cap 现状）。
+> **Breaking**：无过渡期兼容。旧键 / 多目标数组 / `ops` / 顶层 `action` 合成一律按 `arg_invalid` 拒绝（或读入为空导致业务失败）。权威字段映射见 §7.12。
 
 | 项 | 约定 |
 |---|---|
-| manage 命令列表 | Schema 只暴露 `operations: [{action, ...}]`（每项含 `action`），禁止再暴露 `ops` 或顶层裸 `action` |
-| Execute 读入 | 统一 `FNexusJsonUtils::ExtractOperations(Args)`：优先 `operations` → 回退 `ops`（旧字段过渡期兼容）→ 回退顶层 `action`+其余字段合成单元素数组（旧单操作 manage 过渡期兼容，不写进 Schema） |
+| 单目标 | **Capability 仅单目标**：禁止 Schema/Execute 再暴露或消费 `assetPaths` / `actorNames` / `widgetNames`。跨目标批量**只**走元工具 `call_capability.calls[]` |
+| 单目标内集合 | **保留** `sections` / `propertyPaths` / `operations` / `updates`（以及领域语义数组，见下表「有意保留」） |
+| manage 命令列表 | Schema **只**暴露 `operations: [{action, ...}]`；禁止 `ops`、禁止顶层裸 `action` 作为批量列表 |
+| Execute 读入 | 统一 `FNexusJsonUtils::ExtractOperations(Args)`：**仅**读 `operations[]`；不回退 `ops`、不把顶层 `action`+其余字段合成单元素数组 |
+| Schema 严格性 | `FNexusSchema::Object()` 默认 `additionalProperties: false`；`AnyObject()` 显式 `true`（动态字段）。`FNexusCapability::Run` 在 required 校验之后、`Execute` 之前按 InputSchema **递归严格校验**（未知键 / type / required / enum / array items / 嵌套 object）；失败一律 `FCapabilityResult::MakeArgInvalid` |
 | 结果信封 | 禁止「一条 Entry + 内嵌 `results[]`」的双层包裹；每个 op 必须对应一条独立 `OutEntries.Add(...)`，交由适配层 `AssembleStructuredContent` 统一提升/包装 |
 | `success` 字段 | 成功不写 `success`（无 `error` 即成功）；失败写 `error`，允许保留 `success:false` 辅助阅读；禁止写「成功恒为 true」或条件判断结果恒为 true 的 `success` |
-| create 入参 | 统一暴露 `assetPath`；历史 `packagePath`+`assetName` 双字段 cap 短期可继续读入旧字段做兼容，但 Schema 优先 `assetPath` |
+| create 入参 | **只**暴露 / 消费 `assetPath`；删除 `packagePath`+`assetName` 双字段路径 |
 | create 响应 | 成功条目必须含 `path` 字段 |
 | Execute 卫生 | 非 MultiSection 的 cap 优先 `FNexusCapabilityResultBuilder::Build`；资产定位统一 `RequireString` + `EmitError`（或对应 Fatal/`MakeArgInvalid`）；禁止裸 `SetStringField("error")` 作为唯一失败路径 |
-| 有意保留（不受本节约束） | 领域数组 `keys`/`rows`/`fields`/`widgets`；runtime `interact_*` / `control_pie` 的顶层 `action`（命令式语义，非批量操作列表）；元工具 `calls[]` |
+| 有意保留 | 单目标内：`sections` / `propertyPaths` / `operations` / `updates`；领域数组经 `operations` 承载（勿再把 `fields`/`rows`/`keys`/`widgets` 当顶层操作容器）；runtime `interact_*` / `control_pie` 的顶层 `action`（命令式语义，非批量操作列表）；元工具 `calls[]` |
+
+### 7.12 参数权威表 / Breaking 迁移
+
+旧键出现在 Arguments 中 → Run 严格校验或 Schema 未声明 → **`arg_invalid`**（`MakeArgInvalid`）。禁止静默别名映射。
+
+| 旧键 / 旧形态 | 权威键 / 新形态 | 说明 |
+|---|---|---|
+| `assetPaths` / `actorNames` / `widgetNames` | （删除）→ `call_capability.calls[]` | Capability 单目标；跨目标批量只走元工具 |
+| `newPath` | `destAssetPath` | 复制/迁移目标路径 |
+| Lua `path` | `luaPath` | 避免与资产 `path`/`assetPath` 混淆 |
+| `filePath` | `scriptPath` | 脚本磁盘/工程相对路径 |
+| `ownerWidget` | `ownerClass` | Widget 归属类 |
+| spawn `blueprintPath` | `assetPath` | 生成用蓝图资产路径统一 |
+| `classPath` | `className` | 类名/路径字段统一为 `className` |
+| 顶层 `fields` / `rows` / `keys` / `widgets` 作操作容器 | `operations[]` | 操作列表只认 `operations`；领域数组若需保留须落在 op 项内，不得顶层替代 `operations` |
+| `ops` | （删除） | 不回退；Execute 只读 `operations` |
+| 顶层 `action` 合成单 op | （删除） | manage 批量不得靠顶层 `action` 回退 |
+| `packagePath` + `assetName` | `assetPath` | create 等只认完整 `assetPath` |
+| get 侧 `propertyPath`（单数） | `propertyPaths` | get 只留复数数组；单数键 → `arg_invalid` |
+| Schema 未声明键 | — | `Object()` 默认 `additionalProperties:false`；未知键 → `arg_invalid` |

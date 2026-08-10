@@ -32,5 +32,4 @@ protected:
 	                            void*                          TargetOpaque,
 	                            TSharedPtr<FJsonObject>&       InOutDetail,
 	                            FString&                       OutError) const override;
-	virtual TArray<TSharedPtr<FJsonObject>> ExpandPerEntry(const TSharedPtr<FJsonObject>& Args) const override;
 };

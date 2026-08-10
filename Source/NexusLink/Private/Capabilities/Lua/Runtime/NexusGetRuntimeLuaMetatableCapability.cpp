@@ -15,7 +15,7 @@ void FGetRuntimeLuaMetatableCapability::BuildDefinition(FNexusCapabilityDefiniti
 	Out.Name = TEXT("get_runtime_lua_metatable");
 	Out.Description = TEXT("沿 __index 链转储 OOP 类表。用于 UnLua 继承链调试。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("path"),     FNexusSchema::Str(TEXT("Lua 点分路径")))
+		.Required(TEXT("luaPath"),  FNexusSchema::Str(TEXT("Lua 点分路径")))
 		.Prop(TEXT("nameFilter"),   FNexusSchema::Str(TEXT("键名过滤；支持 /regex/、^前缀、后缀$")))
 		.Prop(TEXT("limit"),        FNexusSchema::Int(TEXT("最大返回条数"), 100, 1, 500))
 		.Build();
@@ -35,7 +35,7 @@ FCapabilityResult FGetRuntimeLuaMetatableCapability::Execute(const TSharedPtr<FJ
 	FCapabilityResult R;
 
 	FString Path;
-	if (!RequireString(Arguments, TEXT("path"), Path, R.Entries))
+	if (!RequireString(Arguments, TEXT("luaPath"), Path, R.Entries))
 		return R;
 
 	const int32 StackTop = lua_gettop(L);
@@ -45,7 +45,7 @@ FCapabilityResult FGetRuntimeLuaMetatableCapability::Execute(const TSharedPtr<FJ
 	if (!FNexusLuaUtils::ResolveLuaPath(L, Path))
 	{
 		lua_settop(L, StackTop);
-		EmitError(R.Entries, {{TEXT("path"), Path}}, FString::Printf(TEXT("路径 '%s' 未找到"), *Path));
+		EmitError(R.Entries, {{TEXT("luaPath"), Path}}, FString::Printf(TEXT("路径 '%s' 未找到"), *Path));
 		return R;
 	}
 

@@ -6,7 +6,7 @@
 #include "NexusCapability.h"
 #include "NexusRuntimeCapability.h"
 
-/** spawn_actor 的 Capability —— 生成单个 Actor（blueprintPath 或 className）。*/
+/** spawn_actor 的 Capability —— 生成单个 Actor（assetPath 或 className）。*/
 class FSpawnRuntimeActorCapability : public FNexusRuntimeCapability
 {
 protected:

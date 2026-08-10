@@ -22,9 +22,15 @@ void FManageAssetAttributeSetCapability::BuildDefinition(FNexusCapabilityDefinit
 	Out.Name = TEXT("manage_asset_attribute_set");
 	Out.SearchAssetTypes = {TEXT("AttributeSet")};
 	Out.Description = TEXT("批量 set/reset AttributeSet CDO 的 FGameplayAttributeData 属性默认值。");
+	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
+		.Prop(TEXT("action"),        FNexusSchema::Enum(TEXT("操作"), { TEXT("set"), TEXT("reset") }))
+		.Prop(TEXT("attributeName"), FNexusSchema::Str(TEXT("属性名")))
+		.Prop(TEXT("baseValue"),     FNexusSchema::Num(TEXT("默认 BaseValue（set）")))
+		.Required({ TEXT("action"), TEXT("attributeName") })
+		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("AttributeSet Blueprint 路径")))
-		.Prop(TEXT("operations"), FNexusSchema::StrArr(TEXT("操作数组；每项含 action(set/reset) + attributeName + 可选 baseValue")))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("AttributeSet Blueprint 路径")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };

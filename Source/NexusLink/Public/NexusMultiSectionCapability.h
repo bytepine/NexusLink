@@ -12,7 +12,7 @@
  *   - sections: string[] 入参（枚举 + "all"）自动注入 schema
  *   - 未传 / 空 → GetDefaultSectionNames() 兜底
  *   - "all" → GetSectionNames() 全集
- *   - ExpandPerEntry() 多 entry 批量展开
+ *   - ExpandPerEntry() 预留钩子（默认不展开；跨目标请用 call_capability.calls[]）
  *   - PrepareEntry() locator 写入 + Target 获取
  *   - ExecuteSection() 逐 section 执行，错误写入 entry.sectionErrors[]
  *   - entry.sections = 实际覆盖列表
@@ -79,8 +79,9 @@ protected:
 	                            FString&                       OutError) const = 0;
 
 	/**
-	 * 多 entry 展开：将入参拆为若干条单 entry 参数对象（如 assetPaths → 多个含单 assetPath）。
-	 * 返回空（默认）= 单 entry，不展开。
+	 * 多 entry 展开钩子（默认返回空 = 单 entry）。
+	 * Capability 只收单目标（assetPath/actorName/widgetName）；跨目标请用 call_capability.calls[]，
+	 * 不要在此展开 assetPaths/actorNames 等批量定位键。
 	 */
 	virtual TArray<TSharedPtr<FJsonObject>> ExpandPerEntry(const TSharedPtr<FJsonObject>& Args) const { return {}; }
 
