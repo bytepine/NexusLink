@@ -83,6 +83,24 @@ void UNexusLinkSettings::EnsureDefaultCapabilityMode()
 	}
 }
 
+bool UNexusLinkSettings::EnsureLogCaptureDefaults()
+{
+	if (bLogCaptureDefaultsApplied)
+	{
+		return false;
+	}
+
+	bLogCaptureDefaultsApplied = true;
+	bool bWroteDefaults = false;
+	if (LogCaptureCategories.Num() == 0)
+	{
+		LogCaptureCategories = FNexusLogCapture::GetDefaultDiagnosticCategories();
+		bWroteDefaults = true;
+	}
+	SaveConfig();
+	return bWroteDefaults;
+}
+
 #if WITH_EDITOR
 FText UNexusLinkSettings::GetSectionText() const
 {

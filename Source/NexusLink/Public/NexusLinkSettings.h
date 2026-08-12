@@ -111,13 +111,18 @@ public:
 
 	/**
 	 * 日志捕获白名单（日志分类名列表）。
-	 * 为空时捕获全部日志（默认）；非空时仅捕获列表中的分类，
-	 * 可大幅减少噪音、保留更多有效条目（缓冲区上限 2000 条）。
-	 * 示例：LogTemp、LogBlueprintUserMessages、LogNexusLink
+	 * 首次启动会写入诊断默认集（LogTemp / LogBlueprintUserMessages / LogConsole 等）；
+	 * 之后留空=捕获全部；非空=仅捕获匹配分类。Warning/Error 始终捕获，不受白名单限制。
+	 * 缓冲区上限 2000 条。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "日志捕获",
-		meta = (DisplayName = "日志分类白名单", ToolTip = "留空=捕获全部；填写后只捕获指定分类（大小写不敏感）"))
+		meta = (DisplayName = "日志分类白名单",
+			ToolTip = "首次启动写入诊断默认集；之后留空=全部；非空=只捕获指定分类（大小写不敏感）。Warning/Error 始终捕获。"))
 	TArray<FString> LogCaptureCategories;
+
+	/** 是否已应用过日志捕获默认白名单（升级迁移用；置 true 后空数组表示用户选择「全部」）。 */
+	UPROPERTY(Config)
+	bool bLogCaptureDefaultsApplied = false;
 
 	// ── 内存管理 ───────────────────────────────────────────────────────────────
 
@@ -264,6 +269,13 @@ public:
 
 	/** 首次启动时把当前已注册 cap 全部纳入 KnownCapabilityKeys（默认启用）。 */
 	void EnsureDefaultCapabilityMode();
+
+	/**
+	 * 首次启动 / 升级时若白名单仍为空，写入诊断默认集并持久化。
+	 * 已应用过则不再改写（用户清空 = 捕获全部）。
+	 * @return 是否写入了默认集
+	 */
+	bool EnsureLogCaptureDefaults();
 
 	// UDeveloperSettings interface
 	virtual FName GetCategoryName() const override;

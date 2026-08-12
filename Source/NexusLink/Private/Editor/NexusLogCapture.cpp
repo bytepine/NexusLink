@@ -1,6 +1,7 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
 #include "Editor/NexusLogCapture.h"
+#include "Algo/Reverse.h"
 #include "Utils/NexusStringMatchUtils.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/ScopeLock.h"
@@ -25,6 +26,25 @@ FNexusLogCapture& FNexusLogCapture::Get()
 {
 	check(Singleton);
 	return *Singleton;
+}
+
+TArray<FString> FNexusLogCapture::GetDefaultDiagnosticCategories()
+{
+	// 诊断向默认：业务 Print / 脚本 / 控制台镜像 / Ensure 相关 / 插件自身
+	return {
+		TEXT("LogTemp"),
+		TEXT("LogBlueprintUserMessages"),
+		TEXT("LogBlueprint"),
+		TEXT("LogScript"),
+		TEXT("LogScriptCore"),
+		TEXT("LogOutputDevice"),
+		TEXT("LogConsole"),
+		TEXT("LogCore"),
+		TEXT("LogStackWalk"),
+		TEXT("LogNexusLink"),
+		TEXT("LogUnLua"),
+		TEXT("LogPIE"),
+	};
 }
 
 void FNexusLogCapture::Register()
@@ -76,6 +96,32 @@ bool FNexusLogCapture::IsAllowed(const FName& Category) const
 	return false;
 }
 
+bool FNexusLogCapture::MatchesFilters(
+	const FNexusLogEntry& E,
+	const FString& CategoryFilter,
+	ELogVerbosity::Type VerbosityFilter,
+	const TArray<FString>& TextFilters)
+{
+	if (!CategoryFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(E.Category, CategoryFilter))
+		return false;
+	if (VerbosityFilter != ELogVerbosity::All && E.Verbosity > VerbosityFilter)
+		return false;
+	if (TextFilters.Num() > 0)
+	{
+		bool bMatched = false;
+		for (const FString& TF : TextFilters)
+		{
+			if (FNexusStringMatchUtils::Matches(E.Message, TF))
+			{
+				bMatched = true;
+				break;
+			}
+		}
+		if (!bMatched) return false;
+	}
+	return true;
+}
+
 void FNexusLogCapture::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category)
 {
 	// Fatal 级别触发时引擎即将崩溃，跳过写入避免死锁
@@ -83,8 +129,9 @@ void FNexusLogCapture::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, 
 
 	FScopeLock Lock(&Mutex);
 
-	// 白名单过滤必须在锁内读取 Whitelist，避免与 SetCategoryWhitelist 的 TArray 重新分配产生数据竞态
-	if (!IsAllowed(Category)) return;
+	// 白名单过滤必须在锁内读取 Whitelist；Warning/Error 始终放行，避免收窄后漏诊
+	const bool bSevere = Verbosity <= ELogVerbosity::Warning;
+	if (!bSevere && !IsAllowed(Category)) return;
 
 	WriteEntryLocked(Category.ToString(), Verbosity, V);
 }
@@ -104,6 +151,7 @@ void FNexusLogCapture::WriteEntryLocked(const FString& Category, ELogVerbosity::
 	Entry.Verbosity  = Verbosity;
 	Entry.Message    = Message;
 	Entry.Timestamp  = FPlatformTime::Seconds();
+	Entry.WallTime   = FDateTime::UtcNow();
 	Entry.Sequence   = TotalWritten;
 
 	WriteIndex = (WriteIndex + 1) % MaxEntries;
@@ -138,52 +186,49 @@ TArray<FNexusLogEntry> FNexusLogCapture::CollectSince(int32 SinceSequence) const
 	return Result;
 }
 
+int32 FNexusLogCapture::GetLatestSequence() const
+{
+	FScopeLock Lock(&Mutex);
+	return TotalWritten > 0 ? TotalWritten - 1 : -1;
+}
+
 TArray<FNexusLogEntry> FNexusLogCapture::Query(
 	int32 Offset,
 	int32 Limit,
 	const FString& CategoryFilter,
 	ELogVerbosity::Type VerbosityFilter,
 	const TArray<FString>& TextFilters,
-	int32& OutTotalCount) const
+	int32& OutTotalCount,
+	int32 SinceSequence,
+	bool bNewestFirst) const
 {
 	FScopeLock Lock(&Mutex);
 
-	// 收集全量匹配条目（按时间升序）
 	TArray<const FNexusLogEntry*> Valid;
 	Valid.Reserve(FMath::Min(TotalWritten, MaxEntries));
 
 	const int32 Filled = FMath::Min(TotalWritten, MaxEntries);
-	// 缓冲区已满时最旧条目位于 WriteIndex，未满时从 0 开始
 	const int32 StartIdx = (TotalWritten >= MaxEntries) ? WriteIndex : 0;
 
 	for (int32 i = 0; i < Filled; ++i)
 	{
 		const FNexusLogEntry& E = Buffer[(StartIdx + i) % MaxEntries];
 
-		if (!CategoryFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(E.Category, CategoryFilter))
+		if (SinceSequence >= 0 && E.Sequence <= SinceSequence)
 			continue;
-		if (VerbosityFilter != ELogVerbosity::All && E.Verbosity > VerbosityFilter)
+		if (!MatchesFilters(E, CategoryFilter, VerbosityFilter, TextFilters))
 			continue;
-		if (TextFilters.Num() > 0)
-		{
-			bool bMatched = false;
-			for (const FString& TF : TextFilters)
-			{
-				if (FNexusStringMatchUtils::Matches(E.Message, TF))
-				{
-					bMatched = true;
-					break;
-				}
-			}
-			if (!bMatched) continue;
-		}
 
 		Valid.Add(&E);
 	}
 
 	OutTotalCount = Valid.Num();
 
-	// 分页切片
+	if (bNewestFirst)
+	{
+		Algo::Reverse(Valid);
+	}
+
 	const int32 PageStart = FMath::Clamp(Offset, 0, OutTotalCount);
 	const int32 PageEnd   = FMath::Min(PageStart + Limit, OutTotalCount);
 
@@ -196,4 +241,50 @@ TArray<FNexusLogEntry> FNexusLogCapture::Query(
 	return Result;
 }
 
+void FNexusLogCapture::Summarize(
+	const FString& CategoryFilter,
+	ELogVerbosity::Type VerbosityFilter,
+	const TArray<FString>& TextFilters,
+	int32 SinceSequence,
+	TArray<FNexusLogCategoryStat>& OutByCategory,
+	TMap<ELogVerbosity::Type, int32>& OutByVerbosity) const
+{
+	FScopeLock Lock(&Mutex);
 
+	OutByCategory.Reset();
+	OutByVerbosity.Reset();
+
+	TMap<FString, FNexusLogCategoryStat> ByCat;
+
+	const int32 Filled = FMath::Min(TotalWritten, MaxEntries);
+	const int32 StartIdx = (TotalWritten >= MaxEntries) ? WriteIndex : 0;
+
+	for (int32 i = 0; i < Filled; ++i)
+	{
+		const FNexusLogEntry& E = Buffer[(StartIdx + i) % MaxEntries];
+
+		if (SinceSequence >= 0 && E.Sequence <= SinceSequence)
+			continue;
+		if (!MatchesFilters(E, CategoryFilter, VerbosityFilter, TextFilters))
+			continue;
+
+		OutByVerbosity.FindOrAdd(E.Verbosity)++;
+
+		FNexusLogCategoryStat& Stat = ByCat.FindOrAdd(E.Category);
+		Stat.Category = E.Category;
+		Stat.Count++;
+		if (E.Verbosity == ELogVerbosity::Error) Stat.Errors++;
+		else if (E.Verbosity == ELogVerbosity::Warning) Stat.Warnings++;
+	}
+
+	ByCat.GenerateValueArray(OutByCategory);
+	OutByCategory.Sort([](const FNexusLogCategoryStat& A, const FNexusLogCategoryStat& B)
+	{
+		if (A.Count != B.Count) return A.Count > B.Count;
+		return A.Category < B.Category;
+	});
+	if (OutByCategory.Num() > MaxSummaryCategories)
+	{
+		OutByCategory.SetNum(MaxSummaryCategories);
+	}
+}

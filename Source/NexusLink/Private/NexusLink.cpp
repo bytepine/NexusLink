@@ -256,6 +256,8 @@ void FNexusLinkModule::OnPostEngineInit()
 {
 	// 把当前已注册的 Capability 全部纳入 KnownCapabilityKeys（首次启动默认全部启用）
 	UNexusLinkSettings::Get()->EnsureDefaultCapabilityMode();
+	// 首次 / 升级：空白名单写入诊断默认集，避免全量捕获冲刷环形缓冲
+	UNexusLinkSettings::Get()->EnsureLogCaptureDefaults();
 
 	const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
 	if (LogCapture.IsValid())

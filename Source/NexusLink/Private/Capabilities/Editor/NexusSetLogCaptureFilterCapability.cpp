@@ -14,11 +14,14 @@
 void FSetLogCaptureFilterCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("set_log_capture_filter");
-	Out.Description = TEXT("配置写入缓冲的日志分类。空=全部；影响 get_output_log。");
+	Out.Description = TEXT(
+		"配置写入缓冲的日志分类。空=全部；Warning/Error 始终捕获；"
+		"首次启动有诊断默认集。影响 get_output_log。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("categories"), FNexusSchema::StrArr(
 			TEXT("要捕获的日志分类子串。空数组=全部。"
-			     "示例：[\"LogTemp\"]、[\"LogBlueprintUserMessages\",\"LogNexusLink\"]、[]")))
+			     "示例：[\"LogTemp\"]、[\"LogBlueprintUserMessages\",\"LogNexusLink\"]、[]。"
+			     "Warning/Error 始终写入，不受此列表限制。")))
 		.Required({ TEXT("categories") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -73,8 +76,8 @@ FCapabilityResult FSetLogCaptureFilterCapability::Execute(const TSharedPtr<FJson
 		OutEntry->SetArrayField(TEXT("categories"), CatArr);
 		OutEntry->SetStringField(TEXT("note"),
 			Categories.Num() == 0
-				? TEXT("Capturing ALL log categories")
-				: FString::Printf(TEXT("正在捕获 %d 个日志分类过滤"), Categories.Num()));
+				? TEXT("Capturing ALL log categories (Warning/Error always captured)")
+				: FString::Printf(TEXT("正在捕获 %d 个日志分类过滤（Warning/Error 始终捕获）"), Categories.Num()));
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});

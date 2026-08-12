@@ -36,7 +36,7 @@
 ---
 
 <!-- 自动生成，由 build_tool_reference.py 产出；以下内容请勿手工修改 -->
-<!-- 共 176 个 Capability + 3 个元工具 -->
+<!-- 共 174 个 Capability + 3 个元工具 -->
 
 ## 目录
 
@@ -196,25 +196,6 @@
 
 ---
 
-### `get_output_log`
-
-读取 UE 控制台缓冲区。支持按 `category` / `verbosity` / `text` 过滤；`offset`+`limit` 分页。
-
-**适用场景**：读 UE 输出日志；非 LogConsole（exec_command 负责）；category/verbosity/text 过滤
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|:----:|------|
-| `offset` | `integer` |  | 分页偏移 |
-| `limit` | `integer` |  | 每页最大条数 |
-| `categoryFilter` | `string` |  | 日志分类子串（不区分大小写） |
-| `verbosity` | `string (enum)` |  | 最低详细级别 枚举值：`error` / `warning` / `display` / `log` / `verbose` / `veryverbose` / `all` |
-| `textFilter` | `string` |  | 单文本子串过滤 |
-| `textFilters` | `string[]` |  | 文本过滤（OR）；覆盖 textFilter |
-
-**相关 Capability**：`set_log_capture_filter`、`exec_command`
-
----
-
 ### `search_console_variables`
 
 按子串搜索控制台变量名（只读，含当前值）；不修改 CVar。
@@ -228,20 +209,6 @@
 | `limit` | `integer` |  | 每页最大条数 |
 
 **相关 Capability**：`exec_command`
-
----
-
-### `set_log_capture_filter`
-
-配置哪些日志分类写入缓冲区。传空数组表示全部；影响 `get_output_log` 的查询范围。
-
-**适用场景**：设置写入缓冲的日志类别；空=全部；影响 get_output_log
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|:----:|------|
-| `categories` | `string[]` | ★ |  |
-
-**相关 Capability**：`get_output_log`
 
 ---
 

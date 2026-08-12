@@ -71,6 +71,7 @@ alwaysApply: false
 | PIE Actor 属性 | `list_runtime_actors` → `get_runtime_actor_property(actorName=…, propertyPaths=…)` |
 | PIE 黑板/活动节点 | `get_runtime_actor_behavior_tree`（需 PIE + `actorName`） |
 | 控制台命令 | `exec_command(command="…")`（`command` 必填且非空） |
+| 查报错/崩溃/PIE 日志 | `get_output_log(preset="diagnose")`（newest+≥warning+分类摘要）；或 `includeSummary`/`summaryOnly`；复现后用 `latestSequence`→`sinceSequence`；收窄写入用 `set_log_capture_filter`（Warning/Error 始终捕获） |
 | 玩法设计文档 | 走项目**知识库 MCP**（若有），不走 NexusLink 资产搜索 |
 
 ---

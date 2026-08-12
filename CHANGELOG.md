@@ -23,6 +23,7 @@
 
 ### Added
 
+- feat(mcp): `get_output_log` 诊断增强——**`order`**（默认 `newest`）/ **`sinceSequence`** 增量游标；**`preset=diagnose`**（newest+≥warning+摘要+limit≤50）；**`includeSummary`/`summaryOnly`** 输出 `summaryByCategory`（含 errors/warnings）/`summaryByVerbosity`/`errorCount`/`warningCount`；每条新增 UTC **`time`**（ISO-8601）与 `sequence`，顶层回显 `latestSequence`。底层 `FNexusLogCapture`：`Query` 支持倒序/游标、`Summarize`、`GetLatestSequence`、写入 `WallTime`；**Warning/Error 始终捕获**（不受白名单限制）。Settings：首次/升级空白名单写入诊断默认集（`EnsureLogCaptureDefaults` + `bLogCaptureDefaultsApplied`）。`InitializeInstructions` / `AIRules` / 项目 workflow 补诊断路由。
 - feat(ci): 新增 `scripts/audit_capability_params.py` 参数静态审计门禁（CapabilitySpec §7.11/§7.12：单目标、禁止旧键、manage→`operations`、set_*_property→`updates`）；`scripts/tests/test_audit_capability_params.py` + CI `scripts-test` / `run_e2e` 接入
 - test(capability): Automation `NexusLink.Capability.StrictSchemaArgInvalid` / `ExtractOperationsOnlyOperations`——未知键与旧键 `arg_invalid`、`operations` 仅认新字段
 
