@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- chore(plugin): 主模块改回 **`Type: Editor`**——**仅编辑器（含 PIE）加载**；Game / Dedicated Server / Shipping 不加载；`StartupModule` 在 `!WITH_EDITOR` 时空返回（不再依赖 Shipping 特例 + Runtime 宿主）。`-EnableNexusMcp` / `NexusLink.EnableMcp` 仍可用于无 UI 编辑器会话。README / InitializeInstructions 同步。
+
 ## [1.16.1] - 2026-08-12
 
 ### Changed

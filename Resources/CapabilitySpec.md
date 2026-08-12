@@ -73,11 +73,11 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 | 场景 | 继承 |
 |------|------|
 | 资产 / 编辑器能力（默认） | `FNexusCapability` 或 `FNexusMultiSectionCapability` |
-| PIE / Game / Dedicated Server 运行时能力 | `FNexusRuntimeCapability` 或 `FNexusRuntimeMultiSectionCapability` |
+| PIE 运行时能力 | `FNexusRuntimeCapability` 或 `FNexusRuntimeMultiSectionCapability` |
 
-- 默认 `GetHostScope()=EditorOnly`：完整 Editor 可见；DS/纯 Game 自动隐藏
-- Runtime 基类：`GetHostScope()=Runtime`，DS/Game 自动可见；`GetDefinition` 会幂等补上 `runtime` 分类标签
-- **Shipping**：StartupModule 直接空返回，插件不启动；与单个 Capability 无关
+- 默认 `GetHostScope()=EditorOnly`：完整 Editor 可见
+- Runtime 基类：`GetHostScope()=Runtime`，用于标记 PIE 运行时能力；`GetDefinition` 会幂等补上 `runtime` 分类标签
+- **插件加载范围**：主模块 `Type: Editor`——仅 Editor / PIE；Game / Dedicated Server / Shipping 不加载；`StartupModule` 在 `!WITH_EDITOR` 时空返回
 
 `BuildDefinition` 中按需设置以下字段：
 

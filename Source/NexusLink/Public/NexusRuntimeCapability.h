@@ -6,10 +6,10 @@
 #include "NexusCapability.h"
 
 /**
- * 运行时 Capability 基类——Dedicated Server / 纯 Game 下自动可见。
+ * 运行时 Capability 基类——标记 PIE 等运行时能力（自动补 runtime 分类标签）。
  *
- * 新增 PIE/Game/DS 能力：继承本类（或 FNexusRuntimeMultiSectionCapability），
- * 按常规写 BuildDefinition/Execute 即可，无需再处理宿主过滤或 Shipping 门控。
+ * 插件产品配置为 Editor-only；本基类便于区分资产/编辑器能力与 PIE 运行时能力。
+ * 新增 PIE 运行时能力：继承本类（或 FNexusRuntimeMultiSectionCapability）即可。
  */
 class NEXUSLINK_API FNexusRuntimeCapability : public FNexusCapability
 {

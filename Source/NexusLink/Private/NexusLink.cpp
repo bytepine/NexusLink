@@ -67,23 +67,21 @@ static bool IsMcpServerRequestedAtStartup()
 
 void FNexusLinkModule::StartupModule()
 {
-#if UE_BUILD_SHIPPING
-	// Shipping 包：模块加载后立即空返回，不注册任何子系统 / 不启 MCP
-	UE_LOG(LogNexusLink, Log, TEXT("Shipping 构建：NexusLink 插件不启动"));
+#if !WITH_EDITOR
+	// 产品配置为 Editor-only（.uplugin Type=Editor）；此守卫覆盖临时改写 Type 跑 Game 目标等场景
+	UE_LOG(LogNexusLink, Log, TEXT("非编辑器构建：NexusLink 不启动（仅 Editor / PIE）"));
 	return;
-#endif
+#else
 
 	// 尽早注册日志捕获器，确保不遗漏启动阶段的日志
 	LogCapture = MakeUnique<FNexusLogCapture>();
 	LogCapture->Register();
 
-#if WITH_EDITOR
 	// 注册 Settings 自定义面板（按宿主 tags 分组的 Capability 树状列表）
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout(
 		UNexusLinkSettings::StaticClass()->GetFName(),
 		FOnGetDetailCustomizationInstance::CreateStatic(&FNexusLinkSettingsCustomization::MakeInstance));
-#endif
 
 #if NX_UE_HAS_POST_ENGINE_INIT_ACCESSOR
 	FCoreDelegates::GetOnPostEngineInit().AddRaw(this, &FNexusLinkModule::OnPostEngineInit);
@@ -93,11 +91,12 @@ void FNexusLinkModule::StartupModule()
 
 	EnableMcpConsoleCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("NexusLink.EnableMcp"),
-		HELP_TEXT("会话级启停 MCP（不写 Preferences）。用法: NexusLink.EnableMcp 1|0；无参数打印当前状态。Shipping 无效。"),
+		HELP_TEXT("会话级启停 MCP（不写 Preferences）。用法: NexusLink.EnableMcp 1|0；无参数打印当前状态。仅编辑器有效。"),
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FNexusLinkModule::HandleEnableMcpCommand),
 		ECVF_Default);
 
 	UE_LOG(LogNexusLink, Log, TEXT("NexusLink 模块已加载，等待引擎初始化完成..."));
+#endif // WITH_EDITOR
 }
 
 void FNexusLinkModule::ShutdownModule()

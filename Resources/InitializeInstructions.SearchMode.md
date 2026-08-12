@@ -1,6 +1,6 @@
 NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 动画 / AI / 编辑器）。
 
-> Host note: Dedicated Server / non-editor Game 仅 `FNexusRuntimeCapability*` 可见；Shipping 不启动。触发关键词见代理 `initializePrefix`。
+> Host note: **Editor-only**（含 PIE）。Game / Dedicated Server / Shipping 不加载本插件。触发关键词见代理 `initializePrefix`。
 
 ## 工具模型
 

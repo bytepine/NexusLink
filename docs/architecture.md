@@ -36,9 +36,9 @@ graph TB
 
 ## MCP 服务器生命周期
 
-`UNexusLinkSettings::bEnableMcpServer` 为总开关，**默认 `false`**。另支持命令行 **`-EnableNexusMcp`** 与控制台 **`NexusLink.EnableMcp 1|0`**（均会话级，不写盘）；与 Preferences 为 OR。**Shipping 下 `StartupModule` 直接空返回（插件不启动）**；支持的引擎上 `TargetConfigurationDenyList: Shipping` 还会跳过加载。非 Shipping 且未启用时不创建 `FNexusMcpServer`；Preferences 勾选后经 `PostEditChangeProperty` 即时启停。
+`UNexusLinkSettings::bEnableMcpServer` 为总开关，**默认 `false`**。另支持命令行 **`-EnableNexusMcp`** 与控制台 **`NexusLink.EnableMcp 1|0`**（均会话级，不写盘）；与 Preferences 为 OR。主模块 **`Type: Editor`**——仅 Editor / PIE 加载；Game / Dedicated Server / Shipping 不加载；`StartupModule` 在 `!WITH_EDITOR` 时空返回。未启用时不创建 `FNexusMcpServer`；Preferences 勾选后经 `PostEditChangeProperty` 即时启停。
 
-**Capability 可见性**：完整 Editor 宿主暴露全部已启用 cap；Dedicated Server / 纯 Game 仅暴露 `GetHostScope()==Runtime` 的 cap（继承 `FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`）。新增 cap **无需**手写宿主过滤。
+**Capability 可见性**：完整 Editor 宿主暴露全部已启用 cap。`FNexusRuntimeCapability` 基类仍用于标记 PIE 运行时能力（分类标签）；插件本身不再进入纯 Game / DS。
 
 ## 分层职责
 

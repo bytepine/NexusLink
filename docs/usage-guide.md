@@ -46,10 +46,9 @@ flowchart TB
 2. 在 UE 编辑器中启用插件：**Edit → Plugins → Developer → NexusLink**
 3. 重启编辑器
 
-> 主模块 `Type` 为 **Runtime**（非 Editor-only），因此 `UE4Editor.exe -server`、Game/Dedicated Server（非 Shipping）目标也会加载插件。限制：
-> - **Shipping**：`StartupModule` 直接空返回（插件不启动）；较新引擎另有 `TargetConfigurationDenyList: Shipping` 跳过加载
-> - **Dedicated Server / 纯 Game**：仅暴露 `GetHostScope()==Runtime` 的 Capability（继承 Runtime 基类即可；`errorKind=unavailable`）
-> - 开发态仍须 Preferences 勾选或加 `-EnableNexusMcp` 才会监听端口
+> 主模块 `Type` 为 **Editor**（仅编辑器加载，含 PIE）。Game / Dedicated Server / Shipping **不会加载**本插件。
+> - 开发态须 Preferences 勾选或加 `-EnableNexusMcp` 才会监听端口
+> - 无 UI 编辑器会话（如 `UEEditor-Cmd`）可用 `-EnableNexusMcp` / `NexusLink.EnableMcp`
 
 ### 2.2 启用 MCP 服务器（必做）
 
@@ -63,10 +62,10 @@ MCP HTTP/WebSocket **默认不启动**，任选以下方式开启：
 
 **方式 B — 命令行（仅本进程会话，不写盘）**
 
-启动编辑器时追加 `-EnableNexusMcp`，适合 `-server` / headless / 无 UI：
+启动编辑器时追加 `-EnableNexusMcp`，适合无 UI / headless 编辑器会话：
 
 ```bat
-UE4Editor.exe YourProject.uproject -server -EnableNexusMcp
+UE4Editor.exe YourProject.uproject -EnableNexusMcp
 ```
 
 Preferences 勾选与 `-EnableNexusMcp` 为 **OR**：任一为真即启动。CLI 不会改写 `bEnableMcpServer`，Preferences 面板可仍显示关闭。
@@ -81,7 +80,7 @@ NexusLink.EnableMcp 0   ; 关闭
 NexusLink.EnableMcp     ; 查看当前 on/off
 ```
 
-不改 Preferences；Shipping 下插件未启动，命令不可用。
+不改 Preferences；仅编辑器有效（Game / Dedicated Server / Shipping 不加载插件，命令不可用）。
 
 > 代理模式（Rider / VSCode）与直连模式均依赖 UE 侧服务已开启；未开启时 IDE 扫描不到实例、`GET /status` 无响应。
 
