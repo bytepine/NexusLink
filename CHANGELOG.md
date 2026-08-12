@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [1.16.2] - 2026-08-12
+
 ### Changed
 
 - chore(plugin): 主模块改回 **`Type: Runtime`**（Game/Server 可链接）；`StartupModule` / `ShutdownModule` 在 `!WITH_EDITOR` 时直接空返回——MCP **仅 Editor / PIE 实际运行**。README / InitializeInstructions / docs 同步。
