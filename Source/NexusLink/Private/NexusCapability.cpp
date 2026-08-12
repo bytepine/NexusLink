@@ -21,6 +21,13 @@ namespace NexusCapabilitySchemaValidate
 		return Base.IsEmpty() ? Seg : (Base + TEXT(".") + Seg);
 	}
 
+	/** 兼容 UE5.8+ JsonObject 键类型（FSharedString）与旧版 FString：二者均支持 operator* → TCHAR*。 */
+	template <typename KeyType>
+	static FString KeyAsString(const KeyType& Key)
+	{
+		return FString(*Key);
+	}
+
 	static FString IndexPath(const FString& Base, int32 Index)
 	{
 		return FString::Printf(TEXT("%s[%d]"), Base.IsEmpty() ? TEXT("$") : *Base, Index);
@@ -108,8 +115,8 @@ namespace NexusCapabilitySchemaValidate
 			const bool bDeclared = Props.IsValid() && Props->HasField(KV.Key);
 			if (!bDeclared && !bAllowAdditional)
 			{
-				OutError = FString::Printf(TEXT("未知参数 '%s'（additionalProperties=false）"),
-					*JoinPath(Path, KV.Key));
+				const FString FullPath = JoinPath(Path, KeyAsString(KV.Key));
+				OutError = FString::Printf(TEXT("未知参数 '%s'（additionalProperties=false）"), *FullPath);
 				return false;
 			}
 		}
@@ -150,7 +157,7 @@ namespace NexusCapabilitySchemaValidate
 				{
 					continue;
 				}
-				if (!ValidateValue(FieldVal, *FieldSchemaPtr, JoinPath(Path, PropKV.Key), OutError))
+				if (!ValidateValue(FieldVal, *FieldSchemaPtr, JoinPath(Path, KeyAsString(PropKV.Key)), OutError))
 				{
 					return false;
 				}

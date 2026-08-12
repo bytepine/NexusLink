@@ -156,7 +156,7 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 
 | 领域 | 能力范围 | 版本门控 |
 |------|---------|---------|
-| **编辑器上下文** | 编辑器信息/上下文、输出日志、控制台变量、视口截图、资产增删改/搜索、**引用与继承查询**（`get_asset_refs`：`dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`）、PIE 控制、Gameplay Tags | 全版本 |
+| **编辑器上下文** | 编辑器信息/上下文、**输出日志**（`get_output_log`：`preset=diagnose` / `order=newest` / `sinceSequence` 增量 / `includeSummary`）、控制台变量、视口截图、资产增删改/搜索、**引用与继承查询**（`get_asset_refs`：`dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`）、PIE 控制、Gameplay Tags | 全版本 |
 | **蓝图** | Blueprint 变量/函数/图节点/连线/组件/CDO；`create` 对 Actor 补 BeginPlay；`manage` 支持 `K2Node_Event` | 全版本 |
 | **动画** | AnimSequence（关键帧/曲线/Notify）、AnimBlueprint（状态机）、AnimMontage（Segment/Section，增删后同步时长）、BlendSpace（轴/样本）、Skeleton / SkeletalMesh | 全版本 |
 | **材质** | Material / MaterialInstance / MaterialFunction / MaterialParameterCollection | 全版本 |

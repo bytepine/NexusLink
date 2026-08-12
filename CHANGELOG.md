@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [1.16.1] - 2026-08-12
+
 ### Changed
 
 - **BREAKING** feat(schema): 参数统一框架层——`FNexusSchema::Object()`/`EmptyObject()` 默认 `additionalProperties:false`，`AnyObject()` 显式 `true`；`FNexusCapability::Run` 在 required 之后、Execute 之前按 InputSchema 递归严格校验（未知键/type/required/enum/array items/嵌套 object），失败一律 `MakeArgInvalid`；`ExtractOperations` 仅认 `operations[]`（删除 `ops`/顶层 `action` 回退）；CapabilitySpec §7.11 改为 Breaking 权威契约，新增 §7.12 参数权威表/迁移
@@ -29,6 +31,7 @@
 
 ### Fixed
 
+- fix(compat): UE 5.8 `FJsonObject` 键改为 `UE::FSharedString`——`NexusCapability` Schema 校验用 `KeyAsString` 兼容新旧键类型，修复 Editor/Game 编译失败
 - fix(docs): `scripts/build_tool_reference.py` 正确解析 `Bool` / `Num` / `ArrayOf` / `ArrOfObj` / `AnyObject`、嵌套 item Schema 与元工具 InputSchema（跳过嵌套 `Object()…Build()` 误截断）
 - fix(compat): `RegisterConsoleCommand` 帮助串改用 `HELP_TEXT`（`NexusVersionCompat` 在标准 UE 上回退为 `TEXT`）——兼容定义了 `ENGINE_STRIP_HELP_TEXT` / `HELPCHAR` 的定制引擎（宽字符 `TEXT` 与 ANSI `HELPCHAR*` 类型不匹配）
 

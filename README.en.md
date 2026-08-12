@@ -156,7 +156,7 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 
 | Domain | Capabilities | Version Gate |
 |--------|-------------|-------------|
-| **Editor Context** | Editor info/context, output log, console variables, viewport capture, asset CRUD/search, **refs & inheritance** (`get_asset_refs`: `dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`), PIE control, Gameplay Tags | All versions |
+| **Editor Context** | Editor info/context, **output log** (`get_output_log`: `preset=diagnose` / `order=newest` / `sinceSequence` incremental / `includeSummary`), console variables, viewport capture, asset CRUD/search, **refs & inheritance** (`get_asset_refs`: `dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`), PIE control, Gameplay Tags | All versions |
 | **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO; Actor `create` ensures BeginPlay; `manage` supports `K2Node_Event` | All versions |
 | **Animation** | AnimSequence (keyframes/curves/notifies), AnimBlueprint (state machines), AnimMontage (segments/sections; length refreshed after edit), BlendSpace (axes/samples), Skeleton / SkeletalMesh | All versions |
 | **Material** | Material / MaterialInstance / MaterialFunction / MaterialParameterCollection | All versions |
