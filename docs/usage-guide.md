@@ -46,7 +46,7 @@ flowchart TB
 2. 在 UE 编辑器中启用插件：**Edit → Plugins → Developer → NexusLink**
 3. 重启编辑器
 
-> 主模块 `Type` 为 **Editor**（仅编辑器加载，含 PIE）。Game / Dedicated Server / Shipping **不会加载**本插件。
+> 主模块 `Type` 为 **Runtime**（Game/Server 可链接）；`Startup`/`Shutdown` 在 `!WITH_EDITOR` 时空返回——**MCP 仅 Editor / PIE 实际运行**。
 > - 开发态须 Preferences 勾选或加 `-EnableNexusMcp` 才会监听端口
 > - 无 UI 编辑器会话（如 `UEEditor-Cmd`）可用 `-EnableNexusMcp` / `NexusLink.EnableMcp`
 
@@ -80,7 +80,7 @@ NexusLink.EnableMcp 0   ; 关闭
 NexusLink.EnableMcp     ; 查看当前 on/off
 ```
 
-不改 Preferences；仅编辑器有效（Game / Dedicated Server / Shipping 不加载插件，命令不可用）。
+不改 Preferences；仅编辑器有效（非 Editor 构建 Startup 空返回，命令未注册）。
 
 > 代理模式（Rider / VSCode）与直连模式均依赖 UE 侧服务已开启；未开启时 IDE 扫描不到实例、`GET /status` 无响应。
 

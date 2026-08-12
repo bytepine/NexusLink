@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "0.0.0",
 	"FriendlyName": "NexusLink",
-	"Description": "MCP (Model Context Protocol) server for Unreal Engine Editor only (including PIE). Not loaded in Game / Dedicated Server / Shipping.",
+	"Description": "MCP (Model Context Protocol) server for Unreal Engine. Module Type is Runtime for Game/Server link compatibility; Startup/Shutdown no-op when !WITH_EDITOR — MCP only runs in Editor / PIE.",
 	"Category": "Developer Tools",
 	"CreatedBy": "byteyang",
 	"CreatedByURL": "https://github.com/bytepine",
@@ -18,7 +18,7 @@
 	"Modules": [
 		{
 			"Name": "NexusLink",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"PlatformAllowList": [
 				"Win64",

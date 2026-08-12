@@ -68,8 +68,8 @@ static bool IsMcpServerRequestedAtStartup()
 void FNexusLinkModule::StartupModule()
 {
 #if !WITH_EDITOR
-	// 产品配置为 Editor-only（.uplugin Type=Editor）；此守卫覆盖临时改写 Type 跑 Game 目标等场景
-	UE_LOG(LogNexusLink, Log, TEXT("非编辑器构建：NexusLink 不启动（仅 Editor / PIE）"));
+	// Type=Runtime 以便 Game/Server 目标可链接；非编辑器构建不做任何初始化
+	UE_LOG(LogNexusLink, Log, TEXT("非编辑器构建：NexusLink 不启动（MCP 仅 Editor / PIE）"));
 	return;
 #else
 
@@ -101,6 +101,11 @@ void FNexusLinkModule::StartupModule()
 
 void FNexusLinkModule::ShutdownModule()
 {
+#if !WITH_EDITOR
+	// 与 StartupModule 对称：非编辑器构建未初始化，直接返回
+	return;
+#else
+
 #if NX_UE_HAS_POST_ENGINE_INIT_ACCESSOR
 	FCoreDelegates::GetOnPostEngineInit().RemoveAll(this);
 #else
@@ -113,13 +118,11 @@ void FNexusLinkModule::ShutdownModule()
 		EnableMcpConsoleCommand = nullptr;
 	}
 
-#if WITH_EDITOR
 	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.UnregisterCustomClassLayout(UNexusLinkSettings::StaticClass()->GetFName());
 	}
-#endif
 
 	StopMcpServer();
 
@@ -129,6 +132,7 @@ void FNexusLinkModule::ShutdownModule()
 		LogCapture->Unregister();
 		LogCapture.Reset();
 	}
+#endif // WITH_EDITOR
 }
 
 void FNexusLinkModule::StopMcpServer()

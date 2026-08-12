@@ -1,7 +1,7 @@
 NexusLink MCP：Unreal 编辑器 + 运行时控制（**MultiTool 模式**）。
 
 
-> **Host note**: **Editor-only** (including PIE). Not loaded in Game / Dedicated Server / Shipping.
+> **Host note**: **MCP only in Editor / PIE** (module Type=Runtime; Startup/Shutdown no-op when `!WITH_EDITOR`).
 ## 工具模型
 
 `tools/list` 已暴露**全部已启用 Capability**，各为独立 MCP Tool（名称即 capability 名）。

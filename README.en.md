@@ -60,7 +60,7 @@ Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://gith
 1. Place the plugin in your project's `Plugins/Developer/NexusLink`, then enable it under **Edit → Plugins → Developer → NexusLink**
 2. After restarting the editor, open **Edit → Editor Preferences → Plugins → NexusLink**
 3. Check **Enable MCP Server** (**off by default**) — once checked, HTTP (`POST /stream`) and WebSocket start immediately and the instance is registered for Rider/VSCode discovery; unchecking stops them immediately, **no editor restart required**
-4. (Optional) For **editor** headless launches (e.g. `UEEditor-Cmd`), pass **`-EnableNexusMcp`** or console **`NexusLink.EnableMcp 1|0`** (session-only, does not write settings; OR with Preferences). **Editor-only (including PIE)** — not loaded in Game / Dedicated Server / Shipping
+4. (Optional) For **editor** headless launches (e.g. `UEEditor-Cmd`), pass **`-EnableNexusMcp`** or console **`NexusLink.EnableMcp 1|0`** (session-only, does not write settings; OR with Preferences). Module `Type: Runtime` (linkable in Game/Server); **MCP only runs in Editor / PIE** (`Startup`/`Shutdown` no-op when `!WITH_EDITOR`)
 
 > GAS / Niagara Capabilities require `GameplayAbilities` / `Niagara` enabled in the project `.uproject` (`NexusLink.uplugin` declares these dependencies). StateTree / MVVM Capabilities require UE 5.5+ with the corresponding engine plugins available.
 
@@ -185,7 +185,7 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 - [x] **MultiTool**: tools/list exposes all enabled Capabilities (each as a separate MCP Tool) + `submit_feedback`; no `search_capabilities` / `call_capability`
 - [x] Broadcast `notifications/tools/list_changed` on Capability change or mode switch
 - [x] **Enable MCP Server** master switch (off by default): Editor Preferences → Plugins → NexusLink → Server; checking starts HTTP/WebSocket immediately and registers instance; CLI **`-EnableNexusMcp`** or console **`NexusLink.EnableMcp`** for session-only enable/disable (no disk write; OR with Preferences; editor-only)
-- [x] **Editor-only**: main module `Type: Editor` — loads only in Editor / PIE; not loaded in Game / Dedicated Server / Shipping; `StartupModule` no-op when `!WITH_EDITOR`
+- [x] **Editor-only runtime**: main module `Type: Runtime` (linkable in Game/Server); `StartupModule` / `ShutdownModule` no-op when `!WITH_EDITOR` — MCP only runs in Editor / PIE
 - [x] Auto port allocation with conflict fallback; instance registration for zero-scan discovery (`{PID}.json` written to temp directory)
 - [x] **Per-Capability enable/disable** (`IsCapabilityEnabled`): Editor Preferences → Plugins → NexusLink → Capabilities; category-level / per-item toggles
 - [x] **Response default-value compaction for all tools** (`FNexusResponseCompactorUtils`): recursively scans object array fields, extracts dominant values as `<field>_defaults` to reduce response size; can be globally disabled via settings panel **Response Default Compaction**

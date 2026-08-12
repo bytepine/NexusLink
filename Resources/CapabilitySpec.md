@@ -77,7 +77,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 
 - 默认 `GetHostScope()=EditorOnly`：完整 Editor 可见
 - Runtime 基类：`GetHostScope()=Runtime`，用于标记 PIE 运行时能力；`GetDefinition` 会幂等补上 `runtime` 分类标签
-- **插件加载范围**：主模块 `Type: Editor`——仅 Editor / PIE；Game / Dedicated Server / Shipping 不加载；`StartupModule` 在 `!WITH_EDITOR` 时空返回
+- **插件加载范围**：主模块 `Type: Runtime`（Game/Server 可链接）；`StartupModule` / `ShutdownModule` 在 `!WITH_EDITOR` 时空返回——MCP 仅 Editor / PIE 实际运行
 
 `BuildDefinition` 中按需设置以下字段：
 
