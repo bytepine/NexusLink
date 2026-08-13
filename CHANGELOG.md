@@ -7,6 +7,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- fix(mcp): 响应默认值压缩仅当字段出现在**全部 object 条目**上才抽取——避免 `inherited` / `isConst` 等稀疏字段经 `{**defaults, **entry}` 被填到本无该字段的条目上
+
+### Changed
+
+- perf(mcp): 已有 `<k>_defaults` 时自动 Pass **合并**新键（不覆盖 ForcedDefault），不再整段跳过
+- perf(mcp): `search_asset` 指定类型时 `AddForcedDefault(assetType)`；`get_output_log` 在 `verbosity≠all` 时 ForcedDefault verbosity（N=1 也能抽）
+- docs: InitializeInstructions / AIRules 补「`<k>_defaults` 缺省即默认」合并规则
+
 ## [1.16.2] - 2026-08-12
 
 ### Changed

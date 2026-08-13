@@ -13,6 +13,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 ## Token 预算
 
 - 响应体是主要开销：`sections` 取窄（勿 `all`）、`limit` 从小取；读日志 `get_output_log` ≤50 条并配 `categoryFilter` / `verbosity` / `textFilter`，不够再 `offset` 翻页。
+- 列表若含 `<k>_defaults`：缺省字段等于该值（`merged={**defaults,**entry}`）。
 - 诊断日志：优先 `preset=diagnose`（newest + ≥warning + `summaryByCategory`/`errorCount` + limit≤50）；或手动 `order=newest` + `includeSummary`；复现前记 `latestSequence`，复现后回传 `sinceSequence` 只取增量。条目含 UTC `time`（ISO-8601）。
 - **单目标**：Capability 仅 `assetPath` / `actorName` / `widgetName`；跨目标批量用 `call_capability(calls=[{capability,arguments},…])` 一轮完成。单目标内集合保留 `sections` / `propertyPaths` / `operations` / `updates`。
 - `search_capabilities` 优先 `capabilityName` 一次取全 `parameters[]`。

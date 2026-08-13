@@ -566,7 +566,7 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 	const double ExecDurationMs = (FPlatformTime::Seconds() - ExecStartSec) * 1000.0;
 	// 全工具默认响应压缩：对 StructuredContent 递归抽取所有"对象数组"字段的主流值
 	// 到同级 <field>_defaults，条目内等值字段随即省略。受 bCompactResponseDefaults 总开关控制；
-	// 工具内已手动写入 <field>_defaults 的数组会自动跳过避免双写。
+	// 工具内已手动写入 <field>_defaults 时合并新键、不覆盖已有 ForcedDefault。
 	if (!ToolResult.bIsError && ToolResult.StructuredContent.IsValid())
 	{
 		FNexusResponseCompactorUtils::AutoCompactRecursive(ToolResult.StructuredContent);

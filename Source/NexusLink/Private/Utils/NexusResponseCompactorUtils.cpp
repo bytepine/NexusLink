@@ -140,12 +140,14 @@ void FNexusResponseCompactorUtils::TryCompactField(const FString& Field, TArray<
 	// 消灭 JsonValueKey 的 FString::Printf 分配与 hash 开销。
 	TArray<TPair<TSharedPtr<FJsonValue>, int32>, TInlineAllocator<8>> Buckets;
 	int32 HaveCount = 0;
+	int32 ObjectCount = 0;
 	for (const TSharedPtr<FJsonValue>& Item : Items)
 	{
 		if (!Item.IsValid() || Item->Type != EJson::Object)
 		{
 			continue;
 		}
+		++ObjectCount;
 		const TSharedPtr<FJsonObject> Obj = Item->AsObject();
 		const TSharedPtr<FJsonValue> ItemVal = FindField(Obj, Field);
 		if (!IsScalarValue(ItemVal))
@@ -171,6 +173,12 @@ void FNexusResponseCompactorUtils::TryCompactField(const FString& Field, TArray<
 	}
 
 	if (HaveCount == 0)
+	{
+		return;
+	}
+	// 缺字段的条目合并时会被 defaults 填上主流值；inherited / isConst 等
+	// 「仅非默认才写出」的稀疏字段会因此被污染。必须全员持有才抽取。
+	if (HaveCount != ObjectCount)
 	{
 		return;
 	}
@@ -417,23 +425,35 @@ static void AutoCompactRecursiveImpl(const TSharedPtr<FJsonObject>& Parent, int3
 			continue;
 		}
 
-		// 工具侧已显式写入 <Field>_defaults 时跳过，避免双写
-		const FString DefaultsKey = Field + TEXT("_defaults");
-		if (Parent->HasField(DefaultsKey))
-		{
-			continue;
-		}
-
-		// CompactArray 签名要求非 const 引用（会就地移除 inner object 字段）；
-		// 这里对 ItemsRef 做一次 const_cast 是安全的——Items 数组结构（元素个数与指针）
-		// 不会被 CompactArray 修改，只有 inner FJsonObject 的字段会被 RemoveField 抽走。
 		TArray<TSharedPtr<FJsonValue>>& Items =
 			const_cast<TArray<TSharedPtr<FJsonValue>>&>(ItemsRef);
 
 		FNexusResponseCompactorUtils Local;
 		Local.SetAutoDiscover(true);
 		Local.CompactArray(Items);
-		Local.Emit(Parent, Field);
+		if (!Local.HasDefaults())
+		{
+			continue;
+		}
+
+		const FString DefaultsKey = Field + TEXT("_defaults");
+		const TSharedPtr<FJsonObject>* ExistingPtr = nullptr;
+		if (Parent->TryGetObjectField(DefaultsKey, ExistingPtr) && ExistingPtr && (*ExistingPtr).IsValid())
+		{
+			// 工具侧 ForcedDefault 已写入：只补新键，不覆盖（避免改写入参驱动的强制默认）
+			TSharedPtr<FJsonObject> Existing = *ExistingPtr;
+			for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : Local.GetDefaults()->Values)
+			{
+				if (!Existing->HasField(Pair.Key))
+				{
+					Existing->SetField(Pair.Key, Pair.Value);
+				}
+			}
+		}
+		else
+		{
+			Local.Emit(Parent, Field);
+		}
 	}
 }
 

@@ -21,7 +21,7 @@ alwaysApply: false
 |---|---|---|
 | 1 发现 Capability | `search_capabilities` | 已知 cap 名时**跳过**本步，直接 `call_capability`；未知时 `query` 用 1–2 个**窄域**词（如 `blueprint graph`、`runtime actor`、`behavior tree`）；**禁止**业务功能名、资产名，以及单用过宽词（见 §2） |
 | 2 发现资产路径 | `search_asset` | 必须 `assetType` + 功能级 `pathFilter`；返回顶层 `assets`；指定类型时顶层含 `recommendedGet`/`recommendedManage`，第 3 步优先用 |
-| 3 读/写 | `get_asset_*` / `manage_asset_*` / `list_runtime_*` 等 | `assetPath` **只**用 `assets[].path`；Capability 优先用 `recommendedGet`/`recommendedManage` |
+| 3 读/写 | `get_asset_*` / `manage_asset_*` / `list_runtime_*` 等 | `assetPath` **只**用 `assets[].path`；Capability 优先用 `recommendedGet`/`recommendedManage`；列表若含 `<k>_defaults`，缺省字段等于该值（`{**defaults,**entry}`） |
 | 4 落盘 | `save_asset` | 改过磁盘资产后必须调用 |
 
 **元工具** `search_capabilities`、`call_capability`、`submit_feedback` 须 **MCP `tools/call` 直接调用**，禁止 `call_capability(capability="search_capabilities", …)`。

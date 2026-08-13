@@ -14,6 +14,7 @@
  * - 仅抽取标量字段（string / number / bool / null），不处理 object/array
  * - 强制默认（ForcedDefault）：由入参决定、一定不会变，立即生效
  * - 候选字段（Candidate）：运行时统计主流值分布，满足数量/占比/净收益三阈值才抽取
+ * - 字段必须出现在**全部 object 条目**上才抽取（缺省即默认；稀疏字段如 inherited 不得被填回）
  * - 抽取后的条目**保留**落在非默认分支的同名字段，消费方合并时逐条覆写 defaults
  *
  * 两种使用姿势：
@@ -33,7 +34,8 @@
  *      C.AddCandidate(TEXT("kind"));
  *      C.CompactArray(PageArray);
  *      C.Emit(ResultObj, TEXT("properties"));   // 写入 properties_defaults
- *    手动写入 `<prefix>_defaults` 后，自动模式检测到同级已有此字段会跳过，避免双写。
+ *    手动写入 `<prefix>_defaults` 后，自动模式**合并**新发现的字段，不覆盖已有键
+ *    （ForcedDefault 保持权威）。
  *
  * 消费侧合并规则：merged = {**defaults, **entry}（entry 覆盖 defaults 同名字段）
  */
@@ -80,13 +82,9 @@ public:
 
 	/**
 	 * 自动压缩整棵响应树：对 Parent 内每个"对象数组"字段 K
-	 * （K 不是 `_defaults` / `defaults` / `content` 等已知语义冲突名、
-	 *   且同级尚未出现 `<K>_defaults`）启用自动扫描尝试抽取，
-	 * 命中阈值则写入 `<K>_defaults`；然后递归进入：
-	 *   - 每个 object 字段
-	 *   - 每个 array 元素里的 object
-	 * 便于 `NexusMcpDispatcher` 统一为所有工具打上"默认压缩能力"，
-	 * 工具侧无需再手动声明候选字段。
+	 * （K 不是 `_defaults` / `content` 等已知语义冲突名）启用自动扫描尝试抽取，
+	 * 命中阈值则写入 `<K>_defaults`。同级已有 `<K>_defaults` 时合并新键、不覆盖已有键。
+	 * 然后递归进入每个 object 字段与 array 元素里的 object。
 	 *
 	 * 受 `UNexusLinkSettings::bCompactResponseDefaults` 总开关控制：
 	 * 关闭时整个 Pass 直接跳过。
@@ -109,6 +107,7 @@ private:
 	/**
 	 * 对单个字段执行分布统计 + 阈值判定 + 抽取。
 	 * 被 CompactArray 的 Candidates 循环和自动扫描路径共同调用。
+	 * 字段未出现在全部 object 条目上时直接返回（避免稀疏字段被 defaults 填错）。
 	 */
 	void TryCompactField(const FString& Field, TArray<TSharedPtr<FJsonValue>>& Items);
 };

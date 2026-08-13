@@ -12,7 +12,7 @@
 //
 // 这些用例不依赖运行中的 UE 编辑器或 MCP 连接，能稳定触发 Python 端到端
 // 测试覆盖不到的边界（Number / Bool / Null 字段、空数组、递归深度、同级
-// `<K>_defaults` 去重等），也能在移除手动压缩声明后持续守护算法不变式。
+// `<K>_defaults` 去重、稀疏字段不得抽取等），也能在移除手动压缩声明后持续守护算法不变式。
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ─── JSON 构造小工具 ──────────────────────────────────────────────
@@ -397,7 +397,7 @@ bool FNexusLinkResponseCompactorAutoDiscoverTest::RunTest(const FString& Paramet
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// 5. 边界：空数组、N=0、深度限制
+// 5. 边界：空数组、N=0、稀疏字段不得抽取、深度限制
 // ─────────────────────────────────────────────────────────────────────
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
@@ -430,9 +430,10 @@ bool FNexusLinkResponseCompactorEdgeCasesTest::RunTest(const FString& Parameters
 		TestFalse(TEXT("no field present: no defaults"), C.HasDefaults());
 	}
 
-	// ─── 只有部分条目持有字段：比例按"持有条目数"分母算 ───
+	// ─── 只有部分条目持有字段：不得抽取（稀疏字段合并会填错）───
 	{
-		// 6 条：3 条持有 category="Weapon"，3 条无 category → HaveCount=3，Top=3，Ratio=100%
+		// 6 条：3 条持有 category="Weapon"，3 条无 category。
+		// 若按 HaveCount 分母会 100% 命中，合并后 D/E/F 会被填上 Weapon。
 		TArray<TSharedPtr<FJsonValue>> Items = {
 			JObj({ {TEXT("name"), JStr(TEXT("A"))}, {TEXT("category"), JStr(TEXT("Weapon"))} }),
 			JObj({ {TEXT("name"), JStr(TEXT("B"))}, {TEXT("category"), JStr(TEXT("Weapon"))} }),
@@ -445,10 +446,32 @@ bool FNexusLinkResponseCompactorEdgeCasesTest::RunTest(const FString& Parameters
 		C.AddCandidate(TEXT("category"));
 		C.CompactArray(Items);
 
-		TestTrue(TEXT("partial field: still compacted by HaveCount"), C.HasDefaults());
-		TestEqual(TEXT("partial field: value"),
-			C.GetDefaults()->GetStringField(TEXT("category")),
-			FString(TEXT("Weapon")));
+		TestFalse(TEXT("sparse field: must NOT compact when some entries omit the field"),
+			C.HasDefaults());
+		TestTrue(TEXT("sparse field: holders keep category"),
+			EntryObj(Items, 0)->HasField(TEXT("category")));
+		TestFalse(TEXT("sparse field: omitters stay without category"),
+			EntryObj(Items, 3)->HasField(TEXT("category")));
+	}
+
+	// ─── 稀疏布尔（inherited 仅 true 时写出）不得进 defaults ───
+	{
+		TArray<TSharedPtr<FJsonValue>> Items = {
+			JObj({ {TEXT("path"), JStr(TEXT("Health"))}, {TEXT("type"), JStr(TEXT("int32"))} }),
+			JObj({ {TEXT("path"), JStr(TEXT("MaxHealth"))}, {TEXT("type"), JStr(TEXT("int32"))}, {TEXT("inherited"), JBool(true)} }),
+			JObj({ {TEXT("path"), JStr(TEXT("Speed"))}, {TEXT("type"), JStr(TEXT("float"))}, {TEXT("inherited"), JBool(true)} }),
+			JObj({ {TEXT("path"), JStr(TEXT("Armor"))}, {TEXT("type"), JStr(TEXT("int32"))}, {TEXT("inherited"), JBool(true)} }),
+		};
+		FNexusResponseCompactorUtils C;
+		C.SetAutoDiscover(true);
+		C.CompactArray(Items);
+
+		TestFalse(TEXT("sparse inherited: must not appear in defaults"),
+			C.HasDefaults() && C.GetDefaults()->HasField(TEXT("inherited")));
+		TestFalse(TEXT("sparse inherited: owned entry still has no inherited"),
+			EntryObj(Items, 0)->HasField(TEXT("inherited")));
+		TestTrue(TEXT("sparse inherited: inherited entries keep the flag"),
+			EntryObj(Items, 1)->HasField(TEXT("inherited")));
 	}
 
 	// ─── Emit：空前缀 → "defaults" key，非空 → "<prefix>_defaults" ───
@@ -548,7 +571,7 @@ bool FNexusLinkResponseCompactorRecursiveTest::RunTest(const FString& Parameters
 		}
 	}
 
-	// ─── 尊重工具侧已手动写入的 <K>_defaults（不覆盖、不双写） ───
+	// ─── 工具侧已写入 <K>_defaults：合并新键，不覆盖 ForcedDefault ───
 	{
 		TArray<TSharedPtr<FJsonValue>> Entries;
 		for (int32 i = 0; i < 4; ++i)
@@ -562,19 +585,17 @@ bool FNexusLinkResponseCompactorRecursiveTest::RunTest(const FString& Parameters
 		TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 		Root->SetArrayField(TEXT("entries"), Entries);
 
-		// 模拟工具侧已手动写入 entries_defaults（只声明了 category）
 		TSharedPtr<FJsonObject> ToolDefaults = MakeShared<FJsonObject>();
 		ToolDefaults->SetStringField(TEXT("category"), TEXT("LogTemp"));
 		Root->SetObjectField(TEXT("entries_defaults"), ToolDefaults);
 
 		FNexusResponseCompactorUtils::AutoCompactRecursive(Root);
 
-		// Dispatcher 检测到同级 entries_defaults 已存在 → 跳过整段，不修改也不补 verbosity
 		TSharedPtr<FJsonObject> FinalDefaults = Root->GetObjectField(TEXT("entries_defaults"));
-		TestEqual(TEXT("skip-existing: tool's category preserved"),
+		TestEqual(TEXT("merge-existing: tool's category preserved"),
 			FinalDefaults->GetStringField(TEXT("category")), FString(TEXT("LogTemp")));
-		TestFalse(TEXT("skip-existing: auto pass did NOT add verbosity"),
-			FinalDefaults->HasField(TEXT("verbosity")));
+		TestEqual(TEXT("merge-existing: auto pass adds verbosity"),
+			FinalDefaults->GetStringField(TEXT("verbosity")), FString(TEXT("Log")));
 	}
 
 	// ─── 跳过协议保留字段名：`content` 与 `*_defaults` ───

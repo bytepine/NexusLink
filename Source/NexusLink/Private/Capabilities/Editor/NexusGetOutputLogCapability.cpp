@@ -221,13 +221,22 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 			OutEntry->SetNumberField(TEXT("warningCount"), WarningCount);
 		}
 
-		if (!CategoryFilter.IsEmpty() && LogArray.Num() > 0)
+		if (!CategoryFilter.IsEmpty() || VerbosityStr != TEXT("all"))
 		{
-			FNexusResponseCompactorUtils EntryCompactor;
-			EntryCompactor.AddForcedDefault(TEXT("category"), CategoryFilter);
-			EntryCompactor.SetAutoDiscover(true);
-			EntryCompactor.CompactArray(LogArray);
-			EntryCompactor.Emit(OutEntry, TEXT("entries"));
+			if (LogArray.Num() > 0)
+			{
+				FNexusResponseCompactorUtils EntryCompactor;
+				if (!CategoryFilter.IsEmpty())
+				{
+					EntryCompactor.AddForcedDefault(TEXT("category"), CategoryFilter);
+				}
+				if (VerbosityStr != TEXT("all"))
+				{
+					EntryCompactor.AddForcedDefault(TEXT("verbosity"), VerbosityToString(VerbosityFilter));
+				}
+				EntryCompactor.CompactArray(LogArray);
+				EntryCompactor.Emit(OutEntry, TEXT("entries"));
+			}
 		}
 
 		const TArray<FString> Whitelist = FNexusLogCapture::Get().GetCategoryWhitelist();
