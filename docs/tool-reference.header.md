@@ -25,12 +25,12 @@
 > - 列表工具均支持 `offset`（默认 0）和 `limit`（默认 100，上限 500）分页
 > - 标记 ★ 的参数为必填
 > - **单目标 + 跨目标批量（Breaking）**：Capability 仅单目标（`assetPath` / `actorName` / `widgetName`）；跨目标用 `call_capability(calls=[{capability,arguments?},...])`。单目标内集合保留 `sections` / `propertyPaths` / `operations` / `updates`。禁止 `assetPaths`/`actorNames`/`widgetNames` 及旧键（`blueprintPath`→`assetPath`，`newPath`→`destAssetPath`，`ownerWidget`→`ownerClass`，`filePath`→`scriptPath`，Lua `path`→`luaPath`，顶层 `fields`/`rows`/`keys`/`widgets`→`operations`）；旧键 → `arg_invalid`
-> - **响应默认值压缩（全工具默认启用）**：`NexusMcpDispatcher` 在每次工具执行后、序列化前对 `structuredContent` 做一次**递归自动扫描**——遍历所有嵌套层级里的"对象数组"字段 `K`，对其中每个标量字段做分布统计，主流值满足三阈值（`MinCount=3` / `MinMatchRatio=0.7` / `MinNetSaveBytes=30`）时抽到同级 `<K>_defaults`，条目里等于该默认值的同名字段随即省略。内置身份字段排除集（`name` / `path` / `assetPath` / `nodeId` / `tag` / `message` / `timestamp` / `frame` / `id` / `label` / `title` / `text` / `error`）永远不会进入 defaults。
+> - **响应默认值压缩（全工具默认启用）**：`NexusMcpDispatcher` 在每次工具执行后、序列化前对 `structuredContent` 递归扫描所有"对象数组"字段 `K`。仅抽取**全部 object 条目都持有**的标量字段（string / number / bool / null）；主流值满足三阈值（`MinCount=2` / `MinMatchRatio=0.7` / `MinNetSaveBytes=20`）时写入同级 `<K>_defaults`，条目里等值字段随即省略。稀疏字段（如仅 `true` 才写出的 `inherited`）不抽取，避免 `{**defaults, **entry}` 填错。身份字段（`name` / `path` / `assetPath` / `nodeId` / `tag` / `message` / `timestamp` / `frame` / `id` / `label` / `title` / `text` / `error`）永不进入 defaults。`search_asset` 指定类型、`get_output_log` 的 `categoryFilter` / `verbosity≠all` 走 ForcedDefault（N=1 也抽）。
 >
->   **消费侧合并规则**：遍历条目时先拿 `<K>_defaults` 作为底，再用条目自身字段覆写（`{**defaults, **entry}`）；条目缺少某字段时视为等于 defaults 值。
+>   **消费侧合并规则**：`merged = {**defaults, **entry}`；条目缺少某字段时视为等于 defaults 值。
 >
->   **跳过规则**：同级已出现 `<K>_defaults` 时不二次处理；字段名以 `_defaults` 结尾或等于 `content` 时不参与（协议字段语义冲突）。
+>   **合并 / 跳过**：同级已有 `<K>_defaults` 时**合并新键、不覆盖已有键**（ForcedDefault 保持权威）；字段名以 `_defaults` 结尾或等于 `content` 时不参与。
 >
->   可通过 编辑器 → 编辑器首选项 → 插件 → NexusLink → `响应默认值压缩` 关闭，关闭后工具返回未压缩的原始条目。
+>   可通过 编辑器 → 编辑器首选项 → 插件 → NexusLink → `响应默认值压缩` 关闭，关闭后返回未压缩原始条目。
 
 ---

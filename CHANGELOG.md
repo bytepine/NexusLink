@@ -15,7 +15,7 @@
 
 - perf(mcp): 已有 `<k>_defaults` 时自动 Pass **合并**新键（不覆盖 ForcedDefault），不再整段跳过
 - perf(mcp): `search_asset` 指定类型时 `AddForcedDefault(assetType)`；`get_output_log` 在 `verbosity≠all` 时 ForcedDefault verbosity（N=1 也能抽）
-- docs: InitializeInstructions / AIRules 补「`<k>_defaults` 缺省即默认」合并规则
+- docs: InitializeInstructions / AIRules / tool-reference 对齐当前压缩契约（`MinCount=2`、全员持有才抽取、已有 defaults 合并新键、缺省即默认）
 
 ## [1.16.2] - 2026-08-12
 
