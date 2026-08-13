@@ -32,7 +32,7 @@ public:
 	 * @param SubobjectDepth    instanced 子对象递归深度（默认 0 = 不递归，保持旧行为零回归）；
 	 *                          >0 时对 CPF_InstancedReference / CLASS_EditInlineNew 的非空 FObjectProperty 展开 subProperties
 	 * @param SubobjectMaxCount 每层子对象最多展开的属性条数（防病态资产爆炸，默认 16）
-	 * @return 当前页的属性 JSON 对象数组，每条含 name / type / value? / inherited? / subProperties?
+	 * @return 当前页的属性 JSON 对象数组，每条含 name / type / value? / inherited（LeafClass 非空时始终写出）/ subProperties?
 	 */
 	static TArray<TSharedPtr<FJsonValue>> BuildEditablePropsPage(
 		UClass*                      Class,

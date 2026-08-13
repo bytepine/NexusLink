@@ -172,6 +172,34 @@ namespace
 		return false;
 	}
 
+	static bool TryGatedPluginHint(const FString& QueryLower, FString& OutHint)
+	{
+		struct FGate { const TCHAR* Needle; const TCHAR* Hint; };
+		static const FGate Gates[] = {
+			{ TEXT("niagara"),    TEXT("Niagara 类 Capability 需启用 Niagara 插件；当前宿主未注册，勿重试。query=\"\" 可核对本机目录。") },
+			{ TEXT("gameplay"),   TEXT("GAS 类 Capability 需启用 GameplayAbilities；当前宿主未注册，勿重试。Tag 查询用 get_gameplay_tags。") },
+			{ TEXT("statetree"),  TEXT("StateTree 需 UE 5.5+ 且插件可用；当前宿主未注册，勿重试。") },
+			{ TEXT("state tree"), TEXT("StateTree 需 UE 5.5+ 且插件可用；当前宿主未注册，勿重试。") },
+			{ TEXT("mvvm"),       TEXT("MVVM / ViewModel 需 UE 5.5+；当前宿主未注册，勿重试。") },
+			{ TEXT("viewmodel"),  TEXT("MVVM / ViewModel 需 UE 5.5+；当前宿主未注册，勿重试。") },
+			{ TEXT("view model"), TEXT("MVVM / ViewModel 需 UE 5.5+；当前宿主未注册，勿重试。") },
+			{ TEXT("metasound"),  TEXT("MetaSound 需 UE 5.0+；当前宿主未注册，勿重试。") },
+			{ TEXT("controlrig"), TEXT("ControlRig 需 UE 5.0+ 且插件可用；当前宿主未注册，勿重试。") },
+			{ TEXT("control rig"),TEXT("ControlRig 需 UE 5.0+ 且插件可用；当前宿主未注册，勿重试。") },
+			{ TEXT("eqs"),        TEXT("EQS 类 Capability 需 UE5+；当前宿主未注册，勿重试。") },
+			{ TEXT("pcg"),        TEXT("PCG 类 Capability 需 UE 5.4+；当前宿主未注册，勿重试。") },
+		};
+		for (const FGate& G : Gates)
+		{
+			if (QueryLower.Contains(G.Needle))
+			{
+				OutHint = G.Hint;
+				return true;
+			}
+		}
+		return false;
+	}
+
 	static void EmitSuggestedQueries(TSharedPtr<FJsonObject>& Output, const TArray<FString>& Suggested)
 	{
 		TArray<TSharedPtr<FJsonValue>> Arr;
@@ -416,8 +444,10 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 				// 多命中：related 去重（已在本页结果中的名不重复列），最多 3 条
 				if (S.Def->RelatedCapabilities.Num() > 0)
 				{
+					const TArray<FString> Related = FNexusCapabilityIndexUtils::FilterVisibleRelated(
+						S.Def->RelatedCapabilities, Settings, 8);
 					TArray<TSharedPtr<FJsonValue>> Arr;
-					for (const FString& R : S.Def->RelatedCapabilities)
+					for (const FString& R : Related)
 					{
 						if (HitNames.Contains(R))
 						{
@@ -464,7 +494,15 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 			FString Hint = TEXT("无匹配 Capability。可 query=\"\" 查完整目录，或 capabilityName=<精确名>。");
 			if (QueryRaw.Equals(TEXT("get_asset"), ESearchCase::IgnoreCase))
 			{
-				Hint = TEXT("无 get_asset 聚合工具；请用 get_asset_<类型>（如 get_asset_blueprint、get_asset_gameplay_ability）或 search_asset 查路径。");
+				Hint = TEXT("无 get_asset 聚合工具；请用 get_asset_<类型>（如 get_asset_blueprint）或 search_asset 查路径。");
+			}
+			else
+			{
+				FString GateHint;
+				if (TryGatedPluginHint(QueryRaw.ToLower(), GateHint))
+				{
+					Hint = GateHint;
+				}
 			}
 			Output->SetStringField(TEXT("errorKind"), TEXT("not_found"));
 			Output->SetStringField(TEXT("hint"), Hint);

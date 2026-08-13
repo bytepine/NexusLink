@@ -2,7 +2,7 @@
 
 #pragma once
 
-// Utils 层：Editor（私有头，仅 NexusMcpToolSearchCapabilities 使用）
+// Utils 层：Editor（search_capabilities / tools/list）
 #include "CoreMinimal.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
@@ -11,7 +11,7 @@ class UNexusLinkSettings;
 struct FNexusCapabilityDefinition;
 
 /**
- * search_capabilities 工具的评分/目录辅助工具。
+ * search_capabilities 与 tools/list 的评分/目录/Related 过滤辅助。
  * 封装 Token 评分、Capability 相关度排名、Schema 参数提取、目录构建等无状态算法。
  */
 class FNexusCapabilityIndexUtils final
@@ -44,8 +44,17 @@ public:
 	static int32 ScoreCapabilityPartial(const TArray<FString>& Tokens, const TArray<FString>& Keywords,
 	                                    int32& OutMatchedTokens);
 
-	/** 将 RelatedCapabilities/Prerequisites/WhenToUse 附加到已有 JsonObject。 */
+	/** 将 RelatedCapabilities/Prerequisites/WhenToUse 附加到已有 JsonObject。Related 仅保留当前宿主已注册且已启用的名。 */
 	static void AttachMetaHints(TSharedPtr<FJsonObject>& Entry, const FNexusCapabilityDefinition& Def);
+
+	/**
+	 * 过滤 RelatedCapabilities：仅保留已注册、当前宿主可见、设置中已启用的名。
+	 * MaxCount=0 表示不截断。
+	 */
+	static TArray<FString> FilterVisibleRelated(
+		const TArray<FString>& Related,
+		const UNexusLinkSettings* Settings,
+		int32 MaxCount = 0);
 
 	/** 构建按 tag 分组的 Capability 目录（query="" 时使用；条目仅 name / 可选 whenToUse）。 */
 	static TSharedPtr<FJsonObject> BuildDirectory(const UNexusLinkSettings* Settings);

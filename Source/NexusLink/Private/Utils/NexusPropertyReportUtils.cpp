@@ -76,11 +76,15 @@ TArray<TSharedPtr<FJsonValue>> FNexusPropertyReportUtils::BuildEditablePropsPage
 			}
 		}
 
-		// 继承标记：属性的 OwnerClass 与叶类不同时标记
+		// 继承标记始终写出（false 也写），否则稀疏字段无法进入响应压缩 defaults
 		if (LeafClass)
 		{
+			bool bInherited = false;
 			if (UClass* OwnerCls = Prop->GetOwnerClass())
-				if (OwnerCls != LeafClass) Entry->SetBoolField(TEXT("inherited"), true);
+			{
+				bInherited = (OwnerCls != LeafClass);
+			}
+			Entry->SetBoolField(TEXT("inherited"), bInherited);
 		}
 
 		All.Add(Entry);

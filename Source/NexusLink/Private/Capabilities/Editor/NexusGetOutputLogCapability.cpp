@@ -226,12 +226,14 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 			if (LogArray.Num() > 0)
 			{
 				FNexusResponseCompactorUtils EntryCompactor;
+				// categoryFilter 是子串：只在本页实际 category 全员一致时 ForcedDefault 该值
 				if (!CategoryFilter.IsEmpty())
 				{
-					EntryCompactor.AddForcedDefault(TEXT("category"), CategoryFilter);
+					EntryCompactor.AddForcedDefaultIfUnanimous(TEXT("category"), LogArray);
 				}
 				if (VerbosityStr != TEXT("all"))
 				{
+					// verbosity 是下限：Warning 页里 Error 条保留字段覆盖 defaults
 					EntryCompactor.AddForcedDefault(TEXT("verbosity"), VerbosityToString(VerbosityFilter));
 				}
 				EntryCompactor.CompactArray(LogArray);

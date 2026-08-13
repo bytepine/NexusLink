@@ -101,14 +101,15 @@ TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::SerializeBPPin(const UEdGraph
 	if (!FN.IsEmpty() && FN != Pin->PinName.ToString()) P->SetStringField(TEXT("pinFriendlyName"), FN);
 	if (!Pin->PinType.PinSubCategory.IsNone()) P->SetStringField(TEXT("pinSubCategory"), Pin->PinType.PinSubCategory.ToString());
 	if (Pin->PinType.PinSubCategoryObject.IsValid()) P->SetStringField(TEXT("pinSubCategoryObject"), Pin->PinType.PinSubCategoryObject->GetName());
-	if (Pin->PinType.IsArray())    P->SetStringField(TEXT("containerType"), TEXT("array"));
-	else if (Pin->PinType.IsMap()) P->SetStringField(TEXT("containerType"), TEXT("map"));
-	else if (Pin->PinType.IsSet()) P->SetStringField(TEXT("containerType"), TEXT("set"));
-	if (Pin->PinType.bIsReference) P->SetBoolField(TEXT("isReference"), true);
-	if (Pin->PinType.bIsConst)     P->SetBoolField(TEXT("isConst"),     true);
+	if (Pin->PinType.IsArray())         P->SetStringField(TEXT("containerType"), TEXT("array"));
+	else if (Pin->PinType.IsMap())      P->SetStringField(TEXT("containerType"), TEXT("map"));
+	else if (Pin->PinType.IsSet())      P->SetStringField(TEXT("containerType"), TEXT("set"));
+	else                               P->SetStringField(TEXT("containerType"), TEXT("none"));
+	P->SetBoolField(TEXT("isReference"), Pin->PinType.bIsReference);
+	P->SetBoolField(TEXT("isConst"),     Pin->PinType.bIsConst);
 	if (!Pin->DefaultValue.IsEmpty()) P->SetStringField(TEXT("defaultValue"), Pin->DefaultValue);
 	if (Pin->DefaultObject) P->SetStringField(TEXT("defaultObject"), Pin->DefaultObject->GetPathName());
-	if (Pin->bOrphanedPin) P->SetBoolField(TEXT("bOrphan"), true);
+	P->SetBoolField(TEXT("bOrphan"), Pin->bOrphanedPin);
 	if (Pin->LinkedTo.Num() > 0)
 	{
 		TArray<TSharedPtr<FJsonValue>> Links;
@@ -133,7 +134,7 @@ TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::SerializeBPNode(const UEdGrap
 	N->SetStringField(TEXT("nodeClass"), Node->GetClass()->GetName());
 	N->SetStringField(TEXT("nodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
 	if (!Node->NodeComment.IsEmpty()) N->SetStringField(TEXT("comment"), Node->NodeComment);
-	if (!Node->IsNodeEnabled()) N->SetBoolField(TEXT("bIsNodeEnabled"), false);
+	N->SetBoolField(TEXT("bIsNodeEnabled"), Node->IsNodeEnabled());
 	TArray<TSharedPtr<FJsonValue>> Pins;
 	for (const UEdGraphPin* Pin : Node->Pins)
 		if (Pin) Pins.Add(MakeShared<FJsonValueObject>(SerializeBPPin(Pin)));

@@ -25,7 +25,7 @@
 > - 列表工具均支持 `offset`（默认 0）和 `limit`（默认 100，上限 500）分页
 > - 标记 ★ 的参数为必填
 > - **单目标 + 跨目标批量（Breaking）**：Capability 仅单目标（`assetPath` / `actorName` / `widgetName`）；跨目标用 `call_capability(calls=[{capability,arguments?},...])`。单目标内集合保留 `sections` / `propertyPaths` / `operations` / `updates`。禁止 `assetPaths`/`actorNames`/`widgetNames` 及旧键（`blueprintPath`→`assetPath`，`newPath`→`destAssetPath`，`ownerWidget`→`ownerClass`，`filePath`→`scriptPath`，Lua `path`→`luaPath`，顶层 `fields`/`rows`/`keys`/`widgets`→`operations`）；旧键 → `arg_invalid`
-> - **响应默认值压缩（全工具默认启用）**：`NexusMcpDispatcher` 在每次工具执行后、序列化前对 `structuredContent` 递归扫描所有"对象数组"字段 `K`。仅抽取**全部 object 条目都持有**的标量字段（string / number / bool / null）；主流值满足三阈值（`MinCount=2` / `MinMatchRatio=0.7` / `MinNetSaveBytes=20`）时写入同级 `<K>_defaults`，条目里等值字段随即省略。稀疏字段（如仅 `true` 才写出的 `inherited`）不抽取，避免 `{**defaults, **entry}` 填错。身份字段（`name` / `path` / `assetPath` / `nodeId` / `tag` / `message` / `timestamp` / `frame` / `id` / `label` / `title` / `text` / `error`）永不进入 defaults。`search_asset` 指定类型、`get_output_log` 的 `categoryFilter` / `verbosity≠all` 走 ForcedDefault（N=1 也抽）。
+> - **响应默认值压缩（全工具默认启用）**：`NexusMcpDispatcher` 在每次工具执行后、序列化前对 `structuredContent` 递归扫描所有"对象数组"字段 `K`。仅抽取**全部 object 条目都持有**的标量字段（string / number / bool / null）；主流值满足三阈值（`MinCount=2` / `MinMatchRatio=0.7` / `MinNetSaveBytes=20`）时写入同级 `<K>_defaults`，条目里等值字段随即省略。稀疏字段（仅部分条目写出的键）不抽取，避免 `{**defaults, **entry}` 填错。蓝图 pin / defaults / component 的布尔已改为**始终写出**（`inherited` / `isConst` / `isReference` / `bOrphan` / `bIsNodeEnabled` / `containerType`），以便压缩抽取主流值。身份字段（`name` / `path` / `assetPath` / `nodeId` / `tag` / `message` / `timestamp` / `frame` / `id` / `label` / `title` / `text` / `error`）永不进入 defaults。ForcedDefault：`search_asset` 指定类型抽 `assetType`；`get_output_log` 的 `verbosity≠all` 抽下限；`categoryFilter` / `list_runtime_actors.classFilter` / `list_runtime_widgets.classFilter` 仅当本页实际字段**全员一致**才抽该值（N=1 也抽；禁止把过滤子串当 defaults）。
 >
 >   **消费侧合并规则**：`merged = {**defaults, **entry}`；条目缺少某字段时视为等于 defaults 值。
 >
@@ -1508,14 +1508,14 @@
 
 ### `create_asset_blueprint`
 
-以 UObject 子类为父类创建新 BP 资产，自动编译；用 manage 添加变量/节点/连线。
+创建新 BP 并编译；`parentClass=Interface` 建 BPI。用 manage 加变量/函数/接口/节点。
 
-**适用场景**：创建空白 BP；不用于编辑现有 BP
+**适用场景**：创建空白 BP 或 BPI（parentClass=Interface）；不用于编辑现有 BP
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 新蓝图包路径，如 '/Game/Blueprints/BP_NewActor' |
-| `parentClass` | `string` | ★ | 父类名（任意 UObject 子类），如 Actor、Pawn、Character |
+| `parentClass` | `string` | ★ | 父类名或 BP 路径。Interface 建蓝图接口；Actor/Pawn/Character 建普通 BP |
 
 **相关 Capability**：`manage_asset_blueprint`、`get_asset_blueprint`
 
@@ -1544,14 +1544,14 @@
 
 ### `manage_asset_blueprint`
 
-编辑 BP：图/变量/节点/连线、SCS 组件树、CDO 默认值。SCS/defaults 仅限 Actor BP。操作后记得保存。
+编辑 BP：图/变量/函数/接口/节点/连线、SCS、CDO。SCS/defaults 限 Actor BP。操作后记得保存。
 
-**适用场景**：写操作：增删变量、图节点、连线
+**适用场景**：写操作：增删变量、函数图、接口、图节点、连线
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 蓝图资产路径 |
-| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_variable/remove_variable/add_node/remove_node/set_node/connect/disconnect/disconnect_all…), `graphName`, `variableName`, `variableType`, `defaultValue`, `category`, `isPublic`, `nodeId`, `nodeClass`, `functionName`, `functionClass`, `posX`, `posY`, `comment`, `pinName`, `pinDefaultValue`, `sourceNodeId`, `sourcePinName`, `targetNodeId`, `targetPinName`, `componentClass`, `componentName`, `attachTo`, `propertyPath`, `value` |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_variable/remove_variable/add_function/remove_function/add_interface/remove_interface/add_node/remove_node…), `graphName`, `variableName`, `variableType`, `defaultValue`, `category`, `isPublic`, `nodeId`, `nodeClass`, `functionName`, `functionClass`, `interfaceName`, `posX`, `posY`, `comment`, `pinName`, `pinDefaultValue`, `sourceNodeId`, `sourcePinName`, `targetNodeId`, `targetPinName`, `componentClass`, `componentName`, `attachTo`, `propertyPath`, `value` |
 
 **相关 Capability**：`get_asset_blueprint`、`create_asset_blueprint`、`save_asset`
 

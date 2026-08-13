@@ -202,6 +202,12 @@ public:
 	static bool NotifyCompileAndSave(UPackage* Package, class UBlueprint* Blueprint, const FString& PackagePath);
 
 	/**
+	 * 写入 blueprintType（normal/interface/…）与 implementedInterfaces[]（空数组也写出）。
+	 * create/get_asset_blueprint 共用，供 BPI 与 Implement 接口回显。
+	 */
+	static void AppendBlueprintMetaFields(const class UBlueprint* BP, TSharedPtr<FJsonObject>& OutEntry);
+
+	/**
 	 * search_asset 路由提示：按返回的 assetType 从 Registry（各 cap 的 SearchAssetTypes）解析推荐读/写 Capability。
 	 * 无对应 cap 时 Out* 为空串（调用方勿写入 JSON 字段）。
 	 */

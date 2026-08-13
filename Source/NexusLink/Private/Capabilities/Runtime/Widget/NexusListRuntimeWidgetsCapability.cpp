@@ -7,6 +7,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
 #include "Utils/NexusStringMatchUtils.h"
+#include "Utils/NexusResponseCompactorUtils.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Widget.h"
@@ -94,6 +95,13 @@ FCapabilityResult FListRuntimeWidgetsCapability::Execute(const TSharedPtr<FJsonO
 	Entry->SetNumberField(TEXT("offset"),     Start);
 	Entry->SetNumberField(TEXT("limit"),      Limit);
 	Entry->SetArrayField(TEXT("widgets"),     Page);
+		if (!ClassFilter.IsEmpty() && Page.Num() > 0)
+		{
+			FNexusResponseCompactorUtils WidgetCompactor;
+			WidgetCompactor.AddForcedDefaultIfUnanimous(TEXT("widgetClass"), Page);
+			WidgetCompactor.CompactArray(Page);
+			WidgetCompactor.Emit(Entry, TEXT("widgets"));
+		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

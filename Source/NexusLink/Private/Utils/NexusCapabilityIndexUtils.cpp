@@ -200,13 +200,48 @@ int32 FNexusCapabilityIndexUtils::ScoreCapabilityPartial(const TArray<FString>& 
 	return Total;
 }
 
+TArray<FString> FNexusCapabilityIndexUtils::FilterVisibleRelated(
+	const TArray<FString>& Related,
+	const UNexusLinkSettings* Settings,
+	int32 MaxCount)
+{
+	TArray<FString> Out;
+	for (const FString& Name : Related)
+	{
+		if (Name.IsEmpty())
+		{
+			continue;
+		}
+		const FCapRecord* Rec = FNexusCapabilityRegistry::Get().FindRecordByName(Name);
+		if (!Rec)
+		{
+			continue;
+		}
+		if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*Rec))
+		{
+			continue;
+		}
+		if (Settings && !Settings->IsCapabilityEnabled(Rec->Def.Name))
+		{
+			continue;
+		}
+		Out.Add(Rec->Def.Name);
+		if (MaxCount > 0 && Out.Num() >= MaxCount)
+		{
+			break;
+		}
+	}
+	return Out;
+}
+
 void FNexusCapabilityIndexUtils::AttachMetaHints(TSharedPtr<FJsonObject>& Entry,
                                                   const FNexusCapabilityDefinition& Def)
 {
-	if (Def.RelatedCapabilities.Num() > 0)
+	const TArray<FString> Related = FilterVisibleRelated(Def.RelatedCapabilities, UNexusLinkSettings::Get());
+	if (Related.Num() > 0)
 	{
 		TArray<TSharedPtr<FJsonValue>> Arr;
-		for (const FString& R : Def.RelatedCapabilities)
+		for (const FString& R : Related)
 			Arr.Add(MakeShared<FJsonValueString>(R));
 		Entry->SetArrayField(TEXT("relatedCapabilities"), Arr);
 	}

@@ -10,6 +10,7 @@
 #include "Utils/NexusCapResultAdapter.h"
 #include "Utils/NexusResponseCompactorUtils.h"
 #include "Utils/NexusHostUtils.h"
+#include "Utils/NexusCapabilityIndexUtils.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
@@ -336,7 +337,12 @@ void FNexusMcpDispatcher::HandleToolsList(const TSharedPtr<FJsonValue>& Id, cons
 			}
 			if (Record.Def.RelatedCapabilities.Num() > 0)
 			{
-				Desc += TEXT(" [see: ") + FString::Join(Record.Def.RelatedCapabilities, TEXT(",")) + TEXT("]");
+				const TArray<FString> Related = FNexusCapabilityIndexUtils::FilterVisibleRelated(
+					Record.Def.RelatedCapabilities, Settings);
+				if (Related.Num() > 0)
+				{
+					Desc += TEXT(" [see: ") + FString::Join(Related, TEXT(",")) + TEXT("]");
+				}
 			}
 
 			FNexusMcpToolDefinition ToolDef;

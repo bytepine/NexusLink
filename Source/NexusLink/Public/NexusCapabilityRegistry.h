@@ -83,6 +83,9 @@ private:
 
 /**
  * 静态初始化期自动注册辅助类（与 FNexusMcpToolAutoRegister 同模式）。
+ *
+ * 约束：构造函数运行于 dyld / CRT 静态初始化阶段，GMalloc、TLS、Trace 尚未完全就绪，
+ * 严禁调用 UE_LOG / CPU Profiler 相关宏（iOS 上会直接 EXC_BAD_ACCESS）。
  */
 struct FNexusCapabilityAutoRegister
 {
@@ -100,8 +103,15 @@ struct FNexusCapabilityAutoRegister
  *
  * 要求 CapClass 有默认构造函数且继承自 FNexusCapability；
  * Capability 的 GetName() 返回值在全局必须唯一。
+ *
+ * 非编辑器构建（Game / Client / Server / Shipping）中 MCP 永不启动，
+ * 故宏整体编译为空：游戏包启动阶段零静态初始化、零分配。
  */
+#if WITH_EDITOR
 #define REGISTER_MCP_CAPABILITY(CapClass) \
 	static FNexusCapabilityAutoRegister AutoRegisterCap_##CapClass( \
 		MakeShared<CapClass>() \
 	);
+#else
+#define REGISTER_MCP_CAPABILITY(CapClass)
+#endif

@@ -142,9 +142,8 @@ static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FBPQueryPa
 		Entry->TryGetStringField(TEXT("name"), PropName);
 		Entry->SetStringField(TEXT("path"), PropName);
 		Entry->RemoveField(TEXT("name"));
-		// 用 NewVariables 白名单覆盖 inherited 标记
-		Entry->RemoveField(TEXT("inherited"));
-		if (!BPVarNames.Contains(PropName)) Entry->SetBoolField(TEXT("inherited"), true);
+		// 用 NewVariables 白名单覆盖 inherited；始终写出以便压缩抽取
+		Entry->SetBoolField(TEXT("inherited"), !BPVarNames.Contains(PropName));
 	}
 
 	const int32 Start = FMath::Min(Q.Offset, Total);
@@ -177,7 +176,7 @@ static TSharedPtr<FJsonObject> SerializeComponentEntry(const FBPComponentEntry& 
 	}
 	if (!E.AttachParent.IsEmpty()) Obj->SetStringField(TEXT("attachParent"), E.AttachParent);
 	Obj->SetStringField(TEXT("source"), E.Source);
-	if (E.Source != TEXT("owned")) Obj->SetBoolField(TEXT("inherited"), true);
+	Obj->SetBoolField(TEXT("inherited"), E.Source != TEXT("owned"));
 	if (!E.OwnerBlueprint.IsEmpty()) Obj->SetStringField(TEXT("ownerBlueprint"), E.OwnerBlueprint);
 	return Obj;
 }
@@ -363,7 +362,8 @@ void FGetAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& O
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
-		TEXT("blueprint"), TEXT("variable"), TEXT("function"), TEXT("graph"), TEXT("read")
+		TEXT("blueprint"), TEXT("variable"), TEXT("function"), TEXT("graph"), TEXT("read"),
+		TEXT("interface"), TEXT("bpi")
 	};
 	Out.RelatedCapabilities = { TEXT("manage_asset_blueprint"), TEXT("create_asset_blueprint") };
 	Out.WhenToUse = TEXT("用户问蓝图变量/Graph/函数 — 必须先调，勿 grep 源码");
@@ -426,6 +426,7 @@ bool FGetAssetBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject>& A
 
 	OutEntry->SetStringField(TEXT("name"), BP->GetName());
 	if (BP->ParentClass) { OutEntry->SetStringField(TEXT("parentClass"), BP->ParentClass->GetName()); }
+	FNexusAssetUtils::AppendBlueprintMetaFields(BP, OutEntry);
 
 	OutTargetOpaque = static_cast<void*>(BP);
 	return true;

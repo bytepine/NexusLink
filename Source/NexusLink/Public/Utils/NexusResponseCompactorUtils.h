@@ -27,7 +27,8 @@
  *    兜底避免小响应上产生负收益。
  *
  * 2) **手动模式（定制化场景）**：需要强制默认（`ForcedDefault`，如 `get_output_log`
- *    的 `categoryFilter` 回显）、或需要在统计阈值之外强制抽取特定字段时使用。
+ *    的 verbosity 下限、或 `AddForcedDefaultIfUnanimous` 抽本页实际值），
+ *    或需要在统计阈值之外强制抽取特定字段时使用。
  *    典型用法：
  *      FNexusResponseCompactor C;
  *      C.AddForcedDefault(TEXT("assetType"), TEXT("Blueprint"));
@@ -57,6 +58,13 @@ public:
 	void AddForcedDefault(const FString& FieldName, const TSharedPtr<FJsonValue>& Value);
 	void AddForcedDefault(const FString& FieldName, const FString& StringValue);
 	void AddForcedDefault(const FString& FieldName, bool bBoolValue);
+
+	/**
+	 * 若 Items 里全部 object 的 Field 为同一标量，则 ForcedDefault 该实际值（N=1 也生效）。
+	 * 用于子串过滤：禁止把 filter 原文当 defaults（categoryFilter="Log" ≠ category="LogTemp"）。
+	 * 有条目缺失该字段、类型非标量、或值不一致时为 no-op。
+	 */
+	void AddForcedDefaultIfUnanimous(const FString& FieldName, const TArray<TSharedPtr<FJsonValue>>& Items);
 
 	/**
 	 * 开启自动扫描模式：CompactArray 除处理显式 Candidates 外，还会自动扫描条目里

@@ -157,11 +157,12 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 | Domain | Capabilities | Version Gate |
 |--------|-------------|-------------|
 | **Editor Context** | Editor info/context, **output log** (`get_output_log`: `preset=diagnose` / `order=newest` / `sinceSequence` incremental / `includeSummary`), console variables, viewport capture, asset CRUD/search, **refs & inheritance** (`get_asset_refs`: `dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`), PIE control, Gameplay Tags | All versions |
-| **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO; Actor `create` ensures BeginPlay; `manage` supports `K2Node_Event` | All versions |
+| **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO; Actor `create` ensures BeginPlay; `parentClass=Interface` creates BPI; `manage` supports `K2Node_Event`, `add_function` / `add_interface` | All versions |
 | **Animation** | AnimSequence (keyframes/curves/notifies), AnimBlueprint (state machines), AnimMontage (segments/sections; length refreshed after edit), BlendSpace (axes/samples), Skeleton / SkeletalMesh | All versions |
 | **Material** | Material / MaterialInstance / MaterialFunction / MaterialParameterCollection | All versions |
 | **Audio** | SoundWave, SoundCue, MetaSound Source/Patch (Frontend Document / graph wiring), SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound: 5.0+, Patch: 5.1+ |
-| **AI** | BehaviorTree (incl. `replace_node` / `sync_graph`) / Blackboard / EQS / runtime AI state | All versions |
+| **AI** | BehaviorTree (incl. `replace_node` / `sync_graph`) / Blackboard / runtime AI state | All versions |
+| **EQS** | EnvQuery asset get/manage/create | UE 5.0+ |
 | **GAS** | GameplayAbility / GameplayEffect / AttributeSet + runtime ASC | Requires `GameplayAbilities` plugin |
 | **Control Binding** | ControlRig (hierarchy + RigVM graph nodes/wiring), IKRig / IKRetargeter | UE 5.0+ |
 | **Procedural / Motion** | PCG Graph (nodes/edges), PoseSearch (schema/database) | UE 5.4+ |
@@ -185,7 +186,7 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 - [x] **MultiTool**: tools/list exposes all enabled Capabilities (each as a separate MCP Tool) + `submit_feedback`; no `search_capabilities` / `call_capability`
 - [x] Broadcast `notifications/tools/list_changed` on Capability change or mode switch
 - [x] **Enable MCP Server** master switch (off by default): Editor Preferences → Plugins → NexusLink → Server; checking starts HTTP/WebSocket immediately and registers instance; CLI **`-EnableNexusMcp`** or console **`NexusLink.EnableMcp`** for session-only enable/disable (no disk write; OR with Preferences; editor-only)
-- [x] **Editor-only runtime**: main module `Type: Runtime` (linkable in Game/Server); `StartupModule` / `ShutdownModule` no-op when `!WITH_EDITOR` — MCP only runs in Editor / PIE
+- [x] **Editor-only runtime**: main module `Type: Runtime` (linkable in Game/Server); `StartupModule` / `ShutdownModule` no-op when `!WITH_EDITOR`; `REGISTER_MCP_*` macros compile empty outside the editor. Platform gating is declared twice (`PlatformAllowList` for UE5, `WhitelistPlatforms` for UE4.2x) so UE4 does not link the module into mobile clients — MCP only runs in Editor / PIE
 - [x] Auto port allocation with conflict fallback; instance registration for zero-scan discovery (`{PID}.json` written to temp directory)
 - [x] **Per-Capability enable/disable** (`IsCapabilityEnabled`): Editor Preferences → Plugins → NexusLink → Capabilities; category-level / per-item toggles
 - [x] **Response default-value compaction for all tools** (`FNexusResponseCompactorUtils`): recursively scans object array fields, extracts dominant values as `<field>_defaults` (absent field = default: `{**defaults,**entry}`); can be globally disabled via settings panel **Response Default Compaction**

@@ -42,19 +42,19 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 
 ## 路由（模式 + 例外）
 
-**资产**：首选 `search_asset` → `recommended*`；无推荐时 `{get|manage|create}_asset_{type}` — type ∈ `blueprint` / `material` / `anim_blueprint` / `anim_montage` / `user_widget` / `behavior_tree` / `blackboard` / `data_table` / `data_asset` / `struct` / `texture` / `static_mesh` / `skeletal_mesh` / `anim_sequence` / `skeleton` / `sound_wave` / `sound_cue` / `niagara_system` / `level` / `state_tree`。一 (动词, 类型) 覆盖全部子方面（勿找 `manage_asset_blueprint_variable` 等）。例外：`manage_asset_struct_field`、`get_asset_refs`、`get_asset_lua_binding`、`get_asset_view_model`、`export_asset`、`reimport_asset`、`compile_blueprint`、`save_asset` / `rename_asset` / `duplicate_asset` / `delete_asset` / `unload_asset`。
+**资产**：首选 `search_asset` → `recommended*`；无推荐时 `{get|manage|create}_asset_{type}` — type ∈ `blueprint` / `material` / `anim_blueprint` / `anim_montage` / `user_widget` / `behavior_tree` / `blackboard` / `data_table` / `data_asset` / `struct` / `texture` / `static_mesh` / `skeletal_mesh` / `anim_sequence` / `skeleton` / `sound_wave` / `sound_cue` / `level`。一 (动词, 类型) 覆盖全部子方面（勿找 `manage_asset_blueprint_variable` 等）。例外：`manage_asset_struct_field`、`get_asset_refs`、`get_asset_lua_binding`、`export_asset`、`reimport_asset`、`compile_blueprint`、`save_asset` / `rename_asset` / `duplicate_asset` / `delete_asset` / `unload_asset`。
 
-**运行时**：`{verb}_runtime_{target}[_aspect]`（`list`/`get`/`set`/`spawn`/`destroy`/`interact`/`diff`；target=`actor`/`widget`/`slate_widget`，actor 可加 `_property`/`_animation`/`_behavior_tree`/`_ability_system`）。动画：读 `get_runtime_actor_animation`，写 `interact_runtime_actor_animation`。非模式：`interact_runtime_widget`、`diff_runtime_actors`、`get_runtime_slate_widget`。
+**运行时**：`{verb}_runtime_{target}[_aspect]`（`list`/`get`/`set`/`spawn`/`destroy`/`interact`/`diff`；target=`actor`/`widget`/`slate_widget`，actor 可加 `_property`/`_animation`/`_behavior_tree`）。动画：读 `get_runtime_actor_animation`，写 `interact_runtime_actor_animation`。非模式：`interact_runtime_widget`、`diff_runtime_actors`、`get_runtime_slate_widget`。
 
 **Lua**：`{eval|dofile|gc|hotreload}_runtime_lua` · `get_runtime_lua_*` · `set_runtime_lua` · `get_asset_lua_binding`；`hotreload_runtime_lua` 需 UnLua **2.x**。
 
-**GAS**：资产 `get/manage/create_asset_gameplay_*` / `attribute_set`；Graph → `manage_asset_blueprint`；PIE 读 `get_runtime_actor_ability_system`、写 `interact_runtime_actor_ability_system`；Tag → `get_gameplay_tags`（`referencers` 需 `tag`）。
+**插件门控**：GAS / Niagara / StateTree / MVVM / EQS / MetaSound / PCG / ControlRig / Enhanced Input 仅对应插件+引擎版本才注册；`search_capabilities` `not_found` 即跳过，勿按握手名硬调。Tag 查询 `get_gameplay_tags` 全版本可用。
 
 **编辑器**：`control_pie`、`exec_command`、`search_console_variables`、`capture_viewport`、`get_editor_context`、`get_output_log` / `set_log_capture_filter`、`get_editor_info`。
 
 ## 工作流要点
 
-1. 蓝图写前：`get_asset_blueprint(sections=["graphOverview"])`，`graphName` 用返回图名；非 Actor BP 禁 `add_component` / `set_defaults`。
+1. 蓝图写前：`get_asset_blueprint(sections=["graphOverview"])`，`graphName` 用返回图名；非 Actor BP 禁 `add_component` / `set_defaults`。BPI：`create_asset_blueprint(parentClass=Interface)`；函数/实现用 `add_function` / `add_interface`。
 2. Lua：先 `get_asset_lua_binding`；`bound=false` 则停止。
 3. 行为树：改后 `save_asset`；换类型用 `replace_node`；图错位用 `sync_graph`。
 
@@ -63,7 +63,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 - 写成功**不**返回 `success:true`，无 `error` 即成功；`interact_*` 改运行时命令态（非 propertyPaths）。
 - `*_asset_*` 磁盘；`*_runtime_*` 需 PIE/Game。
 - `search_asset` 禁止 `assetType=all` + 裸 `/Game/`；之后用 `recommended*` + `path`。
-- `search_capabilities`：先按上述命名模式推名传 `capabilityName`（一次拿全 `parameters[]`），推不出再用窄域 1–2 词 `query`（如 `blueprint graph`）；`query=""` 仅 name 目录；**禁止**单用 `blueprint` / `asset` / `runtime` / `animation`（`query_too_broad`）。失败看 `errorKind` / `suggestedQueries`；`call_capability` 遇 `disabled` 勿重试。
+- `search_capabilities`：先按上述命名模式推名传 `capabilityName`（一次拿全 `parameters[]`），推不出再用窄域 1–2 词 `query`（如 `blueprint graph`）；`query=""` 仅 name 目录；**禁止**单用 `blueprint` / `asset` / `runtime` / `animation`（`query_too_broad`）。失败看 `errorKind` / `suggestedQueries`；`not_found` 且 hint 写未注册 → 勿换词重试同域；`call_capability` 遇 `disabled` 勿重试。
 - `get_runtime_actor_property` 必填非空 `actorName`（先 `list_runtime_actors`）；`exec_command` 必填非空 `command`。
 - `sections=["all"]` 后 30s 内禁子 section（`redundant_call`）。
 - 重试 ≥2 / 无合适 cap / Schema 需猜 / 串行 ≥3 → `submit_feedback`；**`_feedbackHint` 强制**。

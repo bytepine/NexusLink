@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "0.0.0",
 	"FriendlyName": "NexusLink",
-	"Description": "MCP (Model Context Protocol) server for Unreal Engine. Module Type is Runtime for Game/Server link compatibility; Startup/Shutdown no-op when !WITH_EDITOR — MCP only runs in Editor / PIE.",
+	"Description": "MCP (Model Context Protocol) server for Unreal Engine. Module Type is Runtime for Game/Server link compatibility; Startup/Shutdown no-op when !WITH_EDITOR — MCP only runs in Editor / PIE. Platform gating is declared twice on purpose: PlatformAllowList (UE5) and WhitelistPlatforms (UE4.2x) — UE4 ignores the UE5 key entirely, so dropping it would link the module into mobile clients.",
 	"Category": "Developer Tools",
 	"CreatedBy": "byteyang",
 	"CreatedByURL": "https://github.com/bytepine",
@@ -23,6 +23,10 @@
 			"PlatformAllowList": [
 				"Win64",
 				"Mac"
+			],
+			"WhitelistPlatforms": [
+				"Win64",
+				"Mac"
 			]
 		},
 		{
@@ -30,6 +34,10 @@
 			"Type": "DeveloperTool",
 			"LoadingPhase": "Default",
 			"PlatformAllowList": [
+				"Win64",
+				"Mac"
+			],
+			"WhitelistPlatforms": [
 				"Win64",
 				"Mac"
 			]

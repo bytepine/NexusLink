@@ -77,7 +77,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 
 - 默认 `GetHostScope()=EditorOnly`：完整 Editor 可见
 - Runtime 基类：`GetHostScope()=Runtime`，用于标记 PIE 运行时能力；`GetDefinition` 会幂等补上 `runtime` 分类标签
-- **插件加载范围**：主模块 `Type: Runtime`（Game/Server 可链接）；`StartupModule` / `ShutdownModule` 在 `!WITH_EDITOR` 时空返回——MCP 仅 Editor / PIE 实际运行
+- **插件加载范围**：主模块 `Type: Runtime`（Game/Server 可链接）；`StartupModule` / `ShutdownModule` 在 `!WITH_EDITOR` 时空返回；`REGISTER_MCP_CAPABILITY` / `REGISTER_MCP_TOOL` 在非编辑器构建编译为空——MCP 仅 Editor / PIE 实际运行。平台门控须同时写 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）
 
 `BuildDefinition` 中按需设置以下字段：
 
@@ -249,7 +249,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 
 ### 6.4 例外登记表（非 Asset/Runtime pattern）
 
-须在 Instructions「例外」段与下表 **1:1**（共 17 + 条件 GAS 11）：
+须在 Instructions「例外」段与下表 **全版本行 1:1**；门控 cap（GAS / StateTree / MVVM 等）只写 Instructions「插件门控」，不写入全版本 type / 例外列表：
 
 | 分类 | Capability |
 |------|------------|
@@ -268,11 +268,13 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 | `manage_animation` | v1.9 已删；用 `interact_runtime_actor_animation` |
 | `set_runtime_actor_animation` | Set 动词误用 |
 | `get_asset_generic` 等无 scope 旧名 | 已废弃 |
+| `manage_asset_abl_ability` | Able 插件能力；公开仓 NexusLink 无 Able 依赖，不实现 get/manage |
 
 ### 6.6 RelatedCapabilities 与文档同步
 
 - 兄弟：`get`↔`manage`（资产）、`get`↔`set`（property）、`get`↔`interact`（命令）。
-- **禁止**指向未注册名；`audit_capability_naming.py` 在 CI / `run_e2e` 前校验。
+- **禁止**指向未注册名；源码侧 `audit_capability_naming.py` 在 CI / `run_e2e` 前校验（按全量源码，含 `#if WITH_*` 文件）。
+- **运行期**：`FilterVisibleRelated` 再剥离当前宿主未注册 / 不可见 / 已禁用的名（`search_capabilities` related、`AttachMetaHints`、MultiTool `[see:]`）。
 - 变更 cap 名或路由：§6 登记表 + **SearchMode + MultiTool** + `scripts/build_tool_reference.py` + CHANGELOG。
 
 ---

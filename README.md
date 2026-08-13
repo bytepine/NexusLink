@@ -157,11 +157,12 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 | 领域 | 能力范围 | 版本门控 |
 |------|---------|---------|
 | **编辑器上下文** | 编辑器信息/上下文、**输出日志**（`get_output_log`：`preset=diagnose` / `order=newest` / `sinceSequence` 增量 / `includeSummary`）、控制台变量、视口截图、资产增删改/搜索、**引用与继承查询**（`get_asset_refs`：`dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`）、PIE 控制、Gameplay Tags | 全版本 |
-| **蓝图** | Blueprint 变量/函数/图节点/连线/组件/CDO；`create` 对 Actor 补 BeginPlay；`manage` 支持 `K2Node_Event` | 全版本 |
+| **蓝图** | Blueprint 变量/函数/图节点/连线/组件/CDO；`create` 对 Actor 补 BeginPlay，`parentClass=Interface` 建 BPI；`manage` 支持 `K2Node_Event`、`add_function` / `add_interface` | 全版本 |
 | **动画** | AnimSequence（关键帧/曲线/Notify）、AnimBlueprint（状态机）、AnimMontage（Segment/Section，增删后同步时长）、BlendSpace（轴/样本）、Skeleton / SkeletalMesh | 全版本 |
 | **材质** | Material / MaterialInstance / MaterialFunction / MaterialParameterCollection | 全版本 |
 | **音频** | SoundWave、SoundCue、MetaSound Source/Patch（Frontend Document / 图节点连线）、SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound/Patch: UE 5.0+/5.1+ |
-| **AI** | BehaviorTree（含 `replace_node` / `sync_graph`）/ Blackboard / EQS（环境查询）/ 运行时 AI 执行状态 | 全版本 |
+| **AI** | BehaviorTree（含 `replace_node` / `sync_graph`）/ Blackboard / 运行时 AI 执行状态 | 全版本 |
+| **EQS** | EnvQuery 资产 get/manage/create | UE 5.0+ |
 | **GAS** | GameplayAbility / GameplayEffect / AttributeSet + 运行时 ASC | 需 `GameplayAbilities` 插件 |
 | **控制绑定** | ControlRig（Rig 层级 + RigVM 图节点/连线）、IKRig / IKRetargeter | UE 5.0+ |
 | **程序化/动作** | PCG Graph（节点/连线）、PoseSearch（schema/database） | UE 5.4+ |
@@ -185,7 +186,7 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 - [x] **MultiTool**：tools/list 暴露全部已启用 Capability（各作独立 MCP Tool）+ `submit_feedback`；无 `search_capabilities` / `call_capability`
 - [x] Capability 变更或模式切换时广播 `notifications/tools/list_changed`
 - [x] **启用 MCP 服务器**总开关（默认关闭）：Editor Preferences → Plugins → NexusLink → 服务器；勾选后即时启动 HTTP/WebSocket 并注册实例；命令行 **`-EnableNexusMcp`** 或控制台 **`NexusLink.EnableMcp`** 可会话级启停（不写盘；与 Preferences 为 OR；仅编辑器）
-- [x] **编辑器专用运行**：主模块 `Type: Runtime`（Game/Server 可链接）；`StartupModule` / `ShutdownModule` 在 `!WITH_EDITOR` 时直接空返回——MCP 仅 Editor / PIE 实际运行
+- [x] **编辑器专用运行**：主模块 `Type: Runtime`（Game/Server 可链接）；`StartupModule` / `ShutdownModule` 在 `!WITH_EDITOR` 时直接空返回；`REGISTER_MCP_*` 宏在非编辑器构建为空。平台门控双写 `PlatformAllowList`（UE5）+ `WhitelistPlatforms`（UE4.2x），避免 UE4 把模块链进移动端——MCP 仅 Editor / PIE 实际运行
 - [x] 端口自动分配，冲突时自动切换；实例注册机制支持零扫描发现（`{PID}.json` 写入临时目录）
 - [x] **按 Capability 启用/禁用**（`IsCapabilityEnabled`）：Editor Preferences → Plugins → NexusLink → Capabilities；支持分类级 / 单条级勾选
 - [x] **全工具响应默认值压缩**（`FNexusResponseCompactorUtils`）：递归扫描对象数组字段，主流值自动抽取为 `<field>_defaults`（缺省即默认：`{**defaults,**entry}`）；可通过设置面板 `响应默认值压缩` 全局关闭

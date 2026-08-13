@@ -7,6 +7,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
 #include "Utils/NexusStringMatchUtils.h"
+#include "Utils/NexusResponseCompactorUtils.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "NexusMcpTool.h"
@@ -107,6 +108,13 @@ FCapabilityResult FListRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 	Entry->SetNumberField(TEXT("offset"), Start);
 	Entry->SetNumberField(TEXT("limit"), Limit);
 	Entry->SetArrayField(TEXT("actors"), Page);
+		if (!ClassFilter.IsEmpty() && Page.Num() > 0)
+		{
+			FNexusResponseCompactorUtils ActorCompactor;
+			ActorCompactor.AddForcedDefaultIfUnanimous(TEXT("class"), Page);
+			ActorCompactor.CompactArray(Page);
+			ActorCompactor.Emit(Entry, TEXT("actors"));
+		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	
 	});

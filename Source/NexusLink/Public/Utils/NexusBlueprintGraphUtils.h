@@ -44,10 +44,10 @@ public:
 	/** Pin 方向枚举 → 小写字符串（"input" / "output" / "unknown"）。 */
 	static FString PinDirectionToString(EEdGraphPinDirection Dir);
 
-	/** 将单个 Pin 序列化为 JSON，包含类型、方向、默认值及连线信息。 */
+	/** 将单个 Pin 序列化为 JSON：direction / pinCategory / containerType / isReference / isConst / bOrphan 始终写出。 */
 	static TSharedPtr<FJsonObject> SerializeBPPin(const UEdGraphPin* Pin);
 
-	/** 将单个节点（含所有 Pin）序列化为 JSON。 */
+	/** 将单个节点（含所有 Pin）序列化为 JSON；bIsNodeEnabled 始终写出。 */
 	static TSharedPtr<FJsonObject> SerializeBPNode(const UEdGraphNode* Node);
 
 	/**

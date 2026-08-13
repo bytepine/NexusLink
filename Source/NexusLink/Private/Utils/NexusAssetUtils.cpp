@@ -386,6 +386,37 @@ bool FNexusAssetUtils::NotifyCompileAndSave(UPackage* Package, UBlueprint* Bluep
 	return CompileAndSaveBlueprint(Package, Blueprint, PackagePath);
 }
 
+void FNexusAssetUtils::AppendBlueprintMetaFields(const UBlueprint* BP, TSharedPtr<FJsonObject>& OutEntry)
+{
+	if (!BP || !OutEntry.IsValid()) return;
+
+	FString TypeStr;
+	switch (BP->BlueprintType)
+	{
+	case BPTYPE_Normal:          TypeStr = TEXT("normal"); break;
+	case BPTYPE_Const:           TypeStr = TEXT("const"); break;
+	case BPTYPE_MacroLibrary:    TypeStr = TEXT("macroLibrary"); break;
+	case BPTYPE_Interface:       TypeStr = TEXT("interface"); break;
+	case BPTYPE_LevelScript:     TypeStr = TEXT("levelScript"); break;
+	case BPTYPE_FunctionLibrary: TypeStr = TEXT("functionLibrary"); break;
+	default:                     TypeStr = TEXT("unknown"); break;
+	}
+	OutEntry->SetStringField(TEXT("blueprintType"), TypeStr);
+
+	TArray<TSharedPtr<FJsonValue>> Ifaces;
+#if WITH_EDITOR
+	for (const FBPInterfaceDescription& Desc : BP->ImplementedInterfaces)
+	{
+		UClass* Iface = Desc.Interface;
+		if (Iface)
+		{
+			Ifaces.Add(MakeShared<FJsonValueString>(Iface->GetName()));
+		}
+	}
+#endif
+	OutEntry->SetArrayField(TEXT("implementedInterfaces"), Ifaces);
+}
+
 void FNexusAssetUtils::ResolveRecommendedCapabilities(
 	const FString& AssetType,
 	FString& OutRecommendedGet,

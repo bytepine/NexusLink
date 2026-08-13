@@ -305,6 +305,39 @@ bool FNexusLinkResponseCompactorForcedDefaultTest::RunTest(const FString& Parame
 			C.GetDefaults()->GetStringField(TEXT("verbosity")), FString(TEXT("Log")));
 	}
 
+	// ─── IfUnanimous：全员一致 → ForcedDefault 实际值（N=1 也命中） ───
+	{
+		TArray<TSharedPtr<FJsonValue>> Items = {
+			JObj({ {TEXT("message"), JStr(TEXT("hello"))}, {TEXT("category"), JStr(TEXT("LogUnLua"))} }),
+		};
+		FNexusResponseCompactorUtils C;
+		C.AddForcedDefaultIfUnanimous(TEXT("category"), Items);
+		C.CompactArray(Items);
+
+		TestTrue(TEXT("unanimous: defaults produced for N=1"), C.HasDefaults());
+		TestEqual(TEXT("unanimous: uses actual value not filter substring"),
+			C.GetDefaults()->GetStringField(TEXT("category")), FString(TEXT("LogUnLua")));
+		TestFalse(TEXT("unanimous: entry stripped"),
+			EntryObj(Items, 0)->HasField(TEXT("category")));
+	}
+
+	// ─── IfUnanimous：值不一致 → no-op，不把子串当 defaults ───
+	{
+		TArray<TSharedPtr<FJsonValue>> Items = {
+			JObj({ {TEXT("message"), JStr(TEXT("a"))}, {TEXT("category"), JStr(TEXT("LogTemp"))} }),
+			JObj({ {TEXT("message"), JStr(TEXT("b"))}, {TEXT("category"), JStr(TEXT("LogUnLua"))} }),
+		};
+		FNexusResponseCompactorUtils C;
+		C.AddForcedDefaultIfUnanimous(TEXT("category"), Items);
+		C.CompactArray(Items);
+
+		TestFalse(TEXT("mixed: no ForcedDefault"), C.HasDefaults());
+		TestTrue(TEXT("mixed: first keeps category"),
+			EntryObj(Items, 0)->HasField(TEXT("category")));
+		TestTrue(TEXT("mixed: second keeps category"),
+			EntryObj(Items, 1)->HasField(TEXT("category")));
+	}
+
 	return true;
 }
 

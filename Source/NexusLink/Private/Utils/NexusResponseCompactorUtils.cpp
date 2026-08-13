@@ -121,6 +121,42 @@ void FNexusResponseCompactorUtils::AddForcedDefault(const FString& FieldName, bo
 	AddForcedDefault(FieldName, MakeShared<FJsonValueBoolean>(bBoolValue));
 }
 
+void FNexusResponseCompactorUtils::AddForcedDefaultIfUnanimous(
+	const FString& FieldName,
+	const TArray<TSharedPtr<FJsonValue>>& Items)
+{
+	if (FieldName.IsEmpty() || Items.Num() == 0)
+	{
+		return;
+	}
+	TSharedPtr<FJsonValue> Common;
+	for (const TSharedPtr<FJsonValue>& Item : Items)
+	{
+		if (!Item.IsValid() || Item->Type != EJson::Object)
+		{
+			return;
+		}
+		const TSharedPtr<FJsonValue> Val = FindField(Item->AsObject(), FieldName);
+		if (!IsScalarValue(Val))
+		{
+			return;
+		}
+		if (!Common.IsValid())
+		{
+			Common = Val;
+			continue;
+		}
+		if (!AreScalarJsonValuesEqual(Common, Val))
+		{
+			return;
+		}
+	}
+	if (Common.IsValid())
+	{
+		AddForcedDefault(FieldName, Common);
+	}
+}
+
 void FNexusResponseCompactorUtils::SetAutoDiscover(bool bEnable, TArray<FString> AdditionalExclusions)
 {
 	bAutoDiscover = bEnable;

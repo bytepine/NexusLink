@@ -20,16 +20,16 @@
 void FCreateAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_blueprint");
-	Out.Description = TEXT("创建新 BP 资产，自动编译；用 manage 添加变量/节点/连线。");
+	Out.Description = TEXT("创建新 BP 并编译；parentClass=Interface 建 BPI。用 manage 加变量/节点。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("新蓝图包路径，如 '/Game/Blueprints/BP_NewActor'")))
-		.Prop(TEXT("parentClass"), FNexusSchema::Str(TEXT("父类名（任意 UObject 子类），如 Actor、Pawn、Character")))
+		.Prop(TEXT("parentClass"), FNexusSchema::Str(TEXT("父类名或 BP 路径。Interface 建蓝图接口；Actor/Pawn/Character 建普通 BP")))
 		.Required({ TEXT("assetPath"), TEXT("parentClass") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
-	Out.ExtraSearchKeywords = { TEXT("bp"), TEXT("new"), TEXT("subclass"), TEXT("derive"), TEXT("parent") };
+	Out.ExtraSearchKeywords = { TEXT("bp"), TEXT("new"), TEXT("subclass"), TEXT("derive"), TEXT("parent"), TEXT("interface"), TEXT("bpi") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_blueprint"), TEXT("get_asset_blueprint") };
-	Out.WhenToUse = TEXT("创建空白 BP；不用于编辑现有 BP");
+	Out.WhenToUse = TEXT("创建空白 BP 或 BPI（parentClass=Interface）；不用于编辑现有 BP");
 }
 
 FCapabilityResult FCreateAssetBlueprintCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -50,20 +50,21 @@ FCapabilityResult FCreateAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 		if (FPackageName::DoesPackageExist(AssetPath))
 		{ FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(TEXT("Blueprint already exists: %s"), *AssetPath)); return; }
 
-		auto TryFindClass = [](const FString& Name) -> UClass*
+		UClass* ParentClass = FNexusAssetUtils::FindClassWithUPrefix(ParentClassName);
+		if (!ParentClass) ParentClass = FNexusAssetUtils::FindClassWithUPrefix(TEXT("A") + ParentClassName);
+		if (!ParentClass && ParentClassName.Contains(TEXT("/")))
 		{
-			UClass* C = nullptr;
-	#if NX_UE_HAS_FIND_FIRST_OBJECT
-			C = FindFirstObject<UClass>(*Name, EFindFirstObjectOptions::NativeFirst);
-	#else
-			C = FindObject<UClass>(ANY_PACKAGE, *Name);
-	#endif
-			if (!C) C = LoadObject<UClass>(nullptr, *Name);
-			return C;
-		};
-
-		UClass* ParentClass = TryFindClass(ParentClassName);
-		if (!ParentClass) ParentClass = TryFindClass(TEXT("A") + ParentClassName);
+			if (UBlueprint* ParentBP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(ParentClassName))
+			{
+				ParentClass = ParentBP->GeneratedClass;
+				if (!ParentClass)
+				{
+					FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(
+						TEXT("父类蓝图尚未编译（无 GeneratedClass）: %s"), *ParentClassName));
+					return;
+				}
+			}
+		}
 		if (!ParentClass)
 		{ FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(TEXT("父类未找到: %s"), *ParentClassName)); return; }
 		if (!ParentClass->IsChildOf(UObject::StaticClass()))
@@ -78,9 +79,11 @@ FCapabilityResult FCreateAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 		if (!Package)
 		{ FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(TEXT("创建包失败: %s"), *AssetPath)); return; }
 
+		const bool bIsInterface = ParentClass->HasAnyClassFlags(CLASS_Interface);
 		UBlueprint* NewBlueprint = FKismetEditorUtilities::CreateBlueprint(
 			ParentClass, Package, *AssetName,
-			BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass()
+			bIsInterface ? BPTYPE_Interface : BPTYPE_Normal,
+			UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass()
 		);
 		if (!NewBlueprint)
 		{ FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(TEXT("Blueprint 创建失败: %s"), *AssetPath)); return; }
@@ -124,6 +127,7 @@ FCapabilityResult FCreateAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 
 		OutEntry->SetStringField(TEXT("path"),    AssetPath);
 		OutEntry->SetStringField(TEXT("name"),    NewBlueprint->GetName());
+		FNexusAssetUtils::AppendBlueprintMetaFields(NewBlueprint, OutEntry);
 		OutEntry->SetNumberField(TEXT("beginPlayEnsured"), BeginPlayEnsured);
 		if (NewBlueprint->UbergraphPages.Num() > 0)
 		{

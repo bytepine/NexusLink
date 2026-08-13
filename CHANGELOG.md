@@ -10,12 +10,23 @@
 ### Fixed
 
 - fix(mcp): 响应默认值压缩仅当字段出现在**全部 object 条目**上才抽取——避免 `inherited` / `isConst` 等稀疏字段经 `{**defaults, **entry}` 被填到本无该字段的条目上
+- fix(mcp): `get_output_log` 的 `categoryFilter` ForcedDefault 改为本页实际 category **全员一致**才抽取（`AddForcedDefaultIfUnanimous`），不再把过滤子串当 defaults
+- fix(mcp): `relatedCapabilities` 运行期只保留当前宿主已注册且已启用的名（`search_capabilities` / MultiTool `[see:]`）；握手路由改为「插件门控」——GAS/Niagara/StateTree 等 `not_found` 即跳过
+- docs: README EQS 门控改为 UE 5.0+（不再写「全版本」）；CapabilitySpec §6.5 登记 AblAbility 为公开仓不收录（Able 依赖）
+- fix(compat): `REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 在 `!WITH_EDITOR` 下编译为空；`RegisterTool` 静态初始化期禁止 `UE_LOG`（缓存到 `GetPendingWarnings()`，`StartupModule` 再打），避免 iOS 等平台启动 `EXC_BAD_ACCESS`
+- fix(plugin): `NexusLink.uplugin` 同时声明 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）——UE4 忽略前者，否则模块会链进移动端客户端
 
 ### Changed
 
+- perf(mcp): 蓝图 pin / defaults / component 布尔改为**始终写出**（`inherited` / `isConst` / `isReference` / `bOrphan` / `bIsNodeEnabled` / `containerType`），使响应压缩能抽取主流值
+- perf(mcp): `list_runtime_actors` / `list_runtime_widgets` 在 `classFilter` 命中且本页 class/widgetClass 全员一致时 ForcedDefault（N=1 也能抽）
 - perf(mcp): 已有 `<k>_defaults` 时自动 Pass **合并**新键（不覆盖 ForcedDefault），不再整段跳过
 - perf(mcp): `search_asset` 指定类型时 `AddForcedDefault(assetType)`；`get_output_log` 在 `verbosity≠all` 时 ForcedDefault verbosity（N=1 也能抽）
 - docs: InitializeInstructions / AIRules / tool-reference 对齐当前压缩契约（`MinCount=2`、全员持有才抽取、已有 defaults 合并新键、缺省即默认）
+
+### Added
+
+- feat(mcp): 蓝图接口（BPI）走现有 cap——`create_asset_blueprint(parentClass=Interface)` 创建 `BPTYPE_Interface`；`get_asset_blueprint` 回显 `blueprintType` / `implementedInterfaces`；`manage_asset_blueprint` 新增 `add_function` / `remove_function` / `add_interface` / `remove_interface`
 
 ## [1.16.2] - 2026-08-12
 

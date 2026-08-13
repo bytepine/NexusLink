@@ -66,8 +66,9 @@ alwaysApply: false
 | 用户意图 | 流程 |
 |----------|------|
 | 查蓝图变量/Graph | `search_asset(assetType=Blueprint, …)` → 顶层 `recommendedGet`（通常 `get_asset_blueprint`）+ `assets[].path`；未知 cap 时再用 `search_capabilities(query="blueprint graph")` |
+| 建/改蓝图接口 | `create_asset_blueprint(parentClass=Interface)` → `manage_asset_blueprint` 的 `add_function` / `add_interface` |
 | 查行为树结构/装饰器 | `search_asset(assetType=BehaviorTree, …)` → 顶层 `recommendedGet`（通常 `get_asset_behavior_tree`） |
-| 查 GA 配置 | `search_asset(assetType=GameplayAbility, …)` → 顶层 `recommendedGet`（通常 `get_asset_gameplay_ability`） |
+| 查 GA 配置 | `search_asset(assetType=GameplayAbility, …)` → 顶层 `recommendedGet`（无则本机未启 GAS，勿硬调 `get_asset_gameplay_ability`） |
 | PIE Actor 属性 | `list_runtime_actors` → `get_runtime_actor_property(actorName=…, propertyPaths=…)` |
 | PIE 黑板/活动节点 | `get_runtime_actor_behavior_tree`（需 PIE + `actorName`） |
 | 控制台命令 | `exec_command(command="…")`（`command` 必填且非空） |

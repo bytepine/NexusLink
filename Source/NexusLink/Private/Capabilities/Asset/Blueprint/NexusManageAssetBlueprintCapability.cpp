@@ -28,15 +28,52 @@
 #include "UObject/UObjectIterator.h"
 #include "NexusMcpTool.h"
 
+#if WITH_EDITOR
+namespace
+{
+	/** 解析接口 UClass：类名、生成类路径、或 BPI 资产路径。 */
+	UClass* ResolveInterfaceClass(const FString& NameOrPath)
+	{
+		if (NameOrPath.IsEmpty()) return nullptr;
+
+		if (UClass* Cls = FNexusAssetUtils::FindClassWithUPrefix(NameOrPath))
+		{
+			if (Cls->HasAnyClassFlags(CLASS_Interface)) return Cls;
+		}
+
+		if (UBlueprint* IfaceBP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(NameOrPath))
+		{
+			if (UClass* Gen = IfaceBP->GeneratedClass)
+			{
+				if (Gen->HasAnyClassFlags(CLASS_Interface)) return Gen;
+			}
+		}
+		return nullptr;
+	}
+
+	bool BlueprintAlreadyImplements(const UBlueprint* BP, const UClass* IfaceClass)
+	{
+		if (!BP || !IfaceClass) return false;
+		for (const FBPInterfaceDescription& Desc : BP->ImplementedInterfaces)
+		{
+			if (Desc.Interface == IfaceClass) return true;
+		}
+		return false;
+	}
+}
+#endif
+
 
 void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_blueprint");
 	Out.SearchAssetTypes = {TEXT("Blueprint")};
-	Out.Description = TEXT("批量编辑 BP：图/变量/节点/连线、SCS、CDO。SCS/defaults 限 Actor BP。");
+	Out.Description = TEXT("批量编辑 BP：图/变量/函数/接口/节点/连线、SCS、CDO。SCS/defaults 限 Actor BP。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),          FNexusSchema::Enum(TEXT("操作类型"), {
 			TEXT("add_variable"), TEXT("remove_variable"),
+			TEXT("add_function"), TEXT("remove_function"),
+			TEXT("add_interface"), TEXT("remove_interface"),
 			TEXT("add_node"), TEXT("remove_node"), TEXT("set_node"),
 			TEXT("connect"), TEXT("disconnect"), TEXT("disconnect_all"),
 			TEXT("add_component"), TEXT("remove_component"), TEXT("set_component_property"), TEXT("set_defaults")
@@ -49,8 +86,9 @@ void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition
 		.Prop(TEXT("isPublic"),        FNexusSchema::Bool(TEXT("实例可编辑（add_variable）"), true, false))
 		.Prop(TEXT("nodeId"),          FNexusSchema::Str(TEXT("节点 GUID（remove/set_node）")))
 		.Prop(TEXT("nodeClass"),       FNexusSchema::Str(TEXT("K2Node 类（add_node）")))
-		.Prop(TEXT("functionName"),    FNexusSchema::Str(TEXT("CallFunction：函数名")))
+		.Prop(TEXT("functionName"),    FNexusSchema::Str(TEXT("函数名（add_function / CallFunction）")))
 		.Prop(TEXT("functionClass"),   FNexusSchema::Str(TEXT("CallFunction：所属类")))
+		.Prop(TEXT("interfaceName"),   FNexusSchema::Str(TEXT("接口类名或 BPI 资产路径（add/remove_interface）")))
 		.Prop(TEXT("posX"),            FNexusSchema::Num(TEXT("节点 X 坐标")))
 		.Prop(TEXT("posY"),            FNexusSchema::Num(TEXT("节点 Y 坐标")))
 		.Prop(TEXT("comment"),         FNexusSchema::Str(TEXT("节点注释（set_node）")))
@@ -75,10 +113,10 @@ void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
 		TEXT("variable"), TEXT("node"), TEXT("component"), TEXT("wire"), TEXT("connect"),
-		TEXT("disconnect"), TEXT("link"), TEXT("scs")
+		TEXT("disconnect"), TEXT("link"), TEXT("scs"), TEXT("function"), TEXT("interface"), TEXT("bpi")
 	};
 	Out.RelatedCapabilities = { TEXT("get_asset_blueprint"), TEXT("create_asset_blueprint"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("写操作：增删变量、图节点、连线");
+	Out.WhenToUse = TEXT("写操作：增删变量、函数图、接口、图节点、连线");
 }
 
 FCapabilityResult FManageAssetBlueprintCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -185,6 +223,113 @@ FCapabilityResult FManageAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
 		}
 
+		// ── Function graph / Interface actions ───────────────────────────────────
+		if (Action == TEXT("add_function") || Action == TEXT("remove_function"))
+		{
+			const FString FuncName = OpArgs->HasField(TEXT("functionName")) ? OpArgs->GetStringField(TEXT("functionName")) : TEXT("");
+			if (FuncName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("functionName 必填")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+			Entry->SetStringField(TEXT("functionName"), FuncName);
+
+			if (Action == TEXT("add_function"))
+			{
+				bool bExists = false;
+				for (UEdGraph* G : BP->FunctionGraphs)
+				{
+					if (G && G->GetName() == FuncName) { bExists = true; break; }
+				}
+				if (bExists) { Entry->SetStringField(TEXT("error"), TEXT("函数图已存在")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+
+				UEdGraph* NewGraph = FBlueprintEditorUtils::CreateNewGraph(
+					BP, FName(*FuncName), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
+				if (!NewGraph) { Entry->SetStringField(TEXT("error"), TEXT("创建函数图失败")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+				FBlueprintEditorUtils::AddFunctionGraph<UClass>(BP, NewGraph, /*bIsUserCreated=*/true, /*SignatureFromClass=*/nullptr);
+			}
+			else
+			{
+				bool bFromInterface = false;
+				for (const FBPInterfaceDescription& Desc : BP->ImplementedInterfaces)
+				{
+					for (UEdGraph* G : Desc.Graphs)
+					{
+						if (G && G->GetName() == FuncName) { bFromInterface = true; break; }
+					}
+					if (bFromInterface) break;
+				}
+				if (bFromInterface)
+				{
+					Entry->SetStringField(TEXT("error"), TEXT("接口函数请用 remove_interface，不能单独删函数图"));
+					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+				}
+
+				UEdGraph* Found = nullptr;
+				for (UEdGraph* G : BP->FunctionGraphs)
+				{
+					if (G && G->GetName() == FuncName) { Found = G; break; }
+				}
+				if (!Found) { Entry->SetStringField(TEXT("error"), TEXT("函数图未找到")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+				FBlueprintEditorUtils::RemoveGraph(BP, Found, EGraphRemoveFlags::Recompile);
+			}
+
+			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+			FKismetEditorUtilities::CompileBlueprint(BP);
+			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+		}
+
+		if (Action == TEXT("add_interface") || Action == TEXT("remove_interface"))
+		{
+			const FString IfaceName = OpArgs->HasField(TEXT("interfaceName")) ? OpArgs->GetStringField(TEXT("interfaceName")) : TEXT("");
+			if (IfaceName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("interfaceName 必填（BPI 路径或接口类名）")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+			Entry->SetStringField(TEXT("interfaceName"), IfaceName);
+
+			if (BP->BlueprintType == BPTYPE_Interface)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("接口蓝图请用 create 的 parentClass 继承，不能 add_interface"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+			}
+
+			UClass* IfaceClass = ResolveInterfaceClass(IfaceName);
+			if (!IfaceClass)
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(
+					TEXT("接口未找到或不是 Interface：%s（可传 BPI 资产路径或 GeneratedClass 名）"), *IfaceName));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+			}
+			if (IfaceClass->GetName() == TEXT("Interface"))
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("不能实现原生 UInterface，请传入 BPI 资产"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+			}
+			Entry->SetStringField(TEXT("interfaceClass"), IfaceClass->GetName());
+
+			if (Action == TEXT("add_interface"))
+			{
+				if (BlueprintAlreadyImplements(BP, IfaceClass))
+				{
+					Entry->SetStringField(TEXT("error"), TEXT("已实现该接口"));
+					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+				}
+				FBlueprintEditorUtils::ImplementNewInterface(BP, IfaceClass->GetFName());
+				if (!BlueprintAlreadyImplements(BP, IfaceClass))
+				{
+					Entry->SetStringField(TEXT("error"), TEXT("ImplementNewInterface 失败（需已编译的接口蓝图）"));
+					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+				}
+			}
+			else
+			{
+				if (!BlueprintAlreadyImplements(BP, IfaceClass))
+				{
+					Entry->SetStringField(TEXT("error"), TEXT("未实现该接口"));
+					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+				}
+				FBlueprintEditorUtils::RemoveInterface(BP, IfaceClass->GetFName());
+			}
+
+			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+			FKismetEditorUtilities::CompileBlueprint(BP);
+			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+		}
+
 		// ── Actor SCS / CDO actions ──────────────────────────────────────────────
 		if (Action == TEXT("add_component") || Action == TEXT("remove_component") ||
 		    Action == TEXT("set_component_property") || Action == TEXT("set_defaults"))
@@ -193,7 +338,7 @@ FCapabilityResult FManageAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 			{
 				const FString ParentName = BP->ParentClass ? BP->ParentClass->GetName() : TEXT("(none)");
 				Entry->SetStringField(TEXT("error"), FString::Printf(
-					TEXT("Blueprint 父类不是 Actor 子类: %s（parent=%s）。提示：add_component/set_defaults 需要 Actor BP；GameplayAbility/UI BP 请用 add_variable/add_node。"),
+					TEXT("Blueprint 父类不是 Actor 子类: %s（parent=%s）。提示：add_component/set_defaults 需要 Actor BP；GameplayAbility/UI/BPI 请用 add_variable/add_function/add_node。"),
 					*AssetPath, *ParentName)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
 			}
 

@@ -4,6 +4,7 @@
 #include "Utils/NexusVersionCompat.h"
 #include "Server/NexusMcpServer.h"
 #include "NexusLinkSettings.h"
+#include "NexusMcpToolRegistry.h"
 #include "Utils/NexusPortUtils.h"
 #include "NexusInstanceRegistry.h"
 #include "Editor/NexusLogCapture.h"
@@ -96,6 +97,12 @@ void FNexusLinkModule::StartupModule()
 		ECVF_Default);
 
 	UE_LOG(LogNexusLink, Log, TEXT("NexusLink 模块已加载，等待引擎初始化完成..."));
+
+	// 静态初始化期禁止 UE_LOG，注册表把诊断信息缓存下来，此处统一输出
+	for (const FString& Warning : FNexusMcpToolRegistry::Get().GetPendingWarnings())
+	{
+		UE_LOG(LogNexusLink, Warning, TEXT("%s"), *Warning);
+	}
 #endif // WITH_EDITOR
 }
 
