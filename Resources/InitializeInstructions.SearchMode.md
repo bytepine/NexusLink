@@ -54,7 +54,7 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 
 ## 工作流要点
 
-1. 蓝图写前：`get_asset_blueprint(sections=["graphOverview"])`，`graphName` 用返回图名；非 Actor BP 禁 `add_component` / `set_defaults`。BPI：`create_asset_blueprint(parentClass=Interface)`；函数/实现用 `add_function` / `add_interface`。WBP 控件树/动画用 `manage_asset_user_widget`，EventGraph 用 `manage_asset_blueprint`。
+1. 蓝图写前：`get_asset_blueprint(sections=["graphOverview"])`，`graphName` 用返回图名；非 Actor BP 禁 `add_component` / `set_defaults`。BPI：`create_asset_blueprint(parentClass=Interface)`；函数/实现用 `add_function` / `add_interface`。WBP 控件树/动画用 `manage_asset_user_widget`（`add_track` 可带 `widgetName`+`propertyPath`）；`get_asset_user_widget(sections=["graphOverview"])` 列图名，EventGraph 用 `manage_asset_blueprint`。
 2. Lua：先 `get_asset_lua_binding`；`bound=false` 则停止。写绑定用 `manage_asset_lua_binding`。
 3. 行为树：改后 `saveToDisk` 或 `save_asset`；换类型用 `replace_node`；图错位用 `sync_graph`。
 4. manage 可选 `saveToDisk`（默认 false）；仅 BP/ABP/WBP 的 manage 可选 `compile`（默认 false）。独立 `save_asset` / `compile_blueprint` 仍可用。

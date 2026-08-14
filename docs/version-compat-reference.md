@@ -45,6 +45,8 @@
 | `NX_UE_HAS_CPF_BLUEPRINT_READWRITE` | `0` | `CPF_BlueprintReadWrite` 在 UE 5.0 移除，所有版本均走 else 分支 |
 | `NX_UE_HAS_WIDGET_ANIM_SET_MOVIE_SCENE` | `0` | `UWidgetAnimation` 全版本公开 `MovieScene` 字段，无 `SetMovieScene` |
 | `NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS` | `!5.2` | 5.2 前 `GetMasterTracks`/`AddMasterTrack`；5.2+ `GetTracks`/`AddTrack`（5.5 起旧 API 删除） |
+| `NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION` | 5.1 | `AddEmitterHandle` 第三参 `FGuid EmitterVersion`（空 Guid = 暴露版本） |
+| `NX_UE_HAS_NIAGARA_VERSIONED_EMITTER` | 5.1 | 发射器 `GraphSource`/脚本属性迁入 `FVersionedNiagaraEmitterData`；`SetSource` → `SetLatestSource` |
 
 ## UnLua 兼容宏
 

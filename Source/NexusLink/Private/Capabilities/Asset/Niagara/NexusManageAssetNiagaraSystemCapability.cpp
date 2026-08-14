@@ -15,6 +15,10 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraEmitterHandle.h"
 #include "NexusMcpTool.h"
+#include "UObject/Package.h"
+#if WITH_EDITOR
+#include "Utils/NexusNiagaraGraphUtils.h"
+#endif
 
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
 #include "NiagaraParameterStore.h"
@@ -26,32 +30,42 @@ void FManageAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.Name = TEXT("manage_asset_niagara_system");
 	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
-	Out.Description = TEXT("批量编辑 Niagara。set_property/set_user_parameter/Emitter CRUD；无模块图。");
+	Out.Description = TEXT("批量编辑 Niagara。set_property/set_user_parameter/Emitter CRUD；add_module/remove_module。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
 			{ TEXT("set_property"), TEXT("set_user_parameter"),
 			  TEXT("set_emitter_enabled"), TEXT("rename_emitter"),
-			  TEXT("add_emitter"), TEXT("remove_emitter") }))
+			  TEXT("add_emitter"), TEXT("remove_emitter"),
+			  TEXT("add_module"), TEXT("remove_module") }))
 		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径（set_property）")))
 		.Prop(TEXT("parameterName"), FNexusSchema::Str(TEXT("用户参数名（set_user_parameter）")))
 		.Prop(TEXT("emitterName"), FNexusSchema::Str(TEXT("发射器名")))
 		.Prop(TEXT("newName"), FNexusSchema::Str(TEXT("rename_emitter 新名")))
 		.Prop(TEXT("enabled"), FNexusSchema::Bool(TEXT("set_emitter_enabled")))
-		.Prop(TEXT("emitterPath"), FNexusSchema::Str(TEXT("add_emitter：NiagaraEmitter 资产路径")))
+		.Prop(TEXT("emitterPath"), FNexusSchema::Str(TEXT("add_emitter：已有 NiagaraEmitter 路径；省略则建空白发射器")))
+		.Prop(TEXT("modulePath"), FNexusSchema::Str(TEXT("add_module：NiagaraScript 模块路径")))
+		.Prop(TEXT("moduleName"), FNexusSchema::Str(TEXT("remove_module：模块显示名")))
+		.Prop(TEXT("usage"), FNexusSchema::Enum(TEXT("add_module 脚本槽"),
+			{ TEXT("Spawn"), TEXT("Update"), TEXT("EmitterSpawn"), TEXT("EmitterUpdate") }))
 		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("新值字符串")))
 		.Required({ TEXT("action") })
 		.Build();
 #else
-	Out.Description = TEXT("批量编辑 Niagara。set_property/Emitter CRUD；无模块图。");
+	Out.Description = TEXT("批量编辑 Niagara。set_property/Emitter CRUD；add_module/remove_module。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
 			{ TEXT("set_property"), TEXT("set_emitter_enabled"), TEXT("rename_emitter"),
-			  TEXT("add_emitter"), TEXT("remove_emitter") }))
+			  TEXT("add_emitter"), TEXT("remove_emitter"),
+			  TEXT("add_module"), TEXT("remove_module") }))
 		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径（set_property）")))
 		.Prop(TEXT("emitterName"), FNexusSchema::Str(TEXT("发射器名")))
 		.Prop(TEXT("newName"), FNexusSchema::Str(TEXT("rename_emitter 新名")))
 		.Prop(TEXT("enabled"), FNexusSchema::Bool(TEXT("set_emitter_enabled")))
-		.Prop(TEXT("emitterPath"), FNexusSchema::Str(TEXT("add_emitter：NiagaraEmitter 资产路径")))
+		.Prop(TEXT("emitterPath"), FNexusSchema::Str(TEXT("add_emitter：已有 NiagaraEmitter 路径；省略则建空白发射器")))
+		.Prop(TEXT("modulePath"), FNexusSchema::Str(TEXT("add_module：NiagaraScript 模块路径")))
+		.Prop(TEXT("moduleName"), FNexusSchema::Str(TEXT("remove_module：模块显示名")))
+		.Prop(TEXT("usage"), FNexusSchema::Enum(TEXT("add_module 脚本槽"),
+			{ TEXT("Spawn"), TEXT("Update"), TEXT("EmitterSpawn"), TEXT("EmitterUpdate") }))
 		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("新值字符串")))
 		.Required({ TEXT("action") })
 		.Build();
@@ -65,7 +79,7 @@ void FManageAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.ExtraSearchKeywords = { TEXT("niagara"), TEXT("vfx"), TEXT("particle"), TEXT("fx"), TEXT("parameter") };
 	Out.RelatedCapabilities = { TEXT("get_asset_niagara_system"), TEXT("create_asset_niagara_system"), TEXT("search_asset") };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("改系统属性/用户参数/发射器启停重命名；无模块图");
+	Out.WhenToUse = TEXT("改系统属性/用户参数/发射器 CRUD；add_module/remove_module 改模块栈");
 }
 
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
@@ -256,7 +270,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			{
 				bool bEnabled = true;
 				if (OpArgs->HasField(TEXT("enabled"))) OpArgs->TryGetBoolField(TEXT("enabled"), bEnabled);
-				Handle.SetIsEnabled(bEnabled);
+				Handle.SetIsEnabled(bEnabled, *System, true);
 				Entry->SetBoolField(TEXT("enabled"), bEnabled);
 			}
 			else if (Action.Equals(TEXT("rename_emitter"), ESearchCase::IgnoreCase))
@@ -269,7 +283,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
-				Handle.SetName(FName(*NewName));
+				Handle.SetName(FName(*NewName), *System);
 				Entry->SetStringField(TEXT("newName"), NewName);
 			}
 			else
@@ -292,24 +306,101 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			FString EmitterPath, EmitterName;
 			OpArgs->TryGetStringField(TEXT("emitterPath"), EmitterPath);
 			OpArgs->TryGetStringField(TEXT("emitterName"), EmitterName);
-			if (EmitterPath.IsEmpty())
+			UNiagaraEmitter* Emitter = nullptr;
+			if (!EmitterPath.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("add_emitter 需要 emitterPath"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
+				Emitter = FNexusAssetUtils::LoadAssetWithFallback<UNiagaraEmitter>(EmitterPath);
+				if (!Emitter)
+				{
+					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("NiagaraEmitter 未找到: %s"), *EmitterPath));
+					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+					continue;
+				}
 			}
-			UNiagaraEmitter* Emitter = FNexusAssetUtils::LoadAssetWithFallback<UNiagaraEmitter>(EmitterPath);
-			if (!Emitter)
+			else
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("NiagaraEmitter 未找到: %s"), *EmitterPath));
+#if WITH_EDITOR
+				FString CreateErr;
+				const FName EmptyName = EmitterName.IsEmpty() ? FName(TEXT("EmptyEmitter")) : FName(*EmitterName);
+				Emitter = FNexusNiagaraGraphUtils::CreateEmptyEmitter(GetTransientPackage(), EmptyName, CreateErr);
+				if (!Emitter)
+				{
+					Entry->SetStringField(TEXT("error"), CreateErr);
+					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+					continue;
+				}
+#else
+				Entry->SetStringField(TEXT("error"), TEXT("add_emitter 省略 emitterPath 仅编辑器可用"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
+#endif
 			}
 			const FName AddName = EmitterName.IsEmpty() ? Emitter->GetFName() : FName(*EmitterName);
+#if NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION
+			System->AddEmitterHandle(*Emitter, AddName, FGuid());
+#else
 			System->AddEmitterHandle(*Emitter, AddName);
+#endif
 			System->MarkPackageDirty();
 			Entry->SetStringField(TEXT("emitterName"), AddName.ToString());
 			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+		}
+		else if (Action.Equals(TEXT("add_module"), ESearchCase::IgnoreCase)
+			|| Action.Equals(TEXT("remove_module"), ESearchCase::IgnoreCase))
+		{
+#if WITH_EDITOR
+			FString EmitterName, ModulePath, ModuleName, Usage;
+			OpArgs->TryGetStringField(TEXT("emitterName"), EmitterName);
+			OpArgs->TryGetStringField(TEXT("modulePath"), ModulePath);
+			OpArgs->TryGetStringField(TEXT("moduleName"), ModuleName);
+			OpArgs->TryGetStringField(TEXT("usage"), Usage);
+			if (EmitterName.IsEmpty())
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("需要 emitterName"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				continue;
+			}
+			FString ModErr;
+			if (Action.Equals(TEXT("add_module"), ESearchCase::IgnoreCase))
+			{
+				if (ModulePath.IsEmpty())
+				{
+					Entry->SetStringField(TEXT("error"), TEXT("add_module 需要 modulePath"));
+					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+					continue;
+				}
+				FString AddedName;
+				if (!FNexusNiagaraGraphUtils::AddModule(System, EmitterName, ModulePath, Usage, AddedName, ModErr))
+				{
+					Entry->SetStringField(TEXT("error"), ModErr);
+					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+					continue;
+				}
+				Entry->SetStringField(TEXT("moduleName"), AddedName);
+				Entry->SetStringField(TEXT("usage"), Usage.IsEmpty() ? TEXT("Update") : Usage);
+			}
+			else
+			{
+				if (ModuleName.IsEmpty())
+				{
+					Entry->SetStringField(TEXT("error"), TEXT("remove_module 需要 moduleName"));
+					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+					continue;
+				}
+				if (!FNexusNiagaraGraphUtils::RemoveModule(System, EmitterName, ModuleName, ModErr))
+				{
+					Entry->SetStringField(TEXT("error"), ModErr);
+					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+					continue;
+				}
+				Entry->SetStringField(TEXT("removed"), ModuleName);
+			}
+			System->MarkPackageDirty();
+			Entry->SetStringField(TEXT("emitterName"), EmitterName);
+			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+#else
+			Entry->SetStringField(TEXT("error"), TEXT("add_module/remove_module 仅编辑器可用"));
+#endif
 		}
 		else
 		{

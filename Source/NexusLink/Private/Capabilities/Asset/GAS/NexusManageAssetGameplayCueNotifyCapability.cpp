@@ -10,7 +10,6 @@
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusJsonUtils.h"
 #include "GameplayCueNotify_Static.h"
-#include "GameplayTagContainer.h"
 #include "NexusMcpTool.h"
 
 void FManageAssetGameplayCueNotifyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -81,7 +80,7 @@ FCapabilityResult FManageAssetGameplayCueNotifyCapability::Execute(const TShared
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
-				Notify->GameplayCueName = FGameplayTag::RequestGameplayTag(FName(*CueName), false);
+				Notify->GameplayCueName = FName(*CueName);
 				bDirty = true;
 				Entry->SetStringField(TEXT("cueName"), Notify->GameplayCueName.ToString());
 			}

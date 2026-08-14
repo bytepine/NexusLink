@@ -23,21 +23,22 @@ void FManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("manage_asset_user_widget");
 	Out.SearchAssetTypes = {TEXT("Widget")};
-	Out.Description = TEXT("批量编辑 WBP。控件树/slot/属性与动画轨；EventGraph 用 manage_asset_blueprint。");
+	Out.Description = TEXT("批量编辑 WBP。控件树/slot/属性与动画轨绑定；EventGraph 用 manage_asset_blueprint。");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Widget 操作"),
 			{ TEXT("add"), TEXT("remove"), TEXT("set_slot"), TEXT("set_property"),
-			  TEXT("add_animation"), TEXT("remove_animation"), TEXT("add_track"), TEXT("add_key") }))
+			  TEXT("add_animation"), TEXT("remove_animation"), TEXT("add_track"), TEXT("add_key"),
+			  TEXT("remove_track"), TEXT("remove_key") }))
 		.Prop(TEXT("widgetClass"),  FNexusSchema::Str(TEXT("Widget 类短名（add）")))
-		.Prop(TEXT("widgetName"),   FNexusSchema::Str(TEXT("Widget 名；remove/set_* 时必填")))
+		.Prop(TEXT("widgetName"),   FNexusSchema::Str(TEXT("Widget 名；remove/set_* / 动画绑定轨必填")))
 		.Prop(TEXT("parentWidget"), FNexusSchema::Str(TEXT("父面板 Widget 名（add）")))
-		.Prop(TEXT("animationName"), FNexusSchema::Str(TEXT("动画名（add/remove_animation、add_track、add_key）")))
-		.Prop(TEXT("trackName"),    FNexusSchema::Str(TEXT("Float 轨显示名（add_track，可选）")))
-		.Prop(TEXT("time"),         FNexusSchema::Num(TEXT("关键帧时间秒（add_key）")))
+		.Prop(TEXT("animationName"), FNexusSchema::Str(TEXT("动画名（add/remove_animation、add/remove_track、add/remove_key）")))
+		.Prop(TEXT("trackName"),    FNexusSchema::Str(TEXT("Float 轨显示名（add/remove_track、add/remove_key）")))
+		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径（set_property；add_track 绑定时如 RenderOpacity）")))
+		.Prop(TEXT("time"),         FNexusSchema::Num(TEXT("关键帧时间秒（add_key / remove_key）")))
 		.Prop(TEXT("keyValue"),     FNexusSchema::Num(TEXT("Float 关键帧值（add_key）")))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径（set_property）")))
 		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("属性值（set_property）")))
 		.Prop(TEXT("anchorMinX"),   FNexusSchema::Num(TEXT("Canvas 锚点 minX（set_slot）")))
 		.Prop(TEXT("anchorMinY"),   FNexusSchema::Num(TEXT("Canvas 锚点 minY（set_slot）")))
@@ -66,7 +67,7 @@ void FManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinitio
 		TEXT("get_asset_user_widget"), TEXT("create_asset_user_widget"), TEXT("save_asset"),
 		TEXT("get_asset_blueprint"), TEXT("manage_asset_blueprint")
 	};
-	Out.WhenToUse = TEXT("控件树/动画轨用本 cap；EventGraph 用 manage_asset_blueprint");
+	Out.WhenToUse = TEXT("控件树/动画轨绑定用本 cap；EventGraph 用 manage_asset_blueprint");
 }
 
 FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -326,9 +327,11 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 			}
 			else if (Action == TEXT("add_track"))
 			{
-				FString AnimName, TrackName;
+				FString AnimName, TrackName, WidgetName, PropPath;
 				Item->TryGetStringField(TEXT("animationName"), AnimName);
 				Item->TryGetStringField(TEXT("trackName"), TrackName);
+				Item->TryGetStringField(TEXT("widgetName"), WidgetName);
+				Item->TryGetStringField(TEXT("propertyPath"), PropPath);
 				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
 				if (!Anim)
 				{
@@ -337,7 +340,10 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 				else
 				{
 					FString OutTrack, AnimErr;
-					if (!FNexusWidgetAnimationUtils::AddFloatTrack(Anim, TrackName, OutTrack, AnimErr))
+					const bool bOk = WidgetName.IsEmpty()
+						? FNexusWidgetAnimationUtils::AddFloatTrack(Anim, TrackName, OutTrack, AnimErr)
+						: FNexusWidgetAnimationUtils::AddBoundFloatTrack(Anim, WBP, WidgetName, PropPath, TrackName, OutTrack, AnimErr);
+					if (!bOk)
 					{
 						OutEntry->SetStringField(TEXT("error"), AnimErr);
 					}
@@ -345,14 +351,17 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 					{
 						OutEntry->SetStringField(TEXT("animationName"), Anim->GetName());
 						OutEntry->SetStringField(TEXT("trackName"), OutTrack);
+						if (!WidgetName.IsEmpty()) OutEntry->SetStringField(TEXT("widgetName"), WidgetName);
+						if (!PropPath.IsEmpty()) OutEntry->SetStringField(TEXT("propertyPath"), PropPath);
 						bDidMutate = true;
 					}
 				}
 			}
 			else if (Action == TEXT("add_key"))
 			{
-				FString AnimName;
+				FString AnimName, TrackName;
 				Item->TryGetStringField(TEXT("animationName"), AnimName);
+				Item->TryGetStringField(TEXT("trackName"), TrackName);
 				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
 				if (!Anim)
 				{
@@ -367,7 +376,64 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 					const float TimeSec = static_cast<float>(Item->GetNumberField(TEXT("time")));
 					const float KeyVal  = static_cast<float>(Item->GetNumberField(TEXT("keyValue")));
 					FString AnimErr;
-					if (!FNexusWidgetAnimationUtils::AddFloatKey(Anim, TimeSec, KeyVal, AnimErr))
+					if (!FNexusWidgetAnimationUtils::AddFloatKey(Anim, TrackName, TimeSec, KeyVal, AnimErr))
+					{
+						OutEntry->SetStringField(TEXT("error"), AnimErr);
+					}
+					else
+					{
+						OutEntry->SetStringField(TEXT("animationName"), Anim->GetName());
+						if (!TrackName.IsEmpty()) OutEntry->SetStringField(TEXT("trackName"), TrackName);
+						OutEntry->SetNumberField(TEXT("time"), TimeSec);
+						OutEntry->SetNumberField(TEXT("keyValue"), KeyVal);
+						bDidMutate = true;
+					}
+				}
+			}
+			else if (Action == TEXT("remove_track"))
+			{
+				FString AnimName, TrackName;
+				Item->TryGetStringField(TEXT("animationName"), AnimName);
+				Item->TryGetStringField(TEXT("trackName"), TrackName);
+				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
+				if (!Anim)
+				{
+					OutEntry->SetStringField(TEXT("error"), TEXT("remove_track 需要已存在的 animationName"));
+				}
+				else
+				{
+					FString AnimErr;
+					if (!FNexusWidgetAnimationUtils::RemoveFloatTrack(Anim, TrackName, AnimErr))
+					{
+						OutEntry->SetStringField(TEXT("error"), AnimErr);
+					}
+					else
+					{
+						OutEntry->SetStringField(TEXT("animationName"), Anim->GetName());
+						OutEntry->SetStringField(TEXT("trackName"), TrackName);
+						bDidMutate = true;
+					}
+				}
+			}
+			else if (Action == TEXT("remove_key"))
+			{
+				FString AnimName, TrackName;
+				Item->TryGetStringField(TEXT("animationName"), AnimName);
+				Item->TryGetStringField(TEXT("trackName"), TrackName);
+				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
+				if (!Anim)
+				{
+					OutEntry->SetStringField(TEXT("error"), TEXT("remove_key 需要已存在的 animationName"));
+				}
+				else if (!Item->HasField(TEXT("time")))
+				{
+					OutEntry->SetStringField(TEXT("error"), TEXT("remove_key 需要 time"));
+				}
+				else
+				{
+					const float TimeSec = static_cast<float>(Item->GetNumberField(TEXT("time")));
+					FString AnimErr;
+					if (!FNexusWidgetAnimationUtils::RemoveFloatKey(Anim, TrackName, TimeSec, AnimErr))
 					{
 						OutEntry->SetStringField(TEXT("error"), AnimErr);
 					}
@@ -375,7 +441,6 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 					{
 						OutEntry->SetStringField(TEXT("animationName"), Anim->GetName());
 						OutEntry->SetNumberField(TEXT("time"), TimeSec);
-						OutEntry->SetNumberField(TEXT("keyValue"), KeyVal);
 						bDidMutate = true;
 					}
 				}
@@ -383,7 +448,7 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 			else
 			{
 				OutEntry->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("不支持的操作: '%s'。allowedActions: add, remove, set_slot, set_property, add_animation, remove_animation, add_track, add_key"), *Action));
+					FString::Printf(TEXT("不支持的操作: '%s'。allowedActions: add, remove, set_slot, set_property, add_animation, remove_animation, add_track, add_key, remove_track, remove_key"), *Action));
 				TArray<TSharedPtr<FJsonValue>> Allowed;
 				Allowed.Add(MakeShared<FJsonValueString>(TEXT("add")));
 				Allowed.Add(MakeShared<FJsonValueString>(TEXT("remove")));
@@ -393,6 +458,8 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 				Allowed.Add(MakeShared<FJsonValueString>(TEXT("remove_animation")));
 				Allowed.Add(MakeShared<FJsonValueString>(TEXT("add_track")));
 				Allowed.Add(MakeShared<FJsonValueString>(TEXT("add_key")));
+				Allowed.Add(MakeShared<FJsonValueString>(TEXT("remove_track")));
+				Allowed.Add(MakeShared<FJsonValueString>(TEXT("remove_key")));
 				OutEntry->SetArrayField(TEXT("allowedActions"), Allowed);
 			}
 

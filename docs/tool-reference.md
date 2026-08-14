@@ -533,9 +533,9 @@
 
 ### `create_asset_niagara_system`
 
-创建空白 NiagaraSystem。无模块图。
+创建空白 NiagaraSystem。模块栈用 manage add_emitter/add_module。
 
-**适用场景**：新建 Niagara 系统；Emitter CRUD 用 manage
+**适用场景**：新建 Niagara 系统；发射器/模块用 manage
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -1628,7 +1628,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | LevelSequence 资产路径 |
-| `operations` | `object[]` | ★ | 操作列表；item: `action`(set_display_rate/set_playback_range/remove_binding/add_master_track/remove_master_track/add_possessable/add_spawnable/add_track…), `numerator`, `denominator`, `startFrame`, `endFrame`, `bindingGuid`, `possessableName`, `className`, `trackClass`(CameraCut/Audio/Float/Transform), `time`, `keyValue`, `x`, `y`, `z` |
+| `operations` | `object[]` | ★ | 操作列表；item: `action`(set_display_rate/set_playback_range/remove_binding/add_master_track/remove_master_track/add_possessable/add_spawnable/add_track…), `numerator`, `denominator`, `startFrame`, `endFrame`, `bindingGuid`, `possessableName`, `className`, `trackClass`(CameraCut/Audio/Float/Transform), `time`, `keyValue`, `x`, `y`, `z`, `pitch`, `yaw`, `roll` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_level_sequence`、`create_asset_level_sequence`、`save_asset`
@@ -1690,7 +1690,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | NiagaraSystem 资产路径 |
-| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property/set_user_parameter/set_emitter_enabled/rename_emitter/add_emitter/remove_emitter), `propertyPath`, `parameterName`, `emitterName`, `newName`, `enabled`, `emitterPath`, `value` |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property/set_user_parameter/set_emitter_enabled/rename_emitter/add_emitter/remove_emitter/add_module/remove_module), `propertyPath`, `parameterName`, `emitterName`, `newName`, `enabled`, `emitterPath`, `modulePath`, `moduleName`, `usage`(Spawn/Update/EmitterSpawn/EmitterUpdate), `value` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_niagara_system`、`create_asset_niagara_system`、`search_asset`
@@ -2343,7 +2343,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 动画蓝图资产路径 |
-| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_state_machine/remove_state_machine/add_state/remove_state/add_transition/remove_transition/add_node/remove_node…), `graphName`, `stateMachineName`, `stateName`, `targetStateName`, `nodeClass`(SequencePlayer/BlendSpacePlayer/Slot), `nodeId`, `sequencePath`, `slotName`, `sourceNodeId`, `sourcePinName`, `targetNodeId`, `targetPinName`, `posX`, `posY` |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_state_machine/remove_state_machine/add_state/remove_state/add_transition/remove_transition/add_node/remove_node…), `graphName`, `stateMachineName`, `stateName`, `targetStateName`, `nodeClass`(SequencePlayer/BlendSpacePlayer/Slot/Blend/LayeredBoneBlend/ApplyAdditive/SaveCachedPose/UseCachedPose…), `nodeId`, `sequencePath`, `slotName`, `boneName`, `sourceNodeId`, `sourcePinName`, `targetNodeId`, `targetPinName`, `posX`, `posY` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `compile` | `boolean` |  | 按需编译蓝图（仅 BP/ABP/WBP） |
 
@@ -2722,7 +2722,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | 查询段（可多选）：`widgets` / `animations` |
+| `sections` | `string[]` |  | 查询段（可多选）：`widgets` / `animations` / `graphOverview` |
 | `assetPath` | `string` | ★ | Widget 蓝图资产路径 |
 | `nameFilter` | `string` |  | Widget/动画名称子串匹配（可选） |
 | `typeFilter` | `string` |  | Widget 类子串匹配（仅 widgets 段） |
@@ -2742,7 +2742,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | WidgetBlueprint 资产路径（共用） |
-| `operations` | `object[]` | ★ | 批量 Widget 操作；item: `action`(add/remove/set_slot/set_property/add_animation/remove_animation/add_track/add_key), `widgetClass`, `widgetName`, `parentWidget`, `animationName`, `trackName`, `time`, `keyValue`, `propertyPath`, `value`, `anchorMinX`, `anchorMinY`, `anchorMaxX`, `anchorMaxY`, `alignmentX`, `alignmentY`, `offsetLeft`, `offsetTop`, `offsetRight`, `offsetBottom` |
+| `operations` | `object[]` | ★ | 批量 Widget 操作；item: `action`(add/remove/set_slot/set_property/add_animation/remove_animation/add_track/add_key…), `widgetClass`, `widgetName`, `parentWidget`, `animationName`, `trackName`, `propertyPath`, `time`, `keyValue`, `value`, `anchorMinX`, `anchorMinY`, `anchorMaxX`, `anchorMaxY`, `alignmentX`, `alignmentY`, `offsetLeft`, `offsetTop`, `offsetRight`, `offsetBottom` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `compile` | `boolean` |  | 按需编译蓝图（仅 BP/ABP/WBP） |
 

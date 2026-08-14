@@ -16,10 +16,57 @@
 #include "Tracks/MovieSceneAudioTrack.h"
 #include "GameFramework/Actor.h"
 #include "Sections/MovieSceneFloatSection.h"
+#include "Sections/MovieScene3DTransformSection.h"
 #if NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "KeyParams.h"
+#endif
+
+#if WITH_EDITOR && NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
+static void WriteFloatChannelKey(UMovieScene* Scene, FMovieSceneFloatChannel* Channel, double TimeSec, float Value)
+{
+	if (!Scene || !Channel) return;
+	const FFrameRate Tick = Scene->GetTickResolution();
+	const FFrameNumber Frame = Tick.AsFrameNumber(TimeSec);
+	AddKeyToChannel(Channel, Frame, Value, EMovieSceneKeyInterpolation::Auto);
+}
+
+static bool AddKeyToFloatTrack(UMovieScene* Scene, UMovieSceneFloatTrack* FloatTrack, double TimeSec, float KeyVal, FString& OutError)
+{
+	if (!Scene || !FloatTrack)
+	{
+		OutError = TEXT("FloatTrack 无效");
+		return false;
+	}
+	UMovieSceneFloatSection* Section = nullptr;
+	for (UMovieSceneSection* S : FloatTrack->GetAllSections())
+	{
+		Section = Cast<UMovieSceneFloatSection>(S);
+		if (Section) break;
+	}
+	if (!Section)
+	{
+		Section = Cast<UMovieSceneFloatSection>(FloatTrack->CreateNewSection());
+		if (Section) FloatTrack->AddSection(*Section);
+	}
+	if (!Section)
+	{
+		OutError = TEXT("无法创建 FloatSection");
+		return false;
+	}
+	const FFrameRate Tick = Scene->GetTickResolution();
+	const FFrameNumber Frame = Tick.AsFrameNumber(TimeSec);
+	Section->SetRange(TRange<FFrameNumber>::Hull(Section->GetRange(), TRange<FFrameNumber>(Frame, Frame + 1)));
+	TArrayView<FMovieSceneFloatChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	if (Channels.Num() == 0)
+	{
+		OutError = TEXT("FloatSection 无 FloatChannel");
+		return false;
+	}
+	WriteFloatChannelKey(Scene, Channels[0], TimeSec, KeyVal);
+	return true;
+}
 #endif
 
 void FManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -47,7 +94,7 @@ void FManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefini
 		.Prop(TEXT("denominator"), FNexusSchema::Int(TEXT("帧率分母（set_display_rate）"), 1))
 		.Prop(TEXT("startFrame"),  FNexusSchema::Int(TEXT("起始帧（set_playback_range）")))
 		.Prop(TEXT("endFrame"),    FNexusSchema::Int(TEXT("结束帧（set_playback_range）")))
-		.Prop(TEXT("bindingGuid"), FNexusSchema::Str(TEXT("Binding GUID")))
+		.Prop(TEXT("bindingGuid"), FNexusSchema::Str(TEXT("Binding GUID（add_track / add_float_key / set_transform_key 必填）")))
 		.Prop(TEXT("possessableName"), FNexusSchema::Str(TEXT("Possessable 显示名")))
 		.Prop(TEXT("className"),   FNexusSchema::Str(TEXT("Possessable/Spawnable 类名（默认 Actor）")))
 		.Prop(TEXT("trackClass"),  FNexusSchema::Enum(
@@ -55,9 +102,12 @@ void FManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefini
 			{ TEXT("CameraCut"), TEXT("Audio"), TEXT("Float"), TEXT("Transform") }))
 		.Prop(TEXT("time"),        FNexusSchema::Num(TEXT("关键帧时间秒")))
 		.Prop(TEXT("keyValue"),    FNexusSchema::Num(TEXT("Float 关键帧值")))
-		.Prop(TEXT("x"), FNexusSchema::Num(TEXT("Transform X")))
-		.Prop(TEXT("y"), FNexusSchema::Num(TEXT("Transform Y")))
-		.Prop(TEXT("z"), FNexusSchema::Num(TEXT("Transform Z")))
+		.Prop(TEXT("x"), FNexusSchema::Num(TEXT("Transform 位置 X")))
+		.Prop(TEXT("y"), FNexusSchema::Num(TEXT("Transform 位置 Y")))
+		.Prop(TEXT("z"), FNexusSchema::Num(TEXT("Transform 位置 Z")))
+		.Prop(TEXT("pitch"), FNexusSchema::Num(TEXT("Transform 旋转 Pitch（可选）")))
+		.Prop(TEXT("yaw"), FNexusSchema::Num(TEXT("Transform 旋转 Yaw（可选）")))
+		.Prop(TEXT("roll"), FNexusSchema::Num(TEXT("Transform 旋转 Roll（可选）")))
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
@@ -323,59 +373,42 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 			}
 			else if (Action == TEXT("add_float_key"))
 			{
+				FString GuidStr;
+				Op->TryGetStringField(TEXT("bindingGuid"), GuidStr);
 				double TimeSec = 0.0, KeyVal = 0.0;
 				Op->TryGetNumberField(TEXT("time"), TimeSec);
 				Op->TryGetNumberField(TEXT("keyValue"), KeyVal);
-				UMovieSceneFloatTrack* FloatTrack = nullptr;
-#if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
-				for (UMovieSceneTrack* T : Scene->GetMasterTracks())
-#else
-				for (UMovieSceneTrack* T : Scene->GetTracks())
-#endif
+				FGuid Guid;
+				if (!FGuid::Parse(GuidStr, Guid))
 				{
-					FloatTrack = Cast<UMovieSceneFloatTrack>(T);
-					if (FloatTrack) break;
-				}
-				if (!FloatTrack)
-				{
-#if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
-					FloatTrack = Scene->AddMasterTrack<UMovieSceneFloatTrack>();
-#else
-					FloatTrack = Scene->AddTrack<UMovieSceneFloatTrack>();
-#endif
-				}
-				if (!FloatTrack)
-				{
-					OpResult->SetStringField(TEXT("error"), TEXT("无法获取 FloatTrack"));
+					OpResult->SetStringField(TEXT("error"), TEXT("add_float_key 需要有效 bindingGuid"));
 				}
 				else
 				{
-					UMovieSceneFloatSection* Section = nullptr;
-					for (UMovieSceneSection* S : FloatTrack->GetAllSections())
+					UMovieSceneFloatTrack* FloatTrack = Cast<UMovieSceneFloatTrack>(
+						Scene->FindTrack(UMovieSceneFloatTrack::StaticClass(), Guid));
+					if (!FloatTrack)
 					{
-						Section = Cast<UMovieSceneFloatSection>(S);
-						if (Section) break;
-					}
-					if (!Section)
-					{
-						Section = Cast<UMovieSceneFloatSection>(FloatTrack->CreateNewSection());
-						if (Section) FloatTrack->AddSection(*Section);
-					}
-					if (!Section)
-					{
-						OpResult->SetStringField(TEXT("error"), TEXT("无法创建 FloatSection"));
+						OpResult->SetStringField(TEXT("error"), TEXT("该 Binding 无 Float 轨，先 add_track"));
 					}
 					else
 					{
-						const FFrameRate Tick = Scene->GetTickResolution();
-						const FFrameNumber Frame = Tick.AsFrameNumber(TimeSec);
 #if NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
-						TArrayView<FMovieSceneFloatChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-						if (Channels.Num() > 0) AddKeyToChannel(Channels[0], Frame, static_cast<float>(KeyVal), EMovieSceneKeyInterpolation::Auto);
+						FString KeyErr;
+						if (!AddKeyToFloatTrack(Scene, FloatTrack, TimeSec, static_cast<float>(KeyVal), KeyErr))
+						{
+							OpResult->SetStringField(TEXT("error"), KeyErr);
+						}
+						else
+						{
+							OpResult->SetStringField(TEXT("bindingGuid"), Guid.ToString());
+							OpResult->SetNumberField(TEXT("time"), TimeSec);
+							OpResult->SetNumberField(TEXT("keyValue"), KeyVal);
+							bDirty = true;
+						}
 #else
-						Section->FloatCurve.AddKey(static_cast<float>(TimeSec), static_cast<float>(KeyVal));
+						OpResult->SetStringField(TEXT("error"), TEXT("当前引擎无 FloatChannel，无法打 key"));
 #endif
-						bDirty = true;
 					}
 				}
 			}
@@ -388,6 +421,13 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 				Op->TryGetNumberField(TEXT("x"), X);
 				Op->TryGetNumberField(TEXT("y"), Y);
 				Op->TryGetNumberField(TEXT("z"), Z);
+				const bool bHasPitch = Op->HasField(TEXT("pitch"));
+				const bool bHasYaw   = Op->HasField(TEXT("yaw"));
+				const bool bHasRoll  = Op->HasField(TEXT("roll"));
+				double Pitch = 0, Yaw = 0, Roll = 0;
+				if (bHasPitch) Op->TryGetNumberField(TEXT("pitch"), Pitch);
+				if (bHasYaw)   Op->TryGetNumberField(TEXT("yaw"), Yaw);
+				if (bHasRoll)  Op->TryGetNumberField(TEXT("roll"), Roll);
 				FGuid Guid;
 				if (!FGuid::Parse(GuidStr, Guid))
 				{
@@ -406,11 +446,56 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 					}
 					else
 					{
-						OpResult->SetStringField(TEXT("note"), TEXT("已确保 Transform 轨存在；完整 9 通道关键帧视引擎版本而定"));
-						OpResult->SetNumberField(TEXT("x"), X);
-						OpResult->SetNumberField(TEXT("y"), Y);
-						OpResult->SetNumberField(TEXT("z"), Z);
-						bDirty = true;
+						UMovieScene3DTransformSection* Section = nullptr;
+						for (UMovieSceneSection* S : TTrack->GetAllSections())
+						{
+							Section = Cast<UMovieScene3DTransformSection>(S);
+							if (Section) break;
+						}
+						if (!Section)
+						{
+							Section = Cast<UMovieScene3DTransformSection>(TTrack->CreateNewSection());
+							if (Section) TTrack->AddSection(*Section);
+						}
+						if (!Section)
+						{
+							OpResult->SetStringField(TEXT("error"), TEXT("无法创建 TransformSection"));
+						}
+						else
+						{
+#if NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
+							const FFrameRate Tick = Scene->GetTickResolution();
+							const FFrameNumber Frame = Tick.AsFrameNumber(TimeSec);
+							Section->SetRange(TRange<FFrameNumber>::Hull(Section->GetRange(), TRange<FFrameNumber>(Frame, Frame + 1)));
+							TArrayView<FMovieSceneFloatChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+							// 通道顺序：Location XYZ（0-2），Rotation Roll/Pitch/Yaw（3-5）
+							if (Channels.Num() >= 3)
+							{
+								WriteFloatChannelKey(Scene, Channels[0], TimeSec, static_cast<float>(X));
+								WriteFloatChannelKey(Scene, Channels[1], TimeSec, static_cast<float>(Y));
+								WriteFloatChannelKey(Scene, Channels[2], TimeSec, static_cast<float>(Z));
+							}
+							if (Channels.Num() >= 6 && (bHasRoll || bHasPitch || bHasYaw))
+							{
+								if (bHasRoll)  WriteFloatChannelKey(Scene, Channels[3], TimeSec, static_cast<float>(Roll));
+								if (bHasPitch) WriteFloatChannelKey(Scene, Channels[4], TimeSec, static_cast<float>(Pitch));
+								if (bHasYaw)   WriteFloatChannelKey(Scene, Channels[5], TimeSec, static_cast<float>(Yaw));
+							}
+							else if (bHasRoll || bHasPitch || bHasYaw)
+							{
+								OpResult->SetStringField(TEXT("rotationNote"), TEXT("旋转通道不存在，已忽略 pitch/yaw/roll"));
+							}
+							OpResult->SetNumberField(TEXT("x"), X);
+							OpResult->SetNumberField(TEXT("y"), Y);
+							OpResult->SetNumberField(TEXT("z"), Z);
+							if (bHasPitch) OpResult->SetNumberField(TEXT("pitch"), Pitch);
+							if (bHasYaw)   OpResult->SetNumberField(TEXT("yaw"), Yaw);
+							if (bHasRoll)  OpResult->SetNumberField(TEXT("roll"), Roll);
+							bDirty = true;
+#else
+							OpResult->SetStringField(TEXT("error"), TEXT("当前引擎无 FloatChannel，无法写 Transform 关键帧"));
+#endif
+						}
 					}
 				}
 			}

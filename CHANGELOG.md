@@ -30,6 +30,10 @@
 ### Added
 
 - feat(mcp): `manage_asset_*` 框架注入可选 `saveToDisk`（默认 false）；`manage_asset_blueprint` / `anim_blueprint` / `user_widget` 另注入按需 `compile`（默认 false）。UDS 仍自动编译；材质继续用 `recompile` op。独立 `save_asset` / `compile_blueprint` 仍可用
+- feat(mcp): AnimGraph 扩 TwoBoneIK / LookAt / ModifyBone / AimOffset（`boneName`）；Niagara `add_emitter` 可省略 `emitterPath` 建空白发射器，`add_module`/`remove_module` 改模块栈，`get_asset_niagara_system` 回显 `modules`
+- feat(mcp): AnimGraph 常用节点扩至 Blend（BlendListByBool）/ LayeredBoneBlend / ApplyAdditive / SaveCachedPose / UseCachedPose；`manage_asset_level_sequence` 的 `add_float_key` 必填 `bindingGuid`（绑定级，不再打 Master）；`set_transform_key` 写 Location 并可选 pitch/yaw/roll；WBP 动画轨可 `widgetName`+`propertyPath` 绑定控件，补 `remove_track`/`remove_key`；`get_asset_user_widget` 增 `graphOverview`
+- fix(mcp): AnimGraph 解析只剥 `UAnimGraphNode_`/`AnimGraphNode_` 前缀（禁止全局删字母 U，否则 SequencePlayer/UseCachedPose 无法 spawn）；`add_interface`/`remove_interface` 补 Action 守卫，避免拦住 `add_node`/`add_component`
+- fix(compat): `GameplayCueName` 全版本为 `FName`；Niagara `SetIsEnabled`/`SetName` 需传入 System；5.1+ `AddEmitterHandle` 第三参 VersionGuid（`NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION`）
 - test(capability): Automation `NexusLink.Capability.ManageFinalizeMixin`——Schema 注入、非 BP 传 `compile` → `arg_invalid`、假路径 `saveToDisk` 写 `saveError`
 - feat(mcp): 补齐零 coverage 新领域（188→221）：StringTable / Font / FoliageType / FileMediaSource（媒体路径键 `mediaPath`，禁止旧键 `filePath`）；GAS `GameplayCueNotify_Static`；Paper2D Sprite/Flipbook/TileMap(get)；GeometryCollection；CommonButtonStyle/CommonTextStyle；MoviePipeline config。不含 Landscape 雕刻、Niagara 模块图、Able、关卡刷草
 - feat(mcp): 蓝图接口（BPI）走现有 cap——`create_asset_blueprint(parentClass=Interface)` 创建 `BPTYPE_Interface`；`get_asset_blueprint` 回显 `blueprintType` / `implementedInterfaces`；`manage_asset_blueprint` 新增 `add_function` / `remove_function` / `add_interface` / `remove_interface`

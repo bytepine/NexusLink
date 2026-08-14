@@ -14,13 +14,16 @@
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
 #include "NiagaraParameterStore.h"
 #endif
+#if WITH_EDITOR
+#include "Utils/NexusNiagaraGraphUtils.h"
+#endif
 #include "NexusMcpTool.h"
 
 void FGetAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_niagara_system");
 	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
-	Out.Description = TEXT("检查 NiagaraSystem 快照。发射器/用户参数。写用 manage_asset_niagara_system。");
+	Out.Description = TEXT("检查 NiagaraSystem 快照。发射器/模块/用户参数。写用 manage_asset_niagara_system。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("NiagaraSystem 资产路径")))
 		.Required({ TEXT("assetPath") })
@@ -28,7 +31,7 @@ void FGetAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefinitio
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("niagara"), TEXT("vfx"), TEXT("particle"), TEXT("emitter"), TEXT("fx") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_niagara_system"), TEXT("create_asset_niagara_system"), TEXT("search_asset"), TEXT("get_asset_refs"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("读 Niagara 元数据；属性写用 manage_asset_niagara_system");
+	Out.WhenToUse = TEXT("读 Niagara 发射器与模块栈；写用 manage_asset_niagara_system");
 }
 
 FCapabilityResult FGetAssetNiagaraSystemCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -67,6 +70,18 @@ FCapabilityResult FGetAssetNiagaraSystemCapability::Execute(const TSharedPtr<FJs
 			Em->SetStringField(TEXT("name"), Handle.GetName().ToString());
 			Em->SetStringField(TEXT("id"), Handle.GetId().ToString());
 			Em->SetBoolField(TEXT("enabled"), Handle.GetIsEnabled());
+#if WITH_EDITOR
+			{
+				TArray<TSharedPtr<FJsonObject>> ModuleObjs;
+				FNexusNiagaraGraphUtils::CollectModules(Handle, ModuleObjs);
+				TArray<TSharedPtr<FJsonValue>> Modules;
+				for (const TSharedPtr<FJsonObject>& M : ModuleObjs)
+				{
+					Modules.Add(MakeShared<FJsonValueObject>(M));
+				}
+				Em->SetArrayField(TEXT("modules"), Modules);
+			}
+#endif
 			Emitters.Add(MakeShared<FJsonValueObject>(Em));
 		}
 #else
@@ -79,6 +94,18 @@ FCapabilityResult FGetAssetNiagaraSystemCapability::Execute(const TSharedPtr<FJs
 			Em->SetStringField(TEXT("name"), Handle.GetName().ToString());
 			Em->SetStringField(TEXT("id"), Handle.GetId().ToString());
 			Em->SetBoolField(TEXT("enabled"), Handle.GetIsEnabled());
+#if WITH_EDITOR
+			{
+				TArray<TSharedPtr<FJsonObject>> ModuleObjs;
+				FNexusNiagaraGraphUtils::CollectModules(Handle, ModuleObjs);
+				TArray<TSharedPtr<FJsonValue>> Modules;
+				for (const TSharedPtr<FJsonObject>& M : ModuleObjs)
+				{
+					Modules.Add(MakeShared<FJsonValueObject>(M));
+				}
+				Em->SetArrayField(TEXT("modules"), Modules);
+			}
+#endif
 			Emitters.Add(MakeShared<FJsonValueObject>(Em));
 		}
 #endif

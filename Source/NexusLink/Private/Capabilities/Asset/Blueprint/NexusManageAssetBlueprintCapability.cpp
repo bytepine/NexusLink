@@ -327,6 +327,7 @@ FCapabilityResult FManageAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 			FKismetEditorUtilities::CompileBlueprint(BP);
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
 		}
+		if (Action == TEXT("add_interface") || Action == TEXT("remove_interface"))
 		{
 			const FString IfaceName = OpArgs->HasField(TEXT("interfaceName")) ? OpArgs->GetStringField(TEXT("interfaceName")) : TEXT("");
 			if (IfaceName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("interfaceName 必填（BPI 路径或接口类名）")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }

@@ -119,13 +119,27 @@ UEdGraphPin* FNexusAnimGraphUtils::GetStateInputPin(UAnimStateNodeBase* StateNod
 #include "AnimGraphNode_SequencePlayer.h"
 #include "AnimGraphNode_BlendSpacePlayer.h"
 #include "AnimGraphNode_Slot.h"
+#include "AnimGraphNode_BlendListByBool.h"
+#include "AnimGraphNode_LayeredBoneBlend.h"
+#include "AnimGraphNode_ApplyAdditive.h"
+#include "AnimGraphNode_SaveCachedPose.h"
+#include "AnimGraphNode_UseCachedPose.h"
+#include "AnimGraphNode_TwoBoneIK.h"
+#include "AnimGraphNode_LookAt.h"
+#include "AnimGraphNode_ModifyBone.h"
+#include "AnimGraphNode_RotationOffsetBlendSpace.h"
+#include "AnimGraphNode_AimOffsetLookAt.h"
 #include "AnimGraphNode_Base.h"
 
 UClass* FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(const FString& NodeClass)
 {
 	FString Name = NodeClass;
-	Name.ReplaceInline(TEXT("U"), TEXT(""));
-	if (Name.StartsWith(TEXT("AnimGraphNode_")))
+	// 只剥类名前缀，禁止全局删 'U'（否则 SequencePlayer→SeqencePlayer、UseCachedPose→seCachedPose）
+	if (Name.StartsWith(TEXT("UAnimGraphNode_")))
+	{
+		Name = Name.Mid(15);
+	}
+	else if (Name.StartsWith(TEXT("AnimGraphNode_")))
 	{
 		Name = Name.Mid(14);
 	}
@@ -140,6 +154,49 @@ UClass* FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(const FString& NodeClass
 	if (Name.Equals(TEXT("Slot"), ESearchCase::IgnoreCase))
 	{
 		return UAnimGraphNode_Slot::StaticClass();
+	}
+	if (Name.Equals(TEXT("Blend"), ESearchCase::IgnoreCase)
+		|| Name.Equals(TEXT("BlendListByBool"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_BlendListByBool::StaticClass();
+	}
+	if (Name.Equals(TEXT("LayeredBoneBlend"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_LayeredBoneBlend::StaticClass();
+	}
+	if (Name.Equals(TEXT("ApplyAdditive"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_ApplyAdditive::StaticClass();
+	}
+	if (Name.Equals(TEXT("SaveCachedPose"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_SaveCachedPose::StaticClass();
+	}
+	if (Name.Equals(TEXT("UseCachedPose"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_UseCachedPose::StaticClass();
+	}
+	if (Name.Equals(TEXT("TwoBoneIK"), ESearchCase::IgnoreCase)
+		|| Name.Equals(TEXT("IK"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_TwoBoneIK::StaticClass();
+	}
+	if (Name.Equals(TEXT("LookAt"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_LookAt::StaticClass();
+	}
+	if (Name.Equals(TEXT("ModifyBone"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_ModifyBone::StaticClass();
+	}
+	if (Name.Equals(TEXT("AimOffset"), ESearchCase::IgnoreCase)
+		|| Name.Equals(TEXT("RotationOffsetBlendSpace"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_RotationOffsetBlendSpace::StaticClass();
+	}
+	if (Name.Equals(TEXT("AimOffsetLookAt"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_AimOffsetLookAt::StaticClass();
 	}
 	return nullptr;
 }
@@ -164,7 +221,7 @@ UEdGraphNode* FNexusAnimGraphUtils::SpawnAnimGraphNode(UEdGraph* Graph, UClass* 
 	if (!Graph) { OutError = TEXT("AnimGraph 无效"); return nullptr; }
 	if (!NodeClass || !NodeClass->IsChildOf(UAnimGraphNode_Base::StaticClass()))
 	{
-		OutError = TEXT("仅支持 AnimGraph 节点（SequencePlayer/BlendSpacePlayer/Slot）");
+		OutError = TEXT("仅支持 AnimGraph 节点（SequencePlayer/BlendSpacePlayer/Slot/Blend/LayeredBoneBlend/ApplyAdditive/SaveCachedPose/UseCachedPose/TwoBoneIK/LookAt/ModifyBone/AimOffset）");
 		return nullptr;
 	}
 	UEdGraphNode* Node = NewObject<UEdGraphNode>(Graph, NodeClass);
@@ -208,6 +265,24 @@ bool FNexusAnimGraphUtils::ConnectAnimPins(UEdGraphNode* Source, const FString& 
 	}
 	Src->MakeLinkTo(Dst);
 	return true;
+}
+
+void FNexusAnimGraphUtils::ApplyBoneName(UEdGraphNode* Node, const FString& BoneName)
+{
+	if (!Node || BoneName.IsEmpty()) return;
+	const FName Bone(*BoneName);
+	if (UAnimGraphNode_TwoBoneIK* IK = Cast<UAnimGraphNode_TwoBoneIK>(Node))
+	{
+		IK->Node.IKBone.BoneName = Bone;
+	}
+	else if (UAnimGraphNode_LookAt* LookAt = Cast<UAnimGraphNode_LookAt>(Node))
+	{
+		LookAt->Node.BoneToModify.BoneName = Bone;
+	}
+	else if (UAnimGraphNode_ModifyBone* Modify = Cast<UAnimGraphNode_ModifyBone>(Node))
+	{
+		Modify->Node.BoneToModify.BoneName = Bone;
+	}
 }
 
 #endif // WITH_EDITOR

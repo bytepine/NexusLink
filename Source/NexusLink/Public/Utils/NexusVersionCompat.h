@@ -65,6 +65,8 @@
 #define NX_UE_HAS_NIAGARA_EMITTER_HANDLES_API NX_UE_AT_LEAST(5, 0) // UNiagaraSystem::GetNumEmitters/GetEmitterHandle → GetEmitterHandles()
 #define NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS NX_UE_AT_LEAST(5, 0) // UNiagaraSystem::GetExposedParameters() 用户参数 Store
 #define NX_UE_HAS_NIAGARA_REMOVE_EMITTER_BY_ID NX_UE_AT_LEAST(5, 0) // RemoveEmitterHandlesById
+#define NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION NX_UE_AT_LEAST(5, 1) // AddEmitterHandle 第三参 FGuid EmitterVersion
+#define NX_UE_HAS_NIAGARA_VERSIONED_EMITTER NX_UE_AT_LEAST(5, 1) // GraphSource/脚本属性迁入 FVersionedNiagaraEmitterData；SetSource→SetLatestSource
 #define NX_UE_HAS_TEXTURE_PLATFORM_ACCESSOR NX_UE_AT_LEAST(5, 0) // UTexture2D::PlatformData → GetPlatformData()
 #define NX_UE_HAS_TEXTURE_SURFACE_SIZE   NX_UE_AT_LEAST(5, 1) // 贴图尺寸：PlatformData::SizeX/Y → GetSurfaceWidth()/GetSurfaceHeight()
 #define NX_UE_HAS_JSON_TSHAREDSTRING_KEY   NX_UE_AT_LEAST(5, 8) // FJsonObject::Values 键类型 FString → UE::FSharedString；迭代 KV.Key 需 FString(*KV.Key)

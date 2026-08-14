@@ -46,13 +46,13 @@ FCapabilityResult FGetAssetGameplayCueNotifyCapability::Execute(const TSharedPtr
 			return;
 		}
 
-		FGameplayTag CueTag;
+		FName CueName;
 		FString ClassName;
 		bool bIsBlueprint = false;
 
 		if (UGameplayCueNotify_Static* StaticNotify = Cast<UGameplayCueNotify_Static>(Loaded))
 		{
-			CueTag = StaticNotify->GameplayCueName;
+			CueName = StaticNotify->GameplayCueName;
 			ClassName = StaticNotify->GetClass()->GetName();
 		}
 		else if (UBlueprint* BP = Cast<UBlueprint>(Loaded))
@@ -64,11 +64,11 @@ FCapabilityResult FGetAssetGameplayCueNotifyCapability::Execute(const TSharedPtr
 			{
 				if (UGameplayCueNotify_Static* CDO = Cast<UGameplayCueNotify_Static>(Gen->GetDefaultObject()))
 				{
-					CueTag = CDO->GameplayCueName;
+					CueName = CDO->GameplayCueName;
 				}
 				else if (AGameplayCueNotify_Actor* ActorCDO = Cast<AGameplayCueNotify_Actor>(Gen->GetDefaultObject()))
 				{
-					CueTag = ActorCDO->GameplayCueName;
+					CueName = ActorCDO->GameplayCueName;
 				}
 			}
 		}
@@ -83,7 +83,7 @@ FCapabilityResult FGetAssetGameplayCueNotifyCapability::Execute(const TSharedPtr
 		Entry->SetStringField(TEXT("path"), Loaded->GetPathName());
 		Entry->SetStringField(TEXT("className"), ClassName);
 		Entry->SetBoolField(TEXT("isBlueprint"), bIsBlueprint);
-		Entry->SetStringField(TEXT("cueName"), CueTag.ToString());
+		Entry->SetStringField(TEXT("cueName"), CueName.ToString());
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

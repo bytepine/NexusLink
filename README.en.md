@@ -158,7 +158,7 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 |--------|-------------|-------------|
 | **Editor Context** | Editor info/context, **output log** (`get_output_log`: `preset=diagnose` / `order=newest` / `sinceSequence` incremental / `includeSummary`), console variables, viewport capture, asset CRUD/search, **refs & inheritance** (`get_asset_refs`: `dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`), PIE control, Gameplay Tags | All versions |
 | **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO; Actor `create` ensures BeginPlay; `parentClass=Interface` creates BPI; `manage` supports `K2Node_Event`, `add_function` / `add_interface`, `add_macro` / `add_timeline` / `add_dispatcher` / `add_local_variable` | All versions |
-| **Animation** | AnimSequence (keyframes/curves/notifies), AnimBlueprint (state machines + AnimGraph SequencePlayer/BlendSpacePlayer/Slot), AnimMontage (segments/sections; length refreshed after edit), BlendSpace (axes/samples), Skeleton / SkeletalMesh | All versions |
+| **Animation** | AnimSequence (keyframes/curves/notifies), AnimBlueprint (state machines + AnimGraph SequencePlayer/BlendSpacePlayer/Slot/Blend/LayeredBoneBlend/ApplyAdditive/CachedPose/TwoBoneIK/LookAt/ModifyBone/AimOffset), AnimMontage (segments/sections; length refreshed after edit), BlendSpace (axes/samples), Skeleton / SkeletalMesh | All versions |
 | **Material** | Material / MaterialInstance / MaterialFunction (incl. graph write) / MaterialParameterCollection | All versions |
 | **Audio** | SoundWave, SoundCue (incl. create), MetaSound Source/Patch (Frontend Document / graph wiring), SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound: 5.0+, Patch: 5.1+ |
 | **AI** | BehaviorTree (incl. `replace_node` / `sync_graph`) / Blackboard / runtime AI state / `interact_runtime_actor_ai` | All versions |
@@ -166,16 +166,16 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 | **GAS** | GameplayAbility / GameplayEffect / AttributeSet / GameplayCueNotify_Static + runtime ASC (give/clear/cue/loose tag) | Requires `GameplayAbilities` plugin |
 | **Control Binding** | ControlRig (hierarchy + RigVM + add_control/add_bone), IKRig / IKRetargeter (chains/goals + create retargeter) | UE 5.0+ |
 | **Procedural / Motion** | PCG Graph (nodes/edges incl. `remove_edge`), PoseSearch (schema/database) | UE 5.4+ |
-| **Layout / Data** | Struct, DataAsset, DataTable, Widget/UMG (widget tree/animation tracks; EventGraph via blueprint) | All versions |
+| **Layout / Data** | Struct, DataAsset, DataTable, Widget/UMG (widget tree/bound animation tracks/keys; `graphOverview`; EventGraph via blueprint) | All versions |
 | **Paper2D** | PaperSprite / PaperFlipbook (incl. create) / PaperTileMap (read-only) | Requires Paper2D plugin |
 | **Chaos** | GeometryCollection (blank create / damage thresholds; no mesh fracture) | UE 5.0+ |
 | **CommonUI** | CommonButtonStyle / CommonTextStyle; WBP still uses user_widget | UE 5.0+ CommonUI |
 | **Movie Render Queue** | MoviePipeline config output directory/resolution; does not start a render | UE 5.0+ |
 | **State / ViewModel** | StateTree (states/tasks/conditions/transitions + create), MVVM ViewModel / Binding (incl. manage) | UE 5.5+ |
-| **Physics / Sequencer** | PhysicsAsset (bodies/constraints), LevelSequence (bindings/tracks/keys + create) | All versions |
+| **Physics / Sequencer** | PhysicsAsset (bodies/constraints), LevelSequence (binding-scoped tracks/float keys/transform incl. rotation + create) | All versions |
 | **Engine Core Assets** | Curve (Float/Vector/LinearColor/CurveTable), UserDefinedEnum, AnimComposite, PhysicalMaterial (incl. create), TextureRenderTarget2D, StringTable, Font (no create; TTF via `reimport_asset`), FoliageType, FileMediaSource | All versions |
 | **World Partition** | DataLayerAsset (type / debug color) | UE 5.1+ |
-| **VFX** | NiagaraSystem (emitter CRUD/enable/rename/create; no module graph) | Requires Niagara plugin |
+| **VFX** | NiagaraSystem (emitter CRUD/enable/rename/create; empty `add_emitter`; `add_module`/`remove_module` stack) | Requires Niagara plugin |
 | **Runtime** | Actor list/spawn/destroy/property read-write/diff; Widget runtime (ComboBox set/read, ListView read); AnimInstance; GAS; audio/Niagara; `control_pie` pause/resume/step | Requires PIE/Game |
 | **Lua** | UnLua eval/dofile/hot-reload/globals/call stack/memory; `manage_asset_lua_binding` | Requires UnLua plugin |
 

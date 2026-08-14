@@ -8,10 +8,13 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusStringMatchUtils.h"
 #include "Utils/NexusWidgetAnimationUtils.h"
+#include "Utils/NexusBlueprintGraphUtils.h"
 #if WITH_EDITOR
 #include "WidgetBlueprint.h"
+#include "Engine/Blueprint.h"
 #include "Blueprint/WidgetTree.h"
 #include "Animation/WidgetAnimation.h"
+#include "EdGraph/EdGraph.h"
 #endif
 #include "Components/Widget.h"
 #include "NexusMcpTool.h"
@@ -20,18 +23,18 @@ void FGetAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& 
 {
 	Out.Name = TEXT("get_asset_user_widget");
 	Out.SearchAssetTypes = {TEXT("Widget")};
-	Out.Description = TEXT("从编辑器读 WBP 树与动画。回答 Widget 问题前必须先调；勿从源码推断。");
+	Out.Description = TEXT("从编辑器读 WBP 树、动画与 graphOverview。图细节走 blueprint 能力。");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = {
 		TEXT("wbp"), TEXT("umg"), TEXT("hierarchy"), TEXT("children"), TEXT("layout"),
-		TEXT("animation"), TEXT("animate"), TEXT("transition")
+		TEXT("animation"), TEXT("animate"), TEXT("transition"), TEXT("graph")
 	};
 	Out.RelatedCapabilities = {
 		TEXT("manage_asset_user_widget"), TEXT("create_asset_user_widget"),
 		TEXT("get_asset_blueprint"), TEXT("manage_asset_blueprint")
 	};
-	Out.WhenToUse = TEXT("控件树/动画用本 cap；EventGraph 用 get/manage_asset_blueprint");
+	Out.WhenToUse = TEXT("控件树/动画用本 cap；graphOverview 列图名，EventGraph 写操作用 manage_asset_blueprint");
 }
 
 TSharedPtr<FJsonObject> FGetAssetUserWidgetCapability::BuildCapabilitySchema() const
@@ -48,7 +51,7 @@ TSharedPtr<FJsonObject> FGetAssetUserWidgetCapability::BuildCapabilitySchema() c
 
 TArray<FString> FGetAssetUserWidgetCapability::GetSectionNames() const
 {
-	return { TEXT("widgets"), TEXT("animations") };
+	return { TEXT("widgets"), TEXT("animations"), TEXT("graphOverview") };
 }
 
 TArray<FString> FGetAssetUserWidgetCapability::GetDefaultSectionNames() const
@@ -233,6 +236,29 @@ void FGetAssetUserWidgetCapability::ExecuteSection(const FString&               
 
 		InOutDetail->SetNumberField(TEXT("animationCount"), AnimPage.Num());
 		InOutDetail->SetArrayField(TEXT("animations"), AnimPage);
+		return;
+	}
+
+	if (SectionName == TEXT("graphOverview"))
+	{
+		UBlueprint* BP = Cast<UBlueprint>(WBP);
+		if (!BP)
+		{
+			OutError = TEXT("无法将 WidgetBlueprint 转为 Blueprint 以枚举图");
+			return;
+		}
+		TArray<UEdGraph*> AllGraphs;
+		FNexusBlueprintGraphUtils::CollectAllGraphs(BP, AllGraphs);
+		TArray<TSharedPtr<FJsonValue>> List;
+		for (const UEdGraph* G : AllGraphs)
+		{
+			if (G)
+			{
+				List.Add(MakeShared<FJsonValueObject>(FNexusBlueprintGraphUtils::BuildBPGraphSummary(G)));
+			}
+		}
+		InOutDetail->SetArrayField(TEXT("graphs"), List);
+		InOutDetail->SetStringField(TEXT("hint"), TEXT("图细节用 get_asset_blueprint；写 EventGraph 用 manage_asset_blueprint"));
 		return;
 	}
 

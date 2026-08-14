@@ -49,7 +49,7 @@ public:
 	/** 取 UAnimStateNodeBase 的输入 Pin（incoming Pin）。 */
 	static class UEdGraphPin* GetStateInputPin(UAnimStateNodeBase* StateNode);
 
-	/** 解析 AnimGraph 节点类：SequencePlayer / BlendSpacePlayer / Slot（可带 AnimGraphNode_ 前缀）。 */
+	/** 解析 AnimGraph 节点类（可带 AnimGraphNode_ 前缀）：SequencePlayer / BlendSpacePlayer / Slot / Blend / LayeredBoneBlend / ApplyAdditive / SaveCachedPose / UseCachedPose / TwoBoneIK / LookAt / ModifyBone / AimOffset。 */
 	static UClass* ResolveAnimGraphNodeClass(const FString& NodeClass);
 
 	/** 在图中按 GUID 或标题查找节点。 */
@@ -57,6 +57,9 @@ public:
 
 	/** 在 AnimGraph 中生成节点并 AllocateDefaultPins。 */
 	static class UEdGraphNode* SpawnAnimGraphNode(UEdGraph* Graph, UClass* NodeClass, int32 PosX, int32 PosY, FString& OutError);
+
+	/** 写 IK / LookAt / ModifyBone 的骨骼名（boneName）。 */
+	static void ApplyBoneName(class UEdGraphNode* Node, const FString& BoneName);
 
 	/** 连接两节点引脚（按引脚名，忽略方向前缀差异）。 */
 	static bool ConnectAnimPins(class UEdGraphNode* Source, const FString& SourcePin,

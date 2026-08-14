@@ -9,7 +9,7 @@ class UWidgetBlueprint;
 
 /**
  * get_asset_user_widget — 读取 WidgetBlueprint 控件树与 UMG 动画列表。
- * sections=["widgets"]（默认）| ["animations"] | ["all"]。
+ * sections=["widgets"]（默认）| ["animations"] | ["graphOverview"] | ["all"]。
  */
 class FGetAssetUserWidgetCapability : public FNexusMultiSectionCapability
 {
