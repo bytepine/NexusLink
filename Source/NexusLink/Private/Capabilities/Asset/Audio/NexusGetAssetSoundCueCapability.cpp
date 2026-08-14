@@ -22,7 +22,7 @@ void FGetAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("cue"), TEXT("sound"), TEXT("node"), TEXT("sfx") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_sound_cue"), TEXT("search_asset"), TEXT("get_asset_sound_wave"), TEXT("get_asset_refs") };
+	Out.RelatedCapabilities = { TEXT("manage_asset_sound_cue"), TEXT("create_asset_sound_cue"), TEXT("search_asset"), TEXT("get_asset_sound_wave"), TEXT("get_asset_refs") };
 	Out.WhenToUse = TEXT("读 Cue 节点树；根属性写用 manage_asset_sound_cue");
 }
 

@@ -107,6 +107,10 @@ bool FNexusStateTreeCapRegistryTest::RunTest(const FString& Parameters)
 {
 	TestTrue(TEXT("get_asset_state_tree registered in global registry"),
 		IsCapabilityRegistered(TEXT("get_asset_state_tree")));
+	TestTrue(TEXT("manage_asset_state_tree registered"),
+		IsCapabilityRegistered(TEXT("manage_asset_state_tree")));
+	TestTrue(TEXT("create_asset_state_tree registered"),
+		IsCapabilityRegistered(TEXT("create_asset_state_tree")));
 	return true;
 }
 
@@ -217,6 +221,8 @@ bool FNexusMvvmCapRegistryTest::RunTest(const FString& Parameters)
 {
 	TestTrue(TEXT("get_asset_view_model registered in global registry"),
 		IsCapabilityRegistered(TEXT("get_asset_view_model")));
+	TestTrue(TEXT("manage_asset_view_model registered"),
+		IsCapabilityRegistered(TEXT("manage_asset_view_model")));
 	return true;
 }
 
@@ -336,3 +342,37 @@ bool FNexusSearchAssetStateTreeShortcutTest::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+#if !WITH_STATETREE
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FNexusStateTreeCapGatedAbsentTest,
+	"NexusLink.Host.StateTree.NotRegistered",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNexusStateTreeCapGatedAbsentTest::RunTest(const FString& Parameters)
+{
+	TestFalse(TEXT("get_asset_state_tree absent when WITH_STATETREE=0"),
+		IsCapabilityRegistered(TEXT("get_asset_state_tree")));
+	TestFalse(TEXT("manage_asset_state_tree absent"),
+		IsCapabilityRegistered(TEXT("manage_asset_state_tree")));
+	TestFalse(TEXT("create_asset_state_tree absent"),
+		IsCapabilityRegistered(TEXT("create_asset_state_tree")));
+	return true;
+}
+#endif
+
+#if !WITH_MVVM
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FNexusMvvmCapGatedAbsentTest,
+	"NexusLink.Host.MVVM.NotRegistered",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNexusMvvmCapGatedAbsentTest::RunTest(const FString& Parameters)
+{
+	TestFalse(TEXT("get_asset_view_model absent when WITH_MVVM=0"),
+		IsCapabilityRegistered(TEXT("get_asset_view_model")));
+	TestFalse(TEXT("manage_asset_view_model absent"),
+		IsCapabilityRegistered(TEXT("manage_asset_view_model")));
+	return true;
+}
+#endif

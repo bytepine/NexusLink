@@ -128,14 +128,14 @@ static FMaterialQueryParams ParseMaterialQueryParams(const TSharedPtr<FJsonObjec
 void FGetAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_material");
-	Out.SearchAssetTypes = {TEXT("Material"), TEXT("MaterialInstance")};
+	Out.SearchAssetTypes = {TEXT("Material"), TEXT("MaterialInstance"), TEXT("MaterialFunction")};
 	Out.Description = TEXT("检查 Mat/MI/MF 节点与参数。sections=overview|params|graph；可过滤分页。");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Material };
 	Out.ExtraSearchKeywords = {
 		TEXT("shader"), TEXT("instance"), TEXT("mf"), TEXT("scalar"), TEXT("texture")
 	};
-	Out.RelatedCapabilities = { TEXT("manage_asset_material"), TEXT("create_asset_material") };
+	Out.RelatedCapabilities = { TEXT("manage_asset_material"), TEXT("create_asset_material"), TEXT("create_asset_material_function") };
 	Out.WhenToUse = TEXT("读节点图/参数/连线；不含编辑");
 }
 

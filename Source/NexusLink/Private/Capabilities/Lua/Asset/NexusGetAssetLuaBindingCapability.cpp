@@ -20,7 +20,7 @@ void FGetAssetLuaBindingCapability::BuildDefinition(FNexusCapabilityDefinition& 
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = { TEXT("unlua"), TEXT("module"), TEXT("mapping"), TEXT("filepath"), TEXT("script") };
-	Out.RelatedCapabilities = { TEXT("get_runtime_lua_object"), TEXT("get_runtime_lua_env") };
+	Out.RelatedCapabilities = { TEXT("get_runtime_lua_object"), TEXT("get_runtime_lua_env"), TEXT("manage_asset_lua_binding") };
 	Out.Prerequisites = { TEXT("unlua"), TEXT("editor_only") };
 	Out.WhenToUse = TEXT("读/编 Lua 前先找绑定文件路径");
 }

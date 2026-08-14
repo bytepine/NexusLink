@@ -24,7 +24,8 @@ void FManageAssetControlRigCapability::BuildDefinition(FNexusCapabilityDefinitio
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
 			{ TEXT("rename_element"), TEXT("set_control_color"), TEXT("add_null"), TEXT("remove_element"),
-			  TEXT("add_rig_link"), TEXT("break_rig_link"), TEXT("add_rig_node") }))
+			  TEXT("add_rig_link"), TEXT("break_rig_link"), TEXT("add_rig_node"),
+			  TEXT("add_control"), TEXT("add_bone"), TEXT("set_pin_default") }))
 		.Prop(TEXT("elementName"),  FNexusSchema::Str(TEXT("目标元素名")))
 		.Prop(TEXT("newName"),      FNexusSchema::Str(TEXT("新名称（rename_element）")))
 		.Prop(TEXT("r"),            FNexusSchema::Num(TEXT("颜色 R（set_control_color）")))
@@ -38,6 +39,8 @@ void FManageAssetControlRigCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Prop(TEXT("targetPinPath"), FNexusSchema::Str(TEXT("目标引脚路径")))
 		.Prop(TEXT("structType"),    FNexusSchema::Str(TEXT("UScriptStruct 名（add_rig_node）如 'RigUnit_GetTransform'")))
 		.Prop(TEXT("nodeName"),      FNexusSchema::Str(TEXT("新节点名（add_rig_node，可选）")))
+		.Prop(TEXT("pinPath"),       FNexusSchema::Str(TEXT("引脚路径（set_pin_default）")))
+		.Prop(TEXT("pinDefaultValue"), FNexusSchema::Str(TEXT("引脚默认值（set_pin_default）")))
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"),  FNexusSchema::Str(TEXT("ControlRig Blueprint 资产路径")))
@@ -266,6 +269,53 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				{
 					ResEntry->SetStringField(TEXT("error"), TEXT("AddUnitNode 失败"));
 				}
+			}
+			else if (Action.Equals(TEXT("add_control"), ESearchCase::IgnoreCase)
+				|| Action.Equals(TEXT("add_bone"), ESearchCase::IgnoreCase))
+			{
+				FString ElemName, ParentName;
+				Op->TryGetStringField(TEXT("elementName"), ElemName);
+				Op->TryGetStringField(TEXT("parentName"), ParentName);
+				if (ElemName.IsEmpty())
+				{
+					ResEntry->SetStringField(TEXT("error"), TEXT("需要 elementName"));
+					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
+				}
+				FRigElementKey ParentKey;
+				if (!ParentName.IsEmpty())
+					ParentKey = FRigElementKey(FName(*ParentName), ERigElementType::Bone);
+				FRigElementKey NewKey;
+				if (Action.Equals(TEXT("add_control"), ESearchCase::IgnoreCase))
+				{
+					FRigControlSettings Settings;
+					NewKey = Controller->AddControl(FName(*ElemName), ParentKey, Settings, FRigControlValue(), false);
+				}
+				else
+				{
+					NewKey = Controller->AddBone(FName(*ElemName), ParentKey, FTransform::Identity, true, ERigTransformType::InitialLocal);
+				}
+				bDirty = NewKey.IsValid();
+				if (!NewKey.IsValid()) ResEntry->SetStringField(TEXT("error"), TEXT("添加元素失败"));
+				else ResEntry->SetStringField(TEXT("elementName"), ElemName);
+			}
+			else if (Action.Equals(TEXT("set_pin_default"), ESearchCase::IgnoreCase))
+			{
+				FString PinPath, PinVal;
+				Op->TryGetStringField(TEXT("pinPath"), PinPath);
+				Op->TryGetStringField(TEXT("pinDefaultValue"), PinVal);
+				if (PinPath.IsEmpty())
+				{
+					ResEntry->SetStringField(TEXT("error"), TEXT("set_pin_default 需要 pinPath"));
+					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
+				}
+				if (!VmCtrl)
+				{
+					ResEntry->SetStringField(TEXT("error"), TEXT("无法获取 RigVMController"));
+					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
+				}
+				const bool bOk = VmCtrl->SetPinDefaultValue(PinPath, PinVal, true, false, false);
+				bDirty |= bOk;
+				if (!bOk) ResEntry->SetStringField(TEXT("error"), TEXT("SetPinDefaultValue 失败"));
 			}
 			else
 			{

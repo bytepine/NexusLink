@@ -39,7 +39,7 @@ Mode switch path: Editor → Editor Preferences → Plugins → NexusLink → **
 
 #### Token cost comparison (why SearchMode is the default)
 
-Most MCP clients re-inject `tools/list` + `initialize.instructions` **on every model turn**. Fixed-overhead rough estimate (176 Capabilities, schemas parsed from source, chars÷4; excludes call payloads and chat history):
+Most MCP clients re-inject `tools/list` + `initialize.instructions` **on every model turn**. Fixed-overhead rough estimate (188 Capabilities, schemas parsed from source, chars÷4; excludes call payloads and chat history):
 
 | Component | SearchMode | MultiTool | Delta |
 |---|---|---|---|
@@ -157,23 +157,23 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 | Domain | Capabilities | Version Gate |
 |--------|-------------|-------------|
 | **Editor Context** | Editor info/context, **output log** (`get_output_log`: `preset=diagnose` / `order=newest` / `sinceSequence` incremental / `includeSummary`), console variables, viewport capture, asset CRUD/search, **refs & inheritance** (`get_asset_refs`: `dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`), PIE control, Gameplay Tags | All versions |
-| **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO; Actor `create` ensures BeginPlay; `parentClass=Interface` creates BPI; `manage` supports `K2Node_Event`, `add_function` / `add_interface` | All versions |
-| **Animation** | AnimSequence (keyframes/curves/notifies), AnimBlueprint (state machines), AnimMontage (segments/sections; length refreshed after edit), BlendSpace (axes/samples), Skeleton / SkeletalMesh | All versions |
-| **Material** | Material / MaterialInstance / MaterialFunction / MaterialParameterCollection | All versions |
-| **Audio** | SoundWave, SoundCue, MetaSound Source/Patch (Frontend Document / graph wiring), SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound: 5.0+, Patch: 5.1+ |
-| **AI** | BehaviorTree (incl. `replace_node` / `sync_graph`) / Blackboard / runtime AI state | All versions |
+| **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO; Actor `create` ensures BeginPlay; `parentClass=Interface` creates BPI; `manage` supports `K2Node_Event`, `add_function` / `add_interface`, `add_macro` / `add_timeline` / `add_dispatcher` / `add_local_variable` | All versions |
+| **Animation** | AnimSequence (keyframes/curves/notifies), AnimBlueprint (state machines + AnimGraph SequencePlayer/BlendSpacePlayer/Slot), AnimMontage (segments/sections; length refreshed after edit), BlendSpace (axes/samples), Skeleton / SkeletalMesh | All versions |
+| **Material** | Material / MaterialInstance / MaterialFunction (incl. graph write) / MaterialParameterCollection | All versions |
+| **Audio** | SoundWave, SoundCue (incl. create), MetaSound Source/Patch (Frontend Document / graph wiring), SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound: 5.0+, Patch: 5.1+ |
+| **AI** | BehaviorTree (incl. `replace_node` / `sync_graph`) / Blackboard / runtime AI state / `interact_runtime_actor_ai` | All versions |
 | **EQS** | EnvQuery asset get/manage/create | UE 5.0+ |
-| **GAS** | GameplayAbility / GameplayEffect / AttributeSet + runtime ASC | Requires `GameplayAbilities` plugin |
-| **Control Binding** | ControlRig (hierarchy + RigVM graph nodes/wiring), IKRig / IKRetargeter | UE 5.0+ |
-| **Procedural / Motion** | PCG Graph (nodes/edges), PoseSearch (schema/database) | UE 5.4+ |
-| **Layout / Data** | Struct, DataAsset, DataTable, Widget/UMG (widget tree/animations) | All versions |
-| **State / ViewModel** | StateTree (states/tasks/conditions/transitions), MVVM ViewModel / Binding | UE 5.5+ |
-| **Physics / Sequencer** | PhysicsAsset (bodies/constraints), LevelSequence (bindings/tracks) | All versions |
-| **Engine Core Assets** | Curve (Float/Vector/LinearColor/CurveTable), UserDefinedEnum, AnimComposite, PhysicalMaterial, TextureRenderTarget2D | All versions |
+| **GAS** | GameplayAbility / GameplayEffect / AttributeSet + runtime ASC (give/clear/cue/loose tag) | Requires `GameplayAbilities` plugin |
+| **Control Binding** | ControlRig (hierarchy + RigVM + add_control/add_bone), IKRig / IKRetargeter (chains/goals + create retargeter) | UE 5.0+ |
+| **Procedural / Motion** | PCG Graph (nodes/edges incl. `remove_edge`), PoseSearch (schema/database) | UE 5.4+ |
+| **Layout / Data** | Struct, DataAsset, DataTable, Widget/UMG (widget tree/animation tracks; EventGraph via blueprint) | All versions |
+| **State / ViewModel** | StateTree (states/tasks/conditions/transitions + create), MVVM ViewModel / Binding (incl. manage) | UE 5.5+ |
+| **Physics / Sequencer** | PhysicsAsset (bodies/constraints), LevelSequence (bindings/tracks/keys + create) | All versions |
+| **Engine Core Assets** | Curve (Float/Vector/LinearColor/CurveTable), UserDefinedEnum, AnimComposite, PhysicalMaterial (incl. create), TextureRenderTarget2D | All versions |
 | **World Partition** | DataLayerAsset (type / debug color) | UE 5.1+ |
-| **VFX** | NiagaraSystem (emitters/user parameters) | Requires Niagara plugin |
-| **Runtime** | Actor list/spawn/destroy/property read-write/diff; Widget runtime ops; AnimInstance state; GAS runtime ASC | Requires PIE/Game |
-| **Lua** | UnLua eval/dofile/hot-reload/globals/call stack/memory | Requires UnLua plugin |
+| **VFX** | NiagaraSystem (emitter CRUD/enable/rename/create; no module graph) | Requires Niagara plugin |
+| **Runtime** | Actor list/spawn/destroy/property read-write/diff; Widget runtime (ComboBox set/read, ListView read); AnimInstance; GAS; audio/Niagara; `control_pie` pause/resume/step | Requires PIE/Game |
+| **Lua** | UnLua eval/dofile/hot-reload/globals/call stack/memory; `manage_asset_lua_binding` | Requires UnLua plugin |
 
 ---
 

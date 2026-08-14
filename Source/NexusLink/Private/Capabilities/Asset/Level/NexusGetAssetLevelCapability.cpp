@@ -16,7 +16,7 @@ void FGetAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) 
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.Prerequisites = { TEXT("editor_only") };
 	Out.ExtraSearchKeywords = { TEXT("level"), TEXT("map"), TEXT("umap"), TEXT("world"), TEXT("actor") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_level"), TEXT("search_asset"), TEXT("list_runtime_actors"), TEXT("get_asset_refs") };
+	Out.RelatedCapabilities = { TEXT("manage_asset_level"), TEXT("create_asset_level"), TEXT("search_asset"), TEXT("list_runtime_actors"), TEXT("get_asset_refs") };
 	Out.WhenToUse = TEXT("读磁盘关卡；WorldSettings 写用 manage_asset_level");
 }
 

@@ -37,7 +37,7 @@ void FManageAssetEQSCapability::BuildDefinition(FNexusCapabilityDefinition& Out)
 {
 	Out.Name = TEXT("manage_asset_eqs");
 	Out.SearchAssetTypes = {TEXT("EnvQuery")};
-	Out.Description = TEXT("编辑 EQS：add_option/remove_option/set_generator/add_test/remove_test。");
+	Out.Description = TEXT("编辑 EQS Option/Generator/Test。UE5+（4.26 整文件门控未注册）。");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(

@@ -39,7 +39,7 @@ flowchart TB
 
 #### Token 开销对比（为何默认 SearchMode）
 
-MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮次**重新注入 prompt。固定开销粗估如下（176 Capability、源码 schema 解析、chars÷4；不含 call 返回体与对话历史）：
+MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮次**重新注入 prompt。固定开销粗估如下（188 Capability、源码 schema 解析、chars÷4；不含 call 返回体与对话历史）：
 
 | 分量 | SearchMode | MultiTool | 差额 |
 |---|---|---|---|
@@ -157,23 +157,23 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 | 领域 | 能力范围 | 版本门控 |
 |------|---------|---------|
 | **编辑器上下文** | 编辑器信息/上下文、**输出日志**（`get_output_log`：`preset=diagnose` / `order=newest` / `sinceSequence` 增量 / `includeSummary`）、控制台变量、视口截图、资产增删改/搜索、**引用与继承查询**（`get_asset_refs`：`dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`）、PIE 控制、Gameplay Tags | 全版本 |
-| **蓝图** | Blueprint 变量/函数/图节点/连线/组件/CDO；`create` 对 Actor 补 BeginPlay，`parentClass=Interface` 建 BPI；`manage` 支持 `K2Node_Event`、`add_function` / `add_interface` | 全版本 |
-| **动画** | AnimSequence（关键帧/曲线/Notify）、AnimBlueprint（状态机）、AnimMontage（Segment/Section，增删后同步时长）、BlendSpace（轴/样本）、Skeleton / SkeletalMesh | 全版本 |
-| **材质** | Material / MaterialInstance / MaterialFunction / MaterialParameterCollection | 全版本 |
-| **音频** | SoundWave、SoundCue、MetaSound Source/Patch（Frontend Document / 图节点连线）、SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound/Patch: UE 5.0+/5.1+ |
-| **AI** | BehaviorTree（含 `replace_node` / `sync_graph`）/ Blackboard / 运行时 AI 执行状态 | 全版本 |
+| **蓝图** | Blueprint 变量/函数/图节点/连线/组件/CDO；`create` 对 Actor 补 BeginPlay，`parentClass=Interface` 建 BPI；`manage` 支持 `K2Node_Event`、`add_function` / `add_interface`、`add_macro` / `add_timeline` / `add_dispatcher` / `add_local_variable` | 全版本 |
+| **动画** | AnimSequence（关键帧/曲线/Notify）、AnimBlueprint（状态机 + AnimGraph 节点 SequencePlayer/BlendSpacePlayer/Slot）、AnimMontage（Segment/Section，增删后同步时长）、BlendSpace（轴/样本）、Skeleton / SkeletalMesh | 全版本 |
+| **材质** | Material / MaterialInstance / MaterialFunction（含写图）/ MaterialParameterCollection | 全版本 |
+| **音频** | SoundWave、SoundCue（含 create）、MetaSound Source/Patch（Frontend Document / 图节点连线）、SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound/Patch: UE 5.0+/5.1+ |
+| **AI** | BehaviorTree（含 `replace_node` / `sync_graph`）/ Blackboard / 运行时 AI 执行状态 / `interact_runtime_actor_ai`（move_to） | 全版本 |
 | **EQS** | EnvQuery 资产 get/manage/create | UE 5.0+ |
-| **GAS** | GameplayAbility / GameplayEffect / AttributeSet + 运行时 ASC | 需 `GameplayAbilities` 插件 |
-| **控制绑定** | ControlRig（Rig 层级 + RigVM 图节点/连线）、IKRig / IKRetargeter | UE 5.0+ |
-| **程序化/动作** | PCG Graph（节点/连线）、PoseSearch（schema/database） | UE 5.4+ |
-| **布局/数据** | Struct、DataAsset、DataTable、Widget/UMG（控件树/动画）| 全版本 |
-| **状态/视图模型** | StateTree（状态/任务/条件/转换）、MVVM ViewModel / Binding | UE 5.5+ |
-| **物理 / 序列器** | PhysicsAsset（Body/Constraint）、LevelSequence（Binding/Track）| 全版本 |
-| **引擎核心小资产** | Curve（Float/Vector/LinearColor/CurveTable）、UserDefinedEnum、AnimComposite、PhysicalMaterial、TextureRenderTarget2D | 全版本 |
+| **GAS** | GameplayAbility / GameplayEffect / AttributeSet + 运行时 ASC（give/clear/cue/loose tag） | 需 `GameplayAbilities` 插件 |
+| **控制绑定** | ControlRig（Rig 层级 + RigVM 图节点/连线 + add_control/add_bone）、IKRig / IKRetargeter（chain/goal + create retargeter） | UE 5.0+ |
+| **程序化/动作** | PCG Graph（节点/连线含 `remove_edge`）、PoseSearch（schema/database） | UE 5.4+ |
+| **布局/数据** | Struct、DataAsset、DataTable、Widget/UMG（控件树/动画轨/key；EventGraph 走 blueprint）| 全版本 |
+| **状态/视图模型** | StateTree（状态/任务/条件/转换 + create）、MVVM ViewModel / Binding（含 manage） | UE 5.5+ |
+| **物理 / 序列器** | PhysicsAsset（Body/Constraint）、LevelSequence（Binding/Track/关键帧 + create）| 全版本 |
+| **引擎核心小资产** | Curve（Float/Vector/LinearColor/CurveTable）、UserDefinedEnum、AnimComposite、PhysicalMaterial（含 create）、TextureRenderTarget2D | 全版本 |
 | **World Partition** | DataLayerAsset（类型/调试颜色）| UE 5.1+ |
-| **特效** | NiagaraSystem（发射器/用户参数） | 需 Niagara 插件 |
-| **运行时** | Actor 列表/生成/销毁/属性读写/对比；Widget 运行时操作；AnimInstance 状态；GAS 运行时 ASC | 需 PIE/Game |
-| **Lua** | UnLua eval/dofile/热重载/全局变量/调用栈/内存 | 需 UnLua 插件 |
+| **特效** | NiagaraSystem（发射器 CRUD/enable/rename/create；无模块图） | 需 Niagara 插件 |
+| **运行时** | Actor 列表/生成/销毁/属性读写/对比；Widget 运行时（含 ComboBox set/read、ListView read）；AnimInstance；GAS；音效/Niagara；`control_pie` pause/resume/step | 需 PIE/Game |
+| **Lua** | UnLua eval/dofile/热重载/全局变量/调用栈/内存；`manage_asset_lua_binding` | 需 UnLua 插件 |
 
 ---
 

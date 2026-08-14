@@ -88,7 +88,7 @@ void FGetAssetViewModelCapability::BuildDefinition(FNexusCapabilityDefinition& O
 		TEXT("mvvm"), TEXT("viewmodel"), TEXT("view_model"), TEXT("binding"), TEXT("bindings"),
 		TEXT("fieldnotify"), TEXT("umvm"), TEXT("ue5_mvvm")
 	};
-	Out.RelatedCapabilities = { TEXT("get_asset_user_widget"), TEXT("manage_asset_user_widget"), TEXT("search_asset"), TEXT("get_asset_blueprint") };
+	Out.RelatedCapabilities = { TEXT("get_asset_user_widget"), TEXT("manage_asset_user_widget"), TEXT("search_asset"), TEXT("get_asset_blueprint"), TEXT("manage_asset_view_model") };
 	Out.WhenToUse = TEXT("读 Widget 蓝图上挂载的 MVVM ViewModel 列表、属性绑定（源↔目标/方向/转换）");
 }
 

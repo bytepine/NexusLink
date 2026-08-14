@@ -8,10 +8,12 @@
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusWidgetLayoutUtils.h"
+#include "Utils/NexusWidgetAnimationUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #if WITH_EDITOR
 #include "WidgetBlueprint.h"
 #include "Blueprint/WidgetTree.h"
+#include "Animation/WidgetAnimation.h"
 #endif
 #include "Components/Widget.h"
 #include "Components/PanelWidget.h"
@@ -21,15 +23,20 @@ void FManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("manage_asset_user_widget");
 	Out.SearchAssetTypes = {TEXT("Widget")};
-	Out.Description = TEXT("批量编辑 WBP。增删子控件、Canvas 布局与属性；须保存。");
+	Out.Description = TEXT("批量编辑 WBP。控件树/slot/属性与动画轨；EventGraph 用 manage_asset_blueprint。");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Widget 操作"),
-			{ TEXT("add"), TEXT("remove"), TEXT("set_slot"), TEXT("set_property") }))
+			{ TEXT("add"), TEXT("remove"), TEXT("set_slot"), TEXT("set_property"),
+			  TEXT("add_animation"), TEXT("remove_animation"), TEXT("add_track"), TEXT("add_key") }))
 		.Prop(TEXT("widgetClass"),  FNexusSchema::Str(TEXT("Widget 类短名（add）")))
 		.Prop(TEXT("widgetName"),   FNexusSchema::Str(TEXT("Widget 名；remove/set_* 时必填")))
 		.Prop(TEXT("parentWidget"), FNexusSchema::Str(TEXT("父面板 Widget 名（add）")))
+		.Prop(TEXT("animationName"), FNexusSchema::Str(TEXT("动画名（add/remove_animation、add_track、add_key）")))
+		.Prop(TEXT("trackName"),    FNexusSchema::Str(TEXT("Float 轨显示名（add_track，可选）")))
+		.Prop(TEXT("time"),         FNexusSchema::Num(TEXT("关键帧时间秒（add_key）")))
+		.Prop(TEXT("keyValue"),     FNexusSchema::Num(TEXT("Float 关键帧值（add_key）")))
 		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径（set_property）")))
 		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("属性值（set_property）")))
 		.Prop(TEXT("anchorMinX"),   FNexusSchema::Num(TEXT("Canvas 锚点 minX（set_slot）")))
@@ -53,10 +60,13 @@ void FManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinitio
 	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = {
-		TEXT("wbp"), TEXT("umg"), TEXT("children"), TEXT("ui"), TEXT("slot")
+		TEXT("wbp"), TEXT("umg"), TEXT("children"), TEXT("ui"), TEXT("slot"), TEXT("animation"), TEXT("key")
 	};
-	Out.RelatedCapabilities = { TEXT("get_asset_user_widget"), TEXT("create_asset_user_widget"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("增删子控件、Canvas slot、Widget 属性");
+	Out.RelatedCapabilities = {
+		TEXT("get_asset_user_widget"), TEXT("create_asset_user_widget"), TEXT("save_asset"),
+		TEXT("get_asset_blueprint"), TEXT("manage_asset_blueprint")
+	};
+	Out.WhenToUse = TEXT("控件树/动画轨用本 cap；EventGraph 用 manage_asset_blueprint");
 }
 
 FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -271,15 +281,118 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 					}
 				}
 			}
+			else if (Action == TEXT("add_animation"))
+			{
+				FString AnimName;
+				if (!Item->TryGetStringField(TEXT("animationName"), AnimName) || AnimName.IsEmpty())
+				{
+					OutEntry->SetStringField(TEXT("error"), TEXT("add_animation 需要 animationName"));
+				}
+				else
+				{
+					FString AnimErr;
+					UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::AddAnimation(WBP, AnimName, AnimErr);
+					if (!Anim)
+					{
+						OutEntry->SetStringField(TEXT("error"), AnimErr);
+					}
+					else
+					{
+						OutEntry->SetStringField(TEXT("animationName"), Anim->GetName());
+						bDidMutate = true;
+					}
+				}
+			}
+			else if (Action == TEXT("remove_animation"))
+			{
+				FString AnimName;
+				if (!Item->TryGetStringField(TEXT("animationName"), AnimName) || AnimName.IsEmpty())
+				{
+					OutEntry->SetStringField(TEXT("error"), TEXT("remove_animation 需要 animationName"));
+				}
+				else
+				{
+					FString AnimErr;
+					if (!FNexusWidgetAnimationUtils::RemoveAnimation(WBP, AnimName, AnimErr))
+					{
+						OutEntry->SetStringField(TEXT("error"), AnimErr);
+					}
+					else
+					{
+						OutEntry->SetStringField(TEXT("animationName"), AnimName);
+						bDidMutate = true;
+					}
+				}
+			}
+			else if (Action == TEXT("add_track"))
+			{
+				FString AnimName, TrackName;
+				Item->TryGetStringField(TEXT("animationName"), AnimName);
+				Item->TryGetStringField(TEXT("trackName"), TrackName);
+				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
+				if (!Anim)
+				{
+					OutEntry->SetStringField(TEXT("error"), TEXT("add_track 需要已存在的 animationName"));
+				}
+				else
+				{
+					FString OutTrack, AnimErr;
+					if (!FNexusWidgetAnimationUtils::AddFloatTrack(Anim, TrackName, OutTrack, AnimErr))
+					{
+						OutEntry->SetStringField(TEXT("error"), AnimErr);
+					}
+					else
+					{
+						OutEntry->SetStringField(TEXT("animationName"), Anim->GetName());
+						OutEntry->SetStringField(TEXT("trackName"), OutTrack);
+						bDidMutate = true;
+					}
+				}
+			}
+			else if (Action == TEXT("add_key"))
+			{
+				FString AnimName;
+				Item->TryGetStringField(TEXT("animationName"), AnimName);
+				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
+				if (!Anim)
+				{
+					OutEntry->SetStringField(TEXT("error"), TEXT("add_key 需要已存在的 animationName"));
+				}
+				else if (!Item->HasField(TEXT("time")) || !Item->HasField(TEXT("keyValue")))
+				{
+					OutEntry->SetStringField(TEXT("error"), TEXT("add_key 需要 time 与 keyValue"));
+				}
+				else
+				{
+					const float TimeSec = static_cast<float>(Item->GetNumberField(TEXT("time")));
+					const float KeyVal  = static_cast<float>(Item->GetNumberField(TEXT("keyValue")));
+					FString AnimErr;
+					if (!FNexusWidgetAnimationUtils::AddFloatKey(Anim, TimeSec, KeyVal, AnimErr))
+					{
+						OutEntry->SetStringField(TEXT("error"), AnimErr);
+					}
+					else
+					{
+						OutEntry->SetStringField(TEXT("animationName"), Anim->GetName());
+						OutEntry->SetNumberField(TEXT("time"), TimeSec);
+						OutEntry->SetNumberField(TEXT("keyValue"), KeyVal);
+						bDidMutate = true;
+					}
+				}
+			}
 			else
 			{
 				OutEntry->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("不支持的操作: '%s'。allowedActions: add, remove, set_slot, set_property"), *Action));
+					FString::Printf(TEXT("不支持的操作: '%s'。allowedActions: add, remove, set_slot, set_property, add_animation, remove_animation, add_track, add_key"), *Action));
 				TArray<TSharedPtr<FJsonValue>> Allowed;
 				Allowed.Add(MakeShared<FJsonValueString>(TEXT("add")));
 				Allowed.Add(MakeShared<FJsonValueString>(TEXT("remove")));
 				Allowed.Add(MakeShared<FJsonValueString>(TEXT("set_slot")));
 				Allowed.Add(MakeShared<FJsonValueString>(TEXT("set_property")));
+				Allowed.Add(MakeShared<FJsonValueString>(TEXT("add_animation")));
+				Allowed.Add(MakeShared<FJsonValueString>(TEXT("remove_animation")));
+				Allowed.Add(MakeShared<FJsonValueString>(TEXT("add_track")));
+				Allowed.Add(MakeShared<FJsonValueString>(TEXT("add_key")));
 				OutEntry->SetArrayField(TEXT("allowedActions"), Allowed);
 			}
 

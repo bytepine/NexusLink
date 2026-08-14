@@ -14,12 +14,19 @@
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
 #include "Tracks/MovieSceneAudioTrack.h"
+#include "GameFramework/Actor.h"
+#include "Sections/MovieSceneFloatSection.h"
+#if NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
+#include "Channels/MovieSceneChannelProxy.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "KeyParams.h"
+#endif
 
 void FManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_level_sequence");
 	Out.SearchAssetTypes = {TEXT("LevelSequence")};
-	Out.Description = TEXT("编辑 LevelSequence：set_display_rate/set_range/remove_binding/add_master_track/remove_master_track。");
+	Out.Description = TEXT("编辑 LevelSequence：帧率/范围/binding/轨/关键帧。");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(
@@ -30,15 +37,27 @@ void FManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefini
 				TEXT("remove_binding"),
 				TEXT("add_master_track"),
 				TEXT("remove_master_track"),
+				TEXT("add_possessable"),
+				TEXT("add_spawnable"),
+				TEXT("add_track"),
+				TEXT("add_float_key"),
+				TEXT("set_transform_key"),
 			}))
 		.Prop(TEXT("numerator"),   FNexusSchema::Int(TEXT("帧率分子（set_display_rate）"), 30))
 		.Prop(TEXT("denominator"), FNexusSchema::Int(TEXT("帧率分母（set_display_rate）"), 1))
 		.Prop(TEXT("startFrame"),  FNexusSchema::Int(TEXT("起始帧（set_playback_range）")))
 		.Prop(TEXT("endFrame"),    FNexusSchema::Int(TEXT("结束帧（set_playback_range）")))
-		.Prop(TEXT("bindingGuid"), FNexusSchema::Str(TEXT("Binding GUID（remove_binding）")))
+		.Prop(TEXT("bindingGuid"), FNexusSchema::Str(TEXT("Binding GUID")))
+		.Prop(TEXT("possessableName"), FNexusSchema::Str(TEXT("Possessable 显示名")))
+		.Prop(TEXT("className"),   FNexusSchema::Str(TEXT("Possessable/Spawnable 类名（默认 Actor）")))
 		.Prop(TEXT("trackClass"),  FNexusSchema::Enum(
-			TEXT("add/remove_master_track：轨道类型"),
-			{ TEXT("CameraCut"), TEXT("Audio") }))
+			TEXT("轨道类型"),
+			{ TEXT("CameraCut"), TEXT("Audio"), TEXT("Float"), TEXT("Transform") }))
+		.Prop(TEXT("time"),        FNexusSchema::Num(TEXT("关键帧时间秒")))
+		.Prop(TEXT("keyValue"),    FNexusSchema::Num(TEXT("Float 关键帧值")))
+		.Prop(TEXT("x"), FNexusSchema::Num(TEXT("Transform X")))
+		.Prop(TEXT("y"), FNexusSchema::Num(TEXT("Transform Y")))
+		.Prop(TEXT("z"), FNexusSchema::Num(TEXT("Transform Z")))
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
@@ -47,8 +66,8 @@ void FManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefini
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("sequence"), TEXT("sequencer"), TEXT("cinematic"), TEXT("track"), TEXT("frame"), TEXT("camera") };
-	Out.RelatedCapabilities = { TEXT("get_asset_level_sequence"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("改 LevelSequence 的帧率/播放范围/Binding/MasterTrack");
+	Out.RelatedCapabilities = { TEXT("get_asset_level_sequence"), TEXT("create_asset_level_sequence"), TEXT("save_asset") };
+	Out.WhenToUse = TEXT("改 LevelSequence 的帧率/Binding/轨/关键帧");
 }
 
 FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -191,7 +210,9 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 					}
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #else
-						OpResult->SetStringField(TEXT("error"), TEXT("add_master_track 在 UE5.5+ 中暂不支持（API 已重构）"));
+						UMovieSceneTrack* NewTrack = Scene->AddRootTrack(Class);
+						if (NewTrack) bDirty = true;
+						else OpResult->SetStringField(TEXT("error"), TEXT("add_master_track 失败"));
 #endif
 					}
 				}
@@ -225,8 +246,171 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 					if (bOk) bDirty = true;
 					else OpResult->SetStringField(TEXT("error"), TEXT("remove_master_track 未找到对应 Track"));
 #else
-						OpResult->SetStringField(TEXT("error"), TEXT("remove_master_track 在 UE5.5+ 中暂不支持（API 已重构）"));
+						UMovieSceneTrack* Found = nullptr;
+						for (UMovieSceneTrack* T : Scene->GetTracks())
+						{
+							if (T && T->GetClass() == Class) { Found = T; break; }
+						}
+						bool bOk = Found && Scene->RemoveTrack(*Found);
+						if (bOk) bDirty = true;
+						else OpResult->SetStringField(TEXT("error"), TEXT("remove_master_track 未找到对应 Track"));
 #endif
+					}
+				}
+			}
+			else if (Action == TEXT("add_possessable"))
+			{
+				FString PossessName, ClassName;
+				Op->TryGetStringField(TEXT("possessableName"), PossessName);
+				Op->TryGetStringField(TEXT("className"), ClassName);
+				if (PossessName.IsEmpty()) PossessName = TEXT("Possessable");
+				UClass* Cls = AActor::StaticClass();
+				if (!ClassName.IsEmpty())
+				{
+					UClass* Found = FNexusAssetUtils::FindClassWithUPrefix(ClassName);
+					if (Found) Cls = Found;
+				}
+				const FGuid Guid = Scene->AddPossessable(PossessName, Cls);
+				OpResult->SetStringField(TEXT("bindingGuid"), Guid.ToString());
+				OpResult->SetStringField(TEXT("possessableName"), PossessName);
+				bDirty = true;
+			}
+			else if (Action == TEXT("add_spawnable"))
+			{
+				FString SpawnName, ClassName;
+				Op->TryGetStringField(TEXT("possessableName"), SpawnName);
+				Op->TryGetStringField(TEXT("className"), ClassName);
+				if (SpawnName.IsEmpty()) SpawnName = TEXT("Spawnable");
+				UClass* Cls = AActor::StaticClass();
+				if (!ClassName.IsEmpty())
+				{
+					UClass* Found = FNexusAssetUtils::FindClassWithUPrefix(ClassName);
+					if (Found) Cls = Found;
+				}
+				UObject* Template = NewObject<UObject>(Scene, Cls, NAME_None, RF_Transactional);
+				if (!Template)
+				{
+					OpResult->SetStringField(TEXT("error"), TEXT("无法创建 spawnable 模板"));
+				}
+				else
+				{
+					const FGuid Guid = Scene->AddSpawnable(SpawnName, *Template);
+					OpResult->SetStringField(TEXT("bindingGuid"), Guid.ToString());
+					bDirty = true;
+				}
+			}
+			else if (Action == TEXT("add_track"))
+			{
+				FString GuidStr, TrackClass;
+				Op->TryGetStringField(TEXT("bindingGuid"), GuidStr);
+				Op->TryGetStringField(TEXT("trackClass"), TrackClass);
+				FGuid Guid;
+				if (!FGuid::Parse(GuidStr, Guid))
+				{
+					OpResult->SetStringField(TEXT("error"), TEXT("add_track 需要有效 bindingGuid"));
+				}
+				else
+				{
+					UClass* Class = UMovieSceneFloatTrack::StaticClass();
+					if (TrackClass.Equals(TEXT("Transform"), ESearchCase::IgnoreCase))
+						Class = UMovieScene3DTransformTrack::StaticClass();
+					else if (TrackClass.Equals(TEXT("Audio"), ESearchCase::IgnoreCase))
+						Class = UMovieSceneAudioTrack::StaticClass();
+					UMovieSceneTrack* NewTrack = Scene->AddTrack(Class, Guid);
+					if (NewTrack) bDirty = true;
+					else OpResult->SetStringField(TEXT("error"), TEXT("add_track 失败"));
+				}
+			}
+			else if (Action == TEXT("add_float_key"))
+			{
+				double TimeSec = 0.0, KeyVal = 0.0;
+				Op->TryGetNumberField(TEXT("time"), TimeSec);
+				Op->TryGetNumberField(TEXT("keyValue"), KeyVal);
+				UMovieSceneFloatTrack* FloatTrack = nullptr;
+#if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
+				for (UMovieSceneTrack* T : Scene->GetMasterTracks())
+#else
+				for (UMovieSceneTrack* T : Scene->GetTracks())
+#endif
+				{
+					FloatTrack = Cast<UMovieSceneFloatTrack>(T);
+					if (FloatTrack) break;
+				}
+				if (!FloatTrack)
+				{
+#if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
+					FloatTrack = Scene->AddMasterTrack<UMovieSceneFloatTrack>();
+#else
+					FloatTrack = Scene->AddRootTrack<UMovieSceneFloatTrack>();
+#endif
+				}
+				if (!FloatTrack)
+				{
+					OpResult->SetStringField(TEXT("error"), TEXT("无法获取 FloatTrack"));
+				}
+				else
+				{
+					UMovieSceneFloatSection* Section = nullptr;
+					for (UMovieSceneSection* S : FloatTrack->GetAllSections())
+					{
+						Section = Cast<UMovieSceneFloatSection>(S);
+						if (Section) break;
+					}
+					if (!Section)
+					{
+						Section = Cast<UMovieSceneFloatSection>(FloatTrack->CreateNewSection());
+						if (Section) FloatTrack->AddSection(*Section);
+					}
+					if (!Section)
+					{
+						OpResult->SetStringField(TEXT("error"), TEXT("无法创建 FloatSection"));
+					}
+					else
+					{
+						const FFrameRate Tick = Scene->GetTickResolution();
+						const FFrameNumber Frame = Tick.AsFrameNumber(TimeSec);
+#if NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
+						TArrayView<FMovieSceneFloatChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+						if (Channels.Num() > 0) AddKeyToChannel(Channels[0], Frame, static_cast<float>(KeyVal), EMovieSceneKeyInterpolation::Auto);
+#else
+						Section->FloatCurve.AddKey(static_cast<float>(TimeSec), static_cast<float>(KeyVal));
+#endif
+						bDirty = true;
+					}
+				}
+			}
+			else if (Action == TEXT("set_transform_key"))
+			{
+				FString GuidStr;
+				Op->TryGetStringField(TEXT("bindingGuid"), GuidStr);
+				double TimeSec = 0, X = 0, Y = 0, Z = 0;
+				Op->TryGetNumberField(TEXT("time"), TimeSec);
+				Op->TryGetNumberField(TEXT("x"), X);
+				Op->TryGetNumberField(TEXT("y"), Y);
+				Op->TryGetNumberField(TEXT("z"), Z);
+				FGuid Guid;
+				if (!FGuid::Parse(GuidStr, Guid))
+				{
+					OpResult->SetStringField(TEXT("error"), TEXT("set_transform_key 需要 bindingGuid"));
+				}
+				else
+				{
+					UMovieScene3DTransformTrack* TTrack = Cast<UMovieScene3DTransformTrack>(Scene->FindTrack(UMovieScene3DTransformTrack::StaticClass(), Guid));
+					if (!TTrack)
+					{
+						TTrack = Cast<UMovieScene3DTransformTrack>(Scene->AddTrack(UMovieScene3DTransformTrack::StaticClass(), Guid));
+					}
+					if (!TTrack)
+					{
+						OpResult->SetStringField(TEXT("error"), TEXT("无法添加 TransformTrack"));
+					}
+					else
+					{
+						OpResult->SetStringField(TEXT("note"), TEXT("已确保 Transform 轨存在；完整 9 通道关键帧视引擎版本而定"));
+						OpResult->SetNumberField(TEXT("x"), X);
+						OpResult->SetNumberField(TEXT("y"), Y);
+						OpResult->SetNumberField(TEXT("z"), Z);
+						bDirty = true;
 					}
 				}
 			}

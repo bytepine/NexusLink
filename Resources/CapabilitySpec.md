@@ -234,7 +234,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 
 - **默认**：`{get|manage|create}_asset_{type}`（`blueprint` / `material` / `user_widget` / `anim_blueprint` / …）。
 - **Manage** = 磁盘资产结构性增删改（节点、行、字段、片段）；**禁止**用于 PIE 播放、GA 施放等运行时命令。
-- **通用例外（完整名）**：`search_asset`、`save_asset`、`rename_asset`、`duplicate_asset`、`delete_asset`、`unload_asset`、`get_asset_refs`、`get_asset_lua_binding`、`manage_asset_struct_field`。
+- **通用例外（完整名）**：`search_asset`、`save_asset`、`rename_asset`、`duplicate_asset`、`delete_asset`、`unload_asset`、`get_asset_refs`、`get_asset_lua_binding`、`manage_asset_lua_binding`、`manage_asset_struct_field`。
 
 ### 6.3 Runtime（PIE / Game）
 
@@ -255,11 +255,11 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 |------|------------|
 | Editor (8) | `capture_viewport`, `compile_blueprint`, `control_pie`, `exec_command`, `get_editor_info`, `get_gameplay_tags`, `get_output_log`, `set_log_capture_filter` |
 | 通用资产 (7) | 见 §6.2 例外行 |
-| Lua (13, `WITH_UNLUA`) | `eval_runtime_lua`, `dofile_runtime_lua`, `gc_runtime_lua`, `hotreload_runtime_lua`, `set_runtime_lua`, `get_runtime_lua_env`, `get_runtime_lua_value`, `get_runtime_lua_loaded`, `get_runtime_lua_stack`, `get_runtime_lua_metatable`, `get_runtime_lua_object`, `get_runtime_lua_memory`, `get_asset_lua_binding` |
+| Lua (14, `WITH_UNLUA`) | `eval_runtime_lua`, `dofile_runtime_lua`, `gc_runtime_lua`, `hotreload_runtime_lua`, `set_runtime_lua`, `get_runtime_lua_env`, `get_runtime_lua_value`, `get_runtime_lua_loaded`, `get_runtime_lua_stack`, `get_runtime_lua_metatable`, `get_runtime_lua_object`, `get_runtime_lua_memory`, `get_asset_lua_binding`, `manage_asset_lua_binding` |
 | Runtime 非标 | `diff_runtime_actors`, `get_runtime_slate_widget` |
 | GAS (`WITH_GAS=1`, 11) | `create/get/manage_asset_gameplay_ability`, `create/get/manage_asset_gameplay_effect`, `create/get/manage_asset_attribute_set`, `get_runtime_actor_ability_system`, `interact_runtime_actor_ability_system` |
-| StateTree (`WITH_STATETREE=1`, UE 5.5+, 1) | `get_asset_state_tree` |
-| MVVM (`WITH_MVVM=1`, UE 5.5+, 1) | `get_asset_view_model` |
+| StateTree (`WITH_STATETREE=1`, UE 5.5+, 3) | `get_asset_state_tree`, `manage_asset_state_tree`, `create_asset_state_tree` |
+| MVVM (`WITH_MVVM=1`, UE 5.5+, 2) | `get_asset_view_model`, `manage_asset_view_model` |
 
 ### 6.5 禁止复活与计划缺口
 
@@ -298,7 +298,7 @@ Utils 按依赖方向划分为 6 层，依赖只能从高层流向低层，**禁
 | **Reflection** | UObject 反射/属性读写 | `NexusPropertyUtils`、`NexusPropertyReportUtils` |
 | **Asset** | 资产加载/蓝图/图结构 | `NexusAssetUtils`、`NexusBlueprintGraphUtils` |
 | **Runtime** | 运行时 World/Actor/Widget | `NexusRuntimeUtils` |
-| **Domain** | 领域专用（引用面窄） | `NexusLuaUtils`、`NexusMaterialUtils`、`NexusAnimGraphUtils`、`NexusBehaviorTreeInspectUtils`、`NexusPinTypeUtils` |
+| **Domain** | 领域专用（引用面窄） | `NexusLuaUtils`、`NexusMaterialUtils`、`NexusAnimGraphUtils`、`NexusWidgetAnimationUtils`、`NexusBehaviorTreeInspectUtils`、`NexusPinTypeUtils` |
 | **Editor** | `WITH_EDITOR` 专属 | `NexusPortUtils`、`NexusEditorCaptureUtils`、`NexusCapabilityIndexUtils` |
 
 **依赖规则**：Common 不得依赖任何其他层；Result/Reflection 只能依赖 Common；Asset 可依赖 Reflection/Common；Runtime 可依赖 Reflection/Common；Domain/Editor 可依赖 Common，Editor 还可依赖 Asset。

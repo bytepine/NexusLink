@@ -77,7 +77,7 @@ ZH_DESCRIPTIONS: dict[str, str] = {
     "submit_feedback":    "上报 Capability/工具的使用摩擦，帮助改进搜索和 Schema。触发时机：重试 ≥2 次仍无进展、找不到合适的 Capability、Schema 字段含义需要猜测、被迫串行调用 ≥3 次。`category` 可取：`wrong_tool` / `misuse` / `schema_guess` / `search_zero` / `search_overflow` / `other`。优先填结构化字段（`attemptedArgs`、`actualError`、`expectedField`），少写长 `note`。",
     # Editor
     "capture_viewport":   "截图编辑器面板、PIE 视口或指定的 Actor/UMG Widget。`validateOnly=true` 不写图片，仅验通路。",
-    "control_pie":        "启动、停止或查询 PIE 状态。action 可取：`start` / `stop` / `status`；mode 可取：`viewport` / `simulate`。",
+    "control_pie":        "启动、停止、暂停或单步 PIE。action 可取：`start` / `stop` / `status` / `pause` / `resume` / `step`；mode 可取：`viewport` / `simulate`。",
     "exec_command":       "执行 UE 控制台命令并捕获输出。`silent=true` 可跳过捕获；支持所有 World。",
     "get_editor_info":    "返回 UE 版本、项目名、平台和构建配置。无参数；响应快，随时可用。",
     "get_editor_context":     "只读编辑器上下文：选中 Actor/资产、Content Browser 路径；`sections` 可选 selection_actors/selection_assets/content_browser_path；editor World ≠ PIE。",
@@ -199,7 +199,7 @@ ZH_DESCRIPTIONS: dict[str, str] = {
 ZH_WHEN_TO_USE: dict[str, str] = {
     # Editor
     "capture_viewport":          "截图编辑器/PIE/Actor/Widget；非 editor_desktop 勿滥用",
-    "control_pie":               "启动/停止/查询 PIE；action=start|stop|status",
+    "control_pie":               "启动/停止/暂停/单步 PIE；action=start|stop|status|pause|resume|step",
     "delete_asset":              "永久删除编辑器资产；不可逆，慎用特定包内批量",
     "duplicate_asset":           "复制编辑器资产到新路径；源资产不变",
     "exec_command":              "执行 UE 控制台命令并返回 output；LogEngine 走 GLog，其余走 LogConsole",

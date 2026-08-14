@@ -23,7 +23,7 @@ void FGetAssetIKRetargeterCapability::BuildDefinition(FNexusCapabilityDefinition
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("ikretargeter"), TEXT("retarget"), TEXT("chain mapping"), TEXT("ik") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_ik_retargeter"), TEXT("get_asset_ik_rig") };
+	Out.RelatedCapabilities = { TEXT("manage_asset_ik_retargeter"), TEXT("get_asset_ik_rig"), TEXT("create_asset_ik_retargeter") };
 	Out.WhenToUse = TEXT("读取 IKRetargeter 配置；写用 manage_asset_ik_retargeter");
 }
 

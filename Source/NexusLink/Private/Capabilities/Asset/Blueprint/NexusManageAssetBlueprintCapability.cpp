@@ -68,11 +68,12 @@ void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("manage_asset_blueprint");
 	Out.SearchAssetTypes = {TEXT("Blueprint")};
-	Out.Description = TEXT("批量编辑 BP：图/变量/函数/接口/节点/连线、SCS、CDO。SCS/defaults 限 Actor BP。");
+	Out.Description = TEXT("批量编辑 BP：图/变量/函数/宏/Timeline/Dispatcher/接口/节点。promote_pin 未提供。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),          FNexusSchema::Enum(TEXT("操作类型"), {
 			TEXT("add_variable"), TEXT("remove_variable"),
 			TEXT("add_function"), TEXT("remove_function"),
+			TEXT("add_macro"), TEXT("add_timeline"), TEXT("add_dispatcher"), TEXT("add_local_variable"),
 			TEXT("add_interface"), TEXT("remove_interface"),
 			TEXT("add_node"), TEXT("remove_node"), TEXT("set_node"),
 			TEXT("connect"), TEXT("disconnect"), TEXT("disconnect_all"),
@@ -275,7 +276,56 @@ FCapabilityResult FManageAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
 		}
 
-		if (Action == TEXT("add_interface") || Action == TEXT("remove_interface"))
+		if (Action == TEXT("add_macro") || Action == TEXT("add_timeline") || Action == TEXT("add_dispatcher") || Action == TEXT("add_local_variable"))
+		{
+			if (Action == TEXT("add_macro"))
+			{
+				const FString MacroName = OpArgs->HasField(TEXT("functionName")) ? OpArgs->GetStringField(TEXT("functionName")) : TEXT("");
+				if (MacroName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_macro 需要 functionName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+				UEdGraph* NewGraph = FBlueprintEditorUtils::CreateNewGraph(BP, FName(*MacroName), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
+				if (!NewGraph) { Entry->SetStringField(TEXT("error"), TEXT("创建宏图失败")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+				FBlueprintEditorUtils::AddMacroGraph(BP, NewGraph, true, nullptr);
+				Entry->SetStringField(TEXT("functionName"), MacroName);
+			}
+			else if (Action == TEXT("add_timeline"))
+			{
+				const FString TlName = OpArgs->HasField(TEXT("functionName")) ? OpArgs->GetStringField(TEXT("functionName")) : TEXT("");
+				if (TlName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_timeline 需要 functionName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+				UTimelineTemplate* Tl = FBlueprintEditorUtils::AddNewTimeline(BP, FName(*TlName));
+				if (!Tl) { Entry->SetStringField(TEXT("error"), TEXT("创建 Timeline 失败")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+				Entry->SetStringField(TEXT("functionName"), TlName);
+			}
+			else if (Action == TEXT("add_dispatcher"))
+			{
+				const FString VarName = OpArgs->HasField(TEXT("variableName")) ? OpArgs->GetStringField(TEXT("variableName")) : TEXT("");
+				if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_dispatcher 需要 variableName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+				FEdGraphPinType PinType;
+				PinType.PinCategory = UEdGraphSchema_K2::PC_MCDelegate;
+				FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType);
+				Entry->SetStringField(TEXT("variableName"), VarName);
+			}
+			else
+			{
+				const FString FuncName = OpArgs->HasField(TEXT("functionName")) ? OpArgs->GetStringField(TEXT("functionName")) : TEXT("");
+				const FString VarName = OpArgs->HasField(TEXT("variableName")) ? OpArgs->GetStringField(TEXT("variableName")) : TEXT("");
+				const FString VarTypeRaw = OpArgs->HasField(TEXT("variableType")) ? OpArgs->GetStringField(TEXT("variableType")) : TEXT("bool");
+				if (FuncName.IsEmpty() || VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_local_variable 需要 functionName 与 variableName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+				UEdGraph* FuncGraph = nullptr;
+				for (UEdGraph* G : BP->FunctionGraphs)
+				{
+					if (G && G->GetName() == FuncName) { FuncGraph = G; break; }
+				}
+				if (!FuncGraph) { Entry->SetStringField(TEXT("error"), TEXT("函数图未找到")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+				FEdGraphPinType PinType;
+				FString TypeErr;
+				if (!FNexusPinTypeUtils::ParsePinType(VarTypeRaw, PinType, TypeErr)) { Entry->SetStringField(TEXT("error"), TypeErr); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+				FBlueprintEditorUtils::AddLocalVariable(BP, FuncGraph, FName(*VarName), PinType);
+				Entry->SetStringField(TEXT("variableName"), VarName);
+			}
+			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+			FKismetEditorUtilities::CompileBlueprint(BP);
+			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+		}
 		{
 			const FString IfaceName = OpArgs->HasField(TEXT("interfaceName")) ? OpArgs->GetStringField(TEXT("interfaceName")) : TEXT("");
 			if (IfaceName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("interfaceName 必填（BPI 路径或接口类名）")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }

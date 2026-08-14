@@ -17,6 +17,8 @@
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
+#include "Materials/MaterialFunction.h"
+#include "Materials/MaterialExpressionFunctionOutput.h"
 #include "MaterialEditingLibrary.h"
 #include "NexusMcpTool.h"
 
@@ -96,14 +98,11 @@ static void DoSetParam(UMaterialInstanceConstant* MI, const TSharedPtr<FJsonObje
 	MI->MarkPackageDirty();
 }
 
-static void DoAddNode(UMaterial* Mat, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Out)
+static UClass* ResolveMaterialExpressionClass(const FString& ExprShort, FString& OutError)
 {
-	if (!Mat) { Out->SetStringField(TEXT("error"), TEXT("add_node requires a UMaterial asset")); return; }
-	const FString ExprShort = Args->HasField(TEXT("expressionClass")) ? Args->GetStringField(TEXT("expressionClass")) : TEXT("");
-	if (ExprShort.IsEmpty()) { Out->SetStringField(TEXT("error"), TEXT("add_node requires expressionClass")); return; }
+	if (ExprShort.IsEmpty()) { OutError = TEXT("add_node requires expressionClass"); return nullptr; }
 	const FString FullName = TEXT("MaterialExpression") + ExprShort;
 	UClass* ExprClass = nullptr;
-	// 优先精确查找，避免全局遍历
 #if NX_UE_HAS_FIND_FIRST_OBJECT
 	ExprClass = FindFirstObject<UClass>(*FullName, EFindFirstObjectOptions::NativeFirst);
 	if (!ExprClass) ExprClass = FindFirstObject<UClass>(*ExprShort, EFindFirstObjectOptions::NativeFirst);
@@ -113,7 +112,6 @@ static void DoAddNode(UMaterial* Mat, const TSharedPtr<FJsonObject>& Args, TShar
 #endif
 	if (!ExprClass || !ExprClass->IsChildOf(UMaterialExpression::StaticClass()) || ExprClass->HasAnyClassFlags(CLASS_Abstract))
 	{
-		// 回退到有上限的迭代查找（最多遍历 4096 个 UClass）
 		ExprClass = nullptr;
 		int32 SearchCount = 0;
 		for (TObjectIterator<UClass> It; It && SearchCount < 4096; ++It, ++SearchCount)
@@ -124,9 +122,12 @@ static void DoAddNode(UMaterial* Mat, const TSharedPtr<FJsonObject>& Args, TShar
 			}
 		}
 	}
-	if (!ExprClass) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("表达式类未找到: %s"), *ExprShort)); return; }
-	UMaterialExpression* NewExpr = UMaterialEditingLibrary::CreateMaterialExpression(Mat, ExprClass);
-	if (!NewExpr) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("创建表达式失败: %s"), *ExprShort)); return; }
+	if (!ExprClass) { OutError = FString::Printf(TEXT("表达式类未找到: %s"), *ExprShort); return nullptr; }
+	return ExprClass;
+}
+
+static void ApplyNewExpressionFields(UMaterialExpression* NewExpr, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Out)
+{
 	if (Args->HasField(TEXT("posX"))) NewExpr->MaterialExpressionEditorX = static_cast<int32>(Args->GetNumberField(TEXT("posX")));
 	if (Args->HasField(TEXT("posY"))) NewExpr->MaterialExpressionEditorY = static_cast<int32>(Args->GetNumberField(TEXT("posY")));
 	TArray<TSharedPtr<FJsonValue>> Applied; TArray<FString> Errs;
@@ -140,6 +141,31 @@ static void DoAddNode(UMaterial* Mat, const TSharedPtr<FJsonObject>& Args, TShar
 	if (Errs.Num() > 0) { TArray<TSharedPtr<FJsonValue>> EA; for (const FString& E : Errs) EA.Add(MakeShared<FJsonValueString>(E)); Out->SetArrayField(TEXT("fieldErrors"), EA); Out->SetStringField(TEXT("error"), TEXT("部分字段未能应用")); }
 }
 
+static void DoAddNode(UMaterial* Mat, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Out)
+{
+	if (!Mat) { Out->SetStringField(TEXT("error"), TEXT("add_node requires a UMaterial asset")); return; }
+	const FString ExprShort = Args->HasField(TEXT("expressionClass")) ? Args->GetStringField(TEXT("expressionClass")) : TEXT("");
+	FString ClassErr;
+	UClass* ExprClass = ResolveMaterialExpressionClass(ExprShort, ClassErr);
+	if (!ExprClass) { Out->SetStringField(TEXT("error"), ClassErr); return; }
+	UMaterialExpression* NewExpr = UMaterialEditingLibrary::CreateMaterialExpression(Mat, ExprClass);
+	if (!NewExpr) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("创建表达式失败: %s"), *ExprShort)); return; }
+	ApplyNewExpressionFields(NewExpr, Args, Out);
+}
+
+static void DoAddNodeInFunction(UMaterialFunction* MF, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Out)
+{
+	if (!MF) { Out->SetStringField(TEXT("error"), TEXT("add_node requires a UMaterial or UMaterialFunction")); return; }
+	const FString ExprShort = Args->HasField(TEXT("expressionClass")) ? Args->GetStringField(TEXT("expressionClass")) : TEXT("");
+	FString ClassErr;
+	UClass* ExprClass = ResolveMaterialExpressionClass(ExprShort, ClassErr);
+	if (!ExprClass) { Out->SetStringField(TEXT("error"), ClassErr); return; }
+	UMaterialExpression* NewExpr = UMaterialEditingLibrary::CreateMaterialExpressionInFunction(MF, ExprClass);
+	if (!NewExpr) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("创建表达式失败: %s"), *ExprShort)); return; }
+	ApplyNewExpressionFields(NewExpr, Args, Out);
+	UMaterialEditingLibrary::UpdateMaterialFunction(MF, nullptr);
+}
+
 static void DoRemoveNode(UMaterial* Mat, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Out)
 {
 	if (!Mat) { Out->SetStringField(TEXT("error"), TEXT("remove_node requires a UMaterial asset")); return; }
@@ -149,6 +175,18 @@ static void DoRemoveNode(UMaterial* Mat, const TSharedPtr<FJsonObject>& Args, TS
 	if (!Expr) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("表达式未找到: %s"), *NodeId)); return; }
 	UMaterialEditingLibrary::DeleteMaterialExpression(Mat, Expr);
 	Out->SetStringField(TEXT("removedNodeId"), NodeId);
+}
+
+static void DoRemoveNodeInFunction(UMaterialFunction* MF, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Out)
+{
+	if (!MF) { Out->SetStringField(TEXT("error"), TEXT("remove_node requires a UMaterial or UMaterialFunction")); return; }
+	const FString NodeId = Args->HasField(TEXT("nodeId")) ? Args->GetStringField(TEXT("nodeId")) : TEXT("");
+	if (NodeId.IsEmpty()) { Out->SetStringField(TEXT("error"), TEXT("remove_node requires nodeId")); return; }
+	UMaterialExpression* Expr = FNexusMaterialUtils::FindExpressionByNodeId(MF, NodeId);
+	if (!Expr) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("表达式未找到: %s"), *NodeId)); return; }
+	UMaterialEditingLibrary::DeleteMaterialExpressionInFunction(MF, Expr);
+	Out->SetStringField(TEXT("removedNodeId"), NodeId);
+	UMaterialEditingLibrary::UpdateMaterialFunction(MF, nullptr);
 }
 
 static void DoSetNode(UMaterial* Mat, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Out)
@@ -166,6 +204,27 @@ static void DoSetNode(UMaterial* Mat, const TSharedPtr<FJsonObject>& Args, TShar
 	FString DV; if (Args->HasField(TEXT("defaultValue"))) DV = Args->GetStringField(TEXT("defaultValue")); else if (Args->HasField(TEXT("value"))) DV = Args->GetStringField(TEXT("value"));
 	if (!DV.IsEmpty()) { ++Req; FString AT, NV, Err; if (TryApplyNodeDefault(Expr, DV, AT, NV, Err)) { Applied.Add(MakeShared<FJsonValueString>(FString::Printf(TEXT("defaultValue(%s)"), *AT))); Out->SetStringField(TEXT("defaultValue"), NV); Out->SetStringField(TEXT("defaultValueType"), AT); } else Errs.Add(Err); }
 	Expr->PostEditChange();
+	if (Req == 0) { Out->SetStringField(TEXT("error"), TEXT("set_node requires at least one of: posX/posY/parameterName/defaultValue")); return; }
+	if (Applied.Num() > 0) Out->SetArrayField(TEXT("appliedFields"), Applied);
+	if (Errs.Num() > 0) { TArray<TSharedPtr<FJsonValue>> EA; for (const FString& E : Errs) EA.Add(MakeShared<FJsonValueString>(E)); Out->SetArrayField(TEXT("fieldErrors"), EA); Out->SetStringField(TEXT("error"), TEXT("部分字段未能应用")); }
+}
+
+static void DoSetNodeInFunction(UMaterialFunction* MF, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Out)
+{
+	if (!MF) { Out->SetStringField(TEXT("error"), TEXT("set_node requires a UMaterial or UMaterialFunction")); return; }
+	const FString NodeId = Args->HasField(TEXT("nodeId")) ? Args->GetStringField(TEXT("nodeId")) : TEXT("");
+	if (NodeId.IsEmpty()) { Out->SetStringField(TEXT("error"), TEXT("set_node requires nodeId")); return; }
+	UMaterialExpression* Expr = FNexusMaterialUtils::FindExpressionByNodeId(MF, NodeId);
+	if (!Expr) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("表达式未找到: %s"), *NodeId)); return; }
+	Out->SetStringField(TEXT("nodeId"), NodeId); Out->SetStringField(TEXT("nodeClass"), Expr->GetClass()->GetName());
+	TArray<TSharedPtr<FJsonValue>> Applied; TArray<FString> Errs; int32 Req = 0;
+	if (Args->HasField(TEXT("posX"))) { Expr->MaterialExpressionEditorX = static_cast<int32>(Args->GetNumberField(TEXT("posX"))); Applied.Add(MakeShared<FJsonValueString>(TEXT("posX"))); ++Req; }
+	if (Args->HasField(TEXT("posY"))) { Expr->MaterialExpressionEditorY = static_cast<int32>(Args->GetNumberField(TEXT("posY"))); Applied.Add(MakeShared<FJsonValueString>(TEXT("posY"))); ++Req; }
+	if (Args->HasField(TEXT("parameterName"))) { ++Req; const FString PN = Args->GetStringField(TEXT("parameterName")); if (TrySetExprParamName(Expr, FName(*PN))) { Applied.Add(MakeShared<FJsonValueString>(TEXT("parameterName"))); Out->SetStringField(TEXT("parameterName"), PN); } else Errs.Add(FString::Printf(TEXT("parameterName 不适用于 '%s'"), *Expr->GetClass()->GetName())); }
+	FString DV; if (Args->HasField(TEXT("defaultValue"))) DV = Args->GetStringField(TEXT("defaultValue")); else if (Args->HasField(TEXT("value"))) DV = Args->GetStringField(TEXT("value"));
+	if (!DV.IsEmpty()) { ++Req; FString AT, NV, Err; if (TryApplyNodeDefault(Expr, DV, AT, NV, Err)) { Applied.Add(MakeShared<FJsonValueString>(FString::Printf(TEXT("defaultValue(%s)"), *AT))); Out->SetStringField(TEXT("defaultValue"), NV); Out->SetStringField(TEXT("defaultValueType"), AT); } else Errs.Add(Err); }
+	Expr->PostEditChange();
+	UMaterialEditingLibrary::UpdateMaterialFunction(MF, nullptr);
 	if (Req == 0) { Out->SetStringField(TEXT("error"), TEXT("set_node requires at least one of: posX/posY/parameterName/defaultValue")); return; }
 	if (Applied.Num() > 0) Out->SetArrayField(TEXT("appliedFields"), Applied);
 	if (Errs.Num() > 0) { TArray<TSharedPtr<FJsonValue>> EA; for (const FString& E : Errs) EA.Add(MakeShared<FJsonValueString>(E)); Out->SetArrayField(TEXT("fieldErrors"), EA); Out->SetStringField(TEXT("error"), TEXT("部分字段未能应用")); }
@@ -327,11 +386,109 @@ static void DoDisconnectAll(UMaterial* Mat, const TSharedPtr<FJsonObject>& Args,
 	Mat->PostEditChange();
 }
 
+static UMaterialExpression* FindFunctionOutputExpr(UMaterialFunction* MF)
+{
+	for (UMaterialExpression* Expr : FNexusMaterialUtils::GetExpressions(MF))
+	{
+		if (Cast<UMaterialExpressionFunctionOutput>(Expr)) return Expr;
+	}
+	return nullptr;
+}
+
+static void DoConnectInFunction(UMaterialFunction* MF, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Out)
+{
+	if (!MF) { Out->SetStringField(TEXT("error"), TEXT("connect requires a UMaterial or UMaterialFunction")); return; }
+	const FString SourceNodeId     = Args->HasField(TEXT("sourceNodeId"))     ? Args->GetStringField(TEXT("sourceNodeId"))     : TEXT("");
+	const FString SourceOutputName = Args->HasField(TEXT("sourceOutputName")) ? Args->GetStringField(TEXT("sourceOutputName")) : TEXT("");
+	FString TargetNodeId           = Args->HasField(TEXT("targetNodeId"))     ? Args->GetStringField(TEXT("targetNodeId"))     : TEXT("");
+	const FString TargetInputName  = Args->HasField(TEXT("targetInputName"))  ? Args->GetStringField(TEXT("targetInputName"))  : TEXT("");
+	if (SourceNodeId.IsEmpty()) { Out->SetStringField(TEXT("error"), TEXT("connect requires sourceNodeId")); return; }
+	if (TargetNodeId.ToLower() == TEXT("material"))
+	{
+		Out->SetStringField(TEXT("error"), TEXT("MaterialFunction 不能连 Material 属性；用 FunctionOutput 的 nodeId 或 targetNodeId=output"));
+		return;
+	}
+	UMaterialExpression* SrcExpr = FNexusMaterialUtils::FindExpressionByNodeId(MF, SourceNodeId);
+	if (!SrcExpr) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("源表达式未找到: %s"), *SourceNodeId)); return; }
+	UMaterialExpression* DstExpr = nullptr;
+	if (TargetNodeId.ToLower() == TEXT("output"))
+	{
+		DstExpr = FindFunctionOutputExpr(MF);
+		if (!DstExpr) { Out->SetStringField(TEXT("error"), TEXT("未找到 FunctionOutput 节点")); return; }
+	}
+	else
+	{
+		DstExpr = FNexusMaterialUtils::FindExpressionByNodeId(MF, TargetNodeId);
+	}
+	if (!DstExpr) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("目标表达式未找到: %s"), *TargetNodeId)); return; }
+	if (!UMaterialEditingLibrary::ConnectMaterialExpressions(SrcExpr, SourceOutputName, DstExpr, TargetInputName))
+	{
+		Out->SetStringField(TEXT("error"), TEXT("ConnectMaterialExpressions 失败"));
+		return;
+	}
+	UMaterialEditingLibrary::UpdateMaterialFunction(MF, nullptr);
+	MF->PostEditChange();
+}
+
+static void DoDisconnectInFunction(UMaterialFunction* MF, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Out)
+{
+	if (!MF) { Out->SetStringField(TEXT("error"), TEXT("disconnect requires a UMaterial or UMaterialFunction")); return; }
+	FString TargetNodeId          = Args->HasField(TEXT("targetNodeId"))    ? Args->GetStringField(TEXT("targetNodeId"))    : TEXT("");
+	const FString TargetInputName = Args->HasField(TEXT("targetInputName")) ? Args->GetStringField(TEXT("targetInputName")) : TEXT("");
+	if (TargetNodeId.IsEmpty() || TargetInputName.IsEmpty()) { Out->SetStringField(TEXT("error"), TEXT("disconnect requires targetNodeId and targetInputName")); return; }
+	if (TargetNodeId.ToLower() == TEXT("material"))
+	{
+		Out->SetStringField(TEXT("error"), TEXT("MaterialFunction 不能断 Material 属性；用 FunctionOutput 的 nodeId 或 targetNodeId=output"));
+		return;
+	}
+	UMaterialExpression* DstExpr = (TargetNodeId.ToLower() == TEXT("output"))
+		? FindFunctionOutputExpr(MF)
+		: FNexusMaterialUtils::FindExpressionByNodeId(MF, TargetNodeId);
+	if (!DstExpr) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("目标表达式未找到: %s"), *TargetNodeId)); return; }
+	int32 InputIdx = FindInputIdx(DstExpr, TargetInputName);
+	if (InputIdx < 0) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("节点 '%s' 上未找到输入引脚 '%s'"), *TargetNodeId, *TargetInputName)); return; }
+	FExpressionInput* Inp = DstExpr->GetInput(InputIdx);
+	if (Inp) { Inp->Expression = nullptr; Inp->OutputIndex = 0; }
+	UMaterialEditingLibrary::UpdateMaterialFunction(MF, nullptr);
+	MF->PostEditChange();
+}
+
+static void DoDisconnectAllInFunction(UMaterialFunction* MF, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Out)
+{
+	if (!MF) { Out->SetStringField(TEXT("error"), TEXT("disconnect_all requires a UMaterial or UMaterialFunction")); return; }
+	const FString SourceNodeId     = Args->HasField(TEXT("sourceNodeId"))     ? Args->GetStringField(TEXT("sourceNodeId"))     : TEXT("");
+	const FString SourceOutputName = Args->HasField(TEXT("sourceOutputName")) ? Args->GetStringField(TEXT("sourceOutputName")) : TEXT("");
+	if (SourceNodeId.IsEmpty()) { Out->SetStringField(TEXT("error"), TEXT("disconnect_all requires sourceNodeId")); return; }
+	UMaterialExpression* SrcExpr = FNexusMaterialUtils::FindExpressionByNodeId(MF, SourceNodeId);
+	if (!SrcExpr) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("源表达式未找到: %s"), *SourceNodeId)); return; }
+	int32 Count = 0;
+	int32 OutIdx = FindOutputIdx(SrcExpr, SourceOutputName);
+	if (!SourceOutputName.IsEmpty() && OutIdx < 0)
+	{
+		Out->SetStringField(TEXT("error"), FString::Printf(TEXT("节点 '%s' 上未找到输出引脚 '%s'"), *SourceNodeId, *SourceOutputName));
+		return;
+	}
+	for (UMaterialExpression* Expr : FNexusMaterialUtils::GetExpressions(MF))
+	{
+		if (!Expr) continue;
+		for (int32 i = 0; ; ++i)
+		{
+			FExpressionInput* Inp = Expr->GetInput(i);
+			if (!Inp) break;
+			if (Inp->Expression == SrcExpr && (SourceOutputName.IsEmpty() || Inp->OutputIndex == OutIdx))
+			{ Inp->Expression = nullptr; Inp->OutputIndex = 0; ++Count; }
+		}
+	}
+	Out->SetNumberField(TEXT("disconnectedCount"), Count);
+	UMaterialEditingLibrary::UpdateMaterialFunction(MF, nullptr);
+	MF->PostEditChange();
+}
+
 void FManageAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_material");
-	Out.SearchAssetTypes = {TEXT("Material"), TEXT("MaterialInstance")};
-	Out.Description = TEXT("批量编辑材质/MI：set_param/add_node/connect/recompile。");
+	Out.SearchAssetTypes = {TEXT("Material"), TEXT("MaterialInstance"), TEXT("MaterialFunction")};
+	Out.Description = TEXT("批量编辑 Mat/MI/MF。MF 禁 set_param/recompile；connect 勿用 targetNodeId=material。");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
@@ -353,7 +510,7 @@ void FManageAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefinition&
 		.Build();
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Material/MI 资产路径（共用）")))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Material/MI/MaterialFunction 资产路径（共用）")))
 		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量材质操作"), ItemSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
@@ -362,8 +519,8 @@ void FManageAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefinition&
 	Out.ExtraSearchKeywords = {
 		TEXT("node"), TEXT("parameter"), TEXT("wire"), TEXT("pin"), TEXT("recompile")
 	};
-	Out.RelatedCapabilities = { TEXT("get_asset_material"), TEXT("create_asset_material"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("写操作：设参数、增删节点、连线、重编译");
+	Out.RelatedCapabilities = { TEXT("get_asset_material"), TEXT("create_asset_material"), TEXT("create_asset_material_function"), TEXT("save_asset") };
+	Out.WhenToUse = TEXT("写 Mat/MI/MF 图与 MI 参数；MF 连线用表达式 nodeId");
 }
 
 FCapabilityResult FManageAssetMaterialCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -426,17 +583,34 @@ FCapabilityResult FManageAssetMaterialCapability::Execute(const TSharedPtr<FJson
 			{
 				UMaterial* Mat = Cast<UMaterial>(Obj);
 				if (!Mat)
-					OutEntry->SetStringField(TEXT("error"), TEXT("recompile requires a UMaterial asset"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("recompile 仅支持 UMaterial，MaterialFunction 无需重编译"));
 				else
 					UMaterialEditingLibrary::RecompileMaterial(Mat);
 			}
-			else if (Action == TEXT("set_param"))     { DoSetParam(Cast<UMaterialInstanceConstant>(Obj), Item, OutEntry); }
-			else if (Action == TEXT("add_node"))      { DoAddNode(Cast<UMaterial>(Obj), Item, OutEntry);      }
-			else if (Action == TEXT("remove_node"))   { DoRemoveNode(Cast<UMaterial>(Obj), Item, OutEntry);   }
-			else if (Action == TEXT("set_node"))      { DoSetNode(Cast<UMaterial>(Obj), Item, OutEntry);      }
-			else if (Action == TEXT("connect"))       { DoConnect(Cast<UMaterial>(Obj), Item, OutEntry);      }
-			else if (Action == TEXT("disconnect"))    { DoDisconnect(Cast<UMaterial>(Obj), Item, OutEntry);   }
-			else if (Action == TEXT("disconnect_all")){ DoDisconnectAll(Cast<UMaterial>(Obj), Item, OutEntry);}
+			else if (Action == TEXT("set_param"))
+			{
+				DoSetParam(Cast<UMaterialInstanceConstant>(Obj), Item, OutEntry);
+			}
+			else if (UMaterial* Mat = Cast<UMaterial>(Obj))
+			{
+				if (Action == TEXT("add_node"))           { DoAddNode(Mat, Item, OutEntry); }
+				else if (Action == TEXT("remove_node"))   { DoRemoveNode(Mat, Item, OutEntry); }
+				else if (Action == TEXT("set_node"))      { DoSetNode(Mat, Item, OutEntry); }
+				else if (Action == TEXT("connect"))       { DoConnect(Mat, Item, OutEntry); }
+				else if (Action == TEXT("disconnect"))    { DoDisconnect(Mat, Item, OutEntry); }
+				else if (Action == TEXT("disconnect_all")){ DoDisconnectAll(Mat, Item, OutEntry); }
+				else { OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action)); }
+			}
+			else if (UMaterialFunction* MF = Cast<UMaterialFunction>(Obj))
+			{
+				if (Action == TEXT("add_node"))           { DoAddNodeInFunction(MF, Item, OutEntry); }
+				else if (Action == TEXT("remove_node"))   { DoRemoveNodeInFunction(MF, Item, OutEntry); }
+				else if (Action == TEXT("set_node"))      { DoSetNodeInFunction(MF, Item, OutEntry); }
+				else if (Action == TEXT("connect"))       { DoConnectInFunction(MF, Item, OutEntry); }
+				else if (Action == TEXT("disconnect"))    { DoDisconnectInFunction(MF, Item, OutEntry); }
+				else if (Action == TEXT("disconnect_all")){ DoDisconnectAllInFunction(MF, Item, OutEntry); }
+				else { OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action)); }
+			}
 			else { OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action)); }
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));

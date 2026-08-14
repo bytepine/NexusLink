@@ -92,6 +92,7 @@ static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, int3
 		{
 			TSharedPtr<FJsonObject> TObj = MakeShared<FJsonObject>();
 			// 目标状态名：若 State 指针有效取名字，否则记录类型
+			TObj->SetStringField(TEXT("trigger"), UEnum::GetValueAsString(T.Trigger));
 			if (T.State.IsValid())
 			{
 				TObj->SetStringField(TEXT("target"), T.State->Name.ToString());
@@ -133,7 +134,7 @@ void FGetAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition& O
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly };
 	Out.ExtraSearchKeywords = { TEXT("statetree"), TEXT("state_tree"), TEXT("st"), TEXT("states"), TEXT("tasks"), TEXT("transitions"), TEXT("evaluators") };
-	Out.RelatedCapabilities = { TEXT("search_asset"), TEXT("get_asset_behavior_tree"), TEXT("get_asset_refs"), TEXT("save_asset") };
+	Out.RelatedCapabilities = { TEXT("manage_asset_state_tree"), TEXT("search_asset"), TEXT("get_asset_behavior_tree"), TEXT("get_asset_refs"), TEXT("save_asset") };
 	Out.WhenToUse = TEXT("读 StateTree 结构：Schema/States/Evaluators/迁移/条件/参数");
 }
 

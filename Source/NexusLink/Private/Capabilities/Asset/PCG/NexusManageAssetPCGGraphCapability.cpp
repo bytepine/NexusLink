@@ -18,13 +18,17 @@ void FManageAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name        = TEXT("manage_asset_pcg_graph");
 	Out.SearchAssetTypes = {TEXT("PCGGraph")};
-	Out.Description = TEXT("管理 PCG Graph：add_node/remove_node/add_edge（UE 5.4+）。");
+	Out.Description = TEXT("管理 PCG Graph：add_node/remove_node/add_edge/remove_edge（UE 5.4+）。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PCG Graph 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrOfObj(TEXT("操作列表")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("操作列表"),
+			FNexusSchema::Object()
+			.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
+				{ TEXT("add_node"), TEXT("remove_node"), TEXT("add_edge"), TEXT("remove_edge") }))
+			.Build().ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
-	Out.Tags = { FNexusMcpTags::Editor };
+	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("pcg"), TEXT("procedural"), TEXT("node"), TEXT("edge"), TEXT("connect") };
 	Out.RelatedCapabilities = { TEXT("get_asset_pcg_graph"), TEXT("create_asset_pcg_graph") };
 	Out.WhenToUse = TEXT("向 PCG Graph 添加/删除节点或连接 pin");
@@ -144,10 +148,41 @@ static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Grap
 		const FName ToLabel   = ToPin.IsEmpty()   ? NAME_None : FName(*ToPin);
 		Graph->AddEdge(FromNode, FromLabel, ToNode, ToLabel);
 	}
+	else if (Action == TEXT("remove_edge"))
+	{
+		FString FromId, FromPin, ToId, ToPin;
+		Op->TryGetStringField(TEXT("fromNodeId"), FromId);
+		Op->TryGetStringField(TEXT("fromPin"),    FromPin);
+		Op->TryGetStringField(TEXT("toNodeId"),   ToId);
+		Op->TryGetStringField(TEXT("toPin"),      ToPin);
+		if (FromId.IsEmpty() || ToId.IsEmpty())
+		{
+			Result->SetStringField(TEXT("error"), TEXT("remove_edge 需要 fromNodeId 和 toNodeId"));
+			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
+			return;
+		}
+		UPCGNode* FromNode = nullptr;
+		UPCGNode* ToNode   = nullptr;
+		for (UPCGNode* Node : Graph->GetNodes())
+		{
+			if (!Node) continue;
+			if (Node->GetName() == FromId) FromNode = Node;
+			if (Node->GetName() == ToId)   ToNode   = Node;
+		}
+		if (!FromNode || !ToNode)
+		{
+			Result->SetStringField(TEXT("error"), TEXT("源节点或目标节点未找到"));
+			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
+			return;
+		}
+		const FName FromLabel = FromPin.IsEmpty() ? NAME_None : FName(*FromPin);
+		const FName ToLabel   = ToPin.IsEmpty()   ? NAME_None : FName(*ToPin);
+		Graph->RemoveEdge(FromNode, FromLabel, ToNode, ToLabel);
+	}
 	else
 	{
 		Result->SetStringField(TEXT("error"),
-			FString::Printf(TEXT("未知 action '%s'，支持: add_node/remove_node/add_edge"), *Action));
+			FString::Printf(TEXT("未知 action '%s'，支持: add_node/remove_node/add_edge/remove_edge"), *Action));
 	}
 
 	OutEntries.Add(MakeShared<FJsonValueObject>(Result));

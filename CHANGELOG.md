@@ -27,6 +27,7 @@
 ### Added
 
 - feat(mcp): 蓝图接口（BPI）走现有 cap——`create_asset_blueprint(parentClass=Interface)` 创建 `BPTYPE_Interface`；`get_asset_blueprint` 回显 `blueprintType` / `implementedInterfaces`；`manage_asset_blueprint` 新增 `add_function` / `remove_function` / `add_interface` / `remove_interface`
+- feat(mcp): 补齐 Capability 写路径与工厂（188 cap）：MaterialFunction 写图；WBP 动画轨/key；ABP AnimGraph 节点；Niagara Emitter CRUD；StateTree task/transition；LevelSequence possessable/track/key + `create_asset_level_sequence`；`manage_asset_view_model`；IK 链/`create_asset_ik_retargeter`；蓝图 macro/timeline/dispatcher；`control_pie` pause/resume/step；ComboBox/ListView；PCG `remove_edge`；`create_asset_sound_cue` / `physical_material` / `level` / `niagara_system` / `state_tree`；GAS give/cue/loose tag；`interact_runtime_actor_{audio,niagara,ai}`；`manage_asset_lua_binding`；ControlRig add_control/bone
 
 ## [1.16.2] - 2026-08-12
 

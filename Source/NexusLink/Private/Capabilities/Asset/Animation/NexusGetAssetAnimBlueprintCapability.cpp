@@ -11,7 +11,10 @@
 #include "Engine/Blueprint.h"
 #if WITH_EDITOR
 #include "Utils/NexusBlueprintGraphUtils.h"
+#include "Utils/NexusAnimGraphUtils.h"
 #include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #endif
 #include "NexusMcpTool.h"
 
@@ -21,7 +24,7 @@ void FGetAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("get_asset_anim_blueprint");
 	Out.SearchAssetTypes = {TEXT("AnimBlueprint")};
-	Out.Description = TEXT("检查 ABP 结构。sections=variables|statemachines|defaults|graphOverview。");
+	Out.Description = TEXT("检查 ABP 结构。sections=variables|statemachines|defaults|graphOverview|graph。");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
@@ -43,7 +46,7 @@ TSharedPtr<FJsonObject> FGetAssetAnimBlueprintCapability::BuildCapabilitySchema(
 
 TArray<FString> FGetAssetAnimBlueprintCapability::GetSectionNames() const
 {
-	return { TEXT("variables"), TEXT("statemachines"), TEXT("defaults"), TEXT("graphOverview") };
+	return { TEXT("variables"), TEXT("statemachines"), TEXT("defaults"), TEXT("graphOverview"), TEXT("graph") };
 }
 
 TArray<FString> FGetAssetAnimBlueprintCapability::GetDefaultSectionNames() const
@@ -174,10 +177,47 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 		}
 		InOutDetail->SetArrayField(TEXT("graphs"), List);
 	}
+	else if (SectionName == TEXT("graph"))
+	{
+		FString GraphName;
+		if (Args.IsValid()) Args->TryGetStringField(TEXT("graphName"), GraphName);
+		UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphName);
+		if (!AnimGraph)
+		{
+			OutError = TEXT("未找到 AnimGraph");
+			return;
+		}
+		TArray<TSharedPtr<FJsonValue>> NodesArr;
+		for (UEdGraphNode* Node : AnimGraph->Nodes)
+		{
+			if (!Node) continue;
+			TSharedPtr<FJsonObject> NObj = MakeShared<FJsonObject>();
+			NObj->SetStringField(TEXT("nodeId"), Node->NodeGuid.ToString());
+			NObj->SetStringField(TEXT("nodeClass"), Node->GetClass()->GetName());
+			NObj->SetStringField(TEXT("title"), Node->GetNodeTitle(ENodeTitleType::ListView).ToString());
+			TArray<TSharedPtr<FJsonValue>> PinsArr;
+			for (UEdGraphPin* Pin : Node->Pins)
+			{
+				if (!Pin) continue;
+				TSharedPtr<FJsonObject> PObj = MakeShared<FJsonObject>();
+				PObj->SetStringField(TEXT("name"), Pin->PinName.ToString());
+				PObj->SetStringField(TEXT("direction"), Pin->Direction == EGPD_Input ? TEXT("input") : TEXT("output"));
+				PinsArr.Add(MakeShared<FJsonValueObject>(PObj));
+			}
+			NObj->SetArrayField(TEXT("pins"), PinsArr);
+			NodesArr.Add(MakeShared<FJsonValueObject>(NObj));
+		}
+		InOutDetail->SetStringField(TEXT("graphName"), AnimGraph->GetName());
+		InOutDetail->SetArrayField(TEXT("nodes"), NodesArr);
+	}
 #else
 	else if (SectionName == TEXT("graphOverview"))
 	{
 		OutError = TEXT("graphOverview 仅在编辑器构建可用");
+	}
+	else if (SectionName == TEXT("graph"))
+	{
+		OutError = TEXT("graph 仅在编辑器构建可用");
 	}
 #endif
 	else if (SectionName == TEXT("defaults"))

@@ -32,16 +32,18 @@ static UAnimInstance* FindAnimInstanceForInteract(AActor* Actor)
 void FInteractRuntimeActorAnimationCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("interact_runtime_actor_animation");
-	Out.Description = TEXT("命令式控制运行时动画。action=play_montage|stop_montage|stop_all|set_anim_variable。");
+	Out.Description = TEXT("命令式控制运行时动画。play/stop/jump_to_section/set_anim_class/set_anim_variable。Slot 播放无稳定 API。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("动画命令"),
-			{ TEXT("play_montage"), TEXT("stop_montage"), TEXT("stop_all"), TEXT("set_anim_variable") }))
+			{ TEXT("play_montage"), TEXT("stop_montage"), TEXT("stop_all"), TEXT("set_anim_variable"),
+			  TEXT("jump_to_section"), TEXT("set_anim_class") }))
 		.Prop(TEXT("actorName"),    FNexusSchema::Str(TEXT("Actor 名")))
-		.Prop(TEXT("montagePath"),  FNexusSchema::Str(TEXT("蒙太奇资产路径（play/stop）")))
+		.Prop(TEXT("montagePath"),  FNexusSchema::Str(TEXT("蒙太奇资产路径（play/stop/jump）")))
 		.Prop(TEXT("playRate"),     FNexusSchema::Num(TEXT("播放速率"), 1.0))
-		.Prop(TEXT("startSection"), FNexusSchema::Str(TEXT("起始 Section 名（play_montage）")))
+		.Prop(TEXT("startSection"), FNexusSchema::Str(TEXT("Section 名（play_montage / jump_to_section）")))
 		.Prop(TEXT("variableName"), FNexusSchema::Str(TEXT("AnimInstance 变量名（set_anim_variable）")))
 		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("变量新值字符串（set_anim_variable）")))
+		.Prop(TEXT("animClassPath"), FNexusSchema::Str(TEXT("AnimBlueprint GeneratedClass 路径（set_anim_class）")))
 		.Required({ TEXT("action"), TEXT("actorName") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Runtime };
@@ -71,12 +73,13 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
 
-		FString MontagePath, StartSection, VarName, VarValue;
+		FString MontagePath, StartSection, VarName, VarValue, AnimClassPath;
 		double PlayRate = 1.0;
 		Arguments->TryGetStringField(TEXT("montagePath"), MontagePath);
 		Arguments->TryGetStringField(TEXT("startSection"), StartSection);
 		Arguments->TryGetStringField(TEXT("variableName"), VarName);
 		Arguments->TryGetStringField(TEXT("value"), VarValue);
+		Arguments->TryGetStringField(TEXT("animClassPath"), AnimClassPath);
 		Arguments->TryGetNumberField(TEXT("playRate"), PlayRate);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
@@ -172,6 +175,54 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 			Entry->SetStringField(TEXT("variableName"), VarName);
 			if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
 			if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
+		}
+		else if (Action.Equals(TEXT("jump_to_section"), ESearchCase::IgnoreCase))
+		{
+			if (MontagePath.IsEmpty() || StartSection.IsEmpty())
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("jump_to_section 需要 montagePath 与 startSection"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			UAnimMontage* Montage = LoadObject<UAnimMontage>(nullptr, *MontagePath);
+			if (!Montage)
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("蒙太奇加载失败: %s"), *MontagePath));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			AnimInst->Montage_JumpToSection(FName(*StartSection), Montage);
+			Entry->SetStringField(TEXT("section"), StartSection);
+		}
+		else if (Action.Equals(TEXT("set_anim_class"), ESearchCase::IgnoreCase))
+		{
+			if (AnimClassPath.IsEmpty())
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("set_anim_class 需要 animClassPath"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			UClass* AnimClass = LoadObject<UClass>(nullptr, *AnimClassPath);
+			if (!AnimClass) AnimClass = LoadObject<UClass>(nullptr, *(AnimClassPath + TEXT("_C")));
+			if (!AnimClass || !AnimClass->IsChildOf(UAnimInstance::StaticClass()))
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("AnimInstance 类未找到: %s"), *AnimClassPath));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+			TArray<UActorComponent*> Comps;
+			Actor->GetComponents(USkeletalMeshComponent::StaticClass(), Comps);
+			int32 Applied = 0;
+			for (UActorComponent* Comp : Comps)
+			{
+				if (USkeletalMeshComponent* Skel = Cast<USkeletalMeshComponent>(Comp))
+				{
+					Skel->SetAnimInstanceClass(AnimClass);
+					++Applied;
+				}
+			}
+			Entry->SetNumberField(TEXT("appliedCount"), Applied);
+			Entry->SetStringField(TEXT("animClass"), AnimClass->GetName());
 		}
 		else
 		{

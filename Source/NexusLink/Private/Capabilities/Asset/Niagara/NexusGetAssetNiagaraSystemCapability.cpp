@@ -27,7 +27,7 @@ void FGetAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("niagara"), TEXT("vfx"), TEXT("particle"), TEXT("emitter"), TEXT("fx") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_niagara_system"), TEXT("search_asset"), TEXT("get_asset_refs"), TEXT("save_asset") };
+	Out.RelatedCapabilities = { TEXT("manage_asset_niagara_system"), TEXT("create_asset_niagara_system"), TEXT("search_asset"), TEXT("get_asset_refs"), TEXT("save_asset") };
 	Out.WhenToUse = TEXT("读 Niagara 元数据；属性写用 manage_asset_niagara_system");
 }
 
@@ -66,6 +66,7 @@ FCapabilityResult FGetAssetNiagaraSystemCapability::Execute(const TSharedPtr<FJs
 			TSharedPtr<FJsonObject> Em = MakeShared<FJsonObject>();
 			Em->SetStringField(TEXT("name"), Handle.GetName().ToString());
 			Em->SetStringField(TEXT("id"), Handle.GetId().ToString());
+			Em->SetBoolField(TEXT("enabled"), Handle.GetIsEnabled());
 			Emitters.Add(MakeShared<FJsonValueObject>(Em));
 		}
 #else
@@ -77,6 +78,7 @@ FCapabilityResult FGetAssetNiagaraSystemCapability::Execute(const TSharedPtr<FJs
 			TSharedPtr<FJsonObject> Em = MakeShared<FJsonObject>();
 			Em->SetStringField(TEXT("name"), Handle.GetName().ToString());
 			Em->SetStringField(TEXT("id"), Handle.GetId().ToString());
+			Em->SetBoolField(TEXT("enabled"), Handle.GetIsEnabled());
 			Emitters.Add(MakeShared<FJsonValueObject>(Em));
 		}
 #endif

@@ -47,7 +47,7 @@ void FManageAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefi
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
 	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("ability"), TEXT("gameplay"), TEXT("ga"), TEXT("tag"), TEXT("policy"), TEXT("cost") };
 	Out.RelatedCapabilities = { TEXT("get_asset_gameplay_ability"), TEXT("save_asset"), TEXT("manage_asset_blueprint") };
-	Out.WhenToUse = TEXT("CDO 语义字段；逻辑图用 manage_asset_blueprint");
+	Out.WhenToUse = TEXT("CDO 语义字段；AbilityTask/逻辑图用 manage_asset_blueprint");
 }
 
 FCapabilityResult FManageAssetGameplayAbilityCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const

@@ -64,6 +64,7 @@
 #define NX_UE_HAS_SOUND_NODE_WAVE_ACCESSOR NX_UE_AT_LEAST(4, 27) // USoundNodeWavePlayer::SoundWave → GetSoundWave()
 #define NX_UE_HAS_NIAGARA_EMITTER_HANDLES_API NX_UE_AT_LEAST(5, 0) // UNiagaraSystem::GetNumEmitters/GetEmitterHandle → GetEmitterHandles()
 #define NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS NX_UE_AT_LEAST(5, 0) // UNiagaraSystem::GetExposedParameters() 用户参数 Store
+#define NX_UE_HAS_NIAGARA_REMOVE_EMITTER_BY_ID NX_UE_AT_LEAST(5, 0) // RemoveEmitterHandlesById
 #define NX_UE_HAS_TEXTURE_PLATFORM_ACCESSOR NX_UE_AT_LEAST(5, 0) // UTexture2D::PlatformData → GetPlatformData()
 #define NX_UE_HAS_TEXTURE_SURFACE_SIZE   NX_UE_AT_LEAST(5, 1) // 贴图尺寸：PlatformData::SizeX/Y → GetSurfaceWidth()/GetSurfaceHeight()
 #define NX_UE_HAS_JSON_TSHAREDSTRING_KEY   NX_UE_AT_LEAST(5, 8) // FJsonObject::Values 键类型 FString → UE::FSharedString；迭代 KV.Key 需 FString(*KV.Key)
@@ -149,6 +150,15 @@
 // ── MovieScene 版本兼容 ──
 // UE 5.5 将 Master Tracks API（GetMasterTracks/AddMasterTrack/FindMasterTrack/RemoveMasterTrack）重构
 #define NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS  (!NX_UE_AT_LEAST(5, 5))
+// 4.26+ FloatSection 走 ChannelProxy + FMovieSceneFloatChannel（无 FRichCurve GetFloatCurve）
+#define NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL  1
+// UE5+ UWidgetAnimation::SetMovieScene；UE4 直写 MovieScene 成员
+#define NX_UE_HAS_WIDGET_ANIM_SET_MOVIE_SCENE  NX_UE_AT_LEAST(5, 0)
+
+// UE 4.27+ UEditorEngine::SetPIEWorldsPaused；4.26 用 PlayWorld->bDebugPauseExecution
+#define NX_UE_HAS_SET_PIE_WORLDS_PAUSED  NX_UE_AT_LEAST(4, 27)
+// UE5 UListViewBase::GetNumItems；UE4 用 GetItems().Num()
+#define NX_UE_HAS_LISTVIEW_GET_NUM_ITEMS  NX_UE_AT_LEAST(5, 0)
 
 // ── UnLua 版本兼容 ──
 // UNLUA_VERSION_MAJOR 由 NexusLink.Build.cs 从 UnLua.uplugin VersionName 自动注入

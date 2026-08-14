@@ -82,6 +82,12 @@ bool FNexusLinkPluginSmokeTest::RunTest(const FString& Parameters)
 		TEXT("destroy_runtime_actor"),
 		TEXT("get_runtime_actor_property"),
 		TEXT("set_runtime_actor_property"),
+		TEXT("create_asset_level_sequence"),
+		TEXT("create_asset_physical_material"),
+		TEXT("create_asset_sound_cue"),
+		TEXT("create_asset_level"),
+		TEXT("interact_runtime_actor_audio"),
+		TEXT("interact_runtime_actor_ai"),
 	};
 
 	for (const TCHAR* Name : MustExistCaps)

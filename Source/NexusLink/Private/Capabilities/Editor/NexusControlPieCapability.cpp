@@ -7,6 +7,7 @@
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
+#include "Utils/NexusVersionCompat.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -19,9 +20,9 @@
 void FControlPieCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("control_pie");
-	Out.Description = TEXT("启动/停止/查询 PIE。action=start|stop|status。");
+	Out.Description = TEXT("启动/停止/暂停/单步进 PIE。action=start|stop|status|pause|resume|step。");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("PIE 操作"), { TEXT("start"), TEXT("stop"), TEXT("status") }))
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("PIE 操作"), { TEXT("start"), TEXT("stop"), TEXT("status"), TEXT("pause"), TEXT("resume"), TEXT("step") }))
 		.Prop(TEXT("mode"),   FNexusSchema::Enum(TEXT("播放模式（仅 start）"), { TEXT("viewport"), TEXT("simulate") }, TEXT("viewport")))
 		.Required({ TEXT("action") })
 		.Build();
@@ -111,11 +112,60 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 			OutEntry->SetStringField(TEXT("action"), TEXT("stop"));
 			OutEntry->SetStringField(TEXT("note"), TEXT("已请求停止 PIE。"));
 		}
+		else if (Action.Equals(TEXT("pause"), ESearchCase::IgnoreCase)
+			|| Action.Equals(TEXT("resume"), ESearchCase::IgnoreCase)
+			|| Action.Equals(TEXT("step"), ESearchCase::IgnoreCase))
+		{
+			if (!GEditor->IsPlayingSessionInEditor())
+			{
+				OutEntry->SetBoolField(TEXT("success"), false);
+				OutEntry->SetStringField(TEXT("error"), TEXT("无运行中的 PIE 会话"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
+				return;
+			}
+			if (Action.Equals(TEXT("pause"), ESearchCase::IgnoreCase))
+			{
+#if NX_UE_HAS_SET_PIE_WORLDS_PAUSED
+				GEditor->SetPIEWorldsPaused(true);
+#else
+				if (UWorld* PlayWorld = GEditor->PlayWorld)
+				{
+					PlayWorld->bDebugPauseExecution = true;
+				}
+#endif
+				OutEntry->SetStringField(TEXT("state"), TEXT("paused"));
+			}
+			else if (Action.Equals(TEXT("resume"), ESearchCase::IgnoreCase))
+			{
+#if NX_UE_HAS_SET_PIE_WORLDS_PAUSED
+				GEditor->SetPIEWorldsPaused(false);
+#else
+				if (UWorld* PlayWorld = GEditor->PlayWorld)
+				{
+					PlayWorld->bDebugPauseExecution = false;
+				}
+#endif
+				OutEntry->SetStringField(TEXT("state"), TEXT("playing"));
+			}
+			else
+			{
+#if NX_UE_HAS_SET_PIE_WORLDS_PAUSED
+				GEditor->SetPIEWorldsPaused(false);
+#endif
+				if (UWorld* PlayWorld = GEditor->PlayWorld)
+				{
+					PlayWorld->bDebugPauseExecution = true;
+				}
+				OutEntry->SetStringField(TEXT("state"), TEXT("step"));
+				OutEntry->SetStringField(TEXT("note"), TEXT("已请求单步进（下一帧暂停）"));
+			}
+			OutEntry->SetStringField(TEXT("action"), Action.ToLower());
+		}
 		else
 		{
 			OutEntry->SetBoolField(TEXT("success"), false);
 			OutEntry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("Unknown action: %s; supported: start / stop / status"), *Action));
+				TEXT("Unknown action: %s; supported: start / stop / status / pause / resume / step"), *Action));
 		}
 	#else
 		OutEntry->SetBoolField(TEXT("success"), false);

@@ -22,7 +22,7 @@ void FGetAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("sequence"), TEXT("sequencer"), TEXT("cinematic"), TEXT("track"), TEXT("animation"), TEXT("cut"), TEXT("shot") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_level_sequence"), TEXT("search_asset"), TEXT("save_asset") };
+	Out.RelatedCapabilities = { TEXT("manage_asset_level_sequence"), TEXT("create_asset_level_sequence"), TEXT("search_asset"), TEXT("save_asset") };
 	Out.WhenToUse = TEXT("读 LevelSequence 的 Binding/Track 列表、时长、帧率");
 }
 

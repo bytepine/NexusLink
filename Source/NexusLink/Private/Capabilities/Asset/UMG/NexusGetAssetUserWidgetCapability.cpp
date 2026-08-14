@@ -7,6 +7,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusStringMatchUtils.h"
+#include "Utils/NexusWidgetAnimationUtils.h"
 #if WITH_EDITOR
 #include "WidgetBlueprint.h"
 #include "Blueprint/WidgetTree.h"
@@ -26,8 +27,11 @@ void FGetAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& 
 		TEXT("wbp"), TEXT("umg"), TEXT("hierarchy"), TEXT("children"), TEXT("layout"),
 		TEXT("animation"), TEXT("animate"), TEXT("transition")
 	};
-	Out.RelatedCapabilities = { TEXT("manage_asset_user_widget"), TEXT("create_asset_user_widget") };
-	Out.WhenToUse = TEXT("用户问控件树/UMG 动画 — 必须先调，勿 grep 源码");
+	Out.RelatedCapabilities = {
+		TEXT("manage_asset_user_widget"), TEXT("create_asset_user_widget"),
+		TEXT("get_asset_blueprint"), TEXT("manage_asset_blueprint")
+	};
+	Out.WhenToUse = TEXT("控件树/动画用本 cap；EventGraph 用 get/manage_asset_blueprint");
 }
 
 TSharedPtr<FJsonObject> FGetAssetUserWidgetCapability::BuildCapabilitySchema() const
@@ -215,6 +219,13 @@ void FGetAssetUserWidgetCapability::ExecuteSection(const FString&               
 			if (Bindings.Num() > 0)
 			{
 				AnimObj->SetArrayField(TEXT("bindings"), Bindings);
+			}
+
+			TArray<TSharedPtr<FJsonValue>> Tracks;
+			FNexusWidgetAnimationUtils::AppendTrackSummaries(Anim, Tracks);
+			if (Tracks.Num() > 0)
+			{
+				AnimObj->SetArrayField(TEXT("tracks"), Tracks);
 			}
 
 			AnimPage.Add(MakeShared<FJsonValueObject>(AnimObj));

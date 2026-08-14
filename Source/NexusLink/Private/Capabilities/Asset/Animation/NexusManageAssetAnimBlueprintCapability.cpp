@@ -15,6 +15,13 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "AnimGraphNode_StateMachine.h"
 #include "AnimGraphNode_StateMachineBase.h"
+#include "AnimGraphNode_SequencePlayer.h"
+#include "AnimGraphNode_BlendSpacePlayer.h"
+#include "AnimGraphNode_Slot.h"
+#include "AnimGraphNode_AssetPlayerBase.h"
+#include "Animation/AnimationAsset.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/BlendSpace.h"
 #include "AnimationStateMachineGraph.h"
 #include "AnimationStateMachineSchema.h"
 #include "AnimationGraph.h"
@@ -67,16 +74,27 @@ void FManageAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefini
 {
 	Out.Name = TEXT("manage_asset_anim_blueprint");
 	Out.SearchAssetTypes = {TEXT("AnimBlueprint")};
-	Out.Description = TEXT("批量编辑 ABP 状态机。增删 state_machine/state/transition；须保存。");
+	Out.Description = TEXT("批量编辑 ABP。状态机与 AnimGraph 节点（SequencePlayer/BlendSpacePlayer/Slot）；勿走 K2。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),           FNexusSchema::Enum(TEXT("操作类型"),
 			{ TEXT("add_state_machine"), TEXT("remove_state_machine"),
 			  TEXT("add_state"),         TEXT("remove_state"),
-			  TEXT("add_transition"),    TEXT("remove_transition") }))
+			  TEXT("add_transition"),    TEXT("remove_transition"),
+			  TEXT("add_node"), TEXT("remove_node"), TEXT("set_node"),
+			  TEXT("connect"), TEXT("disconnect") }))
 		.Prop(TEXT("graphName"),        FNexusSchema::Str(TEXT("所属 AnimGraph 名（默认 AnimGraph）")))
 		.Prop(TEXT("stateMachineName"), FNexusSchema::Str(TEXT("状态机名（boundgraph 名）")))
 		.Prop(TEXT("stateName"),        FNexusSchema::Str(TEXT("状态名（add/remove_state、过渡源）")))
 		.Prop(TEXT("targetStateName"),  FNexusSchema::Str(TEXT("过渡目标状态名")))
+		.Prop(TEXT("nodeClass"),        FNexusSchema::Enum(TEXT("AnimGraph 节点类（add_node）"),
+			{ TEXT("SequencePlayer"), TEXT("BlendSpacePlayer"), TEXT("Slot") }))
+		.Prop(TEXT("nodeId"),           FNexusSchema::Str(TEXT("节点 GUID（remove/set_node/connect）")))
+		.Prop(TEXT("sequencePath"),     FNexusSchema::Str(TEXT("动画资产路径（set_node Sequence/BlendSpace）")))
+		.Prop(TEXT("slotName"),         FNexusSchema::Str(TEXT("Slot 名（set_node Slot）")))
+		.Prop(TEXT("sourceNodeId"),     FNexusSchema::Str(TEXT("源节点 GUID（connect/disconnect）")))
+		.Prop(TEXT("sourcePinName"),    FNexusSchema::Str(TEXT("源引脚名")))
+		.Prop(TEXT("targetNodeId"),     FNexusSchema::Str(TEXT("目标节点 GUID")))
+		.Prop(TEXT("targetPinName"),    FNexusSchema::Str(TEXT("目标引脚名")))
 		.Prop(TEXT("posX"),             FNexusSchema::Num(TEXT("编辑器节点 X 坐标（可选）")))
 		.Prop(TEXT("posY"),             FNexusSchema::Num(TEXT("编辑器节点 Y 坐标（可选）")))
 		.Required({ TEXT("action") })
@@ -91,7 +109,7 @@ void FManageAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefini
 		TEXT("abp"), TEXT("statemachine"), TEXT("state"), TEXT("transition"), TEXT("animgraph")
 	};
 	Out.RelatedCapabilities = { TEXT("get_asset_anim_blueprint"), TEXT("create_asset_anim_blueprint"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("状态机 CRUD；AnimGraph 用 manage_asset_blueprint");
+	Out.WhenToUse = TEXT("状态机与 AnimGraph 节点 CRUD；不要用 manage_asset_blueprint 改 AnimGraph");
 }
 
 FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -523,6 +541,166 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			Entry->SetStringField(TEXT("stateName"),        SourceName);
 			Entry->SetStringField(TEXT("targetStateName"),  TargetName);
 			bModified = true;
+		}
+		else if (Action == TEXT("add_node"))
+		{
+			FString NodeClassName;
+			OpArgs->TryGetStringField(TEXT("nodeClass"), NodeClassName);
+			UClass* NodeClass = FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(NodeClassName);
+			UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphName);
+			if (!AnimGraph)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("未找到 AnimGraph"));
+			}
+			else if (!NodeClass)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("nodeClass 须为 SequencePlayer/BlendSpacePlayer/Slot"));
+			}
+			else
+			{
+				FString SpawnErr;
+				UEdGraphNode* Node = FNexusAnimGraphUtils::SpawnAnimGraphNode(AnimGraph, NodeClass, (int32)PosX, (int32)PosY, SpawnErr);
+				if (!Node)
+				{
+					Entry->SetStringField(TEXT("error"), SpawnErr);
+				}
+				else
+				{
+					FString SeqPath;
+					OpArgs->TryGetStringField(TEXT("sequencePath"), SeqPath);
+					if (SeqPath.IsEmpty()) OpArgs->TryGetStringField(TEXT("assetPath"), SeqPath);
+					if (!SeqPath.IsEmpty())
+					{
+						if (UAnimGraphNode_AssetPlayerBase* Player = Cast<UAnimGraphNode_AssetPlayerBase>(Node))
+						{
+							if (UAnimationAsset* AnimAsset = FNexusAssetUtils::LoadAssetWithFallback<UAnimationAsset>(SeqPath))
+							{
+								Player->SetAnimationAsset(AnimAsset);
+							}
+						}
+					}
+					FString SlotName;
+					if (OpArgs->TryGetStringField(TEXT("slotName"), SlotName) && !SlotName.IsEmpty())
+					{
+						if (UAnimGraphNode_Slot* SlotNode = Cast<UAnimGraphNode_Slot>(Node))
+						{
+							SlotNode->Node.SlotName = FName(*SlotName);
+						}
+					}
+					Entry->SetStringField(TEXT("nodeId"), Node->NodeGuid.ToString());
+					Entry->SetStringField(TEXT("nodeClass"), NodeClass->GetName());
+					bModified = true;
+				}
+			}
+		}
+		else if (Action == TEXT("remove_node"))
+		{
+			FString NodeId;
+			OpArgs->TryGetStringField(TEXT("nodeId"), NodeId);
+			UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphName);
+			UEdGraphNode* Node = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, NodeId) : nullptr;
+			if (!Node)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("remove_node 需要已存在的 nodeId"));
+			}
+			else
+			{
+				DestroyGraphNode(Node);
+				Entry->SetStringField(TEXT("nodeId"), NodeId);
+				bModified = true;
+			}
+		}
+		else if (Action == TEXT("set_node"))
+		{
+			FString NodeId;
+			OpArgs->TryGetStringField(TEXT("nodeId"), NodeId);
+			UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphName);
+			UEdGraphNode* Node = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, NodeId) : nullptr;
+			if (!Node)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("set_node 需要已存在的 nodeId"));
+			}
+			else
+			{
+				if (OpArgs->HasField(TEXT("posX"))) Node->NodePosX = (int32)OpArgs->GetNumberField(TEXT("posX"));
+				if (OpArgs->HasField(TEXT("posY"))) Node->NodePosY = (int32)OpArgs->GetNumberField(TEXT("posY"));
+				FString SeqPath;
+				OpArgs->TryGetStringField(TEXT("sequencePath"), SeqPath);
+				if (SeqPath.IsEmpty()) OpArgs->TryGetStringField(TEXT("assetPath"), SeqPath);
+				if (!SeqPath.IsEmpty())
+				{
+					if (UAnimGraphNode_AssetPlayerBase* Player = Cast<UAnimGraphNode_AssetPlayerBase>(Node))
+					{
+						UAnimationAsset* AnimAsset = FNexusAssetUtils::LoadAssetWithFallback<UAnimationAsset>(SeqPath);
+						if (!AnimAsset)
+						{
+							Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("动画资产未找到: %s"), *SeqPath));
+							OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+							continue;
+						}
+						Player->SetAnimationAsset(AnimAsset);
+					}
+				}
+				FString SlotName;
+				if (OpArgs->TryGetStringField(TEXT("slotName"), SlotName) && !SlotName.IsEmpty())
+				{
+					if (UAnimGraphNode_Slot* SlotNode = Cast<UAnimGraphNode_Slot>(Node))
+					{
+						SlotNode->Node.SlotName = FName(*SlotName);
+					}
+				}
+				Entry->SetStringField(TEXT("nodeId"), Node->NodeGuid.ToString());
+				bModified = true;
+			}
+		}
+		else if (Action == TEXT("connect") || Action == TEXT("disconnect"))
+		{
+			FString SrcId, SrcPin, DstId, DstPin;
+			OpArgs->TryGetStringField(TEXT("sourceNodeId"), SrcId);
+			OpArgs->TryGetStringField(TEXT("sourcePinName"), SrcPin);
+			OpArgs->TryGetStringField(TEXT("targetNodeId"), DstId);
+			OpArgs->TryGetStringField(TEXT("targetPinName"), DstPin);
+			UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphName);
+			UEdGraphNode* SrcNode = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, SrcId) : nullptr;
+			UEdGraphNode* DstNode = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, DstId) : nullptr;
+			if (!SrcNode || !DstNode)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("connect/disconnect 需要有效的 sourceNodeId/targetNodeId"));
+			}
+			else if (Action == TEXT("connect"))
+			{
+				FString ConnErr;
+				if (!FNexusAnimGraphUtils::ConnectAnimPins(SrcNode, SrcPin, DstNode, DstPin, ConnErr))
+				{
+					Entry->SetStringField(TEXT("error"), ConnErr);
+				}
+				else
+				{
+					bModified = true;
+				}
+			}
+			else
+			{
+				UEdGraphPin* FoundSrc = nullptr;
+				UEdGraphPin* FoundDst = nullptr;
+				for (UEdGraphPin* P : SrcNode->Pins)
+				{
+					if (P && P->PinName.ToString().Equals(SrcPin, ESearchCase::IgnoreCase)) FoundSrc = P;
+				}
+				for (UEdGraphPin* P : DstNode->Pins)
+				{
+					if (P && P->PinName.ToString().Equals(DstPin, ESearchCase::IgnoreCase)) FoundDst = P;
+				}
+				if (FoundSrc && FoundDst)
+				{
+					FoundSrc->BreakLinkTo(FoundDst);
+					bModified = true;
+				}
+				else
+				{
+					Entry->SetStringField(TEXT("error"), TEXT("disconnect 未找到对应引脚"));
+				}
+			}
 		}
 		else
 		{

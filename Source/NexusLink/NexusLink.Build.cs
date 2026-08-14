@@ -261,6 +261,10 @@ public class NexusLink : ModuleRules
 		if (bHasNiagara)
 		{
 			PrivateDependencyModuleNames.Add("Niagara");
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("NiagaraEditor");
+			}
 			PublicDefinitions.Add("WITH_NIAGARA=1");
 		}
 		else

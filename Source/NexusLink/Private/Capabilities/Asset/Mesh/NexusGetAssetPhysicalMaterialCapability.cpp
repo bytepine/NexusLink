@@ -18,7 +18,7 @@ void FGetAssetPhysicalMaterialCapability::BuildDefinition(FNexusCapabilityDefini
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("physical"), TEXT("material"), TEXT("friction"), TEXT("restitution"), TEXT("surface") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_physical_material") };
+	Out.RelatedCapabilities = { TEXT("manage_asset_physical_material"), TEXT("create_asset_physical_material") };
 }
 
 FCapabilityResult FGetAssetPhysicalMaterialCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const

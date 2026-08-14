@@ -10,20 +10,29 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Rig/IKRigDefinition.h"
 #include "Rig/Solvers/IKRigSolver.h"
+#include "Rig/IKRigDefinition.h"
 #include "Engine/SkeletalMesh.h"
+#if WITH_EDITOR
+#include "RigEditor/IKRigController.h"
+#endif
 #include "NexusMcpTool.h"
 
 void FManageAssetIKRigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_ik_rig");
 	Out.SearchAssetTypes = {TEXT("IKRig"), TEXT("IKRigDefinition")};
-	Out.Description = TEXT("编辑 IKRig：set_preview_mesh / set_solver_enabled。");
+	Out.Description = TEXT("编辑 IKRig：preview mesh/solver/chain/goal。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
-			{ TEXT("set_preview_mesh"), TEXT("set_solver_enabled") }))
+			{ TEXT("set_preview_mesh"), TEXT("set_solver_enabled"),
+			  TEXT("add_chain"), TEXT("remove_chain"), TEXT("set_goal") }))
 		.Prop(TEXT("meshPath"),       FNexusSchema::Str(TEXT("SkeletalMesh 路径（set_preview_mesh）")))
 		.Prop(TEXT("solverIndex"),    FNexusSchema::Int(TEXT("Solver 索引（set_solver_enabled）")))
 		.Prop(TEXT("enabled"),        FNexusSchema::Bool(TEXT("是否启用（set_solver_enabled）")))
+		.Prop(TEXT("chainName"),      FNexusSchema::Str(TEXT("链名")))
+		.Prop(TEXT("startBone"),      FNexusSchema::Str(TEXT("add_chain 起始骨")))
+		.Prop(TEXT("endBone"),        FNexusSchema::Str(TEXT("add_chain 结束骨")))
+		.Prop(TEXT("goalName"),       FNexusSchema::Str(TEXT("set_goal 目标名")))
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("assetPath"),  FNexusSchema::Str(TEXT("IKRig 资产路径")))
@@ -31,7 +40,7 @@ void FManageAssetIKRigCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("ikrig"), TEXT("ik"), TEXT("solver"), TEXT("preview mesh") };
-	Out.RelatedCapabilities = { TEXT("get_asset_ik_rig"), TEXT("create_asset_ik_rig") };
+	Out.RelatedCapabilities = { TEXT("get_asset_ik_rig"), TEXT("create_asset_ik_rig"), TEXT("create_asset_ik_retargeter") };
 	Out.WhenToUse = TEXT("修改 IKRig 属性；修改后需 save_asset 落盘");
 }
 
@@ -113,6 +122,48 @@ FCapabilityResult FManageAssetIKRigCapability::Execute(const TSharedPtr<FJsonObj
 				ResEntry->SetBoolField(TEXT("enabled"), bEnabled);
 #else
 				ResEntry->SetStringField(TEXT("error"), TEXT("set_solver_enabled 仅编辑器可用"));
+#endif
+			}
+			else if (Action.Equals(TEXT("add_chain"), ESearchCase::IgnoreCase)
+				|| Action.Equals(TEXT("remove_chain"), ESearchCase::IgnoreCase)
+				|| Action.Equals(TEXT("set_goal"), ESearchCase::IgnoreCase))
+			{
+#if WITH_EDITOR
+				UIKRigController* Ctrl = UIKRigController::GetController(IKRig);
+				if (!Ctrl)
+				{
+					ResEntry->SetStringField(TEXT("error"), TEXT("无法获取 IKRigController"));
+				}
+				else
+				{
+					FString ChainName, StartBone, EndBone, GoalName;
+					Op->TryGetStringField(TEXT("chainName"), ChainName);
+					Op->TryGetStringField(TEXT("startBone"), StartBone);
+					Op->TryGetStringField(TEXT("endBone"), EndBone);
+					Op->TryGetStringField(TEXT("goalName"), GoalName);
+					if (ChainName.IsEmpty())
+					{
+						ResEntry->SetStringField(TEXT("error"), TEXT("需要 chainName"));
+					}
+					else if (Action.Equals(TEXT("add_chain"), ESearchCase::IgnoreCase))
+					{
+						Ctrl->AddRetargetChain(FName(*ChainName), FName(*StartBone), FName(*EndBone));
+						bDirty = true;
+						ResEntry->SetStringField(TEXT("chainName"), ChainName);
+					}
+					else if (Action.Equals(TEXT("remove_chain"), ESearchCase::IgnoreCase))
+					{
+						Ctrl->RemoveRetargetChain(FName(*ChainName));
+						bDirty = true;
+					}
+					else
+					{
+						Ctrl->SetRetargetChainGoal(FName(*ChainName), FName(*GoalName));
+						bDirty = true;
+					}
+				}
+#else
+				ResEntry->SetStringField(TEXT("error"), TEXT("chain/goal 仅编辑器可用"));
 #endif
 			}
 			else

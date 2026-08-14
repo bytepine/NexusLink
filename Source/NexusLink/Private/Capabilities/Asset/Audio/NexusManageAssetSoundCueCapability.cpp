@@ -37,7 +37,7 @@ void FManageAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition&
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("cue"), TEXT("volume"), TEXT("pitch"), TEXT("node") };
-	Out.RelatedCapabilities = { TEXT("get_asset_sound_cue"), TEXT("get_asset_sound_wave") };
+	Out.RelatedCapabilities = { TEXT("get_asset_sound_cue"), TEXT("create_asset_sound_cue"), TEXT("get_asset_sound_wave") };
 	Out.Prerequisites = { TEXT("editor_only") };
 	Out.WhenToUse = TEXT("改 Cue 属性或节点图；索引与 get_asset_sound_cue nodes[] 一致");
 }

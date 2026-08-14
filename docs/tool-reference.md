@@ -36,7 +36,7 @@
 ---
 
 <!-- 自动生成，由 build_tool_reference.py 产出；以下内容请勿手工修改 -->
-<!-- 共 174 个 Capability + 3 个元工具 -->
+<!-- 共 186 个 Capability + 3 个元工具 -->
 
 ## 目录
 
@@ -120,13 +120,13 @@
 
 ### `control_pie`
 
-启动、停止或查询 PIE 状态。action 可取：`start` / `stop` / `status`；mode 可取：`viewport` / `simulate`。
+启动、停止、暂停或单步 PIE。action 可取：`start` / `stop` / `status` / `pause` / `resume` / `step`；mode 可取：`viewport` / `simulate`。
 
-**适用场景**：启动/停止/查询 PIE；action=start|stop|status
+**适用场景**：启动/停止/暂停/单步 PIE；action=start|stop|status|pause|resume|step
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `action` | `string (enum)` | ★ | PIE 操作 枚举值：`start` / `stop` / `status` |
+| `action` | `string (enum)` | ★ | PIE 操作 枚举值：`start` / `stop` / `status` / `pause` / `resume` / `step` |
 | `mode` | `string (enum)` |  | 播放模式（仅 start） 枚举值：`viewport` / `simulate` |
 
 **相关 Capability**：`exec_command`
@@ -318,6 +318,22 @@
 
 ---
 
+### `create_asset_ik_retargeter`
+
+创建空白 IKRetargeter；可选源/目标 IKRig。
+
+**适用场景**：新建 IKRetargeter；对齐 create_asset_ik_rig
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+| `sourceRigPath` | `string` |  | 源 IKRig 路径 |
+| `targetRigPath` | `string` |  | 目标 IKRig 路径 |
+
+**相关 Capability**：`get_asset_ik_retargeter`、`manage_asset_ik_retargeter`、`create_asset_ik_rig`
+
+---
+
 ### `create_asset_ik_rig`
 
 创建空白 IKRig 资产；可选关联预览 SkeletalMesh。
@@ -362,6 +378,36 @@
 
 ---
 
+### `create_asset_level`
+
+创建空白关卡（UWorld）。仅 Editor。
+
+**前置条件**：`editor_only`
+
+**适用场景**：新建空白地图；Actor 用 manage_asset_level
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 关卡包路径 |
+
+**相关 Capability**：`get_asset_level`、`manage_asset_level`
+
+---
+
+### `create_asset_level_sequence`
+
+创建空白 LevelSequence 并初始化 MovieScene。
+
+**适用场景**：新建 LevelSequence；再用 manage 加 binding/轨/关键帧
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+
+**相关 Capability**：`get_asset_level_sequence`、`manage_asset_level_sequence`
+
+---
+
 ### `create_asset_meta_sound`
 
 创建 MetaSound Source 资产。读用 get_asset_meta_sound。
@@ -390,6 +436,20 @@
 
 ---
 
+### `create_asset_niagara_system`
+
+创建空白 NiagaraSystem。无模块图。
+
+**适用场景**：新建 Niagara 系统；Emitter CRUD 用 manage
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+
+**相关 Capability**：`get_asset_niagara_system`、`manage_asset_niagara_system`
+
+---
+
 ### `create_asset_pcg_graph`
 
 创建 PCG Graph 资产。读用 get_asset_pcg_graph。
@@ -401,6 +461,22 @@
 | `assetPath` | `string` | ★ | 新 PCG Graph 资产完整路径，如 /Game/PCG/PCG_NewGraph |
 
 **相关 Capability**：`get_asset_pcg_graph`、`manage_asset_pcg_graph`、`search_asset`
+
+---
+
+### `create_asset_physical_material`
+
+创建 PhysicalMaterial。可选 friction/restitution。
+
+**适用场景**：新建 PhysicalMaterial；用 manage 改摩擦/弹性
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+| `friction` | `number` |  | 摩擦系数 |
+| `restitution` | `number` |  | 弹性系数 |
+
+**相关 Capability**：`get_asset_physical_material`、`manage_asset_physical_material`
 
 ---
 
@@ -464,6 +540,34 @@
 | `maxCount` | `integer` |  | 最大并发实例数（默认16） |
 
 **相关 Capability**：`get_asset_sound_concurrency`、`manage_asset_sound_concurrency`
+
+---
+
+### `create_asset_sound_cue`
+
+创建空白 SoundCue。节点用 manage_asset_sound_cue。
+
+**适用场景**：新建 SoundCue；对齐 create_asset_sound_class
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | SoundCue 包路径 |
+
+**相关 Capability**：`get_asset_sound_cue`、`manage_asset_sound_cue`
+
+---
+
+### `create_asset_state_tree`
+
+创建空白 StateTree。UE 5.5+。
+
+**适用场景**：新建 StateTree；结构用 manage_asset_state_tree
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+
+**相关 Capability**：`get_asset_state_tree`、`manage_asset_state_tree`
 
 ---
 
@@ -619,7 +723,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | IKRetargeter 资产路径 |
 
-**相关 Capability**：`manage_asset_ik_retargeter`、`get_asset_ik_rig`
+**相关 Capability**：`manage_asset_ik_retargeter`、`get_asset_ik_rig`、`create_asset_ik_retargeter`
 
 ---
 
@@ -683,7 +787,7 @@
 | `offset` | `integer` |  | actors 段分页偏移 |
 | `limit` | `integer` |  | actors 段每页条数 |
 
-**相关 Capability**：`manage_asset_level`、`search_asset`、`list_runtime_actors`、`get_asset_refs`
+**相关 Capability**：`manage_asset_level`、`create_asset_level`、`search_asset`、`list_runtime_actors`、`get_asset_refs`
 
 ---
 
@@ -697,7 +801,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | LevelSequence 资产路径 |
 
-**相关 Capability**：`manage_asset_level_sequence`、`search_asset`、`save_asset`
+**相关 Capability**：`manage_asset_level_sequence`、`create_asset_level_sequence`、`search_asset`、`save_asset`
 
 ---
 
@@ -725,7 +829,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | NiagaraSystem 资产路径 |
 
-**相关 Capability**：`manage_asset_niagara_system`、`search_asset`、`get_asset_refs`、`save_asset`
+**相关 Capability**：`manage_asset_niagara_system`、`create_asset_niagara_system`、`search_asset`、`get_asset_refs`、`save_asset`
 
 ---
 
@@ -751,7 +855,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | PhysicalMaterial 资产路径 |
 
-**相关 Capability**：`manage_asset_physical_material`
+**相关 Capability**：`manage_asset_physical_material`、`create_asset_physical_material`
 
 ---
 
@@ -875,7 +979,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | SoundCue 资产路径 |
 
-**相关 Capability**：`manage_asset_sound_cue`、`search_asset`、`get_asset_sound_wave`、`get_asset_refs`
+**相关 Capability**：`manage_asset_sound_cue`、`create_asset_sound_cue`、`search_asset`、`get_asset_sound_wave`、`get_asset_refs`
 
 ---
 
@@ -915,7 +1019,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | StateTree 资产路径（/Game/…/ST_Foo） |
 
-**相关 Capability**：`search_asset`、`get_asset_behavior_tree`、`get_asset_refs`、`save_asset`
+**相关 Capability**：`manage_asset_state_tree`、`search_asset`、`get_asset_behavior_tree`、`get_asset_refs`、`save_asset`
 
 ---
 
@@ -957,7 +1061,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | Widget 蓝图资产路径（/Game/…/WBP_Foo） |
 
-**相关 Capability**：`get_asset_user_widget`、`manage_asset_user_widget`、`search_asset`、`get_asset_blueprint`
+**相关 Capability**：`get_asset_user_widget`、`manage_asset_user_widget`、`search_asset`、`get_asset_blueprint`、`manage_asset_view_model`
 
 ---
 
@@ -985,7 +1089,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | ControlRig Blueprint 资产路径 |
-| `operations` | `object[]` | ★ | 操作列表；item: `action`(rename_element/set_control_color/add_null/remove_element/add_rig_link/break_rig_link/add_rig_node), `elementName`, `newName`, `r`, `g`, `b`, `a`, `parentName`, `elementType`(bone/control/null), `sourcePinPath`, `targetPinPath`, `structType`, `nodeName` |
+| `operations` | `object[]` | ★ | 操作列表；item: `action`(rename_element/set_control_color/add_null/remove_element/add_rig_link/break_rig_link/add_rig_node/add_control…), `elementName`, `newName`, `r`, `g`, `b`, `a`, `parentName`, `elementType`(bone/control/null), `sourcePinPath`, `targetPinPath`, `structType`, `nodeName`, `pinPath`, `pinDefaultValue` |
 
 **相关 Capability**：`get_asset_control_rig`、`create_asset_control_rig`
 
@@ -1073,22 +1177,22 @@
 | `assetPath` | `string` | ★ | IKRetargeter 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(set_source_rig/set_target_rig/set_chain_source), `rigPath`, `targetChain`, `sourceChain` |
 
-**相关 Capability**：`get_asset_ik_retargeter`、`get_asset_ik_rig`
+**相关 Capability**：`get_asset_ik_retargeter`、`get_asset_ik_rig`、`create_asset_ik_retargeter`
 
 ---
 
 ### `manage_asset_ik_rig`
 
-编辑 IKRig：set_preview_mesh / set_solver_enabled。
+编辑 IKRig：preview mesh/solver/chain/goal。
 
 **适用场景**：修改 IKRig 属性；修改后需 save_asset 落盘
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | IKRig 资产路径 |
-| `operations` | `object[]` | ★ | 操作列表；item: `action`(set_preview_mesh/set_solver_enabled), `meshPath`, `solverIndex`, `enabled` |
+| `operations` | `object[]` | ★ | 操作列表；item: `action`(set_preview_mesh/set_solver_enabled/add_chain/remove_chain/set_goal), `meshPath`, `solverIndex`, `enabled`, `chainName`, `startBone`, `endBone`, `goalName` |
 
-**相关 Capability**：`get_asset_ik_rig`、`create_asset_ik_rig`
+**相关 Capability**：`get_asset_ik_rig`、`create_asset_ik_rig`、`create_asset_ik_retargeter`
 
 ---
 
@@ -1141,16 +1245,16 @@
 
 ### `manage_asset_level_sequence`
 
-编辑 LevelSequence：set_display_rate/set_range/remove_binding/add_master_track/remove_master_track。
+编辑 LevelSequence：帧率/范围/binding/轨/关键帧。
 
-**适用场景**：改 LevelSequence 的帧率/播放范围/Binding/MasterTrack
+**适用场景**：改 LevelSequence 的帧率/Binding/轨/关键帧
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | LevelSequence 资产路径 |
-| `operations` | `object[]` | ★ | 操作列表；item: `action`(set_display_rate/set_playback_range/remove_binding/add_master_track/remove_master_track), `numerator`, `denominator`, `startFrame`, `endFrame`, `bindingGuid`, `trackClass`(CameraCut/Audio) |
+| `operations` | `object[]` | ★ | 操作列表；item: `action`(set_display_rate/set_playback_range/remove_binding/add_master_track/remove_master_track/add_possessable/add_spawnable/add_track…), `numerator`, `denominator`, `startFrame`, `endFrame`, `bindingGuid`, `possessableName`, `className`, `trackClass`(CameraCut/Audio/Float/Transform), `time`, `keyValue`, `x`, `y`, `z` |
 
-**相关 Capability**：`get_asset_level_sequence`、`save_asset`
+**相关 Capability**：`get_asset_level_sequence`、`create_asset_level_sequence`、`save_asset`
 
 ---
 
@@ -1180,22 +1284,23 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | NiagaraSystem 资产路径 |
-| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property/set_user_parameter), `propertyPath`, `parameterName`, `value` |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property/set_user_parameter/set_emitter_enabled/rename_emitter/add_emitter/remove_emitter), `propertyPath`, `parameterName`, `emitterName`, `newName`, `enabled`, `emitterPath`, `value` |
 
-**相关 Capability**：`get_asset_niagara_system`、`search_asset`
+**相关 Capability**：`get_asset_niagara_system`、`create_asset_niagara_system`、`search_asset`
 
 ---
 
 ### `manage_asset_pcg_graph`
 
-管理 PCG Graph：add_node/remove_node/add_edge（UE 5.4+）。
+管理 PCG Graph：add_node/remove_node/add_edge/remove_edge（UE 5.4+）。
 
 **适用场景**：向 PCG Graph 添加/删除节点或连接 pin
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | PCG Graph 资产路径 |
-| `operations` | `object[]` | ★ | 操作列表 |
+| `operations` | `object[]` | ★ | 操作列表；item: `action`(add_node/remove_node/add_edge/remove_edge) |
+| `action` | `string (enum)` |  | 操作 枚举值：`add_node` / `remove_node` / `add_edge` / `remove_edge` |
 
 **相关 Capability**：`get_asset_pcg_graph`、`create_asset_pcg_graph`
 
@@ -1210,7 +1315,7 @@
 | `assetPath` | `string` | ★ | PhysicalMaterial 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set), `friction`, `restitution`, `density`, `raiseMassToPower`, `surfaceType` |
 
-**相关 Capability**：`get_asset_physical_material`
+**相关 Capability**：`get_asset_physical_material`、`create_asset_physical_material`
 
 ---
 
@@ -1326,7 +1431,7 @@
 | `assetPath` | `string` | ★ | SoundCue 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property/add_node/remove_node/connect_nodes), `propertyPath`, `value`, `nodeClass`, `soundWavePath`, `parentNodeIndex`, `childSlot`, `nodeIndex`, `childIndex` |
 
-**相关 Capability**：`get_asset_sound_cue`、`get_asset_sound_wave`
+**相关 Capability**：`get_asset_sound_cue`、`create_asset_sound_cue`、`get_asset_sound_wave`
 
 ---
 
@@ -1362,16 +1467,16 @@
 
 ### `manage_asset_state_tree`
 
-编辑 StateTree：add_state/remove_state/rename_state/recompile。UE 5.5+。
+编辑 StateTree：state/task/condition/transition。UE 5.5+。
 
-**适用场景**：增删改 StateTree 的 State 节点，或触发重编译
+**适用场景**：增删改 StateTree 的 State/Task/Condition/Transition
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | StateTree 资产路径 |
-| `operations` | `object[]` | ★ | 操作列表；item: `action`(add_state/remove_state/rename_state/recompile), `stateName`, `newName`, `parentState`, `stateType`(State/Group/Linked/Subtree) |
+| `operations` | `object[]` | ★ | 操作列表；item: `action`(add_state/remove_state/rename_state/recompile/add_task/remove_task/add_enter_condition/remove_enter_condition…), `stateName`, `newName`, `parentState`, `stateType`(State/Group/Linked/Subtree), `nodeType`, `targetState`, `index` |
 
-**相关 Capability**：`get_asset_state_tree`、`save_asset`
+**相关 Capability**：`get_asset_state_tree`、`create_asset_state_tree`、`save_asset`
 
 ---
 
@@ -1406,6 +1511,21 @@
 | `operations` | `object[]` | ★ | 批量属性操作（至少一项）；item: `action`(set_property), `propertyPath`, `value` |
 
 **相关 Capability**：`get_asset_texture`、`search_asset`
+
+---
+
+### `manage_asset_view_model`
+
+编辑 WBP MVVM：add/remove ViewModel 与 Binding。UE 5.5+。
+
+**适用场景**：给 WBP 增删 MVVM ViewModel/Binding
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | WidgetBlueprint 路径 |
+| `operations` | `object[]` | ★ | 操作列表；item: `action`(add_view_model/remove_view_model/add_binding/remove_binding), `viewModelName`, `viewModelClass`, `bindingIndex` |
+
+**相关 Capability**：`get_asset_view_model`、`get_asset_user_widget`、`save_asset`
 
 ---
 
@@ -1551,7 +1671,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 蓝图资产路径 |
-| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_variable/remove_variable/add_function/remove_function/add_interface/remove_interface/add_node/remove_node…), `graphName`, `variableName`, `variableType`, `defaultValue`, `category`, `isPublic`, `nodeId`, `nodeClass`, `functionName`, `functionClass`, `interfaceName`, `posX`, `posY`, `comment`, `pinName`, `pinDefaultValue`, `sourceNodeId`, `sourcePinName`, `targetNodeId`, `targetPinName`, `componentClass`, `componentName`, `attachTo`, `propertyPath`, `value` |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_variable/remove_variable/add_function/remove_function/add_macro/add_timeline/add_dispatcher/add_local_variable…), `graphName`, `variableName`, `variableType`, `defaultValue`, `category`, `isPublic`, `nodeId`, `nodeClass`, `functionName`, `functionClass`, `interfaceName`, `posX`, `posY`, `comment`, `pinName`, `pinDefaultValue`, `sourceNodeId`, `sourcePinName`, `targetNodeId`, `targetPinName`, `componentClass`, `componentName`, `attachTo`, `propertyPath`, `value` |
 
 **相关 Capability**：`get_asset_blueprint`、`create_asset_blueprint`、`save_asset`
 
@@ -1628,7 +1748,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | 查询段（可多选）：`variables` / `statemachines` / `defaults` / `graphOverview` |
+| `sections` | `string[]` |  | 查询段（可多选）：`variables` / `statemachines` / `defaults` / `graphOverview` / `graph` |
 | `assetPath` | `string` |  | 动画蓝图资产路径 |
 | `nameFilter` | `string` |  | 变量/默认值名称过滤 |
 
@@ -1734,13 +1854,14 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `action` | `string (enum)` | ★ | 动画命令 枚举值：`play_montage` / `stop_montage` / `stop_all` / `set_anim_variable` |
+| `action` | `string (enum)` | ★ | 动画命令 枚举值：`play_montage` / `stop_montage` / `stop_all` / `set_anim_variable` / `jump_to_section` / `set_anim_class` |
 | `actorName` | `string` | ★ | Actor 名 |
-| `montagePath` | `string` |  | 蒙太奇资产路径（play/stop） |
+| `montagePath` | `string` |  | 蒙太奇资产路径（play/stop/jump） |
 | `playRate` | `number` |  | 播放速率 |
-| `startSection` | `string` |  | 起始 Section 名（play_montage） |
+| `startSection` | `string` |  | Section 名（play_montage / jump_to_section） |
 | `variableName` | `string` |  | AnimInstance 变量名（set_anim_variable） |
 | `value` | `string` |  | 变量新值字符串（set_anim_variable） |
+| `animClassPath` | `string` |  | AnimBlueprint GeneratedClass 路径（set_anim_class） |
 
 **相关 Capability**：`get_runtime_actor_animation`、`get_asset_anim_montage`
 
@@ -1755,7 +1876,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 动画蓝图资产路径 |
-| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_state_machine/remove_state_machine/add_state/remove_state/add_transition/remove_transition), `graphName`, `stateMachineName`, `stateName`, `targetStateName`, `posX`, `posY` |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_state_machine/remove_state_machine/add_state/remove_state/add_transition/remove_transition/add_node/remove_node…), `graphName`, `stateMachineName`, `stateName`, `targetStateName`, `nodeClass`(SequencePlayer/BlendSpacePlayer/Slot), `nodeId`, `sequencePath`, `slotName`, `sourceNodeId`, `sourcePinName`, `targetNodeId`, `targetPinName`, `posX`, `posY` |
 
 **相关 Capability**：`get_asset_anim_blueprint`、`create_asset_anim_blueprint`、`save_asset`
 
@@ -1903,7 +2024,7 @@
 | `offset` | `integer` |  | 分页偏移 |
 | `limit` | `integer` |  | 每页最大条数 |
 
-**相关 Capability**：`manage_asset_material`、`create_asset_material`
+**相关 Capability**：`manage_asset_material`、`create_asset_material`、`create_asset_material_function`
 
 ---
 
@@ -1929,10 +2050,10 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Material/MI 资产路径（共用） |
+| `assetPath` | `string` | ★ | Material/MI/MaterialFunction 资产路径（共用） |
 | `operations` | `object[]` | ★ | 批量材质操作；item: `action`(set_param/add_node/remove_node/set_node/recompile/connect/disconnect/disconnect_all), `paramName`, `paramType`(scalar/vector/texture), `value`, `expressionClass`, `parameterName`, `defaultValue`, `nodeId`, `posX`, `posY`, `sourceNodeId`, `sourceOutputName`, `targetNodeId`, `targetInputName` |
 
-**相关 Capability**：`get_asset_material`、`create_asset_material`、`save_asset`
+**相关 Capability**：`get_asset_material`、`create_asset_material`、`create_asset_material_function`、`save_asset`
 
 ---
 
@@ -2129,7 +2250,7 @@
 | `offset` | `integer` |  | Widget 分页偏移（默认 0） |
 | `limit` | `integer` |  | 每页最大 Widget 数 1~500（默认 100） |
 
-**相关 Capability**：`manage_asset_user_widget`、`create_asset_user_widget`
+**相关 Capability**：`manage_asset_user_widget`、`create_asset_user_widget`、`get_asset_blueprint`、`manage_asset_blueprint`
 
 ---
 
@@ -2142,9 +2263,9 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | WidgetBlueprint 资产路径（共用） |
-| `operations` | `object[]` | ★ | 批量 Widget 操作；item: `action`(add/remove/set_slot/set_property), `widgetClass`, `widgetName`, `parentWidget`, `propertyPath`, `value`, `anchorMinX`, `anchorMinY`, `anchorMaxX`, `anchorMaxY`, `alignmentX`, `alignmentY`, `offsetLeft`, `offsetTop`, `offsetRight`, `offsetBottom` |
+| `operations` | `object[]` | ★ | 批量 Widget 操作；item: `action`(add/remove/set_slot/set_property/add_animation/remove_animation/add_track/add_key), `widgetClass`, `widgetName`, `parentWidget`, `animationName`, `trackName`, `time`, `keyValue`, `propertyPath`, `value`, `anchorMinX`, `anchorMinY`, `anchorMaxX`, `anchorMaxY`, `alignmentX`, `alignmentY`, `offsetLeft`, `offsetTop`, `offsetRight`, `offsetBottom` |
 
-**相关 Capability**：`get_asset_user_widget`、`create_asset_user_widget`、`save_asset`
+**相关 Capability**：`get_asset_user_widget`、`create_asset_user_widget`、`save_asset`、`get_asset_blueprint`、`manage_asset_blueprint`
 
 ---
 
@@ -2210,7 +2331,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 蓝图资产路径 |
 
-**相关 Capability**：`get_runtime_lua_object`、`get_runtime_lua_env`
+**相关 Capability**：`get_runtime_lua_object`、`get_runtime_lua_env`、`manage_asset_lua_binding`
 
 ---
 
@@ -2343,6 +2464,23 @@
 **适用场景**：热重载 UnLua 模块（2.x）；需运行中 PIE；UnLua 1.x 不执行热重载会 error
 
 **相关 Capability**：`dofile_runtime_lua`、`eval_runtime_lua`
+
+---
+
+### `manage_asset_lua_binding`
+
+绑定/解绑 BP 的 UnLua 接口。action=bind|unbind。
+
+**前置条件**：`unlua` / `editor_only`
+
+**适用场景**：给 BP 实现/移除 UnLuaInterface；勿用 set_* 非 property
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 蓝图资产路径 |
+| `operations` | `object[]` | ★ | 操作列表；item: `action`(bind/unbind), `moduleName` |
+
+**相关 Capability**：`get_asset_lua_binding`、`get_runtime_lua_object`
 
 ---
 
@@ -2497,15 +2635,52 @@ PIE 读 Actor ASC 快照。`sections=abilities|effects|attributes`；写用 `int
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `action` | `string (enum)` | ★ | 写操作 枚举值：`activate_ability` / `cancel_ability` / `apply_effect` / `remove_effect` / `set_attribute` |
+| `action` | `string (enum)` | ★ | 写操作 枚举值：`activate_ability` / `cancel_ability` / `apply_effect` / `remove_effect` / `set_attribute` / `give_ability` / `clear_ability` / `execute_cue` / `add_loose_tag` / `remove_loose_tag` |
 | `actorName` | `string` |  | Actor 名称（可选；省略取首个带 ASC 的 Pawn/Actor） |
-| `abilityPath` | `string` |  | GameplayAbility 资产路径（activate/cancel） |
+| `abilityPath` | `string` |  | GameplayAbility 资产路径 |
 | `effectPath` | `string` |  | GameplayEffect 资产路径（apply/remove） |
 | `attributeName` | `string` |  | 属性名，格式 AttributeSetName.AttributeName（set_attribute） |
 | `value` | `number` |  | 属性新基础值（set_attribute） |
 | `level` | `number` |  | Ability/Effect 等级（默认 1） |
+| `tag` | `string` |  | GameplayTag（execute_cue / loose tag） |
 
 **相关 Capability**：`get_runtime_actor_ability_system`、`get_gameplay_tags`
+
+---
+
+### `interact_runtime_actor_audio`
+
+运行时播放音效。action=play_sound；可选附着 Actor。
+
+**前置条件**：`pie`
+
+**适用场景**：PIE 中播放音效，可附着到 Actor
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `action` | `string (enum)` | ★ | 操作 枚举值：`play_sound` |
+| `assetPath` | `string` | ★ | SoundCue/SoundWave 路径 |
+| `actorName` | `string` |  | 可选：附着到该 Actor |
+
+**相关 Capability**：`get_asset_sound_cue`、`get_asset_sound_wave`
+
+---
+
+### `interact_runtime_actor_niagara`
+
+运行时激活/关闭 Niagara。action=activate|deactivate。
+
+**前置条件**：`pie`
+
+**适用场景**：PIE 中开关 Niagara 组件或按资产路径生成
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `action` | `string (enum)` | ★ | 操作 枚举值：`activate` / `deactivate` |
+| `actorName` | `string` |  | Actor 名 |
+| `assetPath` | `string` |  | 可选：NiagaraSystem 路径（activate 时生成） |
+
+**相关 Capability**：`get_asset_niagara_system`
 
 ---
 
@@ -2746,6 +2921,26 @@ PIE 读 Actor ASC 快照。`sections=abilities|effects|attributes`；写用 `int
 
 ---
 
+### `interact_runtime_actor_ai`
+
+运行时 AI 移动。action=move_to；需 AIController。
+
+**前置条件**：`pie`
+
+**适用场景**：PIE 中令带 AIController 的 Pawn 移到坐标
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `action` | `string (enum)` | ★ | 操作 枚举值：`move_to` |
+| `actorName` | `string` | ★ | Pawn/Actor 名 |
+| `x` | `number` |  | 目标 X |
+| `y` | `number` |  | 目标 Y |
+| `z` | `number` |  | 目标 Z |
+
+**相关 Capability**：`get_runtime_actor_behavior_tree`、`list_runtime_actors`
+
+---
+
 ### `interact_runtime_actor_behavior_tree`
 
 运行时写 BT：`set_blackboard` / `restart_tree` / `stop_tree`；按 AIController 定位。
@@ -2798,7 +2993,7 @@ PIE 读 Actor ASC 快照。`sections=abilities|effects|attributes`；写用 `int
 
 ### `manage_asset_eqs`
 
-编辑 EQS：add_option/remove_option/set_generator/add_test/remove_test。
+编辑 EQS Option/Generator/Test。UE5+（4.26 整文件门控未注册）。
 
 **适用场景**：往 EQS 里添加/删除 Option、设置 Generator、添加/删除 Test
 

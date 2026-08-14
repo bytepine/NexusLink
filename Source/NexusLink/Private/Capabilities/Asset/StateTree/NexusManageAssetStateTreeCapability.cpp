@@ -23,19 +23,25 @@ void FManageAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("manage_asset_state_tree");
 	Out.SearchAssetTypes = {TEXT("StateTree")};
-	Out.Description = TEXT("编辑 StateTree：add_state/remove_state/rename_state/recompile。UE 5.5+。");
+	Out.Description = TEXT("编辑 StateTree：state/task/condition/transition。UE 5.5+。");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(
 			TEXT("操作类型"),
-			{ TEXT("add_state"), TEXT("remove_state"), TEXT("rename_state"), TEXT("recompile") }))
-		.Prop(TEXT("stateName"),    FNexusSchema::Str(TEXT("目标 State 名（add/rename/remove 时必填）")))
+			{ TEXT("add_state"), TEXT("remove_state"), TEXT("rename_state"), TEXT("recompile"),
+			  TEXT("add_task"), TEXT("remove_task"),
+			  TEXT("add_enter_condition"), TEXT("remove_enter_condition"),
+			  TEXT("add_transition"), TEXT("remove_transition") }))
+		.Prop(TEXT("stateName"),    FNexusSchema::Str(TEXT("目标 State 名")))
 		.Prop(TEXT("newName"),      FNexusSchema::Str(TEXT("rename_state：新名称")))
 		.Prop(TEXT("parentState"),  FNexusSchema::Str(TEXT("add_state：父 State 名（空=顶层 SubTree）")))
 		.Prop(TEXT("stateType"),    FNexusSchema::Enum(
 			TEXT("add_state：状态类型"),
 			{ TEXT("State"), TEXT("Group"), TEXT("Linked"), TEXT("Subtree") },
 			TEXT("State")))
+		.Prop(TEXT("nodeType"),     FNexusSchema::Str(TEXT("Task/Condition UScriptStruct 短名")))
+		.Prop(TEXT("targetState"),  FNexusSchema::Str(TEXT("add_transition 目标 State")))
+		.Prop(TEXT("index"),        FNexusSchema::Int(TEXT("remove_task/condition/transition 索引")))
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
@@ -44,8 +50,8 @@ void FManageAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write };
 	Out.ExtraSearchKeywords = { TEXT("statetree"), TEXT("state"), TEXT("st"), TEXT("task"), TEXT("transition"), TEXT("npc"), TEXT("ai") };
-	Out.RelatedCapabilities = { TEXT("get_asset_state_tree"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("增删改 StateTree 的 State 节点，或触发重编译");
+	Out.RelatedCapabilities = { TEXT("get_asset_state_tree"), TEXT("create_asset_state_tree"), TEXT("save_asset") };
+	Out.WhenToUse = TEXT("增删改 StateTree 的 State/Task/Condition/Transition");
 }
 
 FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -239,9 +245,116 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 			}
 			else if (Action == TEXT("recompile"))
 			{
-				// 触发 StateTree 重编译（标记脏，编辑器在保存时重编）
 				ST->MarkPackageDirty();
 				OpResult->SetStringField(TEXT("note"), TEXT("已标记为脏；关闭/重新打开编辑器或调用 save_asset 后触发重编译"));
+			}
+			else if (Action == TEXT("add_task") || Action == TEXT("add_enter_condition"))
+			{
+				FString StateName, NodeType;
+				Op->TryGetStringField(TEXT("stateName"), StateName);
+				Op->TryGetStringField(TEXT("nodeType"), NodeType);
+				UStateTreeState* Target = FindStateByName(StateName);
+				if (!Target || NodeType.IsEmpty())
+				{
+					OpResult->SetStringField(TEXT("error"), TEXT("需要 stateName 与 nodeType"));
+				}
+				else
+				{
+					FString StructName = NodeType;
+					if (!StructName.StartsWith(TEXT("F"))) StructName = TEXT("F") + StructName;
+#if NX_UE_HAS_FIND_FIRST_OBJECT
+					UScriptStruct* Struct = FindFirstObject<UScriptStruct>(*StructName, EFindFirstObjectOptions::NativeFirst);
+					if (!Struct) Struct = FindFirstObject<UScriptStruct>(*NodeType, EFindFirstObjectOptions::NativeFirst);
+#else
+					UScriptStruct* Struct = FindObject<UScriptStruct>(ANY_PACKAGE, *StructName);
+					if (!Struct) Struct = FindObject<UScriptStruct>(ANY_PACKAGE, *NodeType);
+#endif
+					if (!Struct)
+					{
+						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("未找到 struct: %s"), *NodeType));
+					}
+					else
+					{
+						FStateTreeEditorNode NewNode;
+						NewNode.ID = FGuid::NewGuid();
+						NewNode.Node.InitializeAs(Struct);
+						if (Action == TEXT("add_task"))
+						{
+							Target->Tasks.Add(NewNode);
+							OpResult->SetNumberField(TEXT("tasksCount"), Target->Tasks.Num());
+						}
+						else
+						{
+							Target->EnterConditions.Add(NewNode);
+							OpResult->SetNumberField(TEXT("enterConditionsCount"), Target->EnterConditions.Num());
+						}
+						OpResult->SetStringField(TEXT("nodeType"), Struct->GetName());
+						bDirty = true;
+					}
+				}
+			}
+			else if (Action == TEXT("remove_task") || Action == TEXT("remove_enter_condition"))
+			{
+				FString StateName;
+				Op->TryGetStringField(TEXT("stateName"), StateName);
+				int32 Idx = 0;
+				if (Op->HasField(TEXT("index"))) Idx = static_cast<int32>(Op->GetNumberField(TEXT("index")));
+				UStateTreeState* Target = FindStateByName(StateName);
+				if (!Target)
+				{
+					OpResult->SetStringField(TEXT("error"), TEXT("需要有效 stateName"));
+				}
+				else
+				{
+					TArray<FStateTreeEditorNode>& Arr = (Action == TEXT("remove_task")) ? Target->Tasks : Target->EnterConditions;
+					if (!Arr.IsValidIndex(Idx))
+					{
+						OpResult->SetStringField(TEXT("error"), TEXT("index 越界"));
+					}
+					else
+					{
+						Arr.RemoveAt(Idx);
+						bDirty = true;
+					}
+				}
+			}
+			else if (Action == TEXT("add_transition"))
+			{
+				FString StateName, TargetName;
+				Op->TryGetStringField(TEXT("stateName"), StateName);
+				Op->TryGetStringField(TEXT("targetState"), TargetName);
+				UStateTreeState* Source = FindStateByName(StateName);
+				UStateTreeState* Dest = FindStateByName(TargetName);
+				if (!Source || !Dest)
+				{
+					OpResult->SetStringField(TEXT("error"), TEXT("add_transition 需要有效 stateName 与 targetState"));
+				}
+				else
+				{
+					FStateTreeTransition Trans;
+					Trans.Trigger = EStateTreeTransitionTrigger::OnStateCompleted;
+					Trans.State.ID = Dest->ID;
+					Source->Transitions.Add(Trans);
+					OpResult->SetStringField(TEXT("targetState"), TargetName);
+					bDirty = true;
+				}
+			}
+			else if (Action == TEXT("remove_transition"))
+			{
+				FString StateName;
+				Op->TryGetStringField(TEXT("stateName"), StateName);
+				int32 Idx = 0;
+				if (Op->HasField(TEXT("index"))) Idx = static_cast<int32>(Op->GetNumberField(TEXT("index")));
+				UStateTreeState* Source = FindStateByName(StateName);
+				if (!Source || !Source->Transitions.IsValidIndex(Idx))
+				{
+					OpResult->SetStringField(TEXT("error"), TEXT("remove_transition 需要有效 stateName 与 index"));
+				}
+				else
+				{
+					Source->Transitions.RemoveAt(Idx);
+					bDirty = true;
+				}
 			}
 			else
 			{

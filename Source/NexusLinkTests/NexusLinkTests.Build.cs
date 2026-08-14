@@ -39,6 +39,10 @@ public class NexusLinkTests : ModuleRules
 					"KismetCompiler",
 					"UMG",
 					"UMGEditor",
+					"MovieScene",
+					"MovieSceneTracks",
+					"AnimGraph",
+					"AnimGraph",
 				}
 			);
 		}

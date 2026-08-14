@@ -17,6 +17,8 @@
 #include "Components/EditableTextBox.h"
 #include "Components/EditableText.h"
 #include "Components/ProgressBar.h"
+#include "Components/ComboBoxString.h"
+#include "Components/ListView.h"
 #include "UObject/UObjectIterator.h"
 #include "NexusMcpTool.h"
 
@@ -231,6 +233,40 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 			{
 				Entry->SetStringField(TEXT("error"),
 					FString::Printf(TEXT("ProgressBar 不支持 action=%s"), *Action));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
+			}
+		}
+		else if (UComboBoxString* Combo = Cast<UComboBoxString>(Target))
+		{
+			if (Action.Equals(TEXT("read"), ESearchCase::IgnoreCase))
+			{
+				Entry->SetStringField(TEXT("selected"), Combo->GetSelectedOption());
+				Entry->SetNumberField(TEXT("optionCount"), Combo->GetOptionCount());
+			}
+			else if (Action.Equals(TEXT("set"), ESearchCase::IgnoreCase))
+			{
+				if (Value.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set 操作需要 value")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+				Combo->SetSelectedOption(Value);
+				Entry->SetStringField(TEXT("selected"), Combo->GetSelectedOption());
+			}
+			else { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("ComboBox 不支持 action=%s"), *Action)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		}
+		else if (UListView* List = Cast<UListView>(Target))
+		{
+			if (Action.Equals(TEXT("read"), ESearchCase::IgnoreCase))
+			{
+				Entry->SetNumberField(TEXT("itemCount"),
+#if NX_UE_HAS_LISTVIEW_GET_NUM_ITEMS
+					List->GetNumItems()
+#else
+					List->GetListItems().Num()
+#endif
+				);
+			}
+			else
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("ListView 仅支持 read（条目数）"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}

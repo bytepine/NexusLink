@@ -116,4 +116,98 @@ UEdGraphPin* FNexusAnimGraphUtils::GetStateInputPin(UAnimStateNodeBase* StateNod
 	return StateNode->GetInputPin();
 }
 
+#include "AnimGraphNode_SequencePlayer.h"
+#include "AnimGraphNode_BlendSpacePlayer.h"
+#include "AnimGraphNode_Slot.h"
+#include "AnimGraphNode_Base.h"
+
+UClass* FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(const FString& NodeClass)
+{
+	FString Name = NodeClass;
+	Name.ReplaceInline(TEXT("U"), TEXT(""));
+	if (Name.StartsWith(TEXT("AnimGraphNode_")))
+	{
+		Name = Name.Mid(14);
+	}
+	if (Name.Equals(TEXT("SequencePlayer"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_SequencePlayer::StaticClass();
+	}
+	if (Name.Equals(TEXT("BlendSpacePlayer"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_BlendSpacePlayer::StaticClass();
+	}
+	if (Name.Equals(TEXT("Slot"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_Slot::StaticClass();
+	}
+	return nullptr;
+}
+
+UEdGraphNode* FNexusAnimGraphUtils::FindNodeByGuidOrTitle(UEdGraph* Graph, const FString& GuidOrTitle)
+{
+	if (!Graph || GuidOrTitle.IsEmpty()) return nullptr;
+	FGuid Parsed;
+	const bool bHasGuid = FGuid::Parse(GuidOrTitle, Parsed);
+	for (UEdGraphNode* Node : Graph->Nodes)
+	{
+		if (!Node) continue;
+		if (bHasGuid && Node->NodeGuid == Parsed) return Node;
+		if (Node->GetName() == GuidOrTitle) return Node;
+		if (Node->GetNodeTitle(ENodeTitleType::ListView).ToString() == GuidOrTitle) return Node;
+	}
+	return nullptr;
+}
+
+UEdGraphNode* FNexusAnimGraphUtils::SpawnAnimGraphNode(UEdGraph* Graph, UClass* NodeClass, int32 PosX, int32 PosY, FString& OutError)
+{
+	if (!Graph) { OutError = TEXT("AnimGraph 无效"); return nullptr; }
+	if (!NodeClass || !NodeClass->IsChildOf(UAnimGraphNode_Base::StaticClass()))
+	{
+		OutError = TEXT("仅支持 AnimGraph 节点（SequencePlayer/BlendSpacePlayer/Slot）");
+		return nullptr;
+	}
+	UEdGraphNode* Node = NewObject<UEdGraphNode>(Graph, NodeClass);
+	if (!Node) { OutError = TEXT("创建 AnimGraph 节点失败"); return nullptr; }
+	Node->CreateNewGuid();
+	Node->NodePosX = PosX;
+	Node->NodePosY = PosY;
+	Graph->AddNode(Node, /*bFromUI*/false, /*bSelectNewNode*/false);
+	Node->AllocateDefaultPins();
+	return Node;
+}
+
+static UEdGraphPin* FindAnimPinByName(UEdGraphNode* Node, const FString& PinName)
+{
+	if (!Node || PinName.IsEmpty()) return nullptr;
+	for (UEdGraphPin* Pin : Node->Pins)
+	{
+		if (!Pin) continue;
+		if (Pin->PinName.ToString().Equals(PinName, ESearchCase::IgnoreCase)) return Pin;
+		if (Pin->GetDisplayName().ToString().Equals(PinName, ESearchCase::IgnoreCase)) return Pin;
+	}
+	return nullptr;
+}
+
+bool FNexusAnimGraphUtils::ConnectAnimPins(UEdGraphNode* Source, const FString& SourcePin,
+	UEdGraphNode* Target, const FString& TargetPin, FString& OutError)
+{
+	if (!Source || !Target) { OutError = TEXT("源或目标节点无效"); return false; }
+	UEdGraphPin* Src = FindAnimPinByName(Source, SourcePin);
+	UEdGraphPin* Dst = FindAnimPinByName(Target, TargetPin);
+	if (!Src) { OutError = FString::Printf(TEXT("源引脚未找到: %s"), *SourcePin); return false; }
+	if (!Dst) { OutError = FString::Printf(TEXT("目标引脚未找到: %s"), *TargetPin); return false; }
+	if (Src->Direction == Dst->Direction)
+	{
+		OutError = TEXT("引脚方向相同，无法连接");
+		return false;
+	}
+	if (Src->Direction == EGPD_Input)
+	{
+		Swap(Src, Dst);
+	}
+	Src->MakeLinkTo(Dst);
+	return true;
+}
+
 #endif // WITH_EDITOR
