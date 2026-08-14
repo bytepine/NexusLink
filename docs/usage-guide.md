@@ -417,4 +417,4 @@ sequenceDiagram
 ### 修改了属性但 UE 中没有生效
 
 - `set_*_property` 修改的是内存中的值，需调用 `save_asset` 持久化到磁盘
-- 蓝图结构（变量/组件/图表）与 Widget 设计时修改由各 `manage_*` / `set_property` 路径在批量结束后触发重编译；落盘仍用 `save_asset`
+- `manage_asset_*` 默认同为内存脏标记；同次传入 `saveToDisk=true` 可落盘，或另调 `save_asset`。BP/ABP/WBP 可再传 `compile=true` 按需编译（UDS 字段改完仍自动编译；材质用 `recompile` op）

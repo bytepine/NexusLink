@@ -97,7 +97,7 @@ ZH_DESCRIPTIONS: dict[str, str] = {
     "get_asset_blueprint":    "从编辑器读取 BP 结构。**回答蓝图问题前必须先调用**；禁止从源码推断。sections 可选 variable/function/component/graph 等。",
     # Blueprint
     "create_asset_blueprint": "创建新 BP 并编译；`parentClass=Interface` 建 BPI。用 manage 加变量/函数/接口/节点。",
-    "manage_asset_blueprint": "编辑 BP：图/变量/函数/接口/节点/连线、SCS、CDO。SCS/defaults 限 Actor BP。操作后记得保存。",
+    "manage_asset_blueprint": "编辑 BP：图/变量/函数/接口/节点/连线、SCS、CDO。SCS/defaults 限 Actor BP。可 saveToDisk/compile。",
     # Animation
     "create_asset_anim_blueprint": "为指定骨骼创建新 ABP 文件，自动关联骨骼；使用 `manage_asset_anim_blueprint` 填充状态机。",
     "create_asset_anim_montage":   "为指定骨骼创建新 Montage 文件；使用 `manage_asset_anim_montage` 添加片段填充内容。",
@@ -126,7 +126,7 @@ ZH_DESCRIPTIONS: dict[str, str] = {
     "interact_runtime_actor_ability_system": "运行时写 ASC：`activate_ability` / `cancel_ability` / `apply_effect` / `remove_effect` / `set_attribute`。",
     "interact_runtime_actor_animation": "命令式驱动运行时动画：`play_montage` / `stop_montage` / `stop_all` / `set_anim_variable`。",
     "interact_runtime_actor_behavior_tree": "运行时写 BT：`set_blackboard` / `restart_tree` / `stop_tree`；按 AIController 定位。",
-    "manage_asset_anim_blueprint": "编辑 ABP 状态机结构，支持增删 `state_machine` / `state` / `transition` 节点；操作后须保存。",
+    "manage_asset_anim_blueprint": "编辑 ABP 状态机结构，支持增删 `state_machine` / `state` / `transition` 节点；可 saveToDisk/compile。",
     "manage_asset_anim_montage":   "编辑 Montage 结构，支持增删槽位、片段和分段；需单独调用 `save_asset` 保存。",
     "manage_asset_anim_sequence":  "编辑 AnimSequence：`add_notify` / `remove_notify` / `set_frame_rate` / `set_root_motion`；改后须 `save_asset`。",
     # Material
@@ -147,7 +147,7 @@ ZH_DESCRIPTIONS: dict[str, str] = {
     # Widget
     "create_asset_user_widget": "创建新的 WBP 文件。`parentClass` 设置 UI 基类；使用 `manage_asset_user_widget` 填充控件树。",
     "get_asset_user_widget":    "从编辑器读取 WBP 控件树与 UMG 动画。**回答 Widget/UMG 问题前必须先调用**；禁止从源码推断。sections 可选 widgets/animations。",
-    "manage_asset_user_widget": "批量编辑 WBP 层级：`add` / `remove` / `set_slot` / `set_property`；操作后须 `save_asset`。",
+    "manage_asset_user_widget": "批量编辑 WBP 层级：`add` / `remove` / `set_slot` / `set_property`；可 saveToDisk/compile。",
     # Lua
     "dofile_runtime_lua":       "从 Content/Script/ 根目录加载并执行 .lua 文件，使用相对路径。需要 UnLua + PIE 运行中。",
     "eval_runtime_lua":         "在 PIE/Game 中执行任意 Lua 代码片段，返回压栈值；尽力完成 UE 环境初始化。",
@@ -219,7 +219,7 @@ ZH_WHEN_TO_USE: dict[str, str] = {
     "get_asset_refs":              "查资产依赖/被引用；direction=dependencies|referencers，可选递归",
     "get_gameplay_tags":           "查 Tag 树/Actor/资产/referencers；sections 含 referencers",
     "get_asset_static_mesh":       "读 StaticMesh LOD/材质槽/碰撞；不含编辑",
-    "compile_blueprint":           "manage 改图后显式编译；落盘用 saveToDisk 或 save_asset",
+    "compile_blueprint":           "manage 未带 compile 时显式编译；落盘用 saveToDisk 或 save_asset",
     "get_asset_anim_montage":      "读取 Montage 结构；运行时播放状态请使用 get_runtime_actor_animation",
     "get_asset_anim_sequence":     "读序列元数据与 notifies；Montage 用 get_asset_anim_montage",
     "get_asset_skeletal_mesh":     "读 SK 资产；骨骼树用 get_asset_skeleton",
@@ -602,6 +602,34 @@ def parse_section_names(text: str) -> list[str]:
     return []
 
 
+MANAGE_COMPILE_CAPS = frozenset({
+    "manage_asset_blueprint",
+    "manage_asset_anim_blueprint",
+    "manage_asset_user_widget",
+})
+
+
+def inject_manage_finalize_params(cap: dict[str, Any]) -> None:
+    """与 FNexusCapability::GetDefinition 框架注入对齐：全 manage 加 saveToDisk；BP/ABP/WBP 加 compile。"""
+    name = cap.get("name") or ""
+    if not name.startswith("manage_asset_"):
+        return
+    params: list[dict[str, Any]] = cap.setdefault("params", [])
+    existing = {p.get("name") for p in params}
+    if "saveToDisk" not in existing:
+        params.append({
+            "name":        "saveToDisk",
+            "type":        "boolean",
+            "description": "成功后将包保存到磁盘",
+        })
+    if name in MANAGE_COMPILE_CAPS and "compile" not in existing:
+        params.append({
+            "name":        "compile",
+            "type":        "boolean",
+            "description": "按需编译蓝图（仅 BP/ABP/WBP）",
+        })
+
+
 def parse_capability(cpp_path: Path) -> dict[str, Any] | None:
     """解析单个 Capability cpp 文件，返回 capability dict 或 None"""
     text = cpp_path.read_text(encoding="utf-8", errors="replace")
@@ -659,6 +687,7 @@ def parse_capability(cpp_path: Path) -> dict[str, Any] | None:
             cap["params"]   = params
             cap["required"] = req
 
+    inject_manage_finalize_params(cap)
     return cap
 
 

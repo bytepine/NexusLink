@@ -150,6 +150,20 @@ public:
 	static bool CompileAndSaveBlueprint(UPackage* Package, class UBlueprint* Blueprint, const FString& PackagePath);
 
 	/**
+	 * manage 收尾：按需编译（UBlueprint）与可选落盘。由 FNexusCapability::Run 在 Execute 成功后调用。
+	 * 编译失败或包未找到时写入 compileError/saveError，不设 FatalError。
+	 * @param AssetPath    入参 assetPath
+	 * @param bCompile     是否编译（仅 BP/ABP/WBP 应传 true）
+	 * @param bSaveToDisk  是否落盘
+	 * @param OutTop       写入 compiled/saved/hasCompilerErrors 等顶层字段
+	 */
+	static void ApplyManageFinalize(
+		const FString& AssetPath,
+		bool bCompile,
+		bool bSaveToDisk,
+		TSharedPtr<FJsonObject>& OutTop);
+
+	/**
 	 * 从 UObject 的外部包取包路径字符串（常用于写入 JSON 的 "path" 字段）。
 	 * 等价于 Obj->GetOutermost()->GetName()；Obj 为 nullptr 时返回空字符串。
 	 */

@@ -4,6 +4,8 @@
 #include "NexusFeedback.h"
 #include "NexusLinkSettings.h"
 #include "NexusMcpTool.h"
+#include "NexusMcpSchemaBuilder.h"
+#include "Utils/NexusAssetUtils.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "Math/UnrealMathUtility.h"
@@ -273,6 +275,109 @@ namespace NexusCapabilitySchemaValidate
 	}
 } // namespace NexusCapabilitySchemaValidate
 
+// manage 收尾 mixin：向 Schema 注入 saveToDisk；BP/ABP/WBP 另注入 compile
+namespace NexusManageFinalizeMixin
+{
+	static bool IsManageAssetCap(const FString& Name)
+	{
+		return Name.StartsWith(TEXT("manage_asset_"));
+	}
+
+	static bool SupportsCompile(const FString& Name)
+	{
+		return Name == TEXT("manage_asset_blueprint")
+			|| Name == TEXT("manage_asset_anim_blueprint")
+			|| Name == TEXT("manage_asset_user_widget");
+	}
+
+	static void InjectOptionalBool(TSharedPtr<FJsonObject>& Schema, const TCHAR* Name, const TCHAR* Desc)
+	{
+		if (!Schema.IsValid())
+		{
+			return;
+		}
+		TSharedPtr<FJsonObject> Props;
+		const TSharedPtr<FJsonObject>* PropsPtr = nullptr;
+		if (Schema->TryGetObjectField(TEXT("properties"), PropsPtr) && PropsPtr && PropsPtr->IsValid())
+		{
+			Props = *PropsPtr;
+		}
+		else
+		{
+			Props = MakeShared<FJsonObject>();
+			Schema->SetObjectField(TEXT("properties"), Props);
+		}
+		if (Props->HasField(Name))
+		{
+			return;
+		}
+		Props->SetObjectField(Name, FNexusSchema::Bool(Desc, true, false));
+	}
+
+	static void InjectSchema(FNexusCapabilityDefinition& Def)
+	{
+		if (!IsManageAssetCap(Def.Name))
+		{
+			return;
+		}
+		InjectOptionalBool(Def.InputSchema, TEXT("saveToDisk"), TEXT("成功后将包保存到磁盘"));
+		if (SupportsCompile(Def.Name))
+		{
+			InjectOptionalBool(Def.InputSchema, TEXT("compile"), TEXT("按需编译蓝图（仅 BP/ABP/WBP）"));
+		}
+	}
+
+	static bool HasSuccessfulEntry(const FCapabilityResult& Result)
+	{
+		for (const TSharedPtr<FJsonValue>& V : Result.Entries)
+		{
+			if (!V.IsValid() || V->Type != EJson::Object)
+			{
+				continue;
+			}
+			const TSharedPtr<FJsonObject> Obj = V->AsObject();
+			if (Obj.IsValid() && !Obj->HasField(TEXT("error")))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	static void ApplyIfRequested(
+		const FString& CapName,
+		const TSharedPtr<FJsonObject>& Args,
+		FCapabilityResult& Result)
+	{
+		if (!IsManageAssetCap(CapName) || !Result.FatalError.IsEmpty() || !HasSuccessfulEntry(Result))
+		{
+			return;
+		}
+
+		bool bCompile = false;
+		bool bSaveToDisk = false;
+		Args->TryGetBoolField(TEXT("compile"), bCompile);
+		Args->TryGetBoolField(TEXT("saveToDisk"), bSaveToDisk);
+		if (!bCompile && !bSaveToDisk)
+		{
+			return;
+		}
+
+		FString AssetPath;
+		Args->TryGetStringField(TEXT("assetPath"), AssetPath);
+		if (AssetPath.IsEmpty())
+		{
+			return;
+		}
+
+		if (!Result.TopFields.IsValid())
+		{
+			Result.TopFields = MakeShared<FJsonObject>();
+		}
+		FNexusAssetUtils::ApplyManageFinalize(AssetPath, bCompile, bSaveToDisk, Result.TopFields);
+	}
+} // namespace NexusManageFinalizeMixin
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FNexusCapabilityDefinition& FNexusCapability::GetDefinition() const
@@ -280,6 +385,7 @@ const FNexusCapabilityDefinition& FNexusCapability::GetDefinition() const
 	if (!bDefBuilt)
 	{
 		BuildDefinition(CachedDef);
+		NexusManageFinalizeMixin::InjectSchema(CachedDef);
 		// Runtime 宿主范围：自动补分类标签，BuildDefinition 无需手写（亦可手写，幂等）
 		if (GetHostScope() == ENexusCapabilityHostScope::Runtime
 			&& !CachedDef.HasTag(FNexusMcpTags::Runtime))
@@ -344,6 +450,7 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 
 	const double StartTime = FPlatformTime::Seconds();
 	FCapabilityResult Result = Execute(Args);
+	NexusManageFinalizeMixin::ApplyIfRequested(Def.Name, Args, Result);
 	const double ElapsedMs = (FPlatformTime::Seconds() - StartTime) * 1000.0;
 
 	UE_LOG(LogNexusCapability, Verbose,

@@ -24,6 +24,7 @@
 > - 过滤参数支持四种匹配模式：子串（`Player`）、前缀（`^BP_`）、后缀（`Actor$`）、正则（`/^BP_.+$/`）
 > - 列表工具均支持 `offset`（默认 0）和 `limit`（默认 100，上限 500）分页
 > - 标记 ★ 的参数为必填
+> - **manage 收尾**：所有 `manage_asset_*` 可选 `saveToDisk`（默认 false）；仅 `manage_asset_blueprint` / `manage_asset_anim_blueprint` / `manage_asset_user_widget` 另可选 `compile`（默认 false）。UDS 字段改完仍自动编译；材质用 `recompile` op。独立 `save_asset` / `compile_blueprint` 仍可用
 > - **单目标 + 跨目标批量（Breaking）**：Capability 仅单目标（`assetPath` / `actorName` / `widgetName`）；跨目标用 `call_capability(calls=[{capability,arguments?},...])`。单目标内集合保留 `sections` / `propertyPaths` / `operations` / `updates`。禁止 `assetPaths`/`actorNames`/`widgetNames` 及旧键（`blueprintPath`→`assetPath`，`newPath`→`destAssetPath`，`ownerWidget`→`ownerClass`，`filePath`→`scriptPath`，Lua `path`→`luaPath`，顶层 `fields`/`rows`/`keys`/`widgets`→`operations`）；旧键 → `arg_invalid`
 > - **响应默认值压缩（全工具默认启用）**：`NexusMcpDispatcher` 在每次工具执行后、序列化前对 `structuredContent` 递归扫描所有"对象数组"字段 `K`。仅抽取**全部 object 条目都持有**的标量字段（string / number / bool / null）；主流值满足三阈值（`MinCount=2` / `MinMatchRatio=0.7` / `MinNetSaveBytes=20`）时写入同级 `<K>_defaults`，条目里等值字段随即省略。稀疏字段（仅部分条目写出的键）不抽取，避免 `{**defaults, **entry}` 填错。蓝图 pin / defaults / component 的布尔已改为**始终写出**（`inherited` / `isConst` / `isReference` / `bOrphan` / `bIsNodeEnabled` / `containerType`），以便压缩抽取主流值。身份字段（`name` / `path` / `assetPath` / `nodeId` / `tag` / `message` / `timestamp` / `frame` / `id` / `label` / `title` / `text` / `error`）永不进入 defaults。ForcedDefault：`search_asset` 指定类型抽 `assetType`；`get_output_log` 的 `verbosity≠all` 抽下限；`categoryFilter` / `list_runtime_actors.classFilter` / `list_runtime_widgets.classFilter` 仅当本页实际字段**全员一致**才抽该值（N=1 也抽；禁止把过滤子串当 defaults）。
 >
@@ -1354,6 +1355,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | AttributeSet Blueprint 路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set/reset), `attributeName`, `baseValue` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_attribute_set`、`save_asset`、`create_asset_attribute_set`
 
@@ -1367,6 +1369,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | CommonButtonStyle 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property), `propertyPath`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_common_button_style`、`create_asset_common_button_style`、`manage_asset_common_text_style`
 
@@ -1380,6 +1383,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | CommonTextStyle 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property), `propertyPath`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_common_text_style`、`create_asset_common_text_style`、`manage_asset_common_button_style`
 
@@ -1395,6 +1399,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | ControlRig Blueprint 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(rename_element/set_control_color/add_null/remove_element/add_rig_link/break_rig_link/add_rig_node/add_control…), `elementName`, `newName`, `r`, `g`, `b`, `a`, `parentName`, `elementType`(bone/control/null), `sourcePinPath`, `targetPinPath`, `structType`, `nodeName`, `pinPath`, `pinDefaultValue` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_control_rig`、`create_asset_control_rig`
 
@@ -1408,6 +1413,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 资产包路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`, `channel`, `rowName`, `time`, `value`, `interp` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`create_asset_curve`、`get_asset_curve`
 
@@ -1423,6 +1429,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | DataLayerAsset 路径 |
 | `operations` | `object[]` | ★ | 操作列表，每项需 action 字段 |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_data_layer`、`create_asset_data_layer`
 
@@ -1436,6 +1443,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 枚举资产包路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`, `index`, `displayName` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`create_asset_enum`、`get_asset_enum`
 
@@ -1449,6 +1457,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | FoliageType 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_mesh/set_density/set_property), `meshPath`, `density`, `propertyPath`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_foliage_type`、`create_asset_foliage_type`
 
@@ -1462,6 +1471,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | Font 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property), `propertyPath`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_font`、`reimport_asset`
 
@@ -1477,6 +1487,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | GameplayAbility Blueprint 路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_tags/set_policy/set_cost_cooldown), `tagContainer`(abilityTags/activationOwnedTags/activationRequiredTags/activationBlockedTags/cancelAbilitiesWithTag/blockAbilitiesWithTag), `tags`, `mode`(set/add/remove), `instancingPolicy`(NonInstanced/InstancedPerActor/InstancedPerExecution), `netExecutionPolicy`(LocalPredicted/LocalOnly/ServerInitiated/ServerOnly), `costGE`, `cooldownGE` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_gameplay_ability`、`save_asset`、`manage_asset_blueprint`
 
@@ -1490,6 +1501,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | Cue Notify 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_cue_name), `cueName` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_gameplay_cue_notify`、`create_asset_gameplay_cue_notify`、`manage_asset_blueprint`
 
@@ -1505,6 +1517,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | GameplayEffect Blueprint 路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_policy/set_tags/add_modifier/remove_modifier/set_modifier), `durationPolicy`(Instant/Infinite/HasDuration), `duration`, `period`, `tagContainer`(gameplayEffectTags/grantedTags/blockedAbilityTags), `tags`, `mode`(set/add/remove), `attribute`, `modifierOp`(Add/Multiply/Divide/Override), `magnitude`, `index` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_gameplay_effect`、`save_asset`、`create_asset_gameplay_effect`
 
@@ -1518,6 +1531,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | GeometryCollection 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_damage_threshold/set_property), `index`, `value`, `propertyPath` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_geometry_collection`、`create_asset_geometry_collection`
 
@@ -1533,6 +1547,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | IKRetargeter 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(set_source_rig/set_target_rig/set_chain_source), `rigPath`, `targetChain`, `sourceChain` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_ik_retargeter`、`get_asset_ik_rig`、`create_asset_ik_retargeter`
 
@@ -1548,6 +1563,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | IKRig 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(set_preview_mesh/set_solver_enabled/add_chain/remove_chain/set_goal), `meshPath`, `solverIndex`, `enabled`, `chainName`, `startBone`, `endBone`, `goalName` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_ik_rig`、`create_asset_ik_rig`、`create_asset_ik_retargeter`
 
@@ -1563,6 +1579,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | InputAction 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(set_value_type/add_trigger/remove_trigger/add_modifier/remove_modifier/set_flags), `valueType`(Boolean/Axis1D/Axis2D/Axis3D), `className`, `consumesInput`, `reserveAllMappings` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_input_action`、`create_asset_input_action`
 
@@ -1578,6 +1595,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | InputMappingContext 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(add_mapping/remove_mapping/clear_mappings), `actionPath`, `key` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_input_mapping_context`、`create_asset_input_mapping_context`
 
@@ -1595,6 +1613,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 关卡资产路径（如 /Game/Maps/MyLevel） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property/spawn_actor/remove_actor/set_actor_property), `propertyPath`, `value`, `className`, `assetPath`, `location`, `rotation`, `actorName` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_level`、`search_asset`
 
@@ -1610,6 +1629,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | LevelSequence 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(set_display_rate/set_playback_range/remove_binding/add_master_track/remove_master_track/add_possessable/add_spawnable/add_track…), `numerator`, `denominator`, `startFrame`, `endFrame`, `bindingGuid`, `possessableName`, `className`, `trackClass`(CameraCut/Audio/Float/Transform), `time`, `keyValue`, `x`, `y`, `z` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_level_sequence`、`create_asset_level_sequence`、`save_asset`
 
@@ -1623,6 +1643,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | MediaSource 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_file_path/set_loop), `mediaPath`, `loop` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_media_source`、`create_asset_media_source`
 
@@ -1638,6 +1659,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | MetaSound Source ? Patch ???? |
 | `operations` | `object[]` | ★ | ???? |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_meta_sound`、`create_asset_meta_sound`、`create_asset_meta_sound_patch`
 
@@ -1651,6 +1673,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | MoviePipeline 配置资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_output), `directory`, `width`, `height` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_movie_pipeline_config`、`create_asset_movie_pipeline_config`
 
@@ -1668,6 +1691,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | NiagaraSystem 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property/set_user_parameter/set_emitter_enabled/rename_emitter/add_emitter/remove_emitter), `propertyPath`, `parameterName`, `emitterName`, `newName`, `enabled`, `emitterPath`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_niagara_system`、`create_asset_niagara_system`、`search_asset`
 
@@ -1681,6 +1705,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | PaperFlipbook 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_key/remove_key/set_frames_per_second), `spritePath`, `frameRun`, `keyIndex`, `framesPerSecond` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_paper_flipbook`、`create_asset_paper_flipbook`
 
@@ -1694,6 +1719,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | PaperSprite 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_source/set_pivot), `sourceTexturePath`, `pivotX`, `pivotY` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_paper_sprite`、`create_asset_paper_sprite`
 
@@ -1710,6 +1736,7 @@
 | `assetPath` | `string` | ★ | PCG Graph 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(add_node/remove_node/add_edge/remove_edge) |
 | `action` | `string (enum)` |  | 操作 枚举值：`add_node` / `remove_node` / `add_edge` / `remove_edge` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_pcg_graph`、`create_asset_pcg_graph`
 
@@ -1723,6 +1750,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | PhysicalMaterial 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set), `friction`, `restitution`, `density`, `raiseMassToPower`, `surfaceType` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_physical_material`、`create_asset_physical_material`
 
@@ -1738,6 +1766,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | PhysicsAsset 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(set_physics_type/add_sphere/add_capsule/add_box/clear_shapes/add_constraint/remove_constraint), `boneName`, `physicsType`(Simulated/Kinematic/Default), `radius`, `halfHeight`, `extentX`, `extentY`, `extentZ`, `bone1`, `bone2`, `jointName` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_physics_asset`、`get_asset_skeletal_mesh`
 
@@ -1753,6 +1782,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | PoseSearchDatabase 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表 |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_pose_search`、`search_asset`
 
@@ -1766,6 +1796,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | RenderTarget 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set), `sizeX`, `sizeY`, `formatValue`, `clearColorR`, `clearColorG`, `clearColorB`, `clearColorA` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`create_asset_render_target`、`get_asset_render_target`
 
@@ -1783,6 +1814,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | SkeletalMesh 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_material_slot/set_property), `slotIndex`, `materialPath`, `propertyPath`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_skeletal_mesh`、`get_asset_skeleton`
 
@@ -1796,6 +1828,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | SoundAttenuation 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set), `innerRadius`, `falloffDistance`, `shapeValue`, `bAttenuate`, `bSpatialize`, `dBAtMax` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_sound_attenuation`、`create_asset_sound_attenuation`
 
@@ -1809,6 +1842,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | SoundClass 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set), `volume`, `pitch`, `lowPassFilter`, `attenuationScale` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_sound_class`、`create_asset_sound_class`
 
@@ -1822,6 +1856,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | SoundConcurrency 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set), `maxCount`, `resolutionRuleValue`, `retriggerTime`, `limitToOwner` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_sound_concurrency`、`create_asset_sound_concurrency`
 
@@ -1839,6 +1874,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | SoundCue 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property/add_node/remove_node/connect_nodes), `propertyPath`, `value`, `nodeClass`, `soundWavePath`, `parentNodeIndex`, `childSlot`, `nodeIndex`, `childIndex` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_sound_cue`、`create_asset_sound_cue`、`get_asset_sound_wave`
 
@@ -1852,6 +1888,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | SoundSubmix 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set), `outputVolume`, `wetLevel`, `dryLevel`, `outputVolumeDB`, `wetLevelDB`, `dryLevelDB` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_sound_submix`
 
@@ -1869,6 +1906,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | SoundWave 资产路径 |
 | `operations` | `object[]` | ★ | 批量属性操作（至少一项）；item: `action`(set_property), `propertyPath`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_sound_wave`、`get_asset_sound_cue`
 
@@ -1884,6 +1922,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | StateTree 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(add_state/remove_state/rename_state/recompile/add_task/remove_task/add_enter_condition/remove_enter_condition…), `stateName`, `newName`, `parentState`, `stateType`(State/Group/Linked/Subtree), `nodeType`, `targetState`, `index` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_state_tree`、`create_asset_state_tree`、`save_asset`
 
@@ -1901,6 +1940,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | StaticMesh 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_material_slot/set_property), `slotIndex`, `materialPath`, `propertyPath`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_static_mesh`、`search_asset`
 
@@ -1914,6 +1954,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | StringTable 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_key/remove_key/set_source), `key`, `source` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_string_table`、`create_asset_string_table`
 
@@ -1931,6 +1972,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | Texture 资产路径 |
 | `operations` | `object[]` | ★ | 批量属性操作（至少一项）；item: `action`(set_property), `propertyPath`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_texture`、`search_asset`
 
@@ -1946,6 +1988,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | WidgetBlueprint 路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(add_view_model/remove_view_model/add_binding/remove_binding), `viewModelName`, `viewModelClass`, `bindingIndex` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_view_model`、`get_asset_user_widget`、`save_asset`
 
@@ -2037,7 +2080,7 @@
 
 显式编译 Blueprint/ABP/WBP；可选 saveToDisk 落盘。
 
-**适用场景**：manage 改图后显式编译；落盘用 saveToDisk 或 save_asset
+**适用场景**：manage 未带 compile 时显式编译；落盘用 saveToDisk 或 save_asset
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -2086,7 +2129,7 @@
 
 ### `manage_asset_blueprint`
 
-编辑 BP：图/变量/函数/接口/节点/连线、SCS、CDO。SCS/defaults 限 Actor BP。操作后记得保存。
+编辑 BP：图/变量/函数/接口/节点/连线、SCS、CDO。SCS/defaults 限 Actor BP。可 saveToDisk/compile。
 
 **适用场景**：写操作：增删变量、函数图、接口、图节点、连线
 
@@ -2094,6 +2137,8 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 蓝图资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_variable/remove_variable/add_function/remove_function/add_macro/add_timeline/add_dispatcher/add_local_variable…), `graphName`, `variableName`, `variableType`, `defaultValue`, `category`, `isPublic`, `nodeId`, `nodeClass`, `functionName`, `functionClass`, `interfaceName`, `posX`, `posY`, `comment`, `pinName`, `pinDefaultValue`, `sourceNodeId`, `sourcePinName`, `targetNodeId`, `targetPinName`, `componentClass`, `componentName`, `attachTo`, `propertyPath`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
+| `compile` | `boolean` |  | 按需编译蓝图（仅 BP/ABP/WBP） |
 
 **相关 Capability**：`get_asset_blueprint`、`create_asset_blueprint`、`save_asset`
 
@@ -2291,7 +2336,7 @@
 
 ### `manage_asset_anim_blueprint`
 
-编辑 ABP 状态机结构，支持增删 `state_machine` / `state` / `transition` 节点；操作后须保存。
+编辑 ABP 状态机结构，支持增删 `state_machine` / `state` / `transition` 节点；可 saveToDisk/compile。
 
 **适用场景**：写操作：增删状态机、状态、过渡
 
@@ -2299,6 +2344,8 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 动画蓝图资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_state_machine/remove_state_machine/add_state/remove_state/add_transition/remove_transition/add_node/remove_node…), `graphName`, `stateMachineName`, `stateName`, `targetStateName`, `nodeClass`(SequencePlayer/BlendSpacePlayer/Slot), `nodeId`, `sequencePath`, `slotName`, `sourceNodeId`, `sourcePinName`, `targetNodeId`, `targetPinName`, `posX`, `posY` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
+| `compile` | `boolean` |  | 按需编译蓝图（仅 BP/ABP/WBP） |
 
 **相关 Capability**：`get_asset_anim_blueprint`、`create_asset_anim_blueprint`、`save_asset`
 
@@ -2312,6 +2359,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | AnimComposite 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(add_segment/remove_segment), `animPath`, `startPos`, `animStartTime`, `animEndTime`, `playRate`, `segmentIndex` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`create_asset_anim_composite`、`get_asset_anim_composite`
 
@@ -2327,6 +2375,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 动画 Montage 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_segment/remove_segment/add_section/remove_section), `animSequencePath`, `slotName`, `startPos`, `animStartTime`, `animEndTime`, `segmentIndex`, `sectionName`, `sectionStartTime`, `nextSectionName` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_anim_montage`、`create_asset_anim_montage`、`save_asset`
 
@@ -2344,6 +2393,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | AnimSequence 资产路径 |
 | `operations` | `object[]` | ★ | 批量编辑操作（至少一项）；item: `action`(add_notify/remove_notify/set_frame_rate/set_root_motion/add_float_curve/set_curve_key/remove_curve), `notifyName`, `notifyClass`, `notifyIndex`, `time`, `duration`, `frameRate`, `rootMotion`, `curveName`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_anim_sequence`、`get_asset_anim_montage`
 
@@ -2359,6 +2409,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | BlendSpace 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(set_axis/add_sample/remove_sample), `axisIndex`, `displayName`, `min`, `max`, `gridNum`, `animationPath`, `x`, `y`, `sampleIndex` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_blend_space`、`create_asset_blend_space`
 
@@ -2376,6 +2427,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | Skeleton 资产路径 |
 | `operations` | `object[]` | ★ | 批量 Socket 操作（至少一项）；item: `action`(add_socket/remove_socket/modify_socket), `socketName`, `boneName`, `location`, `rotation`, `scale` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_skeleton`、`get_asset_skeletal_mesh`
 
@@ -2474,6 +2526,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | Material/MI/MaterialFunction 资产路径（共用） |
 | `operations` | `object[]` | ★ | 批量材质操作；item: `action`(set_param/add_node/remove_node/set_node/recompile/connect/disconnect/disconnect_all), `paramName`, `paramType`(scalar/vector/texture), `value`, `expressionClass`, `parameterName`, `defaultValue`, `nodeId`, `posX`, `posY`, `sourceNodeId`, `sourceOutputName`, `targetNodeId`, `targetInputName` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_material`、`create_asset_material`、`create_asset_material_function`、`save_asset`
 
@@ -2489,6 +2542,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | MPC 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表 |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_material_parameter_collection`、`manage_asset_material`
 
@@ -2535,6 +2589,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | UserDefinedStruct 资产路径（共用） |
 | `operations` | `object[]` | ★ | 批量字段操作；item: `action`(add/remove/set), `fieldName`, `fieldType`, `defaultValue`, `newName`, `newType` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_struct`、`create_asset_struct`、`save_asset`
 
@@ -2620,6 +2675,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | DataAsset 资产路径 |
 | `operations` | `object[]` | ★ | 批量属性操作（至少一项）；item: `action`(set/reset), `propertyName`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_data_asset`、`create_asset_data_asset`、`save_asset`
 
@@ -2635,6 +2691,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | DataTable 资产路径（共用） |
 | `operations` | `object[]` | ★ | 批量行操作（至少一项）；item: `action`(add/remove/set), `rowName`, `fieldName`, `value` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_data_table`、`create_asset_data_table`、`save_asset`
 
@@ -2678,7 +2735,7 @@
 
 ### `manage_asset_user_widget`
 
-批量编辑 WBP 层级：`add` / `remove` / `set_slot` / `set_property`；操作后须 `save_asset`。
+批量编辑 WBP 层级：`add` / `remove` / `set_slot` / `set_property`；可 saveToDisk/compile。
 
 **适用场景**：写操作：增删控件、改 Slot/属性
 
@@ -2686,6 +2743,8 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | WidgetBlueprint 资产路径（共用） |
 | `operations` | `object[]` | ★ | 批量 Widget 操作；item: `action`(add/remove/set_slot/set_property/add_animation/remove_animation/add_track/add_key), `widgetClass`, `widgetName`, `parentWidget`, `animationName`, `trackName`, `time`, `keyValue`, `propertyPath`, `value`, `anchorMinX`, `anchorMinY`, `anchorMaxX`, `anchorMaxY`, `alignmentX`, `alignmentY`, `offsetLeft`, `offsetTop`, `offsetRight`, `offsetBottom` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
+| `compile` | `boolean` |  | 按需编译蓝图（仅 BP/ABP/WBP） |
 
 **相关 Capability**：`get_asset_user_widget`、`create_asset_user_widget`、`save_asset`、`get_asset_blueprint`、`manage_asset_blueprint`
 
@@ -2901,6 +2960,7 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 蓝图资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(bind/unbind), `moduleName` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_lua_binding`、`get_runtime_lua_object`
 
@@ -3393,6 +3453,7 @@ PIE 读 Actor ASC 快照。`sections=abilities|effects|attributes`；写用 `int
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 行为树资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_root/add_node/remove_node/replace_node/move_node/add_decorator/remove_decorator/add_service…), `nodeClass`, `nodeName`, `parentPath`, `childIndex`, `targetPath`, `targetIndex`, `blackboardPath`, `targetType`(node/decorator/service), `propertyName`, `propertyValue`, `properties` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_behavior_tree`、`manage_asset_blackboard`、`save_asset`
 
@@ -3408,6 +3469,7 @@ PIE 读 Actor ASC 快照。`sections=abilities|effects|attributes`；写用 `int
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | BlackboardData 或 BehaviorTree 资产路径 |
 | `operations` | `object[]` | ★ | 批量键操作；item: `action`(add/remove/rename/set_parent), `keyName`, `keyType`(bool/float/int/string/name/vector/rotator/object…), `newName`, `parentPath` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_blackboard`、`create_asset_blackboard`、`save_asset`
 
@@ -3423,6 +3485,7 @@ PIE 读 Actor ASC 快照。`sections=abilities|effects|attributes`；写用 `int
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | EnvQuery 资产路径 |
 | `operations` | `object[]` | ★ | 操作列表；item: `action`(add_option/remove_option/set_generator/add_test/remove_test), `optionIndex`, `generatorClass`, `testClass`, `testIndex` |
+| `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**：`get_asset_eqs`、`create_asset_eqs`
 

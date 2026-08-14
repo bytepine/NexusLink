@@ -225,3 +225,141 @@ bool FNexusLinkExtractOperationsOnlyNewFieldTest::RunTest(const FString& Paramet
 
 	return true;
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// 4. manage 收尾 mixin：saveToDisk 全量注入；compile 仅 BP/ABP/WBP
+// ────────────────────────────────────────────────────────────────────────────
+
+/** manage 桩：名 manage_asset_dummy，应注入 saveToDisk、不注入 compile。 */
+class FNexusTestManageSaveMixinCapability : public FNexusCapability
+{
+protected:
+	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override
+	{
+		Out.Name        = TEXT("manage_asset_dummy");
+		Out.Description = TEXT("test manage save mixin.");
+		Out.InputSchema = FNexusSchema::Object()
+			.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("路径")))
+			.Required({ TEXT("assetPath") })
+			.Build();
+	}
+	virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& /*Arguments*/) const override
+	{
+		FCapabilityResult R;
+		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+		Entry->SetStringField(TEXT("ok"), TEXT("1"));
+		R.Entries.Add(MakeShared<FJsonValueObject>(Entry));
+		return R;
+	}
+};
+
+/** manage 桩：名 manage_asset_blueprint，应同时注入 compile。 */
+class FNexusTestManageCompileMixinCapability : public FNexusCapability
+{
+protected:
+	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override
+	{
+		Out.Name        = TEXT("manage_asset_blueprint");
+		Out.Description = TEXT("test manage compile mixin.");
+		Out.InputSchema = FNexusSchema::Object()
+			.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("路径")))
+			.Required({ TEXT("assetPath") })
+			.Build();
+	}
+	virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& /*Arguments*/) const override
+	{
+		FCapabilityResult R;
+		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+		Entry->SetStringField(TEXT("ok"), TEXT("1"));
+		R.Entries.Add(MakeShared<FJsonValueObject>(Entry));
+		return R;
+	}
+};
+
+static bool SchemaHasTopProp(const FNexusCapabilityDefinition& Def, const TCHAR* Name)
+{
+	if (!Def.InputSchema.IsValid())
+	{
+		return false;
+	}
+	const TSharedPtr<FJsonObject>* Props = nullptr;
+	if (!Def.InputSchema->TryGetObjectField(TEXT("properties"), Props) || !Props || !Props->IsValid())
+	{
+		return false;
+	}
+	return (*Props)->HasField(Name);
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FNexusLinkCapabilityManageFinalizeMixinTest,
+	"NexusLink.Capability.ManageFinalizeMixin",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNexusLinkCapabilityManageFinalizeMixinTest::RunTest(const FString& Parameters)
+{
+	FNexusTestManageSaveMixinCapability SaveCap;
+	const FNexusCapabilityDefinition& SaveDef = SaveCap.GetDefinition();
+	TestTrue(TEXT("dummy 注入 saveToDisk"), SchemaHasTopProp(SaveDef, TEXT("saveToDisk")));
+	TestFalse(TEXT("dummy 不注入 compile"), SchemaHasTopProp(SaveDef, TEXT("compile")));
+
+	FNexusTestManageCompileMixinCapability CompileCap;
+	const FNexusCapabilityDefinition& CompileDef = CompileCap.GetDefinition();
+	TestTrue(TEXT("BP manage 注入 saveToDisk"), SchemaHasTopProp(CompileDef, TEXT("saveToDisk")));
+	TestTrue(TEXT("BP manage 注入 compile"), SchemaHasTopProp(CompileDef, TEXT("compile")));
+
+	// 非 BP manage 传 compile → arg_invalid
+	{
+		TSharedPtr<FJsonObject> Args = MakeShared<FJsonObject>();
+		Args->SetStringField(TEXT("assetPath"), TEXT("/Game/DoesNotExist"));
+		Args->SetBoolField(TEXT("compile"), true);
+		const FCapabilityResult R = SaveCap.Run(Args);
+		TestTrue(TEXT("dummy+compile → arg_invalid"), R.bIsArgInvalid);
+	}
+
+	// saveToDisk 对不存在的包：Execute 成功，TopFields 记 saveError
+	{
+		TSharedPtr<FJsonObject> Args = MakeShared<FJsonObject>();
+		Args->SetStringField(TEXT("assetPath"), TEXT("/Game/DoesNotExist_NexusMixin"));
+		Args->SetBoolField(TEXT("saveToDisk"), true);
+		const FCapabilityResult R = SaveCap.Run(Args);
+		TestTrue(TEXT("dummy+save 非 Fatal"), R.FatalError.IsEmpty());
+		TestFalse(TEXT("dummy+save 非 arg_invalid"), R.bIsArgInvalid);
+		TestTrue(TEXT("dummy+save 有 TopFields"), R.TopFields.IsValid());
+		if (R.TopFields.IsValid())
+		{
+			bool bSaved = true;
+			R.TopFields->TryGetBoolField(TEXT("saved"), bSaved);
+			TestFalse(TEXT("dummy+save saved=false"), bSaved);
+			TestTrue(TEXT("dummy+save 含 saveError"), R.TopFields->HasField(TEXT("saveError")));
+		}
+	}
+
+	// 注册表：生产 cap 同样注入
+	if (const FCapRecord* Dt = FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("manage_asset_data_table")))
+	{
+		TestTrue(TEXT("DT manage 有 saveToDisk"), SchemaHasTopProp(Dt->Def, TEXT("saveToDisk")));
+		TestFalse(TEXT("DT manage 无 compile"), SchemaHasTopProp(Dt->Def, TEXT("compile")));
+	}
+	else
+	{
+		AddError(TEXT("未注册 manage_asset_data_table"));
+	}
+
+	if (const FCapRecord* Bp = FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("manage_asset_blueprint")))
+	{
+		TestTrue(TEXT("生产 BP manage 有 saveToDisk"), SchemaHasTopProp(Bp->Def, TEXT("saveToDisk")));
+		TestTrue(TEXT("生产 BP manage 有 compile"), SchemaHasTopProp(Bp->Def, TEXT("compile")));
+	}
+	else
+	{
+		AddError(TEXT("未注册 manage_asset_blueprint"));
+	}
+
+	if (const FCapRecord* GetBp = FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("get_asset_blueprint")))
+	{
+		TestFalse(TEXT("get 不注入 saveToDisk"), SchemaHasTopProp(GetBp->Def, TEXT("saveToDisk")));
+		TestFalse(TEXT("get 不注入 compile"), SchemaHasTopProp(GetBp->Def, TEXT("compile")));
+	}
+
+	return true;
+}

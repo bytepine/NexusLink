@@ -406,6 +406,7 @@ public:
 | Capability 返回壳 / entry 错误 | `FNexusCapabilityResultBuilder::AddEntry(...)` / `AddEntryError(...)`；适配层 `AssembleStructuredContent`：`Entries.Num()==1` 提升到顶层，`Num()>1` 写 `results[]`；响应身份字段统一 `path`，`get_`/`manage_` 可 `StripRedundantPathEcho` |
 | 取运行时 World 并做错误兜底 | `FNexusRuntimeUtils::RequirePlayWorld(OutError)` |
 | 新建资产 finalize（MarkDirty + AssetCreated + Save） | `FNexusAssetUtils::NotifyAndSaveCreated(...)` / `NotifyCompileAndSave(...)` |
+| manage 收尾（可选 compile / saveToDisk） | `FNexusAssetUtils::ApplyManageFinalize(...)`（由 `FNexusCapability::Run` 统一调用，禁止各 manage Execute 自写） |
 
 ### 7.9 Capability 实现样板约束
 
@@ -440,6 +441,7 @@ public:
 | `success` 字段 | 成功不写 `success`（无 `error` 即成功）；失败写 `error`，允许保留 `success:false` 辅助阅读；禁止写「成功恒为 true」或条件判断结果恒为 true 的 `success` |
 | create 入参 | **只**暴露 / 消费 `assetPath`；删除 `packagePath`+`assetName` 双字段路径 |
 | create 响应 | 成功条目必须含 `path` 字段 |
+| manage 收尾 | 框架向所有 `manage_asset_*` 注入可选 `saveToDisk`（默认 false）；仅 `manage_asset_blueprint` / `manage_asset_anim_blueprint` / `manage_asset_user_widget` 另注入 `compile`（默认 false）。UDS 仍自动编译。Material 用 `recompile` op。独立 `save_asset` / `compile_blueprint` 仍可用 |
 | Execute 卫生 | 非 MultiSection 的 cap 优先 `FNexusCapabilityResultBuilder::Build`；资产定位统一 `RequireString` + `EmitError`（或对应 Fatal/`MakeArgInvalid`）；禁止裸 `SetStringField("error")` 作为唯一失败路径 |
 | 有意保留 | 单目标内：`sections` / `propertyPaths` / `operations` / `updates`；领域数组经 `operations` 承载（勿再把 `fields`/`rows`/`keys`/`widgets` 当顶层操作容器）；runtime `interact_*` / `control_pie` 的顶层 `action`（命令式语义，非批量操作列表）；元工具 `calls[]` |
 

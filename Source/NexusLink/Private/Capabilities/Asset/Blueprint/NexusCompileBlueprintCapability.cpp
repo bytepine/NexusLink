@@ -26,7 +26,7 @@ void FCompileBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = { TEXT("compile"), TEXT("rebuild"), TEXT("kismet"), TEXT("abp"), TEXT("wbp") };
 	Out.RelatedCapabilities = { TEXT("save_asset"), TEXT("manage_asset_blueprint"), TEXT("get_asset_blueprint") };
-	Out.WhenToUse = TEXT("manage 改图后显式触发编译；持久化另调 save_asset");
+	Out.WhenToUse = TEXT("未在 manage 上传 compile 时显式编译");
 }
 
 #if WITH_EDITOR

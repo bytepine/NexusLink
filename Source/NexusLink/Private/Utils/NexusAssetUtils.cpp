@@ -1,6 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusPackageLedger.h"
 #include "NexusCapabilityRegistry.h"
 #include "Engine/Blueprint.h"
 #include "Engine/Texture2D.h"
@@ -17,6 +18,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
+#include "UObject/UObjectGlobals.h"
 #endif
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
@@ -362,6 +364,90 @@ bool FNexusAssetUtils::CompileAndSaveBlueprint(UPackage* Package, UBlueprint* Bl
 	return SaveNewAsset(Package, Blueprint, PackagePath);
 #else
 	return false;
+#endif
+}
+
+void FNexusAssetUtils::ApplyManageFinalize(
+	const FString& AssetPath,
+	bool bCompile,
+	bool bSaveToDisk,
+	TSharedPtr<FJsonObject>& OutTop)
+{
+	if (!OutTop.IsValid() || AssetPath.IsEmpty() || (!bCompile && !bSaveToDisk))
+	{
+		return;
+	}
+
+#if !WITH_EDITOR
+	OutTop->SetStringField(TEXT("finalizeError"), TEXT("manage 收尾仅在编辑器模式可用"));
+	return;
+#else
+	FString PackagePath = AssetPath;
+	int32 DotIdx;
+	if (PackagePath.FindLastChar(TEXT('.'), DotIdx))
+	{
+		PackagePath = PackagePath.Left(DotIdx);
+	}
+
+	if (bCompile)
+	{
+		UBlueprint* BP = LoadAssetTracked<UBlueprint>(AssetPath);
+		if (!BP)
+		{
+			OutTop->SetBoolField(TEXT("compiled"), false);
+			OutTop->SetStringField(TEXT("compileError"),
+				FString::Printf(TEXT("Blueprint 未找到: %s"), *AssetPath));
+		}
+		else
+		{
+			FKismetEditorUtilities::CompileBlueprint(BP);
+			OutTop->SetBoolField(TEXT("compiled"), true);
+			OutTop->SetBoolField(TEXT("hasCompilerErrors"), BP->Status == BS_Error);
+			OutTop->SetStringField(TEXT("status"),
+				FString::Printf(TEXT("%d"), static_cast<int32>(BP->Status)));
+		}
+	}
+
+	if (bSaveToDisk)
+	{
+		UPackage* Pkg = FindPackage(nullptr, *PackagePath);
+		if (!Pkg)
+		{
+			Pkg = LoadPackage(nullptr, *PackagePath, LOAD_None);
+		}
+		if (!Pkg)
+		{
+			OutTop->SetBoolField(TEXT("saved"), false);
+			OutTop->SetStringField(TEXT("saveError"),
+				FString::Printf(TEXT("%s（包未找到）"), *PackagePath));
+		}
+		else
+		{
+			bool bDeferred = false;
+			FString Note;
+			const bool bOk = SaveDirtyPackage(Pkg, PackagePath, AssetPath, bDeferred, Note);
+			if (bDeferred)
+			{
+				OutTop->SetBoolField(TEXT("deferred"), true);
+				if (!Note.IsEmpty())
+				{
+					OutTop->SetStringField(TEXT("note"), Note);
+				}
+			}
+			else
+			{
+				OutTop->SetBoolField(TEXT("saved"), bOk);
+				if (!bOk)
+				{
+					OutTop->SetStringField(TEXT("saveError"),
+						Note.IsEmpty()
+							? FString::Printf(TEXT("%s（SavePackage 失败）"), *PackagePath)
+							: Note);
+				}
+			}
+			FNexusPackageLedger::MaybeFlush();
+		}
+	}
 #endif
 }
 
