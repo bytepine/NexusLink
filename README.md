@@ -43,13 +43,13 @@ MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮�
 
 | 分量 | SearchMode | MultiTool | 差额 |
 |---|---|---|---|
-| tools/list | 3 tools · ~0.3k tok | 177 tools · ~16.9k tok | **+16.6k** |
+| tools/list | 3 tools · ~0.3k tok | 222 tools · ~21.2k tok | **+20.9k** |
 | initialize.instructions | ~1.1k | ~0.7k | −0.4k |
-| **每轮固定合计** | **~1.4k** | **~17.6k** | **~12.6× / +16.2k** |
+| **每轮固定合计** | **~1.4k** | **~21.9k** | **~15.6× / +20.5k** |
 
 - SearchMode：小 tools/list + 精简路由；按需 `search_capabilities` 换取单份 schema（「发现税」一次性）。
 - MultiTool：instructions 略短，但把全部 Capability schema 每轮塞进 prompt（「全量 schema 税」每轮都付；中位单工具定义 ~86 tok）。
-- 典型任务累计（省略相同 call 返回）：已知 1×search+1×call 约 **3.7×**；中等 2×search+3×call 约 **4.4×**；重会话 4×search+8×call 约 **4.9×**。即便零次 search、只靠路由直调，固定税仍恒约 **12.6×**。
+- 典型任务累计（省略相同 call 返回）：已知 1×search+1×call 约 **4.6×**；中等 2×search+3×call 约 **5.5×**；重会话 4×search+8×call 约 **6.1×**。即便零次 search、只靠路由直调，固定税仍恒约 **15.6×**。
 
 **建议**：日常与长会话保持 **SearchMode**。仅当客户端无法遵循 search→call、或必须一次枚举全 Tool 时再切 MultiTool，并尽量在设置里关掉无关 Capability 以降税。UE 在线时可用宿主工程 `Script/measure_token_baseline.py` 复核 live `tools/list`。
 
@@ -205,6 +205,7 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 
 - [docs/usage-guide.md](docs/usage-guide.md) — 用户安装、设置面板与 IDE 代理接入指南
 - [docs/architecture.md](docs/architecture.md) — 架构设计（分层职责、Capability 系统、注册与分发流程）
+- [docs/version-compat-reference.md](docs/version-compat-reference.md) — `NX_UE_HAS_*` 跨版本语义宏对照
 - [docs/tool-reference.md](docs/tool-reference.md) — Capability 完整参数手册（脚本生成，`py scripts/build_tool_reference.py` 更新）
 - [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) — Capability 元数据规范（命名 / 描述四段式 / 自检清单）
 - [Resources/InitializeInstructions.SearchMode.md](Resources/InitializeInstructions.SearchMode.md) — AI 握手时 SearchMode 工作流说明（工具模型 / 模式路由 / 硬规则；触发词在 `ProxyConfig.initializePrefix`）

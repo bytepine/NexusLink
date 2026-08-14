@@ -128,7 +128,7 @@ NexusLink 支持两种 `tools/list` 暴露模式，可在 Editor Preferences →
 | **SearchMode**（默认） | 3 个元工具 | `InitializeInstructions.SearchMode.md`（精简路由 / 硬规则） | AI 通过 `search_capabilities` 按需发现，降低每轮 tools/list token |
 | **MultiTool** | `submit_feedback` + 全部已启用 Capability（各作独立 MCP Tool） | `InitializeInstructions.MultiTool.md`（精简全局约束） | 需要客户端一次性枚举全部能力的场景 |
 
-固定上下文粗估（221 Capability、chars÷4）：SearchMode 每轮 ~1.4k tok，MultiTool ~17.6k tok（约 **12.6×**）；差别几乎全在 tools/list。完整对比与建议见 [README §暴露模式](../README.md#暴露模式toolslistmode)。
+固定上下文粗估（221 Capability、chars÷4）：SearchMode 每轮 ~1.4k tok，MultiTool ~21.9k tok（约 **15.6×**）；差别几乎全在 tools/list。完整对比与建议见 [README §暴露模式](../README.md#暴露模式toolslistmode)。
 
 模式切换或 Capability 变更时，NexusLink 自动广播 `notifications/tools/list_changed`。
 

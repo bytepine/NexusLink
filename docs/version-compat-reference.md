@@ -17,8 +17,10 @@
 | `NX_UE_HAS_FTSTICKER_HANDLE` | 5.0 | `FDelegateHandle` → `FTSTicker::FDelegateHandle` |
 | `NX_UE_HAS_SAVE_PACKAGE_ARGS` | 5.0 | `UPackage::SavePackage` 改用 `FSavePackageArgs` 参数 |
 | `NX_UE_HAS_MARK_AS_GARBAGE` | 5.0 | `MarkPendingKill()` → `MarkAsGarbage()` |
+| `NX_UE_HAS_SET_PIE_WORLDS_PAUSED` | 5.0 | `UEditorEngine::SetPIEWorldsPaused`（4.26/4.27 用 `PlayWorld->bDebugPauseExecution`） |
 | `NX_UE_HAS_FIND_FIRST_OBJECT` | 5.1 | `ANY_PACKAGE` 查找方式 → `FindFirstObject` |
 | `NX_UE_HAS_CLASS_PATHS` | 5.1 | `FARFilter::ClassNames` → `ClassPaths` |
+| `NX_UE_HAS_BP_INTERFACE_ASSET_PATH` | 5.1 | `ImplementNewInterface`/`RemoveInterface` 走 `FTopLevelAssetPath`（`FName` 短名 overload 会 C4996） |
 | `NX_UE_HAS_IMPORT_TEXT_DIRECT` | 5.1 | `FProperty::ImportText` → `ImportText_Direct` |
 | `NX_UE_HAS_EXPORT_TEXT_ITEM_DIR` | 5.1 | `ExportTextItem` → `ExportTextItem_Direct` |
 | `NX_UE_HAS_PROGRESS_GET_PERCENT` | 5.1 | `UProgressBar::Percent` → `GetPercent()` |
@@ -34,12 +36,15 @@
 | `NX_UE_HAS_JSON_TSHAREDSTRING_KEY` | 5.8 | `FJsonObject::Values` 键类型 `FString` → `UE::FSharedString` |
 | `NX_UE_HAS_GET_OBJECTS_FLAGS_ENUM` | 5.8 | `GetObjectsWithOuter(bool)` → `GetObjectsWithOuter(EGetObjectsFlags)` |
 | `NX_UE_HAS_POST_ENGINE_INIT_ACCESSOR` | 5.8 | `FCoreDelegates::OnPostEngineInit` → `FCoreDelegates::GetOnPostEngineInit()` |
+| `NX_UE_HAS_STRING_TABLE_SOURCE_DEV_NOTES` | 5.8 Editor | `SetSourceString` 仅 3 参（key, source, devNotes）；Game / 5.7- 仍为 2 参（`WITH_EDITORONLY_DATA`） |
 
 ## 特殊常量宏
 
 | 宏名 | 值 | 说明 |
 |---|---|---|
 | `NX_UE_HAS_CPF_BLUEPRINT_READWRITE` | `0` | `CPF_BlueprintReadWrite` 在 UE 5.0 移除，所有版本均走 else 分支 |
+| `NX_UE_HAS_WIDGET_ANIM_SET_MOVIE_SCENE` | `0` | `UWidgetAnimation` 全版本公开 `MovieScene` 字段，无 `SetMovieScene` |
+| `NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS` | `!5.2` | 5.2 前 `GetMasterTracks`/`AddMasterTrack`；5.2+ `GetTracks`/`AddTrack`（5.5 起旧 API 删除） |
 
 ## UnLua 兼容宏
 

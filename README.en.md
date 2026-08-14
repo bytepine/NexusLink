@@ -43,13 +43,13 @@ Most MCP clients re-inject `tools/list` + `initialize.instructions` **on every m
 
 | Component | SearchMode | MultiTool | Delta |
 |---|---|---|---|
-| tools/list | 3 tools · ~0.3k tok | 177 tools · ~16.9k tok | **+16.6k** |
+| tools/list | 3 tools · ~0.3k tok | 222 tools · ~21.2k tok | **+20.9k** |
 | initialize.instructions | ~1.1k | ~0.7k | −0.4k |
-| **Fixed total / turn** | **~1.4k** | **~17.6k** | **~12.6× / +16.2k** |
+| **Fixed total / turn** | **~1.4k** | **~21.9k** | **~15.6× / +20.5k** |
 
 - SearchMode: tiny tools/list + compact routing; fetch a single schema via `search_capabilities` on demand (one-time “discovery tax”).
 - MultiTool: slightly shorter instructions, but every Capability schema is stuffed into the prompt each turn (“full schema tax” every turn; median tool def ~86 tok).
-- Typical task totals (same call results omitted): known 1×search+1×call ≈ **3.7×**; medium 2×search+3×call ≈ **4.4×**; heavy 4×search+8×call ≈ **4.9×**. Even with zero searches (routing-only), the fixed tax stays about **12.6×**.
+- Typical task totals (same call results omitted): known 1×search+1×call ≈ **4.6×**; medium 2×search+3×call ≈ **5.5×**; heavy 4×search+8×call ≈ **6.1×**. Even with zero searches (routing-only), the fixed tax stays about **15.6×**.
 
 **Recommendation**: keep **SearchMode** for daily and long sessions. Switch to MultiTool only when the client cannot follow search→call or must list every Tool at once — and disable unused Capabilities in settings to cut the tax. With UE online, re-check live `tools/list` via the host project’s `Script/measure_token_baseline.py`.
 
@@ -205,6 +205,7 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 
 - [docs/usage-guide.md](docs/usage-guide.md) — User install, settings panel, and IDE proxy setup
 - [docs/architecture.md](docs/architecture.md) — Architecture (layering, Capability system, registration & dispatch)
+- [docs/version-compat-reference.md](docs/version-compat-reference.md) — `NX_UE_HAS_*` version-compat macros
 - [docs/tool-reference.md](docs/tool-reference.md) — Full Capability parameter reference (script-generated; update with `py scripts/build_tool_reference.py`)
 - [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) — Capability metadata spec (naming / four-part description / self-check checklist)
 - [Resources/InitializeInstructions.SearchMode.md](Resources/InitializeInstructions.SearchMode.md) — SearchMode workflow for AI handshake (tool model / pattern routing / hard rules; trigger keywords live in `ProxyConfig.initializePrefix`)
