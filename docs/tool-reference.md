@@ -477,14 +477,14 @@
 
 ### `create_asset_media_source`
 
-创建 FileMediaSource。可选 filePath。播放走 interact_runtime_actor。
+创建 FileMediaSource。可选 mediaPath。播放走 interact_runtime_actor。
 
 **适用场景**：新建 FileMediaSource；不负责播放
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 资产包路径 |
-| `filePath` | `string` |  | 媒体文件路径（可选） |
+| `mediaPath` | `string` |  | 媒体文件路径（可选） |
 
 **相关 Capability**：`get_asset_media_source`、`manage_asset_media_source`
 
@@ -1013,7 +1013,7 @@
 
 ### `get_asset_media_source`
 
-读取 FileMediaSource：filePath。
+读取 FileMediaSource：mediaPath。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -1622,7 +1622,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | MediaSource 资产路径 |
-| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_file_path/set_loop), `filePath`, `loop` |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_file_path/set_loop), `mediaPath`, `loop` |
 
 **相关 Capability**：`get_asset_media_source`、`create_asset_media_source`
 

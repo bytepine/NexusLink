@@ -11,10 +11,10 @@
 void FCreateAssetMediaSourceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_media_source");
-	Out.Description = TEXT("创建 FileMediaSource。可选 filePath。播放走 interact_runtime_actor。");
+	Out.Description = TEXT("创建 FileMediaSource。可选 mediaPath。播放走 interact_runtime_actor。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
-		.Prop(TEXT("filePath"), FNexusSchema::Str(TEXT("媒体文件路径（可选）")))
+		.Prop(TEXT("mediaPath"), FNexusSchema::Str(TEXT("媒体文件路径（可选）")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -45,7 +45,7 @@ FCapabilityResult FCreateAssetMediaSourceCapability::Execute(const TSharedPtr<FJ
 		UFileMediaSource* Source = NewObject<UFileMediaSource>(Package, *AssetName, RF_Public | RF_Standalone);
 		if (!Source) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建失败")); return; }
 		FString FilePath;
-		if (Arguments->TryGetStringField(TEXT("filePath"), FilePath) && !FilePath.IsEmpty())
+		if (Arguments->TryGetStringField(TEXT("mediaPath"), FilePath) && !FilePath.IsEmpty())
 		{
 			Source->SetFilePath(FilePath);
 		}

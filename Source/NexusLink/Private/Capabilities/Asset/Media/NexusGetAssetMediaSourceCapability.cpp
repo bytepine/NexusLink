@@ -12,7 +12,7 @@ void FGetAssetMediaSourceCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name = TEXT("get_asset_media_source");
 	Out.SearchAssetTypes = {TEXT("FileMediaSource"), TEXT("MediaSource")};
-	Out.Description = TEXT("读取 FileMediaSource：filePath。");
+	Out.Description = TEXT("读取 FileMediaSource：mediaPath。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MediaSource 资产路径")))
 		.Required({ TEXT("assetPath") })
@@ -40,7 +40,7 @@ FCapabilityResult FGetAssetMediaSourceCapability::Execute(const TSharedPtr<FJson
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Source->GetName());
 		Entry->SetStringField(TEXT("path"), Source->GetPathName());
-		Entry->SetStringField(TEXT("filePath"), Source->GetFilePath());
+		Entry->SetStringField(TEXT("mediaPath"), Source->GetFilePath());
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

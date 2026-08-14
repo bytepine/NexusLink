@@ -17,7 +17,7 @@ void FManageAssetMediaSourceCapability::BuildDefinition(FNexusCapabilityDefiniti
 	Out.Description = TEXT("批量编辑 FileMediaSource。operations[].action=set_file_path/set_loop。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"), { TEXT("set_file_path"), TEXT("set_loop") }))
-		.Prop(TEXT("filePath"), FNexusSchema::Str(TEXT("媒体文件路径（set_file_path）")))
+		.Prop(TEXT("mediaPath"), FNexusSchema::Str(TEXT("媒体文件路径（set_file_path）")))
 		.Prop(TEXT("loop"), FNexusSchema::Bool(TEXT("是否循环（set_loop，反射字段）")))
 		.Required({ TEXT("action") })
 		.Build();
@@ -70,15 +70,15 @@ FCapabilityResult FManageAssetMediaSourceCapability::Execute(const TSharedPtr<FJ
 			if (Action == TEXT("set_file_path"))
 			{
 				FString FilePath;
-				if (!Op->TryGetStringField(TEXT("filePath"), FilePath) || FilePath.IsEmpty())
+				if (!Op->TryGetStringField(TEXT("mediaPath"), FilePath) || FilePath.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_file_path 需要 filePath"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_file_path 需要 mediaPath"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
 				Source->SetFilePath(FilePath);
 				bDirty = true;
-				Entry->SetStringField(TEXT("filePath"), Source->GetFilePath());
+				Entry->SetStringField(TEXT("mediaPath"), Source->GetFilePath());
 			}
 			else if (Action == TEXT("set_loop"))
 			{
