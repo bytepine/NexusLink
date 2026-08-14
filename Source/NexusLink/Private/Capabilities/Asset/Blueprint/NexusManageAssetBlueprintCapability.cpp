@@ -9,6 +9,7 @@
 #include "Utils/NexusPinTypeUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusBlueprintGraphUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
@@ -358,7 +359,11 @@ FCapabilityResult FManageAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 					Entry->SetStringField(TEXT("error"), TEXT("已实现该接口"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
 				}
+#if NX_UE_HAS_BP_INTERFACE_ASSET_PATH
+				FBlueprintEditorUtils::ImplementNewInterface(BP, IfaceClass->GetClassPathName());
+#else
 				FBlueprintEditorUtils::ImplementNewInterface(BP, IfaceClass->GetFName());
+#endif
 				if (!BlueprintAlreadyImplements(BP, IfaceClass))
 				{
 					Entry->SetStringField(TEXT("error"), TEXT("ImplementNewInterface 失败（需已编译的接口蓝图）"));
@@ -372,7 +377,11 @@ FCapabilityResult FManageAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 					Entry->SetStringField(TEXT("error"), TEXT("未实现该接口"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
 				}
+#if NX_UE_HAS_BP_INTERFACE_ASSET_PATH
+				FBlueprintEditorUtils::RemoveInterface(BP, IfaceClass->GetClassPathName());
+#else
 				FBlueprintEditorUtils::RemoveInterface(BP, IfaceClass->GetFName());
+#endif
 			}
 
 			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);

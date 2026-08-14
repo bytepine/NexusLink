@@ -8,6 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
 #include "GameFramework/Actor.h"
+#include "Engine/World.h"
 #include "Components/AudioComponent.h"
 #include "NexusMcpTool.h"
 

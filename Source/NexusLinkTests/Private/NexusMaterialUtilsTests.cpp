@@ -4,6 +4,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "Utils/NexusMaterialUtils.h"
 #include "Materials/MaterialFunction.h"
+#include "UObject/Package.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -14,7 +15,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FNexusMaterialUtilsMfExpressionRoundtrip::RunTest(const FString& Parameters)
 {
-	UMaterialFunction* MF = NewObject<UMaterialFunction>(GetTransientPackage());
+	UMaterialFunction* MF = NewObject<UMaterialFunction>((UObject*)GetTransientPackage());
 	TestNotNull(TEXT("transient MaterialFunction"), MF);
 	if (!MF) return false;
 

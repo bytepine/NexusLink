@@ -6,6 +6,7 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #include "Internationalization/StringTable.h"
 #include "Internationalization/StringTableCore.h"
 #include "NexusMcpTool.h"
@@ -87,7 +88,11 @@ FCapabilityResult FManageAssetStringTableCapability::Execute(const TSharedPtr<FJ
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
+#if NX_UE_HAS_STRING_TABLE_SOURCE_DEV_NOTES
+				Mutable->SetSourceString(Key, Source, FString());
+#else
 				Mutable->SetSourceString(Key, Source);
+#endif
 				bDirty = true;
 				Entry->SetStringField(TEXT("key"), Key);
 				Entry->SetStringField(TEXT("source"), Source);

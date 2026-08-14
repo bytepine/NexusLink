@@ -148,15 +148,19 @@
 #define NX_UE_HAS_ENUM_EDITOR_SET_DISPLAY_NAME  NX_UE_AT_LEAST(4, 27)
 
 // ── MovieScene 版本兼容 ──
-// UE 5.5 将 Master Tracks API（GetMasterTracks/AddMasterTrack/FindMasterTrack/RemoveMasterTrack）重构
-#define NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS  (!NX_UE_AT_LEAST(5, 5))
+// UE 5.2 起 GetMasterTracks/AddMasterTrack 标 deprecated（改用 GetTracks/AddTrack）；5.5 起旧 API 删除
+#define NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS  (!NX_UE_AT_LEAST(5, 2))
 // 4.26+ FloatSection 走 ChannelProxy + FMovieSceneFloatChannel（无 FRichCurve GetFloatCurve）
 #define NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL  1
-// UE5+ UWidgetAnimation::SetMovieScene；UE4 直写 MovieScene 成员
-#define NX_UE_HAS_WIDGET_ANIM_SET_MOVIE_SCENE  NX_UE_AT_LEAST(5, 0)
+// UWidgetAnimation 全版本均公开 MovieScene 字段，无 SetMovieScene
+#define NX_UE_HAS_WIDGET_ANIM_SET_MOVIE_SCENE  0
 
-// UE 4.27+ UEditorEngine::SetPIEWorldsPaused；4.26 用 PlayWorld->bDebugPauseExecution
-#define NX_UE_HAS_SET_PIE_WORLDS_PAUSED  NX_UE_AT_LEAST(4, 27)
+// UE 5.0+ UEditorEngine::SetPIEWorldsPaused；4.26/4.27 用 PlayWorld->bDebugPauseExecution
+#define NX_UE_HAS_SET_PIE_WORLDS_PAUSED  NX_UE_AT_LEAST(5, 0)
+// UE 5.1+ ImplementNewInterface/RemoveInterface 走 FTopLevelAssetPath（FName 短名 overload 会 C4996）
+#define NX_UE_HAS_BP_INTERFACE_ASSET_PATH  NX_UE_AT_LEAST(5, 1)
+// UE 5.8 Editor：SetSourceString 仅 3 参（key, source, devNotes）；Game / 5.7- 仍为 2 参
+#define NX_UE_HAS_STRING_TABLE_SOURCE_DEV_NOTES  (NX_UE_AT_LEAST(5, 8) && WITH_EDITORONLY_DATA)
 // UE5 UListViewBase::GetNumItems；UE4 用 GetItems().Num()
 #define NX_UE_HAS_LISTVIEW_GET_NUM_ITEMS  NX_UE_AT_LEAST(5, 0)
 

@@ -6,6 +6,7 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "FoliageType_InstancedStaticMesh.h"
+#include "Engine/StaticMesh.h"
 #include "NexusMcpTool.h"
 
 void FGetAssetFoliageTypeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const

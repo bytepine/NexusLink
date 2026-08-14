@@ -138,7 +138,7 @@ FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJs
 		}
 		OutEntry->SetArrayField(TEXT("bindings"), BindingsArr);
 
-		// Master tracks（Camera Cut、Audio 等无 Binding 的全局 Track，UE < 5.5）
+		// 全局 Track（Camera Cut、Audio 等无 Binding；5.2 前为 MasterTracks）
 		TArray<TSharedPtr<FJsonValue>> MasterTrackArr;
 #if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -153,6 +153,17 @@ FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJs
 			}
 		}
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#else
+		for (UMovieSceneTrack* MasterTrack : Scene->GetTracks())
+		{
+			if (MasterTrack)
+			{
+				TSharedPtr<FJsonObject> TObj = MakeShared<FJsonObject>();
+				TObj->SetStringField(TEXT("trackClass"),  MasterTrack->GetClass()->GetName());
+				TObj->SetStringField(TEXT("displayName"), MasterTrack->GetDisplayName().ToString());
+				MasterTrackArr.Add(MakeShared<FJsonValueObject>(TObj));
+			}
+		}
 #endif
 		OutEntry->SetArrayField(TEXT("masterTracks"), MasterTrackArr);
 

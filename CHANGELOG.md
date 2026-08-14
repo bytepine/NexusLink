@@ -9,6 +9,8 @@
 
 ### Fixed
 
+- fix(compat): 跨版本编译——`SetPIEWorldsPaused` 仅 UE5+；Widget 动画直写 `MovieScene`；MovieScene 5.2+ 用 `AddTrack`/`GetTracks`；蓝图接口走 `FTopLevelAssetPath`；5.8 Editor `SetSourceString` 三参；补 `StaticMesh`/`World`/`Package` 头文件
+
 - fix(mcp): 响应默认值压缩仅当字段出现在**全部 object 条目**上才抽取——避免 `inherited` / `isConst` 等稀疏字段经 `{**defaults, **entry}` 被填到本无该字段的条目上
 - fix(mcp): `get_output_log` 的 `categoryFilter` ForcedDefault 改为本页实际 category **全员一致**才抽取（`AddForcedDefaultIfUnanimous`），不再把过滤子串当 defaults
 - fix(mcp): `relatedCapabilities` 运行期只保留当前宿主已注册且已启用的名（`search_capabilities` / MultiTool `[see:]`）；握手路由改为「插件门控」——GAS/Niagara/StateTree 等 `not_found` 即跳过

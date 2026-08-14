@@ -81,7 +81,7 @@ bool FNexusWidgetAnimationUtils::AddFloatTrack(UWidgetAnimation* Anim, const FSt
 #if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
 	Track = Scene->AddMasterTrack<UMovieSceneFloatTrack>();
 #else
-	Track = Scene->AddRootTrack<UMovieSceneFloatTrack>();
+	Track = Scene->AddTrack<UMovieSceneFloatTrack>();
 #endif
 	if (!Track) { OutError = TEXT("添加 FloatTrack 失败"); return false; }
 	const FString Display = TrackName.IsEmpty() ? TEXT("Float") : TrackName;

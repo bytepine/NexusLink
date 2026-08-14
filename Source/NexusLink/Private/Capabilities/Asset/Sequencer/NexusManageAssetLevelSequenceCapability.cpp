@@ -210,7 +210,7 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 					}
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #else
-						UMovieSceneTrack* NewTrack = Scene->AddRootTrack(Class);
+						UMovieSceneTrack* NewTrack = Scene->AddTrack(Class);
 						if (NewTrack) bDirty = true;
 						else OpResult->SetStringField(TEXT("error"), TEXT("add_master_track 失败"));
 #endif
@@ -341,7 +341,7 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 #if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
 					FloatTrack = Scene->AddMasterTrack<UMovieSceneFloatTrack>();
 #else
-					FloatTrack = Scene->AddRootTrack<UMovieSceneFloatTrack>();
+					FloatTrack = Scene->AddTrack<UMovieSceneFloatTrack>();
 #endif
 				}
 				if (!FloatTrack)

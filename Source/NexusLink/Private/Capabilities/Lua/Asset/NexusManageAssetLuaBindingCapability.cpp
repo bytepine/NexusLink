@@ -8,10 +8,14 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusVersionCompat.h"
 #include "Engine/Blueprint.h"
 #include "NexusMcpTool.h"
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
+#if NX_UE_HAS_BP_INTERFACE_ASSET_PATH
+#include "UObject/TopLevelAssetPath.h"
+#endif
 #endif
 
 void FManageAssetLuaBindingCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -57,7 +61,9 @@ FCapabilityResult FManageAssetLuaBindingCapability::Execute(const TSharedPtr<FJs
 			return;
 		}
 
+#if !NX_UE_HAS_BP_INTERFACE_ASSET_PATH
 		const FName IfaceName(TEXT("UnLuaInterface"));
+#endif
 		for (const TSharedPtr<FJsonValue>& OpVal : *Ops)
 		{
 			TSharedPtr<FJsonObject> Op = OpVal->AsObject();
@@ -68,7 +74,11 @@ FCapabilityResult FManageAssetLuaBindingCapability::Execute(const TSharedPtr<FJs
 			Res->SetStringField(TEXT("action"), Action);
 			if (Action == TEXT("bind"))
 			{
+#if NX_UE_HAS_BP_INTERFACE_ASSET_PATH
+				FBlueprintEditorUtils::ImplementNewInterface(BP, FTopLevelAssetPath(TEXT("/Script/UnLua"), TEXT("UnLuaInterface")));
+#else
 				FBlueprintEditorUtils::ImplementNewInterface(BP, IfaceName);
+#endif
 				FString ModuleName;
 				Op->TryGetStringField(TEXT("moduleName"), ModuleName);
 				if (!ModuleName.IsEmpty()) Res->SetStringField(TEXT("moduleName"), ModuleName);
@@ -76,7 +86,11 @@ FCapabilityResult FManageAssetLuaBindingCapability::Execute(const TSharedPtr<FJs
 			}
 			else if (Action == TEXT("unbind"))
 			{
+#if NX_UE_HAS_BP_INTERFACE_ASSET_PATH
+				FBlueprintEditorUtils::RemoveInterface(BP, FTopLevelAssetPath(TEXT("/Script/UnLua"), TEXT("UnLuaInterface")));
+#else
 				FBlueprintEditorUtils::RemoveInterface(BP, IfaceName);
+#endif
 				Res->SetBoolField(TEXT("unbound"), true);
 			}
 			else

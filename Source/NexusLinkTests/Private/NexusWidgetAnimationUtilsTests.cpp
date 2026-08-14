@@ -5,6 +5,7 @@
 #include "Utils/NexusWidgetAnimationUtils.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #include "WidgetBlueprint.h"
@@ -21,7 +22,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 bool FNexusWidgetAnimationUtilsRoundtrip::RunTest(const FString& Parameters)
 {
 #if WITH_EDITOR
-	UWidgetBlueprint* WBP = NewObject<UWidgetBlueprint>(GetTransientPackage());
+	UWidgetBlueprint* WBP = NewObject<UWidgetBlueprint>((UObject*)GetTransientPackage());
 	TestNotNull(TEXT("transient WBP"), WBP);
 	if (!WBP) return false;
 
