@@ -39,7 +39,7 @@ Mode switch path: Editor → Editor Preferences → Plugins → NexusLink → **
 
 #### Token cost comparison (why SearchMode is the default)
 
-Most MCP clients re-inject `tools/list` + `initialize.instructions` **on every model turn**. Fixed-overhead rough estimate (188 Capabilities, schemas parsed from source, chars÷4; excludes call payloads and chat history):
+Most MCP clients re-inject `tools/list` + `initialize.instructions` **on every model turn**. Fixed-overhead rough estimate (221 Capabilities, schemas parsed from source, chars÷4; excludes call payloads and chat history):
 
 | Component | SearchMode | MultiTool | Delta |
 |---|---|---|---|
@@ -163,13 +163,17 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 | **Audio** | SoundWave, SoundCue (incl. create), MetaSound Source/Patch (Frontend Document / graph wiring), SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound: 5.0+, Patch: 5.1+ |
 | **AI** | BehaviorTree (incl. `replace_node` / `sync_graph`) / Blackboard / runtime AI state / `interact_runtime_actor_ai` | All versions |
 | **EQS** | EnvQuery asset get/manage/create | UE 5.0+ |
-| **GAS** | GameplayAbility / GameplayEffect / AttributeSet + runtime ASC (give/clear/cue/loose tag) | Requires `GameplayAbilities` plugin |
+| **GAS** | GameplayAbility / GameplayEffect / AttributeSet / GameplayCueNotify_Static + runtime ASC (give/clear/cue/loose tag) | Requires `GameplayAbilities` plugin |
 | **Control Binding** | ControlRig (hierarchy + RigVM + add_control/add_bone), IKRig / IKRetargeter (chains/goals + create retargeter) | UE 5.0+ |
 | **Procedural / Motion** | PCG Graph (nodes/edges incl. `remove_edge`), PoseSearch (schema/database) | UE 5.4+ |
 | **Layout / Data** | Struct, DataAsset, DataTable, Widget/UMG (widget tree/animation tracks; EventGraph via blueprint) | All versions |
+| **Paper2D** | PaperSprite / PaperFlipbook (incl. create) / PaperTileMap (read-only) | Requires Paper2D plugin |
+| **Chaos** | GeometryCollection (blank create / damage thresholds; no mesh fracture) | UE 5.0+ |
+| **CommonUI** | CommonButtonStyle / CommonTextStyle; WBP still uses user_widget | UE 5.0+ CommonUI |
+| **Movie Render Queue** | MoviePipeline config output directory/resolution; does not start a render | UE 5.0+ |
 | **State / ViewModel** | StateTree (states/tasks/conditions/transitions + create), MVVM ViewModel / Binding (incl. manage) | UE 5.5+ |
 | **Physics / Sequencer** | PhysicsAsset (bodies/constraints), LevelSequence (bindings/tracks/keys + create) | All versions |
-| **Engine Core Assets** | Curve (Float/Vector/LinearColor/CurveTable), UserDefinedEnum, AnimComposite, PhysicalMaterial (incl. create), TextureRenderTarget2D | All versions |
+| **Engine Core Assets** | Curve (Float/Vector/LinearColor/CurveTable), UserDefinedEnum, AnimComposite, PhysicalMaterial (incl. create), TextureRenderTarget2D, StringTable, Font (no create; TTF via `reimport_asset`), FoliageType, FileMediaSource | All versions |
 | **World Partition** | DataLayerAsset (type / debug color) | UE 5.1+ |
 | **VFX** | NiagaraSystem (emitter CRUD/enable/rename/create; no module graph) | Requires Niagara plugin |
 | **Runtime** | Actor list/spawn/destroy/property read-write/diff; Widget runtime (ComboBox set/read, ListView read); AnimInstance; GAS; audio/Niagara; `control_pie` pause/resume/step | Requires PIE/Game |

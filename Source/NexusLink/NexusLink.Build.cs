@@ -43,6 +43,8 @@ public class NexusLink : ModuleRules
 			"LevelSequence",
 			"MovieScene",
 			"MovieSceneTracks",
+			"Foliage",
+			"MediaAssets",
 			}
 		);
 
@@ -593,6 +595,80 @@ public class NexusLink : ModuleRules
 			PublicDefinitions.Add("WITH_POSE_SEARCH=0");
 		}
 
+		// ── 可选 Paper2D（全版本引擎插件）──────────────────────────────────────────
+		bool bHasPaper2D = DetectEnginePlugin(PluginSearchDirs, "Paper2D.uplugin");
+		string EnvPaper2D = System.Environment.GetEnvironmentVariable("WITH_PAPER2D");
+		if (EnvPaper2D == "1") bHasPaper2D = true;
+		if (EnvPaper2D == "0") bHasPaper2D = false;
+		if (bHasPaper2D)
+		{
+			PrivateDependencyModuleNames.Add("Paper2D");
+			PublicDefinitions.Add("WITH_PAPER2D=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_PAPER2D=0");
+		}
+
+		// ── 可选 GeometryCollection（UE5+ Chaos）───────────────────────────────────
+		bool bHasGeometryCollection = false;
+		if (bEngineIsUE50Plus)
+		{
+			bHasGeometryCollection = DetectEnginePlugin(PluginSearchDirs, "GeometryCollectionPlugin.uplugin")
+				|| DetectEnginePlugin(PluginSearchDirs, "GeometryCollectionEngine.uplugin");
+		}
+		string EnvGC = System.Environment.GetEnvironmentVariable("WITH_GEOMETRY_COLLECTION");
+		if (EnvGC == "1") bHasGeometryCollection = true;
+		if (EnvGC == "0") bHasGeometryCollection = false;
+		if (bHasGeometryCollection)
+		{
+			PrivateDependencyModuleNames.Add("GeometryCollectionEngine");
+			PublicDefinitions.Add("WITH_GEOMETRY_COLLECTION=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_GEOMETRY_COLLECTION=0");
+		}
+
+		// ── 可选 CommonUI（UE5+）────────────────────────────────────────────────────
+		bool bHasCommonUI = false;
+		if (bEngineIsUE50Plus)
+		{
+			bHasCommonUI = DetectEnginePlugin(PluginSearchDirs, "CommonUI.uplugin");
+		}
+		string EnvCommonUI = System.Environment.GetEnvironmentVariable("WITH_COMMON_UI");
+		if (EnvCommonUI == "1") bHasCommonUI = true;
+		if (EnvCommonUI == "0") bHasCommonUI = false;
+		if (bHasCommonUI)
+		{
+			PrivateDependencyModuleNames.Add("CommonUI");
+			PublicDefinitions.Add("WITH_COMMON_UI=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_COMMON_UI=0");
+		}
+
+		// ── 可选 Movie Render Queue（UE5+）──────────────────────────────────────────
+		bool bHasMovieRenderPipeline = false;
+		if (bEngineIsUE50Plus)
+		{
+			bHasMovieRenderPipeline = DetectEnginePlugin(PluginSearchDirs, "MovieRenderPipeline.uplugin");
+		}
+		string EnvMRQ = System.Environment.GetEnvironmentVariable("WITH_MOVIE_RENDER_PIPELINE");
+		if (EnvMRQ == "1") bHasMovieRenderPipeline = true;
+		if (EnvMRQ == "0") bHasMovieRenderPipeline = false;
+		if (bHasMovieRenderPipeline)
+		{
+			PrivateDependencyModuleNames.Add("MovieRenderPipelineCore");
+			PrivateDependencyModuleNames.Add("MovieRenderPipelineSettings");
+			PublicDefinitions.Add("WITH_MOVIE_RENDER_PIPELINE=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_MOVIE_RENDER_PIPELINE=0");
+		}
+
 		if (bHasUnLua)
 		{
 			PublicDependencyModuleNames.Add("Lua");
@@ -633,6 +709,24 @@ public class NexusLink : ModuleRules
 			PublicDefinitions.Add("WITH_UNLUA=0");
 			PublicDefinitions.Add("UNLUA_VERSION_MAJOR=0");
 		}
+	}
+
+	/// <summary>在插件搜索目录中查找指定 .uplugin（权限失败时视为不存在）。</summary>
+	private static bool DetectEnginePlugin(System.Collections.Generic.List<string> PluginSearchDirs, string UpluginFileName)
+	{
+		foreach (string Dir in PluginSearchDirs)
+		{
+			try
+			{
+				foreach (string File in System.IO.Directory.GetFiles(
+					Dir, UpluginFileName, System.IO.SearchOption.AllDirectories))
+				{
+					return true;
+				}
+			}
+			catch (System.Exception) { }
+		}
+		return false;
 	}
 
 	/// <summary>

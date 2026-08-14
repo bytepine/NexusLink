@@ -42,13 +42,13 @@ NexusLink MCP：Unreal 编辑器 + 运行时控制（资产 / PIE / UMG / Lua / 
 
 ## 路由（模式 + 例外）
 
-**资产**：首选 `search_asset` → `recommended*`；无推荐时 `{get|manage|create}_asset_{type}` — type ∈ `blueprint` / `material` / `anim_blueprint` / `anim_montage` / `user_widget` / `behavior_tree` / `blackboard` / `data_table` / `data_asset` / `struct` / `texture` / `static_mesh` / `skeletal_mesh` / `anim_sequence` / `skeleton` / `sound_wave` / `sound_cue` / `level` / `level_sequence` / `physical_material`。一 (动词, 类型) 覆盖全部子方面（勿找 `manage_asset_blueprint_variable` 等）。例外：`manage_asset_struct_field`、`get_asset_refs`、`get_asset_lua_binding`、`manage_asset_lua_binding`、`export_asset`、`reimport_asset`、`compile_blueprint`、`save_asset` / `rename_asset` / `duplicate_asset` / `delete_asset` / `unload_asset`。
+**资产**：首选 `search_asset` → `recommended*`；无推荐时 `{get|manage|create}_asset_{type}` — type ∈ `blueprint` / `material` / `anim_blueprint` / `anim_montage` / `user_widget` / `behavior_tree` / `blackboard` / `data_table` / `data_asset` / `struct` / `texture` / `static_mesh` / `skeletal_mesh` / `anim_sequence` / `skeleton` / `sound_wave` / `sound_cue` / `level` / `level_sequence` / `physical_material` / `string_table` / `foliage_type` / `font` / `media_source`。一 (动词, 类型) 覆盖全部子方面（勿找 `manage_asset_blueprint_variable` 等）。例外：`manage_asset_struct_field`、`get_asset_refs`、`get_asset_lua_binding`、`manage_asset_lua_binding`、`export_asset`、`reimport_asset`、`compile_blueprint`、`save_asset` / `rename_asset` / `duplicate_asset` / `delete_asset` / `unload_asset`。
 
 **运行时**：`{verb}_runtime_{target}[_aspect]`（`list`/`get`/`set`/`spawn`/`destroy`/`interact`/`diff`；target=`actor`/`widget`/`slate_widget`，actor 可加 `_property`/`_animation`/`_behavior_tree`/`_audio`/`_niagara`/`_ai`/`_ability_system`）。动画：读 `get_runtime_actor_animation`，写 `interact_runtime_actor_animation`。非模式：`interact_runtime_widget`、`diff_runtime_actors`、`get_runtime_slate_widget`。
 
 **Lua**：`{eval|dofile|gc|hotreload}_runtime_lua` · `get_runtime_lua_*` · `set_runtime_lua` · `get_asset_lua_binding` · `manage_asset_lua_binding`；`hotreload_runtime_lua` 需 UnLua **2.x**。
 
-**插件门控**：GAS / Niagara / StateTree / MVVM / EQS / MetaSound / PCG / ControlRig / Enhanced Input 仅对应插件+引擎版本才注册；`search_capabilities` `not_found` 即跳过，勿按握手名硬调。Tag 查询 `get_gameplay_tags` 全版本可用。
+**插件门控**：GAS / Niagara / StateTree / MVVM / EQS / MetaSound / PCG / ControlRig / Enhanced Input / Paper2D / GeometryCollection / CommonUI / Movie Render Queue 仅对应插件+引擎版本才注册；`search_capabilities` `not_found` 即跳过，勿按握手名硬调。Tag 查询 `get_gameplay_tags` 全版本可用。
 
 **编辑器**：`control_pie`、`exec_command`、`search_console_variables`、`capture_viewport`、`get_editor_context`、`get_output_log` / `set_log_capture_filter`、`get_editor_info`。
 

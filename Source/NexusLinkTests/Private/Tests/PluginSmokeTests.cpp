@@ -88,6 +88,10 @@ bool FNexusLinkPluginSmokeTest::RunTest(const FString& Parameters)
 		TEXT("create_asset_level"),
 		TEXT("interact_runtime_actor_audio"),
 		TEXT("interact_runtime_actor_ai"),
+		TEXT("create_asset_string_table"),
+		TEXT("get_asset_font"),
+		TEXT("create_asset_foliage_type"),
+		TEXT("create_asset_media_source"),
 	};
 
 	for (const TCHAR* Name : MustExistCaps)

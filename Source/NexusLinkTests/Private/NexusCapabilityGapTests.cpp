@@ -83,6 +83,45 @@ bool FNexusCapabilityGapNewCapsRegistered::RunTest(const FString& Parameters)
 #if WITH_CONTROL_RIG
 	TestTrue(TEXT("CR add_control"), SchemaActionContains(TEXT("manage_asset_control_rig"), TEXT("add_control"), *this));
 #endif
+#if WITH_GAS
+	TestNotNull(TEXT("create_asset_gameplay_cue_notify"), FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("create_asset_gameplay_cue_notify")));
+	TestTrue(TEXT("GCNotify set_cue_name"), SchemaActionContains(TEXT("manage_asset_gameplay_cue_notify"), TEXT("set_cue_name"), *this));
+#else
+	TestNull(TEXT("create_asset_gameplay_cue_notify absent"), FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("create_asset_gameplay_cue_notify")));
+#endif
+#if WITH_PAPER2D
+	TestNotNull(TEXT("create_asset_paper_sprite"), FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("create_asset_paper_sprite")));
+	TestTrue(TEXT("Sprite set_source"), SchemaActionContains(TEXT("manage_asset_paper_sprite"), TEXT("set_source"), *this));
+	TestNotNull(TEXT("get_asset_paper_tile_map"), FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("get_asset_paper_tile_map")));
+#else
+	TestNull(TEXT("create_asset_paper_sprite absent"), FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("create_asset_paper_sprite")));
+#endif
+#if WITH_GEOMETRY_COLLECTION
+	TestNotNull(TEXT("create_asset_geometry_collection"), FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("create_asset_geometry_collection")));
+	TestTrue(TEXT("GC set_damage_threshold"), SchemaActionContains(TEXT("manage_asset_geometry_collection"), TEXT("set_damage_threshold"), *this));
+#else
+	TestNull(TEXT("create_asset_geometry_collection absent"), FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("create_asset_geometry_collection")));
+#endif
+#if WITH_COMMON_UI
+	TestNotNull(TEXT("create_asset_common_button_style"), FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("create_asset_common_button_style")));
+	TestNotNull(TEXT("create_asset_common_text_style"), FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("create_asset_common_text_style")));
+#else
+	TestNull(TEXT("create_asset_common_button_style absent"), FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("create_asset_common_button_style")));
+#endif
+#if WITH_MOVIE_RENDER_PIPELINE
+	TestNotNull(TEXT("create_asset_movie_pipeline_config"), FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("create_asset_movie_pipeline_config")));
+	TestTrue(TEXT("MRQ set_output"), SchemaActionContains(TEXT("manage_asset_movie_pipeline_config"), TEXT("set_output"), *this));
+#else
+	TestNull(TEXT("create_asset_movie_pipeline_config absent"), FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("create_asset_movie_pipeline_config")));
+#endif
+	TestTrue(TEXT("ST add_key"), SchemaActionContains(TEXT("manage_asset_string_table"), TEXT("add_key"), *this));
+	TestTrue(TEXT("Foliage set_mesh"), SchemaActionContains(TEXT("manage_asset_foliage_type"), TEXT("set_mesh"), *this));
+	TestTrue(TEXT("Media set_file_path"), SchemaActionContains(TEXT("manage_asset_media_source"), TEXT("set_file_path"), *this));
+	TestTrue(TEXT("Font SAT Font"), [&]()
+	{
+		const FCapRecord* Rec = FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("get_asset_font"));
+		return Rec && Rec->Def.SearchAssetTypes.Contains(TEXT("Font"));
+	}());
 	return true;
 }
 

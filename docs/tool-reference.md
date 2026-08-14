@@ -36,7 +36,7 @@
 ---
 
 <!-- 自动生成，由 build_tool_reference.py 产出；以下内容请勿手工修改 -->
-<!-- 共 186 个 Capability + 3 个元工具 -->
+<!-- 共 219 个 Capability + 3 个元工具 -->
 
 ## 目录
 
@@ -229,6 +229,30 @@
 
 ---
 
+### `create_asset_common_button_style`
+
+创建 CommonButtonStyle。WBP 控件树仍走 user_widget。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+
+**相关 Capability**：`get_asset_common_button_style`、`manage_asset_common_button_style`、`create_asset_common_text_style`
+
+---
+
+### `create_asset_common_text_style`
+
+创建 CommonTextStyle。WBP 控件树仍走 user_widget。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+
+**相关 Capability**：`get_asset_common_text_style`、`manage_asset_common_text_style`、`create_asset_common_button_style`
+
+---
+
 ### `create_asset_control_rig`
 
 创建空白 ControlRig Blueprint；用 manage 添加骨骼/控件。
@@ -288,6 +312,21 @@
 
 ---
 
+### `create_asset_foliage_type`
+
+创建 FoliageType（InstancedStaticMesh）。可选 meshPath。不含关卡刷草。
+
+**适用场景**：新建植被类型资产；关卡内绘制走编辑器
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+| `meshPath` | `string` |  | StaticMesh 路径（可选） |
+
+**相关 Capability**：`get_asset_foliage_type`、`manage_asset_foliage_type`
+
+---
+
 ### `create_asset_gameplay_ability`
 
 创建 GameplayAbility BP；语义字段用 `manage_asset_gameplay_ability`，Graph 用 `manage_asset_blueprint`。
@@ -303,6 +342,22 @@
 
 ---
 
+### `create_asset_gameplay_cue_notify`
+
+创建 GameplayCueNotify_Static。kind=actor 时请改用 create_asset_blueprint。
+
+**适用场景**：新建 Static Cue Notify；Actor 蓝图走 create_asset_blueprint
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+| `kind` | `string (enum)` |  | 类型 枚举值：`static` / `actor` |
+| `cueName` | `string` |  | GameplayCue Tag（可选） |
+
+**相关 Capability**：`get_asset_gameplay_cue_notify`、`manage_asset_gameplay_cue_notify`、`create_asset_blueprint`
+
+---
+
 ### `create_asset_gameplay_effect`
 
 创建 GameplayEffect BP；修改 Duration/Modifier/Tag 用 `manage_asset_gameplay_effect`。
@@ -315,6 +370,18 @@
 | `parentClass` | `string` |  | 父类名（默认 GameplayEffect） |
 
 **相关 Capability**：`get_asset_gameplay_effect`、`manage_asset_gameplay_effect`
+
+---
+
+### `create_asset_geometry_collection`
+
+创建空白 GeometryCollection。不从 StaticMesh 打碎。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+
+**相关 Capability**：`get_asset_geometry_collection`、`manage_asset_geometry_collection`
 
 ---
 
@@ -408,6 +475,21 @@
 
 ---
 
+### `create_asset_media_source`
+
+创建 FileMediaSource。可选 filePath。播放走 interact_runtime_actor。
+
+**适用场景**：新建 FileMediaSource；不负责播放
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+| `filePath` | `string` |  | 媒体文件路径（可选） |
+
+**相关 Capability**：`get_asset_media_source`、`manage_asset_media_source`
+
+---
+
 ### `create_asset_meta_sound`
 
 创建 MetaSound Source 资产。读用 get_asset_meta_sound。
@@ -436,6 +518,18 @@
 
 ---
 
+### `create_asset_movie_pipeline_config`
+
+创建空白 MoviePipeline 配置。不触发渲染。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+
+**相关 Capability**：`get_asset_movie_pipeline_config`、`manage_asset_movie_pipeline_config`
+
+---
+
 ### `create_asset_niagara_system`
 
 创建空白 NiagaraSystem。无模块图。
@@ -447,6 +541,31 @@
 | `assetPath` | `string` | ★ | 资产包路径 |
 
 **相关 Capability**：`get_asset_niagara_system`、`manage_asset_niagara_system`
+
+---
+
+### `create_asset_paper_flipbook`
+
+创建 PaperFlipbook。用 manage 加帧。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+
+**相关 Capability**：`get_asset_paper_flipbook`、`manage_asset_paper_flipbook`
+
+---
+
+### `create_asset_paper_sprite`
+
+创建 PaperSprite。可选 sourceTexturePath。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+| `sourceTexturePath` | `string` |  | 源 Texture2D 路径（可选） |
+
+**相关 Capability**：`get_asset_paper_sprite`、`manage_asset_paper_sprite`
 
 ---
 
@@ -571,6 +690,21 @@
 
 ---
 
+### `create_asset_string_table`
+
+创建 StringTable。可选 namespace。
+
+**适用场景**：新建 StringTable；用 manage 增删 key
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | 资产包路径 |
+| `namespace` | `string` |  | 命名空间（可选） |
+
+**相关 Capability**：`get_asset_string_table`、`manage_asset_string_table`
+
+---
+
 ### `delete_asset`
 
 永久删除单个资产包。尽力清理重定向器；仅限编辑器，操作不可逆。
@@ -631,6 +765,30 @@
 
 ---
 
+### `get_asset_common_button_style`
+
+读取 CommonButtonStyle 元数据。WBP 仍走 user_widget。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | CommonButtonStyle 资产路径 |
+
+**相关 Capability**：`manage_asset_common_button_style`、`create_asset_common_button_style`、`get_asset_common_text_style`
+
+---
+
+### `get_asset_common_text_style`
+
+读取 CommonTextStyle 元数据。WBP 仍走 user_widget。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | CommonTextStyle 资产路径 |
+
+**相关 Capability**：`manage_asset_common_text_style`、`create_asset_common_text_style`、`get_asset_common_button_style`
+
+---
+
 ### `get_asset_control_rig`
 
 读取 ControlRig Blueprint 层级（骨骼/控件/Null）与 RigVM 图（节点/引脚/连线）。写用 manage_asset_control_rig。
@@ -683,6 +841,30 @@
 
 ---
 
+### `get_asset_foliage_type`
+
+读取 FoliageType：mesh / density / radius / AlignToNormal。LandscapeGrassType 未收录。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | FoliageType 资产路径 |
+
+**相关 Capability**：`manage_asset_foliage_type`、`create_asset_foliage_type`
+
+---
+
+### `get_asset_font`
+
+读取 Font：字号/字符数/缓存类型。空白字体请用 reimport_asset 导入 TTF。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | Font 资产路径 |
+
+**相关 Capability**：`manage_asset_font`、`reimport_asset`
+
+---
+
 ### `get_asset_gameplay_ability`
 
 读 GA Blueprint CDO：`sections=metadata|tags|costs|graphOverview`；Graph 详情用 `get_asset_blueprint`。
@@ -698,6 +880,18 @@
 
 ---
 
+### `get_asset_gameplay_cue_notify`
+
+读取 GameplayCueNotify：CueName / 类名 / 是否蓝图。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | Cue Notify 资产路径 |
+
+**相关 Capability**：`manage_asset_gameplay_cue_notify`、`create_asset_gameplay_cue_notify`、`manage_asset_blueprint`
+
+---
+
 ### `get_asset_gameplay_effect`
 
 读 GE Blueprint CDO：`sections=policy|modifiers|tags|cues`；只读。
@@ -710,6 +904,18 @@
 | `assetPath` | `string` | ★ | GameplayEffect Blueprint 路径 |
 
 **相关 Capability**：`manage_asset_gameplay_effect`、`create_asset_gameplay_effect`
+
+---
+
+### `get_asset_geometry_collection`
+
+读取 GeometryCollection：伤害阈值 / 类名摘要。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | GeometryCollection 资产路径 |
+
+**相关 Capability**：`manage_asset_geometry_collection`、`create_asset_geometry_collection`
 
 ---
 
@@ -805,6 +1011,18 @@
 
 ---
 
+### `get_asset_media_source`
+
+读取 FileMediaSource：filePath。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | MediaSource 资产路径 |
+
+**相关 Capability**：`manage_asset_media_source`、`create_asset_media_source`
+
+---
+
 ### `get_asset_meta_sound`
 
 读取 MetaSound Source / MetaSound Patch：inputs/outputs/节点摘要（≥5.1 支持 Patch）。写用 manage_asset_meta_sound。
@@ -819,6 +1037,18 @@
 
 ---
 
+### `get_asset_movie_pipeline_config`
+
+读取 MoviePipeline 配置：输出目录 / 分辨率。复杂图设置无。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | MoviePipeline 配置资产路径 |
+
+**相关 Capability**：`manage_asset_movie_pipeline_config`、`create_asset_movie_pipeline_config`
+
+---
+
 ### `get_asset_niagara_system`
 
 检查 NiagaraSystem 发射器与用户参数；只读（需 `WITH_NIAGARA`）。
@@ -830,6 +1060,42 @@
 | `assetPath` | `string` | ★ | NiagaraSystem 资产路径 |
 
 **相关 Capability**：`manage_asset_niagara_system`、`create_asset_niagara_system`、`search_asset`、`get_asset_refs`、`save_asset`
+
+---
+
+### `get_asset_paper_flipbook`
+
+读取 PaperFlipbook：帧率 / 关键帧摘要。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PaperFlipbook 资产路径 |
+
+**相关 Capability**：`manage_asset_paper_flipbook`、`create_asset_paper_flipbook`
+
+---
+
+### `get_asset_paper_sprite`
+
+读取 PaperSprite：源纹理 / 像素区域 / 轴心。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PaperSprite 资产路径 |
+
+**相关 Capability**：`manage_asset_paper_sprite`、`create_asset_paper_sprite`
+
+---
+
+### `get_asset_paper_tile_map`
+
+读取 PaperTileMap：尺寸 / 图层数 / 图块集。写 API 本批不收录。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PaperTileMap 资产路径 |
+
+**相关 Capability**：`get_asset_paper_sprite`、`get_asset_paper_flipbook`
 
 ---
 
@@ -1037,6 +1303,19 @@
 
 ---
 
+### `get_asset_string_table`
+
+读取 StringTable：namespace / keys / 源字符串摘要。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | StringTable 资产路径 |
+| `limit` | `integer` |  | 最多返回条目数 |
+
+**相关 Capability**：`manage_asset_string_table`、`create_asset_string_table`
+
+---
+
 ### `get_asset_texture`
 
 检查 Texture2D 尺寸、像素格式、压缩、sRGB、LOD；只读。
@@ -1077,6 +1356,32 @@
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set/reset), `attributeName`, `baseValue` |
 
 **相关 Capability**：`get_asset_attribute_set`、`save_asset`、`create_asset_attribute_set`
+
+---
+
+### `manage_asset_common_button_style`
+
+批量编辑 CommonButtonStyle。operations[].action=set_property。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | CommonButtonStyle 资产路径 |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property), `propertyPath`, `value` |
+
+**相关 Capability**：`get_asset_common_button_style`、`create_asset_common_button_style`、`manage_asset_common_text_style`
+
+---
+
+### `manage_asset_common_text_style`
+
+批量编辑 CommonTextStyle。operations[].action=set_property。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | CommonTextStyle 资产路径 |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property), `propertyPath`, `value` |
+
+**相关 Capability**：`get_asset_common_text_style`、`create_asset_common_text_style`、`manage_asset_common_button_style`
 
 ---
 
@@ -1136,6 +1441,32 @@
 
 ---
 
+### `manage_asset_foliage_type`
+
+批量编辑 FoliageType。operations[].action=set_mesh/set_density/set_property。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | FoliageType 资产路径 |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_mesh/set_density/set_property), `meshPath`, `density`, `propertyPath`, `value` |
+
+**相关 Capability**：`get_asset_foliage_type`、`create_asset_foliage_type`
+
+---
+
+### `manage_asset_font`
+
+批量编辑 Font。operations[].action=set_property（ScalingFactor 等公开字段）。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | Font 资产路径 |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property), `propertyPath`, `value` |
+
+**相关 Capability**：`get_asset_font`、`reimport_asset`
+
+---
+
 ### `manage_asset_gameplay_ability`
 
 修改 GA CDO：`set_tags` / `set_policy` / `set_cost_cooldown`；Graph 编辑用 `manage_asset_blueprint`。
@@ -1151,6 +1482,19 @@
 
 ---
 
+### `manage_asset_gameplay_cue_notify`
+
+批量编辑 GameplayCueNotify_Static。operations[].action=set_cue_name。Actor BP 图走 blueprint。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | Cue Notify 资产路径 |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_cue_name), `cueName` |
+
+**相关 Capability**：`get_asset_gameplay_cue_notify`、`create_asset_gameplay_cue_notify`、`manage_asset_blueprint`
+
+---
+
 ### `manage_asset_gameplay_effect`
 
 批量修改 GE CDO：`set_policy` / `set_tags` / `add_modifier` / `remove_modifier` / `set_modifier`。
@@ -1163,6 +1507,19 @@
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_policy/set_tags/add_modifier/remove_modifier/set_modifier), `durationPolicy`(Instant/Infinite/HasDuration), `duration`, `period`, `tagContainer`(gameplayEffectTags/grantedTags/blockedAbilityTags), `tags`, `mode`(set/add/remove), `attribute`, `modifierOp`(Add/Multiply/Divide/Override), `magnitude`, `index` |
 
 **相关 Capability**：`get_asset_gameplay_effect`、`save_asset`、`create_asset_gameplay_effect`
+
+---
+
+### `manage_asset_geometry_collection`
+
+批量编辑 GeometryCollection。operations[].action=set_damage_threshold/set_property。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | GeometryCollection 资产路径 |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_damage_threshold/set_property), `index`, `value`, `propertyPath` |
+
+**相关 Capability**：`get_asset_geometry_collection`、`create_asset_geometry_collection`
 
 ---
 
@@ -1258,6 +1615,19 @@
 
 ---
 
+### `manage_asset_media_source`
+
+批量编辑 FileMediaSource。operations[].action=set_file_path/set_loop。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | MediaSource 资产路径 |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_file_path/set_loop), `filePath`, `loop` |
+
+**相关 Capability**：`get_asset_media_source`、`create_asset_media_source`
+
+---
+
 ### `manage_asset_meta_sound`
 
 ?? MetaSound Source/Patch ???????????UE5.1??? operations[].action?
@@ -1270,6 +1640,19 @@
 | `operations` | `object[]` | ★ | ???? |
 
 **相关 Capability**：`get_asset_meta_sound`、`create_asset_meta_sound`、`create_asset_meta_sound_patch`
+
+---
+
+### `manage_asset_movie_pipeline_config`
+
+批量编辑 MoviePipeline 输出。operations[].action=set_output。不触发渲染。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | MoviePipeline 配置资产路径 |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_output), `directory`, `width`, `height` |
+
+**相关 Capability**：`get_asset_movie_pipeline_config`、`create_asset_movie_pipeline_config`
 
 ---
 
@@ -1287,6 +1670,32 @@
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_property/set_user_parameter/set_emitter_enabled/rename_emitter/add_emitter/remove_emitter), `propertyPath`, `parameterName`, `emitterName`, `newName`, `enabled`, `emitterPath`, `value` |
 
 **相关 Capability**：`get_asset_niagara_system`、`create_asset_niagara_system`、`search_asset`
+
+---
+
+### `manage_asset_paper_flipbook`
+
+批量编辑 PaperFlipbook。operations[].action=add_key/remove_key/set_frames_per_second。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PaperFlipbook 资产路径 |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_key/remove_key/set_frames_per_second), `spritePath`, `frameRun`, `keyIndex`, `framesPerSecond` |
+
+**相关 Capability**：`get_asset_paper_flipbook`、`create_asset_paper_flipbook`
+
+---
+
+### `manage_asset_paper_sprite`
+
+批量编辑 PaperSprite。operations[].action=set_source/set_pivot。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | PaperSprite 资产路径 |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_source/set_pivot), `sourceTexturePath`, `pivotX`, `pivotY` |
+
+**相关 Capability**：`get_asset_paper_sprite`、`create_asset_paper_sprite`
 
 ---
 
@@ -1494,6 +1903,19 @@
 | `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(set_material_slot/set_property), `slotIndex`, `materialPath`, `propertyPath`, `value` |
 
 **相关 Capability**：`get_asset_static_mesh`、`search_asset`
+
+---
+
+### `manage_asset_string_table`
+
+批量编辑 StringTable。operations[].action=add_key/remove_key/set_source。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `assetPath` | `string` | ★ | StringTable 资产路径 |
+| `operations` | `object[]` | ★ | 批量操作（至少一项）；item: `action`(add_key/remove_key/set_source), `key`, `source` |
+
+**相关 Capability**：`get_asset_string_table`、`create_asset_string_table`
 
 ---
 

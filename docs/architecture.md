@@ -20,7 +20,7 @@ graph TB
             ToolRegistry[FNexusMcpToolRegistry<br>工具注册表]
             CapRegistry[FNexusCapabilityRegistry<br>Capability 注册表]
             Tools[FNexusMcpTool<br>search / call / feedback]
-            Caps[FNexusCapability<br>188 原子能力]
+            Caps[FNexusCapability<br>221 原子能力]
         end
     end
 
@@ -48,7 +48,7 @@ graph TB
 | 协议层 | `FNexusMcpDispatcher` | JSON-RPC 2.0 解析、MCP 握手状态机、路由分发 |
 | 注册层 | `FNexusMcpToolRegistry` / `FNexusCapabilityRegistry` | 全局单例注册表，O(1) 按名查找 |
 | 工具层 | `FNexusMcpTool` | 3 个元工具：`search_capabilities` / `call_capability` / `submit_feedback` |
-| 能力层 | `FNexusCapability` | 188 个原子工作单元（`WITH_GAS=0` 减 11；`WITH_NIAGARA=0` 再减 4；`WITH_STATETREE=0` 减 3；`WITH_MVVM=0` 减 2），按域分类 |
+| 能力层 | `FNexusCapability` | 221 个原子工作单元（插件门控 cap 按宿主裁剪），按域分类 |
 
 ---
 
@@ -128,7 +128,7 @@ NexusLink 支持两种 `tools/list` 暴露模式，可在 Editor Preferences →
 | **SearchMode**（默认） | 3 个元工具 | `InitializeInstructions.SearchMode.md`（精简路由 / 硬规则） | AI 通过 `search_capabilities` 按需发现，降低每轮 tools/list token |
 | **MultiTool** | `submit_feedback` + 全部已启用 Capability（各作独立 MCP Tool） | `InitializeInstructions.MultiTool.md`（精简全局约束） | 需要客户端一次性枚举全部能力的场景 |
 
-固定上下文粗估（188 Capability、chars÷4）：SearchMode 每轮 ~1.4k tok，MultiTool ~17.6k tok（约 **12.6×**）；差别几乎全在 tools/list。完整对比与建议见 [README §暴露模式](../README.md#暴露模式toolslistmode)。
+固定上下文粗估（221 Capability、chars÷4）：SearchMode 每轮 ~1.4k tok，MultiTool ~17.6k tok（约 **12.6×**）；差别几乎全在 tools/list。完整对比与建议见 [README §暴露模式](../README.md#暴露模式toolslistmode)。
 
 模式切换或 Capability 变更时，NexusLink 自动广播 `notifications/tools/list_changed`。
 

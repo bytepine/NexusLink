@@ -160,6 +160,10 @@
 // UE5 UListViewBase::GetNumItems；UE4 用 GetItems().Num()
 #define NX_UE_HAS_LISTVIEW_GET_NUM_ITEMS  NX_UE_AT_LEAST(5, 0)
 
+// ── Movie Render Queue 版本兼容 ──
+// UE 5.1+ UMoviePipelinePrimaryConfig；5.0 仍为 UMoviePipelineMasterConfig
+#define NX_UE_HAS_MOVIE_PIPELINE_PRIMARY_CONFIG  NX_UE_AT_LEAST(5, 1)
+
 // ── UnLua 版本兼容 ──
 // UNLUA_VERSION_MAJOR 由 NexusLink.Build.cs 从 UnLua.uplugin VersionName 自动注入
 // 1.X: FLuaContext + GLuaCxt，无 HotReload
