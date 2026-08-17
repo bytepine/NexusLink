@@ -260,7 +260,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 | GAS (`WITH_GAS=1`, 14) | `create/get/manage_asset_gameplay_ability`, `create/get/manage_asset_gameplay_effect`, `create/get/manage_asset_attribute_set`, `create/get/manage_asset_gameplay_cue_notify`, `get_runtime_actor_ability_system`, `interact_runtime_actor_ability_system` |
 | StateTree (`WITH_STATETREE=1`, UE 5.5+, 3) | `get_asset_state_tree`, `manage_asset_state_tree`, `create_asset_state_tree` |
 | MVVM (`WITH_MVVM=1`, UE 5.5+, 2) | `get_asset_view_model`, `manage_asset_view_model` |
-| Paper2D (`WITH_PAPER2D=1`, 7) | `create/get/manage_asset_paper_sprite`, `create/get/manage_asset_paper_flipbook`, `get_asset_paper_tile_map` |
+| Paper2D (`WITH_PAPER2D=1`, 9) | `create/get/manage_asset_paper_sprite`, `create/get/manage_asset_paper_flipbook`, `create/get/manage_asset_paper_tile_map` |
 | GeometryCollection (`WITH_GEOMETRY_COLLECTION=1`, UE5+, 3) | `create/get/manage_asset_geometry_collection` |
 | CommonUI (`WITH_COMMON_UI=1`, UE5+, 6) | `create/get/manage_asset_common_button_style`, `create/get/manage_asset_common_text_style` |
 | MoviePipeline (`WITH_MOVIE_RENDER_PIPELINE=1`, UE5+, 3) | `create/get/manage_asset_movie_pipeline_config` |

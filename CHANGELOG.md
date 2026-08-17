@@ -30,6 +30,10 @@
 
 ### Added
 
+- feat(mcp): PaperTileMap 写路径——`create_asset_paper_tile_map` + `manage_asset_paper_tile_map`（`set_map_size`/`set_tile_size`/`set_tileset`/`add_layer`/`remove_layer`/`set_layer_name`/`set_cell`/`clear_cell`）；`get_asset_paper_tile_map` 回显 `layers[]` 并去掉「写 API 不收录」；CapabilitySpec §6 Paper2D 7→9
+- feat(mcp): `get_asset_anim_sequence` 回显 `curves[]`（name/keyCount/keys[{time,value}]；DataModel≥5.6 / 否则 RawCurveData），与 `manage_asset_anim_sequence` 浮点曲线写路径对称
+- feat(mcp): `manage_asset_meta_sound` 补齐 typed `operations[].action` Schema（八值 Enum + name/typeName/classID/nodeID/边字段），并修复乱码 Description/错误文案
+- feat(mcp): `manage_asset_blueprint` 新增 `promote_pin`（对齐编辑器 Promote to Variable）——按 `nodeId`+`pinName` 创建成员/局部变量并生成 Get/Set 自动连线；可选 `variableName`/`isLocal`/`posX`/`posY`
 - feat(mcp): `manage_asset_*` 框架注入可选 `saveToDisk`（默认 false）；`manage_asset_blueprint` / `anim_blueprint` / `user_widget` 另注入按需 `compile`（默认 false）。UDS 仍自动编译；材质继续用 `recompile` op。独立 `save_asset` / `compile_blueprint` 仍可用
 - feat(mcp): AnimGraph 扩 TwoBoneIK / LookAt / ModifyBone / AimOffset（`boneName`）；Niagara `add_emitter` 可省略 `emitterPath` 建空白发射器，`add_module`/`remove_module` 改模块栈，`get_asset_niagara_system` 回显 `modules`
 - feat(mcp): AnimGraph 常用节点扩至 Blend（BlendListByBool）/ LayeredBoneBlend / ApplyAdditive / SaveCachedPose / UseCachedPose；`manage_asset_level_sequence` 的 `add_float_key` 必填 `bindingGuid`（绑定级，不再打 Master）；`set_transform_key` 写 Location 并可选 pitch/yaw/roll；WBP 动画轨可 `widgetName`+`propertyPath` 绑定控件，补 `remove_track`/`remove_key`；`get_asset_user_widget` 增 `graphOverview`

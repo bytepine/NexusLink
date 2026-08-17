@@ -7,6 +7,7 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "PaperTileMap.h"
+#include "PaperTileLayer.h"
 #include "PaperTileSet.h"
 #include "NexusMcpTool.h"
 
@@ -14,14 +15,18 @@ void FGetAssetPaperTileMapCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("get_asset_paper_tile_map");
 	Out.SearchAssetTypes = {TEXT("PaperTileMap")};
-	Out.Description = TEXT("读取 PaperTileMap：尺寸 / 图层数 / 图块集。写 API 本批不收录。");
+	Out.Description = TEXT("读取 PaperTileMap：尺寸 / 图层 / 图块集。写用 manage/create_asset_paper_tile_map。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperTileMap 资产路径")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("tilemap"), TEXT("2d"), TEXT("tileset") };
-	Out.RelatedCapabilities = { TEXT("get_asset_paper_sprite"), TEXT("get_asset_paper_flipbook") };
+	Out.ExtraSearchKeywords = { TEXT("tilemap"), TEXT("2d"), TEXT("tileset"), TEXT("layer") };
+	Out.RelatedCapabilities = {
+		TEXT("manage_asset_paper_tile_map"), TEXT("create_asset_paper_tile_map"),
+		TEXT("get_asset_paper_sprite"), TEXT("get_asset_paper_flipbook")
+	};
+	Out.WhenToUse = TEXT("读 PaperTileMap 元数据；写用 manage_asset_paper_tile_map");
 }
 
 FCapabilityResult FGetAssetPaperTileMapCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -45,7 +50,24 @@ FCapabilityResult FGetAssetPaperTileMapCapability::Execute(const TSharedPtr<FJso
 		Entry->SetNumberField(TEXT("tileWidth"), Map->TileWidth);
 		Entry->SetNumberField(TEXT("tileHeight"), Map->TileHeight);
 		Entry->SetNumberField(TEXT("layerCount"), Map->TileLayers.Num());
-		Entry->SetStringField(TEXT("tileSet"), Map->SelectedTileSet ? Map->SelectedTileSet->GetPathName() : FString());
+		if (UPaperTileSet* Selected = Map->SelectedTileSet.LoadSynchronous())
+		{
+			Entry->SetStringField(TEXT("tileSet"), Selected->GetPathName());
+		}
+		else
+		{
+			Entry->SetStringField(TEXT("tileSet"), FString());
+		}
+		TArray<TSharedPtr<FJsonValue>> LayersArr;
+		for (int32 i = 0; i < Map->TileLayers.Num(); ++i)
+		{
+			UPaperTileLayer* Layer = Map->TileLayers[i];
+			TSharedPtr<FJsonObject> L = MakeShared<FJsonObject>();
+			L->SetNumberField(TEXT("index"), i);
+			L->SetStringField(TEXT("name"), Layer ? Layer->LayerName.ToString() : FString());
+			LayersArr.Add(MakeShared<FJsonValueObject>(L));
+		}
+		Entry->SetArrayField(TEXT("layers"), LayersArr);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

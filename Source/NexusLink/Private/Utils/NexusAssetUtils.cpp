@@ -8,6 +8,8 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
+#include "Animation/AnimCurveTypes.h"
+#include "UObject/UnrealType.h"
 #if NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL
 #include "Animation/AnimData/IAnimationDataModel.h"
 #endif
@@ -182,6 +184,89 @@ void FNexusAssetUtils::AppendAnimSequenceNotifyFields(const UAnimSequence* Seq, 
 	{
 		Entry->SetNumberField(TEXT("notifiesTruncated"), static_cast<double>(SeqMut->Notifies.Num() - MaxNotifies));
 	}
+}
+
+namespace
+{
+	FName NexusGetFloatCurveName(const FFloatCurve& FC)
+	{
+#if NX_UE_HAS_FLOAT_CURVE_SMART_NAME
+		return FC.Name.DisplayName;
+#else
+		return FC.GetName();
+#endif
+	}
+
+	void AppendFloatCurvesToJson(const TArray<FFloatCurve>& FloatCurves, TSharedPtr<FJsonObject>& Entry)
+	{
+		TArray<TSharedPtr<FJsonValue>> CurvesArr;
+		constexpr int32 MaxCurves = 64;
+		constexpr int32 MaxKeysPerCurve = 64;
+		const int32 CurveCount = FMath::Min(FloatCurves.Num(), MaxCurves);
+		for (int32 Ci = 0; Ci < CurveCount; ++Ci)
+		{
+			const FFloatCurve& FC = FloatCurves[Ci];
+			TSharedPtr<FJsonObject> CObj = MakeShared<FJsonObject>();
+			CObj->SetStringField(TEXT("name"), NexusGetFloatCurveName(FC).ToString());
+
+			TArray<float> Times, Values;
+			const_cast<FFloatCurve&>(FC).GetKeys(Times, Values);
+			const int32 KeyCount = FMath::Min(Times.Num(), MaxKeysPerCurve);
+			CObj->SetNumberField(TEXT("keyCount"), static_cast<double>(Times.Num()));
+
+			TArray<TSharedPtr<FJsonValue>> KeysArr;
+			for (int32 Ki = 0; Ki < KeyCount; ++Ki)
+			{
+				TSharedPtr<FJsonObject> K = MakeShared<FJsonObject>();
+				K->SetNumberField(TEXT("time"), static_cast<double>(Times[Ki]));
+				K->SetNumberField(TEXT("value"), static_cast<double>(Values.IsValidIndex(Ki) ? Values[Ki] : 0.f));
+				KeysArr.Add(MakeShared<FJsonValueObject>(K));
+			}
+			CObj->SetArrayField(TEXT("keys"), KeysArr);
+			if (Times.Num() > MaxKeysPerCurve)
+			{
+				CObj->SetNumberField(TEXT("keysTruncated"), static_cast<double>(Times.Num() - MaxKeysPerCurve));
+			}
+			CurvesArr.Add(MakeShared<FJsonValueObject>(CObj));
+		}
+		Entry->SetArrayField(TEXT("curves"), CurvesArr);
+		if (FloatCurves.Num() > MaxCurves)
+		{
+			Entry->SetNumberField(TEXT("curvesTruncated"), static_cast<double>(FloatCurves.Num() - MaxCurves));
+		}
+	}
+}
+
+void FNexusAssetUtils::AppendAnimSequenceCurveFields(const UAnimSequence* Seq, TSharedPtr<FJsonObject>& Entry)
+{
+	if (!Seq || !Entry.IsValid())
+	{
+		return;
+	}
+	UAnimSequence* SeqMut = const_cast<UAnimSequence*>(Seq);
+
+#if NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL && WITH_EDITOR
+	if (const IAnimationDataModel* Model = SeqMut->GetDataModel())
+	{
+		AppendFloatCurvesToJson(Model->GetFloatCurves(), Entry);
+		return;
+	}
+#endif
+
+	// UE4 / UE5.5 前公开、5.5+ protected：统一反射取 RawCurveData
+	FStructProperty* StructProp = FindFProperty<FStructProperty>(SeqMut->GetClass(), TEXT("RawCurveData"));
+	if (!StructProp)
+	{
+		Entry->SetArrayField(TEXT("curves"), TArray<TSharedPtr<FJsonValue>>());
+		return;
+	}
+	FRawCurveTracks* Tracks = StructProp->ContainerPtrToValuePtr<FRawCurveTracks>(SeqMut);
+	if (!Tracks)
+	{
+		Entry->SetArrayField(TEXT("curves"), TArray<TSharedPtr<FJsonValue>>());
+		return;
+	}
+	AppendFloatCurvesToJson(Tracks->FloatCurves, Entry);
 }
 
 const TArray<FStaticMaterial>& FNexusAssetUtils::GetStaticMeshMaterials(const UStaticMesh& Mesh)

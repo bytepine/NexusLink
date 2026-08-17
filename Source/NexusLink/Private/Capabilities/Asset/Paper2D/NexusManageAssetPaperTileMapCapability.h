@@ -1,14 +1,14 @@
 // Copyright byteyang. All Rights Reserved.
 
 #pragma once
-
 #include "CoreMinimal.h"
+#if WITH_PAPER2D
 #include "NexusCapability.h"
-
-/** get_asset_anim_sequence — 只读检查 UAnimSequence 时长、帧率、骨骼、notify 与浮点曲线。 */
-class FGetAssetAnimSequenceCapability : public FNexusCapability
+/** manage_asset_paper_tile_map — 编辑尺寸 / TileSet / 图层 / 格子。 */
+class FManageAssetPaperTileMapCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;
 	virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) const override;
 };
+#endif

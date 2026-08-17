@@ -178,6 +178,9 @@ public:
 	/** 向 Entry 写入 AnimSequence Notifies 列表（index/name/time/duration/notifyClass）。 */
 	static void AppendAnimSequenceNotifyFields(const UAnimSequence* Seq, TSharedPtr<FJsonObject>& Entry);
 
+	/** 向 Entry 写入 AnimSequence 浮点曲线列表（name/keyCount/keys[{time,value}]；跨版本 RawCurveData / DataModel）。 */
+	static void AppendAnimSequenceCurveFields(const UAnimSequence* Seq, TSharedPtr<FJsonObject>& Entry);
+
 	/** StaticMesh 材质槽列表（跨版本：GetStaticMaterials / StaticMaterials）。 */
 	static const TArray<struct FStaticMaterial>& GetStaticMeshMaterials(const UStaticMesh& Mesh);
 

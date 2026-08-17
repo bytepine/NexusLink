@@ -21,8 +21,10 @@
 #include "EdGraphSchema_K2.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_Event.h"
+#include "K2Node_Variable.h"
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
+#include "EdGraphSchema_K2_Actions.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #endif
@@ -69,24 +71,25 @@ void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("manage_asset_blueprint");
 	Out.SearchAssetTypes = {TEXT("Blueprint")};
-	Out.Description = TEXT("批量编辑 BP：图/变量/函数/宏/Timeline/Dispatcher/接口/节点。promote_pin 未提供。");
+	Out.Description = TEXT("批量编辑 BP：图/变量/函数/宏/Timeline/Dispatcher/接口/节点/promote_pin。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"),          FNexusSchema::Enum(TEXT("操作类型"), {
 			TEXT("add_variable"), TEXT("remove_variable"),
 			TEXT("add_function"), TEXT("remove_function"),
 			TEXT("add_macro"), TEXT("add_timeline"), TEXT("add_dispatcher"), TEXT("add_local_variable"),
 			TEXT("add_interface"), TEXT("remove_interface"),
-			TEXT("add_node"), TEXT("remove_node"), TEXT("set_node"),
+			TEXT("add_node"), TEXT("remove_node"), TEXT("set_node"), TEXT("promote_pin"),
 			TEXT("connect"), TEXT("disconnect"), TEXT("disconnect_all"),
 			TEXT("add_component"), TEXT("remove_component"), TEXT("set_component_property"), TEXT("set_defaults")
 		}))
-		.Prop(TEXT("graphName"),       FNexusSchema::Str(TEXT("图名（节点/连线操作）")))
-		.Prop(TEXT("variableName"),    FNexusSchema::Str(TEXT("变量或节点变量名")))
+		.Prop(TEXT("graphName"),       FNexusSchema::Str(TEXT("图名（节点/连线/promote_pin）")))
+		.Prop(TEXT("variableName"),    FNexusSchema::Str(TEXT("变量名（add_variable / promote_pin 可选，省略则自动生成）")))
 		.Prop(TEXT("variableType"),    FNexusSchema::Str(TEXT("基本或对象类型（add_variable）")))
 		.Prop(TEXT("defaultValue"),    FNexusSchema::Str(TEXT("默认值（add_variable）")))
 		.Prop(TEXT("category"),        FNexusSchema::Str(TEXT("编辑器分类（add_variable）")))
 		.Prop(TEXT("isPublic"),        FNexusSchema::Bool(TEXT("实例可编辑（add_variable）"), true, false))
-		.Prop(TEXT("nodeId"),          FNexusSchema::Str(TEXT("节点 GUID（remove/set_node）")))
+		.Prop(TEXT("isLocal"),         FNexusSchema::Bool(TEXT("promote_pin：提升为局部变量（默认成员变量）"), true, false))
+		.Prop(TEXT("nodeId"),          FNexusSchema::Str(TEXT("节点 GUID（remove/set_node/promote_pin）")))
 		.Prop(TEXT("nodeClass"),       FNexusSchema::Str(TEXT("K2Node 类（add_node）")))
 		.Prop(TEXT("functionName"),    FNexusSchema::Str(TEXT("函数名（add_function / CallFunction）")))
 		.Prop(TEXT("functionClass"),   FNexusSchema::Str(TEXT("CallFunction：所属类")))
@@ -94,7 +97,7 @@ void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition
 		.Prop(TEXT("posX"),            FNexusSchema::Num(TEXT("节点 X 坐标")))
 		.Prop(TEXT("posY"),            FNexusSchema::Num(TEXT("节点 Y 坐标")))
 		.Prop(TEXT("comment"),         FNexusSchema::Str(TEXT("节点注释（set_node）")))
-		.Prop(TEXT("pinName"),         FNexusSchema::Str(TEXT("要设默认值的引脚（set_node）")))
+		.Prop(TEXT("pinName"),         FNexusSchema::Str(TEXT("引脚名（set_node / promote_pin）")))
 		.Prop(TEXT("pinDefaultValue"), FNexusSchema::Str(TEXT("引脚新默认值")))
 		.Prop(TEXT("sourceNodeId"),    FNexusSchema::Str(TEXT("源节点 GUID（连线操作）")))
 		.Prop(TEXT("sourcePinName"),   FNexusSchema::Str(TEXT("源引脚名")))
@@ -115,10 +118,11 @@ void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
 		TEXT("variable"), TEXT("node"), TEXT("component"), TEXT("wire"), TEXT("connect"),
-		TEXT("disconnect"), TEXT("link"), TEXT("scs"), TEXT("function"), TEXT("interface"), TEXT("bpi")
+		TEXT("disconnect"), TEXT("link"), TEXT("scs"), TEXT("function"), TEXT("interface"), TEXT("bpi"),
+		TEXT("promote"), TEXT("pin")
 	};
 	Out.RelatedCapabilities = { TEXT("get_asset_blueprint"), TEXT("create_asset_blueprint"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("写操作：增删变量、函数图、接口、图节点、连线");
+	Out.WhenToUse = TEXT("写操作：增删变量、promote_pin、函数图、接口、图节点、连线");
 }
 
 FCapabilityResult FManageAssetBlueprintCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -735,6 +739,160 @@ FCapabilityResult FManageAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
 	}
+
+		// ── Promote pin → variable（对齐编辑器 DoPromoteToVariable）──────────────
+		if (Action == TEXT("promote_pin"))
+		{
+			FString NodeIdStr, PinNameStr;
+			OpArgs->TryGetStringField(TEXT("nodeId"), NodeIdStr);
+			OpArgs->TryGetStringField(TEXT("pinName"), PinNameStr);
+			if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("promote_pin 需要 nodeId")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+			if (PinNameStr.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("promote_pin 需要 pinName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+
+			UEdGraphNode* PinNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
+			if (!PinNode) { Entry->SetStringField(TEXT("error"), TEXT("节点未找到")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
+			UEdGraphPin* TargetPin = FNexusBlueprintGraphUtils::FindBPPin(PinNode, PinNameStr);
+			if (!TargetPin)
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(
+					TEXT("引脚 '%s' 未找到。可用 pinName: %s"),
+					*PinNameStr, *FNexusBlueprintGraphUtils::FormatBPPinNameHint(PinNode)));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+			}
+			if (TargetPin->bOrphanedPin)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("无法提升孤立引脚（orphaned）")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+			}
+
+			bool bIsLocal = false;
+			if (OpArgs->HasField(TEXT("isLocal"))) bIsLocal = OpArgs->GetBoolField(TEXT("isLocal"));
+			if (bIsLocal && !FBlueprintEditorUtils::DoesSupportLocalVariables(Graph))
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("当前图不支持局部变量（仅函数图可用 isLocal=true）"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+			}
+
+			const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+			// 与编辑器一致：exec 不可提升；其余交给 Schema（双参 API 在各 UE 版本可用）
+			if (TargetPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("exec 引脚不可提升为变量"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+			}
+			if (!K2Schema->CanPromotePinToVariable(*TargetPin, !bIsLocal))
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("该引脚不可提升为变量"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+			}
+
+			// 提升依赖 SkeletonGeneratedClass
+			if (!BP->SkeletonGeneratedClass)
+			{
+				FKismetEditorUtilities::CompileBlueprint(BP);
+				if (!BP->SkeletonGeneratedClass)
+				{
+					Entry->SetStringField(TEXT("error"), TEXT("蓝图无 SkeletonGeneratedClass，无法 promote_pin"));
+					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+				}
+			}
+
+			const FName SavedPinName = TargetPin->PinName;
+			FEdGraphPinType NewPinType = TargetPin->PinType;
+			NewPinType.bIsConst = false;
+			NewPinType.bIsReference = false;
+			NewPinType.bIsWeakPointer = false;
+			const FString PinDefault = TargetPin->GetDefaultAsString();
+
+			FString RequestedName;
+			OpArgs->TryGetStringField(TEXT("variableName"), RequestedName);
+			const FString BaseName = !RequestedName.IsEmpty()
+				? RequestedName
+				: (bIsLocal ? TEXT("NewLocalVar") : TEXT("NewVar"));
+			FName VarName = FBlueprintEditorUtils::FindUniqueKismetName(BP, BaseName);
+
+			UEdGraph* FunctionGraph = nullptr;
+			bool bWasSuccessful = false;
+			if (!bIsLocal)
+			{
+				bWasSuccessful = FBlueprintEditorUtils::AddMemberVariable(BP, VarName, NewPinType, PinDefault);
+			}
+			else
+			{
+				FunctionGraph = FBlueprintEditorUtils::GetTopLevelGraph(Graph);
+				if (!FunctionGraph)
+				{
+					Entry->SetStringField(TEXT("error"), TEXT("无法解析函数图用于局部变量"));
+					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+				}
+				bWasSuccessful = FBlueprintEditorUtils::AddLocalVariable(BP, FunctionGraph, VarName, NewPinType, PinDefault);
+			}
+			if (!bWasSuccessful)
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("创建变量失败: %s"), *VarName.ToString()));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+			}
+
+			// 加变量可能重建节点，刷新引脚引用
+			TargetPin = PinNode->FindPin(SavedPinName);
+			if (!TargetPin)
+			{
+				PinNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
+				TargetPin = PinNode ? FNexusBlueprintGraphUtils::FindBPPin(PinNode, SavedPinName.ToString()) : nullptr;
+			}
+			if (!TargetPin || !PinNode)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("创建变量后目标引脚丢失（节点可能已重建）"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+			}
+
+			FEdGraphSchemaAction_K2NewNode NodeInfo;
+			UK2Node_Variable* TemplateNode = nullptr;
+			if (TargetPin->Direction == EGPD_Input)
+			{
+				TemplateNode = NewObject<UK2Node_VariableGet>();
+			}
+			else
+			{
+				TemplateNode = NewObject<UK2Node_VariableSet>();
+			}
+
+			if (!bIsLocal)
+			{
+				TemplateNode->VariableReference.SetSelfMember(VarName);
+			}
+			else
+			{
+				TemplateNode->VariableReference.SetLocalMember(
+					VarName,
+					FunctionGraph->GetName(),
+					FBlueprintEditorUtils::FindLocalVariableGuidByName(BP, FunctionGraph, VarName));
+			}
+			NodeInfo.NodeTemplate = TemplateNode;
+
+			FVector2D NewNodePos;
+			NewNodePos.X = (TargetPin->Direction == EGPD_Input)
+				? static_cast<float>(PinNode->NodePosX - 200)
+				: static_cast<float>(PinNode->NodePosX + 400);
+			NewNodePos.Y = static_cast<float>(PinNode->NodePosY);
+			if (OpArgs->HasField(TEXT("posX"))) NewNodePos.X = static_cast<float>(OpArgs->GetNumberField(TEXT("posX")));
+			if (OpArgs->HasField(TEXT("posY"))) NewNodePos.Y = static_cast<float>(OpArgs->GetNumberField(TEXT("posY")));
+
+			UEdGraphNode* Spawned = NodeInfo.PerformAction(Graph, TargetPin, NewNodePos, false);
+			if (!Spawned)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("创建 Get/Set 节点失败"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+			}
+
+			Entry->SetStringField(TEXT("variableName"), VarName.ToString());
+			Entry->SetStringField(TEXT("pinName"), SavedPinName.ToString());
+			Entry->SetStringField(TEXT("nodeId"), Spawned->NodeGuid.ToString());
+			Entry->SetStringField(TEXT("nodeClass"), Spawned->GetClass()->GetName());
+			Entry->SetBoolField(TEXT("isLocal"), bIsLocal);
+			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+			FKismetEditorUtilities::CompileBlueprint(BP);
+			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+		}
 
 	// ── Wire actions ──────────────────────────────────────────────────────────
 		const FString SrcNodeId  = OpArgs->HasField(TEXT("sourceNodeId"))  ? OpArgs->GetStringField(TEXT("sourceNodeId"))  : TEXT("");

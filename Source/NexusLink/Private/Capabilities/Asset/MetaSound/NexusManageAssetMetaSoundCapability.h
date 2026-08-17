@@ -7,7 +7,7 @@
 
 #if WITH_METASOUND
 
-/** manage_asset_meta_sound — 修改 MetaSound Source：add_input/remove_input/add_output/remove_output。 */
+/** manage_asset_meta_sound — 编辑 MetaSound Source/Patch：IO / 节点 / 边。 */
 class FManageAssetMetaSoundCapability : public FNexusCapability
 {
 protected:

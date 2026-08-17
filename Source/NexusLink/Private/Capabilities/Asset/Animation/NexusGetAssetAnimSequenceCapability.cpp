@@ -13,15 +13,15 @@ void FGetAssetAnimSequenceCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("get_asset_anim_sequence");
 	Out.SearchAssetTypes = {TEXT("AnimSequence")};
-	Out.Description = TEXT("检查 AnimSequence 快照。时长/帧率/帧数/骨骼/notifies。写用 manage_asset_anim_sequence。");
+	Out.Description = TEXT("检查 AnimSequence 快照。时长/帧率/帧数/骨骼/notifies/curves。写用 manage_asset_anim_sequence。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("AnimSequence 资产路径")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("sequence"), TEXT("animation"), TEXT("clip"), TEXT("frame"), TEXT("skeleton") };
+	Out.ExtraSearchKeywords = { TEXT("sequence"), TEXT("animation"), TEXT("clip"), TEXT("frame"), TEXT("skeleton"), TEXT("curve"), TEXT("keyframe") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_anim_sequence"), TEXT("search_asset"), TEXT("get_asset_skeleton"), TEXT("get_asset_anim_montage"), TEXT("get_asset_refs") };
-	Out.WhenToUse = TEXT("读序列元数据；写用 manage_asset_anim_sequence");
+	Out.WhenToUse = TEXT("读序列元数据/notify/浮点曲线；写用 manage_asset_anim_sequence");
 }
 
 FCapabilityResult FGetAssetAnimSequenceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -50,6 +50,7 @@ FCapabilityResult FGetAssetAnimSequenceCapability::Execute(const TSharedPtr<FJso
 		Entry->SetStringField(TEXT("assetType"), TEXT("AnimSequence"));
 		FNexusAssetUtils::AppendAnimSequenceMetadataFields(Seq, Entry);
 		FNexusAssetUtils::AppendAnimSequenceNotifyFields(Seq, Entry);
+		FNexusAssetUtils::AppendAnimSequenceCurveFields(Seq, Entry);
 
 		if (const USkeleton* Skel = Seq->GetSkeleton())
 		{
