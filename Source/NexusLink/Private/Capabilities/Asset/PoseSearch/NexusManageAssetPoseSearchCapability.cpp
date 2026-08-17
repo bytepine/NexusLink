@@ -24,7 +24,7 @@ void FManageAssetPoseSearchCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Build();
 	Out.Tags = { FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("pose"), TEXT("search"), TEXT("motion"), TEXT("matching"), TEXT("schema"), TEXT("tag") };
-	Out.RelatedCapabilities = { TEXT("get_asset_pose_search"), TEXT("search_asset") };
+	Out.RelatedCapabilities = { TEXT("get_asset_pose_search"), TEXT("create_asset_pose_search"), TEXT("search_asset") };
 	Out.WhenToUse = TEXT("设置 PoseSearch Database 的 Schema 或修改 Tags");
 }
 

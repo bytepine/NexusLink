@@ -28,7 +28,7 @@ void FManageAssetFontCapability::BuildDefinition(FNexusCapabilityDefinition& Out
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("typeface"), TEXT("scale"), TEXT("ttf") };
-	Out.RelatedCapabilities = { TEXT("get_asset_font"), TEXT("reimport_asset") };
+	Out.RelatedCapabilities = { TEXT("get_asset_font"), TEXT("create_asset_font"), TEXT("reimport_asset") };
 }
 
 FCapabilityResult FManageAssetFontCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const

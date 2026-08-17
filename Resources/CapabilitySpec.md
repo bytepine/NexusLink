@@ -264,6 +264,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 | GeometryCollection (`WITH_GEOMETRY_COLLECTION=1`, UE5+, 3) | `create/get/manage_asset_geometry_collection` |
 | CommonUI (`WITH_COMMON_UI=1`, UE5+, 6) | `create/get/manage_asset_common_button_style`, `create/get/manage_asset_common_text_style` |
 | MoviePipeline (`WITH_MOVIE_RENDER_PIPELINE=1`, UE5+, 3) | `create/get/manage_asset_movie_pipeline_config` |
+| PoseSearch (`WITH_POSE_SEARCH=1`, UE 5.4+, 3) | `create/get/manage_asset_pose_search` |
 
 ### 6.5 禁止复活与计划缺口
 

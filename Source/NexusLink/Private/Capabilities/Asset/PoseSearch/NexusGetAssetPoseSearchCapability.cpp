@@ -23,7 +23,7 @@ void FGetAssetPoseSearchCapability::BuildDefinition(FNexusCapabilityDefinition& 
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("pose"), TEXT("search"), TEXT("motion"), TEXT("matching"), TEXT("database"), TEXT("schema") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_pose_search"), TEXT("search_asset") };
+	Out.RelatedCapabilities = { TEXT("manage_asset_pose_search"), TEXT("create_asset_pose_search"), TEXT("search_asset") };
 	Out.WhenToUse = TEXT("读取 PoseSearch 数据库 schema 及动画资产数量；写用 manage_asset_pose_search");
 }
 

@@ -7,7 +7,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- feat(mcp): `manage_asset_movie_pipeline_config` 深配——`set_anti_aliasing`/`add_setting`/`remove_setting`/`set_setting_property`/`set_setting_enabled`；`set_output` 支持 `fileNameFormat`；`get_asset_movie_pipeline_config` 回显 `settings[]`/`antiAliasing`/`highRes`
+- feat(mcp): `create_asset_sound_submix` / `create_asset_font` / `create_asset_pose_search`（Database|Schema，UE5.4+）闭环 create
+
 ### Fixed
+
+- fix(compat): DataLayer create/get/manage 在 `!NX_UE_HAS_DATA_LAYER_ASSET` stub 补 Schema/ResultBuilder include（UE4.26 unity 编序下不再缺符号）
 
 - fix(mcp): `get_asset_blueprint`(defaults) / `get_asset_data_asset` 属性报告——`BuildEditablePropsPage` 调 `GetCPPType()` 前用 `CanResolveCPPType` 递归校验属性类型图（Object/Struct/Interface/Enum/容器/委托 引用非空），病态资产引用为空时回退属性类名，避免解空指针崩溃（`EXCEPTION_ACCESS_VIOLATION`）导致 Editor 挂掉
 - fix(compat): 跨版本编译——`SetPIEWorldsPaused` 仅 UE5+；Widget 动画直写 `MovieScene`；MovieScene 5.2+ 用 `AddTrack`/`GetTracks`；蓝图接口走 `FTopLevelAssetPath`；5.8 Editor `SetSourceString` 三参；补 `StaticMesh`/`World`/`Package` 头文件

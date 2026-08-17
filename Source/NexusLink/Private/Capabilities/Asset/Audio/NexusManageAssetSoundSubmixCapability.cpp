@@ -31,7 +31,7 @@ void FManageAssetSoundSubmixCapability::BuildDefinition(FNexusCapabilityDefiniti
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("submix"), TEXT("sound"), TEXT("audio"), TEXT("volume"), TEXT("wet"), TEXT("dry") };
-	Out.RelatedCapabilities = { TEXT("get_asset_sound_submix") };
+	Out.RelatedCapabilities = { TEXT("get_asset_sound_submix"), TEXT("create_asset_sound_submix") };
 }
 
 FCapabilityResult FManageAssetSoundSubmixCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const

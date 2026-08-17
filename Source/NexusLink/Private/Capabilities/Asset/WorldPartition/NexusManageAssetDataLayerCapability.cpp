@@ -108,6 +108,11 @@ REGISTER_MCP_CAPABILITY(FManageAssetDataLayerCapability)
 
 #else // NX_UE_HAS_DATA_LAYER_ASSET
 
+#include "Utils/NexusCapabilityResultBuilder.h"
+#include "NexusCapabilityRegistry.h"
+#include "NexusMcpSchemaBuilder.h"
+#include "NexusMcpTool.h"
+
 void FManageAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("manage_asset_data_layer");

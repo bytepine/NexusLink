@@ -15,22 +15,27 @@ using FNexusMoviePipelineConfig = UMoviePipelinePrimaryConfig;
 using FNexusMoviePipelineConfig = UMoviePipelineMasterConfig;
 #endif
 #include "MoviePipelineOutputSetting.h"
+#include "MoviePipelineAntiAliasingSetting.h"
+#include "MoviePipelineHighResSetting.h"
+#include "MoviePipelineCameraSetting.h"
+#include "MoviePipelineSetting.h"
 #include "NexusMcpTool.h"
 
 void FGetAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_movie_pipeline_config");
 	Out.SearchAssetTypes = {TEXT("MoviePipelinePrimaryConfig"), TEXT("MoviePipelineMasterConfig")};
-	Out.Description = TEXT("读取 MoviePipeline 配置：输出目录 / 分辨率。复杂图设置无。");
+	Out.Description = TEXT("读取 MoviePipeline 配置：输出/分辨率、settings[]、AntiAliasing/HighRes 摘要。");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MoviePipeline 配置资产路径")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("mrq"), TEXT("output"), TEXT("resolution") };
+	Out.ExtraSearchKeywords = { TEXT("mrq"), TEXT("output"), TEXT("resolution"), TEXT("aa"), TEXT("setting") };
 	Out.RelatedCapabilities = {
 		TEXT("manage_asset_movie_pipeline_config"), TEXT("create_asset_movie_pipeline_config")
 	};
+	Out.WhenToUse = TEXT("读 MRQ 配置结构；写用 manage_asset_movie_pipeline_config");
 }
 
 FCapabilityResult FGetAssetMoviePipelineConfigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -56,6 +61,32 @@ FCapabilityResult FGetAssetMoviePipelineConfigCapability::Execute(const TSharedP
 			Entry->SetNumberField(TEXT("height"), OutSet->OutputResolution.Y);
 			Entry->SetStringField(TEXT("fileNameFormat"), OutSet->FileNameFormat);
 		}
+		if (UMoviePipelineAntiAliasingSetting* AA = Cfg->FindSetting<UMoviePipelineAntiAliasingSetting>())
+		{
+			TSharedPtr<FJsonObject> AAObj = MakeShared<FJsonObject>();
+			AAObj->SetNumberField(TEXT("spatialSampleCount"), AA->SpatialSampleCount);
+			AAObj->SetNumberField(TEXT("temporalSampleCount"), AA->TemporalSampleCount);
+			AAObj->SetBoolField(TEXT("enabled"), AA->IsEnabled());
+			Entry->SetObjectField(TEXT("antiAliasing"), AAObj);
+		}
+		if (UMoviePipelineHighResSetting* Hi = Cfg->FindSetting<UMoviePipelineHighResSetting>())
+		{
+			TSharedPtr<FJsonObject> HiObj = MakeShared<FJsonObject>();
+			HiObj->SetNumberField(TEXT("tileCount"), Hi->TileCount);
+			HiObj->SetBoolField(TEXT("enabled"), Hi->IsEnabled());
+			Entry->SetObjectField(TEXT("highRes"), HiObj);
+		}
+
+		TArray<TSharedPtr<FJsonValue>> SettingsArr;
+		for (UMoviePipelineSetting* Setting : Cfg->GetUserSettings())
+		{
+			if (!Setting) continue;
+			TSharedPtr<FJsonObject> S = MakeShared<FJsonObject>();
+			S->SetStringField(TEXT("className"), Setting->GetClass()->GetName());
+			S->SetBoolField(TEXT("enabled"), Setting->IsEnabled());
+			SettingsArr.Add(MakeShared<FJsonValueObject>(S));
+		}
+		Entry->SetArrayField(TEXT("settings"), SettingsArr);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }

@@ -19,7 +19,7 @@ void FGetAssetFontCapability::BuildDefinition(FNexusCapabilityDefinition& Out) c
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("typeface"), TEXT("ttf"), TEXT("otf"), TEXT("glyph") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_font"), TEXT("reimport_asset") };
+	Out.RelatedCapabilities = { TEXT("manage_asset_font"), TEXT("create_asset_font"), TEXT("reimport_asset") };
 }
 
 FCapabilityResult FGetAssetFontCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const

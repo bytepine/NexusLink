@@ -39,11 +39,11 @@ flowchart TB
 
 #### Token 开销对比（为何默认 SearchMode）
 
-MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮次**重新注入 prompt。固定开销粗估如下（221 Capability、源码 schema 解析、chars÷4；不含 call 返回体与对话历史）：
+MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮次**重新注入 prompt。固定开销粗估如下（224 Capability、源码 schema 解析、chars÷4；不含 call 返回体与对话历史）：
 
 | 分量 | SearchMode | MultiTool | 差额 |
 |---|---|---|---|
-| tools/list | 3 tools · ~0.3k tok | 222 tools · ~21.2k tok | **+20.9k** |
+| tools/list | 3 tools · ~0.3k tok | 225 tools · ~21.5k tok | **+21.2k** |
 | initialize.instructions | ~1.1k | ~0.7k | −0.4k |
 | **每轮固定合计** | **~1.4k** | **~21.9k** | **~15.6× / +20.5k** |
 
