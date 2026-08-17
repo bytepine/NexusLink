@@ -30,6 +30,11 @@
 
 ### Added
 
+- feat(mcp): `manage_asset_static_mesh` 碰撞/Socket/LOD——`set_collision_trace_flag`/`add_box_collision`/`add_sphere_collision`/`clear_simple_collision`/`add_socket`/`set_socket`/`remove_socket`/`set_lod_screen_size`；`get_asset_static_mesh` 回显 `sockets[]`
+- feat(mcp): `manage_asset_skeletal_mesh` 网格 Socket/LOD——`add_socket`/`set_socket`/`remove_socket`（mesh-only）/`set_lod_screen_size`；`get_asset_skeletal_mesh` 回显 `sockets[]`；物理体仍走 `manage_asset_physics_asset`
+- feat(mcp): `manage_asset_niagara_system` `set_user_parameter` 扩类型——`Vector2`/`Position`/`Vector4`/`Color`/`LinearColor`/`Quat` + `ImportText` 结构体回退（UE5+ ExposedParameters）
+- feat(mcp): `manage_asset_anim_blueprint` 扩展 AnimGraph `nodeClass`——`BlendSpace1D`(→BlendSpacePlayer)、`SequenceEvaluator`/`BlendSpaceEvaluator`/`RandomPlayer`/`PoseBlendNode`/`PoseByName`、`BlendListByEnum`/`BlendListByInt`/`MultiWayBlend`/`Inertialization`、空间转换、`FABRIK`/`CCDIK`/`CopyBone`/`HandIKRetargeting`/`AimOffsetLookAt`；`ControlRig` 在 `WITH_CONTROL_RIG` 时可用；`boneName` 覆盖 FABRIK/CCDIK TipBone 与 CopyBone TargetBone
+- feat(mcp): `manage_asset_level_sequence` 扩展轨类型——Master：`CinematicShot`/`Fade`/`Event`/`LevelVisibility`/`Slomo`（保留 CameraCut/Audio）；Binding：`SkeletalAnimation`/`Particle`/`Visibility`/`Color`/`Bool`/`Integer`/`Vector`/`Event`（保留 Float/Transform/Audio）；未知类型不再静默回落 Float
 - feat(mcp): PaperTileMap 写路径——`create_asset_paper_tile_map` + `manage_asset_paper_tile_map`（`set_map_size`/`set_tile_size`/`set_tileset`/`add_layer`/`remove_layer`/`set_layer_name`/`set_cell`/`clear_cell`）；`get_asset_paper_tile_map` 回显 `layers[]` 并去掉「写 API 不收录」；CapabilitySpec §6 Paper2D 7→9
 - feat(mcp): `get_asset_anim_sequence` 回显 `curves[]`（name/keyCount/keys[{time,value}]；DataModel≥5.6 / 否则 RawCurveData），与 `manage_asset_anim_sequence` 浮点曲线写路径对称
 - feat(mcp): `manage_asset_meta_sound` 补齐 typed `operations[].action` Schema（八值 Enum + name/typeName/classID/nodeID/边字段），并修复乱码 Description/错误文案

@@ -23,6 +23,7 @@
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
 #include "NiagaraParameterStore.h"
 #include "NiagaraTypes.h"
+#include "Math/Color.h"
 #endif
 
 void FManageAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -30,7 +31,7 @@ void FManageAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.Name = TEXT("manage_asset_niagara_system");
 	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
-	Out.Description = TEXT("批量编辑 Niagara。set_property/set_user_parameter/Emitter CRUD；add_module/remove_module。");
+	Out.Description = TEXT("批量编辑 Niagara。set_property/set_user_parameter（标量/向量/颜色/Quat）/Emitter CRUD；add_module/remove_module（编辑器）。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
 			{ TEXT("set_property"), TEXT("set_user_parameter"),
@@ -47,11 +48,11 @@ void FManageAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefini
 		.Prop(TEXT("moduleName"), FNexusSchema::Str(TEXT("remove_module：模块显示名")))
 		.Prop(TEXT("usage"), FNexusSchema::Enum(TEXT("add_module 脚本槽"),
 			{ TEXT("Spawn"), TEXT("Update"), TEXT("EmitterSpawn"), TEXT("EmitterUpdate") }))
-		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("新值字符串")))
+		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("新值：float/int；bool=true|1；Vector2=x,y；Vector/Position=x,y,z；Vector4/Color/LinearColor=r,g,b,a；Quat=x,y,z,w；其它结构体走 ImportText")))
 		.Required({ TEXT("action") })
 		.Build();
 #else
-	Out.Description = TEXT("批量编辑 Niagara。set_property/Emitter CRUD；add_module/remove_module。");
+	Out.Description = TEXT("批量编辑 Niagara。set_property/Emitter CRUD；add_module/remove_module（编辑器）。");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
 			{ TEXT("set_property"), TEXT("set_emitter_enabled"), TEXT("rename_emitter"),
@@ -79,10 +80,33 @@ void FManageAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.ExtraSearchKeywords = { TEXT("niagara"), TEXT("vfx"), TEXT("particle"), TEXT("fx"), TEXT("parameter") };
 	Out.RelatedCapabilities = { TEXT("get_asset_niagara_system"), TEXT("create_asset_niagara_system"), TEXT("search_asset") };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("改系统属性/用户参数/发射器 CRUD；add_module/remove_module 改模块栈");
+	Out.WhenToUse = TEXT("改系统属性/用户参数/发射器 CRUD；add_module/remove_module 改模块栈（需编辑器）");
 }
 
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
+/** 按逗号或空白拆分数值分量。 */
+static bool ParseNiagaraFloatParts(const FString& Value, int32 Expected, TArray<float>& OutParts, FString& OutError, const TCHAR* FormatHint)
+{
+	TArray<FString> Parts;
+	Value.ParseIntoArray(Parts, TEXT(","), true);
+	if (Parts.Num() != Expected)
+	{
+		Value.ParseIntoArrayWS(Parts);
+	}
+	if (Parts.Num() != Expected)
+	{
+		OutError = FString::Printf(TEXT("%s"), FormatHint);
+		return false;
+	}
+	OutParts.Reset();
+	OutParts.Reserve(Expected);
+	for (const FString& P : Parts)
+	{
+		OutParts.Add(FCString::Atof(*P.TrimStartAndEnd()));
+	}
+	return true;
+}
+
 static bool SetNiagaraUserParameter(UNiagaraSystem* System, const FString& ParamName, const FString& Value, FString& OutError)
 {
 	if (!System || ParamName.IsEmpty())
@@ -107,7 +131,8 @@ static bool SetNiagaraUserParameter(UNiagaraSystem* System, const FString& Param
 			const float FVal = FCString::Atof(*Value);
 			FMemory::Memcpy(Data.GetData(), &FVal, sizeof(float));
 		}
-		else if (TypeName == FName(TEXT("int32")) || TypeName == FName(TEXT("Int32")))
+		else if (TypeName == FName(TEXT("int32")) || TypeName == FName(TEXT("Int32"))
+			|| TypeName == FName(TEXT("int")) || TypeName == FName(TEXT("Integer")))
 		{
 			const int32 IVal = FCString::Atoi(*Value);
 			FMemory::Memcpy(Data.GetData(), &IVal, sizeof(int32));
@@ -117,28 +142,99 @@ static bool SetNiagaraUserParameter(UNiagaraSystem* System, const FString& Param
 			const bool BVal = Value.Equals(TEXT("true"), ESearchCase::IgnoreCase) || Value == TEXT("1");
 			FMemory::Memcpy(Data.GetData(), &BVal, sizeof(bool));
 		}
-		else if (TypeName == FName(TEXT("Vector")) || TypeName == FName(TEXT("Vector3")))
+		else if (TypeName == FName(TEXT("Vector2D")) || TypeName == FName(TEXT("Vector2"))
+			|| TypeName == FName(TEXT("Vec2")))
 		{
-			FVector V(0.f);
-			TArray<FString> Parts;
-			Value.ParseIntoArray(Parts, TEXT(","), true);
-			if (Parts.Num() != 3)
+			TArray<float> Parts;
+			if (!ParseNiagaraFloatParts(Value, 2, Parts, OutError, TEXT("Vector2 参数值格式应为 x,y")))
 			{
-				Value.ParseIntoArrayWS(Parts);
-			}
-			if (Parts.Num() != 3)
-			{
-				OutError = TEXT("Vector 参数值格式应为 x,y,z");
 				return false;
 			}
-			V.X = FCString::Atof(*Parts[0]);
-			V.Y = FCString::Atof(*Parts[1]);
-			V.Z = FCString::Atof(*Parts[2]);
+			if (TypeDef.GetSize() < (int32)sizeof(FVector2D))
+			{
+				OutError = TEXT("Vector2 参数存储尺寸异常");
+				return false;
+			}
+			const FVector2D V(Parts[0], Parts[1]);
+			FMemory::Memcpy(Data.GetData(), &V, sizeof(FVector2D));
+		}
+		else if (TypeName == FName(TEXT("Vector")) || TypeName == FName(TEXT("Vector3"))
+			|| TypeName == FName(TEXT("Vec3")) || TypeName == FName(TEXT("Position")))
+		{
+			TArray<float> Parts;
+			if (!ParseNiagaraFloatParts(Value, 3, Parts, OutError, TEXT("Vector/Position 参数值格式应为 x,y,z")))
+			{
+				return false;
+			}
+			if (TypeDef.GetSize() < (int32)sizeof(FVector))
+			{
+				OutError = TEXT("Vector/Position 参数存储尺寸异常");
+				return false;
+			}
+			const FVector V(Parts[0], Parts[1], Parts[2]);
 			FMemory::Memcpy(Data.GetData(), &V, sizeof(FVector));
+		}
+		else if (TypeName == FName(TEXT("Vector4")) || TypeName == FName(TEXT("Vec4")))
+		{
+			TArray<float> Parts;
+			if (!ParseNiagaraFloatParts(Value, 4, Parts, OutError, TEXT("Vector4 参数值格式应为 x,y,z,w")))
+			{
+				return false;
+			}
+			if (TypeDef.GetSize() < (int32)sizeof(FVector4))
+			{
+				OutError = TEXT("Vector4 参数存储尺寸异常");
+				return false;
+			}
+			const FVector4 V(Parts[0], Parts[1], Parts[2], Parts[3]);
+			FMemory::Memcpy(Data.GetData(), &V, sizeof(FVector4));
+		}
+		else if (TypeName == FName(TEXT("LinearColor")) || TypeName == FName(TEXT("Color")))
+		{
+			TArray<float> Parts;
+			if (!ParseNiagaraFloatParts(Value, 4, Parts, OutError, TEXT("Color/LinearColor 参数值格式应为 r,g,b,a")))
+			{
+				return false;
+			}
+			if (TypeDef.GetSize() < (int32)sizeof(FLinearColor))
+			{
+				OutError = TEXT("Color 参数存储尺寸异常");
+				return false;
+			}
+			const FLinearColor C(Parts[0], Parts[1], Parts[2], Parts[3]);
+			FMemory::Memcpy(Data.GetData(), &C, sizeof(FLinearColor));
+		}
+		else if (TypeName == FName(TEXT("Quat")) || TypeName == FName(TEXT("Quaternion")))
+		{
+			TArray<float> Parts;
+			if (!ParseNiagaraFloatParts(Value, 4, Parts, OutError, TEXT("Quat 参数值格式应为 x,y,z,w")))
+			{
+				return false;
+			}
+			if (TypeDef.GetSize() < (int32)sizeof(FQuat))
+			{
+				OutError = TEXT("Quat 参数存储尺寸异常");
+				return false;
+			}
+			const FQuat Q(Parts[0], Parts[1], Parts[2], Parts[3]);
+			FMemory::Memcpy(Data.GetData(), &Q, sizeof(FQuat));
+		}
+		else if (UScriptStruct* Struct = TypeDef.GetScriptStruct())
+		{
+			// 通用回退：UE ImportText（Matrix 等结构体）
+			Struct->InitializeStruct(Data.GetData());
+			const TCHAR* Result = Struct->ImportText(*Value, Data.GetData(), nullptr, PPF_None, nullptr, Struct->GetName());
+			if (!Result)
+			{
+				OutError = FString::Printf(TEXT("无法解析结构体参数 %s，值: %s"), *TypeName.ToString(), *Value);
+				return false;
+			}
 		}
 		else
 		{
-			OutError = FString::Printf(TEXT("暂不支持的用户参数类型: %s"), *TypeName.ToString());
+			OutError = FString::Printf(
+				TEXT("暂不支持的用户参数类型: %s（已支持 float/int32/bool/Vector2/Vector/Position/Vector4/Color/LinearColor/Quat）"),
+				*TypeName.ToString());
 			return false;
 		}
 

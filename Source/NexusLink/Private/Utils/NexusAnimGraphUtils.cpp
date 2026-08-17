@@ -117,19 +117,54 @@ UEdGraphPin* FNexusAnimGraphUtils::GetStateInputPin(UAnimStateNodeBase* StateNod
 }
 
 #include "AnimGraphNode_SequencePlayer.h"
+#include "AnimGraphNode_SequenceEvaluator.h"
 #include "AnimGraphNode_BlendSpacePlayer.h"
+#include "AnimGraphNode_BlendSpaceEvaluator.h"
 #include "AnimGraphNode_Slot.h"
 #include "AnimGraphNode_BlendListByBool.h"
+#include "AnimGraphNode_BlendListByEnum.h"
+#include "AnimGraphNode_BlendListByInt.h"
+#include "AnimGraphNode_MultiWayBlend.h"
 #include "AnimGraphNode_LayeredBoneBlend.h"
 #include "AnimGraphNode_ApplyAdditive.h"
 #include "AnimGraphNode_SaveCachedPose.h"
 #include "AnimGraphNode_UseCachedPose.h"
+#include "AnimGraphNode_Inertialization.h"
+#include "AnimGraphNode_RandomPlayer.h"
+#include "AnimGraphNode_PoseBlendNode.h"
+#include "AnimGraphNode_PoseByName.h"
+#include "AnimGraphNode_ComponentToLocalSpace.h"
+#include "AnimGraphNode_LocalToComponentSpace.h"
 #include "AnimGraphNode_TwoBoneIK.h"
+#include "AnimGraphNode_Fabrik.h"
+#include "AnimGraphNode_CCDIK.h"
 #include "AnimGraphNode_LookAt.h"
 #include "AnimGraphNode_ModifyBone.h"
+#include "AnimGraphNode_CopyBone.h"
+#include "AnimGraphNode_HandIKRetargeting.h"
 #include "AnimGraphNode_RotationOffsetBlendSpace.h"
 #include "AnimGraphNode_AimOffsetLookAt.h"
 #include "AnimGraphNode_Base.h"
+#if WITH_CONTROL_RIG
+#include "AnimGraphNode_ControlRig.h"
+#endif
+
+namespace NexusAnimGraphNodeNames
+{
+#if WITH_CONTROL_RIG
+	static const TCHAR* SupportedList =
+		TEXT("SequencePlayer/SequenceEvaluator/BlendSpacePlayer(=BlendSpace1D)/BlendSpaceEvaluator/RandomPlayer/"
+			 "PoseBlendNode/PoseByName/Slot/Blend/BlendListByEnum/BlendListByInt/MultiWayBlend/LayeredBoneBlend/"
+			 "ApplyAdditive/SaveCachedPose/UseCachedPose/Inertialization/ComponentToLocalSpace/LocalToComponentSpace/"
+			 "TwoBoneIK/FABRIK/CCDIK/LookAt/ModifyBone/CopyBone/HandIKRetargeting/AimOffset/AimOffsetLookAt/ControlRig");
+#else
+	static const TCHAR* SupportedList =
+		TEXT("SequencePlayer/SequenceEvaluator/BlendSpacePlayer(=BlendSpace1D)/BlendSpaceEvaluator/RandomPlayer/"
+			 "PoseBlendNode/PoseByName/Slot/Blend/BlendListByEnum/BlendListByInt/MultiWayBlend/LayeredBoneBlend/"
+			 "ApplyAdditive/SaveCachedPose/UseCachedPose/Inertialization/ComponentToLocalSpace/LocalToComponentSpace/"
+			 "TwoBoneIK/FABRIK/CCDIK/LookAt/ModifyBone/CopyBone/HandIKRetargeting/AimOffset/AimOffsetLookAt");
+#endif
+}
 
 UClass* FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(const FString& NodeClass)
 {
@@ -147,9 +182,33 @@ UClass* FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(const FString& NodeClass
 	{
 		return UAnimGraphNode_SequencePlayer::StaticClass();
 	}
-	if (Name.Equals(TEXT("BlendSpacePlayer"), ESearchCase::IgnoreCase))
+	if (Name.Equals(TEXT("SequenceEvaluator"), ESearchCase::IgnoreCase))
 	{
+		return UAnimGraphNode_SequenceEvaluator::StaticClass();
+	}
+	if (Name.Equals(TEXT("BlendSpacePlayer"), ESearchCase::IgnoreCase)
+		|| Name.Equals(TEXT("BlendSpace1D"), ESearchCase::IgnoreCase)
+		|| Name.Equals(TEXT("BlendSpacePlayer1D"), ESearchCase::IgnoreCase))
+	{
+		// BlendSpace / BlendSpace1D 共用 BlendSpacePlayer 节点
 		return UAnimGraphNode_BlendSpacePlayer::StaticClass();
+	}
+	if (Name.Equals(TEXT("BlendSpaceEvaluator"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_BlendSpaceEvaluator::StaticClass();
+	}
+	if (Name.Equals(TEXT("RandomPlayer"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_RandomPlayer::StaticClass();
+	}
+	if (Name.Equals(TEXT("PoseBlendNode"), ESearchCase::IgnoreCase)
+		|| Name.Equals(TEXT("PoseBlend"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_PoseBlendNode::StaticClass();
+	}
+	if (Name.Equals(TEXT("PoseByName"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_PoseByName::StaticClass();
 	}
 	if (Name.Equals(TEXT("Slot"), ESearchCase::IgnoreCase))
 	{
@@ -159,6 +218,18 @@ UClass* FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(const FString& NodeClass
 		|| Name.Equals(TEXT("BlendListByBool"), ESearchCase::IgnoreCase))
 	{
 		return UAnimGraphNode_BlendListByBool::StaticClass();
+	}
+	if (Name.Equals(TEXT("BlendListByEnum"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_BlendListByEnum::StaticClass();
+	}
+	if (Name.Equals(TEXT("BlendListByInt"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_BlendListByInt::StaticClass();
+	}
+	if (Name.Equals(TEXT("MultiWayBlend"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_MultiWayBlend::StaticClass();
 	}
 	if (Name.Equals(TEXT("LayeredBoneBlend"), ESearchCase::IgnoreCase))
 	{
@@ -176,10 +247,33 @@ UClass* FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(const FString& NodeClass
 	{
 		return UAnimGraphNode_UseCachedPose::StaticClass();
 	}
+	if (Name.Equals(TEXT("Inertialization"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_Inertialization::StaticClass();
+	}
+	if (Name.Equals(TEXT("ComponentToLocalSpace"), ESearchCase::IgnoreCase)
+		|| Name.Equals(TEXT("MeshToLocal"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_ComponentToLocalSpace::StaticClass();
+	}
+	if (Name.Equals(TEXT("LocalToComponentSpace"), ESearchCase::IgnoreCase)
+		|| Name.Equals(TEXT("LocalToMesh"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_LocalToComponentSpace::StaticClass();
+	}
 	if (Name.Equals(TEXT("TwoBoneIK"), ESearchCase::IgnoreCase)
 		|| Name.Equals(TEXT("IK"), ESearchCase::IgnoreCase))
 	{
 		return UAnimGraphNode_TwoBoneIK::StaticClass();
+	}
+	if (Name.Equals(TEXT("FABRIK"), ESearchCase::IgnoreCase)
+		|| Name.Equals(TEXT("Fabrik"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_Fabrik::StaticClass();
+	}
+	if (Name.Equals(TEXT("CCDIK"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_CCDIK::StaticClass();
 	}
 	if (Name.Equals(TEXT("LookAt"), ESearchCase::IgnoreCase))
 	{
@@ -188,6 +282,15 @@ UClass* FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(const FString& NodeClass
 	if (Name.Equals(TEXT("ModifyBone"), ESearchCase::IgnoreCase))
 	{
 		return UAnimGraphNode_ModifyBone::StaticClass();
+	}
+	if (Name.Equals(TEXT("CopyBone"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_CopyBone::StaticClass();
+	}
+	if (Name.Equals(TEXT("HandIKRetargeting"), ESearchCase::IgnoreCase)
+		|| Name.Equals(TEXT("HandIK"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_HandIKRetargeting::StaticClass();
 	}
 	if (Name.Equals(TEXT("AimOffset"), ESearchCase::IgnoreCase)
 		|| Name.Equals(TEXT("RotationOffsetBlendSpace"), ESearchCase::IgnoreCase))
@@ -198,6 +301,12 @@ UClass* FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(const FString& NodeClass
 	{
 		return UAnimGraphNode_AimOffsetLookAt::StaticClass();
 	}
+#if WITH_CONTROL_RIG
+	if (Name.Equals(TEXT("ControlRig"), ESearchCase::IgnoreCase))
+	{
+		return UAnimGraphNode_ControlRig::StaticClass();
+	}
+#endif
 	return nullptr;
 }
 
@@ -221,7 +330,7 @@ UEdGraphNode* FNexusAnimGraphUtils::SpawnAnimGraphNode(UEdGraph* Graph, UClass* 
 	if (!Graph) { OutError = TEXT("AnimGraph 无效"); return nullptr; }
 	if (!NodeClass || !NodeClass->IsChildOf(UAnimGraphNode_Base::StaticClass()))
 	{
-		OutError = TEXT("仅支持 AnimGraph 节点（SequencePlayer/BlendSpacePlayer/Slot/Blend/LayeredBoneBlend/ApplyAdditive/SaveCachedPose/UseCachedPose/TwoBoneIK/LookAt/ModifyBone/AimOffset）");
+		OutError = FString::Printf(TEXT("仅支持 AnimGraph 节点（%s）"), NexusAnimGraphNodeNames::SupportedList);
 		return nullptr;
 	}
 	UEdGraphNode* Node = NewObject<UEdGraphNode>(Graph, NodeClass);
@@ -275,6 +384,14 @@ void FNexusAnimGraphUtils::ApplyBoneName(UEdGraphNode* Node, const FString& Bone
 	{
 		IK->Node.IKBone.BoneName = Bone;
 	}
+	else if (UAnimGraphNode_Fabrik* Fabrik = Cast<UAnimGraphNode_Fabrik>(Node))
+	{
+		Fabrik->Node.TipBone.BoneName = Bone;
+	}
+	else if (UAnimGraphNode_CCDIK* CCD = Cast<UAnimGraphNode_CCDIK>(Node))
+	{
+		CCD->Node.TipBone.BoneName = Bone;
+	}
 	else if (UAnimGraphNode_LookAt* LookAt = Cast<UAnimGraphNode_LookAt>(Node))
 	{
 		LookAt->Node.BoneToModify.BoneName = Bone;
@@ -282,6 +399,10 @@ void FNexusAnimGraphUtils::ApplyBoneName(UEdGraphNode* Node, const FString& Bone
 	else if (UAnimGraphNode_ModifyBone* Modify = Cast<UAnimGraphNode_ModifyBone>(Node))
 	{
 		Modify->Node.BoneToModify.BoneName = Bone;
+	}
+	else if (UAnimGraphNode_CopyBone* Copy = Cast<UAnimGraphNode_CopyBone>(Node))
+	{
+		Copy->Node.TargetBone.BoneName = Bone;
 	}
 }
 

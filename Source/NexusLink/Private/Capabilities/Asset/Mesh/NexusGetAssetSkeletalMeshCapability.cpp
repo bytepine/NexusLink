@@ -7,6 +7,7 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkeletalMeshSocket.h"
 #include "Materials/MaterialInterface.h"
 #if NX_UE_HAS_SKELETAL_MATERIAL_COMMON_HEADER
 #include "Engine/SkinnedAssetCommon.h"
@@ -93,6 +94,20 @@ FCapabilityResult FGetAssetSkeletalMeshCapability::Execute(const TSharedPtr<FJso
 		{
 			Entry->SetStringField(TEXT("physicsAsset"), PhysAsset->GetPathName());
 		}
+
+		TArray<TSharedPtr<FJsonValue>> SocketArr;
+		for (USkeletalMeshSocket* Socket : Mesh->GetMeshOnlySocketList())
+		{
+			if (!Socket) continue;
+			TSharedPtr<FJsonObject> S = MakeShared<FJsonObject>();
+			S->SetStringField(TEXT("name"), Socket->SocketName.ToString());
+			S->SetStringField(TEXT("boneName"), Socket->BoneName.ToString());
+			S->SetNumberField(TEXT("locX"), Socket->RelativeLocation.X);
+			S->SetNumberField(TEXT("locY"), Socket->RelativeLocation.Y);
+			S->SetNumberField(TEXT("locZ"), Socket->RelativeLocation.Z);
+			SocketArr.Add(MakeShared<FJsonValueObject>(S));
+		}
+		Entry->SetArrayField(TEXT("sockets"), SocketArr);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

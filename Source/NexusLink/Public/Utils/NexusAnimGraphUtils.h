@@ -49,7 +49,14 @@ public:
 	/** 取 UAnimStateNodeBase 的输入 Pin（incoming Pin）。 */
 	static class UEdGraphPin* GetStateInputPin(UAnimStateNodeBase* StateNode);
 
-	/** 解析 AnimGraph 节点类（可带 AnimGraphNode_ 前缀）：SequencePlayer / BlendSpacePlayer / Slot / Blend / LayeredBoneBlend / ApplyAdditive / SaveCachedPose / UseCachedPose / TwoBoneIK / LookAt / ModifyBone / AimOffset。 */
+	/**
+	 * 解析 AnimGraph 节点类（可带 AnimGraphNode_ / UAnimGraphNode_ 前缀）。
+	 * 播放：SequencePlayer / SequenceEvaluator / BlendSpacePlayer(=BlendSpace1D) / BlendSpaceEvaluator / RandomPlayer / PoseBlendNode / PoseByName
+	 * 混合：Slot / Blend(=BlendListByBool) / BlendListByEnum / BlendListByInt / MultiWayBlend / LayeredBoneBlend / ApplyAdditive / SaveCachedPose / UseCachedPose / Inertialization
+	 * 空间：ComponentToLocalSpace / LocalToComponentSpace
+	 * 骨骼：TwoBoneIK / FABRIK / CCDIK / LookAt / ModifyBone / CopyBone / HandIKRetargeting / AimOffset / AimOffsetLookAt
+	 * 可选：ControlRig（需 WITH_CONTROL_RIG）
+	 */
 	static UClass* ResolveAnimGraphNodeClass(const FString& NodeClass);
 
 	/** 在图中按 GUID 或标题查找节点。 */

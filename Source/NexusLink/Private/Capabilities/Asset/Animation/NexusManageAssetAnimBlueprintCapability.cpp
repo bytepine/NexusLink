@@ -87,14 +87,20 @@ void FManageAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefini
 		.Prop(TEXT("stateName"),        FNexusSchema::Str(TEXT("状态名（add/remove_state、过渡源）")))
 		.Prop(TEXT("targetStateName"),  FNexusSchema::Str(TEXT("过渡目标状态名")))
 		.Prop(TEXT("nodeClass"),        FNexusSchema::Enum(TEXT("AnimGraph 节点类（add_node）"),
-			{ TEXT("SequencePlayer"), TEXT("BlendSpacePlayer"), TEXT("Slot"),
-			  TEXT("Blend"), TEXT("LayeredBoneBlend"), TEXT("ApplyAdditive"),
-			  TEXT("SaveCachedPose"), TEXT("UseCachedPose"),
-			  TEXT("TwoBoneIK"), TEXT("LookAt"), TEXT("ModifyBone"), TEXT("AimOffset") }))
+			{ TEXT("SequencePlayer"), TEXT("SequenceEvaluator"),
+			  TEXT("BlendSpacePlayer"), TEXT("BlendSpace1D"), TEXT("BlendSpaceEvaluator"),
+			  TEXT("RandomPlayer"), TEXT("PoseBlendNode"), TEXT("PoseByName"),
+			  TEXT("Slot"), TEXT("Blend"), TEXT("BlendListByEnum"), TEXT("BlendListByInt"),
+			  TEXT("MultiWayBlend"), TEXT("LayeredBoneBlend"), TEXT("ApplyAdditive"),
+			  TEXT("SaveCachedPose"), TEXT("UseCachedPose"), TEXT("Inertialization"),
+			  TEXT("ComponentToLocalSpace"), TEXT("LocalToComponentSpace"),
+			  TEXT("TwoBoneIK"), TEXT("FABRIK"), TEXT("CCDIK"),
+			  TEXT("LookAt"), TEXT("ModifyBone"), TEXT("CopyBone"), TEXT("HandIKRetargeting"),
+			  TEXT("AimOffset"), TEXT("AimOffsetLookAt"), TEXT("ControlRig") }))
 		.Prop(TEXT("nodeId"),           FNexusSchema::Str(TEXT("节点 GUID（remove/set_node/connect）")))
 		.Prop(TEXT("sequencePath"),     FNexusSchema::Str(TEXT("动画资产路径（set_node Sequence/BlendSpace/AimOffset）")))
 		.Prop(TEXT("slotName"),         FNexusSchema::Str(TEXT("Slot 名（set_node Slot）")))
-		.Prop(TEXT("boneName"),         FNexusSchema::Str(TEXT("骨骼名（set_node TwoBoneIK/LookAt/ModifyBone）")))
+		.Prop(TEXT("boneName"),         FNexusSchema::Str(TEXT("骨骼名（TwoBoneIK=IKBone；FABRIK/CCDIK=TipBone；LookAt/ModifyBone；CopyBone=TargetBone）")))
 		.Prop(TEXT("sourceNodeId"),     FNexusSchema::Str(TEXT("源节点 GUID（connect/disconnect）")))
 		.Prop(TEXT("sourcePinName"),    FNexusSchema::Str(TEXT("源引脚名")))
 		.Prop(TEXT("targetNodeId"),     FNexusSchema::Str(TEXT("目标节点 GUID")))
@@ -558,7 +564,8 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			}
 			else if (!NodeClass)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("nodeClass 须为 SequencePlayer/BlendSpacePlayer/Slot/Blend/LayeredBoneBlend/ApplyAdditive/SaveCachedPose/UseCachedPose/TwoBoneIK/LookAt/ModifyBone/AimOffset"));
+				Entry->SetStringField(TEXT("error"),
+					TEXT("未知 nodeClass（见 schema：SequencePlayer/BlendSpacePlayer(=BlendSpace1D)/FABRIK/CCDIK/CopyBone/ControlRig 等）"));
 			}
 			else
 			{

@@ -14,6 +14,18 @@
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
 #include "Tracks/MovieSceneAudioTrack.h"
+#include "Tracks/MovieSceneCinematicShotTrack.h"
+#include "Tracks/MovieSceneFadeTrack.h"
+#include "Tracks/MovieSceneEventTrack.h"
+#include "Tracks/MovieSceneLevelVisibilityTrack.h"
+#include "Tracks/MovieSceneSlomoTrack.h"
+#include "Tracks/MovieSceneSkeletalAnimationTrack.h"
+#include "Tracks/MovieSceneParticleTrack.h"
+#include "Tracks/MovieSceneVisibilityTrack.h"
+#include "Tracks/MovieSceneColorTrack.h"
+#include "Tracks/MovieSceneBoolTrack.h"
+#include "Tracks/MovieSceneIntegerTrack.h"
+#include "Tracks/MovieSceneVectorTrack.h"
 #include "GameFramework/Actor.h"
 #include "Sections/MovieSceneFloatSection.h"
 #include "Sections/MovieScene3DTransformSection.h"
@@ -22,6 +34,94 @@
 #include "Channels/MovieSceneFloatChannel.h"
 #include "KeyParams.h"
 #endif
+
+namespace
+{
+	/** 解析 trackClass → UClass；未知返回 nullptr 并写 OutError。 */
+	UClass* ResolveLevelSequenceTrackClass(const FString& TrackClass, FString& OutError)
+	{
+		if (TrackClass.IsEmpty() || TrackClass.Equals(TEXT("Float"), ESearchCase::IgnoreCase))
+			return UMovieSceneFloatTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("Transform"), ESearchCase::IgnoreCase))
+			return UMovieScene3DTransformTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("Audio"), ESearchCase::IgnoreCase))
+			return UMovieSceneAudioTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("CameraCut"), ESearchCase::IgnoreCase))
+			return UMovieSceneCameraCutTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("CinematicShot"), ESearchCase::IgnoreCase))
+			return UMovieSceneCinematicShotTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("Fade"), ESearchCase::IgnoreCase))
+			return UMovieSceneFadeTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("Event"), ESearchCase::IgnoreCase))
+			return UMovieSceneEventTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("LevelVisibility"), ESearchCase::IgnoreCase))
+			return UMovieSceneLevelVisibilityTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("Slomo"), ESearchCase::IgnoreCase))
+			return UMovieSceneSlomoTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("SkeletalAnimation"), ESearchCase::IgnoreCase))
+			return UMovieSceneSkeletalAnimationTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("Particle"), ESearchCase::IgnoreCase))
+			return UMovieSceneParticleTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("Visibility"), ESearchCase::IgnoreCase))
+			return UMovieSceneVisibilityTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("Color"), ESearchCase::IgnoreCase))
+			return UMovieSceneColorTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("Bool"), ESearchCase::IgnoreCase))
+			return UMovieSceneBoolTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("Integer"), ESearchCase::IgnoreCase))
+			return UMovieSceneIntegerTrack::StaticClass();
+		if (TrackClass.Equals(TEXT("Vector"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("FloatVector"), ESearchCase::IgnoreCase))
+#if NX_UE_HAS_MOVIE_SCENE_FLOAT_VECTOR_TRACK
+			return UMovieSceneFloatVectorTrack::StaticClass();
+#else
+			return UMovieSceneVectorTrack::StaticClass();
+#endif
+		if (TrackClass.Equals(TEXT("DoubleVector"), ESearchCase::IgnoreCase))
+#if NX_UE_HAS_MOVIE_SCENE_FLOAT_VECTOR_TRACK
+			return UMovieSceneDoubleVectorTrack::StaticClass();
+#else
+		{
+			OutError = TEXT("DoubleVector 仅 UE5+ 可用");
+			return nullptr;
+		}
+#endif
+
+		OutError = FString::Printf(
+			TEXT("未知 trackClass: %s（Master: CameraCut/Audio/CinematicShot/Fade/Event/LevelVisibility/Slomo；Binding: Float/Transform/Audio/SkeletalAnimation/Particle/Visibility/Color/Bool/Integer/Vector/Event）"),
+			*TrackClass);
+		return nullptr;
+	}
+
+	bool IsMasterTrackClassName(const FString& TrackClass)
+	{
+		return TrackClass.Equals(TEXT("CameraCut"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Audio"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("CinematicShot"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Fade"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Event"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("LevelVisibility"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Slomo"), ESearchCase::IgnoreCase);
+	}
+
+	bool IsBindingTrackClassName(const FString& TrackClass)
+	{
+		return TrackClass.IsEmpty()
+			|| TrackClass.Equals(TEXT("Float"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Transform"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Audio"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("SkeletalAnimation"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Particle"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Visibility"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Color"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Bool"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Integer"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Vector"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("FloatVector"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("DoubleVector"), ESearchCase::IgnoreCase)
+			|| TrackClass.Equals(TEXT("Event"), ESearchCase::IgnoreCase);
+	}
+}
 
 #if WITH_EDITOR && NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
 static void WriteFloatChannelKey(UMovieScene* Scene, FMovieSceneFloatChannel* Channel, double TimeSec, float Value)
@@ -73,7 +173,7 @@ void FManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefini
 {
 	Out.Name = TEXT("manage_asset_level_sequence");
 	Out.SearchAssetTypes = {TEXT("LevelSequence")};
-	Out.Description = TEXT("编辑 LevelSequence：帧率/范围/binding/轨/关键帧。");
+	Out.Description = TEXT("编辑 LevelSequence：帧率/范围/binding/多类型轨/关键帧。");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(
@@ -99,7 +199,13 @@ void FManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefini
 		.Prop(TEXT("className"),   FNexusSchema::Str(TEXT("Possessable/Spawnable 类名（默认 Actor）")))
 		.Prop(TEXT("trackClass"),  FNexusSchema::Enum(
 			TEXT("轨道类型"),
-			{ TEXT("CameraCut"), TEXT("Audio"), TEXT("Float"), TEXT("Transform") }))
+			{
+				TEXT("CameraCut"), TEXT("Audio"), TEXT("CinematicShot"), TEXT("Fade"),
+				TEXT("Event"), TEXT("LevelVisibility"), TEXT("Slomo"),
+				TEXT("Float"), TEXT("Transform"), TEXT("SkeletalAnimation"), TEXT("Particle"),
+				TEXT("Visibility"), TEXT("Color"), TEXT("Bool"), TEXT("Integer"),
+				TEXT("Vector"), TEXT("FloatVector"), TEXT("DoubleVector")
+			}))
 		.Prop(TEXT("time"),        FNexusSchema::Num(TEXT("关键帧时间秒")))
 		.Prop(TEXT("keyValue"),    FNexusSchema::Num(TEXT("Float 关键帧值")))
 		.Prop(TEXT("x"), FNexusSchema::Num(TEXT("Transform 位置 X")))
@@ -220,24 +326,27 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 			else if (Action == TEXT("add_master_track"))
 			{
 				FString TrackClass;
-				if (!Op->TryGetStringField(TEXT("trackClass"), TrackClass))
+				if (!Op->TryGetStringField(TEXT("trackClass"), TrackClass) || TrackClass.IsEmpty())
 				{
 					OpResult->SetStringField(TEXT("error"), TEXT("add_master_track 需要 trackClass"));
 				}
+				else if (!IsMasterTrackClassName(TrackClass))
+				{
+					OpResult->SetStringField(TEXT("error"), FString::Printf(
+						TEXT("trackClass '%s' 不能作 MasterTrack（支持 CameraCut/Audio/CinematicShot/Fade/Event/LevelVisibility/Slomo）"),
+						*TrackClass));
+				}
 				else
 				{
-					UClass* Class = nullptr;
-					if (TrackClass == TEXT("CameraCut"))
-						Class = UMovieSceneCameraCutTrack::StaticClass();
-					else if (TrackClass == TEXT("Audio"))
-						Class = UMovieSceneAudioTrack::StaticClass();
+					FString ResolveErr;
+					UClass* Class = ResolveLevelSequenceTrackClass(TrackClass, ResolveErr);
+					if (!Class)
+					{
+						OpResult->SetStringField(TEXT("error"), ResolveErr);
+					}
 					else
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 trackClass: %s（支持 CameraCut/Audio）"), *TrackClass));
-
-					if (Class)
 					{
 #if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
-					// 避免重复添加同类 MasterTrack
 					bool bExists = false;
 					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					for (UMovieSceneTrack* Existing : Scene->GetMasterTracks())
@@ -255,13 +364,23 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 					else
 					{
 						UMovieSceneTrack* NewTrack = Scene->AddMasterTrack(Class);
-						if (NewTrack) bDirty = true;
+						if (NewTrack)
+						{
+							OpResult->SetStringField(TEXT("trackClass"), TrackClass);
+							OpResult->SetStringField(TEXT("trackType"), NewTrack->GetClass()->GetName());
+							bDirty = true;
+						}
 						else OpResult->SetStringField(TEXT("error"), TEXT("add_master_track 失败"));
 					}
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #else
 						UMovieSceneTrack* NewTrack = Scene->AddTrack(Class);
-						if (NewTrack) bDirty = true;
+						if (NewTrack)
+						{
+							OpResult->SetStringField(TEXT("trackClass"), TrackClass);
+							OpResult->SetStringField(TEXT("trackType"), NewTrack->GetClass()->GetName());
+							bDirty = true;
+						}
 						else OpResult->SetStringField(TEXT("error"), TEXT("add_master_track 失败"));
 #endif
 					}
@@ -270,21 +389,22 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 			else if (Action == TEXT("remove_master_track"))
 			{
 				FString TrackClass;
-				if (!Op->TryGetStringField(TEXT("trackClass"), TrackClass))
+				if (!Op->TryGetStringField(TEXT("trackClass"), TrackClass) || TrackClass.IsEmpty())
 				{
 					OpResult->SetStringField(TEXT("error"), TEXT("remove_master_track 需要 trackClass"));
 				}
+				else if (!IsMasterTrackClassName(TrackClass))
+				{
+					OpResult->SetStringField(TEXT("error"), FString::Printf(
+						TEXT("trackClass '%s' 不是 MasterTrack 类型"), *TrackClass));
+				}
 				else
 				{
-					UClass* Class = nullptr;
-					if (TrackClass == TEXT("CameraCut"))
-						Class = UMovieSceneCameraCutTrack::StaticClass();
-					else if (TrackClass == TEXT("Audio"))
-						Class = UMovieSceneAudioTrack::StaticClass();
-
+					FString ResolveErr;
+					UClass* Class = ResolveLevelSequenceTrackClass(TrackClass, ResolveErr);
 					if (!Class)
 					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 trackClass: %s"), *TrackClass));
+						OpResult->SetStringField(TEXT("error"), ResolveErr);
 					}
 					else
 					{
@@ -293,7 +413,11 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 					UMovieSceneTrack* Found = Scene->FindMasterTrack(Class);
 					bool bOk = Found && Scene->RemoveMasterTrack(*Found);
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
-					if (bOk) bDirty = true;
+					if (bOk)
+					{
+						OpResult->SetStringField(TEXT("trackClass"), TrackClass);
+						bDirty = true;
+					}
 					else OpResult->SetStringField(TEXT("error"), TEXT("remove_master_track 未找到对应 Track"));
 #else
 						UMovieSceneTrack* Found = nullptr;
@@ -302,7 +426,11 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 							if (T && T->GetClass() == Class) { Found = T; break; }
 						}
 						bool bOk = Found && Scene->RemoveTrack(*Found);
-						if (bOk) bDirty = true;
+						if (bOk)
+						{
+							OpResult->SetStringField(TEXT("trackClass"), TrackClass);
+							bDirty = true;
+						}
 						else OpResult->SetStringField(TEXT("error"), TEXT("remove_master_track 未找到对应 Track"));
 #endif
 					}
@@ -359,16 +487,32 @@ FCapabilityResult FManageAssetLevelSequenceCapability::Execute(const TSharedPtr<
 				{
 					OpResult->SetStringField(TEXT("error"), TEXT("add_track 需要有效 bindingGuid"));
 				}
+				else if (!IsBindingTrackClassName(TrackClass))
+				{
+					OpResult->SetStringField(TEXT("error"), FString::Printf(
+						TEXT("trackClass '%s' 不能作 Binding 轨（支持 Float/Transform/Audio/SkeletalAnimation/Particle/Visibility/Color/Bool/Integer/Vector/Event）"),
+						*TrackClass));
+				}
 				else
 				{
-					UClass* Class = UMovieSceneFloatTrack::StaticClass();
-					if (TrackClass.Equals(TEXT("Transform"), ESearchCase::IgnoreCase))
-						Class = UMovieScene3DTransformTrack::StaticClass();
-					else if (TrackClass.Equals(TEXT("Audio"), ESearchCase::IgnoreCase))
-						Class = UMovieSceneAudioTrack::StaticClass();
-					UMovieSceneTrack* NewTrack = Scene->AddTrack(Class, Guid);
-					if (NewTrack) bDirty = true;
-					else OpResult->SetStringField(TEXT("error"), TEXT("add_track 失败"));
+					FString ResolveErr;
+					UClass* Class = ResolveLevelSequenceTrackClass(TrackClass, ResolveErr);
+					if (!Class)
+					{
+						OpResult->SetStringField(TEXT("error"), ResolveErr);
+					}
+					else
+					{
+						UMovieSceneTrack* NewTrack = Scene->AddTrack(Class, Guid);
+						if (NewTrack)
+						{
+							OpResult->SetStringField(TEXT("bindingGuid"), Guid.ToString());
+							OpResult->SetStringField(TEXT("trackClass"), TrackClass.IsEmpty() ? TEXT("Float") : TrackClass);
+							OpResult->SetStringField(TEXT("trackType"), NewTrack->GetClass()->GetName());
+							bDirty = true;
+						}
+						else OpResult->SetStringField(TEXT("error"), TEXT("add_track 失败"));
+					}
 				}
 			}
 			else if (Action == TEXT("add_float_key"))

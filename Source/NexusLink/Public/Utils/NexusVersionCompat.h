@@ -154,6 +154,8 @@
 #define NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS  (!NX_UE_AT_LEAST(5, 2))
 // 4.26+ FloatSection 走 ChannelProxy + FMovieSceneFloatChannel（无 FRichCurve GetFloatCurve）
 #define NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL  1
+// UE5+ UMovieSceneVectorTrack → UMovieSceneFloatVectorTrack / UMovieSceneDoubleVectorTrack
+#define NX_UE_HAS_MOVIE_SCENE_FLOAT_VECTOR_TRACK  NX_UE_AT_LEAST(5, 0)
 // UWidgetAnimation 全版本均公开 MovieScene 字段，无 SetMovieScene
 #define NX_UE_HAS_WIDGET_ANIM_SET_MOVIE_SCENE  0
 

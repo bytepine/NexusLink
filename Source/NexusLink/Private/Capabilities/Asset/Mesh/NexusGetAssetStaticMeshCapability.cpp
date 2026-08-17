@@ -6,6 +6,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshSocket.h"
 #include "Materials/MaterialInterface.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "NexusMcpTool.h"
@@ -86,6 +87,19 @@ FCapabilityResult FGetAssetStaticMeshCapability::Execute(const TSharedPtr<FJsonO
 			ColObj->SetNumberField(TEXT("sphereElemCount"), BodySetup->AggGeom.SphereElems.Num());
 			Entry->SetObjectField(TEXT("collision"), ColObj);
 		}
+
+		TArray<TSharedPtr<FJsonValue>> SocketArr;
+		for (UStaticMeshSocket* Socket : Mesh->Sockets)
+		{
+			if (!Socket) continue;
+			TSharedPtr<FJsonObject> S = MakeShared<FJsonObject>();
+			S->SetStringField(TEXT("name"), Socket->SocketName.ToString());
+			S->SetNumberField(TEXT("locX"), Socket->RelativeLocation.X);
+			S->SetNumberField(TEXT("locY"), Socket->RelativeLocation.Y);
+			S->SetNumberField(TEXT("locZ"), Socket->RelativeLocation.Z);
+			SocketArr.Add(MakeShared<FJsonValueObject>(S));
+		}
+		Entry->SetArrayField(TEXT("sockets"), SocketArr);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
