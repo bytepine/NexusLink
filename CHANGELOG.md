@@ -9,6 +9,7 @@
 
 ### Fixed
 
+- fix(mcp): `get_asset_blueprint`(defaults) / `get_asset_data_asset` 属性报告——`BuildEditablePropsPage` 调 `GetCPPType()` 前用 `CanResolveCPPType` 递归校验属性类型图（Object/Struct/Interface/Enum/容器/委托 引用非空），病态资产引用为空时回退属性类名，避免解空指针崩溃（`EXCEPTION_ACCESS_VIOLATION`）导致 Editor 挂掉
 - fix(compat): 跨版本编译——`SetPIEWorldsPaused` 仅 UE5+；Widget 动画直写 `MovieScene`；MovieScene 5.2+ 用 `AddTrack`/`GetTracks`；蓝图接口走 `FTopLevelAssetPath`；5.8 Editor `SetSourceString` 三参；补 `StaticMesh`/`World`/`Package` 头文件
 - docs: `version-compat-reference.md` 补登记本次编译修复相关语义宏；README Token 表 MultiTool 177→222（221 cap + `submit_feedback`），固定税约 15.6×
 
