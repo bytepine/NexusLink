@@ -9,52 +9,35 @@
 
 ### Added
 
-- feat(mcp): `manage_asset_movie_pipeline_config` 深配——`set_anti_aliasing`/`add_setting`/`remove_setting`/`set_setting_property`/`set_setting_enabled`；`set_output` 支持 `fileNameFormat`；`get_asset_movie_pipeline_config` 回显 `settings[]`/`antiAliasing`/`highRes`
-- feat(mcp): `create_asset_sound_submix` / `create_asset_font` / `create_asset_pose_search`（Database|Schema，UE5.4+）闭环 create
-
-### Fixed
-
-- fix(compat): DataLayer create/get/manage 在 `!NX_UE_HAS_DATA_LAYER_ASSET` stub 补 Schema/ResultBuilder include（UE4.26 unity 编序下不再缺符号）
-
-- fix(mcp): `get_asset_blueprint`(defaults) / `get_asset_data_asset` 属性报告——`BuildEditablePropsPage` 调 `GetCPPType()` 前用 `CanResolveCPPType` 递归校验属性类型图（Object/Struct/Interface/Enum/容器/委托 引用非空），病态资产引用为空时回退属性类名，避免解空指针崩溃（`EXCEPTION_ACCESS_VIOLATION`）导致 Editor 挂掉
-- fix(compat): 跨版本编译——`SetPIEWorldsPaused` 仅 UE5+；Widget 动画直写 `MovieScene`；MovieScene 5.2+ 用 `AddTrack`/`GetTracks`；蓝图接口走 `FTopLevelAssetPath`；5.8 Editor `SetSourceString` 三参；补 `StaticMesh`/`World`/`Package` 头文件
-- docs: `version-compat-reference.md` 补登记本次编译修复相关语义宏；README Token 表 MultiTool 177→222（221 cap + `submit_feedback`），固定税约 15.6×
-
-- fix(mcp): 响应默认值压缩仅当字段出现在**全部 object 条目**上才抽取——避免 `inherited` / `isConst` 等稀疏字段经 `{**defaults, **entry}` 被填到本无该字段的条目上
-- fix(mcp): `get_output_log` 的 `categoryFilter` ForcedDefault 改为本页实际 category **全员一致**才抽取（`AddForcedDefaultIfUnanimous`），不再把过滤子串当 defaults
-- fix(mcp): `relatedCapabilities` 运行期只保留当前宿主已注册且已启用的名（`search_capabilities` / MultiTool `[see:]`）；握手路由改为「插件门控」——GAS/Niagara/StateTree 等 `not_found` 即跳过
-- docs: README EQS 门控改为 UE 5.0+（不再写「全版本」）；CapabilitySpec §6.5 登记 AblAbility 为公开仓不收录（Able 依赖）
-- fix(compat): `REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 在 `!WITH_EDITOR` 下编译为空；`RegisterTool` 静态初始化期禁止 `UE_LOG`（缓存到 `GetPendingWarnings()`，`StartupModule` 再打），避免 iOS 等平台启动 `EXC_BAD_ACCESS`
-- fix(plugin): `NexusLink.uplugin` 同时声明 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）——UE4 忽略前者，否则模块会链进移动端客户端
+- feat(mcp): Capability 覆盖扩展（→221）——新领域 StringTable / Font / FoliageType / FileMediaSource（`mediaPath`，禁止旧键 `filePath`）、GAS `GameplayCueNotify_Static`、Paper2D Sprite/Flipbook/TileMap、GeometryCollection、CommonButtonStyle/CommonTextStyle、MoviePipeline config；写路径与工厂：MaterialFunction 写图、WBP 动画轨/key、ABP AnimGraph、Niagara Emitter CRUD、StateTree task/transition、LevelSequence possessable/track/key + `create_asset_level_sequence`、`manage_asset_view_model`、IK/`create_asset_ik_retargeter`、蓝图 macro/timeline/dispatcher、`control_pie` pause/resume/step、ComboBox/ListView、PCG `remove_edge`、`create_asset_sound_cue`/`physical_material`/`level`/`niagara_system`/`state_tree`、GAS give/cue/loose tag、`interact_runtime_actor_{audio,niagara,ai}`、`manage_asset_lua_binding`、ControlRig add_control/bone；闭环 create：`create_asset_sound_submix` / `create_asset_font` / `create_asset_pose_search`（Database|Schema，UE5.4+）。不含 Landscape 雕刻、Niagara 模块图、Able、关卡刷草
+- feat(mcp): `manage_asset_movie_pipeline_config` 深配——`set_anti_aliasing`/`add_setting`/`remove_setting`/`set_setting_property`/`set_setting_enabled`；`set_output` 支持 `fileNameFormat`；`get` 回显 `settings[]`/`antiAliasing`/`highRes`
+- feat(mcp): `manage_asset_static_mesh` 碰撞/Socket/LOD——`set_collision_trace_flag`/`add_box_collision`/`add_sphere_collision`/`clear_simple_collision`/`add_socket`/`set_socket`/`remove_socket`/`set_lod_screen_size`；`get` 回显 `sockets[]`
+- feat(mcp): `manage_asset_skeletal_mesh` 网格 Socket/LOD——`add_socket`/`set_socket`/`remove_socket`（mesh-only）/`set_lod_screen_size`；`get` 回显 `sockets[]`；物理体仍走 `manage_asset_physics_asset`
+- feat(mcp): `manage_asset_niagara_system`——`set_user_parameter` 扩 `Vector2`/`Position`/`Vector4`/`Color`/`LinearColor`/`Quat` + `ImportText` 结构体回退（UE5+ ExposedParameters）；`add_emitter` 可省略 `emitterPath` 建空白发射器；`add_module`/`remove_module` 改模块栈；`get` 回显 `modules`
+- feat(mcp): `manage_asset_anim_blueprint` AnimGraph `nodeClass`——`BlendSpace1D`(→BlendSpacePlayer)、`SequenceEvaluator`/`BlendSpaceEvaluator`/`RandomPlayer`/`PoseBlendNode`/`PoseByName`、`BlendListByBool`/`BlendListByEnum`/`BlendListByInt`、`MultiWayBlend`/`Inertialization`、`LayeredBoneBlend`/`ApplyAdditive`/`SaveCachedPose`/`UseCachedPose`、空间转换、`TwoBoneIK`/`LookAt`/`ModifyBone`/`AimOffset`/`FABRIK`/`CCDIK`/`CopyBone`/`HandIKRetargeting`/`AimOffsetLookAt`；`ControlRig`（`WITH_CONTROL_RIG`）；`boneName` 覆盖 FABRIK/CCDIK TipBone、CopyBone TargetBone 与 TwoBoneIK/LookAt/ModifyBone/AimOffset
+- feat(mcp): `manage_asset_level_sequence`——Master：`CinematicShot`/`Fade`/`Event`/`LevelVisibility`/`Slomo`（保留 CameraCut/Audio）；Binding：`SkeletalAnimation`/`Particle`/`Visibility`/`Color`/`Bool`/`Integer`/`Vector`/`Event`（保留 Float/Transform/Audio）；未知类型不再静默回落 Float；`add_float_key` 必填 `bindingGuid`；`set_transform_key` 写 Location 并可选 pitch/yaw/roll
+- feat(mcp): PaperTileMap 写路径——`create_asset_paper_tile_map` + `manage_asset_paper_tile_map`（`set_map_size`/`set_tile_size`/`set_tileset`/`add_layer`/`remove_layer`/`set_layer_name`/`set_cell`/`clear_cell`）；`get_asset_paper_tile_map` 回显 `layers[]`；CapabilitySpec §6 Paper2D 7→9
+- feat(mcp): `get_asset_anim_sequence` 回显 `curves[]`（name/keyCount/keys[{time,value}]；DataModel≥5.6 / 否则 RawCurveData），与 `manage_asset_anim_sequence` 浮点曲线写路径对称
+- feat(mcp): `manage_asset_meta_sound` 补齐 typed `operations[].action` Schema（八值 Enum + name/typeName/classID/nodeID/边字段），并修复乱码 Description/错误文案
+- feat(mcp): `manage_asset_blueprint`——`promote_pin`（按 `nodeId`+`pinName` 创建成员/局部变量并 Get/Set 连线；可选 `variableName`/`isLocal`/`posX`/`posY`）；BPI：`create_asset_blueprint(parentClass=Interface)` → `BPTYPE_Interface`；`get` 回显 `blueprintType`/`implementedInterfaces`；`add_function`/`remove_function`/`add_interface`/`remove_interface`
+- feat(mcp): `manage_asset_*` 框架注入可选 `saveToDisk`（默认 false）；`manage_asset_blueprint`/`anim_blueprint`/`user_widget` 另注入按需 `compile`（默认 false）。UDS 仍自动编译；材质继续用 `recompile` op；独立 `save_asset`/`compile_blueprint` 仍可用。Automation `NexusLink.Capability.ManageFinalizeMixin` 覆盖 Schema 注入与校验
+- feat(mcp): WBP 动画轨可 `widgetName`+`propertyPath` 绑定控件，补 `remove_track`/`remove_key`；`get_asset_user_widget` 增 `graphOverview`
 
 ### Changed
 
-- perf(mcp): 蓝图 pin / defaults / component 布尔改为**始终写出**（`inherited` / `isConst` / `isReference` / `bOrphan` / `bIsNodeEnabled` / `containerType`），使响应压缩能抽取主流值
-- perf(mcp): `list_runtime_actors` / `list_runtime_widgets` 在 `classFilter` 命中且本页 class/widgetClass 全员一致时 ForcedDefault（N=1 也能抽）
-- perf(mcp): 已有 `<k>_defaults` 时自动 Pass **合并**新键（不覆盖 ForcedDefault），不再整段跳过
-- perf(mcp): `search_asset` 指定类型时 `AddForcedDefault(assetType)`；`get_output_log` 在 `verbosity≠all` 时 ForcedDefault verbosity（N=1 也能抽）
-- docs: InitializeInstructions / AIRules / tool-reference 对齐当前压缩契约（`MinCount=2`、全员持有才抽取、已有 defaults 合并新键、缺省即默认）
+- perf(mcp): 响应压缩——蓝图 pin/defaults/component 布尔始终写出（`inherited`/`isConst`/`isReference`/`bOrphan`/`bIsNodeEnabled`/`containerType`）；`list_runtime_actors`/`list_runtime_widgets` 在 `classFilter` 命中且本页 class/widgetClass 全员一致时 ForcedDefault；已有 `<k>_defaults` 时合并新键（不覆盖 ForcedDefault）；`search_asset` 指定类型 ForcedDefault `assetType`；`get_output_log` 在 `verbosity≠all` 时 ForcedDefault verbosity
+- docs: InitializeInstructions / AIRules / tool-reference 对齐压缩契约（`MinCount=2`、全员持有才抽取、已有 defaults 合并新键、缺省即默认）；`version-compat-reference.md` 补语义宏；README Token 表 MultiTool 177→222（221 cap + `submit_feedback`），固定税约 15.6×；EQS 门控改为 UE 5.0+；CapabilitySpec §6.5 登记 AblAbility 为公开仓不收录（Able 依赖）
 
-### Added
+### Fixed
 
-- feat(mcp): `manage_asset_static_mesh` 碰撞/Socket/LOD——`set_collision_trace_flag`/`add_box_collision`/`add_sphere_collision`/`clear_simple_collision`/`add_socket`/`set_socket`/`remove_socket`/`set_lod_screen_size`；`get_asset_static_mesh` 回显 `sockets[]`
-- feat(mcp): `manage_asset_skeletal_mesh` 网格 Socket/LOD——`add_socket`/`set_socket`/`remove_socket`（mesh-only）/`set_lod_screen_size`；`get_asset_skeletal_mesh` 回显 `sockets[]`；物理体仍走 `manage_asset_physics_asset`
-- feat(mcp): `manage_asset_niagara_system` `set_user_parameter` 扩类型——`Vector2`/`Position`/`Vector4`/`Color`/`LinearColor`/`Quat` + `ImportText` 结构体回退（UE5+ ExposedParameters）
-- feat(mcp): `manage_asset_anim_blueprint` 扩展 AnimGraph `nodeClass`——`BlendSpace1D`(→BlendSpacePlayer)、`SequenceEvaluator`/`BlendSpaceEvaluator`/`RandomPlayer`/`PoseBlendNode`/`PoseByName`、`BlendListByEnum`/`BlendListByInt`/`MultiWayBlend`/`Inertialization`、空间转换、`FABRIK`/`CCDIK`/`CopyBone`/`HandIKRetargeting`/`AimOffsetLookAt`；`ControlRig` 在 `WITH_CONTROL_RIG` 时可用；`boneName` 覆盖 FABRIK/CCDIK TipBone 与 CopyBone TargetBone
-- feat(mcp): `manage_asset_level_sequence` 扩展轨类型——Master：`CinematicShot`/`Fade`/`Event`/`LevelVisibility`/`Slomo`（保留 CameraCut/Audio）；Binding：`SkeletalAnimation`/`Particle`/`Visibility`/`Color`/`Bool`/`Integer`/`Vector`/`Event`（保留 Float/Transform/Audio）；未知类型不再静默回落 Float
-- feat(mcp): PaperTileMap 写路径——`create_asset_paper_tile_map` + `manage_asset_paper_tile_map`（`set_map_size`/`set_tile_size`/`set_tileset`/`add_layer`/`remove_layer`/`set_layer_name`/`set_cell`/`clear_cell`）；`get_asset_paper_tile_map` 回显 `layers[]` 并去掉「写 API 不收录」；CapabilitySpec §6 Paper2D 7→9
-- feat(mcp): `get_asset_anim_sequence` 回显 `curves[]`（name/keyCount/keys[{time,value}]；DataModel≥5.6 / 否则 RawCurveData），与 `manage_asset_anim_sequence` 浮点曲线写路径对称
-- feat(mcp): `manage_asset_meta_sound` 补齐 typed `operations[].action` Schema（八值 Enum + name/typeName/classID/nodeID/边字段），并修复乱码 Description/错误文案
-- feat(mcp): `manage_asset_blueprint` 新增 `promote_pin`（对齐编辑器 Promote to Variable）——按 `nodeId`+`pinName` 创建成员/局部变量并生成 Get/Set 自动连线；可选 `variableName`/`isLocal`/`posX`/`posY`
-- feat(mcp): `manage_asset_*` 框架注入可选 `saveToDisk`（默认 false）；`manage_asset_blueprint` / `anim_blueprint` / `user_widget` 另注入按需 `compile`（默认 false）。UDS 仍自动编译；材质继续用 `recompile` op。独立 `save_asset` / `compile_blueprint` 仍可用
-- feat(mcp): AnimGraph 扩 TwoBoneIK / LookAt / ModifyBone / AimOffset（`boneName`）；Niagara `add_emitter` 可省略 `emitterPath` 建空白发射器，`add_module`/`remove_module` 改模块栈，`get_asset_niagara_system` 回显 `modules`
-- feat(mcp): AnimGraph 常用节点扩至 Blend（BlendListByBool）/ LayeredBoneBlend / ApplyAdditive / SaveCachedPose / UseCachedPose；`manage_asset_level_sequence` 的 `add_float_key` 必填 `bindingGuid`（绑定级，不再打 Master）；`set_transform_key` 写 Location 并可选 pitch/yaw/roll；WBP 动画轨可 `widgetName`+`propertyPath` 绑定控件，补 `remove_track`/`remove_key`；`get_asset_user_widget` 增 `graphOverview`
-- fix(mcp): AnimGraph 解析只剥 `UAnimGraphNode_`/`AnimGraphNode_` 前缀（禁止全局删字母 U，否则 SequencePlayer/UseCachedPose 无法 spawn）；`add_interface`/`remove_interface` 补 Action 守卫，避免拦住 `add_node`/`add_component`
-- fix(compat): `GameplayCueName` 全版本为 `FName`；Niagara `SetIsEnabled`/`SetName` 需传入 System；5.1+ `AddEmitterHandle` 第三参 VersionGuid（`NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION`）
-- test(capability): Automation `NexusLink.Capability.ManageFinalizeMixin`——Schema 注入、非 BP 传 `compile` → `arg_invalid`、假路径 `saveToDisk` 写 `saveError`
-- feat(mcp): 补齐零 coverage 新领域（188→221）：StringTable / Font / FoliageType / FileMediaSource（媒体路径键 `mediaPath`，禁止旧键 `filePath`）；GAS `GameplayCueNotify_Static`；Paper2D Sprite/Flipbook/TileMap(get)；GeometryCollection；CommonButtonStyle/CommonTextStyle；MoviePipeline config。不含 Landscape 雕刻、Niagara 模块图、Able、关卡刷草
-- feat(mcp): 蓝图接口（BPI）走现有 cap——`create_asset_blueprint(parentClass=Interface)` 创建 `BPTYPE_Interface`；`get_asset_blueprint` 回显 `blueprintType` / `implementedInterfaces`；`manage_asset_blueprint` 新增 `add_function` / `remove_function` / `add_interface` / `remove_interface`
-- feat(mcp): 补齐 Capability 写路径与工厂（188 cap）：MaterialFunction 写图；WBP 动画轨/key；ABP AnimGraph 节点；Niagara Emitter CRUD；StateTree task/transition；LevelSequence possessable/track/key + `create_asset_level_sequence`；`manage_asset_view_model`；IK 链/`create_asset_ik_retargeter`；蓝图 macro/timeline/dispatcher；`control_pie` pause/resume/step；ComboBox/ListView；PCG `remove_edge`；`create_asset_sound_cue` / `physical_material` / `level` / `niagara_system` / `state_tree`；GAS give/cue/loose tag；`interact_runtime_actor_{audio,niagara,ai}`；`manage_asset_lua_binding`；ControlRig add_control/bone
+- fix(mcp): `get_asset_blueprint`(defaults) / `get_asset_data_asset` 属性报告——`BuildEditablePropsPage` 调 `GetCPPType()` 前用 `CanResolveCPPType` 递归校验属性类型图，病态资产引用为空时回退属性类名，避免 `EXCEPTION_ACCESS_VIOLATION`
+- fix(mcp): 响应默认值压缩仅当字段出现在**全部 object 条目**上才抽取；`get_output_log` 的 `categoryFilter` ForcedDefault 改为本页 category **全员一致**才抽取（`AddForcedDefaultIfUnanimous`）
+- fix(mcp): `relatedCapabilities` 运行期只保留当前宿主已注册且已启用的名（`search_capabilities` / MultiTool `[see:]`）；握手路由改为「插件门控」——GAS/Niagara/StateTree 等 `not_found` 即跳过
+- fix(mcp): AnimGraph 解析只剥 `UAnimGraphNode_`/`AnimGraphNode_` 前缀（禁止全局删字母 U）；`add_interface`/`remove_interface` 补 Action 守卫，避免拦住 `add_node`/`add_component`
+- fix(compat): DataLayer create/get/manage 在 `!NX_UE_HAS_DATA_LAYER_ASSET` stub 补 Schema/ResultBuilder include（UE4.26 unity 编序）
+- fix(compat): 跨版本编译——`SetPIEWorldsPaused` 仅 UE5+；Widget 动画直写 `MovieScene`；MovieScene 5.2+ 用 `AddTrack`/`GetTracks`；蓝图接口走 `FTopLevelAssetPath`；5.8 Editor `SetSourceString` 三参；补 `StaticMesh`/`World`/`Package` 头文件；`GameplayCueName` 全版本为 `FName`；Niagara `SetIsEnabled`/`SetName` 需传入 System；5.1+ `AddEmitterHandle` 第三参 VersionGuid（`NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION`）
+- fix(compat): `REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 在 `!WITH_EDITOR` 下编译为空；`RegisterTool` 静态初始化期禁止 `UE_LOG`（缓存到 `GetPendingWarnings()`，`StartupModule` 再打），避免 iOS 等平台启动 `EXC_BAD_ACCESS`
+- fix(plugin): `NexusLink.uplugin` 同时声明 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）——UE4 忽略前者，否则模块会链进移动端客户端
 
 ## [1.16.2] - 2026-08-12
 
