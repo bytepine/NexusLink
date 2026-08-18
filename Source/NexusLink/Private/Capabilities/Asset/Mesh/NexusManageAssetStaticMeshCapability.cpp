@@ -79,7 +79,11 @@ static void InvalidateCollision(UStaticMesh* Mesh, UBodySetup* Body)
 	Body->InvalidatePhysicsData();
 	Body->CreatePhysicsMeshes();
 #if WITH_EDITORONLY_DATA
+#if NX_UE_HAS_STATIC_MESH_CUSTOM_COLLISION_ACCESSOR
+	Mesh->SetCustomizedCollision(true);
+#else
 	Mesh->bCustomizedCollision = true;
+#endif
 #endif
 }
 
@@ -396,7 +400,11 @@ static void HandleSM_SetLodScreenSize(const TSharedPtr<FJsonObject>& Op, FNexusA
 	}
 	const float ScreenSize = static_cast<float>(A.Num(TEXT("screenSize")));
 	Mesh->GetSourceModel(LodIndex).ScreenSize.Default = ScreenSize;
+#if NX_UE_HAS_STATIC_MESH_AUTO_LOD_SCREENSIZE_ACCESSOR
+	Mesh->SetAutoComputeLODScreenSize(false);
+#else
 	Mesh->bAutoComputeLODScreenSize = false;
+#endif
 	MarkMeshDirty(Ctx);
 	Ctx.Entry->SetNumberField(TEXT("lodIndex"), LodIndex);
 	Ctx.Entry->SetNumberField(TEXT("screenSize"), ScreenSize);

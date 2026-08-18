@@ -33,6 +33,9 @@
 | `NX_UE_HAS_EXPORT_TEXT_DIRECT` | 5.5 | `ExportTextItem_Direct` → `ExportText_Direct` |
 | `NX_UE_HAS_STRUCT_UTILS_HEADER` | 5.5 | `Engine/UserDefinedStruct.h` → `StructUtils/` |
 | `NX_UE_HAS_ALLOW_SHRINKING_ENUM` | 5.5 | `TArray::Pop(bool)` → `Pop(EAllowShrinking)` |
+| `NX_UE_HAS_EDGRAPH_PERFORM_ACTION_VECTOR2F` | 5.6 | `FEdGraphSchemaAction::PerformAction` 改 `FVector2f`（`FVector2D`  overload C4996） |
+| `NX_UE_HAS_STATIC_MESH_CUSTOM_COLLISION_ACCESSOR` | 5.7 | `UStaticMesh::bCustomizedCollision` → `SetCustomizedCollision` |
+| `NX_UE_HAS_STATIC_MESH_AUTO_LOD_SCREENSIZE_ACCESSOR` | 5.7 | `UStaticMesh::bAutoComputeLODScreenSize` → `SetAutoComputeLODScreenSize` |
 | `NX_UE_HAS_JSON_TSHAREDSTRING_KEY` | 5.8 | `FJsonObject::Values` 键类型 `FString` → `UE::FSharedString` |
 | `NX_UE_HAS_GET_OBJECTS_FLAGS_ENUM` | 5.8 | `GetObjectsWithOuter(bool)` → `GetObjectsWithOuter(EGetObjectsFlags)` |
 | `NX_UE_HAS_POST_ENGINE_INIT_ACCESSOR` | 5.8 | `FCoreDelegates::OnPostEngineInit` → `FCoreDelegates::GetOnPostEngineInit()` |

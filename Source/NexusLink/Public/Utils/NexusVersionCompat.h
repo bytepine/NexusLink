@@ -48,6 +48,9 @@
 #define NX_UE_HAS_ANIM_COMPOSITE_SET_LENGTH NX_UE_AT_LEAST(5, 0) // UAnimCompositeBase::SetCompositeLength（UE5+；UE4 为 WITH_EDITOR 下 SetSequenceLength）
 #define NX_UE_HAS_ANIM_SEQUENCE_SET_LENGTH  (NX_UE_VERSION >= 500 && NX_UE_VERSION < 502) // 历史别名：UAnimSequenceBase::SetSequenceLength 仅 5.0–5.1
 #define NX_UE_HAS_STATIC_MESH_ACCESSORS    NX_UE_AT_LEAST(4, 27) // UStaticMesh::StaticMaterials/BodySetup → GetStaticMaterials()/GetBodySetup()
+#define NX_UE_HAS_EDGRAPH_PERFORM_ACTION_VECTOR2F  NX_UE_AT_LEAST(5, 6) // FEdGraphSchemaAction::PerformAction(FVector2D) C4996 → FVector2f
+#define NX_UE_HAS_STATIC_MESH_CUSTOM_COLLISION_ACCESSOR NX_UE_AT_LEAST(5, 7) // bCustomizedCollision → SetCustomizedCollision
+#define NX_UE_HAS_STATIC_MESH_AUTO_LOD_SCREENSIZE_ACCESSOR NX_UE_AT_LEAST(5, 7) // bAutoComputeLODScreenSize → SetAutoComputeLODScreenSize
 #define NX_UE_HAS_SKELETAL_MESH_ACCESSORS  NX_UE_HAS_STATIC_MESH_ACCESSORS // USkeletalMesh::Materials/PhysicsAsset → GetMaterials()/GetPhysicsAsset()
 #define NX_UE_HAS_SKELETAL_MESH_SKELETON_ACCESSOR NX_UE_AT_LEAST(4, 27) // USkeletalMesh::Skeleton → GetSkeleton()（4.27 起 deprecated 直访）
 #define NX_UE_HAS_UMG_SLOT_GETTERS               NX_UE_AT_LEAST(5, 1)  // UPanelSlot 布局字段 getter（5.1 起 deprecated 直访）

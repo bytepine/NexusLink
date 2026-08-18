@@ -949,7 +949,14 @@ static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 		if (Op->HasField(TEXT("posX"))) NewNodePos.X = static_cast<float>(Op->GetNumberField(TEXT("posX")));
 		if (Op->HasField(TEXT("posY"))) NewNodePos.Y = static_cast<float>(Op->GetNumberField(TEXT("posY")));
 
+#if NX_UE_HAS_EDGRAPH_PERFORM_ACTION_VECTOR2F
+		UEdGraphNode* Spawned = NodeInfo.PerformAction(
+			Graph, TargetPin,
+			FVector2f(static_cast<float>(NewNodePos.X), static_cast<float>(NewNodePos.Y)),
+			false);
+#else
 		UEdGraphNode* Spawned = NodeInfo.PerformAction(Graph, TargetPin, NewNodePos, false);
+#endif
 		if (!Spawned)
 		{
 			Entry->SetStringField(TEXT("error"), TEXT("Create Get/Set nodefailed"));

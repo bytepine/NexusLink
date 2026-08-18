@@ -206,6 +206,28 @@ public class NexusLink : ModuleRules
 		return false;
 	}
 
+	/// <summary>在 JSON 文本中找 `"Enabled"` 后空白容忍的 true/false（不依赖 System.Text.RegularExpressions，UE5.0 UBT 无该程序集）。</summary>
+	private static bool JsonHasEnabledLiteral(string json, string literal)
+	{
+		int idx = 0;
+		while ((idx = json.IndexOf("\"Enabled\"", idx, System.StringComparison.Ordinal)) >= 0)
+		{
+			int colon = json.IndexOf(':', idx + 9);
+			if (colon < 0) break;
+			int j = colon + 1;
+			while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
+			if (j + literal.Length <= json.Length
+				&& json.Substring(j, literal.Length) == literal)
+			{
+				char next = (j + literal.Length < json.Length) ? json[j + literal.Length] : ',';
+				if (next == ',' || next == '}' || char.IsWhiteSpace(next))
+					return true;
+			}
+			idx += 9;
+		}
+		return false;
+	}
+
 	/// <summary>.uproject 显式 Enabled:false（空白容忍）且非 true 时返回 true。</summary>
 	private static bool IsPluginExplicitlyDisabledInUproject(string projectRoot, string pluginName)
 	{
@@ -215,8 +237,8 @@ public class NexusLink : ModuleRules
 			{
 				string c = System.IO.File.ReadAllText(f);
 				if (!c.Contains("\"" + pluginName + "\"")) return false;
-				bool en = System.Text.RegularExpressions.Regex.IsMatch(c, "\"Enabled\"\\s*:\\s*true");
-				return System.Text.RegularExpressions.Regex.IsMatch(c, "\"Enabled\"\\s*:\\s*false") && !en;
+				bool en = JsonHasEnabledLiteral(c, "true");
+				return JsonHasEnabledLiteral(c, "false") && !en;
 			}
 		}
 		catch (System.Exception) { }

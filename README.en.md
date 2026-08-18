@@ -39,11 +39,11 @@ Mode switch path: Editor → Editor Preferences → Plugins → NexusLink → **
 
 #### Token cost comparison (why SearchMode is the default)
 
-Most MCP clients re-inject `tools/list` + `initialize.instructions` **on every model turn**. Fixed-overhead rough estimate (221 Capabilities, schemas parsed from source, chars÷4; excludes call payloads and chat history):
+Most MCP clients re-inject `tools/list` + `initialize.instructions` **on every model turn**. Fixed-overhead rough estimate (227 Capabilities, schemas parsed from source, chars÷4; excludes call payloads and chat history):
 
 | Component | SearchMode | MultiTool | Delta |
 |---|---|---|---|
-| tools/list | 3 tools · ~0.3k tok | 222 tools · ~21.2k tok | **+20.9k** |
+| tools/list | 3 tools · ~0.3k tok | 228 tools · ~21.5k tok | **+21.2k** |
 | initialize.instructions | ~1.1k | ~0.7k | −0.4k |
 | **Fixed total / turn** | **~1.4k** | **~21.9k** | **~15.6× / +20.5k** |
 
@@ -157,7 +157,7 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 | Domain | Capabilities | Version Gate |
 |--------|-------------|-------------|
 | **Editor Context** | Editor info/context, **output log** (`get_output_log`: `preset=diagnose` / `order=newest` / `sinceSequence` incremental / `includeSummary`), console variables, viewport capture, asset CRUD/search, **refs & inheritance** (`get_asset_refs`: `dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`), PIE control, Gameplay Tags | All versions |
-| **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO; `get` top-level `compileStatus`/`hasCompilerErrors`, sections `orphaned`/`execPaths`; Actor `create` ensures BeginPlay; `parentClass=Interface` creates BPI; `manage` supports `K2Node_Event`, `add_function` / `add_interface`, `add_macro` / `add_timeline` / `add_dispatcher` / `add_local_variable` | All versions |
+| **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO; `get` top-level `compileStatus`/`hasCompilerErrors`, sections `orphaned`/`execPaths`; Actor `create` ensures BeginPlay; `parentClass=Interface` creates BPI; `manage` supports `K2Node_Event`, `add_function` / `add_interface`, `promote_pin`, `add_macro` / `add_timeline` / `add_dispatcher` / `add_local_variable`; optional `saveToDisk` / `compile` | All versions |
 | **Animation** | AnimSequence (keyframes/curves/notifies), AnimBlueprint (state machines + AnimGraph SequencePlayer/BlendSpacePlayer/Slot/Blend/LayeredBoneBlend/ApplyAdditive/CachedPose/TwoBoneIK/LookAt/ModifyBone/AimOffset), AnimMontage (segments/sections; length refreshed after edit), BlendSpace (axes/samples), Skeleton / SkeletalMesh | All versions |
 | **Material** | Material / MaterialInstance / MaterialFunction (incl. graph write) / MaterialParameterCollection | All versions |
 | **Audio** | SoundWave, SoundCue (incl. create), MetaSound Source/Patch (Frontend Document / graph wiring), SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound: 5.0+, Patch: 5.1+ |
@@ -167,13 +167,13 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 | **Control Binding** | ControlRig (hierarchy + RigVM + add_control/add_bone), IKRig / IKRetargeter (chains/goals + create retargeter) | UE 5.0+ |
 | **Procedural / Motion** | PCG Graph (nodes/edges incl. `remove_edge`), PoseSearch (schema/database) | UE 5.4+ |
 | **Layout / Data** | Struct, DataAsset, DataTable, Widget/UMG (widget tree/bound animation tracks/keys; `graphOverview`; EventGraph via blueprint) | All versions |
-| **Paper2D** | PaperSprite / PaperFlipbook (incl. create) / PaperTileMap (read-only) | Requires Paper2D plugin |
+| **Paper2D** | PaperSprite / PaperFlipbook (incl. create) / PaperTileMap (incl. create + layer/cell write) | Requires Paper2D plugin |
 | **Chaos** | GeometryCollection (blank create / damage thresholds; no mesh fracture) | UE 5.0+ |
 | **CommonUI** | CommonButtonStyle / CommonTextStyle; WBP still uses user_widget | UE 5.0+ CommonUI |
 | **Movie Render Queue** | MoviePipeline config output/AA/settings; `control_movie_pipeline` enqueue/status/cancel (non-blocking) | UE 5.0+ |
 | **State / ViewModel** | StateTree (states/tasks/conditions/transitions + create), MVVM ViewModel / Binding (incl. manage) | UE 5.5+ |
 | **Physics / Sequencer** | PhysicsAsset (bodies/constraints), LevelSequence (binding-scoped tracks/float keys/transform incl. rotation + create) | All versions |
-| **Engine Core Assets** | Curve (Float/Vector/LinearColor/CurveTable), UserDefinedEnum, AnimComposite, PhysicalMaterial (incl. create), TextureRenderTarget2D, StringTable, Font (no create; TTF via `reimport_asset`), FoliageType, FileMediaSource | All versions |
+| **Engine Core Assets** | Curve (Float/Vector/LinearColor/CurveTable), UserDefinedEnum, AnimComposite, PhysicalMaterial (incl. create), TextureRenderTarget2D, StringTable, Font (incl. create; TTF via `reimport_asset`), FoliageType, FileMediaSource | All versions |
 | **World Partition** | DataLayerAsset (type / debug color) | UE 5.1+ |
 | **VFX** | NiagaraSystem (emitter CRUD/enable/rename/create; empty `add_emitter`; `add_module`/`remove_module`; `set_module_parameter` RapidIteration; `get` echoes `usage`/`inputs`) | Requires Niagara plugin |
 | **Runtime** | Actor list/spawn/destroy/property read-write/diff; Widget runtime (ComboBox set/read, ListView read); AnimInstance; GAS; audio/Niagara; `control_pie` pause/resume/step | Requires PIE/Game |

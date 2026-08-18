@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [2.0.0-beta.1] - 2026-08-18
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Added
 
 - feat(mcp): Capability 覆盖扩展（→221）——新领域 StringTable / Font / FoliageType / FileMediaSource（`mediaPath`，禁止旧键 `filePath`）、GAS `GameplayCueNotify_Static`、Paper2D Sprite/Flipbook/TileMap、GeometryCollection、CommonButtonStyle/CommonTextStyle、MoviePipeline config；写路径与工厂：MaterialFunction 写图、WBP 动画轨/key、ABP AnimGraph、Niagara Emitter CRUD、StateTree task/transition、LevelSequence possessable/track/key + `create_asset_level_sequence`、`manage_asset_view_model`、IK/`create_asset_ik_retargeter`、蓝图 macro/timeline/dispatcher、`control_pie` pause/resume/step、ComboBox/ListView、PCG `remove_edge`、`create_asset_sound_cue`/`physical_material`/`level`/`niagara_system`/`state_tree`、GAS give/cue/loose tag、`interact_runtime_actor_{audio,niagara,ai}`、`manage_asset_lua_binding`、ControlRig add_control/bone；闭环 create：`create_asset_sound_submix` / `create_asset_font` / `create_asset_pose_search`（Database|Schema，UE5.4+）。不含 Landscape 雕刻、Niagara 模块图、Able、关卡刷草
@@ -35,7 +39,7 @@
 - refactor(mcp): JSON 紧凑序列化收口为 `FNexusJsonUtils::SerializeCondensed` / `SerializeValueCondensed`；Dispatcher / Feedback / 三元工具 / Server / Registry / PropertyUtils / CapResultAdapter 删除私有 Condensed 样板
 - refactor(mcp): 新增 `FNexusArgs` 参数读取门面；Execute 删除 Schema 已覆盖的 required/空串死校验，D/E 方言改为门面调用；三元工具 `submit_feedback` / `search_capabilities` / `call_capability` 的 MCP 参数读取对齐（`calls[]` 与错误 JSON 仍原生 TryGet）；`get_asset_movie_pipeline_config` 与 `manage_asset_blueprint` 必填字符串门闩改 `FNexusArgs::Str`（可选 `HasField` 保留）；Automation 补 Args 门面与 ActionCapability 流程（空 operations / Prepare 失败不 Finalize / 未知 action 继续）
 - perf(mcp): 响应压缩——蓝图 pin/defaults/component 布尔始终写出（`inherited`/`isConst`/`isReference`/`bOrphan`/`bIsNodeEnabled`/`containerType`）；`list_runtime_actors`/`list_runtime_widgets` 在 `classFilter` 命中且本页 class/widgetClass 全员一致时 ForcedDefault；已有 `<k>_defaults` 时合并新键（不覆盖 ForcedDefault）；`search_asset` 指定类型 ForcedDefault `assetType`；`get_output_log` 在 `verbosity≠all` 时 ForcedDefault verbosity
-- docs: InitializeInstructions / AIRules / tool-reference 对齐压缩契约（`MinCount=2`、全员持有才抽取、已有 defaults 合并新键、缺省即默认）；`version-compat-reference.md` 补语义宏；README Token 表 MultiTool 177→222（221 cap + `submit_feedback`），固定税约 15.6×；EQS 门控改为 UE 5.0+；CapabilitySpec §6.5 登记 AblAbility 为公开仓不收录（Able 依赖）
+- docs: InitializeInstructions / AIRules / tool-reference 对齐压缩契约（`MinCount=2`、全员持有才抽取、已有 defaults 合并新键、缺省即默认）；`version-compat-reference.md` 补语义宏（含 5.6 `PerformAction` `FVector2f`、5.7 StaticMesh collision/LOD accessor）；README Token 表 MultiTool 228（227 cap + `submit_feedback`），固定税约 15.6×；EQS 门控改为 UE 5.0+；CapabilitySpec §6.5 登记 AblAbility 为公开仓不收录（Able 依赖）
 - refactor(code): 去掉 C++ `namespace` / 匿名命名空间——私有 helper 改为文件级 `static`，跨 TU 工具集改为 `struct FXxx final` + 全 static（`FNexusCapResultAdapter`）；`.cpp` 泛名 enum/struct 嵌套或改 `FNexus*` 前缀；CapabilitySpec §8.3/§8.4 同步禁止 namespace
 - chore(plugin): `NexusLink.uplugin` 不再强制启用 `GameplayAbilities` / `Niagara`（改由 `Build.cs` 按宿主 `.uproject` 探测，与 StateTree/MVVM 等可选插件一致）；`WebSocketNetworking` 仍为硬依赖
 - chore(plugin): 发版 zip 排除 `Source/NexusLinkTests`，打包时从 `.uplugin` 去掉该模块（源码仓仍保留 L1 Automation）
@@ -53,7 +57,7 @@
 - fix(mcp): `relatedCapabilities` 运行期只保留当前宿主已注册且已启用的名（`search_capabilities` / MultiTool `[see:]`）；握手路由改为「插件门控」——GAS/Niagara/StateTree 等 `not_found` 即跳过
 - fix(mcp): AnimGraph 解析只剥 `UAnimGraphNode_`/`AnimGraphNode_` 前缀（禁止全局删字母 U）；`add_interface`/`remove_interface` 补 Action 守卫，避免拦住 `add_node`/`add_component`
 - fix(compat): DataLayer create/get/manage 在 `!NX_UE_HAS_DATA_LAYER_ASSET` stub 补 Schema/ResultBuilder include（UE4.26 unity 编序）
-- fix(compat): 跨版本编译——`SetPIEWorldsPaused` 仅 UE5+；Widget 动画直写 `MovieScene`；MovieScene 5.2+ 用 `AddTrack`/`GetTracks`；蓝图接口走 `FTopLevelAssetPath`；5.8 Editor `SetSourceString` 三参；补 `StaticMesh`/`World`/`Package` 头文件；`GameplayCueName` 全版本为 `FName`；Niagara `SetIsEnabled`/`SetName` 需传入 System；5.1+ `AddEmitterHandle` 第三参 VersionGuid（`NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION`）
+- fix(compat): 跨版本编译——`SetPIEWorldsPaused` 仅 UE5+；Widget 动画直写 `MovieScene`；MovieScene 5.2+ 用 `AddTrack`/`GetTracks`；蓝图接口走 `FTopLevelAssetPath`；5.8 Editor `SetSourceString` 三参；补 `StaticMesh`/`World`/`Package` 头文件；`GameplayCueName` 全版本为 `FName`；Niagara `SetIsEnabled`/`SetName` 需传入 System；5.1+ `AddEmitterHandle` 第三参 VersionGuid（`NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION`）；UE5.0 `Build.cs` 不用 `Regex`（UBT 无 `System.Text.RegularExpressions`）；5.6+ `promote_pin` `PerformAction` 走 `FVector2f`；5.7+ StaticMesh `SetCustomizedCollision` / `SetAutoComputeLODScreenSize`
 - fix(compat): `REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 在 `!WITH_EDITOR` 下编译为空；`RegisterTool` 静态初始化期禁止 `UE_LOG`（缓存到 `GetPendingWarnings()`，`StartupModule` 再打），避免 iOS 等平台启动 `EXC_BAD_ACCESS`
 - fix(plugin): `NexusLink.uplugin` 同时声明 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）——UE4 忽略前者，否则模块会链进移动端客户端
 
