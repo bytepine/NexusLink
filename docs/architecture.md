@@ -61,11 +61,13 @@ classDiagram
     class FNexusCapability {
         <<abstract>>
         +BuildDefinition() 子类声明元数据
-        +Execute() 子类实现业务逻辑
+        +Execute() 默认业务入口（Action/MultiSection 为 final）
         +Run() 参数校验与计时
         +GetDefinition() 懒加载缓存
     }
 ```
+
+`FNexusActionCapability` / `FNexusMultiSectionCapability` 将 `Execute` 标为 **final**；子类走 `RegisterActions` / `ExecuteSection`。基类选择见 [CapabilitySpec.md](../Resources/CapabilitySpec.md) §2.1.1。
 
 ### 自注册机制
 
@@ -76,7 +78,7 @@ REGISTER_MCP_CAPABILITY(FNexusSearchAssetCapability);
 
 宏展开后利用 C++ 静态初始化，在模块加载期自动向全局注册表注册实例。新增 Capability 只需：
 1. 在对应域目录下新建 .h/.cpp
-2. 继承 `FNexusCapability`，实现 `BuildDefinition()` + `Execute()`
+2. 按 CapabilitySpec §2.1.1 选基类（`manage_*` + `operations[]` → `FNexusActionCapability`，禁止 override `Execute`；其余见该表）并实现对应钩子
 3. 文件底部添加 `REGISTER_MCP_CAPABILITY(ClassName)`
 
 无需修改任何已有代码。

@@ -135,10 +135,10 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 3. At the end of `.cpp`: `REGISTER_MCP_TOOL(FNexusMcpToolXxx)`
 
 **Path B — Capability** (main path; business logic encapsulated in Capability, callable independently)
-1. Create `Private/Capabilities/<category>/NexusXxxCapability.h/.cpp`, inheriting `FNexusCapability` (or `FNexusMultiSectionCapability` for multi-section). For runtime (PIE) Capabilities, inherit **`FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`** (host tag auto-filled)
-2. Implement `BuildDefinition()` / `Execute()`; asset get/manage must set `Out.SearchAssetTypes` (feeds `search_asset` → `recommendedGet`/`recommendedManage`); end of `.cpp`: `REGISTER_MCP_CAPABILITY(FNexusXxxCapability)`
-3. Follow [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) (naming / four-part description / `SearchAssetTypes` / self-check checklist)
-4. Capabilities are invoked directly via the `call_capability` meta tool, or exposed as standalone MCP Tools in MultiTool mode
+1. Create `Private/Capabilities/<category>/NexusXxxCapability.h/.cpp`; **pick a base class per [CapabilitySpec.md](Resources/CapabilitySpec.md) §2.1.1** (`manage_*` + `operations[]` → `FNexusActionCapability`, subclasses must not implement `Execute`; `sections[]` → MultiSection; PIE → Runtime; otherwise → `FNexusCapability`)
+2. Implement the hooks that base class requires (Action: `BuildDefinition` + `RegisterActions` + `PrepareTarget`; plain: `BuildDefinition` + `Execute`); asset get/manage must set `Out.SearchAssetTypes`; end of `.cpp`: `REGISTER_MCP_CAPABILITY(...)`
+3. Follow CapabilitySpec (naming / four-part description / self-check checklist)
+4. Capabilities are invoked via `call_capability`, or exposed as standalone MCP Tools in MultiTool mode
 
 ---
 
