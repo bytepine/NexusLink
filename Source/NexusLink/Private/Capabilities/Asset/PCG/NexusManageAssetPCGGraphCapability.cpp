@@ -4,8 +4,8 @@
 
 #if WITH_PCG
 
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
+#include "Utils/NexusVersionCompat.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -14,6 +14,7 @@
 #include "PCGNode.h"
 #include "PCGSettings.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/Package.h"
 
 void FManageAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -35,192 +36,165 @@ void FManageAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition&
 	Out.WhenToUse = TEXT("Add/remove PCG Graph nodes or connect pins");
 }
 
-static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Graph,
-	const FString& AssetPath, TArray<TSharedPtr<FJsonValue>>& OutEntries)
+static UPCGGraph* PCGFrom(FNexusActionContext& Ctx)
 {
-	FString Action;
-	Op->TryGetStringField(TEXT("action"), Action);
-
-	TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
-	Result->SetStringField(TEXT("path"), AssetPath);
-	Result->SetStringField(TEXT("action"), Action);
-
-	if (Action == TEXT("add_node"))
-	{
-		FString SettingsClassName;
-		if (!Op->TryGetStringField(TEXT("settingsClass"), SettingsClassName) || SettingsClassName.IsEmpty())
-		{
-			Result->SetStringField(TEXT("error"), TEXT("add_node requires settingsClass (UPCGSettings subclass name)"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-			return;
-		}
-
-#if NX_UE_HAS_FIND_FIRST_OBJECT
-		UClass* SettingsClass = FindFirstObject<UClass>(*SettingsClassName, EFindFirstObjectOptions::NativeFirst);
-#else
-		UClass* SettingsClass = FindObject<UClass>(ANY_PACKAGE, *SettingsClassName);
-#endif
-		if (!SettingsClass || !SettingsClass->IsChildOf(UPCGSettings::StaticClass()))
-		{
-			Result->SetStringField(TEXT("error"),
-				FString::Printf(TEXT("settingsClass '%s' not found or not UPCGSettings subclass"), *SettingsClassName));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-			return;
-		}
-
-		UPCGSettings* NewSettings = NewObject<UPCGSettings>(Graph, SettingsClass, NAME_None, RF_Transactional);
-		if (!NewSettings)
-		{
-			Result->SetStringField(TEXT("error"), TEXT("Failed to create PCGSettings instance"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-			return;
-		}
-
-		UPCGNode* NewNode = Graph->AddNode(NewSettings);
-		if (!NewNode)
-		{
-			Result->SetStringField(TEXT("error"), TEXT("AddNode failed"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-			return;
-		}
-
-		Result->SetStringField(TEXT("nodeId"), NewNode->GetName());
-		Result->SetStringField(TEXT("settingsClass"), SettingsClassName);
-	}
-	else if (Action == TEXT("remove_node"))
-	{
-		FString NodeId;
-		Op->TryGetStringField(TEXT("nodeId"), NodeId);
-		if (NodeId.IsEmpty())
-		{
-			Result->SetStringField(TEXT("error"), TEXT("remove_node requires nodeId"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-			return;
-		}
-
-		UPCGNode* TargetNode = nullptr;
-		for (UPCGNode* Node : Graph->GetNodes())
-		{
-			if (Node && Node->GetName() == NodeId) { TargetNode = Node; break; }
-		}
-		if (!TargetNode)
-		{
-			Result->SetStringField(TEXT("error"),
-				FString::Printf(TEXT("Node '%s' not found"), *NodeId));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-			return;
-		}
-
-		Graph->RemoveNode(TargetNode);
-		Result->SetStringField(TEXT("nodeId"), NodeId);
-	}
-	else if (Action == TEXT("add_edge"))
-	{
-		FString FromId, FromPin, ToId, ToPin;
-		Op->TryGetStringField(TEXT("fromNodeId"), FromId);
-		Op->TryGetStringField(TEXT("fromPin"),    FromPin);
-		Op->TryGetStringField(TEXT("toNodeId"),   ToId);
-		Op->TryGetStringField(TEXT("toPin"),      ToPin);
-
-		if (FromId.IsEmpty() || ToId.IsEmpty())
-		{
-			Result->SetStringField(TEXT("error"), TEXT("add_edge requires fromNodeId and toNodeId"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-			return;
-		}
-
-		UPCGNode* FromNode = nullptr;
-		UPCGNode* ToNode   = nullptr;
-		for (UPCGNode* Node : Graph->GetNodes())
-		{
-			if (!Node) continue;
-			if (Node->GetName() == FromId) FromNode = Node;
-			if (Node->GetName() == ToId)   ToNode   = Node;
-		}
-
-		if (!FromNode || !ToNode)
-		{
-			Result->SetStringField(TEXT("error"), TEXT("Source or target node not found"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-			return;
-		}
-
-		const FName FromLabel = FromPin.IsEmpty() ? NAME_None : FName(*FromPin);
-		const FName ToLabel   = ToPin.IsEmpty()   ? NAME_None : FName(*ToPin);
-		Graph->AddEdge(FromNode, FromLabel, ToNode, ToLabel);
-	}
-	else if (Action == TEXT("remove_edge"))
-	{
-		FString FromId, FromPin, ToId, ToPin;
-		Op->TryGetStringField(TEXT("fromNodeId"), FromId);
-		Op->TryGetStringField(TEXT("fromPin"),    FromPin);
-		Op->TryGetStringField(TEXT("toNodeId"),   ToId);
-		Op->TryGetStringField(TEXT("toPin"),      ToPin);
-		if (FromId.IsEmpty() || ToId.IsEmpty())
-		{
-			Result->SetStringField(TEXT("error"), TEXT("remove_edge requires fromNodeId and toNodeId"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-			return;
-		}
-		UPCGNode* FromNode = nullptr;
-		UPCGNode* ToNode   = nullptr;
-		for (UPCGNode* Node : Graph->GetNodes())
-		{
-			if (!Node) continue;
-			if (Node->GetName() == FromId) FromNode = Node;
-			if (Node->GetName() == ToId)   ToNode   = Node;
-		}
-		if (!FromNode || !ToNode)
-		{
-			Result->SetStringField(TEXT("error"), TEXT("Source or target node not found"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-			return;
-		}
-		const FName FromLabel = FromPin.IsEmpty() ? NAME_None : FName(*FromPin);
-		const FName ToLabel   = ToPin.IsEmpty()   ? NAME_None : FName(*ToPin);
-		Graph->RemoveEdge(FromNode, FromLabel, ToNode, ToLabel);
-	}
-	else
-	{
-		Result->SetStringField(TEXT("error"),
-			FString::Printf(TEXT("Unknown action '%s'; supported: add_node/remove_node/add_edge/remove_edge"), *Action));
-	}
-
-	OutEntries.Add(MakeShared<FJsonValueObject>(Result));
+	return static_cast<UPCGGraph*>(Ctx.Target);
 }
 
-FCapabilityResult FManageAssetPCGGraphCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+static UPCGNode* FindPCGNodeById(UPCGGraph* Graph, const FString& NodeId)
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	if (!Graph) return nullptr;
+	for (UPCGNode* Node : Graph->GetNodes())
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		if (Node && Node->GetName() == NodeId) return Node;
+	}
+	return nullptr;
+}
 
-		UPCGGraph* Graph = FNexusAssetUtils::LoadAssetWithFallback<UPCGGraph>(AssetPath);
-		if (!Graph)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("PCG Graph not found: %s"), *AssetPath));
-			return;
-		}
+static void HandlePCG_AddNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPCGGraph* Graph = PCGFrom(Ctx);
+	const FString SettingsClassName = FNexusArgs(Op).Str(TEXT("settingsClass"));
+	if (SettingsClassName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_node requires settingsClass (UPCGSettings subclass name)"));
+		return;
+	}
 
-		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (OpsArr.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("operations array is empty"));
-			return;
-		}
+#if NX_UE_HAS_FIND_FIRST_OBJECT
+	UClass* SettingsClass = FindFirstObject<UClass>(*SettingsClassName, EFindFirstObjectOptions::NativeFirst);
+#else
+	UClass* SettingsClass = FindObject<UClass>(ANY_PACKAGE, *SettingsClassName);
+#endif
+	if (!SettingsClass || !SettingsClass->IsChildOf(UPCGSettings::StaticClass()))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("settingsClass '%s' not found or not UPCGSettings subclass"), *SettingsClassName));
+		return;
+	}
 
-		for (const TSharedPtr<FJsonValue>& Val : OpsArr)
-		{
-			const TSharedPtr<FJsonObject>* OpObj = nullptr;
-			if (!Val->TryGetObject(OpObj) || !OpObj) continue;
-			ApplyPCGOperation(*OpObj, Graph, AssetPath, OutEntries);
-		}
+	UPCGSettings* NewSettings = NewObject<UPCGSettings>(Graph, SettingsClass, NAME_None, RF_Transactional);
+	if (!NewSettings)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Failed to create PCGSettings instance"));
+		return;
+	}
 
+	UPCGNode* NewNode = Graph->AddNode(NewSettings);
+	if (!NewNode)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("AddNode failed"));
+		return;
+	}
+
+	Ctx.Entry->SetStringField(TEXT("nodeId"), NewNode->GetName());
+	Ctx.Entry->SetStringField(TEXT("settingsClass"), SettingsClassName);
+}
+
+static void HandlePCG_RemoveNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPCGGraph* Graph = PCGFrom(Ctx);
+	const FString NodeId = FNexusArgs(Op).Str(TEXT("nodeId"));
+	if (NodeId.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_node requires nodeId"));
+		return;
+	}
+	UPCGNode* TargetNode = FindPCGNodeById(Graph, NodeId);
+	if (!TargetNode)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("Node '%s' not found"), *NodeId));
+		return;
+	}
+	Graph->RemoveNode(TargetNode);
+	Ctx.Entry->SetStringField(TEXT("nodeId"), NodeId);
+}
+
+static bool ResolvePCGEdgeEnds(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx,
+	UPCGNode*& OutFrom, UPCGNode*& OutTo, FName& OutFromLabel, FName& OutToLabel, const TCHAR* MissingErr)
+{
+	UPCGGraph* Graph = PCGFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString FromId = A.Str(TEXT("fromNodeId"));
+	const FString ToId   = A.Str(TEXT("toNodeId"));
+	const FString FromPin = A.Str(TEXT("fromPin"));
+	const FString ToPin   = A.Str(TEXT("toPin"));
+	if (FromId.IsEmpty() || ToId.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), MissingErr);
+		return false;
+	}
+	OutFrom = FindPCGNodeById(Graph, FromId);
+	OutTo   = FindPCGNodeById(Graph, ToId);
+	if (!OutFrom || !OutTo)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Source or target node not found"));
+		return false;
+	}
+	OutFromLabel = FromPin.IsEmpty() ? NAME_None : FName(*FromPin);
+	OutToLabel   = ToPin.IsEmpty()   ? NAME_None : FName(*ToPin);
+	return true;
+}
+
+static void HandlePCG_AddEdge(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPCGNode* FromNode = nullptr;
+	UPCGNode* ToNode = nullptr;
+	FName FromLabel, ToLabel;
+	if (!ResolvePCGEdgeEnds(Op, Ctx, FromNode, ToNode, FromLabel, ToLabel,
+		TEXT("add_edge requires fromNodeId and toNodeId")))
+	{
+		return;
+	}
+	PCGFrom(Ctx)->AddEdge(FromNode, FromLabel, ToNode, ToLabel);
+}
+
+static void HandlePCG_RemoveEdge(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPCGNode* FromNode = nullptr;
+	UPCGNode* ToNode = nullptr;
+	FName FromLabel, ToLabel;
+	if (!ResolvePCGEdgeEnds(Op, Ctx, FromNode, ToNode, FromLabel, ToLabel,
+		TEXT("remove_edge requires fromNodeId and toNodeId")))
+	{
+		return;
+	}
+	PCGFrom(Ctx)->RemoveEdge(FromNode, FromLabel, ToNode, ToLabel);
+}
+
+bool FManageAssetPCGGraphCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UPCGGraph* Graph = FNexusAssetUtils::LoadAssetWithFallback<UPCGGraph>(AssetPath);
+	if (!Graph)
+	{
+		OutError = FString::Printf(TEXT("PCG Graph not found: %s"), *AssetPath);
+		return false;
+	}
+	OutTarget = Graph;
+	return true;
+}
+
+void FManageAssetPCGGraphCapability::FinalizeTarget(void* Target) const
+{
+	if (UPCGGraph* Graph = static_cast<UPCGGraph*>(Target))
+	{
 		Graph->MarkPackageDirty();
-	});
+	}
+}
+
+void FManageAssetPCGGraphCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("add_node"),    &HandlePCG_AddNode);
+	OutHandlers.Add(TEXT("remove_node"), &HandlePCG_RemoveNode);
+	OutHandlers.Add(TEXT("add_edge"),    &HandlePCG_AddEdge);
+	OutHandlers.Add(TEXT("remove_edge"), &HandlePCG_RemoveEdge);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetPCGGraphCapability)

@@ -4,8 +4,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "FileMediaSource.h"
 #include "NexusMcpTool.h"
@@ -31,84 +30,101 @@ void FManageAssetMediaSourceCapability::BuildDefinition(FNexusCapabilityDefiniti
 	Out.RelatedCapabilities = { TEXT("get_asset_media_source"), TEXT("create_asset_media_source") };
 }
 
-FCapabilityResult FManageAssetMediaSourceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FMediaSourceActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UFileMediaSource* Source = nullptr;
+	bool bDirty = false;
+};
+
+static FMediaSourceActionState* MSState(FNexusActionContext& Ctx)
+{
+	return static_cast<FMediaSourceActionState*>(Ctx.Target);
+}
+
+static UFileMediaSource* MSFrom(FNexusActionContext& Ctx)
+{
+	FMediaSourceActionState* S = MSState(Ctx);
+	return S ? S->Source : nullptr;
+}
+
+static void MarkMSDirty(FNexusActionContext& Ctx)
+{
+	if (FMediaSourceActionState* S = MSState(Ctx))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		S->bDirty = true;
+	}
+}
 
-		UFileMediaSource* Source = FNexusAssetUtils::LoadAssetWithFallback<UFileMediaSource>(AssetPath);
-		if (!Source)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("Failed to load FileMediaSource: %s"), *AssetPath));
-			return;
-		}
+static void HandleMS_SetFilePath(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UFileMediaSource* Source = MSFrom(Ctx);
+	FString FilePath;
+	if (!Op->TryGetStringField(TEXT("mediaPath"), FilePath) || FilePath.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_file_path requires mediaPath"));
+		return;
+	}
+	Source->SetFilePath(FilePath);
+	MarkMSDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("mediaPath"), Source->GetFilePath());
+}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
+static void HandleMS_SetLoop(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UFileMediaSource* Source = MSFrom(Ctx);
+	if (!Op->HasField(TEXT("loop")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_loop requires loop"));
+		return;
+	}
+	const bool bLoop = Op->GetBoolField(TEXT("loop"));
+	FString OldVal, ActualVal, Err;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(
+		Source, { TEXT("Loop") }, 0, bLoop ? TEXT("True") : TEXT("False"), OldVal, ActualVal, Err))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			Err.IsEmpty() ? TEXT("no Loop field") : Err);
+		return;
+	}
+	MarkMSDirty(Ctx);
+	Ctx.Entry->SetBoolField(TEXT("loop"), bLoop);
+}
 
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpPtr;
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
-			Action = Action.ToLower();
+bool FManageAssetMediaSourceCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UFileMediaSource* Source = FNexusAssetUtils::LoadAssetWithFallback<UFileMediaSource>(AssetPath);
+	if (!Source)
+	{
+		OutError = FString::Printf(TEXT("Failed to load FileMediaSource: %s"), *AssetPath);
+		return false;
+	}
+	FMediaSourceActionState* State = new FMediaSourceActionState();
+	State->Source = Source;
+	OutTarget = State;
+	return true;
+}
 
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
-			Entry->SetStringField(TEXT("action"), Action);
+void FManageAssetMediaSourceCapability::FinalizeTarget(void* Target) const
+{
+	FMediaSourceActionState* State = static_cast<FMediaSourceActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->Source)
+	{
+		State->Source->MarkPackageDirty();
+	}
+	delete State;
+}
 
-			if (Action == TEXT("set_file_path"))
-			{
-				FString FilePath;
-				if (!Op->TryGetStringField(TEXT("mediaPath"), FilePath) || FilePath.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_file_path requires mediaPath"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				Source->SetFilePath(FilePath);
-				bDirty = true;
-				Entry->SetStringField(TEXT("mediaPath"), Source->GetFilePath());
-			}
-			else if (Action == TEXT("set_loop"))
-			{
-				if (!Op->HasField(TEXT("loop")))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_loop requires loop"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				const bool bLoop = Op->GetBoolField(TEXT("loop"));
-				FString OldVal, ActualVal, Err;
-				if (!FNexusPropertyUtils::WritePropertyAndEcho(
-					Source, { TEXT("Loop") }, 0, bLoop ? TEXT("True") : TEXT("False"), OldVal, ActualVal, Err))
-				{
-					Entry->SetStringField(TEXT("error"),
-						Err.IsEmpty() ? TEXT("no Loop field") : Err);
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				bDirty = true;
-				Entry->SetBoolField(TEXT("loop"), bLoop);
-			}
-			else
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-		if (bDirty) Source->MarkPackageDirty();
-	});
+void FManageAssetMediaSourceCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_file_path"), &HandleMS_SetFilePath);
+	OutHandlers.Add(TEXT("set_loop"),      &HandleMS_SetLoop);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetMediaSourceCapability)

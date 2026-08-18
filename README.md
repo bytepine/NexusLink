@@ -62,7 +62,7 @@ MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮�
 3. 勾选 **启用 MCP 服务器**（**默认关闭**）——勾选后即时启动 HTTP（`POST /stream`）与 WebSocket，并注册实例供 Rider/VSCode 发现；取消勾选立即停止，**无需重启编辑器**
 4. （可选）无 UI 的 **编辑器** 启动（如 `UEEditor-Cmd`）可加 **`-EnableNexusMcp`** 或控制台 **`NexusLink.EnableMcp 1|0`**（会话级，不写盘；与 Preferences 为 OR）。主模块 `Type: Runtime`（Game/Server 可链接），但 **MCP 仅 Editor / PIE 实际运行**（`!WITH_EDITOR` 时 Startup/Shutdown 空返回）
 
-> GAS / Niagara 相关 Capability 需在项目 `.uproject` 中启用 `GameplayAbilities` / `Niagara` 插件（`NexusLink.uplugin` 已声明依赖）。StateTree / MVVM 能力需 UE 5.5+ 且引擎内置对应插件可用。
+> GAS / Niagara 相关 Capability 需在项目 `.uproject` 中启用 `GameplayAbilities` / `Niagara`（NexusLink 按宿主探测，**不**在 `.uplugin` 里强制依赖）。StateTree / MVVM 能力需 UE 5.5+ 且引擎内置对应插件可用。
 
 未启用时：工具栏不显示端口、IDE 代理扫描不到实例、AI 直连 `http://127.0.0.1:45000/stream` 无响应。完整用户指南见 [docs/usage-guide.md](docs/usage-guide.md) §2。
 

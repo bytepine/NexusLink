@@ -1,9 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Material/NexusManageAssetMaterialParameterCollectionCapability.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
-#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -42,183 +40,185 @@ void FManageAssetMaterialParameterCollectionCapability::BuildDefinition(FNexusCa
 	Out.WhenToUse = TEXT("Add/remove/edit MPC scalar/vector parameters");
 }
 
-FCapabilityResult FManageAssetMaterialParameterCollectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FMPCActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UMaterialParameterCollection* MPC = nullptr;
+	bool bDirty = false;
+};
+
+static FMPCActionState* MPCState(FNexusActionContext& Ctx)
+{
+	return static_cast<FMPCActionState*>(Ctx.Target);
+}
+
+static UMaterialParameterCollection* MPCFrom(FNexusActionContext& Ctx)
+{
+	FMPCActionState* S = MPCState(Ctx);
+	return S ? S->MPC : nullptr;
+}
+
+static void MarkMPCDirty(FNexusActionContext& Ctx)
+{
+	if (FMPCActionState* S = MPCState(Ctx))
 	{
-		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		S->bDirty = true;
+	}
+}
 
-		UMaterialParameterCollection* MPC = FNexusAssetUtils::LoadAssetWithFallback<UMaterialParameterCollection>(AssetPath);
-		if (!MPC)
-		{
-			OutError = FString::Printf(TEXT("MaterialParameterCollection not found: %s"), *AssetPath);
-			return;
-		}
+static FString RequireParamName(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, const TCHAR* Err)
+{
+	FString ParamName;
+	Op->TryGetStringField(TEXT("paramName"), ParamName);
+	if (ParamName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), Err);
+	}
+	return ParamName;
+}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			OutError = TEXT("operations is a required array");
-			return;
-		}
+static void HandleMPC_AddScalar(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UMaterialParameterCollection* MPC = MPCFrom(Ctx);
+	const FString ParamName = RequireParamName(Op, Ctx, TEXT("add_scalar requires paramName"));
+	if (ParamName.IsEmpty()) return;
+	const bool bExists = MPC->ScalarParameters.ContainsByPredicate(
+		[&](const FCollectionScalarParameter& P) { return P.ParameterName == *ParamName; });
+	if (bExists)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Scalar parameter '%s' already exists"), *ParamName));
+		return;
+	}
+	FCollectionScalarParameter NewParam;
+	NewParam.ParameterName = *ParamName;
+	double DefaultVal = 0.0;
+	Op->TryGetNumberField(TEXT("defaultValue"), DefaultVal);
+	NewParam.DefaultValue = static_cast<float>(DefaultVal);
+	MPC->ScalarParameters.Add(NewParam);
+	MarkMPCDirty(Ctx);
+}
 
-		bool bDirty = false;
+static void HandleMPC_AddVector(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UMaterialParameterCollection* MPC = MPCFrom(Ctx);
+	const FString ParamName = RequireParamName(Op, Ctx, TEXT("add_vector requires paramName"));
+	if (ParamName.IsEmpty()) return;
+	const bool bExists = MPC->VectorParameters.ContainsByPredicate(
+		[&](const FCollectionVectorParameter& P) { return P.ParameterName == *ParamName; });
+	if (bExists)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Vector parameter '%s' already exists"), *ParamName));
+		return;
+	}
+	FCollectionVectorParameter NewParam;
+	NewParam.ParameterName = *ParamName;
+	double R = 0, G = 0, B = 0, Alpha = 1;
+	Op->TryGetNumberField(TEXT("r"), R);
+	Op->TryGetNumberField(TEXT("g"), G);
+	Op->TryGetNumberField(TEXT("b"), B);
+	Op->TryGetNumberField(TEXT("a"), Alpha);
+	NewParam.DefaultValue = FLinearColor(
+		static_cast<float>(R), static_cast<float>(G),
+		static_cast<float>(B), static_cast<float>(Alpha));
+	MPC->VectorParameters.Add(NewParam);
+	MarkMPCDirty(Ctx);
+}
 
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			TSharedPtr<FJsonObject> Op = OpVal->AsObject();
-			if (!Op.IsValid()) continue;
+static void HandleMPC_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UMaterialParameterCollection* MPC = MPCFrom(Ctx);
+	const FString ParamName = RequireParamName(Op, Ctx, TEXT("remove requires paramName"));
+	if (ParamName.IsEmpty()) return;
+	const int32 SBefore = MPC->ScalarParameters.Num();
+	const int32 VBefore = MPC->VectorParameters.Num();
+	MPC->ScalarParameters.RemoveAll(
+		[&](const FCollectionScalarParameter& P) { return P.ParameterName.ToString().Equals(ParamName, ESearchCase::IgnoreCase); });
+	MPC->VectorParameters.RemoveAll(
+		[&](const FCollectionVectorParameter& P) { return P.ParameterName.ToString().Equals(ParamName, ESearchCase::IgnoreCase); });
+	const int32 Removed = (SBefore - MPC->ScalarParameters.Num()) + (VBefore - MPC->VectorParameters.Num());
+	Ctx.Entry->SetNumberField(TEXT("removedCount"), Removed);
+	if (Removed > 0) MarkMPCDirty(Ctx);
+}
 
-			TSharedPtr<FJsonObject> OpResult = MakeShared<FJsonObject>();
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
+static void HandleMPC_SetScalarDefault(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UMaterialParameterCollection* MPC = MPCFrom(Ctx);
+	const FString ParamName = RequireParamName(Op, Ctx, TEXT("set_scalar_default requires paramName"));
+	if (ParamName.IsEmpty()) return;
+	FCollectionScalarParameter* Found = MPC->ScalarParameters.FindByPredicate(
+		[&](const FCollectionScalarParameter& P) { return P.ParameterName.ToString().Equals(ParamName, ESearchCase::IgnoreCase); });
+	if (!Found)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Scalar parameter not found: %s"), *ParamName));
+		return;
+	}
+	double DefaultVal = Found->DefaultValue;
+	Op->TryGetNumberField(TEXT("defaultValue"), DefaultVal);
+	Found->DefaultValue = static_cast<float>(DefaultVal);
+	MarkMPCDirty(Ctx);
+}
 
-			FString ParamName;
-			Op->TryGetStringField(TEXT("paramName"), ParamName);
+static void HandleMPC_SetVectorDefault(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UMaterialParameterCollection* MPC = MPCFrom(Ctx);
+	const FString ParamName = RequireParamName(Op, Ctx, TEXT("set_vector_default requires paramName"));
+	if (ParamName.IsEmpty()) return;
+	FCollectionVectorParameter* Found = MPC->VectorParameters.FindByPredicate(
+		[&](const FCollectionVectorParameter& P) { return P.ParameterName.ToString().Equals(ParamName, ESearchCase::IgnoreCase); });
+	if (!Found)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Vector parameter not found: %s"), *ParamName));
+		return;
+	}
+	double R = Found->DefaultValue.R, G = Found->DefaultValue.G;
+	double B = Found->DefaultValue.B, Alpha = Found->DefaultValue.A;
+	Op->TryGetNumberField(TEXT("r"), R);
+	Op->TryGetNumberField(TEXT("g"), G);
+	Op->TryGetNumberField(TEXT("b"), B);
+	Op->TryGetNumberField(TEXT("a"), Alpha);
+	Found->DefaultValue = FLinearColor(
+		static_cast<float>(R), static_cast<float>(G),
+		static_cast<float>(B), static_cast<float>(Alpha));
+	MarkMPCDirty(Ctx);
+}
 
-			if (Action == TEXT("add_scalar"))
-			{
-				if (ParamName.IsEmpty())
-				{
-					OpResult->SetStringField(TEXT("error"), TEXT("add_scalar requires paramName"));
-				}
-				else
-				{
-					// 重名检查
-					bool bExists = MPC->ScalarParameters.ContainsByPredicate(
-						[&](const FCollectionScalarParameter& P) { return P.ParameterName == *ParamName; });
-					if (bExists)
-					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Scalar parameter '%s' already exists"), *ParamName));
-					}
-					else
-					{
-						FCollectionScalarParameter NewParam;
-						NewParam.ParameterName = *ParamName;
-						double DefaultVal = 0.0;
-						Op->TryGetNumberField(TEXT("defaultValue"), DefaultVal);
-						NewParam.DefaultValue = static_cast<float>(DefaultVal);
-						MPC->ScalarParameters.Add(NewParam);
-						bDirty = true;
-					}
-				}
-			}
-			else if (Action == TEXT("add_vector"))
-			{
-				if (ParamName.IsEmpty())
-				{
-					OpResult->SetStringField(TEXT("error"), TEXT("add_vector requires paramName"));
-				}
-				else
-				{
-					bool bExists = MPC->VectorParameters.ContainsByPredicate(
-						[&](const FCollectionVectorParameter& P) { return P.ParameterName == *ParamName; });
-					if (bExists)
-					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Vector parameter '%s' already exists"), *ParamName));
-					}
-					else
-					{
-						FCollectionVectorParameter NewParam;
-						NewParam.ParameterName = *ParamName;
-						double R = 0, G = 0, B = 0, Alpha = 1;
-						Op->TryGetNumberField(TEXT("r"), R);
-						Op->TryGetNumberField(TEXT("g"), G);
-						Op->TryGetNumberField(TEXT("b"), B);
-						Op->TryGetNumberField(TEXT("a"), Alpha);
-						NewParam.DefaultValue = FLinearColor(
-							static_cast<float>(R), static_cast<float>(G),
-							static_cast<float>(B), static_cast<float>(Alpha));
-						MPC->VectorParameters.Add(NewParam);
-						bDirty = true;
-					}
-				}
-			}
-			else if (Action == TEXT("remove"))
-			{
-				if (ParamName.IsEmpty())
-				{
-					OpResult->SetStringField(TEXT("error"), TEXT("remove requires paramName"));
-				}
-				else
-				{
-					int32 SBefore = MPC->ScalarParameters.Num();
-					int32 VBefore = MPC->VectorParameters.Num();
-					MPC->ScalarParameters.RemoveAll(
-						[&](const FCollectionScalarParameter& P) { return P.ParameterName.ToString().Equals(ParamName, ESearchCase::IgnoreCase); });
-					MPC->VectorParameters.RemoveAll(
-						[&](const FCollectionVectorParameter& P) { return P.ParameterName.ToString().Equals(ParamName, ESearchCase::IgnoreCase); });
-					int32 Removed = (SBefore - MPC->ScalarParameters.Num()) + (VBefore - MPC->VectorParameters.Num());
-					OpResult->SetNumberField(TEXT("removedCount"), Removed);
-					if (Removed > 0) bDirty = true;
-				}
-			}
-			else if (Action == TEXT("set_scalar_default"))
-			{
-				if (ParamName.IsEmpty())
-				{
-					OpResult->SetStringField(TEXT("error"), TEXT("set_scalar_default requires paramName"));
-				}
-				else
-				{
-					FCollectionScalarParameter* Found = MPC->ScalarParameters.FindByPredicate(
-						[&](const FCollectionScalarParameter& P) { return P.ParameterName.ToString().Equals(ParamName, ESearchCase::IgnoreCase); });
-					if (!Found)
-					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Scalar parameter not found: %s"), *ParamName));
-					}
-					else
-					{
-						double DefaultVal = Found->DefaultValue;
-						Op->TryGetNumberField(TEXT("defaultValue"), DefaultVal);
-						Found->DefaultValue = static_cast<float>(DefaultVal);
-						bDirty = true;
-					}
-				}
-			}
-			else if (Action == TEXT("set_vector_default"))
-			{
-				if (ParamName.IsEmpty())
-				{
-					OpResult->SetStringField(TEXT("error"), TEXT("set_vector_default requires paramName"));
-				}
-				else
-				{
-					FCollectionVectorParameter* Found = MPC->VectorParameters.FindByPredicate(
-						[&](const FCollectionVectorParameter& P) { return P.ParameterName.ToString().Equals(ParamName, ESearchCase::IgnoreCase); });
-					if (!Found)
-					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Vector parameter not found: %s"), *ParamName));
-					}
-					else
-					{
-						double R = Found->DefaultValue.R, G = Found->DefaultValue.G;
-						double B = Found->DefaultValue.B, Alpha = Found->DefaultValue.A;
-						Op->TryGetNumberField(TEXT("r"), R);
-						Op->TryGetNumberField(TEXT("g"), G);
-						Op->TryGetNumberField(TEXT("b"), B);
-						Op->TryGetNumberField(TEXT("a"), Alpha);
-						Found->DefaultValue = FLinearColor(
-							static_cast<float>(R), static_cast<float>(G),
-							static_cast<float>(B), static_cast<float>(Alpha));
-						bDirty = true;
-					}
-				}
-			}
-			else
-			{
-				OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-			}
+bool FManageAssetMaterialParameterCollectionCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UMaterialParameterCollection* MPC = FNexusAssetUtils::LoadAssetWithFallback<UMaterialParameterCollection>(AssetPath);
+	if (!MPC)
+	{
+		OutError = FString::Printf(TEXT("MaterialParameterCollection not found: %s"), *AssetPath);
+		return false;
+	}
+	FMPCActionState* State = new FMPCActionState();
+	State->MPC = MPC;
+	OutTarget = State;
+	return true;
+}
 
-			OutEntries.Add(MakeShared<FJsonValueObject>(OpResult));
-		}
+void FManageAssetMaterialParameterCollectionCapability::FinalizeTarget(void* Target) const
+{
+	FMPCActionState* State = static_cast<FMPCActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->MPC)
+	{
+		State->MPC->MarkPackageDirty();
+	}
+	delete State;
+}
 
-		if (bDirty)
-		{
-			MPC->MarkPackageDirty();
-		}
-	});
+void FManageAssetMaterialParameterCollectionCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("add_scalar"),          &HandleMPC_AddScalar);
+	OutHandlers.Add(TEXT("add_vector"),          &HandleMPC_AddVector);
+	OutHandlers.Add(TEXT("remove"),              &HandleMPC_Remove);
+	OutHandlers.Add(TEXT("set_scalar_default"),  &HandleMPC_SetScalarDefault);
+	OutHandlers.Add(TEXT("set_vector_default"),  &HandleMPC_SetVectorDefault);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetMaterialParameterCollectionCapability)

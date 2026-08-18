@@ -4,9 +4,7 @@
 
 #if WITH_MVVM
 
-#include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
-#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -41,119 +39,170 @@ void FManageAssetViewModelCapability::BuildDefinition(FNexusCapabilityDefinition
 	Out.WhenToUse = TEXT("For WBP add/remove MVVM ViewModel/Binding");
 }
 
-FCapabilityResult FManageAssetViewModelCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+#if WITH_EDITOR
+struct FViewModelActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UWidgetBlueprint* WBP = nullptr;
+	UMVVMBlueprintView* View = nullptr;
+	bool bDirty = false;
+	TSharedPtr<FJsonObject> OutTop;
+};
+
+static FViewModelActionState* VMState(FNexusActionContext& Ctx)
+{
+	return static_cast<FViewModelActionState*>(Ctx.Target);
+}
+
+static void MarkVMDirty(FNexusActionContext& Ctx)
+{
+	if (FViewModelActionState* S = VMState(Ctx))
 	{
-		const FNexusArgs A(Arguments);
-#if !WITH_EDITOR
-		OutError = TEXT("manage_asset_view_model only available in editor builds");
+		S->bDirty = true;
+	}
+}
+
+static void HandleVM_AddViewModel(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UMVVMBlueprintView* View = VMState(Ctx)->View;
+	const FNexusArgs A(Op);
+	const FString VmName = A.Str(TEXT("viewModelName"));
+	const FString VmClassName = A.Str(TEXT("viewModelClass"));
+	if (VmName.IsEmpty() || VmClassName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_view_model requires viewModelName and viewModelClass"));
 		return;
-#else
-		const FString AssetPath = A.Str(TEXT("assetPath"));
-		UWidgetBlueprint* WBP = FNexusAssetUtils::LoadWidgetBP(AssetPath);
-		if (!WBP) { OutError = FString::Printf(TEXT("WidgetBlueprint not found: %s"), *AssetPath); return; }
+	}
+	UClass* VmClass = FNexusAssetUtils::FindClassWithUPrefix(VmClassName);
+	if (!VmClass)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("ViewModel class not found: %s"), *VmClassName));
+		return;
+	}
+	FMVVMBlueprintViewModelContext VmCtx;
+	VmCtx.ViewModelName = FName(*VmName);
+	VmCtx.NotifyFieldValueClass = VmClass;
+	View->AddViewModel(VmCtx);
+	Ctx.Entry->SetStringField(TEXT("viewModelName"), VmName);
+	MarkVMDirty(Ctx);
+}
 
-		UMVVMWidgetBlueprintExtension_View* MvvmExt = UMVVMWidgetBlueprintExtension_View::Request(WBP);
-		if (!MvvmExt) { OutError = TEXT("Unable to get MVVM extension"); return; }
-		UMVVMBlueprintView* View = MvvmExt->GetBlueprintView();
-		if (!View) { OutError = TEXT("BlueprintView is empty"); return; }
-
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
+static void HandleVM_RemoveViewModel(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UMVVMBlueprintView* View = VMState(Ctx)->View;
+	const FString VmName = FNexusArgs(Op).Str(TEXT("viewModelName"));
+	bool bRemoved = false;
+	const TArray<FMVVMBlueprintViewModelContext> Vms = View->GetViewModels();
+	for (const FMVVMBlueprintViewModelContext& VmCtx : Vms)
+	{
+		if (VmCtx.ViewModelName.ToString().Equals(VmName, ESearchCase::IgnoreCase))
 		{
-			OutError = TEXT("operations is a required array");
-			return;
+			View->RemoveViewModel(VmCtx.ViewModelContextId);
+			bRemoved = true;
+			break;
 		}
+	}
+	if (!bRemoved) Ctx.Entry->SetStringField(TEXT("error"), TEXT("ViewModel not found"));
+	else MarkVMDirty(Ctx);
+}
 
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			TSharedPtr<FJsonObject> Op = OpVal->AsObject();
-			if (!Op.IsValid()) continue;
-			TSharedPtr<FJsonObject> Res = MakeShared<FJsonObject>();
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
-			Res->SetStringField(TEXT("action"), Action);
+static void HandleVM_AddBinding(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	(void)Op;
+	UMVVMBlueprintView* View = VMState(Ctx)->View;
+	View->AddDefaultBinding();
+	Ctx.Entry->SetNumberField(TEXT("bindingsCount"), View->GetNumBindings());
+	MarkVMDirty(Ctx);
+}
 
-			if (Action == TEXT("add_view_model"))
-			{
-				FString VmName, VmClassName;
-				Op->TryGetStringField(TEXT("viewModelName"), VmName);
-				Op->TryGetStringField(TEXT("viewModelClass"), VmClassName);
-				if (VmName.IsEmpty() || VmClassName.IsEmpty())
-				{
-					Res->SetStringField(TEXT("error"), TEXT("add_view_model requires viewModelName and viewModelClass"));
-				}
-				else
-				{
-					UClass* VmClass = FNexusAssetUtils::FindClassWithUPrefix(VmClassName);
-					if (!VmClass)
-					{
-						Res->SetStringField(TEXT("error"), FString::Printf(TEXT("ViewModel class not found: %s"), *VmClassName));
-					}
-					else
-					{
-						FMVVMBlueprintViewModelContext Ctx;
-						Ctx.ViewModelName = FName(*VmName);
-						Ctx.NotifyFieldValueClass = VmClass;
-						View->AddViewModel(Ctx);
-						Res->SetStringField(TEXT("viewModelName"), VmName);
-						bDirty = true;
-					}
-				}
-			}
-			else if (Action == TEXT("remove_view_model"))
-			{
-				FString VmName;
-				Op->TryGetStringField(TEXT("viewModelName"), VmName);
-				bool bRemoved = false;
-				const TArray<FMVVMBlueprintViewModelContext> Vms = View->GetViewModels();
-				for (const FMVVMBlueprintViewModelContext& Ctx : Vms)
-				{
-					if (Ctx.ViewModelName.ToString().Equals(VmName, ESearchCase::IgnoreCase))
-					{
-						View->RemoveViewModel(Ctx.ViewModelContextId);
-						bRemoved = true;
-						break;
-					}
-				}
-				if (!bRemoved) Res->SetStringField(TEXT("error"), TEXT("ViewModel not found"));
-				else bDirty = true;
-			}
-			else if (Action == TEXT("add_binding"))
-			{
-				View->AddDefaultBinding();
-				Res->SetNumberField(TEXT("bindingsCount"), View->GetNumBindings());
-				bDirty = true;
-			}
-			else if (Action == TEXT("remove_binding"))
-			{
-				int32 Idx = 0;
-				if (Op->HasField(TEXT("bindingIndex"))) Idx = static_cast<int32>(Op->GetNumberField(TEXT("bindingIndex")));
-				if (Idx < 0 || Idx >= View->GetNumBindings())
-				{
-					Res->SetStringField(TEXT("error"), TEXT("bindingIndex out of bounds"));
-				}
-				else
-				{
-					View->RemoveBindingAt(Idx);
-					bDirty = true;
-				}
-			}
-			else
-			{
-				Res->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(Res));
-		}
-		if (bDirty)
-		{
-			WBP->MarkPackageDirty();
-			OutTop->SetStringField(TEXT("hint"), TEXT("Call save_asset to persist changes"));
-		}
+static void HandleVM_RemoveBinding(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UMVVMBlueprintView* View = VMState(Ctx)->View;
+	int32 Idx = 0;
+	if (Op->HasField(TEXT("bindingIndex"))) Idx = static_cast<int32>(Op->GetNumberField(TEXT("bindingIndex")));
+	if (Idx < 0 || Idx >= View->GetNumBindings())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("bindingIndex out of bounds"));
+		return;
+	}
+	View->RemoveBindingAt(Idx);
+	MarkVMDirty(Ctx);
+}
 #endif
-	});
+
+bool FManageAssetViewModelCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+#if !WITH_EDITOR
+	OutError = TEXT("manage_asset_view_model only available in editor builds");
+	return false;
+#else
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UWidgetBlueprint* WBP = FNexusAssetUtils::LoadWidgetBP(AssetPath);
+	if (!WBP)
+	{
+		OutError = FString::Printf(TEXT("WidgetBlueprint not found: %s"), *AssetPath);
+		return false;
+	}
+	UMVVMWidgetBlueprintExtension_View* MvvmExt = UMVVMWidgetBlueprintExtension_View::Request(WBP);
+	if (!MvvmExt) { OutError = TEXT("Unable to get MVVM extension"); return false; }
+	UMVVMBlueprintView* View = MvvmExt->GetBlueprintView();
+	if (!View) { OutError = TEXT("BlueprintView is empty"); return false; }
+	FViewModelActionState* State = new FViewModelActionState();
+	State->WBP = WBP;
+	State->View = View;
+	OutTarget = State;
+	return true;
+#endif
+}
+
+void FManageAssetViewModelCapability::AfterPrepareTarget(
+	void* Target,
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& OutTop) const
+{
+	(void)Args;
+#if WITH_EDITOR
+	if (FViewModelActionState* State = static_cast<FViewModelActionState*>(Target))
+	{
+		State->OutTop = OutTop;
+	}
+#else
+	(void)Target;
+	(void)OutTop;
+#endif
+}
+
+void FManageAssetViewModelCapability::FinalizeTarget(void* Target) const
+{
+#if WITH_EDITOR
+	FViewModelActionState* State = static_cast<FViewModelActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->WBP)
+	{
+		State->WBP->MarkPackageDirty();
+		if (State->OutTop.IsValid())
+		{
+			State->OutTop->SetStringField(TEXT("hint"), TEXT("Call save_asset to persist changes"));
+		}
+	}
+	delete State;
+#else
+	(void)Target;
+#endif
+}
+
+void FManageAssetViewModelCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+#if WITH_EDITOR
+	OutHandlers.Add(TEXT("add_view_model"),    &HandleVM_AddViewModel);
+	OutHandlers.Add(TEXT("remove_view_model"), &HandleVM_RemoveViewModel);
+	OutHandlers.Add(TEXT("add_binding"),       &HandleVM_AddBinding);
+	OutHandlers.Add(TEXT("remove_binding"),    &HandleVM_RemoveBinding);
+#endif
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetViewModelCapability)

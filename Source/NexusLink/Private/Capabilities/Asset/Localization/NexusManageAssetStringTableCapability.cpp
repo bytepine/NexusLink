@@ -4,8 +4,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Internationalization/StringTable.h"
 #include "Internationalization/StringTableCore.h"
@@ -33,84 +32,111 @@ void FManageAssetStringTableCapability::BuildDefinition(FNexusCapabilityDefiniti
 	Out.RelatedCapabilities = { TEXT("get_asset_string_table"), TEXT("create_asset_string_table") };
 }
 
-FCapabilityResult FManageAssetStringTableCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FStringTableActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UStringTable* Table = nullptr;
+	bool bDirty = false;
+};
+
+static FStringTableActionState* STState(FNexusActionContext& Ctx)
+{
+	return static_cast<FStringTableActionState*>(Ctx.Target);
+}
+
+static UStringTable* STFrom(FNexusActionContext& Ctx)
+{
+	FStringTableActionState* S = STState(Ctx);
+	return S ? S->Table : nullptr;
+}
+
+static void MarkSTDirty(FNexusActionContext& Ctx)
+{
+	if (FStringTableActionState* S = STState(Ctx))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		S->bDirty = true;
+	}
+}
 
-		UStringTable* Table = FNexusAssetUtils::LoadAssetWithFallback<UStringTable>(AssetPath);
-		if (!Table)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("Failed to load StringTable: %s"), *AssetPath));
-			return;
-		}
+static FString RequireSTKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FString Key;
+	Op->TryGetStringField(TEXT("key"), Key);
+	if (Key.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("key required"));
+	}
+	return Key;
+}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
-
-		FStringTableRef Mutable = Table->GetMutableStringTable();
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpPtr;
-
-			FString Action, Key, Source;
-			Op->TryGetStringField(TEXT("action"), Action);
-			Op->TryGetStringField(TEXT("key"), Key);
-			Op->TryGetStringField(TEXT("source"), Source);
-			Action = Action.ToLower();
-
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
-			Entry->SetStringField(TEXT("action"), Action);
-
-			if (Key.IsEmpty())
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("key required"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-
-			if (Action == TEXT("add_key") || Action == TEXT("set_source"))
-			{
-				if (Source.IsEmpty() && Action == TEXT("add_key"))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("add_key requires source"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
+static void HandleST_AddOrSetSource(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UStringTable* Table = STFrom(Ctx);
+	const FString Key = RequireSTKey(Op, Ctx);
+	if (Key.IsEmpty()) return;
+	FString Source;
+	Op->TryGetStringField(TEXT("source"), Source);
+	if (Source.IsEmpty() && Ctx.Action == TEXT("add_key"))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_key requires source"));
+		return;
+	}
+	const FStringTableRef Mutable = Table->GetMutableStringTable();
 #if NX_UE_HAS_STRING_TABLE_SOURCE_DEV_NOTES
-				Mutable->SetSourceString(Key, Source, FString());
+	Mutable->SetSourceString(Key, Source, FString());
 #else
-				Mutable->SetSourceString(Key, Source);
+	Mutable->SetSourceString(Key, Source);
 #endif
-				bDirty = true;
-				Entry->SetStringField(TEXT("key"), Key);
-				Entry->SetStringField(TEXT("source"), Source);
-			}
-			else if (Action == TEXT("remove_key"))
-			{
-				Mutable->RemoveSourceString(Key);
-				bDirty = true;
-				Entry->SetStringField(TEXT("key"), Key);
-			}
-			else
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-		if (bDirty) Table->MarkPackageDirty();
-	});
+	MarkSTDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("key"), Key);
+	Ctx.Entry->SetStringField(TEXT("source"), Source);
+}
+
+static void HandleST_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UStringTable* Table = STFrom(Ctx);
+	const FString Key = RequireSTKey(Op, Ctx);
+	if (Key.IsEmpty()) return;
+	Table->GetMutableStringTable()->RemoveSourceString(Key);
+	MarkSTDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("key"), Key);
+}
+
+bool FManageAssetStringTableCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UStringTable* Table = FNexusAssetUtils::LoadAssetWithFallback<UStringTable>(AssetPath);
+	if (!Table)
+	{
+		OutError = FString::Printf(TEXT("Failed to load StringTable: %s"), *AssetPath);
+		return false;
+	}
+	FStringTableActionState* State = new FStringTableActionState();
+	State->Table = Table;
+	OutTarget = State;
+	return true;
+}
+
+void FManageAssetStringTableCapability::FinalizeTarget(void* Target) const
+{
+	FStringTableActionState* State = static_cast<FStringTableActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->Table)
+	{
+		State->Table->MarkPackageDirty();
+	}
+	delete State;
+}
+
+void FManageAssetStringTableCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("add_key"),    &HandleST_AddOrSetSource);
+	OutHandlers.Add(TEXT("set_source"), &HandleST_AddOrSetSource);
+	OutHandlers.Add(TEXT("remove_key"), &HandleST_RemoveKey);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetStringTableCapability)

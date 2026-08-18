@@ -1,9 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Mesh/NexusManageAssetPhysicsAssetCapability.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
-#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -71,176 +69,192 @@ void FManageAssetPhysicsAssetCapability::BuildDefinition(FNexusCapabilityDefinit
 	Out.WhenToUse = TEXT("Add collision shapes, PhysicsType, constraints on PhysicsAsset bones");
 }
 
-FCapabilityResult FManageAssetPhysicsAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FPhysicsAssetActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UPhysicsAsset* PA = nullptr;
+	bool bDirty = false;
+};
+
+static FPhysicsAssetActionState* PAState(FNexusActionContext& Ctx)
+{
+	return static_cast<FPhysicsAssetActionState*>(Ctx.Target);
+}
+
+static UPhysicsAsset* PAFrom(FNexusActionContext& Ctx)
+{
+	FPhysicsAssetActionState* S = PAState(Ctx);
+	return S ? S->PA : nullptr;
+}
+
+static void MarkPADirty(FNexusActionContext& Ctx)
+{
+	if (FPhysicsAssetActionState* S = PAState(Ctx))
 	{
-		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		S->bDirty = true;
+	}
+}
 
-		UPhysicsAsset* PA = FNexusAssetUtils::LoadAssetWithFallback<UPhysicsAsset>(AssetPath);
-		if (!PA)
-		{
-			OutError = FString::Printf(TEXT("PhysicsAsset not found: %s"), *AssetPath);
-			return;
-		}
+static USkeletalBodySetup* GetOrCreateBody(UPhysicsAsset* PA, const FString& BoneName)
+{
+	USkeletalBodySetup* BS = FindBodyByBone(PA, BoneName);
+	if (!BS)
+	{
+		BS = NewObject<USkeletalBodySetup>(PA, NAME_None, RF_Transactional);
+		BS->BoneName = *BoneName;
+		PA->SkeletalBodySetups.Add(BS);
+	}
+	return BS;
+}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			OutError = TEXT("operations is a required array");
-			return;
-		}
+static void HandlePA_SetPhysicsType(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPhysicsAsset* PA = PAFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString BoneName = A.Str(TEXT("boneName"));
+	USkeletalBodySetup* BS = GetOrCreateBody(PA, BoneName);
+	const FString TypeStr = A.Str(TEXT("physicsType"));
+	if (TypeStr == TEXT("Simulated"))
+		BS->PhysicsType = EPhysicsType::PhysType_Simulated;
+	else if (TypeStr == TEXT("Kinematic"))
+		BS->PhysicsType = EPhysicsType::PhysType_Kinematic;
+	else
+		BS->PhysicsType = EPhysicsType::PhysType_Default;
+	MarkPADirty(Ctx);
+}
 
-		bool bDirty = false;
+static void HandlePA_AddSphere(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPhysicsAsset* PA = PAFrom(Ctx);
+	const FNexusArgs A(Op);
+	USkeletalBodySetup* BS = GetOrCreateBody(PA, A.Str(TEXT("boneName")));
+	FKSphereElem Sphere;
+	const double Radius = A.Num(TEXT("radius"), 10.0);
+	Sphere.Radius = static_cast<float>(Radius);
+	BS->AggGeom.SphereElems.Add(Sphere);
+	Ctx.Entry->SetNumberField(TEXT("radius"), Radius);
+	MarkPADirty(Ctx);
+}
 
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			TSharedPtr<FJsonObject> Op = OpVal->AsObject();
-			if (!Op.IsValid()) continue;
+static void HandlePA_AddCapsule(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPhysicsAsset* PA = PAFrom(Ctx);
+	const FNexusArgs A(Op);
+	USkeletalBodySetup* BS = GetOrCreateBody(PA, A.Str(TEXT("boneName")));
+	FKSphylElem Capsule;
+	const double Radius = A.Num(TEXT("radius"), 10.0);
+	const double HalfHeight = A.Num(TEXT("halfHeight"), 20.0);
+	Capsule.Radius = static_cast<float>(Radius);
+	Capsule.Length = static_cast<float>(HalfHeight * 2.0);
+	BS->AggGeom.SphylElems.Add(Capsule);
+	MarkPADirty(Ctx);
+}
 
-			TSharedPtr<FJsonObject> OpResult = MakeShared<FJsonObject>();
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
+static void HandlePA_AddBox(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPhysicsAsset* PA = PAFrom(Ctx);
+	const FNexusArgs A(Op);
+	USkeletalBodySetup* BS = GetOrCreateBody(PA, A.Str(TEXT("boneName")));
+	FKBoxElem Box;
+	const double X = A.Num(TEXT("extentX"), 10.0);
+	const double Y = A.Num(TEXT("extentY"), 10.0);
+	const double Z = A.Num(TEXT("extentZ"), 10.0);
+	Box.X = static_cast<float>(X * 2.0);
+	Box.Y = static_cast<float>(Y * 2.0);
+	Box.Z = static_cast<float>(Z * 2.0);
+	BS->AggGeom.BoxElems.Add(Box);
+	MarkPADirty(Ctx);
+}
 
-			FString BoneName;
-			Op->TryGetStringField(TEXT("boneName"), BoneName);
+static void HandlePA_ClearShapes(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPhysicsAsset* PA = PAFrom(Ctx);
+	const FString BoneName = FNexusArgs(Op).Str(TEXT("boneName"));
+	USkeletalBodySetup* BS = FindBodyByBone(PA, BoneName);
+	if (!BS)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Body not found for bone '%s'"), *BoneName));
+		return;
+	}
+	BS->AggGeom.SphereElems.Empty();
+	BS->AggGeom.BoxElems.Empty();
+	BS->AggGeom.SphylElems.Empty();
+	BS->AggGeom.ConvexElems.Empty();
+	MarkPADirty(Ctx);
+}
 
-			if (Action == TEXT("set_physics_type"))
-			{
-				USkeletalBodySetup* BS = FindBodyByBone(PA, BoneName);
-				if (!BS)
-				{
-					// 找不到时自动创建 Body
-					BS = NewObject<USkeletalBodySetup>(PA, NAME_None, RF_Transactional);
-					BS->BoneName = *BoneName;
-					PA->SkeletalBodySetups.Add(BS);
-				}
-				FString TypeStr;
-				Op->TryGetStringField(TEXT("physicsType"), TypeStr);
-				if (TypeStr == TEXT("Simulated"))
-					BS->PhysicsType = EPhysicsType::PhysType_Simulated;
-				else if (TypeStr == TEXT("Kinematic"))
-					BS->PhysicsType = EPhysicsType::PhysType_Kinematic;
-				else
-					BS->PhysicsType = EPhysicsType::PhysType_Default;
-				bDirty = true;
-			}
-			else if (Action == TEXT("add_sphere"))
-			{
-				USkeletalBodySetup* BS = FindBodyByBone(PA, BoneName);
-				if (!BS)
-				{
-					BS = NewObject<USkeletalBodySetup>(PA, NAME_None, RF_Transactional);
-					BS->BoneName = *BoneName;
-					PA->SkeletalBodySetups.Add(BS);
-				}
-				FKSphereElem Sphere;
-				double Radius = 10.0;
-				Op->TryGetNumberField(TEXT("radius"), Radius);
-				Sphere.Radius = static_cast<float>(Radius);
-				BS->AggGeom.SphereElems.Add(Sphere);
-				OpResult->SetNumberField(TEXT("radius"), Radius);
-				bDirty = true;
-			}
-			else if (Action == TEXT("add_capsule"))
-			{
-				USkeletalBodySetup* BS = FindBodyByBone(PA, BoneName);
-				if (!BS)
-				{
-					BS = NewObject<USkeletalBodySetup>(PA, NAME_None, RF_Transactional);
-					BS->BoneName = *BoneName;
-					PA->SkeletalBodySetups.Add(BS);
-				}
-				FKSphylElem Capsule;
-				double Radius = 10.0, HalfHeight = 20.0;
-				Op->TryGetNumberField(TEXT("radius"),     Radius);
-				Op->TryGetNumberField(TEXT("halfHeight"), HalfHeight);
-				Capsule.Radius     = static_cast<float>(Radius);
-				Capsule.Length     = static_cast<float>(HalfHeight * 2.0);
-				BS->AggGeom.SphylElems.Add(Capsule);
-				bDirty = true;
-			}
-			else if (Action == TEXT("add_box"))
-			{
-				USkeletalBodySetup* BS = FindBodyByBone(PA, BoneName);
-				if (!BS)
-				{
-					BS = NewObject<USkeletalBodySetup>(PA, NAME_None, RF_Transactional);
-					BS->BoneName = *BoneName;
-					PA->SkeletalBodySetups.Add(BS);
-				}
-				FKBoxElem Box;
-				double X = 10.0, Y = 10.0, Z = 10.0;
-				Op->TryGetNumberField(TEXT("extentX"), X);
-				Op->TryGetNumberField(TEXT("extentY"), Y);
-				Op->TryGetNumberField(TEXT("extentZ"), Z);
-				Box.X = static_cast<float>(X * 2.0);
-				Box.Y = static_cast<float>(Y * 2.0);
-				Box.Z = static_cast<float>(Z * 2.0);
-				BS->AggGeom.BoxElems.Add(Box);
-				bDirty = true;
-			}
-			else if (Action == TEXT("clear_shapes"))
-			{
-				USkeletalBodySetup* BS = FindBodyByBone(PA, BoneName);
-				if (!BS)
-				{
-					OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Body not found for bone '%s'"), *BoneName));
-				}
-				else
-				{
-					BS->AggGeom.SphereElems.Empty();
-					BS->AggGeom.BoxElems.Empty();
-					BS->AggGeom.SphylElems.Empty();
-					BS->AggGeom.ConvexElems.Empty();
-					bDirty = true;
-				}
-			}
-			else if (Action == TEXT("add_constraint"))
-			{
-				FString Bone1, Bone2;
-				if (!Op->TryGetStringField(TEXT("bone1"), Bone1) || !Op->TryGetStringField(TEXT("bone2"), Bone2))
-				{
-					OpResult->SetStringField(TEXT("error"), TEXT("add_constraint requires bone1 and bone2"));
-				}
-				else
-				{
-					UPhysicsConstraintTemplate* CT = NewObject<UPhysicsConstraintTemplate>(PA, NAME_None, RF_Transactional);
-					CT->DefaultInstance.ConstraintBone1 = *Bone1;
-					CT->DefaultInstance.ConstraintBone2 = *Bone2;
-					CT->DefaultInstance.JointName = *FString::Printf(TEXT("%s_%s"), *Bone1, *Bone2);
-					PA->ConstraintSetup.Add(CT);
-					OpResult->SetStringField(TEXT("jointName"), CT->DefaultInstance.JointName.ToString());
-					bDirty = true;
-				}
-			}
-			else if (Action == TEXT("remove_constraint"))
-			{
-				FString JointName;
-				Op->TryGetStringField(TEXT("jointName"), JointName);
-				int32 Before = PA->ConstraintSetup.Num();
-				PA->ConstraintSetup.RemoveAll([&](UPhysicsConstraintTemplate* CT)
-				{
-					return CT && CT->DefaultInstance.JointName.ToString().Equals(JointName, ESearchCase::IgnoreCase);
-				});
-				int32 Removed = Before - PA->ConstraintSetup.Num();
-				OpResult->SetNumberField(TEXT("removedCount"), Removed);
-				if (Removed > 0) bDirty = true;
-			}
-			else
-			{
-				OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-			}
+static void HandlePA_AddConstraint(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPhysicsAsset* PA = PAFrom(Ctx);
+	FString Bone1, Bone2;
+	if (!Op->TryGetStringField(TEXT("bone1"), Bone1) || !Op->TryGetStringField(TEXT("bone2"), Bone2))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_constraint requires bone1 and bone2"));
+		return;
+	}
+	UPhysicsConstraintTemplate* CT = NewObject<UPhysicsConstraintTemplate>(PA, NAME_None, RF_Transactional);
+	CT->DefaultInstance.ConstraintBone1 = *Bone1;
+	CT->DefaultInstance.ConstraintBone2 = *Bone2;
+	CT->DefaultInstance.JointName = *FString::Printf(TEXT("%s_%s"), *Bone1, *Bone2);
+	PA->ConstraintSetup.Add(CT);
+	Ctx.Entry->SetStringField(TEXT("jointName"), CT->DefaultInstance.JointName.ToString());
+	MarkPADirty(Ctx);
+}
 
-			OutEntries.Add(MakeShared<FJsonValueObject>(OpResult));
-		}
-
-		if (bDirty)
-		{
-			PA->MarkPackageDirty();
-		}
+static void HandlePA_RemoveConstraint(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPhysicsAsset* PA = PAFrom(Ctx);
+	FString JointName;
+	Op->TryGetStringField(TEXT("jointName"), JointName);
+	const int32 Before = PA->ConstraintSetup.Num();
+	PA->ConstraintSetup.RemoveAll([&](UPhysicsConstraintTemplate* CT)
+	{
+		return CT && CT->DefaultInstance.JointName.ToString().Equals(JointName, ESearchCase::IgnoreCase);
 	});
+	const int32 Removed = Before - PA->ConstraintSetup.Num();
+	Ctx.Entry->SetNumberField(TEXT("removedCount"), Removed);
+	if (Removed > 0) MarkPADirty(Ctx);
+}
+
+bool FManageAssetPhysicsAssetCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UPhysicsAsset* PA = FNexusAssetUtils::LoadAssetWithFallback<UPhysicsAsset>(AssetPath);
+	if (!PA)
+	{
+		OutError = FString::Printf(TEXT("PhysicsAsset not found: %s"), *AssetPath);
+		return false;
+	}
+	FPhysicsAssetActionState* State = new FPhysicsAssetActionState();
+	State->PA = PA;
+	OutTarget = State;
+	return true;
+}
+
+void FManageAssetPhysicsAssetCapability::FinalizeTarget(void* Target) const
+{
+	FPhysicsAssetActionState* State = static_cast<FPhysicsAssetActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->PA)
+	{
+		State->PA->MarkPackageDirty();
+	}
+	delete State;
+}
+
+void FManageAssetPhysicsAssetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_physics_type"),  &HandlePA_SetPhysicsType);
+	OutHandlers.Add(TEXT("add_sphere"),        &HandlePA_AddSphere);
+	OutHandlers.Add(TEXT("add_capsule"),       &HandlePA_AddCapsule);
+	OutHandlers.Add(TEXT("add_box"),           &HandlePA_AddBox);
+	OutHandlers.Add(TEXT("clear_shapes"),      &HandlePA_ClearShapes);
+	OutHandlers.Add(TEXT("add_constraint"),    &HandlePA_AddConstraint);
+	OutHandlers.Add(TEXT("remove_constraint"), &HandlePA_RemoveConstraint);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetPhysicsAssetCapability)

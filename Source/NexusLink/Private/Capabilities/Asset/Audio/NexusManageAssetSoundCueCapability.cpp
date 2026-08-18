@@ -1,8 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Audio/NexusManageAssetSoundCueCapability.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -42,165 +41,149 @@ void FManageAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition&
 	Out.WhenToUse = TEXT("Edit Cue props or node graph; indices match get_asset_sound_cue nodes[]");
 }
 
-FCapabilityResult FManageAssetSoundCueCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+static USoundCue* CueFrom(FNexusActionContext& Ctx)
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	return static_cast<USoundCue*>(Ctx.Target);
+}
+
+static void HandleCue_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	USoundCue* Cue = CueFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString PropPath = A.Str(TEXT("propertyPath"));
+	const FString Value = A.Str(TEXT("value"));
+	if (PropPath.IsEmpty() || Value.IsEmpty())
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
+		return;
+	}
+	FString OldVal, ActualVal, Err;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(Cue, { PropPath }, 0, Value, OldVal, ActualVal, Err))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), Err);
+		return;
+	}
+	Cue->MarkPackageDirty();
+	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
 
-		USoundCue* Cue = FNexusAssetUtils::LoadAssetWithFallback<USoundCue>(AssetPath);
-		if (!Cue)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("SoundCue not found: %s"), *AssetPath));
-			return;
-		}
+static void HandleCue_AddNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	USoundCue* Cue = CueFrom(Ctx);
+	const FString NodeClass = FNexusArgs(Op).Str(TEXT("nodeClass"));
+	if (NodeClass.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_node requires nodeClass"));
+		return;
+	}
+	int32 ParentIdx = -1;
+	int32 ChildSlot = 0;
+	if (Op->HasField(TEXT("parentNodeIndex")))
+	{
+		ParentIdx = static_cast<int32>(Op->GetNumberField(TEXT("parentNodeIndex")));
+	}
+	if (Op->HasField(TEXT("childSlot")))
+	{
+		ChildSlot = static_cast<int32>(Op->GetNumberField(TEXT("childSlot")));
+	}
+	const FString WavePath = FNexusArgs(Op).Str(TEXT("soundWavePath"));
+	USoundWave* Wave = WavePath.IsEmpty()
+		? nullptr
+		: FNexusAssetUtils::LoadAssetWithFallback<USoundWave>(WavePath);
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
+	FString ClassErr;
+	UClass* Class = FNexusSoundCueUtils::ResolveSoundNodeClass(NodeClass, ClassErr);
+	if (!Class)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), ClassErr);
+		return;
+	}
+	int32 NewIdx = -1;
+	FString OpErr;
+	if (!FNexusSoundCueUtils::AddNode(Cue, Class, ParentIdx, ChildSlot, Wave, NewIdx, OpErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), OpErr);
+		return;
+	}
+	Ctx.Entry->SetNumberField(TEXT("nodeIndex"), static_cast<double>(NewIdx));
+	Ctx.Entry->SetStringField(TEXT("nodeClass"), Class->GetName());
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
 
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-		const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
-		if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
-		const TSharedPtr<FJsonObject>& OpArgs = *OpObjPtr;
+static void HandleCue_RemoveNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	USoundCue* Cue = CueFrom(Ctx);
+	if (!Op->HasField(TEXT("nodeIndex")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_node requires nodeIndex"));
+		return;
+	}
+	const int32 NodeIdx = static_cast<int32>(Op->GetNumberField(TEXT("nodeIndex")));
+	FString OpErr;
+	if (!FNexusSoundCueUtils::RemoveNode(Cue, NodeIdx, OpErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), OpErr);
+		return;
+	}
+	Ctx.Entry->SetNumberField(TEXT("removedNodeIndex"), static_cast<double>(NodeIdx));
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
 
-		FString Action;
-		OpArgs->TryGetStringField(TEXT("action"), Action);
+static void HandleCue_ConnectNodes(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	USoundCue* Cue = CueFrom(Ctx);
+	if (!Op->HasField(TEXT("childIndex")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("connect_nodes requires childIndex"));
+		return;
+	}
+	int32 ParentIdx = -1;
+	int32 ChildSlot = 0;
+	const int32 ChildIdx = static_cast<int32>(Op->GetNumberField(TEXT("childIndex")));
+	if (Op->HasField(TEXT("parentNodeIndex")))
+	{
+		ParentIdx = static_cast<int32>(Op->GetNumberField(TEXT("parentNodeIndex")));
+	}
+	if (Op->HasField(TEXT("childSlot")))
+	{
+		ChildSlot = static_cast<int32>(Op->GetNumberField(TEXT("childSlot")));
+	}
+	FString OpErr;
+	if (!FNexusSoundCueUtils::ConnectNodes(Cue, ParentIdx, ChildSlot, ChildIdx, OpErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), OpErr);
+		return;
+	}
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), AssetPath);
-		Entry->SetStringField(TEXT("action"), Action);
+bool FManageAssetSoundCueCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	USoundCue* Cue = FNexusAssetUtils::LoadAssetWithFallback<USoundCue>(AssetPath);
+	if (!Cue)
+	{
+		OutError = FString::Printf(TEXT("SoundCue not found: %s"), *AssetPath);
+		return false;
+	}
+	OutTarget = Cue;
+	return true;
+}
 
-		if (Action.Equals(TEXT("set_property"), ESearchCase::IgnoreCase))
-		{
-			FString PropPath, Value;
-			if (!OpArgs.IsValid()
-				|| !OpArgs->TryGetStringField(TEXT("propertyPath"), PropPath) || PropPath.IsEmpty()
-				|| !OpArgs->TryGetStringField(TEXT("value"), Value) || Value.IsEmpty())
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			FString OldVal, ActualVal, Err;
-			if (!FNexusPropertyUtils::WritePropertyAndEcho(Cue, { PropPath }, 0, Value, OldVal, ActualVal, Err))
-			{
-				Entry->SetStringField(TEXT("error"), Err);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			Cue->MarkPackageDirty();
-			Entry->SetStringField(TEXT("propertyPath"), PropPath);
-			if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
-			if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-		}
-		else if (Action.Equals(TEXT("add_node"), ESearchCase::IgnoreCase))
-		{
-			FString NodeClass, WavePath;
-			if (!OpArgs.IsValid() || !OpArgs->TryGetStringField(TEXT("nodeClass"), NodeClass) || NodeClass.IsEmpty())
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("add_node requires nodeClass"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			int32 ParentIdx = -1;
-			int32 ChildSlot = 0;
-			if (OpArgs->HasField(TEXT("parentNodeIndex")))
-			{
-				ParentIdx = static_cast<int32>(OpArgs->GetNumberField(TEXT("parentNodeIndex")));
-			}
-			if (OpArgs->HasField(TEXT("childSlot")))
-			{
-				ChildSlot = static_cast<int32>(OpArgs->GetNumberField(TEXT("childSlot")));
-			}
-			OpArgs->TryGetStringField(TEXT("soundWavePath"), WavePath);
-			USoundWave* Wave = WavePath.IsEmpty()
-				? nullptr
-				: FNexusAssetUtils::LoadAssetWithFallback<USoundWave>(WavePath);
-
-			FString ClassErr;
-			UClass* Class = FNexusSoundCueUtils::ResolveSoundNodeClass(NodeClass, ClassErr);
-			if (!Class)
-			{
-				Entry->SetStringField(TEXT("error"), ClassErr);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			int32 NewIdx = -1;
-			FString OpErr;
-			if (!FNexusSoundCueUtils::AddNode(Cue, Class, ParentIdx, ChildSlot, Wave, NewIdx, OpErr))
-			{
-				Entry->SetStringField(TEXT("error"), OpErr);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			Entry->SetNumberField(TEXT("nodeIndex"), static_cast<double>(NewIdx));
-			Entry->SetStringField(TEXT("nodeClass"), Class->GetName());
-			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-		}
-		else if (Action.Equals(TEXT("remove_node"), ESearchCase::IgnoreCase))
-		{
-			if (!OpArgs.IsValid() || !OpArgs->HasField(TEXT("nodeIndex")))
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_node requires nodeIndex"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			const int32 NodeIdx = static_cast<int32>(OpArgs->GetNumberField(TEXT("nodeIndex")));
-			FString OpErr;
-			if (!FNexusSoundCueUtils::RemoveNode(Cue, NodeIdx, OpErr))
-			{
-				Entry->SetStringField(TEXT("error"), OpErr);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			Entry->SetNumberField(TEXT("removedNodeIndex"), static_cast<double>(NodeIdx));
-			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-		}
-		else if (Action.Equals(TEXT("connect_nodes"), ESearchCase::IgnoreCase))
-		{
-			if (!OpArgs.IsValid()
-				|| !OpArgs->HasField(TEXT("childIndex")))
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("connect_nodes requires childIndex"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			int32 ParentIdx = -1;
-			int32 ChildSlot = 0;
-			const int32 ChildIdx = static_cast<int32>(OpArgs->GetNumberField(TEXT("childIndex")));
-			if (OpArgs->HasField(TEXT("parentNodeIndex")))
-			{
-				ParentIdx = static_cast<int32>(OpArgs->GetNumberField(TEXT("parentNodeIndex")));
-			}
-			if (OpArgs->HasField(TEXT("childSlot")))
-			{
-				ChildSlot = static_cast<int32>(OpArgs->GetNumberField(TEXT("childSlot")));
-			}
-			FString OpErr;
-			if (!FNexusSoundCueUtils::ConnectNodes(Cue, ParentIdx, ChildSlot, ChildIdx, OpErr))
-			{
-				Entry->SetStringField(TEXT("error"), OpErr);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-		}
-		else
-		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-		}
-
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-	});
+void FManageAssetSoundCueCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_property"),  &HandleCue_SetProperty);
+	OutHandlers.Add(TEXT("add_node"),      &HandleCue_AddNode);
+	OutHandlers.Add(TEXT("remove_node"),   &HandleCue_RemoveNode);
+	OutHandlers.Add(TEXT("connect_nodes"), &HandleCue_ConnectNodes);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetSoundCueCapability)

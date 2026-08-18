@@ -1,11 +1,9 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/UMG/NexusManageAssetUserWidgetCapability.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusWidgetLayoutUtils.h"
@@ -71,407 +69,423 @@ void FManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinitio
 	Out.WhenToUse = TEXT("Widget tree/animation tracks use this cap; EventGraph via manage_asset_blueprint");
 }
 
-FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
-{
 #if WITH_EDITOR
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+struct FUserWidgetActionState
+{
+	UWidgetBlueprint* WBP = nullptr;
+	bool bDidMutate = false;
+	TSharedPtr<FJsonObject> OutTop;
+};
+
+static FUserWidgetActionState* WBPState(FNexusActionContext& Ctx)
+{
+	return static_cast<FUserWidgetActionState*>(Ctx.Target);
+}
+
+static UWidgetBlueprint* WBPFrom(FNexusActionContext& Ctx)
+{
+	FUserWidgetActionState* S = WBPState(Ctx);
+	return S ? S->WBP : nullptr;
+}
+
+static void MarkWBPMutated(FNexusActionContext& Ctx)
+{
+	if (FUserWidgetActionState* S = WBPState(Ctx))
 	{
-		const FNexusArgs A(Arguments);
+		S->bDidMutate = true;
+	}
+}
 
+static void HandleWBP_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	const FString WidgetName = FNexusArgs(Op).Str(TEXT("widgetName"));
+	if (WidgetName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("action=remove requires widgetName"));
+		return;
+	}
+	Ctx.Entry->SetStringField(TEXT("widgetName"), WidgetName);
+	UWidget* Target = WBP->WidgetTree->FindWidget(FName(*WidgetName));
+	if (!Target)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
+		return;
+	}
+	WBP->WidgetTree->Modify();
+	if (Target->Slot && Target->Slot->Parent) Target->Slot->Parent->RemoveChild(Target);
+	else if (WBP->WidgetTree->RootWidget == Target) WBP->WidgetTree->RootWidget = nullptr;
+	Target->Rename(nullptr, GetTransientPackage());
+#if NX_UE_HAS_MARK_AS_GARBAGE
+	Target->MarkAsGarbage();
+#else
+	Target->MarkPendingKill();
+#endif
+	MarkWBPMutated(Ctx);
+}
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+static void HandleWBP_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString WidgetClass = A.Str(TEXT("widgetClass"));
+	if (WidgetClass.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("action=add requires widgetClass"));
+		return;
+	}
+	FString WidgetName = A.Str(TEXT("widgetName"));
+	const FString ParentName = A.Str(TEXT("parentWidget"));
 
-		UWidgetBlueprint* WBP = FNexusAssetUtils::LoadWidgetBP(AssetPath);
-		if (!WBP)           { OutError = FString::Printf(TEXT("WidgetBlueprint not found: %s"), *AssetPath); return; }
-		if (!WBP->WidgetTree) { OutError = TEXT("WidgetTree unavailable"); return; }
+	UClass* NewClass = FNexusAssetUtils::FindClassWithUPrefix(WidgetClass);
+	if (!NewClass || !NewClass->IsChildOf(UWidget::StaticClass()))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget class not found: %s"), *WidgetClass));
+		return;
+	}
+	if (WidgetName.IsEmpty())
+		WidgetName = FString::Printf(TEXT("%s_%d"), *WidgetClass, FMath::Rand() % 10000);
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
+	WBP->WidgetTree->SetFlags(RF_Transactional);
+	WBP->WidgetTree->Modify();
+	UWidget* NewWidget = WBP->WidgetTree->ConstructWidget<UWidget>(NewClass, FName(*WidgetName));
+	if (!NewWidget)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Create Widget failed: %s"), *WidgetClass));
+		return;
+	}
+
+	FString AttachedTo;
+	if (!ParentName.IsEmpty())
+	{
+		UPanelWidget* Panel = Cast<UPanelWidget>(WBP->WidgetTree->FindWidget(FName(*ParentName)));
+		if (!Panel)
 		{
-			OutError = TEXT("Missing or empty operations");
+			NewWidget->Rename(nullptr, GetTransientPackage());
+#if NX_UE_HAS_MARK_AS_GARBAGE
+			NewWidget->MarkAsGarbage();
+#else
+			NewWidget->MarkPendingKill();
+#endif
+			Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Parent panel Widget not found: %s"), *ParentName));
 			return;
 		}
-
-		bool bDidMutate = false;
-		for (const TSharedPtr<FJsonValue>& Val : Ops)
-		{
-			TSharedPtr<FJsonObject> Item = Val->AsObject();
-			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-
-			if (!Item.IsValid())
-			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("Invalid operation item"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
-
-			const FString Action = Item->HasField(TEXT("action")) ? Item->GetStringField(TEXT("action")).ToLower() : TEXT("");
-			OutEntry->SetStringField(TEXT("action"), Action);
-
-			if (Action.IsEmpty())
-			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("Missing action"));
-			}
-			else if (Action == TEXT("remove"))
-			{
-				FString WidgetName;
-				if (!Item->TryGetStringField(TEXT("widgetName"), WidgetName) || WidgetName.IsEmpty())
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("action=remove requires widgetName"));
-				}
-				else
-				{
-					OutEntry->SetStringField(TEXT("widgetName"), WidgetName);
-					UWidget* Target = WBP->WidgetTree->FindWidget(FName(*WidgetName));
-					if (!Target)
-					{
-						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
-					}
-					else
-					{
-						WBP->WidgetTree->Modify();
-						if (Target->Slot && Target->Slot->Parent) Target->Slot->Parent->RemoveChild(Target);
-						else if (WBP->WidgetTree->RootWidget == Target) WBP->WidgetTree->RootWidget = nullptr;
-						Target->Rename(nullptr, GetTransientPackage());
-	#if NX_UE_HAS_MARK_AS_GARBAGE
-						Target->MarkAsGarbage();
-	#else
-						Target->MarkPendingKill();
-	#endif
-						bDidMutate = true;
-					}
-				}
-			}
-			else if (Action == TEXT("add"))
-			{
-				FString WidgetClass;
-				if (!Item->TryGetStringField(TEXT("widgetClass"), WidgetClass) || WidgetClass.IsEmpty())
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("action=add requires widgetClass"));
-				}
-				else
-				{
-					FString WidgetName, ParentName;
-					Item->TryGetStringField(TEXT("widgetName"),   WidgetName);
-					Item->TryGetStringField(TEXT("parentWidget"), ParentName);
-
-					UClass* NewClass = FNexusAssetUtils::FindClassWithUPrefix(WidgetClass);
-					if (!NewClass || !NewClass->IsChildOf(UWidget::StaticClass()))
-					{
-						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget class not found: %s"), *WidgetClass));
-					}
-					else
-					{
-						if (WidgetName.IsEmpty())
-							WidgetName = FString::Printf(TEXT("%s_%d"), *WidgetClass, FMath::Rand() % 10000);
-
-						WBP->WidgetTree->SetFlags(RF_Transactional);
-						WBP->WidgetTree->Modify();
-						UWidget* NewWidget = WBP->WidgetTree->ConstructWidget<UWidget>(NewClass, FName(*WidgetName));
-						if (!NewWidget)
-						{
-							OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Create Widget failed: %s"), *WidgetClass));
-						}
-						else
-						{
-							FString AttachedTo;
-							if (!ParentName.IsEmpty())
-							{
-								UPanelWidget* Panel = Cast<UPanelWidget>(WBP->WidgetTree->FindWidget(FName(*ParentName)));
-								if (!Panel)
-								{
-									// 父控件不存在或非 Panel，回滚并报错
-									NewWidget->Rename(nullptr, GetTransientPackage());
-	#if NX_UE_HAS_MARK_AS_GARBAGE
-									NewWidget->MarkAsGarbage();
-	#else
-									NewWidget->MarkPendingKill();
-	#endif
-									OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Parent panel Widget not found: %s"), *ParentName));
-									OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-									continue;
-								}
-								Panel->AddChild(NewWidget);
-								AttachedTo = ParentName;
-							}
-							else
-							{
-								if (!WBP->WidgetTree->RootWidget) WBP->WidgetTree->RootWidget = NewWidget;
-								AttachedTo = TEXT("(root)");
-							}
-
-							OutEntry->SetStringField(TEXT("widgetName"),  NewWidget->GetName());
-							OutEntry->SetStringField(TEXT("widgetClass"), NewClass->GetName());
-							OutEntry->SetStringField(TEXT("attachedTo"),  AttachedTo);
-							bDidMutate = true;
-						}
-					}
-				}
-			}
-			else if (Action == TEXT("set_slot"))
-			{
-				FString WidgetName;
-				if (!Item->TryGetStringField(TEXT("widgetName"), WidgetName) || WidgetName.IsEmpty())
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("action=set_slot requires widgetName"));
-				}
-				else
-				{
-					UWidget* Target = WBP->WidgetTree->FindWidget(FName(*WidgetName));
-					if (!Target)
-					{
-						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
-					}
-					else
-					{
-						FString SlotErr;
-						if (!FNexusWidgetLayoutUtils::ApplyCanvasSlotFields(Target, Item, SlotErr))
-						{
-							OutEntry->SetStringField(TEXT("error"), SlotErr);
-						}
-						else
-						{
-							WBP->WidgetTree->Modify();
-							Target->Modify();
-							OutEntry->SetStringField(TEXT("widgetName"), WidgetName);
-							bDidMutate = true;
-						}
-					}
-				}
-			}
-			else if (Action == TEXT("set_property"))
-			{
-				FString WidgetName, PropPath, Value;
-				if (!Item->TryGetStringField(TEXT("widgetName"), WidgetName) || WidgetName.IsEmpty()
-					|| !Item->TryGetStringField(TEXT("propertyPath"), PropPath) || PropPath.IsEmpty()
-					|| !Item->TryGetStringField(TEXT("value"), Value) || Value.IsEmpty())
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("set_property requires widgetName、propertyPath、value"));
-				}
-				else
-				{
-					UWidget* Target = WBP->WidgetTree->FindWidget(FName(*WidgetName));
-					if (!Target)
-					{
-						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
-					}
-					else
-					{
-						FString OldVal, ActualVal, PropErr;
-						if (!FNexusPropertyUtils::WritePropertyAndEcho(Target, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
-						{
-							OutEntry->SetStringField(TEXT("error"), PropErr);
-						}
-						else
-						{
-							WBP->WidgetTree->Modify();
-							Target->Modify();
-							OutEntry->SetStringField(TEXT("widgetName"), WidgetName);
-							OutEntry->SetStringField(TEXT("propertyPath"), PropPath);
-							if (!ActualVal.IsEmpty()) OutEntry->SetStringField(TEXT("newValue"), ActualVal);
-							bDidMutate = true;
-						}
-					}
-				}
-			}
-			else if (Action == TEXT("add_animation"))
-			{
-				FString AnimName;
-				if (!Item->TryGetStringField(TEXT("animationName"), AnimName) || AnimName.IsEmpty())
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("add_animation requires animationName"));
-				}
-				else
-				{
-					FString AnimErr;
-					UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::AddAnimation(WBP, AnimName, AnimErr);
-					if (!Anim)
-					{
-						OutEntry->SetStringField(TEXT("error"), AnimErr);
-					}
-					else
-					{
-						OutEntry->SetStringField(TEXT("animationName"), Anim->GetName());
-						bDidMutate = true;
-					}
-				}
-			}
-			else if (Action == TEXT("remove_animation"))
-			{
-				FString AnimName;
-				if (!Item->TryGetStringField(TEXT("animationName"), AnimName) || AnimName.IsEmpty())
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("remove_animation requires animationName"));
-				}
-				else
-				{
-					FString AnimErr;
-					if (!FNexusWidgetAnimationUtils::RemoveAnimation(WBP, AnimName, AnimErr))
-					{
-						OutEntry->SetStringField(TEXT("error"), AnimErr);
-					}
-					else
-					{
-						OutEntry->SetStringField(TEXT("animationName"), AnimName);
-						bDidMutate = true;
-					}
-				}
-			}
-			else if (Action == TEXT("add_track"))
-			{
-				FString AnimName, TrackName, WidgetName, PropPath;
-				Item->TryGetStringField(TEXT("animationName"), AnimName);
-				Item->TryGetStringField(TEXT("trackName"), TrackName);
-				Item->TryGetStringField(TEXT("widgetName"), WidgetName);
-				Item->TryGetStringField(TEXT("propertyPath"), PropPath);
-				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
-				if (!Anim)
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("add_track requires existing animationName"));
-				}
-				else
-				{
-					FString OutTrack, AnimErr;
-					const bool bOk = WidgetName.IsEmpty()
-						? FNexusWidgetAnimationUtils::AddFloatTrack(Anim, TrackName, OutTrack, AnimErr)
-						: FNexusWidgetAnimationUtils::AddBoundFloatTrack(Anim, WBP, WidgetName, PropPath, TrackName, OutTrack, AnimErr);
-					if (!bOk)
-					{
-						OutEntry->SetStringField(TEXT("error"), AnimErr);
-					}
-					else
-					{
-						OutEntry->SetStringField(TEXT("animationName"), Anim->GetName());
-						OutEntry->SetStringField(TEXT("trackName"), OutTrack);
-						if (!WidgetName.IsEmpty()) OutEntry->SetStringField(TEXT("widgetName"), WidgetName);
-						if (!PropPath.IsEmpty()) OutEntry->SetStringField(TEXT("propertyPath"), PropPath);
-						bDidMutate = true;
-					}
-				}
-			}
-			else if (Action == TEXT("add_key"))
-			{
-				FString AnimName, TrackName;
-				Item->TryGetStringField(TEXT("animationName"), AnimName);
-				Item->TryGetStringField(TEXT("trackName"), TrackName);
-				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
-				if (!Anim)
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("add_key requires existing animationName"));
-				}
-				else if (!Item->HasField(TEXT("time")) || !Item->HasField(TEXT("keyValue")))
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("add_key requires time and keyValue"));
-				}
-				else
-				{
-					const float TimeSec = static_cast<float>(Item->GetNumberField(TEXT("time")));
-					const float KeyVal  = static_cast<float>(Item->GetNumberField(TEXT("keyValue")));
-					FString AnimErr;
-					if (!FNexusWidgetAnimationUtils::AddFloatKey(Anim, TrackName, TimeSec, KeyVal, AnimErr))
-					{
-						OutEntry->SetStringField(TEXT("error"), AnimErr);
-					}
-					else
-					{
-						OutEntry->SetStringField(TEXT("animationName"), Anim->GetName());
-						if (!TrackName.IsEmpty()) OutEntry->SetStringField(TEXT("trackName"), TrackName);
-						OutEntry->SetNumberField(TEXT("time"), TimeSec);
-						OutEntry->SetNumberField(TEXT("keyValue"), KeyVal);
-						bDidMutate = true;
-					}
-				}
-			}
-			else if (Action == TEXT("remove_track"))
-			{
-				FString AnimName, TrackName;
-				Item->TryGetStringField(TEXT("animationName"), AnimName);
-				Item->TryGetStringField(TEXT("trackName"), TrackName);
-				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
-				if (!Anim)
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("remove_track requires existing animationName"));
-				}
-				else
-				{
-					FString AnimErr;
-					if (!FNexusWidgetAnimationUtils::RemoveFloatTrack(Anim, TrackName, AnimErr))
-					{
-						OutEntry->SetStringField(TEXT("error"), AnimErr);
-					}
-					else
-					{
-						OutEntry->SetStringField(TEXT("animationName"), Anim->GetName());
-						OutEntry->SetStringField(TEXT("trackName"), TrackName);
-						bDidMutate = true;
-					}
-				}
-			}
-			else if (Action == TEXT("remove_key"))
-			{
-				FString AnimName, TrackName;
-				Item->TryGetStringField(TEXT("animationName"), AnimName);
-				Item->TryGetStringField(TEXT("trackName"), TrackName);
-				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
-				if (!Anim)
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("remove_key requires existing animationName"));
-				}
-				else if (!Item->HasField(TEXT("time")))
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("remove_key requires time"));
-				}
-				else
-				{
-					const float TimeSec = static_cast<float>(Item->GetNumberField(TEXT("time")));
-					FString AnimErr;
-					if (!FNexusWidgetAnimationUtils::RemoveFloatKey(Anim, TrackName, TimeSec, AnimErr))
-					{
-						OutEntry->SetStringField(TEXT("error"), AnimErr);
-					}
-					else
-					{
-						OutEntry->SetStringField(TEXT("animationName"), Anim->GetName());
-						OutEntry->SetNumberField(TEXT("time"), TimeSec);
-						bDidMutate = true;
-					}
-				}
-			}
-			else
-			{
-				OutEntry->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("Unsupported operation: '%s'. allowedActions: add, remove, set_slot, set_property, add_animation, remove_animation, add_track, add_key, remove_track, remove_key"), *Action));
-				TArray<TSharedPtr<FJsonValue>> Allowed;
-				Allowed.Add(MakeShared<FJsonValueString>(TEXT("add")));
-				Allowed.Add(MakeShared<FJsonValueString>(TEXT("remove")));
-				Allowed.Add(MakeShared<FJsonValueString>(TEXT("set_slot")));
-				Allowed.Add(MakeShared<FJsonValueString>(TEXT("set_property")));
-				Allowed.Add(MakeShared<FJsonValueString>(TEXT("add_animation")));
-				Allowed.Add(MakeShared<FJsonValueString>(TEXT("remove_animation")));
-				Allowed.Add(MakeShared<FJsonValueString>(TEXT("add_track")));
-				Allowed.Add(MakeShared<FJsonValueString>(TEXT("add_key")));
-				Allowed.Add(MakeShared<FJsonValueString>(TEXT("remove_track")));
-				Allowed.Add(MakeShared<FJsonValueString>(TEXT("remove_key")));
-				OutEntry->SetArrayField(TEXT("allowedActions"), Allowed);
-			}
-
-			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-		}
-
-		if (bDidMutate)
-		{
-			WBP->MarkPackageDirty();
-			OutTop->SetStringField(TEXT("hint"), TEXT("Call save_asset to persist changes"));
-		}
-	
-	});
-#else
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+		Panel->AddChild(NewWidget);
+		AttachedTo = ParentName;
+	}
+	else
 	{
-		const FNexusArgs A(Arguments);
-		OutError = TEXT("manage_asset_user_widget only available in editor builds");
-	});
+		if (!WBP->WidgetTree->RootWidget) WBP->WidgetTree->RootWidget = NewWidget;
+		AttachedTo = TEXT("(root)");
+	}
+
+	Ctx.Entry->SetStringField(TEXT("widgetName"),  NewWidget->GetName());
+	Ctx.Entry->SetStringField(TEXT("widgetClass"), NewClass->GetName());
+	Ctx.Entry->SetStringField(TEXT("attachedTo"),  AttachedTo);
+	MarkWBPMutated(Ctx);
+}
+
+static void HandleWBP_SetSlot(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	const FString WidgetName = FNexusArgs(Op).Str(TEXT("widgetName"));
+	if (WidgetName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("action=set_slot requires widgetName"));
+		return;
+	}
+	UWidget* Target = WBP->WidgetTree->FindWidget(FName(*WidgetName));
+	if (!Target)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
+		return;
+	}
+	FString SlotErr;
+	if (!FNexusWidgetLayoutUtils::ApplyCanvasSlotFields(Target, Op, SlotErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), SlotErr);
+		return;
+	}
+	WBP->WidgetTree->Modify();
+	Target->Modify();
+	Ctx.Entry->SetStringField(TEXT("widgetName"), WidgetName);
+	MarkWBPMutated(Ctx);
+}
+
+static void HandleWBP_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString WidgetName = A.Str(TEXT("widgetName"));
+	const FString PropPath = A.Str(TEXT("propertyPath"));
+	const FString Value = A.Str(TEXT("value"));
+	if (WidgetName.IsEmpty() || PropPath.IsEmpty() || Value.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires widgetName、propertyPath、value"));
+		return;
+	}
+	UWidget* Target = WBP->WidgetTree->FindWidget(FName(*WidgetName));
+	if (!Target)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
+		return;
+	}
+	FString OldVal, ActualVal, PropErr;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(Target, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), PropErr);
+		return;
+	}
+	WBP->WidgetTree->Modify();
+	Target->Modify();
+	Ctx.Entry->SetStringField(TEXT("widgetName"), WidgetName);
+	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+	MarkWBPMutated(Ctx);
+}
+
+static void HandleWBP_AddAnimation(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	const FString AnimName = FNexusArgs(Op).Str(TEXT("animationName"));
+	if (AnimName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_animation requires animationName"));
+		return;
+	}
+	FString AnimErr;
+	UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::AddAnimation(WBP, AnimName, AnimErr);
+	if (!Anim)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), AnimErr);
+		return;
+	}
+	Ctx.Entry->SetStringField(TEXT("animationName"), Anim->GetName());
+	MarkWBPMutated(Ctx);
+}
+
+static void HandleWBP_RemoveAnimation(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	const FString AnimName = FNexusArgs(Op).Str(TEXT("animationName"));
+	if (AnimName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_animation requires animationName"));
+		return;
+	}
+	FString AnimErr;
+	if (!FNexusWidgetAnimationUtils::RemoveAnimation(WBP, AnimName, AnimErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), AnimErr);
+		return;
+	}
+	Ctx.Entry->SetStringField(TEXT("animationName"), AnimName);
+	MarkWBPMutated(Ctx);
+}
+
+static void HandleWBP_AddTrack(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString AnimName = A.Str(TEXT("animationName"));
+	const FString TrackName = A.Str(TEXT("trackName"));
+	const FString WidgetName = A.Str(TEXT("widgetName"));
+	const FString PropPath = A.Str(TEXT("propertyPath"));
+	UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
+	if (!Anim)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_track requires existing animationName"));
+		return;
+	}
+	FString OutTrack, AnimErr;
+	const bool bOk = WidgetName.IsEmpty()
+		? FNexusWidgetAnimationUtils::AddFloatTrack(Anim, TrackName, OutTrack, AnimErr)
+		: FNexusWidgetAnimationUtils::AddBoundFloatTrack(Anim, WBP, WidgetName, PropPath, TrackName, OutTrack, AnimErr);
+	if (!bOk)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), AnimErr);
+		return;
+	}
+	Ctx.Entry->SetStringField(TEXT("animationName"), Anim->GetName());
+	Ctx.Entry->SetStringField(TEXT("trackName"), OutTrack);
+	if (!WidgetName.IsEmpty()) Ctx.Entry->SetStringField(TEXT("widgetName"), WidgetName);
+	if (!PropPath.IsEmpty()) Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
+	MarkWBPMutated(Ctx);
+}
+
+static void HandleWBP_AddKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString AnimName = A.Str(TEXT("animationName"));
+	const FString TrackName = A.Str(TEXT("trackName"));
+	UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
+	if (!Anim)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_key requires existing animationName"));
+		return;
+	}
+	if (!Op->HasField(TEXT("time")) || !Op->HasField(TEXT("keyValue")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_key requires time and keyValue"));
+		return;
+	}
+	const float TimeSec = static_cast<float>(A.Num(TEXT("time")));
+	const float KeyVal  = static_cast<float>(A.Num(TEXT("keyValue")));
+	FString AnimErr;
+	if (!FNexusWidgetAnimationUtils::AddFloatKey(Anim, TrackName, TimeSec, KeyVal, AnimErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), AnimErr);
+		return;
+	}
+	Ctx.Entry->SetStringField(TEXT("animationName"), Anim->GetName());
+	if (!TrackName.IsEmpty()) Ctx.Entry->SetStringField(TEXT("trackName"), TrackName);
+	Ctx.Entry->SetNumberField(TEXT("time"), TimeSec);
+	Ctx.Entry->SetNumberField(TEXT("keyValue"), KeyVal);
+	MarkWBPMutated(Ctx);
+}
+
+static void HandleWBP_RemoveTrack(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString AnimName = A.Str(TEXT("animationName"));
+	const FString TrackName = A.Str(TEXT("trackName"));
+	UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
+	if (!Anim)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_track requires existing animationName"));
+		return;
+	}
+	FString AnimErr;
+	if (!FNexusWidgetAnimationUtils::RemoveFloatTrack(Anim, TrackName, AnimErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), AnimErr);
+		return;
+	}
+	Ctx.Entry->SetStringField(TEXT("animationName"), Anim->GetName());
+	Ctx.Entry->SetStringField(TEXT("trackName"), TrackName);
+	MarkWBPMutated(Ctx);
+}
+
+static void HandleWBP_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString AnimName = A.Str(TEXT("animationName"));
+	const FString TrackName = A.Str(TEXT("trackName"));
+	UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
+	if (!Anim)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_key requires existing animationName"));
+		return;
+	}
+	if (!Op->HasField(TEXT("time")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_key requires time"));
+		return;
+	}
+	const float TimeSec = static_cast<float>(A.Num(TEXT("time")));
+	FString AnimErr;
+	if (!FNexusWidgetAnimationUtils::RemoveFloatKey(Anim, TrackName, TimeSec, AnimErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), AnimErr);
+		return;
+	}
+	Ctx.Entry->SetStringField(TEXT("animationName"), Anim->GetName());
+	Ctx.Entry->SetNumberField(TEXT("time"), TimeSec);
+	MarkWBPMutated(Ctx);
+}
+#endif // WITH_EDITOR
+
+bool FManageAssetUserWidgetCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+#if WITH_EDITOR
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UWidgetBlueprint* WBP = FNexusAssetUtils::LoadWidgetBP(AssetPath);
+	if (!WBP)
+	{
+		OutError = FString::Printf(TEXT("WidgetBlueprint not found: %s"), *AssetPath);
+		return false;
+	}
+	if (!WBP->WidgetTree)
+	{
+		OutError = TEXT("WidgetTree unavailable");
+		return false;
+	}
+	FUserWidgetActionState* State = new FUserWidgetActionState();
+	State->WBP = WBP;
+	OutTarget = State;
+	return true;
+#else
+	OutError = TEXT("manage_asset_user_widget only available in editor builds");
+	return false;
+#endif
+}
+
+void FManageAssetUserWidgetCapability::AfterPrepareTarget(
+	void* Target,
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& OutTop) const
+{
+#if WITH_EDITOR
+	(void)Args;
+	if (FUserWidgetActionState* State = static_cast<FUserWidgetActionState*>(Target))
+	{
+		State->OutTop = OutTop;
+	}
+#else
+	(void)Target;
+	(void)Args;
+	(void)OutTop;
+#endif
+}
+
+void FManageAssetUserWidgetCapability::FinalizeTarget(void* Target) const
+{
+#if WITH_EDITOR
+	FUserWidgetActionState* State = static_cast<FUserWidgetActionState*>(Target);
+	if (!State)
+	{
+		return;
+	}
+	if (State->bDidMutate && State->WBP)
+	{
+		State->WBP->MarkPackageDirty();
+		if (State->OutTop.IsValid())
+		{
+			State->OutTop->SetStringField(TEXT("hint"), TEXT("Call save_asset to persist changes"));
+		}
+	}
+	delete State;
+#else
+	(void)Target;
+#endif
+}
+
+void FManageAssetUserWidgetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+#if WITH_EDITOR
+	OutHandlers.Add(TEXT("remove"),           &HandleWBP_Remove);
+	OutHandlers.Add(TEXT("add"),              &HandleWBP_Add);
+	OutHandlers.Add(TEXT("set_slot"),         &HandleWBP_SetSlot);
+	OutHandlers.Add(TEXT("set_property"),     &HandleWBP_SetProperty);
+	OutHandlers.Add(TEXT("add_animation"),    &HandleWBP_AddAnimation);
+	OutHandlers.Add(TEXT("remove_animation"), &HandleWBP_RemoveAnimation);
+	OutHandlers.Add(TEXT("add_track"),        &HandleWBP_AddTrack);
+	OutHandlers.Add(TEXT("add_key"),          &HandleWBP_AddKey);
+	OutHandlers.Add(TEXT("remove_track"),     &HandleWBP_RemoveTrack);
+	OutHandlers.Add(TEXT("remove_key"),       &HandleWBP_RemoveKey);
+#else
+	(void)OutHandlers;
 #endif
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetUserWidgetCapability)
+
+

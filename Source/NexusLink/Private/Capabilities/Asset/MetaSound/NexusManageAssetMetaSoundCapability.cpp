@@ -4,8 +4,7 @@
 
 #if WITH_METASOUND
 
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -83,25 +82,24 @@ static FMetasoundFrontendDocument* GetMutableDocumentPatch(UMetaSoundPatch* Patc
 #endif
 
 static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontendDocument* Doc,
-	const FString& AssetPath, TArray<TSharedPtr<FJsonValue>>& OutEntries)
+	TSharedPtr<FJsonObject>& Result)
 {
-	FString Action;
-	Op->TryGetStringField(TEXT("action"), Action);
-
-	TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
-	Result->SetStringField(TEXT("path"), AssetPath);
-	Result->SetStringField(TEXT("action"), Action);
-
+	if (!Doc)
+	{
+		Result->SetStringField(TEXT("error"), TEXT("Unable to access FMetasoundFrontendDocument (property mismatch or version unsupported)"));
+		return;
+	}
+	const FNexusArgs A(Op);
 	FMetasoundFrontendClassInterface& Iface = Doc->RootGraph.Interface;
 
+	const FString Action = A.Str(TEXT("action")).ToLower();
 	if (Action == TEXT("add_input"))
 	{
-		FString Name, TypeName;
-		if (!Op->TryGetStringField(TEXT("name"), Name) || Name.IsEmpty() ||
-		    !Op->TryGetStringField(TEXT("typeName"), TypeName) || TypeName.IsEmpty())
+		const FString Name = A.Str(TEXT("name"));
+		const FString TypeName = A.Str(TEXT("typeName"));
+		if (Name.IsEmpty() || TypeName.IsEmpty())
 		{
 			Result->SetStringField(TEXT("error"), TEXT("add_input requires name and typeName"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
 		const FName InputName(*Name);
@@ -110,7 +108,6 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 			if (Existing.Name == InputName)
 			{
 				Result->SetBoolField(TEXT("alreadyExists"), true);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 				return;
 			}
 		}
@@ -122,8 +119,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 	}
 	else if (Action == TEXT("remove_input"))
 	{
-		FString Name;
-		Op->TryGetStringField(TEXT("name"), Name);
+		const FString Name = A.Str(TEXT("name"));
 		const FName InputName(*Name);
 		const int32 Removed = Iface.Inputs.RemoveAll([&](const FMetasoundFrontendClassInput& I) {
 			return I.Name == InputName;
@@ -135,12 +131,11 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 	}
 	else if (Action == TEXT("add_output"))
 	{
-		FString Name, TypeName;
-		if (!Op->TryGetStringField(TEXT("name"), Name) || Name.IsEmpty() ||
-		    !Op->TryGetStringField(TEXT("typeName"), TypeName) || TypeName.IsEmpty())
+		const FString Name = A.Str(TEXT("name"));
+		const FString TypeName = A.Str(TEXT("typeName"));
+		if (Name.IsEmpty() || TypeName.IsEmpty())
 		{
 			Result->SetStringField(TEXT("error"), TEXT("add_output requires name and typeName"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
 		const FName OutputName(*Name);
@@ -149,7 +144,6 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 			if (Existing.Name == OutputName)
 			{
 				Result->SetBoolField(TEXT("alreadyExists"), true);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 				return;
 			}
 		}
@@ -161,8 +155,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 	}
 	else if (Action == TEXT("remove_output"))
 	{
-		FString Name;
-		Op->TryGetStringField(TEXT("name"), Name);
+		const FString Name = A.Str(TEXT("name"));
 		const FName OutputName(*Name);
 		const int32 Removed = Iface.Outputs.RemoveAll([&](const FMetasoundFrontendClassOutput& O) {
 			return O.Name == OutputName;
@@ -174,14 +167,12 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 	}
 	else if (Action == TEXT("add_node"))
 	{
-		FString ClassIDStr, NodeName;
-		Op->TryGetStringField(TEXT("classID"), ClassIDStr);
-		Op->TryGetStringField(TEXT("nodeName"), NodeName);
+		const FString ClassIDStr = A.Str(TEXT("classID"));
+		const FString NodeName = A.Str(TEXT("nodeName"));
 		FGuid ClassGuid;
 		if (!FGuid::Parse(ClassIDStr, ClassGuid))
 		{
 			Result->SetStringField(TEXT("error"), TEXT("add_node requires valid classID (GUID)"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
 		FMetasoundFrontendNode NewNode;
@@ -196,13 +187,11 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 	}
 	else if (Action == TEXT("remove_node"))
 	{
-		FString NodeIDStr;
-		Op->TryGetStringField(TEXT("nodeID"), NodeIDStr);
+		const FString NodeIDStr = A.Str(TEXT("nodeID"));
 		FGuid NodeGuid;
 		if (!FGuid::Parse(NodeIDStr, NodeGuid))
 		{
 			Result->SetStringField(TEXT("error"), TEXT("remove_node requires valid nodeID"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
 		const int32 RemovedNodes = Doc->RootGraph.Graph.Nodes.RemoveAll(
@@ -219,14 +208,13 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 	}
 	else if (Action == TEXT("add_edge"))
 	{
-		FString FromNodeIDStr, FromPin, ToNodeIDStr, ToPin;
-		if (!Op->TryGetStringField(TEXT("fromNodeID"), FromNodeIDStr) ||
-			!Op->TryGetStringField(TEXT("fromPin"), FromPin) ||
-			!Op->TryGetStringField(TEXT("toNodeID"), ToNodeIDStr) ||
-			!Op->TryGetStringField(TEXT("toPin"), ToPin))
+		const FString FromNodeIDStr = A.Str(TEXT("fromNodeID"));
+		const FString FromPin = A.Str(TEXT("fromPin"));
+		const FString ToNodeIDStr = A.Str(TEXT("toNodeID"));
+		const FString ToPin = A.Str(TEXT("toPin"));
+		if (FromNodeIDStr.IsEmpty() || FromPin.IsEmpty() || ToNodeIDStr.IsEmpty() || ToPin.IsEmpty())
 		{
 			Result->SetStringField(TEXT("error"), TEXT("add_edge requires fromNodeID/fromPin/toNodeID/toPin"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
 		FMetasoundFrontendEdge NewEdge;
@@ -252,11 +240,10 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 	}
 	else if (Action == TEXT("remove_edge"))
 	{
-		FString FromNodeIDStr, FromPin, ToNodeIDStr, ToPin;
-		Op->TryGetStringField(TEXT("fromNodeID"), FromNodeIDStr);
-		Op->TryGetStringField(TEXT("fromPin"), FromPin);
-		Op->TryGetStringField(TEXT("toNodeID"), ToNodeIDStr);
-		Op->TryGetStringField(TEXT("toPin"), ToPin);
+		const FString FromNodeIDStr = A.Str(TEXT("fromNodeID"));
+		const FString FromPin = A.Str(TEXT("fromPin"));
+		const FString ToNodeIDStr = A.Str(TEXT("toNodeID"));
+		const FString ToPin = A.Str(TEXT("toPin"));
 		FGuid FromGuid, ToGuid;
 		FGuid::Parse(FromNodeIDStr, FromGuid);
 		FGuid::Parse(ToNodeIDStr, ToGuid);
@@ -271,79 +258,120 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 			Result->SetStringField(TEXT("error"), TEXT("Edge not found"));
 		}
 	}
-	else
-	{
-		Result->SetStringField(TEXT("error"), FString::Printf(
-			TEXT("Unknown action '%s'; supported: add_input/remove_input/add_output/remove_output/add_node/remove_node/add_edge/remove_edge"),
-			*Action));
-	}
-
-	OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 }
+
+struct FMetaSoundActionState
+{
+	UObject* Asset = nullptr;
+	FMetasoundFrontendDocument* Doc = nullptr;
+};
+
+static FMetasoundFrontendDocument* DocFrom(FNexusActionContext& Ctx)
+{
+	FMetaSoundActionState* S = static_cast<FMetaSoundActionState*>(Ctx.Target);
+	return S ? S->Doc : nullptr;
+}
+
+#define NX_MS_HANDLER(Name) \
+static void HandleMS_##Name(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx) \
+{ \
+	ApplyOperation(Op, DocFrom(Ctx), Ctx.Entry); \
+}
+
+NX_MS_HANDLER(AddInput)
+NX_MS_HANDLER(RemoveInput)
+NX_MS_HANDLER(AddOutput)
+NX_MS_HANDLER(RemoveOutput)
+NX_MS_HANDLER(AddNode)
+NX_MS_HANDLER(RemoveNode)
+NX_MS_HANDLER(AddEdge)
+NX_MS_HANDLER(RemoveEdge)
+#undef NX_MS_HANDLER
 
 #endif // NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT
 
-FCapabilityResult FManageAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+bool FManageAssetMetaSoundCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
-	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
 
-		UObject* SoundAsset = nullptr;
-		UMetaSoundSource* Source = FNexusAssetUtils::LoadAssetWithFallback<UMetaSoundSource>(AssetPath);
-		if (Source) { SoundAsset = Source; }
+	UObject* SoundAsset = nullptr;
+	UMetaSoundSource* Source = FNexusAssetUtils::LoadAssetWithFallback<UMetaSoundSource>(AssetPath);
+	if (Source) { SoundAsset = Source; }
 #if NX_UE_HAS_METASOUND_PATCH
-		UMetaSoundPatch* Patch = nullptr;
-		if (!SoundAsset)
-		{
-			Patch = FNexusAssetUtils::LoadAssetWithFallback<UMetaSoundPatch>(AssetPath);
-			if (Patch) { SoundAsset = Patch; }
-		}
+	UMetaSoundPatch* Patch = nullptr;
+	if (!SoundAsset)
+	{
+		Patch = FNexusAssetUtils::LoadAssetWithFallback<UMetaSoundPatch>(AssetPath);
+		if (Patch) { SoundAsset = Patch; }
+	}
 #endif
-		if (!SoundAsset)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("MetaSound Source / Patch not found: %s"), *AssetPath));
-			return;
-		}
-
-		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (OpsArr.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("operations is required and must be non-empty"));
-			return;
-		}
+	if (!SoundAsset)
+	{
+		OutError = FString::Printf(TEXT("MetaSound Source / Patch not found: %s"), *AssetPath);
+		return false;
+	}
 
 #if NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT
-		FMetasoundFrontendDocument* Doc = Source
-			? GetMutableDocument(Source)
+	FMetasoundFrontendDocument* Doc = Source
+		? GetMutableDocument(Source)
 #if NX_UE_HAS_METASOUND_PATCH
-			: GetMutableDocumentPatch(Patch);
+		: GetMutableDocumentPatch(Patch);
 #else
-			: nullptr;
+		: nullptr;
 #endif
-		if (!Doc)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("Unable to access FMetasoundFrontendDocument (property mismatch or version unsupported)"));
-			return;
-		}
-
-		for (const TSharedPtr<FJsonValue>& Val : OpsArr)
-		{
-			const TSharedPtr<FJsonObject>* OpObj = nullptr;
-			if (!Val->TryGetObject(OpObj) || !OpObj) continue;
-			ApplyOperation(*OpObj, Doc, AssetPath, OutEntries);
-		}
-
-		SoundAsset->MarkPackageDirty();
+	if (!Doc)
+	{
+		OutError = TEXT("Unable to access FMetasoundFrontendDocument (property mismatch or version unsupported)");
+		return false;
+	}
+	FMetaSoundActionState* State = new FMetaSoundActionState();
+	State->Asset = SoundAsset;
+	State->Doc = Doc;
+	OutTarget = State;
+	return true;
 #else
-		FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-			TEXT("manage_asset_meta_sound graph edit requires UE 5.3+ (NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT)"));
+	OutError = TEXT("manage_asset_meta_sound graph edit requires UE 5.3+ (NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT)");
+	return false;
 #endif
-	});
+}
+
+void FManageAssetMetaSoundCapability::FinalizeTarget(void* Target) const
+{
+#if NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT
+	FMetaSoundActionState* State = static_cast<FMetaSoundActionState*>(Target);
+	if (!State)
+	{
+		return;
+	}
+	if (State->Asset)
+	{
+		State->Asset->MarkPackageDirty();
+	}
+	delete State;
+#else
+	(void)Target;
+#endif
+}
+
+void FManageAssetMetaSoundCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+#if NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT
+	OutHandlers.Add(TEXT("add_input"),     &HandleMS_AddInput);
+	OutHandlers.Add(TEXT("remove_input"),  &HandleMS_RemoveInput);
+	OutHandlers.Add(TEXT("add_output"),    &HandleMS_AddOutput);
+	OutHandlers.Add(TEXT("remove_output"), &HandleMS_RemoveOutput);
+	OutHandlers.Add(TEXT("add_node"),      &HandleMS_AddNode);
+	OutHandlers.Add(TEXT("remove_node"),   &HandleMS_RemoveNode);
+	OutHandlers.Add(TEXT("add_edge"),      &HandleMS_AddEdge);
+	OutHandlers.Add(TEXT("remove_edge"),   &HandleMS_RemoveEdge);
+#else
+	(void)OutHandlers;
+#endif
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetMetaSoundCapability)

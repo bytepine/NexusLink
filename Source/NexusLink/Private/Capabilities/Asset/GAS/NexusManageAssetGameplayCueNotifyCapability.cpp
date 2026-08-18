@@ -7,8 +7,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "GameplayCueNotify_Static.h"
 #include "NexusMcpTool.h"
 
@@ -35,63 +34,62 @@ void FManageAssetGameplayCueNotifyCapability::BuildDefinition(FNexusCapabilityDe
 	};
 }
 
-FCapabilityResult FManageAssetGameplayCueNotifyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FCueNotifyActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UGameplayCueNotify_Static* Notify = nullptr;
+	bool bDirty = false;
+};
+
+static FCueNotifyActionState* CueState(FNexusActionContext& Ctx)
+{
+	return static_cast<FCueNotifyActionState*>(Ctx.Target);
+}
+
+static void HandleCue_SetCueName(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UGameplayCueNotify_Static* Notify = CueState(Ctx)->Notify;
+	FString CueName;
+	if (!Op->TryGetStringField(TEXT("cueName"), CueName) || CueName.IsEmpty())
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_cue_name requires cueName"));
+		return;
+	}
+	Notify->GameplayCueName = FName(*CueName);
+	CueState(Ctx)->bDirty = true;
+	Ctx.Entry->SetStringField(TEXT("cueName"), Notify->GameplayCueName.ToString());
+}
 
-		UGameplayCueNotify_Static* Notify = FNexusAssetUtils::LoadAssetWithFallback<UGameplayCueNotify_Static>(AssetPath);
-		if (!Notify)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("Only supports GameplayCueNotify_Static; use manage_asset_blueprint for Actor BP"));
-			return;
-		}
+bool FManageAssetGameplayCueNotifyCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UGameplayCueNotify_Static* Notify = FNexusAssetUtils::LoadAssetWithFallback<UGameplayCueNotify_Static>(AssetPath);
+	if (!Notify)
+	{
+		OutError = TEXT("Only supports GameplayCueNotify_Static; use manage_asset_blueprint for Actor BP");
+		return false;
+	}
+	FCueNotifyActionState* State = new FCueNotifyActionState();
+	State->Notify = Notify;
+	OutTarget = State;
+	return true;
+}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
+void FManageAssetGameplayCueNotifyCapability::FinalizeTarget(void* Target) const
+{
+	FCueNotifyActionState* State = static_cast<FCueNotifyActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->Notify) State->Notify->MarkPackageDirty();
+	delete State;
+}
 
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpPtr;
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
-			Action = Action.ToLower();
-
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
-			Entry->SetStringField(TEXT("action"), Action);
-
-			if (Action == TEXT("set_cue_name"))
-			{
-				FString CueName;
-				if (!Op->TryGetStringField(TEXT("cueName"), CueName) || CueName.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_cue_name requires cueName"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				Notify->GameplayCueName = FName(*CueName);
-				bDirty = true;
-				Entry->SetStringField(TEXT("cueName"), Notify->GameplayCueName.ToString());
-			}
-			else
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-		if (bDirty) Notify->MarkPackageDirty();
-	});
+void FManageAssetGameplayCueNotifyCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_cue_name"), &HandleCue_SetCueName);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetGameplayCueNotifyCapability)

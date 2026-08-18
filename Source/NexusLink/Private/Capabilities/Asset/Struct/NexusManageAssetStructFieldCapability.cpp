@@ -1,11 +1,9 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Struct/NexusManageAssetStructFieldCapability.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusPinTypeUtils.h"
 #if NX_UE_HAS_STRUCT_UTILS_HEADER
@@ -50,157 +48,190 @@ void FManageAssetStructFieldCapability::BuildDefinition(FNexusCapabilityDefiniti
 	Out.WhenToUse = TEXT("Write ops: add/remove/modify UDS fields");
 }
 
-FCapabilityResult FManageAssetStructFieldCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FStructFieldActionState
+{
+	UUserDefinedStruct* Struct = nullptr;
+	bool bDidMutate = false;
+};
+
+#if WITH_EDITOR
+
+static FStructFieldActionState* UDSState(FNexusActionContext& Ctx)
+{
+	return static_cast<FStructFieldActionState*>(Ctx.Target);
+}
+
+static UUserDefinedStruct* UDSFrom(FNexusActionContext& Ctx)
+{
+	FStructFieldActionState* S = UDSState(Ctx);
+	return S ? S->Struct : nullptr;
+}
+
+static void MarkUDSMutated(FNexusActionContext& Ctx)
+{
+	UUserDefinedStruct* Struct = UDSFrom(Ctx);
+	if (!Struct) return;
+	FStructureEditorUtils::CompileStructure(Struct);
+	if (FStructFieldActionState* S = UDSState(Ctx))
+	{
+		S->bDidMutate = true;
+	}
+}
+
+static FGuid FindUDSFieldGuid(UUserDefinedStruct* Struct, const FString& Name)
+{
+	for (const FStructVariableDescription& Var : FStructureEditorUtils::GetVarDesc(Struct))
+	{
+		if (Var.FriendlyName == Name) return Var.VarGuid;
+	}
+	return FGuid();
+}
+
+static bool RequireFieldName(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, FString& OutName)
+{
+	OutName = FNexusArgs(Op).Str(TEXT("fieldName"));
+	Ctx.Entry->SetStringField(TEXT("fieldName"), OutName);
+	if (OutName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("action and fieldName is required"));
+		return false;
+	}
+	return true;
+}
+
+static void HandleUDS_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UUserDefinedStruct* Struct = UDSFrom(Ctx);
+	FString FieldName;
+	if (!RequireFieldName(Op, Ctx, FieldName)) return;
+	const FGuid Target = FindUDSFieldGuid(Struct, FieldName);
+	if (!Target.IsValid())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Field not found: %s"), *FieldName));
+		return;
+	}
+	if (!FStructureEditorUtils::RemoveVariable(Struct, Target))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Failed to delete field"));
+		return;
+	}
+	MarkUDSMutated(Ctx);
+}
+
+static void HandleUDS_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UUserDefinedStruct* Struct = UDSFrom(Ctx);
+	FString FieldName;
+	if (!RequireFieldName(Op, Ctx, FieldName)) return;
+	if (!Op->HasField(TEXT("fieldType")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("fieldType is required when action=add"));
+		return;
+	}
+	FEdGraphPinType PinType; FString TypeErr;
+	if (!FNexusPinTypeUtils::ParsePinType(Op->GetStringField(TEXT("fieldType")), PinType, TypeErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TypeErr);
+		return;
+	}
+	if (!FStructureEditorUtils::AddVariable(Struct, PinType))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Failed to add field"));
+		return;
+	}
+	const TArray<FStructVariableDescription>& VarDescs = FStructureEditorUtils::GetVarDesc(Struct);
+	if (VarDescs.Num() > 0)
+	{
+		const FGuid NewGuid = VarDescs.Last().VarGuid;
+		FStructureEditorUtils::RenameVariable(Struct, NewGuid, FieldName);
+		if (Op->HasField(TEXT("defaultValue")))
+			FStructureEditorUtils::ChangeVariableDefaultValue(Struct, NewGuid, Op->GetStringField(TEXT("defaultValue")));
+	}
+	Ctx.Entry->SetStringField(TEXT("fieldType"), Op->GetStringField(TEXT("fieldType")));
+	MarkUDSMutated(Ctx);
+}
+
+static void HandleUDS_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UUserDefinedStruct* Struct = UDSFrom(Ctx);
+	FString FieldName;
+	if (!RequireFieldName(Op, Ctx, FieldName)) return;
+	const FGuid Target = FindUDSFieldGuid(Struct, FieldName);
+	if (!Target.IsValid())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Field not found: %s"), *FieldName));
+		return;
+	}
+	bool bChanged = false;
+	if (Op->HasField(TEXT("newType")))
+	{
+		FEdGraphPinType PinType; FString TypeErr;
+		if (!FNexusPinTypeUtils::ParsePinType(Op->GetStringField(TEXT("newType")), PinType, TypeErr))
+			Ctx.Entry->SetStringField(TEXT("error"), TypeErr);
+		else { FStructureEditorUtils::ChangeVariableType(Struct, Target, PinType); bChanged = true; }
+	}
+	if (Op->HasField(TEXT("defaultValue")))
+	{
+		FStructureEditorUtils::ChangeVariableDefaultValue(Struct, Target, Op->GetStringField(TEXT("defaultValue")));
+		bChanged = true;
+	}
+	if (Op->HasField(TEXT("newName")))
+	{
+		FStructureEditorUtils::RenameVariable(Struct, Target, Op->GetStringField(TEXT("newName")));
+		bChanged = true;
+	}
+	if (!bChanged)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Provide at least one of newName / newType / defaultValue"));
+		return;
+	}
+	MarkUDSMutated(Ctx);
+}
+
+#endif // WITH_EDITOR
+
+bool FManageAssetStructFieldCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+#if !WITH_EDITOR
+	OutError = TEXT("manage_asset_struct_field only available in editor builds");
+	return false;
+#else
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UUserDefinedStruct* Struct = FNexusAssetUtils::LoadAssetWithFallback<UUserDefinedStruct>(AssetPath);
+	if (!Struct)
+	{
+		OutError = FString::Printf(TEXT("UserDefinedStruct not found: %s"), *AssetPath);
+		return false;
+	}
+	FStructFieldActionState* State = new FStructFieldActionState();
+	State->Struct = Struct;
+	OutTarget = State;
+	return true;
+#endif
+}
+
+void FManageAssetStructFieldCapability::FinalizeTarget(void* Target) const
+{
+	FStructFieldActionState* State = static_cast<FStructFieldActionState*>(Target);
+	if (!State) return;
+	if (State->bDidMutate && State->Struct)
+	{
+		State->Struct->MarkPackageDirty();
+	}
+	delete State;
+}
+
+void FManageAssetStructFieldCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
 #if WITH_EDITOR
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
-	{
-		const FNexusArgs A(Arguments);
-
-
-		const FString AssetPath = A.Str(TEXT("assetPath"));
-
-		UUserDefinedStruct* Struct = FNexusAssetUtils::LoadAssetWithFallback<UUserDefinedStruct>(AssetPath);
-		if (!Struct) { OutError = FString::Printf(TEXT("UserDefinedStruct not found: %s"), *AssetPath); return; }
-
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			OutError = TEXT("Missing or empty operations");
-			return;
-		}
-
-		bool bDidMutate = false;
-		for (const TSharedPtr<FJsonValue>& Val : Ops)
-		{
-			TSharedPtr<FJsonObject> Item = Val->AsObject();
-			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-
-			if (!Item.IsValid())
-			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("Invalid operation item"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
-
-			const FString Action    = Item->HasField(TEXT("action"))    ? Item->GetStringField(TEXT("action")).ToLower() : TEXT("");
-			const FString FieldName = Item->HasField(TEXT("fieldName")) ? Item->GetStringField(TEXT("fieldName"))        : TEXT("");
-			OutEntry->SetStringField(TEXT("action"),    Action);
-			OutEntry->SetStringField(TEXT("fieldName"), FieldName);
-
-			if (Action.IsEmpty() || FieldName.IsEmpty())
-			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("action and fieldName is required"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
-
-			auto FindGuid = [Struct](const FString& Name) -> FGuid
-			{
-				for (const FStructVariableDescription& Var : FStructureEditorUtils::GetVarDesc(Struct))
-				{ if (Var.FriendlyName == Name) return Var.VarGuid; }
-				return FGuid();
-			};
-
-			bool bItemMutated = false;
-			if (Action == TEXT("remove"))
-			{
-				const FGuid Target = FindGuid(FieldName);
-				if (!Target.IsValid())
-					OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Field not found: %s"), *FieldName));
-				else if (!FStructureEditorUtils::RemoveVariable(Struct, Target))
-					OutEntry->SetStringField(TEXT("error"), TEXT("Failed to delete field"));
-				else
-					bItemMutated = true;
-			}
-			else if (Action == TEXT("add"))
-			{
-				if (!Item->HasField(TEXT("fieldType")))
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("fieldType is required when action=add"));
-				}
-				else
-				{
-					FEdGraphPinType PinType; FString TypeErr;
-					if (!FNexusPinTypeUtils::ParsePinType(Item->GetStringField(TEXT("fieldType")), PinType, TypeErr))
-					{
-						OutEntry->SetStringField(TEXT("error"), TypeErr);
-					}
-					else if (!FStructureEditorUtils::AddVariable(Struct, PinType))
-					{
-						OutEntry->SetStringField(TEXT("error"), TEXT("Failed to add field"));
-					}
-					else
-					{
-						const TArray<FStructVariableDescription>& VarDescs = FStructureEditorUtils::GetVarDesc(Struct);
-						if (VarDescs.Num() > 0)
-						{
-							const FGuid NewGuid = VarDescs.Last().VarGuid;
-							FStructureEditorUtils::RenameVariable(Struct, NewGuid, FieldName);
-							if (Item->HasField(TEXT("defaultValue")))
-								FStructureEditorUtils::ChangeVariableDefaultValue(Struct, NewGuid, Item->GetStringField(TEXT("defaultValue")));
-						}
-						OutEntry->SetStringField(TEXT("fieldType"), Item->GetStringField(TEXT("fieldType")));
-						bItemMutated = true;
-					}
-				}
-			}
-			else if (Action == TEXT("set"))
-			{
-				const FGuid Target = FindGuid(FieldName);
-				if (!Target.IsValid())
-				{
-					OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Field not found: %s"), *FieldName));
-				}
-				else
-				{
-					bool bChanged = false;
-					if (Item->HasField(TEXT("newType")))
-					{
-						FEdGraphPinType PinType; FString TypeErr;
-						if (!FNexusPinTypeUtils::ParsePinType(Item->GetStringField(TEXT("newType")), PinType, TypeErr))
-							OutEntry->SetStringField(TEXT("error"), TypeErr);
-						else { FStructureEditorUtils::ChangeVariableType(Struct, Target, PinType); bChanged = true; }
-					}
-					if (Item->HasField(TEXT("defaultValue")))
-					{
-						FStructureEditorUtils::ChangeVariableDefaultValue(Struct, Target, Item->GetStringField(TEXT("defaultValue")));
-						bChanged = true;
-					}
-					if (Item->HasField(TEXT("newName")))
-					{
-						FStructureEditorUtils::RenameVariable(Struct, Target, Item->GetStringField(TEXT("newName")));
-						bChanged = true;
-					}
-					if (!bChanged)
-						OutEntry->SetStringField(TEXT("error"), TEXT("Provide at least one of newName / newType / defaultValue"));
-					else
-						bItemMutated = true;
-				}
-			}
-			else
-			{
-				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
-			}
-
-			// 仅在该条真正修改过结构体时才 compile；避免错误路径误改脏
-			if (bItemMutated)
-			{
-				FStructureEditorUtils::CompileStructure(Struct);
-				bDidMutate = true;
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-		}
-
-		if (bDidMutate) Struct->MarkPackageDirty();
-	
-	});
-#else
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
-	{
-		const FNexusArgs A(Arguments);
-		OutError = TEXT("manage_asset_struct_field only available in editor builds");
-	});
+	OutHandlers.Add(TEXT("remove"), &HandleUDS_Remove);
+	OutHandlers.Add(TEXT("add"),    &HandleUDS_Add);
+	OutHandlers.Add(TEXT("set"),    &HandleUDS_Set);
 #endif
 }
 

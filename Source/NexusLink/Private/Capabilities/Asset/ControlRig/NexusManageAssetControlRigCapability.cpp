@@ -4,8 +4,7 @@
 
 #if WITH_CONTROL_RIG
 
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -53,284 +52,351 @@ void FManageAssetControlRigCapability::BuildDefinition(FNexusCapabilityDefinitio
 	Out.WhenToUse = TEXT("Edit ControlRig hierarchy and RigVM graph; persist with save_asset");
 }
 
-FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FControlRigActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UControlRigBlueprint* CRBp = nullptr;
+	URigHierarchy* Hier = nullptr;
+	URigHierarchyController* Controller = nullptr;
+	URigVMController* VmCtrl = nullptr;
+	bool bDirty = false;
+	TSharedPtr<FJsonObject> OutTop;
+};
+
+static FControlRigActionState* CRState(FNexusActionContext& Ctx)
+{
+	return static_cast<FControlRigActionState*>(Ctx.Target);
+}
+
+static void MarkCRDirty(FNexusActionContext& Ctx)
+{
+	if (FControlRigActionState* S = CRState(Ctx))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		S->bDirty = true;
+	}
+}
 
-		UControlRigBlueprint* CRBp = FNexusAssetUtils::LoadAssetWithFallback<UControlRigBlueprint>(AssetPath);
-		if (!CRBp)
+static FRigElementKey FindElementKey(URigHierarchy* Hier, const FString& ElemName)
+{
+	FRigElementKey Key;
+	if (!Hier) return Key;
+	for (ERigElementType T : {ERigElementType::Bone, ERigElementType::Control, ERigElementType::Null})
+	{
+		FRigElementKey Candidate(FName(*ElemName), T);
+		if (Hier->Contains(Candidate)) { return Candidate; }
+	}
+	return Key;
+}
+
+static FRigElementKey ParentBoneKey(const FString& ParentName)
+{
+	FRigElementKey ParentKey;
+	if (!ParentName.IsEmpty())
+		ParentKey = FRigElementKey(FName(*ParentName), ERigElementType::Bone);
+	return ParentKey;
+}
+
+static URigVMController* RequireVmCtrl(FNexusActionContext& Ctx)
+{
+	FControlRigActionState* S = CRState(Ctx);
+	if (!S || !S->VmCtrl)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to get RigVMController"));
+		return nullptr;
+	}
+	return S->VmCtrl;
+}
+
+static void HandleCR_RenameElement(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FControlRigActionState* S = CRState(Ctx);
+	const FNexusArgs A(Op);
+	const FString ElemName = A.Str(TEXT("elementName"));
+	const FString NewName = A.Str(TEXT("newName"));
+	if (ElemName.IsEmpty() || NewName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("rename_element requires elementName + newName"));
+		return;
+	}
+	const FRigElementKey Key = FindElementKey(S->Hier, ElemName);
+	if (!Key.IsValid())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Element not found: %s"), *ElemName));
+		return;
+	}
+	const bool bOk = S->Controller->RenameElement(Key, FName(*NewName));
+	if (!bOk) Ctx.Entry->SetStringField(TEXT("error"), TEXT("rename_element failed"));
+	else
+	{
+		Ctx.Entry->SetStringField(TEXT("newName"), NewName);
+		MarkCRDirty(Ctx);
+	}
+}
+
+static void HandleCR_SetControlColor(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FControlRigActionState* S = CRState(Ctx);
+	const FNexusArgs A(Op);
+	const FString ElemName = A.Str(TEXT("elementName"));
+	if (ElemName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_control_color requires elementName"));
+		return;
+	}
+	const FRigElementKey Key(FName(*ElemName), ERigElementType::Control);
+	FRigControlElement* Ctrl = S->Hier->Find<FRigControlElement>(Key);
+	if (!Ctrl)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Control not found: %s"), *ElemName));
+		return;
+	}
+	Ctrl->Settings.ShapeColor = FLinearColor(
+		static_cast<float>(A.Num(TEXT("r"), 1.0)),
+		static_cast<float>(A.Num(TEXT("g"), 1.0)),
+		static_cast<float>(A.Num(TEXT("b"), 1.0)),
+		static_cast<float>(A.Num(TEXT("a"), 1.0)));
+	MarkCRDirty(Ctx);
+}
+
+static void HandleCR_AddNull(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FControlRigActionState* S = CRState(Ctx);
+	const FNexusArgs A(Op);
+	const FString ElemName = A.Str(TEXT("elementName"));
+	if (ElemName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_null requires elementName"));
+		return;
+	}
+	const FRigElementKey NewKey = S->Controller->AddNull(FName(*ElemName), ParentBoneKey(A.Str(TEXT("parentName"))));
+	if (!NewKey.IsValid()) Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_null failed"));
+	else
+	{
+		Ctx.Entry->SetStringField(TEXT("elementName"), ElemName);
+		MarkCRDirty(Ctx);
+	}
+}
+
+static void HandleCR_RemoveElement(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FControlRigActionState* S = CRState(Ctx);
+	const FNexusArgs A(Op);
+	const FString ElemName = A.Str(TEXT("elementName"));
+	const FString ElemTypeStr = A.Str(TEXT("elementType"));
+	ERigElementType ElemType = ERigElementType::None;
+	if (ElemTypeStr.Equals(TEXT("bone"), ESearchCase::IgnoreCase))      ElemType = ERigElementType::Bone;
+	else if (ElemTypeStr.Equals(TEXT("control"), ESearchCase::IgnoreCase)) ElemType = ERigElementType::Control;
+	else if (ElemTypeStr.Equals(TEXT("null"), ESearchCase::IgnoreCase))    ElemType = ERigElementType::Null;
+	if (ElemName.IsEmpty() || ElemType == ERigElementType::None)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_element requires elementName + elementType"));
+		return;
+	}
+	const FRigElementKey Key(FName(*ElemName), ElemType);
+	const bool bOk = S->Controller->RemoveElement(Key);
+	if (bOk) MarkCRDirty(Ctx);
+	Ctx.Entry->SetBoolField(TEXT("removed"), bOk);
+}
+
+static void HandleCR_AddRigLink(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	const FNexusArgs A(Op);
+	const FString SrcPin = A.Str(TEXT("sourcePinPath"));
+	const FString DstPin = A.Str(TEXT("targetPinPath"));
+	if (SrcPin.IsEmpty() || DstPin.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_rig_link requires sourcePinPath + targetPinPath"));
+		return;
+	}
+	URigVMController* VmCtrl = RequireVmCtrl(Ctx);
+	if (!VmCtrl) return;
+	const bool bOk = VmCtrl->AddLink(SrcPin, DstPin, false);
+	if (!bOk) Ctx.Entry->SetStringField(TEXT("error"), TEXT("AddLink failed; check pin paths or type compatibility"));
+	else MarkCRDirty(Ctx);
+}
+
+static void HandleCR_BreakRigLink(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	const FNexusArgs A(Op);
+	const FString SrcPin = A.Str(TEXT("sourcePinPath"));
+	const FString DstPin = A.Str(TEXT("targetPinPath"));
+	if (SrcPin.IsEmpty() || DstPin.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("break_rig_link requires sourcePinPath + targetPinPath"));
+		return;
+	}
+	URigVMController* VmCtrl = RequireVmCtrl(Ctx);
+	if (!VmCtrl) return;
+	const bool bOk = VmCtrl->BreakLink(SrcPin, DstPin, false);
+	if (!bOk) Ctx.Entry->SetStringField(TEXT("error"), TEXT("BreakLink failed; check pin paths are connected"));
+	else MarkCRDirty(Ctx);
+}
+
+static void HandleCR_AddRigNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	const FNexusArgs A(Op);
+	const FString StructType = A.Str(TEXT("structType"));
+	const FString NodeName = A.Str(TEXT("nodeName"));
+	if (StructType.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_rig_node requires structType"));
+		return;
+	}
+	URigVMController* VmCtrl = RequireVmCtrl(Ctx);
+	if (!VmCtrl) return;
+	UScriptStruct* Struct = FindFirstObject<UScriptStruct>(*StructType,
+		EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
+	if (!Struct)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("UScriptStruct '%s' not found"), *StructType));
+		return;
+	}
+	URigVMNode* NewNode = VmCtrl->AddUnitNode(
+		Struct, TEXT("Execute"),
+		FVector2D::ZeroVector,
+		NodeName,
+		false);
+	if (NewNode)
+	{
+		Ctx.Entry->SetStringField(TEXT("nodePath"), NewNode->GetNodePath());
+		MarkCRDirty(Ctx);
+	}
+	else
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("AddUnitNode failed"));
+	}
+}
+
+static void HandleCR_AddControl(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FControlRigActionState* S = CRState(Ctx);
+	const FNexusArgs A(Op);
+	const FString ElemName = A.Str(TEXT("elementName"));
+	if (ElemName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("elementName required"));
+		return;
+	}
+	FRigControlSettings Settings;
+	const FRigElementKey NewKey = S->Controller->AddControl(
+		FName(*ElemName), ParentBoneKey(A.Str(TEXT("parentName"))), Settings, FRigControlValue(), false);
+	if (!NewKey.IsValid()) Ctx.Entry->SetStringField(TEXT("error"), TEXT("Failed to add element"));
+	else
+	{
+		Ctx.Entry->SetStringField(TEXT("elementName"), ElemName);
+		MarkCRDirty(Ctx);
+	}
+}
+
+static void HandleCR_AddBone(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FControlRigActionState* S = CRState(Ctx);
+	const FNexusArgs A(Op);
+	const FString ElemName = A.Str(TEXT("elementName"));
+	if (ElemName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("elementName required"));
+		return;
+	}
+	const FRigElementKey NewKey = S->Controller->AddBone(
+		FName(*ElemName), ParentBoneKey(A.Str(TEXT("parentName"))),
+		FTransform::Identity, true, ERigTransformType::InitialLocal);
+	if (!NewKey.IsValid()) Ctx.Entry->SetStringField(TEXT("error"), TEXT("Failed to add element"));
+	else
+	{
+		Ctx.Entry->SetStringField(TEXT("elementName"), ElemName);
+		MarkCRDirty(Ctx);
+	}
+}
+
+static void HandleCR_SetPinDefault(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	const FNexusArgs A(Op);
+	const FString PinPath = A.Str(TEXT("pinPath"));
+	const FString PinVal = A.Str(TEXT("pinDefaultValue"));
+	if (PinPath.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_pin_default requires pinPath"));
+		return;
+	}
+	URigVMController* VmCtrl = RequireVmCtrl(Ctx);
+	if (!VmCtrl) return;
+	const bool bOk = VmCtrl->SetPinDefaultValue(PinPath, PinVal, true, false, false);
+	if (!bOk) Ctx.Entry->SetStringField(TEXT("error"), TEXT("SetPinDefaultValue failed"));
+	else MarkCRDirty(Ctx);
+}
+
+bool FManageAssetControlRigCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UControlRigBlueprint* CRBp = FNexusAssetUtils::LoadAssetWithFallback<UControlRigBlueprint>(AssetPath);
+	if (!CRBp)
+	{
+		OutError = FString::Printf(TEXT("ControlRig Blueprint not found: %s"), *AssetPath);
+		return false;
+	}
+	URigHierarchy* Hier = CRBp->GetHierarchy();
+	URigHierarchyController* Controller = Hier ? Hier->GetController(true) : nullptr;
+	if (!Controller)
+	{
+		OutError = TEXT("Unable to get RigHierarchyController");
+		return false;
+	}
+	URigVMGraph* VmModel = CRBp->GetDefaultModel();
+	URigVMController* VmCtrl = VmModel ? CRBp->GetOrCreateController(VmModel) : nullptr;
+	FControlRigActionState* State = new FControlRigActionState();
+	State->CRBp = CRBp;
+	State->Hier = Hier;
+	State->Controller = Controller;
+	State->VmCtrl = VmCtrl;
+	OutTarget = State;
+	return true;
+}
+
+void FManageAssetControlRigCapability::AfterPrepareTarget(
+	void* Target,
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& OutTop) const
+{
+	(void)Args;
+	if (FControlRigActionState* State = static_cast<FControlRigActionState*>(Target))
+	{
+		State->OutTop = OutTop;
+	}
+}
+
+void FManageAssetControlRigCapability::FinalizeTarget(void* Target) const
+{
+	FControlRigActionState* State = static_cast<FControlRigActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->CRBp)
+	{
+		State->CRBp->MarkPackageDirty();
+		if (State->OutTop.IsValid())
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("ControlRig Blueprint not found: %s"), *AssetPath));
-			return;
+			State->OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
 		}
+	}
+	delete State;
+}
 
-		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (OpsArr.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing operations array"));
-			return;
-		}
-
-		URigHierarchy* Hier = CRBp->GetHierarchy();
-		URigHierarchyController* Controller = Hier ? Hier->GetController(true) : nullptr;
-		if (!Controller)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Unable to get RigHierarchyController"));
-			return;
-		}
-
-		// RigVM 控制器（用于图连线操作，惰性获取）
-		URigVMGraph* VmModel = CRBp->GetDefaultModel();
-		URigVMController* VmCtrl = VmModel ? CRBp->GetOrCreateController(VmModel) : nullptr;
-
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : OpsArr)
-		{
-			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpObjPtr;
-
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
-			TSharedPtr<FJsonObject> ResEntry = MakeShared<FJsonObject>();
-			ResEntry->SetStringField(TEXT("path"), AssetPath);
-			ResEntry->SetStringField(TEXT("action"), Action);
-
-			if (Action.Equals(TEXT("rename_element"), ESearchCase::IgnoreCase))
-			{
-				FString ElemName, NewName;
-				Op->TryGetStringField(TEXT("elementName"), ElemName);
-				Op->TryGetStringField(TEXT("newName"),     NewName);
-				if (ElemName.IsEmpty() || NewName.IsEmpty())
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("rename_element requires elementName + newName"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				// 尝试各类型
-				FRigElementKey Key;
-				for (ERigElementType T : {ERigElementType::Bone, ERigElementType::Control, ERigElementType::Null})
-				{
-					FRigElementKey Candidate(FName(*ElemName), T);
-					if (Hier->Contains(Candidate)) { Key = Candidate; break; }
-				}
-				if (!Key.IsValid())
-				{
-					ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Element not found: %s"), *ElemName));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				const bool bOk = Controller->RenameElement(Key, FName(*NewName));
-				bDirty |= bOk;
-				if (!bOk) ResEntry->SetStringField(TEXT("error"), TEXT("rename_element failed"));
-				else ResEntry->SetStringField(TEXT("newName"), NewName);
-			}
-			else if (Action.Equals(TEXT("set_control_color"), ESearchCase::IgnoreCase))
-			{
-				FString ElemName;
-				Op->TryGetStringField(TEXT("elementName"), ElemName);
-				if (ElemName.IsEmpty())
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("set_control_color requires elementName"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				const FRigElementKey Key(FName(*ElemName), ERigElementType::Control);
-				FRigControlElement* Ctrl = Hier->Find<FRigControlElement>(Key);
-				if (!Ctrl)
-				{
-					ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Control not found: %s"), *ElemName));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				double R = 1.0, G = 1.0, B = 1.0, A = 1.0;
-				Op->TryGetNumberField(TEXT("r"), R);
-				Op->TryGetNumberField(TEXT("g"), G);
-				Op->TryGetNumberField(TEXT("b"), B);
-				Op->TryGetNumberField(TEXT("a"), A);
-				Ctrl->Settings.ShapeColor = FLinearColor(
-					static_cast<float>(R), static_cast<float>(G),
-					static_cast<float>(B), static_cast<float>(A));
-				bDirty = true;
-			}
-			else if (Action.Equals(TEXT("add_null"), ESearchCase::IgnoreCase))
-			{
-				FString ElemName, ParentName;
-				Op->TryGetStringField(TEXT("elementName"), ElemName);
-				Op->TryGetStringField(TEXT("parentName"),  ParentName);
-				if (ElemName.IsEmpty())
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("add_null requires elementName"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				FRigElementKey ParentKey;
-				if (!ParentName.IsEmpty())
-					ParentKey = FRigElementKey(FName(*ParentName), ERigElementType::Bone);
-				const FRigElementKey NewKey = Controller->AddNull(FName(*ElemName), ParentKey);
-				bDirty = NewKey.IsValid();
-				if (!NewKey.IsValid()) ResEntry->SetStringField(TEXT("error"), TEXT("add_null failed"));
-				else ResEntry->SetStringField(TEXT("elementName"), ElemName);
-			}
-			else if (Action.Equals(TEXT("remove_element"), ESearchCase::IgnoreCase))
-			{
-				FString ElemName, ElemTypeStr;
-				Op->TryGetStringField(TEXT("elementName"),  ElemName);
-				Op->TryGetStringField(TEXT("elementType"),  ElemTypeStr);
-				ERigElementType ElemType = ERigElementType::None;
-				if (ElemTypeStr.Equals(TEXT("bone"), ESearchCase::IgnoreCase))      ElemType = ERigElementType::Bone;
-				else if (ElemTypeStr.Equals(TEXT("control"), ESearchCase::IgnoreCase)) ElemType = ERigElementType::Control;
-				else if (ElemTypeStr.Equals(TEXT("null"), ESearchCase::IgnoreCase))    ElemType = ERigElementType::Null;
-				if (ElemName.IsEmpty() || ElemType == ERigElementType::None)
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("remove_element requires elementName + elementType"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				const FRigElementKey Key(FName(*ElemName), ElemType);
-				const bool bOk = Controller->RemoveElement(Key);
-				bDirty |= bOk;
-				ResEntry->SetBoolField(TEXT("removed"), bOk);
-			}
-			else if (Action.Equals(TEXT("add_rig_link"), ESearchCase::IgnoreCase))
-			{
-				// 连接两个节点引脚，引脚路径格式：'NodePath.PinName'（从 get_asset_control_rig rigVmNodes 获取）
-				FString SrcPin, DstPin;
-				Op->TryGetStringField(TEXT("sourcePinPath"), SrcPin);
-				Op->TryGetStringField(TEXT("targetPinPath"), DstPin);
-				if (SrcPin.IsEmpty() || DstPin.IsEmpty())
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("add_rig_link requires sourcePinPath + targetPinPath"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				if (!VmCtrl)
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get RigVMController"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				const bool bOk = VmCtrl->AddLink(SrcPin, DstPin, false);
-				bDirty |= bOk;
-				if (!bOk)
-					ResEntry->SetStringField(TEXT("error"), TEXT("AddLink failed; check pin paths or type compatibility"));
-			}
-			else if (Action.Equals(TEXT("break_rig_link"), ESearchCase::IgnoreCase))
-			{
-				FString SrcPin, DstPin;
-				Op->TryGetStringField(TEXT("sourcePinPath"), SrcPin);
-				Op->TryGetStringField(TEXT("targetPinPath"), DstPin);
-				if (SrcPin.IsEmpty() || DstPin.IsEmpty())
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("break_rig_link requires sourcePinPath + targetPinPath"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				if (!VmCtrl)
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get RigVMController"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				const bool bOk = VmCtrl->BreakLink(SrcPin, DstPin, false);
-				bDirty |= bOk;
-				if (!bOk)
-					ResEntry->SetStringField(TEXT("error"), TEXT("BreakLink failed; check pin paths are connected"));
-			}
-			else if (Action.Equals(TEXT("add_rig_node"), ESearchCase::IgnoreCase))
-			{
-				// 在 RigVM 图中添加 Unit 节点；structType 为 UScriptStruct 名，如 'RigUnit_GetTransform'
-				FString StructType, NodeName;
-				Op->TryGetStringField(TEXT("structType"), StructType);
-				Op->TryGetStringField(TEXT("nodeName"),   NodeName);
-				if (StructType.IsEmpty())
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("add_rig_node requires structType"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				if (!VmCtrl)
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get RigVMController"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				// 查找 UScriptStruct
-				UScriptStruct* Struct = FindFirstObject<UScriptStruct>(*StructType,
-					EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
-				if (!Struct)
-				{
-					ResEntry->SetStringField(TEXT("error"),
-						FString::Printf(TEXT("UScriptStruct '%s' not found"), *StructType));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				URigVMNode* NewNode = VmCtrl->AddUnitNode(
-					Struct, TEXT("Execute"),
-					FVector2D::ZeroVector,
-					NodeName,
-					false);
-				if (NewNode)
-				{
-					bDirty = true;
-					ResEntry->SetStringField(TEXT("nodePath"), NewNode->GetNodePath());
-				}
-				else
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("AddUnitNode failed"));
-				}
-			}
-			else if (Action.Equals(TEXT("add_control"), ESearchCase::IgnoreCase)
-				|| Action.Equals(TEXT("add_bone"), ESearchCase::IgnoreCase))
-			{
-				FString ElemName, ParentName;
-				Op->TryGetStringField(TEXT("elementName"), ElemName);
-				Op->TryGetStringField(TEXT("parentName"), ParentName);
-				if (ElemName.IsEmpty())
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("elementName required"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				FRigElementKey ParentKey;
-				if (!ParentName.IsEmpty())
-					ParentKey = FRigElementKey(FName(*ParentName), ERigElementType::Bone);
-				FRigElementKey NewKey;
-				if (Action.Equals(TEXT("add_control"), ESearchCase::IgnoreCase))
-				{
-					FRigControlSettings Settings;
-					NewKey = Controller->AddControl(FName(*ElemName), ParentKey, Settings, FRigControlValue(), false);
-				}
-				else
-				{
-					NewKey = Controller->AddBone(FName(*ElemName), ParentKey, FTransform::Identity, true, ERigTransformType::InitialLocal);
-				}
-				bDirty = NewKey.IsValid();
-				if (!NewKey.IsValid()) ResEntry->SetStringField(TEXT("error"), TEXT("Failed to add element"));
-				else ResEntry->SetStringField(TEXT("elementName"), ElemName);
-			}
-			else if (Action.Equals(TEXT("set_pin_default"), ESearchCase::IgnoreCase))
-			{
-				FString PinPath, PinVal;
-				Op->TryGetStringField(TEXT("pinPath"), PinPath);
-				Op->TryGetStringField(TEXT("pinDefaultValue"), PinVal);
-				if (PinPath.IsEmpty())
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("set_pin_default requires pinPath"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				if (!VmCtrl)
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get RigVMController"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				const bool bOk = VmCtrl->SetPinDefaultValue(PinPath, PinVal, true, false, false);
-				bDirty |= bOk;
-				if (!bOk) ResEntry->SetStringField(TEXT("error"), TEXT("SetPinDefaultValue failed"));
-			}
-			else
-			{
-				ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
-		}
-
-		if (bDirty)
-		{
-			CRBp->MarkPackageDirty();
-			OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
-		}
-	});
+void FManageAssetControlRigCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("rename_element"),    &HandleCR_RenameElement);
+	OutHandlers.Add(TEXT("set_control_color"), &HandleCR_SetControlColor);
+	OutHandlers.Add(TEXT("add_null"),          &HandleCR_AddNull);
+	OutHandlers.Add(TEXT("remove_element"),    &HandleCR_RemoveElement);
+	OutHandlers.Add(TEXT("add_rig_link"),      &HandleCR_AddRigLink);
+	OutHandlers.Add(TEXT("break_rig_link"),    &HandleCR_BreakRigLink);
+	OutHandlers.Add(TEXT("add_rig_node"),      &HandleCR_AddRigNode);
+	OutHandlers.Add(TEXT("add_control"),       &HandleCR_AddControl);
+	OutHandlers.Add(TEXT("add_bone"),          &HandleCR_AddBone);
+	OutHandlers.Add(TEXT("set_pin_default"),   &HandleCR_SetPinDefault);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetControlRigCapability)

@@ -2,11 +2,10 @@
 
 #include "Capabilities/Asset/Paper2D/NexusManageAssetPaperTileMapCapability.h"
 #if WITH_PAPER2D
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "PaperTileMap.h"
 #include "PaperTileLayer.h"
@@ -49,245 +48,279 @@ void FManageAssetPaperTileMapCapability::BuildDefinition(FNexusCapabilityDefinit
 	Out.WhenToUse = TEXT("Edit PaperTileMap size/layers/cells; read via get_asset_paper_tile_map");
 }
 
-FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FPaperTileMapActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UPaperTileMap* Map = nullptr;
+	bool bDirty = false;
+};
+
+static FPaperTileMapActionState* TileMapState(FNexusActionContext& Ctx)
+{
+	return static_cast<FPaperTileMapActionState*>(Ctx.Target);
+}
+
+static UPaperTileMap* TileMapFrom(FNexusActionContext& Ctx)
+{
+	FPaperTileMapActionState* S = TileMapState(Ctx);
+	return S ? S->Map : nullptr;
+}
+
+static void MarkTileMapDirty(FNexusActionContext& Ctx)
+{
+	if (FPaperTileMapActionState* S = TileMapState(Ctx))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
-		UPaperTileMap* Map = FNexusAssetUtils::LoadAssetWithFallback<UPaperTileMap>(AssetPath);
-		if (!Map)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("Failed to load PaperTileMap: %s"), *AssetPath));
-			return;
-		}
+		S->bDirty = true;
+	}
+}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
+static UPaperTileLayer* ResolveLayerCell(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, int32& OutLayerIdx, int32& OutX, int32& OutY)
+{
+	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Op->HasField(TEXT("layerIndex")) || !Op->HasField(TEXT("x")) || !Op->HasField(TEXT("y")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_cell/clear_cell requires layerIndex、x、y"));
+		return nullptr;
+	}
+	OutLayerIdx = static_cast<int32>(Op->GetNumberField(TEXT("layerIndex")));
+	OutX = static_cast<int32>(Op->GetNumberField(TEXT("x")));
+	OutY = static_cast<int32>(Op->GetNumberField(TEXT("y")));
+	if (!Map->TileLayers.IsValidIndex(OutLayerIdx) || !Map->TileLayers[OutLayerIdx])
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Invalid layerIndex"));
+		return nullptr;
+	}
+	UPaperTileLayer* Layer = Map->TileLayers[OutLayerIdx];
+	if (!Layer->InBounds(OutX, OutY))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Cell coordinates out of bounds"));
+		return nullptr;
+	}
+	return Layer;
+}
 
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpPtr;
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
-			Action = Action.ToLower();
+static void HandlePTM_SetMapSize(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Op->HasField(TEXT("mapWidth")) || !Op->HasField(TEXT("mapHeight")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_map_size requires mapWidth and mapHeight"));
+		return;
+	}
+	const int32 W = FMath::Clamp(static_cast<int32>(Op->GetNumberField(TEXT("mapWidth"))), 1, 1024);
+	const int32 H = FMath::Clamp(static_cast<int32>(Op->GetNumberField(TEXT("mapHeight"))), 1, 1024);
+	Map->ResizeMap(W, H, /*bForceResize=*/true);
+	MarkTileMapDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("mapWidth"), Map->MapWidth);
+	Ctx.Entry->SetNumberField(TEXT("mapHeight"), Map->MapHeight);
+}
 
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
-			Entry->SetStringField(TEXT("action"), Action);
+static void HandlePTM_SetTileSize(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Op->HasField(TEXT("tileWidth")) && !Op->HasField(TEXT("tileHeight")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_tile_size requires tileWidth and/or tileHeight"));
+		return;
+	}
+	if (Op->HasField(TEXT("tileWidth")))
+	{
+		Map->TileWidth = FMath::Max(1, static_cast<int32>(Op->GetNumberField(TEXT("tileWidth"))));
+	}
+	if (Op->HasField(TEXT("tileHeight")))
+	{
+		Map->TileHeight = FMath::Max(1, static_cast<int32>(Op->GetNumberField(TEXT("tileHeight"))));
+	}
+	MarkTileMapDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("tileWidth"), Map->TileWidth);
+	Ctx.Entry->SetNumberField(TEXT("tileHeight"), Map->TileHeight);
+}
 
-			if (Action == TEXT("set_map_size"))
-			{
-				if (!Op->HasField(TEXT("mapWidth")) || !Op->HasField(TEXT("mapHeight")))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_map_size requires mapWidth and mapHeight"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				const int32 W = FMath::Clamp(static_cast<int32>(Op->GetNumberField(TEXT("mapWidth"))), 1, 1024);
-				const int32 H = FMath::Clamp(static_cast<int32>(Op->GetNumberField(TEXT("mapHeight"))), 1, 1024);
-				Map->ResizeMap(W, H, /*bForceResize=*/true);
-				bDirty = true;
-				Entry->SetNumberField(TEXT("mapWidth"), Map->MapWidth);
-				Entry->SetNumberField(TEXT("mapHeight"), Map->MapHeight);
-			}
-			else if (Action == TEXT("set_tile_size"))
-			{
-				if (!Op->HasField(TEXT("tileWidth")) && !Op->HasField(TEXT("tileHeight")))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_tile_size requires tileWidth and/or tileHeight"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				if (Op->HasField(TEXT("tileWidth")))
-				{
-					Map->TileWidth = FMath::Max(1, static_cast<int32>(Op->GetNumberField(TEXT("tileWidth"))));
-				}
-				if (Op->HasField(TEXT("tileHeight")))
-				{
-					Map->TileHeight = FMath::Max(1, static_cast<int32>(Op->GetNumberField(TEXT("tileHeight"))));
-				}
-				bDirty = true;
-				Entry->SetNumberField(TEXT("tileWidth"), Map->TileWidth);
-				Entry->SetNumberField(TEXT("tileHeight"), Map->TileHeight);
-			}
-			else if (Action == TEXT("set_tileset"))
-			{
-				FString TileSetPath;
-				if (!Op->TryGetStringField(TEXT("tileSetPath"), TileSetPath) || TileSetPath.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_tileset requires tileSetPath"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				UPaperTileSet* TileSet = FNexusAssetUtils::LoadAssetWithFallback<UPaperTileSet>(TileSetPath);
-				if (!TileSet)
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("PaperTileSet not found: %s"), *TileSetPath));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				Map->SelectedTileSet = TileSet;
-				bDirty = true;
-				Entry->SetStringField(TEXT("tileSet"), TileSet->GetPathName());
-			}
-			else if (Action == TEXT("add_layer"))
-			{
-				UPaperTileLayer* Layer = Map->AddNewLayer();
-				if (!Layer)
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("add_layer failed"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				FString LayerName;
-				if (Op->TryGetStringField(TEXT("layerName"), LayerName) && !LayerName.IsEmpty())
-				{
-					Layer->LayerName = FText::FromString(LayerName);
-				}
-				bDirty = true;
-				Entry->SetNumberField(TEXT("layerIndex"), Layer->GetLayerIndex());
-				Entry->SetStringField(TEXT("layerName"), Layer->LayerName.ToString());
-				Entry->SetNumberField(TEXT("layerCount"), Map->TileLayers.Num());
-			}
-			else if (Action == TEXT("remove_layer"))
-			{
-				if (!Op->HasField(TEXT("layerIndex")))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("remove_layer requires layerIndex"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("layerIndex")));
-				if (!Map->TileLayers.IsValidIndex(Idx))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("layerIndex out of bounds"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				if (Map->TileLayers.Num() <= 1)
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("Must keep at least one layer; cannot delete"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				UPaperTileLayer* Layer = Map->TileLayers[Idx];
-				Map->TileLayers.RemoveAt(Idx);
-				if (Layer)
-				{
+static void HandlePTM_SetTileset(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPaperTileMap* Map = TileMapFrom(Ctx);
+	const FString TileSetPath = FNexusArgs(Op).Str(TEXT("tileSetPath"));
+	if (TileSetPath.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_tileset requires tileSetPath"));
+		return;
+	}
+	UPaperTileSet* TileSet = FNexusAssetUtils::LoadAssetWithFallback<UPaperTileSet>(TileSetPath);
+	if (!TileSet)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("PaperTileSet not found: %s"), *TileSetPath));
+		return;
+	}
+	Map->SelectedTileSet = TileSet;
+	MarkTileMapDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("tileSet"), TileSet->GetPathName());
+}
+
+static void HandlePTM_AddLayer(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPaperTileMap* Map = TileMapFrom(Ctx);
+	UPaperTileLayer* Layer = Map->AddNewLayer();
+	if (!Layer)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_layer failed"));
+		return;
+	}
+	const FString LayerName = FNexusArgs(Op).Str(TEXT("layerName"));
+	if (!LayerName.IsEmpty())
+	{
+		Layer->LayerName = FText::FromString(LayerName);
+	}
+	MarkTileMapDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("layerIndex"), Layer->GetLayerIndex());
+	Ctx.Entry->SetStringField(TEXT("layerName"), Layer->LayerName.ToString());
+	Ctx.Entry->SetNumberField(TEXT("layerCount"), Map->TileLayers.Num());
+}
+
+static void HandlePTM_RemoveLayer(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Op->HasField(TEXT("layerIndex")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_layer requires layerIndex"));
+		return;
+	}
+	const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("layerIndex")));
+	if (!Map->TileLayers.IsValidIndex(Idx))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("layerIndex out of bounds"));
+		return;
+	}
+	if (Map->TileLayers.Num() <= 1)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Must keep at least one layer; cannot delete"));
+		return;
+	}
+	UPaperTileLayer* Layer = Map->TileLayers[Idx];
+	Map->TileLayers.RemoveAt(Idx);
+	if (Layer)
+	{
 #if NX_UE_HAS_MARK_AS_GARBAGE
-					Layer->MarkAsGarbage();
+		Layer->MarkAsGarbage();
 #else
-					Layer->MarkPendingKill();
+		Layer->MarkPendingKill();
 #endif
-				}
-				bDirty = true;
-				Entry->SetNumberField(TEXT("removedIndex"), Idx);
-				Entry->SetNumberField(TEXT("layerCount"), Map->TileLayers.Num());
-			}
-			else if (Action == TEXT("set_layer_name"))
-			{
-				if (!Op->HasField(TEXT("layerIndex")) || !Op->HasField(TEXT("layerName")))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_layer_name requires layerIndex and layerName"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("layerIndex")));
-				if (!Map->TileLayers.IsValidIndex(Idx) || !Map->TileLayers[Idx])
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("Invalid layerIndex"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				const FString LayerName = Op->GetStringField(TEXT("layerName"));
-				Map->TileLayers[Idx]->LayerName = FText::FromString(LayerName);
-				bDirty = true;
-				Entry->SetNumberField(TEXT("layerIndex"), Idx);
-				Entry->SetStringField(TEXT("layerName"), LayerName);
-			}
-			else if (Action == TEXT("set_cell") || Action == TEXT("clear_cell"))
-			{
-				if (!Op->HasField(TEXT("layerIndex")) || !Op->HasField(TEXT("x")) || !Op->HasField(TEXT("y")))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_cell/clear_cell requires layerIndex、x、y"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				const int32 LayerIdx = static_cast<int32>(Op->GetNumberField(TEXT("layerIndex")));
-				const int32 X = static_cast<int32>(Op->GetNumberField(TEXT("x")));
-				const int32 Y = static_cast<int32>(Op->GetNumberField(TEXT("y")));
-				if (!Map->TileLayers.IsValidIndex(LayerIdx) || !Map->TileLayers[LayerIdx])
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("Invalid layerIndex"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				UPaperTileLayer* Layer = Map->TileLayers[LayerIdx];
-				if (!Layer->InBounds(X, Y))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("Cell coordinates out of bounds"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
+	}
+	MarkTileMapDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("removedIndex"), Idx);
+	Ctx.Entry->SetNumberField(TEXT("layerCount"), Map->TileLayers.Num());
+}
 
-				FPaperTileInfo Info;
-				if (Action == TEXT("set_cell"))
-				{
-					if (!Op->HasField(TEXT("tileIndex")))
-					{
-						Entry->SetStringField(TEXT("error"), TEXT("set_cell requires tileIndex"));
-						OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-						continue;
-					}
-					UPaperTileSet* TileSet = nullptr;
-					FString TileSetPath;
-					if (Op->TryGetStringField(TEXT("tileSetPath"), TileSetPath) && !TileSetPath.IsEmpty())
-					{
-						TileSet = FNexusAssetUtils::LoadAssetWithFallback<UPaperTileSet>(TileSetPath);
-					}
-					else
-					{
-						TileSet = Map->SelectedTileSet.LoadSynchronous();
-					}
-					if (!TileSet)
-					{
-						Entry->SetStringField(TEXT("error"), TEXT("set_cell requires valid TileSet (tileSetPath or SelectedTileSet)"));
-						OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-						continue;
-					}
-					Info.TileSet = TileSet;
-					Info.PackedTileIndex = static_cast<int32>(Op->GetNumberField(TEXT("tileIndex")));
-					Entry->SetNumberField(TEXT("tileIndex"), Info.GetTileIndex());
-					Entry->SetStringField(TEXT("tileSet"), TileSet->GetPathName());
-				}
+static void HandlePTM_SetLayerName(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Op->HasField(TEXT("layerIndex")) || !Op->HasField(TEXT("layerName")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_layer_name requires layerIndex and layerName"));
+		return;
+	}
+	const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("layerIndex")));
+	if (!Map->TileLayers.IsValidIndex(Idx) || !Map->TileLayers[Idx])
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Invalid layerIndex"));
+		return;
+	}
+	const FString LayerName = Op->GetStringField(TEXT("layerName"));
+	Map->TileLayers[Idx]->LayerName = FText::FromString(LayerName);
+	MarkTileMapDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("layerIndex"), Idx);
+	Ctx.Entry->SetStringField(TEXT("layerName"), LayerName);
+}
 
-				Layer->SetCell(X, Y, Info);
-				bDirty = true;
-				Entry->SetNumberField(TEXT("layerIndex"), LayerIdx);
-				Entry->SetNumberField(TEXT("x"), X);
-				Entry->SetNumberField(TEXT("y"), Y);
-			}
-			else
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
+static void HandlePTM_SetCell(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPaperTileMap* Map = TileMapFrom(Ctx);
+	int32 LayerIdx = 0, X = 0, Y = 0;
+	UPaperTileLayer* Layer = ResolveLayerCell(Op, Ctx, LayerIdx, X, Y);
+	if (!Layer) return;
+	if (!Op->HasField(TEXT("tileIndex")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_cell requires tileIndex"));
+		return;
+	}
+	UPaperTileSet* TileSet = nullptr;
+	const FString TileSetPath = FNexusArgs(Op).Str(TEXT("tileSetPath"));
+	if (!TileSetPath.IsEmpty())
+	{
+		TileSet = FNexusAssetUtils::LoadAssetWithFallback<UPaperTileSet>(TileSetPath);
+	}
+	else
+	{
+		TileSet = Map->SelectedTileSet.LoadSynchronous();
+	}
+	if (!TileSet)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_cell requires valid TileSet (tileSetPath or SelectedTileSet)"));
+		return;
+	}
+	FPaperTileInfo Info;
+	Info.TileSet = TileSet;
+	Info.PackedTileIndex = static_cast<int32>(Op->GetNumberField(TEXT("tileIndex")));
+	Layer->SetCell(X, Y, Info);
+	MarkTileMapDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("tileIndex"), Info.GetTileIndex());
+	Ctx.Entry->SetStringField(TEXT("tileSet"), TileSet->GetPathName());
+	Ctx.Entry->SetNumberField(TEXT("layerIndex"), LayerIdx);
+	Ctx.Entry->SetNumberField(TEXT("x"), X);
+	Ctx.Entry->SetNumberField(TEXT("y"), Y);
+}
 
-		if (bDirty)
-		{
-			Map->MarkPackageDirty();
-		}
-	});
+static void HandlePTM_ClearCell(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	int32 LayerIdx = 0, X = 0, Y = 0;
+	UPaperTileLayer* Layer = ResolveLayerCell(Op, Ctx, LayerIdx, X, Y);
+	if (!Layer) return;
+	Layer->SetCell(X, Y, FPaperTileInfo());
+	MarkTileMapDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("layerIndex"), LayerIdx);
+	Ctx.Entry->SetNumberField(TEXT("x"), X);
+	Ctx.Entry->SetNumberField(TEXT("y"), Y);
+}
+
+bool FManageAssetPaperTileMapCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UPaperTileMap* Map = FNexusAssetUtils::LoadAssetWithFallback<UPaperTileMap>(AssetPath);
+	if (!Map)
+	{
+		OutError = FString::Printf(TEXT("Failed to load PaperTileMap: %s"), *AssetPath);
+		return false;
+	}
+	FPaperTileMapActionState* State = new FPaperTileMapActionState();
+	State->Map = Map;
+	OutTarget = State;
+	return true;
+}
+
+void FManageAssetPaperTileMapCapability::FinalizeTarget(void* Target) const
+{
+	FPaperTileMapActionState* State = static_cast<FPaperTileMapActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->Map)
+	{
+		State->Map->MarkPackageDirty();
+	}
+	delete State;
+}
+
+void FManageAssetPaperTileMapCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_map_size"),   &HandlePTM_SetMapSize);
+	OutHandlers.Add(TEXT("set_tile_size"),  &HandlePTM_SetTileSize);
+	OutHandlers.Add(TEXT("set_tileset"),    &HandlePTM_SetTileset);
+	OutHandlers.Add(TEXT("add_layer"),      &HandlePTM_AddLayer);
+	OutHandlers.Add(TEXT("remove_layer"),   &HandlePTM_RemoveLayer);
+	OutHandlers.Add(TEXT("set_layer_name"), &HandlePTM_SetLayerName);
+	OutHandlers.Add(TEXT("set_cell"),       &HandlePTM_SetCell);
+	OutHandlers.Add(TEXT("clear_cell"),     &HandlePTM_ClearCell);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetPaperTileMapCapability)

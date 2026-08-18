@@ -4,8 +4,7 @@
 
 #if WITH_IK_RIG
 
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -45,141 +44,204 @@ void FManageAssetIKRigCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 	Out.WhenToUse = TEXT("Edit IKRig properties; persist with save_asset after changes");
 }
 
-FCapabilityResult FManageAssetIKRigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FIKRigActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UIKRigDefinition* IKRig = nullptr;
+	bool bDirty = false;
+	TSharedPtr<FJsonObject> OutTop;
+};
+
+static FIKRigActionState* IKState(FNexusActionContext& Ctx)
+{
+	return static_cast<FIKRigActionState*>(Ctx.Target);
+}
+
+static UIKRigDefinition* IKFrom(FNexusActionContext& Ctx)
+{
+	FIKRigActionState* S = IKState(Ctx);
+	return S ? S->IKRig : nullptr;
+}
+
+static void MarkIKDirty(FNexusActionContext& Ctx)
+{
+	if (FIKRigActionState* S = IKState(Ctx))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		S->bDirty = true;
+	}
+}
 
-		UIKRigDefinition* IKRig = FNexusAssetUtils::LoadAssetWithFallback<UIKRigDefinition>(AssetPath);
-		if (!IKRig)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("IKRig not found: %s"), *AssetPath));
-			return;
-		}
+static void HandleIK_SetPreviewMesh(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UIKRigDefinition* IKRig = IKFrom(Ctx);
+	const FString MeshPath = FNexusArgs(Op).Str(TEXT("meshPath"));
+	if (MeshPath.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_preview_mesh requires meshPath"));
+		return;
+	}
+	USkeletalMesh* Mesh = FNexusAssetUtils::LoadAssetWithFallback<USkeletalMesh>(MeshPath);
+	if (!Mesh)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("SkeletalMesh not found: %s"), *MeshPath));
+		return;
+	}
+	IKRig->SetPreviewMesh(Mesh, true);
+	MarkIKDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("meshPath"), MeshPath);
+}
 
-		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (OpsArr.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing operations array"));
-			return;
-		}
-
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : OpsArr)
-		{
-			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpObjPtr;
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
-			TSharedPtr<FJsonObject> ResEntry = MakeShared<FJsonObject>();
-			ResEntry->SetStringField(TEXT("path"), AssetPath);
-			ResEntry->SetStringField(TEXT("action"), Action);
-
-			if (Action.Equals(TEXT("set_preview_mesh"), ESearchCase::IgnoreCase))
-			{
-				FString MeshPath;
-				Op->TryGetStringField(TEXT("meshPath"), MeshPath);
-				if (MeshPath.IsEmpty())
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("set_preview_mesh requires meshPath"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				USkeletalMesh* Mesh = FNexusAssetUtils::LoadAssetWithFallback<USkeletalMesh>(MeshPath);
-				if (!Mesh)
-				{
-					ResEntry->SetStringField(TEXT("error"),
-						FString::Printf(TEXT("SkeletalMesh not found: %s"), *MeshPath));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				IKRig->SetPreviewMesh(Mesh, true);
-				bDirty = true;
-				ResEntry->SetStringField(TEXT("meshPath"), MeshPath);
-			}
-			else if (Action.Equals(TEXT("set_solver_enabled"), ESearchCase::IgnoreCase))
-			{
-				int32 SolverIdx = -1;
-				if (Op->HasField(TEXT("solverIndex")))
-					SolverIdx = static_cast<int32>(Op->GetNumberField(TEXT("solverIndex")));
-				bool bEnabled = true;
-				if (Op->HasField(TEXT("enabled")))
-					Op->TryGetBoolField(TEXT("enabled"), bEnabled);
-				// mutable access via GetSolverArray (const) -- need cast
-				const TArray<UIKRigSolver*>& Solvers = IKRig->GetSolverArray();
-				if (!Solvers.IsValidIndex(SolverIdx))
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("solverIndex out of bounds"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				// IKRig asset's solvers are read-only; modification requires IKRigController API
-				// but IKRigController is editor-only (IKRigDeveloper module)
+static void HandleIK_SetSolverEnabled(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UIKRigDefinition* IKRig = IKFrom(Ctx);
+	int32 SolverIdx = -1;
+	if (Op->HasField(TEXT("solverIndex")))
+		SolverIdx = static_cast<int32>(Op->GetNumberField(TEXT("solverIndex")));
+	bool bEnabled = true;
+	if (Op->HasField(TEXT("enabled")))
+		Op->TryGetBoolField(TEXT("enabled"), bEnabled);
+	const TArray<UIKRigSolver*>& Solvers = IKRig->GetSolverArray();
+	if (!Solvers.IsValidIndex(SolverIdx))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("solverIndex out of bounds"));
+		return;
+	}
 #if WITH_EDITOR
-				Solvers[SolverIdx]->SetEnabled(bEnabled);
-				bDirty = true;
-				ResEntry->SetNumberField(TEXT("solverIndex"), SolverIdx);
-				ResEntry->SetBoolField(TEXT("enabled"), bEnabled);
+	Solvers[SolverIdx]->SetEnabled(bEnabled);
+	MarkIKDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("solverIndex"), SolverIdx);
+	Ctx.Entry->SetBoolField(TEXT("enabled"), bEnabled);
 #else
-				ResEntry->SetStringField(TEXT("error"), TEXT("set_solver_enabled editor only"));
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_solver_enabled editor only"));
 #endif
-			}
-			else if (Action.Equals(TEXT("add_chain"), ESearchCase::IgnoreCase)
-				|| Action.Equals(TEXT("remove_chain"), ESearchCase::IgnoreCase)
-				|| Action.Equals(TEXT("set_goal"), ESearchCase::IgnoreCase))
-			{
-#if WITH_EDITOR
-				UIKRigController* Ctrl = UIKRigController::GetController(IKRig);
-				if (!Ctrl)
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get IKRigController"));
-				}
-				else
-				{
-					FString ChainName, StartBone, EndBone, GoalName;
-					Op->TryGetStringField(TEXT("chainName"), ChainName);
-					Op->TryGetStringField(TEXT("startBone"), StartBone);
-					Op->TryGetStringField(TEXT("endBone"), EndBone);
-					Op->TryGetStringField(TEXT("goalName"), GoalName);
-					if (ChainName.IsEmpty())
-					{
-						ResEntry->SetStringField(TEXT("error"), TEXT("chainName required"));
-					}
-					else if (Action.Equals(TEXT("add_chain"), ESearchCase::IgnoreCase))
-					{
-						Ctrl->AddRetargetChain(FName(*ChainName), FName(*StartBone), FName(*EndBone));
-						bDirty = true;
-						ResEntry->SetStringField(TEXT("chainName"), ChainName);
-					}
-					else if (Action.Equals(TEXT("remove_chain"), ESearchCase::IgnoreCase))
-					{
-						Ctrl->RemoveRetargetChain(FName(*ChainName));
-						bDirty = true;
-					}
-					else
-					{
-						Ctrl->SetRetargetChainGoal(FName(*ChainName), FName(*GoalName));
-						bDirty = true;
-					}
-				}
-#else
-				ResEntry->SetStringField(TEXT("error"), TEXT("chain/goal editor only"));
-#endif
-			}
-			else
-			{
-				ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
-		}
+}
 
-		if (bDirty)
+#if WITH_EDITOR
+static UIKRigController* RequireIKController(FNexusActionContext& Ctx)
+{
+	UIKRigController* Ctrl = UIKRigController::GetController(IKFrom(Ctx));
+	if (!Ctrl)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to get IKRigController"));
+	}
+	return Ctrl;
+}
+#endif
+
+static void HandleIK_AddChain(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+#if WITH_EDITOR
+	UIKRigController* Ctrl = RequireIKController(Ctx);
+	if (!Ctrl) return;
+	const FNexusArgs A(Op);
+	const FString ChainName = A.Str(TEXT("chainName"));
+	if (ChainName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("chainName required"));
+		return;
+	}
+	Ctrl->AddRetargetChain(FName(*ChainName), FName(*A.Str(TEXT("startBone"))), FName(*A.Str(TEXT("endBone"))));
+	MarkIKDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("chainName"), ChainName);
+#else
+	(void)Op;
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("chain/goal editor only"));
+#endif
+}
+
+static void HandleIK_RemoveChain(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+#if WITH_EDITOR
+	UIKRigController* Ctrl = RequireIKController(Ctx);
+	if (!Ctrl) return;
+	const FString ChainName = FNexusArgs(Op).Str(TEXT("chainName"));
+	if (ChainName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("chainName required"));
+		return;
+	}
+	Ctrl->RemoveRetargetChain(FName(*ChainName));
+	MarkIKDirty(Ctx);
+#else
+	(void)Op;
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("chain/goal editor only"));
+#endif
+}
+
+static void HandleIK_SetGoal(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+#if WITH_EDITOR
+	UIKRigController* Ctrl = RequireIKController(Ctx);
+	if (!Ctrl) return;
+	const FNexusArgs A(Op);
+	const FString ChainName = A.Str(TEXT("chainName"));
+	if (ChainName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("chainName required"));
+		return;
+	}
+	Ctrl->SetRetargetChainGoal(FName(*ChainName), FName(*A.Str(TEXT("goalName"))));
+	MarkIKDirty(Ctx);
+#else
+	(void)Op;
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("chain/goal editor only"));
+#endif
+}
+
+bool FManageAssetIKRigCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UIKRigDefinition* IKRig = FNexusAssetUtils::LoadAssetWithFallback<UIKRigDefinition>(AssetPath);
+	if (!IKRig)
+	{
+		OutError = FString::Printf(TEXT("IKRig not found: %s"), *AssetPath);
+		return false;
+	}
+	FIKRigActionState* State = new FIKRigActionState();
+	State->IKRig = IKRig;
+	OutTarget = State;
+	return true;
+}
+
+void FManageAssetIKRigCapability::AfterPrepareTarget(
+	void* Target,
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& OutTop) const
+{
+	(void)Args;
+	if (FIKRigActionState* State = static_cast<FIKRigActionState*>(Target))
+	{
+		State->OutTop = OutTop;
+	}
+}
+
+void FManageAssetIKRigCapability::FinalizeTarget(void* Target) const
+{
+	FIKRigActionState* State = static_cast<FIKRigActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->IKRig)
+	{
+		State->IKRig->MarkPackageDirty();
+		if (State->OutTop.IsValid())
 		{
-			IKRig->MarkPackageDirty();
-			OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
+			State->OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
 		}
-	});
+	}
+	delete State;
+}
+
+void FManageAssetIKRigCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_preview_mesh"),   &HandleIK_SetPreviewMesh);
+	OutHandlers.Add(TEXT("set_solver_enabled"), &HandleIK_SetSolverEnabled);
+	OutHandlers.Add(TEXT("add_chain"),          &HandleIK_AddChain);
+	OutHandlers.Add(TEXT("remove_chain"),       &HandleIK_RemoveChain);
+	OutHandlers.Add(TEXT("set_goal"),           &HandleIK_SetGoal);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetIKRigCapability)

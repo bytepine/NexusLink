@@ -47,14 +47,6 @@
 		{
 			"Name": "WebSocketNetworking",
 			"Enabled": true
-		},
-		{
-			"Name": "GameplayAbilities",
-			"Enabled": true
-		},
-		{
-			"Name": "Niagara",
-			"Enabled": true
 		}
 	]
 }

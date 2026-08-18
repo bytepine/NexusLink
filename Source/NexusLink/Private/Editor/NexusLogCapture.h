@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/OutputDevice.h"
+#include "Utils/NexusStringMatchUtils.h"
 
 /**
  * 日志条目结构体，记录单条输出日志的完整信息。
@@ -132,15 +133,18 @@ protected:
 	virtual bool CanBeUsedOnMultipleThreads() const override { return true; }
 
 private:
-	/** 判断某分类是否在白名单内（白名单为空则全部通过） */
+	/** 判断某分类是否在白名单内（白名单为空则全部通过）。须已持锁。 */
 	bool IsAllowed(const FName& Category) const;
 
 	/** 查询过滤：是否匹配当前条件（不含 SinceSequence，调用方自判） */
 	static bool MatchesFilters(
 		const FNexusLogEntry& E,
-		const FString& CategoryFilter,
+		const FNexusCompiledStringPattern& CategoryFilter,
 		ELogVerbosity::Type VerbosityFilter,
-		const TArray<FString>& TextFilters);
+		const TArray<FNexusCompiledStringPattern>& TextFilters);
+
+	/** 拷贝当前环形缓冲有效区（持锁）；调用方在锁外过滤，避免 Query 卡住 Serialize。 */
+	void CopyFilledEntries(TArray<FNexusLogEntry>& Out) const;
 
 	/** 在已持锁前提下写入环形缓冲区 */
 	void WriteEntryLocked(const FString& Category, ELogVerbosity::Type Verbosity, const TCHAR* Message);
@@ -157,10 +161,11 @@ private:
 	bool bRegistered = false;
 
 	/**
-	 * 分类白名单（全大写存储，比较时统一转大写）。
-	 * 空 = 捕获全部。
+	 * 分类白名单（全大写存储，子串回退比较用）。
+	 * 空 = 捕获全部。ExactWhitelist 为 FName 精确命中（无堆分配）。
 	 */
 	TArray<FString> Whitelist;
+	TSet<FName> ExactWhitelist;
 
 	static FNexusLogCapture* Singleton;
 };

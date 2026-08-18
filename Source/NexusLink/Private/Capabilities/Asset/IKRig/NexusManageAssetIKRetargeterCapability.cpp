@@ -4,8 +4,7 @@
 
 #if WITH_IK_RIG
 
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -36,109 +35,149 @@ void FManageAssetIKRetargeterCapability::BuildDefinition(FNexusCapabilityDefinit
 	Out.WhenToUse = TEXT("Edit IKRetargeter bindings; persist with save_asset after changes");
 }
 
-FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FIKRetargeterActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UIKRetargeter* Retargeter = nullptr;
+	bool bDirty = false;
+	TSharedPtr<FJsonObject> OutTop;
+};
+
+static FIKRetargeterActionState* IKRState(FNexusActionContext& Ctx)
+{
+	return static_cast<FIKRetargeterActionState*>(Ctx.Target);
+}
+
+static UIKRetargeter* IKRFrom(FNexusActionContext& Ctx)
+{
+	FIKRetargeterActionState* S = IKRState(Ctx);
+	return S ? S->Retargeter : nullptr;
+}
+
+static void MarkIKRDirty(FNexusActionContext& Ctx)
+{
+	if (FIKRetargeterActionState* S = IKRState(Ctx))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		S->bDirty = true;
+	}
+}
 
-		UIKRetargeter* Retargeter = FNexusAssetUtils::LoadAssetWithFallback<UIKRetargeter>(AssetPath);
-		if (!Retargeter)
+static void HandleIKR_SetRig(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, bool bSource)
+{
+	UIKRetargeter* Retargeter = IKRFrom(Ctx);
+	const FString RigPath = FNexusArgs(Op).Str(TEXT("rigPath"));
+	if (RigPath.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("rigPath required"));
+		return;
+	}
+	UIKRigDefinition* IKRig = FNexusAssetUtils::LoadAssetWithFallback<UIKRigDefinition>(RigPath);
+	if (!IKRig)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("IKRig not found: %s"), *RigPath));
+		return;
+	}
+	const FName FieldName = bSource
+		? FName(TEXT("SourceIKRigAsset"))
+		: FName(TEXT("TargetIKRigAsset"));
+	if (FSoftObjectProperty* Prop = FindFProperty<FSoftObjectProperty>(Retargeter->GetClass(), FieldName))
+	{
+		Prop->SetPropertyValue_InContainer(Retargeter, FSoftObjectPtr(IKRig));
+		MarkIKRDirty(Ctx);
+		Ctx.Entry->SetStringField(TEXT("rigPath"), RigPath);
+	}
+	else
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Reflection field not found"));
+	}
+}
+
+static void HandleIKR_SetSourceRig(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	HandleIKR_SetRig(Op, Ctx, true);
+}
+
+static void HandleIKR_SetTargetRig(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	HandleIKR_SetRig(Op, Ctx, false);
+}
+
+static void HandleIKR_SetChainSource(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UIKRetargeter* Retargeter = IKRFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString TargetChain = A.Str(TEXT("targetChain"));
+	const FString SourceChain = A.Str(TEXT("sourceChain"));
+	if (TargetChain.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_chain_source requires targetChain"));
+		return;
+	}
+	const TObjectPtr<URetargetChainSettings> CS = Retargeter->GetChainMapByName(FName(*TargetChain));
+	if (!CS)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("Chain not found: %s"), *TargetChain));
+		return;
+	}
+	CS->SourceChain = FName(*SourceChain);
+	MarkIKRDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("targetChain"), TargetChain);
+	Ctx.Entry->SetStringField(TEXT("sourceChain"), SourceChain);
+}
+
+bool FManageAssetIKRetargeterCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UIKRetargeter* Retargeter = FNexusAssetUtils::LoadAssetWithFallback<UIKRetargeter>(AssetPath);
+	if (!Retargeter)
+	{
+		OutError = FString::Printf(TEXT("IKRetargeter not found: %s"), *AssetPath);
+		return false;
+	}
+	FIKRetargeterActionState* State = new FIKRetargeterActionState();
+	State->Retargeter = Retargeter;
+	OutTarget = State;
+	return true;
+}
+
+void FManageAssetIKRetargeterCapability::AfterPrepareTarget(
+	void* Target,
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& OutTop) const
+{
+	(void)Args;
+	if (FIKRetargeterActionState* State = static_cast<FIKRetargeterActionState*>(Target))
+	{
+		State->OutTop = OutTop;
+	}
+}
+
+void FManageAssetIKRetargeterCapability::FinalizeTarget(void* Target) const
+{
+	FIKRetargeterActionState* State = static_cast<FIKRetargeterActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->Retargeter)
+	{
+		State->Retargeter->MarkPackageDirty();
+		if (State->OutTop.IsValid())
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("IKRetargeter not found: %s"), *AssetPath));
-			return;
+			State->OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
 		}
+	}
+	delete State;
+}
 
-		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (OpsArr.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing operations array"));
-			return;
-		}
-
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : OpsArr)
-		{
-			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpObjPtr;
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
-			TSharedPtr<FJsonObject> ResEntry = MakeShared<FJsonObject>();
-			ResEntry->SetStringField(TEXT("path"), AssetPath);
-			ResEntry->SetStringField(TEXT("action"), Action);
-
-			if (Action.Equals(TEXT("set_source_rig"), ESearchCase::IgnoreCase)
-				|| Action.Equals(TEXT("set_target_rig"), ESearchCase::IgnoreCase))
-			{
-				FString RigPath;
-				Op->TryGetStringField(TEXT("rigPath"), RigPath);
-				if (RigPath.IsEmpty())
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("rigPath required"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				UIKRigDefinition* IKRig = FNexusAssetUtils::LoadAssetWithFallback<UIKRigDefinition>(RigPath);
-				if (!IKRig)
-				{
-					ResEntry->SetStringField(TEXT("error"),
-						FString::Printf(TEXT("IKRig not found: %s"), *RigPath));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				// 通过 GetIKRigWriteable 修改 (bypasses controller for simplicity)
-				// Use reflection to set TSoftObjectPtr fields
-				const bool bSource = Action.Equals(TEXT("set_source_rig"), ESearchCase::IgnoreCase);
-				const FName FieldName = bSource
-					? FName(TEXT("SourceIKRigAsset"))
-					: FName(TEXT("TargetIKRigAsset"));
-				if (FSoftObjectProperty* Prop = FindFProperty<FSoftObjectProperty>(Retargeter->GetClass(), FieldName))
-				{
-					Prop->SetPropertyValue_InContainer(Retargeter, FSoftObjectPtr(IKRig));
-					bDirty = true;
-					ResEntry->SetStringField(TEXT("rigPath"), RigPath);
-				}
-				else
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("Reflection field not found"));
-				}
-			}
-			else if (Action.Equals(TEXT("set_chain_source"), ESearchCase::IgnoreCase))
-			{
-				FString TargetChain, SourceChain;
-				Op->TryGetStringField(TEXT("targetChain"), TargetChain);
-				Op->TryGetStringField(TEXT("sourceChain"), SourceChain);
-				if (TargetChain.IsEmpty())
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("set_chain_source requires targetChain"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				const TObjectPtr<URetargetChainSettings> CS = Retargeter->GetChainMapByName(FName(*TargetChain));
-				if (!CS)
-				{
-					ResEntry->SetStringField(TEXT("error"),
-						FString::Printf(TEXT("Chain not found: %s"), *TargetChain));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
-				}
-				CS->SourceChain = FName(*SourceChain);
-				bDirty = true;
-				ResEntry->SetStringField(TEXT("targetChain"), TargetChain);
-				ResEntry->SetStringField(TEXT("sourceChain"), SourceChain);
-			}
-			else
-			{
-				ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
-		}
-
-		if (bDirty)
-		{
-			Retargeter->MarkPackageDirty();
-			OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
-		}
-	});
+void FManageAssetIKRetargeterCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_source_rig"),   &HandleIKR_SetSourceRig);
+	OutHandlers.Add(TEXT("set_target_rig"),   &HandleIKR_SetTargetRig);
+	OutHandlers.Add(TEXT("set_chain_source"), &HandleIKR_SetChainSource);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetIKRetargeterCapability)

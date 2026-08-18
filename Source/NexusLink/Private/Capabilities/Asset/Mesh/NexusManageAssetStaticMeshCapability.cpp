@@ -1,8 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Mesh/NexusManageAssetStaticMeshCapability.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -137,296 +136,306 @@ void FManageAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefinitio
 	Out.WhenToUse = TEXT("Edit StaticMesh material/collision/Socket/LOD; persist with save_asset");
 }
 
-FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+static UStaticMesh* MeshFrom(FNexusActionContext& Ctx)
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	return static_cast<UStaticMesh*>(Ctx.Target);
+}
+
+static void MarkMeshDirty(FNexusActionContext& Ctx)
+{
+	if (UStaticMesh* Mesh = MeshFrom(Ctx))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		Mesh->MarkPackageDirty();
+	}
+}
 
-		UStaticMesh* Mesh = FNexusAssetUtils::LoadAssetWithFallback<UStaticMesh>(AssetPath);
-		if (!Mesh)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("StaticMesh not found: %s"), *AssetPath));
-			return;
-		}
-
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
-
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpObjPtr;
-
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
-
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
-			Entry->SetStringField(TEXT("action"), Action);
-
-			if (Action.Equals(TEXT("set_material_slot"), ESearchCase::IgnoreCase))
-			{
-				int32 SlotIndex = 0;
-				FString MaterialPath;
-				if (Op->HasField(TEXT("slotIndex")))
-					SlotIndex = static_cast<int32>(Op->GetNumberField(TEXT("slotIndex")));
-				Op->TryGetStringField(TEXT("materialPath"), MaterialPath);
-				if (MaterialPath.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_material_slot requires materialPath"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, *MaterialPath);
-				if (!Material)
-				{
-					Material = FNexusAssetUtils::LoadAssetWithFallback<UMaterialInterface>(MaterialPath);
-				}
-				const TArray<FStaticMaterial>& Materials = FNexusAssetUtils::GetStaticMeshMaterials(*Mesh);
-				if (!Materials.IsValidIndex(SlotIndex))
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Material slot index %d out of range [0, %d)"), SlotIndex, Materials.Num()));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
+static void HandleSM_SetMaterialSlot(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UStaticMesh* Mesh = MeshFrom(Ctx);
+	const FNexusArgs A(Op);
+	const int32 SlotIndex = static_cast<int32>(A.Num(TEXT("slotIndex")));
+	const FString MaterialPath = A.Str(TEXT("materialPath"));
+	if (MaterialPath.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_material_slot requires materialPath"));
+		return;
+	}
+	UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, *MaterialPath);
+	if (!Material)
+	{
+		Material = FNexusAssetUtils::LoadAssetWithFallback<UMaterialInterface>(MaterialPath);
+	}
+	const TArray<FStaticMaterial>& Materials = FNexusAssetUtils::GetStaticMeshMaterials(*Mesh);
+	if (!Materials.IsValidIndex(SlotIndex))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Material slot index %d out of range [0, %d)"), SlotIndex, Materials.Num()));
+		return;
+	}
 #if WITH_EDITOR
-				Mesh->SetMaterial(SlotIndex, Material);
-				bDirty = true;
-				Entry->SetNumberField(TEXT("slotIndex"), SlotIndex);
-				Entry->SetStringField(TEXT("materialClass"), Material ? Material->GetClass()->GetName() : TEXT("None"));
-				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+	Mesh->SetMaterial(SlotIndex, Material);
+	MarkMeshDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("slotIndex"), SlotIndex);
+	Ctx.Entry->SetStringField(TEXT("materialClass"), Material ? Material->GetClass()->GetName() : TEXT("None"));
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 #else
-				Entry->SetStringField(TEXT("error"), TEXT("set_material_slot only available in editor builds"));
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_material_slot only available in editor builds"));
 #endif
-			}
-			else if (Action.Equals(TEXT("set_property"), ESearchCase::IgnoreCase))
-			{
-				FString PropPath, Value;
-				Op->TryGetStringField(TEXT("propertyPath"), PropPath);
-				Op->TryGetStringField(TEXT("value"), Value);
-				if (PropPath.IsEmpty() || Value.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				FString OldVal, ActualVal, Err;
-				if (!FNexusPropertyUtils::WritePropertyAndEcho(Mesh, { PropPath }, 0, Value, OldVal, ActualVal, Err))
-				{
-					Entry->SetStringField(TEXT("error"), Err);
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				bDirty = true;
-				Entry->SetStringField(TEXT("propertyPath"), PropPath);
-				if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
-				if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-			}
-			else if (Action.Equals(TEXT("set_collision_trace_flag"), ESearchCase::IgnoreCase))
-			{
-				FString FlagText;
-				Op->TryGetStringField(TEXT("collisionTraceFlag"), FlagText);
-				if (FlagText.IsEmpty()) Op->TryGetStringField(TEXT("value"), FlagText);
-				ECollisionTraceFlag Flag;
-				FString FlagErr;
-				if (!ParseCollisionTraceFlag(FlagText, Flag, FlagErr))
-				{
-					Entry->SetStringField(TEXT("error"), FlagErr);
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				UBodySetup* Body = EnsureBodySetup(Mesh);
-				if (!Body)
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("Unable to create BodySetup"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				Body->CollisionTraceFlag = Flag;
-				InvalidateCollision(Mesh, Body);
-				bDirty = true;
-				Entry->SetStringField(TEXT("collisionTraceFlag"), FlagText.IsEmpty() ? TEXT("UseDefault") : FlagText);
-				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-			}
-			else if (Action.Equals(TEXT("add_box_collision"), ESearchCase::IgnoreCase))
-			{
-				UBodySetup* Body = EnsureBodySetup(Mesh);
-				if (!Body)
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("Unable to create BodySetup"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				FVector Center(0.f), Extent(50.f, 50.f, 50.f);
-				ParseStaticMeshVec3(Op, TEXT("locX"), TEXT("locY"), TEXT("locZ"), Center, FVector::ZeroVector);
-				if (!ParseStaticMeshVec3(Op, TEXT("extentX"), TEXT("extentY"), TEXT("extentZ"), Extent, Extent))
-				{
-					ParseStaticMeshVec3(Op, TEXT("x"), TEXT("y"), TEXT("z"), Extent, Extent);
-				}
-				FKBoxElem Box;
-				Box.Center = Center;
-				Box.X = FMath::Max(1.f, Extent.X);
-				Box.Y = FMath::Max(1.f, Extent.Y);
-				Box.Z = FMath::Max(1.f, Extent.Z);
-				Body->AggGeom.BoxElems.Add(Box);
-				InvalidateCollision(Mesh, Body);
-				bDirty = true;
-				Entry->SetNumberField(TEXT("boxElemCount"), Body->AggGeom.BoxElems.Num());
-				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-			}
-			else if (Action.Equals(TEXT("add_sphere_collision"), ESearchCase::IgnoreCase))
-			{
-				UBodySetup* Body = EnsureBodySetup(Mesh);
-				if (!Body)
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("Unable to create BodySetup"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				FVector Center(0.f);
-				ParseStaticMeshVec3(Op, TEXT("locX"), TEXT("locY"), TEXT("locZ"), Center, FVector::ZeroVector);
-				float Radius = 50.f;
-				if (Op->HasField(TEXT("radius"))) Radius = static_cast<float>(Op->GetNumberField(TEXT("radius")));
-				FKSphereElem Sphere;
-				Sphere.Center = Center;
-				Sphere.Radius = FMath::Max(1.f, Radius);
-				Body->AggGeom.SphereElems.Add(Sphere);
-				InvalidateCollision(Mesh, Body);
-				bDirty = true;
-				Entry->SetNumberField(TEXT("sphereElemCount"), Body->AggGeom.SphereElems.Num());
-				Entry->SetNumberField(TEXT("radius"), Sphere.Radius);
-				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-			}
-			else if (Action.Equals(TEXT("clear_simple_collision"), ESearchCase::IgnoreCase))
-			{
-				UBodySetup* Body = EnsureBodySetup(Mesh);
-				if (!Body)
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("Unable to create BodySetup"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				Body->RemoveSimpleCollision();
-				InvalidateCollision(Mesh, Body);
-				bDirty = true;
-				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-			}
-			else if (Action.Equals(TEXT("add_socket"), ESearchCase::IgnoreCase)
-				|| Action.Equals(TEXT("set_socket"), ESearchCase::IgnoreCase))
-			{
-				FString SocketName;
-				Op->TryGetStringField(TEXT("socketName"), SocketName);
-				if (SocketName.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("socketName required"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				UStaticMeshSocket* Socket = Mesh->FindSocket(FName(*SocketName));
-				const bool bAdd = Action.Equals(TEXT("add_socket"), ESearchCase::IgnoreCase);
-				if (bAdd && Socket)
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket already exists: %s"), *SocketName));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				if (!bAdd && !Socket)
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket not found: %s"), *SocketName));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				if (!Socket)
-				{
-					Socket = NewObject<UStaticMeshSocket>(Mesh);
-					Socket->SocketName = FName(*SocketName);
-					Mesh->AddSocket(Socket);
-				}
-				FVector Loc = Socket->RelativeLocation;
-				FRotator Rot = Socket->RelativeRotation;
-				FVector Scale = Socket->RelativeScale;
-				ParseStaticMeshVec3(Op, TEXT("locX"), TEXT("locY"), TEXT("locZ"), Loc, Loc);
-				if (Op->HasField(TEXT("pitch"))) Rot.Pitch = Op->GetNumberField(TEXT("pitch"));
-				if (Op->HasField(TEXT("yaw"))) Rot.Yaw = Op->GetNumberField(TEXT("yaw"));
-				if (Op->HasField(TEXT("roll"))) Rot.Roll = Op->GetNumberField(TEXT("roll"));
-				ParseStaticMeshVec3(Op, TEXT("scaleX"), TEXT("scaleY"), TEXT("scaleZ"), Scale, Scale);
-				Socket->RelativeLocation = Loc;
-				Socket->RelativeRotation = Rot;
-				Socket->RelativeScale = Scale;
-				bDirty = true;
-				Entry->SetStringField(TEXT("socketName"), SocketName);
-				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-			}
-			else if (Action.Equals(TEXT("remove_socket"), ESearchCase::IgnoreCase))
-			{
-				FString SocketName;
-				Op->TryGetStringField(TEXT("socketName"), SocketName);
-				if (SocketName.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("remove_socket requires socketName"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				UStaticMeshSocket* Socket = Mesh->FindSocket(FName(*SocketName));
-				if (!Socket)
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket not found: %s"), *SocketName));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				Mesh->RemoveSocket(Socket);
-				bDirty = true;
-				Entry->SetStringField(TEXT("removed"), SocketName);
-				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-			}
-			else if (Action.Equals(TEXT("set_lod_screen_size"), ESearchCase::IgnoreCase))
-			{
+}
+
+static void HandleSM_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UStaticMesh* Mesh = MeshFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString PropPath = A.Str(TEXT("propertyPath"));
+	const FString Value = A.Str(TEXT("value"));
+	if (PropPath.IsEmpty() || Value.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
+		return;
+	}
+	FString OldVal, ActualVal, Err;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(Mesh, { PropPath }, 0, Value, OldVal, ActualVal, Err))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), Err);
+		return;
+	}
+	MarkMeshDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
+
+static void HandleSM_SetCollisionTraceFlag(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UStaticMesh* Mesh = MeshFrom(Ctx);
+	const FNexusArgs A(Op);
+	FString FlagText = A.Str(TEXT("collisionTraceFlag"));
+	if (FlagText.IsEmpty()) FlagText = A.Str(TEXT("value"));
+	ECollisionTraceFlag Flag;
+	FString FlagErr;
+	if (!ParseCollisionTraceFlag(FlagText, Flag, FlagErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FlagErr);
+		return;
+	}
+	UBodySetup* Body = EnsureBodySetup(Mesh);
+	if (!Body)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to create BodySetup"));
+		return;
+	}
+	Body->CollisionTraceFlag = Flag;
+	InvalidateCollision(Mesh, Body);
+	MarkMeshDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("collisionTraceFlag"), FlagText.IsEmpty() ? TEXT("UseDefault") : FlagText);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
+
+static void HandleSM_AddBoxCollision(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UStaticMesh* Mesh = MeshFrom(Ctx);
+	UBodySetup* Body = EnsureBodySetup(Mesh);
+	if (!Body)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to create BodySetup"));
+		return;
+	}
+	FVector Center(0.f), Extent(50.f, 50.f, 50.f);
+	ParseStaticMeshVec3(Op, TEXT("locX"), TEXT("locY"), TEXT("locZ"), Center, FVector::ZeroVector);
+	if (!ParseStaticMeshVec3(Op, TEXT("extentX"), TEXT("extentY"), TEXT("extentZ"), Extent, Extent))
+	{
+		ParseStaticMeshVec3(Op, TEXT("x"), TEXT("y"), TEXT("z"), Extent, Extent);
+	}
+	FKBoxElem Box;
+	Box.Center = Center;
+	Box.X = FMath::Max(1.f, Extent.X);
+	Box.Y = FMath::Max(1.f, Extent.Y);
+	Box.Z = FMath::Max(1.f, Extent.Z);
+	Body->AggGeom.BoxElems.Add(Box);
+	InvalidateCollision(Mesh, Body);
+	MarkMeshDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("boxElemCount"), Body->AggGeom.BoxElems.Num());
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
+
+static void HandleSM_AddSphereCollision(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UStaticMesh* Mesh = MeshFrom(Ctx);
+	UBodySetup* Body = EnsureBodySetup(Mesh);
+	if (!Body)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to create BodySetup"));
+		return;
+	}
+	FVector Center(0.f);
+	ParseStaticMeshVec3(Op, TEXT("locX"), TEXT("locY"), TEXT("locZ"), Center, FVector::ZeroVector);
+	const float Radius = static_cast<float>(FNexusArgs(Op).Num(TEXT("radius"), 50.0));
+	FKSphereElem Sphere;
+	Sphere.Center = Center;
+	Sphere.Radius = FMath::Max(1.f, Radius);
+	Body->AggGeom.SphereElems.Add(Sphere);
+	InvalidateCollision(Mesh, Body);
+	MarkMeshDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("sphereElemCount"), Body->AggGeom.SphereElems.Num());
+	Ctx.Entry->SetNumberField(TEXT("radius"), Sphere.Radius);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
+
+static void HandleSM_ClearSimpleCollision(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	(void)Op;
+	UStaticMesh* Mesh = MeshFrom(Ctx);
+	UBodySetup* Body = EnsureBodySetup(Mesh);
+	if (!Body)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to create BodySetup"));
+		return;
+	}
+	Body->RemoveSimpleCollision();
+	InvalidateCollision(Mesh, Body);
+	MarkMeshDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
+
+static void ApplySocketFields(UStaticMeshSocket* Socket, const TSharedPtr<FJsonObject>& Op)
+{
+	FVector Loc = Socket->RelativeLocation;
+	FRotator Rot = Socket->RelativeRotation;
+	FVector Scale = Socket->RelativeScale;
+	ParseStaticMeshVec3(Op, TEXT("locX"), TEXT("locY"), TEXT("locZ"), Loc, Loc);
+	if (Op->HasField(TEXT("pitch"))) Rot.Pitch = Op->GetNumberField(TEXT("pitch"));
+	if (Op->HasField(TEXT("yaw"))) Rot.Yaw = Op->GetNumberField(TEXT("yaw"));
+	if (Op->HasField(TEXT("roll"))) Rot.Roll = Op->GetNumberField(TEXT("roll"));
+	ParseStaticMeshVec3(Op, TEXT("scaleX"), TEXT("scaleY"), TEXT("scaleZ"), Scale, Scale);
+	Socket->RelativeLocation = Loc;
+	Socket->RelativeRotation = Rot;
+	Socket->RelativeScale = Scale;
+}
+
+static void HandleSM_AddSocket(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UStaticMesh* Mesh = MeshFrom(Ctx);
+	const FString SocketName = FNexusArgs(Op).Str(TEXT("socketName"));
+	if (SocketName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("socketName required"));
+		return;
+	}
+	if (Mesh->FindSocket(FName(*SocketName)))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket already exists: %s"), *SocketName));
+		return;
+	}
+	UStaticMeshSocket* Socket = NewObject<UStaticMeshSocket>(Mesh);
+	Socket->SocketName = FName(*SocketName);
+	Mesh->AddSocket(Socket);
+	ApplySocketFields(Socket, Op);
+	MarkMeshDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("socketName"), SocketName);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
+
+static void HandleSM_SetSocket(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UStaticMesh* Mesh = MeshFrom(Ctx);
+	const FString SocketName = FNexusArgs(Op).Str(TEXT("socketName"));
+	if (SocketName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("socketName required"));
+		return;
+	}
+	UStaticMeshSocket* Socket = Mesh->FindSocket(FName(*SocketName));
+	if (!Socket)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket not found: %s"), *SocketName));
+		return;
+	}
+	ApplySocketFields(Socket, Op);
+	MarkMeshDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("socketName"), SocketName);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
+
+static void HandleSM_RemoveSocket(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UStaticMesh* Mesh = MeshFrom(Ctx);
+	const FString SocketName = FNexusArgs(Op).Str(TEXT("socketName"));
+	if (SocketName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_socket requires socketName"));
+		return;
+	}
+	UStaticMeshSocket* Socket = Mesh->FindSocket(FName(*SocketName));
+	if (!Socket)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket not found: %s"), *SocketName));
+		return;
+	}
+	Mesh->RemoveSocket(Socket);
+	MarkMeshDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("removed"), SocketName);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
+
+static void HandleSM_SetLodScreenSize(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
 #if WITH_EDITOR
-				int32 LodIndex = 0;
-				if (Op->HasField(TEXT("lodIndex"))) LodIndex = static_cast<int32>(Op->GetNumberField(TEXT("lodIndex")));
-				if (!Op->HasField(TEXT("screenSize")))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_lod_screen_size requires screenSize"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				if (!Mesh->IsSourceModelValid(LodIndex))
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("LOD %d does not exist (sourceModels=%d)"), LodIndex, Mesh->GetNumSourceModels()));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				const float ScreenSize = static_cast<float>(Op->GetNumberField(TEXT("screenSize")));
-				Mesh->GetSourceModel(LodIndex).ScreenSize.Default = ScreenSize;
-				Mesh->bAutoComputeLODScreenSize = false;
-				bDirty = true;
-				Entry->SetNumberField(TEXT("lodIndex"), LodIndex);
-				Entry->SetNumberField(TEXT("screenSize"), ScreenSize);
-				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+	UStaticMesh* Mesh = MeshFrom(Ctx);
+	const FNexusArgs A(Op);
+	const int32 LodIndex = static_cast<int32>(A.Num(TEXT("lodIndex")));
+	if (!Op->HasField(TEXT("screenSize")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_lod_screen_size requires screenSize"));
+		return;
+	}
+	if (!Mesh->IsSourceModelValid(LodIndex))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("LOD %d does not exist (sourceModels=%d)"), LodIndex, Mesh->GetNumSourceModels()));
+		return;
+	}
+	const float ScreenSize = static_cast<float>(A.Num(TEXT("screenSize")));
+	Mesh->GetSourceModel(LodIndex).ScreenSize.Default = ScreenSize;
+	Mesh->bAutoComputeLODScreenSize = false;
+	MarkMeshDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("lodIndex"), LodIndex);
+	Ctx.Entry->SetNumberField(TEXT("screenSize"), ScreenSize);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 #else
-				Entry->SetStringField(TEXT("error"), TEXT("set_lod_screen_size editor only"));
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_lod_screen_size editor only"));
 #endif
-			}
-			else
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-			}
+}
 
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
+bool FManageAssetStaticMeshCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UStaticMesh* Mesh = FNexusAssetUtils::LoadAssetWithFallback<UStaticMesh>(AssetPath);
+	if (!Mesh)
+	{
+		OutError = FString::Printf(TEXT("StaticMesh not found: %s"), *AssetPath);
+		return false;
+	}
+	OutTarget = Mesh;
+	return true;
+}
 
-		if (bDirty) Mesh->MarkPackageDirty();
-	});
+void FManageAssetStaticMeshCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_material_slot"),        &HandleSM_SetMaterialSlot);
+	OutHandlers.Add(TEXT("set_property"),             &HandleSM_SetProperty);
+	OutHandlers.Add(TEXT("set_collision_trace_flag"), &HandleSM_SetCollisionTraceFlag);
+	OutHandlers.Add(TEXT("add_box_collision"),        &HandleSM_AddBoxCollision);
+	OutHandlers.Add(TEXT("add_sphere_collision"),     &HandleSM_AddSphereCollision);
+	OutHandlers.Add(TEXT("clear_simple_collision"),   &HandleSM_ClearSimpleCollision);
+	OutHandlers.Add(TEXT("add_socket"),               &HandleSM_AddSocket);
+	OutHandlers.Add(TEXT("set_socket"),               &HandleSM_SetSocket);
+	OutHandlers.Add(TEXT("remove_socket"),            &HandleSM_RemoveSocket);
+	OutHandlers.Add(TEXT("set_lod_screen_size"),      &HandleSM_SetLodScreenSize);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetStaticMeshCapability)

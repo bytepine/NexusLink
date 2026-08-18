@@ -1,10 +1,8 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Curve/NexusManageAssetCurveCapability.h"
-#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Curves/RealCurve.h"
@@ -78,115 +76,150 @@ void FManageAssetCurveCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 	Out.RelatedCapabilities = { TEXT("create_asset_curve"), TEXT("get_asset_curve") };
 }
 
-FCapabilityResult FManageAssetCurveCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FCurveActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UObject* AssetObj = nullptr;
+	UCurveBase* CB = nullptr;
+	UCurveTable* CT = nullptr;
+};
+
+static FCurveActionState* CurveState(FNexusActionContext& Ctx)
+{
+	return static_cast<FCurveActionState*>(Ctx.Target);
+}
+
+static FRichCurve* ResolveCurve(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FCurveActionState* S = CurveState(Ctx);
+	const FNexusArgs A(Op);
+	const FString Channel = A.Str(TEXT("channel"), TEXT("Value"));
+	const FString RowName = A.Str(TEXT("rowName"));
+	FRichCurve* Curve = S->CT
+		? GetTableRow(S->CT, FName(*RowName))
+		: GetChannel(S->CB, Channel);
+	if (!Curve)
 	{
-		const FNexusArgs A(Arguments);
+		const FString ErrCtx = S->CT ? RowName : Channel;
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("Channel/row '%s' not found (action=%s)"), *ErrCtx, *Ctx.Action));
+	}
+	return Curve;
+}
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
-		// UCurveTable 不继承自 UCurveBase，加载为 UObject* 再分别 Cast 以避免类型不相关警告
-		UObject* AssetObj = LoadObject<UObject>(nullptr, *AssetPath);
-		if (!AssetObj)
-		{
-			OutError = FString::Printf(TEXT("Failed to load curve asset: %s"), *AssetPath);
-			return;
-		}
+static void HandleCurve_AddKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FRichCurve* Curve = ResolveCurve(Op, Ctx);
+	if (!Curve) return;
+	const FNexusArgs A(Op);
+	const float Time  = static_cast<float>(A.Num(TEXT("time"), 0.f));
+	const float Value = static_cast<float>(A.Num(TEXT("value"), 0.f));
+	const FString Interp = A.Str(TEXT("interp"), TEXT("cubic"));
+	const FKeyHandle Handle = Curve->AddKey(Time, Value);
+	Curve->SetKeyInterpMode(Handle, InterpFromStr(Interp));
+	Ctx.Entry->SetNumberField(TEXT("time"), Time);
+	Ctx.Entry->SetNumberField(TEXT("value"), Value);
+}
 
-		UCurveBase* CB = Cast<UCurveBase>(AssetObj);
-		UCurveTable* CT = Cast<UCurveTable>(AssetObj);
+static void HandleCurve_SetKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FRichCurve* Curve = ResolveCurve(Op, Ctx);
+	if (!Curve) return;
+	const FNexusArgs A(Op);
+	const float Time = static_cast<float>(A.Num(TEXT("time"), 0.f));
+	const FKeyHandle Handle = Curve->FindKey(Time);
+	if (Handle == FKeyHandle::Invalid())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("No keyframe at time %.4f (set_key)"), Time));
+		return;
+	}
+	if (Op->HasField(TEXT("value")))
+		Curve->SetKeyValue(Handle, static_cast<float>(A.Num(TEXT("value"), 0.f)));
+	if (Op->HasField(TEXT("interp")))
+		Curve->SetKeyInterpMode(Handle, InterpFromStr(A.Str(TEXT("interp"), TEXT("cubic"))));
+}
 
-		if (!CB && !CT)
-		{
-			OutError = FString::Printf(TEXT("Asset is not a curve type: %s"), *AssetPath);
-			return;
-		}
+static void HandleCurve_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FRichCurve* Curve = ResolveCurve(Op, Ctx);
+	if (!Curve) return;
+	const float Time = static_cast<float>(FNexusArgs(Op).Num(TEXT("time"), 0.f));
+	const FKeyHandle Handle = Curve->FindKey(Time);
+	if (Handle == FKeyHandle::Invalid())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("No keyframe at time %.4f (remove_key)"), Time));
+		return;
+	}
+	Curve->DeleteKey(Handle);
+}
 
-		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
-		for (const TSharedPtr<FJsonValue>& OpVal : OpsArr)
-		{
-			const TSharedPtr<FJsonObject>& Op = OpVal->AsObject();
-			if (!Op.IsValid()) continue;
+static void HandleCurve_SetInterp(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FRichCurve* Curve = ResolveCurve(Op, Ctx);
+	if (!Curve) return;
+	const FNexusArgs A(Op);
+	const FString Interp = A.Str(TEXT("interp"), TEXT("cubic"));
+	if (Op->HasField(TEXT("time")))
+	{
+		const float Time = static_cast<float>(A.Num(TEXT("time"), 0.f));
+		const FKeyHandle Handle = Curve->FindKey(Time);
+		if (Handle != FKeyHandle::Invalid())
+			Curve->SetKeyInterpMode(Handle, InterpFromStr(Interp));
+	}
+	else
+	{
+		for (auto It = Curve->GetKeyHandleIterator(); It; ++It)
+			Curve->SetKeyInterpMode(*It, InterpFromStr(Interp));
+	}
+}
 
-			const FString Action  = FNexusArgs(Op).Str(TEXT("action"));
-			const FString Channel = FNexusArgs(Op).Str(TEXT("channel"), TEXT("Value"));
-			const FString RowName = FNexusArgs(Op).Str(TEXT("rowName"));
-			const float   Time    =FNexusArgs(Op).Num(TEXT("time"), 0.f);
-			const float   Value   =FNexusArgs(Op).Num(TEXT("value"), 0.f);
-			const FString Interp  = FNexusArgs(Op).Str(TEXT("interp"), TEXT("cubic"));
+bool FManageAssetCurveCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UObject* AssetObj = LoadObject<UObject>(nullptr, *AssetPath);
+	if (!AssetObj)
+	{
+		OutError = FString::Printf(TEXT("Failed to load curve asset: %s"), *AssetPath);
+		return false;
+	}
+	UCurveBase* CB = Cast<UCurveBase>(AssetObj);
+	UCurveTable* CT = Cast<UCurveTable>(AssetObj);
+	if (!CB && !CT)
+	{
+		OutError = FString::Printf(TEXT("Asset is not a curve type: %s"), *AssetPath);
+		return false;
+	}
+	FCurveActionState* State = new FCurveActionState();
+	State->AssetObj = AssetObj;
+	State->CB = CB;
+	State->CT = CT;
+	OutTarget = State;
+	return true;
+}
 
-			FRichCurve* Curve = CT
-				? GetTableRow(CT, FName(*RowName))
-				: GetChannel(CB, Channel);
+void FManageAssetCurveCapability::FinalizeTarget(void* Target) const
+{
+	FCurveActionState* State = static_cast<FCurveActionState*>(Target);
+	if (!State) return;
+	if (State->AssetObj)
+	{
+		State->AssetObj->MarkPackageDirty();
+	}
+	delete State;
+}
 
-			if (!Curve)
-			{
-				const FString ErrCtx = CT ? RowName : Channel;
-				FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-					FString::Printf(TEXT("Channel/row '%s' not found (action=%s)"), *ErrCtx, *Action));
-				continue;
-			}
-
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("action"), Action);
-
-			if (Action == TEXT("add_key"))
-			{
-				const FKeyHandle Handle = Curve->AddKey(Time, Value);
-				Curve->SetKeyInterpMode(Handle, InterpFromStr(Interp));
-				Entry->SetNumberField(TEXT("time"), Time);
-				Entry->SetNumberField(TEXT("value"), Value);
-			}
-			else if (Action == TEXT("set_key"))
-			{
-				const FKeyHandle Handle = Curve->FindKey(Time);
-				if (Handle == FKeyHandle::Invalid())
-				{
-					FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-						FString::Printf(TEXT("No keyframe at time %.4f (set_key)"), Time));
-					continue;
-				}
-				if (Op->HasField(TEXT("value")))  Curve->SetKeyValue(Handle, Value);
-				if (Op->HasField(TEXT("interp")))  Curve->SetKeyInterpMode(Handle, InterpFromStr(Interp));
-			}
-			else if (Action == TEXT("remove_key"))
-			{
-				const FKeyHandle Handle = Curve->FindKey(Time);
-				if (Handle == FKeyHandle::Invalid())
-				{
-					FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-						FString::Printf(TEXT("No keyframe at time %.4f (remove_key)"), Time));
-					continue;
-				}
-				Curve->DeleteKey(Handle);
-			}
-			else if (Action == TEXT("set_interp"))
-			{
-				if (Op->HasField(TEXT("time")))
-				{
-					const FKeyHandle Handle = Curve->FindKey(Time);
-					if (Handle != FKeyHandle::Invalid())
-						Curve->SetKeyInterpMode(Handle, InterpFromStr(Interp));
-				}
-				else
-				{
-					// 对所有关键帧设置插值
-					for (auto It = Curve->GetKeyHandleIterator(); It; ++It)
-						Curve->SetKeyInterpMode(*It, InterpFromStr(Interp));
-				}
-			}
-			else
-			{
-				FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-					FString::Printf(TEXT("Unknown action: %s"), *Action));
-				continue;
-			}
-
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-
-		AssetObj->MarkPackageDirty();
-	});
+void FManageAssetCurveCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("add_key"),    &HandleCurve_AddKey);
+	OutHandlers.Add(TEXT("set_key"),    &HandleCurve_SetKey);
+	OutHandlers.Add(TEXT("remove_key"), &HandleCurve_RemoveKey);
+	OutHandlers.Add(TEXT("set_interp"), &HandleCurve_SetInterp);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetCurveCapability)

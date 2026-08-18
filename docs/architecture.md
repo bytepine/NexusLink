@@ -166,6 +166,8 @@ sequenceDiagram
 
 每个 HTTP 会话通过 `Mcp-Session-Id` 隔离，支持多 AI 客户端并发。
 
+HTTP 收包线程只拷贝请求体与 header，然后 `AsyncTask` 回切 GameThread 再碰 `HttpSessions` / `Dispatch` / `DetectCurrentNetRole`，并用推迟的 `OnComplete` 回写响应（不再 `FEvent::Wait` 阻塞收包线程）。`GET /status` 同样回切 GameThread，避免非 GT 读 `GEngine->GetWorldContexts()`。
+
 ### WebSocket 代理通道（Rider/VSCode）
 
 ```mermaid

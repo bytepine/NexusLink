@@ -21,7 +21,7 @@ class INetworkingWebSocket;
  *   2. GET  /status — 无状态探测端点，返回项目信息
  *   3. WebSocket    — 供 Rider 插件长连接通信（JSON-RPC，无 MCP 握手）
  */
-class NEXUSLINK_API FNexusMcpServer
+class NEXUSLINK_API FNexusMcpServer : public TSharedFromThis<FNexusMcpServer>
 {
 public:
 	FNexusMcpServer();
@@ -66,13 +66,14 @@ private:
 	/**
 	 * 按 Mcp-Session-Id 获取或创建 Dispatcher。
 	 * initialize 请求时 SessionId 为空，创建新会话并生成 ID；后续请求按 ID 查找。
+	 * 仅允许在 GameThread 调用（HTTP 收包线程经 AsyncTask 回切后再碰 HttpSessions）。
 	 */
 	TSharedPtr<FNexusMcpDispatcher> GetOrCreateDispatcher(const FString& SessionId, bool bIsInitialize, FString& OutSessionId);
 
 	/** WebSocket 通道共享的无状态 Dispatcher。 */
 	TSharedPtr<FNexusMcpDispatcher> WsDispatcher;
 
-	/** HTTP 通道的 per-session Dispatcher 表（按 Mcp-Session-Id 索引）。 */
+	/** HTTP 通道的 per-session Dispatcher 表（按 Mcp-Session-Id 索引）。仅 GameThread 读写。 */
 	TMap<FString, TSharedPtr<FNexusMcpDispatcher>> HttpSessions;
 
 	TSharedPtr<IHttpRouter> HttpRouter;

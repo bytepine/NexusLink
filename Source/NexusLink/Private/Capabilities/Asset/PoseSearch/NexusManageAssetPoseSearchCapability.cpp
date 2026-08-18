@@ -4,8 +4,7 @@
 
 #if WITH_POSE_SEARCH
 
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -29,104 +28,120 @@ void FManageAssetPoseSearchCapability::BuildDefinition(FNexusCapabilityDefinitio
 	Out.WhenToUse = TEXT("Set PoseSearch Database Schema or modify Tags");
 }
 
-FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FPoseSearchActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UPoseSearchDatabase* DB = nullptr;
+	bool bDirty = false;
+};
+
+static FPoseSearchActionState* PSState(FNexusActionContext& Ctx)
+{
+	return static_cast<FPoseSearchActionState*>(Ctx.Target);
+}
+
+static UPoseSearchDatabase* PSFrom(FNexusActionContext& Ctx)
+{
+	FPoseSearchActionState* S = PSState(Ctx);
+	return S ? S->DB : nullptr;
+}
+
+static void MarkPSDirty(FNexusActionContext& Ctx)
+{
+	if (FPoseSearchActionState* S = PSState(Ctx))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		S->bDirty = true;
+	}
+}
 
-		UPoseSearchDatabase* DB = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchDatabase>(AssetPath);
-		if (!DB)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("PoseSearchDatabase not found: %s"), *AssetPath));
-			return;
-		}
+static void HandlePS_SetSchema(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPoseSearchDatabase* DB = PSFrom(Ctx);
+	FString SchemaPath;
+	Op->TryGetStringField(TEXT("schemaPath"), SchemaPath);
+	if (SchemaPath.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_schema requires schemaPath"));
+		return;
+	}
+	UPoseSearchSchema* Schema = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchSchema>(SchemaPath);
+	if (!Schema)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("PoseSearchSchema not found: %s"), *SchemaPath));
+		return;
+	}
+	DB->Schema = Schema;
+	MarkPSDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("schemaPath"), SchemaPath);
+}
 
-		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (OpsArr.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("operations array is empty"));
-			return;
-		}
+static void HandlePS_AddTag(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPoseSearchDatabase* DB = PSFrom(Ctx);
+	FString TagStr;
+	Op->TryGetStringField(TEXT("tag"), TagStr);
+	if (TagStr.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_tag requires tag parameter"));
+		return;
+	}
+	const FName TagName(*TagStr);
+	if (!DB->Tags.Contains(TagName))
+	{
+		DB->Tags.Add(TagName);
+		MarkPSDirty(Ctx);
+	}
+	Ctx.Entry->SetStringField(TEXT("tag"), TagStr);
+}
 
-		bool bDirty = false;
+static void HandlePS_RemoveTag(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPoseSearchDatabase* DB = PSFrom(Ctx);
+	FString TagStr;
+	Op->TryGetStringField(TEXT("tag"), TagStr);
+	const FName TagName(*TagStr);
+	const int32 Removed = DB->Tags.Remove(TagName);
+	if (Removed > 0) MarkPSDirty(Ctx);
+	if (Removed == 0)
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("tag '%s' does not exist"), *TagStr));
+}
 
-		for (const TSharedPtr<FJsonValue>& Val : OpsArr)
-		{
-			const TSharedPtr<FJsonObject>* OpObj = nullptr;
-			if (!Val->TryGetObject(OpObj) || !OpObj) continue;
+bool FManageAssetPoseSearchCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UPoseSearchDatabase* DB = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchDatabase>(AssetPath);
+	if (!DB)
+	{
+		OutError = FString::Printf(TEXT("PoseSearchDatabase not found: %s"), *AssetPath);
+		return false;
+	}
+	FPoseSearchActionState* State = new FPoseSearchActionState();
+	State->DB = DB;
+	OutTarget = State;
+	return true;
+}
 
-			FString Action;
-			(*OpObj)->TryGetStringField(TEXT("action"), Action);
+void FManageAssetPoseSearchCapability::FinalizeTarget(void* Target) const
+{
+	FPoseSearchActionState* State = static_cast<FPoseSearchActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->DB)
+	{
+		State->DB->MarkPackageDirty();
+	}
+	delete State;
+}
 
-			TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
-			Result->SetStringField(TEXT("path"), AssetPath);
-			Result->SetStringField(TEXT("action"), Action);
-
-			if (Action == TEXT("set_schema"))
-			{
-				FString SchemaPath;
-				(*OpObj)->TryGetStringField(TEXT("schemaPath"), SchemaPath);
-				if (SchemaPath.IsEmpty())
-				{
-					Result->SetStringField(TEXT("error"), TEXT("set_schema requires schemaPath"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-					continue;
-				}
-				UPoseSearchSchema* Schema = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchSchema>(SchemaPath);
-				if (!Schema)
-				{
-					Result->SetStringField(TEXT("error"),
-						FString::Printf(TEXT("PoseSearchSchema not found: %s"), *SchemaPath));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-					continue;
-				}
-				DB->Schema = Schema;
-				bDirty = true;
-				Result->SetStringField(TEXT("schemaPath"), SchemaPath);
-			}
-			else if (Action == TEXT("add_tag"))
-			{
-				FString TagStr;
-				(*OpObj)->TryGetStringField(TEXT("tag"), TagStr);
-				if (TagStr.IsEmpty())
-				{
-					Result->SetStringField(TEXT("error"), TEXT("add_tag requires tag parameter"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-					continue;
-				}
-				const FName TagName(*TagStr);
-				if (!DB->Tags.Contains(TagName))
-				{
-					DB->Tags.Add(TagName);
-					bDirty = true;
-				}
-				Result->SetStringField(TEXT("tag"), TagStr);
-			}
-			else if (Action == TEXT("remove_tag"))
-			{
-				FString TagStr;
-				(*OpObj)->TryGetStringField(TEXT("tag"), TagStr);
-				const FName TagName(*TagStr);
-				const int32 Removed = DB->Tags.Remove(TagName);
-				if (Removed > 0) bDirty = true;
-				if (Removed == 0)
-					Result->SetStringField(TEXT("error"), FString::Printf(TEXT("tag '%s' does not exist"), *TagStr));
-			}
-			else
-			{
-				Result->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("Unknown action '%s'; supported: set_schema/add_tag/remove_tag"), *Action));
-			}
-
-			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
-		}
-
-		if (bDirty) DB->MarkPackageDirty();
-	});
+void FManageAssetPoseSearchCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_schema"),  &HandlePS_SetSchema);
+	OutHandlers.Add(TEXT("add_tag"),     &HandlePS_AddTag);
+	OutHandlers.Add(TEXT("remove_tag"),  &HandlePS_RemoveTag);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetPoseSearchCapability)

@@ -8,8 +8,6 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusGasUtils.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusArgs.h"
 #include "AttributeSet.h"
 #include "GameplayEffectTypes.h"
@@ -40,87 +38,141 @@ void FManageAssetAttributeSetCapability::BuildDefinition(FNexusCapabilityDefinit
 	Out.WhenToUse = TEXT("Set AS property defaults; auto recompiles Blueprint");
 }
 
-FCapabilityResult FManageAssetAttributeSetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FAttrSetActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UBlueprint* BP = nullptr;
+	UObject* CDO = nullptr;
+	int32 Applied = 0;
+	TSharedPtr<FJsonObject> OutTop;
+};
+
+static FAttrSetActionState* ASState(FNexusActionContext& Ctx)
+{
+	return static_cast<FAttrSetActionState*>(Ctx.Target);
+}
+
+static void MarkASApplied(FNexusActionContext& Ctx)
+{
+	if (FAttrSetActionState* S = ASState(Ctx))
 	{
-		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		++S->Applied;
+	}
+}
 
-		const TArray<TSharedPtr<FJsonValue>> OpsArrVal = FNexusJsonUtils::ExtractOperations(Arguments);
-		const TArray<TSharedPtr<FJsonValue>>* OpsArr = &OpsArrVal;
-		if (OpsArr->Num() == 0)
-		{ OutError = TEXT("operations is required and must be non-empty"); return; }
-
-		FString LoadError;
-		UBlueprint* BP = FNexusGasUtils::LoadAttributeSetBlueprint(AssetPath, LoadError);
-		if (!BP) { OutError = LoadError; return; }
-		if (!BP->GeneratedClass) { OutError = TEXT("Blueprint not compiled"); return; }
-
-		UObject* CDO = BP->GeneratedClass->GetDefaultObject();
-		if (!CDO) { OutError = TEXT("Unable to get CDO"); return; }
-
-		int32 Applied = 0;
-		for (int32 i = 0; i < OpsArr->Num(); ++i)
+static FGameplayAttributeData* ResolveASAttr(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FAttrSetActionState* S = ASState(Ctx);
+	FString AttrName;
+	if (!Op->TryGetStringField(TEXT("attributeName"), AttrName) || AttrName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("missing attributeName"));
+		return nullptr;
+	}
+	FStructProperty* FoundProp = nullptr;
+	for (TFieldIterator<FProperty> PropIt(S->BP->GeneratedClass); PropIt; ++PropIt)
+	{
+		FStructProperty* StructProp = CastField<FStructProperty>(*PropIt);
+		if (!StructProp || !StructProp->Struct) continue;
+		if (!StructProp->Struct->IsChildOf(FGameplayAttributeData::StaticStruct())) continue;
+		if (PropIt->GetName().Equals(AttrName, ESearchCase::IgnoreCase))
 		{
-			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
-			if (!(*OpsArr)[i].IsValid() || !(*OpsArr)[i]->TryGetObject(OpObjPtr) || !OpObjPtr)
-			{ OutError = FString::Printf(TEXT("ops[%d] is not a valid JSON object"), i); return; }
-
-			const TSharedPtr<FJsonObject>& Op = *OpObjPtr;
-			FString Action, AttrName;
-			if (!Op->TryGetStringField(TEXT("action"), Action) || Action.IsEmpty())
-			{ OutError = FString::Printf(TEXT("ops[%d] missing action (set/reset)"), i); return; }
-			if (!Op->TryGetStringField(TEXT("attributeName"), AttrName) || AttrName.IsEmpty())
-			{ OutError = FString::Printf(TEXT("ops[%d] missing attributeName"), i); return; }
-
-			// 查找属性
-			FStructProperty* FoundProp = nullptr;
-			for (TFieldIterator<FProperty> PropIt(BP->GeneratedClass); PropIt; ++PropIt)
-			{
-				FStructProperty* StructProp = CastField<FStructProperty>(*PropIt);
-				if (!StructProp || !StructProp->Struct) continue;
-				if (!StructProp->Struct->IsChildOf(FGameplayAttributeData::StaticStruct())) continue;
-				if (PropIt->GetName().Equals(AttrName, ESearchCase::IgnoreCase))
-				{
-					FoundProp = StructProp;
-					break;
-				}
-			}
-			if (!FoundProp)
-			{ OutError = FString::Printf(TEXT("ops[%d] FGameplayAttributeData property not found: %s"), i, *AttrName); return; }
-
-			FGameplayAttributeData* AttrData = FoundProp->ContainerPtrToValuePtr<FGameplayAttributeData>(CDO);
-			if (!AttrData)
-			{ OutError = FString::Printf(TEXT("ops[%d] cannot access CDO pointer for property %s"), i, *AttrName); return; }
-
-			if (Action == TEXT("set"))
-			{
-				if (!Op->HasField(TEXT("baseValue")))
-				{ OutError = FString::Printf(TEXT("ops[%d] set requires baseValue"), i); return; }
-				float BaseValue = (float)Op->GetNumberField(TEXT("baseValue"));
-				AttrData->SetBaseValue(BaseValue);
-				AttrData->SetCurrentValue(BaseValue);
-			}
-			else if (Action == TEXT("reset"))
-			{
-				AttrData->SetBaseValue(0.f);
-				AttrData->SetCurrentValue(0.f);
-			}
-			else
-			{
-				OutError = FString::Printf(TEXT("ops[%d] unknown action: %s (supports set/reset)"), i, *Action);
-				return;
-			}
-			++Applied;
+			FoundProp = StructProp;
+			break;
 		}
+	}
+	if (!FoundProp)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("FGameplayAttributeData property not found: %s"), *AttrName));
+		return nullptr;
+	}
+	FGameplayAttributeData* AttrData = FoundProp->ContainerPtrToValuePtr<FGameplayAttributeData>(S->CDO);
+	if (!AttrData)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("cannot access CDO pointer for property %s"), *AttrName));
+		return nullptr;
+	}
+	return AttrData;
+}
 
-		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-		FKismetEditorUtilities::CompileBlueprint(BP);
+static void HandleAS_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FGameplayAttributeData* AttrData = ResolveASAttr(Op, Ctx);
+	if (!AttrData) return;
+	if (!Op->HasField(TEXT("baseValue")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set requires baseValue"));
+		return;
+	}
+	const float BaseValue = static_cast<float>(Op->GetNumberField(TEXT("baseValue")));
+	AttrData->SetBaseValue(BaseValue);
+	AttrData->SetCurrentValue(BaseValue);
+	MarkASApplied(Ctx);
+}
 
-		OutTop->SetStringField(TEXT("path"), AssetPath);
-		OutTop->SetNumberField(TEXT("appliedOps"), Applied);
-	});
+static void HandleAS_Reset(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FGameplayAttributeData* AttrData = ResolveASAttr(Op, Ctx);
+	if (!AttrData) return;
+	AttrData->SetBaseValue(0.f);
+	AttrData->SetCurrentValue(0.f);
+	MarkASApplied(Ctx);
+}
+
+bool FManageAssetAttributeSetCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	FString LoadError;
+	UBlueprint* BP = FNexusGasUtils::LoadAttributeSetBlueprint(AssetPath, LoadError);
+	if (!BP) { OutError = LoadError; return false; }
+	if (!BP->GeneratedClass) { OutError = TEXT("Blueprint not compiled"); return false; }
+	UObject* CDO = BP->GeneratedClass->GetDefaultObject();
+	if (!CDO) { OutError = TEXT("Unable to get CDO"); return false; }
+	FAttrSetActionState* State = new FAttrSetActionState();
+	State->BP = BP;
+	State->CDO = CDO;
+	OutTarget = State;
+	return true;
+}
+
+void FManageAssetAttributeSetCapability::AfterPrepareTarget(
+	void* Target,
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& OutTop) const
+{
+	if (FAttrSetActionState* State = static_cast<FAttrSetActionState*>(Target))
+	{
+		State->OutTop = OutTop;
+		OutTop->SetStringField(TEXT("path"), FNexusArgs(Args).Str(TEXT("assetPath")));
+	}
+}
+
+void FManageAssetAttributeSetCapability::FinalizeTarget(void* Target) const
+{
+	FAttrSetActionState* State = static_cast<FAttrSetActionState*>(Target);
+	if (!State) return;
+	if (State->Applied > 0 && State->BP)
+	{
+		FBlueprintEditorUtils::MarkBlueprintAsModified(State->BP);
+		FKismetEditorUtilities::CompileBlueprint(State->BP);
+	}
+	if (State->OutTop.IsValid())
+	{
+		State->OutTop->SetNumberField(TEXT("appliedOps"), State->Applied);
+	}
+	delete State;
+}
+
+void FManageAssetAttributeSetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set"),   &HandleAS_Set);
+	OutHandlers.Add(TEXT("reset"), &HandleAS_Reset);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetAttributeSetCapability)

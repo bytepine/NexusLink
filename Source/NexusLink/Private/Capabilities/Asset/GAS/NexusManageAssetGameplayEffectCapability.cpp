@@ -8,8 +8,6 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusGasUtils.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusArgs.h"
 #include "GameplayEffect.h"
 #include "Engine/Blueprint.h"
@@ -63,114 +61,169 @@ void FManageAssetGameplayEffectCapability::BuildDefinition(FNexusCapabilityDefin
 	Out.WhenToUse = TEXT("Batch edit GE policy/tags/modifiers; auto recompiles Blueprint");
 }
 
-FCapabilityResult FManageAssetGameplayEffectCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FGEActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UBlueprint* BP = nullptr;
+	UObject* CDO = nullptr;
+	UGameplayEffect* GECDO = nullptr;
+	int32 Applied = 0;
+	TSharedPtr<FJsonObject> OutTop;
+};
+
+static FGEActionState* GEState(FNexusActionContext& Ctx)
+{
+	return static_cast<FGEActionState*>(Ctx.Target);
+}
+
+static void MarkGEApplied(FNexusActionContext& Ctx)
+{
+	if (FGEActionState* S = GEState(Ctx))
 	{
-		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		++S->Applied;
+	}
+}
 
-		const TArray<TSharedPtr<FJsonValue>> OpsArrVal = FNexusJsonUtils::ExtractOperations(Arguments);
-		const TArray<TSharedPtr<FJsonValue>>* OpsArr = &OpsArrVal;
-		if (OpsArr->Num() == 0)
-		{ OutError = TEXT("operations is required and must be non-empty"); return; }
-
-		FString LoadError;
-		UBlueprint* BP = FNexusGasUtils::LoadGameplayEffectBlueprint(AssetPath, LoadError);
-		if (!BP) { OutError = LoadError; return; }
-		if (!BP->GeneratedClass) { OutError = TEXT("Blueprint not compiled"); return; }
-
-		UObject* CDO = BP->GeneratedClass->GetDefaultObject();
-		UGameplayEffect* GECDO = BP->GeneratedClass->GetDefaultObject<UGameplayEffect>();
-		if (!CDO || !GECDO) { OutError = TEXT("Unable to get GameplayEffect CDO"); return; }
-
-		int32 Applied = 0;
-		for (int32 i = 0; i < OpsArr->Num(); ++i)
+static void HandleGE_SetPolicy(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UObject* CDO = GEState(Ctx)->CDO;
+	FString PolicyStr;
+	if (Op->TryGetStringField(TEXT("durationPolicy"), PolicyStr) && !PolicyStr.IsEmpty())
+	{
+		uint8 V = 0;
+		if      (PolicyStr == TEXT("Instant"))     V = (uint8)EGameplayEffectDurationType::Instant;
+		else if (PolicyStr == TEXT("Infinite"))    V = (uint8)EGameplayEffectDurationType::Infinite;
+		else if (PolicyStr == TEXT("HasDuration")) V = (uint8)EGameplayEffectDurationType::HasDuration;
+		else
 		{
-			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
-			if (!(*OpsArr)[i].IsValid() || !(*OpsArr)[i]->TryGetObject(OpObjPtr) || !OpObjPtr)
-			{ OutError = FString::Printf(TEXT("ops[%d] is not a valid JSON object"), i); return; }
-
-			const TSharedPtr<FJsonObject>& Op = *OpObjPtr;
-			FString Action;
-			if (!Op->TryGetStringField(TEXT("action"), Action) || Action.IsEmpty())
-			{ OutError = FString::Printf(TEXT("ops[%d] missing action field"), i); return; }
-
-			if (Action == TEXT("set_policy"))
-			{
-				FString PolicyStr;
-				if (Op->TryGetStringField(TEXT("durationPolicy"), PolicyStr) && !PolicyStr.IsEmpty())
-				{
-					uint8 V = 0;
-					if      (PolicyStr == TEXT("Instant"))     V = (uint8)EGameplayEffectDurationType::Instant;
-					else if (PolicyStr == TEXT("Infinite"))    V = (uint8)EGameplayEffectDurationType::Infinite;
-					else if (PolicyStr == TEXT("HasDuration")) V = (uint8)EGameplayEffectDurationType::HasDuration;
-					else { OutError = FString::Printf(TEXT("ops[%d] invalid durationPolicy: %s"), i, *PolicyStr); return; }
-					NxGasSetEnumByte(CDO, TEXT("DurationPolicy"), V);
-				}
-				if (Op->HasField(TEXT("duration")))
-				{
-					float DurVal = (float)Op->GetNumberField(TEXT("duration"));
-					if (FGameplayEffectModifierMagnitude* M = NxGasPropPtr<FGameplayEffectModifierMagnitude>(CDO, TEXT("DurationMagnitude")))
-						*M = FGameplayEffectModifierMagnitude(FScalableFloat(DurVal));
-				}
-				if (Op->HasField(TEXT("period")))
-				{
-					float PeriodVal = (float)Op->GetNumberField(TEXT("period"));
-					if (FScalableFloat* S = NxGasPropPtr<FScalableFloat>(CDO, TEXT("Period")))
-						S->Value = PeriodVal;
-				}
-			}
-			else if (Action == TEXT("set_tags"))
-			{
-				FString ContainerName, Mode;
-				if (!Op->TryGetStringField(TEXT("tagContainer"), ContainerName) || ContainerName.IsEmpty())
-				{ OutError = FString::Printf(TEXT("ops[%d] set_tags requires tagContainer"), i); return; }
-				if (!Op->TryGetStringField(TEXT("mode"), Mode) || Mode.IsEmpty()) Mode = TEXT("set");
-
-				TArray<FString> Tags;
-				const TArray<TSharedPtr<FJsonValue>>* TagsArr = nullptr;
-				if (Op->TryGetArrayField(TEXT("tags"), TagsArr) && TagsArr)
-				{
-					for (const TSharedPtr<FJsonValue>& V : *TagsArr)
-					{ FString S; if (V.IsValid() && V->TryGetString(S)) Tags.Add(S); }
-				}
-
-				static const TMap<FString, FString> ContainerMap = {
-					{ TEXT("gameplayEffectTags"), TEXT("InheritableGameplayEffectTags")          },
-					{ TEXT("grantedTags"),        TEXT("InheritableOwnedTagsContainer")          },
-					{ TEXT("blockedAbilityTags"), TEXT("InheritableBlockedAbilityTagsContainer") },
-				};
-				const FString* PropName = ContainerMap.Find(ContainerName);
-				if (!PropName) { OutError = FString::Printf(TEXT("ops[%d] unknown tagContainer: %s"), i, *ContainerName); return; }
-
-				FGameplayTagContainer* Container = GetGE_InheritedTagAddedMut(CDO, **PropName);
-				if (!Container) { OutError = FString::Printf(TEXT("ops[%d] property missing or unsupported on this UE version: %s"), i, **PropName); return; }
-
-				FString TagError;
-				if (!FNexusGasUtils::ApplyTagContainer(*Container, Tags, Mode, TagError))
-				{ OutError = FString::Printf(TEXT("ops[%d] %s"), i, *TagError); return; }
-			}
-			else if (Action == TEXT("add_modifier") || Action == TEXT("remove_modifier") || Action == TEXT("set_modifier"))
-			{
-				FString ModError;
-				if (!FNexusGasUtils::ApplyGEModifierOp(GECDO, Action, Op, ModError))
-				{ OutError = FString::Printf(TEXT("ops[%d] %s"), i, *ModError); return; }
-			}
-			else
-			{
-				OutError = FString::Printf(TEXT("ops[%d] unknown action: %s"), i, *Action);
-				return;
-			}
-			++Applied;
+			Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("invalid durationPolicy: %s"), *PolicyStr));
+			return;
 		}
+		NxGasSetEnumByte(CDO, TEXT("DurationPolicy"), V);
+	}
+	if (Op->HasField(TEXT("duration")))
+	{
+		const float DurVal = static_cast<float>(Op->GetNumberField(TEXT("duration")));
+		if (FGameplayEffectModifierMagnitude* M = NxGasPropPtr<FGameplayEffectModifierMagnitude>(CDO, TEXT("DurationMagnitude")))
+			*M = FGameplayEffectModifierMagnitude(FScalableFloat(DurVal));
+	}
+	if (Op->HasField(TEXT("period")))
+	{
+		const float PeriodVal = static_cast<float>(Op->GetNumberField(TEXT("period")));
+		if (FScalableFloat* S = NxGasPropPtr<FScalableFloat>(CDO, TEXT("Period")))
+			S->Value = PeriodVal;
+	}
+	MarkGEApplied(Ctx);
+}
 
-		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-		FKismetEditorUtilities::CompileBlueprint(BP);
+static void HandleGE_SetTags(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UObject* CDO = GEState(Ctx)->CDO;
+	const FNexusArgs A(Op);
+	const FString ContainerName = A.Str(TEXT("tagContainer"));
+	if (ContainerName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_tags requires tagContainer"));
+		return;
+	}
+	FString Mode = A.Str(TEXT("mode"));
+	if (Mode.IsEmpty()) Mode = TEXT("set");
 
-		OutTop->SetStringField(TEXT("path"), AssetPath);
-		OutTop->SetNumberField(TEXT("appliedOps"), Applied);
-	});
+	static const TMap<FString, FString> ContainerMap = {
+		{ TEXT("gameplayEffectTags"), TEXT("InheritableGameplayEffectTags")          },
+		{ TEXT("grantedTags"),        TEXT("InheritableOwnedTagsContainer")          },
+		{ TEXT("blockedAbilityTags"), TEXT("InheritableBlockedAbilityTagsContainer") },
+	};
+	const FString* PropName = ContainerMap.Find(ContainerName);
+	if (!PropName)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("unknown tagContainer: %s"), *ContainerName));
+		return;
+	}
+	FGameplayTagContainer* Container = GetGE_InheritedTagAddedMut(CDO, **PropName);
+	if (!Container)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("property missing or unsupported on this UE version: %s"), **PropName));
+		return;
+	}
+	FString TagError;
+	if (!FNexusGasUtils::ApplyTagContainer(*Container, A.StrArr(TEXT("tags")), Mode, TagError))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TagError);
+		return;
+	}
+	MarkGEApplied(Ctx);
+}
+
+static void HandleGE_ModifierOp(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UGameplayEffect* GECDO = GEState(Ctx)->GECDO;
+	FString ModError;
+	if (!FNexusGasUtils::ApplyGEModifierOp(GECDO, Ctx.Action, Op, ModError))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), ModError);
+		return;
+	}
+	MarkGEApplied(Ctx);
+}
+
+bool FManageAssetGameplayEffectCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	FString LoadError;
+	UBlueprint* BP = FNexusGasUtils::LoadGameplayEffectBlueprint(AssetPath, LoadError);
+	if (!BP) { OutError = LoadError; return false; }
+	if (!BP->GeneratedClass) { OutError = TEXT("Blueprint not compiled"); return false; }
+	UObject* CDO = BP->GeneratedClass->GetDefaultObject();
+	UGameplayEffect* GECDO = BP->GeneratedClass->GetDefaultObject<UGameplayEffect>();
+	if (!CDO || !GECDO) { OutError = TEXT("Unable to get GameplayEffect CDO"); return false; }
+	FGEActionState* State = new FGEActionState();
+	State->BP = BP;
+	State->CDO = CDO;
+	State->GECDO = GECDO;
+	OutTarget = State;
+	return true;
+}
+
+void FManageAssetGameplayEffectCapability::AfterPrepareTarget(
+	void* Target,
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& OutTop) const
+{
+	if (FGEActionState* State = static_cast<FGEActionState*>(Target))
+	{
+		State->OutTop = OutTop;
+		OutTop->SetStringField(TEXT("path"), FNexusArgs(Args).Str(TEXT("assetPath")));
+	}
+}
+
+void FManageAssetGameplayEffectCapability::FinalizeTarget(void* Target) const
+{
+	FGEActionState* State = static_cast<FGEActionState*>(Target);
+	if (!State) return;
+	if (State->Applied > 0 && State->BP)
+	{
+		FBlueprintEditorUtils::MarkBlueprintAsModified(State->BP);
+		FKismetEditorUtilities::CompileBlueprint(State->BP);
+	}
+	if (State->OutTop.IsValid())
+	{
+		State->OutTop->SetNumberField(TEXT("appliedOps"), State->Applied);
+	}
+	delete State;
+}
+
+void FManageAssetGameplayEffectCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_policy"),      &HandleGE_SetPolicy);
+	OutHandlers.Add(TEXT("set_tags"),        &HandleGE_SetTags);
+	OutHandlers.Add(TEXT("add_modifier"),    &HandleGE_ModifierOp);
+	OutHandlers.Add(TEXT("remove_modifier"), &HandleGE_ModifierOp);
+	OutHandlers.Add(TEXT("set_modifier"),    &HandleGE_ModifierOp);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetGameplayEffectCapability)

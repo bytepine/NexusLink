@@ -421,6 +421,7 @@ public:
 - entry 级错误禁止直接 `SetStringField("error", ...)`——改用 `AddEntryError(OutEntries, ErrCode, Msg)`。
 - 运行时 World 获取禁止手写 null 检查链——改用 `FNexusRuntimeUtils::RequirePlayWorld(OutError)`。
 - 新建资产 finalize 禁止手写 `MarkPackageDirty` + `AssetCreated` + Save 五件套——改用对应 `FNexusAssetUtils` 接口。
+- 带 `operations[]` 的新增 `manage_*` **必须**继承 `FNexusActionCapability`（`RegisterActions` 静态分派），禁止手写 `ExtractOperations` 循环壳；读参走 `FNexusArgs`。
 
 ### 8.10 提交前自检（6 条）
 
@@ -440,7 +441,7 @@ public:
 | 单目标 | **Capability 仅单目标**：禁止 Schema/Execute 再暴露或消费 `assetPaths` / `actorNames` / `widgetNames`。跨目标批量**只**走元工具 `call_capability.calls[]` |
 | 单目标内集合 | **保留** `sections` / `propertyPaths` / `operations` / `updates`（以及领域语义数组，见下表「有意保留」） |
 | manage 命令列表 | Schema **只**暴露 `operations: [{action, ...}]`；禁止 `ops`、禁止顶层裸 `action` 作为批量列表 |
-| Execute 读入 | 统一 `FNexusJsonUtils::ExtractOperations(Args)`：**仅**读 `operations[]`；不回退 `ops`、不把顶层 `action`+其余字段合成单元素数组 |
+| Execute 读入 | 带 `operations[]` 的 `manage_*` 由 `FNexusActionCapability` 基类 `Execute` 调用 `ExtractOperations`（禁止子类再写循环壳）；**仅**读 `operations[]`；不回退 `ops`、不把顶层 `action`+其余字段合成单元素数组 |
 | Schema 严格性 | `FNexusSchema::Object()` 默认 `additionalProperties: false`；`AnyObject()` 显式 `true`（动态字段）。`FNexusCapability::Run` 在 required 校验之后、`Execute` 之前按 InputSchema **递归严格校验**（未知键 / type / required / enum / array items / 嵌套 object）；失败一律 `FCapabilityResult::MakeArgInvalid` |
 | 结果信封 | 禁止「一条 Entry + 内嵌 `results[]`」的双层包裹；每个 op 必须对应一条独立 `OutEntries.Add(...)`，交由适配层 `AssembleStructuredContent` 统一提升/包装 |
 | `success` 字段 | 成功不写 `success`（无 `error` 即成功）；失败写 `error`，允许保留 `success:false` 辅助阅读；禁止写「成功恒为 true」或条件判断结果恒为 true 的 `success` |

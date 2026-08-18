@@ -4,8 +4,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Engine/Font.h"
 #include "NexusMcpTool.h"
@@ -31,72 +30,71 @@ void FManageAssetFontCapability::BuildDefinition(FNexusCapabilityDefinition& Out
 	Out.RelatedCapabilities = { TEXT("get_asset_font"), TEXT("create_asset_font"), TEXT("reimport_asset") };
 }
 
-FCapabilityResult FManageAssetFontCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FFontActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UFont* Font = nullptr;
+	bool bDirty = false;
+};
+
+static FFontActionState* FontState(FNexusActionContext& Ctx)
+{
+	return static_cast<FFontActionState*>(Ctx.Target);
+}
+
+static void HandleFont_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UFont* Font = FontState(Ctx)->Font;
+	FString PropPath, Value;
+	Op->TryGetStringField(TEXT("propertyPath"), PropPath);
+	Op->TryGetStringField(TEXT("value"), Value);
+	if (PropPath.IsEmpty() || Value.IsEmpty())
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
+		return;
+	}
+	FString OldVal, ActualVal, Err;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(Font, { PropPath }, 0, Value, OldVal, ActualVal, Err))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), Err);
+		return;
+	}
+	FontState(Ctx)->bDirty = true;
+	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+}
 
-		UFont* Font = FNexusAssetUtils::LoadAssetWithFallback<UFont>(AssetPath);
-		if (!Font)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("Failed to load Font: %s"), *AssetPath));
-			return;
-		}
+bool FManageAssetFontCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UFont* Font = FNexusAssetUtils::LoadAssetWithFallback<UFont>(AssetPath);
+	if (!Font)
+	{
+		OutError = FString::Printf(TEXT("Failed to load Font: %s"), *AssetPath);
+		return false;
+	}
+	FFontActionState* State = new FFontActionState();
+	State->Font = Font;
+	OutTarget = State;
+	return true;
+}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
+void FManageAssetFontCapability::FinalizeTarget(void* Target) const
+{
+	FFontActionState* State = static_cast<FFontActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->Font) State->Font->MarkPackageDirty();
+	delete State;
+}
 
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpPtr;
-
-			FString Action, PropPath, Value;
-			Op->TryGetStringField(TEXT("action"), Action);
-			Op->TryGetStringField(TEXT("propertyPath"), PropPath);
-			Op->TryGetStringField(TEXT("value"), Value);
-
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
-			Entry->SetStringField(TEXT("action"), Action);
-
-			if (Action.Equals(TEXT("set_property"), ESearchCase::IgnoreCase))
-			{
-				if (PropPath.IsEmpty() || Value.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				FString OldVal, ActualVal, Err;
-				if (!FNexusPropertyUtils::WritePropertyAndEcho(Font, { PropPath }, 0, Value, OldVal, ActualVal, Err))
-				{
-					Entry->SetStringField(TEXT("error"), Err);
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				bDirty = true;
-				Entry->SetStringField(TEXT("propertyPath"), PropPath);
-				if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
-				if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-			}
-			else
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-		if (bDirty) Font->MarkPackageDirty();
-	});
+void FManageAssetFontCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_property"), &HandleFont_SetProperty);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetFontCapability)

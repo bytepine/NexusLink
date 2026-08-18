@@ -5,8 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "NexusMcpTool.h"
@@ -34,83 +33,105 @@ void FManageAssetGeometryCollectionCapability::BuildDefinition(FNexusCapabilityD
 	Out.RelatedCapabilities = { TEXT("get_asset_geometry_collection"), TEXT("create_asset_geometry_collection") };
 }
 
-FCapabilityResult FManageAssetGeometryCollectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FGCActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UGeometryCollection* GC = nullptr;
+	bool bDirty = false;
+};
+
+static FGCActionState* GCState(FNexusActionContext& Ctx)
+{
+	return static_cast<FGCActionState*>(Ctx.Target);
+}
+
+static UGeometryCollection* GCFrom(FNexusActionContext& Ctx)
+{
+	FGCActionState* S = GCState(Ctx);
+	return S ? S->GC : nullptr;
+}
+
+static void MarkGCDirty(FNexusActionContext& Ctx)
+{
+	if (FGCActionState* S = GCState(Ctx))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
-		UGeometryCollection* GC = FNexusAssetUtils::LoadAssetWithFallback<UGeometryCollection>(AssetPath);
-		if (!GC)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("Failed to load GeometryCollection: %s"), *AssetPath));
-			return;
-		}
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpPtr;
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
-			Action = Action.ToLower();
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
-			Entry->SetStringField(TEXT("action"), Action);
-			if (Action == TEXT("set_damage_threshold"))
-			{
-				if (!Op->HasField(TEXT("value")))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_damage_threshold requires value"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				const int32 Idx = Op->HasField(TEXT("index")) ? static_cast<int32>(Op->GetNumberField(TEXT("index"))) : 0;
-				const float Val = static_cast<float>(Op->GetNumberField(TEXT("value")));
-				if (GC->DamageThreshold.Num() == 0) GC->DamageThreshold.Add(Val);
-				else if (GC->DamageThreshold.IsValidIndex(Idx)) GC->DamageThreshold[Idx] = Val;
-				else GC->DamageThreshold.Add(Val);
-				bDirty = true;
-				Entry->SetNumberField(TEXT("index"), Idx);
-				Entry->SetNumberField(TEXT("value"), Val);
-			}
-			else if (Action == TEXT("set_property"))
-			{
-				FString PropPath, Value;
-				Op->TryGetStringField(TEXT("propertyPath"), PropPath);
-				Op->TryGetStringField(TEXT("value"), Value);
-				if (PropPath.IsEmpty() || Value.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				FString OldVal, ActualVal, Err;
-				if (!FNexusPropertyUtils::WritePropertyAndEcho(GC, { PropPath }, 0, Value, OldVal, ActualVal, Err))
-				{
-					Entry->SetStringField(TEXT("error"), Err);
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				bDirty = true;
-				Entry->SetStringField(TEXT("propertyPath"), PropPath);
-			}
-			else
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-		if (bDirty) GC->MarkPackageDirty();
-	});
+		S->bDirty = true;
+	}
+}
+
+static void HandleGC_SetDamageThreshold(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UGeometryCollection* GC = GCFrom(Ctx);
+	if (!Op->HasField(TEXT("value")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_damage_threshold requires value"));
+		return;
+	}
+	const int32 Idx = Op->HasField(TEXT("index")) ? static_cast<int32>(Op->GetNumberField(TEXT("index"))) : 0;
+	const float Val = static_cast<float>(Op->GetNumberField(TEXT("value")));
+	if (GC->DamageThreshold.Num() == 0) GC->DamageThreshold.Add(Val);
+	else if (GC->DamageThreshold.IsValidIndex(Idx)) GC->DamageThreshold[Idx] = Val;
+	else GC->DamageThreshold.Add(Val);
+	MarkGCDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("index"), Idx);
+	Ctx.Entry->SetNumberField(TEXT("value"), Val);
+}
+
+static void HandleGC_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UGeometryCollection* GC = GCFrom(Ctx);
+	FString PropPath, Value;
+	Op->TryGetStringField(TEXT("propertyPath"), PropPath);
+	Op->TryGetStringField(TEXT("value"), Value);
+	if (PropPath.IsEmpty() || Value.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
+		return;
+	}
+	FString OldVal, ActualVal, Err;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(GC, { PropPath }, 0, Value, OldVal, ActualVal, Err))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), Err);
+		return;
+	}
+	MarkGCDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
+}
+
+bool FManageAssetGeometryCollectionCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UGeometryCollection* GC = FNexusAssetUtils::LoadAssetWithFallback<UGeometryCollection>(AssetPath);
+	if (!GC)
+	{
+		OutError = FString::Printf(TEXT("Failed to load GeometryCollection: %s"), *AssetPath);
+		return false;
+	}
+	FGCActionState* State = new FGCActionState();
+	State->GC = GC;
+	OutTarget = State;
+	return true;
+}
+
+void FManageAssetGeometryCollectionCapability::FinalizeTarget(void* Target) const
+{
+	FGCActionState* State = static_cast<FGCActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->GC)
+	{
+		State->GC->MarkPackageDirty();
+	}
+	delete State;
+}
+
+void FManageAssetGeometryCollectionCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_damage_threshold"), &HandleGC_SetDamageThreshold);
+	OutHandlers.Add(TEXT("set_property"),         &HandleGC_SetProperty);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetGeometryCollectionCapability)

@@ -3,8 +3,6 @@
 #include "Capabilities/Asset/Mesh/NexusManageAssetPhysicalMaterialCapability.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusArgs.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "NexusMcpTool.h"
@@ -33,68 +31,68 @@ void FManageAssetPhysicalMaterialCapability::BuildDefinition(FNexusCapabilityDef
 	Out.RelatedCapabilities = { TEXT("get_asset_physical_material"), TEXT("create_asset_physical_material") };
 }
 
-FCapabilityResult FManageAssetPhysicalMaterialCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FPhysMatActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UPhysicalMaterial* PM = nullptr;
+	bool bDirty = false;
+};
+
+static FPhysMatActionState* PMState(FNexusActionContext& Ctx)
+{
+	return static_cast<FPhysMatActionState*>(Ctx.Target);
+}
+
+static void HandlePM_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPhysicalMaterial* PM = PMState(Ctx)->PM;
+	if (Op->HasField(TEXT("friction")))         PM->Friction         = static_cast<float>(Op->GetNumberField(TEXT("friction")));
+	if (Op->HasField(TEXT("restitution")))      PM->Restitution      = static_cast<float>(Op->GetNumberField(TEXT("restitution")));
+	if (Op->HasField(TEXT("density")))          PM->Density          = static_cast<float>(Op->GetNumberField(TEXT("density")));
+	if (Op->HasField(TEXT("raiseMassToPower"))) PM->RaiseMassToPower = static_cast<float>(Op->GetNumberField(TEXT("raiseMassToPower")));
+	if (Op->HasField(TEXT("surfaceType")))
 	{
-		const FNexusArgs A(Arguments);
+		const int32 SurfVal = static_cast<int32>(Op->GetNumberField(TEXT("surfaceType")));
+		PM->SurfaceType = EPhysicalSurface(SurfVal);
+	}
+	PMState(Ctx)->bDirty = true;
+	Ctx.Entry->SetStringField(TEXT("name"),        PM->GetName());
+	Ctx.Entry->SetNumberField(TEXT("friction"),    PM->Friction);
+	Ctx.Entry->SetNumberField(TEXT("restitution"), PM->Restitution);
+	Ctx.Entry->SetNumberField(TEXT("density"),     PM->Density);
+	Ctx.Entry->SetNumberField(TEXT("surfaceType"), static_cast<double>(static_cast<int32>(PM->SurfaceType.GetValue())));
+}
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
-		UPhysicalMaterial* PM = LoadObject<UPhysicalMaterial>(nullptr, *AssetPath);
-		if (!PM)
-		{
-			OutError = FString::Printf(TEXT("Failed to load PhysicalMaterial: %s"), *AssetPath);
-			return;
-		}
+bool FManageAssetPhysicalMaterialCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UPhysicalMaterial* PM = LoadObject<UPhysicalMaterial>(nullptr, *AssetPath);
+	if (!PM)
+	{
+		OutError = FString::Printf(TEXT("Failed to load PhysicalMaterial: %s"), *AssetPath);
+		return false;
+	}
+	FPhysMatActionState* State = new FPhysMatActionState();
+	State->PM = PM;
+	OutTarget = State;
+	return true;
+}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			OutError = TEXT("Missing or empty operations");
-			return;
-		}
+void FManageAssetPhysicalMaterialCapability::FinalizeTarget(void* Target) const
+{
+	FPhysMatActionState* State = static_cast<FPhysMatActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->PM) State->PM->MarkPackageDirty();
+	delete State;
+}
 
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr)
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("Invalid operation item"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			const TSharedPtr<FJsonObject>& Op = *OpPtr;
-
-			const FString Action = FNexusArgs(Op).Str(TEXT("action")).ToLower();
-			Entry->SetStringField(TEXT("action"), Action);
-			if (Action != TEXT("set"))
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s' (set only)"), *Action));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-
-			if (Op->HasField(TEXT("friction")))         PM->Friction         = (float)Op->GetNumberField(TEXT("friction"));
-			if (Op->HasField(TEXT("restitution")))      PM->Restitution      = (float)Op->GetNumberField(TEXT("restitution"));
-			if (Op->HasField(TEXT("density")))          PM->Density          = (float)Op->GetNumberField(TEXT("density"));
-			if (Op->HasField(TEXT("raiseMassToPower"))) PM->RaiseMassToPower = (float)Op->GetNumberField(TEXT("raiseMassToPower"));
-			if (Op->HasField(TEXT("surfaceType")))
-			{
-				const int32 SurfVal = (int32)Op->GetNumberField(TEXT("surfaceType"));
-				PM->SurfaceType = EPhysicalSurface(SurfVal);
-			}
-
-			PM->MarkPackageDirty();
-
-			Entry->SetStringField(TEXT("name"),        PM->GetName());
-			Entry->SetNumberField(TEXT("friction"),    PM->Friction);
-			Entry->SetNumberField(TEXT("restitution"), PM->Restitution);
-			Entry->SetNumberField(TEXT("density"),     PM->Density);
-			Entry->SetNumberField(TEXT("surfaceType"), (double)(int32)PM->SurfaceType.GetValue());
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-	});
+void FManageAssetPhysicalMaterialCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set"), &HandlePM_Set);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetPhysicalMaterialCapability)

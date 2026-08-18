@@ -81,7 +81,7 @@ bool FNexusPackageLedger::ShouldFlush(int32 FlushThresholdCount, int32 MemoryHig
 }
 
 FNexusPackageLedger::FFlushStats FNexusPackageLedger::UnloadPackagesSafely(
-	const TArray<UPackage*>& Packages, bool bSkipDirty, bool bGC, TArray<UPackage*>* OutSkipped)
+	const TArray<UPackage*>& Packages, bool bSkipDirty, bool bGC, TSet<UPackage*>* OutSkipped)
 {
 	FFlushStats Stats;
 
@@ -161,7 +161,7 @@ FNexusPackageLedger::FFlushStats FNexusPackageLedger::UnloadPackagesSafely(
 		Stats.Unloaded = ToUnload.Num();
 	}
 
-	if (bGC)
+	if (bGC && Stats.Unloaded > 0)
 	{
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 	}
@@ -188,7 +188,7 @@ FNexusPackageLedger::FFlushStats FNexusPackageLedger::Flush(bool bGC)
 		}
 	}
 
-	TArray<UPackage*> Skipped;
+	TSet<UPackage*> Skipped;
 	const FFlushStats SubStats = UnloadPackagesSafely(Candidates, /*bSkipDirty=*/true, bGC, &Skipped);
 	Stats.Unloaded = SubStats.Unloaded;
 	Stats.Skipped = SubStats.Skipped;
@@ -226,7 +226,7 @@ void FNexusPackageLedger::FlushRemainingUnlessSuppressed()
 		return;
 	}
 	FNexusPackageLedger& Ledger = Get();
-	if (!Ledger.IsSuppressedForThisCall())
+	if (!Ledger.IsSuppressedForThisCall() && Ledger.LiveCount() > 0)
 	{
 		Ledger.Flush(true);
 	}

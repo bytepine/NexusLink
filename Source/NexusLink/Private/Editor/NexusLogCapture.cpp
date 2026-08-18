@@ -69,11 +69,13 @@ void FNexusLogCapture::SetCategoryWhitelist(const TArray<FString>& Categories)
 {
 	FScopeLock Lock(&Mutex);
 	Whitelist.Reset(Categories.Num());
+	ExactWhitelist.Reset();
 	for (const FString& Cat : Categories)
 	{
 		if (!Cat.IsEmpty())
 		{
 			Whitelist.Add(Cat.ToUpper());
+			ExactWhitelist.Add(FName(*Cat));
 		}
 	}
 }
@@ -86,32 +88,32 @@ TArray<FString> FNexusLogCapture::GetCategoryWhitelist() const
 
 bool FNexusLogCapture::IsAllowed(const FName& Category) const
 {
-	// 白名单为空 = 全部通过
 	if (Whitelist.Num() == 0) return true;
-	const FString UpperCat = Category.ToString().ToUpper();
+	if (ExactWhitelist.Contains(Category)) return true;
+	const FString CatStr = Category.ToString();
 	for (const FString& W : Whitelist)
 	{
-		if (UpperCat.Contains(W)) return true;
+		if (CatStr.Contains(W, ESearchCase::IgnoreCase)) return true;
 	}
 	return false;
 }
 
 bool FNexusLogCapture::MatchesFilters(
 	const FNexusLogEntry& E,
-	const FString& CategoryFilter,
+	const FNexusCompiledStringPattern& CategoryFilter,
 	ELogVerbosity::Type VerbosityFilter,
-	const TArray<FString>& TextFilters)
+	const TArray<FNexusCompiledStringPattern>& TextFilters)
 {
-	if (!CategoryFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(E.Category, CategoryFilter))
+	if (!CategoryFilter.Matches(E.Category))
 		return false;
 	if (VerbosityFilter != ELogVerbosity::All && E.Verbosity > VerbosityFilter)
 		return false;
 	if (TextFilters.Num() > 0)
 	{
 		bool bMatched = false;
-		for (const FString& TF : TextFilters)
+		for (const FNexusCompiledStringPattern& TF : TextFilters)
 		{
-			if (FNexusStringMatchUtils::Matches(E.Message, TF))
+			if (TF.Matches(E.Message))
 			{
 				bMatched = true;
 				break;
@@ -120,6 +122,22 @@ bool FNexusLogCapture::MatchesFilters(
 		if (!bMatched) return false;
 	}
 	return true;
+}
+
+void FNexusLogCapture::CopyFilledEntries(TArray<FNexusLogEntry>& Out) const
+{
+	FScopeLock Lock(&Mutex);
+	const int32 Filled = FMath::Min(TotalWritten, MaxEntries);
+	Out.Reset(Filled);
+	if (Filled <= 0)
+	{
+		return;
+	}
+	const int32 StartIdx = (TotalWritten >= MaxEntries) ? WriteIndex : 0;
+	for (int32 i = 0; i < Filled; ++i)
+	{
+		Out.Add(Buffer[(StartIdx + i) % MaxEntries]);
+	}
 }
 
 void FNexusLogCapture::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category)
@@ -202,31 +220,34 @@ TArray<FNexusLogEntry> FNexusLogCapture::Query(
 	int32 SinceSequence,
 	bool bNewestFirst) const
 {
-	FScopeLock Lock(&Mutex);
+	TArray<FNexusLogEntry> Snapshot;
+	CopyFilledEntries(Snapshot);
 
-	TArray<const FNexusLogEntry*> Valid;
-	Valid.Reserve(FMath::Min(TotalWritten, MaxEntries));
-
-	const int32 Filled = FMath::Min(TotalWritten, MaxEntries);
-	const int32 StartIdx = (TotalWritten >= MaxEntries) ? WriteIndex : 0;
-
-	for (int32 i = 0; i < Filled; ++i)
+	const FNexusCompiledStringPattern CompiledCategory(CategoryFilter);
+	TArray<FNexusCompiledStringPattern> CompiledText;
+	CompiledText.Reserve(TextFilters.Num());
+	for (const FString& TF : TextFilters)
 	{
-		const FNexusLogEntry& E = Buffer[(StartIdx + i) % MaxEntries];
-
-		if (SinceSequence >= 0 && E.Sequence <= SinceSequence)
-			continue;
-		if (!MatchesFilters(E, CategoryFilter, VerbosityFilter, TextFilters))
-			continue;
-
-		Valid.Add(&E);
+		CompiledText.Emplace(TF);
 	}
 
-	OutTotalCount = Valid.Num();
+	TArray<int32> ValidIndices;
+	ValidIndices.Reserve(Snapshot.Num());
+	for (int32 i = 0; i < Snapshot.Num(); ++i)
+	{
+		const FNexusLogEntry& E = Snapshot[i];
+		if (SinceSequence >= 0 && E.Sequence <= SinceSequence)
+			continue;
+		if (!MatchesFilters(E, CompiledCategory, VerbosityFilter, CompiledText))
+			continue;
+		ValidIndices.Add(i);
+	}
+
+	OutTotalCount = ValidIndices.Num();
 
 	if (bNewestFirst)
 	{
-		Algo::Reverse(Valid);
+		Algo::Reverse(ValidIndices);
 	}
 
 	const int32 PageStart = FMath::Clamp(Offset, 0, OutTotalCount);
@@ -236,7 +257,7 @@ TArray<FNexusLogEntry> FNexusLogCapture::Query(
 	Result.Reserve(PageEnd - PageStart);
 	for (int32 i = PageStart; i < PageEnd; ++i)
 	{
-		Result.Add(*Valid[i]);
+		Result.Add(MoveTemp(Snapshot[ValidIndices[i]]));
 	}
 	return Result;
 }
@@ -249,23 +270,27 @@ void FNexusLogCapture::Summarize(
 	TArray<FNexusLogCategoryStat>& OutByCategory,
 	TMap<ELogVerbosity::Type, int32>& OutByVerbosity) const
 {
-	FScopeLock Lock(&Mutex);
+	TArray<FNexusLogEntry> Snapshot;
+	CopyFilledEntries(Snapshot);
+
+	const FNexusCompiledStringPattern CompiledCategory(CategoryFilter);
+	TArray<FNexusCompiledStringPattern> CompiledText;
+	CompiledText.Reserve(TextFilters.Num());
+	for (const FString& TF : TextFilters)
+	{
+		CompiledText.Emplace(TF);
+	}
 
 	OutByCategory.Reset();
 	OutByVerbosity.Reset();
 
 	TMap<FString, FNexusLogCategoryStat> ByCat;
 
-	const int32 Filled = FMath::Min(TotalWritten, MaxEntries);
-	const int32 StartIdx = (TotalWritten >= MaxEntries) ? WriteIndex : 0;
-
-	for (int32 i = 0; i < Filled; ++i)
+	for (const FNexusLogEntry& E : Snapshot)
 	{
-		const FNexusLogEntry& E = Buffer[(StartIdx + i) % MaxEntries];
-
 		if (SinceSequence >= 0 && E.Sequence <= SinceSequence)
 			continue;
-		if (!MatchesFilters(E, CategoryFilter, VerbosityFilter, TextFilters))
+		if (!MatchesFilters(E, CompiledCategory, VerbosityFilter, CompiledText))
 			continue;
 
 		OutByVerbosity.FindOrAdd(E.Verbosity)++;

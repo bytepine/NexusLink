@@ -5,8 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "PaperFlipbook.h"
 #include "PaperSprite.h"
 #include "NexusMcpTool.h"
@@ -35,89 +34,114 @@ void FManageAssetPaperFlipbookCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.RelatedCapabilities = { TEXT("get_asset_paper_flipbook"), TEXT("create_asset_paper_flipbook") };
 }
 
-FCapabilityResult FManageAssetPaperFlipbookCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FFlipbookActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UPaperFlipbook* Book = nullptr;
+	bool bDirty = false;
+};
+
+static FFlipbookActionState* FlipState(FNexusActionContext& Ctx)
+{
+	return static_cast<FFlipbookActionState*>(Ctx.Target);
+}
+
+static UPaperFlipbook* FlipFrom(FNexusActionContext& Ctx)
+{
+	FFlipbookActionState* S = FlipState(Ctx);
+	return S ? S->Book : nullptr;
+}
+
+static void MarkFlipDirty(FNexusActionContext& Ctx)
+{
+	if (FFlipbookActionState* S = FlipState(Ctx))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
-		UPaperFlipbook* Book = FNexusAssetUtils::LoadAssetWithFallback<UPaperFlipbook>(AssetPath);
-		if (!Book)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("Failed to load PaperFlipbook: %s"), *AssetPath));
-			return;
-		}
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpPtr;
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
-			Action = Action.ToLower();
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
-			Entry->SetStringField(TEXT("action"), Action);
-			if (Action == TEXT("add_key"))
-			{
-				FPaperFlipbookKeyFrame Kf;
-				Kf.FrameRun = Op->HasField(TEXT("frameRun")) ? static_cast<int32>(Op->GetNumberField(TEXT("frameRun"))) : 1;
-				FString SpritePath;
-				if (Op->TryGetStringField(TEXT("spritePath"), SpritePath) && !SpritePath.IsEmpty())
-				{
-					Kf.Sprite = FNexusAssetUtils::LoadAssetWithFallback<UPaperSprite>(SpritePath);
-				}
-				Book->KeyFrames.Add(Kf);
-				bDirty = true;
-				Entry->SetNumberField(TEXT("keyCount"), Book->KeyFrames.Num());
-			}
-			else if (Action == TEXT("remove_key"))
-			{
-				if (!Op->HasField(TEXT("keyIndex")))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("remove_key requires keyIndex"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("keyIndex")));
-				if (!Book->KeyFrames.IsValidIndex(Idx))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("keyIndex out of bounds"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				Book->KeyFrames.RemoveAt(Idx);
-				bDirty = true;
-				Entry->SetNumberField(TEXT("keyCount"), Book->KeyFrames.Num());
-			}
-			else if (Action == TEXT("set_frames_per_second"))
-			{
-				if (!Op->HasField(TEXT("framesPerSecond")))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_frames_per_second requires framesPerSecond"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				Book->SetFramesPerSecond(static_cast<float>(Op->GetNumberField(TEXT("framesPerSecond"))));
-				bDirty = true;
-				Entry->SetNumberField(TEXT("framesPerSecond"), Book->GetFramesPerSecond());
-			}
-			else
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
-			}
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-		if (bDirty) Book->MarkPackageDirty();
-	});
+		S->bDirty = true;
+	}
+}
+
+static void HandleFlip_AddKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPaperFlipbook* Book = FlipFrom(Ctx);
+	FPaperFlipbookKeyFrame Kf;
+	Kf.FrameRun = Op->HasField(TEXT("frameRun")) ? static_cast<int32>(Op->GetNumberField(TEXT("frameRun"))) : 1;
+	FString SpritePath;
+	if (Op->TryGetStringField(TEXT("spritePath"), SpritePath) && !SpritePath.IsEmpty())
+	{
+		Kf.Sprite = FNexusAssetUtils::LoadAssetWithFallback<UPaperSprite>(SpritePath);
+	}
+	Book->KeyFrames.Add(Kf);
+	MarkFlipDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("keyCount"), Book->KeyFrames.Num());
+}
+
+static void HandleFlip_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPaperFlipbook* Book = FlipFrom(Ctx);
+	if (!Op->HasField(TEXT("keyIndex")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_key requires keyIndex"));
+		return;
+	}
+	const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("keyIndex")));
+	if (!Book->KeyFrames.IsValidIndex(Idx))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("keyIndex out of bounds"));
+		return;
+	}
+	Book->KeyFrames.RemoveAt(Idx);
+	MarkFlipDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("keyCount"), Book->KeyFrames.Num());
+}
+
+static void HandleFlip_SetFPS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UPaperFlipbook* Book = FlipFrom(Ctx);
+	if (!Op->HasField(TEXT("framesPerSecond")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_frames_per_second requires framesPerSecond"));
+		return;
+	}
+	Book->SetFramesPerSecond(static_cast<float>(Op->GetNumberField(TEXT("framesPerSecond"))));
+	MarkFlipDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("framesPerSecond"), Book->GetFramesPerSecond());
+}
+
+bool FManageAssetPaperFlipbookCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UPaperFlipbook* Book = FNexusAssetUtils::LoadAssetWithFallback<UPaperFlipbook>(AssetPath);
+	if (!Book)
+	{
+		OutError = FString::Printf(TEXT("Failed to load PaperFlipbook: %s"), *AssetPath);
+		return false;
+	}
+	FFlipbookActionState* State = new FFlipbookActionState();
+	State->Book = Book;
+	OutTarget = State;
+	return true;
+}
+
+void FManageAssetPaperFlipbookCapability::FinalizeTarget(void* Target) const
+{
+	FFlipbookActionState* State = static_cast<FFlipbookActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->Book)
+	{
+		State->Book->MarkPackageDirty();
+	}
+	delete State;
+}
+
+void FManageAssetPaperFlipbookCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("add_key"),              &HandleFlip_AddKey);
+	OutHandlers.Add(TEXT("remove_key"),           &HandleFlip_RemoveKey);
+	OutHandlers.Add(TEXT("set_frames_per_second"), &HandleFlip_SetFPS);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetPaperFlipbookCapability)

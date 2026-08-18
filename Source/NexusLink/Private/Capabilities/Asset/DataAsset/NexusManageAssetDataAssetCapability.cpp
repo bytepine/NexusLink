@@ -1,8 +1,6 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/DataAsset/NexusManageAssetDataAssetCapability.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
@@ -39,115 +37,128 @@ void FManageAssetDataAssetCapability::BuildDefinition(FNexusCapabilityDefinition
 	Out.WhenToUse = TEXT("Write ops: set or reset DataAsset to CDO defaults");
 }
 
-FCapabilityResult FManageAssetDataAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FDataAssetActionState
 {
+	UDataAsset* DA = nullptr;
+	bool bDirty = false;
+};
 
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+static FDataAssetActionState* DAState(FNexusActionContext& Ctx)
+{
+	return static_cast<FDataAssetActionState*>(Ctx.Target);
+}
+
+static UDataAsset* DAFrom(FNexusActionContext& Ctx)
+{
+	FDataAssetActionState* S = DAState(Ctx);
+	return S ? S->DA : nullptr;
+}
+
+static void MarkDADirty(FNexusActionContext& Ctx)
+{
+	if (FDataAssetActionState* S = DAState(Ctx))
 	{
-		const FNexusArgs A(Arguments);
+		S->bDirty = true;
+	}
+}
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+static FProperty* ResolveDAProp(UDataAsset* DA, const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	const FString PropertyName = FNexusArgs(Op).Str(TEXT("propertyName"));
+	Ctx.Entry->SetStringField(TEXT("propertyName"), PropertyName);
+	if (PropertyName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("propertyName is required"));
+		return nullptr;
+	}
+	FProperty* Prop = DA->GetClass()->FindPropertyByName(*PropertyName);
+	if (!Prop)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Property '%s' not found on class %s"),
+			*PropertyName, *DA->GetClass()->GetName()));
+		return nullptr;
+	}
+	if (!Prop->HasAnyPropertyFlags(CPF_Edit))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Property '%s' is not editable"), *PropertyName));
+		return nullptr;
+	}
+	return Prop;
+}
 
-		UObject* Obj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(AssetPath);
-		if (!Obj) { OutError = FString::Printf(TEXT("Asset not found: %s"), *AssetPath); return; }
+static void HandleDA_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UDataAsset* DA = DAFrom(Ctx);
+	FProperty* Prop = ResolveDAProp(DA, Op, Ctx);
+	if (!Prop) return;
+	void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(DA);
+	FString OldValue;
+	FNexusPropertyUtils::ExportText(Prop, OldValue, ValuePtr);
+	const FString NewValue = Op->HasField(TEXT("value")) ? Op->GetStringField(TEXT("value")) : TEXT("");
+	if (!FNexusPropertyUtils::ImportTextFromString(Prop, NewValue, ValuePtr, DA))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("ImportText failed: '%s'"), *Prop->GetName()));
+		return;
+	}
+	FString ActualValue;
+	FNexusPropertyUtils::ExportText(Prop, ActualValue, ValuePtr);
+	if (!OldValue.IsEmpty())    Ctx.Entry->SetStringField(TEXT("oldValue"), OldValue);
+	if (!ActualValue.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualValue);
+	MarkDADirty(Ctx);
+}
 
-		UDataAsset* DA = Cast<UDataAsset>(Obj);
-		if (!DA) { OutError = FString::Printf(TEXT("Asset is not a DataAsset: %s"), *AssetPath); return; }
+static void HandleDA_Reset(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UDataAsset* DA = DAFrom(Ctx);
+	FProperty* Prop = ResolveDAProp(DA, Op, Ctx);
+	if (!Prop) return;
+	void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(DA);
+	FString OldValue;
+	FNexusPropertyUtils::ExportText(Prop, OldValue, ValuePtr);
+	// 从类 CDO 拷贝，等价于编辑器「恢复默认」；非 InitializeValue 的零内存语义
+	UObject* CDO = DA->GetClass()->GetDefaultObject();
+	const void* SrcPtr = Prop->ContainerPtrToValuePtr<void>(CDO);
+	Prop->CopyCompleteValue(ValuePtr, SrcPtr);
+	FString ResetValue;
+	FNexusPropertyUtils::ExportText(Prop, ResetValue, ValuePtr);
+	if (!OldValue.IsEmpty())   Ctx.Entry->SetStringField(TEXT("oldValue"),   OldValue);
+	if (!ResetValue.IsEmpty()) Ctx.Entry->SetStringField(TEXT("resetValue"), ResetValue);
+	MarkDADirty(Ctx);
+}
 
-		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (OpsArr.Num() == 0)
-		{
-			OutError = TEXT("Missing or empty operations");
-			return;
-		}
+bool FManageAssetDataAssetCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UObject* Obj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(AssetPath);
+	if (!Obj) { OutError = FString::Printf(TEXT("Asset not found: %s"), *AssetPath); return false; }
+	UDataAsset* DA = Cast<UDataAsset>(Obj);
+	if (!DA) { OutError = FString::Printf(TEXT("Asset is not a DataAsset: %s"), *AssetPath); return false; }
+	FDataAssetActionState* State = new FDataAssetActionState();
+	State->DA = DA;
+	OutTarget = State;
+	return true;
+}
 
-		bool bDidMutate = false;
-		for (const TSharedPtr<FJsonValue>& Val : OpsArr)
-		{
-			TSharedPtr<FJsonObject> Item = Val->AsObject();
-			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
+void FManageAssetDataAssetCapability::FinalizeTarget(void* Target) const
+{
+	FDataAssetActionState* State = static_cast<FDataAssetActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->DA)
+	{
+		State->DA->MarkPackageDirty();
+	}
+	delete State;
+}
 
-			if (!Item.IsValid())
-			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("Invalid op item"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
-
-			const FString Action       = Item->HasField(TEXT("action"))       ? Item->GetStringField(TEXT("action")).ToLower() : TEXT("set");
-			const FString PropertyName = Item->HasField(TEXT("propertyName")) ? Item->GetStringField(TEXT("propertyName"))     : TEXT("");
-			OutEntry->SetStringField(TEXT("propertyName"), PropertyName);
-			OutEntry->SetStringField(TEXT("action"),       Action);
-
-			if (PropertyName.IsEmpty())
-			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("propertyName is required"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
-
-			FProperty* Prop = DA->GetClass()->FindPropertyByName(*PropertyName);
-			if (!Prop)
-			{
-				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Property '%s' not found on class %s"),
-					*PropertyName, *DA->GetClass()->GetName()));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
-
-			if (!Prop->HasAnyPropertyFlags(CPF_Edit))
-			{
-				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Property '%s' is not editable"), *PropertyName));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
-
-			void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(DA);
-			FString OldValue;
-			FNexusPropertyUtils::ExportText(Prop, OldValue, ValuePtr);
-
-			if (Action == TEXT("set"))
-			{
-				const FString NewValue = Item->HasField(TEXT("value")) ? Item->GetStringField(TEXT("value")) : TEXT("");
-				if (!FNexusPropertyUtils::ImportTextFromString(Prop, NewValue, ValuePtr, DA))
-				{
-					OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("ImportText failed: '%s'"), *PropertyName));
-					OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-					continue;
-				}
-
-				FString ActualValue;
-				FNexusPropertyUtils::ExportText(Prop, ActualValue, ValuePtr);
-				if (!OldValue.IsEmpty())    OutEntry->SetStringField(TEXT("oldValue"), OldValue);
-				if (!ActualValue.IsEmpty()) OutEntry->SetStringField(TEXT("newValue"), ActualValue);
-				bDidMutate = true;
-			}
-			else if (Action == TEXT("reset"))
-			{
-				// 从类 CDO 拷贝，等价于编辑器「恢复默认」；非 InitializeValue 的零内存语义
-				UObject* CDO = DA->GetClass()->GetDefaultObject();
-				const void* SrcPtr = Prop->ContainerPtrToValuePtr<void>(CDO);
-				Prop->CopyCompleteValue(ValuePtr, SrcPtr);
-
-				FString ResetValue;
-				FNexusPropertyUtils::ExportText(Prop, ResetValue, ValuePtr);
-				if (!OldValue.IsEmpty())   OutEntry->SetStringField(TEXT("oldValue"),   OldValue);
-				if (!ResetValue.IsEmpty()) OutEntry->SetStringField(TEXT("resetValue"), ResetValue);
-				bDidMutate = true;
-			}
-			else
-			{
-				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
-
-			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-		}
-
-		if (bDidMutate) DA->MarkPackageDirty();
-	
-	});
+void FManageAssetDataAssetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set"),   &HandleDA_Set);
+	OutHandlers.Add(TEXT("reset"), &HandleDA_Reset);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetDataAssetCapability)

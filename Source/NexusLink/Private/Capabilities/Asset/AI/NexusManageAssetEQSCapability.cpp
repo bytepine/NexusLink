@@ -4,9 +4,7 @@
 
 #if NX_UE_HAS_EQS
 
-#include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
-#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -61,160 +59,172 @@ void FManageAssetEQSCapability::BuildDefinition(FNexusCapabilityDefinition& Out)
 	Out.WhenToUse = TEXT("Add/remove EQS Options, set Generator, add/remove Tests");
 }
 
-FCapabilityResult FManageAssetEQSCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FEQSActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UEnvQuery* EQ = nullptr;
+	TArray<UEnvQueryOption*>* Options = nullptr;
+	bool bDirty = false;
+};
+
+static FEQSActionState* EQSState(FNexusActionContext& Ctx)
+{
+	return static_cast<FEQSActionState*>(Ctx.Target);
+}
+
+static void MarkEQSDirty(FNexusActionContext& Ctx)
+{
+	if (FEQSActionState* S = EQSState(Ctx))
 	{
-		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		S->bDirty = true;
+	}
+}
 
-		UEnvQuery* EQ = FNexusAssetUtils::LoadAssetWithFallback<UEnvQuery>(AssetPath);
-		if (!EQ)
-		{
-			OutError = FString::Printf(TEXT("EnvQuery not found: %s"), *AssetPath);
-			return;
-		}
+static void HandleEQS_AddOption(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	(void)Op;
+	FEQSActionState* S = EQSState(Ctx);
+	UEnvQueryOption* NewOpt = NewObject<UEnvQueryOption>(S->EQ, NAME_None, RF_Transactional);
+	S->Options->Add(NewOpt);
+	Ctx.Entry->SetNumberField(TEXT("optionIndex"), S->Options->Num() - 1);
+	MarkEQSDirty(Ctx);
+}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			OutError = TEXT("operations is a required array");
-			return;
-		}
+static void HandleEQS_RemoveOption(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FEQSActionState* S = EQSState(Ctx);
+	int64 Idx = -1;
+	Op->TryGetNumberField(TEXT("optionIndex"), Idx);
+	if (Idx < 0 || Idx >= S->Options->Num())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("optionIndex %lld out of range [0, %d)"), Idx, S->Options->Num()));
+		return;
+	}
+	S->Options->RemoveAt(static_cast<int32>(Idx));
+	MarkEQSDirty(Ctx);
+}
 
-		TArray<UEnvQueryOption*>* Options = GetEnvQueryOptionsPtr(EQ);
-		if (!Options)
-		{
-			OutError = TEXT("Unable to access EnvQuery::Options (UE version unsupported)");
-			return;
-		}
+static void HandleEQS_SetGenerator(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FEQSActionState* S = EQSState(Ctx);
+	int64 Idx = 0;
+	Op->TryGetNumberField(TEXT("optionIndex"), Idx);
+	FString GenClassName;
+	if (!Op->TryGetStringField(TEXT("generatorClass"), GenClassName))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_generator requires generatorClass"));
+		return;
+	}
+	if (Idx < 0 || Idx >= S->Options->Num())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid optionIndex %lld"), Idx));
+		return;
+	}
+	UClass* GenClass = FindEQSClassByName(GenClassName);
+	if (!GenClass || !GenClass->IsChildOf(UEnvQueryGenerator::StaticClass()))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Generator class not found: %s"), *GenClassName));
+		return;
+	}
+	UEnvQueryOption* Opt = (*S->Options)[static_cast<int32>(Idx)];
+	Opt->Generator = NewObject<UEnvQueryGenerator>(Opt, GenClass, NAME_None, RF_Transactional);
+	MarkEQSDirty(Ctx);
+}
 
-		bool bDirty = false;
+static void HandleEQS_AddTest(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FEQSActionState* S = EQSState(Ctx);
+	int64 Idx = 0;
+	Op->TryGetNumberField(TEXT("optionIndex"), Idx);
+	FString TestClassName;
+	if (!Op->TryGetStringField(TEXT("testClass"), TestClassName))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_test requires testClass"));
+		return;
+	}
+	if (Idx < 0 || Idx >= S->Options->Num())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid optionIndex %lld"), Idx));
+		return;
+	}
+	UClass* TestClass = FindEQSClassByName(TestClassName);
+	if (!TestClass || !TestClass->IsChildOf(UEnvQueryTest::StaticClass()))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Test class not found: %s"), *TestClassName));
+		return;
+	}
+	UEnvQueryOption* Opt = (*S->Options)[static_cast<int32>(Idx)];
+	UEnvQueryTest* NewTest = NewObject<UEnvQueryTest>(Opt, TestClass, NAME_None, RF_Transactional);
+	Opt->Tests.Add(NewTest);
+	Ctx.Entry->SetNumberField(TEXT("testIndex"), Opt->Tests.Num() - 1);
+	MarkEQSDirty(Ctx);
+}
 
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			TSharedPtr<FJsonObject> Op = OpVal->AsObject();
-			if (!Op.IsValid()) continue;
+static void HandleEQS_RemoveTest(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FEQSActionState* S = EQSState(Ctx);
+	int64 OptIdx = 0, TestIdx = -1;
+	Op->TryGetNumberField(TEXT("optionIndex"), OptIdx);
+	Op->TryGetNumberField(TEXT("testIndex"),   TestIdx);
+	if (OptIdx < 0 || OptIdx >= S->Options->Num())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid optionIndex %lld"), OptIdx));
+		return;
+	}
+	UEnvQueryOption* Opt = (*S->Options)[static_cast<int32>(OptIdx)];
+	if (TestIdx < 0 || TestIdx >= Opt->Tests.Num())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("testIndex %lld out of range [0, %d)"), TestIdx, Opt->Tests.Num()));
+		return;
+	}
+	Opt->Tests.RemoveAt(static_cast<int32>(TestIdx));
+	MarkEQSDirty(Ctx);
+}
 
-			TSharedPtr<FJsonObject> OpResult = MakeShared<FJsonObject>();
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
+bool FManageAssetEQSCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UEnvQuery* EQ = FNexusAssetUtils::LoadAssetWithFallback<UEnvQuery>(AssetPath);
+	if (!EQ)
+	{
+		OutError = FString::Printf(TEXT("EnvQuery not found: %s"), *AssetPath);
+		return false;
+	}
+	TArray<UEnvQueryOption*>* Options = GetEnvQueryOptionsPtr(EQ);
+	if (!Options)
+	{
+		OutError = TEXT("Unable to access EnvQuery::Options (UE version unsupported)");
+		return false;
+	}
+	FEQSActionState* State = new FEQSActionState();
+	State->EQ = EQ;
+	State->Options = Options;
+	OutTarget = State;
+	return true;
+}
 
-			if (Action == TEXT("add_option"))
-			{
-				UEnvQueryOption* NewOpt = NewObject<UEnvQueryOption>(EQ, NAME_None, RF_Transactional);
-				Options->Add(NewOpt);
-				OpResult->SetNumberField(TEXT("optionIndex"), Options->Num() - 1);
-				bDirty = true;
-			}
-			else if (Action == TEXT("remove_option"))
-			{
-				int64 Idx = -1;
-				Op->TryGetNumberField(TEXT("optionIndex"), Idx);
-				if (Idx < 0 || Idx >= Options->Num())
-				{
-					OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("optionIndex %lld out of range [0, %d)"), Idx, Options->Num()));
-				}
-				else
-				{
-					Options->RemoveAt(static_cast<int32>(Idx));
-					bDirty = true;
-				}
-			}
-			else if (Action == TEXT("set_generator"))
-			{
-				int64 Idx = 0;
-				Op->TryGetNumberField(TEXT("optionIndex"), Idx);
-				FString GenClassName;
-				if (!Op->TryGetStringField(TEXT("generatorClass"), GenClassName))
-				{
-					OpResult->SetStringField(TEXT("error"), TEXT("set_generator requires generatorClass"));
-				}
-				else if (Idx < 0 || Idx >= Options->Num())
-				{
-					OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid optionIndex %lld"), Idx));
-				}
-				else
-				{
-					UClass* GenClass = FindEQSClassByName(GenClassName);
-					if (!GenClass || !GenClass->IsChildOf(UEnvQueryGenerator::StaticClass()))
-					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Generator class not found: %s"), *GenClassName));
-					}
-					else
-					{
-						UEnvQueryOption* Opt = (*Options)[static_cast<int32>(Idx)];
-						Opt->Generator = NewObject<UEnvQueryGenerator>(Opt, GenClass, NAME_None, RF_Transactional);
-						bDirty = true;
-					}
-				}
-			}
-			else if (Action == TEXT("add_test"))
-			{
-				int64 Idx = 0;
-				Op->TryGetNumberField(TEXT("optionIndex"), Idx);
-				FString TestClassName;
-				if (!Op->TryGetStringField(TEXT("testClass"), TestClassName))
-				{
-					OpResult->SetStringField(TEXT("error"), TEXT("add_test requires testClass"));
-				}
-				else if (Idx < 0 || Idx >= Options->Num())
-				{
-					OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid optionIndex %lld"), Idx));
-				}
-				else
-				{
-					UClass* TestClass = FindEQSClassByName(TestClassName);
-					if (!TestClass || !TestClass->IsChildOf(UEnvQueryTest::StaticClass()))
-					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Test class not found: %s"), *TestClassName));
-					}
-					else
-					{
-						UEnvQueryOption* Opt = (*Options)[static_cast<int32>(Idx)];
-						UEnvQueryTest* NewTest = NewObject<UEnvQueryTest>(Opt, TestClass, NAME_None, RF_Transactional);
-						Opt->Tests.Add(NewTest);
-						OpResult->SetNumberField(TEXT("testIndex"), Opt->Tests.Num() - 1);
-						bDirty = true;
-					}
-				}
-			}
-			else if (Action == TEXT("remove_test"))
-			{
-				int64 OptIdx = 0, TestIdx = -1;
-				Op->TryGetNumberField(TEXT("optionIndex"), OptIdx);
-				Op->TryGetNumberField(TEXT("testIndex"),   TestIdx);
-				if (OptIdx < 0 || OptIdx >= Options->Num())
-				{
-					OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid optionIndex %lld"), OptIdx));
-				}
-				else
-				{
-					UEnvQueryOption* Opt = (*Options)[static_cast<int32>(OptIdx)];
-					if (TestIdx < 0 || TestIdx >= Opt->Tests.Num())
-					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("testIndex %lld out of range [0, %d)"), TestIdx, Opt->Tests.Num()));
-					}
-					else
-					{
-						Opt->Tests.RemoveAt(static_cast<int32>(TestIdx));
-						bDirty = true;
-					}
-				}
-			}
-			else
-			{
-				OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-			}
+void FManageAssetEQSCapability::FinalizeTarget(void* Target) const
+{
+	FEQSActionState* State = static_cast<FEQSActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->EQ)
+	{
+		State->EQ->MarkPackageDirty();
+	}
+	delete State;
+}
 
-			OutEntries.Add(MakeShared<FJsonValueObject>(OpResult));
-		}
-
-		if (bDirty)
-		{
-			EQ->MarkPackageDirty();
-		}
-	});
+void FManageAssetEQSCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("add_option"),     &HandleEQS_AddOption);
+	OutHandlers.Add(TEXT("remove_option"),  &HandleEQS_RemoveOption);
+	OutHandlers.Add(TEXT("set_generator"),  &HandleEQS_SetGenerator);
+	OutHandlers.Add(TEXT("add_test"),       &HandleEQS_AddTest);
+	OutHandlers.Add(TEXT("remove_test"),    &HandleEQS_RemoveTest);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetEQSCapability)

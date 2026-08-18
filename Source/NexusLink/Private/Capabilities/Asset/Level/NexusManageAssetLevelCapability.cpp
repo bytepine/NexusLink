@@ -1,11 +1,10 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Level/NexusManageAssetLevelCapability.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusEditorLevelUtils.h"
 #include "Engine/World.h"
@@ -112,185 +111,182 @@ void FManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 	Out.WhenToUse = TEXT("Edit WorldSettings or level Actors; persist with save_asset");
 }
 
-FCapabilityResult FManageAssetLevelCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FLevelActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UWorld* World = nullptr;
+	bool bEditorWorld = false;
+};
+
+static FLevelActionState* LevelFrom(FNexusActionContext& Ctx)
+{
+	FLevelActionState* S = static_cast<FLevelActionState*>(Ctx.Target);
+	if (S)
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		Ctx.Entry->SetBoolField(TEXT("isEditorWorld"), S->bEditorWorld);
+	}
+	return S;
+}
 
-		bool bEditorWorld = false;
-		FString LoadErr;
-		UWorld* World = FNexusEditorLevelUtils::LoadLevelWorldForWrite(AssetPath, bEditorWorld, LoadErr);
-		if (!World)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, LoadErr);
-			return;
-		}
+static void HandleLevel_SpawnActor(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FLevelActionState* S = LevelFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString ClassName = A.Str(TEXT("className"));
+	const FString SpawnAssetPath = A.Str(TEXT("assetPath"));
+	const FString LocationStr = A.Str(TEXT("location"));
+	const FString RotationStr = A.Str(TEXT("rotation"));
+	FVector Location(0.f, 0.f, 0.f);
+	if (!LocationStr.IsEmpty() && !NxParseVector3Text(LocationStr, Location))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("location format must be x,y,z"));
+		return;
+	}
+	FRotator Rotation = FRotator::ZeroRotator;
+	if (!RotationStr.IsEmpty() && !NxParseRotatorText(RotationStr, Rotation))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("rotation format must be pitch,yaw,roll"));
+		return;
+	}
+	FString ClassErr;
+	UClass* SpawnClass = ResolveSpawnClass(ClassName, SpawnAssetPath, ClassErr);
+	if (!SpawnClass)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), ClassErr);
+		return;
+	}
+	AActor* Spawned = nullptr;
+	FString SpawnErr;
+	if (!FNexusEditorLevelUtils::SpawnActorInLevelWorld(S->World, SpawnClass, Location, Rotation, Spawned, SpawnErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), SpawnErr);
+		return;
+	}
+	Ctx.Entry->SetStringField(TEXT("actorName"), Spawned->GetName());
+	Ctx.Entry->SetStringField(TEXT("actorClass"), Spawned->GetClass()->GetName());
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
+static void HandleLevel_RemoveActor(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FLevelActionState* S = LevelFrom(Ctx);
+	const FString ActorName = FNexusArgs(Op).Str(TEXT("actorName"));
+	if (ActorName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_actor requires actorName"));
+		return;
+	}
+	AActor* Actor = FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(S->World, ActorName);
+	if (!Actor)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
+		return;
+	}
+	FString RemoveErr;
+	if (!FNexusEditorLevelUtils::RemoveLevelActor(S->World, Actor, RemoveErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), RemoveErr);
+		return;
+	}
+	Ctx.Entry->SetStringField(TEXT("removedActor"), ActorName);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
 
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-		const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
-		if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
-		const TSharedPtr<FJsonObject>& OpArgs = *OpObjPtr;
+static void HandleLevel_SetActorProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FLevelActionState* S = LevelFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString ActorName = A.Str(TEXT("actorName"));
+	const FString PropPath = A.Str(TEXT("propertyPath"));
+	const FString Value = A.Str(TEXT("value"));
+	if (ActorName.IsEmpty() || PropPath.IsEmpty() || Value.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_actor_property requires actorName、propertyPath、value"));
+		return;
+	}
+	AActor* Actor = FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(S->World, ActorName);
+	if (!Actor)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
+		return;
+	}
+	FString OldVal, ActualVal, PropErr;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(Actor, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), PropErr);
+		return;
+	}
+	S->World->MarkPackageDirty();
+	Ctx.Entry->SetStringField(TEXT("actorName"), ActorName);
+	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
 
-		FString Action;
-		OpArgs->TryGetStringField(TEXT("action"), Action);
+static void HandleLevel_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FLevelActionState* S = LevelFrom(Ctx);
+	AWorldSettings* WorldSettings = S->World->GetWorldSettings();
+	if (!WorldSettings)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Level has no WorldSettings"));
+		return;
+	}
+	const FNexusArgs A(Op);
+	const FString PropPath = A.Str(TEXT("propertyPath"));
+	const FString Value = A.Str(TEXT("value"));
+	if (PropPath.IsEmpty() || Value.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
+		return;
+	}
+	FString OldVal, ActualVal, PropErr;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(WorldSettings, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), PropErr);
+		return;
+	}
+	S->World->MarkPackageDirty();
+	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+}
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), AssetPath);
-		Entry->SetStringField(TEXT("action"), Action);
-		Entry->SetBoolField(TEXT("isEditorWorld"), bEditorWorld);
+bool FManageAssetLevelCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	bool bEditorWorld = false;
+	FString LoadErr;
+	UWorld* World = FNexusEditorLevelUtils::LoadLevelWorldForWrite(AssetPath, bEditorWorld, LoadErr);
+	if (!World)
+	{
+		OutError = LoadErr;
+		return false;
+	}
+	FLevelActionState* State = new FLevelActionState();
+	State->World = World;
+	State->bEditorWorld = bEditorWorld;
+	OutTarget = State;
+	return true;
+}
 
-		if (Action.Equals(TEXT("spawn_actor"), ESearchCase::IgnoreCase))
-		{
-			FString ClassName, SpawnAssetPath, LocationStr, RotationStr;
-			if (OpArgs.IsValid())
-			{
-				OpArgs->TryGetStringField(TEXT("className"), ClassName);
-				OpArgs->TryGetStringField(TEXT("assetPath"), SpawnAssetPath);
-				OpArgs->TryGetStringField(TEXT("location"), LocationStr);
-				OpArgs->TryGetStringField(TEXT("rotation"), RotationStr);
-			}
-			FVector Location(0.f, 0.f, 0.f);
-			if (!LocationStr.IsEmpty() && !NxParseVector3Text(LocationStr, Location))
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("location format must be x,y,z"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			FRotator Rotation = FRotator::ZeroRotator;
-			if (!RotationStr.IsEmpty() && !NxParseRotatorText(RotationStr, Rotation))
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("rotation format must be pitch,yaw,roll"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			FString ClassErr;
-			UClass* SpawnClass = ResolveSpawnClass(ClassName, SpawnAssetPath, ClassErr);
-			if (!SpawnClass)
-			{
-				Entry->SetStringField(TEXT("error"), ClassErr);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			AActor* Spawned = nullptr;
-			FString SpawnErr;
-			if (!FNexusEditorLevelUtils::SpawnActorInLevelWorld(World, SpawnClass, Location, Rotation, Spawned, SpawnErr))
-			{
-				Entry->SetStringField(TEXT("error"), SpawnErr);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			Entry->SetStringField(TEXT("actorName"), Spawned->GetName());
-			Entry->SetStringField(TEXT("actorClass"), Spawned->GetClass()->GetName());
-			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-		}
-		else if (Action.Equals(TEXT("remove_actor"), ESearchCase::IgnoreCase))
-		{
-			FString ActorName;
-			if (!OpArgs.IsValid() || !OpArgs->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty())
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_actor requires actorName"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			AActor* Actor = FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(World, ActorName);
-			if (!Actor)
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			FString RemoveErr;
-			if (!FNexusEditorLevelUtils::RemoveLevelActor(World, Actor, RemoveErr))
-			{
-				Entry->SetStringField(TEXT("error"), RemoveErr);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			Entry->SetStringField(TEXT("removedActor"), ActorName);
-			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-		}
-		else if (Action.Equals(TEXT("set_actor_property"), ESearchCase::IgnoreCase))
-		{
-			FString ActorName, PropPath, Value;
-			if (!OpArgs.IsValid()
-				|| !OpArgs->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty()
-				|| !OpArgs->TryGetStringField(TEXT("propertyPath"), PropPath) || PropPath.IsEmpty()
-				|| !OpArgs->TryGetStringField(TEXT("value"), Value) || Value.IsEmpty())
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_actor_property requires actorName、propertyPath、value"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			AActor* Actor = FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(World, ActorName);
-			if (!Actor)
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			FString OldVal, ActualVal, PropErr;
-			if (!FNexusPropertyUtils::WritePropertyAndEcho(Actor, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
-			{
-				Entry->SetStringField(TEXT("error"), PropErr);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			World->MarkPackageDirty();
-			Entry->SetStringField(TEXT("actorName"), ActorName);
-			Entry->SetStringField(TEXT("propertyPath"), PropPath);
-			if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
-			if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-		}
-		else if (Action.Equals(TEXT("set_property"), ESearchCase::IgnoreCase))
-		{
-			AWorldSettings* WorldSettings = World->GetWorldSettings();
-			if (!WorldSettings)
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("Level has no WorldSettings"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			FString PropPath, Value;
-			if (!OpArgs.IsValid()
-				|| !OpArgs->TryGetStringField(TEXT("propertyPath"), PropPath) || PropPath.IsEmpty()
-				|| !OpArgs->TryGetStringField(TEXT("value"), Value) || Value.IsEmpty())
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			FString OldVal, ActualVal, PropErr;
-			if (!FNexusPropertyUtils::WritePropertyAndEcho(WorldSettings, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
-			{
-				Entry->SetStringField(TEXT("error"), PropErr);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			World->MarkPackageDirty();
-			Entry->SetStringField(TEXT("propertyPath"), PropPath);
-			if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
-			if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
-		}
-		else
-		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-		}
+void FManageAssetLevelCapability::FinalizeTarget(void* Target) const
+{
+	delete static_cast<FLevelActionState*>(Target);
+}
 
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-	});
+void FManageAssetLevelCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("spawn_actor"),         &HandleLevel_SpawnActor);
+	OutHandlers.Add(TEXT("remove_actor"),        &HandleLevel_RemoveActor);
+	OutHandlers.Add(TEXT("set_actor_property"),  &HandleLevel_SetActorProperty);
+	OutHandlers.Add(TEXT("set_property"),        &HandleLevel_SetProperty);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetLevelCapability)

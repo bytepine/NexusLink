@@ -5,8 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #if NX_UE_HAS_MOVIE_PIPELINE_PRIMARY_CONFIG
@@ -99,199 +98,206 @@ void FManageAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapability
 	Out.WhenToUse = TEXT("Edit MRQ output/AA/settings stack; no render");
 }
 
-FCapabilityResult FManageAssetMoviePipelineConfigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+static FNexusMoviePipelineConfig* CfgFrom(FNexusActionContext& Ctx)
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	return static_cast<FNexusMoviePipelineConfig*>(Ctx.Target);
+}
+
+static void MarkCfgDirty(FNexusActionContext& Ctx)
+{
+	if (FNexusMoviePipelineConfig* Cfg = CfgFrom(Ctx))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
-		FNexusMoviePipelineConfig* Cfg = FNexusAssetUtils::LoadAssetWithFallback<FNexusMoviePipelineConfig>(AssetPath);
-		if (!Cfg)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("Failed to load MoviePipeline config: %s"), *AssetPath));
-			return;
-		}
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
+		Cfg->MarkPackageDirty();
+	}
+}
 
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpPtr;
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
+static void HandleMRQ_SetOutput(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FNexusMoviePipelineConfig* Cfg = CfgFrom(Ctx);
+	UMoviePipelineOutputSetting* OutSet = Cfg->FindSetting<UMoviePipelineOutputSetting>();
+	if (!OutSet)
+	{
+		OutSet = Cast<UMoviePipelineOutputSetting>(
+			Cfg->FindOrAddSettingByClass(UMoviePipelineOutputSetting::StaticClass()));
+	}
+	if (!OutSet)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("no OutputSetting"));
+		return;
+	}
+	const FNexusArgs A(Op);
+	const FString Dir = A.Str(TEXT("directory"));
+	const FString Fmt = A.Str(TEXT("fileNameFormat"));
+	if (!Dir.IsEmpty()) OutSet->OutputDirectory.Path = Dir;
+	if (!Fmt.IsEmpty()) OutSet->FileNameFormat = Fmt;
+	if (Op->HasField(TEXT("width")) || Op->HasField(TEXT("height")))
+	{
+		FIntPoint Res = OutSet->OutputResolution;
+		if (Op->HasField(TEXT("width"))) Res.X = static_cast<int32>(A.Num(TEXT("width")));
+		if (Op->HasField(TEXT("height"))) Res.Y = static_cast<int32>(A.Num(TEXT("height")));
+		OutSet->OutputResolution = Res;
+	}
+	MarkCfgDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("directory"), OutSet->OutputDirectory.Path);
+	Ctx.Entry->SetNumberField(TEXT("width"), OutSet->OutputResolution.X);
+	Ctx.Entry->SetNumberField(TEXT("height"), OutSet->OutputResolution.Y);
+	Ctx.Entry->SetStringField(TEXT("fileNameFormat"), OutSet->FileNameFormat);
+}
 
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
-			Entry->SetStringField(TEXT("action"), Action);
+static void HandleMRQ_SetAntiAliasing(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FNexusMoviePipelineConfig* Cfg = CfgFrom(Ctx);
+	UMoviePipelineAntiAliasingSetting* AA = Cast<UMoviePipelineAntiAliasingSetting>(
+		Cfg->FindOrAddSettingByClass(UMoviePipelineAntiAliasingSetting::StaticClass()));
+	if (!AA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to add AntiAliasingSetting"));
+		return;
+	}
+	const FNexusArgs A(Op);
+	if (Op->HasField(TEXT("spatialSampleCount")))
+		AA->SpatialSampleCount = FMath::Max(1, static_cast<int32>(A.Num(TEXT("spatialSampleCount"))));
+	if (Op->HasField(TEXT("temporalSampleCount")))
+		AA->TemporalSampleCount = FMath::Max(1, static_cast<int32>(A.Num(TEXT("temporalSampleCount"))));
+	if (Op->HasField(TEXT("enabled")))
+	{
+		AA->SetIsEnabled(A.Bool(TEXT("enabled"), true));
+	}
+	MarkCfgDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("spatialSampleCount"), AA->SpatialSampleCount);
+	Ctx.Entry->SetNumberField(TEXT("temporalSampleCount"), AA->TemporalSampleCount);
+	Ctx.Entry->SetBoolField(TEXT("enabled"), AA->IsEnabled());
+}
 
-			if (Action.Equals(TEXT("set_output"), ESearchCase::IgnoreCase))
-			{
-				UMoviePipelineOutputSetting* OutSet = Cfg->FindSetting<UMoviePipelineOutputSetting>();
-				if (!OutSet)
-				{
-					OutSet = Cast<UMoviePipelineOutputSetting>(
-						Cfg->FindOrAddSettingByClass(UMoviePipelineOutputSetting::StaticClass()));
-				}
-				if (!OutSet)
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("no OutputSetting"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				FString Dir, Fmt;
-				if (Op->TryGetStringField(TEXT("directory"), Dir) && !Dir.IsEmpty())
-				{
-					OutSet->OutputDirectory.Path = Dir;
-				}
-				if (Op->TryGetStringField(TEXT("fileNameFormat"), Fmt) && !Fmt.IsEmpty())
-				{
-					OutSet->FileNameFormat = Fmt;
-				}
-				if (Op->HasField(TEXT("width")) || Op->HasField(TEXT("height")))
-				{
-					FIntPoint Res = OutSet->OutputResolution;
-					if (Op->HasField(TEXT("width"))) Res.X = static_cast<int32>(Op->GetNumberField(TEXT("width")));
-					if (Op->HasField(TEXT("height"))) Res.Y = static_cast<int32>(Op->GetNumberField(TEXT("height")));
-					OutSet->OutputResolution = Res;
-				}
-				bDirty = true;
-				Entry->SetStringField(TEXT("directory"), OutSet->OutputDirectory.Path);
-				Entry->SetNumberField(TEXT("width"), OutSet->OutputResolution.X);
-				Entry->SetNumberField(TEXT("height"), OutSet->OutputResolution.Y);
-				Entry->SetStringField(TEXT("fileNameFormat"), OutSet->FileNameFormat);
-			}
-			else if (Action.Equals(TEXT("set_anti_aliasing"), ESearchCase::IgnoreCase))
-			{
-				UMoviePipelineAntiAliasingSetting* AA = Cast<UMoviePipelineAntiAliasingSetting>(
-					Cfg->FindOrAddSettingByClass(UMoviePipelineAntiAliasingSetting::StaticClass()));
-				if (!AA)
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("Unable to add AntiAliasingSetting"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				if (Op->HasField(TEXT("spatialSampleCount")))
-					AA->SpatialSampleCount = FMath::Max(1, static_cast<int32>(Op->GetNumberField(TEXT("spatialSampleCount"))));
-				if (Op->HasField(TEXT("temporalSampleCount")))
-					AA->TemporalSampleCount = FMath::Max(1, static_cast<int32>(Op->GetNumberField(TEXT("temporalSampleCount"))));
-				if (Op->HasField(TEXT("enabled")))
-				{
-					bool bEnabled = true;
-					Op->TryGetBoolField(TEXT("enabled"), bEnabled);
-					AA->SetIsEnabled(bEnabled);
-				}
-				bDirty = true;
-				Entry->SetNumberField(TEXT("spatialSampleCount"), AA->SpatialSampleCount);
-				Entry->SetNumberField(TEXT("temporalSampleCount"), AA->TemporalSampleCount);
-				Entry->SetBoolField(TEXT("enabled"), AA->IsEnabled());
-			}
-			else if (Action.Equals(TEXT("add_setting"), ESearchCase::IgnoreCase)
-				|| Action.Equals(TEXT("remove_setting"), ESearchCase::IgnoreCase)
-				|| Action.Equals(TEXT("set_setting_enabled"), ESearchCase::IgnoreCase)
-				|| Action.Equals(TEXT("set_setting_property"), ESearchCase::IgnoreCase))
-			{
-				FString SettingClassName;
-				Op->TryGetStringField(TEXT("settingClass"), SettingClassName);
-				if (SettingClassName.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("settingClass required"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				FString ResolveErr;
-				UClass* SettingClass = ResolveMoviePipelineSettingClass(SettingClassName, ResolveErr);
-				if (!SettingClass)
-				{
-					Entry->SetStringField(TEXT("error"), ResolveErr);
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
+static UMoviePipelineSetting* ResolveSettingOrError(
+	FNexusMoviePipelineConfig* Cfg, const TSharedPtr<FJsonObject>& Op, TSharedPtr<FJsonObject>& Entry, FString& OutClassName)
+{
+	OutClassName = FNexusArgs(Op).Str(TEXT("settingClass"));
+	if (OutClassName.IsEmpty())
+	{
+		Entry->SetStringField(TEXT("error"), TEXT("settingClass required"));
+		return nullptr;
+	}
+	FString ResolveErr;
+	UClass* SettingClass = ResolveMoviePipelineSettingClass(OutClassName, ResolveErr);
+	if (!SettingClass)
+	{
+		Entry->SetStringField(TEXT("error"), ResolveErr);
+		return nullptr;
+	}
+	UMoviePipelineSetting* Found = Cfg->FindSettingByClass(SettingClass);
+	if (!Found)
+	{
+		Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Setting not found: %s"), *OutClassName));
+		return nullptr;
+	}
+	return Found;
+}
 
-				if (Action.Equals(TEXT("add_setting"), ESearchCase::IgnoreCase))
-				{
-					UMoviePipelineSetting* Added = Cfg->FindOrAddSettingByClass(SettingClass);
-					if (!Added)
-					{
-						Entry->SetStringField(TEXT("error"), TEXT("FindOrAddSettingByClass failed"));
-						OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-						continue;
-					}
-					bDirty = true;
-					Entry->SetStringField(TEXT("settingClass"), Added->GetClass()->GetName());
-				}
-				else
-				{
-					UMoviePipelineSetting* Found = Cfg->FindSettingByClass(SettingClass);
-					if (!Found)
-					{
-						Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Setting not found: %s"), *SettingClassName));
-						OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-						continue;
-					}
-					if (Action.Equals(TEXT("remove_setting"), ESearchCase::IgnoreCase))
-					{
-						Cfg->RemoveSetting(Found);
-						bDirty = true;
-						Entry->SetStringField(TEXT("removed"), SettingClassName);
-					}
-					else if (Action.Equals(TEXT("set_setting_enabled"), ESearchCase::IgnoreCase))
-					{
-						bool bEnabled = true;
-						if (!Op->HasField(TEXT("enabled")))
-						{
-							Entry->SetStringField(TEXT("error"), TEXT("set_setting_enabled requires enabled"));
-							OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-							continue;
-						}
-						Op->TryGetBoolField(TEXT("enabled"), bEnabled);
-						Found->SetIsEnabled(bEnabled);
-						bDirty = true;
-						Entry->SetBoolField(TEXT("enabled"), Found->IsEnabled());
-						Entry->SetStringField(TEXT("settingClass"), Found->GetClass()->GetName());
-					}
-					else // set_setting_property
-					{
-						FString PropPath, Value;
-						Op->TryGetStringField(TEXT("propertyPath"), PropPath);
-						Op->TryGetStringField(TEXT("value"), Value);
-						if (PropPath.IsEmpty() || Value.IsEmpty())
-						{
-							Entry->SetStringField(TEXT("error"), TEXT("set_setting_property requires propertyPath and value"));
-							OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-							continue;
-						}
-						FString OldVal, ActualVal, Err;
-						if (!FNexusPropertyUtils::WritePropertyAndEcho(Found, { PropPath }, 0, Value, OldVal, ActualVal, Err))
-						{
-							Entry->SetStringField(TEXT("error"), Err);
-							OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-							continue;
-						}
-						bDirty = true;
-						Entry->SetStringField(TEXT("settingClass"), Found->GetClass()->GetName());
-						Entry->SetStringField(TEXT("propertyPath"), PropPath);
-						if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
-						if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-					}
-				}
-			}
-			else
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
-			}
+static void HandleMRQ_AddSetting(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FNexusMoviePipelineConfig* Cfg = CfgFrom(Ctx);
+	const FString SettingClassName = FNexusArgs(Op).Str(TEXT("settingClass"));
+	if (SettingClassName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("settingClass required"));
+		return;
+	}
+	FString ResolveErr;
+	UClass* SettingClass = ResolveMoviePipelineSettingClass(SettingClassName, ResolveErr);
+	if (!SettingClass)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), ResolveErr);
+		return;
+	}
+	UMoviePipelineSetting* Added = Cfg->FindOrAddSettingByClass(SettingClass);
+	if (!Added)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("FindOrAddSettingByClass failed"));
+		return;
+	}
+	MarkCfgDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("settingClass"), Added->GetClass()->GetName());
+}
 
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-		if (bDirty) Cfg->MarkPackageDirty();
-	});
+static void HandleMRQ_RemoveSetting(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FString SettingClassName;
+	UMoviePipelineSetting* Found = ResolveSettingOrError(CfgFrom(Ctx), Op, Ctx.Entry, SettingClassName);
+	if (!Found) return;
+	CfgFrom(Ctx)->RemoveSetting(Found);
+	MarkCfgDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("removed"), SettingClassName);
+}
+
+static void HandleMRQ_SetSettingEnabled(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FString SettingClassName;
+	UMoviePipelineSetting* Found = ResolveSettingOrError(CfgFrom(Ctx), Op, Ctx.Entry, SettingClassName);
+	if (!Found) return;
+	if (!Op->HasField(TEXT("enabled")))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_setting_enabled requires enabled"));
+		return;
+	}
+	Found->SetIsEnabled(FNexusArgs(Op).Bool(TEXT("enabled"), true));
+	MarkCfgDirty(Ctx);
+	Ctx.Entry->SetBoolField(TEXT("enabled"), Found->IsEnabled());
+	Ctx.Entry->SetStringField(TEXT("settingClass"), Found->GetClass()->GetName());
+}
+
+static void HandleMRQ_SetSettingProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FString SettingClassName;
+	UMoviePipelineSetting* Found = ResolveSettingOrError(CfgFrom(Ctx), Op, Ctx.Entry, SettingClassName);
+	if (!Found) return;
+	const FNexusArgs A(Op);
+	const FString PropPath = A.Str(TEXT("propertyPath"));
+	const FString Value = A.Str(TEXT("value"));
+	if (PropPath.IsEmpty() || Value.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_setting_property requires propertyPath and value"));
+		return;
+	}
+	FString OldVal, ActualVal, Err;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(Found, { PropPath }, 0, Value, OldVal, ActualVal, Err))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), Err);
+		return;
+	}
+	MarkCfgDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("settingClass"), Found->GetClass()->GetName());
+	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+}
+
+bool FManageAssetMoviePipelineConfigCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	FNexusMoviePipelineConfig* Cfg = FNexusAssetUtils::LoadAssetWithFallback<FNexusMoviePipelineConfig>(AssetPath);
+	if (!Cfg)
+	{
+		OutError = FString::Printf(TEXT("Failed to load MoviePipeline config: %s"), *AssetPath);
+		return false;
+	}
+	OutTarget = Cfg;
+	return true;
+}
+
+void FManageAssetMoviePipelineConfigCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_output"),            &HandleMRQ_SetOutput);
+	OutHandlers.Add(TEXT("set_anti_aliasing"),     &HandleMRQ_SetAntiAliasing);
+	OutHandlers.Add(TEXT("add_setting"),           &HandleMRQ_AddSetting);
+	OutHandlers.Add(TEXT("remove_setting"),        &HandleMRQ_RemoveSetting);
+	OutHandlers.Add(TEXT("set_setting_enabled"),   &HandleMRQ_SetSettingEnabled);
+	OutHandlers.Add(TEXT("set_setting_property"),  &HandleMRQ_SetSettingProperty);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetMoviePipelineConfigCapability)

@@ -4,6 +4,31 @@
 
 #include "CoreMinimal.h"
 
+class FRegexPattern;
+
+/**
+ * 预编译的字符串匹配 Pattern，供同一 Pattern 对多条文本反复匹配
+ *（避免每次重建 FRegexPattern）。语义与 FNexusStringMatchUtils::Matches 一致。
+ */
+class NEXUSLINK_API FNexusCompiledStringPattern
+{
+public:
+	explicit FNexusCompiledStringPattern(const FString& Pattern);
+	FNexusCompiledStringPattern(const FNexusCompiledStringPattern&) = default;
+	FNexusCompiledStringPattern(FNexusCompiledStringPattern&&) = default;
+	FNexusCompiledStringPattern& operator=(const FNexusCompiledStringPattern&) = default;
+	FNexusCompiledStringPattern& operator=(FNexusCompiledStringPattern&&) = default;
+	~FNexusCompiledStringPattern();
+
+	bool Matches(const FString& Text) const;
+
+private:
+	enum class EKind : uint8 { All, Regex, Prefix, Suffix, Substring };
+	EKind Kind = EKind::All;
+	FString Needle;
+	TSharedPtr<FRegexPattern> Regex;
+};
+
 /**
  * 统一字符串匹配工具。
  * 供所有 MCP Tool 的过滤参数共用（nameFilter/textFilter/classFilter 等）。

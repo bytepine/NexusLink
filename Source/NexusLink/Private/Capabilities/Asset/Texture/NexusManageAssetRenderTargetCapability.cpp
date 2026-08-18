@@ -3,8 +3,6 @@
 #include "Capabilities/Asset/Texture/NexusManageAssetRenderTargetCapability.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusArgs.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "NexusMcpTool.h"
@@ -35,73 +33,71 @@ void FManageAssetRenderTargetCapability::BuildDefinition(FNexusCapabilityDefinit
 	Out.RelatedCapabilities = { TEXT("create_asset_render_target"), TEXT("get_asset_render_target") };
 }
 
-FCapabilityResult FManageAssetRenderTargetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FRTActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UTextureRenderTarget2D* RT = nullptr;
+	bool bDirty = false;
+};
+
+static FRTActionState* RTState(FNexusActionContext& Ctx)
+{
+	return static_cast<FRTActionState*>(Ctx.Target);
+}
+
+static void HandleRT_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UTextureRenderTarget2D* RT = RTState(Ctx)->RT;
+	bool bResized = false;
+	if (Op->HasField(TEXT("sizeX"))) { RT->SizeX = FMath::Max(1, static_cast<int32>(Op->GetNumberField(TEXT("sizeX")))); bResized = true; }
+	if (Op->HasField(TEXT("sizeY"))) { RT->SizeY = FMath::Max(1, static_cast<int32>(Op->GetNumberField(TEXT("sizeY")))); bResized = true; }
+	if (Op->HasField(TEXT("formatValue")))
 	{
-		const FNexusArgs A(Arguments);
+		RT->RenderTargetFormat = ETextureRenderTargetFormat(static_cast<int32>(Op->GetNumberField(TEXT("formatValue"))));
+		bResized = true;
+	}
+	if (Op->HasField(TEXT("clearColorR"))) RT->ClearColor.R = static_cast<float>(Op->GetNumberField(TEXT("clearColorR")));
+	if (Op->HasField(TEXT("clearColorG"))) RT->ClearColor.G = static_cast<float>(Op->GetNumberField(TEXT("clearColorG")));
+	if (Op->HasField(TEXT("clearColorB"))) RT->ClearColor.B = static_cast<float>(Op->GetNumberField(TEXT("clearColorB")));
+	if (Op->HasField(TEXT("clearColorA"))) RT->ClearColor.A = static_cast<float>(Op->GetNumberField(TEXT("clearColorA")));
+	if (bResized) RT->UpdateResourceImmediate(true);
+	RTState(Ctx)->bDirty = true;
+	Ctx.Entry->SetStringField(TEXT("name"),        RT->GetName());
+	Ctx.Entry->SetNumberField(TEXT("sizeX"),       RT->SizeX);
+	Ctx.Entry->SetNumberField(TEXT("sizeY"),       RT->SizeY);
+	Ctx.Entry->SetNumberField(TEXT("formatValue"), static_cast<double>(static_cast<int32>(RT->RenderTargetFormat)));
+}
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
-		UTextureRenderTarget2D* RT = LoadObject<UTextureRenderTarget2D>(nullptr, *AssetPath);
-		if (!RT)
-		{
-			OutError = FString::Printf(TEXT("Failed to load RenderTarget: %s"), *AssetPath);
-			return;
-		}
+bool FManageAssetRenderTargetCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UTextureRenderTarget2D* RT = LoadObject<UTextureRenderTarget2D>(nullptr, *AssetPath);
+	if (!RT)
+	{
+		OutError = FString::Printf(TEXT("Failed to load RenderTarget: %s"), *AssetPath);
+		return false;
+	}
+	FRTActionState* State = new FRTActionState();
+	State->RT = RT;
+	OutTarget = State;
+	return true;
+}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			OutError = TEXT("Missing or empty operations");
-			return;
-		}
+void FManageAssetRenderTargetCapability::FinalizeTarget(void* Target) const
+{
+	FRTActionState* State = static_cast<FRTActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->RT) State->RT->MarkPackageDirty();
+	delete State;
+}
 
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr)
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("Invalid operation item"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			const TSharedPtr<FJsonObject>& Op = *OpPtr;
-
-			const FString Action = FNexusArgs(Op).Str(TEXT("action")).ToLower();
-			Entry->SetStringField(TEXT("action"), Action);
-			if (Action != TEXT("set"))
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s' (set only)"), *Action));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-
-			bool bResized = false;
-			if (Op->HasField(TEXT("sizeX"))) { RT->SizeX = FMath::Max(1, (int32)Op->GetNumberField(TEXT("sizeX"))); bResized = true; }
-			if (Op->HasField(TEXT("sizeY"))) { RT->SizeY = FMath::Max(1, (int32)Op->GetNumberField(TEXT("sizeY"))); bResized = true; }
-			if (Op->HasField(TEXT("formatValue")))
-			{
-				RT->RenderTargetFormat = ETextureRenderTargetFormat((int32)Op->GetNumberField(TEXT("formatValue")));
-				bResized = true;
-			}
-			if (Op->HasField(TEXT("clearColorR"))) RT->ClearColor.R = (float)Op->GetNumberField(TEXT("clearColorR"));
-			if (Op->HasField(TEXT("clearColorG"))) RT->ClearColor.G = (float)Op->GetNumberField(TEXT("clearColorG"));
-			if (Op->HasField(TEXT("clearColorB"))) RT->ClearColor.B = (float)Op->GetNumberField(TEXT("clearColorB"));
-			if (Op->HasField(TEXT("clearColorA"))) RT->ClearColor.A = (float)Op->GetNumberField(TEXT("clearColorA"));
-
-			if (bResized)
-				RT->UpdateResourceImmediate(true);
-
-			RT->MarkPackageDirty();
-
-			Entry->SetStringField(TEXT("name"),        RT->GetName());
-			Entry->SetNumberField(TEXT("sizeX"),       RT->SizeX);
-			Entry->SetNumberField(TEXT("sizeY"),       RT->SizeY);
-			Entry->SetNumberField(TEXT("formatValue"), (double)(int32)RT->RenderTargetFormat);
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-	});
+void FManageAssetRenderTargetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set"), &HandleRT_Set);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetRenderTargetCapability)

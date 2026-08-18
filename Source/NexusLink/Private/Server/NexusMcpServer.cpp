@@ -20,39 +20,8 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Async/Async.h"
-#include "HAL/Event.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusMcpServer, Log, All);
-
-/** UObject API 须在 GameThread；HTTP 收包线程与 WS 回调一致，同步等待派发完成。 */
-static void DispatchMcpOnGameThread(const TSharedPtr<FNexusMcpDispatcher>& Dispatcher, const FString& JsonBody, FString& OutResponseJson)
-{
-	if (!Dispatcher.IsValid())
-	{
-		return;
-	}
-
-	if (IsInGameThread())
-	{
-		Dispatcher->Dispatch(JsonBody, [&OutResponseJson](const FString& Json)
-		{
-			OutResponseJson = Json;
-		});
-		return;
-	}
-
-	FEvent* Done = FPlatformProcess::GetSynchEventFromPool(false);
-	AsyncTask(ENamedThreads::GameThread, [Dispatcher, JsonBody, &OutResponseJson, Done]()
-	{
-		Dispatcher->Dispatch(JsonBody, [&OutResponseJson](const FString& Json)
-		{
-			OutResponseJson = Json;
-		});
-		Done->Trigger();
-	});
-	Done->Wait();
-	FPlatformProcess::ReturnSynchEventToPool(Done);
-}
 
 static const FString StreamEndpoint  = TEXT("/stream");
 static const FString StatusEndpoint  = TEXT("/status");
@@ -65,6 +34,7 @@ static const FString McpSessionHeader = TEXT("Mcp-Session-Id");
  */
 static FString DetectCurrentNetRole()
 {
+	check(IsInGameThread());
 	if (!GEngine) { return TEXT("Unknown"); }
 	for (const FWorldContext& Ctx : GEngine->GetWorldContexts())
 	{
@@ -98,6 +68,25 @@ static void AddCorsHeaders(FHttpServerResponse& Response)
 	Response.Headers.Add(TEXT("Access-Control-Allow-Methods"), { TEXT("GET, POST, OPTIONS") });
 	Response.Headers.Add(TEXT("Access-Control-Allow-Headers"), { TEXT("Content-Type, Mcp-Session-Id") });
 	Response.Headers.Add(TEXT("Access-Control-Expose-Headers"), { TEXT("Mcp-Session-Id") });
+}
+
+static void ReplyJson(const FHttpResultCallback& OnComplete, const FString& Json, const FString& SessionId = FString())
+{
+	auto Response = FHttpServerResponse::Create(Json, TEXT("application/json"));
+	AddCorsHeaders(*Response);
+	if (!SessionId.IsEmpty())
+	{
+		Response->Headers.Add(McpSessionHeader, { SessionId });
+	}
+	OnComplete(MoveTemp(Response));
+}
+
+static void ReplyError(const FHttpResultCallback& OnComplete, EHttpServerResponseCodes Code,
+	const TCHAR* ErrorCode, const TCHAR* Message)
+{
+	auto ErrResponse = FHttpServerResponse::Error(Code, ErrorCode, Message);
+	AddCorsHeaders(*ErrResponse);
+	OnComplete(MoveTemp(ErrResponse));
 }
 
 FNexusMcpServer::FNexusMcpServer()
@@ -212,10 +201,12 @@ void FNexusMcpServer::RegisterRoutes()
 	}
 
 	// POST /stream — MCP Streamable HTTP（per-session 会话隔离）
+	// 收包线程只拷贝 body/header，会话表与 Dispatch 一律回切 GameThread；OnComplete 推迟到派发结束，避免 FEvent::Wait 卡死收包线程。
+	const TWeakPtr<FNexusMcpServer> WeakSelf = AsShared();
 	StreamPostRouteHandle = HttpRouter->BindRoute(
 		FHttpPath(StreamEndpoint),
 		EHttpServerRequestVerbs::VERB_POST,
-		MakeHttpHandler([this](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete) -> bool
+		MakeHttpHandler([WeakSelf](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete) -> bool
 		{
 			FString JsonBody;
 			if (Request.Body.Num() > 0)
@@ -226,10 +217,8 @@ void FNexusMcpServer::RegisterRoutes()
 
 			if (JsonBody.IsEmpty())
 			{
-				auto ErrResponse = FHttpServerResponse::Error(EHttpServerResponseCodes::BadRequest,
+				ReplyError(OnComplete, EHttpServerResponseCodes::BadRequest,
 					TEXT("empty_body"), TEXT("请求体为空"));
-				AddCorsHeaders(*ErrResponse);
-				OnComplete(MoveTemp(ErrResponse));
 				return true;
 			}
 
@@ -247,24 +236,35 @@ void FNexusMcpServer::RegisterRoutes()
 				}
 			}
 
-			FString SessionId;
-			TSharedPtr<FNexusMcpDispatcher> Dispatcher = GetOrCreateDispatcher(IncomingSessionId, bIsInitialize, SessionId);
-			if (!Dispatcher.IsValid())
+			FHttpResultCallback Complete = OnComplete;
+			AsyncTask(ENamedThreads::GameThread,
+				[WeakSelf, JsonBody, IncomingSessionId, bIsInitialize, Complete]()
 			{
-				auto ErrResponse = FHttpServerResponse::Error(EHttpServerResponseCodes::NotFound,
-					TEXT("session_not_found"), TEXT("无效或缺少 Mcp-Session-Id"));
-				AddCorsHeaders(*ErrResponse);
-				OnComplete(MoveTemp(ErrResponse));
-				return true;
-			}
+				const TSharedPtr<FNexusMcpServer> Server = WeakSelf.Pin();
+				if (!Server.IsValid() || !Server->IsRunning())
+				{
+					ReplyError(Complete, EHttpServerResponseCodes::ServerError,
+						TEXT("server_stopped"), TEXT("MCP server is stopping"));
+					return;
+				}
 
-			FString ResponseJson;
-			DispatchMcpOnGameThread(Dispatcher, JsonBody, ResponseJson);
+				FString SessionId;
+				TSharedPtr<FNexusMcpDispatcher> Dispatcher =
+					Server->GetOrCreateDispatcher(IncomingSessionId, bIsInitialize, SessionId);
+				if (!Dispatcher.IsValid())
+				{
+					ReplyError(Complete, EHttpServerResponseCodes::NotFound,
+						TEXT("session_not_found"), TEXT("无效或缺少 Mcp-Session-Id"));
+					return;
+				}
 
-			auto Response = FHttpServerResponse::Create(ResponseJson, TEXT("application/json"));
-			AddCorsHeaders(*Response);
-			Response->Headers.Add(McpSessionHeader, { SessionId });
-			OnComplete(MoveTemp(Response));
+				FString ResponseJson;
+				Dispatcher->Dispatch(JsonBody, [&ResponseJson](const FString& Json)
+				{
+					ResponseJson = Json;
+				});
+				ReplyJson(Complete, ResponseJson, SessionId);
+			});
 			return true;
 		})
 	);
@@ -283,23 +283,33 @@ void FNexusMcpServer::RegisterRoutes()
 		})
 	);
 
-	// GET /status — 无状态探测端点，返回项目信息
+	// GET /status — 无状态探测；WorldContexts / NetMode 只能在 GameThread 读
 	StatusRouteHandle = HttpRouter->BindRoute(
 		FHttpPath(StatusEndpoint),
 		EHttpServerRequestVerbs::VERB_GET,
-		MakeHttpHandler([this](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete) -> bool
+		MakeHttpHandler([WeakSelf](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete) -> bool
 		{
-			FString StatusJson = FString::Printf(
-				TEXT("{\"server\":\"Nexus-Unreal\",\"version\":\"0.0.0\",\"engineVersion\":\"%d.%d\",\"projectName\":\"%s\",\"wsPort\":%d,\"netRole\":\"%s\"}"),
-				ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION,
-				FApp::GetProjectName(),
-				WebSocketPort,
-				*DetectCurrentNetRole()
-			);
+			FHttpResultCallback Complete = OnComplete;
+			AsyncTask(ENamedThreads::GameThread, [WeakSelf, Complete]()
+			{
+				const TSharedPtr<FNexusMcpServer> Server = WeakSelf.Pin();
+				if (!Server.IsValid() || !Server->IsRunning())
+				{
+					ReplyError(Complete, EHttpServerResponseCodes::ServerError,
+						TEXT("server_stopped"), TEXT("MCP server is stopping"));
+					return;
+				}
 
-			auto Response = FHttpServerResponse::Create(StatusJson, TEXT("application/json"));
-			AddCorsHeaders(*Response);
-			OnComplete(MoveTemp(Response));
+				TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+				Obj->SetStringField(TEXT("server"), TEXT("Nexus-Unreal"));
+				Obj->SetStringField(TEXT("version"), TEXT("0.0.0"));
+				Obj->SetStringField(TEXT("engineVersion"),
+					FString::Printf(TEXT("%d.%d"), ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION));
+				Obj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
+				Obj->SetNumberField(TEXT("wsPort"), Server->GetWsPort());
+				Obj->SetStringField(TEXT("netRole"), DetectCurrentNetRole());
+				ReplyJson(Complete, FNexusJsonUtils::SerializeCondensed(Obj));
+			});
 			return true;
 		})
 	);
@@ -320,6 +330,7 @@ void FNexusMcpServer::UnregisterRoutes()
 TSharedPtr<FNexusMcpDispatcher> FNexusMcpServer::GetOrCreateDispatcher(
 	const FString& SessionId, bool bIsInitialize, FString& OutSessionId)
 {
+	check(IsInGameThread());
 	if (bIsInitialize)
 	{
 		// initialize 请求：创建新会话
@@ -481,6 +492,7 @@ bool FNexusMcpServer::TickWebSocket(float DeltaTime)
 
 bool FNexusMcpServer::TickSessionCleanup(float /*DeltaTime*/)
 {
+	check(IsInGameThread());
 	const FDateTime Now = FDateTime::UtcNow();
 	int32 Removed = 0;
 	for (auto It = HttpSessions.CreateIterator(); It; ++It)

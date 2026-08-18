@@ -55,7 +55,7 @@ FCapabilityResult FUnloadAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			Candidates.Add(Pkg);
 		}
 
-		TArray<UPackage*> Skipped;
+		TSet<UPackage*> Skipped;
 		const FNexusPackageLedger::FFlushStats Stats =
 			FNexusPackageLedger::UnloadPackagesSafely(Candidates, bSkipDirty, bForceGC, &Skipped);
 

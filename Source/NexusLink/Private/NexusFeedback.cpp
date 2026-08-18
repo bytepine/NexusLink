@@ -23,6 +23,19 @@
 // ── 进程内节流表（category+capability+errorPrefix → 上次记录时间）─────────────
 static FCriticalSection GFeedbackMutex;
 static TMap<FString, FDateTime> GThrottleMap;
+static constexpr double GThrottleWindowSec = 30.0;
+
+/** 丢掉已过节流窗口的条目，避免长期会话无界增长。调用方须已持 GFeedbackMutex。 */
+static void EvictStaleThrottleEntries(const FDateTime& Now)
+{
+	for (auto It = GThrottleMap.CreateIterator(); It; ++It)
+	{
+		if ((Now - It.Value()).GetTotalSeconds() >= GThrottleWindowSec)
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
 
 /**
  * 规则化字符串：将数字序列、引号内字符串、UE 包路径（/Game/... /Engine/...）替换为 *，
@@ -197,14 +210,15 @@ void FNexusFeedback::RecordAuto(const FString& Category, const FFields& Fields)
 	const UNexusLinkSettings* S = UNexusLinkSettings::Get();
 	if (!S || !S->bEnableFeedback) return;
 
-	// 节流：同 key 30 秒内只记一次
+	// 节流：同 key 30 秒内只记一次；顺带按窗口淘汰过期 key
 	const FString Key = BuildThrottleKey(Category, Fields);
 	{
 		FScopeLock Lock(&GFeedbackMutex);
 		const FDateTime Now = FDateTime::UtcNow();
+		EvictStaleThrottleEntries(Now);
 		if (const FDateTime* Last = GThrottleMap.Find(Key))
 		{
-			if ((Now - *Last).GetTotalSeconds() < 30.0)
+			if ((Now - *Last).GetTotalSeconds() < GThrottleWindowSec)
 				return;
 		}
 		GThrottleMap.Add(Key, Now);

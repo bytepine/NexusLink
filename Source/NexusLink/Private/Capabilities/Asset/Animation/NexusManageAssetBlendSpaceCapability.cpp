@@ -1,8 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Animation/NexusManageAssetBlendSpaceCapability.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -54,172 +53,195 @@ void FManageAssetBlendSpaceCapability::BuildDefinition(FNexusCapabilityDefinitio
 	Out.WhenToUse = TEXT("Configure BlendSpace axes or samples; persist with save_asset after changes");
 }
 
-FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FBlendSpaceActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UBlendSpace* BS = nullptr;
+	bool bDirty = false;
+	TSharedPtr<FJsonObject> OutTop;
+};
+
+static FBlendSpaceActionState* BSState(FNexusActionContext& Ctx)
+{
+	return static_cast<FBlendSpaceActionState*>(Ctx.Target);
+}
+
+static UBlendSpace* BSFrom(FNexusActionContext& Ctx)
+{
+	FBlendSpaceActionState* S = BSState(Ctx);
+	return S ? S->BS : nullptr;
+}
+
+static void MarkBSDirty(FNexusActionContext& Ctx)
+{
+	if (FBlendSpaceActionState* S = BSState(Ctx))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		S->bDirty = true;
+	}
+}
 
-		UBlendSpace* BS = FNexusAssetUtils::LoadAssetWithFallback<UBlendSpace>(AssetPath);
-		if (!BS)
+static void HandleBS_SetAxis(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UBlendSpace* BS = BSFrom(Ctx);
+	int32 AxisIdx = 0;
+	if (Op->HasField(TEXT("axisIndex")))
+		AxisIdx = static_cast<int32>(Op->GetNumberField(TEXT("axisIndex")));
+	if (AxisIdx < 0 || AxisIdx > 2)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("axisIndex range 0-2"));
+		return;
+	}
+	FBlendParameter* Param = nullptr;
+	if (FProperty* BpProp = BS->GetClass()->FindPropertyByName(TEXT("BlendParameters")))
+	{
+		if (FStructProperty* StructProp = CastField<FStructProperty>(BpProp))
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("BlendSpace not found: %s"), *AssetPath));
-			return;
+			uint8* RawBase = StructProp->ContainerPtrToValuePtr<uint8>(BS, 0);
+			Param = reinterpret_cast<FBlendParameter*>(RawBase) + AxisIdx;
 		}
+	}
+	if (!Param)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Reflection failed to get BlendParameters"));
+		return;
+	}
+	FString Name;
+	if (Op->TryGetStringField(TEXT("displayName"), Name)) Param->DisplayName = Name;
+	double V = 0.0;
+	if (Op->TryGetNumberField(TEXT("min"), V)) Param->Min = static_cast<float>(V);
+	if (Op->TryGetNumberField(TEXT("max"), V)) Param->Max = static_cast<float>(V);
+	double Grid = 0.0;
+	if (Op->TryGetNumberField(TEXT("gridNum"), Grid)) Param->GridNum = static_cast<int32>(Grid);
+	MarkBSDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("axisIndex"), AxisIdx);
+}
 
-		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (OpsArr.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("Missing operations array"));
-			return;
-		}
-
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : OpsArr)
-		{
-			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpObjPtr;
-
-			FString Action;
-			Op->TryGetStringField(TEXT("action"), Action);
-
-			TSharedPtr<FJsonObject> ResEntry = MakeShared<FJsonObject>();
-			ResEntry->SetStringField(TEXT("path"), AssetPath);
-			ResEntry->SetStringField(TEXT("action"),    Action);
-
-			if (Action.Equals(TEXT("set_axis"), ESearchCase::IgnoreCase))
-			{
-				int32 AxisIdx = 0;
-				if (Op->HasField(TEXT("axisIndex")))
-					AxisIdx = static_cast<int32>(Op->GetNumberField(TEXT("axisIndex")));
-				if (AxisIdx < 0 || AxisIdx > 2)
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("axisIndex range 0-2"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
-					continue;
-				}
-				// BlendParameters 在所有版本均为 protected，通过反射取可写指针
-				FBlendParameter* Param = nullptr;
-				if (FProperty* BpProp = BS->GetClass()->FindPropertyByName(TEXT("BlendParameters")))
-				{
-					if (FStructProperty* StructProp = CastField<FStructProperty>(BpProp))
-					{
-						uint8* RawBase = StructProp->ContainerPtrToValuePtr<uint8>(BS, 0);
-						Param = reinterpret_cast<FBlendParameter*>(RawBase) + AxisIdx;
-					}
-				}
-				if (!Param)
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("Reflection failed to get BlendParameters"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
-					continue;
-				}
-				FString Name;
-				if (Op->TryGetStringField(TEXT("displayName"), Name)) Param->DisplayName = Name;
-				double V = 0.0;
-				if (Op->TryGetNumberField(TEXT("min"), V)) Param->Min = static_cast<float>(V);
-				if (Op->TryGetNumberField(TEXT("max"), V)) Param->Max = static_cast<float>(V);
-				double Grid = 0.0;
-				if (Op->TryGetNumberField(TEXT("gridNum"), Grid)) Param->GridNum = static_cast<int32>(Grid);
-				bDirty = true;
-				ResEntry->SetNumberField(TEXT("axisIndex"), AxisIdx);
-			}
-			else if (Action.Equals(TEXT("add_sample"), ESearchCase::IgnoreCase))
-			{
-				FString AnimPath;
-				if (!Op->TryGetStringField(TEXT("animationPath"), AnimPath) || AnimPath.IsEmpty())
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("add_sample requires animationPath"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
-					continue;
-				}
-				UAnimSequence* Anim = FNexusAssetUtils::LoadAssetWithFallback<UAnimSequence>(AnimPath);
-				if (!Anim)
-				{
-					ResEntry->SetStringField(TEXT("error"),
-						FString::Printf(TEXT("AnimSequence not found: %s"), *AnimPath));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
-					continue;
-				}
-				TArray<FBlendSample>* SampleData = GetSampleDataPtr(BS);
-				if (!SampleData)
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get SampleData (reflection failed)"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
-					continue;
-				}
-				double X = 0.0, Y = 0.0;
-				Op->TryGetNumberField(TEXT("x"), X);
-				Op->TryGetNumberField(TEXT("y"), Y);
-				FBlendSample NewSample;
-			NewSample.Animation  = Anim;
-			NewSample.SampleValue = FVector(static_cast<float>(X), static_cast<float>(Y), 0.f);
+static void HandleBS_AddSample(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UBlendSpace* BS = BSFrom(Ctx);
+	FString AnimPath;
+	if (!Op->TryGetStringField(TEXT("animationPath"), AnimPath) || AnimPath.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_sample requires animationPath"));
+		return;
+	}
+	UAnimSequence* Anim = FNexusAssetUtils::LoadAssetWithFallback<UAnimSequence>(AnimPath);
+	if (!Anim)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("AnimSequence not found: %s"), *AnimPath));
+		return;
+	}
+	TArray<FBlendSample>* SampleData = GetSampleDataPtr(BS);
+	if (!SampleData)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to get SampleData (reflection failed)"));
+		return;
+	}
+	double X = 0.0, Y = 0.0;
+	Op->TryGetNumberField(TEXT("x"), X);
+	Op->TryGetNumberField(TEXT("y"), Y);
+	FBlendSample NewSample;
+	NewSample.Animation  = Anim;
+	NewSample.SampleValue = FVector(static_cast<float>(X), static_cast<float>(Y), 0.f);
 #if NX_UE_HAS_BLEND_SAMPLE_IS_VALID
-			NewSample.bIsValid    = true;
+	NewSample.bIsValid    = true;
 #endif
-				const int32 NewIdx = SampleData->Add(NewSample);
-				bDirty = true;
-				ResEntry->SetNumberField(TEXT("sampleIndex"), NewIdx);
-				ResEntry->SetStringField(TEXT("animation"),   AnimPath);
-			}
-			else if (Action.Equals(TEXT("remove_sample"), ESearchCase::IgnoreCase))
-			{
-				TArray<FBlendSample>* SampleData = GetSampleDataPtr(BS);
-				if (!SampleData)
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get SampleData (reflection failed)"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
-					continue;
-				}
-				int32 SampleIdx = -1;
-				if (Op->HasField(TEXT("sampleIndex")))
-					SampleIdx = static_cast<int32>(Op->GetNumberField(TEXT("sampleIndex")));
-				else
-				{
-					// 按坐标找
-					double X = 0.0, Y = 0.0;
-					Op->TryGetNumberField(TEXT("x"), X);
-					Op->TryGetNumberField(TEXT("y"), Y);
-					const FVector TargetVal(static_cast<float>(X), static_cast<float>(Y), 0.f);
-					for (int32 i = 0; i < SampleData->Num(); ++i)
-					{
-						if (FVector::DistSquared((*SampleData)[i].SampleValue, TargetVal) < KINDA_SMALL_NUMBER)
-						{
-							SampleIdx = i;
-							break;
-						}
-					}
-				}
-				if (!SampleData->IsValidIndex(SampleIdx))
-				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("Invalid sample index or no matching sample"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
-					continue;
-				}
-				SampleData->RemoveAt(SampleIdx);
-				bDirty = true;
-				ResEntry->SetNumberField(TEXT("removedIndex"), SampleIdx);
-				ResEntry->SetBoolField(TEXT("removed"),        true);
-			}
-			else
-			{
-				ResEntry->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("Unknown action: %s"), *Action));
-			}
+	const int32 NewIdx = SampleData->Add(NewSample);
+	MarkBSDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("sampleIndex"), NewIdx);
+	Ctx.Entry->SetStringField(TEXT("animation"),   AnimPath);
+}
 
-			OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
-		}
-
-		if (bDirty)
+static void HandleBS_RemoveSample(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UBlendSpace* BS = BSFrom(Ctx);
+	TArray<FBlendSample>* SampleData = GetSampleDataPtr(BS);
+	if (!SampleData)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to get SampleData (reflection failed)"));
+		return;
+	}
+	int32 SampleIdx = -1;
+	if (Op->HasField(TEXT("sampleIndex")))
+		SampleIdx = static_cast<int32>(Op->GetNumberField(TEXT("sampleIndex")));
+	else
+	{
+		double X = 0.0, Y = 0.0;
+		Op->TryGetNumberField(TEXT("x"), X);
+		Op->TryGetNumberField(TEXT("y"), Y);
+		const FVector TargetVal(static_cast<float>(X), static_cast<float>(Y), 0.f);
+		for (int32 i = 0; i < SampleData->Num(); ++i)
 		{
-			BS->MarkPackageDirty();
-			OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
+			if (FVector::DistSquared((*SampleData)[i].SampleValue, TargetVal) < KINDA_SMALL_NUMBER)
+			{
+				SampleIdx = i;
+				break;
+			}
 		}
-	});
+	}
+	if (!SampleData->IsValidIndex(SampleIdx))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Invalid sample index or no matching sample"));
+		return;
+	}
+	SampleData->RemoveAt(SampleIdx);
+	MarkBSDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("removedIndex"), SampleIdx);
+	Ctx.Entry->SetBoolField(TEXT("removed"),        true);
+}
+
+bool FManageAssetBlendSpaceCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UBlendSpace* BS = FNexusAssetUtils::LoadAssetWithFallback<UBlendSpace>(AssetPath);
+	if (!BS)
+	{
+		OutError = FString::Printf(TEXT("BlendSpace not found: %s"), *AssetPath);
+		return false;
+	}
+	FBlendSpaceActionState* State = new FBlendSpaceActionState();
+	State->BS = BS;
+	OutTarget = State;
+	return true;
+}
+
+void FManageAssetBlendSpaceCapability::AfterPrepareTarget(
+	void* Target,
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& OutTop) const
+{
+	(void)Args;
+	if (FBlendSpaceActionState* State = static_cast<FBlendSpaceActionState*>(Target))
+	{
+		State->OutTop = OutTop;
+	}
+}
+
+void FManageAssetBlendSpaceCapability::FinalizeTarget(void* Target) const
+{
+	FBlendSpaceActionState* State = static_cast<FBlendSpaceActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->BS)
+	{
+		State->BS->MarkPackageDirty();
+		if (State->OutTop.IsValid())
+		{
+			State->OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
+		}
+	}
+	delete State;
+}
+
+void FManageAssetBlendSpaceCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_axis"),      &HandleBS_SetAxis);
+	OutHandlers.Add(TEXT("add_sample"),    &HandleBS_AddSample);
+	OutHandlers.Add(TEXT("remove_sample"), &HandleBS_RemoveSample);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetBlendSpaceCapability)

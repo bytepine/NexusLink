@@ -1,11 +1,10 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Texture/NexusManageAssetTextureCapability.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Engine/Texture2D.h"
 #include "NexusMcpTool.h"
@@ -33,76 +32,73 @@ void FManageAssetTextureCapability::BuildDefinition(FNexusCapabilityDefinition& 
 	Out.WhenToUse = TEXT("Edit Texture compression/sRGB/LODGroup; persist with save_asset");
 }
 
-FCapabilityResult FManageAssetTextureCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FTextureActionState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UTexture* Texture = nullptr;
+	bool bDirty = false;
+};
+
+static FTextureActionState* TexState(FNexusActionContext& Ctx)
+{
+	return static_cast<FTextureActionState*>(Ctx.Target);
+}
+
+static void HandleTex_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UTexture* Texture = TexState(Ctx)->Texture;
+	FString PropPath, Value;
+	Op->TryGetStringField(TEXT("propertyPath"), PropPath);
+	Op->TryGetStringField(TEXT("value"), Value);
+	if (PropPath.IsEmpty() || Value.IsEmpty())
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
+		return;
+	}
+	FString OldVal, ActualVal, Err;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(Texture, { PropPath }, 0, Value, OldVal, ActualVal, Err))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), Err);
+		return;
+	}
+	TexState(Ctx)->bDirty = true;
+	// UpdateMips 仅 UE5+ 可用；UE4 通过编辑器重新导入刷新
+	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset; compression changes need reimport"));
+}
 
-		UTexture* Texture = FNexusAssetUtils::LoadAssetWithFallback<UTexture>(AssetPath);
-		if (!Texture)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("Texture not found: %s"), *AssetPath));
-			return;
-		}
+bool FManageAssetTextureCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UTexture* Texture = FNexusAssetUtils::LoadAssetWithFallback<UTexture>(AssetPath);
+	if (!Texture)
+	{
+		OutError = FString::Printf(TEXT("Texture not found: %s"), *AssetPath);
+		return false;
+	}
+	FTextureActionState* State = new FTextureActionState();
+	State->Texture = Texture;
+	OutTarget = State;
+	return true;
+}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
+void FManageAssetTextureCapability::FinalizeTarget(void* Target) const
+{
+	FTextureActionState* State = static_cast<FTextureActionState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->Texture) State->Texture->MarkPackageDirty();
+	delete State;
+}
 
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpObjPtr;
-
-			FString Action, PropPath, Value;
-			Op->TryGetStringField(TEXT("action"), Action);
-			Op->TryGetStringField(TEXT("propertyPath"), PropPath);
-			Op->TryGetStringField(TEXT("value"), Value);
-
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
-			Entry->SetStringField(TEXT("action"), Action);
-
-			if (Action.Equals(TEXT("set_property"), ESearchCase::IgnoreCase))
-			{
-				if (PropPath.IsEmpty() || Value.IsEmpty())
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				FString OldVal, ActualVal, Err;
-				if (!FNexusPropertyUtils::WritePropertyAndEcho(Texture, { PropPath }, 0, Value, OldVal, ActualVal, Err))
-				{
-					Entry->SetStringField(TEXT("error"), Err);
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-				bDirty = true;
-				// UpdateMips 仅 UE5+ 可用；UE4 通过编辑器重新导入刷新
-				Entry->SetStringField(TEXT("propertyPath"), PropPath);
-				if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
-				if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset; compression changes need reimport"));
-			}
-			else
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-			}
-
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-
-		if (bDirty) Texture->MarkPackageDirty();
-	});
+void FManageAssetTextureCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_property"), &HandleTex_SetProperty);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetTextureCapability)

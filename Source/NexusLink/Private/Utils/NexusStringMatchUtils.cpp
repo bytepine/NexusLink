@@ -3,37 +3,67 @@
 #include "Utils/NexusStringMatchUtils.h"
 #include "Internationalization/Regex.h"
 
-bool FNexusStringMatchUtils::Matches(const FString& Text, const FString& Pattern)
+FNexusCompiledStringPattern::FNexusCompiledStringPattern(const FString& Pattern)
 {
 	if (Pattern.IsEmpty())
 	{
-		return true;
+		Kind = EKind::All;
+		return;
 	}
 
-	// 正则模式：以 "/" 开头和结尾
 	if (Pattern.Len() >= 3 && Pattern[0] == TEXT('/') && Pattern[Pattern.Len() - 1] == TEXT('/'))
 	{
-		const FString RegexPattern = Pattern.Mid(1, Pattern.Len() - 2);
-		FRegexPattern CompiledPattern(RegexPattern);
-		FRegexMatcher Matcher(CompiledPattern, Text);
-		return Matcher.FindNext();
+		Kind = EKind::Regex;
+		Regex = MakeShareable(new FRegexPattern(Pattern.Mid(1, Pattern.Len() - 2)));
+		return;
 	}
 
-	// 前缀匹配：以 "^" 开头
 	if (Pattern.StartsWith(TEXT("^")))
 	{
-		const FString Prefix = Pattern.Mid(1);
-		return Text.StartsWith(Prefix);
+		Kind = EKind::Prefix;
+		Needle = Pattern.Mid(1);
+		return;
 	}
 
-	// 后缀匹配：以 "$" 结尾
 	if (Pattern.EndsWith(TEXT("$")))
 	{
-		const FString Suffix = Pattern.Left(Pattern.Len() - 1);
-		return Text.EndsWith(Suffix);
+		Kind = EKind::Suffix;
+		Needle = Pattern.Left(Pattern.Len() - 1);
+		return;
 	}
 
-	// 默认：子串匹配（不区分大小写）
-	return Text.Contains(Pattern, ESearchCase::IgnoreCase);
+	Kind = EKind::Substring;
+	Needle = Pattern;
 }
 
+FNexusCompiledStringPattern::~FNexusCompiledStringPattern() = default;
+
+bool FNexusCompiledStringPattern::Matches(const FString& Text) const
+{
+	switch (Kind)
+	{
+	case EKind::All:
+		return true;
+	case EKind::Regex:
+		if (!Regex.IsValid())
+		{
+			return false;
+		}
+		{
+			FRegexMatcher Matcher(*Regex, Text);
+			return Matcher.FindNext();
+		}
+	case EKind::Prefix:
+		return Text.StartsWith(Needle);
+	case EKind::Suffix:
+		return Text.EndsWith(Needle);
+	case EKind::Substring:
+	default:
+		return Text.Contains(Needle, ESearchCase::IgnoreCase);
+	}
+}
+
+bool FNexusStringMatchUtils::Matches(const FString& Text, const FString& Pattern)
+{
+	return FNexusCompiledStringPattern(Pattern).Matches(Text);
+}

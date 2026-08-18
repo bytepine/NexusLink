@@ -5,8 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "CommonTextBlock.h"
 #include "NexusMcpTool.h"
@@ -35,65 +34,71 @@ void FManageAssetCommonTextStyleCapability::BuildDefinition(FNexusCapabilityDefi
 	};
 }
 
-FCapabilityResult FManageAssetCommonTextStyleCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FCommonTextStyleState
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UCommonTextStyle* Style = nullptr;
+	bool bDirty = false;
+};
+
+static FCommonTextStyleState* CTSState(FNexusActionContext& Ctx)
+{
+	return static_cast<FCommonTextStyleState*>(Ctx.Target);
+}
+
+static void HandleCTS_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UCommonTextStyle* Style = CTSState(Ctx)->Style;
+	FString PropPath, Value;
+	Op->TryGetStringField(TEXT("propertyPath"), PropPath);
+	Op->TryGetStringField(TEXT("value"), Value);
+	if (PropPath.IsEmpty() || Value.IsEmpty())
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
-		UCommonTextStyle* Style = FNexusAssetUtils::LoadAssetWithFallback<UCommonTextStyle>(AssetPath);
-		if (!Style)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("Failed to load CommonTextStyle: %s"), *AssetPath));
-			return;
-		}
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
-			return;
-		}
-		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
-		{
-			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
-			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr) continue;
-			const TSharedPtr<FJsonObject>& Op = *OpPtr;
-			FString Action, PropPath, Value;
-			Op->TryGetStringField(TEXT("action"), Action);
-			Op->TryGetStringField(TEXT("propertyPath"), PropPath);
-			Op->TryGetStringField(TEXT("value"), Value);
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
-			Entry->SetStringField(TEXT("action"), Action);
-			if (!Action.Equals(TEXT("set_property"), ESearchCase::IgnoreCase))
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			if (PropPath.IsEmpty() || Value.IsEmpty())
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			FString OldVal, ActualVal, Err;
-			if (!FNexusPropertyUtils::WritePropertyAndEcho(Style, { PropPath }, 0, Value, OldVal, ActualVal, Err))
-			{
-				Entry->SetStringField(TEXT("error"), Err);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
-			bDirty = true;
-			Entry->SetStringField(TEXT("propertyPath"), PropPath);
-			if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
-			if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-		if (bDirty) Style->MarkPackageDirty();
-	});
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
+		return;
+	}
+	FString OldVal, ActualVal, Err;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(Style, { PropPath }, 0, Value, OldVal, ActualVal, Err))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), Err);
+		return;
+	}
+	CTSState(Ctx)->bDirty = true;
+	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+}
+
+bool FManageAssetCommonTextStyleCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UCommonTextStyle* Style = FNexusAssetUtils::LoadAssetWithFallback<UCommonTextStyle>(AssetPath);
+	if (!Style)
+	{
+		OutError = FString::Printf(TEXT("Failed to load CommonTextStyle: %s"), *AssetPath);
+		return false;
+	}
+	FCommonTextStyleState* State = new FCommonTextStyleState();
+	State->Style = Style;
+	OutTarget = State;
+	return true;
+}
+
+void FManageAssetCommonTextStyleCapability::FinalizeTarget(void* Target) const
+{
+	FCommonTextStyleState* State = static_cast<FCommonTextStyleState*>(Target);
+	if (!State) return;
+	if (State->bDirty && State->Style) State->Style->MarkPackageDirty();
+	delete State;
+}
+
+void FManageAssetCommonTextStyleCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("set_property"), &HandleCTS_SetProperty);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetCommonTextStyleCapability)

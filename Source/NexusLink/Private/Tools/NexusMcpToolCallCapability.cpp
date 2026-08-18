@@ -26,6 +26,18 @@ struct FNexusCallCapabilityRedundantEntry
 static FCriticalSection GCallCapabilityRedundantMutex;
 static TMap<FString, FNexusCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 
+/** 丢掉超出 redundant 窗口的条目。调用方须已持 GCallCapabilityRedundantMutex。 */
+static void EvictStaleRedundantEntries(const FDateTime& Now, double WindowSec)
+{
+	for (auto It = GCallCapabilityRedundantMap.CreateIterator(); It; ++It)
+	{
+		if ((Now - It.Value().Ts).GetTotalSeconds() > WindowSec)
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
 // 脱敏参数快照统一走 FNexusFeedback::BuildRedactedArgsSnapshot（公开 API，避免重复实现）。
 
 /** 从 cap 的 Inner arguments 中提取首个 identity 字段值（用于 redundant_call key）。 */
@@ -193,9 +205,11 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 			const bool bIsSubSection = FNexusJsonUtils::HasSubSection(Inner);
 			const bool bIsAll        = FNexusJsonUtils::HasSectionAll(Inner);
 			FScopeLock Lock(&GCallCapabilityRedundantMutex);
+			const FDateTime Now = FDateTime::UtcNow();
+			EvictStaleRedundantEntries(Now, static_cast<double>(WindowSec));
 			if (FNexusCallCapabilityRedundantEntry* Entry = GCallCapabilityRedundantMap.Find(LruKey))
 			{
-				const double AgeSec = (FDateTime::UtcNow() - Entry->Ts).GetTotalSeconds();
+				const double AgeSec = (Now - Entry->Ts).GetTotalSeconds();
 				if (AgeSec <= WindowSec && Entry->bHadAll && bIsSubSection)
 				{
 					FNexusFeedback::FFields F;
@@ -218,7 +232,7 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 			if (bIsAll || bIsSubSection)
 			{
 				FNexusCallCapabilityRedundantEntry& E = GCallCapabilityRedundantMap.FindOrAdd(LruKey);
-				E.Ts      = FDateTime::UtcNow();
+				E.Ts      = Now;
 				E.bHadAll = bIsAll;
 			}
 		}

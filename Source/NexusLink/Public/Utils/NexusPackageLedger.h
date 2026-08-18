@@ -52,17 +52,17 @@ public:
 		int32 AlreadyCollected = 0;
 	};
 
-	/** 整批卸载台账中仍驻留、可安全卸载的包；bGC=true 时卸载后触发一次 KEEPFLAGS GC 回收级联依赖。 */
+	/** 整批卸载台账中仍驻留、可安全卸载的包；bGC=true 且实际卸载数量>0 时才触发 KEEPFLAGS GC。 */
 	FFlushStats Flush(bool bGC);
 
 	/**
 	 * 静态工具：对任意包列表做统一的安全过滤 + 整批卸载。供台账 Flush() 与手动 unload_asset
 	 * Capability 共用同一套判定逻辑（dirty / 编辑器已打开 / 引擎内建包 一律跳过）。
 	 * @param bSkipDirty  true 时 dirty 包跳过；false 时强制卸载（含未保存修改，慎用）
-	 * @param OutSkipped  非空时回填被跳过（非 dirty/engine 原因以外）的包，供调用方决定是否保留记账
+	 * @param OutSkipped  非空时回填被跳过的包（TSet，供调用方决定是否保留记账）
 	 */
 	static FFlushStats UnloadPackagesSafely(const TArray<UPackage*>& Packages, bool bSkipDirty, bool bGC,
-		TArray<UPackage*>* OutSkipped = nullptr);
+		TSet<UPackage*>* OutSkipped = nullptr);
 
 	/**
 	 * 便捷入口：若未被 keepLoaded 抑制、且插件「自动卸载」设置开启、且阈值命中，则执行一次 Flush。

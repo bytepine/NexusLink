@@ -1,11 +1,9 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/DataAsset/NexusManageAssetDataTableCapability.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Engine/DataTable.h"
@@ -60,181 +58,206 @@ void FManageAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition
 	Out.WhenToUse = TEXT("Write ops: add/remove/set DT row values");
 }
 
-FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+struct FDataTableActionState
 {
+	UDataTable* DT = nullptr;
+	bool bDidMutate = false;
+};
 
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+static FDataTableActionState* DTState(FNexusActionContext& Ctx)
+{
+	return static_cast<FDataTableActionState*>(Ctx.Target);
+}
+
+static UDataTable* DTFrom(FNexusActionContext& Ctx)
+{
+	FDataTableActionState* S = DTState(Ctx);
+	return S ? S->DT : nullptr;
+}
+
+static void MarkDTDirty(FNexusActionContext& Ctx)
+{
+	if (FDataTableActionState* S = DTState(Ctx))
 	{
-		const FNexusArgs A(Arguments);
+		S->bDidMutate = true;
+	}
+}
 
+static bool RequireRowName(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, FString& OutRowName)
+{
+	OutRowName = FNexusArgs(Op).Str(TEXT("rowName"));
+	Ctx.Entry->SetStringField(TEXT("rowName"), OutRowName);
+	if (OutRowName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("action and rowName is required"));
+		return false;
+	}
+	return true;
+}
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+static void HandleDT_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UDataTable* DT = DTFrom(Ctx);
+	FString RowName;
+	if (!RequireRowName(Op, Ctx, RowName)) return;
 
-		UDataTable* DT = FNexusAssetUtils::LoadAssetWithFallback<UDataTable>(AssetPath);
-		if (!DT) { OutError = FString::Printf(TEXT("DataTable not found: %s"), *AssetPath); return; }
+	const FName RowKey(*RowName);
+	const UScriptStruct* RowStruct = DT->GetRowStruct();
+	if (DT->FindRowUnchecked(RowKey))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Row already exists"));
+		return;
+	}
+	if (!RowStruct)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataTable has no row struct"));
+		return;
+	}
 
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
+	uint8* RowData = (uint8*)FMemory::Malloc(RowStruct->GetStructureSize());
+	RowStruct->InitializeStruct(RowData);
+	bool bAddOk = true;
+
+	if (Op->HasField(TEXT("fields")))
+	{
+		const TSharedPtr<FJsonObject>& Fields = Op->GetObjectField(TEXT("fields"));
+		for (auto& KV : Fields->Values)
 		{
-			OutError = TEXT("Missing or empty operations");
-			return;
+			FProperty* Prop = RowStruct->FindPropertyByName(FName(*KV.Key));
+			if (!Prop) continue;
+
+			FString ValStr;
+			if (!JsonValueToImportString(KV.Value, ValStr))
+			{
+				Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(
+					TEXT("Field '%s' unsupported JSON type (use string/number/bool/null)"), *KV.Key));
+				bAddOk = false;
+				break;
+			}
+
+			void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(RowData);
+			if (!FNexusPropertyUtils::ImportTextFromString(Prop, ValStr, ValuePtr, DT))
+			{
+				Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("ImportText failed for field '%s'"), *KV.Key));
+				bAddOk = false;
+				break;
+			}
 		}
+	}
 
-		bool bDidMutate = false;
-		for (const TSharedPtr<FJsonValue>& Val : Ops)
-		{
-			TSharedPtr<FJsonObject> Item = Val->AsObject();
-			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
+	if (bAddOk)
+	{
+		DT->AddRow(RowKey, *((FTableRowBase*)RowData));
+		MarkDTDirty(Ctx);
+	}
+	FMemory::Free(RowData);
+}
 
-			if (!Item.IsValid())
-			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("Invalid row item"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
+static void HandleDT_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UDataTable* DT = DTFrom(Ctx);
+	FString RowName;
+	if (!RequireRowName(Op, Ctx, RowName)) return;
 
-			const FString Action  = Item->HasField(TEXT("action"))  ? Item->GetStringField(TEXT("action")).ToLower() : TEXT("");
-			const FString RowName = Item->HasField(TEXT("rowName")) ? Item->GetStringField(TEXT("rowName"))          : TEXT("");
-			OutEntry->SetStringField(TEXT("action"),  Action);
-			OutEntry->SetStringField(TEXT("rowName"), RowName);
+	const FName RowKey(*RowName);
+	if (!DT->FindRowUnchecked(RowKey))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Row does not exist"));
+		return;
+	}
+	DT->RemoveRow(RowKey);
+	MarkDTDirty(Ctx);
+}
 
-			if (Action.IsEmpty() || RowName.IsEmpty())
-			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("action and rowName is required"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
+static void HandleDT_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UDataTable* DT = DTFrom(Ctx);
+	FString RowName;
+	if (!RequireRowName(Op, Ctx, RowName)) return;
 
-			const FName RowKey(*RowName);
-			const UScriptStruct* RowStruct = DT->GetRowStruct();
+	const UScriptStruct* RowStruct = DT->GetRowStruct();
+	if (!RowStruct)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataTable has no row struct"));
+		return;
+	}
 
-			if (Action == TEXT("add"))
-			{
-				if (DT->FindRowUnchecked(RowKey))
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("Row already exists"));
-				}
-				else if (!RowStruct)
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("DataTable has no row struct"));
-				}
-				else
-				{
-					uint8* RowData = (uint8*)FMemory::Malloc(RowStruct->GetStructureSize());
-					RowStruct->InitializeStruct(RowData);
-					bool bAddOk = true;
+	const FString FieldName = Op->HasField(TEXT("fieldName")) ? Op->GetStringField(TEXT("fieldName")) : TEXT("");
+	const FString NewValue  = Op->HasField(TEXT("value"))     ? Op->GetStringField(TEXT("value"))     : TEXT("");
+	Ctx.Entry->SetStringField(TEXT("fieldName"), FieldName);
+	if (FieldName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set action requires fieldName"));
+		return;
+	}
 
-					if (Item->HasField(TEXT("fields")))
-					{
-						const TSharedPtr<FJsonObject>& Fields = Item->GetObjectField(TEXT("fields"));
-						for (auto& KV : Fields->Values)
-						{
-							FProperty* Prop = RowStruct->FindPropertyByName(FName(*KV.Key));
-							if (!Prop) continue;
+	uint8* RowData = const_cast<uint8*>(DT->FindRowUnchecked(FName(*RowName)));
+	if (!RowData)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Row '%s' does not exist"), *RowName));
+		return;
+	}
+	FProperty* Prop = RowStruct->FindPropertyByName(*FieldName);
+	if (!Prop)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(
+			TEXT("Field '%s' does not exist in row struct %s"), *FieldName, *RowStruct->GetName()));
+		return;
+	}
 
-							FString ValStr;
-							if (!JsonValueToImportString(KV.Value, ValStr))
-							{
-								OutEntry->SetStringField(TEXT("error"), FString::Printf(
-									TEXT("Field '%s' unsupported JSON type (use string/number/bool/null)"), *KV.Key));
-								bAddOk = false;
-								break;
-							}
+	void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(RowData);
+	FString OldValue;
+	FNexusPropertyUtils::ExportText(Prop, OldValue, ValuePtr);
+	if (!FNexusPropertyUtils::ImportTextFromString(Prop, NewValue, ValuePtr, DT))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(
+			TEXT("ImportText failed for field '%s'"), *FieldName));
+		FNexusPropertyUtils::ImportTextFromString(Prop, OldValue, ValuePtr, DT);
+		return;
+	}
+	FString ActualValue;
+	FNexusPropertyUtils::ExportText(Prop, ActualValue, ValuePtr);
+	if (!OldValue.IsEmpty())    Ctx.Entry->SetStringField(TEXT("oldValue"), OldValue);
+	if (!ActualValue.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualValue);
+	MarkDTDirty(Ctx);
+}
 
-							void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(RowData);
-							if (!FNexusPropertyUtils::ImportTextFromString(Prop, ValStr, ValuePtr, DT))
-							{
-								OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("ImportText failed for field '%s'"), *KV.Key));
-								bAddOk = false;
-								break;
-							}
-						}
-					}
+bool FManageAssetDataTableCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UDataTable* DT = FNexusAssetUtils::LoadAssetWithFallback<UDataTable>(AssetPath);
+	if (!DT)
+	{
+		OutError = FString::Printf(TEXT("DataTable not found: %s"), *AssetPath);
+		return false;
+	}
+	FDataTableActionState* State = new FDataTableActionState();
+	State->DT = DT;
+	OutTarget = State;
+	return true;
+}
 
-					if (bAddOk)
-					{
-						DT->AddRow(RowKey, *((FTableRowBase*)RowData));
-						bDidMutate = true;
-					}
-					FMemory::Free(RowData);
-				}
-			}
-			else if (Action == TEXT("remove"))
-			{
-				if (!DT->FindRowUnchecked(RowKey))
-					OutEntry->SetStringField(TEXT("error"), TEXT("Row does not exist"));
-				else
-				{
-					DT->RemoveRow(RowKey);
-					bDidMutate = true;
-				}
-			}
-			else if (Action == TEXT("set"))
-			{
-				if (!RowStruct)
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("DataTable has no row struct"));
-				}
-				else
-				{
-					const FString FieldName = Item->HasField(TEXT("fieldName")) ? Item->GetStringField(TEXT("fieldName")) : TEXT("");
-					const FString NewValue  = Item->HasField(TEXT("value"))     ? Item->GetStringField(TEXT("value"))     : TEXT("");
-					OutEntry->SetStringField(TEXT("fieldName"), FieldName);
+void FManageAssetDataTableCapability::FinalizeTarget(void* Target) const
+{
+	FDataTableActionState* State = static_cast<FDataTableActionState*>(Target);
+	if (!State) return;
+	if (State->bDidMutate && State->DT)
+	{
+		State->DT->MarkPackageDirty();
+	}
+	delete State;
+}
 
-					if (FieldName.IsEmpty())
-					{
-						OutEntry->SetStringField(TEXT("error"), TEXT("set action requires fieldName"));
-					}
-					else
-					{
-						uint8* RowData = const_cast<uint8*>(DT->FindRowUnchecked(RowKey));
-						if (!RowData)
-						{
-							OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Row '%s' does not exist"), *RowName));
-						}
-						else
-						{
-							FProperty* Prop = RowStruct->FindPropertyByName(*FieldName);
-							if (!Prop)
-							{
-								OutEntry->SetStringField(TEXT("error"), FString::Printf(
-									TEXT("Field '%s' does not exist in row struct %s"), *FieldName, *RowStruct->GetName()));
-							}
-							else
-							{
-								void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(RowData);
-								FString OldValue;
-								FNexusPropertyUtils::ExportText(Prop, OldValue, ValuePtr);
-								if (!FNexusPropertyUtils::ImportTextFromString(Prop, NewValue, ValuePtr, DT))
-								{
-									OutEntry->SetStringField(TEXT("error"), FString::Printf(
-										TEXT("ImportText failed for field '%s'"), *FieldName));
-									FNexusPropertyUtils::ImportTextFromString(Prop, OldValue, ValuePtr, DT);
-								}
-								else
-								{
-									FString ActualValue;
-									FNexusPropertyUtils::ExportText(Prop, ActualValue, ValuePtr);
-									if (!OldValue.IsEmpty())    OutEntry->SetStringField(TEXT("oldValue"), OldValue);
-									if (!ActualValue.IsEmpty()) OutEntry->SetStringField(TEXT("newValue"), ActualValue);
-									bDidMutate = true;
-								}
-							}
-						}
-					}
-				}
-			}
-			else
-			{
-				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
-			}
-
-			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-		}
-
-		if (bDidMutate) DT->MarkPackageDirty();
-	
-	});
+void FManageAssetDataTableCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("add"),    &HandleDT_Add);
+	OutHandlers.Add(TEXT("remove"), &HandleDT_Remove);
+	OutHandlers.Add(TEXT("set"),    &HandleDT_Set);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetDataTableCapability)

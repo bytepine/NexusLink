@@ -1,11 +1,9 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/AI/NexusManageAssetBlackboardCapability.h"
-#include "Utils/NexusCapabilityResultBuilder.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusArgs.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardData.h"
@@ -80,190 +78,175 @@ void FManageAssetBlackboardCapability::BuildDefinition(FNexusCapabilityDefinitio
 	Out.WhenToUse = TEXT("Write ops: add/remove/rename BB keys, change parent BB");
 }
 
-FCapabilityResult FManageAssetBlackboardCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+static UBlackboardData* BBFrom(FNexusActionContext& Ctx)
 {
+	return static_cast<UBlackboardData*>(Ctx.Target);
+}
 
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+static bool RequireBBKeyName(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, FString& OutKeyName)
+{
+	OutKeyName = FNexusArgs(Op).Str(TEXT("keyName"));
+	Ctx.Entry->SetStringField(TEXT("keyName"), OutKeyName);
+	if (OutKeyName.IsEmpty())
 	{
-		const FNexusArgs A(Arguments);
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("This operation requires keyName"));
+		return false;
+	}
+	return true;
+}
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+static void HandleBB_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UBlackboardData* BB = BBFrom(Ctx);
+	FString KeyName;
+	if (!RequireBBKeyName(Op, Ctx, KeyName)) return;
 
-		UBlackboardData* BB = LoadBlackboardFromPath(AssetPath);
-		if (!BB) { OutError = FString::Printf(TEXT("BlackboardData not found: %s"), *AssetPath); return; }
-
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
+	bool bExists = false;
+	for (const FBlackboardEntry& E : BB->Keys)
+	{
+		if (E.EntryName.ToString().Equals(KeyName, ESearchCase::IgnoreCase)) { bExists = true; break; }
+	}
+	if (!bExists && BB->Parent)
+	{
+		for (const UBlackboardData* Cur = BB->Parent; Cur; Cur = Cur->Parent)
 		{
-			OutError = TEXT("Missing or empty operations");
-			return;
+			for (const FBlackboardEntry& E : Cur->Keys)
+			{
+				if (E.EntryName.ToString().Equals(KeyName, ESearchCase::IgnoreCase)) { bExists = true; break; }
+			}
+			if (bExists) break;
 		}
+	}
 
-		for (const TSharedPtr<FJsonValue>& Val : Ops)
-		{
-			TSharedPtr<FJsonObject> Item    = Val->AsObject();
-			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
+	if (bExists)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Key '%s' already exists"), *KeyName));
+		return;
+	}
 
-			if (!Item.IsValid())
-			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("Invalid key item"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
+	const FString TypeStr = FNexusArgs(Op).Str(TEXT("keyType"));
+	if (TypeStr.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("keyType is required when action=add"));
+		return;
+	}
+	UBlackboardKeyType* KeyType = CreateBBKeyType(TypeStr, BB);
+	if (!KeyType)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown keyType: '%s'"), *TypeStr));
+		return;
+	}
+	FBlackboardEntry NewEntry;
+	NewEntry.EntryName = FName(*KeyName);
+	NewEntry.KeyType   = KeyType;
+	BB->Keys.Add(NewEntry);
+	BB->MarkPackageDirty();
+	Ctx.Entry->SetStringField(TEXT("keyType"), TypeStr);
+}
 
-			const FString Action  = Item->HasField(TEXT("action"))  ? Item->GetStringField(TEXT("action")).ToLower() : TEXT("");
-			const FString KeyName = Item->HasField(TEXT("keyName")) ? Item->GetStringField(TEXT("keyName"))          : TEXT("");
-		OutEntry->SetStringField(TEXT("action"),  Action);
-		OutEntry->SetStringField(TEXT("keyName"), KeyName);
+static void HandleBB_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UBlackboardData* BB = BBFrom(Ctx);
+	FString KeyName;
+	if (!RequireBBKeyName(Op, Ctx, KeyName)) return;
 
-			if (Action.IsEmpty())
-			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("Missing action"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
-
-			if (Action != TEXT("set_parent") && KeyName.IsEmpty())
-			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("This operation requires keyName"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-				continue;
-			}
-
-			if (Action == TEXT("add"))
-			{
-				// 检查同名 key 是否已存在（含父 BB 的继承 keys）
-				bool bExists = false;
-				for (const FBlackboardEntry& E : BB->Keys)
-				{
-					if (E.EntryName.ToString().Equals(KeyName, ESearchCase::IgnoreCase)) { bExists = true; break; }
-				}
-				// 迭代父 BB 链中的 keys
-				if (!bExists && BB->Parent)
-				{
-					for (const UBlackboardData* Cur = BB->Parent; Cur; Cur = Cur->Parent)
-					{
-						for (const FBlackboardEntry& E : Cur->Keys)
-						{
-							if (E.EntryName.ToString().Equals(KeyName, ESearchCase::IgnoreCase)) { bExists = true; break; }
-						}
-						if (bExists) break;
-					}
-				}
-
-				if (bExists)
-				{
-					OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Key '%s' already exists"), *KeyName));
-				}
-				else
-				{
-					const FString TypeStr = Item->HasField(TEXT("keyType")) ? Item->GetStringField(TEXT("keyType")) : TEXT("");
-					if (TypeStr.IsEmpty())
-					{
-						OutEntry->SetStringField(TEXT("error"), TEXT("keyType is required when action=add"));
-					}
-					else
-					{
-						UBlackboardKeyType* KeyType = CreateBBKeyType(TypeStr, BB);
-						if (!KeyType)
-						{
-							OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown keyType: '%s'"), *TypeStr));
-						}
-						else
-						{
-							FBlackboardEntry NewEntry;
-							NewEntry.EntryName = FName(*KeyName);
-							NewEntry.KeyType   = KeyType;
-							BB->Keys.Add(NewEntry);
-							BB->MarkPackageDirty();
-							OutEntry->SetStringField(TEXT("keyType"), TypeStr);
-						}
-					}
-				}
-			}
-			else if (Action == TEXT("remove"))
-			{
-				const int32 Removed = BB->Keys.RemoveAll([&KeyName](const FBlackboardEntry& E)
-				{
-					return E.EntryName.ToString().Equals(KeyName, ESearchCase::IgnoreCase);
-				});
-				if (Removed == 0)
-				{
-					OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Key '%s' not found in user-defined keys"), *KeyName));
-				}
-				else
-				{
-					BB->MarkPackageDirty();
-				}
-			}
-			else if (Action == TEXT("rename"))
-			{
-				const FString NewName = Item->HasField(TEXT("newName")) ? Item->GetStringField(TEXT("newName")) : TEXT("");
-				if (NewName.IsEmpty())
-				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("newName is required when action=rename"));
-				}
-				else
-				{
-					bool bFound = false;
-					for (FBlackboardEntry& E : BB->Keys)
-					{
-						if (E.EntryName.ToString().Equals(KeyName, ESearchCase::IgnoreCase))
-						{
-							E.EntryName = FName(*NewName);
-							bFound      = true;
-							break;
-						}
-					}
-					if (!bFound)
-					{
-						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Key '%s' not found in user-defined keys"), *KeyName));
-					}
-					else
-					{
-						BB->MarkPackageDirty();
-						OutEntry->SetStringField(TEXT("newName"), NewName);
-					}
-				}
-			}
-			else if (Action == TEXT("set_parent"))
-			{
-				const FString ParentPath = Item->HasField(TEXT("parentPath")) ? Item->GetStringField(TEXT("parentPath")) : TEXT("");
-				if (ParentPath.IsEmpty())
-				{
-					// 清除 parent
-					BB->Parent = nullptr;
-					BB->MarkPackageDirty();
-					OutEntry->SetStringField(TEXT("parentPath"), TEXT("(cleared)"));
-				}
-				else
-				{
-					UBlackboardData* ParentBB = FNexusAssetUtils::LoadAssetWithFallback<UBlackboardData>(ParentPath);
-					if (!ParentBB)
-					{
-						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Parent BlackboardData not found: %s"), *ParentPath));
-					}
-					else if (ParentBB == BB)
-					{
-						OutEntry->SetStringField(TEXT("error"), TEXT("Cannot set self as parent"));
-					}
-					else
-					{
-						BB->Parent = ParentBB;
-						BB->MarkPackageDirty();
-						OutEntry->SetStringField(TEXT("parentPath"), ParentPath);
-					}
-				}
-			}
-			else
-			{
-				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
-			}
-
-			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-		}
-	
+	const int32 Removed = BB->Keys.RemoveAll([&KeyName](const FBlackboardEntry& E)
+	{
+		return E.EntryName.ToString().Equals(KeyName, ESearchCase::IgnoreCase);
 	});
+	if (Removed == 0)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Key '%s' not found in user-defined keys"), *KeyName));
+	}
+	else
+	{
+		BB->MarkPackageDirty();
+	}
+}
+
+static void HandleBB_Rename(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UBlackboardData* BB = BBFrom(Ctx);
+	FString KeyName;
+	if (!RequireBBKeyName(Op, Ctx, KeyName)) return;
+
+	const FString NewName = FNexusArgs(Op).Str(TEXT("newName"));
+	if (NewName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("newName is required when action=rename"));
+		return;
+	}
+	bool bFound = false;
+	for (FBlackboardEntry& E : BB->Keys)
+	{
+		if (E.EntryName.ToString().Equals(KeyName, ESearchCase::IgnoreCase))
+		{
+			E.EntryName = FName(*NewName);
+			bFound      = true;
+			break;
+		}
+	}
+	if (!bFound)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Key '%s' not found in user-defined keys"), *KeyName));
+		return;
+	}
+	BB->MarkPackageDirty();
+	Ctx.Entry->SetStringField(TEXT("newName"), NewName);
+}
+
+static void HandleBB_SetParent(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UBlackboardData* BB = BBFrom(Ctx);
+	Ctx.Entry->SetStringField(TEXT("keyName"), FNexusArgs(Op).Str(TEXT("keyName")));
+	const FString ParentPath = FNexusArgs(Op).Str(TEXT("parentPath"));
+	if (ParentPath.IsEmpty())
+	{
+		BB->Parent = nullptr;
+		BB->MarkPackageDirty();
+		Ctx.Entry->SetStringField(TEXT("parentPath"), TEXT("(cleared)"));
+		return;
+	}
+	UBlackboardData* ParentBB = FNexusAssetUtils::LoadAssetWithFallback<UBlackboardData>(ParentPath);
+	if (!ParentBB)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Parent BlackboardData not found: %s"), *ParentPath));
+		return;
+	}
+	if (ParentBB == BB)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Cannot set self as parent"));
+		return;
+	}
+	BB->Parent = ParentBB;
+	BB->MarkPackageDirty();
+	Ctx.Entry->SetStringField(TEXT("parentPath"), ParentPath);
+}
+
+bool FManageAssetBlackboardCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+	UBlackboardData* BB = LoadBlackboardFromPath(AssetPath);
+	if (!BB)
+	{
+		OutError = FString::Printf(TEXT("BlackboardData not found: %s"), *AssetPath);
+		return false;
+	}
+	OutTarget = BB;
+	return true;
+}
+
+void FManageAssetBlackboardCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("add"),        &HandleBB_Add);
+	OutHandlers.Add(TEXT("remove"),     &HandleBB_Remove);
+	OutHandlers.Add(TEXT("rename"),     &HandleBB_Rename);
+	OutHandlers.Add(TEXT("set_parent"), &HandleBB_SetParent);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetBlackboardCapability)
