@@ -19,163 +19,46 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/SNullWidget.h"
 #include "HAL/FileManager.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/MessageDialog.h"
-#include "Interfaces/IPluginManager.h"
 #include "NexusUpdateChecker.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "NexusLinkSettings"
 
-/** 统一绝对路径与分隔符，供路径前缀比较（兼容 UE 4.26，无 FPaths::ConvertRelativeToNormalizedPath）。 */
-static FString NexusNormalizeCapPath(const FString& InPath)
-{
-	FString P = FPaths::ConvertRelativePathToFull(InPath);
-	FPaths::NormalizeFilename(P);
-	return P;
-}
-
-/** MCP Capabilities 设置分组：扫描源码目录；标题由 SortKey（相对路径或 tag）推导。 */
+/** MCP Capabilities 设置分组：标题由 SortKey（源码相对路径或 tag）推导。 */
 struct FNexusCapSettingsUiLayout
 {
-	static FString ResolveCapabilitiesSourceRoot()
-	{
-		auto TryCapsUnderBaseDir = [](const FString& BaseDir) -> FString
-		{
-			if (BaseDir.IsEmpty())
-			{
-				return FString();
-			}
-			const FString CapsDir = NexusNormalizeCapPath(
-				BaseDir / TEXT("Source/NexusLink/Private/Capabilities"));
-			return FPaths::DirectoryExists(CapsDir) ? CapsDir : FString();
-		};
-
-		// 优先：当前已加载 NexusLink 插件的真实根目录（与安装位置无关）
-		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("NexusLink"));
-		if (Plugin.IsValid())
-		{
-			const FString Hit = TryCapsUnderBaseDir(Plugin->GetBaseDir());
-			if (!Hit.IsEmpty())
-			{
-				return Hit;
-			}
-		}
-
-		// 回退：在 Plugins 树下有限深度搜索（兼容插件管理器尚未就绪或非标准路径）
-		TFunction<bool(const FString&, int32, FString&)> SearchUnder;
-		SearchUnder = [&TryCapsUnderBaseDir, &SearchUnder](const FString& Dir, int32 Depth, FString& OutHit) -> bool
-		{
-			if (Depth > 5 || Dir.IsEmpty() || !FPaths::DirectoryExists(Dir))
-			{
-				return false;
-			}
-			const FString CapsHit = TryCapsUnderBaseDir(Dir);
-			if (!CapsHit.IsEmpty())
-			{
-				OutHit = CapsHit;
-				return true;
-			}
-			TArray<FString> SubDirs;
-			IFileManager::Get().FindFiles(SubDirs, *(Dir / TEXT("*")), false, true);
-			for (const FString& Sub : SubDirs)
-			{
-				if (SearchUnder(NexusNormalizeCapPath(Dir / Sub), Depth + 1, OutHit))
-				{
-					return true;
-				}
-			}
-			return false;
-		};
-
-		FString Hit;
-		if (SearchUnder(NexusNormalizeCapPath(FPaths::ProjectPluginsDir()), 0, Hit))
-		{
-			return Hit;
-		}
-		SearchUnder(NexusNormalizeCapPath(FPaths::EnginePluginsDir()), 0, Hit);
-		return Hit;
-	}
-
-	static void GatherCapabilityCppRecursive(const FString& Dir, TArray<FString>& OutFullPaths)
-	{
-		if (!FPaths::DirectoryExists(Dir))
-		{
-			return;
-		}
-		TArray<FString> FileNames;
-		IFileManager::Get().FindFiles(FileNames, *(Dir / TEXT("*")), true, false);
-		for (const FString& Name : FileNames)
-		{
-			const FString Full = NexusNormalizeCapPath(Dir / Name);
-			if (Name.EndsWith(TEXT("Capability.cpp"), ESearchCase::IgnoreCase))
-			{
-				OutFullPaths.Add(Full);
-			}
-		}
-		TArray<FString> SubDirs;
-		IFileManager::Get().FindFiles(SubDirs, *(Dir / TEXT("*")), false, true);
-		for (const FString& Sub : SubDirs)
-		{
-			GatherCapabilityCppRecursive(NexusNormalizeCapPath(Dir / Sub), OutFullPaths);
-		}
-	}
-
-	static bool TryExtractCapNameFromCpp(const FString& Content, FString& OutCapName)
-	{
-		const int32 GetNamePos = Content.Find(TEXT("::GetName()"));
-		if (GetNamePos == INDEX_NONE)
-		{
-			return false;
-		}
-		static const FString Prefix(TEXT("return TEXT(\""));
-		const int32 RetPos = Content.Find(*Prefix, ESearchCase::CaseSensitive, ESearchDir::FromStart, GetNamePos);
-		if (RetPos == INDEX_NONE)
-		{
-			return false;
-		}
-		const int32 NameStart = RetPos + Prefix.Len();
-		const int32 QuotePos = Content.Find(TEXT("\""), ESearchCase::CaseSensitive, ESearchDir::FromStart, NameStart);
-		if (QuotePos == INDEX_NONE || QuotePos <= NameStart)
-		{
-			return false;
-		}
-		OutCapName = Content.Mid(NameStart, QuotePos - NameStart);
-		return !OutCapName.IsEmpty();
-	}
-
-	static FString FolderRelFromFullCppPath(const FString& FullPathNorm, const FString& CapsRootNorm)
-	{
-		if (!FullPathNorm.StartsWith(CapsRootNorm))
-		{
-			return FString();
-		}
-		FString Mid = FullPathNorm.Mid(CapsRootNorm.Len());
-		while (Mid.Len() > 0 && (Mid[0] == TEXT('/') || Mid[0] == TEXT('\\')))
-		{
-			Mid.RemoveAt(0, 1);
-		}
-		return FPaths::GetPath(Mid);
-	}
-
 	static FString SegmentToRowLabel(const FString& Seg)
 	{
 		const FString L = Seg.ToLower();
 		if (L == TEXT("asset")) return TEXT("资产");
 		if (L == TEXT("ai")) return TEXT("AI");
 		if (L == TEXT("animation")) return TEXT("动画");
+		if (L == TEXT("audio")) return TEXT("音频");
 		if (L == TEXT("blueprint")) return TEXT("蓝图");
+		if (L == TEXT("context")) return TEXT("上下文");
+		if (L == TEXT("curve")) return TEXT("曲线");
 		if (L == TEXT("dataasset")) return TEXT("数据资产");
 		if (L == TEXT("editor")) return TEXT("编辑器");
+		if (L == TEXT("enum")) return TEXT("枚举");
+		if (L == TEXT("foliage")) return TEXT("植被");
+		if (L == TEXT("font")) return TEXT("字体");
+		if (L == TEXT("input")) return TEXT("输入");
+		if (L == TEXT("level")) return TEXT("关卡");
+		if (L == TEXT("localization")) return TEXT("本地化");
 		if (L == TEXT("lua")) return TEXT("Lua");
 		if (L == TEXT("material")) return TEXT("材质");
+		if (L == TEXT("media")) return TEXT("媒体");
+		if (L == TEXT("mesh")) return TEXT("网格");
+		if (L == TEXT("moviepipeline")) return TEXT("电影渲染");
 		if (L == TEXT("property")) return TEXT("属性");
 		if (L == TEXT("runtime")) return TEXT("运行时");
 		if (L == TEXT("struct")) return TEXT("结构体");
-		if (L == TEXT("widget")) return TEXT("控件");
+		if (L == TEXT("texture")) return TEXT("贴图");
+		if (L == TEXT("tools")) return TEXT("元工具");
+		if (L == TEXT("umg") || L == TEXT("widget")) return TEXT("控件");
 		return Seg;
 	}
 
@@ -208,46 +91,6 @@ struct FNexusCapSettingsUiLayout
 		}
 		return SegmentToRowLabel(LastSeg);
 	}
-
-	static void BuildCapNameToFolderRelMap(TMap<FString, FString>& OutCapToRel)
-	{
-		static TMap<FString, FString> GCache;
-		static bool GReady = false;
-		if (GReady)
-		{
-			OutCapToRel = GCache;
-			return;
-		}
-		GReady = true;
-		const FString Root = ResolveCapabilitiesSourceRoot();
-		if (Root.IsEmpty())
-		{
-			OutCapToRel = GCache;
-			return;
-		}
-		const FString RootNorm = NexusNormalizeCapPath(Root);
-		TArray<FString> Files;
-		GatherCapabilityCppRecursive(RootNorm, Files);
-		for (const FString& FPath : Files)
-		{
-			FString Content;
-			if (!FFileHelper::LoadFileToString(Content, *FPath))
-			{
-				continue;
-			}
-			FString CapName;
-			if (!TryExtractCapNameFromCpp(Content, CapName))
-			{
-				continue;
-			}
-			const FString Rel = FolderRelFromFullCppPath(NexusNormalizeCapPath(FPath), RootNorm);
-			if (!GCache.Contains(CapName))
-			{
-				GCache.Add(CapName, Rel);
-			}
-		}
-		OutCapToRel = GCache;
-	}
 };
 
 const TArray<TPair<FString, FString>>& FNexusLinkSettingsCustomization::GetCategoryMapping()
@@ -258,7 +101,7 @@ const TArray<TPair<FString, FString>>& FNexusLinkSettingsCustomization::GetCateg
 		MakeTuple(FString(FNexusMcpTags::Material),  FString(TEXT("材质"))),
 		MakeTuple(FString(FNexusMcpTags::Struct),    FString(TEXT("结构体"))),
 		MakeTuple(FString(FNexusMcpTags::Data),      FString(TEXT("数据资产"))),
-		MakeTuple(FString(FNexusMcpTags::Widget),    FString(TEXT("控件蓝图"))),
+		MakeTuple(FString(FNexusMcpTags::Widget),    FString(TEXT("控件"))),
 		MakeTuple(FString(FNexusMcpTags::Runtime),   FString(TEXT("运行时"))),
 		MakeTuple(FString(FNexusMcpTags::Gas),       FString(TEXT("GAS"))),
 	};
@@ -286,20 +129,13 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 	CategoryCountTexts.Empty();
 	CapTreeRoot.Reset();
 
-	TMap<FString, FString> CapToRel;
-	FNexusCapSettingsUiLayout::BuildCapNameToFolderRelMap(CapToRel);
-
-	// 收集 cap：优先按源码路径（Capabilities 下相对目录）分组；扫描失败则按 tags 回退 GetCategoryMapping
+	// 收集 cap：优先按注册期 __FILE__ 相对 Capabilities 的目录；空则按 tags 回退
 	for (const FCapRecord& Record : FNexusCapabilityRegistry::Get().GetAllRecords())
 	{
 		const FNexusCapabilityDefinition& Def = Record.Def;
 
-		FString SortKey;
-		if (const FString* Rel = CapToRel.Find(Def.Name))
-		{
-			SortKey = *Rel;
-		}
-		else
+		FString SortKey = Record.SourceRelDir;
+		if (SortKey.IsEmpty())
 		{
 			for (const auto& Pair : GetCategoryMapping())
 			{

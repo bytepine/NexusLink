@@ -192,7 +192,7 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 - [x] **启用 MCP 服务器**总开关（默认关闭）：Editor Preferences → Plugins → NexusLink → 服务器；勾选后即时启动 HTTP/WebSocket 并注册实例；命令行 **`-EnableNexusMcp`** 或控制台 **`NexusLink.EnableMcp`** 可会话级启停（不写盘；与 Preferences 为 OR；仅编辑器）
 - [x] **编辑器专用运行**：主模块 `Type: Runtime`（Game/Server 可链接）；`StartupModule` / `ShutdownModule` 在 `!WITH_EDITOR` 时直接空返回；`REGISTER_MCP_*` 宏在非编辑器构建为空。平台门控双写 `PlatformAllowList`（UE5）+ `WhitelistPlatforms`（UE4.2x），避免 UE4 把模块链进移动端——MCP 仅 Editor / PIE 实际运行
 - [x] 端口自动分配，冲突时自动切换；实例注册机制支持零扫描发现（`{PID}.json` 写入临时目录）
-- [x] **按 Capability 启用/禁用**（`IsCapabilityEnabled`）：Editor Preferences → Plugins → NexusLink → Capabilities；支持分类级 / 单条级勾选
+- [x] **按 Capability 启用/禁用**（`IsCapabilityEnabled`）：Editor Preferences → Plugins → NexusLink → Capabilities；按源码目录（资产 / 编辑器 / 运行时 / Lua 等）多级折叠，支持分类级 / 单条级勾选
 - [x] **全工具响应默认值压缩**（`FNexusResponseCompactorUtils`）：递归扫描对象数组字段，主流值自动抽取为 `<field>_defaults`（缺省即默认：`{**defaults,**entry}`）；可通过设置面板 `响应默认值压缩` 全局关闭
 - [x] **AI 反馈闭环**：`search_capabilities` / `call_capability` 自动埋点 + `submit_feedback` 手动上报；数据落本地 `<ProjectRoot>/.nexus-feedback/`（含 `pluginVersion`/`ueVersion` 等环境字段）；设置面板可**导出 Markdown** 报告、**创建 GitHub Issue**（可配置 `FeedbackIssueRepo`）。详情见 [usage-guide §2.5](docs/usage-guide.md)
 - [x] **插件版本检查**：设置面板「插件信息」显示当前版本；支持手动**检查更新**与**启动时自动检查**（默认开），有新版本时通知并跳转 [Releases](https://github.com/bytepine/NexusLink/releases)

@@ -146,7 +146,45 @@ FNexusCapabilityRegistry& FNexusCapabilityRegistry::Get()
 	return Instance;
 }
 
-void FNexusCapabilityRegistry::Register(TSharedRef<FNexusCapability> Cap)
+FString FNexusCapabilityRegistry::MakeSettingsGroupPath(const TCHAR* SourceFile)
+{
+	if (!SourceFile || !*SourceFile)
+	{
+		return FString();
+	}
+
+	FString Path(SourceFile);
+	Path.ReplaceInline(TEXT("\\"), TEXT("/"));
+
+	auto RelDirAfterMarker = [&Path](const TCHAR* Marker) -> FString
+	{
+		const int32 Idx = Path.Find(Marker, ESearchCase::IgnoreCase);
+		if (Idx == INDEX_NONE)
+		{
+			return FString();
+		}
+		const FString After = Path.Mid(Idx + FCString::Strlen(Marker));
+		int32 Slash = INDEX_NONE;
+		if (After.FindLastChar(TEXT('/'), Slash) && Slash > 0)
+		{
+			return After.Left(Slash);
+		}
+		return FString();
+	};
+
+	const FString CapsRel = RelDirAfterMarker(TEXT("Private/Capabilities/"));
+	if (!CapsRel.IsEmpty())
+	{
+		return CapsRel;
+	}
+	if (Path.Find(TEXT("Private/Tools/"), ESearchCase::IgnoreCase) != INDEX_NONE)
+	{
+		return TEXT("Tools");
+	}
+	return FString();
+}
+
+void FNexusCapabilityRegistry::Register(TSharedRef<FNexusCapability> Cap, const TCHAR* SourceFile)
 {
 	// 触发 BuildDefinition（首次调用，结果缓存在实例上）
 	FNexusCapabilityDefinition Def = Cap->GetDefinition();
@@ -171,8 +209,9 @@ void FNexusCapabilityRegistry::Register(TSharedRef<FNexusCapability> Cap)
 
 	// 构建 record，存入注册表
 	FCapRecord Record(Cap);
-	Record.Def      = MoveTemp(Def);
-	Record.Keywords = MoveTemp(Keywords);
+	Record.Def          = MoveTemp(Def);
+	Record.Keywords     = MoveTemp(Keywords);
+	Record.SourceRelDir = MakeSettingsGroupPath(SourceFile);
 
 	const int32 Idx = Records.Add(MoveTemp(Record));
 	NameIndex.Add(NameLow, Idx);

@@ -39,12 +39,9 @@
 
 ### Fixed
 
+- fix(mcp): 设置面板 MCP Capabilities 按源码目录分组失效——`BuildDefinition`/`Out.Name` 后运行时扫描仍找 `GetName()`，全部掉进粗粒度 Tags（蓝图/数据资产/编辑器…）；改为注册期记录 `__FILE__` 相对 `Private/Capabilities` 路径（二进制安装无需源码即可多级折叠）
 - fix(code): 修复去 `namespace` 重构残留缩进——18 个 `.cpp` 文件级 helper/struct/注释整体左移一级（约 2400 行纯缩进，无语义变化）；保留宏续行/参数续行/初始化列表/`#if` 内预处理指令等正常缩进
 - fix(code): `manage_asset_behavior_tree` / `manage_asset_blueprint` 补缺失 `#include "Utils/NexusArgs.h"`（`PrepareTarget` 用 `FNexusArgs` 但未 include，C3861）
-
-- fix(code): 修复去 `namespace` 重构残留缩进——18 个 `.cpp` 文件级 helper/struct/注释整体左移一级（约 2400 行纯缩进，无语义变化）；保留宏续行/参数续行/初始化列表/`#if` 内预处理指令等正常缩进
-- fix(code): `manage_asset_behavior_tree` / `manage_asset_blueprint` 补缺失 `#include "Utils/NexusArgs.h"`（`PrepareTarget` 用 `FNexusArgs` 但未 include，C3861）
-
 - fix(mcp): `get_asset_blueprint`(defaults) / `get_asset_data_asset` 属性报告——`BuildEditablePropsPage` 调 `GetCPPType()` 前用 `CanResolveCPPType` 递归校验属性类型图，病态资产引用为空时回退属性类名，避免 `EXCEPTION_ACCESS_VIOLATION`
 - fix(mcp): 响应默认值压缩仅当字段出现在**全部 object 条目**上才抽取；`get_output_log` 的 `categoryFilter` ForcedDefault 改为本页 category **全员一致**才抽取（`AddForcedDefaultIfUnanimous`）
 - fix(mcp): `relatedCapabilities` 运行期只保留当前宿主已注册且已启用的名（`search_capabilities` / MultiTool `[see:]`）；握手路由改为「插件门控」——GAS/Niagara/StateTree 等 `not_found` 即跳过

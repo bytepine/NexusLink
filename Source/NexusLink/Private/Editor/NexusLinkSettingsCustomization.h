@@ -14,7 +14,7 @@ class UNexusLinkSettings;
 /**
  * UNexusLinkSettings 的自定义 Detail 面板。
  * 把 DisabledCapabilities 渲染为按 Capability 源码目录（Private/Capabilities/ 多级子目录）折叠树；
- * 扫描失败时回退为按 tags 与 GetCategoryMapping 的中文分类。
+ * 分组路径来自注册期 __FILE__（无需运行时扫源码）；空路径时回退为 tags 与 GetCategoryMapping。
  * Capability 与 Tool 已完全解耦——每个 cap 自带 tags，由注册表统一管理。
  */
 class FNexusLinkSettingsCustomization : public IDetailCustomization
@@ -58,7 +58,7 @@ private:
 	/** 设置面板对象弱引用。 */
 	TWeakObjectPtr<class UNexusLinkSettings> SettingsPtr;
 
-	/** 分组 SortKey（源码相对 Capabilities 的路径，如 Asset/Blueprint；回退为 tag 字面量或 _misc）→ cap 条目（按名字典序）。 */
+	/** 分组 SortKey（注册期 SourceRelDir，如 Asset/Blueprint；回退为 tag 字面量或 _misc）→ cap 条目（按名字典序）。 */
 	TMap<FString, TArray<FCapEntry>> CategoryCaps;
 
 	/** 由 CategoryCaps 构建的多级目录树（快捷操作与计数仍遍历扁平 CategoryCaps / 此树）。 */

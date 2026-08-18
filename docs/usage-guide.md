@@ -132,7 +132,7 @@ NexusLink 内置端到端的 AI 使用反馈系统，**所有数据只落本地 
 | 插件信息 | 显示当前版本；**检查更新**按钮；**启动时自动检查更新**（默认开） |
 | 启用 MCP 服务器 | 总开关，**默认关闭**；勾选后启动 HTTP/WebSocket 并注册实例供 IDE 发现，可随时切换无需重启；无 UI 时可用命令行 **`-EnableNexusMcp`**（会话级，不写盘） |
 | 工具列表模式 | **SearchMode**（默认，3 个元工具）或 **MultiTool**（各 Capability 独立 Tool） |
-| Capabilities | 按分类 / 单条启用或禁用（影响 `tools/list` 与 `search_capabilities` 命中） |
+| Capabilities | 按源码目录（资产 / 编辑器 / 运行时 / Lua 等）多级折叠，可按组或单条启用或禁用（影响 `tools/list` 与 `search_capabilities` 命中） |
 | 启用反馈采集 | 总开关；取消勾选后 auto/manual 都丢弃 |
 | Feedback Issue 仓库 | GitHub `owner/repo` 或 URL，供「创建 GitHub Issue」预填 |
 | 搜索过载阈值 / 最大搜索结果数 | 控制 `search_overflow` 与返回条数上限 |

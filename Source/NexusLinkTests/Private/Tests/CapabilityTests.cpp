@@ -363,3 +363,47 @@ bool FNexusLinkCapabilityManageFinalizeMixinTest::RunTest(const FString& Paramet
 
 	return true;
 }
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FNexusLinkCapabilitySettingsGroupPathTest,
+	"NexusLink.Capability.SettingsGroupPath",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNexusLinkCapabilitySettingsGroupPathTest::RunTest(const FString& Parameters)
+{
+	TestEqual(TEXT("unix caps path"),
+		FNexusCapabilityRegistry::MakeSettingsGroupPath(
+			TEXT("/repo/Source/NexusLink/Private/Capabilities/Asset/Blueprint/NexusGetAssetBlueprintCapability.cpp")),
+		FString(TEXT("Asset/Blueprint")));
+	TestEqual(TEXT("windows caps path"),
+		FNexusCapabilityRegistry::MakeSettingsGroupPath(
+			TEXT("E:\\repo\\Source\\NexusLink\\Private\\Capabilities\\Runtime\\Actor\\NexusListRuntimeActorsCapability.cpp")),
+		FString(TEXT("Runtime/Actor")));
+	TestEqual(TEXT("asset root file"),
+		FNexusCapabilityRegistry::MakeSettingsGroupPath(
+			TEXT("/repo/Private/Capabilities/Asset/NexusSearchAssetCapability.cpp")),
+		FString(TEXT("Asset")));
+	TestEqual(TEXT("tools path"),
+		FNexusCapabilityRegistry::MakeSettingsGroupPath(
+			TEXT("/repo/Private/Tools/NexusMcpToolCallCapability.cpp")),
+		FString(TEXT("Tools")));
+	TestTrue(TEXT("null file"), FNexusCapabilityRegistry::MakeSettingsGroupPath(nullptr).IsEmpty());
+	TestTrue(TEXT("unrelated path"),
+		FNexusCapabilityRegistry::MakeSettingsGroupPath(TEXT("/tmp/Foo.cpp")).IsEmpty());
+
+	if (const FCapRecord* Bp = FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("get_asset_blueprint")))
+	{
+		TestEqual(TEXT("registered BP group"), Bp->SourceRelDir, FString(TEXT("Asset/Blueprint")));
+	}
+	else
+	{
+		AddError(TEXT("未注册 get_asset_blueprint"));
+	}
+
+	if (const FCapRecord* Lua = FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("eval_runtime_lua")))
+	{
+		TestEqual(TEXT("registered Lua group"), Lua->SourceRelDir, FString(TEXT("Lua/Runtime")));
+	}
+
+	return true;
+}

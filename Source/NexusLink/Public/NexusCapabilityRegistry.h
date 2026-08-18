@@ -9,15 +9,18 @@
  * Capability 注册记录 —— 注册期构建一次，运行期只读。
  *
  * 持有：
- *   - Def       : GetDefinition() 结果（含 InputSchema deep-clone）
- *   - Keywords  : 预算搜索关键词（Name/Desc 分词 + ExtraSearchKeywords + Tags 功能分类）
- *   - Instance  : 无状态单例实例（per-request new 已无必要）
+ *   - Def          : GetDefinition() 结果（含 InputSchema deep-clone）
+ *   - Keywords     : 预算搜索关键词（Name/Desc 分词 + ExtraSearchKeywords + Tags 功能分类）
+ *   - Instance     : 无状态单例实例（per-request new 已无必要）
+ *   - SourceRelDir : 设置面板分组路径（注册期 __FILE__）
  */
 struct FCapRecord
 {
 	FNexusCapabilityDefinition   Def;
 	TArray<FString>              Keywords;
 	TSharedRef<FNexusCapability> Instance;
+	/** 相对 Private/Capabilities 的目录（如 Asset/Blueprint）；元工具为 Tools；空则设置面板按 tag 回退。 */
+	FString                      SourceRelDir;
 
 	explicit FCapRecord(TSharedRef<FNexusCapability> InInstance)
 		: Instance(MoveTemp(InInstance))
@@ -44,10 +47,17 @@ public:
 	static FNexusCapabilityRegistry& Get();
 
 	/**
-	 * 注册一个 cap 实例；Register() 内一次性构建 FCapRecord（含 Def + Keywords）。
+	 * 注册一个 cap 实例；Register() 内一次性构建 FCapRecord（含 Def + Keywords + 源码分组路径）。
 	 * 重名时 ensureMsgf 提示后跳过，首个同名实例保持权威。
+	 * @param SourceFile 传入 TEXT(__FILE__)；静态初始化期只做字符串处理，勿打日志。
 	 */
-	void Register(TSharedRef<FNexusCapability> Cap);
+	void Register(TSharedRef<FNexusCapability> Cap, const TCHAR* SourceFile = nullptr);
+
+	/**
+	 * 从编译期 __FILE__ 提取设置面板分组路径（纯字符串，可供静态初始化期调用）。
+	 * Capabilities 下返回相对目录；Tools 下返回 "Tools"；无法识别则空。
+	 */
+	static FString MakeSettingsGroupPath(const TCHAR* SourceFile);
 
 	/** 按注册顺序返回全部 record；search_capabilities 在此基础上做禁用/可见性过滤。 */
 	const TArray<FCapRecord>& GetAllRecords() const { return Records; }
@@ -89,9 +99,9 @@ private:
  */
 struct FNexusCapabilityAutoRegister
 {
-	explicit FNexusCapabilityAutoRegister(TSharedRef<FNexusCapability> Cap)
+	explicit FNexusCapabilityAutoRegister(TSharedRef<FNexusCapability> Cap, const TCHAR* SourceFile = nullptr)
 	{
-		FNexusCapabilityRegistry::Get().Register(MoveTemp(Cap));
+		FNexusCapabilityRegistry::Get().Register(MoveTemp(Cap), SourceFile);
 	}
 };
 
@@ -102,7 +112,7 @@ struct FNexusCapabilityAutoRegister
  *   REGISTER_MCP_CAPABILITY(FGetActorPropertyCapability)
  *
  * 要求 CapClass 有默认构造函数且继承自 FNexusCapability；
- * Capability 的 GetName() 返回值在全局必须唯一。
+ * Capability 的 Out.Name 在全局必须唯一。宏传入 __FILE__ 供设置面板按源码目录分组。
  *
  * 非编辑器构建（Game / Client / Server / Shipping）中 MCP 永不启动，
  * 故宏整体编译为空：游戏包启动阶段零静态初始化、零分配。
@@ -110,7 +120,7 @@ struct FNexusCapabilityAutoRegister
 #if WITH_EDITOR
 #define REGISTER_MCP_CAPABILITY(CapClass) \
 	static FNexusCapabilityAutoRegister AutoRegisterCap_##CapClass( \
-		MakeShared<CapClass>() \
+		MakeShared<CapClass>(), TEXT(__FILE__) \
 	);
 #else
 #define REGISTER_MCP_CAPABILITY(CapClass)
