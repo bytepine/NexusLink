@@ -28,80 +28,80 @@ static TMap<FString, FNexusCallCapabilityRedundantEntry> GCallCapabilityRedundan
 
 // 脱敏参数快照统一走 FNexusFeedback::BuildRedactedArgsSnapshot（公开 API，避免重复实现）。
 
-	/** 从 cap 的 Inner arguments 中提取首个 identity 字段值（用于 redundant_call key）。 */
-	static FString ExtractIdentityKey(const TSharedPtr<FJsonObject>& Inner)
+/** 从 cap 的 Inner arguments 中提取首个 identity 字段值（用于 redundant_call key）。 */
+static FString ExtractIdentityKey(const TSharedPtr<FJsonObject>& Inner)
+{
+	// 仅认单数定位键；跨目标由 call_capability.calls[] 拆分，不再读 assetPaths 等批量键
+	for (const TCHAR* Key : { TEXT("assetPath"), TEXT("actorName"), TEXT("widgetName") })
 	{
-		// 仅认单数定位键；跨目标由 call_capability.calls[] 拆分，不再读 assetPaths 等批量键
-		for (const TCHAR* Key : { TEXT("assetPath"), TEXT("actorName"), TEXT("widgetName") })
-		{
-			FString Val;
-			if (Inner->TryGetStringField(Key, Val) && !Val.IsEmpty())
-				return Val;
-		}
-		return FString();
+		FString Val;
+		if (Inner->TryGetStringField(Key, Val) && !Val.IsEmpty())
+			return Val;
 	}
+	return FString();
+}
 
-	/** 是否为 MCP 元工具名（不能经 call_capability 调用）。 */
-	static bool IsMetaMcpToolName(const FString& CapName)
-	{
-		return CapName == TEXT("search_capabilities")
-			|| CapName == TEXT("call_capability")
-			|| CapName == TEXT("submit_feedback");
-	}
+/** 是否为 MCP 元工具名（不能经 call_capability 调用）。 */
+static bool IsMetaMcpToolName(const FString& CapName)
+{
+	return CapName == TEXT("search_capabilities")
+		|| CapName == TEXT("call_capability")
+		|| CapName == TEXT("submit_feedback");
+}
 
-	/** capability 未找到时的错误文案（含元工具误用、旧名提示）。 */
-	static FString FormatUnknownCapabilityError(const FString& CapName)
+/** capability 未找到时的错误文案（含元工具误用、旧名提示）。 */
+static FString FormatUnknownCapabilityError(const FString& CapName)
+{
+	if (IsMetaMcpToolName(CapName))
 	{
-		if (IsMetaMcpToolName(CapName))
-		{
-			return FString::Printf(
+		return FString::Printf(
 				TEXT("'%s' is an MCP meta-tool; call it directly via MCP tools/call, not via call_capability(capability=...)."),
 				*CapName);
-		}
-		const FString Canon = FNexusCapabilityLegacyNames::GetCanonicalNameForLegacy(CapName);
-		if (!Canon.IsEmpty())
-		{
-			return FString::Printf(
+	}
+	const FString Canon = FNexusCapabilityLegacyNames::GetCanonicalNameForLegacy(CapName);
+	if (!Canon.IsEmpty())
+	{
+		return FString::Printf(
 				TEXT("Unknown capability '%s' (legacy name; canonical name is '%s'). Use the canonical name or search_capabilities."),
 				*CapName, *Canon);
-		}
-		return FString::Printf(
+	}
+	return FString::Printf(
 			TEXT("Unknown capability '%s'. Use the search_capabilities MCP tool to list available capabilities."),
 			*CapName);
-	}
+}
 
-	static TSharedPtr<FJsonObject> BuildCallErrorObject(const FString& ErrorKind, const FString& Error,
+static TSharedPtr<FJsonObject> BuildCallErrorObject(const FString& ErrorKind, const FString& Error,
 	                                                    const FString& CapabilityName,
 	                                                    const FString& Hint = FString(),
 	                                                    const FString& RequestedName = FString())
+{
+	TSharedPtr<FJsonObject> Err = MakeShared<FJsonObject>();
+	Err->SetStringField(TEXT("errorKind"), ErrorKind);
+	Err->SetStringField(TEXT("error"), Error);
+	if (!CapabilityName.IsEmpty())
 	{
-		TSharedPtr<FJsonObject> Err = MakeShared<FJsonObject>();
-		Err->SetStringField(TEXT("errorKind"), ErrorKind);
-		Err->SetStringField(TEXT("error"), Error);
-		if (!CapabilityName.IsEmpty())
-		{
-			Err->SetStringField(TEXT("capability"), CapabilityName);
-		}
-		if (!Hint.IsEmpty())
-		{
-			Err->SetStringField(TEXT("hint"), Hint);
-		}
-		if (!RequestedName.IsEmpty() && !RequestedName.Equals(CapabilityName, ESearchCase::IgnoreCase))
-		{
-			Err->SetStringField(TEXT("requestedCapability"), RequestedName);
-		}
-		return Err;
+		Err->SetStringField(TEXT("capability"), CapabilityName);
 	}
+	if (!Hint.IsEmpty())
+	{
+		Err->SetStringField(TEXT("hint"), Hint);
+	}
+	if (!RequestedName.IsEmpty() && !RequestedName.Equals(CapabilityName, ESearchCase::IgnoreCase))
+	{
+		Err->SetStringField(TEXT("requestedCapability"), RequestedName);
+	}
+	return Err;
+}
 
-	/** 将 InputSchema 压成 parameters[]（含嵌套数组项），供 arg_invalid 响应复用。 */
-	static void AppendParametersSchema(const TSharedPtr<FJsonObject>& InputSchema, const TSharedPtr<FJsonObject>& ErrObj)
+/** 将 InputSchema 压成 parameters[]（含嵌套数组项），供 arg_invalid 响应复用。 */
+static void AppendParametersSchema(const TSharedPtr<FJsonObject>& InputSchema, const TSharedPtr<FJsonObject>& ErrObj)
+{
+	if (!InputSchema.IsValid() || !ErrObj.IsValid())
 	{
-		if (!InputSchema.IsValid() || !ErrObj.IsValid())
-		{
-			return;
-		}
-		ErrObj->SetArrayField(TEXT("parameters"), FNexusCapabilityIndexUtils::ExtractParameters(InputSchema));
+		return;
 	}
+	ErrObj->SetArrayField(TEXT("parameters"), FNexusCapabilityIndexUtils::ExtractParameters(InputSchema));
+}
 
 struct FNexusCallCore final
 {
@@ -130,154 +130,154 @@ struct FNexusCallCore final
 	};
 };
 
-	/**
-	 * 单条 capability 执行核心：查找、启用检查、redundant LRU、Run。
-	 * 成功时 TopOrWarn 为 capability 顶层 JSON；redundant 时为 warning 对象。
-	 */
-	static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const TSharedPtr<FJsonObject>& Inner)
+/**
+ * 单条 capability 执行核心：查找、启用检查、redundant LRU、Run。
+ * 成功时 TopOrWarn 为 capability 顶层 JSON；redundant 时为 warning 对象。
+ */
+static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const TSharedPtr<FJsonObject>& Inner)
+{
+	FNexusCallCore::FResult R;
+	R.RequestedCapName = CapName.TrimStartAndEnd();
+	R.CapName          = FNexusCapabilityLegacyNames::Resolve(R.RequestedCapName);
+
+	const FCapRecord* Record = FNexusCapabilityRegistry::Get().FindRecordByName(R.CapName);
+	if (!Record)
 	{
-		FNexusCallCore::FResult R;
-		R.RequestedCapName = CapName.TrimStartAndEnd();
-		R.CapName          = FNexusCapabilityLegacyNames::Resolve(R.RequestedCapName);
-
-		const FCapRecord* Record = FNexusCapabilityRegistry::Get().FindRecordByName(R.CapName);
-		if (!Record)
+		R.Status = FNexusCallCore::EStatus::Unknown;
 		{
-			R.Status = FNexusCallCore::EStatus::Unknown;
-			{
-				FNexusFeedback::FFields F;
-				F.Tool       = TEXT("call_capability");
-				F.Capability = R.RequestedCapName;
-				F.ErrorText  = FormatUnknownCapabilityError(R.RequestedCapName);
-				FNexusFeedback::RecordAuto(TEXT("call_unknown"), F);
-			}
-			return R;
+			FNexusFeedback::FFields F;
+			F.Tool       = TEXT("call_capability");
+			F.Capability = R.RequestedCapName;
+			F.ErrorText  = FormatUnknownCapabilityError(R.RequestedCapName);
+			FNexusFeedback::RecordAuto(TEXT("call_unknown"), F);
 		}
-		R.Record = Record;
+		return R;
+	}
+	R.Record = Record;
 
-		if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*Record))
+	if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*Record))
+	{
+		R.Status = FNexusCallCore::EStatus::Unavailable;
 		{
-			R.Status = FNexusCallCore::EStatus::Unavailable;
-			{
-				FNexusFeedback::FFields F;
-				F.Tool       = TEXT("call_capability");
-				F.Capability = Record->Def.Name;
-				F.ErrorText  = TEXT("Unavailable on current host (runtime only)");
-				FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
-			}
-			return R;
+			FNexusFeedback::FFields F;
+			F.Tool       = TEXT("call_capability");
+			F.Capability = Record->Def.Name;
+			F.ErrorText  = TEXT("Unavailable on current host (runtime only)");
+			FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
 		}
+		return R;
+	}
 
-		const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
-		if (!Settings->IsCapabilityEnabled(Record->Def.Name))
+	const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
+	if (!Settings->IsCapabilityEnabled(Record->Def.Name))
+	{
+		R.Status = FNexusCallCore::EStatus::Disabled;
 		{
-			R.Status = FNexusCallCore::EStatus::Disabled;
-			{
-				FNexusFeedback::FFields F;
-				F.Tool       = TEXT("call_capability");
-				F.Capability = Record->Def.Name;
-				F.ErrorText  = TEXT("Disabled in settings");
-				FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
-			}
-			return R;
+			FNexusFeedback::FFields F;
+			F.Tool       = TEXT("call_capability");
+			F.Capability = Record->Def.Name;
+			F.ErrorText  = TEXT("Disabled in settings");
+			FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
 		}
+		return R;
+	}
 
-		// redundant_call 检测
+	// redundant_call 检测
+	{
+		const UNexusLinkSettings* Settings2 = UNexusLinkSettings::Get();
+		const int32 WindowSec = Settings2 ? Settings2->RedundantCallWindowSec : 30;
+		if (WindowSec > 0)
 		{
-			const UNexusLinkSettings* Settings2 = UNexusLinkSettings::Get();
-			const int32 WindowSec = Settings2 ? Settings2->RedundantCallWindowSec : 30;
-			if (WindowSec > 0)
+			const FString Identity   = ExtractIdentityKey(Inner);
+			const FString LruKey     = Record->Def.Name + TEXT("|") + Identity;
+			const bool bIsSubSection = FNexusJsonUtils::HasSubSection(Inner);
+			const bool bIsAll        = FNexusJsonUtils::HasSectionAll(Inner);
+			FScopeLock Lock(&GCallCapabilityRedundantMutex);
+			if (FNexusCallCapabilityRedundantEntry* Entry = GCallCapabilityRedundantMap.Find(LruKey))
 			{
-				const FString Identity   = ExtractIdentityKey(Inner);
-				const FString LruKey     = Record->Def.Name + TEXT("|") + Identity;
-				const bool bIsSubSection = FNexusJsonUtils::HasSubSection(Inner);
-				const bool bIsAll        = FNexusJsonUtils::HasSectionAll(Inner);
-				FScopeLock Lock(&GCallCapabilityRedundantMutex);
-				if (FNexusCallCapabilityRedundantEntry* Entry = GCallCapabilityRedundantMap.Find(LruKey))
+				const double AgeSec = (FDateTime::UtcNow() - Entry->Ts).GetTotalSeconds();
+				if (AgeSec <= WindowSec && Entry->bHadAll && bIsSubSection)
 				{
-					const double AgeSec = (FDateTime::UtcNow() - Entry->Ts).GetTotalSeconds();
-					if (AgeSec <= WindowSec && Entry->bHadAll && bIsSubSection)
-					{
-						FNexusFeedback::FFields F;
-						F.Tool       = TEXT("call_capability");
-						F.Capability = Record->Def.Name;
-						F.Note       = FString::Printf(TEXT("Sub-section call within %.0fs of sections=[\"all\"] for identity '%s'"), AgeSec, *Identity);
-						FNexusFeedback::RecordAuto(TEXT("redundant_call"), F);
+					FNexusFeedback::FFields F;
+					F.Tool       = TEXT("call_capability");
+					F.Capability = Record->Def.Name;
+					F.Note       = FString::Printf(TEXT("Sub-section call within %.0fs of sections=[\"all\"] for identity '%s'"), AgeSec, *Identity);
+					FNexusFeedback::RecordAuto(TEXT("redundant_call"), F);
 
-						TSharedPtr<FJsonObject> Warn = MakeShared<FJsonObject>();
-						Warn->SetStringField(TEXT("warning"), TEXT("redundant_call"));
-						Warn->SetStringField(TEXT("hint"), FString::Printf(
+					TSharedPtr<FJsonObject> Warn = MakeShared<FJsonObject>();
+					Warn->SetStringField(TEXT("warning"), TEXT("redundant_call"));
+					Warn->SetStringField(TEXT("hint"), FString::Printf(
 							TEXT("Skipped: sections=[\"all\"] was called for '%s' %.0f s ago. Reuse that response; do not call sub-sections again."),
 							*Identity, AgeSec));
-						Warn->SetBoolField(TEXT("redundant"), true);
-						R.Status      = FNexusCallCore::EStatus::RedundantWarn;
-						R.TopOrWarn   = Warn;
-						return R;
-					}
+					Warn->SetBoolField(TEXT("redundant"), true);
+					R.Status      = FNexusCallCore::EStatus::RedundantWarn;
+					R.TopOrWarn   = Warn;
+					return R;
 				}
-				if (bIsAll || bIsSubSection)
-				{
-					FNexusCallCapabilityRedundantEntry& E = GCallCapabilityRedundantMap.FindOrAdd(LruKey);
-					E.Ts      = FDateTime::UtcNow();
-					E.bHadAll = bIsAll;
-				}
+			}
+			if (bIsAll || bIsSubSection)
+			{
+				FNexusCallCapabilityRedundantEntry& E = GCallCapabilityRedundantMap.FindOrAdd(LruKey);
+				E.Ts      = FDateTime::UtcNow();
+				E.bHadAll = bIsAll;
 			}
 		}
+	}
 
-		FCapabilityResult CapResult = Record->Instance->Run(Inner);
+	FCapabilityResult CapResult = Record->Instance->Run(Inner);
 
-		if (!CapResult.FatalError.IsEmpty())
+	if (!CapResult.FatalError.IsEmpty())
+	{
+		const FString Digest = FNexusFeedback::BuildRedactedArgsSnapshot(Inner);
+
+		if (CapResult.bIsArgInvalid)
 		{
-			const FString Digest = FNexusFeedback::BuildRedactedArgsSnapshot(Inner);
-
-			if (CapResult.bIsArgInvalid)
-			{
-				FNexusFeedback::FFields F;
-				F.Tool       = TEXT("call_capability");
-				F.Capability = Record->Def.Name;
-				F.ArgsDigest = Digest;
-				F.ErrorText  = CapResult.FatalError;
-				FNexusFeedback::RecordAuto(TEXT("call_arg_invalid"), F);
-
-				TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
-				ErrObj->SetStringField(TEXT("error"),      CapResult.FatalError);
-				ErrObj->SetStringField(TEXT("capability"), Record->Def.Name);
-				AppendParametersSchema(Record->Def.InputSchema, ErrObj);
-				R.Status          = FNexusCallCore::EStatus::ArgInvalid;
-				R.ArgInvalidErr   = ErrObj;
-				return R;
-			}
-
 			FNexusFeedback::FFields F;
 			F.Tool       = TEXT("call_capability");
 			F.Capability = Record->Def.Name;
 			F.ArgsDigest = Digest;
 			F.ErrorText  = CapResult.FatalError;
-			FNexusFeedback::RecordAuto(TEXT("call_fatal"), F);
-			R.Status        = FNexusCallCore::EStatus::Fatal;
-			R.FatalMessage  = CapResult.FatalError;
+			FNexusFeedback::RecordAuto(TEXT("call_arg_invalid"), F);
+
+			TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
+			ErrObj->SetStringField(TEXT("error"),      CapResult.FatalError);
+			ErrObj->SetStringField(TEXT("capability"), Record->Def.Name);
+			AppendParametersSchema(Record->Def.InputSchema, ErrObj);
+			R.Status          = FNexusCallCore::EStatus::ArgInvalid;
+			R.ArgInvalidErr   = ErrObj;
 			return R;
 		}
 
-		R.Status    = FNexusCallCore::EStatus::Ok;
-		R.TopOrWarn = FNexusCapResultAdapter::AssembleStructuredContent(CapResult);
-		FNexusCapResultAdapter::StripRedundantPathEcho(R.TopOrWarn, Inner, Record->Def.Name);
+		FNexusFeedback::FFields F;
+		F.Tool       = TEXT("call_capability");
+		F.Capability = Record->Def.Name;
+		F.ArgsDigest = Digest;
+		F.ErrorText  = CapResult.FatalError;
+		FNexusFeedback::RecordAuto(TEXT("call_fatal"), F);
+		R.Status        = FNexusCallCore::EStatus::Fatal;
+		R.FatalMessage  = CapResult.FatalError;
 		return R;
 	}
 
-	static TSharedPtr<FJsonObject> MergeNestedArguments(const TSharedPtr<FJsonObject>& CallObj)
+	R.Status    = FNexusCallCore::EStatus::Ok;
+	R.TopOrWarn = FNexusCapResultAdapter::AssembleStructuredContent(CapResult);
+	FNexusCapResultAdapter::StripRedundantPathEcho(R.TopOrWarn, Inner, Record->Def.Name);
+	return R;
+}
+
+static TSharedPtr<FJsonObject> MergeNestedArguments(const TSharedPtr<FJsonObject>& CallObj)
+{
+	TSharedPtr<FJsonObject> Inner = MakeShared<FJsonObject>();
+	const TSharedPtr<FJsonObject>* Nested = nullptr;
+	if (CallObj.IsValid() && CallObj->TryGetObjectField(TEXT("arguments"), Nested) && Nested && (*Nested).IsValid())
 	{
-		TSharedPtr<FJsonObject> Inner = MakeShared<FJsonObject>();
-		const TSharedPtr<FJsonObject>* Nested = nullptr;
-		if (CallObj.IsValid() && CallObj->TryGetObjectField(TEXT("arguments"), Nested) && Nested && (*Nested).IsValid())
+		for (const auto& Pair : (*Nested)->Values)
 		{
-			for (const auto& Pair : (*Nested)->Values)
-			{
-				Inner->SetField(Pair.Key, Pair.Value);
-			}
+			Inner->SetField(Pair.Key, Pair.Value);
 		}
-		return Inner;
 	}
+	return Inner;
+}
 
 void FNexusMcpToolCallCapability::BuildDefinition(FNexusMcpToolDefinition& Out) const
 {

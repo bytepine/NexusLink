@@ -8,43 +8,43 @@
 #include "UObject/UnrealType.h"
 #include "UObject/EnumProperty.h"
 
-	// GetCPPType() 是虚函数，会解引用属性所引用的类型（PropertyClass/Struct/Inner...）。
-	// 病态资产（引用已删除/未加载类型）可能使这些引用为空，直接调用会解空指针崩溃。
-	// 递归校验类型图可解析后再调用真实 GetCPPType，不可解析时回退为属性类名。
-	static bool CanResolveCPPType(const FProperty* Prop)
-	{
-		if (!Prop) return false;
+// GetCPPType() 是虚函数，会解引用属性所引用的类型（PropertyClass/Struct/Inner...）。
+// 病态资产（引用已删除/未加载类型）可能使这些引用为空，直接调用会解空指针崩溃。
+// 递归校验类型图可解析后再调用真实 GetCPPType，不可解析时回退为属性类名。
+static bool CanResolveCPPType(const FProperty* Prop)
+{
+	if (!Prop) return false;
 
-		if (const FStructProperty* SP = CastField<FStructProperty>(Prop))
-			return SP->Struct != nullptr;
-		if (const FInterfaceProperty* IP = CastField<FInterfaceProperty>(Prop))
-			return IP->InterfaceClass != nullptr;
-		if (const FClassProperty* CP = CastField<FClassProperty>(Prop))
-			return CP->MetaClass != nullptr && CP->PropertyClass != nullptr;
-		if (const FSoftClassProperty* SCP = CastField<FSoftClassProperty>(Prop))
-			return SCP->MetaClass != nullptr;
-		if (const FObjectPropertyBase* OP = CastField<FObjectPropertyBase>(Prop))
-			return OP->PropertyClass != nullptr;
-		if (const FEnumProperty* EP = CastField<FEnumProperty>(Prop))
-			return EP->GetEnum() != nullptr && CanResolveCPPType(EP->GetUnderlyingProperty());
-		if (const FArrayProperty* AP = CastField<FArrayProperty>(Prop))
-			return CanResolveCPPType(AP->Inner);
-		if (const FSetProperty* SetP = CastField<FSetProperty>(Prop))
-			return CanResolveCPPType(SetP->ElementProp);
-		if (const FMapProperty* MP = CastField<FMapProperty>(Prop))
-			return CanResolveCPPType(MP->KeyProp) && CanResolveCPPType(MP->ValueProp);
-		if (const FDelegateProperty* DP = CastField<FDelegateProperty>(Prop))
-			return DP->SignatureFunction != nullptr;
-		if (const FMulticastDelegateProperty* MDP = CastField<FMulticastDelegateProperty>(Prop))
-			return MDP->SignatureFunction != nullptr;
+	if (const FStructProperty* SP = CastField<FStructProperty>(Prop))
+		return SP->Struct != nullptr;
+	if (const FInterfaceProperty* IP = CastField<FInterfaceProperty>(Prop))
+		return IP->InterfaceClass != nullptr;
+	if (const FClassProperty* CP = CastField<FClassProperty>(Prop))
+		return CP->MetaClass != nullptr && CP->PropertyClass != nullptr;
+	if (const FSoftClassProperty* SCP = CastField<FSoftClassProperty>(Prop))
+		return SCP->MetaClass != nullptr;
+	if (const FObjectPropertyBase* OP = CastField<FObjectPropertyBase>(Prop))
+		return OP->PropertyClass != nullptr;
+	if (const FEnumProperty* EP = CastField<FEnumProperty>(Prop))
+		return EP->GetEnum() != nullptr && CanResolveCPPType(EP->GetUnderlyingProperty());
+	if (const FArrayProperty* AP = CastField<FArrayProperty>(Prop))
+		return CanResolveCPPType(AP->Inner);
+	if (const FSetProperty* SetP = CastField<FSetProperty>(Prop))
+		return CanResolveCPPType(SetP->ElementProp);
+	if (const FMapProperty* MP = CastField<FMapProperty>(Prop))
+		return CanResolveCPPType(MP->KeyProp) && CanResolveCPPType(MP->ValueProp);
+	if (const FDelegateProperty* DP = CastField<FDelegateProperty>(Prop))
+		return DP->SignatureFunction != nullptr;
+	if (const FMulticastDelegateProperty* MDP = CastField<FMulticastDelegateProperty>(Prop))
+		return MDP->SignatureFunction != nullptr;
 
-		return true;
-	}
+	return true;
+}
 
-	static FString SafeGetCPPType(const FProperty* Prop)
-	{
-		return CanResolveCPPType(Prop) ? Prop->GetCPPType() : Prop->GetClass()->GetName();
-	}
+static FString SafeGetCPPType(const FProperty* Prop)
+{
+	return CanResolveCPPType(Prop) ? Prop->GetCPPType() : Prop->GetClass()->GetName();
+}
 
 TArray<TSharedPtr<FJsonValue>> FNexusPropertyReportUtils::BuildEditablePropsPage(
 	UClass*                      Class,

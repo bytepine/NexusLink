@@ -9,120 +9,120 @@
 #include "Dom/JsonValue.h"
 
 static void CollectRequiredNames(const TSharedPtr<FJsonObject>& ObjectSchema, TSet<FString>& OutRequired)
+{
+	OutRequired.Reset();
+	if (!ObjectSchema.IsValid())
 	{
-		OutRequired.Reset();
-		if (!ObjectSchema.IsValid())
+		return;
+	}
+	const TArray<TSharedPtr<FJsonValue>>* ReqArr = nullptr;
+	if (ObjectSchema->TryGetArrayField(TEXT("required"), ReqArr) && ReqArr)
+	{
+		for (const TSharedPtr<FJsonValue>& V : *ReqArr)
 		{
-			return;
-		}
-		const TArray<TSharedPtr<FJsonValue>>* ReqArr = nullptr;
-		if (ObjectSchema->TryGetArrayField(TEXT("required"), ReqArr) && ReqArr)
-		{
-			for (const TSharedPtr<FJsonValue>& V : *ReqArr)
+			FString S;
+			if (V.IsValid() && V->TryGetString(S))
 			{
-				FString S;
-				if (V.IsValid() && V->TryGetString(S))
-				{
-					OutRequired.Add(S);
-				}
+				OutRequired.Add(S);
 			}
 		}
+	}
 }
 
 static void AppendEnumField(const TSharedPtr<FJsonObject>& PropDef, TSharedPtr<FJsonObject>& Param)
+{
+	const TArray<TSharedPtr<FJsonValue>>* EnumArr = nullptr;
+	if (!PropDef.IsValid() || !PropDef->TryGetArrayField(TEXT("enum"), EnumArr) || !EnumArr)
 	{
-		const TArray<TSharedPtr<FJsonValue>>* EnumArr = nullptr;
-		if (!PropDef.IsValid() || !PropDef->TryGetArrayField(TEXT("enum"), EnumArr) || !EnumArr)
-		{
-			return;
-		}
-		Param->SetStringField(TEXT("type"), TEXT("string (enum)"));
-		Param->SetArrayField(TEXT("enum"), *EnumArr);
+		return;
+	}
+	Param->SetStringField(TEXT("type"), TEXT("string (enum)"));
+	Param->SetArrayField(TEXT("enum"), *EnumArr);
 }
 
 static void AppendParamFromProp(const FString& QualifiedName, const TSharedPtr<FJsonObject>& PropDef,
 	                              bool bRequired, TArray<TSharedPtr<FJsonValue>>& OutParams)
+{
+	if (!PropDef.IsValid())
 	{
-		if (!PropDef.IsValid())
-		{
-			return;
-		}
+		return;
+	}
 
-		TSharedPtr<FJsonObject> Param = MakeShared<FJsonObject>();
-		Param->SetStringField(TEXT("name"), QualifiedName);
-		if (bRequired)
-		{
-			Param->SetBoolField(TEXT("required"), true);
-		}
+	TSharedPtr<FJsonObject> Param = MakeShared<FJsonObject>();
+	Param->SetStringField(TEXT("name"), QualifiedName);
+	if (bRequired)
+	{
+		Param->SetBoolField(TEXT("required"), true);
+	}
 
-		FString Type;
-		if (PropDef->TryGetStringField(TEXT("type"), Type))
-		{
-			Param->SetStringField(TEXT("type"), Type);
-		}
+	FString Type;
+	if (PropDef->TryGetStringField(TEXT("type"), Type))
+	{
+		Param->SetStringField(TEXT("type"), Type);
+	}
 
-		FString Desc;
-		if (PropDef->TryGetStringField(TEXT("description"), Desc))
-		{
-			Param->SetStringField(TEXT("description"), Desc);
-		}
+	FString Desc;
+	if (PropDef->TryGetStringField(TEXT("description"), Desc))
+	{
+		Param->SetStringField(TEXT("description"), Desc);
+	}
 
-		AppendEnumField(PropDef, Param);
-		OutParams.Add(MakeShared<FJsonValueObject>(Param));
+	AppendEnumField(PropDef, Param);
+	OutParams.Add(MakeShared<FJsonValueObject>(Param));
 }
 
 static void ExtractPropertiesRecursive(const TSharedPtr<FJsonObject>& ObjectSchema, const FString& Prefix,
 	                                     TArray<TSharedPtr<FJsonValue>>& OutParams)
+{
+	if (!ObjectSchema.IsValid())
 	{
-		if (!ObjectSchema.IsValid())
+		return;
+	}
+
+	const TSharedPtr<FJsonObject>* PropsObj = nullptr;
+	if (!ObjectSchema->TryGetObjectField(TEXT("properties"), PropsObj) || !PropsObj)
+	{
+		return;
+	}
+
+	TSet<FString> RequiredSet;
+	CollectRequiredNames(ObjectSchema, RequiredSet);
+
+	for (const auto& KV : (*PropsObj)->Values)
+	{
+		const FString Key = FString(*KV.Key);
+		const FString QualifiedName = Prefix.IsEmpty() ? Key : Prefix + Key;
+
+		const TSharedPtr<FJsonObject>* PropDef = nullptr;
+		if (!KV.Value.IsValid() || !KV.Value->TryGetObject(PropDef) || !PropDef)
 		{
-			return;
+			continue;
 		}
 
-		const TSharedPtr<FJsonObject>* PropsObj = nullptr;
-		if (!ObjectSchema->TryGetObjectField(TEXT("properties"), PropsObj) || !PropsObj)
+		FString Type;
+		(*PropDef)->TryGetStringField(TEXT("type"), Type);
+
+		if (Type == TEXT("array"))
 		{
-			return;
-		}
-
-		TSet<FString> RequiredSet;
-		CollectRequiredNames(ObjectSchema, RequiredSet);
-
-		for (const auto& KV : (*PropsObj)->Values)
-		{
-			const FString Key = FString(*KV.Key);
-			const FString QualifiedName = Prefix.IsEmpty() ? Key : Prefix + Key;
-
-			const TSharedPtr<FJsonObject>* PropDef = nullptr;
-			if (!KV.Value.IsValid() || !KV.Value->TryGetObject(PropDef) || !PropDef)
+			const TSharedPtr<FJsonObject>* ItemsObj = nullptr;
+			if ((*PropDef)->TryGetObjectField(TEXT("items"), ItemsObj) && ItemsObj && ItemsObj->IsValid())
 			{
-				continue;
-			}
-
-			FString Type;
-			(*PropDef)->TryGetStringField(TEXT("type"), Type);
-
-			if (Type == TEXT("array"))
-			{
-				const TSharedPtr<FJsonObject>* ItemsObj = nullptr;
-				if ((*PropDef)->TryGetObjectField(TEXT("items"), ItemsObj) && ItemsObj && ItemsObj->IsValid())
+				FString ItemsType;
+				if ((*ItemsObj)->TryGetStringField(TEXT("type"), ItemsType) && ItemsType == TEXT("object"))
 				{
-					FString ItemsType;
-					if ((*ItemsObj)->TryGetStringField(TEXT("type"), ItemsType) && ItemsType == TEXT("object"))
-					{
-						const FString ItemPrefix = QualifiedName + TEXT("[].");
-						ExtractPropertiesRecursive(*ItemsObj, ItemPrefix, OutParams);
-						continue;
-					}
+					const FString ItemPrefix = QualifiedName + TEXT("[].");
+					ExtractPropertiesRecursive(*ItemsObj, ItemPrefix, OutParams);
+					continue;
 				}
-				AppendParamFromProp(QualifiedName, *PropDef, RequiredSet.Contains(Key), OutParams);
 			}
-			else
-			{
-				AppendParamFromProp(QualifiedName, *PropDef, RequiredSet.Contains(Key), OutParams);
-			}
+			AppendParamFromProp(QualifiedName, *PropDef, RequiredSet.Contains(Key), OutParams);
+		}
+		else
+		{
+			AppendParamFromProp(QualifiedName, *PropDef, RequiredSet.Contains(Key), OutParams);
 		}
 	}
+}
 
 TArray<TSharedPtr<FJsonValue>> FNexusCapabilityIndexUtils::ExtractParameters(
 	const TSharedPtr<FJsonObject>& InputSchema)

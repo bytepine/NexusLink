@@ -37,90 +37,90 @@
 #include "KeyParams.h"
 #endif
 
-	/** 解析 trackClass → UClass；未知返回 nullptr 并写 OutError。 */
-	static UClass* ResolveLevelSequenceTrackClass(const FString& TrackClass, FString& OutError)
-	{
-		if (TrackClass.IsEmpty() || TrackClass.Equals(TEXT("Float"), ESearchCase::IgnoreCase))
-			return UMovieSceneFloatTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("Transform"), ESearchCase::IgnoreCase))
-			return UMovieScene3DTransformTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("Audio"), ESearchCase::IgnoreCase))
-			return UMovieSceneAudioTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("CameraCut"), ESearchCase::IgnoreCase))
-			return UMovieSceneCameraCutTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("CinematicShot"), ESearchCase::IgnoreCase))
-			return UMovieSceneCinematicShotTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("Fade"), ESearchCase::IgnoreCase))
-			return UMovieSceneFadeTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("Event"), ESearchCase::IgnoreCase))
-			return UMovieSceneEventTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("LevelVisibility"), ESearchCase::IgnoreCase))
-			return UMovieSceneLevelVisibilityTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("Slomo"), ESearchCase::IgnoreCase))
-			return UMovieSceneSlomoTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("SkeletalAnimation"), ESearchCase::IgnoreCase))
-			return UMovieSceneSkeletalAnimationTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("Particle"), ESearchCase::IgnoreCase))
-			return UMovieSceneParticleTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("Visibility"), ESearchCase::IgnoreCase))
-			return UMovieSceneVisibilityTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("Color"), ESearchCase::IgnoreCase))
-			return UMovieSceneColorTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("Bool"), ESearchCase::IgnoreCase))
-			return UMovieSceneBoolTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("Integer"), ESearchCase::IgnoreCase))
-			return UMovieSceneIntegerTrack::StaticClass();
-		if (TrackClass.Equals(TEXT("Vector"), ESearchCase::IgnoreCase)
+/** 解析 trackClass → UClass；未知返回 nullptr 并写 OutError。 */
+static UClass* ResolveLevelSequenceTrackClass(const FString& TrackClass, FString& OutError)
+{
+	if (TrackClass.IsEmpty() || TrackClass.Equals(TEXT("Float"), ESearchCase::IgnoreCase))
+		return UMovieSceneFloatTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("Transform"), ESearchCase::IgnoreCase))
+		return UMovieScene3DTransformTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("Audio"), ESearchCase::IgnoreCase))
+		return UMovieSceneAudioTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("CameraCut"), ESearchCase::IgnoreCase))
+		return UMovieSceneCameraCutTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("CinematicShot"), ESearchCase::IgnoreCase))
+		return UMovieSceneCinematicShotTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("Fade"), ESearchCase::IgnoreCase))
+		return UMovieSceneFadeTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("Event"), ESearchCase::IgnoreCase))
+		return UMovieSceneEventTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("LevelVisibility"), ESearchCase::IgnoreCase))
+		return UMovieSceneLevelVisibilityTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("Slomo"), ESearchCase::IgnoreCase))
+		return UMovieSceneSlomoTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("SkeletalAnimation"), ESearchCase::IgnoreCase))
+		return UMovieSceneSkeletalAnimationTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("Particle"), ESearchCase::IgnoreCase))
+		return UMovieSceneParticleTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("Visibility"), ESearchCase::IgnoreCase))
+		return UMovieSceneVisibilityTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("Color"), ESearchCase::IgnoreCase))
+		return UMovieSceneColorTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("Bool"), ESearchCase::IgnoreCase))
+		return UMovieSceneBoolTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("Integer"), ESearchCase::IgnoreCase))
+		return UMovieSceneIntegerTrack::StaticClass();
+	if (TrackClass.Equals(TEXT("Vector"), ESearchCase::IgnoreCase)
 			|| TrackClass.Equals(TEXT("FloatVector"), ESearchCase::IgnoreCase))
 #if NX_UE_HAS_MOVIE_SCENE_FLOAT_VECTOR_TRACK
-			return UMovieSceneFloatVectorTrack::StaticClass();
+		return UMovieSceneFloatVectorTrack::StaticClass();
 #else
-			return UMovieSceneVectorTrack::StaticClass();
+		return UMovieSceneVectorTrack::StaticClass();
 #endif
-		if (TrackClass.Equals(TEXT("DoubleVector"), ESearchCase::IgnoreCase))
+	if (TrackClass.Equals(TEXT("DoubleVector"), ESearchCase::IgnoreCase))
 #if NX_UE_HAS_MOVIE_SCENE_FLOAT_VECTOR_TRACK
-			return UMovieSceneDoubleVectorTrack::StaticClass();
+		return UMovieSceneDoubleVectorTrack::StaticClass();
 #else
-		{
-			OutError = TEXT("DoubleVector UE5+ only");
-			return nullptr;
-		}
-#endif
-
-		OutError = FString::Printf(
-			TEXT("Unknown trackClass: %s (Master: CameraCut/Audio/...; Binding: Float/Transform/...)"),
-			*TrackClass);
+	{
+		OutError = TEXT("DoubleVector UE5+ only");
 		return nullptr;
 	}
+#endif
 
-	static bool IsMasterTrackClassName(const FString& TrackClass)
-	{
-		return TrackClass.Equals(TEXT("CameraCut"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Audio"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("CinematicShot"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Fade"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Event"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("LevelVisibility"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Slomo"), ESearchCase::IgnoreCase);
-	}
+	OutError = FString::Printf(
+			TEXT("Unknown trackClass: %s (Master: CameraCut/Audio/...; Binding: Float/Transform/...)"),
+			*TrackClass);
+	return nullptr;
+}
 
-	static bool IsBindingTrackClassName(const FString& TrackClass)
-	{
-		return TrackClass.IsEmpty()
-			|| TrackClass.Equals(TEXT("Float"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Transform"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Audio"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("SkeletalAnimation"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Particle"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Visibility"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Color"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Bool"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Integer"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Vector"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("FloatVector"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("DoubleVector"), ESearchCase::IgnoreCase)
-			|| TrackClass.Equals(TEXT("Event"), ESearchCase::IgnoreCase);
-	}
+static bool IsMasterTrackClassName(const FString& TrackClass)
+{
+	return TrackClass.Equals(TEXT("CameraCut"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Audio"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("CinematicShot"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Fade"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Event"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("LevelVisibility"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Slomo"), ESearchCase::IgnoreCase);
+}
+
+static bool IsBindingTrackClassName(const FString& TrackClass)
+{
+	return TrackClass.IsEmpty()
+		|| TrackClass.Equals(TEXT("Float"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Transform"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Audio"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("SkeletalAnimation"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Particle"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Visibility"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Color"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Bool"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Integer"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Vector"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("FloatVector"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("DoubleVector"), ESearchCase::IgnoreCase)
+		|| TrackClass.Equals(TEXT("Event"), ESearchCase::IgnoreCase);
+}
 
 #if WITH_EDITOR && NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
 static void WriteFloatChannelKey(UMovieScene* Scene, FMovieSceneFloatChannel* Channel, double TimeSec, float Value)

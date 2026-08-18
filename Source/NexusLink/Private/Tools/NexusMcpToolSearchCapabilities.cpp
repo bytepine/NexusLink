@@ -25,191 +25,191 @@ struct FNexusCapabilityLookup final
 	};
 };
 
-	/** 按名解析（大小写不敏感）；与 call_capability 一致区分不存在 vs 设置禁用 vs 宿主不可用。 */
-	static FNexusCapabilityLookup::EStatus ResolveCapabilityByName(
+/** 按名解析（大小写不敏感）；与 call_capability 一致区分不存在 vs 设置禁用 vs 宿主不可用。 */
+static FNexusCapabilityLookup::EStatus ResolveCapabilityByName(
 		const FString& Name, const UNexusLinkSettings* Settings, const FCapRecord*& OutRecord)
+{
+	if (!Settings)
 	{
-		if (!Settings)
-		{
-			return FNexusCapabilityLookup::EStatus::NotFound;
-		}
-		OutRecord = FNexusCapabilityRegistry::Get().FindRecordByName(Name);
-		if (!OutRecord)
-		{
-			return FNexusCapabilityLookup::EStatus::NotFound;
-		}
-		if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*OutRecord))
-		{
-			return FNexusCapabilityLookup::EStatus::Unavailable;
-		}
-		if (!Settings->IsCapabilityEnabled(OutRecord->Def.Name))
-		{
-			return FNexusCapabilityLookup::EStatus::Disabled;
-		}
-		return FNexusCapabilityLookup::EStatus::Enabled;
+		return FNexusCapabilityLookup::EStatus::NotFound;
 	}
-
-	static void EmitCapabilityDetailFromRecord(const FCapRecord& Record, TSharedPtr<FJsonObject>& Output)
+	OutRecord = FNexusCapabilityRegistry::Get().FindRecordByName(Name);
+	if (!OutRecord)
 	{
-		TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
-		O->SetStringField(TEXT("name"),        Record.Def.Name);
-		O->SetStringField(TEXT("description"), Record.Def.Description);
-		O->SetArrayField(TEXT("parameters"),   FNexusCapabilityIndexUtils::ExtractParameters(Record.Def.InputSchema));
-		FNexusCapabilityIndexUtils::AttachMetaHints(O, Record.Def);
-		Output->SetObjectField(TEXT("capability"), O);
+		return FNexusCapabilityLookup::EStatus::NotFound;
 	}
+	if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*OutRecord))
+	{
+		return FNexusCapabilityLookup::EStatus::Unavailable;
+	}
+	if (!Settings->IsCapabilityEnabled(OutRecord->Def.Name))
+	{
+		return FNexusCapabilityLookup::EStatus::Disabled;
+	}
+	return FNexusCapabilityLookup::EStatus::Enabled;
+}
 
-	static void EmitCapabilityLookupError(FNexusCapabilityLookup::EStatus Status, const FString& RequestedName,
+static void EmitCapabilityDetailFromRecord(const FCapRecord& Record, TSharedPtr<FJsonObject>& Output)
+{
+	TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
+	O->SetStringField(TEXT("name"),        Record.Def.Name);
+	O->SetStringField(TEXT("description"), Record.Def.Description);
+	O->SetArrayField(TEXT("parameters"),   FNexusCapabilityIndexUtils::ExtractParameters(Record.Def.InputSchema));
+	FNexusCapabilityIndexUtils::AttachMetaHints(O, Record.Def);
+	Output->SetObjectField(TEXT("capability"), O);
+}
+
+static void EmitCapabilityLookupError(FNexusCapabilityLookup::EStatus Status, const FString& RequestedName,
 	                                      const FCapRecord* Record, TSharedPtr<FJsonObject>& Output)
+{
+	if (Status == FNexusCapabilityLookup::EStatus::NotFound)
 	{
-		if (Status == FNexusCapabilityLookup::EStatus::NotFound)
-		{
-			Output->SetStringField(TEXT("errorKind"), TEXT("not_found"));
-			Output->SetStringField(TEXT("error"),
+		Output->SetStringField(TEXT("errorKind"), TEXT("not_found"));
+		Output->SetStringField(TEXT("error"),
 				FString::Printf(TEXT("Capability '%s' does not exist."), *RequestedName));
-			return;
-		}
-		check(Record);
-		if (Status == FNexusCapabilityLookup::EStatus::Unavailable)
-		{
-			Output->SetStringField(TEXT("errorKind"), TEXT("unavailable"));
-			Output->SetStringField(TEXT("capabilityName"), Record->Def.Name);
-			Output->SetStringField(TEXT("error"),
+		return;
+	}
+	check(Record);
+	if (Status == FNexusCapabilityLookup::EStatus::Unavailable)
+	{
+		Output->SetStringField(TEXT("errorKind"), TEXT("unavailable"));
+		Output->SetStringField(TEXT("capabilityName"), Record->Def.Name);
+		Output->SetStringField(TEXT("error"),
 				FString::Printf(
 					TEXT("Capability '%s' is unavailable on the current host (Dedicated Server / Game exposes runtime capabilities only)."),
 					*Record->Def.Name));
-			return;
-		}
-		Output->SetStringField(TEXT("errorKind"), TEXT("disabled"));
-		Output->SetStringField(TEXT("capabilityName"), Record->Def.Name);
-		Output->SetStringField(TEXT("error"),
-			FString::Printf(TEXT("Capability '%s' is disabled in settings."), *Record->Def.Name));
+		return;
 	}
+	Output->SetStringField(TEXT("errorKind"), TEXT("disabled"));
+	Output->SetStringField(TEXT("capabilityName"), Record->Def.Name);
+	Output->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("Capability '%s' is disabled in settings."), *Record->Def.Name));
+}
 
-	/** 模糊搜索：在已禁用 cap 中找与 query 匹配的候选（enabled 结果为空时提示用）。 */
-	static void AppendDisabledCapabilityMatches(const TArray<FString>& Tokens, bool bRelaxed,
+/** 模糊搜索：在已禁用 cap 中找与 query 匹配的候选（enabled 结果为空时提示用）。 */
+static void AppendDisabledCapabilityMatches(const TArray<FString>& Tokens, bool bRelaxed,
 	                                            const UNexusLinkSettings* Settings,
 	                                            TArray<TSharedPtr<FJsonValue>>& OutArr, int32 MaxResults = 5)
-	{
-		if (!Settings) return;
+{
+	if (!Settings) return;
 
-		struct FScored
+	struct FScored
+	{
+		int32 Score = 0;
+		TSharedPtr<FJsonObject> Entry;
+	};
+	TArray<FScored> Scored;
+
+	for (const FCapRecord& Record : FNexusCapabilityRegistry::Get().GetAllRecords())
+	{
+		if (Settings->IsCapabilityEnabled(Record.Def.Name)) continue;
+		if (!FNexusHostUtils::IsCapabilityVisibleOnHost(Record)) continue;
+
+		int32 Score = 0;
+		int32 Matched = 0;
+		if (bRelaxed)
 		{
-			int32 Score = 0;
-			TSharedPtr<FJsonObject> Entry;
+			Score = FNexusCapabilityIndexUtils::ScoreCapabilityPartial(Tokens, Record.Keywords, Matched);
+		}
+		else
+		{
+			Score = FNexusCapabilityIndexUtils::ScoreCapability(Tokens, Record.Keywords);
+		}
+		if (Score <= 0) continue;
+
+		TSharedPtr<FJsonObject> E = MakeShared<FJsonObject>();
+		E->SetStringField(TEXT("name"),        Record.Def.Name);
+		E->SetStringField(TEXT("description"), Record.Def.Description);
+		E->SetNumberField(TEXT("score"),       Score);
+		if (bRelaxed)
+		{
+			E->SetNumberField(TEXT("matchedTokens"), Matched);
+		}
+		Scored.Add({ Score, E });
+	}
+
+	Scored.StableSort([](const FScored& A, const FScored& B) { return A.Score > B.Score; });
+	if (MaxResults > 0 && Scored.Num() > MaxResults)
+	{
+		Scored.SetNum(MaxResults);
+	}
+	for (const FScored& S : Scored)
+	{
+		OutArr.Add(MakeShared<FJsonValueObject>(S.Entry));
+	}
+}
+/** 单 token 过宽词：直接拒绝模糊搜索，迫使 Agent 收窄 query。 */
+static bool IsOverBroadCapabilityQuery(const FString& TokenLower, TArray<FString>& OutSuggested)
+{
+	OutSuggested.Reset();
+	if (TokenLower == TEXT("blueprint"))
+	{
+		OutSuggested = {
+			TEXT("blueprint graph"), TEXT("blueprint variable"), TEXT("get_asset_blueprint")
 		};
-		TArray<FScored> Scored;
-
-		for (const FCapRecord& Record : FNexusCapabilityRegistry::Get().GetAllRecords())
-		{
-			if (Settings->IsCapabilityEnabled(Record.Def.Name)) continue;
-			if (!FNexusHostUtils::IsCapabilityVisibleOnHost(Record)) continue;
-
-			int32 Score = 0;
-			int32 Matched = 0;
-			if (bRelaxed)
-			{
-				Score = FNexusCapabilityIndexUtils::ScoreCapabilityPartial(Tokens, Record.Keywords, Matched);
-			}
-			else
-			{
-				Score = FNexusCapabilityIndexUtils::ScoreCapability(Tokens, Record.Keywords);
-			}
-			if (Score <= 0) continue;
-
-			TSharedPtr<FJsonObject> E = MakeShared<FJsonObject>();
-			E->SetStringField(TEXT("name"),        Record.Def.Name);
-			E->SetStringField(TEXT("description"), Record.Def.Description);
-			E->SetNumberField(TEXT("score"),       Score);
-			if (bRelaxed)
-			{
-				E->SetNumberField(TEXT("matchedTokens"), Matched);
-			}
-			Scored.Add({ Score, E });
-		}
-
-		Scored.StableSort([](const FScored& A, const FScored& B) { return A.Score > B.Score; });
-		if (MaxResults > 0 && Scored.Num() > MaxResults)
-		{
-			Scored.SetNum(MaxResults);
-		}
-		for (const FScored& S : Scored)
-		{
-			OutArr.Add(MakeShared<FJsonValueObject>(S.Entry));
-		}
+		return true;
 	}
-	/** 单 token 过宽词：直接拒绝模糊搜索，迫使 Agent 收窄 query。 */
-	static bool IsOverBroadCapabilityQuery(const FString& TokenLower, TArray<FString>& OutSuggested)
+	if (TokenLower == TEXT("asset"))
 	{
-		OutSuggested.Reset();
-		if (TokenLower == TEXT("blueprint"))
-		{
-			OutSuggested = {
-				TEXT("blueprint graph"), TEXT("blueprint variable"), TEXT("get_asset_blueprint")
-			};
-			return true;
-		}
-		if (TokenLower == TEXT("asset"))
-		{
-			OutSuggested = {
-				TEXT("search asset"), TEXT("get asset"), TEXT("manage asset")
-			};
-			return true;
-		}
-		if (TokenLower == TEXT("runtime"))
-		{
-			OutSuggested = {
-				TEXT("runtime actor"), TEXT("runtime widget"), TEXT("runtime lua")
-			};
-			return true;
-		}
-		if (TokenLower == TEXT("animation"))
-		{
-			OutSuggested = {
-				TEXT("runtime animation"), TEXT("anim montage"), TEXT("anim blueprint")
-			};
-			return true;
-		}
-		return false;
-	}
-
-	static bool TryGatedPluginHint(const FString& QueryLower, FString& OutHint)
-	{
-		struct FGate { const TCHAR* Needle; const TCHAR* Hint; };
-		static const FGate Gates[] = {
-			{ TEXT("niagara"),    TEXT("Niagara capabilities require the Niagara plugin; not registered on this host—do not retry. Use query=\"\" to list the local catalog.") },
-			{ TEXT("gameplay"),   TEXT("GAS capabilities require GameplayAbilities; not registered on this host—do not retry. Use get_gameplay_tags for tag queries.") },
-			{ TEXT("statetree"),  TEXT("StateTree requires UE 5.5+ and the plugin; not registered on this host—do not retry.") },
-			{ TEXT("state tree"), TEXT("StateTree requires UE 5.5+ and the plugin; not registered on this host—do not retry.") },
-			{ TEXT("mvvm"),       TEXT("MVVM / ViewModel requires UE 5.5+; not registered on this host—do not retry.") },
-			{ TEXT("viewmodel"),  TEXT("MVVM / ViewModel requires UE 5.5+; not registered on this host—do not retry.") },
-			{ TEXT("view model"), TEXT("MVVM / ViewModel requires UE 5.5+; not registered on this host—do not retry.") },
-			{ TEXT("metasound"),  TEXT("MetaSound requires UE 5.0+; not registered on this host—do not retry.") },
-			{ TEXT("controlrig"), TEXT("ControlRig requires UE 5.0+ and the plugin; not registered on this host—do not retry.") },
-			{ TEXT("control rig"),TEXT("ControlRig requires UE 5.0+ and the plugin; not registered on this host—do not retry.") },
-			{ TEXT("eqs"),        TEXT("EQS capabilities require UE5+; not registered on this host—do not retry.") },
-			{ TEXT("pcg"),        TEXT("PCG capabilities require UE 5.4+; not registered on this host—do not retry.") },
+		OutSuggested = {
+			TEXT("search asset"), TEXT("get asset"), TEXT("manage asset")
 		};
-		for (const FGate& G : Gates)
-		{
-			if (QueryLower.Contains(G.Needle))
-			{
-				OutHint = G.Hint;
-				return true;
-			}
-		}
-		return false;
+		return true;
 	}
-
-	static void EmitSuggestedQueries(TSharedPtr<FJsonObject>& Output, const TArray<FString>& Suggested)
+	if (TokenLower == TEXT("runtime"))
 	{
-		TArray<TSharedPtr<FJsonValue>> Arr;
-		for (const FString& Q : Suggested)
-		{
-			Arr.Add(MakeShared<FJsonValueString>(Q));
-		}
-		Output->SetArrayField(TEXT("suggestedQueries"), Arr);
+		OutSuggested = {
+			TEXT("runtime actor"), TEXT("runtime widget"), TEXT("runtime lua")
+		};
+		return true;
 	}
+	if (TokenLower == TEXT("animation"))
+	{
+		OutSuggested = {
+			TEXT("runtime animation"), TEXT("anim montage"), TEXT("anim blueprint")
+		};
+		return true;
+	}
+	return false;
+}
+
+static bool TryGatedPluginHint(const FString& QueryLower, FString& OutHint)
+{
+	struct FGate { const TCHAR* Needle; const TCHAR* Hint; };
+	static const FGate Gates[] = {
+		{ TEXT("niagara"),    TEXT("Niagara capabilities require the Niagara plugin; not registered on this host—do not retry. Use query=\"\" to list the local catalog.") },
+		{ TEXT("gameplay"),   TEXT("GAS capabilities require GameplayAbilities; not registered on this host—do not retry. Use get_gameplay_tags for tag queries.") },
+		{ TEXT("statetree"),  TEXT("StateTree requires UE 5.5+ and the plugin; not registered on this host—do not retry.") },
+		{ TEXT("state tree"), TEXT("StateTree requires UE 5.5+ and the plugin; not registered on this host—do not retry.") },
+		{ TEXT("mvvm"),       TEXT("MVVM / ViewModel requires UE 5.5+; not registered on this host—do not retry.") },
+		{ TEXT("viewmodel"),  TEXT("MVVM / ViewModel requires UE 5.5+; not registered on this host—do not retry.") },
+		{ TEXT("view model"), TEXT("MVVM / ViewModel requires UE 5.5+; not registered on this host—do not retry.") },
+		{ TEXT("metasound"),  TEXT("MetaSound requires UE 5.0+; not registered on this host—do not retry.") },
+		{ TEXT("controlrig"), TEXT("ControlRig requires UE 5.0+ and the plugin; not registered on this host—do not retry.") },
+		{ TEXT("control rig"),TEXT("ControlRig requires UE 5.0+ and the plugin; not registered on this host—do not retry.") },
+		{ TEXT("eqs"),        TEXT("EQS capabilities require UE5+; not registered on this host—do not retry.") },
+		{ TEXT("pcg"),        TEXT("PCG capabilities require UE 5.4+; not registered on this host—do not retry.") },
+	};
+	for (const FGate& G : Gates)
+	{
+		if (QueryLower.Contains(G.Needle))
+		{
+			OutHint = G.Hint;
+			return true;
+		}
+	}
+	return false;
+}
+
+static void EmitSuggestedQueries(TSharedPtr<FJsonObject>& Output, const TArray<FString>& Suggested)
+{
+	TArray<TSharedPtr<FJsonValue>> Arr;
+	for (const FString& Q : Suggested)
+	{
+		Arr.Add(MakeShared<FJsonValueString>(Q));
+	}
+	Output->SetArrayField(TEXT("suggestedQueries"), Arr);
+}
 
 void FNexusMcpToolSearchCapabilities::BuildDefinition(FNexusMcpToolDefinition& Out) const
 {

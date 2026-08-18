@@ -13,35 +13,35 @@
 #include "Engine/CurveTable.h"
 #include "NexusMcpTool.h"
 
-	static FString InterpToStr(ERichCurveInterpMode M)
+static FString InterpToStr(ERichCurveInterpMode M)
+{
+	switch (M)
 	{
-		switch (M)
-		{
-			case RCIM_Constant: return TEXT("constant");
-			case RCIM_Linear:   return TEXT("linear");
-			case RCIM_Cubic:    return TEXT("cubic");
-			default:            return TEXT("none");
-		}
+		case RCIM_Constant: return TEXT("constant");
+		case RCIM_Linear:   return TEXT("linear");
+		case RCIM_Cubic:    return TEXT("cubic");
+		default:            return TEXT("none");
 	}
+}
 
-	static TSharedPtr<FJsonObject> SerializeChannel(const FString& ChannelName, const FRichCurve& Curve)
+static TSharedPtr<FJsonObject> SerializeChannel(const FString& ChannelName, const FRichCurve& Curve)
+{
+	TSharedPtr<FJsonObject> Chan = MakeShared<FJsonObject>();
+	Chan->SetStringField(TEXT("name"), ChannelName);
+	Chan->SetNumberField(TEXT("keyCount"), Curve.Keys.Num());
+
+	TArray<TSharedPtr<FJsonValue>> KeysArr;
+	for (const FRichCurveKey& Key : Curve.Keys)
 	{
-		TSharedPtr<FJsonObject> Chan = MakeShared<FJsonObject>();
-		Chan->SetStringField(TEXT("name"), ChannelName);
-		Chan->SetNumberField(TEXT("keyCount"), Curve.Keys.Num());
-
-		TArray<TSharedPtr<FJsonValue>> KeysArr;
-		for (const FRichCurveKey& Key : Curve.Keys)
-		{
-			TSharedPtr<FJsonObject> K = MakeShared<FJsonObject>();
-			K->SetNumberField(TEXT("time"),   Key.Time);
-			K->SetNumberField(TEXT("value"),  Key.Value);
-			K->SetStringField(TEXT("interp"), InterpToStr(Key.InterpMode));
-			KeysArr.Add(MakeShared<FJsonValueObject>(K));
-		}
-		Chan->SetArrayField(TEXT("keys"), KeysArr);
-		return Chan;
+		TSharedPtr<FJsonObject> K = MakeShared<FJsonObject>();
+		K->SetNumberField(TEXT("time"),   Key.Time);
+		K->SetNumberField(TEXT("value"),  Key.Value);
+		K->SetStringField(TEXT("interp"), InterpToStr(Key.InterpMode));
+		KeysArr.Add(MakeShared<FJsonValueObject>(K));
 	}
+	Chan->SetArrayField(TEXT("keys"), KeysArr);
+	return Chan;
+}
 
 void FGetAssetCurveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {

@@ -16,73 +16,73 @@
 #include "PhysicsEngine/SphereElem.h"
 #include "NexusMcpTool.h"
 
-	static bool ParseStaticMeshVec3(const TSharedPtr<FJsonObject>& Op, const TCHAR* XKey, const TCHAR* YKey, const TCHAR* ZKey,
+static bool ParseStaticMeshVec3(const TSharedPtr<FJsonObject>& Op, const TCHAR* XKey, const TCHAR* YKey, const TCHAR* ZKey,
 		FVector& Out, FVector Default)
-	{
-		Out = Default;
-		bool bAny = false;
-		if (Op->HasField(XKey)) { Out.X = Op->GetNumberField(XKey); bAny = true; }
-		if (Op->HasField(YKey)) { Out.Y = Op->GetNumberField(YKey); bAny = true; }
-		if (Op->HasField(ZKey)) { Out.Z = Op->GetNumberField(ZKey); bAny = true; }
-		return bAny;
-	}
+{
+	Out = Default;
+	bool bAny = false;
+	if (Op->HasField(XKey)) { Out.X = Op->GetNumberField(XKey); bAny = true; }
+	if (Op->HasField(YKey)) { Out.Y = Op->GetNumberField(YKey); bAny = true; }
+	if (Op->HasField(ZKey)) { Out.Z = Op->GetNumberField(ZKey); bAny = true; }
+	return bAny;
+}
 
-	static bool ParseCollisionTraceFlag(const FString& Text, ECollisionTraceFlag& OutFlag, FString& OutError)
-	{
-		if (Text.IsEmpty()
+static bool ParseCollisionTraceFlag(const FString& Text, ECollisionTraceFlag& OutFlag, FString& OutError)
+{
+	if (Text.IsEmpty()
 			|| Text.Equals(TEXT("UseDefault"), ESearchCase::IgnoreCase)
 			|| Text.Equals(TEXT("Default"), ESearchCase::IgnoreCase)
 			|| Text == TEXT("0"))
-		{
-			OutFlag = CTF_UseDefault;
-			return true;
-		}
-		if (Text.Equals(TEXT("UseSimpleAndComplex"), ESearchCase::IgnoreCase)
+	{
+		OutFlag = CTF_UseDefault;
+		return true;
+	}
+	if (Text.Equals(TEXT("UseSimpleAndComplex"), ESearchCase::IgnoreCase)
 			|| Text.Equals(TEXT("SimpleAndComplex"), ESearchCase::IgnoreCase)
 			|| Text == TEXT("1"))
-		{
-			OutFlag = CTF_UseSimpleAndComplex;
-			return true;
-		}
-		if (Text.Equals(TEXT("UseSimpleAsComplex"), ESearchCase::IgnoreCase)
+	{
+		OutFlag = CTF_UseSimpleAndComplex;
+		return true;
+	}
+	if (Text.Equals(TEXT("UseSimpleAsComplex"), ESearchCase::IgnoreCase)
 			|| Text.Equals(TEXT("SimpleAsComplex"), ESearchCase::IgnoreCase)
 			|| Text == TEXT("2"))
-		{
-			OutFlag = CTF_UseSimpleAsComplex;
-			return true;
-		}
-		if (Text.Equals(TEXT("UseComplexAsSimple"), ESearchCase::IgnoreCase)
+	{
+		OutFlag = CTF_UseSimpleAsComplex;
+		return true;
+	}
+	if (Text.Equals(TEXT("UseComplexAsSimple"), ESearchCase::IgnoreCase)
 			|| Text.Equals(TEXT("ComplexAsSimple"), ESearchCase::IgnoreCase)
 			|| Text == TEXT("3"))
-		{
-			OutFlag = CTF_UseComplexAsSimple;
-			return true;
-		}
-		OutError = TEXT("collisionTraceFlag must be UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple");
-		return false;
-	}
-
-	static UBodySetup* EnsureBodySetup(UStaticMesh* Mesh)
 	{
-		if (!Mesh) return nullptr;
-		UBodySetup* Body = FNexusAssetUtils::GetStaticMeshBodySetup(Mesh);
-		if (!Body)
-		{
-			Mesh->CreateBodySetup();
-			Body = FNexusAssetUtils::GetStaticMeshBodySetup(Mesh);
-		}
-		return Body;
+		OutFlag = CTF_UseComplexAsSimple;
+		return true;
 	}
+	OutError = TEXT("collisionTraceFlag must be UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple");
+	return false;
+}
 
-	static void InvalidateCollision(UStaticMesh* Mesh, UBodySetup* Body)
+static UBodySetup* EnsureBodySetup(UStaticMesh* Mesh)
+{
+	if (!Mesh) return nullptr;
+	UBodySetup* Body = FNexusAssetUtils::GetStaticMeshBodySetup(Mesh);
+	if (!Body)
 	{
-		if (!Mesh || !Body) return;
-		Body->InvalidatePhysicsData();
-		Body->CreatePhysicsMeshes();
+		Mesh->CreateBodySetup();
+		Body = FNexusAssetUtils::GetStaticMeshBodySetup(Mesh);
+	}
+	return Body;
+}
+
+static void InvalidateCollision(UStaticMesh* Mesh, UBodySetup* Body)
+{
+	if (!Mesh || !Body) return;
+	Body->InvalidatePhysicsData();
+	Body->CreatePhysicsMeshes();
 #if WITH_EDITORONLY_DATA
-		Mesh->bCustomizedCollision = true;
+	Mesh->bCustomizedCollision = true;
 #endif
-	}
+}
 
 void FManageAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {

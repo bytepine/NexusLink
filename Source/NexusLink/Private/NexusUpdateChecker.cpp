@@ -9,8 +9,8 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusUpdateChecker, Log, All);
 
-	// GitHub 官方「最新 Release」重定向端点（非 REST API，无速率限制，无需 Auth）。
-	// curl 自动跟随 302 至 .../releases/tag/<tag>，再从落地页 HTML 解析 tag。
+// GitHub 官方「最新 Release」重定向端点（非 REST API，无速率限制，无需 Auth）。
+// curl 自动跟随 302 至 .../releases/tag/<tag>，再从落地页 HTML 解析 tag。
 static const TCHAR* GReleasesLatestUrl =
 	TEXT("https://github.com/bytepine/NexusLink/releases/latest");
 

@@ -6,6 +6,7 @@
 #include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "BehaviorTree/BehaviorTree.h"

@@ -16,26 +16,26 @@
 #endif
 #include "NexusMcpTool.h"
 
-	static bool ParseSkeletalMeshVec3(const TSharedPtr<FJsonObject>& Op, const TCHAR* XKey, const TCHAR* YKey, const TCHAR* ZKey,
+static bool ParseSkeletalMeshVec3(const TSharedPtr<FJsonObject>& Op, const TCHAR* XKey, const TCHAR* YKey, const TCHAR* ZKey,
 		FVector& Out, FVector Default)
-	{
-		Out = Default;
-		bool bAny = false;
-		if (Op->HasField(XKey)) { Out.X = Op->GetNumberField(XKey); bAny = true; }
-		if (Op->HasField(YKey)) { Out.Y = Op->GetNumberField(YKey); bAny = true; }
-		if (Op->HasField(ZKey)) { Out.Z = Op->GetNumberField(ZKey); bAny = true; }
-		return bAny;
-	}
+{
+	Out = Default;
+	bool bAny = false;
+	if (Op->HasField(XKey)) { Out.X = Op->GetNumberField(XKey); bAny = true; }
+	if (Op->HasField(YKey)) { Out.Y = Op->GetNumberField(YKey); bAny = true; }
+	if (Op->HasField(ZKey)) { Out.Z = Op->GetNumberField(ZKey); bAny = true; }
+	return bAny;
+}
 
-	static USkeletalMeshSocket* FindMeshOnlySocket(USkeletalMesh* Mesh, FName SocketName)
+static USkeletalMeshSocket* FindMeshOnlySocket(USkeletalMesh* Mesh, FName SocketName)
+{
+	if (!Mesh) return nullptr;
+	for (USkeletalMeshSocket* S : Mesh->GetMeshOnlySocketList())
 	{
-		if (!Mesh) return nullptr;
-		for (USkeletalMeshSocket* S : Mesh->GetMeshOnlySocketList())
-		{
-			if (S && S->SocketName == SocketName) return S;
-		}
-		return nullptr;
+		if (S && S->SocketName == SocketName) return S;
 	}
+	return nullptr;
+}
 
 void FManageAssetSkeletalMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {

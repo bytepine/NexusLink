@@ -5,6 +5,7 @@
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusPinTypeUtils.h"
@@ -33,35 +34,35 @@
 #include "NexusMcpTool.h"
 
 #if WITH_EDITOR
-	/** 解析接口 UClass：类名、生成类路径、或 BPI 资产路径。 */
-	static UClass* ResolveInterfaceClass(const FString& NameOrPath)
+/** 解析接口 UClass：类名、生成类路径、或 BPI 资产路径。 */
+static UClass* ResolveInterfaceClass(const FString& NameOrPath)
+{
+	if (NameOrPath.IsEmpty()) return nullptr;
+
+	if (UClass* Cls = FNexusAssetUtils::FindClassWithUPrefix(NameOrPath))
 	{
-		if (NameOrPath.IsEmpty()) return nullptr;
-
-		if (UClass* Cls = FNexusAssetUtils::FindClassWithUPrefix(NameOrPath))
-		{
-			if (Cls->HasAnyClassFlags(CLASS_Interface)) return Cls;
-		}
-
-		if (UBlueprint* IfaceBP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(NameOrPath))
-		{
-			if (UClass* Gen = IfaceBP->GeneratedClass)
-			{
-				if (Gen->HasAnyClassFlags(CLASS_Interface)) return Gen;
-			}
-		}
-		return nullptr;
+		if (Cls->HasAnyClassFlags(CLASS_Interface)) return Cls;
 	}
 
-	static bool BlueprintAlreadyImplements(const UBlueprint* BP, const UClass* IfaceClass)
+	if (UBlueprint* IfaceBP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(NameOrPath))
 	{
-		if (!BP || !IfaceClass) return false;
-		for (const FBPInterfaceDescription& Desc : BP->ImplementedInterfaces)
+		if (UClass* Gen = IfaceBP->GeneratedClass)
 		{
-			if (Desc.Interface == IfaceClass) return true;
+			if (Gen->HasAnyClassFlags(CLASS_Interface)) return Gen;
 		}
-		return false;
 	}
+	return nullptr;
+}
+
+static bool BlueprintAlreadyImplements(const UBlueprint* BP, const UClass* IfaceClass)
+{
+	if (!BP || !IfaceClass) return false;
+	for (const FBPInterfaceDescription& Desc : BP->ImplementedInterfaces)
+	{
+		if (Desc.Interface == IfaceClass) return true;
+	}
+	return false;
+}
 #endif
 
 

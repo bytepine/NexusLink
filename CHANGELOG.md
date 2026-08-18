@@ -39,6 +39,12 @@
 
 ### Fixed
 
+- fix(code): 修复去 `namespace` 重构残留缩进——18 个 `.cpp` 文件级 helper/struct/注释整体左移一级（约 2400 行纯缩进，无语义变化）；保留宏续行/参数续行/初始化列表/`#if` 内预处理指令等正常缩进
+- fix(code): `manage_asset_behavior_tree` / `manage_asset_blueprint` 补缺失 `#include "Utils/NexusArgs.h"`（`PrepareTarget` 用 `FNexusArgs` 但未 include，C3861）
+
+- fix(code): 修复去 `namespace` 重构残留缩进——18 个 `.cpp` 文件级 helper/struct/注释整体左移一级（约 2400 行纯缩进，无语义变化）；保留宏续行/参数续行/初始化列表/`#if` 内预处理指令等正常缩进
+- fix(code): `manage_asset_behavior_tree` / `manage_asset_blueprint` 补缺失 `#include "Utils/NexusArgs.h"`（`PrepareTarget` 用 `FNexusArgs` 但未 include，C3861）
+
 - fix(mcp): `get_asset_blueprint`(defaults) / `get_asset_data_asset` 属性报告——`BuildEditablePropsPage` 调 `GetCPPType()` 前用 `CanResolveCPPType` 递归校验属性类型图，病态资产引用为空时回退属性类名，避免 `EXCEPTION_ACCESS_VIOLATION`
 - fix(mcp): 响应默认值压缩仅当字段出现在**全部 object 条目**上才抽取；`get_output_log` 的 `categoryFilter` ForcedDefault 改为本页 category **全员一致**才抽取（`AddForcedDefaultIfUnanimous`）
 - fix(mcp): `relatedCapabilities` 运行期只保留当前宿主已注册且已启用的名（`search_capabilities` / MultiTool `[see:]`）；握手路由改为「插件门控」——GAS/Niagara/StateTree 等 `not_found` 即跳过
@@ -78,6 +84,9 @@
 
 ### Fixed
 
+- fix(code): 修复去 `namespace` 重构残留缩进——18 个 `.cpp` 文件级 helper/struct/注释整体左移一级（约 2400 行纯缩进，无语义变化）；保留宏续行/参数续行/初始化列表/`#if` 内预处理指令等正常缩进
+- fix(code): `manage_asset_behavior_tree` / `manage_asset_blueprint` 补缺失 `#include "Utils/NexusArgs.h"`（`PrepareTarget` 用 `FNexusArgs` 但未 include，C3861）
+
 - fix(compat): UE 5.8 `FJsonObject` 键改为 `UE::FSharedString`——`NexusCapability` Schema 校验用 `KeyAsString` 兼容新旧键类型，修复 Editor/Game 编译失败
 - fix(docs): `scripts/build_tool_reference.py` 正确解析 `Bool` / `Num` / `ArrayOf` / `ArrOfObj` / `AnyObject`、嵌套 item Schema 与元工具 InputSchema（跳过嵌套 `Object()…Build()` 误截断）
 - fix(compat): `RegisterConsoleCommand` 帮助串改用 `HELP_TEXT`（`NexusVersionCompat` 在标准 UE 上回退为 `TEXT`）——兼容定义了 `ENGINE_STRIP_HELP_TEXT` / `HELPCHAR` 的定制引擎（宽字符 `TEXT` 与 ANSI `HELPCHAR*` 类型不匹配）
@@ -101,6 +110,9 @@
 - feat(mcp): `manage_asset_behavior_tree` 新增 `replace_node`（就地换类型、保留槽位 decorators/services，并反射同步 EdGraph `NodeInstance`）与 `sync_graph`（按结构位置整体重建 Graph↔RootNode）；写操作前关闭已打开的 BT 编辑器 Tab，避免旧 Graph 冲正
 
 ### Fixed
+
+- fix(code): 修复去 `namespace` 重构残留缩进——18 个 `.cpp` 文件级 helper/struct/注释整体左移一级（约 2400 行纯缩进，无语义变化）；保留宏续行/参数续行/初始化列表/`#if` 内预处理指令等正常缩进
+- fix(code): `manage_asset_behavior_tree` / `manage_asset_blueprint` 补缺失 `#include "Utils/NexusArgs.h"`（`PrepareTarget` 用 `FNexusArgs` 但未 include，C3861）
 
 - fix(compat): Montage `add_segment`/`remove_segment` 刷新时长改走 `SetCompositeLength`（UE5+）；UE4 Editor 仍用 `SetSequenceLength`，Game 目标直写 `SequenceLength`——修复 5.2+ `SetSequenceLength` 已移除且 `SequenceLength` 为 protected 的编译失败
 - fix(mcp): `create_asset_blueprint` 对 Actor 子类确保 EventGraph 含启用态 `ReceiveBeginPlay`（headless/无 DefaultEventNodes 时图为空）
@@ -129,6 +141,9 @@
 ## [1.15.3] - 2026-07-28
 
 ### Fixed
+
+- fix(code): 修复去 `namespace` 重构残留缩进——18 个 `.cpp` 文件级 helper/struct/注释整体左移一级（约 2400 行纯缩进，无语义变化）；保留宏续行/参数续行/初始化列表/`#if` 内预处理指令等正常缩进
+- fix(code): `manage_asset_behavior_tree` / `manage_asset_blueprint` 补缺失 `#include "Utils/NexusArgs.h"`（`PrepareTarget` 用 `FNexusArgs` 但未 include，C3861）
 
 - fix(compat): `NX_UE_HAS_MATERIAL_DOMAIN_HEADER` / `NX_UE_HAS_SKELETAL_MATERIAL_COMMON_HEADER`（及同门槛 `NX_UE_HAS_SCOPED_MATERIAL_DOMAIN`）门槛从 5.3 下调至 5.2——UE5.2 起 `Material.h`/`SkeletalMesh.h` 仅前向声明，须显式包含 `MaterialDomain.h` / `SkinnedAssetCommon.h`，否则 C2027
 
@@ -232,6 +247,9 @@
 
 ### Fixed
 
+- fix(code): 修复去 `namespace` 重构残留缩进——18 个 `.cpp` 文件级 helper/struct/注释整体左移一级（约 2400 行纯缩进，无语义变化）；保留宏续行/参数续行/初始化列表/`#if` 内预处理指令等正常缩进
+- fix(code): `manage_asset_behavior_tree` / `manage_asset_blueprint` 补缺失 `#include "Utils/NexusArgs.h"`（`PrepareTarget` 用 `FNexusArgs` 但未 include，C3861）
+
 - fix(compat): `BuildRedactedArgsSnapshot` 使用 `FString(*Pair.Key)` 替换直接赋值，修复 UE 5.8 中 `FJsonObject::Values` Key 类型由 `FString` 变更为 `UE::FSharedString` 导致的 C2664 编译错误；全版本（UE 4.26–5.8）PASS=10
 - fix(ci): link-check 忽略 Markdown 页内锚点（`#...`）；`markdown-link-check` 无法校验中文标题 fragment，会误报 404
 
@@ -275,6 +293,9 @@
 - chore(ci): Release 强制 `--verify` 门禁，正文仅来源于 CHANGELOG 段落（禁手写 Release 说明）
 
 ### Fixed
+
+- fix(code): 修复去 `namespace` 重构残留缩进——18 个 `.cpp` 文件级 helper/struct/注释整体左移一级（约 2400 行纯缩进，无语义变化）；保留宏续行/参数续行/初始化列表/`#if` 内预处理指令等正常缩进
+- fix(code): `manage_asset_behavior_tree` / `manage_asset_blueprint` 补缺失 `#include "Utils/NexusArgs.h"`（`PrepareTarget` 用 `FNexusArgs` 但未 include，C3861）
 
 - fix(search_capabilities): `UNexusLinkSettings` 空指针统一防护，消除 ForwardNull 静态分析告警
 
@@ -303,6 +324,9 @@
 
 ### Fixed
 
+- fix(code): 修复去 `namespace` 重构残留缩进——18 个 `.cpp` 文件级 helper/struct/注释整体左移一级（约 2400 行纯缩进，无语义变化）；保留宏续行/参数续行/初始化列表/`#if` 内预处理指令等正常缩进
+- fix(code): `manage_asset_behavior_tree` / `manage_asset_blueprint` 补缺失 `#include "Utils/NexusArgs.h"`（`PrepareTarget` 用 `FNexusArgs` 但未 include，C3861）
+
 - fix(compat): `BuildRedactedArgsSnapshot` 使用 `FString(*Pair.Key)` 替换直接赋值，修复 UE 5.8 中 `FJsonObject::Values` Key 类型由 `FString` 变更为 `UE::FSharedString` 导致的 C2664 编译错误；全版本（UE 4.26–5.8）PASS=10
 - fix(ci): link-check 忽略 Markdown 页内锚点（`#...`）；`markdown-link-check` 无法校验中文标题 fragment，会误报 404
 
@@ -347,6 +371,9 @@
 
 ### Fixed
 
+- fix(code): 修复去 `namespace` 重构残留缩进——18 个 `.cpp` 文件级 helper/struct/注释整体左移一级（约 2400 行纯缩进，无语义变化）；保留宏续行/参数续行/初始化列表/`#if` 内预处理指令等正常缩进
+- fix(code): `manage_asset_behavior_tree` / `manage_asset_blueprint` 补缺失 `#include "Utils/NexusArgs.h"`（`PrepareTarget` 用 `FNexusArgs` 但未 include，C3861）
+
 - fix(search_capabilities): `UNexusLinkSettings` 空指针统一防护，消除 ForwardNull 静态分析告警
 
 ### Chore
@@ -367,6 +394,9 @@
 - chore: 新增 `scripts/build_unreal.py` 与 GitHub Actions 打包工作流
 
 ### Fixed
+
+- fix(code): 修复去 `namespace` 重构残留缩进——18 个 `.cpp` 文件级 helper/struct/注释整体左移一级（约 2400 行纯缩进，无语义变化）；保留宏续行/参数续行/初始化列表/`#if` 内预处理指令等正常缩进
+- fix(code): `manage_asset_behavior_tree` / `manage_asset_blueprint` 补缺失 `#include "Utils/NexusArgs.h"`（`PrepareTarget` 用 `FNexusArgs` 但未 include，C3861）
 
 - `manage_asset_blueprint` connect 修复 `TryCreateConnection` 失败静默成功；`FindBPPin` 支持 `pinFriendlyName` 匹配；引脚未找到时列出可用 pinName；补 `manage_blueprint_wires/graph/component` 旧名映射
 

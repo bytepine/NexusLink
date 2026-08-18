@@ -14,47 +14,47 @@
 #include "Engine/CurveTable.h"
 #include "NexusMcpTool.h"
 
-	static ERichCurveInterpMode InterpFromStr(const FString& S)
+static ERichCurveInterpMode InterpFromStr(const FString& S)
+{
+	if (S.Equals(TEXT("constant"), ESearchCase::IgnoreCase)) return RCIM_Constant;
+	if (S.Equals(TEXT("linear"), ESearchCase::IgnoreCase))   return RCIM_Linear;
+	return RCIM_Cubic;
+}
+
+/** 根据 channel 名称从 UCurveBase 获取 FRichCurve 指针（CurveTable 须另行处理）。 */
+static FRichCurve* GetChannel(UCurveBase* CB, const FString& Channel)
+{
+	if (UCurveFloat* CF = Cast<UCurveFloat>(CB))
+		return &CF->FloatCurve;
+
+	if (UCurveVector* CV = Cast<UCurveVector>(CB))
 	{
-		if (S.Equals(TEXT("constant"), ESearchCase::IgnoreCase)) return RCIM_Constant;
-		if (S.Equals(TEXT("linear"), ESearchCase::IgnoreCase))   return RCIM_Linear;
-		return RCIM_Cubic;
+		if (Channel == TEXT("X") || Channel == TEXT("0")) return &CV->FloatCurves[0];
+		if (Channel == TEXT("Y") || Channel == TEXT("1")) return &CV->FloatCurves[1];
+		if (Channel == TEXT("Z") || Channel == TEXT("2")) return &CV->FloatCurves[2];
 	}
-
-	/** 根据 channel 名称从 UCurveBase 获取 FRichCurve 指针（CurveTable 须另行处理）。 */
-	static FRichCurve* GetChannel(UCurveBase* CB, const FString& Channel)
+	if (UCurveLinearColor* CC = Cast<UCurveLinearColor>(CB))
 	{
-		if (UCurveFloat* CF = Cast<UCurveFloat>(CB))
-			return &CF->FloatCurve;
-
-		if (UCurveVector* CV = Cast<UCurveVector>(CB))
-		{
-			if (Channel == TEXT("X") || Channel == TEXT("0")) return &CV->FloatCurves[0];
-			if (Channel == TEXT("Y") || Channel == TEXT("1")) return &CV->FloatCurves[1];
-			if (Channel == TEXT("Z") || Channel == TEXT("2")) return &CV->FloatCurves[2];
-		}
-		if (UCurveLinearColor* CC = Cast<UCurveLinearColor>(CB))
-		{
-			if (Channel == TEXT("R") || Channel == TEXT("0")) return &CC->FloatCurves[0];
-			if (Channel == TEXT("G") || Channel == TEXT("1")) return &CC->FloatCurves[1];
-			if (Channel == TEXT("B") || Channel == TEXT("2")) return &CC->FloatCurves[2];
-			if (Channel == TEXT("A") || Channel == TEXT("3")) return &CC->FloatCurves[3];
-		}
-		return nullptr;
+		if (Channel == TEXT("R") || Channel == TEXT("0")) return &CC->FloatCurves[0];
+		if (Channel == TEXT("G") || Channel == TEXT("1")) return &CC->FloatCurves[1];
+		if (Channel == TEXT("B") || Channel == TEXT("2")) return &CC->FloatCurves[2];
+		if (Channel == TEXT("A") || Channel == TEXT("3")) return &CC->FloatCurves[3];
 	}
+	return nullptr;
+}
 
-	/** 从 CurveTable 按行名获取可写 FRichCurve（行须已存在）。默认 RichCurves 模式下 static_cast 安全。 */
-	static FRichCurve* GetTableRow(UCurveTable* CT, const FName& RowName)
-	{
+/** 从 CurveTable 按行名获取可写 FRichCurve（行须已存在）。默认 RichCurves 模式下 static_cast 安全。 */
+static FRichCurve* GetTableRow(UCurveTable* CT, const FName& RowName)
+{
 #if NX_UE_HAS_CURVE_TABLE_FIND_UNCHECKED
-		// UE5: FindCurveUnchecked(FName) 只有1个参数
-		FRealCurve* Found = CT->FindCurveUnchecked(RowName);
+	// UE5: FindCurveUnchecked(FName) 只有1个参数
+	FRealCurve* Found = CT->FindCurveUnchecked(RowName);
 #else
-		// UE4: FindCurve(FName, FString, bool) 返回 FRealCurve*（UE4.25+）
-		FRealCurve* Found = CT->FindCurve(RowName, FString(TEXT("NexusLink")), false);
+	// UE4: FindCurve(FName, FString, bool) 返回 FRealCurve*（UE4.25+）
+	FRealCurve* Found = CT->FindCurve(RowName, FString(TEXT("NexusLink")), false);
 #endif
-		return Found ? static_cast<FRichCurve*>(Found) : nullptr;
-	}
+	return Found ? static_cast<FRichCurve*>(Found) : nullptr;
+}
 
 void FManageAssetCurveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {

@@ -150,14 +150,14 @@ UEdGraphPin* FNexusAnimGraphUtils::GetStateInputPin(UAnimStateNodeBase* StateNod
 #endif
 
 #if WITH_CONTROL_RIG
-	static const TCHAR* SupportedList =
-		TEXT("SequencePlayer/SequenceEvaluator/BlendSpacePlayer(=BlendSpace1D)/BlendSpaceEvaluator/RandomPlayer/"
+static const TCHAR* SupportedList =
+	TEXT("SequencePlayer/SequenceEvaluator/BlendSpacePlayer(=BlendSpace1D)/BlendSpaceEvaluator/RandomPlayer/"
 			 "PoseBlendNode/PoseByName/Slot/Blend/BlendListByEnum/BlendListByInt/MultiWayBlend/LayeredBoneBlend/"
 			 "ApplyAdditive/SaveCachedPose/UseCachedPose/Inertialization/ComponentToLocalSpace/LocalToComponentSpace/"
 			 "TwoBoneIK/FABRIK/CCDIK/LookAt/ModifyBone/CopyBone/HandIKRetargeting/AimOffset/AimOffsetLookAt/ControlRig");
 #else
-	static const TCHAR* SupportedList =
-		TEXT("SequencePlayer/SequenceEvaluator/BlendSpacePlayer(=BlendSpace1D)/BlendSpaceEvaluator/RandomPlayer/"
+static const TCHAR* SupportedList =
+	TEXT("SequencePlayer/SequenceEvaluator/BlendSpacePlayer(=BlendSpace1D)/BlendSpaceEvaluator/RandomPlayer/"
 			 "PoseBlendNode/PoseByName/Slot/Blend/BlendListByEnum/BlendListByInt/MultiWayBlend/LayeredBoneBlend/"
 			 "ApplyAdditive/SaveCachedPose/UseCachedPose/Inertialization/ComponentToLocalSpace/LocalToComponentSpace/"
 			 "TwoBoneIK/FABRIK/CCDIK/LookAt/ModifyBone/CopyBone/HandIKRetargeting/AimOffset/AimOffsetLookAt");

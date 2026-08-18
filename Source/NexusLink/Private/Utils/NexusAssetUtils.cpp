@@ -49,41 +49,41 @@ DEFINE_LOG_CATEGORY_STATIC(LogNexusAssetUtils, Log, All);
 #endif
 
 #if WITH_EDITOR
-	/** Live Coding 会话中 SavePackage 已知会崩溃，需降级（仅 Windows 有 LiveCoding 模块）。 */
-	static bool IsLiveCodingSessionActive()
-	{
+/** Live Coding 会话中 SavePackage 已知会崩溃，需降级（仅 Windows 有 LiveCoding 模块）。 */
+static bool IsLiveCodingSessionActive()
+{
 #if PLATFORM_WINDOWS
-		if (!FModuleManager::Get().IsModuleLoaded(TEXT("LiveCoding")))
-		{
-			return false;
-		}
-		ILiveCodingModule* LiveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(TEXT("LiveCoding"));
-		return LiveCoding && LiveCoding->IsEnabledForSession();
-#else
+	if (!FModuleManager::Get().IsModuleLoaded(TEXT("LiveCoding")))
+	{
 		return false;
+	}
+	ILiveCodingModule* LiveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(TEXT("LiveCoding"));
+	return LiveCoding && LiveCoding->IsEnabledForSession();
+#else
+	return false;
 #endif
+}
+
+/** 按路径提示或包内 RF_Public|RF_Standalone 对象解析主资产。 */
+static UObject* ResolvePackageAsset(UPackage* Package, const FString& AssetPathHint)
+{
+	if (!Package)
+	{
+		return nullptr;
 	}
 
-	/** 按路径提示或包内 RF_Public|RF_Standalone 对象解析主资产。 */
-	static UObject* ResolvePackageAsset(UPackage* Package, const FString& AssetPathHint)
+	if (!AssetPathHint.IsEmpty())
 	{
-		if (!Package)
+		UObject* Asset = FNexusAssetUtils::LoadAssetWithFallback<UObject>(AssetPathHint);
+		if (Asset && Asset->GetOutermost() == Package)
 		{
-			return nullptr;
+			return Asset;
 		}
+	}
 
-		if (!AssetPathHint.IsEmpty())
-		{
-			UObject* Asset = FNexusAssetUtils::LoadAssetWithFallback<UObject>(AssetPathHint);
-			if (Asset && Asset->GetOutermost() == Package)
-			{
-				return Asset;
-			}
-		}
-
-		const EObjectFlags RequiredFlags = RF_Public | RF_Standalone;
-		UObject* Found = nullptr;
-		ForEachObjectWithPackage(Package, [&](UObject* Obj)
+	const EObjectFlags RequiredFlags = RF_Public | RF_Standalone;
+	UObject* Found = nullptr;
+	ForEachObjectWithPackage(Package, [&](UObject* Obj)
 		{
 			if (!Obj || Obj->IsA(UPackage::StaticClass()) || Obj->HasAnyFlags(RF_Transient))
 			{
@@ -96,8 +96,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogNexusAssetUtils, Log, All);
 			}
 			return true;
 		});
-		return Found;
-	}
+	return Found;
+}
 #endif
 
 void FNexusAssetUtils::GetTexture2DSurfaceSize(const UTexture2D* Texture, int32& OutWidth, int32& OutHeight)
@@ -188,53 +188,53 @@ void FNexusAssetUtils::AppendAnimSequenceNotifyFields(const UAnimSequence* Seq, 
 	}
 }
 
-	static FName NexusGetFloatCurveName(const FFloatCurve& FC)
-	{
+static FName NexusGetFloatCurveName(const FFloatCurve& FC)
+{
 #if NX_UE_HAS_FLOAT_CURVE_SMART_NAME
-		return FC.Name.DisplayName;
+	return FC.Name.DisplayName;
 #else
-		return FC.GetName();
+	return FC.GetName();
 #endif
-	}
+}
 
-	static void AppendFloatCurvesToJson(const TArray<FFloatCurve>& FloatCurves, TSharedPtr<FJsonObject>& Entry)
+static void AppendFloatCurvesToJson(const TArray<FFloatCurve>& FloatCurves, TSharedPtr<FJsonObject>& Entry)
+{
+	TArray<TSharedPtr<FJsonValue>> CurvesArr;
+	constexpr int32 MaxCurves = 64;
+	constexpr int32 MaxKeysPerCurve = 64;
+	const int32 CurveCount = FMath::Min(FloatCurves.Num(), MaxCurves);
+	for (int32 Ci = 0; Ci < CurveCount; ++Ci)
 	{
-		TArray<TSharedPtr<FJsonValue>> CurvesArr;
-		constexpr int32 MaxCurves = 64;
-		constexpr int32 MaxKeysPerCurve = 64;
-		const int32 CurveCount = FMath::Min(FloatCurves.Num(), MaxCurves);
-		for (int32 Ci = 0; Ci < CurveCount; ++Ci)
-		{
-			const FFloatCurve& FC = FloatCurves[Ci];
-			TSharedPtr<FJsonObject> CObj = MakeShared<FJsonObject>();
-			CObj->SetStringField(TEXT("name"), NexusGetFloatCurveName(FC).ToString());
+		const FFloatCurve& FC = FloatCurves[Ci];
+		TSharedPtr<FJsonObject> CObj = MakeShared<FJsonObject>();
+		CObj->SetStringField(TEXT("name"), NexusGetFloatCurveName(FC).ToString());
 
-			TArray<float> Times, Values;
-			const_cast<FFloatCurve&>(FC).GetKeys(Times, Values);
-			const int32 KeyCount = FMath::Min(Times.Num(), MaxKeysPerCurve);
-			CObj->SetNumberField(TEXT("keyCount"), static_cast<double>(Times.Num()));
+		TArray<float> Times, Values;
+		const_cast<FFloatCurve&>(FC).GetKeys(Times, Values);
+		const int32 KeyCount = FMath::Min(Times.Num(), MaxKeysPerCurve);
+		CObj->SetNumberField(TEXT("keyCount"), static_cast<double>(Times.Num()));
 
-			TArray<TSharedPtr<FJsonValue>> KeysArr;
-			for (int32 Ki = 0; Ki < KeyCount; ++Ki)
-			{
-				TSharedPtr<FJsonObject> K = MakeShared<FJsonObject>();
-				K->SetNumberField(TEXT("time"), static_cast<double>(Times[Ki]));
-				K->SetNumberField(TEXT("value"), static_cast<double>(Values.IsValidIndex(Ki) ? Values[Ki] : 0.f));
-				KeysArr.Add(MakeShared<FJsonValueObject>(K));
-			}
-			CObj->SetArrayField(TEXT("keys"), KeysArr);
-			if (Times.Num() > MaxKeysPerCurve)
-			{
-				CObj->SetNumberField(TEXT("keysTruncated"), static_cast<double>(Times.Num() - MaxKeysPerCurve));
-			}
-			CurvesArr.Add(MakeShared<FJsonValueObject>(CObj));
-		}
-		Entry->SetArrayField(TEXT("curves"), CurvesArr);
-		if (FloatCurves.Num() > MaxCurves)
+		TArray<TSharedPtr<FJsonValue>> KeysArr;
+		for (int32 Ki = 0; Ki < KeyCount; ++Ki)
 		{
-			Entry->SetNumberField(TEXT("curvesTruncated"), static_cast<double>(FloatCurves.Num() - MaxCurves));
+			TSharedPtr<FJsonObject> K = MakeShared<FJsonObject>();
+			K->SetNumberField(TEXT("time"), static_cast<double>(Times[Ki]));
+			K->SetNumberField(TEXT("value"), static_cast<double>(Values.IsValidIndex(Ki) ? Values[Ki] : 0.f));
+			KeysArr.Add(MakeShared<FJsonValueObject>(K));
 		}
+		CObj->SetArrayField(TEXT("keys"), KeysArr);
+		if (Times.Num() > MaxKeysPerCurve)
+		{
+			CObj->SetNumberField(TEXT("keysTruncated"), static_cast<double>(Times.Num() - MaxKeysPerCurve));
+		}
+		CurvesArr.Add(MakeShared<FJsonValueObject>(CObj));
 	}
+	Entry->SetArrayField(TEXT("curves"), CurvesArr);
+	if (FloatCurves.Num() > MaxCurves)
+	{
+		Entry->SetNumberField(TEXT("curvesTruncated"), static_cast<double>(FloatCurves.Num() - MaxCurves));
+	}
+}
 
 void FNexusAssetUtils::AppendAnimSequenceCurveFields(const UAnimSequence* Seq, TSharedPtr<FJsonObject>& Entry)
 {

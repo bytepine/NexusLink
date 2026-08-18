@@ -26,39 +26,39 @@ using FNexusMoviePipelineConfig = UMoviePipelineMasterConfig;
 #include "MoviePipelineSetting.h"
 #include "NexusMcpTool.h"
 
-	static UClass* ResolveMoviePipelineSettingClass(const FString& InName, FString& OutError)
+static UClass* ResolveMoviePipelineSettingClass(const FString& InName, FString& OutError)
+{
+	FString Name = InName;
+	Name.ReplaceInline(TEXT("UMoviePipeline"), TEXT(""));
+	Name.ReplaceInline(TEXT("MoviePipeline"), TEXT(""));
+	if (Name.EndsWith(TEXT("Setting")))
 	{
-		FString Name = InName;
-		Name.ReplaceInline(TEXT("UMoviePipeline"), TEXT(""));
-		Name.ReplaceInline(TEXT("MoviePipeline"), TEXT(""));
-		if (Name.EndsWith(TEXT("Setting")))
-		{
-			Name = Name.LeftChop(7);
-		}
-		if (Name.EndsWith(TEXT("Settings")))
-		{
-			Name = Name.LeftChop(8);
-		}
-		if (Name.Equals(TEXT("Output"), ESearchCase::IgnoreCase))
-			return UMoviePipelineOutputSetting::StaticClass();
-		if (Name.Equals(TEXT("AntiAliasing"), ESearchCase::IgnoreCase) || Name.Equals(TEXT("AA"), ESearchCase::IgnoreCase))
-			return UMoviePipelineAntiAliasingSetting::StaticClass();
-		if (Name.Equals(TEXT("HighRes"), ESearchCase::IgnoreCase) || Name.Equals(TEXT("HighResolution"), ESearchCase::IgnoreCase))
-			return UMoviePipelineHighResSetting::StaticClass();
-		if (Name.Equals(TEXT("Camera"), ESearchCase::IgnoreCase))
-			return UMoviePipelineCameraSetting::StaticClass();
-		if (Name.Equals(TEXT("GameOverride"), ESearchCase::IgnoreCase))
-			return UMoviePipelineGameOverrideSetting::StaticClass();
-		if (Name.Equals(TEXT("Color"), ESearchCase::IgnoreCase))
-			return UMoviePipelineColorSetting::StaticClass();
-		if (Name.Equals(TEXT("Debug"), ESearchCase::IgnoreCase))
-			return UMoviePipelineDebugSettings::StaticClass();
+		Name = Name.LeftChop(7);
+	}
+	if (Name.EndsWith(TEXT("Settings")))
+	{
+		Name = Name.LeftChop(8);
+	}
+	if (Name.Equals(TEXT("Output"), ESearchCase::IgnoreCase))
+		return UMoviePipelineOutputSetting::StaticClass();
+	if (Name.Equals(TEXT("AntiAliasing"), ESearchCase::IgnoreCase) || Name.Equals(TEXT("AA"), ESearchCase::IgnoreCase))
+		return UMoviePipelineAntiAliasingSetting::StaticClass();
+	if (Name.Equals(TEXT("HighRes"), ESearchCase::IgnoreCase) || Name.Equals(TEXT("HighResolution"), ESearchCase::IgnoreCase))
+		return UMoviePipelineHighResSetting::StaticClass();
+	if (Name.Equals(TEXT("Camera"), ESearchCase::IgnoreCase))
+		return UMoviePipelineCameraSetting::StaticClass();
+	if (Name.Equals(TEXT("GameOverride"), ESearchCase::IgnoreCase))
+		return UMoviePipelineGameOverrideSetting::StaticClass();
+	if (Name.Equals(TEXT("Color"), ESearchCase::IgnoreCase))
+		return UMoviePipelineColorSetting::StaticClass();
+	if (Name.Equals(TEXT("Debug"), ESearchCase::IgnoreCase))
+		return UMoviePipelineDebugSettings::StaticClass();
 
-		OutError = FString::Printf(
+	OutError = FString::Printf(
 			TEXT("Unknown settingClass: %s (Output/AntiAliasing/HighRes/Camera/GameOverride/Color/Debug)"),
 			*InName);
-		return nullptr;
-	}
+	return nullptr;
+}
 
 void FManageAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
