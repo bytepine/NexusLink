@@ -4,13 +4,14 @@
 
 ```mermaid
 graph TB
-    subgraph AI["AI 客户端（Claude/GPT/...）"]
+    subgraph AI["AI 客户端"]
         MCP_Client[MCP Client]
     end
 
-    subgraph IDE["IDE 代理"]
-        Rider[nexus-rider<br>Rider 插件]
-        VSCode[nexus-vscode<br>VSCode/Cursor 扩展]
+    subgraph Clients["客户端代理"]
+        Desktop[NexusDesktop]
+        Rider[NexusRider]
+        VSCode[NexusVSCode]
     end
 
     subgraph UE["Unreal Engine 进程"]
@@ -20,13 +21,14 @@ graph TB
             ToolRegistry[FNexusMcpToolRegistry<br>工具注册表]
             CapRegistry[FNexusCapabilityRegistry<br>Capability 注册表]
             Tools[FNexusMcpTool<br>search / call / feedback]
-            Caps[FNexusCapability<br>221 原子能力]
+            Caps[FNexusCapability]
         end
     end
 
-    MCP_Client -->|"POST /stream<br>(MCP Streamable HTTP)"| Server
-    Rider -->|"WebSocket<br>(JSON-RPC)"| Server
-    VSCode -->|"WebSocket<br>(JSON-RPC)"| Server
+    MCP_Client -->|"POST /stream<br>MCP Streamable HTTP"| Server
+    Desktop -->|"WebSocket JSON-RPC"| Server
+    Rider -->|"WebSocket JSON-RPC"| Server
+    VSCode -->|"WebSocket JSON-RPC"| Server
     Server --> Dispatcher
     Dispatcher --> ToolRegistry
     ToolRegistry --> Tools
@@ -34,6 +36,7 @@ graph TB
     CapRegistry --> Caps
 ```
 
+四端端口与开关层数见 [usage-guide §1](./usage-guide.md)。Capability 清单以 `search_capabilities` / [tool-reference.md](./tool-reference.md) 为准，勿在本文手写总数。
 ## MCP 服务器生命周期
 
 `UNexusLinkSettings::bEnableMcpServer` 为总开关，**默认 `false`**。另支持命令行 **`-EnableNexusMcp`** 与控制台 **`NexusLink.EnableMcp 1|0`**（均会话级，不写盘）；与 Preferences 为 OR。主模块 **`Type: Runtime`**（Game/Server 可链接）；`StartupModule` / `ShutdownModule` 在 `!WITH_EDITOR` 时空返回；`REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 在非编辑器构建编译为空。平台门控双写 `PlatformAllowList`（UE5）+ `WhitelistPlatforms`（UE4.2x），避免 UE4 把模块链进移动端。MCP 仅 Editor / PIE 实际运行。未启用时不创建 `FNexusMcpServer`；Preferences 勾选后经 `PostEditChangeProperty` 即时启停。
@@ -48,7 +51,7 @@ graph TB
 | 协议层 | `FNexusMcpDispatcher` | JSON-RPC 2.0 解析、MCP 握手状态机、路由分发 |
 | 注册层 | `FNexusMcpToolRegistry` / `FNexusCapabilityRegistry` | 全局单例注册表，O(1) 按名查找 |
 | 工具层 | `FNexusMcpTool` | 3 个元工具：`search_capabilities` / `call_capability` / `submit_feedback` |
-| 能力层 | `FNexusCapability` | 221 个原子工作单元（插件门控 cap 按宿主裁剪），按域分类 |
+| 能力层 | `FNexusCapability` | 原子工作单元（插件门控 cap 按宿主裁剪），按域分类 |
 
 ---
 
@@ -130,11 +133,23 @@ NexusLink 支持两种 `tools/list` 暴露模式，可在 Editor Preferences →
 | **SearchMode**（默认） | 3 个元工具 | `InitializeInstructions.SearchMode.md`（精简路由 / 硬规则） | AI 通过 `search_capabilities` 按需发现，降低每轮 tools/list token |
 | **MultiTool** | `submit_feedback` + 全部已启用 Capability（各作独立 MCP Tool） | `InitializeInstructions.MultiTool.md`（精简全局约束） | 需要客户端一次性枚举全部能力的场景 |
 
-固定上下文粗估（221 Capability、chars÷4）：SearchMode 每轮 ~1.4k tok，MultiTool ~21.9k tok（约 **15.6×**）；差别几乎全在 tools/list。完整对比与建议见 [README §暴露模式](../README.md#暴露模式toolslistmode)。
+MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮次**重新注入 prompt。固定开销粗估（以当时已注册 Capability 计、源码 schema 解析、chars÷4；不含 call 返回体与对话历史）：
+
+| 分量 | SearchMode | MultiTool | 差额 |
+|---|---|---|---|
+| tools/list | 3 tools · ~0.3k tok | 全部已启用 cap + `submit_feedback` · ~21.5k tok | **+21.2k** |
+| initialize.instructions | ~1.1k | ~0.7k | −0.4k |
+| **每轮固定合计** | **~1.4k** | **~21.9k** | **~15.6× / +20.5k** |
+
+- SearchMode：小 tools/list + 精简路由；按需 `search_capabilities` 换取单份 schema（「发现税」一次性）。
+- MultiTool：instructions 略短，但把全部 Capability schema 每轮塞进 prompt（「全量 schema 税」每轮都付）。
+- 典型任务累计（省略相同 call 返回）：已知 1×search+1×call 约 **4.6×**；中等 2×search+3×call 约 **5.5×**；重会话 4×search+8×call 约 **6.1×**。即便零次 search、只靠路由直调，固定税仍恒约 **15.6×**。
+
+**建议**：日常与长会话保持 **SearchMode**。仅当客户端无法遵循 search→call、或必须一次枚举全 Tool 时再切 MultiTool，并尽量关掉无关 Capability。UE 在线时可用宿主工程 `Script/measure_token_baseline.py` 复核 live `tools/list`。
 
 模式切换或 Capability 变更时，NexusLink 自动广播 `notifications/tools/list_changed`。
 
-代理层（Rider/VSCode）连接 UE 后，通过 `nexus/instructions` 拉取 `InitializeInstructions.*.md`，通过 `nexus/proxy_config` 拉取 `ProxyConfig.json`（连接工具 description、initialize 前缀、错误文案），拼接到自身 `initialize.instructions` / `tools/list` 响应。
+代理层（Desktop / Rider / VSCode）连接 UE 后，通过 `nexus/instructions` 拉取 `InitializeInstructions.*.md`，通过 `nexus/proxy_config` 拉取 `ProxyConfig.json`（连接工具 description、initialize 前缀、错误文案），拼接到自身 `initialize.instructions` / `tools/list` 响应。
 
 ---
 
@@ -170,28 +185,38 @@ sequenceDiagram
 
 HTTP 收包线程只拷贝请求体与 header，然后 `AsyncTask` 回切 GameThread 再碰 `HttpSessions` / `Dispatch` / `DetectCurrentNetRole`，并用推迟的 `OnComplete` 回写响应（不再 `FEvent::Wait` 阻塞收包线程）。`GET /status` 同样回切 GameThread，避免非 GT 读 `GEngine->GetWorldContexts()`。
 
-### WebSocket 代理通道（Rider/VSCode）
+### WebSocket 代理通道（Desktop / Rider / VSCode）
 
 ```mermaid
 sequenceDiagram
-    participant IDE as Rider/VSCode Agent
+    participant Proxy as Desktop_Rider_VSCode
     participant S as FNexusMcpServer
     participant D as WsDispatcher
 
-    IDE->>S: WebSocket Connect
+    Proxy->>S: WebSocket Connect
     Note over S: OnWebSocketClientConnected
 
-    IDE->>S: JSON-RPC request
+    Proxy->>S: JSON-RPC request
     S->>D: DispatchDirect(jsonLine)
     Note over D: 无 MCP 握手，直接分发
     D-->>S: response
-    S-->>IDE: JSON-RPC response
+    S-->>Proxy: JSON-RPC response
 
-    S-->>IDE: BroadcastNotification("tools/list_changed")
-    Note over IDE: Capability 变化时主动推送
+    S-->>Proxy: BroadcastNotification("tools/list_changed")
+    Note over Proxy: Capability 变化时主动推送
 ```
 
-WebSocket 通道共享单一 `WsDispatcher`，无状态握手开销。
+WebSocket 通道共享单一 `WsDispatcher`，无状态握手开销。NexusDesktop / NexusRider / NexusVSCode 走同一条通道。
+
+---
+
+## 服务器框架要点
+
+- **写路径 Undo**：`FNexusEditorTransaction` 包单次 `Run` 的内存 Execute；`call_capability.calls[]`（≥2）外层一笔，`failureCount>0` 时 `Apply` 再 `Cancel`（`saveToDisk` / `compile` 在事务外）
+- **MCP Streamable HTTP**（`POST /stream`）+ `GET /status` 无状态探测；per-session（`Mcp-Session-Id`）
+- **WebSocket**（默认 55000 起）：`nexus/instructions`、`nexus/proxy_config`
+- **按 Capability 启用/禁用**、响应 `*_defaults` 压缩、内存高水位批量驱逐（`FNexusPackageLedger`）、`search_asset` 的 `recommendedGet` / `recommendedManage`
+- 设置面板与反馈闭环见 [usage-guide §2.5](./usage-guide.md#25-设置面板与反馈)
 
 ---
 

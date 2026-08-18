@@ -9,7 +9,7 @@
 
 ### Changed
 
-- feat(ui): 「在状态栏显示端口号」改为 Level Editor 标题栏条目（与 FPS/内存/对象同一组、窗口右上），样式对齐 DebugTools，**默认开启**；MCP 总开关关闭时注销不显示。不再使用工具栏、视口覆盖层或主窗口 overlay
+- docs: 文档信息架构——README 改为落地页；安装/四端接入收口到 `docs/usage-guide.md`（含 NexusDesktop 与开关矩阵）；开发/测试/发版迁入 `CONTRIBUTING.md`；Token 对照与内部架构留在 `docs/architecture.md`
 
 ## [2.0.0-beta.1] - 2026-08-18
 
