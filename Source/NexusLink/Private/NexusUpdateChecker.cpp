@@ -9,13 +9,10 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusUpdateChecker, Log, All);
 
-namespace
-{
 	// GitHub 官方「最新 Release」重定向端点（非 REST API，无速率限制，无需 Auth）。
 	// curl 自动跟随 302 至 .../releases/tag/<tag>，再从落地页 HTML 解析 tag。
-	static const TCHAR* GReleasesLatestUrl =
-		TEXT("https://github.com/bytepine/NexusLink/releases/latest");
-}
+static const TCHAR* GReleasesLatestUrl =
+	TEXT("https://github.com/bytepine/NexusLink/releases/latest");
 
 /** 从 .../releases/tag/<tag> 路径起始位置提取 tag（遇到引号/尖括号/查询符等终止）。 */
 static FString ExtractTagAfter(const FString& Html, int32 From)

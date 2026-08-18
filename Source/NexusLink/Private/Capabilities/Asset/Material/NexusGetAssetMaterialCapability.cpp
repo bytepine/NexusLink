@@ -102,7 +102,7 @@ TSharedPtr<FJsonObject> FGetAssetMaterialCapability::BuildMaterialExpressionGrap
 }
 
 
-struct FMaterialQueryParams
+struct FNexusMaterialQueryParams
 {
 	FString NameFilter;
 	bool bIncludePins  = true;
@@ -111,9 +111,9 @@ struct FMaterialQueryParams
 	int32 Limit  = 100;
 };
 
-static FMaterialQueryParams ParseMaterialQueryParams(const TSharedPtr<FJsonObject>& Args)
+static FNexusMaterialQueryParams ParseMaterialQueryParams(const TSharedPtr<FJsonObject>& Args)
 {
-	FMaterialQueryParams P;
+	FNexusMaterialQueryParams P;
 	if (!Args.IsValid()) return P;
 	if (Args->HasField(TEXT("nameFilter")))    P.NameFilter    = Args->GetStringField(TEXT("nameFilter"));
 	if (Args->HasField(TEXT("includePins")))   P.bIncludePins  = Args->GetBoolField(TEXT("includePins"));
@@ -213,7 +213,7 @@ void FGetAssetMaterialCapability::ExecuteSection(const FString&                 
 	UMaterialInstanceConstant* MI  = Cast<UMaterialInstanceConstant>(Obj);
 	UMaterialFunction*         MF  = Cast<UMaterialFunction>(Obj);
 
-	FMaterialQueryParams Q = ParseMaterialQueryParams(Args);
+	FNexusMaterialQueryParams Q = ParseMaterialQueryParams(Args);
 
 	if (SectionName == TEXT("overview"))
 	{

@@ -33,10 +33,8 @@
 #include "NexusMcpTool.h"
 
 #if WITH_EDITOR
-namespace
-{
 	/** 解析接口 UClass：类名、生成类路径、或 BPI 资产路径。 */
-	UClass* ResolveInterfaceClass(const FString& NameOrPath)
+	static UClass* ResolveInterfaceClass(const FString& NameOrPath)
 	{
 		if (NameOrPath.IsEmpty()) return nullptr;
 
@@ -55,7 +53,7 @@ namespace
 		return nullptr;
 	}
 
-	bool BlueprintAlreadyImplements(const UBlueprint* BP, const UClass* IfaceClass)
+	static bool BlueprintAlreadyImplements(const UBlueprint* BP, const UClass* IfaceClass)
 	{
 		if (!BP || !IfaceClass) return false;
 		for (const FBPInterfaceDescription& Desc : BP->ImplementedInterfaces)
@@ -64,7 +62,6 @@ namespace
 		}
 		return false;
 	}
-}
 #endif
 
 

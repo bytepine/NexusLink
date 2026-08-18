@@ -24,7 +24,7 @@
 #endif
 #include "Misc/Paths.h"
 
-struct FBPQueryParams
+struct FNexusBPQueryParams
 {
 	FString Section;
 	FString NameFilter;
@@ -35,9 +35,9 @@ struct FBPQueryParams
 	int32 Limit  = 100;
 };
 
-static FBPQueryParams ParseBPQueryParams(const TSharedPtr<FJsonObject>& Args)
+static FNexusBPQueryParams ParseBPQueryParams(const TSharedPtr<FJsonObject>& Args)
 {
-	FBPQueryParams P;
+	FNexusBPQueryParams P;
 	if (!Args.IsValid()) return P;
 	P.Section     = FNexusJsonUtils::GetStringSafe(Args, TEXT("section")).ToLower();
 	P.NameFilter  = FNexusJsonUtils::GetStringSafe(Args, TEXT("nameFilter"));
@@ -50,7 +50,7 @@ static FBPQueryParams ParseBPQueryParams(const TSharedPtr<FJsonObject>& Args)
 
 
 #if WITH_EDITOR
-static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FBPQueryParams& Q)
+static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FNexusBPQueryParams& Q)
 {
 	TArray<UEdGraph*> AllGraphs;
 	FNexusBlueprintGraphUtils::CollectAllGraphs(BP, AllGraphs);
@@ -110,7 +110,7 @@ static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FBPQueryParam
 }
 #endif // WITH_EDITOR
 
-static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FBPQueryParams& Q)
+static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FNexusBPQueryParams& Q)
 {
 	TSharedPtr<FJsonObject> Info = MakeShared<FJsonObject>();
 	Info->SetStringField(TEXT("assetType"), TEXT("Blueprint"));
@@ -155,7 +155,7 @@ static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FBPQueryPa
 }
 
 // 单条组件描述：合并 owned SCS / 父链继承 SCS / C++ 原生组件三类来源后的统一形态
-struct FBPComponentEntry
+struct FNexusBPComponentEntry
 {
 	FString VariableName;
 	FString ComponentClass;
@@ -165,7 +165,7 @@ struct FBPComponentEntry
 	FString OwnerBlueprint; // 仅 inherited：来源父蓝图名
 };
 
-static TSharedPtr<FJsonObject> SerializeComponentEntry(const FBPComponentEntry& E)
+static TSharedPtr<FJsonObject> SerializeComponentEntry(const FNexusBPComponentEntry& E)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 	Obj->SetStringField(TEXT("variableName"), E.VariableName);
@@ -182,13 +182,13 @@ static TSharedPtr<FJsonObject> SerializeComponentEntry(const FBPComponentEntry& 
 }
 
 // 本蓝图自有 SCS 节点（BP->SimpleConstructionScript 仅含本 BP 新增的组件）
-static void CollectOwnedSCSEntries(USimpleConstructionScript* SCS, TSet<FString>& UsedNames, TArray<FBPComponentEntry>& Out)
+static void CollectOwnedSCSEntries(USimpleConstructionScript* SCS, TSet<FString>& UsedNames, TArray<FNexusBPComponentEntry>& Out)
 {
 	if (!SCS) return;
 	for (USCS_Node* Node : SCS->GetAllNodes())
 	{
 		if (!Node) continue;
-		FBPComponentEntry E;
+		FNexusBPComponentEntry E;
 		E.VariableName = Node->GetVariableName().ToString();
 		if (Node->ComponentTemplate)
 		{
@@ -205,7 +205,7 @@ static void CollectOwnedSCSEntries(USimpleConstructionScript* SCS, TSet<FString>
 
 #if WITH_EDITOR
 // 沿父类链向上找蓝图生成类，合并各级父蓝图自身 SCS 中新增的组件（同名以更近的层级为准）
-static void CollectInheritedSCSEntries(UClass* ParentClass, TSet<FString>& UsedNames, TArray<FBPComponentEntry>& Out)
+static void CollectInheritedSCSEntries(UClass* ParentClass, TSet<FString>& UsedNames, TArray<FNexusBPComponentEntry>& Out)
 {
 	for (UClass* Cls = ParentClass; Cls; Cls = Cls->GetSuperClass())
 	{
@@ -216,7 +216,7 @@ static void CollectInheritedSCSEntries(UClass* ParentClass, TSet<FString>& UsedN
 			if (!Node) continue;
 			const FString VarName = Node->GetVariableName().ToString();
 			if (UsedNames.Contains(VarName)) continue; // 更近层级（本 BP 或更近祖先）已覆盖，跳过
-			FBPComponentEntry E;
+			FNexusBPComponentEntry E;
 			E.VariableName = VarName;
 			if (Node->ComponentTemplate)
 			{
@@ -235,7 +235,7 @@ static void CollectInheritedSCSEntries(UClass* ParentClass, TSet<FString>& UsedN
 #endif // WITH_EDITOR
 
 // 沿父类链找最近的 C++ 原生类，读取其 CDO 上 CreateDefaultSubobject 生成的原生组件
-static void CollectNativeEntries(UClass* ParentClass, TSet<FString>& UsedNames, TArray<FBPComponentEntry>& Out)
+static void CollectNativeEntries(UClass* ParentClass, TSet<FString>& UsedNames, TArray<FNexusBPComponentEntry>& Out)
 {
 	UClass* NativeAncestor = ParentClass;
 	while (NativeAncestor && !NativeAncestor->HasAnyClassFlags(CLASS_Native))
@@ -252,7 +252,7 @@ static void CollectNativeEntries(UClass* ParentClass, TSet<FString>& UsedNames, 
 		if (!Comp) continue;
 		const FString VarName = Comp->GetFName().ToString();
 		if (UsedNames.Contains(VarName)) continue; // 蓝图层已覆盖同名组件
-		FBPComponentEntry E;
+		FNexusBPComponentEntry E;
 		E.VariableName = VarName;
 		E.ComponentClass = Comp->GetClass()->GetName();
 		E.bIsSceneComponent = Comp->IsA(USceneComponent::StaticClass());
@@ -268,11 +268,11 @@ static void CollectNativeEntries(UClass* ParentClass, TSet<FString>& UsedNames, 
 }
 
 // 由 attachParent 字段将扁平条目重建为层级树（跨 owned/inherited/native 三类来源）
-static TArray<TSharedPtr<FJsonValue>> BuildComponentHierarchy(const TArray<FBPComponentEntry>& Entries)
+static TArray<TSharedPtr<FJsonValue>> BuildComponentHierarchy(const TArray<FNexusBPComponentEntry>& Entries)
 {
 	TMap<FString, TSharedPtr<FJsonObject>> NodeMap;
 	TArray<FString> Order;
-	for (const FBPComponentEntry& E : Entries)
+	for (const FNexusBPComponentEntry& E : Entries)
 	{
 		NodeMap.Add(E.VariableName, SerializeComponentEntry(E));
 		Order.Add(E.VariableName);
@@ -281,7 +281,7 @@ static TArray<TSharedPtr<FJsonValue>> BuildComponentHierarchy(const TArray<FBPCo
 	TArray<TSharedPtr<FJsonValue>> Roots;
 	for (int32 i = 0; i < Order.Num(); ++i)
 	{
-		const FBPComponentEntry& E = Entries[i];
+		const FNexusBPComponentEntry& E = Entries[i];
 		TSharedPtr<FJsonObject> Obj = NodeMap[E.VariableName];
 		if (!E.AttachParent.IsEmpty() && NodeMap.Contains(E.AttachParent))
 		{
@@ -299,7 +299,7 @@ static TArray<TSharedPtr<FJsonValue>> BuildComponentHierarchy(const TArray<FBPCo
 	return Roots;
 }
 
-static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FBPQueryParams& Q)
+static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FNexusBPQueryParams& Q)
 {
 	TSharedPtr<FJsonObject> Info = MakeShared<FJsonObject>();
 
@@ -314,7 +314,7 @@ static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FBPQuery
 
 	// 依次合并：本 BP 自有 → 父蓝图链继承 → C++ 原生；同名以更近层级为准
 	TSet<FString> UsedNames;
-	TArray<FBPComponentEntry> AllEntries;
+	TArray<FNexusBPComponentEntry> AllEntries;
 	CollectOwnedSCSEntries(BP->SimpleConstructionScript, UsedNames, AllEntries);
 #if WITH_EDITOR
 	if (BP->ParentClass) CollectInheritedSCSEntries(BP->ParentClass, UsedNames, AllEntries);
@@ -322,8 +322,8 @@ static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FBPQuery
 	if (BP->ParentClass) CollectNativeEntries(BP->ParentClass, UsedNames, AllEntries);
 
 	// nameFilter 过滤（对变量名 / 组件类名）
-	TArray<FBPComponentEntry> Filtered;
-	for (const FBPComponentEntry& E : AllEntries)
+	TArray<FNexusBPComponentEntry> Filtered;
+	for (const FNexusBPComponentEntry& E : AllEntries)
 	{
 		if (!Q.NameFilter.IsEmpty() &&
 			!FNexusStringMatchUtils::Matches(E.VariableName, Q.NameFilter) &&
@@ -350,7 +350,7 @@ static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FBPQuery
 	return Info;
 }
 
-struct FBPEntryLocal { FString Name; FString Kind; FString Type; FString SubType; FString SubTypeObject; FString Category; bool bIsPublic = false; };
+struct FNexusBPEntryLocal { FString Name; FString Kind; FString Type; FString SubType; FString SubTypeObject; FString Category; bool bIsPublic = false; };
 
 // ── FNexusCapability 基础钩子 ──────────────────────────────────────────────────
 
@@ -445,13 +445,13 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 		return;
 	}
 
-	FBPQueryParams Q = ParseBPQueryParams(Args);
+	FNexusBPQueryParams Q = ParseBPQueryParams(Args);
 
 	if (SectionName == TEXT("graphOverview"))
 	{
 #if WITH_EDITOR
 		// 只返回所有 Graph 的摘要列表，不展开节点，适合 section=all 场景
-		FBPQueryParams OvQ; OvQ.GraphType = Q.GraphType;
+		FNexusBPQueryParams OvQ; OvQ.GraphType = Q.GraphType;
 		TSharedPtr<FJsonObject> GraphResult = HandleBPGraph(BP, OvQ);
 		for (const auto& Pair : GraphResult->Values)
 			if (Pair.Key != TEXT("assetType") && Pair.Key != TEXT("name"))
@@ -488,13 +488,13 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 	{
 #if WITH_EDITOR
 		// variable / function 共享同一套 entry 列表，构建时按 SectionName 过滤
-		TArray<FBPEntryLocal> All;
+		TArray<FNexusBPEntryLocal> All;
 
 		if (SectionName == TEXT("variable"))
 		{
 			for (const FBPVariableDescription& Var : BP->NewVariables)
 			{
-				FBPEntryLocal E;
+				FNexusBPEntryLocal E;
 			E.Name = Var.VarName.ToString(); E.Kind = TEXT("variable");
 			E.Type = Var.VarType.PinCategory.ToString(); E.bIsPublic = (Var.PropertyFlags & CPF_Edit) != 0;
 			if (!Var.VarType.PinSubCategory.IsNone()) E.SubType = Var.VarType.PinSubCategory.ToString();
@@ -508,12 +508,12 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 			for (UEdGraph* Graph : BP->FunctionGraphs)
 			{
 				if (!Graph) continue;
-				FBPEntryLocal E; E.Name = Graph->GetName(); E.Kind = TEXT("function");
+				FNexusBPEntryLocal E; E.Name = Graph->GetName(); E.Kind = TEXT("function");
 				All.Add(E);
 			}
 		}
 
-		All = All.FilterByPredicate([&](const FBPEntryLocal& E)
+		All = All.FilterByPredicate([&](const FNexusBPEntryLocal& E)
 		{
 			if (!Q.NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(E.Name, Q.NameFilter)) return false;
 			return true;
@@ -524,7 +524,7 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 		TArray<TSharedPtr<FJsonValue>> Page;
 		for (int32 i = Start; i < End; ++i)
 		{
-			const FBPEntryLocal& E = All[i];
+			const FNexusBPEntryLocal& E = All[i];
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			Obj->SetStringField(TEXT("name"), E.Name);
 			Obj->SetStringField(TEXT("kind"), E.Kind);

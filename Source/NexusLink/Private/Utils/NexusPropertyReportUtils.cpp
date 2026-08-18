@@ -8,12 +8,10 @@
 #include "UObject/UnrealType.h"
 #include "UObject/EnumProperty.h"
 
-namespace
-{
 	// GetCPPType() 是虚函数，会解引用属性所引用的类型（PropertyClass/Struct/Inner...）。
 	// 病态资产（引用已删除/未加载类型）可能使这些引用为空，直接调用会解空指针崩溃。
 	// 递归校验类型图可解析后再调用真实 GetCPPType，不可解析时回退为属性类名。
-	bool CanResolveCPPType(const FProperty* Prop)
+	static bool CanResolveCPPType(const FProperty* Prop)
 	{
 		if (!Prop) return false;
 
@@ -43,11 +41,10 @@ namespace
 		return true;
 	}
 
-	FString SafeGetCPPType(const FProperty* Prop)
+	static FString SafeGetCPPType(const FProperty* Prop)
 	{
 		return CanResolveCPPType(Prop) ? Prop->GetCPPType() : Prop->GetClass()->GetName();
 	}
-}
 
 TArray<TSharedPtr<FJsonValue>> FNexusPropertyReportUtils::BuildEditablePropsPage(
 	UClass*                      Class,

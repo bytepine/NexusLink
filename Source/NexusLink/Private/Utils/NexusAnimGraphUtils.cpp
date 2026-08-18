@@ -149,8 +149,6 @@ UEdGraphPin* FNexusAnimGraphUtils::GetStateInputPin(UAnimStateNodeBase* StateNod
 #include "AnimGraphNode_ControlRig.h"
 #endif
 
-namespace NexusAnimGraphNodeNames
-{
 #if WITH_CONTROL_RIG
 	static const TCHAR* SupportedList =
 		TEXT("SequencePlayer/SequenceEvaluator/BlendSpacePlayer(=BlendSpace1D)/BlendSpaceEvaluator/RandomPlayer/"
@@ -164,7 +162,6 @@ namespace NexusAnimGraphNodeNames
 			 "ApplyAdditive/SaveCachedPose/UseCachedPose/Inertialization/ComponentToLocalSpace/LocalToComponentSpace/"
 			 "TwoBoneIK/FABRIK/CCDIK/LookAt/ModifyBone/CopyBone/HandIKRetargeting/AimOffset/AimOffsetLookAt");
 #endif
-}
 
 UClass* FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(const FString& NodeClass)
 {
@@ -330,7 +327,7 @@ UEdGraphNode* FNexusAnimGraphUtils::SpawnAnimGraphNode(UEdGraph* Graph, UClass* 
 	if (!Graph) { OutError = TEXT("Invalid AnimGraph"); return nullptr; }
 	if (!NodeClass || !NodeClass->IsChildOf(UAnimGraphNode_Base::StaticClass()))
 	{
-		OutError = FString::Printf(TEXT("Only supports AnimGraph nodes (%s)"), NexusAnimGraphNodeNames::SupportedList);
+		OutError = FString::Printf(TEXT("Only supports AnimGraph nodes (%s)"), SupportedList);
 		return nullptr;
 	}
 	UEdGraphNode* Node = NewObject<UEdGraphNode>(Graph, NodeClass);

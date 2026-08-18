@@ -37,10 +37,8 @@
 #include "KeyParams.h"
 #endif
 
-namespace
-{
 	/** 解析 trackClass → UClass；未知返回 nullptr 并写 OutError。 */
-	UClass* ResolveLevelSequenceTrackClass(const FString& TrackClass, FString& OutError)
+	static UClass* ResolveLevelSequenceTrackClass(const FString& TrackClass, FString& OutError)
 	{
 		if (TrackClass.IsEmpty() || TrackClass.Equals(TEXT("Float"), ESearchCase::IgnoreCase))
 			return UMovieSceneFloatTrack::StaticClass();
@@ -95,7 +93,7 @@ namespace
 		return nullptr;
 	}
 
-	bool IsMasterTrackClassName(const FString& TrackClass)
+	static bool IsMasterTrackClassName(const FString& TrackClass)
 	{
 		return TrackClass.Equals(TEXT("CameraCut"), ESearchCase::IgnoreCase)
 			|| TrackClass.Equals(TEXT("Audio"), ESearchCase::IgnoreCase)
@@ -106,7 +104,7 @@ namespace
 			|| TrackClass.Equals(TEXT("Slomo"), ESearchCase::IgnoreCase);
 	}
 
-	bool IsBindingTrackClassName(const FString& TrackClass)
+	static bool IsBindingTrackClassName(const FString& TrackClass)
 	{
 		return TrackClass.IsEmpty()
 			|| TrackClass.Equals(TEXT("Float"), ESearchCase::IgnoreCase)
@@ -123,7 +121,6 @@ namespace
 			|| TrackClass.Equals(TEXT("DoubleVector"), ESearchCase::IgnoreCase)
 			|| TrackClass.Equals(TEXT("Event"), ESearchCase::IgnoreCase);
 	}
-}
 
 #if WITH_EDITOR && NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
 static void WriteFloatChannelKey(UMovieScene* Scene, FMovieSceneFloatChannel* Channel, double TimeSec, float Value)

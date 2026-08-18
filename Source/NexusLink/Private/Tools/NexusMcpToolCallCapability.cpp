@@ -18,13 +18,13 @@
 #include "Utils/NexusHostUtils.h"
 
 // ── 进程内 redundant_call LRU 表 ──────────────────────────────────────────────
-struct FCallCapabilityRedundantEntry
+struct FNexusCallCapabilityRedundantEntry
 {
 	FDateTime Ts;
 	bool bHadAll = false;
 };
 static FCriticalSection GCallCapabilityRedundantMutex;
-static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
+static TMap<FString, FNexusCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 
 // 脱敏参数快照统一走 FNexusFeedback::BuildRedactedArgsSnapshot（公开 API，避免重复实现）。
 
@@ -103,7 +103,11 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 		ErrObj->SetArrayField(TEXT("parameters"), FNexusCapabilityIndexUtils::ExtractParameters(InputSchema));
 	}
 
-	enum class ECallCoreStatus : uint8
+struct FNexusCallCore final
+{
+	FNexusCallCore() = delete;
+
+	enum class EStatus : uint8
 	{
 		Ok,
 		RedundantWarn,
@@ -114,9 +118,9 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 		Fatal
 	};
 
-	struct FCallCoreResult
+	struct FResult
 	{
-		ECallCoreStatus           Status = ECallCoreStatus::Ok;
+		EStatus                   Status = EStatus::Ok;
 		FString                   RequestedCapName;
 		FString                   CapName;
 		const FCapRecord*         Record = nullptr;
@@ -124,21 +128,22 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 		TSharedPtr<FJsonObject>   ArgInvalidErr;
 		FString                   FatalMessage;
 	};
+};
 
 	/**
 	 * 单条 capability 执行核心：查找、启用检查、redundant LRU、Run。
 	 * 成功时 TopOrWarn 为 capability 顶层 JSON；redundant 时为 warning 对象。
 	 */
-	static FCallCoreResult RunCapabilityCore(const FString& CapName, const TSharedPtr<FJsonObject>& Inner)
+	static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const TSharedPtr<FJsonObject>& Inner)
 	{
-		FCallCoreResult R;
+		FNexusCallCore::FResult R;
 		R.RequestedCapName = CapName.TrimStartAndEnd();
 		R.CapName          = FNexusCapabilityLegacyNames::Resolve(R.RequestedCapName);
 
 		const FCapRecord* Record = FNexusCapabilityRegistry::Get().FindRecordByName(R.CapName);
 		if (!Record)
 		{
-			R.Status = ECallCoreStatus::Unknown;
+			R.Status = FNexusCallCore::EStatus::Unknown;
 			{
 				FNexusFeedback::FFields F;
 				F.Tool       = TEXT("call_capability");
@@ -152,7 +157,7 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 
 		if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*Record))
 		{
-			R.Status = ECallCoreStatus::Unavailable;
+			R.Status = FNexusCallCore::EStatus::Unavailable;
 			{
 				FNexusFeedback::FFields F;
 				F.Tool       = TEXT("call_capability");
@@ -166,7 +171,7 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 		const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
 		if (!Settings->IsCapabilityEnabled(Record->Def.Name))
 		{
-			R.Status = ECallCoreStatus::Disabled;
+			R.Status = FNexusCallCore::EStatus::Disabled;
 			{
 				FNexusFeedback::FFields F;
 				F.Tool       = TEXT("call_capability");
@@ -188,7 +193,7 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 				const bool bIsSubSection = FNexusJsonUtils::HasSubSection(Inner);
 				const bool bIsAll        = FNexusJsonUtils::HasSectionAll(Inner);
 				FScopeLock Lock(&GCallCapabilityRedundantMutex);
-				if (FCallCapabilityRedundantEntry* Entry = GCallCapabilityRedundantMap.Find(LruKey))
+				if (FNexusCallCapabilityRedundantEntry* Entry = GCallCapabilityRedundantMap.Find(LruKey))
 				{
 					const double AgeSec = (FDateTime::UtcNow() - Entry->Ts).GetTotalSeconds();
 					if (AgeSec <= WindowSec && Entry->bHadAll && bIsSubSection)
@@ -205,14 +210,14 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 							TEXT("Skipped: sections=[\"all\"] was called for '%s' %.0f s ago. Reuse that response; do not call sub-sections again."),
 							*Identity, AgeSec));
 						Warn->SetBoolField(TEXT("redundant"), true);
-						R.Status      = ECallCoreStatus::RedundantWarn;
+						R.Status      = FNexusCallCore::EStatus::RedundantWarn;
 						R.TopOrWarn   = Warn;
 						return R;
 					}
 				}
 				if (bIsAll || bIsSubSection)
 				{
-					FCallCapabilityRedundantEntry& E = GCallCapabilityRedundantMap.FindOrAdd(LruKey);
+					FNexusCallCapabilityRedundantEntry& E = GCallCapabilityRedundantMap.FindOrAdd(LruKey);
 					E.Ts      = FDateTime::UtcNow();
 					E.bHadAll = bIsAll;
 				}
@@ -238,7 +243,7 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 				ErrObj->SetStringField(TEXT("error"),      CapResult.FatalError);
 				ErrObj->SetStringField(TEXT("capability"), Record->Def.Name);
 				AppendParametersSchema(Record->Def.InputSchema, ErrObj);
-				R.Status          = ECallCoreStatus::ArgInvalid;
+				R.Status          = FNexusCallCore::EStatus::ArgInvalid;
 				R.ArgInvalidErr   = ErrObj;
 				return R;
 			}
@@ -249,14 +254,14 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 			F.ArgsDigest = Digest;
 			F.ErrorText  = CapResult.FatalError;
 			FNexusFeedback::RecordAuto(TEXT("call_fatal"), F);
-			R.Status        = ECallCoreStatus::Fatal;
+			R.Status        = FNexusCallCore::EStatus::Fatal;
 			R.FatalMessage  = CapResult.FatalError;
 			return R;
 		}
 
-		R.Status    = ECallCoreStatus::Ok;
-		R.TopOrWarn = NexusCapResultAdapter::AssembleStructuredContent(CapResult);
-		NexusCapResultAdapter::StripRedundantPathEcho(R.TopOrWarn, Inner, Record->Def.Name);
+		R.Status    = FNexusCallCore::EStatus::Ok;
+		R.TopOrWarn = FNexusCapResultAdapter::AssembleStructuredContent(CapResult);
+		FNexusCapResultAdapter::StripRedundantPathEcho(R.TopOrWarn, Inner, Record->Def.Name);
 		return R;
 	}
 
@@ -368,19 +373,19 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			Item->SetStringField(TEXT("capability"), CapName);
 			const TSharedPtr<FJsonObject> Inner = MergeNestedArguments(*CallObj);
 
-			const FCallCoreResult Core = RunCapabilityCore(CapName, Inner);
+			const FNexusCallCore::FResult Core = RunCapabilityCore(CapName, Inner);
 
 			switch (Core.Status)
 			{
-			case ECallCoreStatus::Ok:
+			case FNexusCallCore::EStatus::Ok:
 				Item->SetObjectField(TEXT("data"), Core.TopOrWarn);
 				++SuccessCount;
 				break;
-			case ECallCoreStatus::RedundantWarn:
+			case FNexusCallCore::EStatus::RedundantWarn:
 				Item->SetObjectField(TEXT("data"), Core.TopOrWarn);
 				++SuccessCount;
 				break;
-	case ECallCoreStatus::Unknown:
+	case FNexusCallCore::EStatus::Unknown:
 		Item->SetStringField(TEXT("error"), FormatUnknownCapabilityError(Core.RequestedCapName));
 		Item->SetStringField(TEXT("errorKind"), TEXT("unknown"));
 		if (!Core.RequestedCapName.Equals(Core.CapName, ESearchCase::IgnoreCase))
@@ -390,7 +395,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 		Item->SetStringField(TEXT("_feedbackHint"), TEXT("submit_feedback(category=\"wrong_tool\")"));
 		++FailureCount;
 		break;
-			case ECallCoreStatus::Disabled:
+			case FNexusCallCore::EStatus::Disabled:
 				Item->SetStringField(TEXT("error"), FString::Printf(
 					TEXT("Capability '%s' is disabled in settings."), *Core.Record->Def.Name));
 				Item->SetStringField(TEXT("errorKind"), TEXT("disabled"));
@@ -402,7 +407,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				}
 				++FailureCount;
 				break;
-			case ECallCoreStatus::Unavailable:
+			case FNexusCallCore::EStatus::Unavailable:
 				Item->SetStringField(TEXT("error"), FString::Printf(
 					TEXT("Capability '%s' is unavailable on the current host (Dedicated Server / Game exposes runtime capabilities only)."),
 					*Core.Record->Def.Name));
@@ -415,7 +420,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				}
 				++FailureCount;
 				break;
-		case ECallCoreStatus::ArgInvalid:
+		case FNexusCallCore::EStatus::ArgInvalid:
 			{
 				FString ErrMsg;
 				Core.ArgInvalidErr->TryGetStringField(TEXT("error"), ErrMsg);
@@ -430,7 +435,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			}
 			++FailureCount;
 			break;
-			case ECallCoreStatus::Fatal:
+			case FNexusCallCore::EStatus::Fatal:
 				Item->SetStringField(TEXT("error"), Core.FatalMessage);
 				Item->SetStringField(TEXT("errorKind"), TEXT("fatal"));
 				Item->SetStringField(TEXT("_feedbackHint"), TEXT("submit_feedback(category=\"wrong_tool\")"));
@@ -461,11 +466,11 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 	}
 
 	const TSharedPtr<FJsonObject> Inner = MergeNestedArguments(Args);
-	const FCallCoreResult Core = RunCapabilityCore(CapName, Inner);
+	const FNexusCallCore::FResult Core = RunCapabilityCore(CapName, Inner);
 
 	switch (Core.Status)
 	{
-	case ECallCoreStatus::Unknown:
+	case FNexusCallCore::EStatus::Unknown:
 		{
 			Result.bIsError = true;
 			TSharedPtr<FJsonObject> Err = BuildCallErrorObject(
@@ -480,7 +485,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
 		}
 		return Result;
-	case ECallCoreStatus::Disabled:
+	case FNexusCallCore::EStatus::Disabled:
 		{
 			Result.bIsError = true;
 			const FString ErrMsg = FString::Printf(
@@ -495,7 +500,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
 		}
 		return Result;
-	case ECallCoreStatus::Unavailable:
+	case FNexusCallCore::EStatus::Unavailable:
 		{
 			Result.bIsError = true;
 			const FString ErrMsg = FString::Printf(
@@ -511,11 +516,11 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
 		}
 		return Result;
-	case ECallCoreStatus::RedundantWarn:
+	case FNexusCallCore::EStatus::RedundantWarn:
 		Result.StructuredContent = Core.TopOrWarn;
 		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Core.TopOrWarn);
 		return Result;
-	case ECallCoreStatus::ArgInvalid:
+	case FNexusCallCore::EStatus::ArgInvalid:
 		{
 			Result.bIsError = true;
 			Core.ArgInvalidErr->SetStringField(TEXT("_feedbackHint"),
@@ -523,11 +528,11 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Core.ArgInvalidErr);
 		}
 		return Result;
-	case ECallCoreStatus::Fatal:
+	case FNexusCallCore::EStatus::Fatal:
 		Result.bIsError  = true;
 		Result.ErrorText = Core.FatalMessage + TEXT("\n→ submit_feedback(category=\"wrong_tool\")");
 		return Result;
-	case ECallCoreStatus::Ok:
+	case FNexusCallCore::EStatus::Ok:
 	default:
 		break;
 	}

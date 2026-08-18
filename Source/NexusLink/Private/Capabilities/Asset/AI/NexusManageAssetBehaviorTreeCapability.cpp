@@ -322,14 +322,14 @@ static UEdGraphNode* FindRootVisualGraphNode(UEdGraph* Graph)
 	return nullptr;
 }
 
-struct FGraphSyncStats
+struct FNexusBTGraphSyncStats
 {
 	int32 MatchedCount = 0;
 	TArray<FString> Warnings;
 };
 
 /** 深度优先，把 RootTreeNode 及其子树逐位置对齐到 GraphNode 及其可视化子树，强制覆盖 NodeInstance。 */
-static void SyncNodePairRecursive(UBTNode* RootTreeNode, UEdGraphNode* GraphNode, FGraphSyncStats& Stats)
+static void SyncNodePairRecursive(UBTNode* RootTreeNode, UEdGraphNode* GraphNode, FNexusBTGraphSyncStats& Stats)
 {
 	if (!RootTreeNode || !GraphNode) return;
 
@@ -415,7 +415,7 @@ static bool RebuildGraphFromRootNode(UBehaviorTree* BT, FString& OutMessage, TAr
 		return false;
 	}
 
-	FGraphSyncStats Stats;
+	FNexusBTGraphSyncStats Stats;
 	SyncNodePairRecursive(BT->RootNode, RootVisual, Stats);
 
 	Graph->Modify();

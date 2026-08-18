@@ -15,8 +15,6 @@
 #include "Engine/Blueprint.h"
 #include "NexusMcpTool.h"
 
-namespace
-{
 /** 解析 "x,y,z" 或 "x y z" 为 FVector。 */
 static bool NxParseVector3Text(const FString& Text, FVector& OutVec)
 {
@@ -83,7 +81,6 @@ static UClass* ResolveSpawnClass(const FString& ClassName, const FString& AssetP
 	}
 	OutError = TEXT("spawn_actor requires className or assetPath");
 	return nullptr;
-}
 }
 
 void FManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const

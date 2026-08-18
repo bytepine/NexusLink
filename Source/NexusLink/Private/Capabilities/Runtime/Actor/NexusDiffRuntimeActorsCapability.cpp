@@ -10,15 +10,15 @@
 #include "GameFramework/Actor.h"
 #include "NexusMcpTool.h"
 
-struct FComparePairResultCap
+struct FNexusActorComparePairResult
 {
 	TArray<TSharedPtr<FJsonValue>> Diffs;
 	bool bTruncated = false;
 };
 
-static FComparePairResultCap ComparePairCap(AActor* ActorA, AActor* ActorB, const TSharedPtr<FJsonObject>& Arguments)
+static FNexusActorComparePairResult ComparePairCap(AActor* ActorA, AActor* ActorB, const TSharedPtr<FJsonObject>& Arguments)
 {
-	FComparePairResultCap R;
+	FNexusActorComparePairResult R;
 	static constexpr int32 MaxDiffs = 50;
 
 	auto AddDiff = [&R](const FString& Path, const FString& Type, const FString& ValA, const FString& ValB)
@@ -202,7 +202,7 @@ FCapabilityResult FDiffRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 		Entry->SetObjectField(TEXT("actorA"), MakeActorInfoCap(ActorA));
 		Entry->SetObjectField(TEXT("actorB"), MakeActorInfoCap(ActorB));
 
-		FComparePairResultCap Pair = ComparePairCap(ActorA, ActorB, Arguments.ToSharedRef());
+		FNexusActorComparePairResult Pair = ComparePairCap(ActorA, ActorB, Arguments.ToSharedRef());
 	Entry->SetArrayField(TEXT("diffs"), Pair.Diffs);
 	if (Pair.bTruncated) { Entry->SetBoolField(TEXT("truncated"), true); }
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

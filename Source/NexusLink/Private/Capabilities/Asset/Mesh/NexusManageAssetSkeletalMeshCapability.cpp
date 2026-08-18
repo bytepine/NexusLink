@@ -16,9 +16,7 @@
 #endif
 #include "NexusMcpTool.h"
 
-namespace
-{
-	bool ParseSkeletalMeshVec3(const TSharedPtr<FJsonObject>& Op, const TCHAR* XKey, const TCHAR* YKey, const TCHAR* ZKey,
+	static bool ParseSkeletalMeshVec3(const TSharedPtr<FJsonObject>& Op, const TCHAR* XKey, const TCHAR* YKey, const TCHAR* ZKey,
 		FVector& Out, FVector Default)
 	{
 		Out = Default;
@@ -29,7 +27,7 @@ namespace
 		return bAny;
 	}
 
-	USkeletalMeshSocket* FindMeshOnlySocket(USkeletalMesh* Mesh, FName SocketName)
+	static USkeletalMeshSocket* FindMeshOnlySocket(USkeletalMesh* Mesh, FName SocketName)
 	{
 		if (!Mesh) return nullptr;
 		for (USkeletalMeshSocket* S : Mesh->GetMeshOnlySocketList())
@@ -38,7 +36,6 @@ namespace
 		}
 		return nullptr;
 	}
-}
 
 void FManageAssetSkeletalMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {

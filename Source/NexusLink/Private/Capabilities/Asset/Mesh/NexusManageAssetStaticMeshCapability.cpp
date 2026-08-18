@@ -16,9 +16,7 @@
 #include "PhysicsEngine/SphereElem.h"
 #include "NexusMcpTool.h"
 
-namespace
-{
-	bool ParseStaticMeshVec3(const TSharedPtr<FJsonObject>& Op, const TCHAR* XKey, const TCHAR* YKey, const TCHAR* ZKey,
+	static bool ParseStaticMeshVec3(const TSharedPtr<FJsonObject>& Op, const TCHAR* XKey, const TCHAR* YKey, const TCHAR* ZKey,
 		FVector& Out, FVector Default)
 	{
 		Out = Default;
@@ -29,7 +27,7 @@ namespace
 		return bAny;
 	}
 
-	bool ParseCollisionTraceFlag(const FString& Text, ECollisionTraceFlag& OutFlag, FString& OutError)
+	static bool ParseCollisionTraceFlag(const FString& Text, ECollisionTraceFlag& OutFlag, FString& OutError)
 	{
 		if (Text.IsEmpty()
 			|| Text.Equals(TEXT("UseDefault"), ESearchCase::IgnoreCase)
@@ -64,7 +62,7 @@ namespace
 		return false;
 	}
 
-	UBodySetup* EnsureBodySetup(UStaticMesh* Mesh)
+	static UBodySetup* EnsureBodySetup(UStaticMesh* Mesh)
 	{
 		if (!Mesh) return nullptr;
 		UBodySetup* Body = FNexusAssetUtils::GetStaticMeshBodySetup(Mesh);
@@ -76,7 +74,7 @@ namespace
 		return Body;
 	}
 
-	void InvalidateCollision(UStaticMesh* Mesh, UBodySetup* Body)
+	static void InvalidateCollision(UStaticMesh* Mesh, UBodySetup* Body)
 	{
 		if (!Mesh || !Body) return;
 		Body->InvalidatePhysicsData();
@@ -85,7 +83,6 @@ namespace
 		Mesh->bCustomizedCollision = true;
 #endif
 	}
-}
 
 void FManageAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {

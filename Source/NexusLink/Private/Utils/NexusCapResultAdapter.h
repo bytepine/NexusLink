@@ -13,10 +13,12 @@
  * FCapabilityResult → FNexusMcpToolResult 适配工具。
  * 供 call_capability（单条模式）和 MultiTool 模式的 Dispatcher 共用。
  */
-namespace NexusCapResultAdapter
+struct FNexusCapResultAdapter final
 {
+	FNexusCapResultAdapter() = delete;
+
 	/** 将 /Game/Foo/Bar.Bar 规范为包路径 /Game/Foo/Bar，便于与入参比较。 */
-	inline FString NormalizeAssetPathKey(FString S)
+	static inline FString NormalizeAssetPathKey(FString S)
 	{
 		S.TrimStartAndEndInline();
 		// 软引用偶发引号
@@ -39,7 +41,7 @@ namespace NexusCapResultAdapter
 		return S;
 	}
 
-	inline bool AssetPathsEquivalent(const FString& A, const FString& B)
+	static inline bool AssetPathsEquivalent(const FString& A, const FString& B)
 	{
 		if (A.IsEmpty() || B.IsEmpty())
 		{
@@ -58,7 +60,7 @@ namespace NexusCapResultAdapter
 	 *   - Entries.Num()>1 → 写入 results[]
 	 *   - 单条非 object → 回退 results[]
 	 */
-	inline TSharedPtr<FJsonObject> AssembleStructuredContent(const FCapabilityResult& CapResult)
+	static inline TSharedPtr<FJsonObject> AssembleStructuredContent(const FCapabilityResult& CapResult)
 	{
 		TSharedPtr<FJsonObject> Top = CapResult.TopFields.IsValid()
 			? CapResult.TopFields
@@ -94,7 +96,7 @@ namespace NexusCapResultAdapter
 	 * 若响应 path（或遗留 assetPath）与入参等价则删除（调用方已知）。
 	 * create_/search_/save_ 等不剥离。
 	 */
-	inline void StripRedundantPathEcho(
+	static inline void StripRedundantPathEcho(
 		const TSharedPtr<FJsonObject>& Content,
 		const TSharedPtr<FJsonObject>& Args,
 		const FString& CapName)
@@ -155,7 +157,7 @@ namespace NexusCapResultAdapter
 	 *   - 正常 → AssembleStructuredContent（单条提升 / 多条 results[]）
 	 *   - 若传入 Args：对 get_/manage_ 省略与入参等价的 path 回显
 	 */
-	inline FNexusMcpToolResult Convert(
+	static inline FNexusMcpToolResult Convert(
 		const FCapabilityResult& CapResult,
 		const FString& CapName,
 		const TSharedPtr<FJsonObject>& Args = nullptr)
@@ -175,4 +177,4 @@ namespace NexusCapResultAdapter
 		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Top);
 		return Result;
 	}
-}
+};

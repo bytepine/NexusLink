@@ -26,9 +26,7 @@ using FNexusMoviePipelineConfig = UMoviePipelineMasterConfig;
 #include "MoviePipelineSetting.h"
 #include "NexusMcpTool.h"
 
-namespace
-{
-	UClass* ResolveMoviePipelineSettingClass(const FString& InName, FString& OutError)
+	static UClass* ResolveMoviePipelineSettingClass(const FString& InName, FString& OutError)
 	{
 		FString Name = InName;
 		Name.ReplaceInline(TEXT("UMoviePipeline"), TEXT(""));
@@ -61,7 +59,6 @@ namespace
 			*InName);
 		return nullptr;
 	}
-}
 
 void FManageAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {

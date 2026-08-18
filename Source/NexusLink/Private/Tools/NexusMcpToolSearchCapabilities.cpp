@@ -12,38 +12,41 @@
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 
-namespace
+struct FNexusCapabilityLookup final
 {
-	enum class ECapabilityLookupStatus : uint8
+	FNexusCapabilityLookup() = delete;
+
+	enum class EStatus : uint8
 	{
 		Enabled,
 		NotFound,
 		Disabled,
 		Unavailable
 	};
+};
 
 	/** 按名解析（大小写不敏感）；与 call_capability 一致区分不存在 vs 设置禁用 vs 宿主不可用。 */
-	static ECapabilityLookupStatus ResolveCapabilityByName(
+	static FNexusCapabilityLookup::EStatus ResolveCapabilityByName(
 		const FString& Name, const UNexusLinkSettings* Settings, const FCapRecord*& OutRecord)
 	{
 		if (!Settings)
 		{
-			return ECapabilityLookupStatus::NotFound;
+			return FNexusCapabilityLookup::EStatus::NotFound;
 		}
 		OutRecord = FNexusCapabilityRegistry::Get().FindRecordByName(Name);
 		if (!OutRecord)
 		{
-			return ECapabilityLookupStatus::NotFound;
+			return FNexusCapabilityLookup::EStatus::NotFound;
 		}
 		if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*OutRecord))
 		{
-			return ECapabilityLookupStatus::Unavailable;
+			return FNexusCapabilityLookup::EStatus::Unavailable;
 		}
 		if (!Settings->IsCapabilityEnabled(OutRecord->Def.Name))
 		{
-			return ECapabilityLookupStatus::Disabled;
+			return FNexusCapabilityLookup::EStatus::Disabled;
 		}
-		return ECapabilityLookupStatus::Enabled;
+		return FNexusCapabilityLookup::EStatus::Enabled;
 	}
 
 	static void EmitCapabilityDetailFromRecord(const FCapRecord& Record, TSharedPtr<FJsonObject>& Output)
@@ -56,10 +59,10 @@ namespace
 		Output->SetObjectField(TEXT("capability"), O);
 	}
 
-	static void EmitCapabilityLookupError(ECapabilityLookupStatus Status, const FString& RequestedName,
+	static void EmitCapabilityLookupError(FNexusCapabilityLookup::EStatus Status, const FString& RequestedName,
 	                                      const FCapRecord* Record, TSharedPtr<FJsonObject>& Output)
 	{
-		if (Status == ECapabilityLookupStatus::NotFound)
+		if (Status == FNexusCapabilityLookup::EStatus::NotFound)
 		{
 			Output->SetStringField(TEXT("errorKind"), TEXT("not_found"));
 			Output->SetStringField(TEXT("error"),
@@ -67,7 +70,7 @@ namespace
 			return;
 		}
 		check(Record);
-		if (Status == ECapabilityLookupStatus::Unavailable)
+		if (Status == FNexusCapabilityLookup::EStatus::Unavailable)
 		{
 			Output->SetStringField(TEXT("errorKind"), TEXT("unavailable"));
 			Output->SetStringField(TEXT("capabilityName"), Record->Def.Name);
@@ -207,7 +210,6 @@ namespace
 		}
 		Output->SetArrayField(TEXT("suggestedQueries"), Arr);
 	}
-} // namespace
 
 void FNexusMcpToolSearchCapabilities::BuildDefinition(FNexusMcpToolDefinition& Out) const
 {
@@ -264,8 +266,8 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 	if (Args->TryGetStringField(TEXT("capabilityName"), CapabilityName) && !CapabilityName.IsEmpty())
 	{
 		const FCapRecord* Record = nullptr;
-		const ECapabilityLookupStatus Status = ResolveCapabilityByName(CapabilityName, Settings, Record);
-		if (Status == ECapabilityLookupStatus::Enabled)
+		const FNexusCapabilityLookup::EStatus Status = ResolveCapabilityByName(CapabilityName, Settings, Record);
+		if (Status == FNexusCapabilityLookup::EStatus::Enabled)
 		{
 			EmitCapabilityDetailFromRecord(*Record, Output);
 			Result.StructuredContent = Output;
@@ -296,8 +298,8 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 	const FString QueryTrimmed = QueryRaw.TrimStartAndEnd();
 	{
 		const FCapRecord* Record = nullptr;
-		const ECapabilityLookupStatus Status = ResolveCapabilityByName(QueryTrimmed, Settings, Record);
-		if (Status == ECapabilityLookupStatus::Enabled)
+		const FNexusCapabilityLookup::EStatus Status = ResolveCapabilityByName(QueryTrimmed, Settings, Record);
+		if (Status == FNexusCapabilityLookup::EStatus::Enabled)
 		{
 			EmitCapabilityDetailFromRecord(*Record, Output);
 			Output->SetStringField(TEXT("hint"),
@@ -306,7 +308,7 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 			Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 			return Result;
 		}
-		if (Status == ECapabilityLookupStatus::Disabled || Status == ECapabilityLookupStatus::Unavailable)
+		if (Status == FNexusCapabilityLookup::EStatus::Disabled || Status == FNexusCapabilityLookup::EStatus::Unavailable)
 		{
 			EmitCapabilityLookupError(Status, QueryTrimmed, Record, Output);
 			Result.StructuredContent = Output;

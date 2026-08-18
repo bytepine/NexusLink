@@ -13,8 +13,6 @@
 #include "Engine/CurveTable.h"
 #include "NexusMcpTool.h"
 
-namespace NexusCurveUtils
-{
 	static FString InterpToStr(ERichCurveInterpMode M)
 	{
 		switch (M)
@@ -44,7 +42,6 @@ namespace NexusCurveUtils
 		Chan->SetArrayField(TEXT("keys"), KeysArr);
 		return Chan;
 	}
-}
 
 void FGetAssetCurveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -85,26 +82,26 @@ FCapabilityResult FGetAssetCurveCapability::Execute(const TSharedPtr<FJsonObject
 		{
 			Entry->SetStringField(TEXT("assetType"), TEXT("CurveFloat"));
 			TArray<TSharedPtr<FJsonValue>> ChansArr;
-			ChansArr.Add(MakeShared<FJsonValueObject>(NexusCurveUtils::SerializeChannel(TEXT("Value"), CF->FloatCurve)));
+			ChansArr.Add(MakeShared<FJsonValueObject>(SerializeChannel(TEXT("Value"), CF->FloatCurve)));
 			Entry->SetArrayField(TEXT("channels"), ChansArr);
 		}
 		else if (UCurveVector* CV = Cast<UCurveVector>(AssetObj))
 		{
 			Entry->SetStringField(TEXT("assetType"), TEXT("CurveVector"));
 			TArray<TSharedPtr<FJsonValue>> ChansArr;
-			ChansArr.Add(MakeShared<FJsonValueObject>(NexusCurveUtils::SerializeChannel(TEXT("X"), CV->FloatCurves[0])));
-			ChansArr.Add(MakeShared<FJsonValueObject>(NexusCurveUtils::SerializeChannel(TEXT("Y"), CV->FloatCurves[1])));
-			ChansArr.Add(MakeShared<FJsonValueObject>(NexusCurveUtils::SerializeChannel(TEXT("Z"), CV->FloatCurves[2])));
+			ChansArr.Add(MakeShared<FJsonValueObject>(SerializeChannel(TEXT("X"), CV->FloatCurves[0])));
+			ChansArr.Add(MakeShared<FJsonValueObject>(SerializeChannel(TEXT("Y"), CV->FloatCurves[1])));
+			ChansArr.Add(MakeShared<FJsonValueObject>(SerializeChannel(TEXT("Z"), CV->FloatCurves[2])));
 			Entry->SetArrayField(TEXT("channels"), ChansArr);
 		}
 		else if (UCurveLinearColor* CC = Cast<UCurveLinearColor>(AssetObj))
 		{
 			Entry->SetStringField(TEXT("assetType"), TEXT("CurveLinearColor"));
 			TArray<TSharedPtr<FJsonValue>> ChansArr;
-			ChansArr.Add(MakeShared<FJsonValueObject>(NexusCurveUtils::SerializeChannel(TEXT("R"), CC->FloatCurves[0])));
-			ChansArr.Add(MakeShared<FJsonValueObject>(NexusCurveUtils::SerializeChannel(TEXT("G"), CC->FloatCurves[1])));
-			ChansArr.Add(MakeShared<FJsonValueObject>(NexusCurveUtils::SerializeChannel(TEXT("B"), CC->FloatCurves[2])));
-			ChansArr.Add(MakeShared<FJsonValueObject>(NexusCurveUtils::SerializeChannel(TEXT("A"), CC->FloatCurves[3])));
+			ChansArr.Add(MakeShared<FJsonValueObject>(SerializeChannel(TEXT("R"), CC->FloatCurves[0])));
+			ChansArr.Add(MakeShared<FJsonValueObject>(SerializeChannel(TEXT("G"), CC->FloatCurves[1])));
+			ChansArr.Add(MakeShared<FJsonValueObject>(SerializeChannel(TEXT("B"), CC->FloatCurves[2])));
+			ChansArr.Add(MakeShared<FJsonValueObject>(SerializeChannel(TEXT("A"), CC->FloatCurves[3])));
 			Entry->SetArrayField(TEXT("channels"), ChansArr);
 		}
 		else if (UCurveTable* CT = Cast<UCurveTable>(AssetObj))

@@ -35,6 +35,7 @@
 - refactor(mcp): 新增 `FNexusArgs` 参数读取门面；Execute 删除 Schema 已覆盖的 required/空串死校验，D/E 方言改为门面调用
 - perf(mcp): 响应压缩——蓝图 pin/defaults/component 布尔始终写出（`inherited`/`isConst`/`isReference`/`bOrphan`/`bIsNodeEnabled`/`containerType`）；`list_runtime_actors`/`list_runtime_widgets` 在 `classFilter` 命中且本页 class/widgetClass 全员一致时 ForcedDefault；已有 `<k>_defaults` 时合并新键（不覆盖 ForcedDefault）；`search_asset` 指定类型 ForcedDefault `assetType`；`get_output_log` 在 `verbosity≠all` 时 ForcedDefault verbosity
 - docs: InitializeInstructions / AIRules / tool-reference 对齐压缩契约（`MinCount=2`、全员持有才抽取、已有 defaults 合并新键、缺省即默认）；`version-compat-reference.md` 补语义宏；README Token 表 MultiTool 177→222（221 cap + `submit_feedback`），固定税约 15.6×；EQS 门控改为 UE 5.0+；CapabilitySpec §6.5 登记 AblAbility 为公开仓不收录（Able 依赖）
+- refactor(code): 去掉 C++ `namespace` / 匿名命名空间——私有 helper 改为文件级 `static`，跨 TU 工具集改为 `struct FXxx final` + 全 static（`FNexusCapResultAdapter`）；`.cpp` 泛名 enum/struct 嵌套或改 `FNexus*` 前缀；CapabilitySpec §8.3/§8.4 同步禁止 namespace
 
 ### Fixed
 

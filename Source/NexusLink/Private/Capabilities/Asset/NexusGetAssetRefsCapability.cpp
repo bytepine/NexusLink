@@ -16,9 +16,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "NexusMcpTool.h"
 
-namespace NexusAssetRefsPrivate
-{
-	struct FRefItem
+	struct FNexusAssetRefItem
 	{
 		FString Path;
 		FString Name;
@@ -43,7 +41,7 @@ namespace NexusAssetRefsPrivate
 #endif
 	}
 
-	static void FillFromAssetData(const FAssetData& Asset, FRefItem& Out)
+	static void FillFromAssetData(const FAssetData& Asset, FNexusAssetRefItem& Out)
 	{
 		Out.Path = Asset.PackageName.ToString();
 		Out.Name = Asset.AssetName.ToString();
@@ -109,7 +107,7 @@ namespace NexusAssetRefsPrivate
 		return FNexusStringMatchUtils::Matches(AssetType, AssetTypeFilter);
 	}
 
-	static TSharedPtr<FJsonObject> RefItemToJson(const FRefItem& Item, bool bIncludeDepth)
+	static TSharedPtr<FJsonObject> RefItemToJson(const FNexusAssetRefItem& Item, bool bIncludeDepth)
 	{
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 		Obj->SetStringField(TEXT("path"), Item.Path);
@@ -155,7 +153,7 @@ namespace NexusAssetRefsPrivate
 		const FString& TargetPackage,
 		const FString& TargetAssetName,
 		const FString& TargetAssetType,
-		TArray<FRefItem>& Out)
+		TArray<FNexusAssetRefItem>& Out)
 	{
 		const bool bMaterialLike = TargetAssetType.Contains(TEXT("Material"))
 			&& !TargetAssetType.Contains(TEXT("MaterialInstance"));
@@ -182,7 +180,7 @@ namespace NexusAssetRefsPrivate
 				continue;
 
 			Seen.Add(Pkg);
-			FRefItem Item;
+			FNexusAssetRefItem Item;
 			FillFromAssetData(A, Item);
 			Item.Depth = 1;
 			Out.Add(MoveTemp(Item));
@@ -195,7 +193,7 @@ namespace NexusAssetRefsPrivate
 		const FString& RootPackage,
 		const FString& RootAssetName,
 		const FString& RootAssetType,
-		TArray<FRefItem>& Out)
+		TArray<FNexusAssetRefItem>& Out)
 	{
 		struct FNode { FString Package; FString AssetName; FString AssetType; int32 Depth; };
 		TArray<FNode> Queue;
@@ -208,9 +206,9 @@ namespace NexusAssetRefsPrivate
 			const FNode Current = Queue[0];
 			Queue.RemoveAt(0);
 
-			TArray<FRefItem> Direct;
+			TArray<FNexusAssetRefItem> Direct;
 			GatherDirectChildren(Registry, Current.Package, Current.AssetName, Current.AssetType, Direct);
-			for (FRefItem& Child : Direct)
+			for (FNexusAssetRefItem& Child : Direct)
 			{
 				if (Visited.Contains(Child.Path)) continue;
 				Visited.Add(Child.Path);
@@ -231,7 +229,7 @@ namespace NexusAssetRefsPrivate
 		IAssetRegistry& Registry,
 		const FString& StartPackage,
 		bool bDirectOnly,
-		TArray<FRefItem>& Out)
+		TArray<FNexusAssetRefItem>& Out)
 	{
 		FString CurrentPackage = StartPackage;
 		TSet<FString> Visited;
@@ -254,7 +252,7 @@ namespace NexusAssetRefsPrivate
 			if (ParentTag.IsEmpty()) break;
 
 			++Depth;
-			FRefItem Item;
+			FNexusAssetRefItem Item;
 			Item.Depth = Depth;
 			Item.ParentClass = ParentTag;
 
@@ -288,7 +286,7 @@ namespace NexusAssetRefsPrivate
 		const FString& PackageName,
 		bool bReferencers,
 		bool bRecursive,
-		TArray<FRefItem>& Out)
+		TArray<FNexusAssetRefItem>& Out)
 	{
 		TArray<FName> RawResults;
 		const FName PackageFName(*PackageName);
@@ -325,7 +323,7 @@ namespace NexusAssetRefsPrivate
 		{
 			const FString PathStr = Name.ToString();
 			if (PathStr == PackageName) continue;
-			FRefItem Item;
+			FNexusAssetRefItem Item;
 			Item.Path = PathStr;
 			FAssetData Asset;
 			if (TryGetPrimaryAsset(Registry, PathStr, Asset))
@@ -335,7 +333,7 @@ namespace NexusAssetRefsPrivate
 	}
 
 	static void EmitPagedRefs(
-		const TArray<FRefItem>& All,
+		const TArray<FNexusAssetRefItem>& All,
 		const FString& NameFilter,
 		const FString& AssetTypeFilter,
 		int32 Offset,
@@ -343,9 +341,9 @@ namespace NexusAssetRefsPrivate
 		bool bIncludeDepth,
 		TSharedPtr<FJsonObject>& OutEntry)
 	{
-		TArray<FRefItem> Filtered;
+		TArray<FNexusAssetRefItem> Filtered;
 		Filtered.Reserve(All.Num());
-		for (const FRefItem& Item : All)
+		for (const FNexusAssetRefItem& Item : All)
 		{
 			if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(Item.Path, NameFilter)
 				&& !FNexusStringMatchUtils::Matches(Item.Name, NameFilter))
@@ -357,7 +355,7 @@ namespace NexusAssetRefsPrivate
 			Filtered.Add(Item);
 		}
 
-		Filtered.Sort([](const FRefItem& A, const FRefItem& B)
+		Filtered.Sort([](const FNexusAssetRefItem& A, const FNexusAssetRefItem& B)
 		{
 			if (A.Depth != B.Depth) return A.Depth < B.Depth;
 			return A.Path < B.Path;
@@ -374,7 +372,6 @@ namespace NexusAssetRefsPrivate
 		OutEntry->SetNumberField(TEXT("totalCount"), Total);
 		OutEntry->SetArrayField(TEXT("refs"), Page);
 	}
-}
 
 static void QueryOneAssetRefsImpl(
 	IAssetRegistry& Registry,
@@ -387,7 +384,6 @@ static void QueryOneAssetRefsImpl(
 	int32 Limit,
 	TSharedPtr<FJsonObject>& OutEntry)
 {
-	using namespace NexusAssetRefsPrivate;
 
 	const FString PackageName = ToPackageName(AssetPath);
 	OutEntry->SetStringField(TEXT("assetPath"), PackageName);
@@ -413,7 +409,7 @@ static void QueryOneAssetRefsImpl(
 		TargetAssetName = FPackageName::GetShortName(PackageName);
 	}
 
-	TArray<FRefItem> Items;
+	TArray<FNexusAssetRefItem> Items;
 	bool bIncludeDepth = false;
 
 	if (Direction == TEXT("referencers") || Direction == TEXT("dependencies"))

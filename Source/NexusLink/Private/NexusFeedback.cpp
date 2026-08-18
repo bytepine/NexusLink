@@ -33,7 +33,7 @@ static FString NormalizeForThrottle(const FString& Input)
 	FString Result = Input;
 	// 引号字符串 → *
 	{
-		static const FRegexPattern Pat(TEXT("\"[^\"]*\""));
+		const FRegexPattern Pat(TEXT("\"[^\"]*\""));
 		FRegexMatcher M(Pat, Result);
 		FString Out;
 		int32 Last = 0;
@@ -48,7 +48,7 @@ static FString NormalizeForThrottle(const FString& Input)
 	}
 	// UE 包路径 /Game/... /Engine/... /Script/... → *
 	{
-		static const FRegexPattern Pat(TEXT("/(?:Game|Engine|Script|Plugin|Temp)[A-Za-z0-9_/\\.]*"));
+		const FRegexPattern Pat(TEXT("/(?:Game|Engine|Script|Plugin|Temp)[A-Za-z0-9_/\\.]*"));
 		FRegexMatcher M(Pat, Result);
 		FString Out;
 		int32 Last = 0;
@@ -63,7 +63,7 @@ static FString NormalizeForThrottle(const FString& Input)
 	}
 	// 数字序列 → *
 	{
-		static const FRegexPattern Pat(TEXT("\\d+"));
+		const FRegexPattern Pat(TEXT("\\d+"));
 		FRegexMatcher M(Pat, Result);
 		FString Out;
 		int32 Last = 0;
@@ -255,8 +255,6 @@ void FNexusFeedback::Clear()
 
 // ── ExportReport ─────────────────────────────────────────────────────────────
 
-namespace NexusFeedbackInternal
-{
 	/** 从 JSONL 行数组解析出所有有效 JSON 对象。 */
 	static TArray<TSharedPtr<FJsonObject>> ParseLines(const TArray<FString>& Lines)
 	{
@@ -1183,24 +1181,23 @@ namespace NexusFeedbackInternal
 		AppendIssuePrefillSection(Md, Records);
 		return Md;
 	}
-} // namespace NexusFeedbackInternal
 
 bool FNexusFeedback::BuildIssueDraft(FIssueDraft& OutDraft)
 {
-	const TArray<TSharedPtr<FJsonObject>> Records = NexusFeedbackInternal::LoadCurrentRecords();
+	const TArray<TSharedPtr<FJsonObject>> Records = LoadCurrentRecords();
 	if (Records.Num() == 0)
 	{
 		OutDraft.Title.Reset();
 		OutDraft.Body.Reset();
 		return false;
 	}
-	NexusFeedbackInternal::BuildIssueDraftFromRecords(Records, OutDraft.Title, OutDraft.Body);
+	BuildIssueDraftFromRecords(Records, OutDraft.Title, OutDraft.Body);
 	return !OutDraft.Title.IsEmpty();
 }
 
 FString FNexusFeedback::BuildIssuePrefillUrl(const FString& Title, const FString& Body)
 {
-	return NexusFeedbackInternal::BuildIssuePrefillUrlInternal(Title, Body);
+	return BuildIssuePrefillUrlInternal(Title, Body);
 }
 
 FString FNexusFeedback::BuildRedactedArgsSnapshot(const TSharedPtr<FJsonObject>& Args)
@@ -1273,7 +1270,7 @@ FString FNexusFeedback::ExportReport()
 		return FString();
 	}
 
-	const TArray<TSharedPtr<FJsonObject>> Records = NexusFeedbackInternal::ParseLines(Lines);
+	const TArray<TSharedPtr<FJsonObject>> Records = ParseLines(Lines);
 
 	// 读取上期摘要（用于 §0 趋势对比）
 	const FString ArchiveDir     = Dir / TEXT("archive");
@@ -1294,7 +1291,7 @@ FString FNexusFeedback::ExportReport()
 	}
 
 	// 生成报告
-	const FString Markdown = NexusFeedbackInternal::BuildMarkdown(Records, PrevSummary);
+	const FString Markdown = BuildMarkdown(Records, PrevSummary);
 
 	// 时间戳用于文件名
 	const FDateTime Now = FDateTime::UtcNow();
@@ -1312,7 +1309,7 @@ FString FNexusFeedback::ExportReport()
 	IFileManager::Get().Copy(*ArchiveFile, *JsonlFile);
 
 	// 构建本期 category 摘要，写 tool 维度摘要，生成 JSON 摘要副产物
-	TSharedPtr<FJsonObject> CatSummary = NexusFeedbackInternal::BuildCategorySummary(Records);
+	TSharedPtr<FJsonObject> CatSummary = BuildCategorySummary(Records);
 	{
 		// 按 tool 统计
 		TMap<FString, int32> ToolCount;

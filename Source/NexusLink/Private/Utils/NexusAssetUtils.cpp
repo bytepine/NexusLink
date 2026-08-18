@@ -49,10 +49,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogNexusAssetUtils, Log, All);
 #endif
 
 #if WITH_EDITOR
-namespace
-{
 	/** Live Coding 会话中 SavePackage 已知会崩溃，需降级（仅 Windows 有 LiveCoding 模块）。 */
-	bool IsLiveCodingSessionActive()
+	static bool IsLiveCodingSessionActive()
 	{
 #if PLATFORM_WINDOWS
 		if (!FModuleManager::Get().IsModuleLoaded(TEXT("LiveCoding")))
@@ -67,7 +65,7 @@ namespace
 	}
 
 	/** 按路径提示或包内 RF_Public|RF_Standalone 对象解析主资产。 */
-	UObject* ResolvePackageAsset(UPackage* Package, const FString& AssetPathHint)
+	static UObject* ResolvePackageAsset(UPackage* Package, const FString& AssetPathHint)
 	{
 		if (!Package)
 		{
@@ -100,7 +98,6 @@ namespace
 		});
 		return Found;
 	}
-}
 #endif
 
 void FNexusAssetUtils::GetTexture2DSurfaceSize(const UTexture2D* Texture, int32& OutWidth, int32& OutHeight)
@@ -191,9 +188,7 @@ void FNexusAssetUtils::AppendAnimSequenceNotifyFields(const UAnimSequence* Seq, 
 	}
 }
 
-namespace
-{
-	FName NexusGetFloatCurveName(const FFloatCurve& FC)
+	static FName NexusGetFloatCurveName(const FFloatCurve& FC)
 	{
 #if NX_UE_HAS_FLOAT_CURVE_SMART_NAME
 		return FC.Name.DisplayName;
@@ -202,7 +197,7 @@ namespace
 #endif
 	}
 
-	void AppendFloatCurvesToJson(const TArray<FFloatCurve>& FloatCurves, TSharedPtr<FJsonObject>& Entry)
+	static void AppendFloatCurvesToJson(const TArray<FFloatCurve>& FloatCurves, TSharedPtr<FJsonObject>& Entry)
 	{
 		TArray<TSharedPtr<FJsonValue>> CurvesArr;
 		constexpr int32 MaxCurves = 64;
@@ -240,7 +235,6 @@ namespace
 			Entry->SetNumberField(TEXT("curvesTruncated"), static_cast<double>(FloatCurves.Num() - MaxCurves));
 		}
 	}
-}
 
 void FNexusAssetUtils::AppendAnimSequenceCurveFields(const UAnimSequence* Seq, TSharedPtr<FJsonObject>& Entry)
 {

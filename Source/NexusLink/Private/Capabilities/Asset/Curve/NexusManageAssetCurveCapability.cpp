@@ -14,8 +14,6 @@
 #include "Engine/CurveTable.h"
 #include "NexusMcpTool.h"
 
-namespace NexusCurveManageUtils
-{
 	static ERichCurveInterpMode InterpFromStr(const FString& S)
 	{
 		if (S.Equals(TEXT("constant"), ESearchCase::IgnoreCase)) return RCIM_Constant;
@@ -57,7 +55,6 @@ namespace NexusCurveManageUtils
 #endif
 		return Found ? static_cast<FRichCurve*>(Found) : nullptr;
 	}
-}
 
 void FManageAssetCurveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -119,8 +116,8 @@ FCapabilityResult FManageAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 			const FString Interp  = FNexusArgs(Op).Str(TEXT("interp"), TEXT("cubic"));
 
 			FRichCurve* Curve = CT
-				? NexusCurveManageUtils::GetTableRow(CT, FName(*RowName))
-				: NexusCurveManageUtils::GetChannel(CB, Channel);
+				? GetTableRow(CT, FName(*RowName))
+				: GetChannel(CB, Channel);
 
 			if (!Curve)
 			{
@@ -136,7 +133,7 @@ FCapabilityResult FManageAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 			if (Action == TEXT("add_key"))
 			{
 				const FKeyHandle Handle = Curve->AddKey(Time, Value);
-				Curve->SetKeyInterpMode(Handle, NexusCurveManageUtils::InterpFromStr(Interp));
+				Curve->SetKeyInterpMode(Handle, InterpFromStr(Interp));
 				Entry->SetNumberField(TEXT("time"), Time);
 				Entry->SetNumberField(TEXT("value"), Value);
 			}
@@ -150,7 +147,7 @@ FCapabilityResult FManageAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 					continue;
 				}
 				if (Op->HasField(TEXT("value")))  Curve->SetKeyValue(Handle, Value);
-				if (Op->HasField(TEXT("interp")))  Curve->SetKeyInterpMode(Handle, NexusCurveManageUtils::InterpFromStr(Interp));
+				if (Op->HasField(TEXT("interp")))  Curve->SetKeyInterpMode(Handle, InterpFromStr(Interp));
 			}
 			else if (Action == TEXT("remove_key"))
 			{
@@ -169,13 +166,13 @@ FCapabilityResult FManageAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 				{
 					const FKeyHandle Handle = Curve->FindKey(Time);
 					if (Handle != FKeyHandle::Invalid())
-						Curve->SetKeyInterpMode(Handle, NexusCurveManageUtils::InterpFromStr(Interp));
+						Curve->SetKeyInterpMode(Handle, InterpFromStr(Interp));
 				}
 				else
 				{
 					// 对所有关键帧设置插值
 					for (auto It = Curve->GetKeyHandleIterator(); It; ++It)
-						Curve->SetKeyInterpMode(*It, NexusCurveManageUtils::InterpFromStr(Interp));
+						Curve->SetKeyInterpMode(*It, InterpFromStr(Interp));
 				}
 			}
 			else

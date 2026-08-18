@@ -11,7 +11,7 @@
 #include "Utils/NexusJsonUtils.h"
 
 // ────────────────────────────────────────────────────────────────────────────
-// 测试辅助 Capability/Tool 子类（遵项目规范 §2.5 禁用 namespace）
+// 测试辅助 Capability/Tool 子类（遵项目规范 §8.3 禁用 namespace）
 // ────────────────────────────────────────────────────────────────────────────
 
 /** 实现 BuildDefinition 的测试 Capability，用于验证 GetDefinition 能正确拼装元数据。 */

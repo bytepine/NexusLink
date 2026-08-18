@@ -16,8 +16,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogNexusCapability, Log, All);
 // InputSchema 严格校验（Run 在 required 之后、Execute 之前调用）
 // ─────────────────────────────────────────────────────────────────────────────
 
-namespace NexusCapabilitySchemaValidate
-{
 	static FString JoinPath(const FString& Base, const FString& Seg)
 	{
 		return Base.IsEmpty() ? Seg : (Base + TEXT(".") + Seg);
@@ -273,11 +271,8 @@ namespace NexusCapabilitySchemaValidate
 		}
 		return ValidateObject(Args, Schema, FString(), OutError);
 	}
-} // namespace NexusCapabilitySchemaValidate
 
 // manage 收尾 mixin：向 Schema 注入 saveToDisk；BP/ABP/WBP 另注入 compile
-namespace NexusManageFinalizeMixin
-{
 	static bool IsManageAssetCap(const FString& Name)
 	{
 		return Name.StartsWith(TEXT("manage_asset_"));
@@ -376,7 +371,6 @@ namespace NexusManageFinalizeMixin
 		}
 		FNexusAssetUtils::ApplyManageFinalize(AssetPath, bCompile, bSaveToDisk, Result.TopFields);
 	}
-} // namespace NexusManageFinalizeMixin
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -385,7 +379,7 @@ const FNexusCapabilityDefinition& FNexusCapability::GetDefinition() const
 	if (!bDefBuilt)
 	{
 		BuildDefinition(CachedDef);
-		NexusManageFinalizeMixin::InjectSchema(CachedDef);
+		InjectSchema(CachedDef);
 		// Runtime 宿主范围：自动补分类标签，BuildDefinition 无需手写（亦可手写，幂等）
 		if (GetHostScope() == ENexusCapabilityHostScope::Runtime
 			&& !CachedDef.HasTag(FNexusMcpTags::Runtime))
@@ -441,7 +435,7 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 
 		// 按 InputSchema 递归严格校验（未知键 / type / required / enum / items）
 		FString SchemaErr;
-		if (!NexusCapabilitySchemaValidate::ValidateArgs(Args, Def.InputSchema, SchemaErr))
+		if (!ValidateArgs(Args, Def.InputSchema, SchemaErr))
 		{
 			return FCapabilityResult::MakeArgInvalid(FString::Printf(
 				TEXT("%s（Capability '%s'）"), *SchemaErr, *Def.Name));
@@ -450,7 +444,7 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 
 	const double StartTime = FPlatformTime::Seconds();
 	FCapabilityResult Result = Execute(Args);
-	NexusManageFinalizeMixin::ApplyIfRequested(Def.Name, Args, Result);
+	ApplyIfRequested(Def.Name, Args, Result);
 	const double ElapsedMs = (FPlatformTime::Seconds() - StartTime) * 1000.0;
 
 	UE_LOG(LogNexusCapability, Verbose,

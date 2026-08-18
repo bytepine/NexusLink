@@ -11,8 +11,6 @@
 #include "Engine/DataTable.h"
 #include "NexusMcpTool.h"
 
-namespace
-{
 /** 将 JSON 标量转为 ImportText 输入串；object/array 返回 false。 */
 static bool JsonValueToImportString(const TSharedPtr<FJsonValue>& V, FString& OutStr)
 {
@@ -27,7 +25,6 @@ static bool JsonValueToImportString(const TSharedPtr<FJsonValue>& V, FString& Ou
 	default: return false;
 	}
 }
-} // namespace
 
 void FManageAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {

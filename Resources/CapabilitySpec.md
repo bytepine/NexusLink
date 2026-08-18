@@ -336,7 +336,8 @@ public:
 - `final` 类，构造 `= delete`，全部 `public: static`，禁止状态成员。
 - 公开类**必须** `NEXUSLINK_API`。
 - 公开方法**必须**中文 JavaDoc（`/** ... */`）。
-- 私有 helper 写在 `.cpp` 内 `namespace { }` 匿名块。
+- 私有 helper 写在 `.cpp` 内文件级 `static` 函数/变量；禁止 `namespace` / 匿名命名空间（具名工具集用 `struct FXxx final` + 全 static）。
+- `.cpp` 文件作用域的 `enum`/`struct`/`class` 不能 `static`：嵌进 `struct FXxx final`，或使用唯一 `FNexus*` 名（禁止 `EStatus`/`FScored` 等泛名）。
 
 ### 8.4 准入门槛
 
@@ -344,7 +345,7 @@ public:
 |---|---|
 | 被 ≥2 个 Capability/Tool 引用的 helper | **强制**下沉到对应层 Utils |
 | 仅 1 处引用，但函数体 >30 行 **或** 聚合 ≥3 个 helper | 可建领域 Utils（§8.4 豁免），须加注释 `// §8.4 豁免：单处引用但逻辑复杂` |
-| 其余单处引用 | 保留在 Capability 文件内 `namespace { static ... }` |
+| 其余单处引用 | 保留在 Capability 文件内文件级 `static` helper |
 
 ### 8.5 跨版本兼容（权威详版）
 
