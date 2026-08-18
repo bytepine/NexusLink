@@ -218,7 +218,7 @@ void FNexusMcpServer::RegisterRoutes()
 			if (JsonBody.IsEmpty())
 			{
 				ReplyError(OnComplete, EHttpServerResponseCodes::BadRequest,
-					TEXT("empty_body"), TEXT("请求体为空"));
+					TEXT("empty_body"), TEXT("Request body is empty"));
 				return true;
 			}
 
@@ -254,7 +254,7 @@ void FNexusMcpServer::RegisterRoutes()
 				if (!Dispatcher.IsValid())
 				{
 					ReplyError(Complete, EHttpServerResponseCodes::NotFound,
-						TEXT("session_not_found"), TEXT("无效或缺少 Mcp-Session-Id"));
+						TEXT("session_not_found"), TEXT("Invalid or missing Mcp-Session-Id"));
 					return;
 				}
 

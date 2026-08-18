@@ -9,6 +9,7 @@
 #include "Utils/NexusCapabilityIndexUtils.h"
 #include "Utils/NexusHostUtils.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 
@@ -247,7 +248,7 @@ void FNexusMcpToolSearchCapabilities::BuildDefinition(FNexusMcpToolDefinition& O
 FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJsonObject>& Arguments)
 {
 	FNexusMcpToolResult Result;
-	const TSharedPtr<FJsonObject> Args = Arguments.IsValid() ? Arguments : MakeShared<FJsonObject>();
+	const FNexusArgs Parsed(Arguments.IsValid() ? Arguments : MakeShared<FJsonObject>());
 
 	const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
 	TSharedPtr<FJsonObject> Output = MakeShared<FJsonObject>();
@@ -262,8 +263,8 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 	}
 
 	// ── capabilityName 精确查询：直接返回完整参数列表 ──────────────────────────
-	FString CapabilityName;
-	if (Args->TryGetStringField(TEXT("capabilityName"), CapabilityName) && !CapabilityName.IsEmpty())
+	const FString CapabilityName = Parsed.Str(TEXT("capabilityName"));
+	if (!CapabilityName.IsEmpty())
 	{
 		const FCapRecord* Record = nullptr;
 		const FNexusCapabilityLookup::EStatus Status = ResolveCapabilityByName(CapabilityName, Settings, Record);
@@ -281,8 +282,7 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 	}
 
 	// ── query="" 目录模式：返回所有 cap 按 tag 分组 ────────────────────────────
-	FString QueryRaw;
-	Args->TryGetStringField(TEXT("query"), QueryRaw);
+	const FString QueryRaw = Parsed.Str(TEXT("query"));
 
 	if (QueryRaw.TrimStartAndEnd().IsEmpty())
 	{

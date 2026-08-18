@@ -5,6 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpToolRegistry.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "Misc/DateTime.h"
@@ -45,10 +46,10 @@ void FNexusMcpToolSubmitFeedback::BuildDefinition(FNexusMcpToolDefinition& Out) 
 FNexusMcpToolResult FNexusMcpToolSubmitFeedback::Execute(const TSharedPtr<FJsonObject>& Arguments)
 {
 	FNexusMcpToolResult Result;
-	const TSharedPtr<FJsonObject> Args = Arguments.IsValid() ? Arguments : MakeShared<FJsonObject>();
+	const FNexusArgs Parsed(Arguments.IsValid() ? Arguments : MakeShared<FJsonObject>());
 
-	FString Category;
-	if (!Args->TryGetStringField(TEXT("category"), Category) || Category.IsEmpty())
+	const FString Category = Parsed.Str(TEXT("category"));
+	if (Category.IsEmpty())
 	{
 		Result.bIsError = true;
 		Result.ErrorText = TEXT("Missing required field: category");
@@ -56,13 +57,13 @@ FNexusMcpToolResult FNexusMcpToolSubmitFeedback::Execute(const TSharedPtr<FJsonO
 	}
 
 	FNexusFeedback::FFields Fields;
-	Args->TryGetStringField(TEXT("tool"),          Fields.Tool);
-	Args->TryGetStringField(TEXT("capability"),    Fields.Capability);
-	Args->TryGetStringField(TEXT("query"),         Fields.Query);
-	Args->TryGetStringField(TEXT("note"),          Fields.Note);
-	Args->TryGetStringField(TEXT("attemptedArgs"), Fields.AttemptedArgs);
-	Args->TryGetStringField(TEXT("actualError"),   Fields.ActualError);
-	Args->TryGetStringField(TEXT("expectedField"), Fields.ExpectedField);
+	Fields.Tool          = Parsed.Str(TEXT("tool"));
+	Fields.Capability    = Parsed.Str(TEXT("capability"));
+	Fields.Query         = Parsed.Str(TEXT("query"));
+	Fields.Note          = Parsed.Str(TEXT("note"));
+	Fields.AttemptedArgs = Parsed.Str(TEXT("attemptedArgs"));
+	Fields.ActualError   = Parsed.Str(TEXT("actualError"));
+	Fields.ExpectedField = Parsed.Str(TEXT("expectedField"));
 
 	FNexusFeedback::RecordManual(Category, Fields);
 

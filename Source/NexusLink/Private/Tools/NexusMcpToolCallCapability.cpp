@@ -11,6 +11,7 @@
 #include "Dom/JsonValue.h"
 #include "HAL/CriticalSection.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusCapabilityIndexUtils.h"
 #include "Utils/NexusCapabilityLegacyNames.h"
 #include "Utils/NexusCapResultAdapter.h"
@@ -327,12 +328,12 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 {
 	FNexusMcpToolResult Result;
 	const TSharedPtr<FJsonObject> Args = Arguments.IsValid() ? Arguments : MakeShared<FJsonObject>();
+	const FNexusArgs Parsed(Args);
 
 	// 内存高水位批量驱逐：每次调用重置基线；keepLoaded=true 时本次调用（单条或整批 calls）整体不自动卸载。
 	// RAII 保证无论从哪个分支 return，本次调用结束时都会尝试一次批尾强制 flush（未被抑制时）。
 	FNexusPackageLedger::Get().ResetBaseline();
-	bool bKeepLoaded = false;
-	Args->TryGetBoolField(TEXT("keepLoaded"), bKeepLoaded);
+	const bool bKeepLoaded = Parsed.Bool(TEXT("keepLoaded"));
 	FNexusPackageLedger::Get().SetSuppressedForThisCall(bKeepLoaded);
 	struct FLedgerFlushGuard
 	{
@@ -351,8 +352,8 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			return Result;
 		}
 
-		FString SingleCap;
-		if (Args->TryGetStringField(TEXT("capability"), SingleCap) && !SingleCap.IsEmpty())
+		FString SingleCap = Parsed.Str(TEXT("capability"));
+		if (!SingleCap.IsEmpty())
 		{
 			Result.bIsError  = true;
 			Result.ErrorText = TEXT("Cannot pass both capability and calls; use one or the other");
@@ -385,8 +386,8 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				continue;
 			}
 
-			FString CapName;
-			if (!(*CallObj)->TryGetStringField(TEXT("capability"), CapName) || CapName.IsEmpty())
+			const FString CapName = FNexusArgs(*CallObj).Str(TEXT("capability"));
+			if (CapName.IsEmpty())
 			{
 				Item->SetStringField(TEXT("capability"), TEXT(""));
 				Item->SetStringField(TEXT("error"), TEXT("calls item missing or empty capability"));
@@ -508,8 +509,8 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 	}
 
 	// ── 单条形态（与历史响应兼容）────────────────────────────────────────────
-	FString CapName;
-	if (!Args->TryGetStringField(TEXT("capability"), CapName) || CapName.IsEmpty())
+	const FString CapName = Parsed.Str(TEXT("capability"));
+	if (CapName.IsEmpty())
 	{
 		Result.bIsError  = true;
 		Result.ErrorText = TEXT("Missing or empty capability (use calls[] for batch)");
