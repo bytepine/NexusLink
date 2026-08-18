@@ -12,13 +12,13 @@
 void FGetRuntimeLuaMemoryCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_lua_memory");
-	Out.Description = TEXT("报告 Lua VM 堆用量（KB/字节）。配合 gc_runtime_lua 诊断。");
+	Out.Description = TEXT("Report Lua VM heap usage (KB/bytes). Use with gc_runtime_lua.");
 	Out.InputSchema = FNexusSchema::EmptyObject();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("heap"), TEXT("usage"), TEXT("stats"), TEXT("ram"), TEXT("kb") };
 	Out.RelatedCapabilities = { TEXT("gc_runtime_lua") };
 	Out.Prerequisites = { TEXT("unlua"), TEXT("pie") };
-	Out.WhenToUse = TEXT("gc collect 前后检查堆大小");
+	Out.WhenToUse = TEXT("Check heap size before/after gc collect");
 }
 
 FCapabilityResult FGetRuntimeLuaMemoryCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const

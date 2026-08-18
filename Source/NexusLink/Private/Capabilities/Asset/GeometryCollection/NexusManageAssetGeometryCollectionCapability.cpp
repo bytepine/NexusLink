@@ -15,18 +15,18 @@ void FManageAssetGeometryCollectionCapability::BuildDefinition(FNexusCapabilityD
 {
 	Out.Name = TEXT("manage_asset_geometry_collection");
 	Out.SearchAssetTypes = {TEXT("GeometryCollection")};
-	Out.Description = TEXT("批量编辑 GeometryCollection。operations[].action=set_damage_threshold/set_property。");
+	Out.Description = TEXT("Batch edit GeometryCollection. action=set_damage_threshold/set_property.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 			{ TEXT("set_damage_threshold"), TEXT("set_property") }))
-		.Prop(TEXT("index"), FNexusSchema::Int(TEXT("阈值索引（set_damage_threshold）"), 0))
-		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("阈值或属性值")))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径（set_property）")))
+		.Prop(TEXT("index"), FNexusSchema::Int(TEXT("Threshold index (set_damage_threshold)"), 0))
+		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("Threshold or property value")))
+		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Property path (set_property)")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GeometryCollection 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GeometryCollection asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -44,13 +44,13 @@ FCapabilityResult FManageAssetGeometryCollectionCapability::Execute(const TShare
 		if (!GC)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 GeometryCollection 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load GeometryCollection: %s"), *AssetPath));
 			return;
 		}
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 		bool bDirty = false;
@@ -69,7 +69,7 @@ FCapabilityResult FManageAssetGeometryCollectionCapability::Execute(const TShare
 			{
 				if (!Op->HasField(TEXT("value")))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_damage_threshold 需要 value"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_damage_threshold requires value"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -89,7 +89,7 @@ FCapabilityResult FManageAssetGeometryCollectionCapability::Execute(const TShare
 				Op->TryGetStringField(TEXT("value"), Value);
 				if (PropPath.IsEmpty() || Value.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_property 需要 propertyPath 和 value"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -105,7 +105,7 @@ FCapabilityResult FManageAssetGeometryCollectionCapability::Execute(const TShare
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
 			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 		}

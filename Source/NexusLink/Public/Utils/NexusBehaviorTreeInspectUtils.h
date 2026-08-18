@@ -2,7 +2,7 @@
 
 #pragma once
 
-// Utils 层：Domain — §7.4 豁免：单 Capability 引用但函数体复杂（递归节点遍历 >30 行）
+// Utils 层：Domain — §8.4 豁免：单 Capability 引用但函数体复杂（递归节点遍历 >30 行）
 #include "CoreMinimal.h"
 #include "Dom/JsonObject.h"
 

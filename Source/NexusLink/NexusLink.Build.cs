@@ -1,821 +1,275 @@
 // Copyright byteyang. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.Collections.Generic;
 
 public class NexusLink : ModuleRules
 {
+	/// <summary>可选插件探测配置：UpluginFiles、MinEngine、模块、Define、EnvVar。</summary>
+	private struct OptionalPluginConfig
+	{
+		public string[] UpluginFiles;
+		public string UprojectPluginName; // 非空时检查 .uproject Enabled
+		public int MinEngineMajor, MinEngineMinor;
+		public string[] PublicRuntimeModules, RuntimeModules, EditorModules;
+		public string Define, EnvVar;
+		public bool EnvVarSupportsDisable; // 默认 true；UnLua 仅 =1
+	}
+
 	public NexusLink(ReadOnlyTargetRules Target) : base(Target)
 	{
 		ApplyCustomEngineCompatDefines(this);
 
-		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"Core",
-				"DeveloperSettings",
-			}
-		);
+		PublicDependencyModuleNames.AddRange(new[] { "Core", "DeveloperSettings" });
+		PrivateDependencyModuleNames.AddRange(new[]
+		{
+			"CoreUObject", "Engine", "Projects", "Sockets", "Networking", "Json", "JsonUtilities",
+			"HTTP",
+			// UE 5.0+ 将模块 HttpServer 重命名为 HTTPServer
+			Target.GetType().GetProperty("Version") != null ? "HTTPServer" : "HttpServer",
+			"WebSocketNetworking", "AssetRegistry", "UMG", "GameplayTags", "AIModule", "GameplayTasks",
+			"ImageWrapper", "AnimGraphRuntime", "RenderCore", "PhysicsCore",
+			"LevelSequence", "MovieScene", "MovieSceneTracks", "Foliage", "MediaAssets",
+		});
 
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"CoreUObject",
-				"Engine",
-				"Projects",
-				"Sockets",
-				"Networking",
-				"Json",
-				"JsonUtilities",
-				"HTTP",
-				// UE 5.0+ 将模块 HttpServer 重命名为 HTTPServer
-				Target.GetType().GetProperty("Version") != null ? "HTTPServer" : "HttpServer",
-				"WebSocketNetworking",
-				"AssetRegistry",
-				"UMG",
-				"GameplayTags",
-				"AIModule",
-				"GameplayTasks",
-			"ImageWrapper",
-			"AnimGraphRuntime",
-			"RenderCore",
-			"PhysicsCore",
-			// LevelSequence 为 Runtime 模块，Game 目标亦需链接（get/manage_asset_level_sequence 依赖）
-			"LevelSequence",
-			"MovieScene",
-			"MovieSceneTracks",
-			"Foliage",
-			"MediaAssets",
-			}
-		);
-
-		// 编辑器专属依赖（设置面板、状态栏、蓝图编辑）
 		if (Target.bBuildEditor)
 		{
-			PrivateDependencyModuleNames.AddRange(
-				new string[]
-				{
-				"Settings",
-				"Slate",
-				"SlateCore",
-				"EditorStyle",
-				"UnrealEd",
-				"LevelEditor",
-				"KismetCompiler",
-				"Kismet",
-				"BlueprintGraph",
-				"AnimGraph",
-				"UMGEditor",
-				"AssetTools",
-				"MaterialEditor",
-				"PropertyEditor",
-				"ContentBrowser",
-				"ContentBrowserData",
-				}
-			);
-
-			// LiveCoding 仅 Windows 平台存在（Engine/Source/Developer/Windows/LiveCoding）
+			PrivateDependencyModuleNames.AddRange(new[]
+			{
+				"Settings", "Slate", "SlateCore", "EditorStyle", "UnrealEd", "LevelEditor",
+				"KismetCompiler", "Kismet", "BlueprintGraph", "AnimGraph", "UMGEditor", "AssetTools",
+				"MaterialEditor", "PropertyEditor", "ContentBrowser", "ContentBrowserData",
+			});
+			// LiveCoding 仅 Windows 平台存在
 			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
 				PrivateDependencyModuleNames.Add("LiveCoding");
-			}
 		}
 
-		// 可选 UnLua 支持：项目或引擎插件目录中存在 UnLua 时自动启用
+		string ProjectRoot = FindProjectRoot(ModuleDirectory);
+		var SearchDirs = CollectPluginSearchDirs(ProjectRoot);
+
+		// 可选插件表（顺序与旧版一致）
 		bool bHasUnLua = false;
-
-		// 从 ModuleDirectory 向上查找项目根目录（含 .uproject 的目录）
-		string SearchDir = ModuleDirectory;
-		string ProjectRoot = null;
-		for (int i = 0; i < 10 && SearchDir != null; ++i)
+		foreach (var C in BuildOptionalPluginTable())
 		{
-			SearchDir = System.IO.Path.GetDirectoryName(SearchDir);
-			if (SearchDir != null && System.IO.Directory.GetFiles(SearchDir, "*.uproject").Length > 0)
-			{
-				ProjectRoot = SearchDir;
-				break;
-			}
+			if (ApplyOptionalPlugin(Target, C, SearchDirs, ProjectRoot) && C.Define == "WITH_UNLUA")
+				bHasUnLua = true;
 		}
-
-		// 收集所有可能的插件搜索路径
-		var PluginSearchDirs = new System.Collections.Generic.List<string>();
-
-		// 1. 项目 Plugins 目录
-		if (ProjectRoot != null)
-		{
-			string ProjectPlugins = System.IO.Path.Combine(ProjectRoot, "Plugins");
-			if (System.IO.Directory.Exists(ProjectPlugins))
-			{
-				PluginSearchDirs.Add(ProjectPlugins);
-			}
-		}
-
-		// 2. 引擎 Plugins 目录（从项目根的 ../ 或 EngineDirectory 环境推断）
-		if (ProjectRoot != null)
-		{
-			// 源码构建：项目通常与 Engine 同级或位于 Engine 子目录
-			string EnginePlugins = System.IO.Path.Combine(ProjectRoot, "..", "Engine", "Plugins");
-			EnginePlugins = System.IO.Path.GetFullPath(EnginePlugins);
-			if (System.IO.Directory.Exists(EnginePlugins))
-			{
-				PluginSearchDirs.Add(EnginePlugins);
-			}
-		}
-
-		// 3. Launcher 安装引擎：UE_ENGINE_DIRECTORY 环境变量
-		string EngineEnvDir = System.Environment.GetEnvironmentVariable("UE_ENGINE_DIRECTORY");
-		if (!string.IsNullOrEmpty(EngineEnvDir))
-		{
-			string EnvPlugins = System.IO.Path.Combine(EngineEnvDir, "Plugins");
-			if (System.IO.Directory.Exists(EnvPlugins))
-			{
-				PluginSearchDirs.Add(EnvPlugins);
-			}
-		}
-
-		foreach (string Dir in PluginSearchDirs)
-		{
-			if (bHasUnLua) break;
-			try
-			{
-				foreach (string File in System.IO.Directory.GetFiles(
-					Dir, "UnLua.uplugin", System.IO.SearchOption.AllDirectories))
-				{
-					bHasUnLua = true;
-					break;
-				}
-			}
-			catch (System.Exception)
-			{
-				// 权限不足等情况静默跳过
-			}
-		}
-
-		// 环境变量强制开启
-		string EnvUnLua = System.Environment.GetEnvironmentVariable("WITH_UNLUA");
-		if (EnvUnLua == "1") bHasUnLua = true;
-
-		// ── 可选 GameplayAbilities 支持 ─────────────────────────────────────────
-		// 仅当项目 .uproject 中已启用 GameplayAbilities 插件时才链接，避免污染无 GAS 项目。
-		bool bHasGas = false;
-		foreach (string Dir in PluginSearchDirs)
-		{
-			if (bHasGas) break;
-			try
-			{
-				foreach (string File in System.IO.Directory.GetFiles(
-					Dir, "GameplayAbilities.uplugin", System.IO.SearchOption.AllDirectories))
-				{
-					bHasGas = true;
-					break;
-				}
-			}
-			catch (System.Exception)
-			{
-				// 权限不足等情况静默跳过
-			}
-		}
-
-		// 检查 .uproject 是否明确禁用 GameplayAbilities。
-		// 规则：
-		//   - 找到 .uproject 且含 "GameplayAbilities" + "Enabled": false → 强制关闭
-		//   - 找到 .uproject 但未提及 GameplayAbilities（用户尚未配置）→ 保持探测结果
-		//   - 没找到 .uproject（BuildPlugin 独立构建模式）→ 保持探测结果（引擎自带插件即可）
-		if (bHasGas && ProjectRoot != null)
-		{
-			try
-			{
-				foreach (string UprojectFile in System.IO.Directory.GetFiles(ProjectRoot, "*.uproject"))
-				{
-					string Content = System.IO.File.ReadAllText(UprojectFile);
-					bool Mentioned = Content.Contains("\"GameplayAbilities\"");
-					if (Mentioned)
-					{
-						// 只有在 .uproject 中显式写了 "Enabled": false 才关闭
-						bool ExplicitlyEnabled  = Content.Contains("\"Enabled\": true");
-						bool ExplicitlyDisabled = Content.Contains("\"Enabled\": false") && !ExplicitlyEnabled;
-						if (ExplicitlyDisabled)
-							bHasGas = false;
-						// 否则：显式 true 或未写 Enabled 均保持 bHasGas = true
-					}
-					// .uproject 完全未提及 GameplayAbilities → 保持探测结果不变
-					break;
-				}
-			}
-			catch (System.Exception) { }
-		}
-
-		// 环境变量可强制开启或关闭（0=关闭，1=开启）
-		string EnvGas = System.Environment.GetEnvironmentVariable("WITH_GAS");
-		if (EnvGas == "1") bHasGas = true;
-		if (EnvGas == "0") bHasGas = false;
-
-		if (bHasGas)
-		{
-			PrivateDependencyModuleNames.Add("GameplayAbilities");
-			PublicDefinitions.Add("WITH_GAS=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_GAS=0");
-		}
-
-		// ── 可选 Niagara 支持（引擎 Niagara 插件存在时链接）────────────────────
-		bool bHasNiagara = false;
-		foreach (string Dir in PluginSearchDirs)
-		{
-			if (bHasNiagara) break;
-			try
-			{
-				foreach (string File in System.IO.Directory.GetFiles(
-					Dir, "Niagara.uplugin", System.IO.SearchOption.AllDirectories))
-				{
-					bHasNiagara = true;
-					break;
-				}
-			}
-			catch (System.Exception) { }
-		}
-
-		if (bHasNiagara && ProjectRoot != null)
-		{
-			try
-			{
-				foreach (string UprojectFile in System.IO.Directory.GetFiles(ProjectRoot, "*.uproject"))
-				{
-					string Content = System.IO.File.ReadAllText(UprojectFile);
-					if (Content.Contains("\"Niagara\""))
-					{
-						bool ExplicitlyEnabled  = Content.Contains("\"Enabled\": true");
-						bool ExplicitlyDisabled = Content.Contains("\"Enabled\": false") && !ExplicitlyEnabled;
-						if (ExplicitlyDisabled)
-							bHasNiagara = false;
-					}
-					break;
-				}
-			}
-			catch (System.Exception) { }
-		}
-
-		string EnvNiagara = System.Environment.GetEnvironmentVariable("WITH_NIAGARA");
-		if (EnvNiagara == "1") bHasNiagara = true;
-		if (EnvNiagara == "0") bHasNiagara = false;
-
-		if (bHasNiagara)
-		{
-			PrivateDependencyModuleNames.Add("Niagara");
-			if (Target.bBuildEditor)
-			{
-				PrivateDependencyModuleNames.Add("NiagaraEditor");
-			}
-			PublicDefinitions.Add("WITH_NIAGARA=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_NIAGARA=0");
-		}
-
-		// ── 可选 StateTree 支持（UE 5.5+ 且引擎 StateTree 插件存在时链接）──────────
-		// UE 5.5 以下 StateTree API 不稳定（Experimental）；5.5 起接口固化、可用于检查资产。
-		bool bHasStateTree = false;
-		bool bEngineIsUE55Plus = (Target.Version.MajorVersion > 5)
-			|| (Target.Version.MajorVersion == 5 && Target.Version.MinorVersion >= 5);
-
-		if (bEngineIsUE55Plus)
-		{
-			foreach (string Dir in PluginSearchDirs)
-			{
-				if (bHasStateTree) break;
-				try
-				{
-					foreach (string File in System.IO.Directory.GetFiles(
-						Dir, "StateTree.uplugin", System.IO.SearchOption.AllDirectories))
-					{
-						bHasStateTree = true;
-						break;
-					}
-				}
-				catch (System.Exception) { }
-			}
-		}
-
-		string EnvStateTree = System.Environment.GetEnvironmentVariable("WITH_STATETREE");
-		if (EnvStateTree == "1") bHasStateTree = true;
-		if (EnvStateTree == "0") bHasStateTree = false;
-
-		if (bHasStateTree)
-		{
-			PrivateDependencyModuleNames.Add("StateTreeModule");
-			if (Target.bBuildEditor)
-			{
-				PrivateDependencyModuleNames.Add("StateTreeEditorModule");
-			}
-			PublicDefinitions.Add("WITH_STATETREE=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_STATETREE=0");
-		}
-
-		// ── 可选 UMG MVVM 支持（UE 5.5+ 且引擎 ModelViewViewModel 插件存在时链接）──
-		// MVVM 自 UE 5.1 引入，但 5.5 起 API 稳定可靠；编辑器侧数据在 Blueprint 扩展中。
-		bool bHasMvvm = false;
-
-		if (bEngineIsUE55Plus)
-		{
-			foreach (string Dir in PluginSearchDirs)
-			{
-				if (bHasMvvm) break;
-				try
-				{
-					foreach (string File in System.IO.Directory.GetFiles(
-						Dir, "ModelViewViewModel.uplugin", System.IO.SearchOption.AllDirectories))
-					{
-						bHasMvvm = true;
-						break;
-					}
-				}
-				catch (System.Exception) { }
-			}
-		}
-
-		string EnvMvvm = System.Environment.GetEnvironmentVariable("WITH_MVVM");
-		if (EnvMvvm == "1") bHasMvvm = true;
-		if (EnvMvvm == "0") bHasMvvm = false;
-
-		if (bHasMvvm)
-		{
-			PrivateDependencyModuleNames.Add("ModelViewViewModel");
-			if (Target.bBuildEditor)
-			{
-				PrivateDependencyModuleNames.Add("ModelViewViewModelBlueprint");
-			}
-			PublicDefinitions.Add("WITH_MVVM=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_MVVM=0");
-		}
-
-		// ── 可选 EnhancedInput 支持（UE 5.0+；4.26 插件 API 不稳定，跳过）────────────
-		bool bHasEnhancedInput = false;
-		bool bEngineIsUE50Plus = Target.Version.MajorVersion >= 5;
-
-		if (bEngineIsUE50Plus)
-		{
-			foreach (string Dir in PluginSearchDirs)
-			{
-				if (bHasEnhancedInput) break;
-				try
-				{
-					foreach (string File in System.IO.Directory.GetFiles(
-						Dir, "EnhancedInput.uplugin", System.IO.SearchOption.AllDirectories))
-					{
-						bHasEnhancedInput = true;
-						break;
-					}
-				}
-				catch (System.Exception) { }
-			}
-		}
-
-		string EnvEnhancedInput = System.Environment.GetEnvironmentVariable("WITH_ENHANCED_INPUT");
-		if (EnvEnhancedInput == "1") bHasEnhancedInput = true;
-		if (EnvEnhancedInput == "0") bHasEnhancedInput = false;
-
-		if (bHasEnhancedInput)
-		{
-			PrivateDependencyModuleNames.Add("EnhancedInput");
-			if (Target.bBuildEditor)
-			{
-				PrivateDependencyModuleNames.Add("EnhancedInputEditor");
-			}
-			PublicDefinitions.Add("WITH_ENHANCED_INPUT=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_ENHANCED_INPUT=0");
-		}
-
-		// ── 可选 ControlRig 支持（UE 5.0+；4.26 为 Experimental，API 不稳定，跳过）────────
-		bool bHasControlRig = false;
-
-		if (bEngineIsUE50Plus)
-		{
-			foreach (string Dir in PluginSearchDirs)
-			{
-				if (bHasControlRig) break;
-				try
-				{
-					foreach (string File in System.IO.Directory.GetFiles(
-						Dir, "ControlRig.uplugin", System.IO.SearchOption.AllDirectories))
-					{
-						bHasControlRig = true;
-						break;
-					}
-				}
-				catch (System.Exception) { }
-			}
-		}
-
-		string EnvControlRig = System.Environment.GetEnvironmentVariable("WITH_CONTROL_RIG");
-		if (EnvControlRig == "1") bHasControlRig = true;
-		if (EnvControlRig == "0") bHasControlRig = false;
-
-		if (bHasControlRig)
-		{
-			PrivateDependencyModuleNames.Add("ControlRig");
-			PrivateDependencyModuleNames.Add("RigVM");
-			if (Target.bBuildEditor)
-			{
-				PrivateDependencyModuleNames.Add("ControlRigDeveloper");
-			}
-			PublicDefinitions.Add("WITH_CONTROL_RIG=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_CONTROL_RIG=0");
-		}
-
-		// ── 可选 IKRig 支持（UE 5.0+）──────────────────────────────────────────────────
-		bool bHasIKRig = false;
-
-		if (bEngineIsUE50Plus)
-		{
-			foreach (string Dir in PluginSearchDirs)
-			{
-				if (bHasIKRig) break;
-				try
-				{
-					foreach (string File in System.IO.Directory.GetFiles(
-						Dir, "IKRig.uplugin", System.IO.SearchOption.AllDirectories))
-					{
-						bHasIKRig = true;
-						break;
-					}
-				}
-				catch (System.Exception) { }
-			}
-		}
-
-		string EnvIKRig = System.Environment.GetEnvironmentVariable("WITH_IK_RIG");
-		if (EnvIKRig == "1") bHasIKRig = true;
-		if (EnvIKRig == "0") bHasIKRig = false;
-
-		if (bHasIKRig)
-		{
-			PrivateDependencyModuleNames.Add("IKRig");
-			if (Target.bBuildEditor)
-			{
-				PrivateDependencyModuleNames.Add("IKRigEditor");
-				PrivateDependencyModuleNames.Add("IKRigDeveloper");
-			}
-			PublicDefinitions.Add("WITH_IK_RIG=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_IK_RIG=0");
-		}
-
-		// ── 可选 MetaSound 支持（UE 5.0+）──────────────────────────────────────────────
-		bool bHasMetaSound = false;
-
-		if (bEngineIsUE50Plus)
-		{
-			foreach (string Dir in PluginSearchDirs)
-			{
-				if (bHasMetaSound) break;
-				try
-				{
-					foreach (string File in System.IO.Directory.GetFiles(
-						Dir, "Metasound.uplugin", System.IO.SearchOption.AllDirectories))
-					{
-						bHasMetaSound = true;
-						break;
-					}
-				}
-				catch (System.Exception) { }
-			}
-		}
-
-		string EnvMetaSound = System.Environment.GetEnvironmentVariable("WITH_METASOUND");
-		if (EnvMetaSound == "1") bHasMetaSound = true;
-		if (EnvMetaSound == "0") bHasMetaSound = false;
-
-		if (bHasMetaSound)
-		{
-			PrivateDependencyModuleNames.AddRange(new string[] { "MetasoundEngine", "MetasoundFrontend", "MetasoundGraphCore" });
-			if (Target.bBuildEditor)
-			{
-				PrivateDependencyModuleNames.Add("MetasoundEditor");
-			}
-			PublicDefinitions.Add("WITH_METASOUND=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_METASOUND=0");
-		}
-
-		// ── 可选 PCG 支持（UE 5.4+）────────────────────────────────────────────────────
-		bool bEngineIsUE54Plus = (Target.Version.MajorVersion > 5)
-			|| (Target.Version.MajorVersion == 5 && Target.Version.MinorVersion >= 4);
-		bool bHasPCG = false;
-
-		if (bEngineIsUE54Plus)
-		{
-			foreach (string Dir in PluginSearchDirs)
-			{
-				if (bHasPCG) break;
-				try
-				{
-					foreach (string File in System.IO.Directory.GetFiles(
-						Dir, "PCG.uplugin", System.IO.SearchOption.AllDirectories))
-					{
-						bHasPCG = true;
-						break;
-					}
-				}
-				catch (System.Exception) { }
-			}
-		}
-
-		string EnvPCG = System.Environment.GetEnvironmentVariable("WITH_PCG");
-		if (EnvPCG == "1") bHasPCG = true;
-		if (EnvPCG == "0") bHasPCG = false;
-
-		if (bHasPCG)
-		{
-			PrivateDependencyModuleNames.Add("PCG");
-			if (Target.bBuildEditor)
-			{
-				PrivateDependencyModuleNames.Add("PCGEditor");
-			}
-			PublicDefinitions.Add("WITH_PCG=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_PCG=0");
-		}
-
-		// ── 可选 PoseSearch 支持（UE 5.4+）─────────────────────────────────────────────
-		bool bHasPoseSearch = false;
-
-		if (bEngineIsUE54Plus)
-		{
-			foreach (string Dir in PluginSearchDirs)
-			{
-				if (bHasPoseSearch) break;
-				try
-				{
-					foreach (string File in System.IO.Directory.GetFiles(
-						Dir, "PoseSearch.uplugin", System.IO.SearchOption.AllDirectories))
-					{
-						bHasPoseSearch = true;
-						break;
-					}
-				}
-				catch (System.Exception) { }
-			}
-		}
-
-		string EnvPoseSearch = System.Environment.GetEnvironmentVariable("WITH_POSE_SEARCH");
-		if (EnvPoseSearch == "1") bHasPoseSearch = true;
-		if (EnvPoseSearch == "0") bHasPoseSearch = false;
-
-		if (bHasPoseSearch)
-		{
-			PrivateDependencyModuleNames.Add("PoseSearch");
-			if (Target.bBuildEditor)
-			{
-				PrivateDependencyModuleNames.Add("PoseSearchEditor");
-			}
-			PublicDefinitions.Add("WITH_POSE_SEARCH=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_POSE_SEARCH=0");
-		}
-
-		// ── 可选 Paper2D（全版本引擎插件）──────────────────────────────────────────
-		bool bHasPaper2D = DetectEnginePlugin(PluginSearchDirs, "Paper2D.uplugin");
-		string EnvPaper2D = System.Environment.GetEnvironmentVariable("WITH_PAPER2D");
-		if (EnvPaper2D == "1") bHasPaper2D = true;
-		if (EnvPaper2D == "0") bHasPaper2D = false;
-		if (bHasPaper2D)
-		{
-			PrivateDependencyModuleNames.Add("Paper2D");
-			PublicDefinitions.Add("WITH_PAPER2D=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_PAPER2D=0");
-		}
-
-		// ── 可选 GeometryCollection（UE5+ Chaos）───────────────────────────────────
-		bool bHasGeometryCollection = false;
-		if (bEngineIsUE50Plus)
-		{
-			bHasGeometryCollection = DetectEnginePlugin(PluginSearchDirs, "GeometryCollectionPlugin.uplugin")
-				|| DetectEnginePlugin(PluginSearchDirs, "GeometryCollectionEngine.uplugin");
-		}
-		string EnvGC = System.Environment.GetEnvironmentVariable("WITH_GEOMETRY_COLLECTION");
-		if (EnvGC == "1") bHasGeometryCollection = true;
-		if (EnvGC == "0") bHasGeometryCollection = false;
-		if (bHasGeometryCollection)
-		{
-			PrivateDependencyModuleNames.Add("GeometryCollectionEngine");
-			PublicDefinitions.Add("WITH_GEOMETRY_COLLECTION=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_GEOMETRY_COLLECTION=0");
-		}
-
-		// ── 可选 CommonUI（UE5+）────────────────────────────────────────────────────
-		bool bHasCommonUI = false;
-		if (bEngineIsUE50Plus)
-		{
-			bHasCommonUI = DetectEnginePlugin(PluginSearchDirs, "CommonUI.uplugin");
-		}
-		string EnvCommonUI = System.Environment.GetEnvironmentVariable("WITH_COMMON_UI");
-		if (EnvCommonUI == "1") bHasCommonUI = true;
-		if (EnvCommonUI == "0") bHasCommonUI = false;
-		if (bHasCommonUI)
-		{
-			PrivateDependencyModuleNames.Add("CommonUI");
-			PublicDefinitions.Add("WITH_COMMON_UI=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_COMMON_UI=0");
-		}
-
-		// ── 可选 Movie Render Queue（UE5+）──────────────────────────────────────────
-		bool bHasMovieRenderPipeline = false;
-		if (bEngineIsUE50Plus)
-		{
-			bHasMovieRenderPipeline = DetectEnginePlugin(PluginSearchDirs, "MovieRenderPipeline.uplugin");
-		}
-		string EnvMRQ = System.Environment.GetEnvironmentVariable("WITH_MOVIE_RENDER_PIPELINE");
-		if (EnvMRQ == "1") bHasMovieRenderPipeline = true;
-		if (EnvMRQ == "0") bHasMovieRenderPipeline = false;
-		if (bHasMovieRenderPipeline)
-		{
-			PrivateDependencyModuleNames.Add("MovieRenderPipelineCore");
-			PrivateDependencyModuleNames.Add("MovieRenderPipelineSettings");
-			PublicDefinitions.Add("WITH_MOVIE_RENDER_PIPELINE=1");
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_MOVIE_RENDER_PIPELINE=0");
-		}
-
-		if (bHasUnLua)
-		{
-			PublicDependencyModuleNames.Add("Lua");
-			PrivateDependencyModuleNames.Add("UnLua");
-			PublicDefinitions.Add("WITH_UNLUA=1");
-
-			// 读取 UnLua.uplugin 的 VersionName 判断主版本号
-			int UnLuaVersionMajor = 1;
-			foreach (string Dir in PluginSearchDirs)
-			{
-				if (UnLuaVersionMajor > 1) break;
-				try
-				{
-					foreach (string UpluginPath in System.IO.Directory.GetFiles(
-						Dir, "UnLua.uplugin", System.IO.SearchOption.AllDirectories))
-					{
-						string Json = System.IO.File.ReadAllText(UpluginPath);
-						int vi = Json.IndexOf("\"VersionName\"");
-						if (vi >= 0)
-						{
-							int qi = Json.IndexOf("\"", Json.IndexOf(":", vi) + 1);
-							if (qi >= 0)
-							{
-								int ds = qi + 1, de = ds;
-								while (de < Json.Length && char.IsDigit(Json[de])) de++;
-								if (de > ds) int.TryParse(Json.Substring(ds, de - ds), out UnLuaVersionMajor);
-							}
-						}
-						break;
-					}
-				}
-				catch (System.Exception) { }
-			}
-			PublicDefinitions.Add("UNLUA_VERSION_MAJOR=" + UnLuaVersionMajor);
-		}
-		else
-		{
-			PublicDefinitions.Add("WITH_UNLUA=0");
-			PublicDefinitions.Add("UNLUA_VERSION_MAJOR=0");
-		}
+		ApplyUnLuaVersionDefines(bHasUnLua, SearchDirs);
 	}
 
-	/// <summary>在插件搜索目录中查找指定 .uplugin（权限失败时视为不存在）。</summary>
-	private static bool DetectEnginePlugin(System.Collections.Generic.List<string> PluginSearchDirs, string UpluginFileName)
+	private static OptionalPluginConfig[] BuildOptionalPluginTable()
 	{
-		foreach (string Dir in PluginSearchDirs)
+		return new[]
 		{
+			Opt(new[] { "UnLua.uplugin" }, "WITH_UNLUA", "WITH_UNLUA", pub: new[] { "Lua" }, rt: new[] { "UnLua" }, noDisable: true),
+			Opt(new[] { "GameplayAbilities.uplugin" }, "WITH_GAS", "WITH_GAS", rt: new[] { "GameplayAbilities" }, uproj: "GameplayAbilities"),
+			Opt(new[] { "Niagara.uplugin" }, "WITH_NIAGARA", "WITH_NIAGARA", rt: new[] { "Niagara" }, ed: new[] { "NiagaraEditor" }, uproj: "Niagara"),
+			Opt(new[] { "StateTree.uplugin" }, "WITH_STATETREE", "WITH_STATETREE", 5, 5, new[] { "StateTreeModule" }, new[] { "StateTreeEditorModule" }),
+			Opt(new[] { "ModelViewViewModel.uplugin" }, "WITH_MVVM", "WITH_MVVM", 5, 5, new[] { "ModelViewViewModel" }, new[] { "ModelViewViewModelBlueprint" }),
+			Opt(new[] { "EnhancedInput.uplugin" }, "WITH_ENHANCED_INPUT", "WITH_ENHANCED_INPUT", 5, 0, new[] { "EnhancedInput" }, new[] { "EnhancedInputEditor" }),
+			Opt(new[] { "ControlRig.uplugin" }, "WITH_CONTROL_RIG", "WITH_CONTROL_RIG", 5, 0, new[] { "ControlRig", "RigVM" }, new[] { "ControlRigDeveloper" }),
+			Opt(new[] { "IKRig.uplugin" }, "WITH_IK_RIG", "WITH_IK_RIG", 5, 0, new[] { "IKRig" }, new[] { "IKRigEditor", "IKRigDeveloper" }),
+			Opt(new[] { "Metasound.uplugin" }, "WITH_METASOUND", "WITH_METASOUND", 5, 0, new[] { "MetasoundEngine", "MetasoundFrontend", "MetasoundGraphCore" }, new[] { "MetasoundEditor" }),
+			Opt(new[] { "PCG.uplugin" }, "WITH_PCG", "WITH_PCG", 5, 4, new[] { "PCG" }, new[] { "PCGEditor" }),
+			Opt(new[] { "PoseSearch.uplugin" }, "WITH_POSE_SEARCH", "WITH_POSE_SEARCH", 5, 4, new[] { "PoseSearch" }, new[] { "PoseSearchEditor" }),
+			Opt(new[] { "Paper2D.uplugin" }, "WITH_PAPER2D", "WITH_PAPER2D", rt: new[] { "Paper2D" }),
+			// GeometryCollection 双候选 uplugin
+			Opt(new[] { "GeometryCollectionPlugin.uplugin", "GeometryCollectionEngine.uplugin" }, "WITH_GEOMETRY_COLLECTION", "WITH_GEOMETRY_COLLECTION", 5, 0, new[] { "GeometryCollectionEngine" }),
+			Opt(new[] { "CommonUI.uplugin" }, "WITH_COMMON_UI", "WITH_COMMON_UI", 5, 0, new[] { "CommonUI" }),
+			Opt(new[] { "MovieRenderPipeline.uplugin" }, "WITH_MOVIE_RENDER_PIPELINE", "WITH_MOVIE_RENDER_PIPELINE", 5, 0, new[] { "MovieRenderPipelineCore", "MovieRenderPipelineSettings" }),
+		};
+	}
+
+	/// <summary>表项工厂，省略参数用默认值。</summary>
+	private static OptionalPluginConfig Opt(
+		string[] files, string define, string env,
+		int minMajor = 0, int minMinor = 0,
+		string[] rt = null, string[] ed = null,
+		string uproj = null, string[] pub = null, bool noDisable = false)
+	{
+		return new OptionalPluginConfig
+		{
+			UpluginFiles = files, Define = define, EnvVar = env,
+			MinEngineMajor = minMajor, MinEngineMinor = minMinor,
+			RuntimeModules = rt, EditorModules = ed,
+			UprojectPluginName = uproj, PublicRuntimeModules = pub,
+			EnvVarSupportsDisable = !noDisable,
+		};
+	}
+
+	private bool ApplyOptionalPlugin(ReadOnlyTargetRules Target, OptionalPluginConfig C,
+		List<string> SearchDirs, string ProjectRoot)
+	{
+		bool on = MeetsMinEngineVersion(Target, C.MinEngineMajor, C.MinEngineMinor)
+			&& DetectAnyEnginePlugin(SearchDirs, C.UpluginFiles);
+		if (on && C.UprojectPluginName != null && ProjectRoot != null
+			&& IsPluginExplicitlyDisabledInUproject(ProjectRoot, C.UprojectPluginName))
+			on = false;
+
+		string ev = System.Environment.GetEnvironmentVariable(C.EnvVar);
+		if (ev == "1") on = true;
+		if (C.EnvVarSupportsDisable && ev == "0") on = false;
+
+		if (on)
+		{
+			if (C.PublicRuntimeModules != null) PublicDependencyModuleNames.AddRange(C.PublicRuntimeModules);
+			if (C.RuntimeModules != null) PrivateDependencyModuleNames.AddRange(C.RuntimeModules);
+			if (Target.bBuildEditor && C.EditorModules != null) PrivateDependencyModuleNames.AddRange(C.EditorModules);
+			PublicDefinitions.Add(C.Define + "=1");
+		}
+		else PublicDefinitions.Add(C.Define + "=0");
+		return on;
+	}
+
+	/// <summary>UnLua 主版本号（VersionName 首位数字）。</summary>
+	private void ApplyUnLuaVersionDefines(bool bHasUnLua, List<string> SearchDirs)
+	{
+		if (!bHasUnLua) { PublicDefinitions.Add("UNLUA_VERSION_MAJOR=0"); return; }
+
+		int major = 1;
+		foreach (string dir in SearchDirs)
+		{
+			if (major > 1) break;
 			try
 			{
-				foreach (string File in System.IO.Directory.GetFiles(
-					Dir, UpluginFileName, System.IO.SearchOption.AllDirectories))
+				foreach (string path in System.IO.Directory.GetFiles(dir, "UnLua.uplugin", System.IO.SearchOption.AllDirectories))
 				{
-					return true;
+					string json = System.IO.File.ReadAllText(path);
+					int vi = json.IndexOf("\"VersionName\"");
+					if (vi >= 0)
+					{
+						int qi = json.IndexOf("\"", json.IndexOf(":", vi) + 1);
+						if (qi >= 0)
+						{
+							int ds = qi + 1, de = ds;
+							while (de < json.Length && char.IsDigit(json[de])) de++;
+							if (de > ds) int.TryParse(json.Substring(ds, de - ds), out major);
+						}
+					}
+					break;
 				}
 			}
 			catch (System.Exception) { }
 		}
+		PublicDefinitions.Add("UNLUA_VERSION_MAJOR=" + major);
+	}
+
+	private static bool MeetsMinEngineVersion(ReadOnlyTargetRules T, int maj, int min)
+	{
+		if (maj <= 0) return true;
+		if (T.Version.MajorVersion > maj) return true;
+		return T.Version.MajorVersion == maj && T.Version.MinorVersion >= min;
+	}
+
+	private static string FindProjectRoot(string moduleDir)
+	{
+		for (int i = 0; i < 10 && moduleDir != null; ++i)
+		{
+			moduleDir = System.IO.Path.GetDirectoryName(moduleDir);
+			if (moduleDir != null && System.IO.Directory.GetFiles(moduleDir, "*.uproject").Length > 0)
+				return moduleDir;
+		}
+		return null;
+	}
+
+	private static List<string> CollectPluginSearchDirs(string projectRoot)
+	{
+		var dirs = new List<string>();
+		if (projectRoot != null)
+		{
+			string pp = System.IO.Path.Combine(projectRoot, "Plugins");
+			if (System.IO.Directory.Exists(pp)) dirs.Add(pp);
+			string ep = System.IO.Path.GetFullPath(System.IO.Path.Combine(projectRoot, "..", "Engine", "Plugins"));
+			if (System.IO.Directory.Exists(ep)) dirs.Add(ep);
+		}
+		string eng = System.Environment.GetEnvironmentVariable("UE_ENGINE_DIRECTORY");
+		if (!string.IsNullOrEmpty(eng))
+		{
+			string ep = System.IO.Path.Combine(eng, "Plugins");
+			if (System.IO.Directory.Exists(ep)) dirs.Add(ep);
+		}
+		return dirs;
+	}
+
+	private static bool DetectAnyEnginePlugin(List<string> dirs, string[] names)
+	{
+		if (names == null) return false;
+		foreach (string name in names)
+			foreach (string dir in dirs)
+				try
+				{
+					if (System.IO.Directory.GetFiles(dir, name, System.IO.SearchOption.AllDirectories).Length > 0)
+						return true;
+				}
+				catch (System.Exception) { }
 		return false;
 	}
 
-	/// <summary>
-	/// 定制引擎（如 LetsGo）在 Build.h 用 #error 要求 UBT 预定义 WITH_EDITOR_ENCRYPTION；
-	/// Rider 直编时 EngineDirectory 可能为空，需多路径探测 + 环境变量兜底。
-	/// </summary>
+	/// <summary>.uproject 显式 Enabled:false（空白容忍）且非 true 时返回 true。</summary>
+	private static bool IsPluginExplicitlyDisabledInUproject(string projectRoot, string pluginName)
+	{
+		try
+		{
+			foreach (string f in System.IO.Directory.GetFiles(projectRoot, "*.uproject"))
+			{
+				string c = System.IO.File.ReadAllText(f);
+				if (!c.Contains("\"" + pluginName + "\"")) return false;
+				bool en = System.Text.RegularExpressions.Regex.IsMatch(c, "\"Enabled\"\\s*:\\s*true");
+				return System.Text.RegularExpressions.Regex.IsMatch(c, "\"Enabled\"\\s*:\\s*false") && !en;
+			}
+		}
+		catch (System.Exception) { }
+		return false;
+	}
+
 	private static void ApplyCustomEngineCompatDefines(ModuleRules Module)
 	{
 		if (ShouldDefineWithEditorEncryption(Module))
-		{
 			Module.PublicDefinitions.Add("WITH_EDITOR_ENCRYPTION=0");
-		}
 	}
 
 	private static bool ShouldDefineWithEditorEncryption(ModuleRules Module)
 	{
-		foreach (string engineDir in ResolveEngineDirectoryCandidates(Module))
+		foreach (string d in ResolveEngineDirectoryCandidates(Module))
 		{
-			string buildH = System.IO.Path.Combine(engineDir, "Source", "Runtime", "Core", "Public", "Misc", "Build.h");
-			if (!System.IO.File.Exists(buildH)) continue;
-
-			try
-			{
-				string content = System.IO.File.ReadAllText(buildH);
-				// 含 #ifndef 或 #error「UBT should always define…」等形态
-				if (content.Contains("WITH_EDITOR_ENCRYPTION"))
-				{
-					return true;
-				}
-			}
-			catch (System.Exception)
-			{
-				// 权限/IO 异常时尝试下一候选路径
-			}
+			string h = System.IO.Path.Combine(d, "Source", "Runtime", "Core", "Public", "Misc", "Build.h");
+			if (!System.IO.File.Exists(h)) continue;
+			try { if (System.IO.File.ReadAllText(h).Contains("WITH_EDITOR_ENCRYPTION")) return true; }
+			catch (System.Exception) { }
 		}
-
-		// Rider 直编：未走 UBT 注入且读不到 Build.h 时，由环境变量强制（LetsGo 等定制引擎）
-		string force = System.Environment.GetEnvironmentVariable("NEXUS_WITH_EDITOR_ENCRYPTION_FALLBACK");
-		return force == "1";
+		return System.Environment.GetEnvironmentVariable("NEXUS_WITH_EDITOR_ENCRYPTION_FALLBACK") == "1";
 	}
 
-	private static System.Collections.Generic.List<string> ResolveEngineDirectoryCandidates(ModuleRules Module)
+	private static List<string> ResolveEngineDirectoryCandidates(ModuleRules Module)
 	{
-		var seen = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
-		var list = new System.Collections.Generic.List<string>();
-
-		// EngineDirectory 在 UE 5.8 改为 static 属性，用反射兼容 instance（UE4~5.7）和 static（UE5.8+）
+		var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+		var list = new List<string>();
 		try
 		{
-			var Prop = typeof(ModuleRules).GetProperty("EngineDirectory",
-				System.Reflection.BindingFlags.Public |
-				System.Reflection.BindingFlags.Instance |
-				System.Reflection.BindingFlags.Static);
-			if (Prop != null)
+			var p = typeof(ModuleRules).GetProperty("EngineDirectory",
+				System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static);
+			if (p != null)
 			{
-				bool IsStatic = Prop.GetGetMethod().IsStatic;
-				string EngDir = IsStatic
-					? Prop.GetValue(null) as string
-					: Prop.GetValue(Module) as string;
-				TryAddEngineDirectory(EngDir, seen, list);
+				bool st = p.GetGetMethod().IsStatic;
+				TryAddEngineDirectory(st ? p.GetValue(null) as string : p.GetValue(Module) as string, seen, list);
 			}
 		}
-		catch { /* 属性不存在或访问失败时继续 */ }
-
+		catch { }
 		TryAddEngineDirectory(System.Environment.GetEnvironmentVariable("UE_ENGINE_DIRECTORY"), seen, list);
 		TryAddEngineDirectory(System.Environment.GetEnvironmentVariable("UE4_ROOT"), seen, list);
 		TryAddEngineDirectory(System.Environment.GetEnvironmentVariable("UNREAL_ENGINE_PATH"), seen, list);
-
 		return list;
 	}
 
-	private static void TryAddEngineDirectory(
-		string dir,
-		System.Collections.Generic.HashSet<string> seen,
-		System.Collections.Generic.List<string> list)
+	private static void TryAddEngineDirectory(string dir, HashSet<string> seen, List<string> list)
 	{
 		if (string.IsNullOrEmpty(dir)) return;
-
 		try
 		{
 			dir = System.IO.Path.GetFullPath(dir);
-			if (System.IO.Directory.Exists(dir) && seen.Add(dir))
-			{
-				list.Add(dir);
-			}
+			if (System.IO.Directory.Exists(dir) && seen.Add(dir)) list.Add(dir);
 		}
-		catch (System.Exception)
-		{
-			// 权限/IO 异常时静默跳过
-		}
+		catch (System.Exception) { }
 	}
 }

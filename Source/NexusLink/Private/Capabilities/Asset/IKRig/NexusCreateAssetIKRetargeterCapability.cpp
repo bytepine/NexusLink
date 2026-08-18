@@ -8,6 +8,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Retargeter/IKRetargeter.h"
 #include "Rig/IKRigDefinition.h"
 #include "NexusMcpTool.h"
@@ -15,29 +16,25 @@
 void FCreateAssetIKRetargeterCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_ik_retargeter");
-	Out.Description = TEXT("创建空白 IKRetargeter；可选源/目标 IKRig。");
+	Out.Description = TEXT("Create empty IKRetargeter; optional source/target IKRig.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
-		.Prop(TEXT("sourceRigPath"), FNexusSchema::Str(TEXT("源 IKRig 路径")))
-		.Prop(TEXT("targetRigPath"), FNexusSchema::Str(TEXT("目标 IKRig 路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("sourceRigPath"), FNexusSchema::Str(TEXT("Source IKRig path")))
+		.Prop(TEXT("targetRigPath"), FNexusSchema::Str(TEXT("Target IKRig path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("ikretargeter"), TEXT("retarget"), TEXT("ik") };
 	Out.RelatedCapabilities = { TEXT("get_asset_ik_retargeter"), TEXT("manage_asset_ik_retargeter"), TEXT("create_asset_ik_rig") };
-	Out.WhenToUse = TEXT("新建 IKRetargeter；对齐 create_asset_ik_rig");
+	Out.WhenToUse = TEXT("Create IKRetargeter; aligns with create_asset_ik_rig");
 }
 
 FCapabilityResult FCreateAssetIKRetargeterCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		if (LoadObject<UIKRetargeter>(nullptr, *AssetPath))
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
@@ -45,10 +42,10 @@ FCapabilityResult FCreateAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 			return;
 		}
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		UIKRetargeter* R = NewObject<UIKRetargeter>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!R) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建失败")); return; }
+		if (!R) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Creation failed")); return; }
 		FString SrcPath, TgtPath;
 		Arguments->TryGetStringField(TEXT("sourceRigPath"), SrcPath);
 		Arguments->TryGetStringField(TEXT("targetRigPath"), TgtPath);

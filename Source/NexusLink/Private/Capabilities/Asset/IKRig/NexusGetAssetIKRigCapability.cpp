@@ -16,15 +16,15 @@ void FGetAssetIKRigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) 
 {
 	Out.Name = TEXT("get_asset_ik_rig");
 	Out.SearchAssetTypes = {TEXT("IKRig"), TEXT("IKRigDefinition")};
-	Out.Description = TEXT("读取 IKRig 资产：预览网格/Solver 列表/BoneChain 列表。写用 manage_asset_ik_rig。");
+	Out.Description = TEXT("Read IKRig: preview mesh/Solver/BoneChain lists. Use manage_asset_ik_rig for writes.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("IKRig 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("IKRig asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("ikrig"), TEXT("ik"), TEXT("retarget"), TEXT("solver"), TEXT("bone chain") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_ik_rig"), TEXT("create_asset_ik_rig"), TEXT("get_asset_ik_retargeter") };
-	Out.WhenToUse = TEXT("读取 IKRig 结构概览；写用 manage_asset_ik_rig");
+	Out.WhenToUse = TEXT("Read IKRig structure overview; use manage_asset_ik_rig for writes");
 }
 
 FCapabilityResult FGetAssetIKRigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -38,7 +38,7 @@ FCapabilityResult FGetAssetIKRigCapability::Execute(const TSharedPtr<FJsonObject
 		if (!IKRig)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("IKRig 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("IKRig not found: %s"), *AssetPath));
 			return;
 		}
 

@@ -5,35 +5,32 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "NexusMcpTool.h"
 
 void FCreateAssetPhysicalMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_physical_material");
-	Out.Description = TEXT("创建 PhysicalMaterial。可选 friction/restitution。");
+	Out.Description = TEXT("Create PhysicalMaterial. optional friction/restitution.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
-		.Prop(TEXT("friction"), FNexusSchema::Num(TEXT("摩擦系数")))
-		.Prop(TEXT("restitution"), FNexusSchema::Num(TEXT("弹性系数")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("friction"), FNexusSchema::Num(TEXT("Friction")))
+		.Prop(TEXT("restitution"), FNexusSchema::Num(TEXT("Restitution")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("physical"), TEXT("material"), TEXT("friction"), TEXT("physics") };
 	Out.RelatedCapabilities = { TEXT("get_asset_physical_material"), TEXT("manage_asset_physical_material") };
-	Out.WhenToUse = TEXT("新建 PhysicalMaterial；用 manage 改摩擦/弹性");
+	Out.WhenToUse = TEXT("Create PhysicalMaterial; edit friction/restitution via manage");
 }
 
 FCapabilityResult FCreateAssetPhysicalMaterialCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		if (LoadObject<UPhysicalMaterial>(nullptr, *AssetPath))
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
@@ -41,12 +38,12 @@ FCapabilityResult FCreateAssetPhysicalMaterialCapability::Execute(const TSharedP
 			return;
 		}
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		UPhysicalMaterial* PM = NewObject<UPhysicalMaterial>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!PM) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建失败")); return; }
-		if (Arguments->HasField(TEXT("friction"))) PM->Friction = static_cast<float>(Arguments->GetNumberField(TEXT("friction")));
-		if (Arguments->HasField(TEXT("restitution"))) PM->Restitution = static_cast<float>(Arguments->GetNumberField(TEXT("restitution")));
+		if (!PM) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Creation failed")); return; }
+		if (Arguments->HasField(TEXT("friction"))) PM->Friction = static_cast<float>(A.Num(TEXT("friction")));
+		if (Arguments->HasField(TEXT("restitution"))) PM->Restitution = static_cast<float>(A.Num(TEXT("restitution")));
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, PM, AssetPath);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), PM->GetName());

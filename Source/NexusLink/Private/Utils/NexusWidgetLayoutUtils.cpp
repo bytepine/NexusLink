@@ -180,13 +180,13 @@ bool FNexusWidgetLayoutUtils::ApplyCanvasSlotFields(UWidget* Widget, const TShar
 {
 	if (!Widget || !Fields.IsValid())
 	{
-		OutError = TEXT("Widget 或 layout 字段无效");
+		OutError = TEXT("Invalid Widget or layout field");
 		return false;
 	}
 	UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Widget->Slot);
 	if (!Slot)
 	{
-		OutError = TEXT("Widget 无 CanvasPanelSlot；当前仅支持 Canvas 子控件");
+		OutError = TEXT("Widget has no CanvasPanelSlot; Canvas children only");
 		return false;
 	}
 
@@ -369,7 +369,7 @@ void FNexusWidgetLayoutUtils::AppendSlateLayoutFields(const TSharedPtr<SWidget>&
 	if (Widget->GetType() == FName(TEXT("STextBlock")))
 	{
 		Layout->SetStringField(TEXT("textBlockNote"),
-			TEXT("STextBlock::AutoWrapText 需通过关联 UTextBlock 读取；检查 umgWidget 是否已填充"));
+			TEXT("STextBlock::AutoWrapText requires linked UTextBlock; check umgWidget is populated"));
 	}
 
 #if NX_UE_HAS_SLATE_BOX_PANEL_SLOT_GETTERS

@@ -6,6 +6,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusWidgetLayoutUtils.h"
 #include "Utils/NexusWidgetAnimationUtils.h"
@@ -23,39 +24,39 @@ void FManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("manage_asset_user_widget");
 	Out.SearchAssetTypes = {TEXT("Widget")};
-	Out.Description = TEXT("批量编辑 WBP。控件树/slot/属性与动画轨绑定；EventGraph 用 manage_asset_blueprint。");
+	Out.Description = TEXT("Batch edit WBP: widget tree/slots/props and animation tracks; EventGraph via manage_asset_blueprint.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Widget 操作"),
+		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Widget operation"),
 			{ TEXT("add"), TEXT("remove"), TEXT("set_slot"), TEXT("set_property"),
 			  TEXT("add_animation"), TEXT("remove_animation"), TEXT("add_track"), TEXT("add_key"),
 			  TEXT("remove_track"), TEXT("remove_key") }))
-		.Prop(TEXT("widgetClass"),  FNexusSchema::Str(TEXT("Widget 类短名（add）")))
-		.Prop(TEXT("widgetName"),   FNexusSchema::Str(TEXT("Widget 名；remove/set_* / 动画绑定轨必填")))
-		.Prop(TEXT("parentWidget"), FNexusSchema::Str(TEXT("父面板 Widget 名（add）")))
-		.Prop(TEXT("animationName"), FNexusSchema::Str(TEXT("动画名（add/remove_animation、add/remove_track、add/remove_key）")))
-		.Prop(TEXT("trackName"),    FNexusSchema::Str(TEXT("Float 轨显示名（add/remove_track、add/remove_key）")))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径（set_property；add_track 绑定时如 RenderOpacity）")))
-		.Prop(TEXT("time"),         FNexusSchema::Num(TEXT("关键帧时间秒（add_key / remove_key）")))
-		.Prop(TEXT("keyValue"),     FNexusSchema::Num(TEXT("Float 关键帧值（add_key）")))
-		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("属性值（set_property）")))
-		.Prop(TEXT("anchorMinX"),   FNexusSchema::Num(TEXT("Canvas 锚点 minX（set_slot）")))
-		.Prop(TEXT("anchorMinY"),   FNexusSchema::Num(TEXT("Canvas 锚点 minY（set_slot）")))
-		.Prop(TEXT("anchorMaxX"),   FNexusSchema::Num(TEXT("Canvas 锚点 maxX（set_slot）")))
-		.Prop(TEXT("anchorMaxY"),   FNexusSchema::Num(TEXT("Canvas 锚点 maxY（set_slot）")))
-		.Prop(TEXT("alignmentX"),   FNexusSchema::Num(TEXT("对齐 X（set_slot）")))
-		.Prop(TEXT("alignmentY"),   FNexusSchema::Num(TEXT("对齐 Y（set_slot）")))
-		.Prop(TEXT("offsetLeft"),   FNexusSchema::Num(TEXT("偏移 Left（set_slot）")))
-		.Prop(TEXT("offsetTop"),    FNexusSchema::Num(TEXT("偏移 Top（set_slot）")))
-		.Prop(TEXT("offsetRight"),  FNexusSchema::Num(TEXT("偏移 Right（set_slot）")))
-		.Prop(TEXT("offsetBottom"), FNexusSchema::Num(TEXT("偏移 Bottom（set_slot）")))
+		.Prop(TEXT("widgetClass"),  FNexusSchema::Str(TEXT("Widget class short name (add)")))
+		.Prop(TEXT("widgetName"),   FNexusSchema::Str(TEXT("Widget name; required for remove/set_*/animation track")))
+		.Prop(TEXT("parentWidget"), FNexusSchema::Str(TEXT("Parent panel Widget name (add)")))
+		.Prop(TEXT("animationName"), FNexusSchema::Str(TEXT("Animation name (add/remove_animation/track/key)")))
+		.Prop(TEXT("trackName"),    FNexusSchema::Str(TEXT("Float track display name (add/remove_track/key)")))
+		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Property path (set_property; e.g. RenderOpacity for add_track)")))
+		.Prop(TEXT("time"),         FNexusSchema::Num(TEXT("Keyframe time seconds (add_key/remove_key)")))
+		.Prop(TEXT("keyValue"),     FNexusSchema::Num(TEXT("Float keyframe value (add_key)")))
+		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("Property value (set_property)")))
+		.Prop(TEXT("anchorMinX"),   FNexusSchema::Num(TEXT("Canvas anchor minX (set_slot)")))
+		.Prop(TEXT("anchorMinY"),   FNexusSchema::Num(TEXT("Canvas anchor minY (set_slot)")))
+		.Prop(TEXT("anchorMaxX"),   FNexusSchema::Num(TEXT("Canvas anchor maxX (set_slot)")))
+		.Prop(TEXT("anchorMaxY"),   FNexusSchema::Num(TEXT("Canvas anchor maxY (set_slot)")))
+		.Prop(TEXT("alignmentX"),   FNexusSchema::Num(TEXT("Alignment X (set_slot)")))
+		.Prop(TEXT("alignmentY"),   FNexusSchema::Num(TEXT("Alignment Y (set_slot)")))
+		.Prop(TEXT("offsetLeft"),   FNexusSchema::Num(TEXT("offset Left (set_slot)")))
+		.Prop(TEXT("offsetTop"),    FNexusSchema::Num(TEXT("offset Top (set_slot)")))
+		.Prop(TEXT("offsetRight"),  FNexusSchema::Num(TEXT("offset Right (set_slot)")))
+		.Prop(TEXT("offsetBottom"), FNexusSchema::Num(TEXT("offset Bottom (set_slot)")))
 		.Required({ TEXT("action") })
 		.Build();
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("WidgetBlueprint 资产路径（共用）")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量 Widget 操作"), ItemSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("WidgetBlueprint asset path (shared)")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch widget ops"), ItemSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	}();
@@ -67,7 +68,7 @@ void FManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinitio
 		TEXT("get_asset_user_widget"), TEXT("create_asset_user_widget"), TEXT("save_asset"),
 		TEXT("get_asset_blueprint"), TEXT("manage_asset_blueprint")
 	};
-	Out.WhenToUse = TEXT("控件树/动画轨绑定用本 cap；EventGraph 用 manage_asset_blueprint");
+	Out.WhenToUse = TEXT("Widget tree/animation tracks use this cap; EventGraph via manage_asset_blueprint");
 }
 
 FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -75,28 +76,19 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 #if WITH_EDITOR
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		if (!Arguments.IsValid())
-		{
-			OutError = TEXT("参数无效");
-			return;
-		}
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UWidgetBlueprint* WBP = FNexusAssetUtils::LoadWidgetBP(AssetPath);
-		if (!WBP)           { OutError = FString::Printf(TEXT("WidgetBlueprint 未找到: %s"), *AssetPath); return; }
-		if (!WBP->WidgetTree) { OutError = TEXT("WidgetTree 不可用"); return; }
+		if (!WBP)           { OutError = FString::Printf(TEXT("WidgetBlueprint not found: %s"), *AssetPath); return; }
+		if (!WBP->WidgetTree) { OutError = TEXT("WidgetTree unavailable"); return; }
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("缺少 operations 或为空");
+			OutError = TEXT("Missing or empty operations");
 			return;
 		}
 
@@ -108,7 +100,7 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 
 			if (!Item.IsValid())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("无效的 operation 项"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("Invalid operation item"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
@@ -118,14 +110,14 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 
 			if (Action.IsEmpty())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("缺少 action"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("Missing action"));
 			}
 			else if (Action == TEXT("remove"))
 			{
 				FString WidgetName;
 				if (!Item->TryGetStringField(TEXT("widgetName"), WidgetName) || WidgetName.IsEmpty())
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("action=remove 时 widgetName 必填"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("action=remove requires widgetName"));
 				}
 				else
 				{
@@ -133,7 +125,7 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 					UWidget* Target = WBP->WidgetTree->FindWidget(FName(*WidgetName));
 					if (!Target)
 					{
-						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget 未找到: %s"), *WidgetName));
+						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
 					}
 					else
 					{
@@ -155,7 +147,7 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 				FString WidgetClass;
 				if (!Item->TryGetStringField(TEXT("widgetClass"), WidgetClass) || WidgetClass.IsEmpty())
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("action=add 时 widgetClass 必填"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("action=add requires widgetClass"));
 				}
 				else
 				{
@@ -166,7 +158,7 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 					UClass* NewClass = FNexusAssetUtils::FindClassWithUPrefix(WidgetClass);
 					if (!NewClass || !NewClass->IsChildOf(UWidget::StaticClass()))
 					{
-						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget 类未找到: %s"), *WidgetClass));
+						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget class not found: %s"), *WidgetClass));
 					}
 					else
 					{
@@ -178,7 +170,7 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 						UWidget* NewWidget = WBP->WidgetTree->ConstructWidget<UWidget>(NewClass, FName(*WidgetName));
 						if (!NewWidget)
 						{
-							OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("创建 Widget 失败: %s"), *WidgetClass));
+							OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Create Widget failed: %s"), *WidgetClass));
 						}
 						else
 						{
@@ -195,7 +187,7 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 	#else
 									NewWidget->MarkPendingKill();
 	#endif
-									OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("父面板 Widget 未找到: %s"), *ParentName));
+									OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Parent panel Widget not found: %s"), *ParentName));
 									OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 									continue;
 								}
@@ -221,14 +213,14 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 				FString WidgetName;
 				if (!Item->TryGetStringField(TEXT("widgetName"), WidgetName) || WidgetName.IsEmpty())
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("action=set_slot 时 widgetName 必填"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("action=set_slot requires widgetName"));
 				}
 				else
 				{
 					UWidget* Target = WBP->WidgetTree->FindWidget(FName(*WidgetName));
 					if (!Target)
 					{
-						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget 未找到: %s"), *WidgetName));
+						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
 					}
 					else
 					{
@@ -254,14 +246,14 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 					|| !Item->TryGetStringField(TEXT("propertyPath"), PropPath) || PropPath.IsEmpty()
 					|| !Item->TryGetStringField(TEXT("value"), Value) || Value.IsEmpty())
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("set_property 需要 widgetName、propertyPath、value"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("set_property requires widgetName、propertyPath、value"));
 				}
 				else
 				{
 					UWidget* Target = WBP->WidgetTree->FindWidget(FName(*WidgetName));
 					if (!Target)
 					{
-						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget 未找到: %s"), *WidgetName));
+						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
 					}
 					else
 					{
@@ -287,7 +279,7 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 				FString AnimName;
 				if (!Item->TryGetStringField(TEXT("animationName"), AnimName) || AnimName.IsEmpty())
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("add_animation 需要 animationName"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("add_animation requires animationName"));
 				}
 				else
 				{
@@ -309,7 +301,7 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 				FString AnimName;
 				if (!Item->TryGetStringField(TEXT("animationName"), AnimName) || AnimName.IsEmpty())
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("remove_animation 需要 animationName"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("remove_animation requires animationName"));
 				}
 				else
 				{
@@ -335,7 +327,7 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
 				if (!Anim)
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("add_track 需要已存在的 animationName"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("add_track requires existing animationName"));
 				}
 				else
 				{
@@ -365,11 +357,11 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
 				if (!Anim)
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("add_key 需要已存在的 animationName"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("add_key requires existing animationName"));
 				}
 				else if (!Item->HasField(TEXT("time")) || !Item->HasField(TEXT("keyValue")))
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("add_key 需要 time 与 keyValue"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("add_key requires time and keyValue"));
 				}
 				else
 				{
@@ -398,7 +390,7 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
 				if (!Anim)
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("remove_track 需要已存在的 animationName"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("remove_track requires existing animationName"));
 				}
 				else
 				{
@@ -423,11 +415,11 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 				UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
 				if (!Anim)
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("remove_key 需要已存在的 animationName"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("remove_key requires existing animationName"));
 				}
 				else if (!Item->HasField(TEXT("time")))
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("remove_key 需要 time"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("remove_key requires time"));
 				}
 				else
 				{
@@ -448,7 +440,7 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 			else
 			{
 				OutEntry->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("不支持的操作: '%s'。allowedActions: add, remove, set_slot, set_property, add_animation, remove_animation, add_track, add_key, remove_track, remove_key"), *Action));
+					FString::Printf(TEXT("Unsupported operation: '%s'. allowedActions: add, remove, set_slot, set_property, add_animation, remove_animation, add_track, add_key, remove_track, remove_key"), *Action));
 				TArray<TSharedPtr<FJsonValue>> Allowed;
 				Allowed.Add(MakeShared<FJsonValueString>(TEXT("add")));
 				Allowed.Add(MakeShared<FJsonValueString>(TEXT("remove")));
@@ -476,7 +468,8 @@ FCapabilityResult FManageAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 #else
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		OutError = TEXT("manage_asset_user_widget 仅在编辑器构建可用");
+		const FNexusArgs A(Arguments);
+		OutError = TEXT("manage_asset_user_widget only available in editor builds");
 	});
 #endif
 }

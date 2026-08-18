@@ -6,6 +6,8 @@
 
 ## 1. 描述格式（四段式）
 
+> **权威语言**：`Out.Description` 以 **英文四段式** 为准（与实现及 MCP/AI 可见文案一致）；本节其余说明与示例保持中文便于内部阅读。
+
 ```
 [VERB] [TARGET]. [DIFFERENTIATOR]. [CONSTRAINT?]
 ```
@@ -292,7 +294,7 @@ virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) cons
 
 > 新增或修改任何 `Utils/` 下的工具类时，必须遵循本节（§8 速查）。
 
-### 7.1 分层模型
+### 8.1 分层模型
 
 Utils 按依赖方向划分为 6 层，依赖只能从高层流向低层，**禁止反向**：
 
@@ -308,13 +310,13 @@ Utils 按依赖方向划分为 6 层，依赖只能从高层流向低层，**禁
 
 **依赖规则**：Common 不得依赖任何其他层；Result/Reflection 只能依赖 Common；Asset 可依赖 Reflection/Common；Runtime 可依赖 Reflection/Common；Domain/Editor 可依赖 Common，Editor 还可依赖 Asset。
 
-### 7.2 文件命名
+### 8.2 文件命名
 
 - **所有** Util 类必须命名为 `FNexus<Domain>Utils`，对应文件名为 `Nexus<Domain>Utils.h/.cpp`。
 - **唯一例外**：纯宏文件（如 `NexusVersionCompat.h`，无类定义），保持原样。
 - 无单职责豁免、无短名豁免。新增文件**必须**带 `Utils` 后缀。
 
-### 7.3 类与 API 风格
+### 8.3 类与 API 风格
 
 ```cpp
 // Copyright byteyang. All Rights Reserved.
@@ -336,15 +338,15 @@ public:
 - 公开方法**必须**中文 JavaDoc（`/** ... */`）。
 - 私有 helper 写在 `.cpp` 内 `namespace { }` 匿名块。
 
-### 7.4 准入门槛
+### 8.4 准入门槛
 
 | 情形 | 处置 |
 |---|---|
 | 被 ≥2 个 Capability/Tool 引用的 helper | **强制**下沉到对应层 Utils |
-| 仅 1 处引用，但函数体 >30 行 **或** 聚合 ≥3 个 helper | 可建领域 Utils（§7.4 豁免），须加注释 `// §7.4 豁免：单处引用但逻辑复杂` |
+| 仅 1 处引用，但函数体 >30 行 **或** 聚合 ≥3 个 helper | 可建领域 Utils（§8.4 豁免），须加注释 `// §8.4 豁免：单处引用但逻辑复杂` |
 | 其余单处引用 | 保留在 Capability 文件内 `namespace { static ... }` |
 
-### 7.5 跨版本兼容（权威详版）
+### 8.5 跨版本兼容（权威详版）
 
 > `audit_capability_naming.py` 会拒绝 **NexusLink 全模块**（除 `NexusVersionCompat.h`）出现 `NX_UE_AT_LEAST(`。
 
@@ -378,6 +380,7 @@ public:
 | `NX_UE_HAS_SOUND_NODE_WAVE_ACCESSOR` | SoundNodeWavePlayer::GetSoundWave |
 | `NX_UE_HAS_NIAGARA_*` | Niagara 发射器枚举 / ExposedParameters API |
 | `NX_UE_HAS_APP_STYLE` | 编辑器 Slate：`FEditorStyle` → `FAppStyle` |
+| `NX_UE_HAS_EQS` | Environment Query System（EQS）；UE5.0+ |
 | `NX_UE_HAS_UMG_SLOT_GETTERS` | UMG PanelSlot 布局 getter（Canvas/Box/Grid，5.1+） |
 | `NX_UE_HAS_SLATE_BOX_PANEL_SLOT_GETTERS` | Slate BoxPanel 子 Slot 导出（GetSlot + slot getter，5.0+） |
 | `NX_UE_HAS_CONTENT_BROWSER_ITEM_PATH` | Content Browser：`GetCurrentPath()` → `FContentBrowserItemPath`（UE4 用无参 `FString`） |
@@ -385,17 +388,17 @@ public:
 | `NX_UE_HAS_TAG_SEARCHABLE_REFERENCERS` | AssetRegistry `GetReferencers(SearchableName)` 按 GameplayTag 查引用包 |
 | `NX_UE_HAS_K2_PIN_REAL` | 蓝图 Pin `PC_Real`（UE4 仅 `PC_Float`） |
 
-### 7.6 `#if` 守卫规则
+### 8.6 `#if` 守卫规则
 
 - `WITH_EDITOR` / `WITH_UNLUA` / `NX_UE_HAS_*` 只包裹**必要分支**，禁止在头文件里把整个类体包进守卫。
 - Editor 专属 Utils 文件名须体现（`NexusEditor*Utils` / `NexusPort*Utils`）。
 
-### 7.7 依赖单向性（硬限制）
+### 8.7 依赖单向性（硬限制）
 
 - Utils 禁止 `#include` 任何 `Capabilities/` 或 `Tools/` 目录的头。
 - Common 层禁止依赖本表其他任何层。
 
-### 7.8 通用接口约定（禁止重复）
+### 8.8 通用接口约定（禁止重复）
 
 新增 Capability 时，以下逻辑**必须**走 Utils，禁止在 Capability 里自行抄写：
 
@@ -409,7 +412,7 @@ public:
 | 新建资产 finalize（MarkDirty + AssetCreated + Save） | `FNexusAssetUtils::NotifyAndSaveCreated(...)` / `NotifyCompileAndSave(...)` |
 | manage 收尾（可选 compile / saveToDisk） | `FNexusAssetUtils::ApplyManageFinalize(...)`（由 `FNexusCapability::Run` 统一调用，禁止各 manage Execute 自写） |
 
-### 7.9 Capability 实现样板约束
+### 8.9 Capability 实现样板约束
 
 所有 Capability `Execute()` **必须**遵守：
 
@@ -418,18 +421,18 @@ public:
 - 运行时 World 获取禁止手写 null 检查链——改用 `FNexusRuntimeUtils::RequirePlayWorld(OutError)`。
 - 新建资产 finalize 禁止手写 `MarkPackageDirty` + `AssetCreated` + Save 五件套——改用对应 `FNexusAssetUtils` 接口。
 
-### 7.10 提交前自检（6 条）
+### 8.10 提交前自检（6 条）
 
-1. 类名/文件名符合 §7.2（`FNexus<Domain>Utils`，无例外时）
+1. 类名/文件名符合 §8.2（`FNexus<Domain>Utils`，无例外时）
 2. API 全 `static`，公开类有 `NEXUSLINK_API`，公开方法有中文 JavaDoc
-3. `#include` 不违反 §7.7 依赖箭头
-4. 未绕过 `NX_*` 宏（§7.5）
-5. 未引入新的重复 helper（应改走 §7.8 对应接口）
-6. Capability 实现未出现 §7.9 列出的禁止样板
+3. `#include` 不违反 §8.7 依赖箭头
+4. 未绕过 `NX_*` 宏（§8.5）
+5. 未引入新的重复 helper（应改走 §8.8 对应接口）
+6. Capability 实现未出现 §8.9 列出的禁止样板
 
-### 7.11 Manage / Create / Execute 契约（Breaking 权威）
+### 8.11 Manage / Create / Execute 契约（Breaking 权威）
 
-> **Breaking**：无过渡期兼容。旧键 / 多目标数组 / `ops` / 顶层 `action` 合成一律按 `arg_invalid` 拒绝（或读入为空导致业务失败）。权威字段映射见 §7.12。
+> **Breaking**：无过渡期兼容。旧键 / 多目标数组 / `ops` / 顶层 `action` 合成一律按 `arg_invalid` 拒绝（或读入为空导致业务失败）。权威字段映射见 §8.12。
 
 | 项 | 约定 |
 |---|---|
@@ -446,7 +449,7 @@ public:
 | Execute 卫生 | 非 MultiSection 的 cap 优先 `FNexusCapabilityResultBuilder::Build`；资产定位统一 `RequireString` + `EmitError`（或对应 Fatal/`MakeArgInvalid`）；禁止裸 `SetStringField("error")` 作为唯一失败路径 |
 | 有意保留 | 单目标内：`sections` / `propertyPaths` / `operations` / `updates`；领域数组经 `operations` 承载（勿再把 `fields`/`rows`/`keys`/`widgets` 当顶层操作容器）；runtime `interact_*` / `control_pie` 的顶层 `action`（命令式语义，非批量操作列表）；元工具 `calls[]` |
 
-### 7.12 参数权威表 / Breaking 迁移
+### 8.12 参数权威表 / Breaking 迁移
 
 旧键出现在 Arguments 中 → Run 严格校验或 Schema 未声明 → **`arg_invalid`**（`MakeArgInvalid`）。禁止静默别名映射。
 

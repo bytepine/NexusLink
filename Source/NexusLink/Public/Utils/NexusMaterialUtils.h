@@ -4,7 +4,6 @@
 
 // Utils 层：Domain
 #include "CoreMinimal.h"
-#include "Misc/PackageName.h"
 #include "Utils/NexusVersionCompat.h"
 #if NX_UE_HAS_MATERIAL_DOMAIN_HEADER
 #include "MaterialDomain.h"
@@ -75,18 +74,6 @@ public:
 		return Empty;
 	}
 #endif
-
-	/** 加载材质资产，支持短路径和 ObjectPath 两种格式。 */
-	static UObject* LoadMaterialAsset(const FString& AssetPath)
-	{
-		UObject* Obj = LoadObject<UObject>(nullptr, *AssetPath);
-		if (!Obj)
-		{
-			const FString FullPath = AssetPath + TEXT(".") + FPackageName::GetShortName(AssetPath);
-			Obj = LoadObject<UObject>(nullptr, *FullPath);
-		}
-		return Obj;
-	}
 
 	/** 为材质表达式生成稳定的 nodeId（使用 UObject::GetName()）。 */
 	static FString GetExpressionNodeId(UMaterialExpression* Expr)

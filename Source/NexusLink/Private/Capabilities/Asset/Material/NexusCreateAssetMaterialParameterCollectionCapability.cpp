@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Material/NexusCreateAssetMaterialParameterCollectionCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -17,36 +18,32 @@
 void FCreateAssetMaterialParameterCollectionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_material_parameter_collection");
-	Out.Description = TEXT("创建空白 MaterialParameterCollection。用 manage 添加参数。");
+	Out.Description = TEXT("Create empty MaterialParameterCollection; add params via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径（/Game/…/MPC_Global）")))
+		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path (/Game/…/MPC_Global)")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Material };
 	Out.ExtraSearchKeywords = { TEXT("mpc"), TEXT("parameter"), TEXT("collection"), TEXT("global"), TEXT("material"), TEXT("shader") };
 	Out.RelatedCapabilities = { TEXT("get_asset_material_parameter_collection"), TEXT("manage_asset_material_parameter_collection") };
-	Out.WhenToUse = TEXT("新建 MaterialParameterCollection；之后用 manage 添加标量/向量参数");
+	Out.WhenToUse = TEXT("Create MPC; add scalar/vector params via manage");
 }
 
 FCapabilityResult FCreateAssetMaterialParameterCollectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("create_asset_material_parameter_collection 仅在编辑器构建可用");
+		OutError = TEXT("create_asset_material_parameter_collection only available in editor builds");
 		return;
 #else
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		if (FPackageName::DoesPackageExist(AssetPath))
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("MaterialParameterCollection 已存在: %s"), *AssetPath));
+			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("MaterialParameterCollection already exists: %s"), *AssetPath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -59,7 +56,7 @@ FCapabilityResult FCreateAssetMaterialParameterCollectionCapability::Execute(con
 		UObject* NewAsset = AT.CreateAsset(AssetName, PackagePath, UMaterialParameterCollection::StaticClass(), Factory);
 		if (!NewAsset)
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(TEXT("MPC 创建失败: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(TEXT("MPC Createfailed: %s"), *AssetPath));
 			return;
 		}
 

@@ -5,38 +5,35 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "NexusMcpTool.h"
 
 void FCreateAssetRenderTargetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_render_target");
-	Out.Description = TEXT("创建 TextureRenderTarget2D 资产；用 manage 修改尺寸/格式。");
+	Out.Description = TEXT("Create TextureRenderTarget2D; edit size/format via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
-		.Prop(TEXT("sizeX"),     FNexusSchema::Int(TEXT("宽度（默认256）"), 256, 1))
-		.Prop(TEXT("sizeY"),     FNexusSchema::Int(TEXT("高度（默认256）"), 256, 1))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("sizeX"),     FNexusSchema::Int(TEXT("Width (default 256)"), 256, 1))
+		.Prop(TEXT("sizeY"),     FNexusSchema::Int(TEXT("Height (default 256)"), 256, 1))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("render"), TEXT("target"), TEXT("texture"), TEXT("rt"), TEXT("offscreen") };
 	Out.RelatedCapabilities = { TEXT("get_asset_render_target"), TEXT("manage_asset_render_target") };
-	Out.WhenToUse = TEXT("创建渲染目标纹理资产");
+	Out.WhenToUse = TEXT("Create render target texture asset");
 }
 
 FCapabilityResult FCreateAssetRenderTargetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
-		const int32 SizeX = Arguments->HasField(TEXT("sizeX")) ? (int32)Arguments->GetNumberField(TEXT("sizeX")) : 256;
-		const int32 SizeY = Arguments->HasField(TEXT("sizeY")) ? (int32)Arguments->GetNumberField(TEXT("sizeY")) : 256;
+		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const int32 SizeX = static_cast<int32>(A.Num(TEXT("sizeX"), 256));
+		const int32 SizeY = static_cast<int32>(A.Num(TEXT("sizeY"), 256));
 
 		if (LoadObject<UTextureRenderTarget2D>(nullptr, *AssetPath))
 		{
@@ -46,11 +43,11 @@ FCapabilityResult FCreateAssetRenderTargetCapability::Execute(const TSharedPtr<F
 		}
 
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		UTextureRenderTarget2D* RT = NewObject<UTextureRenderTarget2D>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!RT) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("RenderTarget 创建失败")); return; }
+		if (!RT) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("RenderTarget Createfailed")); return; }
 
 		RT->SizeX = SizeX;
 		RT->SizeY = SizeY;

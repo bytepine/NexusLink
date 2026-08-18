@@ -14,16 +14,16 @@ void FManageAssetMediaSourceCapability::BuildDefinition(FNexusCapabilityDefiniti
 {
 	Out.Name = TEXT("manage_asset_media_source");
 	Out.SearchAssetTypes = {TEXT("FileMediaSource"), TEXT("MediaSource")};
-	Out.Description = TEXT("批量编辑 FileMediaSource。operations[].action=set_file_path/set_loop。");
+	Out.Description = TEXT("Batch edit FileMediaSource. action=set_file_path/set_loop.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"), { TEXT("set_file_path"), TEXT("set_loop") }))
-		.Prop(TEXT("mediaPath"), FNexusSchema::Str(TEXT("媒体文件路径（set_file_path）")))
-		.Prop(TEXT("loop"), FNexusSchema::Bool(TEXT("是否循环（set_loop，反射字段）")))
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("set_file_path"), TEXT("set_loop") }))
+		.Prop(TEXT("mediaPath"), FNexusSchema::Str(TEXT("Media file path (set_file_path)")))
+		.Prop(TEXT("loop"), FNexusSchema::Bool(TEXT("Loop flag (set_loop, reflected field)")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MediaSource 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MediaSource asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -42,14 +42,14 @@ FCapabilityResult FManageAssetMediaSourceCapability::Execute(const TSharedPtr<FJ
 		if (!Source)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 FileMediaSource 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load FileMediaSource: %s"), *AssetPath));
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 
@@ -72,7 +72,7 @@ FCapabilityResult FManageAssetMediaSourceCapability::Execute(const TSharedPtr<FJ
 				FString FilePath;
 				if (!Op->TryGetStringField(TEXT("mediaPath"), FilePath) || FilePath.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_file_path 需要 mediaPath"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_file_path requires mediaPath"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -84,7 +84,7 @@ FCapabilityResult FManageAssetMediaSourceCapability::Execute(const TSharedPtr<FJ
 			{
 				if (!Op->HasField(TEXT("loop")))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_loop 需要 loop"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_loop requires loop"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -94,7 +94,7 @@ FCapabilityResult FManageAssetMediaSourceCapability::Execute(const TSharedPtr<FJ
 					Source, { TEXT("Loop") }, 0, bLoop ? TEXT("True") : TEXT("False"), OldVal, ActualVal, Err))
 				{
 					Entry->SetStringField(TEXT("error"),
-						Err.IsEmpty() ? TEXT("无 Loop 字段") : Err);
+						Err.IsEmpty() ? TEXT("no Loop field") : Err);
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -103,7 +103,7 @@ FCapabilityResult FManageAssetMediaSourceCapability::Execute(const TSharedPtr<FJ
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
 			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 		}

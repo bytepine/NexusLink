@@ -6,6 +6,7 @@
 
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusStringMatchUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
@@ -15,11 +16,11 @@
 void FSearchConsoleVariablesCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("search_console_variables");
-	Out.Description = TEXT("搜索控制台变量名。子串匹配；只读，不修改 CVar 值。");
+	Out.Description = TEXT("Search console variable names. Substring match; read-only.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("query"),  FNexusSchema::Str(TEXT("变量名子串（必填）")))
-		.Prop(TEXT("offset"), FNexusSchema::Int(TEXT("分页偏移"), 0, 0))
-		.Prop(TEXT("limit"),  FNexusSchema::Int(TEXT("每页最大条数"), 50, 1, 200))
+		.Prop(TEXT("query"),  FNexusSchema::Str(TEXT("Variable name substring (required)")))
+		.Prop(TEXT("offset"), FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("limit"),  FNexusSchema::Int(TEXT("Max items per page"), 50, 1, 200))
 		.Required({ TEXT("query") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
@@ -31,23 +32,19 @@ FCapabilityResult FSearchConsoleVariablesCapability::Execute(const TSharedPtr<FJ
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Query;
+		const FNexusArgs A(Arguments);
 		int32 Offset = 0;
 		int32 Limit  = 50;
 
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("query"), Query) || Query.IsEmpty())
-		{
-			OutError = TEXT("query 为必填项");
-			return;
-		}
+		const FString Query = A.Str(TEXT("query"));
 
 		if (Arguments->HasField(TEXT("offset")))
 		{
-			Offset = FMath::Max(0, static_cast<int32>(Arguments->GetNumberField(TEXT("offset"))));
+			Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
 		}
 		if (Arguments->HasField(TEXT("limit")))
 		{
-			Limit = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 200);
+			Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 200);
 		}
 
 		TArray<TSharedPtr<FJsonValue>> AllMatches;

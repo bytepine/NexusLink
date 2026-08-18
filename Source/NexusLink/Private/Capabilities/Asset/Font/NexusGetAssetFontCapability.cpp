@@ -12,9 +12,9 @@ void FGetAssetFontCapability::BuildDefinition(FNexusCapabilityDefinition& Out) c
 {
 	Out.Name = TEXT("get_asset_font");
 	Out.SearchAssetTypes = {TEXT("Font")};
-	Out.Description = TEXT("读取 Font：字号/字符数/缓存类型。空白字体请用 reimport_asset 导入 TTF。");
+	Out.Description = TEXT("Read Font: size/char count/cache type. Use reimport_asset for empty fonts.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Font 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Font asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -33,7 +33,7 @@ FCapabilityResult FGetAssetFontCapability::Execute(const TSharedPtr<FJsonObject>
 		if (!Font)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 Font 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load Font: %s"), *AssetPath));
 			return;
 		}
 

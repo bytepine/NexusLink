@@ -201,6 +201,47 @@ public:
 	static class UUserDefinedStruct* FindStructByName(const FString& StructName);
 
 	/**
+	 * 资产创建结果：成功时 Asset 非空且 Error 为空。Error 为英文，可直接写入 entry/fatal。
+	 */
+	struct FAssetCreateOutcome
+	{
+		UObject* Asset = nullptr;
+		FString Error;
+		bool Ok() const { return Asset != nullptr && Error.IsEmpty(); }
+	};
+
+	/**
+	 * 普通 UObject 资产创建：已存在检查 → CreatePackage → NewObject → NotifyAndSaveCreated。
+	 * 错误消息为英文。
+	 */
+	static FAssetCreateOutcome CreatePlainAsset(
+		const FString& AssetPath,
+		UClass* AssetClass,
+		EObjectFlags Flags = RF_Public | RF_Standalone);
+
+	template <typename TAsset>
+	static FAssetCreateOutcome CreatePlainAsset(
+		const FString& AssetPath,
+		EObjectFlags Flags = RF_Public | RF_Standalone)
+	{
+		return CreatePlainAsset(AssetPath, TAsset::StaticClass(), Flags);
+	}
+
+	/**
+	 * 蓝图类资产创建：DoesPackageExist → 解析父类 → CreatePackage → CreateBlueprint → NotifyCompileAndSave。
+	 * ExpectedBase 非空时父类须为其子类。BlueprintClass/GeneratedClass 默认 UBlueprint / UBlueprintGeneratedClass。
+	 * 仅 WITH_EDITOR 可用；非编辑器返回 Error。
+	 * bCompileAndSave=false 时只创建不编译落盘，供调用方补节点后再 NotifyCompileAndSave。
+	 */
+	static FAssetCreateOutcome CreateBlueprintAsset(
+		const FString& AssetPath,
+		const FString& ParentClassPath,
+		UClass* ExpectedBase,
+		UClass* BlueprintClass = nullptr,
+		UClass* GeneratedClass = nullptr,
+		bool bCompileAndSave = true);
+
+	/**
 	 * 新资产创建 finalize 三件套（P2 消除）：MarkPackageDirty + AssetCreated + SaveNewAsset。
 	 * 等价于：
 	 *   Package->MarkPackageDirty();
@@ -223,13 +264,4 @@ public:
 	 * create/get_asset_blueprint 共用，供 BPI 与 Implement 接口回显。
 	 */
 	static void AppendBlueprintMetaFields(const class UBlueprint* BP, TSharedPtr<FJsonObject>& OutEntry);
-
-	/**
-	 * search_asset 路由提示：按返回的 assetType 从 Registry（各 cap 的 SearchAssetTypes）解析推荐读/写 Capability。
-	 * 无对应 cap 时 Out* 为空串（调用方勿写入 JSON 字段）。
-	 */
-	static void ResolveRecommendedCapabilities(
-		const FString& AssetType,
-		FString& OutRecommendedGet,
-		FString& OutRecommendedManage);
 };

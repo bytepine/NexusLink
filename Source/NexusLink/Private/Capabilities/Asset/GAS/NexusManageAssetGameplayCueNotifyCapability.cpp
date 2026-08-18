@@ -16,15 +16,15 @@ void FManageAssetGameplayCueNotifyCapability::BuildDefinition(FNexusCapabilityDe
 {
 	Out.Name = TEXT("manage_asset_gameplay_cue_notify");
 	Out.SearchAssetTypes = {TEXT("GameplayCueNotify_Static")};
-	Out.Description = TEXT("批量编辑 GameplayCueNotify_Static。operations[].action=set_cue_name。Actor BP 图走 blueprint。");
+	Out.Description = TEXT("Batch edit GameplayCueNotify_Static. Actor BP graph via blueprint.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"), { TEXT("set_cue_name") }))
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("set_cue_name") }))
 		.Prop(TEXT("cueName"), FNexusSchema::Str(TEXT("GameplayCue Tag")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Cue Notify 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Cue Notify asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
@@ -46,14 +46,14 @@ FCapabilityResult FManageAssetGameplayCueNotifyCapability::Execute(const TShared
 		if (!Notify)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("仅支持 GameplayCueNotify_Static；Actor BP 请用 manage_asset_blueprint"));
+				TEXT("Only supports GameplayCueNotify_Static; use manage_asset_blueprint for Actor BP"));
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 
@@ -76,7 +76,7 @@ FCapabilityResult FManageAssetGameplayCueNotifyCapability::Execute(const TShared
 				FString CueName;
 				if (!Op->TryGetStringField(TEXT("cueName"), CueName) || CueName.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_cue_name 需要 cueName"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_cue_name requires cueName"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -86,7 +86,7 @@ FCapabilityResult FManageAssetGameplayCueNotifyCapability::Execute(const TShared
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
 			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 		}

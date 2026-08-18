@@ -2,7 +2,7 @@
 
 #pragma once
 
-// Utils 层：Domain — §7.4 豁免：单 Capability 引用但合并了 2 处历史分散实现（>30 行）
+// Utils 层：Domain — §8.4 豁免：单 Capability 引用但合并了 2 处历史分散实现（>30 行）
 #include "CoreMinimal.h"
 
 #if WITH_EDITOR

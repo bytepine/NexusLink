@@ -6,15 +6,16 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "CommonTextBlock.h"
 #include "NexusMcpTool.h"
 
 void FCreateAssetCommonTextStyleCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_common_text_style");
-	Out.Description = TEXT("创建 CommonTextStyle。WBP 控件树仍走 user_widget。");
+	Out.Description = TEXT("Create CommonTextStyle. WBP widget tree still uses user_widget.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Widget };
@@ -29,24 +30,16 @@ FCapabilityResult FCreateAssetCommonTextStyleCapability::Execute(const TSharedPt
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UCommonTextStyle>(AssetPath);
+		if (!Created.Ok())
 		{
-			OutError = TEXT("缺少 assetPath");
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
-		if (LoadObject<UCommonTextStyle>(nullptr, *AssetPath))
-		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("CommonTextStyle already exists: %s"), *AssetPath));
-			return;
-		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UCommonTextStyle* Style = NewObject<UCommonTextStyle>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Style) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建失败")); return; }
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Style, AssetPath);
+		UCommonTextStyle* Style = Cast<UCommonTextStyle>(Created.Asset);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Style->GetName());
 		Entry->SetStringField(TEXT("path"), Style->GetPathName());

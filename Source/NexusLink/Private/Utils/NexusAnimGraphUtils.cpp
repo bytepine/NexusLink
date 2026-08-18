@@ -327,14 +327,14 @@ UEdGraphNode* FNexusAnimGraphUtils::FindNodeByGuidOrTitle(UEdGraph* Graph, const
 
 UEdGraphNode* FNexusAnimGraphUtils::SpawnAnimGraphNode(UEdGraph* Graph, UClass* NodeClass, int32 PosX, int32 PosY, FString& OutError)
 {
-	if (!Graph) { OutError = TEXT("AnimGraph 无效"); return nullptr; }
+	if (!Graph) { OutError = TEXT("Invalid AnimGraph"); return nullptr; }
 	if (!NodeClass || !NodeClass->IsChildOf(UAnimGraphNode_Base::StaticClass()))
 	{
-		OutError = FString::Printf(TEXT("仅支持 AnimGraph 节点（%s）"), NexusAnimGraphNodeNames::SupportedList);
+		OutError = FString::Printf(TEXT("Only supports AnimGraph nodes (%s)"), NexusAnimGraphNodeNames::SupportedList);
 		return nullptr;
 	}
 	UEdGraphNode* Node = NewObject<UEdGraphNode>(Graph, NodeClass);
-	if (!Node) { OutError = TEXT("创建 AnimGraph 节点失败"); return nullptr; }
+	if (!Node) { OutError = TEXT("Create AnimGraph nodefailed"); return nullptr; }
 	Node->CreateNewGuid();
 	Node->NodePosX = PosX;
 	Node->NodePosY = PosY;
@@ -358,14 +358,14 @@ static UEdGraphPin* FindAnimPinByName(UEdGraphNode* Node, const FString& PinName
 bool FNexusAnimGraphUtils::ConnectAnimPins(UEdGraphNode* Source, const FString& SourcePin,
 	UEdGraphNode* Target, const FString& TargetPin, FString& OutError)
 {
-	if (!Source || !Target) { OutError = TEXT("源或目标节点无效"); return false; }
+	if (!Source || !Target) { OutError = TEXT("Invalid source or target node"); return false; }
 	UEdGraphPin* Src = FindAnimPinByName(Source, SourcePin);
 	UEdGraphPin* Dst = FindAnimPinByName(Target, TargetPin);
-	if (!Src) { OutError = FString::Printf(TEXT("源引脚未找到: %s"), *SourcePin); return false; }
-	if (!Dst) { OutError = FString::Printf(TEXT("目标引脚未找到: %s"), *TargetPin); return false; }
+	if (!Src) { OutError = FString::Printf(TEXT("Source pin not found: %s"), *SourcePin); return false; }
+	if (!Dst) { OutError = FString::Printf(TEXT("Target pin not found: %s"), *TargetPin); return false; }
 	if (Src->Direction == Dst->Direction)
 	{
-		OutError = TEXT("引脚方向相同，无法连接");
+		OutError = TEXT("Pin directions match; cannot connect");
 		return false;
 	}
 	if (Src->Direction == EGPD_Input)

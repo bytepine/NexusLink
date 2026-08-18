@@ -4,6 +4,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Sound/SoundAttenuation.h"
 #include "NexusMcpTool.h"
 
@@ -11,9 +12,9 @@ void FGetAssetSoundAttenuationCapability::BuildDefinition(FNexusCapabilityDefini
 {
 	Out.Name = TEXT("get_asset_sound_attenuation");
 	Out.SearchAssetTypes = {TEXT("SoundAttenuation")};
-	Out.Description = TEXT("读取 SoundAttenuation：shape/innerRadius/falloffDistance/bAttenuate/bSpatialize。");
+	Out.Description = TEXT("Read SoundAttenuation: shape/innerRadius/falloffDistance/bAttenuate/bSpatialize.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundAttenuation 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundAttenuation asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -25,18 +26,14 @@ FCapabilityResult FGetAssetSoundAttenuationCapability::Execute(const TSharedPtr<
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		USoundAttenuation* SA = LoadObject<USoundAttenuation>(nullptr, *AssetPath);
 		if (!SA)
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("加载 SoundAttenuation 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load SoundAttenuation: %s"), *AssetPath));
 			return;
 		}
 

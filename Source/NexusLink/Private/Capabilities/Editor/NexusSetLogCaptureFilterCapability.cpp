@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Editor/NexusLogCapture.h"
@@ -14,14 +15,12 @@
 void FSetLogCaptureFilterCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("set_log_capture_filter");
-	Out.Description = TEXT(
-		"配置写入缓冲的日志分类。空=全部；Warning/Error 始终捕获；"
-		"首次启动有诊断默认集。影响 get_output_log。");
+	Out.Description = TEXT("Configure buffered log categories. Empty=all; Warning/Error always captured. Affects get_output_log.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("categories"), FNexusSchema::StrArr(
-			TEXT("要捕获的日志分类子串。空数组=全部。"
-			     "示例：[\"LogTemp\"]、[\"LogBlueprintUserMessages\",\"LogNexusLink\"]、[]。"
-			     "Warning/Error 始终写入，不受此列表限制。")))
+			TEXT("Log category substrings to capture. Empty array=all. "
+			     "Examples: [\"LogTemp\"], [\"LogBlueprintUserMessages\",\"LogNexusLink\"], []. "
+			     "Warning/Error always written regardless of this list.")))
 		.Required({ TEXT("categories") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -35,16 +34,11 @@ FCapabilityResult FSetLogCaptureFilterCapability::Execute(const TSharedPtr<FJson
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 
-		if (!Arguments.IsValid())
-		{
-			OutError = TEXT("参数无效");
-			return;
-		}
 
 		const TArray<TSharedPtr<FJsonValue>>* CatArrPtr = nullptr;
 		if (!Arguments->TryGetArrayField(TEXT("categories"), CatArrPtr) || !CatArrPtr)
 		{
-			OutError = TEXT("缺少 categories（字符串数组）");
+			OutError = TEXT("Missing categories (string array)");
 			return;
 		}
 
@@ -77,7 +71,7 @@ FCapabilityResult FSetLogCaptureFilterCapability::Execute(const TSharedPtr<FJson
 		OutEntry->SetStringField(TEXT("note"),
 			Categories.Num() == 0
 				? TEXT("Capturing ALL log categories (Warning/Error always captured)")
-				: FString::Printf(TEXT("正在捕获 %d 个日志分类过滤（Warning/Error 始终捕获）"), Categories.Num()));
+				: FString::Printf(TEXT("Capturing %d log category filters (Warning/Error always captured)"), Categories.Num()));
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});

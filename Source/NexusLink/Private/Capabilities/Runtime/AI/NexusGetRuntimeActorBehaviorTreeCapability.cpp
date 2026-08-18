@@ -19,10 +19,10 @@
 void FGetRuntimeActorBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_actor_behavior_tree");
-	Out.Description = TEXT("查运行中 AI 的 BT 节点与 BB 键值。写黑板/重启用 interact。");
+	Out.Description = TEXT("Query running AI BT nodes and BB keys. Write BB/restart via interact.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Controller 或 Pawn 名（可选；省略则用首个 AIController）")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("黑板键名过滤")))
+		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Controller or Pawn name (optional; first AIController if omitted)")))
+		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Blackboard key name filter")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("blackboard"), TEXT("bt"), TEXT("aicontroller"), TEXT("pawn"), TEXT("ai") };
@@ -37,7 +37,7 @@ FCapabilityResult FGetRuntimeActorBehaviorTreeCapability::Execute(const TSharedP
 	UWorld* World = FNexusRuntimeUtils::GetActiveWorld();
 	if (!World)
 	{
-		EmitError(R.Entries, {}, TEXT("无活动 World"));
+		EmitError(R.Entries, {}, TEXT("No active World"));
 		return R;
 	}
 
@@ -66,7 +66,7 @@ FCapabilityResult FGetRuntimeActorBehaviorTreeCapability::Execute(const TSharedP
 
 	if (!AICtrl)
 	{
-		EmitError(R.Entries, {{TEXT("actorName"), ActorName}}, TEXT("AIController 未找到"));
+		EmitError(R.Entries, {{TEXT("actorName"), ActorName}}, TEXT("AIController not found"));
 		return R;
 	}
 

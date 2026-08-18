@@ -44,18 +44,18 @@ void FGetAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefinit
 {
 	Out.Name = TEXT("get_asset_gameplay_ability");
 	Out.SearchAssetTypes = {TEXT("GameplayAbility")};
-	Out.Description = TEXT("读 GA Blueprint。sections=metadata|tags|costs|graphOverview；只读。");
+	Out.Description = TEXT("Read GA Blueprint. sections=metadata|tags|costs|graphOverview; read-only.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Gas };
 	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("ability"), TEXT("gameplay"), TEXT("ga"), TEXT("tag"), TEXT("policy") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_gameplay_ability"), TEXT("manage_asset_blueprint"), TEXT("create_asset_gameplay_ability") };
-	Out.WhenToUse = TEXT("读 GA 策略/Tag/Cost；Graph 读取用 get_asset_blueprint");
+	Out.WhenToUse = TEXT("Read GA policy/Tag/Cost; graph reads via get_asset_blueprint");
 }
 
 TSharedPtr<FJsonObject> FGetAssetGameplayAbilityCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GameplayAbility Blueprint 路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GameplayAbility Blueprint path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 }
@@ -78,7 +78,7 @@ bool FGetAssetGameplayAbilityCapability::PrepareEntry(
 {
 	FString Path;
 	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-	{ OutError = TEXT("缺少 assetPath"); return false; }
+	{ OutError = TEXT("Missing assetPath"); return false; }
 
 	FString LoadError;
 	UBlueprint* BP = FNexusGasUtils::LoadGameplayAbilityBlueprint(Path, LoadError);
@@ -100,10 +100,10 @@ void FGetAssetGameplayAbilityCapability::ExecuteSection(
 	FString&                       OutError) const
 {
 	UBlueprint* BP = static_cast<UBlueprint*>(TargetOpaque);
-	if (!BP || !BP->GeneratedClass) { OutError = TEXT("无效的 GA Blueprint 目标"); return; }
+	if (!BP || !BP->GeneratedClass) { OutError = TEXT("Invalid GA Blueprint target"); return; }
 
 	UObject* CDO = BP->GeneratedClass->GetDefaultObject();
-	if (!CDO) { OutError = TEXT("无法获取 GameplayAbility CDO"); return; }
+	if (!CDO) { OutError = TEXT("Unable to get GameplayAbility CDO"); return; }
 
 	if (SectionName == TEXT("metadata"))
 	{

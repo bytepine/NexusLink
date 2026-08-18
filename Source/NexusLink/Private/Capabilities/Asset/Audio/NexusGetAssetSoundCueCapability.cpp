@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Audio/NexusGetAssetSoundCueCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -15,27 +16,23 @@ void FGetAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 {
 	Out.Name = TEXT("get_asset_sound_cue");
 	Out.SearchAssetTypes = {TEXT("SoundCue")};
-	Out.Description = TEXT("检查 SoundCue 快照。时长/节点树摘要。写用 manage_asset_sound_cue。");
+	Out.Description = TEXT("Inspect SoundCue snapshot. Writes via manage_asset_sound_cue.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundCue 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundCue asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("cue"), TEXT("sound"), TEXT("node"), TEXT("sfx") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_sound_cue"), TEXT("create_asset_sound_cue"), TEXT("search_asset"), TEXT("get_asset_sound_wave"), TEXT("get_asset_refs") };
-	Out.WhenToUse = TEXT("读 Cue 节点树；根属性写用 manage_asset_sound_cue");
+	Out.WhenToUse = TEXT("Read Cue node tree; root props via manage_asset_sound_cue");
 }
 
 FCapabilityResult FGetAssetSoundCueCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Path;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString Path = A.Str(TEXT("assetPath"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("path"), Path);
@@ -43,7 +40,7 @@ FCapabilityResult FGetAssetSoundCueCapability::Execute(const TSharedPtr<FJsonObj
 		USoundCue* Cue = FNexusAssetUtils::LoadAssetWithFallback<USoundCue>(Path);
 		if (!Cue)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("SoundCue 未找到: %s"), *Path));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("SoundCue not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

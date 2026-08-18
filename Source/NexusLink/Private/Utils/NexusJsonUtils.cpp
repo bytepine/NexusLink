@@ -2,6 +2,9 @@
 
 #include "Utils/NexusJsonUtils.h"
 #include "Math/UnrealMathUtility.h"
+#include "Policies/CondensedJsonPrintPolicy.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
 
 FString FNexusJsonUtils::GetStringSafe(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Key, const FString& Default)
 {
@@ -106,4 +109,24 @@ TArray<TSharedPtr<FJsonValue>> FNexusJsonUtils::ExtractOperations(const TSharedP
 		return *Arr;
 	}
 	return Result;
+}
+
+FString FNexusJsonUtils::SerializeCondensed(const TSharedPtr<FJsonObject>& Obj)
+{
+	if (!Obj.IsValid()) return FString();
+	FString Out;
+	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W =
+		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Out);
+	FJsonSerializer::Serialize(Obj.ToSharedRef(), W);
+	return Out;
+}
+
+FString FNexusJsonUtils::SerializeValueCondensed(const TSharedPtr<FJsonValue>& Value)
+{
+	if (!Value.IsValid()) return FString();
+	FString Out;
+	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W =
+		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Out);
+	FJsonSerializer::Serialize(Value.ToSharedRef(), TEXT(""), W);
+	return Out;
 }

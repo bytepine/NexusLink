@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Blueprint/NexusCompileBlueprintCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -17,16 +18,16 @@
 void FCompileBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("compile_blueprint");
-	Out.Description = TEXT("显式编译 Blueprint/ABP/WBP。可选 saveToDisk 落盘；manage 后补编译用。");
+	Out.Description = TEXT("Explicitly compile Blueprint/ABP/WBP. Optional saveToDisk; use after manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("蓝图资产路径")))
-		.Prop(TEXT("saveToDisk"),  FNexusSchema::Bool(TEXT("编译后保存包到磁盘"), false))
+		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("Blueprint asset path")))
+		.Prop(TEXT("saveToDisk"),  FNexusSchema::Bool(TEXT("Save package to disk after compile"), false))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = { TEXT("compile"), TEXT("rebuild"), TEXT("kismet"), TEXT("abp"), TEXT("wbp") };
 	Out.RelatedCapabilities = { TEXT("save_asset"), TEXT("manage_asset_blueprint"), TEXT("get_asset_blueprint") };
-	Out.WhenToUse = TEXT("未在 manage 上传 compile 时显式编译");
+	Out.WhenToUse = TEXT("Explicit compile when manage omits compile");
 }
 
 #if WITH_EDITOR
@@ -41,16 +42,12 @@ FCapabilityResult FCompileBlueprintCapability::Execute(const TSharedPtr<FJsonObj
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("compile_blueprint 仅在编辑器模式可用");
+		OutError = TEXT("compile_blueprint only available in editor mode");
 		return;
 #else
-		FString Path;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FString Path = A.Str(TEXT("assetPath"));
 
 		bool bSaveToDisk = false;
 		Arguments->TryGetBoolField(TEXT("saveToDisk"), bSaveToDisk);
@@ -61,7 +58,7 @@ FCapabilityResult FCompileBlueprintCapability::Execute(const TSharedPtr<FJsonObj
 		UBlueprint* BP = FNexusAssetUtils::LoadAssetTracked<UBlueprint>(Path);
 		if (!BP)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Blueprint 未找到: %s"), *Path));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Blueprint not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

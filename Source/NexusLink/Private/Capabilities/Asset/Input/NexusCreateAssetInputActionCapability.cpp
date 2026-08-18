@@ -5,6 +5,7 @@
 #if WITH_ENHANCED_INPUT
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -14,36 +15,32 @@
 void FCreateAssetInputActionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_input_action");
-	Out.Description = TEXT("创建空白 UInputAction。指定 valueType 后可用 manage 添加 Trigger/Modifier。");
+	Out.Description = TEXT("Create empty InputAction; add Trigger/Modifier via manage after valueType.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径（/Game/…/IA_Jump）")))
+		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path (/Game/…/IA_Jump)")))
 		.Prop(TEXT("valueType"), FNexusSchema::Enum(
-			TEXT("返回值类型"),
+			TEXT("Value type"),
 			{ TEXT("Boolean"), TEXT("Axis1D"), TEXT("Axis2D"), TEXT("Axis3D") },
 			TEXT("Boolean")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("action"), TEXT("ia"), TEXT("enhanced"), TEXT("trigger"), TEXT("axis") };
 	Out.RelatedCapabilities = { TEXT("get_asset_input_action"), TEXT("manage_asset_input_action"), TEXT("create_asset_input_mapping_context") };
-	Out.WhenToUse = TEXT("新建 InputAction 资产；之后用 manage 配置 Trigger/Modifier");
+	Out.WhenToUse = TEXT("Create InputAction; configure Trigger/Modifier via manage");
 }
 
 FCapabilityResult FCreateAssetInputActionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		if (LoadObject<UInputAction>(nullptr, *AssetPath))
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("InputAction 已存在: %s"), *AssetPath));
+			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("InputAction already exists: %s"), *AssetPath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -52,14 +49,14 @@ FCapabilityResult FCreateAssetInputActionCapability::Execute(const TSharedPtr<FJ
 		UPackage* Pkg = CreatePackage(*AssetPath);
 		if (!Pkg)
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建 Package 失败"));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create Package failed"));
 			return;
 		}
 
 		UInputAction* IA = NewObject<UInputAction>(Pkg, *AssetName, RF_Public | RF_Standalone);
 		if (!IA)
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("InputAction 创建失败"));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("InputAction Createfailed"));
 			return;
 		}
 

@@ -61,7 +61,13 @@ public:
 
 	/**
 	 * 统一提取 manage_* 类 Capability 的批量操作数组。
-	 * 仅接受 `operations[]`；不认 `ops`、不把顶层 `action` 合成单元素数组（见 CapabilitySpec §7.11）。
+	 * 仅接受 `operations[]`；不认 `ops`、不把顶层 `action` 合成单元素数组（见 CapabilitySpec §8.11）。
 	 */
 	static TArray<TSharedPtr<FJsonValue>> ExtractOperations(const TSharedPtr<FJsonObject>& Args);
+
+	/** 将 JSON 对象序列化为紧凑字符串；Obj 无效时返回空串。 */
+	static FString SerializeCondensed(const TSharedPtr<FJsonObject>& Obj);
+
+	/** 将 JSON 值序列化为紧凑字符串；Value 无效时返回空串。 */
+	static FString SerializeValueCondensed(const TSharedPtr<FJsonValue>& Value);
 };

@@ -166,32 +166,32 @@ void FManageAssetAnimSequenceCapability::BuildDefinition(FNexusCapabilityDefinit
 {
 	Out.Name = TEXT("manage_asset_anim_sequence");
 	Out.SearchAssetTypes = {TEXT("AnimSequence")};
-	Out.Description = TEXT("批量编辑 AnimSequence：notify/帧率/root motion/曲线关键帧。见 operations[].action。");
+	Out.Description = TEXT("Batch edit AnimSequence: notify/frame rate/root motion/curve keys.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("编辑操作"),
+		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Edit operation"),
 			{ TEXT("add_notify"), TEXT("remove_notify"), TEXT("set_frame_rate"), TEXT("set_root_motion"),
 			  TEXT("add_float_curve"), TEXT("set_curve_key"), TEXT("remove_curve") }))
-		.Prop(TEXT("notifyName"),   FNexusSchema::Str(TEXT("Notify 名（add/remove）")))
-		.Prop(TEXT("notifyClass"),  FNexusSchema::Str(TEXT("Notify 类路径（add；默认 AnimNotify）")))
-		.Prop(TEXT("notifyIndex"),  FNexusSchema::Int(TEXT("Notify 索引（remove）")))
-		.Prop(TEXT("time"),         FNexusSchema::Num(TEXT("触发时间秒（add_notify）或关键帧时间秒（set_curve_key）")))
-		.Prop(TEXT("duration"),     FNexusSchema::Num(TEXT("持续秒（State Notify 时 > 0）")))
-		.Prop(TEXT("frameRate"),    FNexusSchema::Num(TEXT("新帧率（set_frame_rate）")))
-		.Prop(TEXT("rootMotion"),   FNexusSchema::Str(TEXT("根运动模式：RootMotionFromEverything|RootMotionFromMontagesOnly|NoRootMotionExtraction")))
-		.Prop(TEXT("curveName"),    FNexusSchema::Str(TEXT("曲线名（add_float_curve / set_curve_key / remove_curve）")))
-		.Prop(TEXT("value"),        FNexusSchema::Num(TEXT("关键帧值（set_curve_key）")))
+		.Prop(TEXT("notifyName"),   FNexusSchema::Str(TEXT("Notify name (add/remove)")))
+		.Prop(TEXT("notifyClass"),  FNexusSchema::Str(TEXT("Notify class path (add; default AnimNotify)")))
+		.Prop(TEXT("notifyIndex"),  FNexusSchema::Int(TEXT("Notify index (remove)")))
+		.Prop(TEXT("time"),         FNexusSchema::Num(TEXT("Trigger time sec (add_notify) or key time sec (set_curve_key)")))
+		.Prop(TEXT("duration"),     FNexusSchema::Num(TEXT("Duration sec (State Notify > 0)")))
+		.Prop(TEXT("frameRate"),    FNexusSchema::Num(TEXT("New frame rate (set_frame_rate)")))
+		.Prop(TEXT("rootMotion"),   FNexusSchema::Str(TEXT("Root motion mode enum")))
+		.Prop(TEXT("curveName"),    FNexusSchema::Str(TEXT("Curve name (add_float_curve/set_curve_key/remove_curve)")))
+		.Prop(TEXT("value"),        FNexusSchema::Num(TEXT("Keyframe value (set_curve_key)")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("AnimSequence 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量编辑操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("AnimSequence asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch edit ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("notify"), TEXT("event"), TEXT("frame"), TEXT("fps"), TEXT("root motion"), TEXT("curve"), TEXT("keyframe") };
 	Out.RelatedCapabilities = { TEXT("get_asset_anim_sequence"), TEXT("get_asset_anim_montage") };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("增删 AnimNotify、改帧率/根运动、管理浮点曲线；修改后需 save_asset 落盘");
+	Out.WhenToUse = TEXT("Add/remove AnimNotify, frame rate/root motion, float curves; persist with save_asset");
 }
 
 FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -205,14 +205,14 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 		if (!Seq)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("AnimSequence 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("AnimSequence not found: %s"), *AssetPath));
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 
@@ -248,7 +248,7 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 		{
 			if (NotifyName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("add_notify 需要 notifyName"));
+				Entry->SetStringField(TEXT("error"), TEXT("add_notify requires notifyName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -266,7 +266,7 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 				}
 				if (!StateClass || !StateClass->IsChildOf(UAnimNotifyState::StaticClass()))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("State Notify 需要 notifyClass 继承自 AnimNotifyState"));
+					Entry->SetStringField(TEXT("error"), TEXT("State Notify requires notifyClass derived from AnimNotifyState"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -304,13 +304,13 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 			Seq->MarkPackageDirty();
 			Entry->SetStringField(TEXT("notifyName"), NotifyName);
 			Entry->SetNumberField(TEXT("time"), TriggerTime);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 		}
 		else if (Action.Equals(TEXT("remove_notify"), ESearchCase::IgnoreCase))
 		{
 			if (NotifyIndex < 0 && NotifyName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_notify 需要 notifyIndex 或 notifyName"));
+				Entry->SetStringField(TEXT("error"), TEXT("remove_notify requires notifyIndex or notifyName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -331,7 +331,7 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 
 			if (!Seq->Notifies.IsValidIndex(TargetIndex))
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("Notify 索引/名称无效"));
+				Entry->SetStringField(TEXT("error"), TEXT("Invalid notify index/name"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -340,49 +340,49 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 			Seq->MarkPackageDirty();
 			Entry->SetNumberField(TEXT("removedIndex"), TargetIndex);
 			Entry->SetBoolField(TEXT("removed"), true);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 		}
 		else if (Action.Equals(TEXT("set_frame_rate"), ESearchCase::IgnoreCase))
 		{
 			if (FrameRate <= 0)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_frame_rate 需要 frameRate > 0"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_frame_rate requires frameRate > 0"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			if (!SetAnimSequenceFrameRate(Seq, static_cast<float>(FrameRate)))
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("帧率设置失败（跨版本 API 不支持）"));
+				Entry->SetStringField(TEXT("error"), TEXT("Frame rate set failed (cross-version API unsupported)"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			Entry->SetNumberField(TEXT("frameRate"), FrameRate);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 		}
 		else if (Action.Equals(TEXT("set_root_motion"), ESearchCase::IgnoreCase))
 		{
 			if (RootMotion.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_root_motion 需要 rootMotion 模式名"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_root_motion requires rootMotion mode name"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			FString ModeName;
 			if (!SetAnimSequenceRootMotion(Seq, RootMotion, ModeName))
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("根运动模式设置失败"));
+				Entry->SetStringField(TEXT("error"), TEXT("Root motion mode set failed"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			Entry->SetStringField(TEXT("rootMotion"), ModeName);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 		}
 		else if (Action.Equals(TEXT("add_float_curve"), ESearchCase::IgnoreCase))
 		{
 			FString CurveName;
 			if (!OpArgs.IsValid() || !OpArgs->TryGetStringField(TEXT("curveName"), CurveName) || CurveName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("add_float_curve 需要 curveName"));
+				Entry->SetStringField(TEXT("error"), TEXT("add_float_curve requires curveName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -392,13 +392,13 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 			Controller.AddCurve(CurveId);
 			Seq->MarkPackageDirty();
 			Entry->SetStringField(TEXT("curveName"), CurveName);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 #else
 			// UE4/UE5早期：通过反射访问 RawCurveData（UE5.5+ 为 protected）
 			FRawCurveTracks* Curves = GetRawCurveDataPtr(Seq);
 			if (!Curves)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("反射获取 RawCurveData 失败"));
+				Entry->SetStringField(TEXT("error"), TEXT("Reflection failed to get RawCurveData"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -408,7 +408,7 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 				if (GetFloatCurveName(FC) == CN) { bAlreadyExists = true; break; }
 			if (bAlreadyExists)
 			{
-				Entry->SetStringField(TEXT("note"), FString::Printf(TEXT("曲线已存在: %s"), *CurveName));
+				Entry->SetStringField(TEXT("note"), FString::Printf(TEXT("Curve already exists: %s"), *CurveName));
 			}
 			else
 			{
@@ -417,7 +417,7 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 				Curves->FloatCurves.Add(NewCurve);
 				Seq->MarkPackageDirty();
 				Entry->SetStringField(TEXT("curveName"), CurveName);
-				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 			}
 #endif
 		}
@@ -426,7 +426,7 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 			FString CurveName;
 			if (!OpArgs.IsValid() || !OpArgs->TryGetStringField(TEXT("curveName"), CurveName) || CurveName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_curve_key 需要 curveName"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_curve_key requires curveName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -441,7 +441,7 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 				Entry->SetStringField(TEXT("curveName"), CurveName);
 				Entry->SetNumberField(TEXT("time"),      Time);
 				Entry->SetNumberField(TEXT("value"),     KeyValue);
-				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 			}
 #else
 			double KeyValue = 0.0;
@@ -449,7 +449,7 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 			FRawCurveTracks* Curves = GetRawCurveDataPtr(Seq);
 			if (!Curves)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("反射获取 RawCurveData 失败"));
+				Entry->SetStringField(TEXT("error"), TEXT("Reflection failed to get RawCurveData"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -460,7 +460,7 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 			if (!FC)
 			{
 				Entry->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("曲线未找到: %s；先用 add_float_curve 创建"), *CurveName));
+					FString::Printf(TEXT("Curve not found: %s; use add_float_curve first"), *CurveName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -469,7 +469,7 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 			Entry->SetStringField(TEXT("curveName"), CurveName);
 			Entry->SetNumberField(TEXT("time"),      Time);
 			Entry->SetNumberField(TEXT("value"),     KeyValue);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 #endif
 		}
 		else if (Action.Equals(TEXT("remove_curve"), ESearchCase::IgnoreCase))
@@ -477,7 +477,7 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 			FString CurveName;
 			if (!OpArgs.IsValid() || !OpArgs->TryGetStringField(TEXT("curveName"), CurveName) || CurveName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_curve 需要 curveName"));
+				Entry->SetStringField(TEXT("error"), TEXT("remove_curve requires curveName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -488,12 +488,12 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 			Seq->MarkPackageDirty();
 			Entry->SetStringField(TEXT("curveName"), CurveName);
 			Entry->SetBoolField(TEXT("removed"), true);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 #else
 			FRawCurveTracks* Curves = GetRawCurveDataPtr(Seq);
 			if (!Curves)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("反射获取 RawCurveData 失败"));
+				Entry->SetStringField(TEXT("error"), TEXT("Reflection failed to get RawCurveData"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -504,7 +504,7 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 			if (RemoveIdx == INDEX_NONE)
 			{
 				Entry->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("曲线未找到: %s"), *CurveName));
+					FString::Printf(TEXT("Curve not found: %s"), *CurveName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -512,12 +512,12 @@ FCapabilityResult FManageAssetAnimSequenceCapability::Execute(const TSharedPtr<F
 			Seq->MarkPackageDirty();
 			Entry->SetStringField(TEXT("curveName"), CurveName);
 			Entry->SetBoolField(TEXT("removed"), true);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 #endif
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

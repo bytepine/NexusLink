@@ -5,6 +5,8 @@
 #if WITH_ENHANCED_INPUT
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -33,11 +35,11 @@ void FManageAssetInputActionCapability::BuildDefinition(FNexusCapabilityDefiniti
 {
 	Out.Name = TEXT("manage_asset_input_action");
 	Out.SearchAssetTypes = {TEXT("InputAction")};
-	Out.Description = TEXT("编辑 InputAction：set_value_type/add_trigger/remove_trigger/add_modifier/remove_modifier/set_flags。");
+	Out.Description = TEXT("Edit InputAction: set_value_type/add_trigger/remove_trigger/add_modifier/remove_modifier/set_flags.");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(
-			TEXT("操作类型"),
+			TEXT("Operation type"),
 			{
 				TEXT("set_value_type"),
 				TEXT("add_trigger"),
@@ -47,51 +49,47 @@ void FManageAssetInputActionCapability::BuildDefinition(FNexusCapabilityDefiniti
 				TEXT("set_flags"),
 			}))
 		.Prop(TEXT("valueType"), FNexusSchema::Enum(
-			TEXT("set_value_type 时必填"),
+			TEXT("Required when set_value_type"),
 			{ TEXT("Boolean"), TEXT("Axis1D"), TEXT("Axis2D"), TEXT("Axis3D") }))
-		.Prop(TEXT("className"), FNexusSchema::Str(TEXT("Trigger/Modifier 类短名（如 InputTriggerPressed）")))
-		.Prop(TEXT("consumesInput"), FNexusSchema::Bool(TEXT("set_flags：是否消耗输入")))
-		.Prop(TEXT("reserveAllMappings"), FNexusSchema::Bool(TEXT("set_flags：保留全部映射")))
+		.Prop(TEXT("className"), FNexusSchema::Str(TEXT("Trigger/Modifier class short name (e.g. InputTriggerPressed)")))
+		.Prop(TEXT("consumesInput"), FNexusSchema::Bool(TEXT("set_flags: consume input")))
+		.Prop(TEXT("reserveAllMappings"), FNexusSchema::Bool(TEXT("set_flags: keep all mappings")))
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputAction 资产路径")))
-		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("操作列表"), OpSchema.ToSharedRef()))
+		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputAction asset path")))
+		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("action"), TEXT("ia"), TEXT("trigger"), TEXT("modifier"), TEXT("axis") };
 	Out.RelatedCapabilities = { TEXT("get_asset_input_action"), TEXT("create_asset_input_action") };
-	Out.WhenToUse = TEXT("改 InputAction 的 ValueType/Trigger/Modifier/标志位");
+	Out.WhenToUse = TEXT("Edit InputAction ValueType/Trigger/Modifier/flags");
 }
 
 FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UInputAction* IA = FNexusAssetUtils::LoadAssetWithFallback<UInputAction>(AssetPath);
 		if (!IA)
 		{
-			OutError = FString::Printf(TEXT("InputAction 未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("InputAction not found: %s"), *AssetPath);
 			return;
 		}
 
-		const TArray<TSharedPtr<FJsonValue>>* Ops;
-		if (!Arguments->TryGetArrayField(TEXT("operations"), Ops) || !Ops)
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("operations 为必填数组");
+			OutError = TEXT("operations is a required array");
 			return;
 		}
 
 		bool bDirty = false;
 
-		for (const TSharedPtr<FJsonValue>& OpVal : *Ops)
+		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
 		{
 			TSharedPtr<FJsonObject> Op = OpVal->AsObject();
 			if (!Op.IsValid()) continue;
@@ -105,7 +103,7 @@ FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJ
 				FString VT;
 				if (!Op->TryGetStringField(TEXT("valueType"), VT))
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("set_value_type 需要 valueType"));
+					OpResult->SetStringField(TEXT("error"), TEXT("set_value_type requires valueType"));
 				}
 				else
 				{
@@ -125,14 +123,14 @@ FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJ
 				FString ClassName;
 				if (!Op->TryGetStringField(TEXT("className"), ClassName))
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("add_trigger 需要 className"));
+					OpResult->SetStringField(TEXT("error"), TEXT("add_trigger requires className"));
 				}
 				else
 				{
 					UClass* TriggerClass = FindClassByShortName(ClassName);
 					if (!TriggerClass || !TriggerClass->IsChildOf(UInputTrigger::StaticClass()))
 					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("未找到 Trigger 类: %s"), *ClassName));
+						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Trigger class not found: %s"), *ClassName));
 					}
 					else
 					{
@@ -148,7 +146,7 @@ FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJ
 				FString ClassName;
 				if (!Op->TryGetStringField(TEXT("className"), ClassName))
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("remove_trigger 需要 className"));
+					OpResult->SetStringField(TEXT("error"), TEXT("remove_trigger requires className"));
 				}
 				else
 				{
@@ -167,14 +165,14 @@ FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJ
 				FString ClassName;
 				if (!Op->TryGetStringField(TEXT("className"), ClassName))
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("add_modifier 需要 className"));
+					OpResult->SetStringField(TEXT("error"), TEXT("add_modifier requires className"));
 				}
 				else
 				{
 					UClass* ModClass = FindClassByShortName(ClassName);
 					if (!ModClass || !ModClass->IsChildOf(UInputModifier::StaticClass()))
 					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("未找到 Modifier 类: %s"), *ClassName));
+						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Modifier class not found: %s"), *ClassName));
 					}
 					else
 					{
@@ -190,7 +188,7 @@ FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJ
 				FString ClassName;
 				if (!Op->TryGetStringField(TEXT("className"), ClassName))
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("remove_modifier 需要 className"));
+					OpResult->SetStringField(TEXT("error"), TEXT("remove_modifier requires className"));
 				}
 				else
 				{
@@ -221,7 +219,7 @@ FCapabilityResult FManageAssetInputActionCapability::Execute(const TSharedPtr<FJ
 			}
 			else
 			{
-				OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+				OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 			}
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(OpResult));

@@ -16,30 +16,30 @@ void FManageAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name = TEXT("manage_asset_sound_cue");
 	Out.SearchAssetTypes = {TEXT("SoundCue")};
-	Out.Description = TEXT("批量编辑 SoundCue。operations[].action=set_property/add_node/remove_node/connect_nodes。");
+	Out.Description = TEXT("Batch edit SoundCue. action=set_property/add_node/remove_node/connect_nodes.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),          FNexusSchema::Enum(TEXT("操作"),
+		.Prop(TEXT("action"),          FNexusSchema::Enum(TEXT("Action"),
 			{ TEXT("set_property"), TEXT("add_node"), TEXT("remove_node"), TEXT("connect_nodes") }))
-		.Prop(TEXT("propertyPath"),    FNexusSchema::Str(TEXT("属性路径（set_property）")))
-		.Prop(TEXT("value"),           FNexusSchema::Str(TEXT("属性新值字符串")))
-		.Prop(TEXT("nodeClass"),       FNexusSchema::Str(TEXT("SoundNode 类名（add_node，如 SoundNodeWavePlayer）")))
-		.Prop(TEXT("soundWavePath"),   FNexusSchema::Str(TEXT("SoundWave 路径（WavePlayer 可选）")))
-		.Prop(TEXT("parentNodeIndex"), FNexusSchema::Int(TEXT("父节点索引（add_node/connect_nodes）"), -1, -1))
-		.Prop(TEXT("childSlot"),       FNexusSchema::Int(TEXT("父节点子槽（add_node/connect_nodes）"), 0, 0))
-		.Prop(TEXT("nodeIndex"),       FNexusSchema::Int(TEXT("节点索引（remove_node）"), 0, 0))
-		.Prop(TEXT("childIndex"),      FNexusSchema::Int(TEXT("子节点索引（connect_nodes）"), 0, 0))
+		.Prop(TEXT("propertyPath"),    FNexusSchema::Str(TEXT("Property path (set_property)")))
+		.Prop(TEXT("value"),           FNexusSchema::Str(TEXT("New property value string")))
+		.Prop(TEXT("nodeClass"),       FNexusSchema::Str(TEXT("SoundNode class (add_node, e.g. SoundNodeWavePlayer)")))
+		.Prop(TEXT("soundWavePath"),   FNexusSchema::Str(TEXT("SoundWave path (WavePlayer optional)")))
+		.Prop(TEXT("parentNodeIndex"), FNexusSchema::Int(TEXT("Parent node index (add_node/connect_nodes)"), -1, -1))
+		.Prop(TEXT("childSlot"),       FNexusSchema::Int(TEXT("Parent child slot (add_node/connect_nodes)"), 0, 0))
+		.Prop(TEXT("nodeIndex"),       FNexusSchema::Int(TEXT("Node index (remove_node)"), 0, 0))
+		.Prop(TEXT("childIndex"),      FNexusSchema::Int(TEXT("Child node index (connect_nodes)"), 0, 0))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundCue 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundCue asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("cue"), TEXT("volume"), TEXT("pitch"), TEXT("node") };
 	Out.RelatedCapabilities = { TEXT("get_asset_sound_cue"), TEXT("create_asset_sound_cue"), TEXT("get_asset_sound_wave") };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("改 Cue 属性或节点图；索引与 get_asset_sound_cue nodes[] 一致");
+	Out.WhenToUse = TEXT("Edit Cue props or node graph; indices match get_asset_sound_cue nodes[]");
 }
 
 FCapabilityResult FManageAssetSoundCueCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -53,14 +53,14 @@ FCapabilityResult FManageAssetSoundCueCapability::Execute(const TSharedPtr<FJson
 		if (!Cue)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("SoundCue 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("SoundCue not found: %s"), *AssetPath));
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 
@@ -84,7 +84,7 @@ FCapabilityResult FManageAssetSoundCueCapability::Execute(const TSharedPtr<FJson
 				|| !OpArgs->TryGetStringField(TEXT("propertyPath"), PropPath) || PropPath.IsEmpty()
 				|| !OpArgs->TryGetStringField(TEXT("value"), Value) || Value.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_property 需要 propertyPath 和 value"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -99,14 +99,14 @@ FCapabilityResult FManageAssetSoundCueCapability::Execute(const TSharedPtr<FJson
 			Entry->SetStringField(TEXT("propertyPath"), PropPath);
 			if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
 			if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 		}
 		else if (Action.Equals(TEXT("add_node"), ESearchCase::IgnoreCase))
 		{
 			FString NodeClass, WavePath;
 			if (!OpArgs.IsValid() || !OpArgs->TryGetStringField(TEXT("nodeClass"), NodeClass) || NodeClass.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("add_node 需要 nodeClass"));
+				Entry->SetStringField(TEXT("error"), TEXT("add_node requires nodeClass"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -143,13 +143,13 @@ FCapabilityResult FManageAssetSoundCueCapability::Execute(const TSharedPtr<FJson
 			}
 			Entry->SetNumberField(TEXT("nodeIndex"), static_cast<double>(NewIdx));
 			Entry->SetStringField(TEXT("nodeClass"), Class->GetName());
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 		}
 		else if (Action.Equals(TEXT("remove_node"), ESearchCase::IgnoreCase))
 		{
 			if (!OpArgs.IsValid() || !OpArgs->HasField(TEXT("nodeIndex")))
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_node 需要 nodeIndex"));
+				Entry->SetStringField(TEXT("error"), TEXT("remove_node requires nodeIndex"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -162,14 +162,14 @@ FCapabilityResult FManageAssetSoundCueCapability::Execute(const TSharedPtr<FJson
 				continue;
 			}
 			Entry->SetNumberField(TEXT("removedNodeIndex"), static_cast<double>(NodeIdx));
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 		}
 		else if (Action.Equals(TEXT("connect_nodes"), ESearchCase::IgnoreCase))
 		{
 			if (!OpArgs.IsValid()
 				|| !OpArgs->HasField(TEXT("childIndex")))
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("connect_nodes 需要 childIndex"));
+				Entry->SetStringField(TEXT("error"), TEXT("connect_nodes requires childIndex"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -191,11 +191,11 @@ FCapabilityResult FManageAssetSoundCueCapability::Execute(const TSharedPtr<FJson
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

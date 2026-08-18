@@ -5,6 +5,7 @@
 #if WITH_POSE_SEARCH
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -16,16 +17,16 @@ void FManageAssetPoseSearchCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name        = TEXT("manage_asset_pose_search");
 	Out.SearchAssetTypes = {TEXT("PoseSearchDatabase"), TEXT("PoseSearchSchema")};
-	Out.Description = TEXT("管理 PoseSearchDatabase：set_schema/add_tag/remove_tag（UE 5.4+）。");
+	Out.Description = TEXT("Manage PoseSearchDatabase: set_schema/add_tag/remove_tag (UE 5.4+).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PoseSearchDatabase 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrOfObj(TEXT("操作列表")))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PoseSearchDatabase asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrOfObj(TEXT("Operation list")))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
-	Out.Tags = { FNexusMcpTags::Editor };
+	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("pose"), TEXT("search"), TEXT("motion"), TEXT("matching"), TEXT("schema"), TEXT("tag") };
 	Out.RelatedCapabilities = { TEXT("get_asset_pose_search"), TEXT("create_asset_pose_search"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("设置 PoseSearch Database 的 Schema 或修改 Tags");
+	Out.WhenToUse = TEXT("Set PoseSearch Database Schema or modify Tags");
 }
 
 FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -39,21 +40,21 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 		if (!DB)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("PoseSearchDatabase 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("PoseSearchDatabase not found: %s"), *AssetPath));
 			return;
 		}
 
-		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
-		if (!Arguments->TryGetArrayField(TEXT("operations"), OpsArr) || !OpsArr || OpsArr->IsEmpty())
+		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (OpsArr.Num() == 0)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("operations 数组为空"));
+				TEXT("operations array is empty"));
 			return;
 		}
 
 		bool bDirty = false;
 
-		for (const TSharedPtr<FJsonValue>& Val : *OpsArr)
+		for (const TSharedPtr<FJsonValue>& Val : OpsArr)
 		{
 			const TSharedPtr<FJsonObject>* OpObj = nullptr;
 			if (!Val->TryGetObject(OpObj) || !OpObj) continue;
@@ -71,7 +72,7 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 				(*OpObj)->TryGetStringField(TEXT("schemaPath"), SchemaPath);
 				if (SchemaPath.IsEmpty())
 				{
-					Result->SetStringField(TEXT("error"), TEXT("set_schema 需要 schemaPath"));
+					Result->SetStringField(TEXT("error"), TEXT("set_schema requires schemaPath"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 					continue;
 				}
@@ -79,7 +80,7 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 				if (!Schema)
 				{
 					Result->SetStringField(TEXT("error"),
-						FString::Printf(TEXT("PoseSearchSchema 未找到: %s"), *SchemaPath));
+						FString::Printf(TEXT("PoseSearchSchema not found: %s"), *SchemaPath));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 					continue;
 				}
@@ -93,7 +94,7 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 				(*OpObj)->TryGetStringField(TEXT("tag"), TagStr);
 				if (TagStr.IsEmpty())
 				{
-					Result->SetStringField(TEXT("error"), TEXT("add_tag 需要 tag 参数"));
+					Result->SetStringField(TEXT("error"), TEXT("add_tag requires tag parameter"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 					continue;
 				}
@@ -113,12 +114,12 @@ FCapabilityResult FManageAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 				const int32 Removed = DB->Tags.Remove(TagName);
 				if (Removed > 0) bDirty = true;
 				if (Removed == 0)
-					Result->SetStringField(TEXT("error"), FString::Printf(TEXT("tag '%s' 不存在"), *TagStr));
+					Result->SetStringField(TEXT("error"), FString::Printf(TEXT("tag '%s' does not exist"), *TagStr));
 			}
 			else
 			{
 				Result->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("未知 action '%s'，支持: set_schema/add_tag/remove_tag"), *Action));
+					FString::Printf(TEXT("Unknown action '%s'; supported: set_schema/add_tag/remove_tag"), *Action));
 			}
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));

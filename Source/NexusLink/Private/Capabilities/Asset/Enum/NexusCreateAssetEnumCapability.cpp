@@ -5,6 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Engine/UserDefinedEnum.h"
 #include "NexusMcpTool.h"
 
@@ -16,32 +17,28 @@
 void FCreateAssetEnumCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_enum");
-	Out.Description = TEXT("创建 UserDefinedEnum（蓝图枚举）资产；用 manage 增删枚举项。");
+	Out.Description = TEXT("Create UserDefinedEnum asset; add/remove entries via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("枚举资产包路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Enum asset package path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("enum"), TEXT("enumeration"), TEXT("blueprint"), TEXT("user"), TEXT("defined") };
 	Out.RelatedCapabilities = { TEXT("get_asset_enum"), TEXT("manage_asset_enum") };
-	Out.WhenToUse = TEXT("创建新的蓝图枚举资产");
+	Out.WhenToUse = TEXT("Create new Blueprint enum asset");
 }
 
 FCapabilityResult FCreateAssetEnumCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("create_asset_enum 仅在 Editor 版本中可用");
+		OutError = TEXT("create_asset_enum only available in Editor builds");
 		return;
 #else
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		if (LoadObject<UUserDefinedEnum>(nullptr, *AssetPath))
 		{
@@ -51,7 +48,7 @@ FCapabilityResult FCreateAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 		}
 
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		// 必须走 CreateUserDefinedEnum：内部 SetEnums(..., Namespaced)；裸 NewObject 的 CppForm 默认 Regular，
@@ -59,7 +56,7 @@ FCapabilityResult FCreateAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 		UEnum* Created = FEnumEditorUtils::CreateUserDefinedEnum(
 			Package, *AssetName, RF_Public | RF_Standalone | RF_Transactional);
 		UUserDefinedEnum* NewEnum = Cast<UUserDefinedEnum>(Created);
-		if (!NewEnum) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("枚举对象创建失败")); return; }
+		if (!NewEnum) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Enum object creation failed")); return; }
 
 		// 添加默认首项，使枚举有效（Create 时 names 为空，尚无用户可见 enumerator）
 		FEnumEditorUtils::AddNewEnumeratorForUserDefinedEnum(NewEnum);

@@ -8,6 +8,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusMcpTool.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchSchema.h"
@@ -15,31 +16,27 @@
 void FCreateAssetPoseSearchCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_pose_search");
-	Out.Description = TEXT("创建 PoseSearchDatabase 或 PoseSearchSchema（UE 5.4+）。");
+	Out.Description = TEXT("Create PoseSearchDatabase or PoseSearchSchema (UE 5.4+).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
-		.Prop(TEXT("assetKind"), FNexusSchema::Enum(TEXT("资产种类"), {
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("assetKind"), FNexusSchema::Enum(TEXT("Asset kind"), {
 			TEXT("Database"), TEXT("Schema")
 		}))
-		.Prop(TEXT("schemaPath"), FNexusSchema::Str(TEXT("可选：创建 Database 时绑定的 Schema 路径")))
+		.Prop(TEXT("schemaPath"), FNexusSchema::Str(TEXT("Optional Schema path when creating Database")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("pose"), TEXT("search"), TEXT("motion"), TEXT("matching"), TEXT("database"), TEXT("schema") };
 	Out.RelatedCapabilities = { TEXT("get_asset_pose_search"), TEXT("manage_asset_pose_search") };
-	Out.WhenToUse = TEXT("从零创建 PoseSearch Database/Schema；条目 CRUD 仍有限");
+	Out.WhenToUse = TEXT("Create PoseSearch Database/Schema from scratch; entry CRUD limited");
 }
 
 FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		FString Kind = TEXT("Database");
 		Arguments->TryGetStringField(TEXT("assetKind"), Kind);
 		if (Kind.IsEmpty()) Kind = TEXT("Database");
@@ -48,7 +45,7 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 		if (!bSchema && !Kind.Equals(TEXT("Database"), ESearchCase::IgnoreCase))
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				TEXT("assetKind 须为 Database 或 Schema"));
+				TEXT("assetKind must be Database or Schema"));
 			return;
 		}
 
@@ -61,10 +58,10 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 				return;
 			}
 			UPackage* Package = CreatePackage(*AssetPath);
-			if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+			if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 			const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 			UPoseSearchSchema* Schema = NewObject<UPoseSearchSchema>(Package, *AssetName, RF_Public | RF_Standalone);
-			if (!Schema) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("PoseSearchSchema 创建失败")); return; }
+			if (!Schema) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("PoseSearchSchema Createfailed")); return; }
 			FNexusAssetUtils::NotifyAndSaveCreated(Package, Schema, AssetPath);
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 			Entry->SetStringField(TEXT("name"), Schema->GetName());
@@ -81,10 +78,10 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 			return;
 		}
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		UPoseSearchDatabase* DB = NewObject<UPoseSearchDatabase>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!DB) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("PoseSearchDatabase 创建失败")); return; }
+		if (!DB) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("PoseSearchDatabase Createfailed")); return; }
 
 		FString SchemaPath;
 		Arguments->TryGetStringField(TEXT("schemaPath"), SchemaPath);
@@ -97,7 +94,7 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 			else
 			{
 				FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-					FString::Printf(TEXT("PoseSearchSchema 未找到: %s"), *SchemaPath));
+					FString::Printf(TEXT("PoseSearchSchema not found: %s"), *SchemaPath));
 				return;
 			}
 		}

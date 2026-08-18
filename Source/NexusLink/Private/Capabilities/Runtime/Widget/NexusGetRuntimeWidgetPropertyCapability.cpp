@@ -3,6 +3,7 @@
 #include "Capabilities/Runtime/Widget/NexusGetRuntimeWidgetPropertyCapability.h"
 #include "Utils/NexusWidgetLayoutUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
@@ -31,7 +32,7 @@ static void ReadRuntimeWidgetPropertyImpl(UWidget* Widget, const FString& Proper
 	PropertyPath.ParseIntoArray(Segs, TEXT("."), true);
 	if (Segs.Num() == 0)
 	{
-		OutEntry->SetStringField(TEXT("error"), TEXT("propertyPath 为空"));
+		OutEntry->SetStringField(TEXT("error"), TEXT("propertyPath is empty"));
 		return;
 	}
 	TArray<FString> Remaining;
@@ -47,17 +48,17 @@ static void ReadRuntimeWidgetPropertyImpl(UWidget* Widget, const FString& Proper
 void FGetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_widget_property");
-	Out.Description = TEXT("读运行时 UMG 元素字段。widgetName+ownerClass 定位；无 propertyPaths 时含 layout。");
+	Out.Description = TEXT("Read runtime UMG element fields. Locate via widgetName+ownerClass; includes layout without propertyPaths.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("widgetName"),    FNexusSchema::Str(TEXT("运行时 Widget 名")))
-		.Prop(TEXT("ownerClass"),    FNexusSchema::Str(TEXT("UserWidget 过滤")))
-		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("点分路径（批量）")))
+		.Prop(TEXT("widgetName"),    FNexusSchema::Str(TEXT("Runtime Widget name")))
+		.Prop(TEXT("ownerClass"),    FNexusSchema::Str(TEXT("UserWidget filter")))
+		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Dot-separated paths (batch)")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("field"), TEXT("brush"), TEXT("slot"), TEXT("value") };
 	Out.RelatedCapabilities = { TEXT("set_runtime_widget_property"), TEXT("list_runtime_widgets") };
 	Out.Prerequisites = { TEXT("pie") };
-	Out.WhenToUse = TEXT("只读 UMG 字段，不做修改");
+	Out.WhenToUse = TEXT("Read-only UMG fields; no modifications");
 }
 
 FCapabilityResult FGetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -65,13 +66,9 @@ FCapabilityResult FGetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		FString WN;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("widgetName"), WN) || WN.IsEmpty())
-		{
-			OutError = TEXT("缺少 widgetName");
-			return;
-		}
+		const FString WN = A.Str(TEXT("widgetName"));
 
 		FString OwnerClass;
 		Arguments->TryGetStringField(TEXT("ownerClass"), OwnerClass);
@@ -85,7 +82,7 @@ FCapabilityResult FGetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<
 		{
 			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 			OutEntry->SetStringField(TEXT("widgetName"), WN);
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("运行时 Widget '%s' 未找到"), *WN));
+			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Runtime Widget '%s' not found"), *WN));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}

@@ -13,9 +13,9 @@ void FGetAssetCommonTextStyleCapability::BuildDefinition(FNexusCapabilityDefinit
 {
 	Out.Name = TEXT("get_asset_common_text_style");
 	Out.SearchAssetTypes = {TEXT("CommonTextStyle")};
-	Out.Description = TEXT("读取 CommonTextStyle 元数据。WBP 仍走 user_widget。");
+	Out.Description = TEXT("Read CommonTextStyle metadata. WBP still uses user_widget.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("CommonTextStyle 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("CommonTextStyle asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Widget };
@@ -36,7 +36,7 @@ FCapabilityResult FGetAssetCommonTextStyleCapability::Execute(const TSharedPtr<F
 		if (!Style)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 CommonTextStyle 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load CommonTextStyle: %s"), *AssetPath));
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();

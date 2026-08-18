@@ -13,9 +13,9 @@ void FGetAssetPaperSpriteCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name = TEXT("get_asset_paper_sprite");
 	Out.SearchAssetTypes = {TEXT("PaperSprite")};
-	Out.Description = TEXT("读取 PaperSprite：源纹理 / 像素区域 / 轴心。");
+	Out.Description = TEXT("Read PaperSprite: source texture/pixel region/pivot.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperSprite 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperSprite asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -33,7 +33,7 @@ FCapabilityResult FGetAssetPaperSpriteCapability::Execute(const TSharedPtr<FJson
 		if (!Sprite)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 PaperSprite 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load PaperSprite: %s"), *AssetPath));
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();

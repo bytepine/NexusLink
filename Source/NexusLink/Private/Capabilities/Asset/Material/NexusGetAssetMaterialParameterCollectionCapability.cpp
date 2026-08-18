@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Material/NexusGetAssetMaterialParameterCollectionCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -12,33 +13,29 @@ void FGetAssetMaterialParameterCollectionCapability::BuildDefinition(FNexusCapab
 {
 	Out.Name = TEXT("get_asset_material_parameter_collection");
 	Out.SearchAssetTypes = {TEXT("MaterialParameterCollection")};
-	Out.Description = TEXT("列举 MaterialParameterCollection 的标量/向量参数及其默认值。");
+	Out.Description = TEXT("List MPC scalar/vector params and default values.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("MPC 资产路径（/Game/…/MPC_Foo）")))
+		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("MPC asset path (/Game/…/MPC_Foo)")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Material };
 	Out.ExtraSearchKeywords = { TEXT("mpc"), TEXT("parameter"), TEXT("collection"), TEXT("material"), TEXT("global"), TEXT("scalar"), TEXT("vector") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_material_parameter_collection"), TEXT("get_asset_material"), TEXT("manage_asset_material") };
-	Out.WhenToUse = TEXT("读 MPC 的全部标量/向量参数名与默认值");
+	Out.WhenToUse = TEXT("Read all MPC scalar/vector param names and defaults");
 }
 
 FCapabilityResult FGetAssetMaterialParameterCollectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UMaterialParameterCollection* MPC = FNexusAssetUtils::LoadAssetWithFallback<UMaterialParameterCollection>(AssetPath);
 		if (!MPC)
 		{
-			OutError = FString::Printf(TEXT("MaterialParameterCollection 未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("MaterialParameterCollection not found: %s"), *AssetPath);
 			return;
 		}
 

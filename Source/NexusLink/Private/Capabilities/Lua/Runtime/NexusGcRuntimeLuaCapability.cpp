@@ -1,6 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Lua/Runtime/NexusGcRuntimeLuaCapability.h"
+#include "Utils/NexusArgs.h"
 
 #if WITH_UNLUA
 
@@ -12,12 +13,12 @@
 void FGcRuntimeLuaCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("gc_runtime_lua");
-	Out.Description = TEXT("控制 PIE 中 Lua GC。mode=collect|stop|restart|count。");
+	Out.Description = TEXT("Control Lua GC in PIE. mode=collect|stop|restart|count.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("mode"), FNexusSchema::Enum(TEXT("GC 模式"),
+		.Prop(TEXT("mode"), FNexusSchema::Enum(TEXT("GC mode"),
 			{ TEXT("collect"), TEXT("stop"), TEXT("restart"), TEXT("count") }, TEXT("collect")))
 		.Build();
-	Out.Tags = {FNexusMcpTags::Runtime };
+	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("collect"), TEXT("garbage"), TEXT("memory"), TEXT("cleanup"), TEXT("reclaim") };
 	Out.RelatedCapabilities = { TEXT("get_runtime_lua_memory") };
 	Out.Prerequisites = { TEXT("unlua"), TEXT("pie") };
@@ -25,6 +26,7 @@ void FGcRuntimeLuaCapability::BuildDefinition(FNexusCapabilityDefinition& Out) c
 
 FCapabilityResult FGcRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
+	const FNexusArgs A(Arguments);
 	FNexusMcpToolResult Tmp;
 	lua_State* L = FNexusLuaUtils::GetMainLuaState(Tmp);
 	if (!L)
@@ -32,7 +34,7 @@ FCapabilityResult FGcRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObject>
 
 	FString Mode = TEXT("collect");
 	if (Arguments->HasField(TEXT("mode")))
-		Mode = Arguments->GetStringField(TEXT("mode")).ToLower();
+		Mode = A.Str(TEXT("mode")).ToLower();
 
 	FCapabilityResult R;
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
@@ -72,7 +74,7 @@ FCapabilityResult FGcRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObject>
 	else
 	{
 		EmitError(R.Entries, {}, FString::Printf(
-			TEXT("不支持的 mode: %s（期望 collect/stop/restart/count）"), *Mode));
+			TEXT("Unsupported mode: %s (expected collect/stop/restart/count)"), *Mode));
 		return R;
 	}
 

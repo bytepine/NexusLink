@@ -25,6 +25,14 @@
 
 ### Changed
 
+- **BREAKING** refactor(mcp): 全部 MCP/AI 可见文案英文化（Capability Description/WhenToUse/Schema description、Run()/Execute error、元工具、InitializeInstructions、AIRules、ProxyConfig）；源码注释 / 设置面板 / UE_LOG / CapabilitySpec 仍中文
+- refactor(mcp): P3 清理——`NexusEQSUtils.h` 迁至 `Public/Utils/` 并改用 `NX_UE_HAS_EQS`（UE5.0+）；`search_asset` 直接调 `FNexusCapabilityRegistry::ResolveSearchAssetRoute`、删除 `FNexusAssetUtils::ResolveRecommendedCapabilities`；`LoadMaterialAsset` 合并为 `LoadAssetWithFallback`；Lua eval/dofile Schema 改 `.Prop(...).Required({...})`；`audit_capability_naming.py` cap 计数 221→226；CapabilitySpec §8 子节编号与 Description 英文四段式权威说明
+- refactor(mcp): P1-a `create_asset_*` 收口——13 个 plain cap 改 `FNexusAssetUtils::CreatePlainAsset`（CommonUI/EQS/GeometryCollection/IMC/MoviePipeline/Niagara/PaperFlipbook/SoundCue/SoundSubmix/MetaSound/PCG 等）；4 个 blueprint cap 改 `CreateBlueprintAsset`（AttributeSet/GameplayEffect/ControlRig/AnimBlueprint）；含 EQS 补落盘、MetaSound/PCG 修复错误 `NotifyAndSaveCreated` 调用
+- refactor(mcp): `NexusLink.Build.cs` 可选插件探测表驱动（`OptionalPluginConfig` + `ApplyOptionalPlugin`）；UnLua 版本号与 GeometryCollection 双候选 uplugin 保留
+- refactor(mcp): 新增 `FNexusActionCapability` 基类（`ExtractOperations` → `PrepareTarget` → 逐 op 分派 → `FinalizeTarget`）；`manage_asset_behavior_tree` / `manage_asset_blueprint` / `manage_asset_material` 迁入 action handler 静态分派
+- refactor(mcp): 其余仍手写 `operations` 解析的 `manage_asset_*` 统一改为 `FNexusJsonUtils::ExtractOperations`
+- refactor(mcp): JSON 紧凑序列化收口为 `FNexusJsonUtils::SerializeCondensed` / `SerializeValueCondensed`；Dispatcher / Feedback / 三元工具 / Server / Registry / PropertyUtils / CapResultAdapter 删除私有 Condensed 样板
+- refactor(mcp): 新增 `FNexusArgs` 参数读取门面；Execute 删除 Schema 已覆盖的 required/空串死校验，D/E 方言改为门面调用
 - perf(mcp): 响应压缩——蓝图 pin/defaults/component 布尔始终写出（`inherited`/`isConst`/`isReference`/`bOrphan`/`bIsNodeEnabled`/`containerType`）；`list_runtime_actors`/`list_runtime_widgets` 在 `classFilter` 命中且本页 class/widgetClass 全员一致时 ForcedDefault；已有 `<k>_defaults` 时合并新键（不覆盖 ForcedDefault）；`search_asset` 指定类型 ForcedDefault `assetType`；`get_output_log` 在 `verbosity≠all` 时 ForcedDefault verbosity
 - docs: InitializeInstructions / AIRules / tool-reference 对齐压缩契约（`MinCount=2`、全员持有才抽取、已有 defaults 合并新键、缺省即默认）；`version-compat-reference.md` 补语义宏；README Token 表 MultiTool 177→222（221 cap + `submit_feedback`），固定税约 15.6×；EQS 门控改为 UE 5.0+；CapabilitySpec §6.5 登记 AblAbility 为公开仓不收录（Able 依赖）
 
@@ -415,7 +423,7 @@
 
 ## [1.8.0] - 2026-05-11
 
-- Utils 模块化重构：新增 NexusJsonUtils / NexusBlueprintGraphUtils / NexusPropertyReportUtils / NexusEditorCaptureUtils / NexusCapabilityIndexUtils / NexusCapabilityResultBuilder 六个 Util 工具类，建立七层分层架构（Common/Result/Reflection/Asset/Runtime/Domain/Editor），消除约 1000+ 行重复样板代码（P1 lambda 外壳、P2 资产 finalize、P3 RequirePlayWorld、P4 分页、P5 entry 错误）；新增 CapabilitySpec.md §7 Utils 模块规范；统一 Utils 命名约束，重命名 FNexusStringMatchUtils / FNexusResponseCompactorUtils
+- Utils 模块化重构：新增 NexusJsonUtils / NexusBlueprintGraphUtils / NexusPropertyReportUtils / NexusEditorCaptureUtils / NexusCapabilityIndexUtils / NexusCapabilityResultBuilder 六个 Util 工具类，建立七层分层架构（Common/Result/Reflection/Asset/Runtime/Domain/Editor），消除约 1000+ 行重复样板代码（P1 lambda 外壳、P2 资产 finalize、P3 RequirePlayWorld、P4 分页、P5 entry 错误）；新增 CapabilitySpec.md §8 Utils 模块规范；统一 Utils 命名约束，重命名 FNexusStringMatchUtils / FNexusResponseCompactorUtils
 - Capability & Tool 元数据框架统一：BuildDefinition 合并全部元数据虚函数钩子（Capability 8 个 + Tool 4 个）；建立四段式描述强规范与注册期自动校验；capability 命名全面对齐 pattern（UMG 三工具改名、manage_asset_actor 合并入 manage_asset_blueprint）；重写 InitializeInstructions.md 路由指南
 - 修复跨 UE 版本编译兼容（UE4.26–5.7 全版本 PASS=9），修复 search_capabilities AND 逻辑评分及 MaxSearchResults 上限
 

@@ -15,11 +15,10 @@
 #include "Containers/Ticker.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "Utils/NexusJsonUtils.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
-#include "Serialization/JsonWriter.h"
-#include "Policies/CondensedJsonPrintPolicy.h"
 #include "Async/Async.h"
 #include "HAL/Event.h"
 
@@ -516,10 +515,7 @@ void FNexusMcpServer::BroadcastNotification(const FString& Method)
 	Msg->SetStringField(TEXT("jsonrpc"), TEXT("2.0"));
 	Msg->SetStringField(TEXT("method"), Method);
 
-	FString JsonStr;
-	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W =
-		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&JsonStr);
-	FJsonSerializer::Serialize(Msg.ToSharedRef(), W);
+	const FString JsonStr = FNexusJsonUtils::SerializeCondensed(Msg);
 
 	// 向所有已连接的 WebSocket 客户端推送
 	FTCHARToUTF8 Utf8Converter(*JsonStr);

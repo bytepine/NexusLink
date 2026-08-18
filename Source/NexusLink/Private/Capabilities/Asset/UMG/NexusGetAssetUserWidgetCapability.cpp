@@ -23,7 +23,7 @@ void FGetAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& 
 {
 	Out.Name = TEXT("get_asset_user_widget");
 	Out.SearchAssetTypes = {TEXT("Widget")};
-	Out.Description = TEXT("从编辑器读 WBP 树、动画与 graphOverview。图细节走 blueprint 能力。");
+	Out.Description = TEXT("Read WBP tree, animations, graphOverview from editor. Graph details via blueprint cap.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = {
@@ -34,17 +34,17 @@ void FGetAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& 
 		TEXT("manage_asset_user_widget"), TEXT("create_asset_user_widget"),
 		TEXT("get_asset_blueprint"), TEXT("manage_asset_blueprint")
 	};
-	Out.WhenToUse = TEXT("控件树/动画用本 cap；graphOverview 列图名，EventGraph 写操作用 manage_asset_blueprint");
+	Out.WhenToUse = TEXT("Widget tree/animations here; EventGraph writes via manage_asset_blueprint");
 }
 
 TSharedPtr<FJsonObject> FGetAssetUserWidgetCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Widget 蓝图资产路径")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Widget/动画名称子串匹配（可选）")))
-		.Prop(TEXT("typeFilter"), FNexusSchema::Str(TEXT("Widget 类子串匹配（仅 widgets 段）")))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Widget 分页偏移（默认 0）"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("每页最大 Widget 数 1~500（默认 100）"), 100, 1, 500))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Widget Blueprint asset path")))
+		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Widget/animation name substring (optional)")))
+		.Prop(TEXT("typeFilter"), FNexusSchema::Str(TEXT("Widget class substring (widgets section only)")))
+		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Widget paginationoffset (default 0)"), 0, 0))
+		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max widgets per page 1-500 (default 100)"), 100, 1, 500))
 		.Required({ TEXT("assetPath") })
 		.Build();
 }
@@ -67,7 +67,7 @@ bool FGetAssetUserWidgetCapability::PrepareEntry(const TSharedPtr<FJsonObject>& 
 	FString AssetPath;
 	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
 	{
-		OutError = TEXT("assetPath 为必填项");
+		OutError = TEXT("assetPath is required");
 		return false;
 	}
 
@@ -75,7 +75,7 @@ bool FGetAssetUserWidgetCapability::PrepareEntry(const TSharedPtr<FJsonObject>& 
 	UWidgetBlueprint* WBP = FNexusAssetUtils::LoadWidgetBP(AssetPath);
 	if (!WBP)
 	{
-		OutError = FString::Printf(TEXT("WidgetBlueprint 未找到: %s"), *AssetPath);
+		OutError = FString::Printf(TEXT("WidgetBlueprint not found: %s"), *AssetPath);
 		return false;
 	}
 
@@ -86,7 +86,7 @@ bool FGetAssetUserWidgetCapability::PrepareEntry(const TSharedPtr<FJsonObject>& 
 	OutTargetOpaque = static_cast<void*>(WBP);
 	return true;
 #else
-	OutError = TEXT("get_asset_user_widget 仅在编辑器构建可用");
+	OutError = TEXT("get_asset_user_widget only available in editor builds");
 	return false;
 #endif
 }
@@ -101,7 +101,7 @@ void FGetAssetUserWidgetCapability::ExecuteSection(const FString&               
 	UWidgetBlueprint* WBP = static_cast<UWidgetBlueprint*>(TargetOpaque);
 	if (!WBP)
 	{
-		OutError = TEXT("无效的 WidgetBlueprint 目标");
+		OutError = TEXT("Invalid WidgetBlueprint target");
 		return;
 	}
 
@@ -119,7 +119,7 @@ void FGetAssetUserWidgetCapability::ExecuteSection(const FString&               
 	{
 		if (!WBP->WidgetTree)
 		{
-			OutError = TEXT("WidgetTree 为空");
+			OutError = TEXT("WidgetTree is empty");
 			return;
 		}
 
@@ -244,7 +244,7 @@ void FGetAssetUserWidgetCapability::ExecuteSection(const FString&               
 		UBlueprint* BP = Cast<UBlueprint>(WBP);
 		if (!BP)
 		{
-			OutError = TEXT("无法将 WidgetBlueprint 转为 Blueprint 以枚举图");
+			OutError = TEXT("Cannot cast WidgetBlueprint to Blueprint to enumerate graphs");
 			return;
 		}
 		TArray<UEdGraph*> AllGraphs;
@@ -258,13 +258,13 @@ void FGetAssetUserWidgetCapability::ExecuteSection(const FString&               
 			}
 		}
 		InOutDetail->SetArrayField(TEXT("graphs"), List);
-		InOutDetail->SetStringField(TEXT("hint"), TEXT("图细节用 get_asset_blueprint；写 EventGraph 用 manage_asset_blueprint"));
+		InOutDetail->SetStringField(TEXT("hint"), TEXT("Graph details via get_asset_blueprint; EventGraph writes via manage_asset_blueprint"));
 		return;
 	}
 
-	OutError = FString::Printf(TEXT("不支持的 section '%s'"), *SectionName);
+	OutError = FString::Printf(TEXT("Unsupported section '%s'"), *SectionName);
 #else
-	OutError = TEXT("get_asset_user_widget 仅在编辑器构建可用");
+	OutError = TEXT("get_asset_user_widget only available in editor builds");
 #endif
 }
 

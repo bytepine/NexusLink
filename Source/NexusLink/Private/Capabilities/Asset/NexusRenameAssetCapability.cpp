@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "AssetToolsModule.h"
@@ -14,10 +15,10 @@
 void FRenameAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("rename_asset");
-	Out.Description = TEXT("移动或重命名资产。自动生成重定向器修复引用。");
+	Out.Description = TEXT("Move or rename asset. Auto-generates redirectors.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("当前资产路径")))
-		.Prop(TEXT("destAssetPath"), FNexusSchema::Str(TEXT("目标完整资产路径")))
+		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("Current asset path")))
+		.Prop(TEXT("destAssetPath"), FNexusSchema::Str(TEXT("Target full asset path")))
 		.Required({ TEXT("assetPath"), TEXT("destAssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -30,35 +31,22 @@ FCapabilityResult FRenameAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		if (!Arguments.IsValid())
-		{
-			OutError = TEXT("缺少参数");
-			return;
-		}
 
-		FString OldPath, DestAssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), OldPath) || OldPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
-		if (!Arguments->TryGetStringField(TEXT("destAssetPath"), DestAssetPath) || DestAssetPath.IsEmpty())
-		{
-			OutError = TEXT("缺少 destAssetPath");
-			return;
-		}
+		const FString OldPath = A.Str(TEXT("assetPath"));
+		const FString DestAssetPath = A.Str(TEXT("destAssetPath"));
 
 		FText PathErrText;
 		if (!FPackageName::IsValidLongPackageName(DestAssetPath, false, &PathErrText))
 		{
-			OutError = FString::Printf(TEXT("无效的 destAssetPath: %s"), *PathErrText.ToString());
+			OutError = FString::Printf(TEXT("Invalid destAssetPath: %s"), *PathErrText.ToString());
 			return;
 		}
 
 		if (FPackageName::DoesPackageExist(DestAssetPath))
 		{
-			OutError = FString::Printf(TEXT("目标已存在: %s"), *DestAssetPath);
+			OutError = FString::Printf(TEXT("Target already exists: %s"), *DestAssetPath);
 			return;
 		}
 
@@ -69,7 +57,7 @@ FCapabilityResult FRenameAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		}
 		if (!Asset)
 		{
-			OutError = FString::Printf(TEXT("资产未找到: %s"), *OldPath);
+			OutError = FString::Printf(TEXT("Asset not found: %s"), *OldPath);
 			return;
 		}
 
@@ -85,7 +73,7 @@ FCapabilityResult FRenameAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		if (!bOk)
 		{
 			Entry->SetBoolField(TEXT("success"), false);
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("重命名失败: %s -> %s"), *OldPath, *DestAssetPath));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Renamefailed: %s -> %s"), *OldPath, *DestAssetPath));
 		}
 		else
 		{

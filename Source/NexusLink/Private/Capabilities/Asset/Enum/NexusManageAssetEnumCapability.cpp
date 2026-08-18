@@ -1,9 +1,11 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Enum/NexusManageAssetEnumCapability.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Engine/UserDefinedEnum.h"
 #include "UObject/UnrealType.h"
@@ -18,15 +20,15 @@ void FManageAssetEnumCapability::BuildDefinition(FNexusCapabilityDefinition& Out
 {
 	Out.Name = TEXT("manage_asset_enum");
 	Out.SearchAssetTypes = {TEXT("UserDefinedEnum")};
-	Out.Description = TEXT("修改 UserDefinedEnum 枚举项。operations[].action: add_entry / remove_entry / set_display_name。");
+	Out.Description = TEXT("Edit UserDefinedEnum entries. action: add_entry/remove_entry/set_display_name.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"),      FNexusSchema::Str(TEXT("add_entry / remove_entry / set_display_name")))
-		.Prop(TEXT("index"),           FNexusSchema::Int(TEXT("枚举项索引（remove_entry/set_display_name 必填）")))
-		.Prop(TEXT("displayName"),     FNexusSchema::Str(TEXT("显示名称（set_display_name 必填）")))
+		.Prop(TEXT("index"),           FNexusSchema::Int(TEXT("Enum entry index (required for remove_entry/set_display_name)")))
+		.Prop(TEXT("displayName"),     FNexusSchema::Str(TEXT("Display name (required for set_display_name)")))
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"),   FNexusSchema::Str(TEXT("枚举资产包路径")))
-		.Required(TEXT("operations"),  FNexusSchema::ArrayOf(TEXT("操作列表"), OpSchema.ToSharedRef()))
+		.Required(TEXT("assetPath"),   FNexusSchema::Str(TEXT("Enum asset package path")))
+		.Required(TEXT("operations"),  FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("enum"), TEXT("entry"), TEXT("add"), TEXT("remove"), TEXT("rename"), TEXT("display") };
@@ -37,31 +39,27 @@ FCapabilityResult FManageAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("manage_asset_enum 仅在 Editor 版本中可用");
+		OutError = TEXT("manage_asset_enum only available in Editor builds");
 		return;
 #else
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")) || !Arguments->HasField(TEXT("operations")))
-		{
-			OutError = TEXT("缺少 assetPath 或 operations");
-			return;
-		}
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		UUserDefinedEnum* Enum = LoadObject<UUserDefinedEnum>(nullptr, *AssetPath);
 		if (!Enum)
 		{
-			OutError = FString::Printf(TEXT("加载 UserDefinedEnum 失败: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("Failed to load UserDefinedEnum: %s"), *AssetPath);
 			return;
 		}
 
-		const TArray<TSharedPtr<FJsonValue>>& OpsArr = Arguments->GetArrayField(TEXT("operations"));
+		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
 		for (const TSharedPtr<FJsonValue>& OpVal : OpsArr)
 		{
 			const TSharedPtr<FJsonObject>& Op = OpVal->AsObject();
 			if (!Op.IsValid()) continue;
 
-			const FString Action = Op->HasField(TEXT("action")) ? Op->GetStringField(TEXT("action")) : TEXT("");
+			const FString Action = FNexusArgs(Op).Str(TEXT("action"));
 
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 			Entry->SetStringField(TEXT("action"), Action);
@@ -75,7 +73,7 @@ FCapabilityResult FManageAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 			{
 				if (!Op->HasField(TEXT("index")))
 				{
-					FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("remove_entry 需要 index"));
+					FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("remove_entry requires index"));
 					continue;
 				}
 				const int32 Idx = (int32)Op->GetNumberField(TEXT("index"));
@@ -83,7 +81,7 @@ FCapabilityResult FManageAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 				if (Idx < 0 || Idx >= ValidCount)
 				{
 					FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-						FString::Printf(TEXT("index %d 超出范围 [0,%d)"), Idx, ValidCount));
+						FString::Printf(TEXT("index %d out of range [0,%d)"), Idx, ValidCount));
 					continue;
 				}
 				FEnumEditorUtils::RemoveEnumeratorFromUserDefinedEnum(Enum, Idx);
@@ -92,7 +90,7 @@ FCapabilityResult FManageAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 			{
 				if (!Op->HasField(TEXT("index")) || !Op->HasField(TEXT("displayName")))
 				{
-					FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("set_display_name 需要 index 和 displayName"));
+					FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("set_display_name requires index and displayName"));
 					continue;
 				}
 				const int32 Idx         = (int32)Op->GetNumberField(TEXT("index"));
@@ -101,7 +99,7 @@ FCapabilityResult FManageAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 				if (Idx < 0 || Idx >= ValidCount)
 				{
 					FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-						FString::Printf(TEXT("index %d 超出范围 [0,%d)"), Idx, ValidCount));
+						FString::Printf(TEXT("index %d out of range [0,%d)"), Idx, ValidCount));
 					continue;
 				}
 				// 通过反射写入 DisplayNameMap（跨版本稳定）
@@ -119,14 +117,14 @@ FCapabilityResult FManageAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 				}
 				if (!bSetOk)
 				{
-					FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("set_display_name: 写入 DisplayNameMap 失败"));
+					FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("set_display_name: failed to write DisplayNameMap"));
 					continue;
 				}
 			}
 			else
 			{
 				FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-					FString::Printf(TEXT("未知 action: %s"), *Action));
+					FString::Printf(TEXT("Unknown action: %s"), *Action));
 				continue;
 			}
 

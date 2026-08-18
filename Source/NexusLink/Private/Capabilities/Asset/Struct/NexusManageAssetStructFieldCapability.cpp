@@ -6,6 +6,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusPinTypeUtils.h"
 #if NX_UE_HAS_STRUCT_UTILS_HEADER
 #include "StructUtils/UserDefinedStruct.h"
@@ -22,22 +23,22 @@ void FManageAssetStructFieldCapability::BuildDefinition(FNexusCapabilityDefiniti
 {
 	Out.Name = TEXT("manage_asset_struct_field");
 	Out.SearchAssetTypes = {TEXT("Struct")};
-	Out.Description = TEXT("批量编辑 UDS 字段：add/remove/modify；修改后自动编译。");
+	Out.Description = TEXT("Batch edit UDS fields: add/remove/modify; auto-compile after changes.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("字段操作"), { TEXT("add"), TEXT("remove"), TEXT("set") }))
-		.Prop(TEXT("fieldName"),    FNexusSchema::Str(TEXT("字段显示名")))
-		.Prop(TEXT("fieldType"),    FNexusSchema::Str(TEXT("字段类型（add）")))
-		.Prop(TEXT("defaultValue"), FNexusSchema::Str(TEXT("默认值（add/set）")))
-		.Prop(TEXT("newName"),      FNexusSchema::Str(TEXT("新显示名（set）")))
-		.Prop(TEXT("newType"),      FNexusSchema::Str(TEXT("新字段类型（set）")))
+		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Field operation"), { TEXT("add"), TEXT("remove"), TEXT("set") }))
+		.Prop(TEXT("fieldName"),    FNexusSchema::Str(TEXT("Field display name")))
+		.Prop(TEXT("fieldType"),    FNexusSchema::Str(TEXT("Field type (add)")))
+		.Prop(TEXT("defaultValue"), FNexusSchema::Str(TEXT("Default value (add/set)")))
+		.Prop(TEXT("newName"),      FNexusSchema::Str(TEXT("New display name (set)")))
+		.Prop(TEXT("newType"),      FNexusSchema::Str(TEXT("New field type (set)")))
 		.Required({ TEXT("action"), TEXT("fieldName") })
 		.Build();
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("UserDefinedStruct 资产路径（共用）")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量字段操作"), ItemSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("UserDefinedStruct asset path (shared)")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch field ops"), ItemSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	}();
@@ -46,7 +47,7 @@ void FManageAssetStructFieldCapability::BuildDefinition(FNexusCapabilityDefiniti
 		TEXT("uds"), TEXT("field"), TEXT("member"), TEXT("schema"), TEXT("type")
 	};
 	Out.RelatedCapabilities = { TEXT("get_asset_struct"), TEXT("create_asset_struct"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("写操作：增删/修改 UDS 字段");
+	Out.WhenToUse = TEXT("Write ops: add/remove/modify UDS fields");
 }
 
 FCapabilityResult FManageAssetStructFieldCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -54,27 +55,18 @@ FCapabilityResult FManageAssetStructFieldCapability::Execute(const TSharedPtr<FJ
 #if WITH_EDITOR
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		if (!Arguments.IsValid())
-		{
-			OutError = TEXT("参数无效");
-			return;
-		}
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UUserDefinedStruct* Struct = FNexusAssetUtils::LoadAssetWithFallback<UUserDefinedStruct>(AssetPath);
-		if (!Struct) { OutError = FString::Printf(TEXT("UserDefinedStruct 未找到: %s"), *AssetPath); return; }
+		if (!Struct) { OutError = FString::Printf(TEXT("UserDefinedStruct not found: %s"), *AssetPath); return; }
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("缺少 operations 或为空");
+			OutError = TEXT("Missing or empty operations");
 			return;
 		}
 
@@ -86,7 +78,7 @@ FCapabilityResult FManageAssetStructFieldCapability::Execute(const TSharedPtr<FJ
 
 			if (!Item.IsValid())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("无效的 operation 项"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("Invalid operation item"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
@@ -98,7 +90,7 @@ FCapabilityResult FManageAssetStructFieldCapability::Execute(const TSharedPtr<FJ
 
 			if (Action.IsEmpty() || FieldName.IsEmpty())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("action 与 fieldName 必填"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("action and fieldName is required"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
@@ -115,9 +107,9 @@ FCapabilityResult FManageAssetStructFieldCapability::Execute(const TSharedPtr<FJ
 			{
 				const FGuid Target = FindGuid(FieldName);
 				if (!Target.IsValid())
-					OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("字段未找到: %s"), *FieldName));
+					OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Field not found: %s"), *FieldName));
 				else if (!FStructureEditorUtils::RemoveVariable(Struct, Target))
-					OutEntry->SetStringField(TEXT("error"), TEXT("删除字段失败"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("Failed to delete field"));
 				else
 					bItemMutated = true;
 			}
@@ -125,7 +117,7 @@ FCapabilityResult FManageAssetStructFieldCapability::Execute(const TSharedPtr<FJ
 			{
 				if (!Item->HasField(TEXT("fieldType")))
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("action=add 时 fieldType 必填"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("fieldType is required when action=add"));
 				}
 				else
 				{
@@ -136,7 +128,7 @@ FCapabilityResult FManageAssetStructFieldCapability::Execute(const TSharedPtr<FJ
 					}
 					else if (!FStructureEditorUtils::AddVariable(Struct, PinType))
 					{
-						OutEntry->SetStringField(TEXT("error"), TEXT("添加字段失败"));
+						OutEntry->SetStringField(TEXT("error"), TEXT("Failed to add field"));
 					}
 					else
 					{
@@ -158,7 +150,7 @@ FCapabilityResult FManageAssetStructFieldCapability::Execute(const TSharedPtr<FJ
 				const FGuid Target = FindGuid(FieldName);
 				if (!Target.IsValid())
 				{
-					OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("字段未找到: %s"), *FieldName));
+					OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Field not found: %s"), *FieldName));
 				}
 				else
 				{
@@ -188,7 +180,7 @@ FCapabilityResult FManageAssetStructFieldCapability::Execute(const TSharedPtr<FJ
 			}
 			else
 			{
-				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'"), *Action));
+				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
 			}
 
 			// 仅在该条真正修改过结构体时才 compile；避免错误路径误改脏
@@ -206,7 +198,8 @@ FCapabilityResult FManageAssetStructFieldCapability::Execute(const TSharedPtr<FJ
 #else
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		OutError = TEXT("manage_asset_struct_field 仅在编辑器构建可用");
+		const FNexusArgs A(Arguments);
+		OutError = TEXT("manage_asset_struct_field only available in editor builds");
 	});
 #endif
 }

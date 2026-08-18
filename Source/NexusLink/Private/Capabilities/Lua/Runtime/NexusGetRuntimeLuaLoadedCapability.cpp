@@ -1,6 +1,7 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Lua/Runtime/NexusGetRuntimeLuaLoadedCapability.h"
+#include "Utils/NexusArgs.h"
 
 #if WITH_UNLUA
 
@@ -13,10 +14,10 @@
 void FGetRuntimeLuaLoadedCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_lua_loaded");
-	Out.Description = TEXT("枚举 package.loaded 已加载模块。支持名称过滤。");
+	Out.Description = TEXT("List package.loaded modules. Supports name filter.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("键名过滤；支持 /regex/、^前缀、后缀$")))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("最大返回条数"), 100, 1, 500))
+		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Key filter; /regex/, ^prefix, suffix$")))
+		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max return count"), 100, 1, 500))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("modules"), TEXT("require"), TEXT("package"), TEXT("cache"), TEXT("imports") };
@@ -26,6 +27,7 @@ void FGetRuntimeLuaLoadedCapability::BuildDefinition(FNexusCapabilityDefinition&
 
 FCapabilityResult FGetRuntimeLuaLoadedCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
+	const FNexusArgs A(Arguments);
 	FNexusMcpToolResult Tmp;
 	lua_State* L = FNexusLuaUtils::GetMainLuaState(Tmp);
 	if (!L)
@@ -38,20 +40,20 @@ FCapabilityResult FGetRuntimeLuaLoadedCapability::Execute(const TSharedPtr<FJson
 	if (!lua_istable(L, -1))
 	{
 		lua_settop(L, StackTop);
-		return FCapabilityResult::MakeFatal(TEXT("package 全局表不可用"));
+		return FCapabilityResult::MakeFatal(TEXT("package global table unavailable"));
 	}
 	lua_getfield(L, -1, "loaded");
 	if (!lua_istable(L, -1))
 	{
 		lua_settop(L, StackTop);
-		return FCapabilityResult::MakeFatal(TEXT("package.loaded 不可用"));
+		return FCapabilityResult::MakeFatal(TEXT("package.loaded unavailable"));
 	}
 
 	FString NameFilter;
 	int32 Limit = 100;
 	Arguments->TryGetStringField(TEXT("nameFilter"), NameFilter);
 	if (Arguments->HasField(TEXT("limit")))
-		Limit = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 500);
+		Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
 
 	const int32 LoadedIdx = lua_gettop(L);
 	TArray<TSharedPtr<FJsonValue>> Modules;

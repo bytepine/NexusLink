@@ -101,7 +101,7 @@ namespace NexusCapabilitySchemaValidate
 	{
 		if (!Obj.IsValid() || !Schema.IsValid())
 		{
-			OutError = FString::Printf(TEXT("字段 '%s' 校验失败（对象或 Schema 无效）"),
+			OutError = FString::Printf(TEXT("Field '%s' validation failed (object or schema invalid)"),
 				Path.IsEmpty() ? TEXT("$") : *Path);
 			return false;
 		}
@@ -118,7 +118,7 @@ namespace NexusCapabilitySchemaValidate
 			if (!bDeclared && !bAllowAdditional)
 			{
 				const FString FullPath = JoinPath(Path, KeyAsString(KV.Key));
-				OutError = FString::Printf(TEXT("未知参数 '%s'（additionalProperties=false）"), *FullPath);
+				OutError = FString::Printf(TEXT("Unknown argument '%s'"), *FullPath);
 				return false;
 			}
 		}
@@ -137,7 +137,7 @@ namespace NexusCapabilitySchemaValidate
 				const TSharedPtr<FJsonValue> FieldVal = Obj->TryGetField(Field);
 				if (!FieldVal.IsValid() || FieldVal->IsNull())
 				{
-					OutError = FString::Printf(TEXT("缺少必填字段 '%s'"), *JoinPath(Path, Field));
+					OutError = FString::Printf(TEXT("Missing required field '%s'"), *JoinPath(Path, Field));
 					return false;
 				}
 			}
@@ -186,7 +186,7 @@ namespace NexusCapabilitySchemaValidate
 			FString ActualType;
 			if (!MatchesJsonType(Value, ExpectedType, ActualType))
 			{
-				OutError = FString::Printf(TEXT("字段 '%s' 类型应为 %s，实际为 %s"),
+				OutError = FString::Printf(TEXT("Field '%s' expected type %s, got %s"),
 					Path.IsEmpty() ? TEXT("$") : *Path, *ExpectedType, *ActualType);
 				return false;
 			}
@@ -199,7 +199,7 @@ namespace NexusCapabilitySchemaValidate
 			FString StrVal;
 			if (!Value.IsValid() || !Value->TryGetString(StrVal))
 			{
-				OutError = FString::Printf(TEXT("字段 '%s' 的 enum 约束仅支持 string"),
+				OutError = FString::Printf(TEXT("Field '%s' enum constraint requires string"),
 					Path.IsEmpty() ? TEXT("$") : *Path);
 				return false;
 			}
@@ -215,7 +215,7 @@ namespace NexusCapabilitySchemaValidate
 			}
 			if (!bInEnum)
 			{
-				OutError = FString::Printf(TEXT("字段 '%s' 值 '%s' 不在 enum 内"),
+				OutError = FString::Printf(TEXT("Field '%s' value '%s' is not in enum"),
 					Path.IsEmpty() ? TEXT("$") : *Path, *StrVal);
 				return false;
 			}
@@ -226,7 +226,7 @@ namespace NexusCapabilitySchemaValidate
 			const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
 			if (!Value->TryGetObject(ObjPtr) || !ObjPtr || !ObjPtr->IsValid())
 			{
-				OutError = FString::Printf(TEXT("字段 '%s' 不是有效 object"),
+				OutError = FString::Printf(TEXT("Field '%s' is not a valid object"),
 					Path.IsEmpty() ? TEXT("$") : *Path);
 				return false;
 			}
@@ -268,7 +268,7 @@ namespace NexusCapabilitySchemaValidate
 			&& !RootType.IsEmpty()
 			&& !RootType.Equals(TEXT("object"), ESearchCase::IgnoreCase))
 		{
-			OutError = FString::Printf(TEXT("InputSchema.type 应为 object，实际为 %s"), *RootType);
+			OutError = FString::Printf(TEXT("InputSchema.type must be object, got %s"), *RootType);
 			return false;
 		}
 		return ValidateObject(Args, Schema, FString(), OutError);
@@ -320,10 +320,10 @@ namespace NexusManageFinalizeMixin
 		{
 			return;
 		}
-		InjectOptionalBool(Def.InputSchema, TEXT("saveToDisk"), TEXT("成功后将包保存到磁盘"));
+		InjectOptionalBool(Def.InputSchema, TEXT("saveToDisk"), TEXT("Save the package to disk after success"));
 		if (SupportsCompile(Def.Name))
 		{
-			InjectOptionalBool(Def.InputSchema, TEXT("compile"), TEXT("按需编译蓝图（仅 BP/ABP/WBP）"));
+			InjectOptionalBool(Def.InputSchema, TEXT("compile"), TEXT("Compile blueprint if needed (BP/ABP/WBP only)"));
 		}
 	}
 
@@ -424,7 +424,7 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 				if (!FieldVal.IsValid() || FieldVal->IsNull())
 				{
 					return FCapabilityResult::MakeArgInvalid(FString::Printf(
-						TEXT("缺少必填字段 '%s'（Capability '%s'）"), *Field, *Def.Name));
+						TEXT("Missing required field '%s' (capability '%s')"), *Field, *Def.Name));
 				}
 				if (FieldVal->Type == EJson::String)
 				{
@@ -433,7 +433,7 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 					if (StrVal.IsEmpty())
 					{
 						return FCapabilityResult::MakeArgInvalid(FString::Printf(
-							TEXT("必填字段 '%s' 不能为空（Capability '%s'）"), *Field, *Def.Name));
+							TEXT("Required field '%s' cannot be empty (capability '%s')"), *Field, *Def.Name));
 					}
 				}
 			}
@@ -494,7 +494,7 @@ bool FNexusCapability::RequireString(const TSharedPtr<FJsonObject>& Args,
 		return true;
 	}
 	EmitError(OutEntries, Locator,
-		FString::Printf(TEXT("缺少或为空必填字段 '%s'"), Key));
+		FString::Printf(TEXT("Missing or empty required field '%s'"), Key));
 	return false;
 }
 

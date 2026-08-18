@@ -60,7 +60,7 @@ namespace
 			OutFlag = CTF_UseComplexAsSimple;
 			return true;
 		}
-		OutError = TEXT("collisionTraceFlag 须为 UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple");
+		OutError = TEXT("collisionTraceFlag must be UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple");
 		return false;
 	}
 
@@ -91,53 +91,53 @@ void FManageAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("manage_asset_static_mesh");
 	Out.SearchAssetTypes = {TEXT("StaticMesh")};
-	Out.Description = TEXT("批量编辑 StaticMesh。材质槽/属性；碰撞复杂度与简易 Box/Sphere；Socket；LOD ScreenSize。");
+	Out.Description = TEXT("Batch edit StaticMesh. Material/collision/Socket/LOD ScreenSize.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"), {
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), {
 			TEXT("set_material_slot"), TEXT("set_property"),
 			TEXT("set_collision_trace_flag"), TEXT("add_box_collision"), TEXT("add_sphere_collision"),
 			TEXT("clear_simple_collision"),
 			TEXT("add_socket"), TEXT("remove_socket"), TEXT("set_socket"),
 			TEXT("set_lod_screen_size")
 		}))
-		.Prop(TEXT("slotIndex"),      FNexusSchema::Int(TEXT("材质槽索引（set_material_slot）")))
-		.Prop(TEXT("materialPath"),   FNexusSchema::Str(TEXT("材质资产路径（set_material_slot）")))
-		.Prop(TEXT("propertyPath"),   FNexusSchema::Str(TEXT("属性路径（set_property）")))
-		.Prop(TEXT("value"),          FNexusSchema::Str(TEXT("属性新值（set_property）")))
-		.Prop(TEXT("collisionTraceFlag"), FNexusSchema::Enum(TEXT("碰撞复杂度"), {
+		.Prop(TEXT("slotIndex"),      FNexusSchema::Int(TEXT("Material slot index (set_material_slot)")))
+		.Prop(TEXT("materialPath"),   FNexusSchema::Str(TEXT("Material asset path (set_material_slot)")))
+		.Prop(TEXT("propertyPath"),   FNexusSchema::Str(TEXT("Property path (set_property)")))
+		.Prop(TEXT("value"),          FNexusSchema::Str(TEXT("New property value (set_property)")))
+		.Prop(TEXT("collisionTraceFlag"), FNexusSchema::Enum(TEXT("Collision complexity"), {
 			TEXT("UseDefault"), TEXT("UseSimpleAndComplex"), TEXT("UseSimpleAsComplex"), TEXT("UseComplexAsSimple")
 		}))
-		.Prop(TEXT("x"), FNexusSchema::Num(TEXT("位置/半轴 X（碰撞中心或 Box 半轴）")))
-		.Prop(TEXT("y"), FNexusSchema::Num(TEXT("位置/半轴 Y")))
-		.Prop(TEXT("z"), FNexusSchema::Num(TEXT("位置/半轴 Z")))
-		.Prop(TEXT("extentX"), FNexusSchema::Num(TEXT("Box 半轴 X（默认用 x）")))
-		.Prop(TEXT("extentY"), FNexusSchema::Num(TEXT("Box 半轴 Y（默认用 y）")))
-		.Prop(TEXT("extentZ"), FNexusSchema::Num(TEXT("Box 半轴 Z（默认用 z）")))
-		.Prop(TEXT("radius"), FNexusSchema::Num(TEXT("Sphere 半径（add_sphere_collision）")))
-		.Prop(TEXT("socketName"), FNexusSchema::Str(TEXT("Socket 名")))
-		.Prop(TEXT("locX"), FNexusSchema::Num(TEXT("Socket/碰撞中心 X")))
-		.Prop(TEXT("locY"), FNexusSchema::Num(TEXT("Socket/碰撞中心 Y")))
-		.Prop(TEXT("locZ"), FNexusSchema::Num(TEXT("Socket/碰撞中心 Z")))
-		.Prop(TEXT("pitch"), FNexusSchema::Num(TEXT("Socket 旋转 Pitch")))
-		.Prop(TEXT("yaw"), FNexusSchema::Num(TEXT("Socket 旋转 Yaw")))
-		.Prop(TEXT("roll"), FNexusSchema::Num(TEXT("Socket 旋转 Roll")))
-		.Prop(TEXT("scaleX"), FNexusSchema::Num(TEXT("Socket 缩放 X")))
-		.Prop(TEXT("scaleY"), FNexusSchema::Num(TEXT("Socket 缩放 Y")))
-		.Prop(TEXT("scaleZ"), FNexusSchema::Num(TEXT("Socket 缩放 Z")))
-		.Prop(TEXT("lodIndex"), FNexusSchema::Int(TEXT("LOD 索引（set_lod_screen_size）")))
+		.Prop(TEXT("x"), FNexusSchema::Num(TEXT("Position/half-axis X (collision center or Box half-axis)")))
+		.Prop(TEXT("y"), FNexusSchema::Num(TEXT("Position/half-axis Y")))
+		.Prop(TEXT("z"), FNexusSchema::Num(TEXT("Position/half-axis Z")))
+		.Prop(TEXT("extentX"), FNexusSchema::Num(TEXT("Box half-extent X (defaults to x)")))
+		.Prop(TEXT("extentY"), FNexusSchema::Num(TEXT("Box half-extent Y (defaults to y)")))
+		.Prop(TEXT("extentZ"), FNexusSchema::Num(TEXT("Box half-extent Z (defaults to z)")))
+		.Prop(TEXT("radius"), FNexusSchema::Num(TEXT("Sphere radius (add_sphere_collision)")))
+		.Prop(TEXT("socketName"), FNexusSchema::Str(TEXT("Socket name")))
+		.Prop(TEXT("locX"), FNexusSchema::Num(TEXT("Socket/collision center X")))
+		.Prop(TEXT("locY"), FNexusSchema::Num(TEXT("Socket/collision center Y")))
+		.Prop(TEXT("locZ"), FNexusSchema::Num(TEXT("Socket/collision center Z")))
+		.Prop(TEXT("pitch"), FNexusSchema::Num(TEXT("Socket rotation Pitch")))
+		.Prop(TEXT("yaw"), FNexusSchema::Num(TEXT("Socket rotation Yaw")))
+		.Prop(TEXT("roll"), FNexusSchema::Num(TEXT("Socket rotation Roll")))
+		.Prop(TEXT("scaleX"), FNexusSchema::Num(TEXT("Socket rotation Scale X")))
+		.Prop(TEXT("scaleY"), FNexusSchema::Num(TEXT("Socket rotation Scale Y")))
+		.Prop(TEXT("scaleZ"), FNexusSchema::Num(TEXT("Socket rotation Scale Z")))
+		.Prop(TEXT("lodIndex"), FNexusSchema::Int(TEXT("LOD index (set_lod_screen_size)")))
 		.Prop(TEXT("screenSize"), FNexusSchema::Num(TEXT("LOD ScreenSize（0–1）")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("StaticMesh 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("StaticMesh asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("mesh"), TEXT("material"), TEXT("collision"), TEXT("socket"), TEXT("lod"), TEXT("static") };
 	Out.RelatedCapabilities = { TEXT("get_asset_static_mesh"), TEXT("search_asset"), TEXT("save_asset") };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("改 StaticMesh 材质/碰撞/Socket/LOD；修改后需 save_asset 落盘");
+	Out.WhenToUse = TEXT("Edit StaticMesh material/collision/Socket/LOD; persist with save_asset");
 }
 
 FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -151,14 +151,14 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 		if (!Mesh)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("StaticMesh 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("StaticMesh not found: %s"), *AssetPath));
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 
@@ -185,7 +185,7 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetStringField(TEXT("materialPath"), MaterialPath);
 				if (MaterialPath.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_material_slot 需要 materialPath"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_material_slot requires materialPath"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -197,7 +197,7 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				const TArray<FStaticMaterial>& Materials = FNexusAssetUtils::GetStaticMeshMaterials(*Mesh);
 				if (!Materials.IsValidIndex(SlotIndex))
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("材质槽索引 %d 超出范围 [0, %d)"), SlotIndex, Materials.Num()));
+					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Material slot index %d out of range [0, %d)"), SlotIndex, Materials.Num()));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -206,9 +206,9 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				bDirty = true;
 				Entry->SetNumberField(TEXT("slotIndex"), SlotIndex);
 				Entry->SetStringField(TEXT("materialClass"), Material ? Material->GetClass()->GetName() : TEXT("None"));
-				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 #else
-				Entry->SetStringField(TEXT("error"), TEXT("set_material_slot 仅在编辑器构建可用"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_material_slot only available in editor builds"));
 #endif
 			}
 			else if (Action.Equals(TEXT("set_property"), ESearchCase::IgnoreCase))
@@ -218,7 +218,7 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetStringField(TEXT("value"), Value);
 				if (PropPath.IsEmpty() || Value.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_property 需要 propertyPath 和 value"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -233,7 +233,7 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				Entry->SetStringField(TEXT("propertyPath"), PropPath);
 				if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
 				if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 			}
 			else if (Action.Equals(TEXT("set_collision_trace_flag"), ESearchCase::IgnoreCase))
 			{
@@ -251,7 +251,7 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				UBodySetup* Body = EnsureBodySetup(Mesh);
 				if (!Body)
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("无法创建 BodySetup"));
+					Entry->SetStringField(TEXT("error"), TEXT("Unable to create BodySetup"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -259,14 +259,14 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				InvalidateCollision(Mesh, Body);
 				bDirty = true;
 				Entry->SetStringField(TEXT("collisionTraceFlag"), FlagText.IsEmpty() ? TEXT("UseDefault") : FlagText);
-				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 			}
 			else if (Action.Equals(TEXT("add_box_collision"), ESearchCase::IgnoreCase))
 			{
 				UBodySetup* Body = EnsureBodySetup(Mesh);
 				if (!Body)
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("无法创建 BodySetup"));
+					Entry->SetStringField(TEXT("error"), TEXT("Unable to create BodySetup"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -285,14 +285,14 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				InvalidateCollision(Mesh, Body);
 				bDirty = true;
 				Entry->SetNumberField(TEXT("boxElemCount"), Body->AggGeom.BoxElems.Num());
-				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 			}
 			else if (Action.Equals(TEXT("add_sphere_collision"), ESearchCase::IgnoreCase))
 			{
 				UBodySetup* Body = EnsureBodySetup(Mesh);
 				if (!Body)
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("无法创建 BodySetup"));
+					Entry->SetStringField(TEXT("error"), TEXT("Unable to create BodySetup"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -308,21 +308,21 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				bDirty = true;
 				Entry->SetNumberField(TEXT("sphereElemCount"), Body->AggGeom.SphereElems.Num());
 				Entry->SetNumberField(TEXT("radius"), Sphere.Radius);
-				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 			}
 			else if (Action.Equals(TEXT("clear_simple_collision"), ESearchCase::IgnoreCase))
 			{
 				UBodySetup* Body = EnsureBodySetup(Mesh);
 				if (!Body)
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("无法创建 BodySetup"));
+					Entry->SetStringField(TEXT("error"), TEXT("Unable to create BodySetup"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
 				Body->RemoveSimpleCollision();
 				InvalidateCollision(Mesh, Body);
 				bDirty = true;
-				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 			}
 			else if (Action.Equals(TEXT("add_socket"), ESearchCase::IgnoreCase)
 				|| Action.Equals(TEXT("set_socket"), ESearchCase::IgnoreCase))
@@ -331,7 +331,7 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetStringField(TEXT("socketName"), SocketName);
 				if (SocketName.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("需要 socketName"));
+					Entry->SetStringField(TEXT("error"), TEXT("socketName required"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -339,13 +339,13 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				const bool bAdd = Action.Equals(TEXT("add_socket"), ESearchCase::IgnoreCase);
 				if (bAdd && Socket)
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket 已存在: %s"), *SocketName));
+					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket already exists: %s"), *SocketName));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
 				if (!bAdd && !Socket)
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket 未找到: %s"), *SocketName));
+					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket not found: %s"), *SocketName));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -368,7 +368,7 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				Socket->RelativeScale = Scale;
 				bDirty = true;
 				Entry->SetStringField(TEXT("socketName"), SocketName);
-				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 			}
 			else if (Action.Equals(TEXT("remove_socket"), ESearchCase::IgnoreCase))
 			{
@@ -376,21 +376,21 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetStringField(TEXT("socketName"), SocketName);
 				if (SocketName.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("remove_socket 需要 socketName"));
+					Entry->SetStringField(TEXT("error"), TEXT("remove_socket requires socketName"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
 				UStaticMeshSocket* Socket = Mesh->FindSocket(FName(*SocketName));
 				if (!Socket)
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket 未找到: %s"), *SocketName));
+					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket not found: %s"), *SocketName));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
 				Mesh->RemoveSocket(Socket);
 				bDirty = true;
 				Entry->SetStringField(TEXT("removed"), SocketName);
-				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 			}
 			else if (Action.Equals(TEXT("set_lod_screen_size"), ESearchCase::IgnoreCase))
 			{
@@ -399,13 +399,13 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				if (Op->HasField(TEXT("lodIndex"))) LodIndex = static_cast<int32>(Op->GetNumberField(TEXT("lodIndex")));
 				if (!Op->HasField(TEXT("screenSize")))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_lod_screen_size 需要 screenSize"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_lod_screen_size requires screenSize"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
 				if (!Mesh->IsSourceModelValid(LodIndex))
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("LOD %d 不存在（sourceModels=%d）"), LodIndex, Mesh->GetNumSourceModels()));
+					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("LOD %d does not exist (sourceModels=%d)"), LodIndex, Mesh->GetNumSourceModels()));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -415,14 +415,14 @@ FCapabilityResult FManageAssetStaticMeshCapability::Execute(const TSharedPtr<FJs
 				bDirty = true;
 				Entry->SetNumberField(TEXT("lodIndex"), LodIndex);
 				Entry->SetNumberField(TEXT("screenSize"), ScreenSize);
-				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 #else
-				Entry->SetStringField(TEXT("error"), TEXT("set_lod_screen_size 仅编辑器可用"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_lod_screen_size editor only"));
 #endif
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 			}
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

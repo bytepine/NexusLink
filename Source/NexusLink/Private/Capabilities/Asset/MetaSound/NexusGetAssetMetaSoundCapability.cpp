@@ -5,6 +5,7 @@
 #if WITH_METASOUND
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -21,27 +22,23 @@ void FGetAssetMetaSoundCapability::BuildDefinition(FNexusCapabilityDefinition& O
 {
 	Out.Name        = TEXT("get_asset_meta_sound");
 	Out.SearchAssetTypes = {TEXT("MetaSoundSource"), TEXT("MetaSoundPatch")};
-	Out.Description = TEXT("读取 MetaSound Source / MetaSound Patch：inputs/outputs/节点摘要（≥5.1 支持 Patch）。写用 manage_asset_meta_sound。");
+	Out.Description = TEXT("Read MetaSound Source/Patch: inputs/outputs/node summary (Patch >=5.1). Use manage_asset_meta_sound for writes.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MetaSound Source 或 Patch 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MetaSound Source or Patch asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("metasound"), TEXT("audio"), TEXT("sound"), TEXT("frontend"), TEXT("document"), TEXT("patch") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_meta_sound"), TEXT("create_asset_meta_sound"), TEXT("create_asset_meta_sound_patch"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("读取 MetaSound Source 或 Patch 的 inputs/outputs/节点；写用 manage_asset_meta_sound");
+	Out.WhenToUse = TEXT("Read MetaSound Source/Patch inputs/outputs/nodes; use manage_asset_meta_sound for writes");
 }
 
 FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString AssetPath;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		// 优先尝试 MetaSoundSource，若失败再尝试 MetaSoundPatch（≥5.1）
 		UObject* SoundAsset = nullptr;
@@ -59,7 +56,7 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 		{
 			TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
 			ErrObj->SetStringField(TEXT("path"), AssetPath);
-			ErrObj->SetStringField(TEXT("error"), TEXT("MetaSound Source / Patch 未找到"));
+			ErrObj->SetStringField(TEXT("error"), TEXT("MetaSound Source / Patch not found"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(ErrObj));
 			return;
 		}

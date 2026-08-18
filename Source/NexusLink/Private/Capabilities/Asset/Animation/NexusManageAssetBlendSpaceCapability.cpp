@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Animation/NexusManageAssetBlendSpaceCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -29,28 +30,28 @@ void FManageAssetBlendSpaceCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("manage_asset_blend_space");
 	Out.SearchAssetTypes = {TEXT("BlendSpace"), TEXT("BlendSpace1D")};
-	Out.Description = TEXT("编辑 BlendSpace：set_axis / add_sample / remove_sample。");
+	Out.Description = TEXT("Edit BlendSpace: set_axis / add_sample / remove_sample.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
+		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 			{ TEXT("set_axis"), TEXT("add_sample"), TEXT("remove_sample") }))
-		.Prop(TEXT("axisIndex"),       FNexusSchema::Int(TEXT("轴索引：0=横轴, 1=纵轴（set_axis）")))
-		.Prop(TEXT("displayName"),     FNexusSchema::Str(TEXT("轴显示名（set_axis）")))
-		.Prop(TEXT("min"),             FNexusSchema::Num(TEXT("轴最小值（set_axis）")))
-		.Prop(TEXT("max"),             FNexusSchema::Num(TEXT("轴最大值（set_axis）")))
-		.Prop(TEXT("gridNum"),         FNexusSchema::Int(TEXT("轴格数（set_axis）")))
-		.Prop(TEXT("animationPath"),   FNexusSchema::Str(TEXT("AnimSequence 路径（add_sample）")))
-		.Prop(TEXT("x"),               FNexusSchema::Num(TEXT("横轴坐标（add/remove_sample）")))
-		.Prop(TEXT("y"),               FNexusSchema::Num(TEXT("纵轴坐标（add/remove_sample，2D）")))
-		.Prop(TEXT("sampleIndex"),     FNexusSchema::Int(TEXT("样本索引（remove_sample）")))
+		.Prop(TEXT("axisIndex"),       FNexusSchema::Int(TEXT("Axis index: 0=horizontal, 1=vertical (set_axis)")))
+		.Prop(TEXT("displayName"),     FNexusSchema::Str(TEXT("Axis display name (set_axis)")))
+		.Prop(TEXT("min"),             FNexusSchema::Num(TEXT("Axis minimum (set_axis)")))
+		.Prop(TEXT("max"),             FNexusSchema::Num(TEXT("Axis maximum (set_axis)")))
+		.Prop(TEXT("gridNum"),         FNexusSchema::Int(TEXT("Axis grid divisions (set_axis)")))
+		.Prop(TEXT("animationPath"),   FNexusSchema::Str(TEXT("AnimSequence path (add_sample)")))
+		.Prop(TEXT("x"),               FNexusSchema::Num(TEXT("Horizontal axis coordinate (add/remove_sample)")))
+		.Prop(TEXT("y"),               FNexusSchema::Num(TEXT("Vertical axis coordinate (add/remove_sample, 2D)")))
+		.Prop(TEXT("sampleIndex"),     FNexusSchema::Int(TEXT("Sample index (remove_sample)")))
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"),   FNexusSchema::Str(TEXT("BlendSpace 资产路径")))
-		.Required(TEXT("operations"),  FNexusSchema::ArrayOf(TEXT("操作列表"), OpSchema.ToSharedRef()))
+		.Required(TEXT("assetPath"),   FNexusSchema::Str(TEXT("BlendSpace asset path")))
+		.Required(TEXT("operations"),  FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("blend"), TEXT("axis"), TEXT("sample"), TEXT("locomotion") };
 	Out.RelatedCapabilities = { TEXT("get_asset_blend_space"), TEXT("create_asset_blend_space") };
-	Out.WhenToUse = TEXT("配置 BlendSpace 轴参数或添加/删除动画样本；修改后需 save_asset 落盘");
+	Out.WhenToUse = TEXT("Configure BlendSpace axes or samples; persist with save_asset after changes");
 }
 
 FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -64,20 +65,20 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 		if (!BS)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("BlendSpace 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("BlendSpace not found: %s"), *AssetPath));
 			return;
 		}
 
-		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
-		if (!Arguments.IsValid() || !Arguments->TryGetArrayField(TEXT("operations"), OpsArr) || !OpsArr)
+		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (OpsArr.Num() == 0)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("缺少 operations 数组"));
+				TEXT("Missing operations array"));
 			return;
 		}
 
 		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : *OpsArr)
+		for (const TSharedPtr<FJsonValue>& OpVal : OpsArr)
 		{
 			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
 			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
@@ -97,7 +98,7 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 					AxisIdx = static_cast<int32>(Op->GetNumberField(TEXT("axisIndex")));
 				if (AxisIdx < 0 || AxisIdx > 2)
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("axisIndex 范围 0-2"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("axisIndex range 0-2"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
 					continue;
 				}
@@ -113,7 +114,7 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 				}
 				if (!Param)
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("反射获取 BlendParameters 失败"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("Reflection failed to get BlendParameters"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
 					continue;
 				}
@@ -132,7 +133,7 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 				FString AnimPath;
 				if (!Op->TryGetStringField(TEXT("animationPath"), AnimPath) || AnimPath.IsEmpty())
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("add_sample 需要 animationPath"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("add_sample requires animationPath"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
 					continue;
 				}
@@ -140,14 +141,14 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 				if (!Anim)
 				{
 					ResEntry->SetStringField(TEXT("error"),
-						FString::Printf(TEXT("AnimSequence 未找到: %s"), *AnimPath));
+						FString::Printf(TEXT("AnimSequence not found: %s"), *AnimPath));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
 					continue;
 				}
 				TArray<FBlendSample>* SampleData = GetSampleDataPtr(BS);
 				if (!SampleData)
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("无法获取 SampleData（反射失败）"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get SampleData (reflection failed)"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
 					continue;
 				}
@@ -170,7 +171,7 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 				TArray<FBlendSample>* SampleData = GetSampleDataPtr(BS);
 				if (!SampleData)
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("无法获取 SampleData（反射失败）"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get SampleData (reflection failed)"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
 					continue;
 				}
@@ -195,7 +196,7 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 				}
 				if (!SampleData->IsValidIndex(SampleIdx))
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("样本索引无效或未找到匹配样本"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("Invalid sample index or no matching sample"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
 					continue;
 				}
@@ -207,7 +208,7 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 			else
 			{
 				ResEntry->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("未知 action: %s"), *Action));
+					FString::Printf(TEXT("Unknown action: %s"), *Action));
 			}
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
@@ -216,7 +217,7 @@ FCapabilityResult FManageAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 		if (bDirty)
 		{
 			BS->MarkPackageDirty();
-			OutTop->SetStringField(TEXT("note"), TEXT("已修改，用 save_asset 落盘"));
+			OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
 		}
 	});
 }

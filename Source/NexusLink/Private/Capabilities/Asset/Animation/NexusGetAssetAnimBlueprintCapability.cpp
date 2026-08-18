@@ -24,21 +24,21 @@ void FGetAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("get_asset_anim_blueprint");
 	Out.SearchAssetTypes = {TEXT("AnimBlueprint")};
-	Out.Description = TEXT("检查 ABP 结构。sections=variables|statemachines|defaults|graphOverview|graph。");
+	Out.Description = TEXT("Inspect ABP structure. sections=variables|statemachines|defaults|graphOverview|graph.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
 		TEXT("abp"), TEXT("statemachine"), TEXT("variables"), TEXT("defaults"), TEXT("cdo")
 	};
 	Out.RelatedCapabilities = { TEXT("manage_asset_anim_blueprint"), TEXT("create_asset_anim_blueprint") };
-	Out.WhenToUse = TEXT("读 ABP 变量/状态机/默认值；不含写操作");
+	Out.WhenToUse = TEXT("Read ABP variables/state machines/defaults; no writes");
 }
 
 TSharedPtr<FJsonObject> FGetAssetAnimBlueprintCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("动画蓝图资产路径")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("变量/默认值名称过滤")))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("AnimBlueprint asset path")))
+		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Variable/default name filter")))
 		.Build();
 }
 
@@ -62,7 +62,7 @@ bool FGetAssetAnimBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject
 	FString Path;
 	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
 	{
-		OutError = TEXT("缺少 assetPath");
+		OutError = TEXT("Missing assetPath");
 		return false;
 	}
 
@@ -71,7 +71,7 @@ bool FGetAssetAnimBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject
 	UAnimBlueprint* AnimBP = FNexusAssetUtils::LoadAssetWithFallback<UAnimBlueprint>(Path);
 	if (!AnimBP)
 	{
-		OutError = FString::Printf(TEXT("AnimBlueprint 未找到: %s"), *Path);
+		OutError = FString::Printf(TEXT("AnimBlueprint not found: %s"), *Path);
 		return false;
 	}
 
@@ -96,7 +96,7 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
                                                       FString&                       OutError) const
 {
 	UAnimBlueprint* AnimBP = static_cast<UAnimBlueprint*>(TargetOpaque);
-	if (!AnimBP) { OutError = TEXT("无效的 AnimBlueprint 目标"); return; }
+	if (!AnimBP) { OutError = TEXT("Invalid AnimBlueprint target"); return; }
 
 	FString NameFilter;
 	if (Args.IsValid()) Args->TryGetStringField(TEXT("nameFilter"), NameFilter);
@@ -125,7 +125,7 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 		}
 		InOutDetail->SetArrayField(TEXT("variables"), Variables);
 #else
-		OutError = TEXT("variables 仅在编辑器构建可用");
+		OutError = TEXT("variables only available in editor builds");
 #endif
 	}
 	else if (SectionName == TEXT("statemachines"))
@@ -162,7 +162,7 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 		UBlueprint* BP = Cast<UBlueprint>(AnimBP);
 		if (!BP)
 		{
-			OutError = TEXT("无法将 AnimBlueprint 转为 Blueprint 以枚举图");
+			OutError = TEXT("Cannot cast AnimBlueprint to Blueprint to enumerate graphs");
 			return;
 		}
 		TArray<UEdGraph*> AllGraphs;
@@ -184,7 +184,7 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 		UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphName);
 		if (!AnimGraph)
 		{
-			OutError = TEXT("未找到 AnimGraph");
+			OutError = TEXT("AnimGraph not found");
 			return;
 		}
 		TArray<TSharedPtr<FJsonValue>> NodesArr;
@@ -213,11 +213,11 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 #else
 	else if (SectionName == TEXT("graphOverview"))
 	{
-		OutError = TEXT("graphOverview 仅在编辑器构建可用");
+		OutError = TEXT("graphOverview only available in editor builds");
 	}
 	else if (SectionName == TEXT("graph"))
 	{
-		OutError = TEXT("graph 仅在编辑器构建可用");
+		OutError = TEXT("graph only available in editor builds");
 	}
 #endif
 	else if (SectionName == TEXT("defaults"))
@@ -245,7 +245,7 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 	}
 	else
 	{
-		OutError = FString::Printf(TEXT("未处理的 section '%s'"), *SectionName);
+		OutError = FString::Printf(TEXT("Unhandled section '%s'"), *SectionName);
 	}
 }
 

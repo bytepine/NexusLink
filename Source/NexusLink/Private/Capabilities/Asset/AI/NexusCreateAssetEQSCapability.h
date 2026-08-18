@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Utils/NexusVersionCompat.h"
 
-#if NX_UE_HAS_APP_STYLE
+#if NX_UE_HAS_EQS
 
 #include "NexusCapability.h"
 
@@ -16,4 +16,4 @@ protected:
 	virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) const override;
 };
 
-#endif // NX_UE_HAS_APP_STYLE
+#endif // NX_UE_HAS_EQS

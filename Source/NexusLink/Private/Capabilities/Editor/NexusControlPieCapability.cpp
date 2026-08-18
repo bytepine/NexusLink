@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusVersionCompat.h"
@@ -20,10 +21,10 @@
 void FControlPieCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("control_pie");
-	Out.Description = TEXT("启动/停止/暂停/单步进 PIE。action=start|stop|status|pause|resume|step。");
+	Out.Description = TEXT("Start/stop/pause/step PIE. action=start|stop|status|pause|resume|step.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("PIE 操作"), { TEXT("start"), TEXT("stop"), TEXT("status"), TEXT("pause"), TEXT("resume"), TEXT("step") }))
-		.Prop(TEXT("mode"),   FNexusSchema::Enum(TEXT("播放模式（仅 start）"), { TEXT("viewport"), TEXT("simulate") }, TEXT("viewport")))
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("PIE operation"), { TEXT("start"), TEXT("stop"), TEXT("status"), TEXT("pause"), TEXT("resume"), TEXT("step") }))
+		.Prop(TEXT("mode"),   FNexusSchema::Enum(TEXT("Play mode (start only)"), { TEXT("viewport"), TEXT("simulate") }, TEXT("viewport")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -36,17 +37,16 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		FString Action;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("action"), Action) || Action.IsEmpty())
-		{ OutError = TEXT("缺少必填参数 action"); return; }
+		const FString Action = A.Str(TEXT("action"));
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
 	#if WITH_EDITOR
 		if (!GEditor)
 		{
-			OutError = TEXT("GEditor 不可用");
+			OutError = TEXT("GEditor unavailable");
 			return;
 		}
 
@@ -64,7 +64,7 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 			if (GEditor->IsPlayingSessionInEditor())
 			{
 				OutEntry->SetBoolField(TEXT("success"), false);
-				OutEntry->SetStringField(TEXT("error"), TEXT("PIE 已在运行；请先 stop"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("PIE already running; stop first"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -97,20 +97,20 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 
 			OutEntry->SetStringField(TEXT("action"), TEXT("start"));
 			OutEntry->SetStringField(TEXT("mode"), Mode.ToLower());
-			OutEntry->SetStringField(TEXT("note"), TEXT("已请求启动 PIE；将在下一帧实际开始。"));
+			OutEntry->SetStringField(TEXT("note"), TEXT("PIE start requested; begins next frame."));
 		}
 		else if (Action.Equals(TEXT("stop"), ESearchCase::IgnoreCase))
 		{
 			if (!GEditor->IsPlayingSessionInEditor())
 			{
 				OutEntry->SetBoolField(TEXT("success"), false);
-				OutEntry->SetStringField(TEXT("error"), TEXT("无运行中的 PIE 会话"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("No running PIE session"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
 			GEditor->RequestEndPlayMap();
 			OutEntry->SetStringField(TEXT("action"), TEXT("stop"));
-			OutEntry->SetStringField(TEXT("note"), TEXT("已请求停止 PIE。"));
+			OutEntry->SetStringField(TEXT("note"), TEXT("PIE stop requested."));
 		}
 		else if (Action.Equals(TEXT("pause"), ESearchCase::IgnoreCase)
 			|| Action.Equals(TEXT("resume"), ESearchCase::IgnoreCase)
@@ -119,7 +119,7 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 			if (!GEditor->IsPlayingSessionInEditor())
 			{
 				OutEntry->SetBoolField(TEXT("success"), false);
-				OutEntry->SetStringField(TEXT("error"), TEXT("无运行中的 PIE 会话"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("No running PIE session"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -157,7 +157,7 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 					PlayWorld->bDebugPauseExecution = true;
 				}
 				OutEntry->SetStringField(TEXT("state"), TEXT("step"));
-				OutEntry->SetStringField(TEXT("note"), TEXT("已请求单步进（下一帧暂停）"));
+				OutEntry->SetStringField(TEXT("note"), TEXT("Step requested (pause next frame)"));
 			}
 			OutEntry->SetStringField(TEXT("action"), Action.ToLower());
 		}
@@ -169,7 +169,7 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 		}
 	#else
 		OutEntry->SetBoolField(TEXT("success"), false);
-		OutEntry->SetStringField(TEXT("error"), TEXT("control_pie 仅在编辑器模式可用"));
+		OutEntry->SetStringField(TEXT("error"), TEXT("control_pie only available in editor mode"));
 	#endif
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));

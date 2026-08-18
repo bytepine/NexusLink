@@ -32,13 +32,13 @@ static UBlueprint* LoadAndValidateBP(const FString& AssetPath, UClass* RequiredP
 	UBlueprint* BP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(AssetPath);
 	if (!BP)
 	{
-		OutError = FString::Printf(TEXT("Blueprint 未找到: %s"), *AssetPath);
+		OutError = FString::Printf(TEXT("Blueprint not found: %s"), *AssetPath);
 		return nullptr;
 	}
 	if (!IsBlueprintOfClass(BP, RequiredParent))
 	{
 		OutError = FString::Printf(
-			TEXT("Blueprint %s 的生成类不是 %s 的子类"),
+			TEXT("Blueprint %s generated class is not a subclass of %s"),
 			*AssetPath, *RequiredParent->GetName());
 		return nullptr;
 	}
@@ -88,7 +88,7 @@ bool FNexusGasUtils::ApplyTagContainer(
 		FGameplayTag Tag = Mgr.RequestGameplayTag(FName(*TagStr), false);
 		if (!Tag.IsValid())
 		{
-			OutError = FString::Printf(TEXT("GameplayTag 无效: '%s'"), *TagStr);
+			OutError = FString::Printf(TEXT("Invalid GameplayTag: '%s'"), *TagStr);
 			return false;
 		}
 		NewTags.AddTag(Tag);
@@ -108,7 +108,7 @@ bool FNexusGasUtils::ApplyTagContainer(
 	}
 	else
 	{
-		OutError = FString::Printf(TEXT("无效的 mode '%s'（期望 set/add/remove）"), *Mode);
+		OutError = FString::Printf(TEXT("Invalid mode '%s' (expected set/add/remove)"), *Mode);
 		return false;
 	}
 	return true;
@@ -190,16 +190,16 @@ bool FNexusGasUtils::ApplyGEModifierOp(
 	const TSharedPtr<FJsonObject>& OpArgs,
 	FString&                       OutError)
 {
-	if (!GE || !OpArgs.IsValid()) { OutError = TEXT("GE 或操作参数无效"); return false; }
+	if (!GE || !OpArgs.IsValid()) { OutError = TEXT("Invalid GE or operation args"); return false; }
 
 	if (Action == TEXT("add_modifier"))
 	{
 		FString AttrName, OpStr;
 		float Magnitude = 0.f;
 		if (!OpArgs->TryGetStringField(TEXT("attribute"), AttrName) || AttrName.IsEmpty())
-		{ OutError = TEXT("add_modifier 需要 attribute"); return false; }
+		{ OutError = TEXT("add_modifier requires attribute"); return false; }
 		if (!OpArgs->TryGetStringField(TEXT("modifierOp"), OpStr) || OpStr.IsEmpty())
-		{ OutError = TEXT("add_modifier 需要 modifierOp（Add/Multiply/Divide/Override）"); return false; }
+		{ OutError = TEXT("add_modifier requires modifierOp（Add/Multiply/Divide/Override）"); return false; }
 		if (OpArgs->HasField(TEXT("magnitude")))
 			Magnitude = (float)OpArgs->GetNumberField(TEXT("magnitude"));
 
@@ -233,7 +233,7 @@ bool FNexusGasUtils::ApplyGEModifierOp(
 		}
 		if (!Attr.IsValid())
 		{
-			OutError = FString::Printf(TEXT("未找到 GameplayAttribute: %s"), *AttrName);
+			OutError = FString::Printf(TEXT("GameplayAttribute not found: %s"), *AttrName);
 			return false;
 		}
 
@@ -243,7 +243,7 @@ bool FNexusGasUtils::ApplyGEModifierOp(
 		else if (OpStr == TEXT("Override")) ModOp = EGameplayModOp::Override;
 
 		TArray<FGameplayModifierInfo>* Mods = GetGEModifiersPtr(GE);
-		if (!Mods) { OutError = TEXT("无法访问 GE Modifiers 数组"); return false; }
+		if (!Mods) { OutError = TEXT("Unable to access GE Modifiers array"); return false; }
 
 		FGameplayModifierInfo NewMod;
 		NewMod.Attribute = Attr;
@@ -257,13 +257,13 @@ bool FNexusGasUtils::ApplyGEModifierOp(
 	if (Action == TEXT("remove_modifier"))
 	{
 		TArray<FGameplayModifierInfo>* Mods = GetGEModifiersPtr(GE);
-		if (!Mods) { OutError = TEXT("无法访问 GE Modifiers 数组"); return false; }
+		if (!Mods) { OutError = TEXT("Unable to access GE Modifiers array"); return false; }
 
 		int32 Index = -1;
-		if (!OpArgs->HasField(TEXT("index"))) { OutError = TEXT("remove_modifier 需要 index"); return false; }
+		if (!OpArgs->HasField(TEXT("index"))) { OutError = TEXT("remove_modifier requires index"); return false; }
 		Index = FMath::RoundToInt((float)OpArgs->GetNumberField(TEXT("index")));
 		if (!Mods->IsValidIndex(Index))
-		{ OutError = FString::Printf(TEXT("Modifier index %d 超出范围 [0, %d)"), Index, Mods->Num()); return false; }
+		{ OutError = FString::Printf(TEXT("Modifier index %d out of range [0, %d)"), Index, Mods->Num()); return false; }
 		Mods->RemoveAt(Index);
 		return true;
 	}
@@ -271,13 +271,13 @@ bool FNexusGasUtils::ApplyGEModifierOp(
 	if (Action == TEXT("set_modifier"))
 	{
 		TArray<FGameplayModifierInfo>* Mods = GetGEModifiersPtr(GE);
-		if (!Mods) { OutError = TEXT("无法访问 GE Modifiers 数组"); return false; }
+		if (!Mods) { OutError = TEXT("Unable to access GE Modifiers array"); return false; }
 
 		int32 Index = -1;
-		if (!OpArgs->HasField(TEXT("index"))) { OutError = TEXT("set_modifier 需要 index"); return false; }
+		if (!OpArgs->HasField(TEXT("index"))) { OutError = TEXT("set_modifier requires index"); return false; }
 		Index = FMath::RoundToInt((float)OpArgs->GetNumberField(TEXT("index")));
 		if (!Mods->IsValidIndex(Index))
-		{ OutError = FString::Printf(TEXT("Modifier index %d 超出范围 [0, %d)"), Index, Mods->Num()); return false; }
+		{ OutError = FString::Printf(TEXT("Modifier index %d out of range [0, %d)"), Index, Mods->Num()); return false; }
 
 		if (OpArgs->HasField(TEXT("magnitude")))
 		{
@@ -288,7 +288,7 @@ bool FNexusGasUtils::ApplyGEModifierOp(
 		return true;
 	}
 
-	OutError = FString::Printf(TEXT("未知 Modifier 操作: %s"), *Action);
+	OutError = FString::Printf(TEXT("Unknown Modifier operation: %s"), *Action);
 	return false;
 }
 

@@ -40,14 +40,14 @@ UWidgetAnimation* FNexusWidgetAnimationUtils::FindAnimation(UWidgetBlueprint* WB
 
 UWidgetAnimation* FNexusWidgetAnimationUtils::AddAnimation(UWidgetBlueprint* WBP, const FString& Name, FString& OutError)
 {
-	if (!WBP) { OutError = TEXT("WidgetBlueprint 无效"); return nullptr; }
-	if (Name.IsEmpty()) { OutError = TEXT("animationName 必填"); return nullptr; }
-	if (FindAnimation(WBP, Name)) { OutError = FString::Printf(TEXT("动画已存在: %s"), *Name); return nullptr; }
+	if (!WBP) { OutError = TEXT("Invalid WidgetBlueprint"); return nullptr; }
+	if (Name.IsEmpty()) { OutError = TEXT("animationName is required"); return nullptr; }
+	if (FindAnimation(WBP, Name)) { OutError = FString::Printf(TEXT("Animation already exists: %s"), *Name); return nullptr; }
 
 	UWidgetAnimation* Anim = NewObject<UWidgetAnimation>(WBP, FName(*Name), RF_Transactional);
-	if (!Anim) { OutError = TEXT("创建 UWidgetAnimation 失败"); return nullptr; }
+	if (!Anim) { OutError = TEXT("Create UWidgetAnimation failed"); return nullptr; }
 	UMovieScene* Scene = NewObject<UMovieScene>(Anim, NAME_None, RF_Transactional);
-	if (!Scene) { OutError = TEXT("创建 MovieScene 失败"); return nullptr; }
+	if (!Scene) { OutError = TEXT("Create MovieScene failed"); return nullptr; }
 	Scene->SetDisplayRate(FFrameRate(30, 1));
 #if NX_UE_HAS_WIDGET_ANIM_SET_MOVIE_SCENE
 	Anim->SetMovieScene(Scene);
@@ -61,9 +61,9 @@ UWidgetAnimation* FNexusWidgetAnimationUtils::AddAnimation(UWidgetBlueprint* WBP
 
 bool FNexusWidgetAnimationUtils::RemoveAnimation(UWidgetBlueprint* WBP, const FString& Name, FString& OutError)
 {
-	if (!WBP) { OutError = TEXT("WidgetBlueprint 无效"); return false; }
+	if (!WBP) { OutError = TEXT("Invalid WidgetBlueprint"); return false; }
 	UWidgetAnimation* Anim = FindAnimation(WBP, Name);
-	if (!Anim) { OutError = FString::Printf(TEXT("动画未找到: %s"), *Name); return false; }
+	if (!Anim) { OutError = FString::Printf(TEXT("Animation not found: %s"), *Name); return false; }
 	WBP->Modify();
 	WBP->Animations.Remove(Anim);
 	return true;
@@ -82,14 +82,14 @@ static UMovieScene* GetAnimScene(UWidgetAnimation* Anim)
 bool FNexusWidgetAnimationUtils::AddFloatTrack(UWidgetAnimation* Anim, const FString& TrackName, FString& OutTrackName, FString& OutError)
 {
 	UMovieScene* Scene = GetAnimScene(Anim);
-	if (!Scene) { OutError = TEXT("动画无 MovieScene"); return false; }
+	if (!Scene) { OutError = TEXT("Animation has no MovieScene"); return false; }
 	UMovieSceneFloatTrack* Track = nullptr;
 #if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
 	Track = Scene->AddMasterTrack<UMovieSceneFloatTrack>();
 #else
 	Track = Scene->AddTrack<UMovieSceneFloatTrack>();
 #endif
-	if (!Track) { OutError = TEXT("添加 FloatTrack 失败"); return false; }
+	if (!Track) { OutError = TEXT("Failed to add FloatTrack"); return false; }
 	const FString Display = TrackName.IsEmpty() ? TEXT("Float") : TrackName;
 	Track->SetDisplayName(FText::FromString(Display));
 	UMovieSceneSection* Section = Track->CreateNewSection();
@@ -151,10 +151,10 @@ bool FNexusWidgetAnimationUtils::AddBoundFloatTrack(UWidgetAnimation* Anim, UWid
 	const FString& TrackName, FString& OutTrackName, FString& OutError)
 {
 	UMovieScene* Scene = GetAnimScene(Anim);
-	if (!Scene) { OutError = TEXT("动画无 MovieScene"); return false; }
-	if (!WBP || !WBP->WidgetTree) { OutError = TEXT("WidgetTree 不可用"); return false; }
+	if (!Scene) { OutError = TEXT("Animation has no MovieScene"); return false; }
+	if (!WBP || !WBP->WidgetTree) { OutError = TEXT("WidgetTree unavailable"); return false; }
 	UWidget* Widget = WBP->WidgetTree->FindWidget(FName(*WidgetName));
-	if (!Widget) { OutError = FString::Printf(TEXT("Widget 未找到: %s"), *WidgetName); return false; }
+	if (!Widget) { OutError = FString::Printf(TEXT("Widget not found: %s"), *WidgetName); return false; }
 
 	FGuid Guid;
 	TArray<FWidgetAnimationBinding>* Bindings = GetMutableBindings(Anim);
@@ -184,7 +184,7 @@ bool FNexusWidgetAnimationUtils::AddBoundFloatTrack(UWidgetAnimation* Anim, UWid
 
 	UMovieSceneFloatTrack* Track = Cast<UMovieSceneFloatTrack>(
 		Scene->AddTrack(UMovieSceneFloatTrack::StaticClass(), Guid));
-	if (!Track) { OutError = TEXT("添加绑定 FloatTrack 失败"); return false; }
+	if (!Track) { OutError = TEXT("Failed to add bound FloatTrack"); return false; }
 	const FString Display = TrackName.IsEmpty()
 		? (PropertyPath.IsEmpty() ? TEXT("Float") : PropertyPath)
 		: TrackName;
@@ -205,7 +205,7 @@ bool FNexusWidgetAnimationUtils::AddBoundFloatTrack(UWidgetAnimation* Anim, UWid
 
 static bool WriteKeyOnFloatTrack(UMovieScene* Scene, UMovieSceneFloatTrack* FloatTrack, float TimeSeconds, float Value, FString& OutError)
 {
-	if (!Scene || !FloatTrack) { OutError = TEXT("FloatTrack 无效"); return false; }
+	if (!Scene || !FloatTrack) { OutError = TEXT("Invalid FloatTrack"); return false; }
 	UMovieSceneFloatSection* Section = nullptr;
 	for (UMovieSceneSection* S : FloatTrack->GetAllSections())
 	{
@@ -217,7 +217,7 @@ static bool WriteKeyOnFloatTrack(UMovieScene* Scene, UMovieSceneFloatTrack* Floa
 		Section = Cast<UMovieSceneFloatSection>(FloatTrack->CreateNewSection());
 		if (Section) FloatTrack->AddSection(*Section);
 	}
-	if (!Section) { OutError = TEXT("无法创建 FloatSection"); return false; }
+	if (!Section) { OutError = TEXT("Unable to create FloatSection"); return false; }
 
 	const FFrameRate Tick = Scene->GetTickResolution();
 	const FFrameNumber Frame = Tick.AsFrameNumber(TimeSeconds);
@@ -226,7 +226,7 @@ static bool WriteKeyOnFloatTrack(UMovieScene* Scene, UMovieSceneFloatTrack* Floa
 #if NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
 	FMovieSceneChannelProxy& Proxy = Section->GetChannelProxy();
 	TArrayView<FMovieSceneFloatChannel*> Channels = Proxy.GetChannels<FMovieSceneFloatChannel>();
-	if (Channels.Num() == 0) { OutError = TEXT("FloatSection 无 FloatChannel"); return false; }
+	if (Channels.Num() == 0) { OutError = TEXT("FloatSection has no FloatChannel"); return false; }
 	AddKeyToChannel(Channels[0], Frame, Value, EMovieSceneKeyInterpolation::Auto);
 #else
 	Section->FloatCurve.AddKey(TimeSeconds, Value);
@@ -242,19 +242,19 @@ bool FNexusWidgetAnimationUtils::AddFloatKey(UWidgetAnimation* Anim, float TimeS
 bool FNexusWidgetAnimationUtils::AddFloatKey(UWidgetAnimation* Anim, const FString& TrackName, float TimeSeconds, float Value, FString& OutError)
 {
 	UMovieScene* Scene = GetAnimScene(Anim);
-	if (!Scene) { OutError = TEXT("动画无 MovieScene"); return false; }
+	if (!Scene) { OutError = TEXT("Animation has no MovieScene"); return false; }
 	UMovieSceneFloatTrack* FloatTrack = FindFloatTrackByName(Scene, TrackName);
-	if (!FloatTrack) { OutError = TEXT("没有 Float 轨，先 add_track"); return false; }
+	if (!FloatTrack) { OutError = TEXT("No Float track; add_track first"); return false; }
 	return WriteKeyOnFloatTrack(Scene, FloatTrack, TimeSeconds, Value, OutError);
 }
 
 bool FNexusWidgetAnimationUtils::RemoveFloatTrack(UWidgetAnimation* Anim, const FString& TrackName, FString& OutError)
 {
 	UMovieScene* Scene = GetAnimScene(Anim);
-	if (!Scene) { OutError = TEXT("动画无 MovieScene"); return false; }
-	if (TrackName.IsEmpty()) { OutError = TEXT("remove_track 需要 trackName"); return false; }
+	if (!Scene) { OutError = TEXT("Animation has no MovieScene"); return false; }
+	if (TrackName.IsEmpty()) { OutError = TEXT("remove_track requires trackName"); return false; }
 	UMovieSceneFloatTrack* Track = FindFloatTrackByName(Scene, TrackName);
-	if (!Track) { OutError = FString::Printf(TEXT("轨未找到: %s"), *TrackName); return false; }
+	if (!Track) { OutError = FString::Printf(TEXT("Track not found: %s"), *TrackName); return false; }
 	const bool bRemoved = Scene->RemoveTrack(*Track);
 #if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
 	const bool bRemovedMaster = !bRemoved && Scene->RemoveMasterTrack(*Track);
@@ -263,7 +263,7 @@ bool FNexusWidgetAnimationUtils::RemoveFloatTrack(UWidgetAnimation* Anim, const 
 #endif
 	if (!bRemoved && !bRemovedMaster)
 	{
-		OutError = FString::Printf(TEXT("移除轨失败: %s"), *TrackName);
+		OutError = FString::Printf(TEXT("Failed to remove track: %s"), *TrackName);
 		return false;
 	}
 	return true;
@@ -272,23 +272,23 @@ bool FNexusWidgetAnimationUtils::RemoveFloatTrack(UWidgetAnimation* Anim, const 
 bool FNexusWidgetAnimationUtils::RemoveFloatKey(UWidgetAnimation* Anim, const FString& TrackName, float TimeSeconds, FString& OutError)
 {
 	UMovieScene* Scene = GetAnimScene(Anim);
-	if (!Scene) { OutError = TEXT("动画无 MovieScene"); return false; }
+	if (!Scene) { OutError = TEXT("Animation has no MovieScene"); return false; }
 	UMovieSceneFloatTrack* FloatTrack = FindFloatTrackByName(Scene, TrackName);
-	if (!FloatTrack) { OutError = TEXT("没有 Float 轨"); return false; }
+	if (!FloatTrack) { OutError = TEXT("No Float track"); return false; }
 	UMovieSceneFloatSection* Section = nullptr;
 	for (UMovieSceneSection* S : FloatTrack->GetAllSections())
 	{
 		Section = Cast<UMovieSceneFloatSection>(S);
 		if (Section) break;
 	}
-	if (!Section) { OutError = TEXT("Float 轨无 Section"); return false; }
+	if (!Section) { OutError = TEXT("Float track has no Section"); return false; }
 
 	const FFrameRate Tick = Scene->GetTickResolution();
 	const FFrameNumber Frame = Tick.AsFrameNumber(TimeSeconds);
 	bool bRemoved = false;
 #if NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
 	TArrayView<FMovieSceneFloatChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-	if (Channels.Num() == 0) { OutError = TEXT("FloatSection 无 FloatChannel"); return false; }
+	if (Channels.Num() == 0) { OutError = TEXT("FloatSection has no FloatChannel"); return false; }
 	FMovieSceneFloatChannel* Channel = Channels[0];
 	TArray<FFrameNumber> Times;
 	TArray<FKeyHandle> Handles;
@@ -317,7 +317,7 @@ bool FNexusWidgetAnimationUtils::RemoveFloatKey(UWidgetAnimation* Anim, const FS
 #endif
 	if (!bRemoved)
 	{
-		OutError = FString::Printf(TEXT("未找到时间 %.3f 的关键帧"), TimeSeconds);
+		OutError = FString::Printf(TEXT("No keyframe at time %.3f"), TimeSeconds);
 		return false;
 	}
 	return true;

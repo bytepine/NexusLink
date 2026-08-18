@@ -3,7 +3,7 @@
 # Copyright byteyang. All Rights Reserved.
 """审计 Capability 入参命名（Schema / Execute）— CI / run_e2e 门禁。
 
-权威：Resources/CapabilitySpec.md §7.11 / §7.12。
+权威：Resources/CapabilitySpec.md §8.11 / §8.12。
 扫描 Source/**/Capabilities/**/*.cpp，禁止 Breaking 旧键与多目标数组。
 """
 
@@ -223,7 +223,7 @@ def audit_cap(cap: CapScan) -> list[Violation]:
             where.append("Schema")
         if key in reads:
             where.append("Execute")
-        add("forbidden_param", f"禁止旧键 `{key}`（{'+'.join(where)}）→ 见 CapabilitySpec §7.12")
+        add("forbidden_param", f"禁止旧键 `{key}`（{'+'.join(where)}）→ 见 CapabilitySpec §8.12")
 
     if "packagePath" in combined and "assetName" in combined:
         add(

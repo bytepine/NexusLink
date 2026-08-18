@@ -5,34 +5,31 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "FileMediaSource.h"
 #include "NexusMcpTool.h"
 
 void FCreateAssetMediaSourceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_media_source");
-	Out.Description = TEXT("创建 FileMediaSource。可选 mediaPath。播放走 interact_runtime_actor。");
+	Out.Description = TEXT("Create FileMediaSource. Optional mediaPath. Playback via interact_runtime_actor.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
-		.Prop(TEXT("mediaPath"), FNexusSchema::Str(TEXT("媒体文件路径（可选）")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("mediaPath"), FNexusSchema::Str(TEXT("Media file path (optional)")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("video"), TEXT("movie"), TEXT("mp4"), TEXT("media") };
 	Out.RelatedCapabilities = { TEXT("get_asset_media_source"), TEXT("manage_asset_media_source") };
-	Out.WhenToUse = TEXT("新建 FileMediaSource；不负责播放");
+	Out.WhenToUse = TEXT("Create FileMediaSource; does not handle playback");
 }
 
 FCapabilityResult FCreateAssetMediaSourceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		if (LoadObject<UFileMediaSource>(nullptr, *AssetPath))
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
@@ -40,10 +37,10 @@ FCapabilityResult FCreateAssetMediaSourceCapability::Execute(const TSharedPtr<FJ
 			return;
 		}
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		UFileMediaSource* Source = NewObject<UFileMediaSource>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Source) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建失败")); return; }
+		if (!Source) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Creation failed")); return; }
 		FString FilePath;
 		if (Arguments->TryGetStringField(TEXT("mediaPath"), FilePath) && !FilePath.IsEmpty())
 		{

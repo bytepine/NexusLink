@@ -2,6 +2,7 @@
 
 #include "Capabilities/Runtime/Widget/NexusListRuntimeWidgetsCapability.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
@@ -17,13 +18,13 @@
 void FListRuntimeWidgetsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("list_runtime_widgets");
-	Out.Description = TEXT("枚举 PIE/Game 视口 UMG 实例。按类/名/displayText 过滤。");
+	Out.Description = TEXT("List PIE/Game viewport UMG instances. Filter by class/name/displayText.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("classFilter"), FNexusSchema::Str(TEXT("UserWidget 类名过滤")))
-		.Prop(TEXT("nameFilter"),  FNexusSchema::Str(TEXT("子 Widget 名过滤")))
-		.Prop(TEXT("textFilter"),  FNexusSchema::Str(TEXT("可见显示文本子串过滤")))
-		.Prop(TEXT("offset"),      FNexusSchema::Int(TEXT("分页偏移（默认 0）")))
-		.Prop(TEXT("limit"),       FNexusSchema::Int(TEXT("最大条数 1~500（默认 100）")))
+		.Prop(TEXT("classFilter"), FNexusSchema::Str(TEXT("UserWidget class name filter")))
+		.Prop(TEXT("nameFilter"),  FNexusSchema::Str(TEXT("Child Widget name filter")))
+		.Prop(TEXT("textFilter"),  FNexusSchema::Str(TEXT("Visible display text substring filter")))
+		.Prop(TEXT("offset"),      FNexusSchema::Int(TEXT("Pagination offset (default 0)")))
+		.Prop(TEXT("limit"),       FNexusSchema::Int(TEXT("Max count 1-500 (default 100)")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("viewport"), TEXT("hud"), TEXT("screen"), TEXT("enumerate") };
@@ -35,16 +36,17 @@ FCapabilityResult FListRuntimeWidgetsCapability::Execute(const TSharedPtr<FJsonO
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 		FString ClassFilter, NameFilter, TextFilter;
 		int32 Offset = 0, Limit = 100;
 
 		if (Arguments.IsValid())
 		{
-			if (Arguments->HasField(TEXT("classFilter"))) ClassFilter = Arguments->GetStringField(TEXT("classFilter"));
-			if (Arguments->HasField(TEXT("nameFilter")))  NameFilter  = Arguments->GetStringField(TEXT("nameFilter"));
-			if (Arguments->HasField(TEXT("textFilter")))  TextFilter  = Arguments->GetStringField(TEXT("textFilter"));
-			if (Arguments->HasField(TEXT("offset")))      Offset = FMath::Max(0, static_cast<int32>(Arguments->GetNumberField(TEXT("offset"))));
-			if (Arguments->HasField(TEXT("limit")))       Limit  = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 500);
+			if (Arguments->HasField(TEXT("classFilter"))) ClassFilter = A.Str(TEXT("classFilter"));
+			if (Arguments->HasField(TEXT("nameFilter")))  NameFilter  = A.Str(TEXT("nameFilter"));
+			if (Arguments->HasField(TEXT("textFilter")))  TextFilter  = A.Str(TEXT("textFilter"));
+			if (Arguments->HasField(TEXT("offset")))      Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
+			if (Arguments->HasField(TEXT("limit")))       Limit  = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
 		}
 
 		struct FEntry { FString OwnerClass; FString Name; FString Class; FString Parent; FString DisplayText; };

@@ -267,7 +267,7 @@ const TArray<TPair<FString, FString>>& FNexusLinkSettingsCustomization::GetCateg
 
 TSharedRef<IDetailCustomization> FNexusLinkSettingsCustomization::MakeInstance()
 {
-	return MakeShareable(new FNexusLinkSettingsCustomization());
+	return MakeShared<FNexusLinkSettingsCustomization>();
 }
 
 void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)

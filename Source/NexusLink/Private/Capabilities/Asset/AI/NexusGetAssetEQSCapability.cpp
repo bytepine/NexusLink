@@ -2,14 +2,15 @@
 
 #include "Capabilities/Asset/AI/NexusGetAssetEQSCapability.h"
 
-#if NX_UE_HAS_APP_STYLE
+#if NX_UE_HAS_EQS
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "NexusMcpTool.h"
-#include "Capabilities/Asset/AI/NexusEQSUtils.h"
+#include "Utils/NexusEQSUtils.h"
 #include "EnvironmentQuery/EnvQueryOption.h"
 #include "EnvironmentQuery/EnvQueryGenerator.h"
 #include "EnvironmentQuery/EnvQueryTest.h"
@@ -18,33 +19,29 @@ void FGetAssetEQSCapability::BuildDefinition(FNexusCapabilityDefinition& Out) co
 {
 	Out.Name = TEXT("get_asset_eqs");
 	Out.SearchAssetTypes = {TEXT("EnvQuery")};
-	Out.Description = TEXT("读取 EQS 的 Options/Generator/Test 概览。UE5+。");
+	Out.Description = TEXT("Read EQS Options/Generator/Test overview. UE5+.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("EnvQuery 资产路径")))
+		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("EnvQuery asset path")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = { TEXT("eqs"), TEXT("query"), TEXT("environment"), TEXT("generator"), TEXT("test"), TEXT("ai") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_eqs"), TEXT("create_asset_eqs"), TEXT("get_asset_behavior_tree") };
-	Out.WhenToUse = TEXT("读 EQS 的 Option/Generator/Test 列表及测试类名");
+	Out.WhenToUse = TEXT("Read EQS Option/Generator/Test list and test class names");
 }
 
 FCapabilityResult FGetAssetEQSCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UEnvQuery* EQ = FNexusAssetUtils::LoadAssetWithFallback<UEnvQuery>(AssetPath);
 		if (!EQ)
 		{
-			OutError = FString::Printf(TEXT("EnvQuery 未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("EnvQuery not found: %s"), *AssetPath);
 			return;
 		}
 
@@ -93,4 +90,4 @@ FCapabilityResult FGetAssetEQSCapability::Execute(const TSharedPtr<FJsonObject>&
 
 REGISTER_MCP_CAPABILITY(FGetAssetEQSCapability)
 
-#endif // NX_UE_HAS_APP_STYLE
+#endif // NX_UE_HAS_EQS

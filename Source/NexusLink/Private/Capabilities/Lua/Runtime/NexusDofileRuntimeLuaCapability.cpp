@@ -13,11 +13,12 @@
 void FDofileRuntimeLuaCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("dofile_runtime_lua");
-	Out.Description = TEXT("从 Content/Script/ 加载执行 .lua。相对路径；需 UnLua+PIE。");
+	Out.Description = TEXT("Load/run .lua from Content/Script/. Relative path; requires UnLua+PIE.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("scriptPath"), FNexusSchema::Str(TEXT("Lua 文件路径（相对 Content/Script/）")))
+		.Prop(TEXT("scriptPath"), FNexusSchema::Str(TEXT("Lua file path (relative to Content/Script/)")))
+		.Required({ TEXT("scriptPath") })
 		.Build();
-	Out.Tags = {FNexusMcpTags::Runtime };
+	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("require"), TEXT("script"), TEXT("file"), TEXT("load"), TEXT("execute") };
 	Out.RelatedCapabilities = { TEXT("eval_runtime_lua"), TEXT("hotreload_runtime_lua") };
 	Out.Prerequisites = { TEXT("unlua"), TEXT("pie") };
@@ -42,7 +43,7 @@ FCapabilityResult FDofileRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObj
 	FPaths::NormalizeFilename(AbsPath);
 
 	if (!FPaths::FileExists(AbsPath))
-		return FCapabilityResult::MakeFatal(FString::Printf(TEXT("文件不存在: %s"), *AbsPath));
+		return FCapabilityResult::MakeFatal(FString::Printf(TEXT("File not found: %s"), *AbsPath));
 
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 	const int32 StackTop = lua_gettop(L);
@@ -51,7 +52,7 @@ FCapabilityResult FDofileRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObj
 	{
 		FString ErrMsg = UTF8_TO_TCHAR(lua_tostring(L, -1));
 		lua_settop(L, StackTop);
-		EmitError(R.Entries, {{TEXT("scriptPath"), AbsPath}}, FString::Printf(TEXT("Lua 加载错误: %s"), *ErrMsg));
+		EmitError(R.Entries, {{TEXT("scriptPath"), AbsPath}}, FString::Printf(TEXT("Lua load error: %s"), *ErrMsg));
 		return R;
 	}
 
@@ -59,7 +60,7 @@ FCapabilityResult FDofileRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObj
 	{
 		FString ErrMsg = UTF8_TO_TCHAR(lua_tostring(L, -1));
 		lua_settop(L, StackTop);
-		EmitError(R.Entries, {{TEXT("scriptPath"), AbsPath}}, FString::Printf(TEXT("Lua 执行错误: %s"), *ErrMsg));
+		EmitError(R.Entries, {{TEXT("scriptPath"), AbsPath}}, FString::Printf(TEXT("Lua execution error: %s"), *ErrMsg));
 		return R;
 	}
 

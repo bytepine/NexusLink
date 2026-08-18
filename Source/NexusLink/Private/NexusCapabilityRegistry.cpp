@@ -2,11 +2,10 @@
 
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpTool.h"           // FNexusMcpTags
+#include "Utils/NexusJsonUtils.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
-#include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonSerializer.h"
-#include "Serialization/JsonWriter.h"
 #include "Serialization/JsonReader.h"
 
 // ── 辅助：深拷贝 FJsonObject（序列化往返，注册期一次性调用）────────────────────
@@ -14,10 +13,8 @@ static TSharedPtr<FJsonObject> DeepCloneJsonObject(const TSharedPtr<FJsonObject>
 {
 	if (!Src.IsValid()) return nullptr;
 
-	FString JsonStr;
-	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> Writer =
-		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&JsonStr);
-	if (!FJsonSerializer::Serialize(Src.ToSharedRef(), Writer)) return Src;
+	const FString JsonStr = FNexusJsonUtils::SerializeCondensed(Src);
+	if (JsonStr.IsEmpty()) return Src;
 
 	TSharedPtr<FJsonObject> Clone;
 	TSharedRef<TJsonReader<TCHAR>> Reader = TJsonReaderFactory<TCHAR>::Create(JsonStr);

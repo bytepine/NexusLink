@@ -6,15 +6,16 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "PaperFlipbook.h"
 #include "NexusMcpTool.h"
 
 void FCreateAssetPaperFlipbookCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_paper_flipbook");
-	Out.Description = TEXT("创建 PaperFlipbook。用 manage 加帧。");
+	Out.Description = TEXT("Create PaperFlipbook. Add frames via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -26,24 +27,16 @@ FCapabilityResult FCreateAssetPaperFlipbookCapability::Execute(const TSharedPtr<
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UPaperFlipbook>(AssetPath);
+		if (!Created.Ok())
 		{
-			OutError = TEXT("缺少 assetPath");
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
-		if (LoadObject<UPaperFlipbook>(nullptr, *AssetPath))
-		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("PaperFlipbook already exists: %s"), *AssetPath));
-			return;
-		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UPaperFlipbook* Book = NewObject<UPaperFlipbook>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Book) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建失败")); return; }
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Book, AssetPath);
+		UPaperFlipbook* Book = Cast<UPaperFlipbook>(Created.Asset);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Book->GetName());
 		Entry->SetStringField(TEXT("path"), Book->GetPathName());

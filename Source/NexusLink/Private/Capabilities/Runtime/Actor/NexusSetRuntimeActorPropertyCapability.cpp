@@ -20,15 +20,15 @@ static void WriteActorPropertyImpl(
 	OutEntry->SetStringField(TEXT("actorName"),    ActorName);
 	OutEntry->SetStringField(TEXT("propertyPath"), PropertyPath);
 
-	if (ActorName.IsEmpty())    { OutEntry->SetStringField(TEXT("error"), TEXT("缺少 actorName")); return; }
-	if (PropertyPath.IsEmpty()) { OutEntry->SetStringField(TEXT("error"), TEXT("缺少 propertyPath")); return; }
+	if (ActorName.IsEmpty())    { OutEntry->SetStringField(TEXT("error"), TEXT("Missing actorName")); return; }
+	if (PropertyPath.IsEmpty()) { OutEntry->SetStringField(TEXT("error"), TEXT("Missing propertyPath")); return; }
 
 	AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
-	if (!Actor) { OutEntry->SetStringField(TEXT("error"), TEXT("Actor 未找到")); return; }
+	if (!Actor) { OutEntry->SetStringField(TEXT("error"), TEXT("Actor not found")); return; }
 
 	TArray<FString> Segs;
 	PropertyPath.ParseIntoArray(Segs, TEXT("."), true);
-	if (Segs.Num() == 0) { OutEntry->SetStringField(TEXT("error"), TEXT("propertyPath 为空")); return; }
+	if (Segs.Num() == 0) { OutEntry->SetStringField(TEXT("error"), TEXT("propertyPath is empty")); return; }
 
 	// 组件前缀路由
 	UObject* Target = Actor;
@@ -40,7 +40,7 @@ static void WriteActorPropertyImpl(
 
 	if (StartSeg >= Segs.Num())
 	{
-		OutEntry->SetStringField(TEXT("error"), TEXT("不能直接赋值组件本身，请指定子属性"));
+		OutEntry->SetStringField(TEXT("error"), TEXT("Cannot assign component itself; specify sub-property"));
 		return;
 	}
 
@@ -58,15 +58,15 @@ static void WriteActorPropertyImpl(
 void FSetRuntimeActorPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("set_runtime_actor_property");
-	Out.Description = TEXT("批量修改运行时 Actor 可编辑字段。updates[] 每项一结果。");
+	Out.Description = TEXT("Batch modify runtime Actor editable fields. One result per updates[] item.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedRef<FJsonObject> ItemProps = MakeShared<FJsonObject>();
-		ItemProps->SetObjectField(TEXT("propertyPath"), FNexusSchema::Str(TEXT("点分路径")));
-		ItemProps->SetObjectField(TEXT("value"),        FNexusSchema::Str(TEXT("新值字符串")));
-		ItemProps->SetObjectField(TEXT("actorName"),    FNexusSchema::Str(TEXT("Actor 名（actor 目标）")));
-		ItemProps->SetObjectField(TEXT("widgetName"),   FNexusSchema::Str(TEXT("Widget 名（widget/asset 目标）")));
-		ItemProps->SetObjectField(TEXT("ownerClass"),   FNexusSchema::Str(TEXT("UserWidget 过滤（widget 目标）")));
+		ItemProps->SetObjectField(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Dot-separated path")));
+		ItemProps->SetObjectField(TEXT("value"),        FNexusSchema::Str(TEXT("New value string")));
+		ItemProps->SetObjectField(TEXT("actorName"),    FNexusSchema::Str(TEXT("Actor name (actor target)")));
+		ItemProps->SetObjectField(TEXT("widgetName"),   FNexusSchema::Str(TEXT("Widget name (widget/asset target)")));
+		ItemProps->SetObjectField(TEXT("ownerClass"),   FNexusSchema::Str(TEXT("UserWidget filter (widget target)")));
 
 		TSharedRef<FJsonObject> ItemSchema = MakeShared<FJsonObject>();
 		ItemSchema->SetStringField(TEXT("type"), TEXT("object"));
@@ -77,16 +77,16 @@ void FSetRuntimeActorPropertyCapability::BuildDefinition(FNexusCapabilityDefinit
 		ItemSchema->SetArrayField(TEXT("required"), ItemReq);
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("target"),  FNexusSchema::Enum(TEXT("分发目标（自动推断）"),
+		.Prop(TEXT("target"),  FNexusSchema::Enum(TEXT("Dispatch target (auto-inferred)"),
 		                                          { TEXT("actor"), TEXT("widget"), TEXT("asset") }))
-		.Prop(TEXT("updates"), FNexusSchema::ArrayOf(TEXT("批量更新"), ItemSchema))
+		.Prop(TEXT("updates"), FNexusSchema::ArrayOf(TEXT("Batch update"), ItemSchema))
 		.Build();
 	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("write"), TEXT("field"), TEXT("change"), TEXT("value"), TEXT("character") };
 	Out.RelatedCapabilities = { TEXT("get_runtime_actor_property") };
 	Out.Prerequisites = { TEXT("pie") };
-	Out.WhenToUse = TEXT("运行时修改 Actor 实时字段");
+	Out.WhenToUse = TEXT("Modify runtime Actor live fields");
 }
 
 FCapabilityResult FSetRuntimeActorPropertyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -101,7 +101,7 @@ FCapabilityResult FSetRuntimeActorPropertyCapability::Execute(const TSharedPtr<F
 		const TArray<TSharedPtr<FJsonValue>>* UpdatesArr = nullptr;
 		if (!Arguments->TryGetArrayField(TEXT("updates"), UpdatesArr) || !UpdatesArr)
 		{
-			OutError = TEXT("缺少 updates");
+			OutError = TEXT("Missing updates");
 			return;
 		}
 
@@ -112,7 +112,7 @@ FCapabilityResult FSetRuntimeActorPropertyCapability::Execute(const TSharedPtr<F
 
 			if (!Item.IsValid())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("无效的 update 项"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("Invalid update item"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
@@ -124,7 +124,7 @@ FCapabilityResult FSetRuntimeActorPropertyCapability::Execute(const TSharedPtr<F
 
 			if (PropertyPath.IsEmpty())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("每项 update 均须 propertyPath"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("Each update requires propertyPath"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}

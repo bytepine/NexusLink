@@ -5,6 +5,7 @@
 #if WITH_ENHANCED_INPUT
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -16,33 +17,29 @@ void FGetAssetInputMappingContextCapability::BuildDefinition(FNexusCapabilityDef
 {
 	Out.Name = TEXT("get_asset_input_mapping_context");
 	Out.SearchAssetTypes = {TEXT("InputMappingContext")};
-	Out.Description = TEXT("列举 InputMappingContext 全部 Action-Key 绑定及其 Trigger/Modifier 数量。UE5+。");
+	Out.Description = TEXT("List all IMC Action-Key bindings and Trigger/Modifier counts. UE5+.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputMappingContext 资产路径")))
+		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputMappingContext asset path")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("mapping"), TEXT("imc"), TEXT("keybind"), TEXT("context"), TEXT("key"), TEXT("action") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_input_mapping_context"), TEXT("create_asset_input_mapping_context"), TEXT("get_asset_input_action") };
-	Out.WhenToUse = TEXT("读 IMC 的全部 Action-Key 绑定列表");
+	Out.WhenToUse = TEXT("Read all IMC Action-Key bindings");
 }
 
 FCapabilityResult FGetAssetInputMappingContextCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UInputMappingContext* IMC = FNexusAssetUtils::LoadAssetWithFallback<UInputMappingContext>(AssetPath);
 		if (!IMC)
 		{
-			OutError = FString::Printf(TEXT("InputMappingContext 未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("InputMappingContext not found: %s"), *AssetPath);
 			return;
 		}
 

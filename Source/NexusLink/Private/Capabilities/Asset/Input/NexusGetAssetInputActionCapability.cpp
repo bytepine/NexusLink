@@ -5,6 +5,7 @@
 #if WITH_ENHANCED_INPUT
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -49,33 +50,29 @@ void FGetAssetInputActionCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name = TEXT("get_asset_input_action");
 	Out.SearchAssetTypes = {TEXT("InputAction")};
-	Out.Description = TEXT("读取 InputAction 配置：ValueType/Trigger/Modifier/标志位。UE5+。");
+	Out.Description = TEXT("Read InputAction config: ValueType/Trigger/Modifier/flags. UE5+.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputAction 资产路径")))
+		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputAction asset path")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("action"), TEXT("ia"), TEXT("enhanced"), TEXT("trigger"), TEXT("modifier"), TEXT("axis") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_input_action"), TEXT("create_asset_input_action"), TEXT("get_asset_input_mapping_context") };
-	Out.WhenToUse = TEXT("读 InputAction 的 ValueType、Trigger/Modifier 类名列表、标志位");
+	Out.WhenToUse = TEXT("Read InputAction ValueType, Trigger/Modifier class lists, flags");
 }
 
 FCapabilityResult FGetAssetInputActionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UInputAction* IA = FNexusAssetUtils::LoadAssetWithFallback<UInputAction>(AssetPath);
 		if (!IA)
 		{
-			OutError = FString::Printf(TEXT("InputAction 未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("InputAction not found: %s"), *AssetPath);
 			return;
 		}
 

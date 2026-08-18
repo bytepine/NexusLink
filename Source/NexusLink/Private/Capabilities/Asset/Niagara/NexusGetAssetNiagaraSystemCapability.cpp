@@ -5,6 +5,7 @@
 #if WITH_NIAGARA
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -23,27 +24,23 @@ void FGetAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("get_asset_niagara_system");
 	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
-	Out.Description = TEXT("检查 NiagaraSystem 快照。发射器/模块/用户参数。写用 manage_asset_niagara_system。");
+	Out.Description = TEXT("Inspect NiagaraSystem snapshot. Writes via manage_asset_niagara_system.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("NiagaraSystem 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("NiagaraSystem asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("niagara"), TEXT("vfx"), TEXT("particle"), TEXT("emitter"), TEXT("fx") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_niagara_system"), TEXT("create_asset_niagara_system"), TEXT("search_asset"), TEXT("get_asset_refs"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("读 Niagara 发射器与模块栈；写用 manage_asset_niagara_system");
+	Out.WhenToUse = TEXT("Read Niagara emitters and module stack; use manage_asset_niagara_system for writes");
 }
 
 FCapabilityResult FGetAssetNiagaraSystemCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Path;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString Path = A.Str(TEXT("assetPath"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("path"), Path);
@@ -51,7 +48,7 @@ FCapabilityResult FGetAssetNiagaraSystemCapability::Execute(const TSharedPtr<FJs
 		UNiagaraSystem* System = FNexusAssetUtils::LoadAssetWithFallback<UNiagaraSystem>(Path);
 		if (!System)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("NiagaraSystem 未找到: %s"), *Path));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("NiagaraSystem not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

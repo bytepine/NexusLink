@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/DataAsset/NexusCreateAssetDataTableCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -33,16 +34,16 @@ static UScriptStruct* FindRowStructByName(const FString& Name)
 void FCreateAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_data_table");
-	Out.Description = TEXT("创建带行结构体的 DT；用 manage_asset_data_table 填行。");
+	Out.Description = TEXT("Create DataTable with row struct; fill rows via manage_asset_data_table.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("新 DataTable 包路径")))
-		.Prop(TEXT("rowStructName"), FNexusSchema::Str(TEXT("行结构体类名（须已存在）")))
+		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("New DataTable package path")))
+		.Prop(TEXT("rowStructName"), FNexusSchema::Str(TEXT("Row struct class name (must exist)")))
 		.Required({ TEXT("assetPath"), TEXT("rowStructName") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("dt"), TEXT("datatable"), TEXT("rowstruct"), TEXT("new"), TEXT("row") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_data_table"), TEXT("get_asset_data_table") };
-	Out.WhenToUse = TEXT("创建空白 DT；需要 rowStructName");
+	Out.WhenToUse = TEXT("Create empty DataTable; requires rowStructName");
 }
 
 FCapabilityResult FCreateAssetDataTableCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -50,26 +51,13 @@ FCapabilityResult FCreateAssetDataTableCapability::Execute(const TSharedPtr<FJso
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		if (!Arguments.IsValid()
-			|| !Arguments->HasField(TEXT("assetPath"))
-			|| !Arguments->HasField(TEXT("rowStructName")))
-		{
-			OutEntry->SetStringField(TEXT("error"), TEXT("缺少必填参数: assetPath, rowStructName"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-			return;
-		}
 
-		const FString AssetPath     = Arguments->GetStringField(TEXT("assetPath"));
-		const FString RowStructName = Arguments->GetStringField(TEXT("rowStructName"));
-		if (AssetPath.IsEmpty() || RowStructName.IsEmpty())
-		{
-			OutEntry->SetStringField(TEXT("error"), TEXT("assetPath 与 rowStructName 不能为空"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-			return;
-		}
+		const FString AssetPath     = A.Str(TEXT("assetPath"));
+		const FString RowStructName = A.Str(TEXT("rowStructName"));
 
 		// 覆盖磁盘上已存在但未加载的包
 		if (FPackageName::DoesPackageExist(AssetPath))
@@ -82,7 +70,7 @@ FCapabilityResult FCreateAssetDataTableCapability::Execute(const TSharedPtr<FJso
 		UScriptStruct* RowStruct = FindRowStructByName(RowStructName);
 		if (!RowStruct)
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("行结构体未找到: %s"), *RowStructName));
+			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Row struct not found: %s"), *RowStructName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -90,17 +78,17 @@ FCapabilityResult FCreateAssetDataTableCapability::Execute(const TSharedPtr<FJso
 		FText PackageNameError;
 		if (!FPackageName::IsValidLongPackageName(AssetPath, false, &PackageNameError))
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("无效的包路径 '%s': %s"), *AssetPath, *PackageNameError.ToString()));
+			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid package path '%s': %s"), *AssetPath, *PackageNameError.ToString()));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
 
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(TEXT("创建包失败: %s"), *AssetPath)); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(TEXT("Failed to create package: %s"), *AssetPath)); return; }
 
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		UDataTable* NewDT = NewObject<UDataTable>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!NewDT) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("DataTable 创建失败")); return; }
+		if (!NewDT) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("DataTable Createfailed")); return; }
 
 		NewDT->RowStruct = RowStruct;
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewDT, AssetPath);

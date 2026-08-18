@@ -4,6 +4,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Animation/AnimComposite.h"
 #include "Animation/Skeleton.h"
@@ -13,9 +14,9 @@ void FGetAssetAnimCompositeCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("get_asset_anim_composite");
 	Out.SearchAssetTypes = {TEXT("AnimComposite")};
-	Out.Description = TEXT("读取 AnimComposite 合成轨道中的片段列表（animReference/startPos/duration/playRate）。");
+	Out.Description = TEXT("Read AnimComposite track segments (animReference/startPos/duration/playRate).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("AnimComposite 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("AnimComposite asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -27,18 +28,14 @@ FCapabilityResult FGetAssetAnimCompositeCapability::Execute(const TSharedPtr<FJs
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		UAnimComposite* Composite = LoadObject<UAnimComposite>(nullptr, *AssetPath);
 		if (!Composite)
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("加载 AnimComposite 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load AnimComposite: %s"), *AssetPath));
 			return;
 		}
 

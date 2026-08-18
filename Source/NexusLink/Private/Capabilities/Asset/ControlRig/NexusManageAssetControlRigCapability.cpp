@@ -5,6 +5,7 @@
 #if WITH_CONTROL_RIG
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -20,36 +21,36 @@ void FManageAssetControlRigCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("manage_asset_control_rig");
 	Out.SearchAssetTypes = {TEXT("ControlRig"), TEXT("ControlRigBlueprint")};
-	Out.Description = TEXT("编辑 ControlRig 层级与 RigVM 图连线/节点。见 operations[].action。");
+	Out.Description = TEXT("Edit ControlRig hierarchy and RigVM graph. See operations[].action.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
+		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 			{ TEXT("rename_element"), TEXT("set_control_color"), TEXT("add_null"), TEXT("remove_element"),
 			  TEXT("add_rig_link"), TEXT("break_rig_link"), TEXT("add_rig_node"),
 			  TEXT("add_control"), TEXT("add_bone"), TEXT("set_pin_default") }))
-		.Prop(TEXT("elementName"),  FNexusSchema::Str(TEXT("目标元素名")))
-		.Prop(TEXT("newName"),      FNexusSchema::Str(TEXT("新名称（rename_element）")))
-		.Prop(TEXT("r"),            FNexusSchema::Num(TEXT("颜色 R（set_control_color）")))
-		.Prop(TEXT("g"),            FNexusSchema::Num(TEXT("颜色 G")))
-		.Prop(TEXT("b"),            FNexusSchema::Num(TEXT("颜色 B")))
-		.Prop(TEXT("a"),            FNexusSchema::Num(TEXT("颜色 A")))
-		.Prop(TEXT("parentName"),   FNexusSchema::Str(TEXT("父元素名（add_null，空=根）")))
-		.Prop(TEXT("elementType"),  FNexusSchema::Enum(TEXT("元素类型（remove_element）"),
+		.Prop(TEXT("elementName"),  FNexusSchema::Str(TEXT("Target element name")))
+		.Prop(TEXT("newName"),      FNexusSchema::Str(TEXT("New name (rename_element)")))
+		.Prop(TEXT("r"),            FNexusSchema::Num(TEXT("Color R (set_control_color)")))
+		.Prop(TEXT("g"),            FNexusSchema::Num(TEXT("Color G")))
+		.Prop(TEXT("b"),            FNexusSchema::Num(TEXT("Color B")))
+		.Prop(TEXT("a"),            FNexusSchema::Num(TEXT("Color A")))
+		.Prop(TEXT("parentName"),   FNexusSchema::Str(TEXT("Parent element name (add_null; empty=root)")))
+		.Prop(TEXT("elementType"),  FNexusSchema::Enum(TEXT("Element type (remove_element)"),
 			{ TEXT("bone"), TEXT("control"), TEXT("null") }))
-		.Prop(TEXT("sourcePinPath"), FNexusSchema::Str(TEXT("源引脚路径（add_rig_link/break_rig_link）如 'NodeName.PinName'")))
-		.Prop(TEXT("targetPinPath"), FNexusSchema::Str(TEXT("目标引脚路径")))
-		.Prop(TEXT("structType"),    FNexusSchema::Str(TEXT("UScriptStruct 名（add_rig_node）如 'RigUnit_GetTransform'")))
-		.Prop(TEXT("nodeName"),      FNexusSchema::Str(TEXT("新节点名（add_rig_node，可选）")))
-		.Prop(TEXT("pinPath"),       FNexusSchema::Str(TEXT("引脚路径（set_pin_default）")))
-		.Prop(TEXT("pinDefaultValue"), FNexusSchema::Str(TEXT("引脚默认值（set_pin_default）")))
+		.Prop(TEXT("sourcePinPath"), FNexusSchema::Str(TEXT("Source pin path (add_rig_link/break_rig_link) e.g. 'NodeName.PinName'")))
+		.Prop(TEXT("targetPinPath"), FNexusSchema::Str(TEXT("Target pin path")))
+		.Prop(TEXT("structType"),    FNexusSchema::Str(TEXT("UScriptStruct name (add_rig_node) e.g. 'RigUnit_GetTransform'")))
+		.Prop(TEXT("nodeName"),      FNexusSchema::Str(TEXT("New node name (add_rig_node, optional)")))
+		.Prop(TEXT("pinPath"),       FNexusSchema::Str(TEXT("Pin path (set_pin_default)")))
+		.Prop(TEXT("pinDefaultValue"), FNexusSchema::Str(TEXT("Pin default value (set_pin_default)")))
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"),  FNexusSchema::Str(TEXT("ControlRig Blueprint 资产路径")))
-		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("操作列表"), OpSchema.ToSharedRef()))
+		.Required(TEXT("assetPath"),  FNexusSchema::Str(TEXT("ControlRig Blueprint asset path")))
+		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("controlrig"), TEXT("rig"), TEXT("rename"), TEXT("null"), TEXT("control"), TEXT("rigvm"), TEXT("link"), TEXT("wire"), TEXT("connect"), TEXT("node") };
 	Out.RelatedCapabilities = { TEXT("get_asset_control_rig"), TEXT("create_asset_control_rig") };
-	Out.WhenToUse = TEXT("修改 ControlRig：层级元素增删/改色；RigVM 图节点增删与引脚连线（add_rig_link/break_rig_link）；需 save_asset 落盘");
+	Out.WhenToUse = TEXT("Edit ControlRig hierarchy and RigVM graph; persist with save_asset");
 }
 
 FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -63,14 +64,14 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 		if (!CRBp)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("ControlRig Blueprint 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("ControlRig Blueprint not found: %s"), *AssetPath));
 			return;
 		}
 
-		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
-		if (!Arguments.IsValid() || !Arguments->TryGetArrayField(TEXT("operations"), OpsArr) || !OpsArr)
+		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (OpsArr.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 数组"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing operations array"));
 			return;
 		}
 
@@ -78,7 +79,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 		URigHierarchyController* Controller = Hier ? Hier->GetController(true) : nullptr;
 		if (!Controller)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("无法获取 RigHierarchyController"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Unable to get RigHierarchyController"));
 			return;
 		}
 
@@ -87,7 +88,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 		URigVMController* VmCtrl = VmModel ? CRBp->GetOrCreateController(VmModel) : nullptr;
 
 		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : *OpsArr)
+		for (const TSharedPtr<FJsonValue>& OpVal : OpsArr)
 		{
 			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
 			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
@@ -106,7 +107,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetStringField(TEXT("newName"),     NewName);
 				if (ElemName.IsEmpty() || NewName.IsEmpty())
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("rename_element 需要 elementName + newName"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("rename_element requires elementName + newName"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				// 尝试各类型
@@ -118,12 +119,12 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				}
 				if (!Key.IsValid())
 				{
-					ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("元素未找到: %s"), *ElemName));
+					ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Element not found: %s"), *ElemName));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				const bool bOk = Controller->RenameElement(Key, FName(*NewName));
 				bDirty |= bOk;
-				if (!bOk) ResEntry->SetStringField(TEXT("error"), TEXT("rename_element 失败"));
+				if (!bOk) ResEntry->SetStringField(TEXT("error"), TEXT("rename_element failed"));
 				else ResEntry->SetStringField(TEXT("newName"), NewName);
 			}
 			else if (Action.Equals(TEXT("set_control_color"), ESearchCase::IgnoreCase))
@@ -132,14 +133,14 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetStringField(TEXT("elementName"), ElemName);
 				if (ElemName.IsEmpty())
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("set_control_color 需要 elementName"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("set_control_color requires elementName"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				const FRigElementKey Key(FName(*ElemName), ERigElementType::Control);
 				FRigControlElement* Ctrl = Hier->Find<FRigControlElement>(Key);
 				if (!Ctrl)
 				{
-					ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Control 未找到: %s"), *ElemName));
+					ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Control not found: %s"), *ElemName));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				double R = 1.0, G = 1.0, B = 1.0, A = 1.0;
@@ -159,7 +160,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetStringField(TEXT("parentName"),  ParentName);
 				if (ElemName.IsEmpty())
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("add_null 需要 elementName"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("add_null requires elementName"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				FRigElementKey ParentKey;
@@ -167,7 +168,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 					ParentKey = FRigElementKey(FName(*ParentName), ERigElementType::Bone);
 				const FRigElementKey NewKey = Controller->AddNull(FName(*ElemName), ParentKey);
 				bDirty = NewKey.IsValid();
-				if (!NewKey.IsValid()) ResEntry->SetStringField(TEXT("error"), TEXT("add_null 失败"));
+				if (!NewKey.IsValid()) ResEntry->SetStringField(TEXT("error"), TEXT("add_null failed"));
 				else ResEntry->SetStringField(TEXT("elementName"), ElemName);
 			}
 			else if (Action.Equals(TEXT("remove_element"), ESearchCase::IgnoreCase))
@@ -181,7 +182,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				else if (ElemTypeStr.Equals(TEXT("null"), ESearchCase::IgnoreCase))    ElemType = ERigElementType::Null;
 				if (ElemName.IsEmpty() || ElemType == ERigElementType::None)
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("remove_element 需要 elementName + elementType"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("remove_element requires elementName + elementType"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				const FRigElementKey Key(FName(*ElemName), ElemType);
@@ -197,18 +198,18 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetStringField(TEXT("targetPinPath"), DstPin);
 				if (SrcPin.IsEmpty() || DstPin.IsEmpty())
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("add_rig_link 需要 sourcePinPath + targetPinPath"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("add_rig_link requires sourcePinPath + targetPinPath"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				if (!VmCtrl)
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("无法获取 RigVMController"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get RigVMController"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				const bool bOk = VmCtrl->AddLink(SrcPin, DstPin, false);
 				bDirty |= bOk;
 				if (!bOk)
-					ResEntry->SetStringField(TEXT("error"), TEXT("AddLink 失败，检查引脚路径或类型兼容性"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("AddLink failed; check pin paths or type compatibility"));
 			}
 			else if (Action.Equals(TEXT("break_rig_link"), ESearchCase::IgnoreCase))
 			{
@@ -217,18 +218,18 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetStringField(TEXT("targetPinPath"), DstPin);
 				if (SrcPin.IsEmpty() || DstPin.IsEmpty())
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("break_rig_link 需要 sourcePinPath + targetPinPath"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("break_rig_link requires sourcePinPath + targetPinPath"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				if (!VmCtrl)
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("无法获取 RigVMController"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get RigVMController"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				const bool bOk = VmCtrl->BreakLink(SrcPin, DstPin, false);
 				bDirty |= bOk;
 				if (!bOk)
-					ResEntry->SetStringField(TEXT("error"), TEXT("BreakLink 失败，检查引脚路径是否已连接"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("BreakLink failed; check pin paths are connected"));
 			}
 			else if (Action.Equals(TEXT("add_rig_node"), ESearchCase::IgnoreCase))
 			{
@@ -238,12 +239,12 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetStringField(TEXT("nodeName"),   NodeName);
 				if (StructType.IsEmpty())
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("add_rig_node 需要 structType"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("add_rig_node requires structType"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				if (!VmCtrl)
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("无法获取 RigVMController"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get RigVMController"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				// 查找 UScriptStruct
@@ -252,7 +253,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				if (!Struct)
 				{
 					ResEntry->SetStringField(TEXT("error"),
-						FString::Printf(TEXT("UScriptStruct '%s' 未找到"), *StructType));
+						FString::Printf(TEXT("UScriptStruct '%s' not found"), *StructType));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				URigVMNode* NewNode = VmCtrl->AddUnitNode(
@@ -267,7 +268,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				}
 				else
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("AddUnitNode 失败"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("AddUnitNode failed"));
 				}
 			}
 			else if (Action.Equals(TEXT("add_control"), ESearchCase::IgnoreCase)
@@ -278,7 +279,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetStringField(TEXT("parentName"), ParentName);
 				if (ElemName.IsEmpty())
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("需要 elementName"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("elementName required"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				FRigElementKey ParentKey;
@@ -295,7 +296,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 					NewKey = Controller->AddBone(FName(*ElemName), ParentKey, FTransform::Identity, true, ERigTransformType::InitialLocal);
 				}
 				bDirty = NewKey.IsValid();
-				if (!NewKey.IsValid()) ResEntry->SetStringField(TEXT("error"), TEXT("添加元素失败"));
+				if (!NewKey.IsValid()) ResEntry->SetStringField(TEXT("error"), TEXT("Failed to add element"));
 				else ResEntry->SetStringField(TEXT("elementName"), ElemName);
 			}
 			else if (Action.Equals(TEXT("set_pin_default"), ESearchCase::IgnoreCase))
@@ -305,21 +306,21 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 				Op->TryGetStringField(TEXT("pinDefaultValue"), PinVal);
 				if (PinPath.IsEmpty())
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("set_pin_default 需要 pinPath"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("set_pin_default requires pinPath"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				if (!VmCtrl)
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("无法获取 RigVMController"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("Unable to get RigVMController"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				const bool bOk = VmCtrl->SetPinDefaultValue(PinPath, PinVal, true, false, false);
 				bDirty |= bOk;
-				if (!bOk) ResEntry->SetStringField(TEXT("error"), TEXT("SetPinDefaultValue 失败"));
+				if (!bOk) ResEntry->SetStringField(TEXT("error"), TEXT("SetPinDefaultValue failed"));
 			}
 			else
 			{
-				ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+				ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
 		}
@@ -327,7 +328,7 @@ FCapabilityResult FManageAssetControlRigCapability::Execute(const TSharedPtr<FJs
 		if (bDirty)
 		{
 			CRBp->MarkPackageDirty();
-			OutTop->SetStringField(TEXT("note"), TEXT("已修改，用 save_asset 落盘"));
+			OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
 		}
 	});
 }

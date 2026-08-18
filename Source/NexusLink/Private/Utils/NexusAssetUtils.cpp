@@ -2,8 +2,13 @@
 
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusPackageLedger.h"
-#include "NexusCapabilityRegistry.h"
+#include "Logging/LogMacros.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogNexusAssetUtils, Log, All);
+
 #include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
+#include "UObject/UObjectGlobals.h"
 #include "Engine/Texture2D.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
@@ -388,7 +393,7 @@ bool FNexusAssetUtils::SaveNewAsset(UPackage* Package, UObject* Asset, const FSt
 #endif
 	if (!bSaved)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[NexusLink] SaveNewAsset failed: %s"), *FilePath);
+		UE_LOG(LogNexusAssetUtils, Warning, TEXT("[NexusLink] SaveNewAsset failed: %s"), *FilePath);
 	}
 	return bSaved;
 }
@@ -411,21 +416,21 @@ bool FNexusAssetUtils::SaveDirtyPackage(UPackage* Package, const FString& Packag
 	}
 	if (!IsInGameThread())
 	{
-		OutNote = TEXT("SaveDirtyPackage 必须在 GameThread 调用");
+		OutNote = TEXT("SaveDirtyPackage must be called on GameThread");
 		return false;
 	}
 	if (IsLiveCodingSessionActive())
 	{
 		Package->MarkPackageDirty();
 		bOutDeferred = true;
-		OutNote = TEXT("Live Coding 已开启，已标记 Dirty，请关闭 Live Coding 后重试或手动保存");
+		OutNote = TEXT("Live Coding enabled; marked Dirty. Disable Live Coding and retry or save manually");
 		return false;
 	}
 
 	FString PackageFileName;
 	if (!FPackageName::TryConvertLongPackageNameToFilename(PackagePath, PackageFileName, FPackageName::GetAssetPackageExtension()))
 	{
-		OutNote = TEXT("路径转换失败");
+		OutNote = TEXT("Path conversion failed");
 		return false;
 	}
 	IFileManager::Get().MakeDirectory(*FPaths::GetPath(PackageFileName), true);
@@ -464,7 +469,7 @@ void FNexusAssetUtils::ApplyManageFinalize(
 	}
 
 #if !WITH_EDITOR
-	OutTop->SetStringField(TEXT("finalizeError"), TEXT("manage 收尾仅在编辑器模式可用"));
+	OutTop->SetStringField(TEXT("finalizeError"), TEXT("manage finalize only available in editor mode"));
 	return;
 #else
 	FString PackagePath = AssetPath;
@@ -481,7 +486,7 @@ void FNexusAssetUtils::ApplyManageFinalize(
 		{
 			OutTop->SetBoolField(TEXT("compiled"), false);
 			OutTop->SetStringField(TEXT("compileError"),
-				FString::Printf(TEXT("Blueprint 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("Blueprint not found: %s"), *AssetPath));
 		}
 		else
 		{
@@ -504,7 +509,7 @@ void FNexusAssetUtils::ApplyManageFinalize(
 		{
 			OutTop->SetBoolField(TEXT("saved"), false);
 			OutTop->SetStringField(TEXT("saveError"),
-				FString::Printf(TEXT("%s（包未找到）"), *PackagePath));
+				FString::Printf(TEXT("Package not found: %s"), *PackagePath));
 		}
 		else
 		{
@@ -526,7 +531,7 @@ void FNexusAssetUtils::ApplyManageFinalize(
 				{
 					OutTop->SetStringField(TEXT("saveError"),
 						Note.IsEmpty()
-							? FString::Printf(TEXT("%s（SavePackage 失败）"), *PackagePath)
+							? FString::Printf(TEXT("SavePackage failed: %s"), *PackagePath)
 							: Note);
 				}
 			}
@@ -588,15 +593,6 @@ void FNexusAssetUtils::AppendBlueprintMetaFields(const UBlueprint* BP, TSharedPt
 	OutEntry->SetArrayField(TEXT("implementedInterfaces"), Ifaces);
 }
 
-void FNexusAssetUtils::ResolveRecommendedCapabilities(
-	const FString& AssetType,
-	FString& OutRecommendedGet,
-	FString& OutRecommendedManage)
-{
-	FNexusCapabilityRegistry::Get().ResolveSearchAssetRoute(
-		AssetType, OutRecommendedGet, OutRecommendedManage);
-}
-
 UUserDefinedStruct* FNexusAssetUtils::FindStructByName(const FString& StructName)
 {
 	if (StructName.IsEmpty()) return nullptr;
@@ -622,4 +618,163 @@ UUserDefinedStruct* FNexusAssetUtils::FindStructByName(const FString& StructName
 			return *It;
 	}
 	return nullptr;
+}
+
+FNexusAssetUtils::FAssetCreateOutcome FNexusAssetUtils::CreatePlainAsset(
+	const FString& AssetPath,
+	UClass* AssetClass,
+	EObjectFlags Flags)
+{
+	FAssetCreateOutcome Out;
+	if (!AssetClass)
+	{
+		Out.Error = TEXT("Asset class is null");
+		return Out;
+	}
+	if (AssetPath.IsEmpty())
+	{
+		Out.Error = TEXT("assetPath is empty");
+		return Out;
+	}
+	if (StaticFindObject(AssetClass, nullptr, *AssetPath)
+		|| FPackageName::DoesPackageExist(AssetPath))
+	{
+		Out.Error = FString::Printf(TEXT("%s already exists: %s"), *AssetClass->GetName(), *AssetPath);
+		return Out;
+	}
+
+	FText PackageNameError;
+	if (!FPackageName::IsValidLongPackageName(AssetPath, false, &PackageNameError))
+	{
+		Out.Error = FString::Printf(TEXT("Invalid package path '%s': %s"), *AssetPath, *PackageNameError.ToString());
+		return Out;
+	}
+
+	UPackage* Package = CreatePackage(*AssetPath);
+	if (!Package)
+	{
+		Out.Error = FString::Printf(TEXT("Failed to create package: %s"), *AssetPath);
+		return Out;
+	}
+
+	const FString AssetName = FPaths::GetBaseFilename(AssetPath);
+	UObject* Asset = NewObject<UObject>(Package, AssetClass, *AssetName, Flags);
+	if (!Asset)
+	{
+		Out.Error = FString::Printf(TEXT("Failed to create %s: %s"), *AssetClass->GetName(), *AssetPath);
+		return Out;
+	}
+
+	NotifyAndSaveCreated(Package, Asset, AssetPath);
+	Out.Asset = Asset;
+	return Out;
+}
+
+FNexusAssetUtils::FAssetCreateOutcome FNexusAssetUtils::CreateBlueprintAsset(
+	const FString& AssetPath,
+	const FString& ParentClassPath,
+	UClass* ExpectedBase,
+	UClass* BlueprintClass,
+	UClass* GeneratedClass,
+	bool bCompileAndSave)
+{
+	FAssetCreateOutcome Out;
+#if !WITH_EDITOR
+	(void)AssetPath;
+	(void)ParentClassPath;
+	(void)ExpectedBase;
+	(void)BlueprintClass;
+	(void)GeneratedClass;
+	(void)bCompileAndSave;
+	Out.Error = TEXT("Blueprint creation is editor-only");
+	return Out;
+#else
+	if (AssetPath.IsEmpty())
+	{
+		Out.Error = TEXT("assetPath is empty");
+		return Out;
+	}
+	if (FPackageName::DoesPackageExist(AssetPath))
+	{
+		Out.Error = FString::Printf(TEXT("Blueprint already exists: %s"), *AssetPath);
+		return Out;
+	}
+
+	UClass* ParentClass = FindClassWithUPrefix(ParentClassPath);
+	if (!ParentClass)
+	{
+		ParentClass = FindClassWithUPrefix(TEXT("A") + ParentClassPath);
+	}
+	if (!ParentClass && ParentClassPath.Contains(TEXT("/")))
+	{
+		if (UBlueprint* ParentBP = LoadAssetWithFallback<UBlueprint>(ParentClassPath))
+		{
+			ParentClass = ParentBP->GeneratedClass;
+			if (!ParentClass)
+			{
+				Out.Error = FString::Printf(TEXT("Parent blueprint has no GeneratedClass: %s"), *ParentClassPath);
+				return Out;
+			}
+		}
+	}
+	if (!ParentClass)
+	{
+		Out.Error = FString::Printf(TEXT("Parent class not found: %s"), *ParentClassPath);
+		return Out;
+	}
+	if (!ParentClass->IsChildOf(UObject::StaticClass()))
+	{
+		Out.Error = FString::Printf(TEXT("Invalid parent class (not a UObject): %s"), *ParentClass->GetName());
+		return Out;
+	}
+	if (ExpectedBase && !ParentClass->IsChildOf(ExpectedBase))
+	{
+		Out.Error = FString::Printf(
+			TEXT("Parent class '%s' is not a subclass of %s"),
+			*ParentClass->GetName(), *ExpectedBase->GetName());
+		return Out;
+	}
+
+	FText PackageNameError;
+	if (!FPackageName::IsValidLongPackageName(AssetPath, false, &PackageNameError))
+	{
+		Out.Error = FString::Printf(TEXT("Invalid package path '%s': %s"), *AssetPath, *PackageNameError.ToString());
+		return Out;
+	}
+
+	UPackage* Package = CreatePackage(*AssetPath);
+	if (!Package)
+	{
+		Out.Error = FString::Printf(TEXT("Failed to create package: %s"), *AssetPath);
+		return Out;
+	}
+
+	if (!BlueprintClass)
+	{
+		BlueprintClass = UBlueprint::StaticClass();
+	}
+	if (!GeneratedClass)
+	{
+		GeneratedClass = UBlueprintGeneratedClass::StaticClass();
+	}
+
+	const FString AssetName = FPaths::GetBaseFilename(AssetPath);
+	const bool bIsInterface = ParentClass->HasAnyClassFlags(CLASS_Interface);
+	UBlueprint* NewBP = FKismetEditorUtilities::CreateBlueprint(
+		ParentClass, Package, *AssetName,
+		bIsInterface ? BPTYPE_Interface : BPTYPE_Normal,
+		BlueprintClass, GeneratedClass);
+	if (!NewBP)
+	{
+		Out.Error = FString::Printf(TEXT("Failed to create Blueprint: %s"), *AssetPath);
+		return Out;
+	}
+
+	if (bCompileAndSave)
+	{
+		NotifyCompileAndSave(Package, NewBP, AssetPath);
+	}
+	Out.Asset = NewBP;
+	return Out;
+#endif
 }

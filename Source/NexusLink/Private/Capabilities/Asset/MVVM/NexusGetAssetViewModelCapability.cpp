@@ -5,6 +5,7 @@
 #if WITH_MVVM
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -78,9 +79,9 @@ static FString PropertyPathToString(const FMVVMBlueprintPropertyPath& Path)
 void FGetAssetViewModelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_view_model");
-	Out.Description = TEXT("检查 WBP 上的 MVVM ViewModel 列表与 Binding 快照。只读。UE 5.5+。");
+	Out.Description = TEXT("Inspect WBP MVVM ViewModels and Bindings. Read-only. UE 5.5+.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Widget 蓝图资产路径（/Game/…/WBP_Foo）")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Widget Blueprint asset path (/Game/…/WBP_Foo)")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint, FNexusMcpTags::Widget };
@@ -89,27 +90,23 @@ void FGetAssetViewModelCapability::BuildDefinition(FNexusCapabilityDefinition& O
 		TEXT("fieldnotify"), TEXT("umvm"), TEXT("ue5_mvvm")
 	};
 	Out.RelatedCapabilities = { TEXT("get_asset_user_widget"), TEXT("manage_asset_user_widget"), TEXT("search_asset"), TEXT("get_asset_blueprint"), TEXT("manage_asset_view_model") };
-	Out.WhenToUse = TEXT("读 Widget 蓝图上挂载的 MVVM ViewModel 列表、属性绑定（源↔目标/方向/转换）");
+	Out.WhenToUse = TEXT("Read MVVM ViewModels and bindings on Widget BP (source<->target/direction/conversion)");
 }
 
 FCapabilityResult FGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 #if WITH_EDITOR
 		UWidgetBlueprint* WBP = FNexusAssetUtils::LoadWidgetBP(AssetPath);
 		if (!WBP)
 		{
-			OutError = FString::Printf(TEXT("Widget 蓝图未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("Widget Blueprint not found: %s"), *AssetPath);
 			return;
 		}
 
@@ -130,7 +127,7 @@ FCapabilityResult FGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonOb
 
 		if (!MvvmExt)
 		{
-			OutEntry->SetStringField(TEXT("note"), TEXT("该 Widget 蓝图未启用 MVVM（无 MVVMWidgetBlueprintExtension_View）"));
+			OutEntry->SetStringField(TEXT("note"), TEXT("Widget Blueprint has no MVVM (missing MVVMWidgetBlueprintExtension_View)"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -138,7 +135,7 @@ FCapabilityResult FGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonOb
 		const UMVVMBlueprintView* View = MvvmExt->GetBlueprintView();
 		if (!View)
 		{
-			OutEntry->SetStringField(TEXT("note"), TEXT("MVVM 扩展存在但 BlueprintView 为空"));
+			OutEntry->SetStringField(TEXT("note"), TEXT("MVVM extension exists but BlueprintView is empty"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -211,7 +208,7 @@ FCapabilityResult FGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonOb
 #endif // NX_UE_HAS_MVVM_EVENTS_CONDITIONS
 
 #else
-		OutEntry->SetStringField(TEXT("note"), TEXT("MVVM 数据仅在 WITH_EDITOR 构建下可用"));
+		OutEntry->SetStringField(TEXT("note"), TEXT("MVVM data only available in WITH_EDITOR builds"));
 #endif // WITH_EDITOR
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));

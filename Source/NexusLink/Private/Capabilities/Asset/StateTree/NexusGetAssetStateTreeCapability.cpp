@@ -5,6 +5,7 @@
 #if WITH_STATETREE
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -127,34 +128,30 @@ void FGetAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition& O
 {
 	Out.Name = TEXT("get_asset_state_tree");
 	Out.SearchAssetTypes = {TEXT("StateTree")};
-	Out.Description = TEXT("检查 StateTree 结构快照。Schema/States 树/Evaluators/参数；只读。UE 5.5+。");
+	Out.Description = TEXT("Inspect StateTree structure. Read-only. UE 5.5+.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("StateTree 资产路径（/Game/…/ST_Foo）")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("StateTree asset path (/Game/…/ST_Foo)")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly };
 	Out.ExtraSearchKeywords = { TEXT("statetree"), TEXT("state_tree"), TEXT("st"), TEXT("states"), TEXT("tasks"), TEXT("transitions"), TEXT("evaluators") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_state_tree"), TEXT("search_asset"), TEXT("get_asset_behavior_tree"), TEXT("get_asset_refs"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("读 StateTree 结构：Schema/States/Evaluators/迁移/条件/参数");
+	Out.WhenToUse = TEXT("Read StateTree structure: Schema/States/Evaluators/transitions/conditions/params");
 }
 
 FCapabilityResult FGetAssetStateTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UStateTree* ST = FNexusAssetUtils::LoadAssetWithFallback<UStateTree>(AssetPath);
 		if (!ST)
 		{
-			OutError = FString::Printf(TEXT("StateTree 未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("StateTree not found: %s"), *AssetPath);
 			return;
 		}
 
@@ -214,7 +211,7 @@ FCapabilityResult FGetAssetStateTreeCapability::Execute(const TSharedPtr<FJsonOb
 			OutEntry->SetArrayField(TEXT("subTrees"), SubTreeArr);
 		}
 #else
-		OutEntry->SetStringField(TEXT("note"), TEXT("编辑器数据仅在 WITH_EDITOR 构建下可用"));
+		OutEntry->SetStringField(TEXT("note"), TEXT("Editor data only available in WITH_EDITOR builds"));
 #endif // WITH_EDITOR
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));

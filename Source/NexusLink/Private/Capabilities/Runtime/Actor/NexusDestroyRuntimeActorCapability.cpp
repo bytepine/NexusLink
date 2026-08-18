@@ -2,6 +2,7 @@
 
 #include "Capabilities/Runtime/Actor/NexusDestroyRuntimeActorCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
@@ -14,9 +15,9 @@
 void FDestroyRuntimeActorCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("destroy_runtime_actor");
-	Out.Description = TEXT("从 PIE/Game 移除运行时 Actor，标记 Level 已修改。");
+	Out.Description = TEXT("Remove runtime Actor from PIE/Game; marks Level modified.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("要销毁的 Actor 名或标签")))
+		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Actor name or tag to destroy")))
 		.Required({ TEXT("actorName") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
@@ -30,16 +31,12 @@ FCapabilityResult FDestroyRuntimeActorCapability::Execute(const TSharedPtr<FJson
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
 
-		FString ActorName;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty())
-		{
-			OutError = TEXT("缺少 actorName");
-			return;
-		}
+		const FString ActorName = A.Str(TEXT("actorName"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("actorName"), ActorName);
@@ -47,7 +44,7 @@ FCapabilityResult FDestroyRuntimeActorCapability::Execute(const TSharedPtr<FJson
 		AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
 		if (!IsValid(Actor))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor 未找到: %s"), *ActorName));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -65,7 +62,7 @@ FCapabilityResult FDestroyRuntimeActorCapability::Execute(const TSharedPtr<FJson
 
 		if (!bDestroyed)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("销毁失败: %s"), *Name));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Destroy failed: %s"), *Name));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

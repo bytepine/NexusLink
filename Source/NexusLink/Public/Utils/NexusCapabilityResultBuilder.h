@@ -46,7 +46,14 @@ public:
 	 * 向 OutEntries 追加一个只含 error 字段的 entry（P5 单行助手）。
 	 * 等价于：OutEntry->SetStringField("error", Msg); OutEntries.Add(...)。
 	 */
+	/** 向 OutEntries 追加一个只含 error 字段的 entry（P5 单行助手）。 */
 	static void AddEntryError(TArray<TSharedPtr<FJsonValue>>& OutEntries, const FString& Msg);
+
+	/** 目标资产不存在：entry 带 assetPath locator + error。 */
+	static void AddAssetNotFound(TArray<TSharedPtr<FJsonValue>>& OutEntries, const FString& AssetPath);
+
+	/** 环境不可用（较少用于 entry；多数环境问题应 fatal）。 */
+	static void AddEnvUnavailable(TArray<TSharedPtr<FJsonValue>>& OutEntries, const FString& Reason);
 
 	/** 向 OutEntries 追加一个 entry（确保 Entry 有效才追加）。 */
 	static void AddEntry(TArray<TSharedPtr<FJsonValue>>& OutEntries,

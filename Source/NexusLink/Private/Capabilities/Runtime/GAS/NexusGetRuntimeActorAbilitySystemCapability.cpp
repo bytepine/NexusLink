@@ -22,19 +22,19 @@
 void FGetRuntimeActorAbilitySystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_actor_ability_system");
-	Out.Description = TEXT("PIE 读 Actor ASC 快照。sections=abilities|effects|attributes。写用 interact。");
+	Out.Description = TEXT("Read Actor ASC snapshot in PIE. sections=abilities|effects|attributes. Writes via interact.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Runtime, FNexusMcpTags::Gas };
 	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("asc"), TEXT("ability"), TEXT("runtime"), TEXT("pie") };
 	Out.RelatedCapabilities = { TEXT("interact_runtime_actor_ability_system"), TEXT("get_gameplay_tags"), TEXT("get_runtime_actor_property") };
 	Out.Prerequisites = { TEXT("pie") };
-	Out.WhenToUse = TEXT("PIE 中读 Actor 技能/GE/属性快照；写用 interact_runtime_actor_ability_system");
+	Out.WhenToUse = TEXT("Read Actor abilities/GE/attributes in PIE; write via interact_runtime_actor_ability_system");
 }
 
 TSharedPtr<FJsonObject> FGetRuntimeActorAbilitySystemCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Actor 名称（可选；省略则取 World 中首个带 ASC 的 Pawn/Actor）")))
+		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Actor name (optional; first ASC in World if omitted)")))
 		.Build();
 }
 
@@ -75,14 +75,14 @@ bool FGetRuntimeActorAbilitySystemCapability::PrepareEntry(
 				break;
 			}
 		}
-		if (!ASC) { OutError = TEXT("World 中未找到带 AbilitySystemComponent 的 Actor"); return false; }
+		if (!ASC) { OutError = TEXT("No Actor with AbilitySystemComponent found in World"); return false; }
 	}
 	else
 	{
 		AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
-		if (!Actor) { OutError = FString::Printf(TEXT("Actor 未找到: %s"), *ActorName); return false; }
+		if (!Actor) { OutError = FString::Printf(TEXT("Actor not found: %s"), *ActorName); return false; }
 		ASC = FNexusGasUtils::FindAbilitySystemComponent(Actor);
-		if (!ASC) { OutError = FString::Printf(TEXT("Actor '%s' 无 AbilitySystemComponent"), *ActorName); return false; }
+		if (!ASC) { OutError = FString::Printf(TEXT("Actor '%s' has no AbilitySystemComponent"), *ActorName); return false; }
 		OutEntry->SetStringField(TEXT("actorName"), ActorName);
 	}
 
@@ -98,7 +98,7 @@ void FGetRuntimeActorAbilitySystemCapability::ExecuteSection(
 	FString&                       OutError) const
 {
 	UAbilitySystemComponent* ASC = static_cast<UAbilitySystemComponent*>(TargetOpaque);
-	if (!ASC) { OutError = TEXT("无效的 ASC 指针"); return; }
+	if (!ASC) { OutError = TEXT("Invalid ASC pointer"); return; }
 
 	if (SectionName == TEXT("abilities"))
 	{

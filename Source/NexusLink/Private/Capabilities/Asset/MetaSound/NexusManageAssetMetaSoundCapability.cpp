@@ -5,6 +5,7 @@
 #if WITH_METASOUND
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -21,30 +22,30 @@ void FManageAssetMetaSoundCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("manage_asset_meta_sound");
 	Out.SearchAssetTypes = {TEXT("MetaSoundSource"), TEXT("MetaSoundPatch")};
-	Out.Description = TEXT("编辑 MetaSound Source/Patch 图：接口 IO、节点与边（≥UE5.3 Document API）。");
+	Out.Description = TEXT("Edit MetaSound Source/Patch graph: IO, nodes, edges (≥UE5.3 Document API).");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作类型"), {
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Operation type"), {
 			TEXT("add_input"), TEXT("remove_input"),
 			TEXT("add_output"), TEXT("remove_output"),
 			TEXT("add_node"), TEXT("remove_node"),
 			TEXT("add_edge"), TEXT("remove_edge")
 		}))
-		.Prop(TEXT("name"), FNexusSchema::Str(TEXT("接口输入/输出名（add/remove_input|output）")))
-		.Prop(TEXT("typeName"), FNexusSchema::Str(TEXT("类型名，如 Audio/Float/Trigger（add_input/add_output）")))
-		.Prop(TEXT("classID"), FNexusSchema::Str(TEXT("节点类 GUID（add_node；来自 get_asset_meta_sound dependencies）")))
-		.Prop(TEXT("nodeName"), FNexusSchema::Str(TEXT("节点显示名（add_node 可选）")))
-		.Prop(TEXT("nodeID"), FNexusSchema::Str(TEXT("节点 GUID（remove_node）")))
-		.Prop(TEXT("fromNodeID"), FNexusSchema::Str(TEXT("边源节点 GUID（add/remove_edge）")))
-		.Prop(TEXT("fromPin"), FNexusSchema::Str(TEXT("边源引脚名（add/remove_edge）")))
-		.Prop(TEXT("toNodeID"), FNexusSchema::Str(TEXT("边目标节点 GUID（add/remove_edge）")))
-		.Prop(TEXT("toPin"), FNexusSchema::Str(TEXT("边目标引脚名（add/remove_edge）")))
+		.Prop(TEXT("name"), FNexusSchema::Str(TEXT("Interface input/output name (add/remove_input|output)")))
+		.Prop(TEXT("typeName"), FNexusSchema::Str(TEXT("Type name, e.g. Audio/Float/Trigger (add_input/add_output)")))
+		.Prop(TEXT("classID"), FNexusSchema::Str(TEXT("Node class GUID (add_node; from get_asset_meta_sound dependencies)")))
+		.Prop(TEXT("nodeName"), FNexusSchema::Str(TEXT("Node display name (add_node, optional)")))
+		.Prop(TEXT("nodeID"), FNexusSchema::Str(TEXT("node GUID (remove_node)")))
+		.Prop(TEXT("fromNodeID"), FNexusSchema::Str(TEXT("Edge source node GUID (add/remove_edge)")))
+		.Prop(TEXT("fromPin"), FNexusSchema::Str(TEXT("Edge source pin name (add/remove_edge)")))
+		.Prop(TEXT("toNodeID"), FNexusSchema::Str(TEXT("Edge target node GUID (add/remove_edge)")))
+		.Prop(TEXT("toPin"), FNexusSchema::Str(TEXT("Edge target pin name (add/remove_edge)")))
 		.Required({ TEXT("action") })
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MetaSound Source 或 Patch 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MetaSound Source or Patch asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -55,7 +56,7 @@ void FManageAssetMetaSoundCapability::BuildDefinition(FNexusCapabilityDefinition
 	Out.RelatedCapabilities = {
 		TEXT("get_asset_meta_sound"), TEXT("create_asset_meta_sound"), TEXT("create_asset_meta_sound_patch")
 	};
-	Out.WhenToUse = TEXT("改 MetaSound 接口/节点/边；边用 fromNodeID/fromPin/toNodeID/toPin");
+	Out.WhenToUse = TEXT("Edit MetaSound IO/nodes/edges; edges use fromNodeID/fromPin/toNodeID/toPin");
 }
 
 #if NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT
@@ -99,7 +100,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 		if (!Op->TryGetStringField(TEXT("name"), Name) || Name.IsEmpty() ||
 		    !Op->TryGetStringField(TEXT("typeName"), TypeName) || TypeName.IsEmpty())
 		{
-			Result->SetStringField(TEXT("error"), TEXT("add_input 需要 name 与 typeName"));
+			Result->SetStringField(TEXT("error"), TEXT("add_input requires name and typeName"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -129,7 +130,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 		});
 		if (Removed == 0)
 		{
-			Result->SetStringField(TEXT("error"), FString::Printf(TEXT("input '%s' 未找到"), *Name));
+			Result->SetStringField(TEXT("error"), FString::Printf(TEXT("input '%s' not found"), *Name));
 		}
 	}
 	else if (Action == TEXT("add_output"))
@@ -138,7 +139,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 		if (!Op->TryGetStringField(TEXT("name"), Name) || Name.IsEmpty() ||
 		    !Op->TryGetStringField(TEXT("typeName"), TypeName) || TypeName.IsEmpty())
 		{
-			Result->SetStringField(TEXT("error"), TEXT("add_output 需要 name 与 typeName"));
+			Result->SetStringField(TEXT("error"), TEXT("add_output requires name and typeName"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -168,7 +169,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 		});
 		if (Removed == 0)
 		{
-			Result->SetStringField(TEXT("error"), FString::Printf(TEXT("output '%s' 未找到"), *Name));
+			Result->SetStringField(TEXT("error"), FString::Printf(TEXT("output '%s' not found"), *Name));
 		}
 	}
 	else if (Action == TEXT("add_node"))
@@ -179,7 +180,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 		FGuid ClassGuid;
 		if (!FGuid::Parse(ClassIDStr, ClassGuid))
 		{
-			Result->SetStringField(TEXT("error"), TEXT("add_node 需要合法 classID（GUID）"));
+			Result->SetStringField(TEXT("error"), TEXT("add_node requires valid classID (GUID)"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -200,7 +201,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 		FGuid NodeGuid;
 		if (!FGuid::Parse(NodeIDStr, NodeGuid))
 		{
-			Result->SetStringField(TEXT("error"), TEXT("remove_node 需要合法 nodeID"));
+			Result->SetStringField(TEXT("error"), TEXT("remove_node requires valid nodeID"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -213,7 +214,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 		Result->SetNumberField(TEXT("removedEdges"), RemovedEdges);
 		if (RemovedNodes == 0)
 		{
-			Result->SetStringField(TEXT("error"), FString::Printf(TEXT("节点 '%s' 未找到"), *NodeIDStr));
+			Result->SetStringField(TEXT("error"), FString::Printf(TEXT("Node '%s' not found"), *NodeIDStr));
 		}
 	}
 	else if (Action == TEXT("add_edge"))
@@ -224,7 +225,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 			!Op->TryGetStringField(TEXT("toNodeID"), ToNodeIDStr) ||
 			!Op->TryGetStringField(TEXT("toPin"), ToPin))
 		{
-			Result->SetStringField(TEXT("error"), TEXT("add_edge 需要 fromNodeID/fromPin/toNodeID/toPin"));
+			Result->SetStringField(TEXT("error"), TEXT("add_edge requires fromNodeID/fromPin/toNodeID/toPin"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -267,13 +268,13 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 			});
 		if (Removed == 0)
 		{
-			Result->SetStringField(TEXT("error"), TEXT("边未找到"));
+			Result->SetStringField(TEXT("error"), TEXT("Edge not found"));
 		}
 	}
 	else
 	{
 		Result->SetStringField(TEXT("error"), FString::Printf(
-			TEXT("未知 action '%s'；支持: add_input/remove_input/add_output/remove_output/add_node/remove_node/add_edge/remove_edge"),
+			TEXT("Unknown action '%s'; supported: add_input/remove_input/add_output/remove_output/add_node/remove_node/add_edge/remove_edge"),
 			*Action));
 	}
 
@@ -303,15 +304,15 @@ FCapabilityResult FManageAssetMetaSoundCapability::Execute(const TSharedPtr<FJso
 		if (!SoundAsset)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("MetaSound Source / Patch 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("MetaSound Source / Patch not found: %s"), *AssetPath));
 			return;
 		}
 
-		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
-		if (!Arguments->TryGetArrayField(TEXT("operations"), OpsArr) || !OpsArr || OpsArr->IsEmpty())
+		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (OpsArr.Num() == 0)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("operations 必填且不可为空"));
+				TEXT("operations is required and must be non-empty"));
 			return;
 		}
 
@@ -326,11 +327,11 @@ FCapabilityResult FManageAssetMetaSoundCapability::Execute(const TSharedPtr<FJso
 		if (!Doc)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("无法访问 FMetasoundFrontendDocument（属性名不匹配或版本不支持）"));
+				TEXT("Unable to access FMetasoundFrontendDocument (property mismatch or version unsupported)"));
 			return;
 		}
 
-		for (const TSharedPtr<FJsonValue>& Val : *OpsArr)
+		for (const TSharedPtr<FJsonValue>& Val : OpsArr)
 		{
 			const TSharedPtr<FJsonObject>* OpObj = nullptr;
 			if (!Val->TryGetObject(OpObj) || !OpObj) continue;
@@ -340,7 +341,7 @@ FCapabilityResult FManageAssetMetaSoundCapability::Execute(const TSharedPtr<FJso
 		SoundAsset->MarkPackageDirty();
 #else
 		FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-			TEXT("manage_asset_meta_sound 图编辑需要 UE 5.3+（NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT）"));
+			TEXT("manage_asset_meta_sound graph edit requires UE 5.3+ (NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT)"));
 #endif
 	});
 }

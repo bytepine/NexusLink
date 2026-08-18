@@ -12,11 +12,12 @@
 void FEvalRuntimeLuaCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("eval_runtime_lua");
-	Out.Description = TEXT("在 PIE/Game 执行 Lua 片段，返回压栈值。");
+	Out.Description = TEXT("Execute Lua snippet in PIE/Game; returns stacked values.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("code"), FNexusSchema::Str(TEXT("Lua 表达式或代码块")))
+		.Prop(TEXT("code"), FNexusSchema::Str(TEXT("Lua expression or code block")))
+		.Required({ TEXT("code") })
 		.Build();
-	Out.Tags = {FNexusMcpTags::Runtime };
+	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("script"), TEXT("code"), TEXT("expression"), TEXT("repl"), TEXT("snippet") };
 	Out.RelatedCapabilities = { TEXT("set_runtime_lua"), TEXT("get_runtime_lua_value") };
 	Out.Prerequisites = { TEXT("unlua"), TEXT("pie") };
@@ -58,7 +59,7 @@ FCapabilityResult FEvalRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObjec
 		{
 			FString ErrMsg = UTF8_TO_TCHAR(lua_tostring(L, -1));
 			lua_settop(L, StackTop);
-			EmitError(R.Entries, {}, FString::Printf(TEXT("Lua 解析错误: %s"), *ErrMsg));
+			EmitError(R.Entries, {}, FString::Printf(TEXT("Lua parse error: %s"), *ErrMsg));
 			return R;
 		}
 	}
@@ -67,7 +68,7 @@ FCapabilityResult FEvalRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObjec
 	{
 		FString ErrMsg = UTF8_TO_TCHAR(lua_tostring(L, -1));
 		lua_settop(L, StackTop);
-		EmitError(R.Entries, {}, FString::Printf(TEXT("Lua 求值错误: %s"), *ErrMsg));
+		EmitError(R.Entries, {}, FString::Printf(TEXT("Lua eval error: %s"), *ErrMsg));
 		return R;
 	}
 

@@ -10,6 +10,7 @@
 #include "Utils/NexusGasUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "AttributeSet.h"
 #include "GameplayEffectTypes.h"
 #include "Engine/Blueprint.h"
@@ -21,58 +22,57 @@ void FManageAssetAttributeSetCapability::BuildDefinition(FNexusCapabilityDefinit
 {
 	Out.Name = TEXT("manage_asset_attribute_set");
 	Out.SearchAssetTypes = {TEXT("AttributeSet")};
-	Out.Description = TEXT("批量 set/reset AttributeSet CDO 的 FGameplayAttributeData 属性默认值。");
+	Out.Description = TEXT("Batch set/reset AttributeSet CDO FGameplayAttributeData defaults.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),        FNexusSchema::Enum(TEXT("操作"), { TEXT("set"), TEXT("reset") }))
-		.Prop(TEXT("attributeName"), FNexusSchema::Str(TEXT("属性名")))
-		.Prop(TEXT("baseValue"),     FNexusSchema::Num(TEXT("默认 BaseValue（set）")))
+		.Prop(TEXT("action"),        FNexusSchema::Enum(TEXT("Action"), { TEXT("set"), TEXT("reset") }))
+		.Prop(TEXT("attributeName"), FNexusSchema::Str(TEXT("Property name")))
+		.Prop(TEXT("baseValue"),     FNexusSchema::Num(TEXT("default BaseValue (set)")))
 		.Required({ TEXT("action"), TEXT("attributeName") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("AttributeSet Blueprint 路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("AttributeSet Blueprint path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
 	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("attribute"), TEXT("default"), TEXT("health"), TEXT("stat") };
 	Out.RelatedCapabilities = { TEXT("get_asset_attribute_set"), TEXT("save_asset"), TEXT("create_asset_attribute_set") };
-	Out.WhenToUse = TEXT("设置 AS 属性初始值；改完自动重编译 Blueprint");
+	Out.WhenToUse = TEXT("Set AS property defaults; auto recompiles Blueprint");
 }
 
 FCapabilityResult FManageAssetAttributeSetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString AssetPath;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{ OutError = TEXT("缺少 assetPath"); return; }
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		const TArray<TSharedPtr<FJsonValue>> OpsArrVal = FNexusJsonUtils::ExtractOperations(Arguments);
 		const TArray<TSharedPtr<FJsonValue>>* OpsArr = &OpsArrVal;
 		if (OpsArr->Num() == 0)
-		{ OutError = TEXT("operations 为必填且不能为空数组"); return; }
+		{ OutError = TEXT("operations is required and must be non-empty"); return; }
 
 		FString LoadError;
 		UBlueprint* BP = FNexusGasUtils::LoadAttributeSetBlueprint(AssetPath, LoadError);
 		if (!BP) { OutError = LoadError; return; }
-		if (!BP->GeneratedClass) { OutError = TEXT("Blueprint 未编译"); return; }
+		if (!BP->GeneratedClass) { OutError = TEXT("Blueprint not compiled"); return; }
 
 		UObject* CDO = BP->GeneratedClass->GetDefaultObject();
-		if (!CDO) { OutError = TEXT("无法获取 CDO"); return; }
+		if (!CDO) { OutError = TEXT("Unable to get CDO"); return; }
 
 		int32 Applied = 0;
 		for (int32 i = 0; i < OpsArr->Num(); ++i)
 		{
 			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
 			if (!(*OpsArr)[i].IsValid() || !(*OpsArr)[i]->TryGetObject(OpObjPtr) || !OpObjPtr)
-			{ OutError = FString::Printf(TEXT("ops[%d] 不是有效的 JSON 对象"), i); return; }
+			{ OutError = FString::Printf(TEXT("ops[%d] is not a valid JSON object"), i); return; }
 
 			const TSharedPtr<FJsonObject>& Op = *OpObjPtr;
 			FString Action, AttrName;
 			if (!Op->TryGetStringField(TEXT("action"), Action) || Action.IsEmpty())
-			{ OutError = FString::Printf(TEXT("ops[%d] 缺少 action（set/reset）"), i); return; }
+			{ OutError = FString::Printf(TEXT("ops[%d] missing action (set/reset)"), i); return; }
 			if (!Op->TryGetStringField(TEXT("attributeName"), AttrName) || AttrName.IsEmpty())
-			{ OutError = FString::Printf(TEXT("ops[%d] 缺少 attributeName"), i); return; }
+			{ OutError = FString::Printf(TEXT("ops[%d] missing attributeName"), i); return; }
 
 			// 查找属性
 			FStructProperty* FoundProp = nullptr;
@@ -88,16 +88,16 @@ FCapabilityResult FManageAssetAttributeSetCapability::Execute(const TSharedPtr<F
 				}
 			}
 			if (!FoundProp)
-			{ OutError = FString::Printf(TEXT("ops[%d] 未找到 FGameplayAttributeData 属性: %s"), i, *AttrName); return; }
+			{ OutError = FString::Printf(TEXT("ops[%d] FGameplayAttributeData property not found: %s"), i, *AttrName); return; }
 
 			FGameplayAttributeData* AttrData = FoundProp->ContainerPtrToValuePtr<FGameplayAttributeData>(CDO);
 			if (!AttrData)
-			{ OutError = FString::Printf(TEXT("ops[%d] 无法访问属性 %s 的 CDO 指针"), i, *AttrName); return; }
+			{ OutError = FString::Printf(TEXT("ops[%d] cannot access CDO pointer for property %s"), i, *AttrName); return; }
 
 			if (Action == TEXT("set"))
 			{
 				if (!Op->HasField(TEXT("baseValue")))
-				{ OutError = FString::Printf(TEXT("ops[%d] set 需要 baseValue"), i); return; }
+				{ OutError = FString::Printf(TEXT("ops[%d] set requires baseValue"), i); return; }
 				float BaseValue = (float)Op->GetNumberField(TEXT("baseValue"));
 				AttrData->SetBaseValue(BaseValue);
 				AttrData->SetCurrentValue(BaseValue);
@@ -109,7 +109,7 @@ FCapabilityResult FManageAssetAttributeSetCapability::Execute(const TSharedPtr<F
 			}
 			else
 			{
-				OutError = FString::Printf(TEXT("ops[%d] 未知 action: %s（支持 set/reset）"), i, *Action);
+				OutError = FString::Printf(TEXT("ops[%d] unknown action: %s (supports set/reset)"), i, *Action);
 				return;
 			}
 			++Applied;

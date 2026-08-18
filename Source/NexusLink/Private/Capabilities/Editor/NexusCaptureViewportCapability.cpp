@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
@@ -31,19 +32,19 @@
 void FCaptureViewportCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("capture_viewport");
-	Out.Description = TEXT("截图编辑器/PIE/Actor/Widget。含 editor_desktop 整窗。");
+	Out.Description = TEXT("Capture editor/PIE/Actor/Widget. Includes editor_desktop full window.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("target"),      FNexusSchema::Str(TEXT("editor|editor_desktop|viewport|pie|<panel>|list"), TEXT("editor")))
-		.Prop(TEXT("format"),      FNexusSchema::Enum(TEXT("图片格式"), { TEXT("png"), TEXT("jpg") }, TEXT("png")))
-		.Prop(TEXT("maxSize"),     FNexusSchema::Int(TEXT("最大边长像素（0=原生）"), 1920, 0))
-		.Prop(TEXT("actorName"),   FNexusSchema::Str(TEXT("Actor 名/标签；裁剪到屏幕包围盒")))
-		.Prop(TEXT("widgetName"),  FNexusSchema::Str(TEXT("运行时 UMG Widget；target=pie")))
-		.Prop(TEXT("ownerClass"),  FNexusSchema::Str(TEXT("UserWidget 类过滤")))
-		.Prop(TEXT("padding"),     FNexusSchema::Num(TEXT("Actor 包围盒 padding 比例"), 0.1))
-		.Prop(TEXT("viewAngle"),   FNexusSchema::Enum(TEXT("Actor 裁剪相机角度"),
+		.Prop(TEXT("format"),      FNexusSchema::Enum(TEXT("Image format"), { TEXT("png"), TEXT("jpg") }, TEXT("png")))
+		.Prop(TEXT("maxSize"),     FNexusSchema::Int(TEXT("Max edge pixels (0=native)"), 1920, 0))
+		.Prop(TEXT("actorName"),   FNexusSchema::Str(TEXT("Actor name/tag; crop to screen bounds")))
+		.Prop(TEXT("widgetName"),  FNexusSchema::Str(TEXT("runtime UMG Widget; target=pie")))
+		.Prop(TEXT("ownerClass"),  FNexusSchema::Str(TEXT("UserWidget class filter")))
+		.Prop(TEXT("padding"),     FNexusSchema::Num(TEXT("Actor bounds padding ratio"), 0.1))
+		.Prop(TEXT("viewAngle"),   FNexusSchema::Enum(TEXT("Actor crop camera angle"),
 			{ TEXT("front"), TEXT("back"), TEXT("left"), TEXT("right"), TEXT("top"), TEXT("bottom") }, TEXT("front")))
-		.Prop(TEXT("windowIndex"), FNexusSchema::Int(TEXT("顶层窗口索引（0=主窗口）"), 0, 0))
-		.Prop(TEXT("validateOnly"), FNexusSchema::Bool(TEXT("true 时不写图片，仅验证 target/视口通路"), false))
+		.Prop(TEXT("windowIndex"), FNexusSchema::Int(TEXT("Top-level window index (0=main)"), 0, 0))
+		.Prop(TEXT("validateOnly"), FNexusSchema::Bool(TEXT("If true skip image; validate target/viewport only"), false))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("screenshot"), TEXT("image"), TEXT("screen"), TEXT("snap"), TEXT("photo") };
@@ -55,6 +56,7 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
@@ -78,10 +80,10 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			if (Arguments->TryGetStringField(TEXT("viewAngle"),  TmpStr)) ViewAngle = TmpStr.ToLower();
 			if (Arguments->TryGetStringField(TEXT("widgetName"), TmpStr)) WidgetName = TmpStr;
 			if (Arguments->TryGetStringField(TEXT("ownerClass"), TmpStr)) OwnerClass = TmpStr;
-			if (Arguments->HasField(TEXT("maxSize")))     MaxSize     = (int32)Arguments->GetNumberField(TEXT("maxSize"));
-			if (Arguments->HasField(TEXT("windowIndex"))) WindowIndex = (int32)Arguments->GetNumberField(TEXT("windowIndex"));
-			if (Arguments->HasField(TEXT("padding")))     PaddingRatio = (float)Arguments->GetNumberField(TEXT("padding"));
-			if (Arguments->HasField(TEXT("validateOnly"))) bValidateOnly = Arguments->GetBoolField(TEXT("validateOnly"));
+			if (Arguments->HasField(TEXT("maxSize")))     MaxSize     = (int32)A.Num(TEXT("maxSize"));
+			if (Arguments->HasField(TEXT("windowIndex"))) WindowIndex = (int32)A.Num(TEXT("windowIndex"));
+			if (Arguments->HasField(TEXT("padding")))     PaddingRatio = (float)A.Num(TEXT("padding"));
+			if (Arguments->HasField(TEXT("validateOnly"))) bValidateOnly = A.Bool(TEXT("validateOnly"));
 		}
 		if (Format != TEXT("png") && Format != TEXT("jpg")) Format = TEXT("png");
 
@@ -91,7 +93,7 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			OutEntry->SetStringField(TEXT("target"), Target);
 			if (Target == TEXT("list"))
 			{
-				OutEntry->SetStringField(TEXT("note"), TEXT("list 模式无需截图"));
+				OutEntry->SetStringField(TEXT("note"), TEXT("list mode needs no screenshot"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -99,7 +101,7 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			{
 				const bool bOk = GEngine && GEngine->GameViewport && GEngine->GameViewport->GetGameViewportWidget().IsValid();
 				OutEntry->SetBoolField(TEXT("success"), bOk);
-				if (!bOk) OutEntry->SetStringField(TEXT("error"), TEXT("PIE 视口不可用（先 control_pie start）"));
+				if (!bOk) OutEntry->SetStringField(TEXT("error"), TEXT("PIE viewport unavailable (start control_pie first)"));
 			}
 			else
 			{
@@ -111,11 +113,11 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 				if (!bOk)
 				{
 					OutEntry->SetStringField(TEXT("error"),
-						FString::Printf(TEXT("未找到 target '%s' 对应面板/视口"), *Target));
+						FString::Printf(TEXT("Panel/viewport for target '%s' not found"), *Target));
 				}
 	#else
 				OutEntry->SetBoolField(TEXT("success"), false);
-				OutEntry->SetStringField(TEXT("error"), TEXT("validateOnly 对非 pie target 需编辑器构建"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("validateOnly for non-pie target requires editor build"));
 	#endif
 			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
@@ -188,7 +190,7 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			{
 				OutEntry->SetBoolField(TEXT("success"), false);
 				OutEntry->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("Actor 未找到: %s"), *ActorName));
+					FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -198,7 +200,7 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			if (!FNexusEditorCaptureUtils::CaptureActorFromAngle(Actor, ViewAngle, PaddingRatio, Pixels, W, H))
 			{
 				OutEntry->SetBoolField(TEXT("success"), false);
-				OutEntry->SetStringField(TEXT("error"), TEXT("编辑器视口截图失败"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("Editor viewport screenshot failed"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -216,7 +218,7 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			}
 	#else
 			OutEntry->SetBoolField(TEXT("success"), false);
-			OutEntry->SetStringField(TEXT("error"), TEXT("viewAngle 仅在编辑器模式可用"));
+			OutEntry->SetStringField(TEXT("error"), TEXT("viewAngle only available in editor mode"));
 	#endif
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
@@ -244,7 +246,7 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			if (!GameVPWidget.IsValid() ||
 				!FNexusEditorCaptureUtils::CaptureWidgetPixels(GameVPWidget.ToSharedRef(), CapturedPixels, CapturedW, CapturedH))
 			{
-				SetError(TEXT("PIE 视口截图失败"));
+				SetError(TEXT("PIE viewport screenshot failed"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -253,17 +255,17 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 		{
 	#if WITH_EDITOR
 			TSharedPtr<SDockTab> VPTab = FNexusEditorCaptureUtils::FindPanelTab(TEXT("viewport"));
-			if (!VPTab.IsValid()) { SetError(TEXT("未找到编辑器视口标签页")); OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry)); return; }
+			if (!VPTab.IsValid()) { SetError(TEXT("Editor viewport tab not found")); OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry)); return; }
 			TSharedPtr<SWidget> VPContent = VPTab->GetContent();
 			if (!VPContent.IsValid() ||
 				!FNexusEditorCaptureUtils::CaptureWidgetPixels(VPContent.ToSharedRef(), CapturedPixels, CapturedW, CapturedH))
 			{
-				SetError(TEXT("编辑器视口截图失败"));
+				SetError(TEXT("Editor viewport screenshot failed"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
 	#else
-			SetError(TEXT("编辑器视口截图仅在编辑器模式可用"));
+			SetError(TEXT("Editor viewport screenshot editor mode only"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 	#endif
@@ -296,13 +298,13 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 
 			if (!TargetWindow.IsValid())
 			{
-				SetError(TEXT("未找到目标编辑器窗口。最小化窗口无法截图，请恢复窗口后重试。"));
+				SetError(TEXT("Target editor window not found. Restore minimized window and retry."));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
 			if (!FNexusEditorCaptureUtils::CaptureWidgetPixels(TargetWindow.ToSharedRef(), CapturedPixels, CapturedW, CapturedH))
 			{
-				SetError(TEXT("编辑器窗口截图失败（FWidgetRenderer）"));
+				SetError(TEXT("Editor window screenshot failed (FWidgetRenderer)"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -314,7 +316,7 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			if (!Tab.IsValid())
 			{
 				SetError(FString::Printf(
-					TEXT("面板 '%s' 未找到；用 target='list' 查看可用面板"), *Target));
+					TEXT("Panel '%s' not found; use target='list' for available panels"), *Target));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -332,12 +334,12 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			if (!PanelWidget.IsValid() ||
 				!FNexusEditorCaptureUtils::CaptureWidgetPixels(PanelWidget.ToSharedRef(), CapturedPixels, CapturedW, CapturedH))
 			{
-				SetError(FString::Printf(TEXT("面板 '%s' 截图失败"), *Target));
+				SetError(FString::Printf(TEXT("Panel '%s' screenshot failed"), *Target));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
 	#else
-			SetError(TEXT("面板截图仅在编辑器模式可用"));
+			SetError(TEXT("Panel screenshot editor mode only"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 	#endif
@@ -364,14 +366,14 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 #endif
 
 			AActor* Actor = World ? FNexusRuntimeUtils::FindActorByName(World, ActorName) : nullptr;
-			if (!Actor) { SetError(FString::Printf(TEXT("Actor 未找到: %s"), *ActorName)); OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry)); return; }
+			if (!Actor) { SetError(FString::Printf(TEXT("Actor not found: %s"), *ActorName)); OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry)); return; }
 
 			FIntRect ActorRect;
 			int32 ViewW = 0, ViewH = 0;
 			if (!FNexusEditorCaptureUtils::GetActorScreenRect(Actor, bIsPIE, PaddingRatio, ActorRect, ViewW, ViewH))
 			{
 				SetError(FString::Printf(
-					TEXT("Actor '%s' 在视口外或投影失败"), *ActorName));
+					TEXT("Actor '%s' off-screen or projection failed"), *ActorName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -384,7 +386,7 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			UWidget* TargetWidget = FNexusRuntimeUtils::FindRuntimeWidget(OwnerClass, WidgetName);
 			if (!TargetWidget)
 			{
-				SetError(FString::Printf(TEXT("运行时 UMG Widget 未找到: %s"), *WidgetName));
+				SetError(FString::Printf(TEXT("runtime UMG Widget not found: %s"), *WidgetName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -392,7 +394,7 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			int32 ViewW = 0, ViewH = 0;
 			if (!FNexusEditorCaptureUtils::GetUMGWidgetScreenRect(TargetWidget, WidgetRect, ViewW, ViewH))
 			{
-				SetError(FString::Printf(TEXT("Widget '%s' 无屏幕几何（可能不可见）"), *WidgetName));
+				SetError(FString::Printf(TEXT("Widget '%s' has no screen geometry (may be invisible)"), *WidgetName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}

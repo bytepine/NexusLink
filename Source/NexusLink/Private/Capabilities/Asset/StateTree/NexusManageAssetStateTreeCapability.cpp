@@ -5,6 +5,8 @@
 #if WITH_STATETREE
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -23,70 +25,66 @@ void FManageAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("manage_asset_state_tree");
 	Out.SearchAssetTypes = {TEXT("StateTree")};
-	Out.Description = TEXT("编辑 StateTree：state/task/condition/transition。UE 5.5+。");
+	Out.Description = TEXT("Edit StateTree: state/task/condition/transition. UE 5.5+.");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(
-			TEXT("操作类型"),
+			TEXT("Operation type"),
 			{ TEXT("add_state"), TEXT("remove_state"), TEXT("rename_state"), TEXT("recompile"),
 			  TEXT("add_task"), TEXT("remove_task"),
 			  TEXT("add_enter_condition"), TEXT("remove_enter_condition"),
 			  TEXT("add_transition"), TEXT("remove_transition") }))
-		.Prop(TEXT("stateName"),    FNexusSchema::Str(TEXT("目标 State 名")))
-		.Prop(TEXT("newName"),      FNexusSchema::Str(TEXT("rename_state：新名称")))
-		.Prop(TEXT("parentState"),  FNexusSchema::Str(TEXT("add_state：父 State 名（空=顶层 SubTree）")))
+		.Prop(TEXT("stateName"),    FNexusSchema::Str(TEXT("Target State name")))
+		.Prop(TEXT("newName"),      FNexusSchema::Str(TEXT("rename_state: new name")))
+		.Prop(TEXT("parentState"),  FNexusSchema::Str(TEXT("add_state: parent State name (empty=top SubTree)")))
 		.Prop(TEXT("stateType"),    FNexusSchema::Enum(
-			TEXT("add_state：状态类型"),
+			TEXT("add_state: state type"),
 			{ TEXT("State"), TEXT("Group"), TEXT("Linked"), TEXT("Subtree") },
 			TEXT("State")))
-		.Prop(TEXT("nodeType"),     FNexusSchema::Str(TEXT("Task/Condition UScriptStruct 短名")))
-		.Prop(TEXT("targetState"),  FNexusSchema::Str(TEXT("add_transition 目标 State")))
-		.Prop(TEXT("index"),        FNexusSchema::Int(TEXT("remove_task/condition/transition 索引")))
+		.Prop(TEXT("nodeType"),     FNexusSchema::Str(TEXT("Task/Condition UScriptStruct short name")))
+		.Prop(TEXT("targetState"),  FNexusSchema::Str(TEXT("add_transition target State")))
+		.Prop(TEXT("index"),        FNexusSchema::Int(TEXT("remove_task/condition/transition index")))
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"),  FNexusSchema::Str(TEXT("StateTree 资产路径")))
-		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("操作列表"), OpSchema.ToSharedRef()))
+		.Required(TEXT("assetPath"),  FNexusSchema::Str(TEXT("StateTree asset path")))
+		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write };
 	Out.ExtraSearchKeywords = { TEXT("statetree"), TEXT("state"), TEXT("st"), TEXT("task"), TEXT("transition"), TEXT("npc"), TEXT("ai") };
 	Out.RelatedCapabilities = { TEXT("get_asset_state_tree"), TEXT("create_asset_state_tree"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("增删改 StateTree 的 State/Task/Condition/Transition");
+	Out.WhenToUse = TEXT("Add/remove/edit StateTree State/Task/Condition/Transition");
 }
 
 FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("manage_asset_state_tree 仅在编辑器构建可用");
+		OutError = TEXT("manage_asset_state_tree only available in editor builds");
 		return;
 #else
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UStateTree* ST = FNexusAssetUtils::LoadAssetWithFallback<UStateTree>(AssetPath);
 		if (!ST)
 		{
-			OutError = FString::Printf(TEXT("StateTree 未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("StateTree not found: %s"), *AssetPath);
 			return;
 		}
 
 		UStateTreeEditorData* EdData = Cast<UStateTreeEditorData>(ST->EditorData);
 		if (!EdData)
 		{
-			OutError = TEXT("StateTree 无编辑器数据，无法编辑（仅限编辑器构建）");
+			OutError = TEXT("StateTree has no editor data; editor builds only");
 			return;
 		}
 
-		const TArray<TSharedPtr<FJsonValue>>* Ops;
-		if (!Arguments->TryGetArrayField(TEXT("operations"), Ops) || !Ops)
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("operations 为必填数组");
+			OutError = TEXT("operations is a required array");
 			return;
 		}
 
@@ -115,7 +113,7 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 			return nullptr;
 		};
 
-		for (const TSharedPtr<FJsonValue>& OpVal : *Ops)
+		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
 		{
 			TSharedPtr<FJsonObject> Op = OpVal->AsObject();
 			if (!Op.IsValid()) continue;
@@ -129,7 +127,7 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 				FString StateName;
 				if (!Op->TryGetStringField(TEXT("stateName"), StateName) || StateName.IsEmpty())
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("add_state 需要 stateName"));
+					OpResult->SetStringField(TEXT("error"), TEXT("add_state requires stateName"));
 				}
 				else
 				{
@@ -155,7 +153,7 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 						UStateTreeState* ParentState = FindStateByName(ParentName);
 						if (!ParentState)
 						{
-							OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("父 State 未找到: %s"), *ParentName));
+							OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Parent State not found: %s"), *ParentName));
 							OutEntries.Add(MakeShared<FJsonValueObject>(OpResult));
 							continue;
 						}
@@ -178,14 +176,14 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 				FString StateName;
 				if (!Op->TryGetStringField(TEXT("stateName"), StateName) || StateName.IsEmpty())
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("remove_state 需要 stateName"));
+					OpResult->SetStringField(TEXT("error"), TEXT("remove_state requires stateName"));
 				}
 				else
 				{
 					UStateTreeState* Target = FindStateByName(StateName);
 					if (!Target)
 					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("未找到 State: %s"), *StateName));
+						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("State not found: %s"), *StateName));
 					}
 					else
 					{
@@ -218,7 +216,7 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 							}
 						}
 						if (bRemoved) bDirty = true;
-						else OpResult->SetStringField(TEXT("error"), TEXT("remove_state 失败"));
+						else OpResult->SetStringField(TEXT("error"), TEXT("remove_state failed"));
 					}
 				}
 			}
@@ -227,14 +225,14 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 				FString StateName, NewName;
 				if (!Op->TryGetStringField(TEXT("stateName"), StateName) || !Op->TryGetStringField(TEXT("newName"), NewName))
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("rename_state 需要 stateName 和 newName"));
+					OpResult->SetStringField(TEXT("error"), TEXT("rename_state requires stateName and newName"));
 				}
 				else
 				{
 					UStateTreeState* Target = FindStateByName(StateName);
 					if (!Target)
 					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("未找到 State: %s"), *StateName));
+						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("State not found: %s"), *StateName));
 					}
 					else
 					{
@@ -246,7 +244,7 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 			else if (Action == TEXT("recompile"))
 			{
 				ST->MarkPackageDirty();
-				OpResult->SetStringField(TEXT("note"), TEXT("已标记为脏；关闭/重新打开编辑器或调用 save_asset 后触发重编译"));
+				OpResult->SetStringField(TEXT("note"), TEXT("Marked dirty; reopen editor or save_asset to recompile"));
 			}
 			else if (Action == TEXT("add_task") || Action == TEXT("add_enter_condition"))
 			{
@@ -256,7 +254,7 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 				UStateTreeState* Target = FindStateByName(StateName);
 				if (!Target || NodeType.IsEmpty())
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("需要 stateName 与 nodeType"));
+					OpResult->SetStringField(TEXT("error"), TEXT("stateName and nodeType required"));
 				}
 				else
 				{
@@ -271,7 +269,7 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 #endif
 					if (!Struct)
 					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("未找到 struct: %s"), *NodeType));
+						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("struct not found: %s"), *NodeType));
 					}
 					else
 					{
@@ -302,14 +300,14 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 				UStateTreeState* Target = FindStateByName(StateName);
 				if (!Target)
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("需要有效 stateName"));
+					OpResult->SetStringField(TEXT("error"), TEXT("Valid stateName required"));
 				}
 				else
 				{
 					TArray<FStateTreeEditorNode>& Arr = (Action == TEXT("remove_task")) ? Target->Tasks : Target->EnterConditions;
 					if (!Arr.IsValidIndex(Idx))
 					{
-						OpResult->SetStringField(TEXT("error"), TEXT("index 越界"));
+						OpResult->SetStringField(TEXT("error"), TEXT("index out of bounds"));
 					}
 					else
 					{
@@ -327,7 +325,7 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 				UStateTreeState* Dest = FindStateByName(TargetName);
 				if (!Source || !Dest)
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("add_transition 需要有效 stateName 与 targetState"));
+					OpResult->SetStringField(TEXT("error"), TEXT("add_transition requires valid stateName and targetState"));
 				}
 				else
 				{
@@ -348,7 +346,7 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 				UStateTreeState* Source = FindStateByName(StateName);
 				if (!Source || !Source->Transitions.IsValidIndex(Idx))
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("remove_transition 需要有效 stateName 与 index"));
+					OpResult->SetStringField(TEXT("error"), TEXT("remove_transition requires valid stateName and index"));
 				}
 				else
 				{
@@ -358,7 +356,7 @@ FCapabilityResult FManageAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 			}
 			else
 			{
-				OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+				OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 			}
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(OpResult));

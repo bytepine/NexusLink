@@ -25,9 +25,9 @@ void FGetAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapabilityDef
 {
 	Out.Name = TEXT("get_asset_movie_pipeline_config");
 	Out.SearchAssetTypes = {TEXT("MoviePipelinePrimaryConfig"), TEXT("MoviePipelineMasterConfig")};
-	Out.Description = TEXT("读取 MoviePipeline 配置：输出/分辨率、settings[]、AntiAliasing/HighRes 摘要。");
+	Out.Description = TEXT("Read MoviePipeline config: output/resolution, settings[], AA/HighRes summary.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MoviePipeline 配置资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MoviePipeline config asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
@@ -35,7 +35,7 @@ void FGetAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapabilityDef
 	Out.RelatedCapabilities = {
 		TEXT("manage_asset_movie_pipeline_config"), TEXT("create_asset_movie_pipeline_config")
 	};
-	Out.WhenToUse = TEXT("读 MRQ 配置结构；写用 manage_asset_movie_pipeline_config");
+	Out.WhenToUse = TEXT("Read MRQ config structure; use manage_asset_movie_pipeline_config for writes");
 }
 
 FCapabilityResult FGetAssetMoviePipelineConfigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -48,7 +48,7 @@ FCapabilityResult FGetAssetMoviePipelineConfigCapability::Execute(const TSharedP
 		if (!Cfg)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 MoviePipeline 配置失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load MoviePipeline config: %s"), *AssetPath));
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();

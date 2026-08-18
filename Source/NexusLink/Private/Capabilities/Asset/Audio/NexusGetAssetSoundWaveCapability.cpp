@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Audio/NexusGetAssetSoundWaveCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -12,27 +13,23 @@ void FGetAssetSoundWaveCapability::BuildDefinition(FNexusCapabilityDefinition& O
 {
 	Out.Name = TEXT("get_asset_sound_wave");
 	Out.SearchAssetTypes = {TEXT("SoundWave")};
-	Out.Description = TEXT("检查 SoundWave 快照。时长/采样率/声道。写用 manage_asset_sound_wave。");
+	Out.Description = TEXT("Inspect SoundWave snapshot. Writes via manage_asset_sound_wave.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundWave 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundWave asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("sound"), TEXT("wave"), TEXT("sfx"), TEXT("duration") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_sound_wave"), TEXT("search_asset"), TEXT("get_asset_sound_cue"), TEXT("get_asset_refs") };
-	Out.WhenToUse = TEXT("读波形元数据；写用 manage_asset_sound_wave");
+	Out.WhenToUse = TEXT("Read wave metadata; use manage_asset_sound_wave for writes");
 }
 
 FCapabilityResult FGetAssetSoundWaveCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Path;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString Path = A.Str(TEXT("assetPath"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("path"), Path);
@@ -40,7 +37,7 @@ FCapabilityResult FGetAssetSoundWaveCapability::Execute(const TSharedPtr<FJsonOb
 		USoundWave* Wave = FNexusAssetUtils::LoadAssetWithFallback<USoundWave>(Path);
 		if (!Wave)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("SoundWave 未找到: %s"), *Path));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("SoundWave not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

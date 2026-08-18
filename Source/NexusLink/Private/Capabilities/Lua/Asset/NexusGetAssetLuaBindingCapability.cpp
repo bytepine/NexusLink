@@ -14,15 +14,15 @@
 void FGetAssetLuaBindingCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_lua_binding");
-	Out.Description = TEXT("解析 BP 绑定的 UnLua 模块。返回 bound/fileExists；需 UnLua。");
+	Out.Description = TEXT("Resolve BP-bound UnLua module. Returns bound/fileExists; requires UnLua.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("蓝图资产路径")))
+		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("Blueprint asset path")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = { TEXT("unlua"), TEXT("module"), TEXT("mapping"), TEXT("filepath"), TEXT("script") };
 	Out.RelatedCapabilities = { TEXT("get_runtime_lua_object"), TEXT("get_runtime_lua_env"), TEXT("manage_asset_lua_binding") };
 	Out.Prerequisites = { TEXT("unlua"), TEXT("editor_only") };
-	Out.WhenToUse = TEXT("读/编 Lua 前先找绑定文件路径");
+	Out.WhenToUse = TEXT("Find bound file path before read/edit Lua");
 }
 
 FCapabilityResult FGetAssetLuaBindingCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -35,11 +35,11 @@ FCapabilityResult FGetAssetLuaBindingCapability::Execute(const TSharedPtr<FJsonO
 
 	UObject* Obj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(AssetPath);
 	if (!Obj)
-		return FCapabilityResult::MakeFatal(FString::Printf(TEXT("资产未找到: %s"), *AssetPath));
+		return FCapabilityResult::MakeFatal(FString::Printf(TEXT("Asset not found: %s"), *AssetPath));
 
 	UBlueprint* BP = Cast<UBlueprint>(Obj);
 	if (!BP || !BP->GeneratedClass)
-		return FCapabilityResult::MakeFatal(TEXT("assetPath 须指向 Blueprint 资产"));
+		return FCapabilityResult::MakeFatal(TEXT("assetPath must point to Blueprint asset"));
 
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 	Entry->SetStringField(TEXT("path"), AssetPath);
@@ -72,7 +72,7 @@ FCapabilityResult FGetAssetLuaBindingCapability::Execute(const TSharedPtr<FJsonO
 	{
 		Entry->SetBoolField(TEXT("fileExists"), false);
 		Entry->SetStringField(TEXT("hint"),
-			TEXT("UnLua 模块已注册但磁盘缺少 .lua 文件；请检查 Content/Script 路径或创建文件。"));
+			TEXT("UnLua module registered but .lua missing on disk; check Content/Script or create file."));
 	}
 
 	R.Entries.Add(MakeShared<FJsonValueObject>(Entry));

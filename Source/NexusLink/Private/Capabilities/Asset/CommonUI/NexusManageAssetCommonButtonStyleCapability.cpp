@@ -15,16 +15,16 @@ void FManageAssetCommonButtonStyleCapability::BuildDefinition(FNexusCapabilityDe
 {
 	Out.Name = TEXT("manage_asset_common_button_style");
 	Out.SearchAssetTypes = {TEXT("CommonButtonStyle")};
-	Out.Description = TEXT("批量编辑 CommonButtonStyle。operations[].action=set_property。");
+	Out.Description = TEXT("Batch edit CommonButtonStyle. operations[].action=set_property.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"), { TEXT("set_property") }))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径")))
-		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("属性新值")))
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("set_property") }))
+		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Property path")))
+		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("New property value")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("CommonButtonStyle 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("CommonButtonStyle asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Widget };
@@ -45,13 +45,13 @@ FCapabilityResult FManageAssetCommonButtonStyleCapability::Execute(const TShared
 		if (!Style)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 CommonButtonStyle 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load CommonButtonStyle: %s"), *AssetPath));
 			return;
 		}
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 		bool bDirty = false;
@@ -69,13 +69,13 @@ FCapabilityResult FManageAssetCommonButtonStyleCapability::Execute(const TShared
 			Entry->SetStringField(TEXT("action"), Action);
 			if (!Action.Equals(TEXT("set_property"), ESearchCase::IgnoreCase))
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			if (PropPath.IsEmpty() || Value.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_property 需要 propertyPath 和 value"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}

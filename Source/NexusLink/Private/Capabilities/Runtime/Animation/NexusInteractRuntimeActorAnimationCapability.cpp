@@ -2,6 +2,7 @@
 
 #include "Capabilities/Runtime/Animation/NexusInteractRuntimeActorAnimationCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
@@ -32,18 +33,18 @@ static UAnimInstance* FindAnimInstanceForInteract(AActor* Actor)
 void FInteractRuntimeActorAnimationCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("interact_runtime_actor_animation");
-	Out.Description = TEXT("命令式控制运行时动画。play/stop/jump_to_section/set_anim_class/set_anim_variable。Slot 播放无稳定 API。");
+	Out.Description = TEXT("Command runtime animation. play/stop/jump_to_section/set_anim_class/set_anim_variable. No stable Slot API.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("动画命令"),
+		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Animation command"),
 			{ TEXT("play_montage"), TEXT("stop_montage"), TEXT("stop_all"), TEXT("set_anim_variable"),
 			  TEXT("jump_to_section"), TEXT("set_anim_class") }))
-		.Prop(TEXT("actorName"),    FNexusSchema::Str(TEXT("Actor 名")))
-		.Prop(TEXT("montagePath"),  FNexusSchema::Str(TEXT("蒙太奇资产路径（play/stop/jump）")))
-		.Prop(TEXT("playRate"),     FNexusSchema::Num(TEXT("播放速率"), 1.0))
-		.Prop(TEXT("startSection"), FNexusSchema::Str(TEXT("Section 名（play_montage / jump_to_section）")))
-		.Prop(TEXT("variableName"), FNexusSchema::Str(TEXT("AnimInstance 变量名（set_anim_variable）")))
-		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("变量新值字符串（set_anim_variable）")))
-		.Prop(TEXT("animClassPath"), FNexusSchema::Str(TEXT("AnimBlueprint GeneratedClass 路径（set_anim_class）")))
+		.Prop(TEXT("actorName"),    FNexusSchema::Str(TEXT("Actor name")))
+		.Prop(TEXT("montagePath"),  FNexusSchema::Str(TEXT("Montage asset path (play/stop/jump)")))
+		.Prop(TEXT("playRate"),     FNexusSchema::Num(TEXT("Play rate"), 1.0))
+		.Prop(TEXT("startSection"), FNexusSchema::Str(TEXT("Section name (play_montage/jump_to_section)")))
+		.Prop(TEXT("variableName"), FNexusSchema::Str(TEXT("AnimInstance variable name (set_anim_variable)")))
+		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("New variable value string (set_anim_variable)")))
+		.Prop(TEXT("animClassPath"), FNexusSchema::Str(TEXT("AnimBlueprint GeneratedClass path (set_anim_class)")))
 		.Required({ TEXT("action"), TEXT("actorName") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Runtime };
@@ -56,19 +57,10 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Action;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("action"), Action) || Action.IsEmpty())
-		{
-			OutError = TEXT("缺少 action");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString Action = A.Str(TEXT("action"));
 
-		FString ActorName;
-		if (!Arguments->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty())
-		{
-			OutError = TEXT("需要 actorName");
-			return;
-		}
+		const FString ActorName = A.Str(TEXT("actorName"));
 
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
@@ -89,7 +81,7 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 		AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
 		if (!Actor)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor 未找到: %s"), *ActorName));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -97,7 +89,7 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 		UAnimInstance* AnimInst = FindAnimInstanceForInteract(Actor);
 		if (!AnimInst)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("无 AnimInstance"));
+			Entry->SetStringField(TEXT("error"), TEXT("no AnimInstance"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -106,14 +98,14 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 		{
 			if (MontagePath.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("play_montage 需要 montagePath"));
+				Entry->SetStringField(TEXT("error"), TEXT("play_montage requires montagePath"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
 			UAnimMontage* Montage = LoadObject<UAnimMontage>(nullptr, *MontagePath);
 			if (!Montage)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("蒙太奇加载失败: %s"), *MontagePath));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to load montage: %s"), *MontagePath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -130,14 +122,14 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 		{
 			if (MontagePath.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("stop_montage 需要 montagePath"));
+				Entry->SetStringField(TEXT("error"), TEXT("stop_montage requires montagePath"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
 			UAnimMontage* Montage = LoadObject<UAnimMontage>(nullptr, *MontagePath);
 			if (!Montage)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("蒙太奇加载失败: %s"), *MontagePath));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to load montage: %s"), *MontagePath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -154,14 +146,14 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 		{
 			if (VarName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_anim_variable 需要 variableName"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_anim_variable requires variableName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
 			FProperty* Prop = AnimInst->GetClass()->FindPropertyByName(FName(*VarName));
 			if (!Prop)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("变量未找到: %s"), *VarName));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Variable not found: %s"), *VarName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -180,14 +172,14 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 		{
 			if (MontagePath.IsEmpty() || StartSection.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("jump_to_section 需要 montagePath 与 startSection"));
+				Entry->SetStringField(TEXT("error"), TEXT("jump_to_section requires montagePath and startSection"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
 			UAnimMontage* Montage = LoadObject<UAnimMontage>(nullptr, *MontagePath);
 			if (!Montage)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("蒙太奇加载失败: %s"), *MontagePath));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to load montage: %s"), *MontagePath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -198,7 +190,7 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 		{
 			if (AnimClassPath.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_anim_class 需要 animClassPath"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_anim_class requires animClassPath"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -206,7 +198,7 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 			if (!AnimClass) AnimClass = LoadObject<UClass>(nullptr, *(AnimClassPath + TEXT("_C")));
 			if (!AnimClass || !AnimClass->IsChildOf(UAnimInstance::StaticClass()))
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("AnimInstance 类未找到: %s"), *AnimClassPath));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("AnimInstance class not found: %s"), *AnimClassPath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -226,7 +218,7 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

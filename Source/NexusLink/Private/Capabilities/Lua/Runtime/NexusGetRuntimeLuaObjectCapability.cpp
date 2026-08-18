@@ -1,6 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Lua/Runtime/NexusGetRuntimeLuaObjectCapability.h"
+#include "Utils/NexusArgs.h"
 
 #if WITH_UNLUA
 
@@ -41,12 +42,12 @@ static bool TryPushObjectLuaTable(lua_State* L, UObject* Object)
 void FGetRuntimeLuaObjectCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_lua_object");
-	Out.Description = TEXT("读 UnLua 绑定 Actor/UObject 的实例 Lua 表。");
+	Out.Description = TEXT("Read UnLua-bound Actor/UObject instance Lua table.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("actorName"), FNexusSchema::Str(TEXT("运行时 Actor 名")))
-		.Prop(TEXT("luaPath"),       FNexusSchema::Str(TEXT("Lua 表内点分子路径")))
-		.Prop(TEXT("nameFilter"),    FNexusSchema::Str(TEXT("键名过滤；支持 /regex/、^前缀、后缀$")))
-		.Prop(TEXT("limit"),         FNexusSchema::Int(TEXT("最大返回键数"), 100, 1, 500))
+		.Required(TEXT("actorName"), FNexusSchema::Str(TEXT("Runtime Actor name")))
+		.Prop(TEXT("luaPath"),       FNexusSchema::Str(TEXT("Dot-separated sub-path in Lua table")))
+		.Prop(TEXT("nameFilter"),    FNexusSchema::Str(TEXT("Key filter; /regex/, ^prefix, suffix$")))
+		.Prop(TEXT("limit"),         FNexusSchema::Int(TEXT("Max returned keys"), 100, 1, 500))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("instance"), TEXT("actor"), TEXT("fields"), TEXT("self"), TEXT("data") };
@@ -56,6 +57,7 @@ void FGetRuntimeLuaObjectCapability::BuildDefinition(FNexusCapabilityDefinition&
 
 FCapabilityResult FGetRuntimeLuaObjectCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
+	const FNexusArgs A(Arguments);
 	FNexusMcpToolResult Tmp;
 	lua_State* L = FNexusLuaUtils::GetMainLuaState(Tmp);
 	if (!L)
@@ -70,9 +72,9 @@ FCapabilityResult FGetRuntimeLuaObjectCapability::Execute(const TSharedPtr<FJson
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 
 	UWorld* World = FNexusRuntimeUtils::GetActiveWorld();
-	if (!World) { EmitError(R.Entries, {{TEXT("actorName"), ActorName}}, TEXT("无活动 World")); return R; }
+	if (!World) { EmitError(R.Entries, {{TEXT("actorName"), ActorName}}, TEXT("No active World")); return R; }
 	AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
-	if (!Actor) { EmitError(R.Entries, {{TEXT("actorName"), ActorName}}, TEXT("Actor 未找到")); return R; }
+	if (!Actor) { EmitError(R.Entries, {{TEXT("actorName"), ActorName}}, TEXT("Actor not found")); return R; }
 
 	FString ModuleName = FNexusLuaUtils::GetUnLuaModuleName(Actor->GetClass());
 	if (ModuleName.IsEmpty())
@@ -89,7 +91,7 @@ FCapabilityResult FGetRuntimeLuaObjectCapability::Execute(const TSharedPtr<FJson
 	Arguments->TryGetStringField(TEXT("luaPath"), Path);
 	Arguments->TryGetStringField(TEXT("nameFilter"), NameFilter);
 	if (Arguments->HasField(TEXT("limit")))
-		Limit = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 500);
+		Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
 
 	const int32 StackTop = lua_gettop(L);
 
@@ -100,7 +102,7 @@ FCapabilityResult FGetRuntimeLuaObjectCapability::Execute(const TSharedPtr<FJson
 		{
 			lua_settop(L, StackTop);
 			EmitError(R.Entries, {{TEXT("actorName"), ActorName}},
-				TEXT("无法解析对象的 Lua 表（实例表与类表均不可用）"));
+				TEXT("Unable to resolve object Lua table (instance and class tables unavailable)"));
 			return R;
 		}
 		Entry->SetStringField(TEXT("tableSource"), TEXT("classTable"));

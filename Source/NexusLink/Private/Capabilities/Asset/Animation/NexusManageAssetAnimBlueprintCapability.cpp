@@ -3,6 +3,7 @@
 #include "Capabilities/Asset/Animation/NexusManageAssetAnimBlueprintCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -74,19 +75,19 @@ void FManageAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefini
 {
 	Out.Name = TEXT("manage_asset_anim_blueprint");
 	Out.SearchAssetTypes = {TEXT("AnimBlueprint")};
-	Out.Description = TEXT("批量编辑 ABP。状态机与常用 AnimGraph 节点；勿走 K2。");
+	Out.Description = TEXT("Batch edit ABP. State machines and AnimGraph nodes; avoid K2.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),           FNexusSchema::Enum(TEXT("操作类型"),
+		.Prop(TEXT("action"),           FNexusSchema::Enum(TEXT("Operation type"),
 			{ TEXT("add_state_machine"), TEXT("remove_state_machine"),
 			  TEXT("add_state"),         TEXT("remove_state"),
 			  TEXT("add_transition"),    TEXT("remove_transition"),
 			  TEXT("add_node"), TEXT("remove_node"), TEXT("set_node"),
 			  TEXT("connect"), TEXT("disconnect") }))
-		.Prop(TEXT("graphName"),        FNexusSchema::Str(TEXT("所属 AnimGraph 名（默认 AnimGraph）")))
-		.Prop(TEXT("stateMachineName"), FNexusSchema::Str(TEXT("状态机名（boundgraph 名）")))
-		.Prop(TEXT("stateName"),        FNexusSchema::Str(TEXT("状态名（add/remove_state、过渡源）")))
-		.Prop(TEXT("targetStateName"),  FNexusSchema::Str(TEXT("过渡目标状态名")))
-		.Prop(TEXT("nodeClass"),        FNexusSchema::Enum(TEXT("AnimGraph 节点类（add_node）"),
+		.Prop(TEXT("graphName"),        FNexusSchema::Str(TEXT("Owning AnimGraph name (default AnimGraph)")))
+		.Prop(TEXT("stateMachineName"), FNexusSchema::Str(TEXT("State machine name (bound graph)")))
+		.Prop(TEXT("stateName"),        FNexusSchema::Str(TEXT("State name (add/remove_state, transition source)")))
+		.Prop(TEXT("targetStateName"),  FNexusSchema::Str(TEXT("Transition target state name")))
+		.Prop(TEXT("nodeClass"),        FNexusSchema::Enum(TEXT("AnimGraph node class (add_node)"),
 			{ TEXT("SequencePlayer"), TEXT("SequenceEvaluator"),
 			  TEXT("BlendSpacePlayer"), TEXT("BlendSpace1D"), TEXT("BlendSpaceEvaluator"),
 			  TEXT("RandomPlayer"), TEXT("PoseBlendNode"), TEXT("PoseByName"),
@@ -97,21 +98,21 @@ void FManageAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefini
 			  TEXT("TwoBoneIK"), TEXT("FABRIK"), TEXT("CCDIK"),
 			  TEXT("LookAt"), TEXT("ModifyBone"), TEXT("CopyBone"), TEXT("HandIKRetargeting"),
 			  TEXT("AimOffset"), TEXT("AimOffsetLookAt"), TEXT("ControlRig") }))
-		.Prop(TEXT("nodeId"),           FNexusSchema::Str(TEXT("节点 GUID（remove/set_node/connect）")))
-		.Prop(TEXT("sequencePath"),     FNexusSchema::Str(TEXT("动画资产路径（set_node Sequence/BlendSpace/AimOffset）")))
-		.Prop(TEXT("slotName"),         FNexusSchema::Str(TEXT("Slot 名（set_node Slot）")))
-		.Prop(TEXT("boneName"),         FNexusSchema::Str(TEXT("骨骼名（TwoBoneIK=IKBone；FABRIK/CCDIK=TipBone；LookAt/ModifyBone；CopyBone=TargetBone）")))
-		.Prop(TEXT("sourceNodeId"),     FNexusSchema::Str(TEXT("源节点 GUID（connect/disconnect）")))
-		.Prop(TEXT("sourcePinName"),    FNexusSchema::Str(TEXT("源引脚名")))
-		.Prop(TEXT("targetNodeId"),     FNexusSchema::Str(TEXT("目标节点 GUID")))
-		.Prop(TEXT("targetPinName"),    FNexusSchema::Str(TEXT("目标引脚名")))
-		.Prop(TEXT("posX"),             FNexusSchema::Num(TEXT("编辑器节点 X 坐标（可选）")))
-		.Prop(TEXT("posY"),             FNexusSchema::Num(TEXT("编辑器节点 Y 坐标（可选）")))
+		.Prop(TEXT("nodeId"),           FNexusSchema::Str(TEXT("node GUID (remove/set_node/connect)")))
+		.Prop(TEXT("sequencePath"),     FNexusSchema::Str(TEXT("Animation asset path (set_node Sequence/BlendSpace/AimOffset)")))
+		.Prop(TEXT("slotName"),         FNexusSchema::Str(TEXT("Slot name (set_node Slot)")))
+		.Prop(TEXT("boneName"),         FNexusSchema::Str(TEXT("Bone name (TwoBoneIK=IKBone; FABRIK/CCDIK=TipBone; LookAt/ModifyBone; CopyBone=TargetBone)")))
+		.Prop(TEXT("sourceNodeId"),     FNexusSchema::Str(TEXT("Source node GUID (connect/disconnect)")))
+		.Prop(TEXT("sourcePinName"),    FNexusSchema::Str(TEXT("Source pin name")))
+		.Prop(TEXT("targetNodeId"),     FNexusSchema::Str(TEXT("Target node GUID")))
+		.Prop(TEXT("targetPinName"),    FNexusSchema::Str(TEXT("Target pin name")))
+		.Prop(TEXT("posX"),             FNexusSchema::Num(TEXT("Editor node X (optional)")))
+		.Prop(TEXT("posY"),             FNexusSchema::Num(TEXT("Editor node Y (optional)")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("动画蓝图资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("AnimBlueprint asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
@@ -119,7 +120,7 @@ void FManageAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefini
 		TEXT("abp"), TEXT("statemachine"), TEXT("state"), TEXT("transition"), TEXT("animgraph")
 	};
 	Out.RelatedCapabilities = { TEXT("get_asset_anim_blueprint"), TEXT("create_asset_anim_blueprint"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("状态机与常用 AnimGraph 节点 CRUD；不要用 manage_asset_blueprint 改 AnimGraph");
+	Out.WhenToUse = TEXT("State machine and AnimGraph node CRUD; do not use manage_asset_blueprint for AnimGraph");
 }
 
 FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -127,23 +128,19 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 #if WITH_EDITOR
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UAnimBlueprint* AnimBP = FNexusAssetUtils::LoadAssetWithFallback<UAnimBlueprint>(AssetPath);
 		if (!AnimBP)
 		{
-			OutError = FString::Printf(TEXT("AnimBlueprint 未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("AnimBlueprint not found: %s"), *AssetPath);
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0) { OutError = TEXT("缺少 operations 或为空"); return; }
+		if (Ops.Num() == 0) { OutError = TEXT("Missing or empty operations"); return; }
 
 		bool bModified = false;
 
@@ -159,7 +156,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 		FString Action;
 		if (!OpArgs->TryGetStringField(TEXT("action"), Action) || Action.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("缺少 action"));
+			Entry->SetStringField(TEXT("error"), TEXT("Missing action"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			continue;
 		}
@@ -170,8 +167,8 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 		FString GraphName;
 		OpArgs->TryGetStringField(TEXT("graphName"), GraphName);
 
-		const float PosX = OpArgs->HasField(TEXT("posX")) ? (float)OpArgs->GetNumberField(TEXT("posX")) : 0.0f;
-		const float PosY = OpArgs->HasField(TEXT("posY")) ? (float)OpArgs->GetNumberField(TEXT("posY")) : 0.0f;
+		const float PosX =FNexusArgs(OpArgs).Num(TEXT("posX"), 0.0f);
+		const float PosY =FNexusArgs(OpArgs).Num(TEXT("posY"), 0.0f);
 
 		// ── add_state_machine ──────────────────────────────────────────────────────
 		if (Action == TEXT("add_state_machine"))
@@ -179,7 +176,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			FString SMName;
 			if (!OpArgs->TryGetStringField(TEXT("stateMachineName"), SMName) || SMName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("add_state_machine 需要 stateMachineName"));
+				Entry->SetStringField(TEXT("error"), TEXT("add_state_machine requires stateMachineName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -187,7 +184,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphName);
 			if (!AnimGraph)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("AnimBlueprint 中未找到 AnimGraph '%s'"), GraphName.IsEmpty() ? TEXT("AnimGraph") : *GraphName));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("AnimGraph '%s' not found in AnimBlueprint"), GraphName.IsEmpty() ? TEXT("AnimGraph") : *GraphName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -214,7 +211,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 				UAnimationStateMachineSchema::StaticClass());
 			if (!SMGraph)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("创建状态机子图失败"));
+				Entry->SetStringField(TEXT("error"), TEXT("Failed to create state machine subgraph"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -243,7 +240,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			FString SMName;
 			if (!OpArgs->TryGetStringField(TEXT("stateMachineName"), SMName) || SMName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_state_machine 需要 stateMachineName"));
+				Entry->SetStringField(TEXT("error"), TEXT("remove_state_machine requires stateMachineName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -253,7 +250,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 				? FNexusAnimGraphUtils::FindStateMachineNode(AnimGraph, SMName) : nullptr;
 			if (!SMNode)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("状态机 '%s' 未找到"), *SMName));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("State machine '%s' not found"), *SMName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -279,13 +276,13 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			FString SMName, StateName;
 			if (!OpArgs->TryGetStringField(TEXT("stateMachineName"), SMName) || SMName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("add_state 需要 stateMachineName"));
+				Entry->SetStringField(TEXT("error"), TEXT("add_state requires stateMachineName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			if (!OpArgs->TryGetStringField(TEXT("stateName"), StateName) || StateName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("add_state 需要 stateName"));
+				Entry->SetStringField(TEXT("error"), TEXT("add_state requires stateName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -296,7 +293,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			UAnimationStateMachineGraph* SMGraph = FNexusAnimGraphUtils::GetStateMachineGraph(SMNode);
 			if (!SMGraph)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("状态机 '%s' 未找到"), *SMName));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("State machine '%s' not found"), *SMName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -343,13 +340,13 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			FString SMName, StateName;
 			if (!OpArgs->TryGetStringField(TEXT("stateMachineName"), SMName) || SMName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_state 需要 stateMachineName"));
+				Entry->SetStringField(TEXT("error"), TEXT("remove_state requires stateMachineName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			if (!OpArgs->TryGetStringField(TEXT("stateName"), StateName) || StateName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_state 需要 stateName"));
+				Entry->SetStringField(TEXT("error"), TEXT("remove_state requires stateName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -360,7 +357,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			UAnimationStateMachineGraph* SMGraph = FNexusAnimGraphUtils::GetStateMachineGraph(SMNode);
 			if (!SMGraph)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("状态机 '%s' 未找到"), *SMName));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("State machine '%s' not found"), *SMName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -368,7 +365,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			UAnimStateNode* StateNode = FNexusAnimGraphUtils::FindStateByName(SMGraph, StateName);
 			if (!StateNode)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("在 '%s' 中未找到状态 '%s'"), *SMName, *StateName));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("State '%s' not found in '%s'"), *SMName, *StateName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -410,19 +407,19 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			FString SMName, SourceName, TargetName;
 			if (!OpArgs->TryGetStringField(TEXT("stateMachineName"), SMName) || SMName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("add_transition 需要 stateMachineName"));
+				Entry->SetStringField(TEXT("error"), TEXT("add_transition requires stateMachineName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			if (!OpArgs->TryGetStringField(TEXT("stateName"), SourceName) || SourceName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("add_transition 需要 stateName（源）"));
+				Entry->SetStringField(TEXT("error"), TEXT("add_transition requires stateName (source)"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			if (!OpArgs->TryGetStringField(TEXT("targetStateName"), TargetName) || TargetName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("add_transition 需要 targetStateName"));
+				Entry->SetStringField(TEXT("error"), TEXT("add_transition requires targetStateName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -433,7 +430,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			UAnimationStateMachineGraph* SMGraph = FNexusAnimGraphUtils::GetStateMachineGraph(SMNode);
 			if (!SMGraph)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("状态机 '%s' 未找到"), *SMName));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("State machine '%s' not found"), *SMName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -443,7 +440,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			if (!Source || !Target)
 			{
 				Entry->SetStringField(TEXT("error"), FString::Printf(
-					TEXT("源状态 '%s' 或目标状态 '%s' 未找到"), *SourceName, *TargetName));
+					TEXT("Source state '%s' or target state '%s' not found"), *SourceName, *TargetName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -500,19 +497,19 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			FString SMName, SourceName, TargetName;
 			if (!OpArgs->TryGetStringField(TEXT("stateMachineName"), SMName) || SMName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_transition 需要 stateMachineName"));
+				Entry->SetStringField(TEXT("error"), TEXT("remove_transition requires stateMachineName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			if (!OpArgs->TryGetStringField(TEXT("stateName"), SourceName) || SourceName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_transition 需要 stateName（源）"));
+				Entry->SetStringField(TEXT("error"), TEXT("remove_transition requires stateName (source)"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			if (!OpArgs->TryGetStringField(TEXT("targetStateName"), TargetName) || TargetName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_transition 需要 targetStateName"));
+				Entry->SetStringField(TEXT("error"), TEXT("remove_transition requires targetStateName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -523,7 +520,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			UAnimationStateMachineGraph* SMGraph = FNexusAnimGraphUtils::GetStateMachineGraph(SMNode);
 			if (!SMGraph)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("状态机 '%s' 未找到"), *SMName));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("State machine '%s' not found"), *SMName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -532,7 +529,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			if (!Trans)
 			{
 				Entry->SetStringField(TEXT("error"), FString::Printf(
-					TEXT("过渡 '%s' -> '%s' 未找到"), *SourceName, *TargetName));
+					TEXT("Transition '%s' -> '%s' not found"), *SourceName, *TargetName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -560,12 +557,12 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphName);
 			if (!AnimGraph)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("未找到 AnimGraph"));
+				Entry->SetStringField(TEXT("error"), TEXT("AnimGraph not found"));
 			}
 			else if (!NodeClass)
 			{
 				Entry->SetStringField(TEXT("error"),
-					TEXT("未知 nodeClass（见 schema：SequencePlayer/BlendSpacePlayer(=BlendSpace1D)/FABRIK/CCDIK/CopyBone/ControlRig 等）"));
+					TEXT("Unknown nodeClass (see schema: SequencePlayer/BlendSpacePlayer/…)"));
 			}
 			else
 			{
@@ -617,7 +614,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			UEdGraphNode* Node = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, NodeId) : nullptr;
 			if (!Node)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_node 需要已存在的 nodeId"));
+				Entry->SetStringField(TEXT("error"), TEXT("remove_node requires existing nodeId"));
 			}
 			else
 			{
@@ -634,7 +631,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			UEdGraphNode* Node = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, NodeId) : nullptr;
 			if (!Node)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_node 需要已存在的 nodeId"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_node requires existing nodeId"));
 			}
 			else
 			{
@@ -650,7 +647,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 						UAnimationAsset* AnimAsset = FNexusAssetUtils::LoadAssetWithFallback<UAnimationAsset>(SeqPath);
 						if (!AnimAsset)
 						{
-							Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("动画资产未找到: %s"), *SeqPath));
+							Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Animation asset not found: %s"), *SeqPath));
 							OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 							continue;
 						}
@@ -686,7 +683,7 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 			UEdGraphNode* DstNode = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, DstId) : nullptr;
 			if (!SrcNode || !DstNode)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("connect/disconnect 需要有效的 sourceNodeId/targetNodeId"));
+				Entry->SetStringField(TEXT("error"), TEXT("connect/disconnect requires valid sourceNodeId/targetNodeId"));
 			}
 			else if (Action == TEXT("connect"))
 			{
@@ -719,13 +716,13 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 				}
 				else
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("disconnect 未找到对应引脚"));
+					Entry->SetStringField(TEXT("error"), TEXT("disconnect: matching pin not found"));
 				}
 			}
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'"), *Action));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
@@ -740,7 +737,8 @@ FCapabilityResult FManageAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 #else
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		OutError = TEXT("manage_asset_anim_blueprint 仅在编辑器构建可用");
+		const FNexusArgs A(Arguments);
+		OutError = TEXT("manage_asset_anim_blueprint only available in editor builds");
 	});
 #endif
 }

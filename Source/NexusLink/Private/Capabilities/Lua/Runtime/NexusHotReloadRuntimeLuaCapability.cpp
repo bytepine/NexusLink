@@ -12,9 +12,9 @@
 void FHotReloadRuntimeLuaCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("hotreload_runtime_lua");
-	Out.Description = TEXT("热重载 UnLua 模块（2.x，无需重启 PIE）。UnLua 1.x 不执行热重载，返回 error。");
+	Out.Description = TEXT("Hot-reload UnLua module (2.x, no PIE restart). UnLua 1.x returns error.");
 	Out.InputSchema = FNexusSchema::EmptyObject();
-	Out.Tags = {FNexusMcpTags::Runtime };
+	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("reload"), TEXT("refresh"), TEXT("module"), TEXT("unlua"), TEXT("update") };
 	Out.RelatedCapabilities = { TEXT("dofile_runtime_lua"), TEXT("eval_runtime_lua") };
 	Out.Prerequisites = { TEXT("unlua"), TEXT("pie") };

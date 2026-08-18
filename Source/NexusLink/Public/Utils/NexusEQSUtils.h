@@ -5,12 +5,12 @@
 #include "CoreMinimal.h"
 #include "Utils/NexusVersionCompat.h"
 
-#if NX_UE_HAS_APP_STYLE
+#if NX_UE_HAS_EQS
 
 #include "EnvironmentQuery/EnvQuery.h"
 #include "UObject/UnrealType.h"
 
-// UE5.5+ 将 UEnvQuery::Options 改为 protected，通过反射访问
+/** UE5.5+ 将 UEnvQuery::Options 改为 protected，通过反射访问。 */
 FORCEINLINE TArray<UEnvQueryOption*>* GetEnvQueryOptionsPtr(UEnvQuery* EQ)
 {
 	FArrayProperty* Prop = FindFProperty<FArrayProperty>(UEnvQuery::StaticClass(), TEXT("Options"));
@@ -18,4 +18,4 @@ FORCEINLINE TArray<UEnvQueryOption*>* GetEnvQueryOptionsPtr(UEnvQuery* EQ)
 	return static_cast<TArray<UEnvQueryOption*>*>(Prop->ContainerPtrToValuePtr<void>(EQ));
 }
 
-#endif // NX_UE_HAS_APP_STYLE
+#endif // NX_UE_HAS_EQS

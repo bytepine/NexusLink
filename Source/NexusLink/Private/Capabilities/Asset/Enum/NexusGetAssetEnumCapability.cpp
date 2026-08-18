@@ -4,6 +4,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Engine/UserDefinedEnum.h"
 #include "NexusMcpTool.h"
 
@@ -11,9 +12,9 @@ void FGetAssetEnumCapability::BuildDefinition(FNexusCapabilityDefinition& Out) c
 {
 	Out.Name = TEXT("get_asset_enum");
 	Out.SearchAssetTypes = {TEXT("UserDefinedEnum")};
-	Out.Description = TEXT("读取 UserDefinedEnum 的枚举项（name/displayName/value）。");
+	Out.Description = TEXT("Read UserDefinedEnum entries (name/displayName/value).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("枚举资产包路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Enum asset package path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -25,18 +26,14 @@ FCapabilityResult FGetAssetEnumCapability::Execute(const TSharedPtr<FJsonObject>
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		UUserDefinedEnum* Enum = LoadObject<UUserDefinedEnum>(nullptr, *AssetPath);
 		if (!Enum)
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("加载 UserDefinedEnum 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load UserDefinedEnum: %s"), *AssetPath));
 			return;
 		}
 

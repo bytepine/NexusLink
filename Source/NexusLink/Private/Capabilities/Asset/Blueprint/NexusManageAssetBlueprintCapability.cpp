@@ -1,6 +1,7 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Blueprint/NexusManageAssetBlueprintCapability.h"
+#include "NexusActionCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
@@ -71,9 +72,9 @@ void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("manage_asset_blueprint");
 	Out.SearchAssetTypes = {TEXT("Blueprint")};
-	Out.Description = TEXT("批量编辑 BP：图/变量/函数/宏/Timeline/Dispatcher/接口/节点/promote_pin。");
+	Out.Description = TEXT("Batch edit BP: graphs/vars/funcs/macros/timelines/dispatchers/interfaces/nodes/promote_pin.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),          FNexusSchema::Enum(TEXT("操作类型"), {
+		.Prop(TEXT("action"),          FNexusSchema::Enum(TEXT("Operation type"), {
 			TEXT("add_variable"), TEXT("remove_variable"),
 			TEXT("add_function"), TEXT("remove_function"),
 			TEXT("add_macro"), TEXT("add_timeline"), TEXT("add_dispatcher"), TEXT("add_local_variable"),
@@ -82,37 +83,37 @@ void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition
 			TEXT("connect"), TEXT("disconnect"), TEXT("disconnect_all"),
 			TEXT("add_component"), TEXT("remove_component"), TEXT("set_component_property"), TEXT("set_defaults")
 		}))
-		.Prop(TEXT("graphName"),       FNexusSchema::Str(TEXT("图名（节点/连线/promote_pin）")))
-		.Prop(TEXT("variableName"),    FNexusSchema::Str(TEXT("变量名（add_variable / promote_pin 可选，省略则自动生成）")))
-		.Prop(TEXT("variableType"),    FNexusSchema::Str(TEXT("基本或对象类型（add_variable）")))
-		.Prop(TEXT("defaultValue"),    FNexusSchema::Str(TEXT("默认值（add_variable）")))
-		.Prop(TEXT("category"),        FNexusSchema::Str(TEXT("编辑器分类（add_variable）")))
-		.Prop(TEXT("isPublic"),        FNexusSchema::Bool(TEXT("实例可编辑（add_variable）"), true, false))
-		.Prop(TEXT("isLocal"),         FNexusSchema::Bool(TEXT("promote_pin：提升为局部变量（默认成员变量）"), true, false))
-		.Prop(TEXT("nodeId"),          FNexusSchema::Str(TEXT("节点 GUID（remove/set_node/promote_pin）")))
-		.Prop(TEXT("nodeClass"),       FNexusSchema::Str(TEXT("K2Node 类（add_node）")))
-		.Prop(TEXT("functionName"),    FNexusSchema::Str(TEXT("函数名（add_function / CallFunction）")))
-		.Prop(TEXT("functionClass"),   FNexusSchema::Str(TEXT("CallFunction：所属类")))
-		.Prop(TEXT("interfaceName"),   FNexusSchema::Str(TEXT("接口类名或 BPI 资产路径（add/remove_interface）")))
-		.Prop(TEXT("posX"),            FNexusSchema::Num(TEXT("节点 X 坐标")))
-		.Prop(TEXT("posY"),            FNexusSchema::Num(TEXT("节点 Y 坐标")))
-		.Prop(TEXT("comment"),         FNexusSchema::Str(TEXT("节点注释（set_node）")))
-		.Prop(TEXT("pinName"),         FNexusSchema::Str(TEXT("引脚名（set_node / promote_pin）")))
-		.Prop(TEXT("pinDefaultValue"), FNexusSchema::Str(TEXT("引脚新默认值")))
-		.Prop(TEXT("sourceNodeId"),    FNexusSchema::Str(TEXT("源节点 GUID（连线操作）")))
-		.Prop(TEXT("sourcePinName"),   FNexusSchema::Str(TEXT("源引脚名")))
-		.Prop(TEXT("targetNodeId"),    FNexusSchema::Str(TEXT("目标节点 GUID（connect/disconnect）")))
-		.Prop(TEXT("targetPinName"),   FNexusSchema::Str(TEXT("目标引脚名")))
-		.Prop(TEXT("componentClass"),  FNexusSchema::Str(TEXT("组件类名（add_component），如 StaticMeshComponent")))
-		.Prop(TEXT("componentName"),   FNexusSchema::Str(TEXT("SCS 变量名（add/remove/set_component_property）")))
-		.Prop(TEXT("attachTo"),        FNexusSchema::Str(TEXT("父组件变量名（add_component）；省略则用默认场景根")))
-		.Prop(TEXT("propertyPath"),    FNexusSchema::Str(TEXT("属性路径，点分记法如 RelativeLocation.X（set_component_property/set_defaults）")))
-		.Prop(TEXT("value"),           FNexusSchema::Str(TEXT("字符串值，如 (X=100,Y=0,Z=50) 或 true（set_component_property/set_defaults）")))
+		.Prop(TEXT("graphName"),       FNexusSchema::Str(TEXT("Graph name (nodes/wires/promote_pin)")))
+		.Prop(TEXT("variableName"),    FNexusSchema::Str(TEXT("Variable name (add_variable/promote_pin; auto if omitted)")))
+		.Prop(TEXT("variableType"),    FNexusSchema::Str(TEXT("Basic or object type (add_variable)")))
+		.Prop(TEXT("defaultValue"),    FNexusSchema::Str(TEXT("Default value (add_variable)")))
+		.Prop(TEXT("category"),        FNexusSchema::Str(TEXT("Editor category (add_variable)")))
+		.Prop(TEXT("isPublic"),        FNexusSchema::Bool(TEXT("Instance editable (add_variable)"), true, false))
+		.Prop(TEXT("isLocal"),         FNexusSchema::Bool(TEXT("promote_pin: local var (default member var)"), true, false))
+		.Prop(TEXT("nodeId"),          FNexusSchema::Str(TEXT("node GUID (remove/set_node/promote_pin)")))
+		.Prop(TEXT("nodeClass"),       FNexusSchema::Str(TEXT("K2Node class (add_node)")))
+		.Prop(TEXT("functionName"),    FNexusSchema::Str(TEXT("Function name (add_function/CallFunction)")))
+		.Prop(TEXT("functionClass"),   FNexusSchema::Str(TEXT("CallFunction: owner class")))
+		.Prop(TEXT("interfaceName"),   FNexusSchema::Str(TEXT("Interface class or BPI path (add/remove_interface)")))
+		.Prop(TEXT("posX"),            FNexusSchema::Num(TEXT("Node X position")))
+		.Prop(TEXT("posY"),            FNexusSchema::Num(TEXT("Node Y position")))
+		.Prop(TEXT("comment"),         FNexusSchema::Str(TEXT("Node comment (set_node)")))
+		.Prop(TEXT("pinName"),         FNexusSchema::Str(TEXT("Pin name (set_node/promote_pin)")))
+		.Prop(TEXT("pinDefaultValue"), FNexusSchema::Str(TEXT("New pin default value")))
+		.Prop(TEXT("sourceNodeId"),    FNexusSchema::Str(TEXT("Source node GUID (wire ops)")))
+		.Prop(TEXT("sourcePinName"),   FNexusSchema::Str(TEXT("Source pin name")))
+		.Prop(TEXT("targetNodeId"),    FNexusSchema::Str(TEXT("Target node GUID (connect/disconnect)")))
+		.Prop(TEXT("targetPinName"),   FNexusSchema::Str(TEXT("Target pin name")))
+		.Prop(TEXT("componentClass"),  FNexusSchema::Str(TEXT("Component class (add_component), e.g. StaticMeshComponent")))
+		.Prop(TEXT("componentName"),   FNexusSchema::Str(TEXT("SCS variable name (add/remove/set_component_property)")))
+		.Prop(TEXT("attachTo"),        FNexusSchema::Str(TEXT("Parent component var (add_component); default scene root if omitted")))
+		.Prop(TEXT("propertyPath"),    FNexusSchema::Str(TEXT("Property path, dot notation e.g. RelativeLocation.X")))
+		.Prop(TEXT("value"),           FNexusSchema::Str(TEXT("String value e.g. (X=100,Y=0,Z=50) or true")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("蓝图资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
@@ -122,871 +123,1018 @@ void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition
 		TEXT("promote"), TEXT("pin")
 	};
 	Out.RelatedCapabilities = { TEXT("get_asset_blueprint"), TEXT("create_asset_blueprint"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("写操作：增删变量、promote_pin、函数图、接口、图节点、连线");
+	Out.WhenToUse = TEXT("Write ops: add/remove vars, promote_pin, func graphs, interfaces, nodes, wires");
 }
 
-FCapabilityResult FManageAssetBlueprintCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 #if WITH_EDITOR
-	FCapabilityResult Result = FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	UBlueprint* BP = static_cast<UBlueprint*>(Ctx.Target);
+	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
+	const FString& Action = Ctx.Action;
+	if (Action == TEXT("add_variable") || Action == TEXT("remove_variable"))
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		const FString VarName = Op->HasField(TEXT("variableName")) ? Op->GetStringField(TEXT("variableName")) : TEXT("");
+		if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("variableName is required"));
+	return; }
+		Entry->SetStringField(TEXT("variableName"), VarName);
 
-		UBlueprint* BP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(AssetPath);
-		if (!BP) { FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, FString::Printf(TEXT("Blueprint 未找到: %s"), *AssetPath)); return; }
-
-		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
-		if (Ops.Num() == 0)
+		if (Action == TEXT("remove_variable"))
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
-			return;
+			const FName VarFName(*VarName);
+			bool bFound = false;
+			for (const FBPVariableDescription& Var : BP->NewVariables)
+			{ if (Var.VarName == VarFName) { bFound = true; break; } }
+			if (!bFound) { Entry->SetStringField(TEXT("error"), TEXT("Variable not found (or inherited)"));
+	return; }
+			FBlueprintEditorUtils::RemoveMemberVariable(BP, VarFName);
 		}
-
-		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
+		else
 		{
-		const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
-		if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
-		const TSharedPtr<FJsonObject>& OpArgs = *OpObjPtr;
+			if (!Op->HasField(TEXT("variableType"))) { Entry->SetStringField(TEXT("error"), TEXT("add_variable requires variableType"));
+	return; }
+			const FString VarTypeRaw = Op->GetStringField(TEXT("variableType"));
 
-		const FString Action = OpArgs->HasField(TEXT("action")) ? OpArgs->GetStringField(TEXT("action")).ToLower() : TEXT("");
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), AssetPath);
-		Entry->SetStringField(TEXT("action"), Action);
-		if (Action.IsEmpty())
-		{
-			Entry->SetStringField(TEXT("error"), TEXT("缺少 action"));
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-			continue;
-		}
+			bool bVarExists = false;
+			for (const FBPVariableDescription& Var : BP->NewVariables)
+			{ if (Var.VarName.ToString() == VarName) { bVarExists = true; break; } }
+			if (bVarExists) { Entry->SetStringField(TEXT("error"), TEXT("Variable already exists"));
+	return; }
 
-		// ── Variable actions ─────────────────────────────────────────────────────
-		if (Action == TEXT("add_variable") || Action == TEXT("remove_variable"))
-		{
-			const FString VarName = OpArgs->HasField(TEXT("variableName")) ? OpArgs->GetStringField(TEXT("variableName")) : TEXT("");
-			if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("variableName 必填")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-			Entry->SetStringField(TEXT("variableName"), VarName);
+			FEdGraphPinType PinType;
+			FString TypeErr;
+			if (!FNexusPinTypeUtils::ParsePinType(VarTypeRaw, PinType, TypeErr)) { Entry->SetStringField(TEXT("error"), TypeErr);
+	return; }
 
-			if (Action == TEXT("remove_variable"))
+			FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType);
+
+			if (Op->HasField(TEXT("defaultValue")))
 			{
-				const FName VarFName(*VarName);
-				bool bFound = false;
-				for (const FBPVariableDescription& Var : BP->NewVariables)
-				{ if (Var.VarName == VarFName) { bFound = true; break; } }
-				if (!bFound) { Entry->SetStringField(TEXT("error"), TEXT("变量未找到（或为继承变量）")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				FBlueprintEditorUtils::RemoveMemberVariable(BP, VarFName);
-			}
-			else
-			{
-				if (!OpArgs->HasField(TEXT("variableType"))) { Entry->SetStringField(TEXT("error"), TEXT("add_variable 需要 variableType")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				const FString VarTypeRaw = OpArgs->GetStringField(TEXT("variableType"));
-
-				bool bVarExists = false;
-				for (const FBPVariableDescription& Var : BP->NewVariables)
-				{ if (Var.VarName.ToString() == VarName) { bVarExists = true; break; } }
-				if (bVarExists) { Entry->SetStringField(TEXT("error"), TEXT("变量已存在")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				FEdGraphPinType PinType;
-				FString TypeErr;
-				if (!FNexusPinTypeUtils::ParsePinType(VarTypeRaw, PinType, TypeErr)) { Entry->SetStringField(TEXT("error"), TypeErr); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType);
-
-				if (OpArgs->HasField(TEXT("defaultValue")))
-				{
-					const FString DefaultVal = OpArgs->GetStringField(TEXT("defaultValue"));
-					for (FBPVariableDescription& Var : BP->NewVariables)
-					{ if (Var.VarName.ToString() == VarName) { Var.DefaultValue = DefaultVal; break; } }
-				}
-				if (OpArgs->HasField(TEXT("category")))
-				{
-					FBlueprintEditorUtils::SetBlueprintVariableCategory(BP, FName(*VarName), nullptr,
-						FText::FromString(OpArgs->GetStringField(TEXT("category"))));
-				}
-				bool bIsPublic = false;
-				if (OpArgs->HasField(TEXT("isPublic"))) bIsPublic = OpArgs->GetBoolField(TEXT("isPublic"));
+				const FString DefaultVal = Op->GetStringField(TEXT("defaultValue"));
 				for (FBPVariableDescription& Var : BP->NewVariables)
+				{ if (Var.VarName.ToString() == VarName) { Var.DefaultValue = DefaultVal; break; } }
+			}
+			if (Op->HasField(TEXT("category")))
+			{
+				FBlueprintEditorUtils::SetBlueprintVariableCategory(BP, FName(*VarName), nullptr,
+					FText::FromString(Op->GetStringField(TEXT("category"))));
+			}
+			bool bIsPublic = false;
+			if (Op->HasField(TEXT("isPublic"))) bIsPublic = Op->GetBoolField(TEXT("isPublic"));
+			for (FBPVariableDescription& Var : BP->NewVariables)
+			{
+				if (Var.VarName.ToString() != VarName) continue;
+				if (bIsPublic)
 				{
-					if (Var.VarName.ToString() != VarName) continue;
-					if (bIsPublic)
-					{
 #if NX_UE_HAS_CPF_BLUEPRINT_READWRITE
-						Var.PropertyFlags |= CPF_Edit | CPF_BlueprintVisible | CPF_BlueprintReadWrite;
+					Var.PropertyFlags |= CPF_Edit | CPF_BlueprintVisible | CPF_BlueprintReadWrite;
 #else
-						Var.PropertyFlags |= CPF_Edit | CPF_BlueprintVisible;
-						Var.PropertyFlags &= ~CPF_BlueprintReadOnly;
+					Var.PropertyFlags |= CPF_Edit | CPF_BlueprintVisible;
+					Var.PropertyFlags &= ~CPF_BlueprintReadOnly;
 #endif
-					}
-					else
-						Var.PropertyFlags &= ~(CPF_Edit | CPF_ExposeOnSpawn);
-					break;
-				}
-				Entry->SetStringField(TEXT("variableType"), VarTypeRaw.ToLower());
-			}
-
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			FKismetEditorUtilities::CompileBlueprint(BP);
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-
-		// ── Function graph / Interface actions ───────────────────────────────────
-		if (Action == TEXT("add_function") || Action == TEXT("remove_function"))
-		{
-			const FString FuncName = OpArgs->HasField(TEXT("functionName")) ? OpArgs->GetStringField(TEXT("functionName")) : TEXT("");
-			if (FuncName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("functionName 必填")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-			Entry->SetStringField(TEXT("functionName"), FuncName);
-
-			if (Action == TEXT("add_function"))
-			{
-				bool bExists = false;
-				for (UEdGraph* G : BP->FunctionGraphs)
-				{
-					if (G && G->GetName() == FuncName) { bExists = true; break; }
-				}
-				if (bExists) { Entry->SetStringField(TEXT("error"), TEXT("函数图已存在")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				UEdGraph* NewGraph = FBlueprintEditorUtils::CreateNewGraph(
-					BP, FName(*FuncName), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
-				if (!NewGraph) { Entry->SetStringField(TEXT("error"), TEXT("创建函数图失败")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				FBlueprintEditorUtils::AddFunctionGraph<UClass>(BP, NewGraph, /*bIsUserCreated=*/true, /*SignatureFromClass=*/nullptr);
-			}
-			else
-			{
-				bool bFromInterface = false;
-				for (const FBPInterfaceDescription& Desc : BP->ImplementedInterfaces)
-				{
-					for (UEdGraph* G : Desc.Graphs)
-					{
-						if (G && G->GetName() == FuncName) { bFromInterface = true; break; }
-					}
-					if (bFromInterface) break;
-				}
-				if (bFromInterface)
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("接口函数请用 remove_interface，不能单独删函数图"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-				}
-
-				UEdGraph* Found = nullptr;
-				for (UEdGraph* G : BP->FunctionGraphs)
-				{
-					if (G && G->GetName() == FuncName) { Found = G; break; }
-				}
-				if (!Found) { Entry->SetStringField(TEXT("error"), TEXT("函数图未找到")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				FBlueprintEditorUtils::RemoveGraph(BP, Found, EGraphRemoveFlags::Recompile);
-			}
-
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			FKismetEditorUtilities::CompileBlueprint(BP);
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-
-		if (Action == TEXT("add_macro") || Action == TEXT("add_timeline") || Action == TEXT("add_dispatcher") || Action == TEXT("add_local_variable"))
-		{
-			if (Action == TEXT("add_macro"))
-			{
-				const FString MacroName = OpArgs->HasField(TEXT("functionName")) ? OpArgs->GetStringField(TEXT("functionName")) : TEXT("");
-				if (MacroName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_macro 需要 functionName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				UEdGraph* NewGraph = FBlueprintEditorUtils::CreateNewGraph(BP, FName(*MacroName), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
-				if (!NewGraph) { Entry->SetStringField(TEXT("error"), TEXT("创建宏图失败")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				FBlueprintEditorUtils::AddMacroGraph(BP, NewGraph, true, nullptr);
-				Entry->SetStringField(TEXT("functionName"), MacroName);
-			}
-			else if (Action == TEXT("add_timeline"))
-			{
-				const FString TlName = OpArgs->HasField(TEXT("functionName")) ? OpArgs->GetStringField(TEXT("functionName")) : TEXT("");
-				if (TlName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_timeline 需要 functionName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				UTimelineTemplate* Tl = FBlueprintEditorUtils::AddNewTimeline(BP, FName(*TlName));
-				if (!Tl) { Entry->SetStringField(TEXT("error"), TEXT("创建 Timeline 失败")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				Entry->SetStringField(TEXT("functionName"), TlName);
-			}
-			else if (Action == TEXT("add_dispatcher"))
-			{
-				const FString VarName = OpArgs->HasField(TEXT("variableName")) ? OpArgs->GetStringField(TEXT("variableName")) : TEXT("");
-				if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_dispatcher 需要 variableName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				FEdGraphPinType PinType;
-				PinType.PinCategory = UEdGraphSchema_K2::PC_MCDelegate;
-				FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType);
-				Entry->SetStringField(TEXT("variableName"), VarName);
-			}
-			else
-			{
-				const FString FuncName = OpArgs->HasField(TEXT("functionName")) ? OpArgs->GetStringField(TEXT("functionName")) : TEXT("");
-				const FString VarName = OpArgs->HasField(TEXT("variableName")) ? OpArgs->GetStringField(TEXT("variableName")) : TEXT("");
-				const FString VarTypeRaw = OpArgs->HasField(TEXT("variableType")) ? OpArgs->GetStringField(TEXT("variableType")) : TEXT("bool");
-				if (FuncName.IsEmpty() || VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_local_variable 需要 functionName 与 variableName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				UEdGraph* FuncGraph = nullptr;
-				for (UEdGraph* G : BP->FunctionGraphs)
-				{
-					if (G && G->GetName() == FuncName) { FuncGraph = G; break; }
-				}
-				if (!FuncGraph) { Entry->SetStringField(TEXT("error"), TEXT("函数图未找到")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				FEdGraphPinType PinType;
-				FString TypeErr;
-				if (!FNexusPinTypeUtils::ParsePinType(VarTypeRaw, PinType, TypeErr)) { Entry->SetStringField(TEXT("error"), TypeErr); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				FBlueprintEditorUtils::AddLocalVariable(BP, FuncGraph, FName(*VarName), PinType);
-				Entry->SetStringField(TEXT("variableName"), VarName);
-			}
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			FKismetEditorUtilities::CompileBlueprint(BP);
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-		if (Action == TEXT("add_interface") || Action == TEXT("remove_interface"))
-		{
-			const FString IfaceName = OpArgs->HasField(TEXT("interfaceName")) ? OpArgs->GetStringField(TEXT("interfaceName")) : TEXT("");
-			if (IfaceName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("interfaceName 必填（BPI 路径或接口类名）")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-			Entry->SetStringField(TEXT("interfaceName"), IfaceName);
-
-			if (BP->BlueprintType == BPTYPE_Interface)
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("接口蓝图请用 create 的 parentClass 继承，不能 add_interface"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-
-			UClass* IfaceClass = ResolveInterfaceClass(IfaceName);
-			if (!IfaceClass)
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(
-					TEXT("接口未找到或不是 Interface：%s（可传 BPI 资产路径或 GeneratedClass 名）"), *IfaceName));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-			if (IfaceClass->GetName() == TEXT("Interface"))
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("不能实现原生 UInterface，请传入 BPI 资产"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-			Entry->SetStringField(TEXT("interfaceClass"), IfaceClass->GetName());
-
-			if (Action == TEXT("add_interface"))
-			{
-				if (BlueprintAlreadyImplements(BP, IfaceClass))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("已实现该接口"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-				}
-#if NX_UE_HAS_BP_INTERFACE_ASSET_PATH
-				FBlueprintEditorUtils::ImplementNewInterface(BP, IfaceClass->GetClassPathName());
-#else
-				FBlueprintEditorUtils::ImplementNewInterface(BP, IfaceClass->GetFName());
-#endif
-				if (!BlueprintAlreadyImplements(BP, IfaceClass))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("ImplementNewInterface 失败（需已编译的接口蓝图）"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-				}
-			}
-			else
-			{
-				if (!BlueprintAlreadyImplements(BP, IfaceClass))
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("未实现该接口"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-				}
-#if NX_UE_HAS_BP_INTERFACE_ASSET_PATH
-				FBlueprintEditorUtils::RemoveInterface(BP, IfaceClass->GetClassPathName());
-#else
-				FBlueprintEditorUtils::RemoveInterface(BP, IfaceClass->GetFName());
-#endif
-			}
-
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			FKismetEditorUtilities::CompileBlueprint(BP);
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-
-		// ── Actor SCS / CDO actions ──────────────────────────────────────────────
-		if (Action == TEXT("add_component") || Action == TEXT("remove_component") ||
-		    Action == TEXT("set_component_property") || Action == TEXT("set_defaults"))
-		{
-			if (!BP->ParentClass || !BP->ParentClass->IsChildOf(AActor::StaticClass()))
-			{
-				const FString ParentName = BP->ParentClass ? BP->ParentClass->GetName() : TEXT("(none)");
-				Entry->SetStringField(TEXT("error"), FString::Printf(
-					TEXT("Blueprint 父类不是 Actor 子类: %s（parent=%s）。提示：add_component/set_defaults 需要 Actor BP；GameplayAbility/UI/BPI 请用 add_variable/add_function/add_node。"),
-					*AssetPath, *ParentName)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-
-			if (Action == TEXT("add_component"))
-			{
-				FString ComponentClassName, ComponentName;
-				OpArgs->TryGetStringField(TEXT("componentClass"), ComponentClassName);
-				OpArgs->TryGetStringField(TEXT("componentName"),  ComponentName);
-				if (ComponentClassName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_component 需要 componentClass")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				if (ComponentName.IsEmpty())      { Entry->SetStringField(TEXT("error"), TEXT("add_component 需要 componentName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
-				if (!SCS) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint 无 SimpleConstructionScript")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				UClass* CompClass = FNexusAssetUtils::FindClassWithUPrefix(ComponentClassName);
-				if (!CompClass || !CompClass->IsChildOf(UActorComponent::StaticClass()))
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("组件类未找到或不是 ActorComponent: %s"), *ComponentClassName)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-				}
-				if (SCS->FindSCSNode(*ComponentName))
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("组件 '%s' 已存在"), *ComponentName)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-				}
-
-				USCS_Node* NewNode = SCS->CreateNode(CompClass, *ComponentName);
-				if (!NewNode) { Entry->SetStringField(TEXT("error"), TEXT("创建 SCS 节点失败")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				FString AttachTo;
-				OpArgs->TryGetStringField(TEXT("attachTo"), AttachTo);
-				if (!AttachTo.IsEmpty())
-				{
-					USCS_Node* ParentNode = SCS->FindSCSNode(*AttachTo);
-					if (!ParentNode) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("attachTo 组件 '%s' 未找到"), *AttachTo)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-					ParentNode->AddChildNode(NewNode);
 				}
 				else
-				{
-					USCS_Node* DefaultRoot = SCS->GetDefaultSceneRootNode();
-					if (DefaultRoot) DefaultRoot->AddChildNode(NewNode);
-					else             SCS->AddNode(NewNode);
-				}
-
-				Entry->SetStringField(TEXT("componentName"),  ComponentName);
-				Entry->SetStringField(TEXT("componentClass"), CompClass->GetName());
-				FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-				FKismetEditorUtilities::CompileBlueprint(BP);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+					Var.PropertyFlags &= ~(CPF_Edit | CPF_ExposeOnSpawn);
+				break;
 			}
-
-			if (Action == TEXT("remove_component"))
-			{
-				USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
-				if (!SCS) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint 无 SimpleConstructionScript")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				FString ComponentName;
-				OpArgs->TryGetStringField(TEXT("componentName"), ComponentName);
-				if (ComponentName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("remove_component 需要 componentName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				USCS_Node* Node = SCS->FindSCSNode(*ComponentName);
-				if (!Node) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("组件 '%s' 未找到"), *ComponentName)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				Entry->SetStringField(TEXT("componentName"), ComponentName);
-				SCS->RemoveNodeAndPromoteChildren(Node);
-				FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-				FKismetEditorUtilities::CompileBlueprint(BP);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-
-			if (Action == TEXT("set_component_property"))
-			{
-				USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
-				if (!SCS) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint 无 SimpleConstructionScript")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				FString ComponentName, PropPath, Value;
-				OpArgs->TryGetStringField(TEXT("componentName"), ComponentName);
-				OpArgs->TryGetStringField(TEXT("propertyPath"),  PropPath);
-				OpArgs->TryGetStringField(TEXT("value"),         Value);
-				if (ComponentName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("缺少 componentName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				if (PropPath.IsEmpty())      { Entry->SetStringField(TEXT("error"), TEXT("缺少 propertyPath")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				USCS_Node* SCSNode = SCS->FindSCSNode(*ComponentName);
-				if (!SCSNode || !SCSNode->ComponentTemplate)
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("组件 '%s' 未找到"), *ComponentName)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-				}
-
-				UActorComponent* Template = SCSNode->ComponentTemplate;
-				TArray<FString> Segments;
-				PropPath.ParseIntoArray(Segments, TEXT("."), true);
-
-				FProperty* Prop   = nullptr;
-				void*      ValPtr = nullptr;
-				FString    PropErr;
-				if (!FNexusPropertyUtils::ResolvePropertyWrite(Template, Segments, 0, Prop, ValPtr, PropErr)) { Entry->SetStringField(TEXT("error"), PropErr); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				if (!FNexusPropertyUtils::ImportTextFromString(Prop, Value, ValPtr, Template))
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("设置 '%s' = '%s' 失败"), *PropPath, *Value)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-				}
-
-				Template->MarkPackageDirty();
-				Entry->SetStringField(TEXT("componentName"), ComponentName);
-				Entry->SetStringField(TEXT("propertyPath"),  PropPath);
-				FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-				FKismetEditorUtilities::CompileBlueprint(BP);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-
-			// set_defaults
-			{
-				FString PropPath, Value;
-				OpArgs->TryGetStringField(TEXT("propertyPath"), PropPath);
-				OpArgs->TryGetStringField(TEXT("value"),        Value);
-				if (PropPath.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set_defaults 需要 propertyPath")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				if (!BP->GeneratedClass) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint 无生成类")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				UObject* CDO = BP->GeneratedClass->GetDefaultObject();
-				if (!CDO) { Entry->SetStringField(TEXT("error"), TEXT("获取 CDO 失败")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				TArray<FString> Segments;
-				PropPath.ParseIntoArray(Segments, TEXT("."), true);
-
-				FProperty* Prop   = nullptr;
-				void*      ValPtr = nullptr;
-				FString    PropErr;
-				if (!FNexusPropertyUtils::ResolvePropertyWrite(CDO, Segments, 0, Prop, ValPtr, PropErr)) { Entry->SetStringField(TEXT("error"), PropErr); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				if (!FNexusPropertyUtils::ImportTextFromString(Prop, Value, ValPtr, CDO))
-				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("设置 '%s' = '%s' 失败"), *PropPath, *Value));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
-				}
-
-				Entry->SetStringField(TEXT("propertyPath"), PropPath);
-				FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-				FKismetEditorUtilities::CompileBlueprint(BP);
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-				continue;
-			}
+			Entry->SetStringField(TEXT("variableType"), VarTypeRaw.ToLower());
 		}
 
-		// ── Graph / Wire actions: require graphName ───────────────────────────────
-		const FString GraphName = OpArgs->HasField(TEXT("graphName")) ? OpArgs->GetStringField(TEXT("graphName")) : TEXT("");
-		if (GraphName.IsEmpty())
-		{
-			Entry->SetStringField(TEXT("error"), TEXT("节点/连线操作需要 graphName。提示：先 get_asset_blueprint(sections=[\"graphOverview\"]) 列出图名。")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-
-		UEdGraph* Graph = FNexusBlueprintGraphUtils::FindBPGraph(BP, GraphName);
-		if (!Graph)
-		{
-			TArray<UEdGraph*> AllGraphs;
-			FNexusBlueprintGraphUtils::CollectAllGraphs(BP, AllGraphs);
-			TArray<FString> GraphNames;
-			for (UEdGraph* G : AllGraphs)
-			{
-				if (G) GraphNames.Add(G->GetName());
-			}
-			const int32 MaxList = 12;
-			if (GraphNames.Num() > MaxList)
-			{
-				GraphNames.SetNum(MaxList);
-				GraphNames.Add(FString::Printf(TEXT("...+%d more"), AllGraphs.Num() - MaxList));
-			}
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("Graph '%s' 未找到。提示：graphName 是图对象名而非函数名。可用: %s"),
-				*GraphName, *FString::Join(GraphNames, TEXT(", ")))); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-
-		Entry->SetStringField(TEXT("graphName"), GraphName);
-		BP->Modify();
-		Graph->Modify();
-
-		// ── Node actions ──────────────────────────────────────────────────────────
-		if (Action == TEXT("add_node"))
-		{
-			if (!OpArgs->HasField(TEXT("nodeClass"))) { Entry->SetStringField(TEXT("error"), TEXT("add_node 需要 nodeClass")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-			const FString NodeClass = OpArgs->GetStringField(TEXT("nodeClass"));
-			const int32 PosX = OpArgs->HasField(TEXT("posX")) ? static_cast<int32>(OpArgs->GetNumberField(TEXT("posX"))) : 0;
-			const int32 PosY = OpArgs->HasField(TEXT("posY")) ? static_cast<int32>(OpArgs->GetNumberField(TEXT("posY"))) : 0;
-
-			UEdGraphNode* NewNode = nullptr;
-
-			if (NodeClass == TEXT("K2Node_CallFunction"))
-			{
-				if (!OpArgs->HasField(TEXT("functionName"))) { Entry->SetStringField(TEXT("error"), TEXT("K2Node_CallFunction 需要 functionName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				const FString FuncName = OpArgs->GetStringField(TEXT("functionName"));
-				FString FuncClassName;
-				OpArgs->TryGetStringField(TEXT("functionClass"), FuncClassName);
-
-				UFunction* Func = nullptr;
-				if (!FuncClassName.IsEmpty())
-				{
-					if (UClass* Owner = FNexusAssetUtils::FindClassWithUPrefix(FuncClassName))
-						Func = Owner->FindFunctionByName(*FuncName);
-				}
-				if (!Func)
-				{
-					for (TObjectIterator<UClass> It; It; ++It)
-					{
-						if (UFunction* F = It->FindFunctionByName(*FuncName))
-						{ Func = F; break; }
-					}
-				}
-				if (!Func)
-				{
-					const FString K2Name = TEXT("K2_") + FuncName;
-					for (TObjectIterator<UClass> It; It; ++It)
-					{
-						if (UFunction* F = It->FindFunctionByName(*K2Name))
-						{ Func = F; break; }
-					}
-				}
-				if (!Func) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("函数 '%s' 未找到（已尝试 'K2_%s'）"), *FuncName, *FuncName)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-				UK2Node_CallFunction* Node = NewObject<UK2Node_CallFunction>(Graph);
-				Node->SetFlags(RF_Transactional);
-				Node->SetFromFunction(Func);
-				Graph->AddNode(Node, false, false);
-				Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
-				Node->NodePosX = PosX; Node->NodePosY = PosY;
-				NewNode = Node;
-			}
-			else if (NodeClass == TEXT("K2Node_Event"))
-			{
-				// functionName：ReceiveBeginPlay / BeginPlay；functionClass 默认 Actor
-				if (!OpArgs->HasField(TEXT("functionName"))) { Entry->SetStringField(TEXT("error"), TEXT("K2Node_Event 需要 functionName（如 ReceiveBeginPlay）")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				FString EventName = OpArgs->GetStringField(TEXT("functionName"));
-				if (EventName == TEXT("BeginPlay")) EventName = TEXT("ReceiveBeginPlay");
-				FString EventClassName = TEXT("Actor");
-				OpArgs->TryGetStringField(TEXT("functionClass"), EventClassName);
-				UClass* EventClass = FNexusAssetUtils::FindClassWithUPrefix(EventClassName);
-				if (!EventClass) EventClass = AActor::StaticClass();
-				if (UK2Node_Event* Existing = FBlueprintEditorUtils::FindOverrideForFunction(BP, EventClass, FName(*EventName)))
-				{
-					Existing->SetEnabledState(ENodeEnabledState::Enabled, true);
-					NewNode = Existing;
-				}
-				else
-				{
-					UK2Node_Event* Node = NewObject<UK2Node_Event>(Graph);
-					Node->SetFlags(RF_Transactional);
-					Node->EventReference.SetExternalMember(FName(*EventName), EventClass);
-					Node->bOverrideFunction = true;
-					Graph->AddNode(Node, false, false);
-					Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
-					Node->NodePosX = PosX; Node->NodePosY = PosY;
-					NewNode = Node;
-				}
-			}
-			else if (NodeClass == TEXT("K2Node_VariableGet") || NodeClass == TEXT("K2Node_VariableSet"))
-			{
-				if (!OpArgs->HasField(TEXT("variableName"))) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("%s 需要 variableName"), *NodeClass)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				const FString VarName = OpArgs->GetStringField(TEXT("variableName"));
-
-				if (NodeClass == TEXT("K2Node_VariableGet"))
-				{
-					UK2Node_VariableGet* Node = NewObject<UK2Node_VariableGet>(Graph);
-					Node->SetFlags(RF_Transactional);
-					Node->VariableReference.SetSelfMember(FName(*VarName));
-					Graph->AddNode(Node, false, false);
-					Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
-					Node->NodePosX = PosX; Node->NodePosY = PosY;
-					NewNode = Node;
-				}
-				else
-				{
-					UK2Node_VariableSet* Node = NewObject<UK2Node_VariableSet>(Graph);
-					Node->SetFlags(RF_Transactional);
-					Node->VariableReference.SetSelfMember(FName(*VarName));
-					Graph->AddNode(Node, false, false);
-					Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
-					Node->NodePosX = PosX; Node->NodePosY = PosY;
-					NewNode = Node;
-				}
-			}
-			else
-			{
-				UClass* NodeUClass = FNexusAssetUtils::FindClassWithUPrefix(NodeClass);
-				if (!NodeUClass || !NodeUClass->IsChildOf(UEdGraphNode::StaticClass()))
-				{ Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("节点类 '%s' 未找到"), *NodeClass)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-				UEdGraphNode* Node = NewObject<UEdGraphNode>(Graph, NodeUClass);
-				Node->SetFlags(RF_Transactional);
-				Graph->AddNode(Node, false, false);
-				Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
-				Node->NodePosX = PosX; Node->NodePosY = PosY;
-				NewNode = Node;
-			}
-
-		Entry->SetStringField(TEXT("nodeId"),    NewNode->NodeGuid.ToString());
-		Entry->SetStringField(TEXT("nodeClass"), NewNode->GetClass()->GetName());
-		Entry->SetStringField(TEXT("nodeTitle"), NewNode->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 		FKismetEditorUtilities::CompileBlueprint(BP);
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-
-		if (Action == TEXT("remove_node"))
-		{
-			if (!OpArgs->HasField(TEXT("nodeId"))) { Entry->SetStringField(TEXT("error"), TEXT("remove_node 需要 nodeId")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-			const FString NodeIdStr = OpArgs->GetStringField(TEXT("nodeId"));
-			UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
-			if (!Node) { Entry->SetStringField(TEXT("error"), TEXT("节点未找到")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-			Entry->SetStringField(TEXT("nodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
-			Node->Modify();
-			Graph->GetSchema()->BreakNodeLinks(*Node);
-			Graph->RemoveNode(Node);
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-
-		if (Action == TEXT("set_node"))
-		{
-			if (!OpArgs->HasField(TEXT("nodeId"))) { Entry->SetStringField(TEXT("error"), TEXT("set_node 需要 nodeId")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-			const FString NodeIdStr = OpArgs->GetStringField(TEXT("nodeId"));
-			UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
-			if (!Node) { Entry->SetStringField(TEXT("error"), TEXT("节点未找到")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-			Node->Modify();
-			if (OpArgs->HasField(TEXT("posX")))    Node->NodePosX = static_cast<int32>(OpArgs->GetNumberField(TEXT("posX")));
-			if (OpArgs->HasField(TEXT("posY")))    Node->NodePosY = static_cast<int32>(OpArgs->GetNumberField(TEXT("posY")));
-			if (OpArgs->HasField(TEXT("comment"))) Node->NodeComment = OpArgs->GetStringField(TEXT("comment"));
-
-			if (OpArgs->HasField(TEXT("pinName")) && OpArgs->HasField(TEXT("pinDefaultValue")))
-			{
-				const FString PinName = OpArgs->GetStringField(TEXT("pinName"));
-				const FString PinVal  = OpArgs->GetStringField(TEXT("pinDefaultValue"));
-				bool bFound = false;
-				for (UEdGraphPin* Pin : Node->Pins)
-				{ if (Pin && Pin->PinName.ToString() == PinName) { Pin->DefaultValue = PinVal; bFound = true; break; } }
-				if (!bFound) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("引脚 '%s' 未找到"), *PinName)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-			}
-
-		Entry->SetStringField(TEXT("nodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
-		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+	return;
 	}
-
-		// ── Promote pin → variable（对齐编辑器 DoPromoteToVariable）──────────────
-		if (Action == TEXT("promote_pin"))
-		{
-			FString NodeIdStr, PinNameStr;
-			OpArgs->TryGetStringField(TEXT("nodeId"), NodeIdStr);
-			OpArgs->TryGetStringField(TEXT("pinName"), PinNameStr);
-			if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("promote_pin 需要 nodeId")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-			if (PinNameStr.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("promote_pin 需要 pinName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-			UEdGraphNode* PinNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
-			if (!PinNode) { Entry->SetStringField(TEXT("error"), TEXT("节点未找到")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-			UEdGraphPin* TargetPin = FNexusBlueprintGraphUtils::FindBPPin(PinNode, PinNameStr);
-			if (!TargetPin)
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(
-					TEXT("引脚 '%s' 未找到。可用 pinName: %s"),
-					*PinNameStr, *FNexusBlueprintGraphUtils::FormatBPPinNameHint(PinNode)));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-			if (TargetPin->bOrphanedPin)
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("无法提升孤立引脚（orphaned）")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-
-			bool bIsLocal = false;
-			if (OpArgs->HasField(TEXT("isLocal"))) bIsLocal = OpArgs->GetBoolField(TEXT("isLocal"));
-			if (bIsLocal && !FBlueprintEditorUtils::DoesSupportLocalVariables(Graph))
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("当前图不支持局部变量（仅函数图可用 isLocal=true）"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-
-			const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-			// 与编辑器一致：exec 不可提升；其余交给 Schema（双参 API 在各 UE 版本可用）
-			if (TargetPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("exec 引脚不可提升为变量"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-			if (!K2Schema->CanPromotePinToVariable(*TargetPin, !bIsLocal))
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("该引脚不可提升为变量"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-
-			// 提升依赖 SkeletonGeneratedClass
-			if (!BP->SkeletonGeneratedClass)
-			{
-				FKismetEditorUtilities::CompileBlueprint(BP);
-				if (!BP->SkeletonGeneratedClass)
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("蓝图无 SkeletonGeneratedClass，无法 promote_pin"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-				}
-			}
-
-			const FName SavedPinName = TargetPin->PinName;
-			FEdGraphPinType NewPinType = TargetPin->PinType;
-			NewPinType.bIsConst = false;
-			NewPinType.bIsReference = false;
-			NewPinType.bIsWeakPointer = false;
-			const FString PinDefault = TargetPin->GetDefaultAsString();
-
-			FString RequestedName;
-			OpArgs->TryGetStringField(TEXT("variableName"), RequestedName);
-			const FString BaseName = !RequestedName.IsEmpty()
-				? RequestedName
-				: (bIsLocal ? TEXT("NewLocalVar") : TEXT("NewVar"));
-			FName VarName = FBlueprintEditorUtils::FindUniqueKismetName(BP, BaseName);
-
-			UEdGraph* FunctionGraph = nullptr;
-			bool bWasSuccessful = false;
-			if (!bIsLocal)
-			{
-				bWasSuccessful = FBlueprintEditorUtils::AddMemberVariable(BP, VarName, NewPinType, PinDefault);
-			}
-			else
-			{
-				FunctionGraph = FBlueprintEditorUtils::GetTopLevelGraph(Graph);
-				if (!FunctionGraph)
-				{
-					Entry->SetStringField(TEXT("error"), TEXT("无法解析函数图用于局部变量"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-				}
-				bWasSuccessful = FBlueprintEditorUtils::AddLocalVariable(BP, FunctionGraph, VarName, NewPinType, PinDefault);
-			}
-			if (!bWasSuccessful)
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("创建变量失败: %s"), *VarName.ToString()));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-
-			// 加变量可能重建节点，刷新引脚引用
-			TargetPin = PinNode->FindPin(SavedPinName);
-			if (!TargetPin)
-			{
-				PinNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
-				TargetPin = PinNode ? FNexusBlueprintGraphUtils::FindBPPin(PinNode, SavedPinName.ToString()) : nullptr;
-			}
-			if (!TargetPin || !PinNode)
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("创建变量后目标引脚丢失（节点可能已重建）"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-
-			FEdGraphSchemaAction_K2NewNode NodeInfo;
-			UK2Node_Variable* TemplateNode = nullptr;
-			if (TargetPin->Direction == EGPD_Input)
-			{
-				TemplateNode = NewObject<UK2Node_VariableGet>();
-			}
-			else
-			{
-				TemplateNode = NewObject<UK2Node_VariableSet>();
-			}
-
-			if (!bIsLocal)
-			{
-				TemplateNode->VariableReference.SetSelfMember(VarName);
-			}
-			else
-			{
-				TemplateNode->VariableReference.SetLocalMember(
-					VarName,
-					FunctionGraph->GetName(),
-					FBlueprintEditorUtils::FindLocalVariableGuidByName(BP, FunctionGraph, VarName));
-			}
-			NodeInfo.NodeTemplate = TemplateNode;
-
-			FVector2D NewNodePos;
-			NewNodePos.X = (TargetPin->Direction == EGPD_Input)
-				? static_cast<float>(PinNode->NodePosX - 200)
-				: static_cast<float>(PinNode->NodePosX + 400);
-			NewNodePos.Y = static_cast<float>(PinNode->NodePosY);
-			if (OpArgs->HasField(TEXT("posX"))) NewNodePos.X = static_cast<float>(OpArgs->GetNumberField(TEXT("posX")));
-			if (OpArgs->HasField(TEXT("posY"))) NewNodePos.Y = static_cast<float>(OpArgs->GetNumberField(TEXT("posY")));
-
-			UEdGraphNode* Spawned = NodeInfo.PerformAction(Graph, TargetPin, NewNodePos, false);
-			if (!Spawned)
-			{
-				Entry->SetStringField(TEXT("error"), TEXT("创建 Get/Set 节点失败"));
-				OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-
-			Entry->SetStringField(TEXT("variableName"), VarName.ToString());
-			Entry->SetStringField(TEXT("pinName"), SavedPinName.ToString());
-			Entry->SetStringField(TEXT("nodeId"), Spawned->NodeGuid.ToString());
-			Entry->SetStringField(TEXT("nodeClass"), Spawned->GetClass()->GetName());
-			Entry->SetBoolField(TEXT("isLocal"), bIsLocal);
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			FKismetEditorUtilities::CompileBlueprint(BP);
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-
-	// ── Wire actions ──────────────────────────────────────────────────────────
-		const FString SrcNodeId  = OpArgs->HasField(TEXT("sourceNodeId"))  ? OpArgs->GetStringField(TEXT("sourceNodeId"))  : TEXT("");
-		const FString SrcPinName = OpArgs->HasField(TEXT("sourcePinName")) ? OpArgs->GetStringField(TEXT("sourcePinName")) : TEXT("");
-		if (SrcNodeId.IsEmpty() || SrcPinName.IsEmpty())
-		{ Entry->SetStringField(TEXT("error"), TEXT("连线操作需要 sourceNodeId 与 sourcePinName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue; }
-
-		UEdGraphNode* SrcNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, SrcNodeId);
-		if (!SrcNode) { Entry->SetStringField(TEXT("error"), TEXT("源节点未找到")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;}
-		UEdGraphPin* SrcPin = FNexusBlueprintGraphUtils::FindBPPin(SrcNode, SrcPinName);
-		if (!SrcPin)
-		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("源引脚 '%s' 未找到。可用 pinName: %s"),
-				*SrcPinName, *FNexusBlueprintGraphUtils::FormatBPPinNameHint(SrcNode))); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-
-		Entry->SetStringField(TEXT("sourceNodeId"),  SrcNodeId);
-		Entry->SetStringField(TEXT("sourcePinName"), SrcPinName);
-
-		const UEdGraphSchema* Schema = Graph->GetSchema();
-
-		if (Action == TEXT("connect"))
-		{
-			if (!OpArgs->HasField(TEXT("targetNodeId")) || !OpArgs->HasField(TEXT("targetPinName")))
-			{ Entry->SetStringField(TEXT("error"), TEXT("connect 需要 targetNodeId 与 targetPinName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;}
-			const FString DstNodeId  = OpArgs->GetStringField(TEXT("targetNodeId"));
-			const FString DstPinName = OpArgs->GetStringField(TEXT("targetPinName"));
-			UEdGraphNode* DstNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, DstNodeId);
-			if (!DstNode) { Entry->SetStringField(TEXT("error"), TEXT("目标节点未找到")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;}
-			UEdGraphPin* DstPin = FNexusBlueprintGraphUtils::FindBPPin(DstNode, DstPinName);
-			if (!DstPin)
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(
-					TEXT("目标引脚 '%s' 未找到。可用 pinName: %s"),
-					*DstPinName, *FNexusBlueprintGraphUtils::FormatBPPinNameHint(DstNode))); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-
-			SrcPin->Modify();
-			DstPin->Modify();
-
-			const FPinConnectionResponse Resp = Schema->CanCreateConnection(SrcPin, DstPin);
-			if (Resp.Response == CONNECT_RESPONSE_DISALLOW)
-			{ Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("无法连接: %s"), *Resp.Message.ToString())); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;}
-
-			if (!Schema->TryCreateConnection(SrcPin, DstPin))
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(
-					TEXT("TryCreateConnection 失败（源 %s.%s → 目标 %s.%s）。请确认 exec 用 then→execute、数据引脚类型兼容"),
-					*SrcNodeId, *SrcPin->PinName.ToString(), *DstNodeId, *DstPin->PinName.ToString())); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-			}
-			Entry->SetStringField(TEXT("targetNodeId"),  DstNodeId);
-			Entry->SetStringField(TEXT("targetPinName"), DstPin->PinName.ToString());
-			Entry->SetStringField(TEXT("sourcePinName"), SrcPin->PinName.ToString());
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-
-		if (Action == TEXT("disconnect"))
-		{
-			if (!OpArgs->HasField(TEXT("targetNodeId")) || !OpArgs->HasField(TEXT("targetPinName")))
-			{ Entry->SetStringField(TEXT("error"), TEXT("disconnect 需要 targetNodeId 与 targetPinName")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;}
-			UEdGraphNode* DstNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, OpArgs->GetStringField(TEXT("targetNodeId")));
-			if (!DstNode) { Entry->SetStringField(TEXT("error"), TEXT("目标节点未找到")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;}
-			const FString DstPinName = OpArgs->GetStringField(TEXT("targetPinName"));
-			UEdGraphPin* DstPin = FNexusBlueprintGraphUtils::FindBPPin(DstNode, DstPinName);
-			if (!DstPin) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("目标引脚 '%s' 未找到"), *DstPinName)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;}
-			Schema->BreakSinglePinLink(SrcPin, DstPin);
-			Entry->SetStringField(TEXT("targetPinName"), DstPinName);
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-
-		if (Action == TEXT("disconnect_all"))
-		{
-			const int32 LinkCount = SrcPin->LinkedTo.Num();
-			Schema->BreakPinLinks(*SrcPin, true);
-			Entry->SetNumberField(TEXT("disconnectedCount"), LinkCount);
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
-		}
-
-		Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action '%s'"), *Action));
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-		}
-	});
-
-	return Result;
 #else
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& Entry, auto& OutError)
-	{
-		OutError = TEXT("manage_asset_blueprint 仅在编辑器构建可用");
-	});
+	(void)Op; (void)Ctx;
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("manage_asset_blueprint only available in editor builds"));
 #endif
 }
+
+static void HandleBP_FunctionGraph(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+#if WITH_EDITOR
+	UBlueprint* BP = static_cast<UBlueprint*>(Ctx.Target);
+	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
+	const FString& Action = Ctx.Action;
+	if (Action == TEXT("add_function") || Action == TEXT("remove_function"))
+	{
+		const FString FuncName = Op->HasField(TEXT("functionName")) ? Op->GetStringField(TEXT("functionName")) : TEXT("");
+		if (FuncName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("functionName is required"));
+	return; }
+		Entry->SetStringField(TEXT("functionName"), FuncName);
+
+		if (Action == TEXT("add_function"))
+		{
+			bool bExists = false;
+			for (UEdGraph* G : BP->FunctionGraphs)
+			{
+				if (G && G->GetName() == FuncName) { bExists = true; break; }
+			}
+			if (bExists) { Entry->SetStringField(TEXT("error"), TEXT("Function graph already exists"));
+	return; }
+
+			UEdGraph* NewGraph = FBlueprintEditorUtils::CreateNewGraph(
+				BP, FName(*FuncName), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
+			if (!NewGraph) { Entry->SetStringField(TEXT("error"), TEXT("Failed to create function graph"));
+	return; }
+			FBlueprintEditorUtils::AddFunctionGraph<UClass>(BP, NewGraph, /*bIsUserCreated=*/true, /*SignatureFromClass=*/nullptr);
+		}
+		else
+		{
+			bool bFromInterface = false;
+			for (const FBPInterfaceDescription& Desc : BP->ImplementedInterfaces)
+			{
+				for (UEdGraph* G : Desc.Graphs)
+				{
+					if (G && G->GetName() == FuncName) { bFromInterface = true; break; }
+				}
+				if (bFromInterface) break;
+			}
+			if (bFromInterface)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("Use remove_interface for interface funcs; cannot delete graph alone"));
+	return;
+			}
+
+			UEdGraph* Found = nullptr;
+			for (UEdGraph* G : BP->FunctionGraphs)
+			{
+				if (G && G->GetName() == FuncName) { Found = G; break; }
+			}
+			if (!Found) { Entry->SetStringField(TEXT("error"), TEXT("Function graph not found"));
+	return; }
+			FBlueprintEditorUtils::RemoveGraph(BP, Found, EGraphRemoveFlags::Recompile);
+		}
+
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+		FKismetEditorUtilities::CompileBlueprint(BP);
+	return;
+	}
+
+	if (Action == TEXT("add_macro") || Action == TEXT("add_timeline") || Action == TEXT("add_dispatcher") || Action == TEXT("add_local_variable"))
+	{
+		if (Action == TEXT("add_macro"))
+		{
+			const FString MacroName = Op->HasField(TEXT("functionName")) ? Op->GetStringField(TEXT("functionName")) : TEXT("");
+			if (MacroName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_macro requires functionName"));
+	return; }
+			UEdGraph* NewGraph = FBlueprintEditorUtils::CreateNewGraph(BP, FName(*MacroName), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
+			if (!NewGraph) { Entry->SetStringField(TEXT("error"), TEXT("Failed to create macro graph"));
+	return; }
+			FBlueprintEditorUtils::AddMacroGraph(BP, NewGraph, true, nullptr);
+			Entry->SetStringField(TEXT("functionName"), MacroName);
+		}
+		else if (Action == TEXT("add_timeline"))
+		{
+			const FString TlName = Op->HasField(TEXT("functionName")) ? Op->GetStringField(TEXT("functionName")) : TEXT("");
+			if (TlName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_timeline requires functionName"));
+	return; }
+			UTimelineTemplate* Tl = FBlueprintEditorUtils::AddNewTimeline(BP, FName(*TlName));
+			if (!Tl) { Entry->SetStringField(TEXT("error"), TEXT("Create Timeline failed"));
+	return; }
+			Entry->SetStringField(TEXT("functionName"), TlName);
+		}
+		else if (Action == TEXT("add_dispatcher"))
+		{
+			const FString VarName = Op->HasField(TEXT("variableName")) ? Op->GetStringField(TEXT("variableName")) : TEXT("");
+			if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_dispatcher requires variableName"));
+	return; }
+			FEdGraphPinType PinType;
+			PinType.PinCategory = UEdGraphSchema_K2::PC_MCDelegate;
+			FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType);
+			Entry->SetStringField(TEXT("variableName"), VarName);
+		}
+		else
+		{
+			const FString FuncName = Op->HasField(TEXT("functionName")) ? Op->GetStringField(TEXT("functionName")) : TEXT("");
+			const FString VarName = Op->HasField(TEXT("variableName")) ? Op->GetStringField(TEXT("variableName")) : TEXT("");
+			const FString VarTypeRaw = Op->HasField(TEXT("variableType")) ? Op->GetStringField(TEXT("variableType")) : TEXT("bool");
+			if (FuncName.IsEmpty() || VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_local_variable requires functionName and variableName"));
+	return; }
+			UEdGraph* FuncGraph = nullptr;
+			for (UEdGraph* G : BP->FunctionGraphs)
+			{
+				if (G && G->GetName() == FuncName) { FuncGraph = G; break; }
+			}
+			if (!FuncGraph) { Entry->SetStringField(TEXT("error"), TEXT("Function graph not found"));
+	return; }
+			FEdGraphPinType PinType;
+			FString TypeErr;
+			if (!FNexusPinTypeUtils::ParsePinType(VarTypeRaw, PinType, TypeErr)) { Entry->SetStringField(TEXT("error"), TypeErr);
+	return; }
+			FBlueprintEditorUtils::AddLocalVariable(BP, FuncGraph, FName(*VarName), PinType);
+			Entry->SetStringField(TEXT("variableName"), VarName);
+		}
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+		FKismetEditorUtilities::CompileBlueprint(BP);
+	return;
+	}
+#else
+	(void)Op; (void)Ctx;
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("manage_asset_blueprint only available in editor builds"));
+#endif
+}
+
+static void HandleBP_Interface(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+#if WITH_EDITOR
+	UBlueprint* BP = static_cast<UBlueprint*>(Ctx.Target);
+	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
+	const FString& Action = Ctx.Action;
+	if (Action == TEXT("add_interface") || Action == TEXT("remove_interface"))
+	{
+		const FString IfaceName = Op->HasField(TEXT("interfaceName")) ? Op->GetStringField(TEXT("interfaceName")) : TEXT("");
+		if (IfaceName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("interfaceName required (BPI path or interface class)"));
+	return; }
+		Entry->SetStringField(TEXT("interfaceName"), IfaceName);
+
+		if (BP->BlueprintType == BPTYPE_Interface)
+		{
+			Entry->SetStringField(TEXT("error"), TEXT("Use create parentClass for interface BPs; cannot add_interface"));
+	return;
+		}
+
+		UClass* IfaceClass = ResolveInterfaceClass(IfaceName);
+		if (!IfaceClass)
+		{
+			Entry->SetStringField(TEXT("error"), FString::Printf(
+				TEXT("Interface not found or not Interface: %s (BPI path or GeneratedClass)"), *IfaceName));
+	return;
+		}
+		if (IfaceClass->GetName() == TEXT("Interface"))
+		{
+			Entry->SetStringField(TEXT("error"), TEXT("Cannot implement native UInterface; pass BPI asset"));
+	return;
+		}
+		Entry->SetStringField(TEXT("interfaceClass"), IfaceClass->GetName());
+
+		if (Action == TEXT("add_interface"))
+		{
+			if (BlueprintAlreadyImplements(BP, IfaceClass))
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("Interface already implemented"));
+	return;
+			}
+#if NX_UE_HAS_BP_INTERFACE_ASSET_PATH
+			FBlueprintEditorUtils::ImplementNewInterface(BP, IfaceClass->GetClassPathName());
+#else
+			FBlueprintEditorUtils::ImplementNewInterface(BP, IfaceClass->GetFName());
+#endif
+			if (!BlueprintAlreadyImplements(BP, IfaceClass))
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("ImplementNewInterface failed (requires compiled interface BP)"));
+	return;
+			}
+		}
+		else
+		{
+			if (!BlueprintAlreadyImplements(BP, IfaceClass))
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("Interface not implemented"));
+	return;
+			}
+#if NX_UE_HAS_BP_INTERFACE_ASSET_PATH
+			FBlueprintEditorUtils::RemoveInterface(BP, IfaceClass->GetClassPathName());
+#else
+			FBlueprintEditorUtils::RemoveInterface(BP, IfaceClass->GetFName());
+#endif
+		}
+
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+		FKismetEditorUtilities::CompileBlueprint(BP);
+	return;
+	}
+#else
+	(void)Op; (void)Ctx;
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("manage_asset_blueprint only available in editor builds"));
+#endif
+}
+
+static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+#if WITH_EDITOR
+	UBlueprint* BP = static_cast<UBlueprint*>(Ctx.Target);
+	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
+	const FString& Action = Ctx.Action;
+	if (Action == TEXT("add_component") || Action == TEXT("remove_component") ||
+	    Action == TEXT("set_component_property") || Action == TEXT("set_defaults"))
+	{
+		if (!BP->ParentClass || !BP->ParentClass->IsChildOf(AActor::StaticClass()))
+		{
+			const FString ParentName = BP->ParentClass ? BP->ParentClass->GetName() : TEXT("(none)");
+			Entry->SetStringField(TEXT("error"), FString::Printf(
+				TEXT("Blueprint parent is not Actor subclass: %s (parent=%s). add_component/set_defaults need Actor BP; use add_variable/add_function/add_node for GA/UI/BPI."),
+				*Ctx.AssetPath, *ParentName));
+	return;
+		}
+
+		if (Action == TEXT("add_component"))
+		{
+			FString ComponentClassName, ComponentName;
+			Op->TryGetStringField(TEXT("componentClass"), ComponentClassName);
+			Op->TryGetStringField(TEXT("componentName"),  ComponentName);
+			if (ComponentClassName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_component requires componentClass"));
+	return; }
+			if (ComponentName.IsEmpty())      { Entry->SetStringField(TEXT("error"), TEXT("add_component requires componentName"));
+	return; }
+
+			USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
+			if (!SCS) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint has no SimpleConstructionScript"));
+	return; }
+
+			UClass* CompClass = FNexusAssetUtils::FindClassWithUPrefix(ComponentClassName);
+			if (!CompClass || !CompClass->IsChildOf(UActorComponent::StaticClass()))
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Component class not found or not ActorComponent: %s"), *ComponentClassName));
+	return;
+			}
+			if (SCS->FindSCSNode(*ComponentName))
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Component '%s' already exists"), *ComponentName));
+	return;
+			}
+
+			USCS_Node* NewNode = SCS->CreateNode(CompClass, *ComponentName);
+			if (!NewNode) { Entry->SetStringField(TEXT("error"), TEXT("Create SCS nodefailed"));
+	return; }
+
+			FString AttachTo;
+			Op->TryGetStringField(TEXT("attachTo"), AttachTo);
+			if (!AttachTo.IsEmpty())
+			{
+				USCS_Node* ParentNode = SCS->FindSCSNode(*AttachTo);
+				if (!ParentNode) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("attachTo component '%s' not found"), *AttachTo));
+	return; }
+				ParentNode->AddChildNode(NewNode);
+			}
+			else
+			{
+				USCS_Node* DefaultRoot = SCS->GetDefaultSceneRootNode();
+				if (DefaultRoot) DefaultRoot->AddChildNode(NewNode);
+				else             SCS->AddNode(NewNode);
+			}
+
+			Entry->SetStringField(TEXT("componentName"),  ComponentName);
+			Entry->SetStringField(TEXT("componentClass"), CompClass->GetName());
+			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+			FKismetEditorUtilities::CompileBlueprint(BP);
+	return;
+		}
+
+		if (Action == TEXT("remove_component"))
+		{
+			USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
+			if (!SCS) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint has no SimpleConstructionScript"));
+	return; }
+
+			FString ComponentName;
+			Op->TryGetStringField(TEXT("componentName"), ComponentName);
+			if (ComponentName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("remove_component requires componentName"));
+	return; }
+
+			USCS_Node* Node = SCS->FindSCSNode(*ComponentName);
+			if (!Node) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Component '%s' not found"), *ComponentName));
+	return; }
+
+			Entry->SetStringField(TEXT("componentName"), ComponentName);
+			SCS->RemoveNodeAndPromoteChildren(Node);
+			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+			FKismetEditorUtilities::CompileBlueprint(BP);
+	return;
+		}
+
+		if (Action == TEXT("set_component_property"))
+		{
+			USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
+			if (!SCS) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint has no SimpleConstructionScript"));
+	return; }
+
+			FString ComponentName, PropPath, Value;
+			Op->TryGetStringField(TEXT("componentName"), ComponentName);
+			Op->TryGetStringField(TEXT("propertyPath"),  PropPath);
+			Op->TryGetStringField(TEXT("value"),         Value);
+			if (ComponentName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("Missing componentName"));
+	return; }
+			if (PropPath.IsEmpty())      { Entry->SetStringField(TEXT("error"), TEXT("Missing propertyPath"));
+	return; }
+
+			USCS_Node* SCSNode = SCS->FindSCSNode(*ComponentName);
+			if (!SCSNode || !SCSNode->ComponentTemplate)
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Component '%s' not found"), *ComponentName));
+	return;
+			}
+
+			UActorComponent* Template = SCSNode->ComponentTemplate;
+			TArray<FString> Segments;
+			PropPath.ParseIntoArray(Segments, TEXT("."), true);
+
+			FProperty* Prop   = nullptr;
+			void*      ValPtr = nullptr;
+			FString    PropErr;
+			if (!FNexusPropertyUtils::ResolvePropertyWrite(Template, Segments, 0, Prop, ValPtr, PropErr)) { Entry->SetStringField(TEXT("error"), PropErr);
+	return; }
+			if (!FNexusPropertyUtils::ImportTextFromString(Prop, Value, ValPtr, Template))
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to set '%s' = '%s'"), *PropPath, *Value));
+	return;
+			}
+
+			Template->MarkPackageDirty();
+			Entry->SetStringField(TEXT("componentName"), ComponentName);
+			Entry->SetStringField(TEXT("propertyPath"),  PropPath);
+			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+			FKismetEditorUtilities::CompileBlueprint(BP);
+	return;
+		}
+
+		// set_defaults
+		{
+			FString PropPath, Value;
+			Op->TryGetStringField(TEXT("propertyPath"), PropPath);
+			Op->TryGetStringField(TEXT("value"),        Value);
+			if (PropPath.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set_defaults requires propertyPath"));
+	return; }
+			if (!BP->GeneratedClass) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint has no generated class"));
+	return; }
+
+			UObject* CDO = BP->GeneratedClass->GetDefaultObject();
+			if (!CDO) { Entry->SetStringField(TEXT("error"), TEXT("Failed to get CDO"));
+	return; }
+
+			TArray<FString> Segments;
+			PropPath.ParseIntoArray(Segments, TEXT("."), true);
+
+			FProperty* Prop   = nullptr;
+			void*      ValPtr = nullptr;
+			FString    PropErr;
+			if (!FNexusPropertyUtils::ResolvePropertyWrite(CDO, Segments, 0, Prop, ValPtr, PropErr)) { Entry->SetStringField(TEXT("error"), PropErr);
+	return; }
+			if (!FNexusPropertyUtils::ImportTextFromString(Prop, Value, ValPtr, CDO))
+			{
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to set '%s' = '%s'"), *PropPath, *Value));
+	return;
+			}
+
+			Entry->SetStringField(TEXT("propertyPath"), PropPath);
+			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+			FKismetEditorUtilities::CompileBlueprint(BP);
+	return;
+		}
+	}
+#else
+	(void)Op; (void)Ctx;
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("manage_asset_blueprint only available in editor builds"));
+#endif
+}
+
+static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+#if WITH_EDITOR
+	UBlueprint* BP = static_cast<UBlueprint*>(Ctx.Target);
+	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
+	const FString& Action = Ctx.Action;
+	// ── Graph / Wire actions: require graphName ───────────────────────────────
+	const FString GraphName = Op->HasField(TEXT("graphName")) ? Op->GetStringField(TEXT("graphName")) : TEXT("");
+	if (GraphName.IsEmpty())
+	{
+		Entry->SetStringField(TEXT("error"), TEXT("Node/wire ops need graphName. Hint: get_asset_blueprint(sections=[\"graphOverview\"]) first."));
+	return;
+	}
+
+	UEdGraph* Graph = FNexusBlueprintGraphUtils::FindBPGraph(BP, GraphName);
+	if (!Graph)
+	{
+		TArray<UEdGraph*> AllGraphs;
+		FNexusBlueprintGraphUtils::CollectAllGraphs(BP, AllGraphs);
+		TArray<FString> GraphNames;
+		for (UEdGraph* G : AllGraphs)
+		{
+			if (G) GraphNames.Add(G->GetName());
+		}
+		const int32 MaxList = 12;
+		if (GraphNames.Num() > MaxList)
+		{
+			GraphNames.SetNum(MaxList);
+			GraphNames.Add(FString::Printf(TEXT("...+%d more"), AllGraphs.Num() - MaxList));
+		}
+		Entry->SetStringField(TEXT("error"), FString::Printf(
+			TEXT("Graph '%s' not found. graphName is graph object name, not function. Available: %s"),
+			*GraphName, *FString::Join(GraphNames, TEXT(", "))));
+	return;
+	}
+
+	Entry->SetStringField(TEXT("graphName"), GraphName);
+	BP->Modify();
+	Graph->Modify();
+
+	// ── Node actions ──────────────────────────────────────────────────────────
+	if (Action == TEXT("add_node"))
+	{
+		if (!Op->HasField(TEXT("nodeClass"))) { Entry->SetStringField(TEXT("error"), TEXT("add_node requires nodeClass"));
+	return; }
+		const FString NodeClass = Op->GetStringField(TEXT("nodeClass"));
+		const int32 PosX = Op->HasField(TEXT("posX")) ? static_cast<int32>(Op->GetNumberField(TEXT("posX"))) : 0;
+		const int32 PosY = Op->HasField(TEXT("posY")) ? static_cast<int32>(Op->GetNumberField(TEXT("posY"))) : 0;
+
+		UEdGraphNode* NewNode = nullptr;
+
+		if (NodeClass == TEXT("K2Node_CallFunction"))
+		{
+			if (!Op->HasField(TEXT("functionName"))) { Entry->SetStringField(TEXT("error"), TEXT("K2Node_CallFunction requires functionName"));
+	return; }
+			const FString FuncName = Op->GetStringField(TEXT("functionName"));
+			FString FuncClassName;
+			Op->TryGetStringField(TEXT("functionClass"), FuncClassName);
+
+			UFunction* Func = nullptr;
+			if (!FuncClassName.IsEmpty())
+			{
+				if (UClass* Owner = FNexusAssetUtils::FindClassWithUPrefix(FuncClassName))
+					Func = Owner->FindFunctionByName(*FuncName);
+			}
+			if (!Func)
+			{
+				for (TObjectIterator<UClass> It; It; ++It)
+				{
+					if (UFunction* F = It->FindFunctionByName(*FuncName))
+					{ Func = F; break; }
+				}
+			}
+			if (!Func)
+			{
+				const FString K2Name = TEXT("K2_") + FuncName;
+				for (TObjectIterator<UClass> It; It; ++It)
+				{
+					if (UFunction* F = It->FindFunctionByName(*K2Name))
+					{ Func = F; break; }
+				}
+			}
+			if (!Func) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Function '%s' not found (tried 'K2_%s')"), *FuncName, *FuncName));
+	return; }
+
+			UK2Node_CallFunction* Node = NewObject<UK2Node_CallFunction>(Graph);
+			Node->SetFlags(RF_Transactional);
+			Node->SetFromFunction(Func);
+			Graph->AddNode(Node, false, false);
+			Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
+			Node->NodePosX = PosX; Node->NodePosY = PosY;
+			NewNode = Node;
+		}
+		else if (NodeClass == TEXT("K2Node_Event"))
+		{
+			// functionName：ReceiveBeginPlay / BeginPlay；functionClass 默认 Actor
+			if (!Op->HasField(TEXT("functionName"))) { Entry->SetStringField(TEXT("error"), TEXT("K2Node_Event requires functionName (e.g. ReceiveBeginPlay)"));
+	return; }
+			FString EventName = Op->GetStringField(TEXT("functionName"));
+			if (EventName == TEXT("BeginPlay")) EventName = TEXT("ReceiveBeginPlay");
+			FString EventClassName = TEXT("Actor");
+			Op->TryGetStringField(TEXT("functionClass"), EventClassName);
+			UClass* EventClass = FNexusAssetUtils::FindClassWithUPrefix(EventClassName);
+			if (!EventClass) EventClass = AActor::StaticClass();
+			if (UK2Node_Event* Existing = FBlueprintEditorUtils::FindOverrideForFunction(BP, EventClass, FName(*EventName)))
+			{
+				Existing->SetEnabledState(ENodeEnabledState::Enabled, true);
+				NewNode = Existing;
+			}
+			else
+			{
+				UK2Node_Event* Node = NewObject<UK2Node_Event>(Graph);
+				Node->SetFlags(RF_Transactional);
+				Node->EventReference.SetExternalMember(FName(*EventName), EventClass);
+				Node->bOverrideFunction = true;
+				Graph->AddNode(Node, false, false);
+				Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
+				Node->NodePosX = PosX; Node->NodePosY = PosY;
+				NewNode = Node;
+			}
+		}
+		else if (NodeClass == TEXT("K2Node_VariableGet") || NodeClass == TEXT("K2Node_VariableSet"))
+		{
+			if (!Op->HasField(TEXT("variableName"))) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("%s requires variableName"), *NodeClass));
+	return; }
+			const FString VarName = Op->GetStringField(TEXT("variableName"));
+
+			if (NodeClass == TEXT("K2Node_VariableGet"))
+			{
+				UK2Node_VariableGet* Node = NewObject<UK2Node_VariableGet>(Graph);
+				Node->SetFlags(RF_Transactional);
+				Node->VariableReference.SetSelfMember(FName(*VarName));
+				Graph->AddNode(Node, false, false);
+				Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
+				Node->NodePosX = PosX; Node->NodePosY = PosY;
+				NewNode = Node;
+			}
+			else
+			{
+				UK2Node_VariableSet* Node = NewObject<UK2Node_VariableSet>(Graph);
+				Node->SetFlags(RF_Transactional);
+				Node->VariableReference.SetSelfMember(FName(*VarName));
+				Graph->AddNode(Node, false, false);
+				Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
+				Node->NodePosX = PosX; Node->NodePosY = PosY;
+				NewNode = Node;
+			}
+		}
+		else
+		{
+			UClass* NodeUClass = FNexusAssetUtils::FindClassWithUPrefix(NodeClass);
+			if (!NodeUClass || !NodeUClass->IsChildOf(UEdGraphNode::StaticClass()))
+			{ Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Node class '%s' not found"), *NodeClass));
+	return; }
+			UEdGraphNode* Node = NewObject<UEdGraphNode>(Graph, NodeUClass);
+			Node->SetFlags(RF_Transactional);
+			Graph->AddNode(Node, false, false);
+			Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
+			Node->NodePosX = PosX; Node->NodePosY = PosY;
+			NewNode = Node;
+		}
+
+	Entry->SetStringField(TEXT("nodeId"),    NewNode->NodeGuid.ToString());
+	Entry->SetStringField(TEXT("nodeClass"), NewNode->GetClass()->GetName());
+	Entry->SetStringField(TEXT("nodeTitle"), NewNode->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+	FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+	FKismetEditorUtilities::CompileBlueprint(BP);
+	return;
+	}
+
+	if (Action == TEXT("remove_node"))
+	{
+		if (!Op->HasField(TEXT("nodeId"))) { Entry->SetStringField(TEXT("error"), TEXT("remove_node requires nodeId"));
+	return; }
+		const FString NodeIdStr = Op->GetStringField(TEXT("nodeId"));
+		UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
+		if (!Node) { Entry->SetStringField(TEXT("error"), TEXT("Node not found"));
+	return; }
+		Entry->SetStringField(TEXT("nodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+		Node->Modify();
+		Graph->GetSchema()->BreakNodeLinks(*Node);
+		Graph->RemoveNode(Node);
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+	return;
+	}
+
+	if (Action == TEXT("set_node"))
+	{
+		if (!Op->HasField(TEXT("nodeId"))) { Entry->SetStringField(TEXT("error"), TEXT("set_node requires nodeId"));
+	return; }
+		const FString NodeIdStr = Op->GetStringField(TEXT("nodeId"));
+		UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
+		if (!Node) { Entry->SetStringField(TEXT("error"), TEXT("Node not found"));
+	return; }
+
+		Node->Modify();
+		if (Op->HasField(TEXT("posX")))    Node->NodePosX = static_cast<int32>(Op->GetNumberField(TEXT("posX")));
+		if (Op->HasField(TEXT("posY")))    Node->NodePosY = static_cast<int32>(Op->GetNumberField(TEXT("posY")));
+		if (Op->HasField(TEXT("comment"))) Node->NodeComment = Op->GetStringField(TEXT("comment"));
+
+		if (Op->HasField(TEXT("pinName")) && Op->HasField(TEXT("pinDefaultValue")))
+		{
+			const FString PinName = Op->GetStringField(TEXT("pinName"));
+			const FString PinVal  = Op->GetStringField(TEXT("pinDefaultValue"));
+			bool bFound = false;
+			for (UEdGraphPin* Pin : Node->Pins)
+			{ if (Pin && Pin->PinName.ToString() == PinName) { Pin->DefaultValue = PinVal; bFound = true; break; } }
+			if (!bFound) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Pin '%s' not found"), *PinName));
+	return; }
+		}
+
+	Entry->SetStringField(TEXT("nodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+	FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+	return;
+	}
+
+	// ── Promote pin → variable（对齐编辑器 DoPromoteToVariable）──────────────
+	if (Action == TEXT("promote_pin"))
+	{
+		FString NodeIdStr, PinNameStr;
+		Op->TryGetStringField(TEXT("nodeId"), NodeIdStr);
+		Op->TryGetStringField(TEXT("pinName"), PinNameStr);
+		if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("promote_pin requires nodeId"));
+	return; }
+		if (PinNameStr.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("promote_pin requires pinName"));
+	return; }
+
+		UEdGraphNode* PinNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
+		if (!PinNode) { Entry->SetStringField(TEXT("error"), TEXT("Node not found"));
+	return; }
+		UEdGraphPin* TargetPin = FNexusBlueprintGraphUtils::FindBPPin(PinNode, PinNameStr);
+		if (!TargetPin)
+		{
+			Entry->SetStringField(TEXT("error"), FString::Printf(
+				TEXT("Pin '%s' not found. Available pinName: %s"),
+				*PinNameStr, *FNexusBlueprintGraphUtils::FormatBPPinNameHint(PinNode)));
+	return;
+		}
+		if (TargetPin->bOrphanedPin)
+		{
+			Entry->SetStringField(TEXT("error"), TEXT("Cannot promote orphaned pin"));
+	return;
+		}
+
+		bool bIsLocal = false;
+		if (Op->HasField(TEXT("isLocal"))) bIsLocal = Op->GetBoolField(TEXT("isLocal"));
+		if (bIsLocal && !FBlueprintEditorUtils::DoesSupportLocalVariables(Graph))
+		{
+			Entry->SetStringField(TEXT("error"), TEXT("Local vars unsupported on this graph (function graphs only with isLocal=true)"));
+	return;
+		}
+
+		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+		// 与编辑器一致：exec 不可提升；其余交给 Schema（双参 API 在各 UE 版本可用）
+		if (TargetPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
+		{
+			Entry->SetStringField(TEXT("error"), TEXT("exec pin cannot be promoted to variable"));
+	return;
+		}
+		if (!K2Schema->CanPromotePinToVariable(*TargetPin, !bIsLocal))
+		{
+			Entry->SetStringField(TEXT("error"), TEXT("This pin cannot be promoted to variable"));
+	return;
+		}
+
+		// 提升依赖 SkeletonGeneratedClass
+		if (!BP->SkeletonGeneratedClass)
+		{
+			FKismetEditorUtilities::CompileBlueprint(BP);
+			if (!BP->SkeletonGeneratedClass)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("Blueprint has no SkeletonGeneratedClass; cannot promote_pin"));
+	return;
+			}
+		}
+
+		const FName SavedPinName = TargetPin->PinName;
+		FEdGraphPinType NewPinType = TargetPin->PinType;
+		NewPinType.bIsConst = false;
+		NewPinType.bIsReference = false;
+		NewPinType.bIsWeakPointer = false;
+		const FString PinDefault = TargetPin->GetDefaultAsString();
+
+		FString RequestedName;
+		Op->TryGetStringField(TEXT("variableName"), RequestedName);
+		const FString BaseName = !RequestedName.IsEmpty()
+			? RequestedName
+			: (bIsLocal ? TEXT("NewLocalVar") : TEXT("NewVar"));
+		FName VarName = FBlueprintEditorUtils::FindUniqueKismetName(BP, BaseName);
+
+		UEdGraph* FunctionGraph = nullptr;
+		bool bWasSuccessful = false;
+		if (!bIsLocal)
+		{
+			bWasSuccessful = FBlueprintEditorUtils::AddMemberVariable(BP, VarName, NewPinType, PinDefault);
+		}
+		else
+		{
+			FunctionGraph = FBlueprintEditorUtils::GetTopLevelGraph(Graph);
+			if (!FunctionGraph)
+			{
+				Entry->SetStringField(TEXT("error"), TEXT("Unable to resolve function graph for local variable"));
+	return;
+			}
+			bWasSuccessful = FBlueprintEditorUtils::AddLocalVariable(BP, FunctionGraph, VarName, NewPinType, PinDefault);
+		}
+		if (!bWasSuccessful)
+		{
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to create variable: %s"), *VarName.ToString()));
+	return;
+		}
+
+		// 加变量可能重建节点，刷新引脚引用
+		TargetPin = PinNode->FindPin(SavedPinName);
+		if (!TargetPin)
+		{
+			PinNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
+			TargetPin = PinNode ? FNexusBlueprintGraphUtils::FindBPPin(PinNode, SavedPinName.ToString()) : nullptr;
+		}
+		if (!TargetPin || !PinNode)
+		{
+			Entry->SetStringField(TEXT("error"), TEXT("Target pin lost after creating variable (node may have rebuilt)"));
+	return;
+		}
+
+		FEdGraphSchemaAction_K2NewNode NodeInfo;
+		UK2Node_Variable* TemplateNode = nullptr;
+		if (TargetPin->Direction == EGPD_Input)
+		{
+			TemplateNode = NewObject<UK2Node_VariableGet>();
+		}
+		else
+		{
+			TemplateNode = NewObject<UK2Node_VariableSet>();
+		}
+
+		if (!bIsLocal)
+		{
+			TemplateNode->VariableReference.SetSelfMember(VarName);
+		}
+		else
+		{
+			TemplateNode->VariableReference.SetLocalMember(
+				VarName,
+				FunctionGraph->GetName(),
+				FBlueprintEditorUtils::FindLocalVariableGuidByName(BP, FunctionGraph, VarName));
+		}
+		NodeInfo.NodeTemplate = TemplateNode;
+
+		FVector2D NewNodePos;
+		NewNodePos.X = (TargetPin->Direction == EGPD_Input)
+			? static_cast<float>(PinNode->NodePosX - 200)
+			: static_cast<float>(PinNode->NodePosX + 400);
+		NewNodePos.Y = static_cast<float>(PinNode->NodePosY);
+		if (Op->HasField(TEXT("posX"))) NewNodePos.X = static_cast<float>(Op->GetNumberField(TEXT("posX")));
+		if (Op->HasField(TEXT("posY"))) NewNodePos.Y = static_cast<float>(Op->GetNumberField(TEXT("posY")));
+
+		UEdGraphNode* Spawned = NodeInfo.PerformAction(Graph, TargetPin, NewNodePos, false);
+		if (!Spawned)
+		{
+			Entry->SetStringField(TEXT("error"), TEXT("Create Get/Set nodefailed"));
+	return;
+		}
+
+		Entry->SetStringField(TEXT("variableName"), VarName.ToString());
+		Entry->SetStringField(TEXT("pinName"), SavedPinName.ToString());
+		Entry->SetStringField(TEXT("nodeId"), Spawned->NodeGuid.ToString());
+		Entry->SetStringField(TEXT("nodeClass"), Spawned->GetClass()->GetName());
+		Entry->SetBoolField(TEXT("isLocal"), bIsLocal);
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+		FKismetEditorUtilities::CompileBlueprint(BP);
+	return;
+	}
+#else
+	(void)Op; (void)Ctx;
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("manage_asset_blueprint only available in editor builds"));
+#endif
+}
+
+static void HandleBP_Wire(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+#if WITH_EDITOR
+	UBlueprint* BP = static_cast<UBlueprint*>(Ctx.Target);
+	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
+	const FString& Action = Ctx.Action;
+
+	const FString GraphName = Op->HasField(TEXT("graphName")) ? Op->GetStringField(TEXT("graphName")) : TEXT("");
+	if (GraphName.IsEmpty())
+	{
+		Entry->SetStringField(TEXT("error"), TEXT("Node/wire ops need graphName. Hint: get_asset_blueprint(sections=[\"graphOverview\"]) first."));
+		return;
+	}
+	UEdGraph* Graph = FNexusBlueprintGraphUtils::FindBPGraph(BP, GraphName);
+	if (!Graph)
+	{
+		Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Graph '%s' not found"), *GraphName));
+		return;
+	}
+	Entry->SetStringField(TEXT("graphName"), GraphName);
+	BP->Modify();
+	Graph->Modify();
+
+	const FString SrcNodeId  = Op->HasField(TEXT("sourceNodeId"))  ? Op->GetStringField(TEXT("sourceNodeId"))  : TEXT("");
+	const FString SrcPinName = Op->HasField(TEXT("sourcePinName")) ? Op->GetStringField(TEXT("sourcePinName")) : TEXT("");
+	if (SrcNodeId.IsEmpty() || SrcPinName.IsEmpty())
+	{ Entry->SetStringField(TEXT("error"), TEXT("Wire ops require sourceNodeId and sourcePinName"));
+	return; }
+
+	UEdGraphNode* SrcNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, SrcNodeId);
+	if (!SrcNode) { Entry->SetStringField(TEXT("error"), TEXT("Source node not found"));
+	return;}
+	UEdGraphPin* SrcPin = FNexusBlueprintGraphUtils::FindBPPin(SrcNode, SrcPinName);
+	if (!SrcPin)
+	{
+		Entry->SetStringField(TEXT("error"), FString::Printf(
+			TEXT("Source pin '%s' not found. Available pinName: %s"),
+			*SrcPinName, *FNexusBlueprintGraphUtils::FormatBPPinNameHint(SrcNode)));
+	return;
+	}
+
+	Entry->SetStringField(TEXT("sourceNodeId"),  SrcNodeId);
+	Entry->SetStringField(TEXT("sourcePinName"), SrcPinName);
+
+	const UEdGraphSchema* Schema = Graph->GetSchema();
+
+	if (Action == TEXT("connect"))
+	{
+		if (!Op->HasField(TEXT("targetNodeId")) || !Op->HasField(TEXT("targetPinName")))
+		{ Entry->SetStringField(TEXT("error"), TEXT("connect requires targetNodeId and targetPinName"));
+	return;}
+		const FString DstNodeId  = Op->GetStringField(TEXT("targetNodeId"));
+		const FString DstPinName = Op->GetStringField(TEXT("targetPinName"));
+		UEdGraphNode* DstNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, DstNodeId);
+		if (!DstNode) { Entry->SetStringField(TEXT("error"), TEXT("Target node not found"));
+	return;}
+		UEdGraphPin* DstPin = FNexusBlueprintGraphUtils::FindBPPin(DstNode, DstPinName);
+		if (!DstPin)
+		{
+			Entry->SetStringField(TEXT("error"), FString::Printf(
+				TEXT("Target pin '%s' not found. Available pinName: %s"),
+				*DstPinName, *FNexusBlueprintGraphUtils::FormatBPPinNameHint(DstNode)));
+	return;
+		}
+
+		SrcPin->Modify();
+		DstPin->Modify();
+
+		const FPinConnectionResponse Resp = Schema->CanCreateConnection(SrcPin, DstPin);
+		if (Resp.Response == CONNECT_RESPONSE_DISALLOW)
+		{ Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Cannot connect: %s"), *Resp.Message.ToString()));
+	return;}
+
+		if (!Schema->TryCreateConnection(SrcPin, DstPin))
+		{
+			Entry->SetStringField(TEXT("error"), FString::Printf(
+				TEXT("TryCreateConnection failed (src %s.%s -> dst %s.%s). Use then->execute for exec; match data pin types"),
+				*SrcNodeId, *SrcPin->PinName.ToString(), *DstNodeId, *DstPin->PinName.ToString()));
+	return;
+		}
+		Entry->SetStringField(TEXT("targetNodeId"),  DstNodeId);
+		Entry->SetStringField(TEXT("targetPinName"), DstPin->PinName.ToString());
+		Entry->SetStringField(TEXT("sourcePinName"), SrcPin->PinName.ToString());
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+	return;
+	}
+
+	if (Action == TEXT("disconnect"))
+	{
+		if (!Op->HasField(TEXT("targetNodeId")) || !Op->HasField(TEXT("targetPinName")))
+		{ Entry->SetStringField(TEXT("error"), TEXT("disconnect requires targetNodeId and targetPinName"));
+	return;}
+		UEdGraphNode* DstNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, Op->GetStringField(TEXT("targetNodeId")));
+		if (!DstNode) { Entry->SetStringField(TEXT("error"), TEXT("Target node not found"));
+	return;}
+		const FString DstPinName = Op->GetStringField(TEXT("targetPinName"));
+		UEdGraphPin* DstPin = FNexusBlueprintGraphUtils::FindBPPin(DstNode, DstPinName);
+		if (!DstPin) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Target pin '%s' not found"), *DstPinName));
+	return;}
+		Schema->BreakSinglePinLink(SrcPin, DstPin);
+		Entry->SetStringField(TEXT("targetPinName"), DstPinName);
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+	return;
+	}
+
+	if (Action == TEXT("disconnect_all"))
+	{
+		const int32 LinkCount = SrcPin->LinkedTo.Num();
+		Schema->BreakPinLinks(*SrcPin, true);
+		Entry->SetNumberField(TEXT("disconnectedCount"), LinkCount);
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+	return;
+	}
+#else
+	(void)Op; (void)Ctx;
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("manage_asset_blueprint only available in editor builds"));
+#endif
+}
+
+bool FManageAssetBlueprintCapability::PrepareTarget(
+	const TSharedPtr<FJsonObject>& Args,
+	TSharedPtr<FJsonObject>& Entry,
+	void*& OutTarget,
+	FString& OutError) const
+{
+#if WITH_EDITOR
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
+	Entry->SetStringField(TEXT("path"), AssetPath);
+
+	UBlueprint* BP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(AssetPath);
+	if (!BP)
+	{
+		Entry->SetStringField(TEXT("path"), AssetPath);
+		Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Blueprint not found: %s"), *AssetPath));
+		return false;
+	}
+	OutTarget = BP;
+	return true;
+#else
+	OutError = TEXT("manage_asset_blueprint only available in editor builds");
+	return false;
+#endif
+}
+
+void FManageAssetBlueprintCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+{
+	OutHandlers.Add(TEXT("add_variable"), &HandleBP_Variable);
+	OutHandlers.Add(TEXT("remove_variable"), &HandleBP_Variable);
+	OutHandlers.Add(TEXT("add_function"), &HandleBP_FunctionGraph);
+	OutHandlers.Add(TEXT("remove_function"), &HandleBP_FunctionGraph);
+	OutHandlers.Add(TEXT("add_macro"), &HandleBP_FunctionGraph);
+	OutHandlers.Add(TEXT("add_timeline"), &HandleBP_FunctionGraph);
+	OutHandlers.Add(TEXT("add_dispatcher"), &HandleBP_FunctionGraph);
+	OutHandlers.Add(TEXT("add_local_variable"), &HandleBP_FunctionGraph);
+	OutHandlers.Add(TEXT("add_interface"), &HandleBP_Interface);
+	OutHandlers.Add(TEXT("remove_interface"), &HandleBP_Interface);
+	OutHandlers.Add(TEXT("add_component"), &HandleBP_SCS);
+	OutHandlers.Add(TEXT("remove_component"), &HandleBP_SCS);
+	OutHandlers.Add(TEXT("set_component_property"), &HandleBP_SCS);
+	OutHandlers.Add(TEXT("set_defaults"), &HandleBP_SCS);
+	OutHandlers.Add(TEXT("add_node"), &HandleBP_GraphNode);
+	OutHandlers.Add(TEXT("remove_node"), &HandleBP_GraphNode);
+	OutHandlers.Add(TEXT("set_node"), &HandleBP_GraphNode);
+	OutHandlers.Add(TEXT("promote_pin"), &HandleBP_GraphNode);
+	OutHandlers.Add(TEXT("connect"), &HandleBP_Wire);
+	OutHandlers.Add(TEXT("disconnect"), &HandleBP_Wire);
+	OutHandlers.Add(TEXT("disconnect_all"), &HandleBP_Wire);
+}
+
 
 REGISTER_MCP_CAPABILITY(FManageAssetBlueprintCapability)

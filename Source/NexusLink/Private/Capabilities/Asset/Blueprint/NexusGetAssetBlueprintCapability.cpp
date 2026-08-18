@@ -77,7 +77,7 @@ static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FBPQueryParam
 	{
 		TArray<FString> Avail;
 		for (const UEdGraph* G : AllGraphs) Avail.Add(G->GetName());
-		Root->SetStringField(TEXT("error"), FString::Printf(TEXT("Graph '%s' 未找到。可用: %s"), *Q.GraphName, *FString::Join(Avail, TEXT(", "))));
+		Root->SetStringField(TEXT("error"), FString::Printf(TEXT("Graph '%s' not found. Available: %s"), *Q.GraphName, *FString::Join(Avail, TEXT(", "))));
 		return Root;
 	}
 
@@ -358,7 +358,7 @@ void FGetAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& O
 {
 	Out.Name = TEXT("get_asset_blueprint");
 	Out.SearchAssetTypes = {TEXT("Blueprint")};
-	Out.Description = TEXT("从编辑器读 BP。回答蓝图问题前必须先调；禁止从源码推断。");
+	Out.Description = TEXT("Read BP from editor. Must call before answering blueprint questions.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
@@ -366,21 +366,21 @@ void FGetAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& O
 		TEXT("interface"), TEXT("bpi")
 	};
 	Out.RelatedCapabilities = { TEXT("manage_asset_blueprint"), TEXT("create_asset_blueprint") };
-	Out.WhenToUse = TEXT("用户问蓝图变量/Graph/函数 — 必须先调，勿 grep 源码");
+	Out.WhenToUse = TEXT("User asks BP vars/graph/functions — must call first; do not grep source");
 }
 
 TSharedPtr<FJsonObject> FGetAssetBlueprintCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("蓝图资产路径")))
-		.Prop(TEXT("nameFilter"),     FNexusSchema::Str(TEXT("项名称过滤（/regex/ ^前缀 后缀$）")))
-		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("defaults 段精确属性名过滤，如 [\"bUseBuffClass\",\"Scale\"]")))
-		.Prop(TEXT("graphName"),     FNexusSchema::Str(TEXT("图名（仅 graph 段）")))
-		.Prop(TEXT("graphType"),  FNexusSchema::Enum(TEXT("图类型过滤"),
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
+		.Prop(TEXT("nameFilter"),     FNexusSchema::Str(TEXT("Item name filter (/regex/ ^prefix suffix$)")))
+		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Exact property name filter for defaults, e.g. [\"bUseBuffClass\",\"Scale\"]")))
+		.Prop(TEXT("graphName"),     FNexusSchema::Str(TEXT("Graph name (graph section only)")))
+		.Prop(TEXT("graphType"),  FNexusSchema::Enum(TEXT("Graph type filter"),
 			{ TEXT("event"), TEXT("function"), TEXT("macro"), TEXT("animgraph"),
 			  TEXT("statemachine"), TEXT("state"), TEXT("transition"), TEXT("conduit"), TEXT("all") }))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("分页偏移"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("每页最大条数"), 100, 1, 500))
+		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
 		.Required({ TEXT("assetPath") })
 		.Build();
 }
@@ -406,21 +406,21 @@ bool FGetAssetBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject>& A
 	FString Path;
 	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
 	{
-		OutError = TEXT("缺少 assetPath");
+		OutError = TEXT("Missing assetPath");
 		return false;
 	}
 
 	UObject* Obj = FNexusAssetUtils::LoadAssetTracked<UObject>(Path);
 	if (!Obj)
 	{
-		OutError = FString::Printf(TEXT("资产未找到: %s"), *Path);
+		OutError = FString::Printf(TEXT("Asset not found: %s"), *Path);
 		return false;
 	}
 
 	UBlueprint* BP = Cast<UBlueprint>(Obj);
 	if (!BP)
 	{
-		OutError = FString::Printf(TEXT("资产不是 Blueprint: %s"), *Path);
+		OutError = FString::Printf(TEXT("Asset is not a Blueprint: %s"), *Path);
 		return false;
 	}
 
@@ -441,7 +441,7 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 	UBlueprint* BP = static_cast<UBlueprint*>(TargetOpaque);
 	if (!BP)
 	{
-		OutError = TEXT("无效的 Blueprint 目标");
+		OutError = TEXT("Invalid Blueprint target");
 		return;
 	}
 
@@ -457,7 +457,7 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 			if (Pair.Key != TEXT("assetType") && Pair.Key != TEXT("name"))
 				InOutDetail->SetField(Pair.Key, Pair.Value);
 #else
-		OutError = TEXT("graphOverview 仅在编辑器构建可用");
+		OutError = TEXT("graphOverview only available in editor builds");
 #endif
 	}
 	else if (SectionName == TEXT("graph"))
@@ -468,7 +468,7 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 			if (Pair.Key != TEXT("assetType") && Pair.Key != TEXT("name"))
 				InOutDetail->SetField(Pair.Key, Pair.Value);
 #else
-		OutError = TEXT("graph 仅在编辑器构建可用");
+		OutError = TEXT("graph only available in editor builds");
 #endif
 	}
 	else if (SectionName == TEXT("defaults"))
@@ -563,12 +563,12 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 		InOutDetail->SetNumberField(FString::Printf(TEXT("%sTotalCount"), *SectionName), Total);
 		InOutDetail->SetArrayField(ListKey, Page);
 #else
-		OutError = FString::Printf(TEXT("section '%s' 仅在编辑器构建可用"), *SectionName);
+		OutError = FString::Printf(TEXT("section '%s' only available in editor builds"), *SectionName);
 #endif
 	}
 	else
 	{
-		OutError = FString::Printf(TEXT("未处理的 section '%s'"), *SectionName);
+		OutError = FString::Printf(TEXT("Unhandled section '%s'"), *SectionName);
 	}
 }
 

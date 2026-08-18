@@ -1,6 +1,7 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Lua/Runtime/NexusGetRuntimeLuaStackCapability.h"
+#include "Utils/NexusArgs.h"
 
 #if WITH_UNLUA
 
@@ -82,19 +83,19 @@ static void CollectUpvalues(lua_State* L, lua_Debug& Ar, TSharedRef<FJsonObject>
 void FGetRuntimeLuaStackCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_lua_stack");
-	Out.Description = TEXT("转储 Lua 调用栈与局部/上值。detail=locals|upvalues|all。");
+	Out.Description = TEXT("Dump Lua call stack and locals/upvalues. detail=locals|upvalues|all.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedRef<FJsonObject> FrameIdxItem = MakeShared<FJsonObject>();
 		FrameIdxItem->SetStringField(TEXT("type"), TEXT("number"));
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("detail"),       FNexusSchema::Enum(TEXT("栈帧详情"),
+		.Prop(TEXT("detail"),       FNexusSchema::Enum(TEXT("Stack frame detail"),
 		{ TEXT("summary"), TEXT("locals"), TEXT("upvalues"), TEXT("all") }, TEXT("summary")))
-		.Prop(TEXT("frameIndex"),   FNexusSchema::Int(TEXT("要钻取的单个栈帧")))
-		.Prop(TEXT("frameIndices"), FNexusSchema::ArrayOf(TEXT("要钻取的多个栈帧"), FrameIdxItem))
-		.Prop(TEXT("sourceFilter"), FNexusSchema::Str(TEXT("栈帧源路径过滤")))
-		.Prop(TEXT("maxDepth"),     FNexusSchema::Int(TEXT("最大栈帧数"), 50, 1, 500))
+		.Prop(TEXT("frameIndex"),   FNexusSchema::Int(TEXT("Single stack frame to drill into")))
+		.Prop(TEXT("frameIndices"), FNexusSchema::ArrayOf(TEXT("Multiple stack frames to drill into"), FrameIdxItem))
+		.Prop(TEXT("sourceFilter"), FNexusSchema::Str(TEXT("Stack frame source path filter")))
+		.Prop(TEXT("maxDepth"),     FNexusSchema::Int(TEXT("Max stack frames"), 50, 1, 500))
 		.Build();
 	}();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
@@ -105,6 +106,7 @@ void FGetRuntimeLuaStackCapability::BuildDefinition(FNexusCapabilityDefinition& 
 
 FCapabilityResult FGetRuntimeLuaStackCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
+	const FNexusArgs A(Arguments);
 	FNexusMcpToolResult Tmp;
 	lua_State* L = FNexusLuaUtils::GetMainLuaState(Tmp);
 	if (!L)
@@ -116,11 +118,11 @@ FCapabilityResult FGetRuntimeLuaStackCapability::Execute(const TSharedPtr<FJsonO
 	TSet<int32> DrillFrameSet;
 
 	if (Arguments->HasField(TEXT("detail")))
-		Detail = Arguments->GetStringField(TEXT("detail")).ToLower();
+		Detail = A.Str(TEXT("detail")).ToLower();
 	if (Arguments->HasField(TEXT("sourceFilter")))
-		SourceFilter = Arguments->GetStringField(TEXT("sourceFilter"));
+		SourceFilter = A.Str(TEXT("sourceFilter"));
 	if (Arguments->HasField(TEXT("maxDepth")))
-		MaxDepth = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("maxDepth"))), 1, 500);
+		MaxDepth = FMath::Clamp(static_cast<int32>(A.Num(TEXT("maxDepth"))), 1, 500);
 
 	const TArray<TSharedPtr<FJsonValue>>* IndicesArr = nullptr;
 	if (Arguments->TryGetArrayField(TEXT("frameIndices"), IndicesArr))
@@ -130,7 +132,7 @@ FCapabilityResult FGetRuntimeLuaStackCapability::Execute(const TSharedPtr<FJsonO
 	}
 	else if (Arguments->HasField(TEXT("frameIndex")))
 	{
-		DrillFrameSet.Add(static_cast<int32>(Arguments->GetNumberField(TEXT("frameIndex"))));
+		DrillFrameSet.Add(static_cast<int32>(A.Num(TEXT("frameIndex"))));
 	}
 
 	const bool bDrillMode    = DrillFrameSet.Num() > 0;

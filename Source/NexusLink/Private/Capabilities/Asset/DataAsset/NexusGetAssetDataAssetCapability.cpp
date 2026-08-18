@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/DataAsset/NexusGetAssetDataAssetCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpTool.h"
 #include "NexusMcpSchemaBuilder.h"
@@ -30,19 +31,19 @@ void FGetAssetDataAssetCapability::BuildDefinition(FNexusCapabilityDefinition& O
 {
 	Out.Name = TEXT("get_asset_data_asset");
 	Out.SearchAssetTypes = {TEXT("DataAsset")};
-	Out.Description = TEXT("读 DataAsset 属性。含类型/值/是否继承；可路径过滤。");
+	Out.Description = TEXT("Read DataAsset properties. Includes type/value/inherited; path filter supported.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("DataAsset 资产路径")))
-		.Prop(TEXT("nameFilter"),     FNexusSchema::Str(TEXT("属性名过滤（/regex/ ^前缀 后缀$）")))
-		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("精确属性名过滤（首段路径），如 [\"Health\",\"Damage\"]")))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("分页偏移"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("每页最大条数"), 100, 1, 500))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("DataAsset asset path")))
+		.Prop(TEXT("nameFilter"),     FNexusSchema::Str(TEXT("Property name filter (/regex/ ^prefix suffix$)")))
+		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Exact property name filter (first path segment), e.g. [\"Health\",\"Damage\"]")))
+		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("dataasset"), TEXT("udataasset"), TEXT("properties"), TEXT("config") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_data_asset"), TEXT("create_asset_data_asset") };
-	Out.WhenToUse = TEXT("读 DataAsset 属性；不含编辑");
+	Out.WhenToUse = TEXT("Read DataAsset properties; no edits");
 }
 
 FCapabilityResult FGetAssetDataAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -50,20 +51,16 @@ FCapabilityResult FGetAssetDataAssetCapability::Execute(const TSharedPtr<FJsonOb
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		FString Path;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FString Path = A.Str(TEXT("assetPath"));
 
 		FString NameFilter;
 		int32   Offset     = 0;
 		int32   Limit      = 100;
-		if (Arguments->HasField(TEXT("nameFilter"))) NameFilter = Arguments->GetStringField(TEXT("nameFilter"));
-		if (Arguments->HasField(TEXT("offset")))     Offset     = FMath::Max(0, static_cast<int32>(Arguments->GetNumberField(TEXT("offset"))));
-		if (Arguments->HasField(TEXT("limit")))      Limit      = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 500);
+		if (Arguments->HasField(TEXT("nameFilter"))) NameFilter = A.Str(TEXT("nameFilter"));
+		if (Arguments->HasField(TEXT("offset")))     Offset     = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
+		if (Arguments->HasField(TEXT("limit")))      Limit      = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
 
 		TArray<FString> PropertyPaths;
 		const TArray<TSharedPtr<FJsonValue>>* PPArr = nullptr;
@@ -79,10 +76,10 @@ FCapabilityResult FGetAssetDataAssetCapability::Execute(const TSharedPtr<FJsonOb
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 
 		UObject* Obj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
-		if (!Obj) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("资产未找到: %s"), *Path)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		if (!Obj) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Asset not found: %s"), *Path)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 
 		UDataAsset* DA = Cast<UDataAsset>(Obj);
-		if (!DA) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("资产不是 DataAsset: %s"), *Path)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		if (!DA) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Asset is not a DataAsset: %s"), *Path)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 
 		TSharedPtr<FJsonObject> One = HandleDataAsset(DA, NameFilter, PropertyPaths, Offset, Limit);
 		for (const auto& Pair : One->Values) { Entry->SetField(Pair.Key, Pair.Value); }

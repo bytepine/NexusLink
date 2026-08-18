@@ -30,13 +30,13 @@ UWorld* FNexusEditorLevelUtils::LoadLevelWorldForRead(const FString& AssetPath, 
 {
 	bOutIsEditorWorld = false;
 #if !WITH_EDITOR
-	OutError = TEXT("get_asset_level 仅在编辑器模式可用");
+	OutError = TEXT("get_asset_level only available in editor mode");
 	return nullptr;
 #else
 	const FString PackagePath = NormalizeLevelPackagePath(AssetPath);
 	if (PackagePath.IsEmpty())
 	{
-		OutError = TEXT("assetPath 为空");
+		OutError = TEXT("assetPath is empty");
 		return nullptr;
 	}
 
@@ -55,14 +55,14 @@ UWorld* FNexusEditorLevelUtils::LoadLevelWorldForRead(const FString& AssetPath, 
 	UPackage* Package = LoadPackage(nullptr, *PackagePath, LOAD_NoWarn);
 	if (!Package)
 	{
-		OutError = FString::Printf(TEXT("关卡包未找到: %s"), *PackagePath);
+		OutError = FString::Printf(TEXT("Level package not found: %s"), *PackagePath);
 		return nullptr;
 	}
 
 	UWorld* World = UWorld::FindWorldInPackage(Package);
 	if (!World)
 	{
-		OutError = FString::Printf(TEXT("包内无 UWorld: %s"), *PackagePath);
+		OutError = FString::Printf(TEXT("No UWorld in package: %s"), *PackagePath);
 		return nullptr;
 	}
 	return World;
@@ -100,13 +100,13 @@ bool FNexusEditorLevelUtils::SpawnActorInLevelWorld(UWorld* World, UClass* Class
 	const FRotator& Rotation, AActor*& OutActor, FString& OutError)
 {
 #if !WITH_EDITOR
-	OutError = TEXT("spawn_actor 仅在编辑器模式可用");
+	OutError = TEXT("spawn_actor only available in editor mode");
 	return false;
 #else
 	OutActor = nullptr;
 	if (!World || !Class)
 	{
-		OutError = TEXT("World 或 Class 无效");
+		OutError = TEXT("Invalid World or Class");
 		return false;
 	}
 	FActorSpawnParameters Params;
@@ -114,7 +114,7 @@ bool FNexusEditorLevelUtils::SpawnActorInLevelWorld(UWorld* World, UClass* Class
 	OutActor = World->SpawnActor<AActor>(Class, Location, Rotation, Params);
 	if (!OutActor)
 	{
-		OutError = TEXT("SpawnActor 失败");
+		OutError = TEXT("SpawnActor failed");
 		return false;
 	}
 	World->MarkPackageDirty();
@@ -125,18 +125,18 @@ bool FNexusEditorLevelUtils::SpawnActorInLevelWorld(UWorld* World, UClass* Class
 bool FNexusEditorLevelUtils::RemoveLevelActor(UWorld* World, AActor* Actor, FString& OutError)
 {
 #if !WITH_EDITOR
-	OutError = TEXT("remove_actor 仅在编辑器模式可用");
+	OutError = TEXT("remove_actor only available in editor mode");
 	return false;
 #else
 	if (!World || !Actor)
 	{
-		OutError = TEXT("World 或 Actor 无效");
+		OutError = TEXT("Invalid World or Actor");
 		return false;
 	}
 	const bool bDestroyed = World->EditorDestroyActor(Actor, true);
 	if (!bDestroyed)
 	{
-		OutError = TEXT("EditorDestroyActor 失败");
+		OutError = TEXT("EditorDestroyActor failed");
 		return false;
 	}
 	World->MarkPackageDirty();

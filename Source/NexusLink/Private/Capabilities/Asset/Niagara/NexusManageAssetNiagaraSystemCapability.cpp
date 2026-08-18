@@ -31,56 +31,56 @@ void FManageAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.Name = TEXT("manage_asset_niagara_system");
 	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
-	Out.Description = TEXT("批量编辑 Niagara。set_property/set_user_parameter（标量/向量/颜色/Quat）/Emitter CRUD；add_module/remove_module（编辑器）。");
+	Out.Description = TEXT("Batch edit Niagara. set_property/set_user_parameter/Emitter CRUD; add_module/remove_module (editor).");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 			{ TEXT("set_property"), TEXT("set_user_parameter"),
 			  TEXT("set_emitter_enabled"), TEXT("rename_emitter"),
 			  TEXT("add_emitter"), TEXT("remove_emitter"),
 			  TEXT("add_module"), TEXT("remove_module") }))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径（set_property）")))
-		.Prop(TEXT("parameterName"), FNexusSchema::Str(TEXT("用户参数名（set_user_parameter）")))
-		.Prop(TEXT("emitterName"), FNexusSchema::Str(TEXT("发射器名")))
-		.Prop(TEXT("newName"), FNexusSchema::Str(TEXT("rename_emitter 新名")))
+		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Property path (set_property)")))
+		.Prop(TEXT("parameterName"), FNexusSchema::Str(TEXT("User parameter name (set_user_parameter)")))
+		.Prop(TEXT("emitterName"), FNexusSchema::Str(TEXT("Emitter name")))
+		.Prop(TEXT("newName"), FNexusSchema::Str(TEXT("rename_emitter new name")))
 		.Prop(TEXT("enabled"), FNexusSchema::Bool(TEXT("set_emitter_enabled")))
-		.Prop(TEXT("emitterPath"), FNexusSchema::Str(TEXT("add_emitter：已有 NiagaraEmitter 路径；省略则建空白发射器")))
-		.Prop(TEXT("modulePath"), FNexusSchema::Str(TEXT("add_module：NiagaraScript 模块路径")))
-		.Prop(TEXT("moduleName"), FNexusSchema::Str(TEXT("remove_module：模块显示名")))
-		.Prop(TEXT("usage"), FNexusSchema::Enum(TEXT("add_module 脚本槽"),
+		.Prop(TEXT("emitterPath"), FNexusSchema::Str(TEXT("add_emitter: existing NiagaraEmitter path; omit to create empty emitter")))
+		.Prop(TEXT("modulePath"), FNexusSchema::Str(TEXT("add_module: NiagaraScript module path")))
+		.Prop(TEXT("moduleName"), FNexusSchema::Str(TEXT("remove_module: module display name")))
+		.Prop(TEXT("usage"), FNexusSchema::Enum(TEXT("add_module script slot"),
 			{ TEXT("Spawn"), TEXT("Update"), TEXT("EmitterSpawn"), TEXT("EmitterUpdate") }))
-		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("新值：float/int；bool=true|1；Vector2=x,y；Vector/Position=x,y,z；Vector4/Color/LinearColor=r,g,b,a；Quat=x,y,z,w；其它结构体走 ImportText")))
+		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("New value formats; other structs via ImportText")))
 		.Required({ TEXT("action") })
 		.Build();
 #else
-	Out.Description = TEXT("批量编辑 Niagara。set_property/Emitter CRUD；add_module/remove_module（编辑器）。");
+	Out.Description = TEXT("Batch edit Niagara. set_property/Emitter CRUD; add_module/remove_module (editor).");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 			{ TEXT("set_property"), TEXT("set_emitter_enabled"), TEXT("rename_emitter"),
 			  TEXT("add_emitter"), TEXT("remove_emitter"),
 			  TEXT("add_module"), TEXT("remove_module") }))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径（set_property）")))
-		.Prop(TEXT("emitterName"), FNexusSchema::Str(TEXT("发射器名")))
-		.Prop(TEXT("newName"), FNexusSchema::Str(TEXT("rename_emitter 新名")))
+		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Property path (set_property)")))
+		.Prop(TEXT("emitterName"), FNexusSchema::Str(TEXT("Emitter name")))
+		.Prop(TEXT("newName"), FNexusSchema::Str(TEXT("rename_emitter new name")))
 		.Prop(TEXT("enabled"), FNexusSchema::Bool(TEXT("set_emitter_enabled")))
-		.Prop(TEXT("emitterPath"), FNexusSchema::Str(TEXT("add_emitter：已有 NiagaraEmitter 路径；省略则建空白发射器")))
-		.Prop(TEXT("modulePath"), FNexusSchema::Str(TEXT("add_module：NiagaraScript 模块路径")))
-		.Prop(TEXT("moduleName"), FNexusSchema::Str(TEXT("remove_module：模块显示名")))
-		.Prop(TEXT("usage"), FNexusSchema::Enum(TEXT("add_module 脚本槽"),
+		.Prop(TEXT("emitterPath"), FNexusSchema::Str(TEXT("add_emitter: existing NiagaraEmitter path; omit to create empty emitter")))
+		.Prop(TEXT("modulePath"), FNexusSchema::Str(TEXT("add_module: NiagaraScript module path")))
+		.Prop(TEXT("moduleName"), FNexusSchema::Str(TEXT("remove_module: module display name")))
+		.Prop(TEXT("usage"), FNexusSchema::Enum(TEXT("add_module script slot"),
 			{ TEXT("Spawn"), TEXT("Update"), TEXT("EmitterSpawn"), TEXT("EmitterUpdate") }))
-		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("新值字符串")))
+		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("New value string")))
 		.Required({ TEXT("action") })
 		.Build();
 #endif
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("NiagaraSystem 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("NiagaraSystem asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("niagara"), TEXT("vfx"), TEXT("particle"), TEXT("fx"), TEXT("parameter") };
 	Out.RelatedCapabilities = { TEXT("get_asset_niagara_system"), TEXT("create_asset_niagara_system"), TEXT("search_asset") };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("改系统属性/用户参数/发射器 CRUD；add_module/remove_module 改模块栈（需编辑器）");
+	Out.WhenToUse = TEXT("Edit system props/user params/emitter CRUD; module stack via add_module/remove_module (editor)");
 }
 
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
@@ -111,7 +111,7 @@ static bool SetNiagaraUserParameter(UNiagaraSystem* System, const FString& Param
 {
 	if (!System || ParamName.IsEmpty())
 	{
-		OutError = TEXT("System 或 parameterName 无效");
+		OutError = TEXT("Invalid System or parameterName");
 		return false;
 	}
 	FNiagaraParameterStore& Store = System->GetExposedParameters();
@@ -146,13 +146,13 @@ static bool SetNiagaraUserParameter(UNiagaraSystem* System, const FString& Param
 			|| TypeName == FName(TEXT("Vec2")))
 		{
 			TArray<float> Parts;
-			if (!ParseNiagaraFloatParts(Value, 2, Parts, OutError, TEXT("Vector2 参数值格式应为 x,y")))
+			if (!ParseNiagaraFloatParts(Value, 2, Parts, OutError, TEXT("Vector2 parameter value format must be x,y")))
 			{
 				return false;
 			}
 			if (TypeDef.GetSize() < (int32)sizeof(FVector2D))
 			{
-				OutError = TEXT("Vector2 参数存储尺寸异常");
+				OutError = TEXT("Vector2 parameter storage size mismatch");
 				return false;
 			}
 			const FVector2D V(Parts[0], Parts[1]);
@@ -162,13 +162,13 @@ static bool SetNiagaraUserParameter(UNiagaraSystem* System, const FString& Param
 			|| TypeName == FName(TEXT("Vec3")) || TypeName == FName(TEXT("Position")))
 		{
 			TArray<float> Parts;
-			if (!ParseNiagaraFloatParts(Value, 3, Parts, OutError, TEXT("Vector/Position 参数值格式应为 x,y,z")))
+			if (!ParseNiagaraFloatParts(Value, 3, Parts, OutError, TEXT("Vector/Position parameter value format must be x,y,z")))
 			{
 				return false;
 			}
 			if (TypeDef.GetSize() < (int32)sizeof(FVector))
 			{
-				OutError = TEXT("Vector/Position 参数存储尺寸异常");
+				OutError = TEXT("Vector/Position parameter storage size mismatch");
 				return false;
 			}
 			const FVector V(Parts[0], Parts[1], Parts[2]);
@@ -177,13 +177,13 @@ static bool SetNiagaraUserParameter(UNiagaraSystem* System, const FString& Param
 		else if (TypeName == FName(TEXT("Vector4")) || TypeName == FName(TEXT("Vec4")))
 		{
 			TArray<float> Parts;
-			if (!ParseNiagaraFloatParts(Value, 4, Parts, OutError, TEXT("Vector4 参数值格式应为 x,y,z,w")))
+			if (!ParseNiagaraFloatParts(Value, 4, Parts, OutError, TEXT("Vector4 parameter value format must be x,y,z,w")))
 			{
 				return false;
 			}
 			if (TypeDef.GetSize() < (int32)sizeof(FVector4))
 			{
-				OutError = TEXT("Vector4 参数存储尺寸异常");
+				OutError = TEXT("Vector4 parameter storage size mismatch");
 				return false;
 			}
 			const FVector4 V(Parts[0], Parts[1], Parts[2], Parts[3]);
@@ -192,13 +192,13 @@ static bool SetNiagaraUserParameter(UNiagaraSystem* System, const FString& Param
 		else if (TypeName == FName(TEXT("LinearColor")) || TypeName == FName(TEXT("Color")))
 		{
 			TArray<float> Parts;
-			if (!ParseNiagaraFloatParts(Value, 4, Parts, OutError, TEXT("Color/LinearColor 参数值格式应为 r,g,b,a")))
+			if (!ParseNiagaraFloatParts(Value, 4, Parts, OutError, TEXT("Color/LinearColor parameter value format must be r,g,b,a")))
 			{
 				return false;
 			}
 			if (TypeDef.GetSize() < (int32)sizeof(FLinearColor))
 			{
-				OutError = TEXT("Color 参数存储尺寸异常");
+				OutError = TEXT("Color parameter storage size mismatch");
 				return false;
 			}
 			const FLinearColor C(Parts[0], Parts[1], Parts[2], Parts[3]);
@@ -207,13 +207,13 @@ static bool SetNiagaraUserParameter(UNiagaraSystem* System, const FString& Param
 		else if (TypeName == FName(TEXT("Quat")) || TypeName == FName(TEXT("Quaternion")))
 		{
 			TArray<float> Parts;
-			if (!ParseNiagaraFloatParts(Value, 4, Parts, OutError, TEXT("Quat 参数值格式应为 x,y,z,w")))
+			if (!ParseNiagaraFloatParts(Value, 4, Parts, OutError, TEXT("Quat parameter value format must be x,y,z,w")))
 			{
 				return false;
 			}
 			if (TypeDef.GetSize() < (int32)sizeof(FQuat))
 			{
-				OutError = TEXT("Quat 参数存储尺寸异常");
+				OutError = TEXT("Quat parameter storage size mismatch");
 				return false;
 			}
 			const FQuat Q(Parts[0], Parts[1], Parts[2], Parts[3]);
@@ -226,14 +226,14 @@ static bool SetNiagaraUserParameter(UNiagaraSystem* System, const FString& Param
 			const TCHAR* Result = Struct->ImportText(*Value, Data.GetData(), nullptr, PPF_None, nullptr, Struct->GetName());
 			if (!Result)
 			{
-				OutError = FString::Printf(TEXT("无法解析结构体参数 %s，值: %s"), *TypeName.ToString(), *Value);
+				OutError = FString::Printf(TEXT("Unable to parse struct parameter %s, value: %s"), *TypeName.ToString(), *Value);
 				return false;
 			}
 		}
 		else
 		{
 			OutError = FString::Printf(
-				TEXT("暂不支持的用户参数类型: %s（已支持 float/int32/bool/Vector2/Vector/Position/Vector4/Color/LinearColor/Quat）"),
+				TEXT("Unsupported user parameter type: %s (supported: float/int32/bool/Vector2/Vector/Position/Vector4/Color/LinearColor/Quat)"),
 				*TypeName.ToString());
 			return false;
 		}
@@ -242,7 +242,7 @@ static bool SetNiagaraUserParameter(UNiagaraSystem* System, const FString& Param
 		Store.SetParameterData(Data.GetData(), VarToSet, false);
 		return true;
 	}
-	OutError = FString::Printf(TEXT("用户参数未找到: %s"), *ParamName);
+	OutError = FString::Printf(TEXT("User parameter not found: %s"), *ParamName);
 	return false;
 }
 #endif
@@ -258,14 +258,14 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 		if (!System)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("NiagaraSystem 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("NiagaraSystem not found: %s"), *AssetPath));
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 
@@ -289,7 +289,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 		{
 			if (PropPath.IsEmpty() || Value.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_property 需要 propertyPath 和 value"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -304,14 +304,14 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			Entry->SetStringField(TEXT("propertyPath"), PropPath);
 			if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
 			if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 		}
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
 		else if (Action.Equals(TEXT("set_user_parameter"), ESearchCase::IgnoreCase))
 		{
 			if (ParamName.IsEmpty() || Value.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_user_parameter 需要 parameterName 和 value"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_user_parameter requires parameterName and value"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -325,7 +325,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			System->MarkPackageDirty();
 			Entry->SetStringField(TEXT("parameterName"), ParamName);
 			Entry->SetStringField(TEXT("newValue"), Value);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 		}
 #endif
 		else if (Action.Equals(TEXT("set_emitter_enabled"), ESearchCase::IgnoreCase)
@@ -336,7 +336,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			OpArgs->TryGetStringField(TEXT("emitterName"), EmitterName);
 			if (EmitterName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("需要 emitterName"));
+				Entry->SetStringField(TEXT("error"), TEXT("emitterName required"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -357,7 +357,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			}
 			if (FoundIdx == INDEX_NONE)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("发射器未找到: %s"), *EmitterName));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Emitter not found: %s"), *EmitterName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -375,7 +375,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 				OpArgs->TryGetStringField(TEXT("newName"), NewName);
 				if (NewName.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("rename_emitter 需要 newName"));
+					Entry->SetStringField(TEXT("error"), TEXT("rename_emitter requires newName"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -395,7 +395,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			}
 			System->MarkPackageDirty();
 			Entry->SetStringField(TEXT("emitterName"), EmitterName);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 		}
 		else if (Action.Equals(TEXT("add_emitter"), ESearchCase::IgnoreCase))
 		{
@@ -408,7 +408,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 				Emitter = FNexusAssetUtils::LoadAssetWithFallback<UNiagaraEmitter>(EmitterPath);
 				if (!Emitter)
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("NiagaraEmitter 未找到: %s"), *EmitterPath));
+					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("NiagaraEmitter not found: %s"), *EmitterPath));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -426,7 +426,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 					continue;
 				}
 #else
-				Entry->SetStringField(TEXT("error"), TEXT("add_emitter 省略 emitterPath 仅编辑器可用"));
+				Entry->SetStringField(TEXT("error"), TEXT("add_emitter without emitterPath is editor-only"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 #endif
@@ -439,7 +439,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 #endif
 			System->MarkPackageDirty();
 			Entry->SetStringField(TEXT("emitterName"), AddName.ToString());
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 		}
 		else if (Action.Equals(TEXT("add_module"), ESearchCase::IgnoreCase)
 			|| Action.Equals(TEXT("remove_module"), ESearchCase::IgnoreCase))
@@ -452,7 +452,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			OpArgs->TryGetStringField(TEXT("usage"), Usage);
 			if (EmitterName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("需要 emitterName"));
+				Entry->SetStringField(TEXT("error"), TEXT("emitterName required"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -461,7 +461,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			{
 				if (ModulePath.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("add_module 需要 modulePath"));
+					Entry->SetStringField(TEXT("error"), TEXT("add_module requires modulePath"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -479,7 +479,7 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			{
 				if (ModuleName.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("remove_module 需要 moduleName"));
+					Entry->SetStringField(TEXT("error"), TEXT("remove_module requires moduleName"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -493,14 +493,14 @@ FCapabilityResult FManageAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			}
 			System->MarkPackageDirty();
 			Entry->SetStringField(TEXT("emitterName"), EmitterName);
-			Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+			Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 #else
-			Entry->SetStringField(TEXT("error"), TEXT("add_module/remove_module 仅编辑器可用"));
+			Entry->SetStringField(TEXT("error"), TEXT("add_module/remove_module editor only"));
 #endif
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

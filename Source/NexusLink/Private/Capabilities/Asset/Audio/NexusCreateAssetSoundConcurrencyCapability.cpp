@@ -5,35 +5,32 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Sound/SoundConcurrency.h"
 #include "NexusMcpTool.h"
 
 void FCreateAssetSoundConcurrencyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_sound_concurrency");
-	Out.Description = TEXT("创建 SoundConcurrency 资产（最大并发实例数限制）。");
+	Out.Description = TEXT("Create SoundConcurrency asset (max concurrent instances).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundConcurrency 包路径")))
-		.Prop(TEXT("maxCount"),  FNexusSchema::Int(TEXT("最大并发实例数（默认16）"), 16, 1))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundConcurrency package path")))
+		.Prop(TEXT("maxCount"),  FNexusSchema::Int(TEXT("Max concurrent instances (default 16)"), 16, 1))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("concurrency"), TEXT("sound"), TEXT("limit"), TEXT("audio") };
 	Out.RelatedCapabilities = { TEXT("get_asset_sound_concurrency"), TEXT("manage_asset_sound_concurrency") };
-	Out.WhenToUse = TEXT("创建声音并发限制资产");
+	Out.WhenToUse = TEXT("Create sound concurrency limit asset");
 }
 
 FCapabilityResult FCreateAssetSoundConcurrencyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		if (LoadObject<USoundConcurrency>(nullptr, *AssetPath))
 		{
@@ -43,14 +40,14 @@ FCapabilityResult FCreateAssetSoundConcurrencyCapability::Execute(const TSharedP
 		}
 
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		USoundConcurrency* SC = NewObject<USoundConcurrency>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!SC) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("SoundConcurrency 创建失败")); return; }
+		if (!SC) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("SoundConcurrency Createfailed")); return; }
 
 		if (Arguments->HasField(TEXT("maxCount")))
-			SC->Concurrency.MaxCount = FMath::Max(1, (int32)Arguments->GetNumberField(TEXT("maxCount")));
+			SC->Concurrency.MaxCount = FMath::Max(1, (int32)A.Num(TEXT("maxCount")));
 
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, SC, AssetPath);
 

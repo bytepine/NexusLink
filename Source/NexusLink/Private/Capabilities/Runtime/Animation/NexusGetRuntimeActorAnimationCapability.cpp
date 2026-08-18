@@ -35,7 +35,7 @@ static UAnimInstance* FindAnimInstanceForCap(AActor* Actor)
 void FGetRuntimeActorAnimationCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_actor_animation");
-	Out.Description = TEXT("从运行中骨骼网格取 AnimInstance。sections=state|slots|variables。");
+	Out.Description = TEXT("Get AnimInstance from running skeletal mesh. sections=state|slots|variables.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("anim"), TEXT("montage"), TEXT("state"), TEXT("skeletal"), TEXT("animinstance") };
@@ -46,8 +46,8 @@ void FGetRuntimeActorAnimationCapability::BuildDefinition(FNexusCapabilityDefini
 TSharedPtr<FJsonObject> FGetRuntimeActorAnimationCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("actorName"),   FNexusSchema::Str(TEXT("Actor 名")))
-		.Prop(TEXT("nameFilter"),  FNexusSchema::Str(TEXT("变量/槽位名过滤")))
+		.Prop(TEXT("actorName"),   FNexusSchema::Str(TEXT("Actor name")))
+		.Prop(TEXT("nameFilter"),  FNexusSchema::Str(TEXT("Variable/slot name filter")))
 		.Build();
 }
 
@@ -71,7 +71,7 @@ bool FGetRuntimeActorAnimationCapability::PrepareEntry(const TSharedPtr<FJsonObj
 	FString ActorName;
 	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty())
 	{
-		OutError = TEXT("缺少 actorName");
+		OutError = TEXT("Missing actorName");
 		return false;
 	}
 
@@ -80,21 +80,21 @@ bool FGetRuntimeActorAnimationCapability::PrepareEntry(const TSharedPtr<FJsonObj
 	UWorld* World = FNexusRuntimeUtils::GetActiveWorld();
 	if (!World)
 	{
-		OutError = TEXT("无活动 World");
+		OutError = TEXT("No active World");
 		return false;
 	}
 
 	AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
 	if (!Actor)
 	{
-		OutError = FString::Printf(TEXT("Actor 未找到: %s"), *ActorName);
+		OutError = FString::Printf(TEXT("Actor not found: %s"), *ActorName);
 		return false;
 	}
 
 	UAnimInstance* AnimInst = FindAnimInstanceForCap(Actor);
 	if (!AnimInst)
 	{
-		OutError = TEXT("Actor 无 AnimInstance（无 SkeletalMeshComponent 或动画未初始化）");
+		OutError = TEXT("Actor has no AnimInstance (no SkeletalMeshComponent or anim not initialized)");
 		return false;
 	}
 
@@ -112,7 +112,7 @@ void FGetRuntimeActorAnimationCapability::ExecuteSection(const FString&         
                                                   FString&                       OutError) const
 {
 	UAnimInstance* AnimInst = static_cast<UAnimInstance*>(TargetOpaque);
-	if (!AnimInst) { OutError = TEXT("无效的 AnimInstance 目标"); return; }
+	if (!AnimInst) { OutError = TEXT("Invalid AnimInstance target"); return; }
 
 	FString NameFilter;
 	if (Args.IsValid()) Args->TryGetStringField(TEXT("nameFilter"), NameFilter);
@@ -211,7 +211,7 @@ void FGetRuntimeActorAnimationCapability::ExecuteSection(const FString&         
 	}
 	else
 	{
-		OutError = FString::Printf(TEXT("未处理的 section '%s'"), *SectionName);
+		OutError = FString::Printf(TEXT("Unhandled section '%s'"), *SectionName);
 	}
 }
 

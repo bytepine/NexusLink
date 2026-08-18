@@ -5,11 +5,9 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 #include "NexusMcpTool.h"
+#include "Utils/NexusJsonUtils.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
-#include "Serialization/JsonSerializer.h"
-#include "Serialization/JsonWriter.h"
-#include "Policies/CondensedJsonPrintPolicy.h"
 
 /**
  * FCapabilityResult → FNexusMcpToolResult 适配工具。
@@ -174,11 +172,7 @@ namespace NexusCapResultAdapter
 		TSharedPtr<FJsonObject> Top = AssembleStructuredContent(CapResult);
 		StripRedundantPathEcho(Top, Args, CapName);
 		Result.StructuredContent = Top;
-
-		TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W =
-			TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Result.OutputText);
-		FJsonSerializer::Serialize(Top.ToSharedRef(), W);
-
+		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Top);
 		return Result;
 	}
 }

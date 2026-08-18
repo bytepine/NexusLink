@@ -13,9 +13,9 @@ void FGetAssetCommonButtonStyleCapability::BuildDefinition(FNexusCapabilityDefin
 {
 	Out.Name = TEXT("get_asset_common_button_style");
 	Out.SearchAssetTypes = {TEXT("CommonButtonStyle")};
-	Out.Description = TEXT("读取 CommonButtonStyle 元数据。WBP 仍走 user_widget。");
+	Out.Description = TEXT("Read CommonButtonStyle metadata. WBP still uses user_widget.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("CommonButtonStyle 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("CommonButtonStyle asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Widget };
@@ -36,7 +36,7 @@ FCapabilityResult FGetAssetCommonButtonStyleCapability::Execute(const TSharedPtr
 		if (!Style)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 CommonButtonStyle 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load CommonButtonStyle: %s"), *AssetPath));
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();

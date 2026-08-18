@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Animation/NexusGetAssetSkeletonCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -13,39 +14,35 @@ void FGetAssetSkeletonCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 {
 	Out.Name = TEXT("get_asset_skeleton");
 	Out.SearchAssetTypes = {TEXT("Skeleton")};
-	Out.Description = TEXT("检查 Skeleton 快照。骨骼树/Socket 分页。写用 manage_asset_skeleton。");
+	Out.Description = TEXT("Inspect Skeleton snapshot. Writes via manage_asset_skeleton.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Skeleton 资产路径")))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("骨骼列表分页偏移"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("骨骼列表每页条数"), 100, 1, 500))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Skeleton asset path")))
+		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Skeleton list pagination offset"), 0, 0))
+		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Skeleton list page size"), 100, 1, 500))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("bone"), TEXT("socket"), TEXT("rig"), TEXT("ref skeleton") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_skeleton"), TEXT("search_asset"), TEXT("get_asset_anim_blueprint"), TEXT("get_asset_skeletal_mesh"), TEXT("get_asset_refs") };
-	Out.WhenToUse = TEXT("读骨骼层级；Socket 写用 manage_asset_skeleton");
+	Out.WhenToUse = TEXT("Read bone hierarchy; use manage_asset_skeleton for Socket writes");
 }
 
 FCapabilityResult FGetAssetSkeletonCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Path;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString Path = A.Str(TEXT("assetPath"));
 
 		int32 Offset = 0;
 		int32 Limit = 100;
 		if (Arguments->HasField(TEXT("offset")))
 		{
-			Offset = FMath::Max(0, static_cast<int32>(Arguments->GetNumberField(TEXT("offset"))));
+			Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
 		}
 		if (Arguments->HasField(TEXT("limit")))
 		{
-			Limit = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 500);
+			Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
@@ -54,7 +51,7 @@ FCapabilityResult FGetAssetSkeletonCapability::Execute(const TSharedPtr<FJsonObj
 		USkeleton* Skeleton = FNexusAssetUtils::LoadAssetWithFallback<USkeleton>(Path);
 		if (!Skeleton)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Skeleton 未找到: %s"), *Path));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Skeleton not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

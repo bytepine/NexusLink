@@ -2,6 +2,7 @@
 
 #include "Capabilities/Runtime/Actor/NexusSpawnRuntimeActorCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
@@ -15,16 +16,16 @@
 void FSpawnRuntimeActorCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("spawn_runtime_actor");
-	Out.Description = TEXT("在 PIE 实例化 Actor。assetPath 或 className；可设位置/旋转。");
+	Out.Description = TEXT("Spawn Actor in PIE. assetPath or className; optional location/rotation.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("蓝图路径（与 className 二选一）")))
-		.Prop(TEXT("className"),     FNexusSchema::Str(TEXT("原生类名（与 assetPath 二选一）")))
-		.Prop(TEXT("locationX"),     FNexusSchema::Num(TEXT("生成 X"), 0.0))
-		.Prop(TEXT("locationY"),     FNexusSchema::Num(TEXT("生成 Y"), 0.0))
-		.Prop(TEXT("locationZ"),     FNexusSchema::Num(TEXT("生成 Z"), 0.0))
-		.Prop(TEXT("rotationPitch"), FNexusSchema::Num(TEXT("俯仰角（度）"), 0.0))
-		.Prop(TEXT("rotationYaw"),   FNexusSchema::Num(TEXT("偏航角（度）"),   0.0))
-		.Prop(TEXT("rotationRoll"),  FNexusSchema::Num(TEXT("翻滚角（度）"),  0.0))
+		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("Blueprint path (or className)")))
+		.Prop(TEXT("className"),     FNexusSchema::Str(TEXT("Native class name (or assetPath)")))
+		.Prop(TEXT("locationX"),     FNexusSchema::Num(TEXT("Spawn X"), 0.0))
+		.Prop(TEXT("locationY"),     FNexusSchema::Num(TEXT("Spawn Y"), 0.0))
+		.Prop(TEXT("locationZ"),     FNexusSchema::Num(TEXT("Spawn Z"), 0.0))
+		.Prop(TEXT("rotationPitch"), FNexusSchema::Num(TEXT("Pitch (degrees)"), 0.0))
+		.Prop(TEXT("rotationYaw"),   FNexusSchema::Num(TEXT("Yaw (degrees)"),   0.0))
+		.Prop(TEXT("rotationRoll"),  FNexusSchema::Num(TEXT("Roll (degrees)"),  0.0))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("instantiate"), TEXT("place"), TEXT("create"), TEXT("level"), TEXT("world") };
@@ -37,8 +38,8 @@ FCapabilityResult FSpawnRuntimeActorCapability::Execute(const TSharedPtr<FJsonOb
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		if (!Arguments.IsValid()) { OutError = TEXT("缺少参数"); return; }
 
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
@@ -46,25 +47,25 @@ FCapabilityResult FSpawnRuntimeActorCapability::Execute(const TSharedPtr<FJsonOb
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 
 		FVector Location(
-			Arguments->HasField(TEXT("locationX")) ? Arguments->GetNumberField(TEXT("locationX")) : 0.0,
-			Arguments->HasField(TEXT("locationY")) ? Arguments->GetNumberField(TEXT("locationY")) : 0.0,
-			Arguments->HasField(TEXT("locationZ")) ? Arguments->GetNumberField(TEXT("locationZ")) : 0.0
+			A.Num(TEXT("locationX"), 0.0),
+			A.Num(TEXT("locationY"), 0.0),
+			A.Num(TEXT("locationZ"), 0.0)
 		);
 		FRotator Rotation(
-			Arguments->HasField(TEXT("rotationPitch")) ? Arguments->GetNumberField(TEXT("rotationPitch")) : 0.0,
-			Arguments->HasField(TEXT("rotationYaw"))   ? Arguments->GetNumberField(TEXT("rotationYaw"))   : 0.0,
-			Arguments->HasField(TEXT("rotationRoll"))  ? Arguments->GetNumberField(TEXT("rotationRoll"))  : 0.0
+			A.Num(TEXT("rotationPitch"), 0.0),
+			A.Num(TEXT("rotationYaw"), 0.0),
+			A.Num(TEXT("rotationRoll"), 0.0)
 		);
 
 		UClass* SpawnClass = nullptr;
 		if (Arguments->HasField(TEXT("assetPath")))
 		{
-			const FString BpPath = Arguments->GetStringField(TEXT("assetPath"));
+			const FString BpPath = A.Str(TEXT("assetPath"));
 			Entry->SetStringField(TEXT("assetPath"), BpPath);
 			UBlueprint* BP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(BpPath);
 			if (!BP || !BP->GeneratedClass)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Blueprint 未找到或未编译: %s"), *BpPath));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Blueprint not found or not compiled: %s"), *BpPath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -72,7 +73,7 @@ FCapabilityResult FSpawnRuntimeActorCapability::Execute(const TSharedPtr<FJsonOb
 		}
 		else if (Arguments->HasField(TEXT("className")))
 		{
-			const FString ClassName = Arguments->GetStringField(TEXT("className"));
+			const FString ClassName = A.Str(TEXT("className"));
 			Entry->SetStringField(TEXT("className"), ClassName);
 			SpawnClass = FNexusAssetUtils::FindClassWithUPrefix(ClassName);
 			if (!SpawnClass)
@@ -82,14 +83,14 @@ FCapabilityResult FSpawnRuntimeActorCapability::Execute(const TSharedPtr<FJsonOb
 			}
 			if (!SpawnClass || !SpawnClass->IsChildOf(AActor::StaticClass()))
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor 类未找到: %s"), *ClassName));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor class not found: %s"), *ClassName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
 		}
 		else
 		{
-			OutError = TEXT("需要 assetPath 或 className");
+			OutError = TEXT("assetPath or className required");
 			return;
 		}
 
@@ -98,7 +99,7 @@ FCapabilityResult FSpawnRuntimeActorCapability::Execute(const TSharedPtr<FJsonOb
 		AActor* NewActor = World->SpawnActor<AActor>(SpawnClass, Location, Rotation, Params);
 		if (!NewActor)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor 生成失败（类: %s）"), *SpawnClass->GetName()));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor spawn failed (class: %s)"), *SpawnClass->GetName()));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

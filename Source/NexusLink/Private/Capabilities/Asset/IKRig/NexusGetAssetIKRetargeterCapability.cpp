@@ -16,15 +16,15 @@ void FGetAssetIKRetargeterCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("get_asset_ik_retargeter");
 	Out.SearchAssetTypes = {TEXT("IKRetargeter")};
-	Out.Description = TEXT("读取 IKRetargeter：源/目标 IKRig、Chain Mapping 列表。写用 manage_asset_ik_retargeter。");
+	Out.Description = TEXT("Read IKRetargeter: source/target IKRig, chain mappings. Use manage_asset_ik_retargeter for writes.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("IKRetargeter 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("IKRetargeter asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("ikretargeter"), TEXT("retarget"), TEXT("chain mapping"), TEXT("ik") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_ik_retargeter"), TEXT("get_asset_ik_rig"), TEXT("create_asset_ik_retargeter") };
-	Out.WhenToUse = TEXT("读取 IKRetargeter 配置；写用 manage_asset_ik_retargeter");
+	Out.WhenToUse = TEXT("Read IKRetargeter config; use manage_asset_ik_retargeter for writes");
 }
 
 FCapabilityResult FGetAssetIKRetargeterCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -38,7 +38,7 @@ FCapabilityResult FGetAssetIKRetargeterCapability::Execute(const TSharedPtr<FJso
 		if (!Retargeter)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("IKRetargeter 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("IKRetargeter not found: %s"), *AssetPath));
 			return;
 		}
 

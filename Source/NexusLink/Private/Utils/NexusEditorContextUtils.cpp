@@ -108,7 +108,7 @@ bool FNexusEditorContextUtils::CollectContentBrowserPath(FString& OutPath, FStri
 #if WITH_EDITOR
 	if (!FModuleManager::Get().IsModuleLoaded(TEXT("ContentBrowser")))
 	{
-		OutError = TEXT("ContentBrowser 模块未加载");
+		OutError = TEXT("ContentBrowser module not loaded");
 		return false;
 	}
 
@@ -126,7 +126,7 @@ bool FNexusEditorContextUtils::CollectContentBrowserPath(FString& OutPath, FStri
 
 	return true;
 #else
-	OutError = TEXT("仅编辑器构建可用");
+	OutError = TEXT("Only available in editor builds");
 	return false;
 #endif
 }

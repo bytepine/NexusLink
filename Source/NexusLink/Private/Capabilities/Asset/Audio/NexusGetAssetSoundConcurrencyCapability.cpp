@@ -4,6 +4,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Sound/SoundConcurrency.h"
 #include "NexusMcpTool.h"
 
@@ -11,9 +12,9 @@ void FGetAssetSoundConcurrencyCapability::BuildDefinition(FNexusCapabilityDefini
 {
 	Out.Name = TEXT("get_asset_sound_concurrency");
 	Out.SearchAssetTypes = {TEXT("SoundConcurrency")};
-	Out.Description = TEXT("读取 SoundConcurrency：maxCount/resolutionRule/retriggerTime。");
+	Out.Description = TEXT("Read SoundConcurrency: maxCount/resolutionRule/retriggerTime.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundConcurrency 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundConcurrency asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -25,18 +26,14 @@ FCapabilityResult FGetAssetSoundConcurrencyCapability::Execute(const TSharedPtr<
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		USoundConcurrency* SC = LoadObject<USoundConcurrency>(nullptr, *AssetPath);
 		if (!SC)
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("加载 SoundConcurrency 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load SoundConcurrency: %s"), *AssetPath));
 			return;
 		}
 

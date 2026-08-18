@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Editor/NexusLogCapture.h"
@@ -84,10 +85,10 @@ static FString MergeExecOutput(const FString& DeviceOutput, int32 LogMark)
 void FExecCommandCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("exec_command");
-	Out.Description = TEXT("执行 UE 控制台命令并捕获 output（含 LogEngine 等 GLog 输出）。镜像到 LogConsole。");
+	Out.Description = TEXT("Run UE console command and capture output. Mirrored to LogConsole.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("command"), FNexusSchema::Str(TEXT("要执行的控制台命令")))
-		.Prop(TEXT("silent"),  FNexusSchema::Bool(TEXT("跳过捕获输出"), false))
+		.Prop(TEXT("command"), FNexusSchema::Str(TEXT("Console command to execute")))
+		.Prop(TEXT("silent"),  FNexusSchema::Bool(TEXT("Skip output capture"), false))
 		.Required({ TEXT("command") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -100,15 +101,14 @@ FCapabilityResult FExecCommandCapability::Execute(const TSharedPtr<FJsonObject>&
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		FString Command;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("command"), Command) || Command.IsEmpty())
-		{ OutError = TEXT("缺少 command"); return; }
+		const FString Command = A.Str(TEXT("command"));
 
 		bool bSilent = false;
 		Arguments->TryGetBoolField(TEXT("silent"), bSilent);
 
-		if (!GEngine) { OutError = TEXT("GEngine 不可用"); return; }
+		if (!GEngine) { OutError = TEXT("GEngine unavailable"); return; }
 
 		UWorld* World = nullptr;
 	#if WITH_EDITOR

@@ -5,6 +5,7 @@
 #if WITH_GAS
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
@@ -24,17 +25,17 @@
 void FInteractRuntimeActorAbilitySystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("interact_runtime_actor_ability_system");
-	Out.Description = TEXT("运行时写 ASC。action=activate/cancel/give/clear_ability、apply/remove_effect、set_attribute、execute_cue、add/remove_loose_tag。");
+	Out.Description = TEXT("Write runtime ASC. action=activate/cancel/give/clear_ability, apply/remove_effect, set_attribute, cue, loose tags.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),        FNexusSchema::Enum(TEXT("写操作"),
+		.Prop(TEXT("action"),        FNexusSchema::Enum(TEXT("Write operation"),
 			{ TEXT("activate_ability"), TEXT("cancel_ability"), TEXT("apply_effect"), TEXT("remove_effect"), TEXT("set_attribute"),
 			  TEXT("give_ability"), TEXT("clear_ability"), TEXT("execute_cue"), TEXT("add_loose_tag"), TEXT("remove_loose_tag") }))
-		.Prop(TEXT("actorName"),     FNexusSchema::Str(TEXT("Actor 名称（可选；省略取首个带 ASC 的 Pawn/Actor）")))
-		.Prop(TEXT("abilityPath"),   FNexusSchema::Str(TEXT("GameplayAbility 资产路径")))
-		.Prop(TEXT("effectPath"),    FNexusSchema::Str(TEXT("GameplayEffect 资产路径（apply/remove）")))
-		.Prop(TEXT("attributeName"), FNexusSchema::Str(TEXT("属性名，格式 AttributeSetName.AttributeName（set_attribute）")))
-		.Prop(TEXT("value"),         FNexusSchema::Num(TEXT("属性新基础值（set_attribute）")))
-		.Prop(TEXT("level"),         FNexusSchema::Num(TEXT("Ability/Effect 等级（默认 1）"), 1.0))
+		.Prop(TEXT("actorName"),     FNexusSchema::Str(TEXT("Actor name (optional; first ASC Pawn/Actor if omitted)")))
+		.Prop(TEXT("abilityPath"),   FNexusSchema::Str(TEXT("GameplayAbility asset path")))
+		.Prop(TEXT("effectPath"),    FNexusSchema::Str(TEXT("GameplayEffect asset path (apply/remove)")))
+		.Prop(TEXT("attributeName"), FNexusSchema::Str(TEXT("Attribute name: AttributeSetName.AttributeName (set_attribute)")))
+		.Prop(TEXT("value"),         FNexusSchema::Num(TEXT("New attribute base value (set_attribute)")))
+		.Prop(TEXT("level"),         FNexusSchema::Num(TEXT("Ability/Effect level (default 1)"), 1.0))
 		.Prop(TEXT("tag"),           FNexusSchema::Str(TEXT("GameplayTag（execute_cue / loose tag）")))
 		.Required({ TEXT("action") })
 		.Build();
@@ -42,7 +43,7 @@ void FInteractRuntimeActorAbilitySystemCapability::BuildDefinition(FNexusCapabil
 	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("asc"), TEXT("ability"), TEXT("effect"), TEXT("attribute") };
 	Out.RelatedCapabilities = { TEXT("get_runtime_actor_ability_system"), TEXT("get_gameplay_tags") };
 	Out.Prerequisites = { TEXT("pie") };
-	Out.WhenToUse = TEXT("PIE 中施放/给予 Ability、应用 GE、改 Attribute、Cue、loose tag");
+	Out.WhenToUse = TEXT("Cast/give Ability, apply GE, set Attribute, Cue, loose tags in PIE");
 }
 
 // ── 执行 ──────────────────────────────────────────────────────────────────────
@@ -51,12 +52,8 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Action;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("action"), Action) || Action.IsEmpty())
-		{
-			OutError = TEXT("缺少 action");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString Action = A.Str(TEXT("action"));
 
 		// 定位 World
 		FString WorldError;
@@ -77,14 +74,14 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 				ASC = FNexusGasUtils::FindAbilitySystemComponent(*It);
 				if (ASC) { Actor = *It; break; }
 			}
-			if (!ASC) { OutError = TEXT("World 中未找到带 AbilitySystemComponent 的 Actor"); return; }
+			if (!ASC) { OutError = TEXT("No Actor with AbilitySystemComponent found in World"); return; }
 		}
 		else
 		{
 			Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
-			if (!Actor) { OutError = FString::Printf(TEXT("Actor 未找到: %s"), *ActorName); return; }
+			if (!Actor) { OutError = FString::Printf(TEXT("Actor not found: %s"), *ActorName); return; }
 			ASC = FNexusGasUtils::FindAbilitySystemComponent(Actor);
-			if (!ASC) { OutError = FString::Printf(TEXT("Actor '%s' 无 AbilitySystemComponent"), *ActorName); return; }
+			if (!ASC) { OutError = FString::Printf(TEXT("Actor '%s' has no AbilitySystemComponent"), *ActorName); return; }
 		}
 
 		// 提取公共参数
@@ -108,7 +105,7 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 		{
 			if (AbilityPath.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("activate_ability 需要 abilityPath"));
+				Entry->SetStringField(TEXT("error"), TEXT("activate_ability requires abilityPath"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -131,7 +128,7 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 						return;
 					}
 				}
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Ability 加载失败: %s"), *AbilityPath));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to load Ability: %s"), *AbilityPath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -146,7 +143,7 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 		{
 			if (AbilityPath.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("cancel_ability 需要 abilityPath"));
+				Entry->SetStringField(TEXT("error"), TEXT("cancel_ability requires abilityPath"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -165,7 +162,7 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 						return;
 					}
 				}
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Ability 加载失败: %s"), *AbilityPath));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to load Ability: %s"), *AbilityPath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -177,7 +174,7 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 		{
 			if (EffectPath.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("apply_effect 需要 effectPath"));
+				Entry->SetStringField(TEXT("error"), TEXT("apply_effect requires effectPath"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -195,14 +192,14 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 			}
 			if (!GECDO)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("GameplayEffect 加载失败: %s"), *EffectPath));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to load GameplayEffect: %s"), *EffectPath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
 			FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(GECDO->GetClass(), static_cast<float>(Level), ASC->MakeEffectContext());
 			if (!SpecHandle.IsValid())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("创建 GameplayEffectSpec 失败"));
+				Entry->SetStringField(TEXT("error"), TEXT("Create GameplayEffectSpec failed"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -215,7 +212,7 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 		{
 			if (EffectPath.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("remove_effect 需要 effectPath"));
+				Entry->SetStringField(TEXT("error"), TEXT("remove_effect requires effectPath"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -241,7 +238,7 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 		{
 			if (AttrName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_attribute 需要 attributeName"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_attribute requires attributeName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -265,7 +262,7 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 			}
 			if (!Attr.IsValid())
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Attribute 未找到: %s"), *AttrName));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Attribute not found: %s"), *AttrName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -280,7 +277,7 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 		{
 			if (AbilityPath.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("需要 abilityPath"));
+				Entry->SetStringField(TEXT("error"), TEXT("abilityPath required"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -295,7 +292,7 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 			}
 			if (!AbilityClass)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Ability 加载失败: %s"), *AbilityPath));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to load Ability: %s"), *AbilityPath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -324,14 +321,14 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 		{
 			if (TagStr.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("需要 tag"));
+				Entry->SetStringField(TEXT("error"), TEXT("tag required"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
 			const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagStr), false);
 			if (!Tag.IsValid())
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("无效 GameplayTag: %s"), *TagStr));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid GameplayTag: %s"), *TagStr));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -354,7 +351,7 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

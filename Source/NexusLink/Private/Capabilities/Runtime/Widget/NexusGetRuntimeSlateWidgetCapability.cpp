@@ -3,6 +3,7 @@
 #include "Capabilities/Runtime/Widget/NexusGetRuntimeSlateWidgetCapability.h"
 #include "Utils/NexusWidgetLayoutUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusVersionCompat.h"
@@ -50,16 +51,16 @@ static FString VisibilityToString(EVisibility Vis)
 void FGetRuntimeSlateWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_slate_widget");
-	Out.Description = TEXT("按十六进制地址检查原生 SWidget（来自 Widget Reflector）；含 layout（AutoWrapText、锚点等）。");
+	Out.Description = TEXT("Inspect native SWidget by hex address (Widget Reflector); includes layout.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("address"), FNexusSchema::Str(TEXT("Widget Reflector 提供的十六进制地址")))
+		.Prop(TEXT("address"), FNexusSchema::Str(TEXT("Hex address from Widget Reflector")))
 		.Required({ TEXT("address") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Widget, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("reflector"), TEXT("native"), TEXT("swidget"), TEXT("address"), TEXT("layout") };
 	Out.RelatedCapabilities = { TEXT("list_runtime_widgets") };
 	Out.Prerequisites = { TEXT("pie") };
-	Out.WhenToUse = TEXT("持有 Widget Reflector 十六进制地址时用");
+	Out.WhenToUse = TEXT("When holding Widget Reflector hex address");
 }
 
 FCapabilityResult FGetRuntimeSlateWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -67,22 +68,18 @@ FCapabilityResult FGetRuntimeSlateWidgetCapability::Execute(const TSharedPtr<FJs
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("address")))
-		{
-			OutError = TEXT("缺少 address");
-			return;
-		}
 
-		FString AddressStr = Arguments->GetStringField(TEXT("address")).TrimStartAndEnd();
+		FString AddressStr = A.Str(TEXT("address")).TrimStartAndEnd();
 		if (AddressStr.StartsWith(TEXT("0x")) || AddressStr.StartsWith(TEXT("0X")))
 			AddressStr = AddressStr.Mid(2);
 		UPTRINT CachedAddress = static_cast<UPTRINT>(FCString::Strtoui64(*AddressStr, nullptr, 16));
 		if (CachedAddress == 0)
 		{
-			OutError = TEXT("无效的十六进制地址");
+			OutError = TEXT("Invalid hex address");
 			return;
 		}
 

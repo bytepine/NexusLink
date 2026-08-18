@@ -17,28 +17,28 @@ void FManageAssetPaperTileMapCapability::BuildDefinition(FNexusCapabilityDefinit
 {
 	Out.Name = TEXT("manage_asset_paper_tile_map");
 	Out.SearchAssetTypes = {TEXT("PaperTileMap")};
-	Out.Description = TEXT("批量编辑 PaperTileMap：尺寸/TileSet/图层/格子。见 operations[].action。");
+	Out.Description = TEXT("Batch edit PaperTileMap: size/TileSet/layers/cells.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"), {
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), {
 			TEXT("set_map_size"), TEXT("set_tile_size"), TEXT("set_tileset"),
 			TEXT("add_layer"), TEXT("remove_layer"), TEXT("set_layer_name"),
 			TEXT("set_cell"), TEXT("clear_cell")
 		}))
-		.Prop(TEXT("mapWidth"), FNexusSchema::Int(TEXT("地图宽（格，set_map_size）")))
-		.Prop(TEXT("mapHeight"), FNexusSchema::Int(TEXT("地图高（格，set_map_size）")))
-		.Prop(TEXT("tileWidth"), FNexusSchema::Int(TEXT("单格像素宽（set_tile_size）")))
-		.Prop(TEXT("tileHeight"), FNexusSchema::Int(TEXT("单格像素高（set_tile_size）")))
-		.Prop(TEXT("tileSetPath"), FNexusSchema::Str(TEXT("PaperTileSet 路径（set_tileset / set_cell 可选）")))
-		.Prop(TEXT("layerIndex"), FNexusSchema::Int(TEXT("图层索引（remove/set_layer_name/set_cell/clear_cell）")))
-		.Prop(TEXT("layerName"), FNexusSchema::Str(TEXT("图层名（add_layer 可选 / set_layer_name）")))
-		.Prop(TEXT("x"), FNexusSchema::Int(TEXT("格子 X（set_cell/clear_cell）")))
-		.Prop(TEXT("y"), FNexusSchema::Int(TEXT("格子 Y（set_cell/clear_cell）")))
-		.Prop(TEXT("tileIndex"), FNexusSchema::Int(TEXT("图块索引（set_cell）")))
+		.Prop(TEXT("mapWidth"), FNexusSchema::Int(TEXT("Map width in cells (set_map_size)")))
+		.Prop(TEXT("mapHeight"), FNexusSchema::Int(TEXT("Map height in cells (set_map_size)")))
+		.Prop(TEXT("tileWidth"), FNexusSchema::Int(TEXT("Tile pixel width (set_tile_size)")))
+		.Prop(TEXT("tileHeight"), FNexusSchema::Int(TEXT("Tile pixel height (set_tile_size)")))
+		.Prop(TEXT("tileSetPath"), FNexusSchema::Str(TEXT("PaperTileSet path (set_tileset / set_cell optional)")))
+		.Prop(TEXT("layerIndex"), FNexusSchema::Int(TEXT("Layer index (remove/set_layer_name/set_cell/clear_cell)")))
+		.Prop(TEXT("layerName"), FNexusSchema::Str(TEXT("Layer name (add_layer optional / set_layer_name)")))
+		.Prop(TEXT("x"), FNexusSchema::Int(TEXT("Cell X (set_cell/clear_cell)")))
+		.Prop(TEXT("y"), FNexusSchema::Int(TEXT("Cell Y (set_cell/clear_cell)")))
+		.Prop(TEXT("tileIndex"), FNexusSchema::Int(TEXT("Tile index (set_cell)")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperTileMap 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperTileMap asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -46,7 +46,7 @@ void FManageAssetPaperTileMapCapability::BuildDefinition(FNexusCapabilityDefinit
 	Out.RelatedCapabilities = {
 		TEXT("get_asset_paper_tile_map"), TEXT("create_asset_paper_tile_map"), TEXT("save_asset")
 	};
-	Out.WhenToUse = TEXT("改 PaperTileMap 尺寸、图层或格子；读用 get_asset_paper_tile_map");
+	Out.WhenToUse = TEXT("Edit PaperTileMap size/layers/cells; read via get_asset_paper_tile_map");
 }
 
 FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -59,14 +59,14 @@ FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 		if (!Map)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 PaperTileMap 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load PaperTileMap: %s"), *AssetPath));
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 
@@ -88,7 +88,7 @@ FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 			{
 				if (!Op->HasField(TEXT("mapWidth")) || !Op->HasField(TEXT("mapHeight")))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_map_size 需要 mapWidth 与 mapHeight"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_map_size requires mapWidth and mapHeight"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -103,7 +103,7 @@ FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 			{
 				if (!Op->HasField(TEXT("tileWidth")) && !Op->HasField(TEXT("tileHeight")))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_tile_size 需要 tileWidth 和/或 tileHeight"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_tile_size requires tileWidth and/or tileHeight"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -124,14 +124,14 @@ FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 				FString TileSetPath;
 				if (!Op->TryGetStringField(TEXT("tileSetPath"), TileSetPath) || TileSetPath.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_tileset 需要 tileSetPath"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_tileset requires tileSetPath"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
 				UPaperTileSet* TileSet = FNexusAssetUtils::LoadAssetWithFallback<UPaperTileSet>(TileSetPath);
 				if (!TileSet)
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("PaperTileSet 未找到: %s"), *TileSetPath));
+					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("PaperTileSet not found: %s"), *TileSetPath));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -144,7 +144,7 @@ FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 				UPaperTileLayer* Layer = Map->AddNewLayer();
 				if (!Layer)
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("add_layer 失败"));
+					Entry->SetStringField(TEXT("error"), TEXT("add_layer failed"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -162,20 +162,20 @@ FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 			{
 				if (!Op->HasField(TEXT("layerIndex")))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("remove_layer 需要 layerIndex"));
+					Entry->SetStringField(TEXT("error"), TEXT("remove_layer requires layerIndex"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
 				const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("layerIndex")));
 				if (!Map->TileLayers.IsValidIndex(Idx))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("layerIndex 越界"));
+					Entry->SetStringField(TEXT("error"), TEXT("layerIndex out of bounds"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
 				if (Map->TileLayers.Num() <= 1)
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("至少保留一层，无法删除"));
+					Entry->SetStringField(TEXT("error"), TEXT("Must keep at least one layer; cannot delete"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -197,14 +197,14 @@ FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 			{
 				if (!Op->HasField(TEXT("layerIndex")) || !Op->HasField(TEXT("layerName")))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_layer_name 需要 layerIndex 与 layerName"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_layer_name requires layerIndex and layerName"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
 				const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("layerIndex")));
 				if (!Map->TileLayers.IsValidIndex(Idx) || !Map->TileLayers[Idx])
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("layerIndex 无效"));
+					Entry->SetStringField(TEXT("error"), TEXT("Invalid layerIndex"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -218,7 +218,7 @@ FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 			{
 				if (!Op->HasField(TEXT("layerIndex")) || !Op->HasField(TEXT("x")) || !Op->HasField(TEXT("y")))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_cell/clear_cell 需要 layerIndex、x、y"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_cell/clear_cell requires layerIndex、x、y"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -227,14 +227,14 @@ FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 				const int32 Y = static_cast<int32>(Op->GetNumberField(TEXT("y")));
 				if (!Map->TileLayers.IsValidIndex(LayerIdx) || !Map->TileLayers[LayerIdx])
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("layerIndex 无效"));
+					Entry->SetStringField(TEXT("error"), TEXT("Invalid layerIndex"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
 				UPaperTileLayer* Layer = Map->TileLayers[LayerIdx];
 				if (!Layer->InBounds(X, Y))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("格子坐标越界"));
+					Entry->SetStringField(TEXT("error"), TEXT("Cell coordinates out of bounds"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -244,7 +244,7 @@ FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 				{
 					if (!Op->HasField(TEXT("tileIndex")))
 					{
-						Entry->SetStringField(TEXT("error"), TEXT("set_cell 需要 tileIndex"));
+						Entry->SetStringField(TEXT("error"), TEXT("set_cell requires tileIndex"));
 						OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 						continue;
 					}
@@ -260,7 +260,7 @@ FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 					}
 					if (!TileSet)
 					{
-						Entry->SetStringField(TEXT("error"), TEXT("set_cell 需要有效 TileSet（tileSetPath 或 SelectedTileSet）"));
+						Entry->SetStringField(TEXT("error"), TEXT("set_cell requires valid TileSet (tileSetPath or SelectedTileSet)"));
 						OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 						continue;
 					}
@@ -278,7 +278,7 @@ FCapabilityResult FManageAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
 			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 		}

@@ -1,49 +1,49 @@
-NexusLink MCP：Unreal 编辑器 + 运行时控制（**MultiTool 模式**）。
-
+NexusLink MCP: Unreal Editor + runtime control (**MultiTool mode**).
 
 > **Host note**: **MCP only in Editor / PIE** (module Type=Runtime; Startup/Shutdown no-op when `!WITH_EDITOR`).
-## 工具模型
 
-`tools/list` 已暴露**全部已启用 Capability**，各为独立 MCP Tool（名称即 capability 名）。
+## Tool model
 
-- **直接** `tools/call` — **禁止** `call_capability(capability=...)` 包装。
-- 本模式**无** `search_capabilities`；以各 Tool 的 `description` / `inputSchema` 为准（含 `[see: ...]`）。
-- 元工具：`submit_feedback`。
+`tools/list` exposes **all enabled capabilities** as separate MCP tools (name = capability name).
 
-## 首要动作（强制）
+- **Direct** `tools/call` — **do not** wrap with `call_capability(capability=...)`.
+- This mode has **no** `search_capabilities`; rely on each tool's `description` / `inputSchema` (includes `[see: ...]`).
+- Meta-tool: `submit_feedback`.
 
-已连接 UE：**先调 MCP** 再答蓝图/Widget/材质/资产问题。流程：`search_asset`（顶层 `assets`；指定类型看顶层 `recommendedGet`）→ 再读写。
+## First action (required)
 
-## 命名与读写（与 SearchMode 一致）
+When connected to UE: **call MCP first** before answering blueprint/Widget/material/asset questions. Flow: `search_asset` (top-level `assets`; typed `recommendedGet` at top) → then read/write.
 
-- **Set** — 仅 `*_property`（如 `set_runtime_actor_property`）。
-- **Interact** — `action` 命令（`interact_runtime_widget`、`interact_runtime_actor_animation`）。
-- **Manage** — 仅 `*_asset_*` 结构编辑。
-- **禁止**：`manage_animation`、`set_runtime_actor_animation`。
+## Naming & read/write (same as SearchMode)
 
-## 决策规则
+- **Set** — only `*_property` (e.g. `set_runtime_actor_property`).
+- **Interact** — `action` commands (`interact_runtime_widget`, `interact_runtime_actor_animation`).
+- **Manage** — only `*_asset_*` structural edits.
+- **Forbidden**: `manage_animation`, `set_runtime_actor_animation`.
 
-1. **读 vs 写**：只读 `get/list/search`；`manage/set/create/delete` 写资产/属性；**`interact_*` 写运行时命令**。写成功无 `success:true`，无 `error` 即成功。
-2. **资产 vs 运行时**：`*_asset_*` 编辑器磁盘；`*_runtime_*` 需 PIE。
-3. **Lua**：`hotreload_runtime_lua` 需 UnLua **2.x**（1.x 返回 error）。
-4. **单目标**：每个 Tool 仅 `assetPath`/`actorName`/`widgetName`；跨目标用多次 `tools/call`（本模式无 `call_capability.calls[]`）。单目标内用 `sections`/`propertyPaths`/`operations`/`updates`。**search_asset 必须收窄**；读/写优先用返回的 `recommendedGet` / `recommendedManage`（指定类型在顶层）+ `assets[].path`。列表若含 `<k>_defaults`：缺省字段等于该值（`merged={**defaults,**entry}`）。
-5. **贴图/网格/动画/音频/VFX/关卡 资产 get/manage 成对**（无 `recommended*` 时兜底）：读 `get_asset_texture` / `manage_asset_texture`；`get_asset_static_mesh` / `manage_asset_static_mesh`；`get_asset_skeletal_mesh` / `manage_asset_skeletal_mesh`；`get_asset_anim_sequence` / `manage_asset_anim_sequence`；`get_asset_skeleton` / `manage_asset_skeleton`；`get_asset_sound_wave` / `manage_asset_sound_wave`；`get_asset_sound_cue` / `manage_asset_sound_cue`；`get_asset_level` / `manage_asset_level`（`editor_only`）；`get_asset_level_sequence` / `manage_asset_level_sequence` / `create_asset_level_sequence`；`get_asset_physical_material` / `manage_asset_physical_material` / `create_asset_physical_material`；`get_asset_string_table` / `manage_asset_string_table` / `create_asset_string_table`；`get_asset_font` / `manage_asset_font`（TTF 走 `reimport_asset`）；`get_asset_foliage_type` / `manage_asset_foliage_type` / `create_asset_foliage_type`；`get_asset_media_source` / `manage_asset_media_source` / `create_asset_media_source`。Niagara / GAS / StateTree / MVVM / IK / PCG / ControlRig / Paper2D / GeometryCollection / CommonUI / MoviePipeline 等门控 cap 以 `tools/list` 为准，无则跳过。PIE Actor 列表用 `list_runtime_actors`；PIE 动画读 `get_runtime_actor_animation`，写 `interact_runtime_actor_animation`；音效/Niagara/AI 用 `interact_runtime_actor_audio` / `_niagara` / `_ai`。
-6. **GAS PIE**（需 GameplayAbilities，`tools/list` 无则跳过）：只读 `get_runtime_actor_ability_system`；施放/Apply/Give/Cue/loose tag 用 `interact_runtime_actor_ability_system`。
-7. **编辑器只读**：`get_editor_context`（选中 Actor/资产、Content Browser 路径）；`search_console_variables`；`capture_viewport` 含 `editor_desktop`；Tag 引用资产 `get_gameplay_tags`（`referencers` + `tag`）。
+## Decision rules
 
-## 参数契约（Breaking）
+1. **Read vs write**: read-only `get/list/search`; `manage/set/create/delete` write assets/properties; **`interact_*` writes runtime commands**. Write success has no `success:true`; no `error` means success.
+2. **Asset vs runtime**: `*_asset_*` = editor disk; `*_runtime_*` needs PIE.
+3. **Lua**: `hotreload_runtime_lua` requires UnLua **2.x** (1.x returns error).
+4. **Single target**: each tool only `assetPath`/`actorName`/`widgetName`; cross-target = multiple `tools/call` (no `call_capability.calls[]` in this mode). Within one target use `sections`/`propertyPaths`/`operations`/`updates`. **search_asset must be narrowed**; prefer returned `recommendedGet` / `recommendedManage` (typed at top) + `assets[].path`. Lists with `<k>_defaults`: missing fields equal that value (`merged={**defaults,**entry}`).
+5. **Texture/mesh/animation/audio/VFX/level asset get/manage pairs** (fallback without `recommended*`): read `get_asset_texture` / `manage_asset_texture`; `get_asset_static_mesh` / `manage_asset_static_mesh`; `get_asset_skeletal_mesh` / `manage_asset_skeletal_mesh`; `get_asset_anim_sequence` / `manage_asset_anim_sequence`; `get_asset_skeleton` / `manage_asset_skeleton`; `get_asset_sound_wave` / `manage_asset_sound_wave`; `get_asset_sound_cue` / `manage_asset_sound_cue`; `get_asset_level` / `manage_asset_level` (`editor_only`); `get_asset_level_sequence` / `manage_asset_level_sequence` / `create_asset_level_sequence`; `get_asset_physical_material` / `manage_asset_physical_material` / `create_asset_physical_material`; `get_asset_string_table` / `manage_asset_string_table` / `create_asset_string_table`; `get_asset_font` / `manage_asset_font` (TTF via `reimport_asset`); `get_asset_foliage_type` / `manage_asset_foliage_type` / `create_asset_foliage_type`; `get_asset_media_source` / `manage_asset_media_source` / `create_asset_media_source`. Gated caps (Niagara / GAS / StateTree / MVVM / IK / PCG / ControlRig / Paper2D / GeometryCollection / CommonUI / MoviePipeline) follow `tools/list`; skip if absent. PIE actors: `list_runtime_actors`; PIE animation read `get_runtime_actor_animation`, write `interact_runtime_actor_animation`; audio/Niagara/AI via `interact_runtime_actor_audio` / `_niagara` / `_ai`.
+6. **GAS PIE** (needs GameplayAbilities; skip if absent from `tools/list`): read-only `get_runtime_actor_ability_system`; activate/apply/give/cue/loose tags via `interact_runtime_actor_ability_system`.
+7. **Editor read-only**: `get_editor_context` (selection, Content Browser path); `search_console_variables`; `capture_viewport` includes `editor_desktop`; tag referencers via `get_gameplay_tags` (`referencers` + `tag`).
 
-与 SearchMode 相同：禁止 `assetPaths`/`actorNames`/`widgetNames`；manage 仅 `operations[]`；get 仅 `propertyPaths[]`；`newPath`→`destAssetPath`，`blueprintPath`→`assetPath`，`ownerWidget`→`ownerClass`，`filePath`→`scriptPath`，Lua `path`→`luaPath`，`classPath`→`className`。旧键 → `arg_invalid`。
+## Parameter contract (Breaking)
 
-## 蓝图 / Lua / GAS
+Same as SearchMode: no `assetPaths`/`actorNames`/`widgetNames`; manage only `operations[]`; get only `propertyPaths[]`; `newPath`→`destAssetPath`, `blueprintPath`→`assetPath`, `ownerWidget`→`ownerClass`, `filePath`→`scriptPath`, Lua `path`→`luaPath`, `classPath`→`className`. Legacy keys → `arg_invalid`.
 
-同 SearchMode：`get_asset_blueprint` 先于图编辑；Lua 先 `get_asset_lua_binding`；GAS Graph 走 `manage_asset_blueprint`；行为树改后 `saveToDisk` 或 `save_asset`（替换用 `replace_node`，图错位用 `sync_graph`）。manage 可选 `saveToDisk`；BP/ABP/WBP 可再传 `compile`。
+## Blueprint / Lua / GAS
 
-## 硬性规则
+Same as SearchMode: `get_asset_blueprint` before graph edits; Lua starts with `get_asset_lua_binding`; GAS graphs via `manage_asset_blueprint`; behavior trees save with `saveToDisk` or `save_asset` (`replace_node` for type changes, `sync_graph` for graph drift). manage optional `saveToDisk`; BP/ABP/WBP may pass `compile`.
 
-- 参数符合 `inputSchema`；字符串必填字段不得为空。
-- **`get_runtime_actor_property` 必填非空 `actorName`** — 先 `list_runtime_actors`。
-- **`exec_command` 必填非空 `command`**。
-- `get/manage_asset_*` 前先 `search_asset`；优先用返回的 `recommendedGet` / `recommendedManage`。
-- `sections=["all"]` 后 30s 内禁子 section。
-- `submit_feedback` 触发条件同 SearchMode；**`_feedbackHint` 强制**。
+## Hard rules
+
+- Arguments must match `inputSchema`; required strings must be non-empty.
+- **`get_runtime_actor_property` requires non-empty `actorName`** — call `list_runtime_actors` first.
+- **`exec_command` requires non-empty `command`**.
+- Before `get/manage_asset_*`, call `search_asset`; prefer returned `recommendedGet` / `recommendedManage`.
+- After `sections=["all"]`, no sub-section calls for 30s.
+- `submit_feedback` triggers same as SearchMode; **`_feedbackHint` is mandatory**.

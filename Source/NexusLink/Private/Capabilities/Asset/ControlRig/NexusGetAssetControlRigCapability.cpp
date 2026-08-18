@@ -22,15 +22,15 @@ void FGetAssetControlRigCapability::BuildDefinition(FNexusCapabilityDefinition& 
 {
 	Out.Name = TEXT("get_asset_control_rig");
 	Out.SearchAssetTypes = {TEXT("ControlRig"), TEXT("ControlRigBlueprint")};
-	Out.Description = TEXT("读取 ControlRig Blueprint 层级（骨骼/控件/Null）与 RigVM 图（节点/引脚/连线）。写用 manage_asset_control_rig。");
+	Out.Description = TEXT("Read ControlRig BP hierarchy (bones/controls/Null) and RigVM graph. Use manage_asset_control_rig for writes.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("ControlRig Blueprint 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("ControlRig Blueprint asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("controlrig"), TEXT("rig"), TEXT("bone"), TEXT("control"), TEXT("hierarchy"), TEXT("rigvm"), TEXT("node"), TEXT("link"), TEXT("wire") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_control_rig"), TEXT("create_asset_control_rig"), TEXT("get_asset_skeleton") };
-	Out.WhenToUse = TEXT("读取 ControlRig 层级元素与 RigVM 图节点/连线；写用 manage_asset_control_rig");
+	Out.WhenToUse = TEXT("Read ControlRig hierarchy and RigVM nodes/wires; use manage_asset_control_rig for writes");
 }
 
 FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -44,7 +44,7 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 		if (!CRBp)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("ControlRig Blueprint 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("ControlRig Blueprint not found: %s"), *AssetPath));
 			return;
 		}
 

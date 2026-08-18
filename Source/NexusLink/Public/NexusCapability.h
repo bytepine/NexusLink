@@ -164,6 +164,9 @@ public:
 	 * 主入口：包含通用守卫（Args 兜底、required 字段校验、执行计时日志），
 	 * 通过后调用子类 Execute() 并返回 FCapabilityResult。
 	 * call_capability 直接使用返回值，不再通过出参传递。
+	 *
+	 * required / 类型 / 未知键 / enum 校验只在本函数内执行；Execute 勿再手写
+	 * HasField / 空串必填检查。取值请用 FNexusArgs。
 	 */
 	FCapabilityResult Run(const TSharedPtr<FJsonObject>& Arguments) const;
 
@@ -203,6 +206,8 @@ protected:
 
 	/**
 	 * 完整执行逻辑：子类自主处理参数提取、循环，返回 FCapabilityResult。
+	 *
+	 * 入参已通过 Run() 的 Schema 校验（含 required）；此处只做业务逻辑。
 	 *
 	 * 失败协议：
 	 *   - 致命错误（无法处理任何 item）→ 填 Result.FatalError，Entries 留空

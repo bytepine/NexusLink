@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -14,28 +15,24 @@
 void FReimportAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("reimport_asset");
-	Out.Description = TEXT("重新导入资产源文件。刷新已修改的外部资源。");
+	Out.Description = TEXT("Reimport asset source file. Refresh modified external resources.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("reimport"), TEXT("refresh"), TEXT("reload"), TEXT("source") };
 	Out.RelatedCapabilities = { TEXT("search_asset"), TEXT("export_asset") };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("重新导入资产源文件（如修改了外部 FBX/纹理后刷新）");
+	Out.WhenToUse = TEXT("Reimport source (e.g. after editing external FBX/texture)");
 }
 
 FCapabilityResult FReimportAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Path;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString Path = A.Str(TEXT("assetPath"));
 
 		UObject* Asset = FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
@@ -43,7 +40,7 @@ FCapabilityResult FReimportAssetCapability::Execute(const TSharedPtr<FJsonObject
 
 		if (!Asset)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("资产未找到: %s"), *Path));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Asset not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -59,7 +56,7 @@ FCapabilityResult FReimportAssetCapability::Execute(const TSharedPtr<FJsonObject
 
 		if (!bSuccess)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("重导入失败（资产可能不支持重导入）"));
+			Entry->SetStringField(TEXT("error"), TEXT("Reimport failed (asset may not support reimport)"));
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

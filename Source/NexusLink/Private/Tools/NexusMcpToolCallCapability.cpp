@@ -9,9 +9,6 @@
 #include "NexusMcpToolRegistry.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
-#include "Policies/CondensedJsonPrintPolicy.h"
-#include "Serialization/JsonSerializer.h"
-#include "Serialization/JsonWriter.h"
 #include "HAL/CriticalSection.h"
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusCapabilityIndexUtils.h"
@@ -58,18 +55,18 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 		if (IsMetaMcpToolName(CapName))
 		{
 			return FString::Printf(
-				TEXT("'%s' 是 MCP 元工具，请直接通过 MCP tools/call 调用，不要放入 call_capability(capability=...)."),
+				TEXT("'%s' is an MCP meta-tool; call it directly via MCP tools/call, not via call_capability(capability=...)."),
 				*CapName);
 		}
 		const FString Canon = FNexusCapabilityLegacyNames::GetCanonicalNameForLegacy(CapName);
 		if (!Canon.IsEmpty())
 		{
 			return FString::Printf(
-				TEXT("未知 Capability '%s'（旧名，当前规范名为 '%s'）。请使用规范名或 search_capabilities。"),
+				TEXT("Unknown capability '%s' (legacy name; canonical name is '%s'). Use the canonical name or search_capabilities."),
 				*CapName, *Canon);
 		}
 		return FString::Printf(
-			TEXT("未知 Capability '%s'，请通过 search_capabilities MCP 工具查询可用列表。"),
+			TEXT("Unknown capability '%s'. Use the search_capabilities MCP tool to list available capabilities."),
 			*CapName);
 	}
 
@@ -160,7 +157,7 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 				FNexusFeedback::FFields F;
 				F.Tool       = TEXT("call_capability");
 				F.Capability = Record->Def.Name;
-				F.ErrorText  = TEXT("当前宿主不可用（仅 runtime）");
+				F.ErrorText  = TEXT("Unavailable on current host (runtime only)");
 				FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
 			}
 			return R;
@@ -174,7 +171,7 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 				FNexusFeedback::FFields F;
 				F.Tool       = TEXT("call_capability");
 				F.Capability = Record->Def.Name;
-				F.ErrorText  = TEXT("已在设置中禁用");
+				F.ErrorText  = TEXT("Disabled in settings");
 				FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
 			}
 			return R;
@@ -205,8 +202,8 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 						TSharedPtr<FJsonObject> Warn = MakeShared<FJsonObject>();
 						Warn->SetStringField(TEXT("warning"), TEXT("redundant_call"));
 						Warn->SetStringField(TEXT("hint"), FString::Printf(
-							TEXT("已跳过：%.0f 秒前已对 '%s' 调用 sections=[\"all\"]。请复用该响应，勿再调子 section。"),
-							AgeSec, *Identity));
+							TEXT("Skipped: sections=[\"all\"] was called for '%s' %.0f s ago. Reuse that response; do not call sub-sections again."),
+							*Identity, AgeSec));
 						Warn->SetBoolField(TEXT("redundant"), true);
 						R.Status      = ECallCoreStatus::RedundantWarn;
 						R.TopOrWarn   = Warn;
@@ -277,34 +274,28 @@ static TMap<FString, FCallCapabilityRedundantEntry> GCallCapabilityRedundantMap;
 		return Inner;
 	}
 
-	static void SerializeObjToString(const TSharedPtr<FJsonObject>& Obj, FString& OutStr)
-	{
-		TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W =
-			TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&OutStr);
-		FJsonSerializer::Serialize(Obj.ToSharedRef(), W);
-	}
 void FNexusMcpToolCallCapability::BuildDefinition(FNexusMcpToolDefinition& Out) const
 {
 	Out.Name = TEXT("call_capability");
-	Out.Description = TEXT("【阶段4 - 执行操作】通过 capability 执行读写或交互。\n触发条件：search_capabilities 返回参数 Schema 后调用。\n前置依赖：必须先 search_capabilities 获取参数格式。\n用法：单条 capability+arguments；批量 calls=[{capability,arguments},...]。\n约束：失败看 errorKind (unknown/disabled/unavailable/arg_invalid)；disabled 勿重试；_feedbackHint 必须 submit_feedback。");
+	Out.Description = TEXT("[Stage 4 - Execute] Run read/write/interact via capability.\nTrigger: after search_capabilities returns parameter schema.\nPrerequisite: must search_capabilities first for parameter format.\nUsage: single capability+arguments; batch calls=[{capability,arguments},...].\nConstraints: on failure check errorKind (unknown/disabled/unavailable/arg_invalid); do not retry disabled; _feedbackHint requires submit_feedback.");
 
 	const TSharedPtr<FJsonObject> CallItemSchema = FNexusSchema::Object()
 		.Prop(TEXT("capability"),
-		       FNexusSchema::Str(TEXT("Capability 精确名称")))
+		       FNexusSchema::Str(TEXT("Exact capability name")))
 		.Prop(TEXT("arguments"),
-		      FNexusSchema::AnyObject(TEXT("本条的嵌套参数对象")))
+		      FNexusSchema::AnyObject(TEXT("Nested arguments object for this item")))
 		.Required({ TEXT("capability") })
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("capability"),
-		       FNexusSchema::Str(TEXT("单次调用的 Capability 名称")))
+		       FNexusSchema::Str(TEXT("Capability name for a single call")))
 		.Prop(TEXT("arguments"),
-		      FNexusSchema::AnyObject(TEXT("单次调用的嵌套参数")))
+		      FNexusSchema::AnyObject(TEXT("Nested arguments for a single call")))
 		.Prop(TEXT("calls"),
-		      FNexusSchema::ArrayOf(TEXT("批量：有序列表 [{capability,arguments?},...]"), CallItemSchema.ToSharedRef()))
+		      FNexusSchema::ArrayOf(TEXT("Batch: ordered list [{capability,arguments?},...]"), CallItemSchema.ToSharedRef()))
 		.Prop(TEXT("keepLoaded"),
-		      FNexusSchema::Bool(TEXT("true 时本次调用（单条或整批 calls）不自动卸载引入的包，默认 false"), true, false))
+		      FNexusSchema::Bool(TEXT("When true, do not auto-unload packages introduced by this call (single or batch); default false"), true, false))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 }
@@ -333,7 +324,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 		if (CallsArr->Num() == 0)
 		{
 			Result.bIsError  = true;
-			Result.ErrorText = TEXT("calls 数组至少包含一项");
+			Result.ErrorText = TEXT("calls array must contain at least one item");
 			return Result;
 		}
 
@@ -341,7 +332,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 		if (Args->TryGetStringField(TEXT("capability"), SingleCap) && !SingleCap.IsEmpty())
 		{
 			Result.bIsError  = true;
-			Result.ErrorText = TEXT("不可同时传 capability 与 calls；请二选一");
+			Result.ErrorText = TEXT("Cannot pass both capability and calls; use one or the other");
 			return Result;
 		}
 
@@ -356,7 +347,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			if (!V.IsValid() || !V->TryGetObject(CallObj) || !CallObj || !(*CallObj).IsValid())
 			{
 				Item->SetStringField(TEXT("capability"), TEXT(""));
-				Item->SetStringField(TEXT("error"), TEXT("calls 项必须是对象"));
+				Item->SetStringField(TEXT("error"), TEXT("Each calls item must be an object"));
 				Item->SetStringField(TEXT("errorKind"), TEXT("invalid_item"));
 				BatchResults.Add(MakeShared<FJsonValueObject>(Item));
 				++FailureCount;
@@ -367,7 +358,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			if (!(*CallObj)->TryGetStringField(TEXT("capability"), CapName) || CapName.IsEmpty())
 			{
 				Item->SetStringField(TEXT("capability"), TEXT(""));
-				Item->SetStringField(TEXT("error"), TEXT("calls 项缺少或为空 capability"));
+				Item->SetStringField(TEXT("error"), TEXT("calls item missing or empty capability"));
 				Item->SetStringField(TEXT("errorKind"), TEXT("arg_invalid"));
 				BatchResults.Add(MakeShared<FJsonValueObject>(Item));
 				++FailureCount;
@@ -396,15 +387,15 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 		{
 			Item->SetStringField(TEXT("requestedCapability"), Core.RequestedCapName);
 		}
-		Item->SetStringField(TEXT("_feedbackHint"), TEXT("建议 submit_feedback(category=\"wrong_tool\") 上报"));
+		Item->SetStringField(TEXT("_feedbackHint"), TEXT("submit_feedback(category=\"wrong_tool\")"));
 		++FailureCount;
 		break;
 			case ECallCoreStatus::Disabled:
 				Item->SetStringField(TEXT("error"), FString::Printf(
-					TEXT("Capability '%s' 已在设置中禁用。"), *Core.Record->Def.Name));
+					TEXT("Capability '%s' is disabled in settings."), *Core.Record->Def.Name));
 				Item->SetStringField(TEXT("errorKind"), TEXT("disabled"));
 				Item->SetStringField(TEXT("hint"),
-					TEXT("勿重试同名 cap。请在编辑器 编辑→项目设置→NexusLink 启用该 Capability，或改用只读方案。"));
+					TEXT("Do not retry the same cap. Enable it in Editor → Project Settings → NexusLink, or use a read-only alternative."));
 				if (!Core.RequestedCapName.Equals(Core.Record->Def.Name, ESearchCase::IgnoreCase))
 				{
 					Item->SetStringField(TEXT("requestedCapability"), Core.RequestedCapName);
@@ -413,11 +404,11 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				break;
 			case ECallCoreStatus::Unavailable:
 				Item->SetStringField(TEXT("error"), FString::Printf(
-					TEXT("Capability '%s' 在当前宿主不可用（Dedicated Server / Game 仅暴露 Runtime 基类 Capability）。"),
+					TEXT("Capability '%s' is unavailable on the current host (Dedicated Server / Game exposes runtime capabilities only)."),
 					*Core.Record->Def.Name));
 				Item->SetStringField(TEXT("errorKind"), TEXT("unavailable"));
 				Item->SetStringField(TEXT("hint"),
-					TEXT("勿重试。请改用 runtime 类 Capability，或连到完整 Editor 实例。"));
+					TEXT("Do not retry. Use a runtime capability, or connect to a full Editor instance."));
 				if (!Core.RequestedCapName.Equals(Core.Record->Def.Name, ESearchCase::IgnoreCase))
 				{
 					Item->SetStringField(TEXT("requestedCapability"), Core.RequestedCapName);
@@ -430,7 +421,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				Core.ArgInvalidErr->TryGetStringField(TEXT("error"), ErrMsg);
 				Item->SetStringField(TEXT("error"), ErrMsg);
 				Item->SetStringField(TEXT("errorKind"), TEXT("arg_invalid"));
-				Item->SetStringField(TEXT("_feedbackHint"), TEXT("建议 submit_feedback(category=\"schema_guess\") 上报参数歧义"));
+				Item->SetStringField(TEXT("_feedbackHint"), TEXT("submit_feedback(category=\"schema_guess\")"));
 				const TArray<TSharedPtr<FJsonValue>>* Par = nullptr;
 				if (Core.ArgInvalidErr->TryGetArrayField(TEXT("parameters"), Par) && Par)
 				{
@@ -442,7 +433,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			case ECallCoreStatus::Fatal:
 				Item->SetStringField(TEXT("error"), Core.FatalMessage);
 				Item->SetStringField(TEXT("errorKind"), TEXT("fatal"));
-				Item->SetStringField(TEXT("_feedbackHint"), TEXT("建议 submit_feedback(category=\"wrong_tool\") 上报此错误"));
+				Item->SetStringField(TEXT("_feedbackHint"), TEXT("submit_feedback(category=\"wrong_tool\")"));
 				++FailureCount;
 				break;
 			}
@@ -455,7 +446,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 		Top->SetNumberField(TEXT("successCount"), SuccessCount);
 		Top->SetNumberField(TEXT("failureCount"), FailureCount);
 		Result.StructuredContent = Top;
-		SerializeObjToString(Top, Result.OutputText);
+		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Top);
 		Result.bIsError = (FailureCount == BatchResults.Num() && BatchResults.Num() > 0);
 		return Result;
 	}
@@ -465,7 +456,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 	if (!Args->TryGetStringField(TEXT("capability"), CapName) || CapName.IsEmpty())
 	{
 		Result.bIsError  = true;
-		Result.ErrorText = TEXT("缺少或为空 capability（批量请传 calls[]）");
+		Result.ErrorText = TEXT("Missing or empty capability (use calls[] for batch)");
 		return Result;
 	}
 
@@ -481,62 +472,60 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				TEXT("unknown"),
 				FormatUnknownCapabilityError(Core.RequestedCapName),
 				FString(),
-				TEXT("请 search_capabilities 查询规范名；勿重复 call_capability。"),
+				TEXT("Use search_capabilities to find the canonical name; do not repeat call_capability."),
 				Core.RequestedCapName);
 			Err->SetStringField(TEXT("_feedbackHint"),
-				TEXT("建议 submit_feedback(category=\"wrong_tool\") 上报"));
+				TEXT("submit_feedback(category=\"wrong_tool\")"));
 			Result.StructuredContent = Err;
-			SerializeObjToString(Err, Result.ErrorText);
+			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
 		}
 		return Result;
 	case ECallCoreStatus::Disabled:
 		{
 			Result.bIsError = true;
 			const FString ErrMsg = FString::Printf(
-				TEXT("Capability '%s' 已在设置中禁用。"), *Core.Record->Def.Name);
+				TEXT("Capability '%s' is disabled in settings."), *Core.Record->Def.Name);
 			TSharedPtr<FJsonObject> Err = BuildCallErrorObject(
 				TEXT("disabled"),
 				ErrMsg,
 				Core.Record->Def.Name,
-				TEXT("勿重试同名 cap。请在编辑器 编辑→项目设置→NexusLink 启用该 Capability，或改用只读方案。"),
+				TEXT("Do not retry the same cap. Enable it in Editor → Project Settings → NexusLink, or use a read-only alternative."),
 				Core.RequestedCapName);
 			Result.StructuredContent = Err;
-			SerializeObjToString(Err, Result.ErrorText);
+			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
 		}
 		return Result;
 	case ECallCoreStatus::Unavailable:
 		{
 			Result.bIsError = true;
 			const FString ErrMsg = FString::Printf(
-				TEXT("Capability '%s' 在当前宿主不可用（Dedicated Server / Game 仅暴露 Runtime 基类 Capability）。"),
+				TEXT("Capability '%s' is unavailable on the current host (Dedicated Server / Game exposes runtime capabilities only)."),
 				*Core.Record->Def.Name);
 			TSharedPtr<FJsonObject> Err = BuildCallErrorObject(
 				TEXT("unavailable"),
 				ErrMsg,
 				Core.Record->Def.Name,
-				TEXT("勿重试。请改用 runtime 类 Capability，或连到完整 Editor 实例。"),
+				TEXT("Do not retry. Use a runtime capability, or connect to a full Editor instance."),
 				Core.RequestedCapName);
 			Result.StructuredContent = Err;
-			SerializeObjToString(Err, Result.ErrorText);
+			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
 		}
 		return Result;
 	case ECallCoreStatus::RedundantWarn:
 		Result.StructuredContent = Core.TopOrWarn;
-		SerializeObjToString(Core.TopOrWarn, Result.OutputText);
+		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Core.TopOrWarn);
 		return Result;
 	case ECallCoreStatus::ArgInvalid:
 		{
 			Result.bIsError = true;
 			Core.ArgInvalidErr->SetStringField(TEXT("_feedbackHint"),
-				TEXT("建议 submit_feedback(category=\"schema_guess\") 上报参数歧义"));
-			FString ErrStr;
-			SerializeObjToString(Core.ArgInvalidErr, ErrStr);
-			Result.ErrorText = ErrStr;
+				TEXT("submit_feedback(category=\"schema_guess\")"));
+			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Core.ArgInvalidErr);
 		}
 		return Result;
 	case ECallCoreStatus::Fatal:
 		Result.bIsError  = true;
-		Result.ErrorText = Core.FatalMessage + TEXT("\n→ 建议调用 submit_feedback(category=\"wrong_tool\") 上报此问题");
+		Result.ErrorText = Core.FatalMessage + TEXT("\n→ submit_feedback(category=\"wrong_tool\")");
 		return Result;
 	case ECallCoreStatus::Ok:
 	default:
@@ -544,7 +533,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 	}
 
 	Result.StructuredContent = Core.TopOrWarn;
-	SerializeObjToString(Core.TopOrWarn, Result.OutputText);
+	Result.OutputText = FNexusJsonUtils::SerializeCondensed(Core.TopOrWarn);
 	return Result;
 }
 

@@ -13,9 +13,9 @@ void FGetAssetGeometryCollectionCapability::BuildDefinition(FNexusCapabilityDefi
 {
 	Out.Name = TEXT("get_asset_geometry_collection");
 	Out.SearchAssetTypes = {TEXT("GeometryCollection")};
-	Out.Description = TEXT("读取 GeometryCollection：伤害阈值 / 类名摘要。");
+	Out.Description = TEXT("Read GeometryCollection: damage threshold/class summary.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GeometryCollection 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GeometryCollection asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -33,7 +33,7 @@ FCapabilityResult FGetAssetGeometryCollectionCapability::Execute(const TSharedPt
 		if (!GC)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 GeometryCollection 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load GeometryCollection: %s"), *AssetPath));
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();

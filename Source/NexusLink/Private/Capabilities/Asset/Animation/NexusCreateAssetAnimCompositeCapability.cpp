@@ -5,6 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Animation/AnimComposite.h"
 #include "Animation/Skeleton.h"
 #include "NexusMcpTool.h"
@@ -12,29 +13,25 @@
 void FCreateAssetAnimCompositeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_anim_composite");
-	Out.Description = TEXT("创建 AnimComposite（动画合成）资产；用 manage 添加片段。");
+	Out.Description = TEXT("Create AnimComposite asset; add segments via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),    FNexusSchema::Str(TEXT("AnimComposite 包路径")))
-		.Prop(TEXT("skeletonPath"), FNexusSchema::Str(TEXT("骨骼资产路径（可选）")))
+		.Prop(TEXT("assetPath"),    FNexusSchema::Str(TEXT("AnimComposite package path")))
+		.Prop(TEXT("skeletonPath"), FNexusSchema::Str(TEXT("Skeleton asset path (optional)")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("composite"), TEXT("anim"), TEXT("sequence"), TEXT("combine") };
 	Out.RelatedCapabilities = { TEXT("get_asset_anim_composite"), TEXT("manage_asset_anim_composite") };
-	Out.WhenToUse = TEXT("创建空白 AnimComposite；需要 skeletonPath 时绑定骨骼");
+	Out.WhenToUse = TEXT("Create empty AnimComposite; bind skeleton when skeletonPath given");
 }
 
 FCapabilityResult FCreateAssetAnimCompositeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		if (LoadObject<UAnimComposite>(nullptr, *AssetPath))
 		{
@@ -44,15 +41,15 @@ FCapabilityResult FCreateAssetAnimCompositeCapability::Execute(const TSharedPtr<
 		}
 
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		UAnimComposite* Composite = NewObject<UAnimComposite>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Composite) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("AnimComposite 创建失败")); return; }
+		if (!Composite) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("AnimComposite Createfailed")); return; }
 
 		if (Arguments->HasField(TEXT("skeletonPath")))
 		{
-			const FString SkelPath = Arguments->GetStringField(TEXT("skeletonPath"));
+			const FString SkelPath = A.Str(TEXT("skeletonPath"));
 			USkeleton* Skeleton = LoadObject<USkeleton>(nullptr, *SkelPath);
 			if (Skeleton) Composite->SetSkeleton(Skeleton);
 		}

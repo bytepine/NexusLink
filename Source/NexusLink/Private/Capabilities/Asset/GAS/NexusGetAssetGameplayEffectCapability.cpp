@@ -44,18 +44,18 @@ void FGetAssetGameplayEffectCapability::BuildDefinition(FNexusCapabilityDefiniti
 {
 	Out.Name = TEXT("get_asset_gameplay_effect");
 	Out.SearchAssetTypes = {TEXT("GameplayEffect")};
-	Out.Description = TEXT("读 GE Blueprint。sections=policy|modifiers|tags|cues；只读。");
+	Out.Description = TEXT("Read GE Blueprint. sections=policy|modifiers|tags|cues; read-only.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Gas };
 	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("effect"), TEXT("ge"), TEXT("modifier"), TEXT("duration") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_gameplay_effect"), TEXT("create_asset_gameplay_effect") };
-	Out.WhenToUse = TEXT("读 GE 持续时间/Modifier/Tag/Cue；不含写操作");
+	Out.WhenToUse = TEXT("Read GE duration/Modifier/Tag/Cue; no writes");
 }
 
 TSharedPtr<FJsonObject> FGetAssetGameplayEffectCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GameplayEffect Blueprint 路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GameplayEffect Blueprint path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 }
@@ -78,7 +78,7 @@ bool FGetAssetGameplayEffectCapability::PrepareEntry(
 {
 	FString Path;
 	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-	{ OutError = TEXT("缺少 assetPath"); return false; }
+	{ OutError = TEXT("Missing assetPath"); return false; }
 
 	FString LoadError;
 	UBlueprint* BP = FNexusGasUtils::LoadGameplayEffectBlueprint(Path, LoadError);
@@ -100,10 +100,10 @@ void FGetAssetGameplayEffectCapability::ExecuteSection(
 	FString&                       OutError) const
 {
 	UBlueprint* BP = static_cast<UBlueprint*>(TargetOpaque);
-	if (!BP || !BP->GeneratedClass) { OutError = TEXT("无效的 GE Blueprint 目标"); return; }
+	if (!BP || !BP->GeneratedClass) { OutError = TEXT("Invalid GE Blueprint target"); return; }
 
 	UObject* CDO = BP->GeneratedClass->GetDefaultObject();
-	if (!CDO) { OutError = TEXT("无法获取 GameplayEffect CDO"); return; }
+	if (!CDO) { OutError = TEXT("Unable to get GameplayEffect CDO"); return; }
 
 	if (SectionName == TEXT("policy"))
 	{

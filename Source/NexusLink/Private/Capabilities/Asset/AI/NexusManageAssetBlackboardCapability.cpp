@@ -6,6 +6,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
@@ -51,23 +52,23 @@ void FManageAssetBlackboardCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("manage_asset_blackboard");
 	Out.SearchAssetTypes = {TEXT("Blackboard")};
-	Out.Description = TEXT("批量编辑 BB 键：增删/重命名/改父 BB；须 save_asset。");
+	Out.Description = TEXT("Batch edit BB keys: add/remove/rename/set parent; persist with save_asset.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),  FNexusSchema::Enum(TEXT("键操作"), { TEXT("add"), TEXT("remove"), TEXT("rename"), TEXT("set_parent") }))
-		.Prop(TEXT("keyName"), FNexusSchema::Str(TEXT("键名（set_parent 不需要）")))
-		.Prop(TEXT("keyType"), FNexusSchema::Enum(TEXT("键类型（仅 add）"),
+		.Prop(TEXT("action"),  FNexusSchema::Enum(TEXT("Key operation"), { TEXT("add"), TEXT("remove"), TEXT("rename"), TEXT("set_parent") }))
+		.Prop(TEXT("keyName"), FNexusSchema::Str(TEXT("Key name (not needed for set_parent)")))
+		.Prop(TEXT("keyType"), FNexusSchema::Enum(TEXT("Key type (add only)"),
 		{ TEXT("bool"), TEXT("float"), TEXT("int"), TEXT("string"), TEXT("name"),
 		  TEXT("vector"), TEXT("rotator"), TEXT("object"), TEXT("class"), TEXT("enum") }))
-		.Prop(TEXT("newName"), FNexusSchema::Str(TEXT("新键名（仅 rename）")))
-		.Prop(TEXT("parentPath"), FNexusSchema::Str(TEXT("父 BlackboardData 路径（仅 set_parent，空则清除）")))
+		.Prop(TEXT("newName"), FNexusSchema::Str(TEXT("New key name (rename only)")))
+		.Prop(TEXT("parentPath"), FNexusSchema::Str(TEXT("Parent BlackboardData path (set_parent only; empty clears)")))
 		.Required({ TEXT("action") })
 		.Build();
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("BlackboardData 或 BehaviorTree 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量键操作"), ItemSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("BlackboardData or BehaviorTree asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch key ops"), ItemSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	}();
@@ -76,7 +77,7 @@ void FManageAssetBlackboardCapability::BuildDefinition(FNexusCapabilityDefinitio
 		TEXT("blackboard"), TEXT("bb"), TEXT("key"), TEXT("ai"), TEXT("parent")
 	};
 	Out.RelatedCapabilities = { TEXT("get_asset_blackboard"), TEXT("create_asset_blackboard"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("写操作：增删/重命名 BB 键、改父 BB");
+	Out.WhenToUse = TEXT("Write ops: add/remove/rename BB keys, change parent BB");
 }
 
 FCapabilityResult FManageAssetBlackboardCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -84,17 +85,17 @@ FCapabilityResult FManageAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->HasField(TEXT("assetPath")) ? Arguments->GetStringField(TEXT("assetPath")) : TEXT("");
-		if (AssetPath.IsEmpty()) { OutError = TEXT("assetPath 为必填项"); return; }
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UBlackboardData* BB = LoadBlackboardFromPath(AssetPath);
-		if (!BB) { OutError = FString::Printf(TEXT("BlackboardData 未找到: %s"), *AssetPath); return; }
+		if (!BB) { OutError = FString::Printf(TEXT("BlackboardData not found: %s"), *AssetPath); return; }
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("缺少 operations 或为空");
+			OutError = TEXT("Missing or empty operations");
 			return;
 		}
 
@@ -105,7 +106,7 @@ FCapabilityResult FManageAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 
 			if (!Item.IsValid())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("无效的 key 项"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("Invalid key item"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
@@ -117,14 +118,14 @@ FCapabilityResult FManageAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 
 			if (Action.IsEmpty())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("缺少 action"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("Missing action"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
 
 			if (Action != TEXT("set_parent") && KeyName.IsEmpty())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("此操作需要 keyName"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("This operation requires keyName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
@@ -159,7 +160,7 @@ FCapabilityResult FManageAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 					const FString TypeStr = Item->HasField(TEXT("keyType")) ? Item->GetStringField(TEXT("keyType")) : TEXT("");
 					if (TypeStr.IsEmpty())
 					{
-						OutEntry->SetStringField(TEXT("error"), TEXT("action=add 时 keyType 必填"));
+						OutEntry->SetStringField(TEXT("error"), TEXT("keyType is required when action=add"));
 					}
 					else
 					{
@@ -188,7 +189,7 @@ FCapabilityResult FManageAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 				});
 				if (Removed == 0)
 				{
-					OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("用户定义键中未找到 '%s'"), *KeyName));
+					OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Key '%s' not found in user-defined keys"), *KeyName));
 				}
 				else
 				{
@@ -200,7 +201,7 @@ FCapabilityResult FManageAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 				const FString NewName = Item->HasField(TEXT("newName")) ? Item->GetStringField(TEXT("newName")) : TEXT("");
 				if (NewName.IsEmpty())
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("action=rename 时 newName 必填"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("newName is required when action=rename"));
 				}
 				else
 				{
@@ -216,7 +217,7 @@ FCapabilityResult FManageAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 					}
 					if (!bFound)
 					{
-						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("用户定义键中未找到 '%s'"), *KeyName));
+						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Key '%s' not found in user-defined keys"), *KeyName));
 					}
 					else
 					{
@@ -240,11 +241,11 @@ FCapabilityResult FManageAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 					UBlackboardData* ParentBB = FNexusAssetUtils::LoadAssetWithFallback<UBlackboardData>(ParentPath);
 					if (!ParentBB)
 					{
-						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("父 BlackboardData 未找到: %s"), *ParentPath));
+						OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Parent BlackboardData not found: %s"), *ParentPath));
 					}
 					else if (ParentBB == BB)
 					{
-						OutEntry->SetStringField(TEXT("error"), TEXT("不能将自身设为父级"));
+						OutEntry->SetStringField(TEXT("error"), TEXT("Cannot set self as parent"));
 					}
 					else
 					{
@@ -256,7 +257,7 @@ FCapabilityResult FManageAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 			}
 			else
 			{
-				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'"), *Action));
+				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
 			}
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));

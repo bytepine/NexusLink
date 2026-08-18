@@ -13,9 +13,9 @@ void FGetAssetFoliageTypeCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name = TEXT("get_asset_foliage_type");
 	Out.SearchAssetTypes = {TEXT("FoliageType")};
-	Out.Description = TEXT("读取 FoliageType：mesh / density / radius / AlignToNormal。LandscapeGrassType 未收录。");
+	Out.Description = TEXT("Read FoliageType: mesh/density/radius/AlignToNormal. LandscapeGrassType not included.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("FoliageType 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("FoliageType asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -34,7 +34,7 @@ FCapabilityResult FGetAssetFoliageTypeCapability::Execute(const TSharedPtr<FJson
 		if (!Type)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 FoliageType 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load FoliageType: %s"), *AssetPath));
 			return;
 		}
 

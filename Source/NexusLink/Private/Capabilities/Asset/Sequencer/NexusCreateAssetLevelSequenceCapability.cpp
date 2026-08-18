@@ -5,6 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "LevelSequence.h"
 #include "MovieScene.h"
 #include "NexusMcpTool.h"
@@ -12,27 +13,23 @@
 void FCreateAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_level_sequence");
-	Out.Description = TEXT("创建空白 LevelSequence 并初始化 MovieScene。");
+	Out.Description = TEXT("Create empty LevelSequence and initialize MovieScene.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("sequence"), TEXT("sequencer"), TEXT("cinematic"), TEXT("levelsequence") };
 	Out.RelatedCapabilities = { TEXT("get_asset_level_sequence"), TEXT("manage_asset_level_sequence") };
-	Out.WhenToUse = TEXT("新建 LevelSequence；再用 manage 加 binding/轨/关键帧");
+	Out.WhenToUse = TEXT("Create LevelSequence; add bindings/tracks/keys via manage");
 }
 
 FCapabilityResult FCreateAssetLevelSequenceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		if (LoadObject<ULevelSequence>(nullptr, *AssetPath))
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
@@ -41,11 +38,11 @@ FCapabilityResult FCreateAssetLevelSequenceCapability::Execute(const TSharedPtr<
 		}
 
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		ULevelSequence* LS = NewObject<ULevelSequence>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!LS) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("LevelSequence 创建失败")); return; }
+		if (!LS) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("LevelSequence Createfailed")); return; }
 		LS->Initialize();
 
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, LS, AssetPath);

@@ -56,7 +56,7 @@ static void CapCollectTagChildren(
 void FGetGameplayTagsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_gameplay_tags");
-	Out.Description = TEXT("查 Tag 树/Actor/资产/referencers。sections 含 referencers。");
+	Out.Description = TEXT("Query Tag tree/Actor/asset/referencers. sections includes referencers.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("hierarchy"), TEXT("container"), TEXT("query"), TEXT("gas"), TEXT("actor") };
@@ -66,13 +66,13 @@ void FGetGameplayTagsCapability::BuildDefinition(FNexusCapabilityDefinition& Out
 TSharedPtr<FJsonObject> FGetGameplayTagsCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("parentTag"),  FNexusSchema::Str(TEXT("层级子树的根标签")))
-		.Prop(TEXT("actorName"),  FNexusSchema::Str(TEXT("运行时 Actor 名（actor 段）")))
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("资产路径（asset 段）")))
-		.Prop(TEXT("tag"),         FNexusSchema::Str(TEXT("referencers 段：GameplayTag 全名")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("标签名过滤")))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("referencers 段分页偏移"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("最大条数"), 200, 1, 2000))
+		.Prop(TEXT("parentTag"),  FNexusSchema::Str(TEXT("Root tag for subtree")))
+		.Prop(TEXT("actorName"),  FNexusSchema::Str(TEXT("Runtime Actor name (actor section)")))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Asset path (asset section)")))
+		.Prop(TEXT("tag"),         FNexusSchema::Str(TEXT("referencers section: GameplayTag full name")))
+		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Tag name filter")))
+		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("referencers section pagination offset"), 0, 0))
+		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max count"), 200, 1, 2000))
 		.Build();
 }
 
@@ -125,7 +125,7 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 			FGameplayTag ParentTag = Manager.RequestGameplayTag(FName(*ParentTagStr), false);
 			if (!ParentTag.IsValid())
 			{
-				OutError = FString::Printf(TEXT("标签未找到: '%s'"), *ParentTagStr);
+				OutError = FString::Printf(TEXT("Tag not found: '%s'"), *ParentTagStr);
 				return;
 			}
 			StartNode = Manager.FindTagNode(ParentTag);
@@ -162,7 +162,7 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 		FString ActorName;
 		if (!Args.IsValid() || !Args->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty())
 		{
-			OutError = TEXT("actor 段需要 actorName");
+			OutError = TEXT("actor section requires actorName");
 			return;
 		}
 
@@ -170,7 +170,7 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 		if (!World) return;
 
 		AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
-		if (!Actor) { OutError = FString::Printf(TEXT("Actor 未找到: %s"), *ActorName); return; }
+		if (!Actor) { OutError = FString::Printf(TEXT("Actor not found: %s"), *ActorName); return; }
 
 		InOutDetail->SetStringField(TEXT("actorName"), Actor->GetName());
 
@@ -227,7 +227,7 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 	{
 		if (TagName.IsEmpty())
 		{
-			OutError = TEXT("referencers 段需要 tag（GameplayTag 全名）");
+			OutError = TEXT("referencers section requires tag (GameplayTag full name)");
 			return;
 		}
 
@@ -260,14 +260,14 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 		FString AssetPath;
 		if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
 		{
-			OutError = TEXT("asset 段需要 assetPath");
+			OutError = TEXT("asset section requires assetPath");
 			return;
 		}
 
 		UObject* Asset = FNexusAssetUtils::LoadAssetWithFallback<UObject>(AssetPath);
 		if (!Asset)
 		{
-			OutError = FString::Printf(TEXT("资产未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("Asset not found: %s"), *AssetPath);
 			return;
 		}
 
@@ -312,7 +312,7 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 	}
 	else
 	{
-		OutError = FString::Printf(TEXT("未处理的 section '%s'"), *SectionName);
+		OutError = FString::Printf(TEXT("Unhandled section '%s'"), *SectionName);
 	}
 }
 

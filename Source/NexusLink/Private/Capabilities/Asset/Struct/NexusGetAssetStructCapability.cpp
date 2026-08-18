@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Struct/NexusGetAssetStructCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpTool.h"
 #include "NexusMcpSchemaBuilder.h"
@@ -53,10 +54,10 @@ void FGetAssetStructCapability::BuildDefinition(FNexusCapabilityDefinition& Out)
 {
 	Out.Name = TEXT("get_asset_struct");
 	Out.SearchAssetTypes = {TEXT("Struct")};
-	Out.Description = TEXT("检查 UDS 字段定义。含 name/type/subType/defaultValue；可 propertyPaths 过滤。");
+	Out.Description = TEXT("Inspect UDS field definitions. Optional propertyPaths filter.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("UserDefinedStruct 资产路径")))
-		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("字段名过滤（首段）")))
+		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("UserDefinedStruct asset path")))
+		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Field name filter (first segment)")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Struct };
@@ -64,7 +65,7 @@ void FGetAssetStructCapability::BuildDefinition(FNexusCapabilityDefinition& Out)
 		TEXT("uds"), TEXT("userstruct"), TEXT("fields"), TEXT("members"), TEXT("schema")
 	};
 	Out.RelatedCapabilities = { TEXT("manage_asset_struct_field"), TEXT("create_asset_struct") };
-	Out.WhenToUse = TEXT("读 UDS 字段定义；不含编辑");
+	Out.WhenToUse = TEXT("Read UDS field definitions; no edits");
 }
 
 FCapabilityResult FGetAssetStructCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -72,13 +73,9 @@ FCapabilityResult FGetAssetStructCapability::Execute(const TSharedPtr<FJsonObjec
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		FString Path;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FString Path = A.Str(TEXT("assetPath"));
 
 		TArray<FString> PropertyPaths;
 		FNexusPropertyUtils::ReadStringArray(Arguments, TEXT("propertyPaths"), PropertyPaths);
@@ -86,16 +83,16 @@ FCapabilityResult FGetAssetStructCapability::Execute(const TSharedPtr<FJsonObjec
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 
 		UObject* Obj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
-		if (!Obj) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("资产未找到: %s"), *Path)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		if (!Obj) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Asset not found: %s"), *Path)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 
 		UUserDefinedStruct* US = Cast<UUserDefinedStruct>(Obj);
-		if (!US) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("资产不是 UserDefinedStruct: %s"), *Path)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		if (!US) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Asset is not a UserDefinedStruct: %s"), *Path)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 
 #if WITH_EDITOR
 		TSharedPtr<FJsonObject> One = HandleStruct(US, PropertyPaths);
 		for (const auto& Pair : One->Values) Entry->SetField(Pair.Key, Pair.Value);
 #else
-		Entry->SetStringField(TEXT("error"), TEXT("get_asset_struct 仅在编辑器构建可用"));
+		Entry->SetStringField(TEXT("error"), TEXT("get_asset_struct only available in editor builds"));
 #endif
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

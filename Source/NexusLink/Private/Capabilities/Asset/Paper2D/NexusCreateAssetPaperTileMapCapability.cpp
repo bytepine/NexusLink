@@ -6,6 +6,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "PaperTileMap.h"
 #include "PaperTileSet.h"
 #include "NexusMcpTool.h"
@@ -13,14 +14,14 @@
 void FCreateAssetPaperTileMapCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_paper_tile_map");
-	Out.Description = TEXT("创建 PaperTileMap。可选 mapWidth/Height、tileWidth/Height、tileSetPath。");
+	Out.Description = TEXT("Create PaperTileMap. optional mapWidth/Height, tileWidth/Height, tileSetPath.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
-		.Prop(TEXT("mapWidth"), FNexusSchema::Int(TEXT("地图宽（格，默认引擎默认）")))
-		.Prop(TEXT("mapHeight"), FNexusSchema::Int(TEXT("地图高（格）")))
-		.Prop(TEXT("tileWidth"), FNexusSchema::Int(TEXT("单格像素宽")))
-		.Prop(TEXT("tileHeight"), FNexusSchema::Int(TEXT("单格像素高")))
-		.Prop(TEXT("tileSetPath"), FNexusSchema::Str(TEXT("默认 PaperTileSet 路径（可选）")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("mapWidth"), FNexusSchema::Int(TEXT("Map width (cells, engine default)")))
+		.Prop(TEXT("mapHeight"), FNexusSchema::Int(TEXT("Map height (cells)")))
+		.Prop(TEXT("tileWidth"), FNexusSchema::Int(TEXT("Tile pixel width")))
+		.Prop(TEXT("tileHeight"), FNexusSchema::Int(TEXT("Tile pixel height")))
+		.Prop(TEXT("tileSetPath"), FNexusSchema::Str(TEXT("default PaperTileSet path (optional)")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -28,19 +29,15 @@ void FCreateAssetPaperTileMapCapability::BuildDefinition(FNexusCapabilityDefinit
 	Out.RelatedCapabilities = {
 		TEXT("get_asset_paper_tile_map"), TEXT("manage_asset_paper_tile_map"), TEXT("search_asset")
 	};
-	Out.WhenToUse = TEXT("新建 PaperTileMap；改尺寸/图层/格子用 manage");
+	Out.WhenToUse = TEXT("Create PaperTileMap; edit size/layers/cells via manage");
 }
 
 FCapabilityResult FCreateAssetPaperTileMapCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		if (LoadObject<UPaperTileMap>(nullptr, *AssetPath))
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
@@ -56,7 +53,7 @@ FCapabilityResult FCreateAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 			if (!DefaultSet)
 			{
 				FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-					FString::Printf(TEXT("PaperTileSet 未找到: %s"), *TileSetPath));
+					FString::Printf(TEXT("PaperTileSet not found: %s"), *TileSetPath));
 				return;
 			}
 		}
@@ -64,24 +61,24 @@ FCapabilityResult FCreateAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 		UPackage* Package = CreatePackage(*AssetPath);
 		if (!Package)
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败"));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package"));
 			return;
 		}
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		UPaperTileMap* Map = NewObject<UPaperTileMap>(Package, *AssetName, RF_Public | RF_Standalone);
 		if (!Map)
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建失败"));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Creation failed"));
 			return;
 		}
 
 		if (Arguments->HasField(TEXT("tileWidth")))
 		{
-			Map->TileWidth = FMath::Max(1, static_cast<int32>(Arguments->GetNumberField(TEXT("tileWidth"))));
+			Map->TileWidth = FMath::Max(1, static_cast<int32>(A.Num(TEXT("tileWidth"))));
 		}
 		if (Arguments->HasField(TEXT("tileHeight")))
 		{
-			Map->TileHeight = FMath::Max(1, static_cast<int32>(Arguments->GetNumberField(TEXT("tileHeight"))));
+			Map->TileHeight = FMath::Max(1, static_cast<int32>(A.Num(TEXT("tileHeight"))));
 		}
 
 		Map->InitializeNewEmptyTileMap(DefaultSet);
@@ -91,10 +88,10 @@ FCapabilityResult FCreateAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 		if (bHasW || bHasH)
 		{
 			const int32 W = bHasW
-				? FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("mapWidth"))), 1, 1024)
+				? FMath::Clamp(static_cast<int32>(A.Num(TEXT("mapWidth"))), 1, 1024)
 				: Map->MapWidth;
 			const int32 H = bHasH
-				? FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("mapHeight"))), 1, 1024)
+				? FMath::Clamp(static_cast<int32>(A.Num(TEXT("mapHeight"))), 1, 1024)
 				: Map->MapHeight;
 			Map->ResizeMap(W, H, /*bForceResize=*/true);
 		}

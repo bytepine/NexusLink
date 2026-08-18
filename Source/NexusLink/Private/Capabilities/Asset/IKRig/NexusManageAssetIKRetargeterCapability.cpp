@@ -5,6 +5,7 @@
 #if WITH_IK_RIG
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -17,22 +18,22 @@ void FManageAssetIKRetargeterCapability::BuildDefinition(FNexusCapabilityDefinit
 {
 	Out.Name = TEXT("manage_asset_ik_retargeter");
 	Out.SearchAssetTypes = {TEXT("IKRetargeter")};
-	Out.Description = TEXT("编辑 IKRetargeter：set_source_rig / set_target_rig / set_chain_source。");
+	Out.Description = TEXT("Edit IKRetargeter: set_source_rig / set_target_rig / set_chain_source.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
+		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 			{ TEXT("set_source_rig"), TEXT("set_target_rig"), TEXT("set_chain_source") }))
-		.Prop(TEXT("rigPath"),       FNexusSchema::Str(TEXT("IKRig 资产路径（set_source/target_rig）")))
-		.Prop(TEXT("targetChain"),   FNexusSchema::Str(TEXT("目标 Chain 名（set_chain_source）")))
-		.Prop(TEXT("sourceChain"),   FNexusSchema::Str(TEXT("源 Chain 名（set_chain_source）")))
+		.Prop(TEXT("rigPath"),       FNexusSchema::Str(TEXT("IKRig asset path (set_source/target_rig)")))
+		.Prop(TEXT("targetChain"),   FNexusSchema::Str(TEXT("Target chain name (set_chain_source)")))
+		.Prop(TEXT("sourceChain"),   FNexusSchema::Str(TEXT("Source chain name (set_chain_source)")))
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"),  FNexusSchema::Str(TEXT("IKRetargeter 资产路径")))
-		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("操作列表"), OpSchema.ToSharedRef()))
+		.Required(TEXT("assetPath"),  FNexusSchema::Str(TEXT("IKRetargeter asset path")))
+		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("ikretargeter"), TEXT("retarget"), TEXT("chain"), TEXT("source"), TEXT("target") };
 	Out.RelatedCapabilities = { TEXT("get_asset_ik_retargeter"), TEXT("get_asset_ik_rig"), TEXT("create_asset_ik_retargeter") };
-	Out.WhenToUse = TEXT("修改 IKRetargeter 绑定；修改后需 save_asset 落盘");
+	Out.WhenToUse = TEXT("Edit IKRetargeter bindings; persist with save_asset after changes");
 }
 
 FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -46,19 +47,19 @@ FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 		if (!Retargeter)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("IKRetargeter 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("IKRetargeter not found: %s"), *AssetPath));
 			return;
 		}
 
-		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
-		if (!Arguments.IsValid() || !Arguments->TryGetArrayField(TEXT("operations"), OpsArr) || !OpsArr)
+		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (OpsArr.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 数组"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing operations array"));
 			return;
 		}
 
 		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : *OpsArr)
+		for (const TSharedPtr<FJsonValue>& OpVal : OpsArr)
 		{
 			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
 			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr) continue;
@@ -76,14 +77,14 @@ FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 				Op->TryGetStringField(TEXT("rigPath"), RigPath);
 				if (RigPath.IsEmpty())
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("需要 rigPath"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("rigPath required"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				UIKRigDefinition* IKRig = FNexusAssetUtils::LoadAssetWithFallback<UIKRigDefinition>(RigPath);
 				if (!IKRig)
 				{
 					ResEntry->SetStringField(TEXT("error"),
-						FString::Printf(TEXT("IKRig 未找到: %s"), *RigPath));
+						FString::Printf(TEXT("IKRig not found: %s"), *RigPath));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				// 通过 GetIKRigWriteable 修改 (bypasses controller for simplicity)
@@ -100,7 +101,7 @@ FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 				}
 				else
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("反射找不到字段"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("Reflection field not found"));
 				}
 			}
 			else if (Action.Equals(TEXT("set_chain_source"), ESearchCase::IgnoreCase))
@@ -110,14 +111,14 @@ FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 				Op->TryGetStringField(TEXT("sourceChain"), SourceChain);
 				if (TargetChain.IsEmpty())
 				{
-					ResEntry->SetStringField(TEXT("error"), TEXT("set_chain_source 需要 targetChain"));
+					ResEntry->SetStringField(TEXT("error"), TEXT("set_chain_source requires targetChain"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				const TObjectPtr<URetargetChainSettings> CS = Retargeter->GetChainMapByName(FName(*TargetChain));
 				if (!CS)
 				{
 					ResEntry->SetStringField(TEXT("error"),
-						FString::Printf(TEXT("Chain 未找到: %s"), *TargetChain));
+						FString::Printf(TEXT("Chain not found: %s"), *TargetChain));
 					OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry)); continue;
 				}
 				CS->SourceChain = FName(*SourceChain);
@@ -127,7 +128,7 @@ FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 			}
 			else
 			{
-				ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+				ResEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(ResEntry));
 		}
@@ -135,7 +136,7 @@ FCapabilityResult FManageAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 		if (bDirty)
 		{
 			Retargeter->MarkPackageDirty();
-			OutTop->SetStringField(TEXT("note"), TEXT("已修改，用 save_asset 落盘"));
+			OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
 		}
 	});
 }

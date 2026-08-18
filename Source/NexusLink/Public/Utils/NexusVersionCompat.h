@@ -2,7 +2,7 @@
 
 #pragma once
 
-// Utils 层：Common（纯宏文件，无类定义，§7.2 唯一例外）
+// Utils 层：Common（纯宏文件，无类定义，§8.2 唯一例外）
 // ── 跨版本编译兼容宏 ──
 // 将 ENGINE_MAJOR_VERSION / ENGINE_MINOR_VERSION 数值化，使版本比较只需一行。
 // 业务代码用法：#if NX_UE_HAS_<语义>（禁止在 NexusVersionCompat.h 外写 NX_UE_AT_LEAST）
@@ -25,6 +25,7 @@
 
 #define NX_UE_HAS_UNLOAD_PACKAGES_DIRTY_FLAG  NX_UE_AT_LEAST(5, 0)  // UPackageTools::UnloadPackages(Packages, Err, bUnloadDirtyPackages) 第三参数仅 5.0+（4.26/4.27 只有 2 参重载）
 #define NX_UE_HAS_APP_STYLE            NX_UE_AT_LEAST(5, 0)  // FEditorStyle::Get() → FAppStyle::Get()（Styling/AppStyle.h）
+#define NX_UE_HAS_EQS                  NX_UE_AT_LEAST(5, 0)  // Environment Query System（EQS）插件；UE4 无 UEnvQuery 稳定 API
 #define NX_UE_HAS_FTSTICKER            NX_UE_AT_LEAST(5, 0)  // FTicker → FTSTicker
 #define NX_UE_HAS_SAVE_PACKAGE_ARGS    NX_UE_AT_LEAST(5, 0)  // UPackage::SavePackage(FSavePackageArgs)
 #define NX_UE_HAS_MARK_AS_GARBAGE      NX_UE_AT_LEAST(5, 0)  // MarkPendingKill() → MarkAsGarbage()

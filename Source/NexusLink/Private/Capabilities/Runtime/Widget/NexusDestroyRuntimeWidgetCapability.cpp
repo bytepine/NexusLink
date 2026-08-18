@@ -2,6 +2,7 @@
 
 #include "Capabilities/Runtime/Widget/NexusDestroyRuntimeWidgetCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
@@ -11,29 +12,26 @@
 void FDestroyRuntimeWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("destroy_runtime_widget");
-	Out.Description = TEXT("从视口移除并销毁运行时 UMG 面板。按 widgetName 定位。");
+	Out.Description = TEXT("Remove and destroy runtime UMG panel from viewport. Locate by widgetName.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("widgetName"), FNexusSchema::Str(TEXT("要销毁的 UserWidget 实例名")))
-		.Prop(TEXT("ownerClass"), FNexusSchema::Str(TEXT("Owner UserWidget 类/名过滤（可选）")))
+		.Prop(TEXT("widgetName"), FNexusSchema::Str(TEXT("UserWidget instance name to destroy")))
+		.Prop(TEXT("ownerClass"), FNexusSchema::Str(TEXT("Owner UserWidget class/name filter (optional)")))
 		.Required({ TEXT("widgetName") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("viewport"), TEXT("remove"), TEXT("close"), TEXT("dismiss") };
 	Out.RelatedCapabilities = { TEXT("spawn_runtime_widget"), TEXT("list_runtime_widgets") };
 	Out.Prerequisites = { TEXT("pie") };
-	Out.WhenToUse = TEXT("PIE 中移除已添加到视口的 UMG 面板");
+	Out.WhenToUse = TEXT("Remove UMG panel from viewport in PIE");
 }
 
 FCapabilityResult FDestroyRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString WidgetName, OwnerFilter;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("widgetName"), WidgetName) || WidgetName.IsEmpty())
-		{
-			OutError = TEXT("缺少 widgetName");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString WidgetName = A.Str(TEXT("widgetName"));
+		FString OwnerFilter;
 		if (Arguments.IsValid()) Arguments->TryGetStringField(TEXT("ownerClass"), OwnerFilter);
 
 		FString WorldError;
@@ -59,7 +57,7 @@ FCapabilityResult FDestroyRuntimeWidgetCapability::Execute(const TSharedPtr<FJso
 
 		if (!FoundWidget)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("UserWidget '%s' 未找到"), *WidgetName));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("UserWidget '%s' not found"), *WidgetName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

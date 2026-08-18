@@ -2,6 +2,7 @@
 
 #include "Capabilities/Runtime/AI/NexusInteractRuntimeActorBehaviorTreeCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
@@ -19,21 +20,21 @@
 void FInteractRuntimeActorBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("interact_runtime_actor_behavior_tree");
-	Out.Description = TEXT("运行时写 BT。action=set_blackboard|restart_tree|stop_tree。按 AIController 定位。");
+	Out.Description = TEXT("Write runtime BT. action=set_blackboard|restart_tree|stop_tree. Locate by AIController.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),     FNexusSchema::Enum(TEXT("写操作"),
+		.Prop(TEXT("action"),     FNexusSchema::Enum(TEXT("Write operation"),
 			{ TEXT("set_blackboard"), TEXT("restart_tree"), TEXT("stop_tree") }))
-		.Prop(TEXT("actorName"),  FNexusSchema::Str(TEXT("Controller 或 Pawn 名（可选；省略取首个 AIController）")))
-		.Prop(TEXT("keyName"),    FNexusSchema::Str(TEXT("黑板键名（set_blackboard）")))
-		.Prop(TEXT("value"),      FNexusSchema::Str(TEXT("键值字符串（set_blackboard）")))
-		.Prop(TEXT("treePath"),   FNexusSchema::Str(TEXT("BT 资产路径（restart_tree 可选；省略则重启当前树）")))
+		.Prop(TEXT("actorName"),  FNexusSchema::Str(TEXT("Controller or Pawn name (optional; first AIController if omitted)")))
+		.Prop(TEXT("keyName"),    FNexusSchema::Str(TEXT("Blackboard key name (set_blackboard)")))
+		.Prop(TEXT("value"),      FNexusSchema::Str(TEXT("Key value string (set_blackboard)")))
+		.Prop(TEXT("treePath"),   FNexusSchema::Str(TEXT("BT asset path (restart_tree optional; restarts current if omitted)")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Blueprint, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("blackboard"), TEXT("bt"), TEXT("aicontroller"), TEXT("ai"), TEXT("behavior") };
 	Out.RelatedCapabilities = { TEXT("get_runtime_actor_behavior_tree"), TEXT("get_asset_behavior_tree") };
 	Out.Prerequisites = { TEXT("pie") };
-	Out.WhenToUse = TEXT("PIE 中修改黑板值、重启/停止行为树");
+	Out.WhenToUse = TEXT("Modify blackboard, restart/stop BT in PIE");
 }
 
 /** 定位 AIController（与 GetRuntimeActorBehaviorTree 相同逻辑）*/
@@ -62,15 +63,11 @@ FCapabilityResult FInteractRuntimeActorBehaviorTreeCapability::Execute(const TSh
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Action;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("action"), Action) || Action.IsEmpty())
-		{
-			OutError = TEXT("缺少 action");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString Action = A.Str(TEXT("action"));
 
 		UWorld* World = FNexusRuntimeUtils::GetActiveWorld();
-		if (!World) { OutError = TEXT("无活动 World"); return; }
+		if (!World) { OutError = TEXT("No active World"); return; }
 
 		FString ActorName, KeyName, KeyValue, TreePath;
 		if (Arguments.IsValid())
@@ -84,7 +81,7 @@ FCapabilityResult FInteractRuntimeActorBehaviorTreeCapability::Execute(const TSh
 		AAIController* AICtrl = FindAIControllerForInteract(World, ActorName);
 		if (!AICtrl)
 		{
-			OutError = TEXT("AIController 未找到");
+			OutError = TEXT("AIController not found");
 			return;
 		}
 
@@ -97,14 +94,14 @@ FCapabilityResult FInteractRuntimeActorBehaviorTreeCapability::Execute(const TSh
 		{
 			if (KeyName.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("set_blackboard 需要 keyName"));
+				Entry->SetStringField(TEXT("error"), TEXT("set_blackboard requires keyName"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
 			UBlackboardComponent* BBComp = AICtrl->GetBlackboardComponent();
 			if (!BBComp)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("AIController 无 BlackboardComponent"));
+				Entry->SetStringField(TEXT("error"), TEXT("AIController has no BlackboardComponent"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -119,7 +116,7 @@ FCapabilityResult FInteractRuntimeActorBehaviorTreeCapability::Execute(const TSh
 			}
 			if (!bKeyFound)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("黑板键不存在: %s"), *KeyName));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Blackboard key does not exist: %s"), *KeyName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -197,7 +194,7 @@ FCapabilityResult FInteractRuntimeActorBehaviorTreeCapability::Execute(const TSh
 					}
 					else
 					{
-						Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的黑板键类型: %s"), *TypeStr));
+						Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported blackboard key type: %s"), *TypeStr));
 					}
 					break;
 				}
@@ -210,7 +207,7 @@ FCapabilityResult FInteractRuntimeActorBehaviorTreeCapability::Execute(const TSh
 			UBehaviorTreeComponent* BTComp = AICtrl->FindComponentByClass<UBehaviorTreeComponent>();
 			if (!BTComp)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("AIController 无 BehaviorTreeComponent"));
+				Entry->SetStringField(TEXT("error"), TEXT("AIController has no BehaviorTreeComponent"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -219,7 +216,7 @@ FCapabilityResult FInteractRuntimeActorBehaviorTreeCapability::Execute(const TSh
 				UBehaviorTree* BTAsset = LoadObject<UBehaviorTree>(nullptr, *TreePath);
 				if (!BTAsset)
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("BT 资产加载失败: %s"), *TreePath));
+					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to load BT asset: %s"), *TreePath));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					return;
 				}
@@ -235,7 +232,7 @@ FCapabilityResult FInteractRuntimeActorBehaviorTreeCapability::Execute(const TSh
 				}
 				else
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("无活动行为树可重启"));
+					Entry->SetStringField(TEXT("error"), TEXT("No active behavior tree to restart"));
 				}
 			}
 			Entry->SetBoolField(TEXT("restarted"), !Entry->HasField(TEXT("error")));
@@ -245,7 +242,7 @@ FCapabilityResult FInteractRuntimeActorBehaviorTreeCapability::Execute(const TSh
 			UBehaviorTreeComponent* BTComp = AICtrl->FindComponentByClass<UBehaviorTreeComponent>();
 			if (!BTComp)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("AIController 无 BehaviorTreeComponent"));
+				Entry->SetStringField(TEXT("error"), TEXT("AIController has no BehaviorTreeComponent"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -258,7 +255,7 @@ FCapabilityResult FInteractRuntimeActorBehaviorTreeCapability::Execute(const TSh
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

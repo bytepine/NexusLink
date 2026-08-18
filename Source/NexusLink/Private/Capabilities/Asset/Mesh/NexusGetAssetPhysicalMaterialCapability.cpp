@@ -4,6 +4,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "NexusMcpTool.h"
 
@@ -11,9 +12,9 @@ void FGetAssetPhysicalMaterialCapability::BuildDefinition(FNexusCapabilityDefini
 {
 	Out.Name = TEXT("get_asset_physical_material");
 	Out.SearchAssetTypes = {TEXT("PhysicalMaterial")};
-	Out.Description = TEXT("读取 PhysicalMaterial：摩擦/弹性/密度/表面类型。");
+	Out.Description = TEXT("Read PhysicalMaterial: friction/restitution/density/surface type.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PhysicalMaterial 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PhysicalMaterial asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -25,18 +26,14 @@ FCapabilityResult FGetAssetPhysicalMaterialCapability::Execute(const TSharedPtr<
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		UPhysicalMaterial* PM = LoadObject<UPhysicalMaterial>(nullptr, *AssetPath);
 		if (!PM)
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("加载 PhysicalMaterial 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load PhysicalMaterial: %s"), *AssetPath));
 			return;
 		}
 

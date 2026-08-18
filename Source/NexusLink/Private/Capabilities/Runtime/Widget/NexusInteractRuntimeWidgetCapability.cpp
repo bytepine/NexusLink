@@ -47,13 +47,13 @@ static UWidget* FindRuntimeWidgetCap(UWorld* World, const FString& WidgetName, c
 void FInteractRuntimeWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("interact_runtime_widget");
-	Out.Description = TEXT("触发运行时 UMG 事件。action=click|check|toggle|set|read。");
+	Out.Description = TEXT("Trigger runtime UMG events. action=click|check|toggle|set|read.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("widgetName"),  FNexusSchema::Str(TEXT("子 Widget 名")))
-		.Prop(TEXT("action"),      FNexusSchema::Enum(TEXT("交互操作"),
+		.Prop(TEXT("widgetName"),  FNexusSchema::Str(TEXT("Child Widget name")))
+		.Prop(TEXT("action"),      FNexusSchema::Enum(TEXT("Interaction action"),
 			{ TEXT("click"), TEXT("check"), TEXT("uncheck"), TEXT("toggle"), TEXT("set"), TEXT("read") }))
-		.Prop(TEXT("value"),       FNexusSchema::Str(TEXT("action=set 时的新值")))
-		.Prop(TEXT("ownerClass"),  FNexusSchema::Str(TEXT("Owner UserWidget 类/名过滤")))
+		.Prop(TEXT("value"),       FNexusSchema::Str(TEXT("New value when action=set")))
+		.Prop(TEXT("ownerClass"),  FNexusSchema::Str(TEXT("Owner UserWidget class/name filter")))
 		.Required({ TEXT("widgetName"), TEXT("action") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
@@ -73,7 +73,7 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 		    !Arguments->TryGetStringField(TEXT("widgetName"), WidgetName) || WidgetName.IsEmpty() ||
 		    !Arguments->TryGetStringField(TEXT("action"), Action) || Action.IsEmpty())
 		{
-			OutError = TEXT("需要 widgetName 与 action");
+			OutError = TEXT("widgetName and action required");
 			return;
 		}
 		Arguments->TryGetStringField(TEXT("value"),      Value);
@@ -85,7 +85,7 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 			if (It->WorldType == EWorldType::PIE || It->WorldType == EWorldType::Game)
 			{ World = *It; break; }
 		}
-		if (!World) { OutError = TEXT("无运行中的 World（请先 control_pie start）"); return; }
+		if (!World) { OutError = TEXT("No running World (start control_pie first)"); return; }
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("widgetName"), WidgetName);
@@ -95,7 +95,7 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 		UWidget* Target = FindRuntimeWidgetCap(World, WidgetName, OwnerFilter, OwnerName);
 		if (!Target)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget '%s' 未找到"), *WidgetName));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget '%s' not found"), *WidgetName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -113,11 +113,11 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 			}
 			else if (Action.Equals(TEXT("click"), ESearchCase::IgnoreCase))
 			{
-				if (!Btn->GetIsEnabled()) { Entry->SetStringField(TEXT("error"), TEXT("Button 已禁用")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+				if (!Btn->GetIsEnabled()) { Entry->SetStringField(TEXT("error"), TEXT("Button is disabled")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 				Btn->OnClicked.Broadcast();
 				Entry->SetBoolField(TEXT("clicked"), true);
 			}
-			else { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Button 不支持 action=%s"), *Action)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+			else { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Button does not support action=%s"), *Action)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 		}
 		else if (UCheckBox* CB = Cast<UCheckBox>(Target))
 		{
@@ -150,18 +150,18 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 			}
 			else if (Action.Equals(TEXT("set"), ESearchCase::IgnoreCase))
 			{
-				if (Value.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set 操作需要 value")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+				if (Value.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set action requires value")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 				const float NewVal = FCString::Atof(*Value);
 				Slider->SetValue(NewVal); Slider->OnValueChanged.Broadcast(NewVal);
 				Entry->SetNumberField(TEXT("value"), NewVal);
 			}
-			else { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Slider 不支持 action=%s"), *Action)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+			else { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Slider does not support action=%s"), *Action)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 		}
 		else if (UTextBlock* TB = Cast<UTextBlock>(Target))
 		{
 			if (Action.Equals(TEXT("set"), ESearchCase::IgnoreCase))
 			{
-				if (Value.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set 操作需要 value")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+				if (Value.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set action requires value")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 				TB->SetText(FText::FromString(Value));
 				Entry->SetStringField(TEXT("text"), Value);
 			}
@@ -180,12 +180,12 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 			}
 			else if (Action.Equals(TEXT("set"), ESearchCase::IgnoreCase))
 			{
-				if (Value.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set 操作需要 value")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+				if (Value.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set action requires value")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 				FText NewText = FText::FromString(Value);
 				ETB->SetText(NewText); ETB->OnTextChanged.Broadcast(NewText);
 				Entry->SetStringField(TEXT("text"), Value);
 			}
-			else { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("EditableTextBox 不支持 action=%s"), *Action)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+			else { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("EditableTextBox does not support action=%s"), *Action)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 		}
 		else if (UEditableText* ET = Cast<UEditableText>(Target))
 		{
@@ -196,12 +196,12 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 			}
 			else if (Action.Equals(TEXT("set"), ESearchCase::IgnoreCase))
 			{
-				if (Value.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set 操作需要 value")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+				if (Value.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set action requires value")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 				FText NewText = FText::FromString(Value);
 				ET->SetText(NewText); ET->OnTextChanged.Broadcast(NewText);
 				Entry->SetStringField(TEXT("text"), Value);
 			}
-			else { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("EditableText 不支持 action=%s"), *Action)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+			else { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("EditableText does not support action=%s"), *Action)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 		}
 		else if (UProgressBar* PB = Cast<UProgressBar>(Target))
 		{
@@ -217,7 +217,7 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 			{
 				if (Value.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set 操作需要 value"));
+					Entry->SetStringField(TEXT("error"), TEXT("set action requires value"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					return;
 				}
@@ -232,7 +232,7 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 			else
 			{
 				Entry->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("ProgressBar 不支持 action=%s"), *Action));
+					FString::Printf(TEXT("ProgressBar does not support action=%s"), *Action));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -246,11 +246,11 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 			}
 			else if (Action.Equals(TEXT("set"), ESearchCase::IgnoreCase))
 			{
-				if (Value.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set 操作需要 value")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+				if (Value.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set action requires value")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 				Combo->SetSelectedOption(Value);
 				Entry->SetStringField(TEXT("selected"), Combo->GetSelectedOption());
 			}
-			else { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("ComboBox 不支持 action=%s"), *Action)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+			else { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("ComboBox does not support action=%s"), *Action)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 		}
 		else if (UListView* List = Cast<UListView>(Target))
 		{
@@ -266,7 +266,7 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("ListView 仅支持 read（条目数）"));
+				Entry->SetStringField(TEXT("error"), TEXT("ListView supports read only (entry count)"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
@@ -274,7 +274,7 @@ FCapabilityResult FInteractRuntimeWidgetCapability::Execute(const TSharedPtr<FJs
 		else
 		{
 			Entry->SetStringField(TEXT("error"),
-				FString::Printf(TEXT("不支持的 Widget 类型: %s"), *Target->GetClass()->GetName()));
+				FString::Printf(TEXT("Unsupported Widget type: %s"), *Target->GetClass()->GetName()));
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

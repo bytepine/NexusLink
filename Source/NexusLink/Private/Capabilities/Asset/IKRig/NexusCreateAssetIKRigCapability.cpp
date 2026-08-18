@@ -5,6 +5,7 @@
 #if WITH_IK_RIG
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -15,43 +16,39 @@
 void FCreateAssetIKRigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_ik_rig");
-	Out.Description = TEXT("创建空白 IKRig 资产；可选关联预览 SkeletalMesh。");
+	Out.Description = TEXT("Create empty IKRig; optional preview SkeletalMesh.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("资产路径（包路径）")))
-		.Prop(TEXT("meshPath"),   FNexusSchema::Str(TEXT("可选：预览 SkeletalMesh 路径")))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Asset path (package path)")))
+		.Prop(TEXT("meshPath"),   FNexusSchema::Str(TEXT("Optional preview SkeletalMesh path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("ikrig"), TEXT("ik"), TEXT("new"), TEXT("create"), TEXT("retarget") };
 	Out.RelatedCapabilities = { TEXT("get_asset_ik_rig"), TEXT("manage_asset_ik_rig"), TEXT("get_asset_ik_retargeter") };
-	Out.WhenToUse = TEXT("创建空白 IKRig 定义；UE5.0+ 专用");
+	Out.WhenToUse = TEXT("Create empty IKRig definition; UE5.0+ only");
 }
 
 FCapabilityResult FCreateAssetIKRigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 		FString AssetPath;
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
-		AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		AssetPath = A.Str(TEXT("assetPath"));
 
 		if (LoadObject<UIKRigDefinition>(nullptr, *AssetPath))
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("IKRig 已存在: %s"), *AssetPath));
+				FString::Printf(TEXT("IKRig already exists: %s"), *AssetPath));
 			return;
 		}
 
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		UIKRigDefinition* IKRig = NewObject<UIKRigDefinition>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!IKRig) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("IKRig 创建失败")); return; }
+		if (!IKRig) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("IKRig Createfailed")); return; }
 
 		FString MeshPath;
 		if (Arguments->TryGetStringField(TEXT("meshPath"), MeshPath) && !MeshPath.IsEmpty())

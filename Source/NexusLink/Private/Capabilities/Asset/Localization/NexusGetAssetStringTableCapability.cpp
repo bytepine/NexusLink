@@ -5,6 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Internationalization/StringTable.h"
 #include "Internationalization/StringTableCore.h"
 #include "NexusMcpTool.h"
@@ -13,10 +14,10 @@ void FGetAssetStringTableCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name = TEXT("get_asset_string_table");
 	Out.SearchAssetTypes = {TEXT("StringTable")};
-	Out.Description = TEXT("读取 StringTable：namespace / keys / 源字符串摘要。");
+	Out.Description = TEXT("Read StringTable: namespace/keys/source string summary.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("StringTable 资产路径")))
-		.Prop(TEXT("limit"), FNexusSchema::Int(TEXT("最多返回条目数"), 50))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("StringTable asset path")))
+		.Prop(TEXT("limit"), FNexusSchema::Int(TEXT("Max entries to return"), 50))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -28,6 +29,7 @@ FCapabilityResult FGetAssetStringTableCapability::Execute(const TSharedPtr<FJson
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 		FString AssetPath;
 		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
 
@@ -35,14 +37,14 @@ FCapabilityResult FGetAssetStringTableCapability::Execute(const TSharedPtr<FJson
 		if (!Table)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 StringTable 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load StringTable: %s"), *AssetPath));
 			return;
 		}
 
 		int32 Limit = 50;
 		if (Arguments.IsValid() && Arguments->HasField(TEXT("limit")))
 		{
-			Limit = FMath::Max(1, static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))));
+			Limit = FMath::Max(1, static_cast<int32>(A.Num(TEXT("limit"))));
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();

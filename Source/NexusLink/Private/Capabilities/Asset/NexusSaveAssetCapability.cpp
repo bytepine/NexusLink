@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/NexusSaveAssetCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusAssetUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
@@ -15,9 +16,9 @@
 void FSaveAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("save_asset");
-	Out.Description = TEXT("持久化资产包到磁盘。先 MarkPackageDirty 再落盘。");
+	Out.Description = TEXT("Persist asset package to disk. MarkPackageDirty then save.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("单个资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Single asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -30,17 +31,13 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
 	#if !WITH_EDITOR
-		OutError = TEXT("save_asset 仅在编辑器模式可用");
+		OutError = TEXT("save_asset only available in editor mode");
 		return;
 	#else
-		FString OrigPath;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), OrigPath) || OrigPath.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FString OrigPath = A.Str(TEXT("assetPath"));
 
 		int32 SavedCount = 0;
 		int32 FailedCount = 0;
@@ -62,7 +59,7 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 		{
 			++FailedCount;
 			Entry->SetBoolField(TEXT("success"), false);
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("%s（包未找到）"), *PackagePath));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Package not found: %s"), *PackagePath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 		}
 		else
@@ -89,7 +86,7 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 				++FailedCount;
 				Entry->SetBoolField(TEXT("success"), false);
 				const FString ErrorText = Note.IsEmpty()
-					? FString::Printf(TEXT("%s（SavePackage 失败）"), *PackagePath)
+					? FString::Printf(TEXT("SavePackage failed: %s"), *PackagePath)
 					: FString::Printf(TEXT("%s（%s）"), *PackagePath, *Note);
 				Entry->SetStringField(TEXT("error"), ErrorText);
 			}

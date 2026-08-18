@@ -20,15 +20,15 @@ static void WriteRuntimeWidgetPropertyImpl(
 	OutEntry->SetStringField(TEXT("propertyPath"), PropertyPath);
 	if (!OwnerClass.IsEmpty()) { OutEntry->SetStringField(TEXT("ownerClass"), OwnerClass); }
 
-	if (WidgetName.IsEmpty())   { OutEntry->SetStringField(TEXT("error"), TEXT("缺少 widgetName")); return; }
-	if (PropertyPath.IsEmpty()) { OutEntry->SetStringField(TEXT("error"), TEXT("缺少 propertyPath")); return; }
+	if (WidgetName.IsEmpty())   { OutEntry->SetStringField(TEXT("error"), TEXT("Missing widgetName")); return; }
+	if (PropertyPath.IsEmpty()) { OutEntry->SetStringField(TEXT("error"), TEXT("Missing propertyPath")); return; }
 
 	UWidget* Widget = FNexusRuntimeUtils::FindRuntimeWidget(OwnerClass, WidgetName);
-	if (!Widget) { OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("运行时 Widget '%s' 未找到"), *WidgetName)); return; }
+	if (!Widget) { OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Runtime Widget '%s' not found"), *WidgetName)); return; }
 
 	TArray<FString> Segs;
 	PropertyPath.ParseIntoArray(Segs, TEXT("."), true);
-	if (Segs.Num() == 0) { OutEntry->SetStringField(TEXT("error"), TEXT("propertyPath 为空")); return; }
+	if (Segs.Num() == 0) { OutEntry->SetStringField(TEXT("error"), TEXT("propertyPath is empty")); return; }
 
 	FString OldVal, ActualVal, Error;
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(Widget, Segs, 0, NewValue, OldVal, ActualVal, Error))
@@ -44,19 +44,19 @@ static void WriteRuntimeWidgetPropertyImpl(
 void FSetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("set_runtime_widget_property");
-	Out.Description = TEXT("批量修改运行时 UMG 字段。updates[] 含控件名/路径/值。");
+	Out.Description = TEXT("Batch modify runtime UMG fields. updates[] has widget name/path/value.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
-			.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("点分路径")))
-			.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("新值字符串")))
-			.Prop(TEXT("widgetName"),   FNexusSchema::Str(TEXT("Widget 名")))
-			.Prop(TEXT("ownerClass"),   FNexusSchema::Str(TEXT("UserWidget 过滤")))
+			.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Dot-separated path")))
+			.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("New value string")))
+			.Prop(TEXT("widgetName"),   FNexusSchema::Str(TEXT("Widget name")))
+			.Prop(TEXT("ownerClass"),   FNexusSchema::Str(TEXT("UserWidget filter")))
 			.Required({ TEXT("propertyPath"), TEXT("value") })
 			.Build();
 
 		return FNexusSchema::Object()
-			.Prop(TEXT("updates"), FNexusSchema::ArrayOf(TEXT("批量更新"), ItemSchema.ToSharedRef()))
+			.Prop(TEXT("updates"), FNexusSchema::ArrayOf(TEXT("Batch update"), ItemSchema.ToSharedRef()))
 			.Required({ TEXT("updates") })
 			.Build();
 	}();
@@ -64,7 +64,7 @@ void FSetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("field"), TEXT("brush"), TEXT("value"), TEXT("mutate") };
 	Out.RelatedCapabilities = { TEXT("get_runtime_widget_property") };
 	Out.Prerequisites = { TEXT("pie") };
-	Out.WhenToUse = TEXT("运行时修改 UMG 实时字段");
+	Out.WhenToUse = TEXT("Modify runtime UMG live fields");
 }
 
 FCapabilityResult FSetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -76,7 +76,7 @@ FCapabilityResult FSetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<
 		const TArray<TSharedPtr<FJsonValue>>* UpdatesArr = nullptr;
 		if (!Arguments->TryGetArrayField(TEXT("updates"), UpdatesArr) || !UpdatesArr)
 		{
-			OutError = TEXT("缺少 updates");
+			OutError = TEXT("Missing updates");
 			return;
 		}
 
@@ -87,7 +87,7 @@ FCapabilityResult FSetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<
 
 			if (!Item.IsValid())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("无效的 update 项"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("Invalid update item"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
@@ -100,7 +100,7 @@ FCapabilityResult FSetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<
 
 			if (PropertyPath.IsEmpty())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("每项 update 均须 propertyPath"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("Each update requires propertyPath"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}

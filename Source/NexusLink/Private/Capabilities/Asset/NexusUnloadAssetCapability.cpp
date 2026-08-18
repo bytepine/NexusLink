@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/NexusUnloadAssetCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusPackageLedger.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
@@ -12,35 +13,31 @@
 void FUnloadAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("unload_asset");
-	Out.Description = TEXT("手动卸载已加载资产包。兜底用；日常无需调用，内存高水位机制会自动卸载。");
+	Out.Description = TEXT("Manually unload loaded packages. Fallback; auto-unload handles memory normally.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("单个资产路径")))
-		.Prop(TEXT("bSkipDirty"), FNexusSchema::Bool(TEXT("true 时跳过未保存修改的包（默认 true，建议保持）"), true, true))
-		.Prop(TEXT("bForceGC"),   FNexusSchema::Bool(TEXT("卸载后是否触发一次 KEEPFLAGS GC（默认 true）"), true, true))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Single asset path")))
+		.Prop(TEXT("bSkipDirty"), FNexusSchema::Bool(TEXT("If true skip dirty packages (default true, recommended)"), true, true))
+		.Prop(TEXT("bForceGC"),   FNexusSchema::Bool(TEXT("Trigger KEEPFLAGS GC after unload (default true)"), true, true))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("unload"), TEXT("memory"), TEXT("gc"), TEXT("package"), TEXT("release") };
 	Out.RelatedCapabilities = { TEXT("save_asset"), TEXT("get_asset_blueprint") };
-	Out.WhenToUse = TEXT("批量读取后内存仍偏高、需立即释放时手动调用");
+	Out.WhenToUse = TEXT("Call manually when memory stays high after batch reads");
 }
 
 FCapabilityResult FUnloadAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("unload_asset 仅在编辑器模式可用");
+		OutError = TEXT("unload_asset only available in editor mode");
 		return;
 #else
-		FString Path;
 		bool bSkipDirty = true;
 		bool bForceGC = true;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FString Path = A.Str(TEXT("assetPath"));
 		Arguments->TryGetBoolField(TEXT("bSkipDirty"), bSkipDirty);
 		Arguments->TryGetBoolField(TEXT("bForceGC"), bForceGC);
 
@@ -74,7 +71,7 @@ FCapabilityResult FUnloadAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		else if (Skipped.Contains(Pkg))
 		{
 			Entry->SetStringField(TEXT("status"), TEXT("skipped"));
-			Entry->SetStringField(TEXT("reason"), TEXT("dirty 或编辑器已打开或引擎内建包，未卸载"));
+			Entry->SetStringField(TEXT("reason"), TEXT("Dirty, editor-open, or engine package; not unloaded"));
 			++SkippedCount;
 		}
 		else

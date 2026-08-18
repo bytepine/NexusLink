@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Editor/NexusLogCapture.h"
@@ -14,24 +15,22 @@
 void FGetOutputLogCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_output_log");
-	Out.Description = TEXT(
-		"读取 UE 控制台缓冲。诊断：preset=diagnose（newest+warning+摘要+小 limit）或 "
-		"order=newest + includeSummary；复现后用 latestSequence→sinceSequence 增量拉取。");
+	Out.Description = TEXT("Read UE console buffer. Diagnostic: preset=diagnose or newest+includeSummary; incremental via sinceSequence.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("offset"),         FNexusSchema::Int(TEXT("分页偏移（沿 order 方向）"), 0, 0))
-		.Prop(TEXT("limit"),          FNexusSchema::Int(TEXT("每页最大条数"), 100, 1, 500))
-		.Prop(TEXT("order"),          FNexusSchema::Enum(TEXT("排序：newest=最新在前（诊断默认），oldest=时间升序"),
+		.Prop(TEXT("offset"),         FNexusSchema::Int(TEXT("Pagination offset (along order direction)"), 0, 0))
+		.Prop(TEXT("limit"),          FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
+		.Prop(TEXT("order"),          FNexusSchema::Enum(TEXT("Sort: newest=latest first (diagnostic default), oldest=ascending"),
 			{ TEXT("newest"), TEXT("oldest") }, TEXT("newest")))
-		.Prop(TEXT("sinceSequence"),  FNexusSchema::Int(TEXT("仅返回 Sequence 大于此值的新日志（增量拉取，传上次响应的 latestSequence）"), -1, -1))
-		.Prop(TEXT("preset"),         FNexusSchema::Enum(TEXT("诊断预设：diagnose=newest+verbosity≥warning+includeSummary+limit≤50"),
+		.Prop(TEXT("sinceSequence"),  FNexusSchema::Int(TEXT("Return logs with Sequence greater than this (incremental; pass last latestSequence)"), -1, -1))
+		.Prop(TEXT("preset"),         FNexusSchema::Enum(TEXT("Diagnostic preset: diagnose=newest+verbosity≥warning+includeSummary+limit≤50"),
 			{ TEXT("none"), TEXT("diagnose") }, TEXT("none")))
-		.Prop(TEXT("includeSummary"), FNexusSchema::Bool(TEXT("附加 summaryByCategory / summaryByVerbosity（过滤后全量，非本页）"), true, false))
-		.Prop(TEXT("summaryOnly"),    FNexusSchema::Bool(TEXT("仅返回摘要，entries 为空（仍返回 totalCount/latestSequence）"), true, false))
-		.Prop(TEXT("categoryFilter"), FNexusSchema::Str(TEXT("日志分类子串（不区分大小写）")))
-		.Prop(TEXT("verbosity"),      FNexusSchema::Enum(TEXT("最低详细级别"),
+		.Prop(TEXT("includeSummary"), FNexusSchema::Bool(TEXT("Attach summaryByCategory/summaryByVerbosity (full filtered set, not this page)"), true, false))
+		.Prop(TEXT("summaryOnly"),    FNexusSchema::Bool(TEXT("Summary only; entries empty (still returns totalCount/latestSequence)"), true, false))
+		.Prop(TEXT("categoryFilter"), FNexusSchema::Str(TEXT("Log category substring (case insensitive)")))
+		.Prop(TEXT("verbosity"),      FNexusSchema::Enum(TEXT("Minimum verbosity level"),
 			{ TEXT("error"), TEXT("warning"), TEXT("display"), TEXT("log"), TEXT("verbose"), TEXT("veryverbose"), TEXT("all") }, TEXT("log")))
-		.Prop(TEXT("textFilter"),     FNexusSchema::Str(TEXT("单文本子串过滤")))
-		.Prop(TEXT("textFilters"),    FNexusSchema::StrArr(TEXT("文本过滤（OR）；覆盖 textFilter")))
+		.Prop(TEXT("textFilter"),     FNexusSchema::Str(TEXT("Single text substring filter")))
+		.Prop(TEXT("textFilters"),    FNexusSchema::StrArr(TEXT("Text filter (OR); overrides textFilter")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("logs"), TEXT("console"), TEXT("messages"), TEXT("verbosity"), TEXT("warning"), TEXT("diagnose"), TEXT("summary") };
@@ -43,6 +42,7 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
 		int32 Offset = 0;
 		int32 Limit  = 100;
@@ -60,14 +60,14 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 		if (Arguments.IsValid())
 		{
 			if (Arguments->HasField(TEXT("offset")))
-				Offset = FMath::Max(0, static_cast<int32>(Arguments->GetNumberField(TEXT("offset"))));
+				Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
 			if (Arguments->HasField(TEXT("limit")))
 			{
-				Limit = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 500);
+				Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
 				bLimitExplicit = true;
 			}
 			if (Arguments->HasField(TEXT("sinceSequence")))
-				SinceSequence = static_cast<int32>(Arguments->GetNumberField(TEXT("sinceSequence")));
+				SinceSequence = static_cast<int32>(A.Num(TEXT("sinceSequence")));
 			FString OrderStr;
 			if (Arguments->TryGetStringField(TEXT("order"), OrderStr))
 				bNewestFirst = !OrderStr.Equals(TEXT("oldest"), ESearchCase::IgnoreCase);
@@ -75,9 +75,9 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 			if (Arguments->TryGetStringField(TEXT("preset"), PresetStr))
 				bPresetDiagnose = PresetStr.Equals(TEXT("diagnose"), ESearchCase::IgnoreCase);
 			if (Arguments->HasField(TEXT("includeSummary")))
-				bIncludeSummary = Arguments->GetBoolField(TEXT("includeSummary"));
+				bIncludeSummary = A.Bool(TEXT("includeSummary"));
 			if (Arguments->HasField(TEXT("summaryOnly")))
-				bSummaryOnly = Arguments->GetBoolField(TEXT("summaryOnly"));
+				bSummaryOnly = A.Bool(TEXT("summaryOnly"));
 			Arguments->TryGetStringField(TEXT("categoryFilter"), CategoryFilter);
 			FString TmpVerbosity;
 			if (Arguments->TryGetStringField(TEXT("verbosity"), TmpVerbosity))

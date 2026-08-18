@@ -15,14 +15,14 @@ bool FNexusGameplayTagReferencerUtils::FindReferencerPackagePaths(
 {
 	if (TagName.IsEmpty())
 	{
-		OutError = TEXT("tag 为必填项");
+		OutError = TEXT("tag is required");
 		return false;
 	}
 
 	const FGameplayTag Tag = UGameplayTagsManager::Get().RequestGameplayTag(FName(*TagName), false);
 	if (!Tag.IsValid())
 	{
-		OutError = FString::Printf(TEXT("GameplayTag 未找到: '%s'"), *TagName);
+		OutError = FString::Printf(TEXT("GameplayTag not found: '%s'"), *TagName);
 		return false;
 	}
 
@@ -45,7 +45,7 @@ bool FNexusGameplayTagReferencerUtils::FindReferencerPackagePaths(
 	OutPaths.Sort();
 	return true;
 #else
-	OutError = TEXT("referencers 查询需要 UE 5.0 及以上（SearchableName 依赖）");
+	OutError = TEXT("referencers query requires UE 5.0+ (SearchableName dependency)");
 	return false;
 #endif
 }

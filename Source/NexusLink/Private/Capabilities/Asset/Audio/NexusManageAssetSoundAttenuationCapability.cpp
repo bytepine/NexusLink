@@ -5,6 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Sound/SoundAttenuation.h"
 #include "NexusMcpTool.h"
 
@@ -12,20 +13,20 @@ void FManageAssetSoundAttenuationCapability::BuildDefinition(FNexusCapabilityDef
 {
 	Out.Name = TEXT("manage_asset_sound_attenuation");
 	Out.SearchAssetTypes = {TEXT("SoundAttenuation")};
-	Out.Description = TEXT("设置 SoundAttenuation：innerRadius/falloffDistance/shapeValue/bAttenuate/bSpatialize。");
+	Out.Description = TEXT("Set SoundAttenuation: innerRadius/falloffDistance/shapeValue/bAttenuate/bSpatialize.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),          FNexusSchema::Enum(TEXT("操作"), { TEXT("set") }))
-		.Prop(TEXT("innerRadius"),     FNexusSchema::Num(TEXT("内半径（球形 = Sphere Radius，cm）")))
-		.Prop(TEXT("falloffDistance"), FNexusSchema::Num(TEXT("衰减距离（cm）")))
-		.Prop(TEXT("shapeValue"),      FNexusSchema::Int(TEXT("形状枚举值：0=Sphere,1=Capsule,2=Box,3=Cone")))
-		.Prop(TEXT("bAttenuate"),      FNexusSchema::Bool(TEXT("启用距离衰减")))
-		.Prop(TEXT("bSpatialize"),     FNexusSchema::Bool(TEXT("启用空间化")))
-		.Prop(TEXT("dBAtMax"),         FNexusSchema::Num(TEXT("最大衰减量（dB，Natural Sound 算法）")))
+		.Prop(TEXT("action"),          FNexusSchema::Enum(TEXT("Action"), { TEXT("set") }))
+		.Prop(TEXT("innerRadius"),     FNexusSchema::Num(TEXT("Inner radius (sphere = Sphere Radius, cm)")))
+		.Prop(TEXT("falloffDistance"), FNexusSchema::Num(TEXT("Falloff distance (cm)")))
+		.Prop(TEXT("shapeValue"),      FNexusSchema::Int(TEXT("Shape enum: 0=Sphere,1=Capsule,2=Box,3=Cone")))
+		.Prop(TEXT("bAttenuate"),      FNexusSchema::Bool(TEXT("Enable distance attenuation")))
+		.Prop(TEXT("bSpatialize"),     FNexusSchema::Bool(TEXT("Enable spatialization")))
+		.Prop(TEXT("dBAtMax"),         FNexusSchema::Num(TEXT("Max attenuation (dB, Natural Sound)")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundAttenuation 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundAttenuation asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -37,24 +38,20 @@ FCapabilityResult FManageAssetSoundAttenuationCapability::Execute(const TSharedP
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		USoundAttenuation* SA = LoadObject<USoundAttenuation>(nullptr, *AssetPath);
 		if (!SA)
 		{
-			OutError = FString::Printf(TEXT("加载 SoundAttenuation 失败: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("Failed to load SoundAttenuation: %s"), *AssetPath);
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("缺少 operations 或为空");
+			OutError = TEXT("Missing or empty operations");
 			return;
 		}
 
@@ -64,17 +61,17 @@ FCapabilityResult FManageAssetSoundAttenuationCapability::Execute(const TSharedP
 			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
 			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("无效的 operation 项"));
+				Entry->SetStringField(TEXT("error"), TEXT("Invalid operation item"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			const TSharedPtr<FJsonObject>& Op = *OpPtr;
 
-			const FString Action = Op->HasField(TEXT("action")) ? Op->GetStringField(TEXT("action")).ToLower() : TEXT("");
+			const FString Action = FNexusArgs(Op).Str(TEXT("action")).ToLower();
 			Entry->SetStringField(TEXT("action"), Action);
 			if (Action != TEXT("set"))
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'（仅 set）"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s' (set only)"), *Action));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}

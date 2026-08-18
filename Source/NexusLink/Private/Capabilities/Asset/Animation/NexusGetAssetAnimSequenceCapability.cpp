@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Animation/NexusGetAssetAnimSequenceCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -13,27 +14,23 @@ void FGetAssetAnimSequenceCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("get_asset_anim_sequence");
 	Out.SearchAssetTypes = {TEXT("AnimSequence")};
-	Out.Description = TEXT("检查 AnimSequence 快照。时长/帧率/帧数/骨骼/notifies/curves。写用 manage_asset_anim_sequence。");
+	Out.Description = TEXT("Inspect AnimSequence snapshot. Writes via manage_asset_anim_sequence.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("AnimSequence 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("AnimSequence asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("sequence"), TEXT("animation"), TEXT("clip"), TEXT("frame"), TEXT("skeleton"), TEXT("curve"), TEXT("keyframe") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_anim_sequence"), TEXT("search_asset"), TEXT("get_asset_skeleton"), TEXT("get_asset_anim_montage"), TEXT("get_asset_refs") };
-	Out.WhenToUse = TEXT("读序列元数据/notify/浮点曲线；写用 manage_asset_anim_sequence");
+	Out.WhenToUse = TEXT("Read sequence metadata/notifies/float curves; use manage_asset_anim_sequence for writes");
 }
 
 FCapabilityResult FGetAssetAnimSequenceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Path;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString Path = A.Str(TEXT("assetPath"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("path"), Path);
@@ -41,7 +38,7 @@ FCapabilityResult FGetAssetAnimSequenceCapability::Execute(const TSharedPtr<FJso
 		UAnimSequence* Seq = FNexusAssetUtils::LoadAssetWithFallback<UAnimSequence>(Path);
 		if (!Seq)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("AnimSequence 未找到: %s"), *Path));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("AnimSequence not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

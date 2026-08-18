@@ -1,9 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Utils/NexusPropertyUtils.h"
-#include "Serialization/JsonWriter.h"
-#include "Serialization/JsonSerializer.h"
-#include "Policies/CondensedJsonPrintPolicy.h"
+#include "Utils/NexusJsonUtils.h"
 #include "UObject/UnrealType.h"
 
 // ====================================================================
@@ -565,10 +563,7 @@ void FNexusPropertyUtils::CollectEditableProperties(UObject* Obj, TArray<TShared
 
 FString FNexusPropertyUtils::SerializeJson(const TSharedPtr<FJsonObject>& Obj)
 {
-	FString Out;
-	auto W = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Out);
-	FJsonSerializer::Serialize(Obj.ToSharedRef(), W);
-	return Out;
+	return FNexusJsonUtils::SerializeCondensed(Obj);
 }
 
 bool FNexusPropertyUtils::WritePropertyAndEcho(

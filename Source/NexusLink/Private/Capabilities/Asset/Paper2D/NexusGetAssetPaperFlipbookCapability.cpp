@@ -14,9 +14,9 @@ void FGetAssetPaperFlipbookCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("get_asset_paper_flipbook");
 	Out.SearchAssetTypes = {TEXT("PaperFlipbook")};
-	Out.Description = TEXT("读取 PaperFlipbook：帧率 / 关键帧摘要。");
+	Out.Description = TEXT("Read PaperFlipbook: frame rate/keyframe summary.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperFlipbook 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperFlipbook asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -34,7 +34,7 @@ FCapabilityResult FGetAssetPaperFlipbookCapability::Execute(const TSharedPtr<FJs
 		if (!Book)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 PaperFlipbook 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load PaperFlipbook: %s"), *AssetPath));
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();

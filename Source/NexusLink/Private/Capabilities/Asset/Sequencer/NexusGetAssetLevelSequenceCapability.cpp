@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Sequencer/NexusGetAssetLevelSequenceCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -16,44 +17,40 @@ void FGetAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("get_asset_level_sequence");
 	Out.SearchAssetTypes = {TEXT("LevelSequence")};
-	Out.Description = TEXT("读取 LevelSequence 的时长/帧率、Binding 列表与 Track 类型概览。");
+	Out.Description = TEXT("Read LevelSequence duration/frame rate, Bindings and Track type overview.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("LevelSequence 资产路径")))
+		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("LevelSequence asset path")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("sequence"), TEXT("sequencer"), TEXT("cinematic"), TEXT("track"), TEXT("animation"), TEXT("cut"), TEXT("shot") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_level_sequence"), TEXT("create_asset_level_sequence"), TEXT("search_asset"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("读 LevelSequence 的 Binding/Track 列表、时长、帧率");
+	Out.WhenToUse = TEXT("Read LevelSequence Binding/Track list, duration, frame rate");
 }
 
 FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("get_asset_level_sequence 仅在 Editor 版本中可用");
+		OutError = TEXT("get_asset_level_sequence only available in Editor builds");
 		return;
 #else
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		ULevelSequence* LS = FNexusAssetUtils::LoadAssetWithFallback<ULevelSequence>(AssetPath);
 		if (!LS)
 		{
-			OutError = FString::Printf(TEXT("LevelSequence 未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("LevelSequence not found: %s"), *AssetPath);
 			return;
 		}
 
 		UMovieScene* Scene = LS->GetMovieScene();
 		if (!Scene)
 		{
-			OutError = TEXT("LevelSequence 无 MovieScene 数据");
+			OutError = TEXT("LevelSequence has no MovieScene data");
 			return;
 		}
 

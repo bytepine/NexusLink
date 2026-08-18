@@ -6,6 +6,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Engine/DataTable.h"
 #include "NexusMcpTool.h"
@@ -32,7 +33,7 @@ void FManageAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("manage_asset_data_table");
 	Out.SearchAssetTypes = {TEXT("DataTable")};
-	Out.Description = TEXT("批量编辑 DT 行：add/remove/set；ImportText 校验。");
+	Out.Description = TEXT("Batch edit DataTable rows: add/remove/set; ImportText validate.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> FieldsSchema = MakeShared<FJsonObject>();
@@ -40,17 +41,17 @@ void FManageAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition
 		FieldsSchema->SetStringField(TEXT("description"), TEXT("{fieldName: value} for add; value may be string/number/bool/null"));
 
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),    FNexusSchema::Enum(TEXT("行操作"), { TEXT("add"), TEXT("remove"), TEXT("set") }, TEXT("add")))
-		.Prop(TEXT("rowName"),   FNexusSchema::Str(TEXT("行名")))
-		.Prop(TEXT("fieldName"), FNexusSchema::Str(TEXT("字段名（仅 set）")))
-		.Prop(TEXT("value"),     FNexusSchema::Str(TEXT("新值字符串（仅 set）")))
+		.Prop(TEXT("action"),    FNexusSchema::Enum(TEXT("Row operation"), { TEXT("add"), TEXT("remove"), TEXT("set") }, TEXT("add")))
+		.Prop(TEXT("rowName"),   FNexusSchema::Str(TEXT("Row name")))
+		.Prop(TEXT("fieldName"), FNexusSchema::Str(TEXT("Field name (set only)")))
+		.Prop(TEXT("value"),     FNexusSchema::Str(TEXT("New value string (set only)")))
 		.Required({ TEXT("action"), TEXT("rowName") })
 		.Build();
 		ItemSchema->GetObjectField(TEXT("properties"))->SetObjectField(TEXT("fields"), FieldsSchema);
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataTable 资产路径（共用）")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量行操作（至少一项）"), ItemSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataTable asset path (shared)")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch row ops (at least one)"), ItemSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	}();
@@ -59,7 +60,7 @@ void FManageAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition
 		TEXT("row"), TEXT("dt"), TEXT("datatable"), TEXT("field"), TEXT("value")
 	};
 	Out.RelatedCapabilities = { TEXT("get_asset_data_table"), TEXT("create_asset_data_table"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("写操作：增删/设置 DT 行值");
+	Out.WhenToUse = TEXT("Write ops: add/remove/set DT row values");
 }
 
 FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -67,27 +68,18 @@ FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJso
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		if (!Arguments.IsValid())
-		{
-			OutError = TEXT("参数无效");
-			return;
-		}
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UDataTable* DT = FNexusAssetUtils::LoadAssetWithFallback<UDataTable>(AssetPath);
-		if (!DT) { OutError = FString::Printf(TEXT("DataTable 未找到: %s"), *AssetPath); return; }
+		if (!DT) { OutError = FString::Printf(TEXT("DataTable not found: %s"), *AssetPath); return; }
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("缺少 operations 或为空");
+			OutError = TEXT("Missing or empty operations");
 			return;
 		}
 
@@ -99,7 +91,7 @@ FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJso
 
 			if (!Item.IsValid())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("无效的行项"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("Invalid row item"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
@@ -111,7 +103,7 @@ FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJso
 
 			if (Action.IsEmpty() || RowName.IsEmpty())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("action 与 rowName 必填"));
+				OutEntry->SetStringField(TEXT("error"), TEXT("action and rowName is required"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
@@ -127,7 +119,7 @@ FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJso
 				}
 				else if (!RowStruct)
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("DataTable 无行结构体"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("DataTable has no row struct"));
 				}
 				else
 				{
@@ -147,7 +139,7 @@ FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJso
 							if (!JsonValueToImportString(KV.Value, ValStr))
 							{
 								OutEntry->SetStringField(TEXT("error"), FString::Printf(
-									TEXT("字段 '%s' 不支持的 JSON 类型（请用 string/number/bool/null）"), *KV.Key));
+									TEXT("Field '%s' unsupported JSON type (use string/number/bool/null)"), *KV.Key));
 								bAddOk = false;
 								break;
 							}
@@ -155,7 +147,7 @@ FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJso
 							void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(RowData);
 							if (!FNexusPropertyUtils::ImportTextFromString(Prop, ValStr, ValuePtr, DT))
 							{
-								OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("字段 '%s' ImportText 失败"), *KV.Key));
+								OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("ImportText failed for field '%s'"), *KV.Key));
 								bAddOk = false;
 								break;
 							}
@@ -184,7 +176,7 @@ FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJso
 			{
 				if (!RowStruct)
 				{
-					OutEntry->SetStringField(TEXT("error"), TEXT("DataTable 无行结构体"));
+					OutEntry->SetStringField(TEXT("error"), TEXT("DataTable has no row struct"));
 				}
 				else
 				{
@@ -194,14 +186,14 @@ FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJso
 
 					if (FieldName.IsEmpty())
 					{
-						OutEntry->SetStringField(TEXT("error"), TEXT("set 操作需要 fieldName"));
+						OutEntry->SetStringField(TEXT("error"), TEXT("set action requires fieldName"));
 					}
 					else
 					{
 						uint8* RowData = const_cast<uint8*>(DT->FindRowUnchecked(RowKey));
 						if (!RowData)
 						{
-							OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("行 '%s' 不存在"), *RowName));
+							OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Row '%s' does not exist"), *RowName));
 						}
 						else
 						{
@@ -219,7 +211,7 @@ FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJso
 								if (!FNexusPropertyUtils::ImportTextFromString(Prop, NewValue, ValuePtr, DT))
 								{
 									OutEntry->SetStringField(TEXT("error"), FString::Printf(
-										TEXT("字段 '%s' ImportText 失败"), *FieldName));
+										TEXT("ImportText failed for field '%s'"), *FieldName));
 									FNexusPropertyUtils::ImportTextFromString(Prop, OldValue, ValuePtr, DT);
 								}
 								else
@@ -237,7 +229,7 @@ FCapabilityResult FManageAssetDataTableCapability::Execute(const TSharedPtr<FJso
 			}
 			else
 			{
-				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'"), *Action));
+				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
 			}
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));

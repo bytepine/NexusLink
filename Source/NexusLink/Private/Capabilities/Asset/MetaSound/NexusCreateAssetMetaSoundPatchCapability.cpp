@@ -9,39 +9,33 @@
 #if NX_UE_HAS_METASOUND_PATCH
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "NexusMcpTool.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "UObject/Package.h"
 #include "Metasound.h"
 
 void FCreateAssetMetaSoundPatchCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("create_asset_meta_sound_patch");
-	Out.Description = TEXT("创建 MetaSound Patch 资产（可复用子图，≥UE5.1）。读用 get_asset_meta_sound。");
+	Out.Description = TEXT("Create MetaSound Patch (reusable subgraph, ≥UE5.1). Reads via get_asset_meta_sound.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("新 MetaSound Patch 资产完整路径，如 /Game/Audio/MSP_NewPatch")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("New MetaSound Patch full path, e.g. /Game/Audio/MSP_NewPatch")))
 		.Required({ TEXT("assetPath") })
 		.Build();
-	Out.Tags = { FNexusMcpTags::Editor };
+	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("metasound"), TEXT("patch"), TEXT("audio"), TEXT("subgraph") };
 	Out.RelatedCapabilities = { TEXT("get_asset_meta_sound"), TEXT("manage_asset_meta_sound"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("新建可复用 MetaSound Patch 子图资产（≥UE5.1）");
+	Out.WhenToUse = TEXT("Create reusable MetaSound Patch subgraph (≥UE5.1)");
 }
 
 FCapabilityResult FCreateAssetMetaSoundPatchCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString FullPath;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), FullPath) || FullPath.IsEmpty())
-		{
-			OutError = TEXT("缺少必填参数 assetPath");
-			return;
-		}
-		const FString AssetName = FPaths::GetBaseFilename(FullPath);
+		const FNexusArgs A(Arguments);
+		const FString FullPath = A.Str(TEXT("assetPath"));
 
 		if (FNexusAssetUtils::LoadAssetWithFallback<UMetaSoundPatch>(FullPath))
 		{
@@ -53,24 +47,14 @@ FCapabilityResult FCreateAssetMetaSoundPatchCapability::Execute(const TSharedPtr
 			return;
 		}
 
-		UPackage* Package = CreatePackage(*FullPath);
-		if (!Package)
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UMetaSoundPatch>(FullPath);
+		if (!Created.Ok())
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), FullPath}}, TEXT("无法创建 Package"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), FullPath}}, Created.Error);
 			return;
 		}
-
-		UMetaSoundPatch* Patch = NewObject<UMetaSoundPatch>(Package, *AssetName,
-			RF_Public | RF_Standalone | RF_Transactional);
-		if (!Patch)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetName"), AssetName}}, TEXT("NewObject<UMetaSoundPatch> 失败"));
-			return;
-		}
-
-		Patch->MarkPackageDirty();
-		FAssetRegistryModule::AssetCreated(Patch);
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Patch, FullPath);
+		UMetaSoundPatch* Patch = Cast<UMetaSoundPatch>(Created.Asset);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("path"), Patch->GetPathName());
@@ -88,16 +72,16 @@ REGISTER_MCP_CAPABILITY(FCreateAssetMetaSoundPatchCapability)
 void FCreateAssetMetaSoundPatchCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("create_asset_meta_sound_patch");
-	Out.Description = TEXT("（当前引擎版本不支持 MetaSoundPatch，需要 UE5.1+）");
+	Out.Description = TEXT("(MetaSoundPatch requires UE5.1+ on this engine)");
 	Out.InputSchema = FNexusSchema::Object().Build();
-	Out.Tags = { FNexusMcpTags::Editor };
+	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 }
 
 FCapabilityResult FCreateAssetMetaSoundPatchCapability::Execute(const TSharedPtr<FJsonObject>&) const
 {
 	return FNexusCapabilityResultBuilder::Build([](auto& OutEntries, auto&, auto& OutError)
 	{
-		OutError = TEXT("create_asset_meta_sound_patch 需要 UE5.1+");
+		OutError = TEXT("create_asset_meta_sound_patch requires UE5.1+");
 	});
 }
 

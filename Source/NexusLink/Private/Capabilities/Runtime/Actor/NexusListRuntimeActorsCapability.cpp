@@ -2,6 +2,7 @@
 
 #include "Capabilities/Runtime/Actor/NexusListRuntimeActorsCapability.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
@@ -15,14 +16,14 @@
 void FListRuntimeActorsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("list_runtime_actors");
-	Out.Description = TEXT("枚举 PIE/Game 中 Actor。按类/标签/名过滤；返回引用非属性。");
+	Out.Description = TEXT("List Actors in PIE/Game. Filter by class/tag/name; returns refs not properties.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("classFilter"), FNexusSchema::Str(TEXT("Actor 类名子串匹配（可选）")))
-		.Prop(TEXT("nameFilter"),  FNexusSchema::Str(TEXT("Actor 名或标签子串匹配（可选）")))
-		.Prop(TEXT("tagFilter"),   FNexusSchema::Str(TEXT("仅含此标签的 Actor（可选）")))
-		.Prop(TEXT("offset"),      FNexusSchema::Int(TEXT("分页偏移（默认 0）")))
-		.Prop(TEXT("limit"),       FNexusSchema::Int(TEXT("最大条数 1~500（默认 100）")))
-		.Prop(TEXT("detail"),      FNexusSchema::Enum(TEXT("响应详细度：minimal/standard/full"),
+		.Prop(TEXT("classFilter"), FNexusSchema::Str(TEXT("Actor class name substring match (optional)")))
+		.Prop(TEXT("nameFilter"),  FNexusSchema::Str(TEXT("Actor name or tag substring match (optional)")))
+		.Prop(TEXT("tagFilter"),   FNexusSchema::Str(TEXT("Only Actors with this tag (optional)")))
+		.Prop(TEXT("offset"),      FNexusSchema::Int(TEXT("Pagination offset (default 0)")))
+		.Prop(TEXT("limit"),       FNexusSchema::Int(TEXT("Max count 1-500 (default 100)")))
+		.Prop(TEXT("detail"),      FNexusSchema::Enum(TEXT("Response verbosity: minimal/standard/full"),
 			{ TEXT("minimal"), TEXT("standard"), TEXT("full") }, TEXT("standard")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
@@ -36,6 +37,7 @@ FCapabilityResult FListRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
@@ -46,12 +48,12 @@ FCapabilityResult FListRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 
 		if (Arguments.IsValid())
 		{
-			if (Arguments->HasField(TEXT("classFilter"))) ClassFilter = Arguments->GetStringField(TEXT("classFilter"));
-			if (Arguments->HasField(TEXT("nameFilter")))  NameFilter  = Arguments->GetStringField(TEXT("nameFilter"));
-			if (Arguments->HasField(TEXT("tagFilter")))   TagFilter   = Arguments->GetStringField(TEXT("tagFilter"));
-			if (Arguments->HasField(TEXT("offset")))      Offset = FMath::Max(0, static_cast<int32>(Arguments->GetNumberField(TEXT("offset"))));
-			if (Arguments->HasField(TEXT("limit")))       Limit  = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 500);
-			if (Arguments->HasField(TEXT("detail")))      DetailMode = Arguments->GetStringField(TEXT("detail")).ToLower();
+			if (Arguments->HasField(TEXT("classFilter"))) ClassFilter = A.Str(TEXT("classFilter"));
+			if (Arguments->HasField(TEXT("nameFilter")))  NameFilter  = A.Str(TEXT("nameFilter"));
+			if (Arguments->HasField(TEXT("tagFilter")))   TagFilter   = A.Str(TEXT("tagFilter"));
+			if (Arguments->HasField(TEXT("offset")))      Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
+			if (Arguments->HasField(TEXT("limit")))       Limit  = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
+			if (Arguments->HasField(TEXT("detail")))      DetailMode = A.Str(TEXT("detail")).ToLower();
 		}
 
 		struct FActorEntry { FString Name; FString Label; FString Class; FString Location; };

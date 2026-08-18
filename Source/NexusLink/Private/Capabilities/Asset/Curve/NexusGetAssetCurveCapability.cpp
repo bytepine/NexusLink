@@ -4,6 +4,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Curves/RealCurve.h"
 #include "Curves/CurveFloat.h"
@@ -49,9 +50,9 @@ void FGetAssetCurveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) 
 {
 	Out.Name = TEXT("get_asset_curve");
 	Out.SearchAssetTypes = {TEXT("CurveFloat"), TEXT("CurveVector"), TEXT("CurveLinearColor"), TEXT("CurveTable")};
-	Out.Description = TEXT("读取曲线资产（CurveFloat/Vector/LinearColor/CurveTable）的通道与关键帧。");
+	Out.Description = TEXT("Read curve asset channels and keyframes (CurveFloat/Vector/LinearColor/CurveTable).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -63,20 +64,16 @@ FCapabilityResult FGetAssetCurveCapability::Execute(const TSharedPtr<FJsonObject
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		// UCurveTable 不继承自 UCurveBase，需分开加载以避免 Cast<> 警告
 		UObject* AssetObj = LoadObject<UObject>(nullptr, *AssetPath);
 		if (!AssetObj)
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("加载曲线资产失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load curve asset: %s"), *AssetPath));
 			return;
 		}
 

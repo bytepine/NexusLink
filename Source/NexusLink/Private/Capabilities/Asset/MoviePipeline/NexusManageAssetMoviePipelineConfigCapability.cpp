@@ -57,7 +57,7 @@ namespace
 			return UMoviePipelineDebugSettings::StaticClass();
 
 		OutError = FString::Printf(
-			TEXT("未知 settingClass: %s（Output/AntiAliasing/HighRes/Camera/GameOverride/Color/Debug）"),
+			TEXT("Unknown settingClass: %s (Output/AntiAliasing/HighRes/Camera/GameOverride/Color/Debug)"),
 			*InName);
 		return nullptr;
 	}
@@ -67,31 +67,31 @@ void FManageAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapability
 {
 	Out.Name = TEXT("manage_asset_movie_pipeline_config");
 	Out.SearchAssetTypes = {TEXT("MoviePipelinePrimaryConfig"), TEXT("MoviePipelineMasterConfig")};
-	Out.Description = TEXT("批量编辑 MoviePipeline：set_output / set_anti_aliasing / add_setting / remove_setting / set_setting_property / set_setting_enabled。不触发渲染。");
+	Out.Description = TEXT("Batch edit MoviePipeline settings. Does not trigger render.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"), {
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), {
 			TEXT("set_output"), TEXT("set_anti_aliasing"),
 			TEXT("add_setting"), TEXT("remove_setting"),
 			TEXT("set_setting_property"), TEXT("set_setting_enabled")
 		}))
-		.Prop(TEXT("directory"), FNexusSchema::Str(TEXT("输出目录（set_output）")))
-		.Prop(TEXT("width"), FNexusSchema::Int(TEXT("输出宽度")))
-		.Prop(TEXT("height"), FNexusSchema::Int(TEXT("输出高度")))
-		.Prop(TEXT("fileNameFormat"), FNexusSchema::Str(TEXT("输出文件名格式（set_output）")))
-		.Prop(TEXT("spatialSampleCount"), FNexusSchema::Int(TEXT("空间采样（set_anti_aliasing）")))
-		.Prop(TEXT("temporalSampleCount"), FNexusSchema::Int(TEXT("时间采样（set_anti_aliasing）")))
-		.Prop(TEXT("settingClass"), FNexusSchema::Enum(TEXT("设置类短名"), {
+		.Prop(TEXT("directory"), FNexusSchema::Str(TEXT("Output directory (set_output)")))
+		.Prop(TEXT("width"), FNexusSchema::Int(TEXT("Output width")))
+		.Prop(TEXT("height"), FNexusSchema::Int(TEXT("Output height")))
+		.Prop(TEXT("fileNameFormat"), FNexusSchema::Str(TEXT("Output filename format (set_output)")))
+		.Prop(TEXT("spatialSampleCount"), FNexusSchema::Int(TEXT("Spatial samples (set_anti_aliasing)")))
+		.Prop(TEXT("temporalSampleCount"), FNexusSchema::Int(TEXT("Temporal samples (set_anti_aliasing)")))
+		.Prop(TEXT("settingClass"), FNexusSchema::Enum(TEXT("Setting class short name"), {
 			TEXT("Output"), TEXT("AntiAliasing"), TEXT("HighRes"), TEXT("Camera"),
 			TEXT("GameOverride"), TEXT("Color"), TEXT("Debug")
 		}))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("设置对象属性路径（set_setting_property）")))
-		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("属性新值（set_setting_property）")))
-		.Prop(TEXT("enabled"), FNexusSchema::Bool(TEXT("设置启用（set_setting_enabled）")))
+		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Setting object property path (set_setting_property)")))
+		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("New property value (set_setting_property)")))
+		.Prop(TEXT("enabled"), FNexusSchema::Bool(TEXT("Setting enabled flag (set_setting_enabled)")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MoviePipeline 配置资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MoviePipeline config asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -99,7 +99,7 @@ void FManageAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapability
 	Out.RelatedCapabilities = {
 		TEXT("get_asset_movie_pipeline_config"), TEXT("create_asset_movie_pipeline_config")
 	};
-	Out.WhenToUse = TEXT("改 MRQ 输出/AA/设置栈；不触发渲染");
+	Out.WhenToUse = TEXT("Edit MRQ output/AA/settings stack; no render");
 }
 
 FCapabilityResult FManageAssetMoviePipelineConfigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -112,13 +112,13 @@ FCapabilityResult FManageAssetMoviePipelineConfigCapability::Execute(const TShar
 		if (!Cfg)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 MoviePipeline 配置失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load MoviePipeline config: %s"), *AssetPath));
 			return;
 		}
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 
@@ -145,7 +145,7 @@ FCapabilityResult FManageAssetMoviePipelineConfigCapability::Execute(const TShar
 				}
 				if (!OutSet)
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("无 OutputSetting"));
+					Entry->SetStringField(TEXT("error"), TEXT("no OutputSetting"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -177,7 +177,7 @@ FCapabilityResult FManageAssetMoviePipelineConfigCapability::Execute(const TShar
 					Cfg->FindOrAddSettingByClass(UMoviePipelineAntiAliasingSetting::StaticClass()));
 				if (!AA)
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("无法添加 AntiAliasingSetting"));
+					Entry->SetStringField(TEXT("error"), TEXT("Unable to add AntiAliasingSetting"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -205,7 +205,7 @@ FCapabilityResult FManageAssetMoviePipelineConfigCapability::Execute(const TShar
 				Op->TryGetStringField(TEXT("settingClass"), SettingClassName);
 				if (SettingClassName.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("需要 settingClass"));
+					Entry->SetStringField(TEXT("error"), TEXT("settingClass required"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -223,7 +223,7 @@ FCapabilityResult FManageAssetMoviePipelineConfigCapability::Execute(const TShar
 					UMoviePipelineSetting* Added = Cfg->FindOrAddSettingByClass(SettingClass);
 					if (!Added)
 					{
-						Entry->SetStringField(TEXT("error"), TEXT("FindOrAddSettingByClass 失败"));
+						Entry->SetStringField(TEXT("error"), TEXT("FindOrAddSettingByClass failed"));
 						OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 						continue;
 					}
@@ -235,7 +235,7 @@ FCapabilityResult FManageAssetMoviePipelineConfigCapability::Execute(const TShar
 					UMoviePipelineSetting* Found = Cfg->FindSettingByClass(SettingClass);
 					if (!Found)
 					{
-						Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("设置未找到: %s"), *SettingClassName));
+						Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Setting not found: %s"), *SettingClassName));
 						OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 						continue;
 					}
@@ -250,7 +250,7 @@ FCapabilityResult FManageAssetMoviePipelineConfigCapability::Execute(const TShar
 						bool bEnabled = true;
 						if (!Op->HasField(TEXT("enabled")))
 						{
-							Entry->SetStringField(TEXT("error"), TEXT("set_setting_enabled 需要 enabled"));
+							Entry->SetStringField(TEXT("error"), TEXT("set_setting_enabled requires enabled"));
 							OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 							continue;
 						}
@@ -267,7 +267,7 @@ FCapabilityResult FManageAssetMoviePipelineConfigCapability::Execute(const TShar
 						Op->TryGetStringField(TEXT("value"), Value);
 						if (PropPath.IsEmpty() || Value.IsEmpty())
 						{
-							Entry->SetStringField(TEXT("error"), TEXT("set_setting_property 需要 propertyPath 和 value"));
+							Entry->SetStringField(TEXT("error"), TEXT("set_setting_property requires propertyPath and value"));
 							OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 							continue;
 						}
@@ -288,7 +288,7 @@ FCapabilityResult FManageAssetMoviePipelineConfigCapability::Execute(const TShar
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
 			}
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

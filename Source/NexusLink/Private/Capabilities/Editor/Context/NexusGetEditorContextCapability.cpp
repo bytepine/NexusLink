@@ -12,19 +12,19 @@
 void FGetEditorContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_editor_context");
-	Out.Description = TEXT("读编辑器选中与浏览路径。3 section；editor World≠PIE。");
+	Out.Description = TEXT("Read editor selection and browse paths. 3 sections; editor World != PIE.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.Prerequisites = { TEXT("editor_only") };
 	Out.ExtraSearchKeywords = { TEXT("selection"), TEXT("content browser"), TEXT("picker"), TEXT("focused") };
 	Out.RelatedCapabilities = { TEXT("get_editor_info"), TEXT("capture_viewport"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("读编辑器选中；PIE 用 list_runtime_actors");
+	Out.WhenToUse = TEXT("Read editor selection; use list_runtime_actors in PIE");
 }
 
 TSharedPtr<FJsonObject> FGetEditorContextCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("limit"), FNexusSchema::Int(TEXT("列表最大条数（selection 段）"), 100, 1, 500))
+		.Prop(TEXT("limit"), FNexusSchema::Int(TEXT("Max list items (selection section)"), 100, 1, 500))
 		.Build();
 }
 
@@ -45,7 +45,7 @@ void FGetEditorContextCapability::ExecuteSection(const FString&                 
                                                  FString&                       OutError) const
 {
 #if !WITH_EDITOR
-	OutError = TEXT("get_editor_context 仅编辑器构建可用");
+	OutError = TEXT("get_editor_context only available in editor builds");
 	return;
 #endif
 
@@ -83,7 +83,7 @@ void FGetEditorContextCapability::ExecuteSection(const FString&                 
 	}
 	else
 	{
-		OutError = FString::Printf(TEXT("未处理的 section '%s'"), *SectionName);
+		OutError = FString::Printf(TEXT("Unhandled section '%s'"), *SectionName);
 	}
 }
 

@@ -6,6 +6,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #if NX_UE_HAS_MOVIE_PIPELINE_PRIMARY_CONFIG
 #include "MoviePipelinePrimaryConfig.h"
@@ -19,9 +20,9 @@ using FNexusMoviePipelineConfig = UMoviePipelineMasterConfig;
 void FCreateAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_movie_pipeline_config");
-	Out.Description = TEXT("创建空白 MoviePipeline 配置。不触发渲染。");
+	Out.Description = TEXT("Create empty MoviePipeline config. Does not trigger render.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -35,25 +36,16 @@ FCapabilityResult FCreateAssetMoviePipelineConfigCapability::Execute(const TShar
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset(AssetPath, FNexusMoviePipelineConfig::StaticClass());
+		if (!Created.Ok())
 		{
-			OutError = TEXT("缺少 assetPath");
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
-		if (LoadObject<FNexusMoviePipelineConfig>(nullptr, *AssetPath))
-		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("MoviePipeline config already exists: %s"), *AssetPath));
-			return;
-		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		FNexusMoviePipelineConfig* Cfg = NewObject<FNexusMoviePipelineConfig>(
-			Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Cfg) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建失败")); return; }
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Cfg, AssetPath);
+		FNexusMoviePipelineConfig* Cfg = Cast<FNexusMoviePipelineConfig>(Created.Asset);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Cfg->GetName());
 		Entry->SetStringField(TEXT("path"), Cfg->GetPathName());

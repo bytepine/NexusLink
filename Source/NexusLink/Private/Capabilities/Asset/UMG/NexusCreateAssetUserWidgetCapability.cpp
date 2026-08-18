@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/UMG/NexusCreateAssetUserWidgetCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -19,16 +20,16 @@
 void FCreateAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_user_widget");
-	Out.Description = TEXT("创建 WBP。parentClass 设 UI 基类；用 manage 填控件树。");
+	Out.Description = TEXT("Create WBP. parentClass sets UI base; fill widget tree via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("新 WidgetBlueprint 包路径")))
-		.Prop(TEXT("parentClass"), FNexusSchema::Str(TEXT("父类名（默认 UserWidget）")))
+		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("New WidgetBlueprint package path")))
+		.Prop(TEXT("parentClass"), FNexusSchema::Str(TEXT("Parent class (default UserWidget)")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = { TEXT("wbp"), TEXT("umg"), TEXT("new"), TEXT("ui"), TEXT("panel") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_user_widget"), TEXT("get_asset_user_widget") };
-	Out.WhenToUse = TEXT("创建空白 WBP；parentClass 可选（默认 UserWidget）");
+	Out.WhenToUse = TEXT("Create empty WBP; parentClass optional (default UserWidget)");
 }
 
 FCapabilityResult FCreateAssetUserWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -36,84 +37,30 @@ FCapabilityResult FCreateAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 #if WITH_EDITOR
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-
-		if (!Arguments.IsValid())
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString ParentClassName = A.Str(TEXT("parentClass"), TEXT("UserWidget"));
+		const FNexusAssetUtils::FAssetCreateOutcome Created = FNexusAssetUtils::CreateBlueprintAsset(
+			AssetPath, ParentClassName, UUserWidget::StaticClass(), UWidgetBlueprint::StaticClass());
+		if (!Created.Ok())
 		{
-			OutError = TEXT("参数无效");
+			OutError = Created.Error;
 			return;
 		}
-
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
-
-		FText PathErrText;
-		if (!FPackageName::IsValidLongPackageName(AssetPath, false, &PathErrText))
-		{
-			OutError = FString::Printf(TEXT("无效的 assetPath: %s"), *PathErrText.ToString());
-			return;
-		}
-
-		if (FPackageName::DoesPackageExist(AssetPath))
-		{
-			OutError = FString::Printf(TEXT("资产已存在: %s"), *AssetPath);
-			return;
-		}
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-
-		FString ParentClassName = TEXT("UserWidget");
-		Arguments->TryGetStringField(TEXT("parentClass"), ParentClassName);
-
-	#if NX_UE_HAS_FIND_FIRST_OBJECT
-		UClass* ParentClass = FindFirstObject<UClass>(*ParentClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("ParentClass"));
-	#else
-		UClass* ParentClass = FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
-	#endif
-		if (!ParentClass) ParentClass = LoadObject<UClass>(nullptr, *ParentClassName);
-		if (!ParentClass)
-		{
-			OutError = FString::Printf(TEXT("父类未找到: %s"), *ParentClassName);
-			return;
-		}
-		if (!ParentClass->IsChildOf(UUserWidget::StaticClass()))
-		{
-			OutError = FString::Printf(TEXT("%s 不是 UserWidget 子类"), *ParentClassName);
-			return;
-		}
-
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package)
-		{
-			OutError = TEXT("创建包失败");
-			return;
-		}
-
-		UBlueprint* NewBP = FKismetEditorUtilities::CreateBlueprint(
-			ParentClass, Package, *AssetName,
-			BPTYPE_Normal, UWidgetBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass()
-		);
-		if (!NewBP)
-		{
-			OutError = TEXT("WidgetBlueprint 创建失败");
-			return;
-		}
-
-		FNexusAssetUtils::NotifyCompileAndSave(Package, NewBP, AssetPath);
-
+		UBlueprint* NewBP = Cast<UBlueprint>(Created.Asset);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"),        NewBP->GetOutermost()->GetName());
-		Entry->SetStringField(TEXT("parentClass"), ParentClass->GetName());
+		Entry->SetStringField(TEXT("path"), NewBP->GetOutermost()->GetName());
+		if (NewBP->ParentClass)
+		{
+			Entry->SetStringField(TEXT("parentClass"), NewBP->ParentClass->GetName());
+		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	
 	});
 #else
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		OutError = TEXT("create_asset_user_widget 仅在编辑器构建可用");
+		OutError = TEXT("create_asset_user_widget only available in editor builds");
 	});
 #endif
 }

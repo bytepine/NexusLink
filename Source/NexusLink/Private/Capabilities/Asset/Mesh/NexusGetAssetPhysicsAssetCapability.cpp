@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Mesh/NexusGetAssetPhysicsAssetCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -33,33 +34,29 @@ void FGetAssetPhysicsAssetCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("get_asset_physics_asset");
 	Out.SearchAssetTypes = {TEXT("PhysicsAsset")};
-	Out.Description = TEXT("列举 PhysicsAsset 的 Body（骨骼/碰撞形状）和 Constraint（约束关节）概览。");
+	Out.Description = TEXT("List PhysicsAsset Bodies and Constraints overview.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("PhysicsAsset 资产路径")))
+		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("PhysicsAsset asset path")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("physics"), TEXT("physasset"), TEXT("ragdoll"), TEXT("body"), TEXT("constraint"), TEXT("collision"), TEXT("skeleton") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_physics_asset"), TEXT("get_asset_skeletal_mesh"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("读 PhysicsAsset 的 Body 骨骼名/碰撞形状数量与 Constraint 列表");
+	Out.WhenToUse = TEXT("Read PhysicsAsset Body bone names/shape counts and Constraint list");
 }
 
 FCapabilityResult FGetAssetPhysicsAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UPhysicsAsset* PA = FNexusAssetUtils::LoadAssetWithFallback<UPhysicsAsset>(AssetPath);
 		if (!PA)
 		{
-			OutError = FString::Printf(TEXT("PhysicsAsset 未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("PhysicsAsset not found: %s"), *AssetPath);
 			return;
 		}
 

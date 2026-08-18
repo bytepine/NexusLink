@@ -13,15 +13,15 @@ void FGetAssetBlackboardCapability::BuildDefinition(FNexusCapabilityDefinition& 
 {
 	Out.Name = TEXT("get_asset_blackboard");
 	Out.SearchAssetTypes = {TEXT("Blackboard")};
-	Out.Description = TEXT("检查 BB 键定义。返回名称与类型快照；只读。");
+	Out.Description = TEXT("Inspect BB key definitions. Name/type snapshot; read-only.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("BlackboardData 资产路径")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("黑板键名过滤")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("BlackboardData asset path")))
+		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Blackboard key name filter")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = { TEXT("blackboard"), TEXT("bb"), TEXT("keys"), TEXT("ai") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_blackboard"), TEXT("get_asset_behavior_tree") };
-	Out.WhenToUse = TEXT("读 BB 键列表；运行时值用 get_runtime_actor_behavior_tree");
+	Out.WhenToUse = TEXT("Read BB key list; runtime values via get_runtime_actor_behavior_tree");
 }
 
 FCapabilityResult FGetAssetBlackboardCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -38,7 +38,7 @@ FCapabilityResult FGetAssetBlackboardCapability::Execute(const TSharedPtr<FJsonO
 		FString AssetPath;
 		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
 		{
-			OutEntry->SetStringField(TEXT("error"), TEXT("assetPath 为必填项"));
+			OutEntry->SetStringField(TEXT("error"), TEXT("assetPath is required"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -47,7 +47,7 @@ FCapabilityResult FGetAssetBlackboardCapability::Execute(const TSharedPtr<FJsonO
 
 		if (!BB)
 		{
-			OutEntry->SetStringField(TEXT("error"), TEXT("给定路径的 BlackboardData 未找到"));
+			OutEntry->SetStringField(TEXT("error"), TEXT("BlackboardData not found at given path"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}

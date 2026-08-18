@@ -9,6 +9,7 @@
 #include "Utils/NexusStringMatchUtils.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Engine/DataTable.h"
 
 static TSharedPtr<FJsonObject> HandleDataTable(UDataTable* DT, const FString& NameFilter, const TArray<FString>& PropertyPaths, int32 Offset, int32 Limit)
@@ -53,22 +54,22 @@ void FGetAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition& O
 {
 	Out.Name = TEXT("get_asset_data_table");
 	Out.SearchAssetTypes = {TEXT("DataTable")};
-	Out.Description = TEXT("检查 DT 行或 Schema。mode=schema|rows；可 propertyPaths 过滤。");
+	Out.Description = TEXT("Inspect DataTable rows or schema. mode=schema|rows; optional propertyPaths.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataTable 资产路径")))
-		.Prop(TEXT("mode"),       FNexusSchema::Enum(TEXT("auto：rowNames 非空则 rows 否则 schema；schema：忽略 rowNames；rows：要求 rowNames 非空"),
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataTable asset path")))
+		.Prop(TEXT("mode"),       FNexusSchema::Enum(TEXT("auto: rows if rowNames non-empty else schema; schema ignores rowNames; rows requires rowNames"),
 			{ TEXT("auto"), TEXT("schema"), TEXT("rows") }, TEXT("auto")))
-		.Prop(TEXT("rowNames"),   FNexusSchema::StrArr(TEXT("行名（rows 模式或 auto 且非空时）")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("行名过滤（/regex/ ^前缀 后缀$）")))
-		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("列/字段名过滤（首段路径），schema 列表与行字段导出")))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("分页偏移"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("每页最大行数"), 100, 1, 500))
+		.Prop(TEXT("rowNames"),   FNexusSchema::StrArr(TEXT("Row name (rows mode or auto with non-empty rowNames)")))
+		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Row name filter (/regex/ ^prefix suffix$)")))
+		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Column/field filter (first segment); schema list and row export")))
+		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max rows per page"), 100, 1, 500))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("dt"), TEXT("schema"), TEXT("rowstruct"), TEXT("columns"), TEXT("rows") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_data_table"), TEXT("create_asset_data_table") };
-	Out.WhenToUse = TEXT("读 DT Schema 或行值；不含编辑");
+	Out.WhenToUse = TEXT("Read DT schema or row values; no edits");
 }
 
 FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -76,16 +77,12 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		FString Path;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FString Path = A.Str(TEXT("assetPath"));
 
 		UDataTable* DT = FNexusAssetUtils::LoadAssetWithFallback<UDataTable>(Path);
-		if (!DT) { OutError = FString::Printf(TEXT("DataTable 未找到: %s"), *Path); return; }
+		if (!DT) { OutError = FString::Printf(TEXT("DataTable not found: %s"), *Path); return; }
 
 		TArray<FString> PropertyPaths;
 		const TArray<TSharedPtr<FJsonValue>>* PPArr = nullptr;
@@ -99,7 +96,7 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 		}
 
 		FString Mode = TEXT("auto");
-		if (Arguments->HasField(TEXT("mode"))) Mode = Arguments->GetStringField(TEXT("mode")).ToLower();
+		if (Arguments->HasField(TEXT("mode"))) Mode = A.Str(TEXT("mode")).ToLower();
 
 		const TArray<TSharedPtr<FJsonValue>>* RowNamesArr = nullptr;
 		const bool bRowNamesPresent = Arguments->TryGetArrayField(TEXT("rowNames"), RowNamesArr) && RowNamesArr;
@@ -108,18 +105,18 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 		bool bUseRowMode = false;
 		if (Mode == TEXT("rows"))
 		{
-			if (!bRowNamesNonEmpty) { OutError = TEXT("mode=rows 需要非空 rowNames"); return; }
+			if (!bRowNamesNonEmpty) { OutError = TEXT("mode=rows requires non-empty rowNames"); return; }
 			bUseRowMode = true;
 		}
 		else if (Mode == TEXT("schema")) { bUseRowMode = false; }
 		else if (Mode == TEXT("auto") || Mode.IsEmpty()) { bUseRowMode = bRowNamesNonEmpty; }
-		else { OutError = FString::Printf(TEXT("无效的 mode '%s'（auto|schema|rows）"), *Mode); return; }
+		else { OutError = FString::Printf(TEXT("Invalid mode '%s' (auto|schema|rows)"), *Mode); return; }
 
 		// ── Row data mode：rows / auto 且 rowNames 非空 ───────────────────────────
 		if (bUseRowMode)
 		{
 			const UScriptStruct* RowStruct = DT->GetRowStruct();
-			if (!RowStruct) { OutError = TEXT("DataTable 无行结构体"); return; }
+			if (!RowStruct) { OutError = TEXT("DataTable has no row struct"); return; }
 
 			for (const TSharedPtr<FJsonValue>& Val : *RowNamesArr)
 			{
@@ -131,7 +128,7 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 
 				if (RowName.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("rowName 必填"));
+					Entry->SetStringField(TEXT("error"), TEXT("rowName is required"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -139,7 +136,7 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 				const uint8* RowData = DT->FindRowUnchecked(FName(*RowName));
 				if (!RowData)
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("行 '%s' 不存在"), *RowName));
+					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Row '%s' does not exist"), *RowName));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -171,9 +168,9 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 		FString NameFilter;
 		int32   Offset = 0;
 		int32   Limit  = 100;
-		if (Arguments->HasField(TEXT("nameFilter"))) NameFilter = Arguments->GetStringField(TEXT("nameFilter"));
-		if (Arguments->HasField(TEXT("offset")))     Offset     = FMath::Max(0, static_cast<int32>(Arguments->GetNumberField(TEXT("offset"))));
-		if (Arguments->HasField(TEXT("limit")))      Limit      = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 500);
+		if (Arguments->HasField(TEXT("nameFilter"))) NameFilter = A.Str(TEXT("nameFilter"));
+		if (Arguments->HasField(TEXT("offset")))     Offset     = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
+		if (Arguments->HasField(TEXT("limit")))      Limit      = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		TSharedPtr<FJsonObject> One = HandleDataTable(DT, NameFilter, PropertyPaths, Offset, Limit);

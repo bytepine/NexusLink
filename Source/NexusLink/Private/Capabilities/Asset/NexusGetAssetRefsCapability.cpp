@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/NexusGetAssetRefsCapability.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
@@ -449,17 +450,17 @@ static void QueryOneAssetRefsImpl(
 void FGetAssetRefsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_asset_refs");
-	Out.Description = TEXT("查依赖/引用/继承。direction 含 children|ancestors；可按类型过滤。");
+	Out.Description = TEXT("Query deps/refs/inheritance. direction includes children|ancestors; filter by type.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("要查询的资产路径")))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Asset path to query")))
 		.Prop(TEXT("direction"),  FNexusSchema::Enum(
-			TEXT("dependencies=依赖; referencers=引用方; children=直接子类; descendants=全部子孙; parent=直接父类; ancestors=父类链"),
+			TEXT("dependencies=deps; referencers=referencers; children=direct subclasses; descendants=all descendants; parent=direct parent; ancestors=parent chain"),
 			{ TEXT("dependencies"), TEXT("referencers"), TEXT("children"), TEXT("descendants"), TEXT("parent"), TEXT("ancestors") }))
-		.Prop(TEXT("recursive"),  FNexusSchema::Bool(TEXT("包依赖/引用递归；children 时等价 descendants"), false))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("路径或名称子串过滤")))
-		.Prop(TEXT("assetTypeFilter"), FNexusSchema::Str(TEXT("按 assetType 子串过滤，如 Blueprint / MaterialInstance")))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("分页偏移"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("每页最大条数"), 100, 1, 500))
+		.Prop(TEXT("recursive"),  FNexusSchema::Bool(TEXT("Recursive package deps/refs; children equivalent to descendants"), false))
+		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Path or name substring filter")))
+		.Prop(TEXT("assetTypeFilter"), FNexusSchema::Str(TEXT("Filter by assetType substring, e.g. Blueprint/MaterialInstance")))
+		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
@@ -468,19 +469,15 @@ void FGetAssetRefsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) c
 		TEXT("inheritance"), TEXT("subclass"), TEXT("parent"), TEXT("children"), TEXT("descendants")
 	};
 	Out.RelatedCapabilities = { TEXT("search_asset"), TEXT("get_asset_blueprint") };
-	Out.WhenToUse = TEXT("查引用/依赖，或蓝图继承子类与父链");
+	Out.WhenToUse = TEXT("Query refs/deps or Blueprint subclass/parent chain");
 }
 
 FCapabilityResult FGetAssetRefsCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString AssetPath;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		FString Direction = TEXT("dependencies");
 		Arguments->TryGetStringField(TEXT("direction"), Direction);
@@ -492,12 +489,12 @@ FCapabilityResult FGetAssetRefsCapability::Execute(const TSharedPtr<FJsonObject>
 		if (!bValidDirection)
 		{
 			OutError = FString::Printf(
-				TEXT("无效的 direction '%s'；期望 dependencies|referencers|children|descendants|parent|ancestors"),
+				TEXT("Invalid direction '%s'; expected dependencies|referencers|children|descendants|parent|ancestors"),
 				*Direction);
 			return;
 		}
 
-		const bool bRecursive = Arguments->HasField(TEXT("recursive")) && Arguments->GetBoolField(TEXT("recursive"));
+		const bool bRecursive = Arguments->HasField(TEXT("recursive")) && A.Bool(TEXT("recursive"));
 		FString NameFilter;
 		Arguments->TryGetStringField(TEXT("nameFilter"), NameFilter);
 		FString AssetTypeFilter;
@@ -505,9 +502,9 @@ FCapabilityResult FGetAssetRefsCapability::Execute(const TSharedPtr<FJsonObject>
 
 		int32 Offset = 0, Limit = 100;
 		if (Arguments->HasField(TEXT("offset")))
-			Offset = FMath::Max(0, static_cast<int32>(Arguments->GetNumberField(TEXT("offset"))));
+			Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
 		if (Arguments->HasField(TEXT("limit")))
-			Limit = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 500);
+			Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
 
 		IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 

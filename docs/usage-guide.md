@@ -178,7 +178,7 @@ NexusLink 内置端到端的 AI 使用反馈系统，**所有数据只落本地 
 NexusLink 将能力分为两层：
 
 - **MCP 元工具（3 个）**：`search_capabilities`、`call_capability`、`submit_feedback`。
-- **Capability（221 个，随插件条件略减）**：原子工作单元。`WITH_GAS=0` 时不注册 GAS 相关 cap；`WITH_NIAGARA=0` 时再减 Niagara；Paper2D / GeometryCollection / CommonUI / Movie Render Queue 仅对应插件+版本注册。完整清单见 [`tool-reference.md`](./tool-reference.md)。
+- **Capability（226 个，随插件条件略减）**：原子工作单元。`WITH_GAS=0` 时不注册 GAS 相关 cap；`WITH_NIAGARA=0` 时再减 Niagara；Paper2D / GeometryCollection / CommonUI / Movie Render Queue 仅对应插件+版本注册。完整清单见 [`tool-reference.md`](./tool-reference.md)。
 
 **tools/list 暴露模式**（`Edit → Editor Preferences → Plugins → NexusLink → 工具列表模式`）：
 
@@ -243,7 +243,7 @@ sequenceDiagram
 | `filePath` | `scriptPath` |
 | Lua `path` | `luaPath` |
 
-旧键不兼容 → `arg_invalid`。完整契约见 [`CapabilitySpec.md`](../Resources/CapabilitySpec.md) §7.11–§7.12。
+旧键不兼容 → `arg_invalid`。完整契约见 [`CapabilitySpec.md`](../Resources/CapabilitySpec.md) §8.11–§8.12。
 
 **失败时看 `errorKind`**（SearchMode / MultiTool 均适用）：`not_found`（未注册）、`disabled`（设置中已禁用）、`disabled_only`（模糊搜索仅命中已禁用项）、`query_too_broad`（`search_capabilities` 单用过宽词，见 `suggestedQueries`）、`arg_invalid`（未知键/旧键/schema 不符）。旧 Capability 名会自动映射到新规范名（如 `create_blackboard` → `create_asset_blackboard`）；**旧参数键不会映射**。
 

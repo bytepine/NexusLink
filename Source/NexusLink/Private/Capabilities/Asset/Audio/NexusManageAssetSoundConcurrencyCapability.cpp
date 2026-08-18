@@ -5,6 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Sound/SoundConcurrency.h"
 #include "NexusMcpTool.h"
 
@@ -12,18 +13,18 @@ void FManageAssetSoundConcurrencyCapability::BuildDefinition(FNexusCapabilityDef
 {
 	Out.Name = TEXT("manage_asset_sound_concurrency");
 	Out.SearchAssetTypes = {TEXT("SoundConcurrency")};
-	Out.Description = TEXT("设置 SoundConcurrency：maxCount/resolutionRuleValue/retriggerTime/limitToOwner。");
+	Out.Description = TEXT("Set SoundConcurrency: maxCount/resolutionRuleValue/retriggerTime/limitToOwner.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),              FNexusSchema::Enum(TEXT("操作"), { TEXT("set") }))
-		.Prop(TEXT("maxCount"),            FNexusSchema::Int(TEXT("最大并发实例数（≥1）")))
-		.Prop(TEXT("resolutionRuleValue"), FNexusSchema::Int(TEXT("EMaxConcurrentResolutionRule int 值：0=PreventNew,1=StopOldest…")))
-		.Prop(TEXT("retriggerTime"),       FNexusSchema::Num(TEXT("重触发时间（秒），同一声音再次触发的最小间隔")))
-		.Prop(TEXT("limitToOwner"),        FNexusSchema::Bool(TEXT("是否按 Owner 限制并发")))
+		.Prop(TEXT("action"),              FNexusSchema::Enum(TEXT("Action"), { TEXT("set") }))
+		.Prop(TEXT("maxCount"),            FNexusSchema::Int(TEXT("Max concurrent instances (≥1)")))
+		.Prop(TEXT("resolutionRuleValue"), FNexusSchema::Int(TEXT("EMaxConcurrentResolutionRule int: 0=PreventNew,1=StopOldest…")))
+		.Prop(TEXT("retriggerTime"),       FNexusSchema::Num(TEXT("Retrigger time (sec); min interval before same sound retriggers")))
+		.Prop(TEXT("limitToOwner"),        FNexusSchema::Bool(TEXT("Limit concurrency per Owner")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundConcurrency 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundConcurrency asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -35,24 +36,20 @@ FCapabilityResult FManageAssetSoundConcurrencyCapability::Execute(const TSharedP
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		USoundConcurrency* SC = LoadObject<USoundConcurrency>(nullptr, *AssetPath);
 		if (!SC)
 		{
-			OutError = FString::Printf(TEXT("加载 SoundConcurrency 失败: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("Failed to load SoundConcurrency: %s"), *AssetPath);
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("缺少 operations 或为空");
+			OutError = TEXT("Missing or empty operations");
 			return;
 		}
 
@@ -62,17 +59,17 @@ FCapabilityResult FManageAssetSoundConcurrencyCapability::Execute(const TSharedP
 			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
 			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("无效的 operation 项"));
+				Entry->SetStringField(TEXT("error"), TEXT("Invalid operation item"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			const TSharedPtr<FJsonObject>& Op = *OpPtr;
 
-			const FString Action = Op->HasField(TEXT("action")) ? Op->GetStringField(TEXT("action")).ToLower() : TEXT("");
+			const FString Action = FNexusArgs(Op).Str(TEXT("action")).ToLower();
 			Entry->SetStringField(TEXT("action"), Action);
 			if (Action != TEXT("set"))
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'（仅 set）"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s' (set only)"), *Action));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}

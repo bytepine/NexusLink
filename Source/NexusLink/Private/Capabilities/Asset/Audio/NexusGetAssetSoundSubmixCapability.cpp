@@ -4,6 +4,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Sound/SoundSubmix.h"
 #include "NexusMcpTool.h"
@@ -12,9 +13,9 @@ void FGetAssetSoundSubmixCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name = TEXT("get_asset_sound_submix");
 	Out.SearchAssetTypes = {TEXT("SoundSubmix")};
-	Out.Description = TEXT("读取 SoundSubmix：outputVolume/wetLevel/dryLevel/effectChainCount/parentSubmix。");
+	Out.Description = TEXT("Read SoundSubmix: outputVolume/wetLevel/dryLevel/effectChainCount/parentSubmix.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundSubmix 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundSubmix asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -26,18 +27,14 @@ FCapabilityResult FGetAssetSoundSubmixCapability::Execute(const TSharedPtr<FJson
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		USoundSubmix* SM = LoadObject<USoundSubmix>(nullptr, *AssetPath);
 		if (!SM)
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("加载 SoundSubmix 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load SoundSubmix: %s"), *AssetPath));
 			return;
 		}
 

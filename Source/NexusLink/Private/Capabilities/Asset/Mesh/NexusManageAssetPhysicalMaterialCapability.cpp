@@ -5,6 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "NexusMcpTool.h"
 
@@ -12,19 +13,19 @@ void FManageAssetPhysicalMaterialCapability::BuildDefinition(FNexusCapabilityDef
 {
 	Out.Name = TEXT("manage_asset_physical_material");
 	Out.SearchAssetTypes = {TEXT("PhysicalMaterial")};
-	Out.Description = TEXT("设置 PhysicalMaterial 属性：friction / restitution / density / surfaceType / raiseMassToPower。");
+	Out.Description = TEXT("Set PhysicalMaterial property: friction / restitution / density / surfaceType / raiseMassToPower.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),           FNexusSchema::Enum(TEXT("操作"), { TEXT("set") }))
-		.Prop(TEXT("friction"),         FNexusSchema::Num(TEXT("摩擦系数 [0,1]")))
-		.Prop(TEXT("restitution"),      FNexusSchema::Num(TEXT("弹性系数 [0,1]")))
-		.Prop(TEXT("density"),          FNexusSchema::Num(TEXT("密度 g/cm³")))
-		.Prop(TEXT("raiseMassToPower"), FNexusSchema::Num(TEXT("质量幂次修正 [0,1]")))
-		.Prop(TEXT("surfaceType"),      FNexusSchema::Int(TEXT("表面类型枚举值（EPhysicalSurface int）")))
+		.Prop(TEXT("action"),           FNexusSchema::Enum(TEXT("Action"), { TEXT("set") }))
+		.Prop(TEXT("friction"),         FNexusSchema::Num(TEXT("Friction [0,1]")))
+		.Prop(TEXT("restitution"),      FNexusSchema::Num(TEXT("Restitution [0,1]")))
+		.Prop(TEXT("density"),          FNexusSchema::Num(TEXT("Density g/cm³")))
+		.Prop(TEXT("raiseMassToPower"), FNexusSchema::Num(TEXT("Mass scale power correction [0,1]")))
+		.Prop(TEXT("surfaceType"),      FNexusSchema::Int(TEXT("Surface type enum (EPhysicalSurface int)")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PhysicalMaterial 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PhysicalMaterial asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -36,24 +37,20 @@ FCapabilityResult FManageAssetPhysicalMaterialCapability::Execute(const TSharedP
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		UPhysicalMaterial* PM = LoadObject<UPhysicalMaterial>(nullptr, *AssetPath);
 		if (!PM)
 		{
-			OutError = FString::Printf(TEXT("加载 PhysicalMaterial 失败: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("Failed to load PhysicalMaterial: %s"), *AssetPath);
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("缺少 operations 或为空");
+			OutError = TEXT("Missing or empty operations");
 			return;
 		}
 
@@ -63,17 +60,17 @@ FCapabilityResult FManageAssetPhysicalMaterialCapability::Execute(const TSharedP
 			const TSharedPtr<FJsonObject>* OpPtr = nullptr;
 			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpPtr) || !OpPtr)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("无效的 operation 项"));
+				Entry->SetStringField(TEXT("error"), TEXT("Invalid operation item"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 			const TSharedPtr<FJsonObject>& Op = *OpPtr;
 
-			const FString Action = Op->HasField(TEXT("action")) ? Op->GetStringField(TEXT("action")).ToLower() : TEXT("");
+			const FString Action = FNexusArgs(Op).Str(TEXT("action")).ToLower();
 			Entry->SetStringField(TEXT("action"), Action);
 			if (Action != TEXT("set"))
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'（仅 set）"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s' (set only)"), *Action));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}

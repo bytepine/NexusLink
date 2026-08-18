@@ -2,6 +2,7 @@
 
 #include "Capabilities/Runtime/AI/NexusInteractRuntimeActorAICapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
@@ -12,32 +13,29 @@
 void FInteractRuntimeActorAICapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("interact_runtime_actor_ai");
-	Out.Description = TEXT("运行时 AI 移动。action=move_to；需 AIController。");
+	Out.Description = TEXT("runtime AI Move. action=move_to; requires AIController.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"), { TEXT("move_to") }))
-		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Pawn/Actor 名")))
-		.Prop(TEXT("x"), FNexusSchema::Num(TEXT("目标 X")))
-		.Prop(TEXT("y"), FNexusSchema::Num(TEXT("目标 Y")))
-		.Prop(TEXT("z"), FNexusSchema::Num(TEXT("目标 Z")))
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("move_to") }))
+		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Pawn/Actor name")))
+		.Prop(TEXT("x"), FNexusSchema::Num(TEXT("Target X")))
+		.Prop(TEXT("y"), FNexusSchema::Num(TEXT("Target Y")))
+		.Prop(TEXT("z"), FNexusSchema::Num(TEXT("Target Z")))
 		.Required({ TEXT("action"), TEXT("actorName") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("ai"), TEXT("move"), TEXT("path"), TEXT("controller") };
 	Out.RelatedCapabilities = { TEXT("get_runtime_actor_behavior_tree"), TEXT("list_runtime_actors") };
 	Out.Prerequisites = { TEXT("pie") };
-	Out.WhenToUse = TEXT("PIE 中令带 AIController 的 Pawn 移到坐标");
+	Out.WhenToUse = TEXT("Move AIController Pawn to coordinates in PIE");
 }
 
 FCapabilityResult FInteractRuntimeActorAICapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Action, ActorName;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("action"), Action) || Action.IsEmpty())
-		{
-			OutError = TEXT("缺少 action");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString Action = A.Str(TEXT("action"));
+		FString ActorName;
 		Arguments->TryGetStringField(TEXT("actorName"), ActorName);
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
@@ -46,14 +44,14 @@ FCapabilityResult FInteractRuntimeActorAICapability::Execute(const TSharedPtr<FJ
 		Entry->SetStringField(TEXT("action"), Action);
 		if (!Action.Equals(TEXT("move_to"), ESearchCase::IgnoreCase))
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("仅支持 move_to"));
+			Entry->SetStringField(TEXT("error"), TEXT("Only supports move_to"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 		AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
 		if (!Actor)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor 未找到: %s"), *ActorName));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -67,7 +65,7 @@ FCapabilityResult FInteractRuntimeActorAICapability::Execute(const TSharedPtr<FJ
 		}
 		if (!AIC)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("目标没有 AIController"));
+			Entry->SetStringField(TEXT("error"), TEXT("Target has no AIController"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

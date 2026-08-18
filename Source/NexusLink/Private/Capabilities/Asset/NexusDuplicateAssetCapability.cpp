@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "AssetToolsModule.h"
@@ -14,10 +15,10 @@
 void FDuplicateAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("duplicate_asset");
-	Out.Description = TEXT("复制编辑器资产到新路径。源资产不变。");
+	Out.Description = TEXT("Copy editor asset to new path. Source unchanged.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("源资产路径")))
-		.Prop(TEXT("destAssetPath"), FNexusSchema::Str(TEXT("目标完整资产路径（包路径 + 资产名）")))
+		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("Source asset path")))
+		.Prop(TEXT("destAssetPath"), FNexusSchema::Str(TEXT("Target full asset path (package + name)")))
 		.Required({ TEXT("assetPath"), TEXT("destAssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -29,34 +30,21 @@ FCapabilityResult FDuplicateAssetCapability::Execute(const TSharedPtr<FJsonObjec
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid())
-		{
-			OutError = TEXT("缺少参数");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		FString SrcPath, DestAssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), SrcPath) || SrcPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
-		if (!Arguments->TryGetStringField(TEXT("destAssetPath"), DestAssetPath) || DestAssetPath.IsEmpty())
-		{
-			OutError = TEXT("缺少 destAssetPath");
-			return;
-		}
+		const FString SrcPath = A.Str(TEXT("assetPath"));
+		const FString DestAssetPath = A.Str(TEXT("destAssetPath"));
 
 		FText PathErrText;
 		if (!FPackageName::IsValidLongPackageName(DestAssetPath, false, &PathErrText))
 		{
-			OutError = FString::Printf(TEXT("无效的 destAssetPath: %s"), *PathErrText.ToString());
+			OutError = FString::Printf(TEXT("Invalid destAssetPath: %s"), *PathErrText.ToString());
 			return;
 		}
 
 		if (FPackageName::DoesPackageExist(DestAssetPath))
 		{
-			OutError = FString::Printf(TEXT("目标已存在: %s"), *DestAssetPath);
+			OutError = FString::Printf(TEXT("Target already exists: %s"), *DestAssetPath);
 			return;
 		}
 
@@ -68,7 +56,7 @@ FCapabilityResult FDuplicateAssetCapability::Execute(const TSharedPtr<FJsonObjec
 		}
 		if (!SrcAsset)
 		{
-			OutError = FString::Printf(TEXT("资产未找到: %s"), *SrcPath);
+			OutError = FString::Printf(TEXT("Asset not found: %s"), *SrcPath);
 			return;
 		}
 
@@ -82,7 +70,7 @@ FCapabilityResult FDuplicateAssetCapability::Execute(const TSharedPtr<FJsonObjec
 		if (!NewAsset)
 		{
 			Entry->SetBoolField(TEXT("success"), false);
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("复制失败: %s -> %s"), *SrcPath, *DestAssetPath));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Copyfailed: %s -> %s"), *SrcPath, *DestAssetPath));
 		}
 		else
 		{

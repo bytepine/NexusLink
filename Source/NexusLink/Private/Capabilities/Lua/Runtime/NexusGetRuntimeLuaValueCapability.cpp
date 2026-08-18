@@ -12,15 +12,15 @@
 void FGetRuntimeLuaValueCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_lua_value");
-	Out.Description = TEXT("按点路径读 Lua 全局或嵌套字段。返回类型与值。");
+	Out.Description = TEXT("Read Lua global or nested field by dot path. Returns type and value.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("luaPath"), FNexusSchema::Str(TEXT("Lua 点分路径")))
+		.Required(TEXT("luaPath"), FNexusSchema::Str(TEXT("Lua dot-separated path")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("variable"), TEXT("field"), TEXT("path"), TEXT("global"), TEXT("dot") };
 	Out.RelatedCapabilities = { TEXT("set_runtime_lua"), TEXT("get_runtime_lua_env") };
 	Out.Prerequisites = { TEXT("unlua"), TEXT("pie") };
-	Out.WhenToUse = TEXT("读单键用此工具；浏览键用 env");
+	Out.WhenToUse = TEXT("Read single key here; browse keys with env");
 }
 
 FCapabilityResult FGetRuntimeLuaValueCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -44,7 +44,7 @@ FCapabilityResult FGetRuntimeLuaValueCapability::Execute(const TSharedPtr<FJsonO
 	{
 		lua_settop(L, StackTop);
 		EmitError(R.Entries, {{TEXT("luaPath"), Path}},
-			FString::Printf(TEXT("路径 '%s' 未找到（nil 或中间节点不是 table）"), *Path));
+			FString::Printf(TEXT("Path '%s' not found (nil or non-table intermediate)"), *Path));
 		return R;
 	}
 

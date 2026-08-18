@@ -5,6 +5,7 @@
 #if WITH_PCG
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -17,34 +18,30 @@ void FGetAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 {
 	Out.Name        = TEXT("get_asset_pcg_graph");
 	Out.SearchAssetTypes = {TEXT("PCGGraph")};
-	Out.Description = TEXT("读取 PCG Graph 节点列表及 pin 概览。写用 manage_asset_pcg_graph。");
+	Out.Description = TEXT("Read PCG Graph node list and pin overview. Use manage_asset_pcg_graph for writes.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PCG Graph 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PCG Graph asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("pcg"), TEXT("procedural"), TEXT("generation"), TEXT("node"), TEXT("graph") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_pcg_graph"), TEXT("create_asset_pcg_graph"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("读取 PCG Graph 节点结构；写用 manage_asset_pcg_graph");
+	Out.WhenToUse = TEXT("Read PCG Graph node structure; use manage_asset_pcg_graph for writes");
 }
 
 FCapabilityResult FGetAssetPCGGraphCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString AssetPath;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UPCGGraph* Graph = FNexusAssetUtils::LoadAssetWithFallback<UPCGGraph>(AssetPath);
 		if (!Graph)
 		{
 			TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
 			ErrObj->SetStringField(TEXT("path"), AssetPath);
-			ErrObj->SetStringField(TEXT("error"), TEXT("PCG Graph 未找到"));
+			ErrObj->SetStringField(TEXT("error"), TEXT("PCG Graph not found"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(ErrObj));
 			return;
 		}

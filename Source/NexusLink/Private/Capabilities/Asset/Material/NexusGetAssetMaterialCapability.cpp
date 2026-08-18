@@ -129,25 +129,25 @@ void FGetAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 {
 	Out.Name = TEXT("get_asset_material");
 	Out.SearchAssetTypes = {TEXT("Material"), TEXT("MaterialInstance"), TEXT("MaterialFunction")};
-	Out.Description = TEXT("检查 Mat/MI/MF 节点与参数。sections=overview|params|graph；可过滤分页。");
+	Out.Description = TEXT("Inspect Mat/MI/MF nodes and params. sections=overview|params|graph.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Material };
 	Out.ExtraSearchKeywords = {
 		TEXT("shader"), TEXT("instance"), TEXT("mf"), TEXT("scalar"), TEXT("texture")
 	};
 	Out.RelatedCapabilities = { TEXT("manage_asset_material"), TEXT("create_asset_material"), TEXT("create_asset_material_function") };
-	Out.WhenToUse = TEXT("读节点图/参数/连线；不含编辑");
+	Out.WhenToUse = TEXT("Read node graph/params/wires; no edits");
 }
 
 TSharedPtr<FJsonObject> FGetAssetMaterialCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("Material/MI/MaterialFunction 资产路径")))
-		.Prop(TEXT("nameFilter"),    FNexusSchema::Str(TEXT("参数/节点名过滤")))
-		.Prop(TEXT("includePins"),   FNexusSchema::Bool(TEXT("包含引脚详情（graph）"), true, true))
-		.Prop(TEXT("includeWires"),  FNexusSchema::Bool(TEXT("包含连线信息（graph）"), true, true))
-		.Prop(TEXT("offset"),        FNexusSchema::Int(TEXT("分页偏移"), 0, 0))
-		.Prop(TEXT("limit"),         FNexusSchema::Int(TEXT("每页最大条数"), 100, 1, 500))
+		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("Material/MI/MaterialFunction asset path")))
+		.Prop(TEXT("nameFilter"),    FNexusSchema::Str(TEXT("Parameter/node name filter")))
+		.Prop(TEXT("includePins"),   FNexusSchema::Bool(TEXT("Include pin details (graph)"), true, true))
+		.Prop(TEXT("includeWires"),  FNexusSchema::Bool(TEXT("Include connection info (graph)"), true, true))
+		.Prop(TEXT("offset"),        FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("limit"),         FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
 		.Build();
 }
 
@@ -171,7 +171,7 @@ bool FGetAssetMaterialCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Ar
 	FString Path;
 	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
 	{
-		OutError = TEXT("缺少 assetPath");
+		OutError = TEXT("Missing assetPath");
 		return false;
 	}
 
@@ -180,13 +180,13 @@ bool FGetAssetMaterialCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Ar
 	UObject* Obj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
 	if (!Obj)
 	{
-		OutError = FString::Printf(TEXT("资产未找到: %s"), *Path);
+		OutError = FString::Printf(TEXT("Asset not found: %s"), *Path);
 		return false;
 	}
 
 	if (!Obj->IsA(UMaterial::StaticClass()) && !Obj->IsA(UMaterialInstanceConstant::StaticClass()) && !Obj->IsA(UMaterialFunction::StaticClass()))
 	{
-		OutError = FString::Printf(TEXT("资产不是 Material/MaterialInstance/MaterialFunction: %s"), *Path);
+		OutError = FString::Printf(TEXT("Asset is not Material/MaterialInstance/MaterialFunction: %s"), *Path);
 		return false;
 	}
 
@@ -207,7 +207,7 @@ void FGetAssetMaterialCapability::ExecuteSection(const FString&                 
                                                  FString&                       OutError) const
 {
 	UObject* Obj = static_cast<UObject*>(TargetOpaque);
-	if (!Obj) { OutError = TEXT("无效的材质目标"); return; }
+	if (!Obj) { OutError = TEXT("Invalid material target"); return; }
 
 	UMaterial*                 Mat = Cast<UMaterial>(Obj);
 	UMaterialInstanceConstant* MI  = Cast<UMaterialInstanceConstant>(Obj);
@@ -317,7 +317,7 @@ void FGetAssetMaterialCapability::ExecuteSection(const FString&                 
 	{
 		if (MI)
 		{
-			OutError = TEXT("section=graph 仅适用于 Material/MaterialFunction，不适用 MaterialInstance");
+			OutError = TEXT("section=graph only for Material/MaterialFunction, not MaterialInstance");
 			return;
 		}
 
@@ -339,7 +339,7 @@ void FGetAssetMaterialCapability::ExecuteSection(const FString&                 
 	}
 	else
 	{
-		OutError = FString::Printf(TEXT("未处理的 section '%s'"), *SectionName);
+		OutError = FString::Printf(TEXT("Unhandled section '%s'"), *SectionName);
 	}
 }
 

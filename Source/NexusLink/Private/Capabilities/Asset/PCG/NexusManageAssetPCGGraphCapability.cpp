@@ -5,6 +5,7 @@
 #if WITH_PCG
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -18,12 +19,12 @@ void FManageAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name        = TEXT("manage_asset_pcg_graph");
 	Out.SearchAssetTypes = {TEXT("PCGGraph")};
-	Out.Description = TEXT("管理 PCG Graph：add_node/remove_node/add_edge/remove_edge（UE 5.4+）。");
+	Out.Description = TEXT("Manage PCG Graph: add_node/remove_node/add_edge/remove_edge (UE 5.4+).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PCG Graph 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("操作列表"),
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PCG Graph asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"),
 			FNexusSchema::Object()
-			.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
+			.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 				{ TEXT("add_node"), TEXT("remove_node"), TEXT("add_edge"), TEXT("remove_edge") }))
 			.Build().ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
@@ -31,7 +32,7 @@ void FManageAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition&
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("pcg"), TEXT("procedural"), TEXT("node"), TEXT("edge"), TEXT("connect") };
 	Out.RelatedCapabilities = { TEXT("get_asset_pcg_graph"), TEXT("create_asset_pcg_graph") };
-	Out.WhenToUse = TEXT("向 PCG Graph 添加/删除节点或连接 pin");
+	Out.WhenToUse = TEXT("Add/remove PCG Graph nodes or connect pins");
 }
 
 static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Graph,
@@ -49,7 +50,7 @@ static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Grap
 		FString SettingsClassName;
 		if (!Op->TryGetStringField(TEXT("settingsClass"), SettingsClassName) || SettingsClassName.IsEmpty())
 		{
-			Result->SetStringField(TEXT("error"), TEXT("add_node 需要 settingsClass (UPCGSettings 子类名)"));
+			Result->SetStringField(TEXT("error"), TEXT("add_node requires settingsClass (UPCGSettings subclass name)"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -62,7 +63,7 @@ static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Grap
 		if (!SettingsClass || !SettingsClass->IsChildOf(UPCGSettings::StaticClass()))
 		{
 			Result->SetStringField(TEXT("error"),
-				FString::Printf(TEXT("settingsClass '%s' 未找到或不是 UPCGSettings 子类"), *SettingsClassName));
+				FString::Printf(TEXT("settingsClass '%s' not found or not UPCGSettings subclass"), *SettingsClassName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -70,7 +71,7 @@ static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Grap
 		UPCGSettings* NewSettings = NewObject<UPCGSettings>(Graph, SettingsClass, NAME_None, RF_Transactional);
 		if (!NewSettings)
 		{
-			Result->SetStringField(TEXT("error"), TEXT("创建 PCGSettings 实例失败"));
+			Result->SetStringField(TEXT("error"), TEXT("Failed to create PCGSettings instance"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -78,7 +79,7 @@ static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Grap
 		UPCGNode* NewNode = Graph->AddNode(NewSettings);
 		if (!NewNode)
 		{
-			Result->SetStringField(TEXT("error"), TEXT("AddNode 失败"));
+			Result->SetStringField(TEXT("error"), TEXT("AddNode failed"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -92,7 +93,7 @@ static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Grap
 		Op->TryGetStringField(TEXT("nodeId"), NodeId);
 		if (NodeId.IsEmpty())
 		{
-			Result->SetStringField(TEXT("error"), TEXT("remove_node 需要 nodeId"));
+			Result->SetStringField(TEXT("error"), TEXT("remove_node requires nodeId"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -105,7 +106,7 @@ static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Grap
 		if (!TargetNode)
 		{
 			Result->SetStringField(TEXT("error"),
-				FString::Printf(TEXT("节点 '%s' 未找到"), *NodeId));
+				FString::Printf(TEXT("Node '%s' not found"), *NodeId));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -123,7 +124,7 @@ static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Grap
 
 		if (FromId.IsEmpty() || ToId.IsEmpty())
 		{
-			Result->SetStringField(TEXT("error"), TEXT("add_edge 需要 fromNodeId 和 toNodeId"));
+			Result->SetStringField(TEXT("error"), TEXT("add_edge requires fromNodeId and toNodeId"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -139,7 +140,7 @@ static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Grap
 
 		if (!FromNode || !ToNode)
 		{
-			Result->SetStringField(TEXT("error"), TEXT("源节点或目标节点未找到"));
+			Result->SetStringField(TEXT("error"), TEXT("Source or target node not found"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -157,7 +158,7 @@ static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Grap
 		Op->TryGetStringField(TEXT("toPin"),      ToPin);
 		if (FromId.IsEmpty() || ToId.IsEmpty())
 		{
-			Result->SetStringField(TEXT("error"), TEXT("remove_edge 需要 fromNodeId 和 toNodeId"));
+			Result->SetStringField(TEXT("error"), TEXT("remove_edge requires fromNodeId and toNodeId"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -171,7 +172,7 @@ static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Grap
 		}
 		if (!FromNode || !ToNode)
 		{
-			Result->SetStringField(TEXT("error"), TEXT("源节点或目标节点未找到"));
+			Result->SetStringField(TEXT("error"), TEXT("Source or target node not found"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Result));
 			return;
 		}
@@ -182,7 +183,7 @@ static void ApplyPCGOperation(const TSharedPtr<FJsonObject>& Op, UPCGGraph* Grap
 	else
 	{
 		Result->SetStringField(TEXT("error"),
-			FString::Printf(TEXT("未知 action '%s'，支持: add_node/remove_node/add_edge/remove_edge"), *Action));
+			FString::Printf(TEXT("Unknown action '%s'; supported: add_node/remove_node/add_edge/remove_edge"), *Action));
 	}
 
 	OutEntries.Add(MakeShared<FJsonValueObject>(Result));
@@ -199,19 +200,19 @@ FCapabilityResult FManageAssetPCGGraphCapability::Execute(const TSharedPtr<FJson
 		if (!Graph)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("PCG Graph 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("PCG Graph not found: %s"), *AssetPath));
 			return;
 		}
 
-		const TArray<TSharedPtr<FJsonValue>>* OpsArr = nullptr;
-		if (!Arguments->TryGetArrayField(TEXT("operations"), OpsArr) || !OpsArr || OpsArr->IsEmpty())
+		const TArray<TSharedPtr<FJsonValue>> OpsArr = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (OpsArr.Num() == 0)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("operations 数组为空"));
+				TEXT("operations array is empty"));
 			return;
 		}
 
-		for (const TSharedPtr<FJsonValue>& Val : *OpsArr)
+		for (const TSharedPtr<FJsonValue>& Val : OpsArr)
 		{
 			const TSharedPtr<FJsonObject>* OpObj = nullptr;
 			if (!Val->TryGetObject(OpObj) || !OpObj) continue;

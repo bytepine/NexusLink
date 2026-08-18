@@ -29,7 +29,7 @@ UClass* FNexusSoundCueUtils::ResolveSoundNodeClass(const FString& ClassName, FSt
 	UClass* Class = FNexusAssetUtils::FindClassWithUPrefix(ClassName);
 	if (!Class || !Class->IsChildOf(USoundNode::StaticClass()))
 	{
-		OutError = FString::Printf(TEXT("nodeClass '%s' 未找到或不是 SoundNode 子类"), *ClassName);
+		OutError = FString::Printf(TEXT("nodeClass '%s' not found or not SoundNode subclass"), *ClassName);
 		return nullptr;
 	}
 	return Class;
@@ -85,14 +85,14 @@ bool FNexusSoundCueUtils::AddNode(USoundCue* Cue, UClass* NodeClass, int32 Paren
 {
 	if (!Cue || !NodeClass)
 	{
-		OutError = TEXT("Cue 或 NodeClass 无效");
+		OutError = TEXT("Invalid Cue or NodeClass");
 		return false;
 	}
 
 	USoundNode* NewNode = NewObject<USoundNode>(Cue, NodeClass);
 	if (!NewNode)
 	{
-		OutError = TEXT("创建 SoundNode 失败");
+		OutError = TEXT("Create SoundNode failed");
 		return false;
 	}
 
@@ -112,7 +112,7 @@ bool FNexusSoundCueUtils::AddNode(USoundCue* Cue, UClass* NodeClass, int32 Paren
 	}
 	else if (ParentNodeIndex < 0)
 	{
-		OutError = TEXT("已有根节点时 add_node 需要 parentNodeIndex");
+		OutError = TEXT("add_node requires parentNodeIndex when root already exists");
 		return false;
 	}
 	else
@@ -120,7 +120,7 @@ bool FNexusSoundCueUtils::AddNode(USoundCue* Cue, UClass* NodeClass, int32 Paren
 		USoundNode* Parent = FindNodeByIndex(Cue, ParentNodeIndex);
 		if (!Parent)
 		{
-			OutError = FString::Printf(TEXT("parentNodeIndex %d 无效"), ParentNodeIndex);
+			OutError = FString::Printf(TEXT("Invalid parentNodeIndex %d"), ParentNodeIndex);
 			return false;
 		}
 		if (ChildSlot < 0) ChildSlot = 0;
@@ -143,7 +143,7 @@ bool FNexusSoundCueUtils::RemoveNode(USoundCue* Cue, int32 NodeIndex, FString& O
 	USoundNode* Node = FindNodeByIndex(Cue, NodeIndex);
 	if (!Cue || !Node)
 	{
-		OutError = FString::Printf(TEXT("nodeIndex %d 无效"), NodeIndex);
+		OutError = FString::Printf(TEXT("Invalid nodeIndex %d"), NodeIndex);
 		return false;
 	}
 
@@ -161,13 +161,13 @@ bool FNexusSoundCueUtils::ConnectNodes(USoundCue* Cue, int32 ParentIndex, int32 
 {
 	if (!Cue)
 	{
-		OutError = TEXT("Cue 无效");
+		OutError = TEXT("Invalid Cue");
 		return false;
 	}
 	USoundNode* Child = FindNodeByIndex(Cue, ChildIndex);
 	if (!Child)
 	{
-		OutError = FString::Printf(TEXT("childIndex %d 无效"), ChildIndex);
+		OutError = FString::Printf(TEXT("Invalid childIndex %d"), ChildIndex);
 		return false;
 	}
 
@@ -182,7 +182,7 @@ bool FNexusSoundCueUtils::ConnectNodes(USoundCue* Cue, int32 ParentIndex, int32 
 		USoundNode* Parent = FindNodeByIndex(Cue, ParentIndex);
 		if (!Parent)
 		{
-			OutError = FString::Printf(TEXT("parentNodeIndex %d 无效"), ParentIndex);
+			OutError = FString::Printf(TEXT("Invalid parentNodeIndex %d"), ParentIndex);
 			return false;
 		}
 		if (ChildSlot < 0) ChildSlot = 0;

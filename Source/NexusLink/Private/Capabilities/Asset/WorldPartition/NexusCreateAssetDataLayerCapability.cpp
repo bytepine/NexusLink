@@ -6,6 +6,7 @@
 #if NX_UE_HAS_DATA_LAYER_ASSET
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -17,29 +18,25 @@
 void FCreateAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("create_asset_data_layer");
-	Out.Description = TEXT("创建 DataLayer 资产（UDataLayerAsset，≥UE5.1）。type: Runtime 或 Editor。读用 get_asset_data_layer。");
+	Out.Description = TEXT("Create DataLayer asset (UDataLayerAsset, ≥UE5.1). type: Runtime or Editor.; use get_asset_ for readsdata_layer.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("新 DataLayer 资产完整路径，如 /Game/WorldData/DL_New")))
-		.Prop(TEXT("type"),        FNexusSchema::Str(TEXT("Runtime 或 Editor（默认 Runtime）")))
-		.Prop(TEXT("debugColor"),  FNexusSchema::Str(TEXT("调试颜色（十六进制 #RRGGBB 或颜色名，可选）")))
+		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("New DataLayer asset full path, e.g. /Game/WorldData/DL_New")))
+		.Prop(TEXT("type"),        FNexusSchema::Str(TEXT("Runtime or Editor (default Runtime)")))
+		.Prop(TEXT("debugColor"),  FNexusSchema::Str(TEXT("Debug color (#RRGGBB or color name, optional)")))
 		.Required({ TEXT("assetPath") })
 		.Build();
-	Out.Tags = { FNexusMcpTags::Editor };
+	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("datalayer"), TEXT("data layer"), TEXT("world partition"), TEXT("streaming"), TEXT("level") };
 	Out.RelatedCapabilities = { TEXT("get_asset_data_layer"), TEXT("manage_asset_data_layer"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("新建 World Partition DataLayer 资产（≥UE5.1），设置 Runtime/Editor 类型及调试颜色");
+	Out.WhenToUse = TEXT("Create World Partition DataLayer (≥UE5.1) with Runtime/Editor type and debug color");
 }
 
 FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString FullPath;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), FullPath) || FullPath.IsEmpty())
-		{
-			OutError = TEXT("缺少必填参数 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString FullPath = A.Str(TEXT("assetPath"));
 		const FString AssetName = FPaths::GetBaseFilename(FullPath);
 
 		if (FNexusAssetUtils::LoadAssetWithFallback<UDataLayerAsset>(FullPath))
@@ -55,7 +52,7 @@ FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 		UPackage* Package = CreatePackage(*FullPath);
 		if (!Package)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), FullPath}}, TEXT("无法创建 Package"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), FullPath}}, TEXT("Unable to create Package"));
 			return;
 		}
 
@@ -63,7 +60,7 @@ FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 			RF_Public | RF_Standalone | RF_Transactional);
 		if (!DLA)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetName"), AssetName}}, TEXT("NewObject<UDataLayerAsset> 失败"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("assetName"), AssetName}}, TEXT("NewObject<UDataLayerAsset> failed"));
 			return;
 		}
 
@@ -110,16 +107,16 @@ REGISTER_MCP_CAPABILITY(FCreateAssetDataLayerCapability)
 void FCreateAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("create_asset_data_layer");
-	Out.Description = TEXT("（当前引擎版本不支持 DataLayerAsset，需要 UE5.1+）");
+	Out.Description = TEXT("(DataLayerAsset requires UE5.1+ on this engine)");
 	Out.InputSchema = FNexusSchema::Object().Build();
-	Out.Tags = { FNexusMcpTags::Editor };
+	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 }
 
 FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJsonObject>&) const
 {
 	return FNexusCapabilityResultBuilder::Build([](auto& OutEntries, auto&, auto& OutError)
 	{
-		OutError = TEXT("create_asset_data_layer 需要 UE5.1+");
+		OutError = TEXT("create_asset_data_layer requires UE5.1+");
 	});
 }
 

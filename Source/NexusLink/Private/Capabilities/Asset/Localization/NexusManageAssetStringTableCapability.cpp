@@ -15,17 +15,17 @@ void FManageAssetStringTableCapability::BuildDefinition(FNexusCapabilityDefiniti
 {
 	Out.Name = TEXT("manage_asset_string_table");
 	Out.SearchAssetTypes = {TEXT("StringTable")};
-	Out.Description = TEXT("批量编辑 StringTable。operations[].action=add_key/remove_key/set_source。");
+	Out.Description = TEXT("Batch edit StringTable. action=add_key/remove_key/set_source.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 			{ TEXT("add_key"), TEXT("remove_key"), TEXT("set_source") }))
-		.Prop(TEXT("key"), FNexusSchema::Str(TEXT("条目 key")))
-		.Prop(TEXT("source"), FNexusSchema::Str(TEXT("源字符串（add_key/set_source）")))
+		.Prop(TEXT("key"), FNexusSchema::Str(TEXT("Entry key")))
+		.Prop(TEXT("source"), FNexusSchema::Str(TEXT("Source string (add_key/set_source)")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("StringTable 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("StringTable asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -44,14 +44,14 @@ FCapabilityResult FManageAssetStringTableCapability::Execute(const TSharedPtr<FJ
 		if (!Table)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 StringTable 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load StringTable: %s"), *AssetPath));
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 
@@ -75,7 +75,7 @@ FCapabilityResult FManageAssetStringTableCapability::Execute(const TSharedPtr<FJ
 
 			if (Key.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("需要 key"));
+				Entry->SetStringField(TEXT("error"), TEXT("key required"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
@@ -84,7 +84,7 @@ FCapabilityResult FManageAssetStringTableCapability::Execute(const TSharedPtr<FJ
 			{
 				if (Source.IsEmpty() && Action == TEXT("add_key"))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("add_key 需要 source"));
+					Entry->SetStringField(TEXT("error"), TEXT("add_key requires source"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -105,7 +105,7 @@ FCapabilityResult FManageAssetStringTableCapability::Execute(const TSharedPtr<FJ
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
 			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 		}

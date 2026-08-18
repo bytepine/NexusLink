@@ -14,17 +14,17 @@
 void FExportAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("export_asset");
-	Out.Description = TEXT("导出资产到磁盘文件。使用 UE ExportToFile。");
+	Out.Description = TEXT("Export asset to disk file. Uses UE ExportToFile.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("资产路径")))
-		.Prop(TEXT("outputPath"), FNexusSchema::Str(TEXT("导出目标文件路径（含扩展名；留空自动生成到 Saved/Exported/）")))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Asset path")))
+		.Prop(TEXT("outputPath"), FNexusSchema::Str(TEXT("Export file path (ext included; empty auto-exports to Saved/Exported/)")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("export"), TEXT("save"), TEXT("file"), TEXT("disk") };
 	Out.RelatedCapabilities = { TEXT("search_asset"), TEXT("duplicate_asset") };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("导出资产到外部文件（如 FBX/OBJ/PNG）");
+	Out.WhenToUse = TEXT("Export asset to external file (FBX/OBJ/PNG)");
 }
 
 /** 遍历所有 UExporter 子类，找到支持目标资产类型的导出器 */
@@ -61,7 +61,7 @@ FCapabilityResult FExportAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		if (!Asset)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("资产未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("Asset not found: %s"), *AssetPath));
 			return;
 		}
 
@@ -72,7 +72,7 @@ FCapabilityResult FExportAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		if (!Exporter)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				TEXT("未找到适用的导出器"));
+				TEXT("No applicable exporter found"));
 			return;
 		}
 
@@ -103,7 +103,7 @@ FCapabilityResult FExportAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		Entry->SetStringField(TEXT("assetClass"), Asset->GetClass()->GetName());
 		Entry->SetStringField(TEXT("outputPath"), OutputPath);
 		Entry->SetStringField(TEXT("exporter"), Exporter->GetClass()->GetName());
-		if (!bSuccess) Entry->SetStringField(TEXT("error"), TEXT("导出失败"));
+		if (!bSuccess) Entry->SetStringField(TEXT("error"), TEXT("Exportfailed"));
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

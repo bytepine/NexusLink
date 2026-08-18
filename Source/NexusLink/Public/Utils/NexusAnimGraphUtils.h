@@ -2,7 +2,7 @@
 
 #pragma once
 
-// Utils 层：Domain — §7.4 豁免：单 Capability 引用但聚合 6 个 helper 函数
+// Utils 层：Domain — §8.4 豁免：单 Capability 引用但聚合 6 个 helper 函数
 #include "CoreMinimal.h"
 
 class UAnimBlueprint;

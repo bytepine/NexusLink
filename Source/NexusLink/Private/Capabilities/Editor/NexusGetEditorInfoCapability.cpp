@@ -16,7 +16,7 @@
 void FGetEditorInfoCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_editor_info");
-	Out.Description = TEXT("返回 UE 版本、项目名、平台与构建配置。无参数。");
+	Out.Description = TEXT("Return UE version, project, platform, build config. No params.");
 	Out.InputSchema = FNexusSchema::Object().Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("status"), TEXT("environment"), TEXT("engine"), TEXT("version"), TEXT("project") };

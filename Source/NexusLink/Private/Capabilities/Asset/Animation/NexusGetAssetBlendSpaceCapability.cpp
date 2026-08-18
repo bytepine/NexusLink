@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Animation/NexusGetAssetBlendSpaceCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -20,15 +21,15 @@ void FGetAssetBlendSpaceCapability::BuildDefinition(FNexusCapabilityDefinition& 
 {
 	Out.Name = TEXT("get_asset_blend_space");
 	Out.SearchAssetTypes = {TEXT("BlendSpace"), TEXT("BlendSpace1D")};
-	Out.Description = TEXT("读取 BlendSpace 快照：轴参数 + 样本列表。写用 manage_asset_blend_space。");
+	Out.Description = TEXT("Read BlendSpace snapshot: axis params + samples. Use manage_asset_blend_space for writes.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("BlendSpace 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("BlendSpace asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("blend"), TEXT("axis"), TEXT("sample"), TEXT("locomotion"), TEXT("1d"), TEXT("2d") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_blend_space"), TEXT("create_asset_blend_space"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("读取 BlendSpace 轴定义与样本动画；写用 manage_asset_blend_space");
+	Out.WhenToUse = TEXT("Read BlendSpace axis defs and sample anims; use manage_asset_blend_space for writes");
 }
 
 // 将 FBlendParameter 写入 JSON 对象
@@ -44,12 +45,8 @@ FCapabilityResult FGetAssetBlendSpaceCapability::Execute(const TSharedPtr<FJsonO
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Path;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString Path = A.Str(TEXT("assetPath"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("path"), Path);
@@ -58,7 +55,7 @@ FCapabilityResult FGetAssetBlendSpaceCapability::Execute(const TSharedPtr<FJsonO
 		if (!BS)
 		{
 			Entry->SetStringField(TEXT("error"),
-				FString::Printf(TEXT("BlendSpace 未找到: %s"), *Path));
+				FString::Printf(TEXT("BlendSpace not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

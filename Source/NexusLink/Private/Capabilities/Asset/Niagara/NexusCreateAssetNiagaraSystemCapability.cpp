@@ -8,45 +8,38 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NiagaraSystem.h"
 #include "NexusMcpTool.h"
 
 void FCreateAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_niagara_system");
-	Out.Description = TEXT("创建空白 NiagaraSystem。模块栈用 manage add_emitter/add_module。");
+	Out.Description = TEXT("Create empty NiagaraSystem. Module stack via manage add_emitter/add_module.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("niagara"), TEXT("vfx"), TEXT("particle") };
 	Out.RelatedCapabilities = { TEXT("get_asset_niagara_system"), TEXT("manage_asset_niagara_system") };
-	Out.WhenToUse = TEXT("新建 Niagara 系统；发射器/模块用 manage");
+	Out.WhenToUse = TEXT("Create Niagara system; emitters/modules via manage");
 }
 
 FCapabilityResult FCreateAssetNiagaraSystemCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UNiagaraSystem>(AssetPath);
+		if (!Created.Ok())
 		{
-			OutError = TEXT("缺少 assetPath");
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
-		if (LoadObject<UNiagaraSystem>(nullptr, *AssetPath))
-		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("NiagaraSystem already exists: %s"), *AssetPath));
-			return;
-		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UNiagaraSystem* Sys = NewObject<UNiagaraSystem>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Sys) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建失败")); return; }
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Sys, AssetPath);
+		UNiagaraSystem* Sys = Cast<UNiagaraSystem>(Created.Asset);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Sys->GetName());
 		Entry->SetStringField(TEXT("path"), Sys->GetPathName());

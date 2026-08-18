@@ -14,23 +14,23 @@ void FManageAssetSoundWaveCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("manage_asset_sound_wave");
 	Out.SearchAssetTypes = {TEXT("SoundWave")};
-	Out.Description = TEXT("批量编辑 SoundWave 属性。operations[].action=set_property。音量/循环等。");
+	Out.Description = TEXT("Batch edit SoundWave properties. Volume/looping etc.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("操作"), { TEXT("set_property") }))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("属性路径（如 Volume/Looping）")))
-		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("属性新值字符串")))
+		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Action"), { TEXT("set_property") }))
+		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("propertypath (e.g. Volume/Looping)")))
+		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("New property value string")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundWave 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量属性操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundWave asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch property ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("wave"), TEXT("volume"), TEXT("loop"), TEXT("sound") };
 	Out.RelatedCapabilities = { TEXT("get_asset_sound_wave"), TEXT("get_asset_sound_cue") };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("改 SoundWave 音量/循环/衰减；修改后需 save_asset 落盘");
+	Out.WhenToUse = TEXT("Edit SoundWave volume/loop/attenuation; persist with save_asset");
 }
 
 FCapabilityResult FManageAssetSoundWaveCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -44,14 +44,14 @@ FCapabilityResult FManageAssetSoundWaveCapability::Execute(const TSharedPtr<FJso
 		if (!Wave)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("SoundWave 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("SoundWave not found: %s"), *AssetPath));
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 
@@ -75,7 +75,7 @@ FCapabilityResult FManageAssetSoundWaveCapability::Execute(const TSharedPtr<FJso
 			{
 				if (PropPath.IsEmpty() || Value.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_property 需要 propertyPath 和 value"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -90,11 +90,11 @@ FCapabilityResult FManageAssetSoundWaveCapability::Execute(const TSharedPtr<FJso
 				Entry->SetStringField(TEXT("propertyPath"), PropPath);
 				if (!OldVal.IsEmpty()) Entry->SetStringField(TEXT("oldValue"), OldVal);
 				if (!ActualVal.IsEmpty()) Entry->SetStringField(TEXT("newValue"), ActualVal);
-				Entry->SetStringField(TEXT("note"), TEXT("用 save_asset 落盘"));
+				Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 			}
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

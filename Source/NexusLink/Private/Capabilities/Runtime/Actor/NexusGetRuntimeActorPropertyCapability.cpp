@@ -2,6 +2,7 @@
 
 #include "Capabilities/Runtime/Actor/NexusGetRuntimeActorPropertyCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
@@ -122,10 +123,12 @@ static bool ReadActorPropertyDispatch(
 	Detail->SetStringField(TEXT("actorName"),  Actor->GetName());
 	Detail->SetStringField(TEXT("actorClass"), Actor->GetClass()->GetName());
 
+	const FNexusArgs A(Arguments);
+
 	// ?? A????????
 	if (Arguments->HasField(TEXT("diagnose")))
 	{
-		FString Diagnose = Arguments->GetStringField(TEXT("diagnose")).ToLower();
+		FString Diagnose = A.Str(TEXT("diagnose")).ToLower();
 		Detail->SetStringField(TEXT("diagnose"), Diagnose);
 
 		TArray<FString> Paths;
@@ -269,10 +272,10 @@ static bool ReadActorPropertyDispatch(
 		}
 		else
 		{
-			Error = FString::Printf(TEXT("未知 diagnose 预设: '%s'（支持: visibility/transform/world_transform/rotation_chain/defaults）"), *Diagnose);
+			Error = FString::Printf(TEXT("Unknown diagnose preset: '%s' (supports: visibility/transform/world_transform/rotation_chain/defaults)"), *Diagnose);
 		if (IsViewPreset(Diagnose))
 		{
-			Error += FString::Printf(TEXT("（是否指 view='%s'？）"), *Diagnose);
+			Error += FString::Printf(TEXT("(Did you mean view='%s'?)"), *Diagnose);
 		}
 			return false;
 		}
@@ -284,7 +287,7 @@ static bool ReadActorPropertyDispatch(
 	// ?? B??????????
 	if (Arguments->HasField(TEXT("view")))
 	{
-		FString View = Arguments->GetStringField(TEXT("view")).ToLower();
+		FString View = A.Str(TEXT("view")).ToLower();
 		if (View == TEXT("components"))
 		{
 			WriteActorComponentsSection(Actor, Detail);
@@ -305,10 +308,10 @@ static bool ReadActorPropertyDispatch(
 			Detail->SetArrayField(TEXT("views"), Covered);
 			return true;
 		}
-		Error = FString::Printf(TEXT("未知 view: '%s'（支持: components/attach_hierarchy/all）"), *View);
+		Error = FString::Printf(TEXT("Unknown view: '%s' (supports: components/attach_hierarchy/all)"), *View);
 		if (IsDiagnosePreset(View))
 		{
-			Error += FString::Printf(TEXT("（是否指 diagnose='%s'？）"), *View);
+			Error += FString::Printf(TEXT("(Did you mean diagnose='%s'?)"), *View);
 		}
 		return false;
 	}
@@ -353,15 +356,15 @@ static bool ReadActorPropertyDispatch(
 void FGetRuntimeActorPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_actor_property");
-	Out.Description = TEXT("查询运行时 Actor 字段。支持批量 propertyPaths 与组件树。");
+	Out.Description = TEXT("Query runtime Actor fields. Supports batch propertyPaths and component tree.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("target"),        FNexusSchema::Enum(TEXT("分发目标（自动推断）"),
+		.Prop(TEXT("target"),        FNexusSchema::Enum(TEXT("Dispatch target (auto-inferred)"),
 		                                                 { TEXT("actor"), TEXT("widget"), TEXT("asset") }))
-		.Prop(TEXT("actorName"),     FNexusSchema::Str(TEXT("Actor 名/标签（先 list_runtime_actors）")))
-		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("点分路径（批量）")))
-		.Prop(TEXT("view"),          FNexusSchema::Enum(TEXT("Actor 树视图"),
+		.Prop(TEXT("actorName"),     FNexusSchema::Str(TEXT("Actor name/tag (list_runtime_actors first)")))
+		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Dot-separated paths (batch)")))
+		.Prop(TEXT("view"),          FNexusSchema::Enum(TEXT("Actor tree view"),
 		                                                 { TEXT("components"), TEXT("attach_hierarchy"), TEXT("all") }))
-		.Prop(TEXT("diagnose"),      FNexusSchema::Enum(TEXT("Actor 诊断预设"),
+		.Prop(TEXT("diagnose"),      FNexusSchema::Enum(TEXT("Actor diagnostic preset"),
 		                                                 { TEXT("visibility"), TEXT("transform"),
 		                                                   TEXT("world_transform"), TEXT("rotation_chain"),
 		                                                   TEXT("defaults") }))
@@ -371,7 +374,7 @@ void FGetRuntimeActorPropertyCapability::BuildDefinition(FNexusCapabilityDefinit
 	Out.ExtraSearchKeywords = { TEXT("components"), TEXT("hierarchy"), TEXT("field"), TEXT("transform"), TEXT("character") };
 	Out.RelatedCapabilities = { TEXT("set_runtime_actor_property"), TEXT("list_runtime_actors") };
 	Out.Prerequisites = { TEXT("pie") };
-	Out.WhenToUse = TEXT("只读字段，不做修改");
+	Out.WhenToUse = TEXT("Read-only fields; no modifications");
 }
 
 FCapabilityResult FGetRuntimeActorPropertyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -379,22 +382,18 @@ FCapabilityResult FGetRuntimeActorPropertyCapability::Execute(const TSharedPtr<F
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
-		FString Name;
-		if (!Arguments->TryGetStringField(TEXT("actorName"), Name) || Name.IsEmpty())
-		{
-			OutError = TEXT("缺少 actorName");
-			return;
-		}
+		const FString Name = A.Str(TEXT("actorName"));
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 		AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, Name);
 		if (!Actor)
 		{
 			OutEntry->SetStringField(TEXT("actorName"), Name);
-			OutEntry->SetStringField(TEXT("error"), TEXT("Actor 未找到"));
+			OutEntry->SetStringField(TEXT("error"), TEXT("Actor not found"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}

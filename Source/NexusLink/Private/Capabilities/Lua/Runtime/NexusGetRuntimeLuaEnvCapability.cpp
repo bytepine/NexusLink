@@ -1,6 +1,7 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Lua/Runtime/NexusGetRuntimeLuaEnvCapability.h"
+#include "Utils/NexusArgs.h"
 
 #if WITH_UNLUA
 
@@ -12,21 +13,22 @@
 void FGetRuntimeLuaEnvCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_runtime_lua_env");
-	Out.Description = TEXT("枚举 _G 或嵌套表键。支持 nameFilter+limit。");
+	Out.Description = TEXT("List _G or nested table keys. Supports nameFilter+limit.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("luaPath"),    FNexusSchema::Str(TEXT("点分表路径；省略则为 _G")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("键名过滤；支持 /regex/、^前缀、后缀$")))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("最大返回条数"), 100, 1, 500))
+		.Prop(TEXT("luaPath"),    FNexusSchema::Str(TEXT("Dot-separated table path; omit for _G")))
+		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Key filter; /regex/, ^prefix, suffix$")))
+		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max return count"), 100, 1, 500))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("environment"), TEXT("global"), TEXT("table"), TEXT("keys"), TEXT("scope") };
 	Out.RelatedCapabilities = { TEXT("get_runtime_lua_value"), TEXT("get_runtime_lua_object") };
 	Out.Prerequisites = { TEXT("unlua"), TEXT("pie") };
-	Out.WhenToUse = TEXT("浏览所有键（env）或读单键（value）");
+	Out.WhenToUse = TEXT("Browse all keys (env) or read single key (value)");
 }
 
 FCapabilityResult FGetRuntimeLuaEnvCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
+	const FNexusArgs A(Arguments);
 	FNexusMcpToolResult Tmp;
 	lua_State* L = FNexusLuaUtils::GetMainLuaState(Tmp);
 	if (!L)
@@ -45,14 +47,14 @@ FCapabilityResult FGetRuntimeLuaEnvCapability::Execute(const TSharedPtr<FJsonObj
 	else if (!FNexusLuaUtils::ResolveLuaPath(L, TablePath))
 	{
 		lua_settop(L, StackTop);
-		EmitError(R.Entries, {{TEXT("luaPath"), TablePath}}, FString::Printf(TEXT("路径 '%s' 未找到"), *TablePath));
+		EmitError(R.Entries, {{TEXT("luaPath"), TablePath}}, FString::Printf(TEXT("Path '%s' not found"), *TablePath));
 		return R;
 	}
 
 	if (!lua_istable(L, -1))
 	{
 		lua_settop(L, StackTop);
-		EmitError(R.Entries, {{TEXT("luaPath"), TablePath}}, FString::Printf(TEXT("'%s' 不是 table"), *TablePath));
+		EmitError(R.Entries, {{TEXT("luaPath"), TablePath}}, FString::Printf(TEXT("'%s' is not a table"), *TablePath));
 		return R;
 	}
 
@@ -60,7 +62,7 @@ FCapabilityResult FGetRuntimeLuaEnvCapability::Execute(const TSharedPtr<FJsonObj
 	int32 Limit = 100;
 	Arguments->TryGetStringField(TEXT("nameFilter"), NameFilter);
 	if (Arguments->HasField(TEXT("limit")))
-		Limit = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 500);
+		Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
 
 	const int32 AbsIdx = lua_gettop(L);
 	TArray<TSharedPtr<FJsonValue>> Keys;

@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "ObjectTools.h"
@@ -15,9 +16,9 @@
 void FDeleteAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("delete_asset");
-	Out.Description = TEXT("永久删除单个资产包。尽力清理重定向器；不可逆。");
+	Out.Description = TEXT("Delete single asset package. Best-effort redirector cleanup; irreversible.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产路径，如 '/Game/BP/BP_MyActor'")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset path, e.g. '/Game/BP/BP_MyActor'")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -30,19 +31,10 @@ FCapabilityResult FDeleteAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		if (!Arguments.IsValid())
-		{
-			OutError = TEXT("缺少参数");
-			return;
-		}
 
-		FString DeletePath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), DeletePath) || DeletePath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString DeletePath = A.Str(TEXT("assetPath"));
 
 		IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
@@ -72,7 +64,7 @@ FCapabilityResult FDeleteAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 			Entry->SetBoolField(TEXT("success"), false);
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("%s（资产未找到）"), *PackagePath));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Asset not found: %s"), *PackagePath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -136,7 +128,7 @@ FCapabilityResult FDeleteAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		{
 			Entry->SetBoolField(TEXT("success"), false);
 			Entry->SetStringField(TEXT("error"),
-				FString::Printf(TEXT("%s（删除失败，可能被引用）"), *PackagePath));
+				FString::Printf(TEXT("%s (delete failed, may be referenced)"), *PackagePath));
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	

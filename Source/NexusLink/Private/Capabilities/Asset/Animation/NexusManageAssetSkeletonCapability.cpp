@@ -14,27 +14,27 @@ void FManageAssetSkeletonCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name = TEXT("manage_asset_skeleton");
 	Out.SearchAssetTypes = {TEXT("Skeleton")};
-	Out.Description = TEXT("批量编辑 Skeleton Socket。operations[].action=add_socket|remove_socket|modify_socket。");
+	Out.Description = TEXT("Batch edit Skeleton Socket. action=add_socket|remove_socket|modify_socket.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Socket 操作"),
+		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Socket operation"),
 			{ TEXT("add_socket"), TEXT("remove_socket"), TEXT("modify_socket") }))
-		.Prop(TEXT("socketName"),   FNexusSchema::Str(TEXT("Socket 名")))
-		.Prop(TEXT("boneName"),     FNexusSchema::Str(TEXT("挂载骨骼名（add/modify）")))
-		.Prop(TEXT("location"),     FNexusSchema::Str(TEXT("位置 X,Y,Z（add/modify）")))
-		.Prop(TEXT("rotation"),     FNexusSchema::Str(TEXT("旋转 P,Y,R（add/modify）")))
-		.Prop(TEXT("scale"),        FNexusSchema::Str(TEXT("缩放 X,Y,Z（add/modify）")))
+		.Prop(TEXT("socketName"),   FNexusSchema::Str(TEXT("Socket name")))
+		.Prop(TEXT("boneName"),     FNexusSchema::Str(TEXT("Attach bone name (add/modify)")))
+		.Prop(TEXT("location"),     FNexusSchema::Str(TEXT("Position X,Y,Z (add/modify)")))
+		.Prop(TEXT("rotation"),     FNexusSchema::Str(TEXT("Rotation P,Y,R (add/modify)")))
+		.Prop(TEXT("scale"),        FNexusSchema::Str(TEXT("Scale X,Y,Z (add/modify)")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Skeleton 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量 Socket 操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Skeleton asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch socket ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("socket"), TEXT("bone"), TEXT("rig"), TEXT("attach") };
 	Out.RelatedCapabilities = { TEXT("get_asset_skeleton"), TEXT("get_asset_skeletal_mesh") };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("增删改 Skeleton Socket；修改后需 save_asset 落盘");
+	Out.WhenToUse = TEXT("add/remove Modify Skeleton Socket; persist with save_asset after changes");
 }
 
 /** 解析 "X,Y,Z" 字符串为 FVector */
@@ -64,14 +64,14 @@ FCapabilityResult FManageAssetSkeletonCapability::Execute(const TSharedPtr<FJson
 		if (!Skeleton)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("Skeleton 未找到: %s"), *AssetPath));
+				FString::Printf(TEXT("Skeleton not found: %s"), *AssetPath));
 			return;
 		}
 
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 
@@ -99,7 +99,7 @@ FCapabilityResult FManageAssetSkeletonCapability::Execute(const TSharedPtr<FJson
 			{
 				if (SocketName.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("add_socket 需要 socketName"));
+					Entry->SetStringField(TEXT("error"), TEXT("add_socket requires socketName"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -109,7 +109,7 @@ FCapabilityResult FManageAssetSkeletonCapability::Execute(const TSharedPtr<FJson
 				{
 					if (Sock && Sock->SocketName == FName(*SocketName))
 					{
-						Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket 已存在: %s"), *SocketName));
+						Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket already exists: %s"), *SocketName));
 						bDup = true;
 						break;
 					}
@@ -136,7 +136,7 @@ FCapabilityResult FManageAssetSkeletonCapability::Execute(const TSharedPtr<FJson
 			{
 				if (SocketName.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("remove_socket 需要 socketName"));
+					Entry->SetStringField(TEXT("error"), TEXT("remove_socket requires socketName"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -153,7 +153,7 @@ FCapabilityResult FManageAssetSkeletonCapability::Execute(const TSharedPtr<FJson
 				}
 				if (!bFound)
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket 未找到: %s"), *SocketName));
+					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket not found: %s"), *SocketName));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -165,7 +165,7 @@ FCapabilityResult FManageAssetSkeletonCapability::Execute(const TSharedPtr<FJson
 			{
 				if (SocketName.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("modify_socket 需要 socketName"));
+					Entry->SetStringField(TEXT("error"), TEXT("modify_socket requires socketName"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -181,7 +181,7 @@ FCapabilityResult FManageAssetSkeletonCapability::Execute(const TSharedPtr<FJson
 				}
 				if (!TargetSocket)
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket 未找到: %s"), *SocketName));
+					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket not found: %s"), *SocketName));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -198,7 +198,7 @@ FCapabilityResult FManageAssetSkeletonCapability::Execute(const TSharedPtr<FJson
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 			}
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
@@ -207,7 +207,7 @@ FCapabilityResult FManageAssetSkeletonCapability::Execute(const TSharedPtr<FJson
 		if (bDirty)
 		{
 			Skeleton->MarkPackageDirty();
-			OutTop->SetStringField(TEXT("note"), TEXT("已修改，用 save_asset 落盘"));
+			OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
 		}
 	});
 }

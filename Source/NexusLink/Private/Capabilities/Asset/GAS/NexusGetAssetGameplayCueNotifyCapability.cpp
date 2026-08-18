@@ -18,9 +18,9 @@ void FGetAssetGameplayCueNotifyCapability::BuildDefinition(FNexusCapabilityDefin
 {
 	Out.Name = TEXT("get_asset_gameplay_cue_notify");
 	Out.SearchAssetTypes = {TEXT("GameplayCueNotify_Static")};
-	Out.Description = TEXT("读取 GameplayCueNotify：CueName / 类名 / 是否蓝图。");
+	Out.Description = TEXT("Read GameplayCueNotify: CueName/class name/is Blueprint.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Cue Notify 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Cue Notify asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Gas };
@@ -42,7 +42,7 @@ FCapabilityResult FGetAssetGameplayCueNotifyCapability::Execute(const TSharedPtr
 		if (!Loaded)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Load failed: %s"), *AssetPath));
 			return;
 		}
 
@@ -74,7 +74,7 @@ FCapabilityResult FGetAssetGameplayCueNotifyCapability::Execute(const TSharedPtr
 		}
 		else
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("不是 GameplayCueNotify"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Not a GameplayCueNotify"));
 			return;
 		}
 

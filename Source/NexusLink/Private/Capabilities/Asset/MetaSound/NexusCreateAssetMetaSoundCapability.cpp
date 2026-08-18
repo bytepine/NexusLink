@@ -5,41 +5,34 @@
 #if WITH_METASOUND
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "NexusMcpTool.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "UObject/Package.h"
 #include "MetasoundSource.h"
 
 void FCreateAssetMetaSoundCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("create_asset_meta_sound");
-	Out.Description = TEXT("创建 MetaSound Source 资产。读用 get_asset_meta_sound。");
+	Out.Description = TEXT("Create MetaSound Source asset.; use get_asset_ for readsmeta_sound.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("新 MetaSound 资产完整路径，如 /Game/Audio/MS_NewSound")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("New MetaSound asset full path, e.g. /Game/Audio/MS_NewSound")))
 		.Required({ TEXT("assetPath") })
 		.Build();
-	Out.Tags = { FNexusMcpTags::Editor };
+	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("metasound"), TEXT("audio"), TEXT("sound"), TEXT("procedural") };
 	Out.RelatedCapabilities = { TEXT("get_asset_meta_sound"), TEXT("manage_asset_meta_sound"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("新建 MetaSound Source 资产");
+	Out.WhenToUse = TEXT("Create new MetaSound Source asset");
 }
 
 FCapabilityResult FCreateAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString FullPath;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), FullPath) || FullPath.IsEmpty())
-		{
-			OutError = TEXT("缺少必填参数 assetPath");
-			return;
-		}
-		const FString AssetName = FPaths::GetBaseFilename(FullPath);
+		const FNexusArgs A(Arguments);
+		const FString FullPath = A.Str(TEXT("assetPath"));
 
-		// 检查是否已存在
 		if (UMetaSoundSource* Existing = FNexusAssetUtils::LoadAssetWithFallback<UMetaSoundSource>(FullPath))
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
@@ -49,26 +42,14 @@ FCapabilityResult FCreateAssetMetaSoundCapability::Execute(const TSharedPtr<FJso
 			return;
 		}
 
-		UPackage* Package = CreatePackage(*FullPath);
-		if (!Package)
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UMetaSoundSource>(FullPath);
+		if (!Created.Ok())
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), FullPath}},
-				TEXT("无法创建 Package"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), FullPath}}, Created.Error);
 			return;
 		}
-
-		UMetaSoundSource* Source = NewObject<UMetaSoundSource>(Package, *AssetName,
-			RF_Public | RF_Standalone | RF_Transactional);
-		if (!Source)
-		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetName"), AssetName}},
-				TEXT("NewObject<UMetaSoundSource> 失败"));
-			return;
-		}
-
-		Source->MarkPackageDirty();
-		FAssetRegistryModule::AssetCreated(Source);
-		FNexusAssetUtils::NotifyAndSaveCreated(Source);
+		UMetaSoundSource* Source = Cast<UMetaSoundSource>(Created.Asset);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("path"), Source->GetPathName());

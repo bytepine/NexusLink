@@ -5,6 +5,8 @@
 #if WITH_MVVM
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -21,55 +23,51 @@ void FManageAssetViewModelCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("manage_asset_view_model");
 	Out.SearchAssetTypes = {TEXT("Widget")};
-	Out.Description = TEXT("编辑 WBP MVVM：add/remove ViewModel 与 Binding。UE 5.5+。");
+	Out.Description = TEXT("Edit WBP MVVM: add/remove ViewModel and Binding. UE 5.5+.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
+		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 			{ TEXT("add_view_model"), TEXT("remove_view_model"), TEXT("add_binding"), TEXT("remove_binding") }))
-		.Prop(TEXT("viewModelName"), FNexusSchema::Str(TEXT("ViewModel 名")))
-		.Prop(TEXT("viewModelClass"), FNexusSchema::Str(TEXT("ViewModel UClass 名（add_view_model）")))
-		.Prop(TEXT("bindingIndex"), FNexusSchema::Int(TEXT("Binding 索引（remove_binding）")))
+		.Prop(TEXT("viewModelName"), FNexusSchema::Str(TEXT("ViewModel name")))
+		.Prop(TEXT("viewModelClass"), FNexusSchema::Str(TEXT("ViewModel UClass name (add_view_model)")))
+		.Prop(TEXT("bindingIndex"), FNexusSchema::Int(TEXT("Binding index (remove_binding)")))
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("WidgetBlueprint 路径")))
-		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("操作列表"), OpSchema.ToSharedRef()))
+		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("WidgetBlueprint path")))
+		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = { TEXT("mvvm"), TEXT("viewmodel"), TEXT("binding") };
 	Out.RelatedCapabilities = { TEXT("get_asset_view_model"), TEXT("get_asset_user_widget"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("给 WBP 增删 MVVM ViewModel/Binding");
+	Out.WhenToUse = TEXT("For WBP add/remove MVVM ViewModel/Binding");
 }
 
 FCapabilityResult FManageAssetViewModelCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("manage_asset_view_model 仅在编辑器构建可用");
+		OutError = TEXT("manage_asset_view_model only available in editor builds");
 		return;
 #else
-		FString AssetPath;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		UWidgetBlueprint* WBP = FNexusAssetUtils::LoadWidgetBP(AssetPath);
-		if (!WBP) { OutError = FString::Printf(TEXT("WidgetBlueprint 未找到: %s"), *AssetPath); return; }
+		if (!WBP) { OutError = FString::Printf(TEXT("WidgetBlueprint not found: %s"), *AssetPath); return; }
 
 		UMVVMWidgetBlueprintExtension_View* MvvmExt = UMVVMWidgetBlueprintExtension_View::Request(WBP);
-		if (!MvvmExt) { OutError = TEXT("无法获取 MVVM 扩展"); return; }
+		if (!MvvmExt) { OutError = TEXT("Unable to get MVVM extension"); return; }
 		UMVVMBlueprintView* View = MvvmExt->GetBlueprintView();
-		if (!View) { OutError = TEXT("BlueprintView 为空"); return; }
+		if (!View) { OutError = TEXT("BlueprintView is empty"); return; }
 
-		const TArray<TSharedPtr<FJsonValue>>* Ops = nullptr;
-		if (!Arguments->TryGetArrayField(TEXT("operations"), Ops) || !Ops)
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("operations 为必填数组");
+			OutError = TEXT("operations is a required array");
 			return;
 		}
 
 		bool bDirty = false;
-		for (const TSharedPtr<FJsonValue>& OpVal : *Ops)
+		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
 		{
 			TSharedPtr<FJsonObject> Op = OpVal->AsObject();
 			if (!Op.IsValid()) continue;
@@ -85,14 +83,14 @@ FCapabilityResult FManageAssetViewModelCapability::Execute(const TSharedPtr<FJso
 				Op->TryGetStringField(TEXT("viewModelClass"), VmClassName);
 				if (VmName.IsEmpty() || VmClassName.IsEmpty())
 				{
-					Res->SetStringField(TEXT("error"), TEXT("add_view_model 需要 viewModelName 与 viewModelClass"));
+					Res->SetStringField(TEXT("error"), TEXT("add_view_model requires viewModelName and viewModelClass"));
 				}
 				else
 				{
 					UClass* VmClass = FNexusAssetUtils::FindClassWithUPrefix(VmClassName);
 					if (!VmClass)
 					{
-						Res->SetStringField(TEXT("error"), FString::Printf(TEXT("ViewModel 类未找到: %s"), *VmClassName));
+						Res->SetStringField(TEXT("error"), FString::Printf(TEXT("ViewModel class not found: %s"), *VmClassName));
 					}
 					else
 					{
@@ -120,7 +118,7 @@ FCapabilityResult FManageAssetViewModelCapability::Execute(const TSharedPtr<FJso
 						break;
 					}
 				}
-				if (!bRemoved) Res->SetStringField(TEXT("error"), TEXT("ViewModel 未找到"));
+				if (!bRemoved) Res->SetStringField(TEXT("error"), TEXT("ViewModel not found"));
 				else bDirty = true;
 			}
 			else if (Action == TEXT("add_binding"))
@@ -135,7 +133,7 @@ FCapabilityResult FManageAssetViewModelCapability::Execute(const TSharedPtr<FJso
 				if (Op->HasField(TEXT("bindingIndex"))) Idx = static_cast<int32>(Op->GetNumberField(TEXT("bindingIndex")));
 				if (Idx < 0 || Idx >= View->GetNumBindings())
 				{
-					Res->SetStringField(TEXT("error"), TEXT("bindingIndex 越界"));
+					Res->SetStringField(TEXT("error"), TEXT("bindingIndex out of bounds"));
 				}
 				else
 				{
@@ -145,7 +143,7 @@ FCapabilityResult FManageAssetViewModelCapability::Execute(const TSharedPtr<FJso
 			}
 			else
 			{
-				Res->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+				Res->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(Res));
 		}

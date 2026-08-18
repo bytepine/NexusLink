@@ -5,6 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Animation/Skeleton.h"
 #include "Animation/BlendSpace.h"
@@ -14,32 +15,28 @@
 void FCreateAssetBlendSpaceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_blend_space");
-	Out.Description = TEXT("创建 BlendSpace（2D）或 BlendSpace1D 资产；用 manage 配置轴参数与样本。");
+	Out.Description = TEXT("Create BlendSpace (2D) or BlendSpace1D; configure axes/samples via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),       FNexusSchema::Str(TEXT("资产路径（包路径）")))
-		.Prop(TEXT("skeletonPath"),     FNexusSchema::Str(TEXT("关联骨骼路径")))
-		.Prop(TEXT("blendSpaceType"),   FNexusSchema::Enum(TEXT("类型：blend_space（2D，默认）或 blend_space_1d"),
+		.Prop(TEXT("assetPath"),       FNexusSchema::Str(TEXT("Asset path (package path)")))
+		.Prop(TEXT("skeletonPath"),     FNexusSchema::Str(TEXT("Linked skeleton path")))
+		.Prop(TEXT("blendSpaceType"),   FNexusSchema::Enum(TEXT("Type: blend_space (2D, default) or blend_space_1d"),
 			{ TEXT("blend_space"), TEXT("blend_space_1d") }))
 		.Required({ TEXT("assetPath"), TEXT("skeletonPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("blend"), TEXT("locomotion"), TEXT("1d"), TEXT("2d"), TEXT("new") };
 	Out.RelatedCapabilities = { TEXT("get_asset_blend_space"), TEXT("manage_asset_blend_space") };
-	Out.WhenToUse = TEXT("新建 BlendSpace；需要 skeletonPath；创建后用 manage 配置轴与样本");
+	Out.WhenToUse = TEXT("Create BlendSpace; requires skeletonPath; configure via manage after create");
 }
 
 FCapabilityResult FCreateAssetBlendSpaceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 		FString AssetPath, SkeletonPath, BsType;
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")) || !Arguments->HasField(TEXT("skeletonPath")))
-		{
-			OutError = TEXT("缺少 assetPath 或 skeletonPath");
-			return;
-		}
-		AssetPath    = Arguments->GetStringField(TEXT("assetPath"));
-		SkeletonPath = Arguments->GetStringField(TEXT("skeletonPath"));
+		AssetPath    = A.Str(TEXT("assetPath"));
+		SkeletonPath = A.Str(TEXT("skeletonPath"));
 		Arguments->TryGetStringField(TEXT("blendSpaceType"), BsType);
 		const bool b1D = BsType.Contains(TEXT("1d"), ESearchCase::IgnoreCase)
 		               || BsType.Contains(TEXT("1D"), ESearchCase::CaseSensitive);
@@ -48,19 +45,19 @@ FCapabilityResult FCreateAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 		if (!Skeleton)
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("加载 Skeleton 失败: %s"), *SkeletonPath));
+				FString::Printf(TEXT("Failed to load Skeleton: %s"), *SkeletonPath));
 			return;
 		}
 
 		if (LoadObject<UBlendSpace>(nullptr, *AssetPath))
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("BlendSpace 已存在: %s"), *AssetPath));
+				FString::Printf(TEXT("BlendSpace already exists: %s"), *AssetPath));
 			return;
 		}
 
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 
@@ -80,7 +77,7 @@ FCapabilityResult FCreateAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 			ActualType = TEXT("BlendSpace");
 		}
 
-		if (!BSRaw) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("BlendSpace 创建失败")); return; }
+		if (!BSRaw) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("BlendSpace Createfailed")); return; }
 
 		// 通过 UAnimationAsset 公共接口设置骨骼（BlendSpace 继承自 UAnimationAsset）
 		if (UAnimationAsset* AnimAsset = Cast<UAnimationAsset>(BSRaw))

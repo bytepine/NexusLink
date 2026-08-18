@@ -2,6 +2,7 @@
 
 #include "Capabilities/Runtime/Actor/NexusDiffRuntimeActorsCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
@@ -149,11 +150,11 @@ static TSharedPtr<FJsonObject> MakeActorInfoCap(AActor* Actor)
 void FDiffRuntimeActorsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("diff_runtime_actors");
-	Out.Description = TEXT("对比两个运行时 Actor 属性差异。最多 50 条；可 propertyPaths 过滤。");
+	Out.Description = TEXT("Diff two runtime Actor properties. Max 50; filter by propertyPaths.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("actorNameA"),    FNexusSchema::Str(TEXT("第一个 Actor 名")))
-		.Prop(TEXT("actorNameB"),    FNexusSchema::Str(TEXT("第二个 Actor 名")))
-		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("点分路径；省略=全部可编辑属性")))
+		.Prop(TEXT("actorNameA"),    FNexusSchema::Str(TEXT("First Actor name")))
+		.Prop(TEXT("actorNameB"),    FNexusSchema::Str(TEXT("Second Actor name")))
+		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Dot-separated paths; omit=all editable properties")))
 		.Required({ TEXT("actorNameA"), TEXT("actorNameB") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
@@ -168,7 +169,6 @@ FCapabilityResult FDiffRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 
-		if (!Arguments.IsValid()) { OutError = TEXT("缺少参数"); return; }
 
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
@@ -177,7 +177,7 @@ FCapabilityResult FDiffRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 		if (!Arguments->TryGetStringField(TEXT("actorNameA"), NameA) ||
 		    !Arguments->TryGetStringField(TEXT("actorNameB"), NameB))
 		{
-			OutError = TEXT("需要 actorNameA 与 actorNameB");
+			OutError = TEXT("actorNameA and actorNameB required");
 			return;
 		}
 
@@ -186,7 +186,7 @@ FCapabilityResult FDiffRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 		AActor* ActorA = FNexusRuntimeUtils::FindActorByName(World, NameA);
 		if (!ActorA)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("actorNameA 指定的 Actor 未找到"));
+			Entry->SetStringField(TEXT("error"), TEXT("Actor specified by actorNameA not found"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -194,7 +194,7 @@ FCapabilityResult FDiffRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 		AActor* ActorB = FNexusRuntimeUtils::FindActorByName(World, NameB);
 		if (!ActorB)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("actorNameB 指定的 Actor 未找到"));
+			Entry->SetStringField(TEXT("error"), TEXT("Actor specified by actorNameB not found"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

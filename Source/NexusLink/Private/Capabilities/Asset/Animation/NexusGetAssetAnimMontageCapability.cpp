@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Animation/NexusGetAssetAnimMontageCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -14,9 +15,9 @@ void FGetAssetAnimMontageCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name = TEXT("get_asset_anim_montage");
 	Out.SearchAssetTypes = {TEXT("AnimMontage")};
-	Out.Description = TEXT("检查 Montage 时间轴快照。只读，不触发播放。");
+	Out.Description = TEXT("Inspect Montage timeline snapshot. Read-only; no playback.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("动画 Montage 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("AnimMontage asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
@@ -24,7 +25,7 @@ void FGetAssetAnimMontageCapability::BuildDefinition(FNexusCapabilityDefinition&
 		TEXT("montage"), TEXT("slot"), TEXT("segment"), TEXT("section"), TEXT("timeline")
 	};
 	Out.RelatedCapabilities = { TEXT("manage_asset_anim_montage"), TEXT("create_asset_anim_montage"), TEXT("get_runtime_actor_animation") };
-	Out.WhenToUse = TEXT("读 Montage 结构；运行时播放用 get_runtime_actor_animation");
+	Out.WhenToUse = TEXT("Read Montage structure; runtime playback via get_runtime_actor_animation");
 }
 
 FCapabilityResult FGetAssetAnimMontageCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -32,20 +33,16 @@ FCapabilityResult FGetAssetAnimMontageCapability::Execute(const TSharedPtr<FJson
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 
 		UAnimMontage* Montage = FNexusAssetUtils::LoadAssetWithFallback<UAnimMontage>(AssetPath);
 		if (!Montage)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("AnimMontage 未找到: %s"), *AssetPath));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("AnimMontage not found: %s"), *AssetPath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

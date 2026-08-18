@@ -2,11 +2,10 @@
 
 #include "NexusFeedback.h"
 #include "NexusLinkSettings.h"
+#include "Utils/NexusJsonUtils.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
-#include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonSerializer.h"
-#include "Serialization/JsonWriter.h"
 #include "Serialization/JsonReader.h"
 #include "HAL/FileManager.h"
 #include "HAL/CriticalSection.h"
@@ -168,11 +167,7 @@ static FString BuildJsonLine(const FString& Kind, const FString& Category,
 	if (!Fields.ExpectedField.IsEmpty())
 		Obj->SetStringField(TEXT("expectedField"), Fields.ExpectedField);
 
-	FString Line;
-	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W =
-		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Line);
-	FJsonSerializer::Serialize(Obj.ToSharedRef(), W);
-	return Line;
+	return FNexusJsonUtils::SerializeCondensed(Obj);
 }
 
 /** 追加一行到 feedback.jsonl（FArchive 追加写，全版本兼容）。 */
@@ -1241,10 +1236,7 @@ FString FNexusFeedback::BuildRedactedArgsSnapshot(const TSharedPtr<FJsonObject>&
 		}
 	}
 
-	FString Out;
-	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W =
-		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Out);
-	FJsonSerializer::Serialize(Redacted.ToSharedRef(), W);
+	FString Out = FNexusJsonUtils::SerializeCondensed(Redacted);
 
 	if (Out.Len() > 200)
 	{
@@ -1339,10 +1331,7 @@ FString FNexusFeedback::ExportReport()
 		JsonSummary->SetNumberField(TEXT("totalCount"), Records.Num());
 		JsonSummary->SetObjectField(TEXT("categories"), CatSummary);
 		JsonSummary->SetObjectField(TEXT("tools"),      ToolSummary);
-		FString JsonSummaryStr;
-		TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JW =
-			TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&JsonSummaryStr);
-		FJsonSerializer::Serialize(JsonSummary.ToSharedRef(), JW);
+		const FString JsonSummaryStr = FNexusJsonUtils::SerializeCondensed(JsonSummary);
 		const FString JsonReportFile = Dir / FString::Printf(TEXT("report_%s.json"), *TsTag);
 		FFileHelper::SaveStringToFile(JsonSummaryStr, *JsonReportFile, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 
@@ -1350,10 +1339,7 @@ FString FNexusFeedback::ExportReport()
 		TSharedPtr<FJsonObject> LastSummaryObj = MakeShared<FJsonObject>();
 		LastSummaryObj->SetStringField(TEXT("timestamp"), DateTimeToIso8601(Now));
 		LastSummaryObj->SetObjectField(TEXT("categories"), CatSummary);
-		FString LastSummaryStr;
-		TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> LW =
-			TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&LastSummaryStr);
-		FJsonSerializer::Serialize(LastSummaryObj.ToSharedRef(), LW);
+		const FString LastSummaryStr = FNexusJsonUtils::SerializeCondensed(LastSummaryObj);
 		FFileHelper::SaveStringToFile(LastSummaryStr, *LastSummaryFile, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 	}
 

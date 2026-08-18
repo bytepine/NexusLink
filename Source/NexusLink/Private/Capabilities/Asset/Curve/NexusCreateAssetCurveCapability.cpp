@@ -5,6 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Curves/CurveFloat.h"
 #include "Curves/CurveVector.h"
 #include "Curves/CurveLinearColor.h"
@@ -14,35 +15,31 @@
 void FCreateAssetCurveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_curve");
-	Out.Description = TEXT("创建曲线资产：CurveFloat / CurveVector / CurveLinearColor / CurveTable。");
+	Out.Description = TEXT("Create curve asset: CurveFloat/CurveVector/CurveLinearColor/CurveTable.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产包路径")))
-		.Prop(TEXT("curveType"), FNexusSchema::Str(TEXT("float（默认）/ vector / linear_color / curve_table"), TEXT("float")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("curveType"), FNexusSchema::Str(TEXT("float (default)/ vector / linear_color / curve_table"), TEXT("float")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("curve"), TEXT("float"), TEXT("timeline"), TEXT("gradient"), TEXT("table") };
 	Out.RelatedCapabilities = { TEXT("get_asset_curve"), TEXT("manage_asset_curve") };
-	Out.WhenToUse = TEXT("创建空白曲线资产；用 manage 写入关键帧");
+	Out.WhenToUse = TEXT("Create empty curve asset; write keys via manage");
 }
 
 FCapabilityResult FCreateAssetCurveCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 		FString CurveType = TEXT("float");
 		if (Arguments->HasField(TEXT("curveType")))
-			CurveType = Arguments->GetStringField(TEXT("curveType")).ToLower();
+			CurveType = A.Str(TEXT("curveType")).ToLower();
 
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		UObject* NewAsset = nullptr;
@@ -68,7 +65,7 @@ FCapabilityResult FCreateAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 			NewAsset = C;
 		}
 
-		if (!NewAsset) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("对象创建失败")); return; }
+		if (!NewAsset) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Object creation failed")); return; }
 
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewAsset, AssetPath);
 

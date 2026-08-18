@@ -15,19 +15,19 @@ void FManageAssetPaperFlipbookCapability::BuildDefinition(FNexusCapabilityDefini
 {
 	Out.Name = TEXT("manage_asset_paper_flipbook");
 	Out.SearchAssetTypes = {TEXT("PaperFlipbook")};
-	Out.Description = TEXT("批量编辑 PaperFlipbook。operations[].action=add_key/remove_key/set_frames_per_second。");
+	Out.Description = TEXT("Batch edit PaperFlipbook. action=add_key/remove_key/set_frames_per_second.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"),
+		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 			{ TEXT("add_key"), TEXT("remove_key"), TEXT("set_frames_per_second") }))
-		.Prop(TEXT("spritePath"), FNexusSchema::Str(TEXT("PaperSprite 路径（add_key）")))
-		.Prop(TEXT("frameRun"), FNexusSchema::Int(TEXT("持续帧数（add_key）"), 1))
-		.Prop(TEXT("keyIndex"), FNexusSchema::Int(TEXT("关键帧索引（remove_key）")))
-		.Prop(TEXT("framesPerSecond"), FNexusSchema::Num(TEXT("帧率（set_frames_per_second）")))
+		.Prop(TEXT("spritePath"), FNexusSchema::Str(TEXT("PaperSprite path (add_key)")))
+		.Prop(TEXT("frameRun"), FNexusSchema::Int(TEXT("Duration in frames (add_key)"), 1))
+		.Prop(TEXT("keyIndex"), FNexusSchema::Int(TEXT("Keyframe index (remove_key)")))
+		.Prop(TEXT("framesPerSecond"), FNexusSchema::Num(TEXT("Frame rate (set_frames_per_second)")))
 		.Required({ TEXT("action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperFlipbook 资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量操作（至少一项）"), OpSchema.ToSharedRef()))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperFlipbook asset path")))
+		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
@@ -45,13 +45,13 @@ FCapabilityResult FManageAssetPaperFlipbookCapability::Execute(const TSharedPtr<
 		if (!Book)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 PaperFlipbook 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load PaperFlipbook: %s"), *AssetPath));
 			return;
 		}
 		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Ops.Num() == 0)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("缺少 operations 或为空"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Missing or empty operations"));
 			return;
 		}
 		bool bDirty = false;
@@ -83,14 +83,14 @@ FCapabilityResult FManageAssetPaperFlipbookCapability::Execute(const TSharedPtr<
 			{
 				if (!Op->HasField(TEXT("keyIndex")))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("remove_key 需要 keyIndex"));
+					Entry->SetStringField(TEXT("error"), TEXT("remove_key requires keyIndex"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
 				const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("keyIndex")));
 				if (!Book->KeyFrames.IsValidIndex(Idx))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("keyIndex 越界"));
+					Entry->SetStringField(TEXT("error"), TEXT("keyIndex out of bounds"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -102,7 +102,7 @@ FCapabilityResult FManageAssetPaperFlipbookCapability::Execute(const TSharedPtr<
 			{
 				if (!Op->HasField(TEXT("framesPerSecond")))
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("set_frames_per_second 需要 framesPerSecond"));
+					Entry->SetStringField(TEXT("error"), TEXT("set_frames_per_second requires framesPerSecond"));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -112,7 +112,7 @@ FCapabilityResult FManageAssetPaperFlipbookCapability::Execute(const TSharedPtr<
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("不支持的操作: '%s'"), *Action));
+				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported operation: '%s'"), *Action));
 			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 		}

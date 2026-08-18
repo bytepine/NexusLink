@@ -12,12 +12,12 @@
 void FSetRuntimeLuaCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("set_runtime_lua");
-	Out.Description = TEXT("为 Lua 全局或嵌套字段赋值。点路径；string/number/bool/null。");
+	Out.Description = TEXT("Assign Lua global or nested field. Dot path; string/number/bool/null.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("luaPath"), FNexusSchema::Str(TEXT("set 的点路径目标")))
-		.Required(TEXT("value"),   FNexusSchema::AnyObject(TEXT("值（string/number/boolean/null）")))
+		.Required(TEXT("luaPath"), FNexusSchema::Str(TEXT("Dot path target for set")))
+		.Required(TEXT("value"),   FNexusSchema::AnyObject(TEXT("Value (string/number/boolean/null)")))
 		.Build();
-	Out.Tags = {FNexusMcpTags::Runtime };
+	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("value"), TEXT("variable"), TEXT("field"), TEXT("path"), TEXT("assign") };
 	Out.RelatedCapabilities = { TEXT("get_runtime_lua_value"), TEXT("eval_runtime_lua") };
 	Out.Prerequisites = { TEXT("unlua"), TEXT("pie") };
@@ -37,7 +37,7 @@ FCapabilityResult FSetRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObject
 		return R;
 	if (!Arguments->HasField(TEXT("value")))
 	{
-		EmitError(R.Entries, {{TEXT("luaPath"), Path}}, TEXT("缺少 value"));
+		EmitError(R.Entries, {{TEXT("luaPath"), Path}}, TEXT("Missing value"));
 		return R;
 	}
 
@@ -66,7 +66,7 @@ FCapabilityResult FSetRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObject
 	else
 	{
 		lua_settop(L, StackTop);
-		EmitError(R.Entries, {{TEXT("luaPath"), Path}}, TEXT("value 仅支持 string/number/boolean/null"));
+		EmitError(R.Entries, {{TEXT("luaPath"), Path}}, TEXT("value supports string/number/boolean/null only"));
 		return R;
 	}
 
@@ -84,7 +84,7 @@ FCapabilityResult FSetRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObject
 		{
 			lua_settop(L, StackTop);
 			EmitError(R.Entries, {{TEXT("luaPath"), Path}},
-				FString::Printf(TEXT("'%s' 不是 table，无法设置子字段"), *Parts[0]));
+				FString::Printf(TEXT("'%s' is not a table; cannot set sub-field"), *Parts[0]));
 			return R;
 		}
 
@@ -95,7 +95,7 @@ FCapabilityResult FSetRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObject
 			{
 				lua_settop(L, StackTop);
 				EmitError(R.Entries, {{TEXT("luaPath"), Path}},
-					FString::Printf(TEXT("中间路径节点 '%s' 不是 table"), *Parts[i]));
+					FString::Printf(TEXT("Intermediate path node '%s' is not a table"), *Parts[i]));
 				return R;
 			}
 			lua_remove(L, -2);

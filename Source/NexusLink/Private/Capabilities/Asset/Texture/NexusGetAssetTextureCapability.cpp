@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/Texture/NexusGetAssetTextureCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -12,27 +13,23 @@ void FGetAssetTextureCapability::BuildDefinition(FNexusCapabilityDefinition& Out
 {
 	Out.Name = TEXT("get_asset_texture");
 	Out.SearchAssetTypes = {TEXT("Texture2D")};
-	Out.Description = TEXT("检查 Texture2D 快照。尺寸/压缩/sRGB/LOD。写用 manage_asset_texture。");
+	Out.Description = TEXT("Inspect Texture2D snapshot. Writes via manage_asset_texture.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Texture2D 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Texture2D asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("texture"), TEXT("image"), TEXT("png"), TEXT("size"), TEXT("compress") };
 	Out.RelatedCapabilities = { TEXT("manage_asset_texture"), TEXT("search_asset"), TEXT("get_asset_refs"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("读贴图元数据；写用 manage_asset_texture");
+	Out.WhenToUse = TEXT("Read texture metadata; use manage_asset_texture for writes");
 }
 
 FCapabilityResult FGetAssetTextureCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString Path;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-		{
-			OutError = TEXT("需要 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString Path = A.Str(TEXT("assetPath"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("path"), Path);
@@ -40,7 +37,7 @@ FCapabilityResult FGetAssetTextureCapability::Execute(const TSharedPtr<FJsonObje
 		UTexture2D* Tex = FNexusAssetUtils::LoadAssetWithFallback<UTexture2D>(Path);
 		if (!Tex)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Texture2D 未找到: %s"), *Path));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Texture2D not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}

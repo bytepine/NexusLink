@@ -5,6 +5,8 @@
 #if WITH_ENHANCED_INPUT
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
+#include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
@@ -19,54 +21,50 @@ void FManageAssetInputMappingContextCapability::BuildDefinition(FNexusCapability
 {
 	Out.Name = TEXT("manage_asset_input_mapping_context");
 	Out.SearchAssetTypes = {TEXT("InputMappingContext")};
-	Out.Description = TEXT("编辑 IMC：add_mapping/remove_mapping/clear_mappings。");
+	Out.Description = TEXT("Edit IMC: add_mapping/remove_mapping/clear_mappings.");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Required(TEXT("action"), FNexusSchema::Enum(
-			TEXT("操作类型"),
+			TEXT("Operation type"),
 			{ TEXT("add_mapping"), TEXT("remove_mapping"), TEXT("clear_mappings") }))
-		.Prop(TEXT("actionPath"), FNexusSchema::Str(TEXT("add/remove_mapping：InputAction 资产路径")))
-		.Prop(TEXT("key"),        FNexusSchema::Str(TEXT("add/remove_mapping：键名（W/S/Gamepad_LeftX）")))
+		.Prop(TEXT("actionPath"), FNexusSchema::Str(TEXT("add/remove_mapping：InputAction asset path")))
+		.Prop(TEXT("key"),        FNexusSchema::Str(TEXT("add/remove_mapping: key name (W/S/Gamepad_LeftX)")))
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputMappingContext 资产路径")))
-		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("操作列表"), OpSchema.ToSharedRef()))
+		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputMappingContext asset path")))
+		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("mapping"), TEXT("imc"), TEXT("keybind"), TEXT("key"), TEXT("action") };
 	Out.RelatedCapabilities = { TEXT("get_asset_input_mapping_context"), TEXT("create_asset_input_mapping_context") };
-	Out.WhenToUse = TEXT("往 IMC 里添加或移除 Action-Key 绑定");
+	Out.WhenToUse = TEXT("Add or remove Action-Key bindings in IMC");
 }
 
 FCapabilityResult FManageAssetInputMappingContextCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("assetPath 为必填项");
-			return;
-		}
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		UInputMappingContext* IMC = FNexusAssetUtils::LoadAssetWithFallback<UInputMappingContext>(AssetPath);
 		if (!IMC)
 		{
-			OutError = FString::Printf(TEXT("InputMappingContext 未找到: %s"), *AssetPath);
+			OutError = FString::Printf(TEXT("InputMappingContext not found: %s"), *AssetPath);
 			return;
 		}
 
-		const TArray<TSharedPtr<FJsonValue>>* Ops;
-		if (!Arguments->TryGetArrayField(TEXT("operations"), Ops) || !Ops)
+		const TArray<TSharedPtr<FJsonValue>> Ops = FNexusJsonUtils::ExtractOperations(Arguments);
+		if (Ops.Num() == 0)
 		{
-			OutError = TEXT("operations 为必填数组");
+			OutError = TEXT("operations is a required array");
 			return;
 		}
 
 		bool bDirty = false;
 
-		for (const TSharedPtr<FJsonValue>& OpVal : *Ops)
+		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
 		{
 			TSharedPtr<FJsonObject> Op = OpVal->AsObject();
 			if (!Op.IsValid()) continue;
@@ -80,14 +78,14 @@ FCapabilityResult FManageAssetInputMappingContextCapability::Execute(const TShar
 				FString ActionPath, KeyName;
 				if (!Op->TryGetStringField(TEXT("actionPath"), ActionPath) || !Op->TryGetStringField(TEXT("key"), KeyName))
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("add_mapping 需要 actionPath 和 key"));
+					OpResult->SetStringField(TEXT("error"), TEXT("add_mapping requires actionPath and key"));
 				}
 				else
 				{
 					UInputAction* IA = FNexusAssetUtils::LoadAssetWithFallback<UInputAction>(ActionPath);
 					if (!IA)
 					{
-						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("InputAction 未找到: %s"), *ActionPath));
+						OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("InputAction not found: %s"), *ActionPath));
 					}
 			else
 				{
@@ -109,7 +107,7 @@ FCapabilityResult FManageAssetInputMappingContextCapability::Execute(const TShar
 
 				if (!bHasAction && !bHasKey)
 				{
-					OpResult->SetStringField(TEXT("error"), TEXT("remove_mapping 需要 actionPath 或 key（至少一个）"));
+					OpResult->SetStringField(TEXT("error"), TEXT("remove_mapping requires actionPath or key (at least one)"));
 				}
 				else
 				{
@@ -139,7 +137,7 @@ FCapabilityResult FManageAssetInputMappingContextCapability::Execute(const TShar
 			}
 			else
 			{
-				OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("未知 action: %s"), *Action));
+				OpResult->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
 			}
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(OpResult));

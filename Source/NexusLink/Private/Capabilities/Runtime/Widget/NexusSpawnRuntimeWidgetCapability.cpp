@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Engine/World.h"
@@ -17,10 +18,10 @@
 void FSpawnRuntimeWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("spawn_runtime_widget");
-	Out.Description = TEXT("在 PIE/Game 视口创建并显示 UMG 面板。需 assetPath+zOrder。");
+	Out.Description = TEXT("Create and show UMG panel in PIE/Game viewport. Requires assetPath+zOrder.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Widget 蓝图资产路径")))
-		.Prop(TEXT("zOrder"),    FNexusSchema::Int(TEXT("AddToViewport 的 Z 序（默认 0）")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Widget Blueprint asset path")))
+		.Prop(TEXT("zOrder"),    FNexusSchema::Int(TEXT("AddToViewport Z-order (default 0)")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
@@ -34,16 +35,12 @@ FCapabilityResult FSpawnRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonO
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs A(Arguments);
 
-		FString AssetPath;
-		if (!Arguments.IsValid() || !Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		const int32 ZOrder = Arguments->HasField(TEXT("zOrder"))
-			? static_cast<int32>(Arguments->GetNumberField(TEXT("zOrder"))) : 0;
+			? static_cast<int32>(A.Num(TEXT("zOrder"))) : 0;
 
 		UWorld* World = nullptr;
 		if (GEngine)
@@ -56,10 +53,10 @@ FCapabilityResult FSpawnRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonO
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		if (!World) { Entry->SetStringField(TEXT("error"), TEXT("无运行中的 World（请先 control_pie start）")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		if (!World) { Entry->SetStringField(TEXT("error"), TEXT("No running World (start control_pie first)")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 
 		APlayerController* PC = World->GetFirstPlayerController();
-		if (!PC) { Entry->SetStringField(TEXT("error"), TEXT("PlayerController 未找到")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		if (!PC) { Entry->SetStringField(TEXT("error"), TEXT("PlayerController not found")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 
 		UClass* WidgetClass = nullptr;
 		UWidgetBlueprint* WBP = LoadObject<UWidgetBlueprint>(nullptr, *AssetPath);
@@ -75,19 +72,19 @@ FCapabilityResult FSpawnRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonO
 
 		if (!WidgetClass || !WidgetClass->IsChildOf(UUserWidget::StaticClass()))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("UserWidget 类未找到: %s"), *AssetPath));
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("UserWidget class not found: %s"), *AssetPath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 
 		UUserWidget* Widget = CreateWidget<UUserWidget>(PC, WidgetClass);
-		if (!Widget) { Entry->SetStringField(TEXT("error"), TEXT("CreateWidget 失败")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		if (!Widget) { Entry->SetStringField(TEXT("error"), TEXT("CreateWidget failed")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 		Widget->AddToViewport(ZOrder);
 
 		Entry->SetStringField(TEXT("widgetName"),  Widget->GetName());
 		Entry->SetStringField(TEXT("widgetClass"), WidgetClass->GetName());
 		Entry->SetNumberField(TEXT("zOrder"),      ZOrder);
-		Entry->SetStringField(TEXT("note"), TEXT("用 list_runtime_widgets 枚举 Widget，用 interact_runtime_widget 操作"));
+		Entry->SetStringField(TEXT("note"), TEXT("Use list_runtime_widgets to enumerate; interact_runtime_widget to operate"));
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	
 	});

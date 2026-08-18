@@ -11,10 +11,9 @@
 #include "Utils/NexusResponseCompactorUtils.h"
 #include "Utils/NexusHostUtils.h"
 #include "Utils/NexusCapabilityIndexUtils.h"
+#include "Utils/NexusJsonUtils.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
-#include "Serialization/JsonWriter.h"
-#include "Policies/CondensedJsonPrintPolicy.h"
 #include "Dom/JsonValue.h"
 #include "Misc/App.h"
 #include "Misc/DateTime.h"
@@ -74,7 +73,7 @@ void FNexusMcpDispatcher::Dispatch(const FString& JsonLine, FOnSendResponse PerR
 	if (!FJsonSerializer::Deserialize(Reader, JsonMsg) || !JsonMsg.IsValid())
 	{
 		UE_LOG(LogNexusMcpDispatcher, Warning, TEXT("JSON 解析失败: %s"), *JsonLine);
-		SendError(nullptr, JsonRpcParseError, TEXT("JSON 解析错误"));
+		SendError(nullptr, JsonRpcParseError, TEXT("JSON parse error"));
 		return;
 	}
 
@@ -82,14 +81,14 @@ void FNexusMcpDispatcher::Dispatch(const FString& JsonLine, FOnSendResponse PerR
 	FString JsonRpcVersion;
 	if (!NexusJsonGetString(JsonMsg, TEXT("jsonrpc"), JsonRpcVersion) || JsonRpcVersion != TEXT("2.0"))
 	{
-		SendError(nullptr, JsonRpcInvalidRequest, TEXT("无效的 JSON-RPC 版本"));
+		SendError(nullptr, JsonRpcInvalidRequest, TEXT("Invalid JSON-RPC version"));
 		return;
 	}
 
 	FString Method;
 	if (!NexusJsonGetString(JsonMsg, TEXT("method"), Method))
 	{
-		SendError(nullptr, JsonRpcInvalidRequest, TEXT("缺少 method"));
+		SendError(nullptr, JsonRpcInvalidRequest, TEXT("Missing method"));
 		return;
 	}
 
@@ -120,7 +119,7 @@ void FNexusMcpDispatcher::Dispatch(const FString& JsonLine, FOnSendResponse PerR
 	{
 		if (State != ENexusMcpSessionState::Running)
 		{
-			SendError(Id, JsonRpcInvalidRequest, TEXT("会话未初始化"));
+			SendError(Id, JsonRpcInvalidRequest, TEXT("Session not initialized"));
 			return;
 		}
 		HandleToolsList(Id, Params);
@@ -129,7 +128,7 @@ void FNexusMcpDispatcher::Dispatch(const FString& JsonLine, FOnSendResponse PerR
 	{
 		if (State != ENexusMcpSessionState::Running)
 		{
-			SendError(Id, JsonRpcInvalidRequest, TEXT("会话未初始化"));
+			SendError(Id, JsonRpcInvalidRequest, TEXT("Session not initialized"));
 			return;
 		}
 		HandleToolsCall(Id, Params);
@@ -139,7 +138,7 @@ void FNexusMcpDispatcher::Dispatch(const FString& JsonLine, FOnSendResponse PerR
 		UE_LOG(LogNexusMcpDispatcher, Warning, TEXT("未知方法: %s"), *Method);
 		if (Id.IsValid())
 		{
-			SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("方法未找到: %s"), *Method));
+			SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("Method not found: %s"), *Method));
 		}
 	}
 }
@@ -153,13 +152,7 @@ void FNexusMcpDispatcher::SendResult(const TSharedPtr<FJsonValue>& Id, const TSh
 		Response->SetField(TEXT("id"), Id);
 	}
 	Response->SetObjectField(TEXT("result"), Result);
-
-	FString OutputString;
-	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> Writer =
-		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&OutputString);
-	FJsonSerializer::Serialize(Response.ToSharedRef(), Writer);
-
-	SendCallback(OutputString);
+	SendCallback(FNexusJsonUtils::SerializeCondensed(Response));
 }
 
 void FNexusMcpDispatcher::SendError(const TSharedPtr<FJsonValue>& Id, int32 Code, const FString& Message)
@@ -179,13 +172,7 @@ void FNexusMcpDispatcher::SendError(const TSharedPtr<FJsonValue>& Id, int32 Code
 	Error->SetNumberField(TEXT("code"), Code);
 	Error->SetStringField(TEXT("message"), Message);
 	Response->SetObjectField(TEXT("error"), Error);
-
-	FString OutputString;
-	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> Writer =
-		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&OutputString);
-	FJsonSerializer::Serialize(Response.ToSharedRef(), Writer);
-
-	SendCallback(OutputString);
+	SendCallback(FNexusJsonUtils::SerializeCondensed(Response));
 }
 
 /**
@@ -214,7 +201,7 @@ static FString BuildInitializeInstructions()
 	}
 	if (Base.IsEmpty())
 	{
-		Base = TEXT("NexusLink MCP：Unreal 编辑器 + 运行时控制。");
+		Base = TEXT("NexusLink MCP: Unreal Editor + runtime control.");
 	}
 	return Base;
 }
@@ -333,7 +320,7 @@ void FNexusMcpDispatcher::HandleToolsList(const TSharedPtr<FJsonValue>& Id, cons
 			FString Desc = Record.Def.Description;
 			if (Record.Def.Prerequisites.Num() > 0)
 			{
-				Desc += TEXT(" [前置条件: ") + FString::Join(Record.Def.Prerequisites, TEXT(",")) + TEXT("]");
+				Desc += TEXT(" [prerequisites: ") + FString::Join(Record.Def.Prerequisites, TEXT(",")) + TEXT("]");
 			}
 			if (Record.Def.RelatedCapabilities.Num() > 0)
 			{
@@ -393,9 +380,7 @@ void FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, const
 	}
 	else if (ToolResult.StructuredContent.IsValid())
 	{
-		TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W =
-			TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&ResponseText);
-		FJsonSerializer::Serialize(ToolResult.StructuredContent.ToSharedRef(), W);
+		ResponseText = FNexusJsonUtils::SerializeCondensed(ToolResult.StructuredContent);
 	}
 
 	TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
@@ -470,14 +455,14 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 {
 	if (!Params.IsValid())
 	{
-		SendError(Id, JsonRpcInvalidParams, TEXT("缺少 params"));
+		SendError(Id, JsonRpcInvalidParams, TEXT("Missing params"));
 		return;
 	}
 
 	FString ToolName;
 	if (!NexusJsonGetString(Params, TEXT("name"), ToolName))
 	{
-		SendError(Id, JsonRpcInvalidParams, TEXT("缺少工具名"));
+		SendError(Id, JsonRpcInvalidParams, TEXT("Missing tool name"));
 		return;
 	}
 
@@ -503,10 +488,10 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 				FNexusFeedback::FFields F;
 				F.Tool       = ToolName;
 				F.Capability = ToolName;
-				F.ErrorText  = FString::Printf(TEXT("工具未找到: %s"), *ToolName);
+				F.ErrorText  = FString::Printf(TEXT("Tool not found: %s"), *ToolName);
 				FNexusFeedback::RecordAuto(TEXT("call_unknown"), F);
 
-				SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("工具未找到: %s"), *ToolName));
+				SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("Tool not found: %s"), *ToolName));
 				return;
 			}
 			if (!Settings->IsCapabilityEnabled(Record->Def.Name))
@@ -514,10 +499,10 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 				FNexusFeedback::FFields F;
 				F.Tool       = ToolName;
 				F.Capability = Record->Def.Name;
-				F.ErrorText  = TEXT("已在设置中禁用");
+				F.ErrorText  = TEXT("Disabled in settings");
 				FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
 
-				SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("Capability '%s' 已在设置中禁用。"), *Record->Def.Name));
+				SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("Capability '%s' is disabled in settings."), *Record->Def.Name));
 				return;
 			}
 
@@ -551,19 +536,19 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 			F.Capability = ToolName;
 			const bool bLooksLikeCapability = FNexusCapabilityRegistry::Get().FindRecordByName(ToolName) != nullptr;
 			F.ErrorText = bLooksLikeCapability
-				? FString::Printf(TEXT("工具未找到: %s（应改用 call_capability(capability=\"%s\")）"), *ToolName, *ToolName)
-				: FString::Printf(TEXT("工具未找到: %s"), *ToolName);
+				? FString::Printf(TEXT("Tool not found: %s (use call_capability(capability=\"%s\") instead)"), *ToolName, *ToolName)
+				: FString::Printf(TEXT("Tool not found: %s"), *ToolName);
 			FNexusFeedback::RecordAuto(TEXT("call_unknown"), F);
 		}
 
-		SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("工具未找到: %s"), *ToolName));
+		SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("Tool not found: %s"), *ToolName));
 		return;
 	}
 
 	TSharedPtr<FNexusMcpTool> Tool = FNexusMcpToolRegistry::Get().CreateTool(ToolName);
 	if (!Tool.IsValid())
 	{
-		SendError(Id, JsonRpcInternalError, TEXT("创建工具实例失败"));
+		SendError(Id, JsonRpcInternalError, TEXT("Failed to create tool instance"));
 		return;
 	}
 
@@ -603,9 +588,7 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 	}
 	else if (ToolResult.StructuredContent.IsValid())
 	{
-		TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W =
-			TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&ResponseText);
-		FJsonSerializer::Serialize(ToolResult.StructuredContent.ToSharedRef(), W);
+		ResponseText = FNexusJsonUtils::SerializeCondensed(ToolResult.StructuredContent);
 	}
 
 	// 构建 tool result 响应：content 与 structuredContent 二选一。
@@ -662,7 +645,7 @@ void FNexusMcpDispatcher::HandleProxyFeedback(const TSharedPtr<FJsonValue>& Id, 
 	FString Category;
 	if (!Params.IsValid() || !NexusJsonGetString(Params, TEXT("category"), Category) || Category.IsEmpty())
 	{
-		SendError(Id, JsonRpcInvalidParams, TEXT("缺少必填字段：category"));
+		SendError(Id, JsonRpcInvalidParams, TEXT("Missing required field: category"));
 		return;
 	}
 
@@ -695,14 +678,14 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 
 	if (!FJsonSerializer::Deserialize(Reader, JsonMsg) || !JsonMsg.IsValid())
 	{
-		SendError(nullptr, JsonRpcParseError, TEXT("JSON 解析错误"));
+		SendError(nullptr, JsonRpcParseError, TEXT("JSON parse error"));
 		return;
 	}
 
 	FString Method;
 	if (!NexusJsonGetString(JsonMsg, TEXT("method"), Method))
 	{
-		SendError(nullptr, JsonRpcInvalidRequest, TEXT("缺少 method"));
+		SendError(nullptr, JsonRpcInvalidRequest, TEXT("Missing method"));
 		return;
 	}
 
@@ -760,7 +743,7 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 	{
 		if (Id.IsValid())
 		{
-			SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("方法未找到: %s"), *Method));
+			SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("Method not found: %s"), *Method));
 		}
 	}
 }

@@ -9,7 +9,7 @@ class UWidgetAnimation;
 class UMovieScene;
 class FJsonObject;
 
-/** WidgetBlueprint 动画（UWidgetAnimation + MovieScene）增删轨/关键帧。§7.4 豁免。 */
+/** WidgetBlueprint 动画（UWidgetAnimation + MovieScene）增删轨/关键帧。§8.4 豁免。 */
 class NEXUSLINK_API FNexusWidgetAnimationUtils
 {
 public:

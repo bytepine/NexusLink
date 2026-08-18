@@ -3,12 +3,12 @@
 #include "Capabilities/Asset/NexusSearchAssetCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusStringMatchUtils.h"
-#include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusResponseCompactorUtils.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/AssetData.h"
@@ -146,14 +146,14 @@ static FString NormalizeAssetTypeShortcut(const FString& TypeLower)
 void FSearchAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("search_asset");
-	Out.Description = TEXT("查找资产路径。必须先调；指定 assetType+pathFilter。返回顶层 assets + recommendedGet/Manage（指定类型时）。");
+	Out.Description = TEXT("Find asset paths. Call first; set assetType+pathFilter. Returns assets + recommendedGet/Manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetType"),  FNexusSchema::Str(TEXT("Blueprint/Widget/Material/AnimSequence/SkeletalMesh/Skeleton/… 或 UClass；大项目避免 all"), TEXT("Blueprint")))
-		.Prop(TEXT("pathFilter"), FNexusSchema::Str(TEXT("功能级路径前缀（大项目勿用裸 /Game/）"), TEXT("/Game/Feature/")))
-		.Prop(TEXT("query"),      FNexusSchema::Str(TEXT("分词 AND 匹配；匹配名称/路径/标签"), TEXT("")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("资产名称过滤")))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("分页偏移"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("每页最大条数"), 100, 1, 500))
+		.Prop(TEXT("assetType"),  FNexusSchema::Str(TEXT("Blueprint/Widget/Material/AnimSequence/… or UClass; avoid all on large projects"), TEXT("Blueprint")))
+		.Prop(TEXT("pathFilter"), FNexusSchema::Str(TEXT("Feature path prefix (avoid bare /Game/ on large projects)"), TEXT("/Game/Feature/")))
+		.Prop(TEXT("query"),      FNexusSchema::Str(TEXT("Token AND match; matches name/path/tags"), TEXT("")))
+		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Asset name filter")))
+		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("content"), TEXT("browse"), TEXT("registry"), TEXT("scan"), TEXT("filter") };
@@ -169,10 +169,11 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 
 	if (Arguments.IsValid())
 	{
-		if (Arguments->HasField(TEXT("assetType")))  AssetType  = Arguments->GetStringField(TEXT("assetType"));
-		if (Arguments->HasField(TEXT("pathFilter"))) PathFilter = Arguments->GetStringField(TEXT("pathFilter"));
-		if (Arguments->HasField(TEXT("nameFilter"))) NameFilter = Arguments->GetStringField(TEXT("nameFilter"));
-		if (Arguments->HasField(TEXT("query")))      Query      = Arguments->GetStringField(TEXT("query"));
+		const FNexusArgs CapArgs(Arguments);
+		if (Arguments->HasField(TEXT("assetType")))  AssetType  = CapArgs.Str(TEXT("assetType"));
+		if (Arguments->HasField(TEXT("pathFilter"))) PathFilter = CapArgs.Str(TEXT("pathFilter"));
+		if (Arguments->HasField(TEXT("nameFilter"))) NameFilter = CapArgs.Str(TEXT("nameFilter"));
+		if (Arguments->HasField(TEXT("query")))      Query      = CapArgs.Str(TEXT("query"));
 	}
 
 	AssetType.TrimStartAndEndInline();
@@ -195,6 +196,7 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
+		const FNexusArgs CapArgs(Arguments);
 		(void)OutEntries;
 
 		int32 Offset = 0;
@@ -202,8 +204,8 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 
 		if (Arguments.IsValid())
 		{
-			if (Arguments->HasField(TEXT("offset"))) Offset = FMath::Max(0, static_cast<int32>(Arguments->GetNumberField(TEXT("offset"))));
-			if (Arguments->HasField(TEXT("limit")))  Limit  = FMath::Clamp(static_cast<int32>(Arguments->GetNumberField(TEXT("limit"))), 1, 500);
+			if (Arguments->HasField(TEXT("offset"))) Offset = FMath::Max(0, static_cast<int32>(CapArgs.Num(TEXT("offset"))));
+			if (Arguments->HasField(TEXT("limit")))  Limit  = FMath::Clamp(static_cast<int32>(CapArgs.Num(TEXT("limit"))), 1, 500);
 		}
 
 		IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
@@ -868,7 +870,7 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		FString PageRecommendedGet, PageRecommendedManage;
 		if (bHoistRecommended)
 		{
-			FNexusAssetUtils::ResolveRecommendedCapabilities(
+			FNexusCapabilityRegistry::Get().ResolveSearchAssetRoute(
 				AllEntries[Start].Type, PageRecommendedGet, PageRecommendedManage);
 		}
 
@@ -884,7 +886,7 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			{
 				// assetType=all / 混合页：逐条保留推荐，避免顶层单一值误导
 				FString RecommendedGet, RecommendedManage;
-				FNexusAssetUtils::ResolveRecommendedCapabilities(E.Type, RecommendedGet, RecommendedManage);
+				FNexusCapabilityRegistry::Get().ResolveSearchAssetRoute(E.Type, RecommendedGet, RecommendedManage);
 				if (!RecommendedGet.IsEmpty())
 				{
 					EntryObj->SetStringField(TEXT("recommendedGet"), RecommendedGet);

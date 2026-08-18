@@ -15,9 +15,9 @@ void FGetAssetPaperTileMapCapability::BuildDefinition(FNexusCapabilityDefinition
 {
 	Out.Name = TEXT("get_asset_paper_tile_map");
 	Out.SearchAssetTypes = {TEXT("PaperTileMap")};
-	Out.Description = TEXT("读取 PaperTileMap：尺寸 / 图层 / 图块集。写用 manage/create_asset_paper_tile_map。");
+	Out.Description = TEXT("Read PaperTileMap: size/layers/tilesets. Use manage/create_asset_paper_tile_map for writes.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperTileMap 资产路径")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperTileMap asset path")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
@@ -26,7 +26,7 @@ void FGetAssetPaperTileMapCapability::BuildDefinition(FNexusCapabilityDefinition
 		TEXT("manage_asset_paper_tile_map"), TEXT("create_asset_paper_tile_map"),
 		TEXT("get_asset_paper_sprite"), TEXT("get_asset_paper_flipbook")
 	};
-	Out.WhenToUse = TEXT("读 PaperTileMap 元数据；写用 manage_asset_paper_tile_map");
+	Out.WhenToUse = TEXT("Read PaperTileMap metadata; use manage_asset_paper_tile_map for writes");
 }
 
 FCapabilityResult FGetAssetPaperTileMapCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -39,7 +39,7 @@ FCapabilityResult FGetAssetPaperTileMapCapability::Execute(const TSharedPtr<FJso
 		if (!Map)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
-				FString::Printf(TEXT("加载 PaperTileMap 失败: %s"), *AssetPath));
+				FString::Printf(TEXT("Failed to load PaperTileMap: %s"), *AssetPath));
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();

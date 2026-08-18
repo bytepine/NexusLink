@@ -5,36 +5,33 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
 #include "Sound/SoundClass.h"
 #include "NexusMcpTool.h"
 
 void FCreateAssetSoundClassCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("create_asset_sound_class");
-	Out.Description = TEXT("创建 SoundClass 资产（音量/音高层级管理节点）。");
+	Out.Description = TEXT("Create SoundClass asset (volume/pitch hierarchy node).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundClass 包路径")))
-		.Prop(TEXT("volume"),    FNexusSchema::Num(TEXT("音量倍数（默认1.0）")))
-		.Prop(TEXT("pitch"),     FNexusSchema::Num(TEXT("音高倍数（默认1.0）")))
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundClass package path")))
+		.Prop(TEXT("volume"),    FNexusSchema::Num(TEXT("Volume multiplier (default 1.0)")))
+		.Prop(TEXT("pitch"),     FNexusSchema::Num(TEXT("Pitch multiplier (default 1.0)")))
 		.Required({ TEXT("assetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("sound"), TEXT("class"), TEXT("audio"), TEXT("volume"), TEXT("pitch") };
 	Out.RelatedCapabilities = { TEXT("get_asset_sound_class"), TEXT("manage_asset_sound_class") };
-	Out.WhenToUse = TEXT("创建 SoundClass 层级节点");
+	Out.WhenToUse = TEXT("Create SoundClass hierarchy node");
 }
 
 FCapabilityResult FCreateAssetSoundClassCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		if (!Arguments.IsValid() || !Arguments->HasField(TEXT("assetPath")))
-		{
-			OutError = TEXT("缺少 assetPath");
-			return;
-		}
+		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = Arguments->GetStringField(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		if (LoadObject<USoundClass>(nullptr, *AssetPath))
 		{
@@ -44,14 +41,14 @@ FCapabilityResult FCreateAssetSoundClassCapability::Execute(const TSharedPtr<FJs
 		}
 
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("创建包失败")); return; }
+		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
 
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 		USoundClass* SC = NewObject<USoundClass>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!SC) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("SoundClass 创建失败")); return; }
+		if (!SC) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("SoundClass Createfailed")); return; }
 
-		if (Arguments->HasField(TEXT("volume"))) SC->Properties.Volume = (float)Arguments->GetNumberField(TEXT("volume"));
-		if (Arguments->HasField(TEXT("pitch")))  SC->Properties.Pitch  = (float)Arguments->GetNumberField(TEXT("pitch"));
+		if (Arguments->HasField(TEXT("volume"))) SC->Properties.Volume = (float)A.Num(TEXT("volume"));
+		if (Arguments->HasField(TEXT("pitch")))  SC->Properties.Pitch  = (float)A.Num(TEXT("pitch"));
 
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, SC, AssetPath);
 

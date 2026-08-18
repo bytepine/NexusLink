@@ -94,13 +94,13 @@ UNiagaraEmitter* FNexusNiagaraGraphUtils::CreateEmptyEmitter(UObject* Outer, FNa
 {
 	if (!Outer)
 	{
-		OutError = TEXT("CreateEmptyEmitter 需要 Outer");
+		OutError = TEXT("CreateEmptyEmitter requires Outer");
 		return nullptr;
 	}
 	UNiagaraEmitter* NewEmitter = NewObject<UNiagaraEmitter>(Outer, Name, RF_Transactional);
 	if (!NewEmitter)
 	{
-		OutError = TEXT("创建空白 NiagaraEmitter 失败");
+		OutError = TEXT("Failed to create empty NiagaraEmitter");
 		return nullptr;
 	}
 
@@ -113,7 +113,7 @@ UNiagaraEmitter* FNexusNiagaraGraphUtils::CreateEmptyEmitter(UObject* Outer, FNa
 	FVersionedNiagaraEmitterData* Data = NewEmitter->GetLatestEmitterData();
 	if (!Data)
 	{
-		OutError = TEXT("GetLatestEmitterData 失败");
+		OutError = TEXT("GetLatestEmitterData failed");
 		return nullptr;
 	}
 	Data->SimTarget = ENiagaraSimTarget::CPUSim;
@@ -126,7 +126,7 @@ UNiagaraEmitter* FNexusNiagaraGraphUtils::CreateEmptyEmitter(UObject* Outer, FNa
 	if (!Data->SpawnScriptProps.Script || !Data->UpdateScriptProps.Script
 		|| !Data->EmitterSpawnScriptProps.Script || !Data->EmitterUpdateScriptProps.Script)
 	{
-		OutError = TEXT("空白发射器脚本未初始化");
+		OutError = TEXT("Empty emitter script not initialized");
 		return nullptr;
 	}
 	EnsureOutputChain(CreatedGraph, ENiagaraScriptUsage::EmitterSpawnScript, Data->EmitterSpawnScriptProps.Script->GetUsageId());
@@ -144,7 +144,7 @@ UNiagaraEmitter* FNexusNiagaraGraphUtils::CreateEmptyEmitter(UObject* Outer, FNa
 	if (!NewEmitter->SpawnScriptProps.Script || !NewEmitter->UpdateScriptProps.Script
 		|| !NewEmitter->EmitterSpawnScriptProps.Script || !NewEmitter->EmitterUpdateScriptProps.Script)
 	{
-		OutError = TEXT("空白发射器脚本未初始化");
+		OutError = TEXT("Empty emitter script not initialized");
 		return nullptr;
 	}
 	EnsureOutputChain(CreatedGraph, ENiagaraScriptUsage::EmitterSpawnScript, NewEmitter->EmitterSpawnScriptProps.Script->GetUsageId());
@@ -206,13 +206,13 @@ bool FNexusNiagaraGraphUtils::AddModule(UNiagaraSystem* System, const FString& E
 	FNiagaraEmitterHandle* Handle = FindHandleByName(System, EmitterName, Idx);
 	if (!Handle)
 	{
-		OutError = FString::Printf(TEXT("发射器未找到: %s"), *EmitterName);
+		OutError = FString::Printf(TEXT("Emitter not found: %s"), *EmitterName);
 		return false;
 	}
 	UNiagaraScriptSource* Source = GetScriptSource(*Handle);
 	if (!Source || !Source->NodeGraph)
 	{
-		OutError = TEXT("发射器无模块图（GraphSource）");
+		OutError = TEXT("Emitter has no module graph (GraphSource)");
 		return false;
 	}
 	const ENiagaraScriptUsage ScriptUsage = ParseUsage(Usage);
@@ -231,7 +231,7 @@ bool FNexusNiagaraGraphUtils::AddModule(UNiagaraSystem* System, const FString& E
 	const bool bAdded = Source->AddModuleIfMissing(ModulePath, ScriptUsage, bFoundModule);
 	if (!bFoundModule)
 	{
-		OutError = FString::Printf(TEXT("NiagaraScript 未找到: %s"), *ModulePath);
+		OutError = FString::Printf(TEXT("NiagaraScript not found: %s"), *ModulePath);
 		return false;
 	}
 
@@ -253,7 +253,7 @@ bool FNexusNiagaraGraphUtils::AddModule(UNiagaraSystem* System, const FString& E
 	}
 	if (!bAdded && OutModuleName.IsEmpty())
 	{
-		OutError = TEXT("AddModuleIfMissing 未添加模块（可能已存在或无 Output 节点）");
+		OutError = TEXT("AddModuleIfMissing did not add module (may exist or no Output node)");
 		return false;
 	}
 	return true;
@@ -266,13 +266,13 @@ bool FNexusNiagaraGraphUtils::RemoveModule(UNiagaraSystem* System, const FString
 	FNiagaraEmitterHandle* Handle = FindHandleByName(System, EmitterName, Idx);
 	if (!Handle)
 	{
-		OutError = FString::Printf(TEXT("发射器未找到: %s"), *EmitterName);
+		OutError = FString::Printf(TEXT("Emitter not found: %s"), *EmitterName);
 		return false;
 	}
 	UNiagaraScriptSource* Source = GetScriptSource(*Handle);
 	if (!Source || !Source->NodeGraph)
 	{
-		OutError = TEXT("发射器无模块图（GraphSource）");
+		OutError = TEXT("Emitter has no module graph (GraphSource)");
 		return false;
 	}
 	UNiagaraNodeFunctionCall* Found = nullptr;
@@ -290,7 +290,7 @@ bool FNexusNiagaraGraphUtils::RemoveModule(UNiagaraSystem* System, const FString
 	}
 	if (!Found)
 	{
-		OutError = FString::Printf(TEXT("模块未找到: %s"), *ModuleName);
+		OutError = FString::Printf(TEXT("Module not found: %s"), *ModuleName);
 		return false;
 	}
 
