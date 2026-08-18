@@ -6,6 +6,8 @@
 #if WITH_EDITOR
 #include "Engine/Blueprint.h"
 #include "UObject/UObjectIterator.h"
+#include "EdGraphSchema_K2.h"
+#include "K2Node_Event.h"
 
 void FNexusBlueprintGraphUtils::CollectAllGraphs(UBlueprint* BP, TArray<UEdGraph*>& OutGraphs)
 {
@@ -181,6 +183,77 @@ TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::BuildBPGraphSummary(const UEd
 	const FString Parent = GetBPParentGraphName(Graph);
 	if (!Parent.IsEmpty()) GObj->SetStringField(TEXT("parentGraph"), Parent);
 	return GObj;
+}
+
+void FNexusBlueprintGraphUtils::CollectOrphanedPins(UBlueprint* BP, TArray<TSharedPtr<FJsonObject>>& OutPins, int32 MaxCount)
+{
+	OutPins.Reset();
+	if (!BP || MaxCount <= 0) return;
+	TArray<UEdGraph*> Graphs;
+	CollectAllGraphs(BP, Graphs);
+	for (UEdGraph* Graph : Graphs)
+	{
+		if (!Graph) continue;
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			if (!Node) continue;
+			for (UEdGraphPin* Pin : Node->Pins)
+			{
+				if (!Pin || !Pin->bOrphanedPin) continue;
+				TSharedPtr<FJsonObject> E = MakeShared<FJsonObject>();
+				E->SetStringField(TEXT("nodeId"), Node->NodeGuid.ToString());
+				E->SetStringField(TEXT("pinName"), Pin->PinName.ToString());
+				OutPins.Add(E);
+				if (OutPins.Num() >= MaxCount) return;
+			}
+		}
+	}
+}
+
+static bool IsExecPin(const UEdGraphPin* Pin)
+{
+	return Pin && Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec;
+}
+
+void FNexusBlueprintGraphUtils::CollectExecPaths(UEdGraph* Graph, TArray<TSharedPtr<FJsonObject>>& OutPaths,
+	int32 MaxPaths, int32 MaxNodes)
+{
+	OutPaths.Reset();
+	if (!Graph || MaxPaths <= 0 || MaxNodes <= 0) return;
+	for (UEdGraphNode* Start : Graph->Nodes)
+	{
+		if (!Start || !Start->IsA(UK2Node_Event::StaticClass())) continue;
+		if (OutPaths.Num() >= MaxPaths) break;
+
+		TArray<TSharedPtr<FJsonValue>> NodesArr;
+		TSet<const UEdGraphNode*> Visited;
+		UEdGraphNode* Cur = Start;
+		while (Cur && NodesArr.Num() < MaxNodes && !Visited.Contains(Cur))
+		{
+			Visited.Add(Cur);
+			TSharedPtr<FJsonObject> N = MakeShared<FJsonObject>();
+			N->SetStringField(TEXT("nodeId"), Cur->NodeGuid.ToString());
+			N->SetStringField(TEXT("nodeTitle"), Cur->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+			NodesArr.Add(MakeShared<FJsonValueObject>(N));
+
+			UEdGraphNode* Next = nullptr;
+			for (UEdGraphPin* Pin : Cur->Pins)
+			{
+				if (!IsExecPin(Pin) || Pin->Direction != EGPD_Output) continue;
+				if (Pin->LinkedTo.Num() > 0 && Pin->LinkedTo[0] && Pin->LinkedTo[0]->GetOwningNode())
+				{
+					Next = Pin->LinkedTo[0]->GetOwningNode();
+					break;
+				}
+			}
+			Cur = Next;
+		}
+
+		TSharedPtr<FJsonObject> PathObj = MakeShared<FJsonObject>();
+		PathObj->SetStringField(TEXT("start"), Start->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+		PathObj->SetArrayField(TEXT("nodes"), NodesArr);
+		OutPaths.Add(PathObj);
+	}
 }
 
 #endif // WITH_EDITOR

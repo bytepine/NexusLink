@@ -178,7 +178,7 @@ NexusLink 内置端到端的 AI 使用反馈系统，**所有数据只落本地 
 NexusLink 将能力分为两层：
 
 - **MCP 元工具（3 个）**：`search_capabilities`、`call_capability`、`submit_feedback`。
-- **Capability（226 个，随插件条件略减）**：原子工作单元。`WITH_GAS=0` 时不注册 GAS 相关 cap；`WITH_NIAGARA=0` 时再减 Niagara；Paper2D / GeometryCollection / CommonUI / Movie Render Queue 仅对应插件+版本注册。完整清单见 [`tool-reference.md`](./tool-reference.md)。
+- **Capability（227 个，随插件条件略减）**：原子工作单元。`WITH_GAS=0` 时不注册 GAS 相关 cap；`WITH_NIAGARA=0` 时再减 Niagara；Paper2D / GeometryCollection / CommonUI / Movie Render Queue 仅对应插件+版本注册。完整清单见 [`tool-reference.md`](./tool-reference.md)。
 
 **tools/list 暴露模式**（`Edit → Editor Preferences → Plugins → NexusLink → 工具列表模式`）：
 

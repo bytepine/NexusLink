@@ -11,6 +11,7 @@
 #include "Utils/NexusPinTypeUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusBlueprintGraphUtils.h"
+#include "Utils/NexusEditorTransaction.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
@@ -164,6 +165,7 @@ static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 			if (!FNexusPinTypeUtils::ParsePinType(VarTypeRaw, PinType, TypeErr)) { Entry->SetStringField(TEXT("error"), TypeErr);
 	return; }
 
+			BP->SetFlags(RF_Transactional);
 			FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType);
 
 			if (Op->HasField(TEXT("defaultValue")))
@@ -199,7 +201,11 @@ static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 		}
 
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-		FKismetEditorUtilities::CompileBlueprint(BP);
+		// 全量 Compile 会 CollectGarbage，冲掉进行中的 Undo 快照；compile=true 走 ApplyIfRequested（事务外）
+		if (!FNexusEditorTransaction::IsTransactionActive())
+		{
+			FKismetEditorUtilities::CompileBlueprint(BP);
+		}
 	return;
 	}
 #else

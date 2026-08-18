@@ -13,7 +13,7 @@
 - feat(mcp): `manage_asset_movie_pipeline_config` 深配——`set_anti_aliasing`/`add_setting`/`remove_setting`/`set_setting_property`/`set_setting_enabled`；`set_output` 支持 `fileNameFormat`；`get` 回显 `settings[]`/`antiAliasing`/`highRes`
 - feat(mcp): `manage_asset_static_mesh` 碰撞/Socket/LOD——`set_collision_trace_flag`/`add_box_collision`/`add_sphere_collision`/`clear_simple_collision`/`add_socket`/`set_socket`/`remove_socket`/`set_lod_screen_size`；`get` 回显 `sockets[]`
 - feat(mcp): `manage_asset_skeletal_mesh` 网格 Socket/LOD——`add_socket`/`set_socket`/`remove_socket`（mesh-only）/`set_lod_screen_size`；`get` 回显 `sockets[]`；物理体仍走 `manage_asset_physics_asset`
-- feat(mcp): `manage_asset_niagara_system`——`set_user_parameter` 扩 `Vector2`/`Position`/`Vector4`/`Color`/`LinearColor`/`Quat` + `ImportText` 结构体回退（UE5+ ExposedParameters）；`add_emitter` 可省略 `emitterPath` 建空白发射器；`add_module`/`remove_module` 改模块栈；`get` 回显 `modules`
+- feat(mcp): `manage_asset_niagara_system`——`set_user_parameter` 扩 `Vector2`/`Position`/`Vector4`/`Color`/`LinearColor`/`Quat` + `ImportText` 结构体回退（UE5+ ExposedParameters）；`add_emitter` 可省略 `emitterPath` 建空白发射器；`add_module`/`remove_module` 改模块栈；`set_module_parameter` 写 RapidIteration（短名如 SpawnRate，禁止 `SetParameterData(bAdd)` 以免 `check(Offset)` 崩编辑器）；`get` 回显 `modules[].usage`/`inputs[]`
 - feat(mcp): `manage_asset_anim_blueprint` AnimGraph `nodeClass`——`BlendSpace1D`(→BlendSpacePlayer)、`SequenceEvaluator`/`BlendSpaceEvaluator`/`RandomPlayer`/`PoseBlendNode`/`PoseByName`、`BlendListByBool`/`BlendListByEnum`/`BlendListByInt`、`MultiWayBlend`/`Inertialization`、`LayeredBoneBlend`/`ApplyAdditive`/`SaveCachedPose`/`UseCachedPose`、空间转换、`TwoBoneIK`/`LookAt`/`ModifyBone`/`AimOffset`/`FABRIK`/`CCDIK`/`CopyBone`/`HandIKRetargeting`/`AimOffsetLookAt`；`ControlRig`（`WITH_CONTROL_RIG`）；`boneName` 覆盖 FABRIK/CCDIK TipBone、CopyBone TargetBone 与 TwoBoneIK/LookAt/ModifyBone/AimOffset
 - feat(mcp): `manage_asset_level_sequence`——Master：`CinematicShot`/`Fade`/`Event`/`LevelVisibility`/`Slomo`（保留 CameraCut/Audio）；Binding：`SkeletalAnimation`/`Particle`/`Visibility`/`Color`/`Bool`/`Integer`/`Vector`/`Event`（保留 Float/Transform/Audio）；未知类型不再静默回落 Float；`add_float_key` 必填 `bindingGuid`；`set_transform_key` 写 Location 并可选 pitch/yaw/roll
 - feat(mcp): PaperTileMap 写路径——`create_asset_paper_tile_map` + `manage_asset_paper_tile_map`（`set_map_size`/`set_tile_size`/`set_tileset`/`add_layer`/`remove_layer`/`set_layer_name`/`set_cell`/`clear_cell`）；`get_asset_paper_tile_map` 回显 `layers[]`；CapabilitySpec §6 Paper2D 7→9
@@ -21,7 +21,9 @@
 - feat(mcp): `manage_asset_meta_sound` 补齐 typed `operations[].action` Schema（八值 Enum + name/typeName/classID/nodeID/边字段），并修复乱码 Description/错误文案
 - feat(mcp): `manage_asset_blueprint`——`promote_pin`（按 `nodeId`+`pinName` 创建成员/局部变量并 Get/Set 连线；可选 `variableName`/`isLocal`/`posX`/`posY`）；BPI：`create_asset_blueprint(parentClass=Interface)` → `BPTYPE_Interface`；`get` 回显 `blueprintType`/`implementedInterfaces`；`add_function`/`remove_function`/`add_interface`/`remove_interface`
 - feat(mcp): `manage_asset_*` 框架注入可选 `saveToDisk`（默认 false）；`manage_asset_blueprint`/`anim_blueprint`/`user_widget` 另注入按需 `compile`（默认 false）。UDS 仍自动编译；材质继续用 `recompile` op；独立 `save_asset`/`compile_blueprint` 仍可用。Automation `NexusLink.Capability.ManageFinalizeMixin` 覆盖 Schema 注入与校验
-- feat(mcp): WBP 动画轨可 `widgetName`+`propertyPath` 绑定控件，补 `remove_track`/`remove_key`；`get_asset_user_widget` 增 `graphOverview`
+- feat(mcp): 写路径 Undo——`FNexusEditorTransaction` 包 `Run` 内存 Execute（`saveToDisk`/`compile` 在事务外）；`call_capability.calls[]`（≥2）外层一笔，`failureCount>0` 时 `GUndo->Apply` 再 `Cancel` 回滚内存编辑（引擎 `Cancel` 不还原对象）；事务内 `add_variable` 跳过全量 Compile，避免 GC 冲掉 Undo
+- feat(mcp): `get_asset_blueprint` 顶层 `compileStatus`/`hasCompilerErrors`；新 section `orphaned`（孤立 pin）/`execPaths`（Event exec 链，需 `graphName`）
+- feat(mcp): `control_movie_pipeline` enqueue/status/cancel（UE5+ MRQ，立即返回 `jobId`）；Capability 计数 226→227
 
 ### Changed
 
@@ -36,6 +38,7 @@
 - docs: InitializeInstructions / AIRules / tool-reference 对齐压缩契约（`MinCount=2`、全员持有才抽取、已有 defaults 合并新键、缺省即默认）；`version-compat-reference.md` 补语义宏；README Token 表 MultiTool 177→222（221 cap + `submit_feedback`），固定税约 15.6×；EQS 门控改为 UE 5.0+；CapabilitySpec §6.5 登记 AblAbility 为公开仓不收录（Able 依赖）
 - refactor(code): 去掉 C++ `namespace` / 匿名命名空间——私有 helper 改为文件级 `static`，跨 TU 工具集改为 `struct FXxx final` + 全 static（`FNexusCapResultAdapter`）；`.cpp` 泛名 enum/struct 嵌套或改 `FNexus*` 前缀；CapabilitySpec §8.3/§8.4 同步禁止 namespace
 - chore(plugin): `NexusLink.uplugin` 不再强制启用 `GameplayAbilities` / `Niagara`（改由 `Build.cs` 按宿主 `.uproject` 探测，与 StateTree/MVVM 等可选插件一致）；`WebSocketNetworking` 仍为硬依赖
+- chore(plugin): 发版 zip 排除 `Source/NexusLinkTests`，打包时从 `.uplugin` 去掉该模块（源码仓仍保留 L1 Automation）
 - perf(mcp): `call_capability` 批尾仅在实际卸载包后 `CollectGarbage`（空台账跳过）；`Skipped` 改 `TSet`；反馈节流表与 `redundant_call` 表按窗口 TTL 淘汰
 - perf(mcp): `FNexusLogCapture` 热路径——白名单 `FName` 精确命中免 `ToUpper`；`Query`/`Summarize` 先拷贝环形缓冲再过滤；`FNexusCompiledStringPattern` 预编译正则，避免每条日志重建 `FRegexPattern`
 

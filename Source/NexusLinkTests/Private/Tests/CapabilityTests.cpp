@@ -9,6 +9,13 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpTool.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusEditorTransaction.h"
+#include "Utils/NexusAssetUtils.h"
+#if WITH_EDITOR
+#include "Editor.h"
+#include "ScopedTransaction.h"
+#include "Engine/Blueprint.h"
+#endif
 
 // ────────────────────────────────────────────────────────────────────────────
 // 测试辅助 Capability/Tool 子类（遵项目规范 §8.3 禁用 namespace）
@@ -361,6 +368,113 @@ bool FNexusLinkCapabilityManageFinalizeMixinTest::RunTest(const FString& Paramet
 		TestFalse(TEXT("get 不注入 compile"), SchemaHasTopProp(GetBp->Def, TEXT("compile")));
 	}
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FNexusLinkCapabilityEditorTransactionTest,
+	"NexusLink.Capability.EditorTransaction",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNexusLinkCapabilityEditorTransactionTest::RunTest(const FString& Parameters)
+{
+	const TArray<FString> WriteEditor = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
+	const TArray<FString> ReadEditor = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
+	const TArray<FString> WriteRuntime = { FNexusMcpTags::Write, FNexusMcpTags::Runtime };
+
+	TestTrue(TEXT("manage 写路径应包事务"),
+		FNexusEditorTransaction::ShouldTransact(TEXT("manage_asset_blueprint"), WriteEditor));
+	TestFalse(TEXT("get 只读不包事务"),
+		FNexusEditorTransaction::ShouldTransact(TEXT("get_asset_blueprint"), ReadEditor));
+	TestFalse(TEXT("save_asset 不包事务"),
+		FNexusEditorTransaction::ShouldTransact(TEXT("save_asset"), WriteEditor));
+	TestFalse(TEXT("compile_blueprint 不包事务"),
+		FNexusEditorTransaction::ShouldTransact(TEXT("compile_blueprint"), WriteEditor));
+	TestFalse(TEXT("runtime 不包事务"),
+		FNexusEditorTransaction::ShouldTransact(TEXT("list_runtime_actors"), WriteRuntime));
+	TestFalse(TEXT("lua 不包事务"),
+		FNexusEditorTransaction::ShouldTransact(TEXT("eval_runtime_lua"), WriteEditor));
+	TestFalse(TEXT("control_pie 不包事务"),
+		FNexusEditorTransaction::ShouldTransact(TEXT("control_pie"), WriteEditor));
+	TestFalse(TEXT("control_movie_pipeline 不包事务"),
+		FNexusEditorTransaction::ShouldTransact(TEXT("control_movie_pipeline"), WriteEditor));
+
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		TUniquePtr<FScopedTransaction> Tx = FNexusEditorTransaction::Begin(TEXT("EditorTransactionTest"));
+		TestTrue(TEXT("Begin 后事务进行中"), FNexusEditorTransaction::IsTransactionActive());
+		if (Tx.IsValid())
+		{
+			Tx->Cancel();
+			Tx.Reset();
+		}
+		TestFalse(TEXT("Cancel 后事务结束"), FNexusEditorTransaction::IsTransactionActive());
+	}
+#endif
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FNexusLinkCapabilityEditorTransactionUndoTest,
+	"NexusLink.Capability.EditorTransactionUndo",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNexusLinkCapabilityEditorTransactionUndoTest::RunTest(const FString& Parameters)
+{
+#if WITH_EDITOR
+	if (!GEditor)
+	{
+		return true;
+	}
+
+	const FString Path = TEXT("/Game/NexusLinkAuto/BP_UndoTxn");
+	UBlueprint* BP = LoadObject<UBlueprint>(nullptr, *Path);
+	if (!BP)
+	{
+		const FNexusAssetUtils::FAssetCreateOutcome Created = FNexusAssetUtils::CreateBlueprintAsset(
+			Path, TEXT("Actor"), UObject::StaticClass(), nullptr, nullptr, false);
+		if (!Created.Ok())
+		{
+			AddError(Created.Error);
+			return false;
+		}
+		BP = Cast<UBlueprint>(Created.Asset);
+	}
+	if (!BP)
+	{
+		AddError(TEXT("无法创建 Undo 测试蓝图"));
+		return false;
+	}
+
+	const FCapRecord* Rec = FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("manage_asset_blueprint"));
+	if (!Rec)
+	{
+		AddError(TEXT("未注册 manage_asset_blueprint"));
+		return false;
+	}
+
+	const FString VarName = FString::Printf(TEXT("UndoProbe_%d"),
+		static_cast<int32>(FDateTime::UtcNow().ToUnixTimestamp()));
+	const int32 Before = BP->NewVariables.Num();
+
+	TSharedPtr<FJsonObject> Args = MakeShared<FJsonObject>();
+	Args->SetStringField(TEXT("assetPath"), Path);
+	TSharedPtr<FJsonObject> Op = MakeShared<FJsonObject>();
+	Op->SetStringField(TEXT("action"), TEXT("add_variable"));
+	Op->SetStringField(TEXT("variableName"), VarName);
+	Op->SetStringField(TEXT("variableType"), TEXT("float"));
+	TArray<TSharedPtr<FJsonValue>> Ops;
+	Ops.Add(MakeShared<FJsonValueObject>(Op));
+	Args->SetArrayField(TEXT("operations"), Ops);
+
+	const FCapabilityResult R = Rec->Instance->Run(Args);
+	TestTrue(TEXT("add_variable 无 Fatal"), R.FatalError.IsEmpty());
+	TestTrue(TEXT("Run 后变量数 +1"), BP->NewVariables.Num() == Before + 1);
+
+	TestTrue(TEXT("UndoTransaction"), GEditor->UndoTransaction());
+	TestEqual(TEXT("Undo 后变量数恢复"), BP->NewVariables.Num(), Before);
+#endif
 	return true;
 }
 

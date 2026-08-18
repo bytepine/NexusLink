@@ -50,7 +50,7 @@ Forbidden: `manage_animation`, `set_runtime_actor_animation`.
 
 **Plugin-gated**: GAS / Niagara / StateTree / MVVM / EQS / MetaSound / PCG / ControlRig / Enhanced Input / Paper2D / GeometryCollection / CommonUI / Movie Render Queue register only with matching plugin+engine; `search_capabilities` `not_found` → skip, do not hard-call handshake names. Tag queries: `get_gameplay_tags` is always available.
 
-**Editor**: `control_pie`, `exec_command`, `search_console_variables`, `capture_viewport`, `get_editor_context`, `get_output_log` / `set_log_capture_filter`, `get_editor_info`.
+**Editor**: `control_pie`, `control_movie_pipeline`, `exec_command`, `search_console_variables`, `capture_viewport`, `get_editor_context`, `get_output_log` / `set_log_capture_filter`, `get_editor_info`.
 
 ## Workflow notes
 

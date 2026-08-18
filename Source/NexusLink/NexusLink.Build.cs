@@ -77,7 +77,7 @@ public class NexusLink : ModuleRules
 			// GeometryCollection 双候选 uplugin
 			Opt(new[] { "GeometryCollectionPlugin.uplugin", "GeometryCollectionEngine.uplugin" }, "WITH_GEOMETRY_COLLECTION", "WITH_GEOMETRY_COLLECTION", 5, 0, new[] { "GeometryCollectionEngine" }),
 			Opt(new[] { "CommonUI.uplugin" }, "WITH_COMMON_UI", "WITH_COMMON_UI", 5, 0, new[] { "CommonUI" }),
-			Opt(new[] { "MovieRenderPipeline.uplugin" }, "WITH_MOVIE_RENDER_PIPELINE", "WITH_MOVIE_RENDER_PIPELINE", 5, 0, new[] { "MovieRenderPipelineCore", "MovieRenderPipelineSettings" }),
+			Opt(new[] { "MovieRenderPipeline.uplugin" }, "WITH_MOVIE_RENDER_PIPELINE", "WITH_MOVIE_RENDER_PIPELINE", 5, 0, new[] { "MovieRenderPipelineCore", "MovieRenderPipelineSettings" }, new[] { "MovieRenderPipelineEditor" }),
 		};
 	}
 

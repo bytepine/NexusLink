@@ -157,7 +157,7 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 | 领域 | 能力范围 | 版本门控 |
 |------|---------|---------|
 | **编辑器上下文** | 编辑器信息/上下文、**输出日志**（`get_output_log`：`preset=diagnose` / `order=newest` / `sinceSequence` 增量 / `includeSummary`）、控制台变量、视口截图、资产增删改/搜索、**引用与继承查询**（`get_asset_refs`：`dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`）、PIE 控制、Gameplay Tags | 全版本 |
-| **蓝图** | Blueprint 变量/函数/图节点/连线/组件/CDO；`create` 对 Actor 补 BeginPlay，`parentClass=Interface` 建 BPI；`manage` 支持 `K2Node_Event`、`add_function` / `add_interface`、`add_macro` / `add_timeline` / `add_dispatcher` / `add_local_variable` | 全版本 |
+| **蓝图** | Blueprint 变量/函数/图节点/连线/组件/CDO；`get` 顶层 `compileStatus`/`hasCompilerErrors`，section `orphaned`/`execPaths`；`create` 对 Actor 补 BeginPlay，`parentClass=Interface` 建 BPI；`manage` 支持 `K2Node_Event`、`add_function` / `add_interface`、`add_macro` / `add_timeline` / `add_dispatcher` / `add_local_variable` | 全版本 |
 | **动画** | AnimSequence（关键帧/曲线/Notify）、AnimBlueprint（状态机 + AnimGraph 常用节点 SequencePlayer/BlendSpacePlayer/Slot/Blend/LayeredBoneBlend/ApplyAdditive/CachedPose/TwoBoneIK/LookAt/ModifyBone/AimOffset）、AnimMontage（Segment/Section，增删后同步时长）、BlendSpace（轴/样本）、Skeleton / SkeletalMesh | 全版本 |
 | **材质** | Material / MaterialInstance / MaterialFunction（含写图）/ MaterialParameterCollection | 全版本 |
 | **音频** | SoundWave、SoundCue（含 create）、MetaSound Source/Patch（Frontend Document / 图节点连线）、SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound/Patch: UE 5.0+/5.1+ |
@@ -170,12 +170,12 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 | **Paper2D** | PaperSprite / PaperFlipbook（含 create）/ PaperTileMap（只读） | 需 Paper2D 插件 |
 | **Chaos** | GeometryCollection（空白 create / 伤害阈值；不从网格打碎） | UE 5.0+ |
 | **CommonUI** | CommonButtonStyle / CommonTextStyle；WBP 仍走 user_widget | UE 5.0+ CommonUI |
-| **Movie Render Queue** | MoviePipeline config 输出目录/分辨率；不触发渲染 | UE 5.0+ |
+| **Movie Render Queue** | MoviePipeline config 输出/AA/settings；`control_movie_pipeline` enqueue/status/cancel（不阻塞渲染） | UE 5.0+ |
 | **状态/视图模型** | StateTree（状态/任务/条件/转换 + create）、MVVM ViewModel / Binding（含 manage） | UE 5.5+ |
 | **物理 / 序列器** | PhysicsAsset（Body/Constraint）、LevelSequence（Binding 级 Track/Float key/Transform 含旋转 + create）| 全版本 |
 | **引擎核心小资产** | Curve（Float/Vector/LinearColor/CurveTable）、UserDefinedEnum、AnimComposite、PhysicalMaterial（含 create）、TextureRenderTarget2D、StringTable、Font（无 create，TTF 走 `reimport_asset`）、FoliageType、FileMediaSource | 全版本 |
 | **World Partition** | DataLayerAsset（类型/调试颜色）| UE 5.1+ |
-| **特效** | NiagaraSystem（发射器 CRUD/enable/rename/create；空白 `add_emitter`；`add_module`/`remove_module` 模块栈） | 需 Niagara 插件 |
+| **特效** | NiagaraSystem（发射器 CRUD/enable/rename/create；空白 `add_emitter`；`add_module`/`remove_module`；`set_module_parameter` 写 RapidIteration；`get` 回显 `usage`/`inputs`） | 需 Niagara 插件 |
 | **运行时** | Actor 列表/生成/销毁/属性读写/对比；Widget 运行时（含 ComboBox set/read、ListView read）；AnimInstance；GAS；音效/Niagara；`control_pie` pause/resume/step | 需 PIE/Game |
 | **Lua** | UnLua eval/dofile/热重载/全局变量/调用栈/内存；`manage_asset_lua_binding` | 需 UnLua 插件 |
 
@@ -183,6 +183,7 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 
 ## 服务器框架特性
 
+- [x] **写路径 Undo**：`FNexusEditorTransaction` 包单次 `Run` 的内存 Execute；`call_capability.calls[]`（≥2）外层一笔，`failureCount>0` 时 `Apply` 再 `Cancel`（回滚内存编辑，`saveToDisk`/`compile` 在事务外；事务内跳过全量 Compile 以免 GC 冲 Undo）
 - [x] MCP Streamable HTTP（`POST /stream`），per-session 会话隔离（`Mcp-Session-Id`），多客户端并发安全
 - [x] `GET /status` — 无状态探测端点（项目名、引擎版本、WS 端口、`netRole`）
 - [x] WebSocket 服务器（默认 55000 起），供 Rider / VSCode 代理长连接；`nexus/instructions` 按 ToolsListMode 返回 `InitializeInstructions.*.md`；`nexus/proxy_config` 返回 `ProxyConfig.json`（连接工具 description、initialize 前缀、错误文案，供代理动态拉取）
@@ -240,6 +241,8 @@ NexusLink 是 **UE 侧插件**（提供 HTTP `:45000` + WebSocket `:55000`）。
 ```bash
 py scripts/build_unreal.py --version <version> --output release/
 ```
+
+发行 zip **不含** `Source/NexusLinkTests`（L1 Automation 仅源码仓 / 开发构建）。
 
 产物：`release/nexus-mcp-unreal-<version>.zip`（`EngineVersion: 4.26`，通用安装）；发版另附 `nexus-mcp-unreal-<version>-ue5.8.zip`（Fab / UE 5.8 专用）。解压到 UE 项目 `Plugins/Developer/`。
 

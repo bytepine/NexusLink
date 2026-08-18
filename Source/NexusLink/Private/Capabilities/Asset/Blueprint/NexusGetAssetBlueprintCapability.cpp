@@ -358,12 +358,12 @@ void FGetAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& O
 {
 	Out.Name = TEXT("get_asset_blueprint");
 	Out.SearchAssetTypes = {TEXT("Blueprint")};
-	Out.Description = TEXT("Read BP from editor. Must call before answering blueprint questions.");
+	Out.Description = TEXT("Read BP from editor. compileStatus/orphaned/execPaths. Must call before answering.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
 		TEXT("blueprint"), TEXT("variable"), TEXT("function"), TEXT("graph"), TEXT("read"),
-		TEXT("interface"), TEXT("bpi")
+		TEXT("interface"), TEXT("bpi"), TEXT("compile"), TEXT("orphan"), TEXT("exec")
 	};
 	Out.RelatedCapabilities = { TEXT("manage_asset_blueprint"), TEXT("create_asset_blueprint") };
 	Out.WhenToUse = TEXT("User asks BP vars/graph/functions — must call first; do not grep source");
@@ -375,7 +375,7 @@ TSharedPtr<FJsonObject> FGetAssetBlueprintCapability::BuildCapabilitySchema() co
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
 		.Prop(TEXT("nameFilter"),     FNexusSchema::Str(TEXT("Item name filter (/regex/ ^prefix suffix$)")))
 		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Exact property name filter for defaults, e.g. [\"bUseBuffClass\",\"Scale\"]")))
-		.Prop(TEXT("graphName"),     FNexusSchema::Str(TEXT("Graph name (graph section only)")))
+		.Prop(TEXT("graphName"),     FNexusSchema::Str(TEXT("Graph name (graph / execPaths)")))
 		.Prop(TEXT("graphType"),  FNexusSchema::Enum(TEXT("Graph type filter"),
 			{ TEXT("event"), TEXT("function"), TEXT("macro"), TEXT("animgraph"),
 			  TEXT("statemachine"), TEXT("state"), TEXT("transition"), TEXT("conduit"), TEXT("all") }))
@@ -389,7 +389,7 @@ TSharedPtr<FJsonObject> FGetAssetBlueprintCapability::BuildCapabilitySchema() co
 
 TArray<FString> FGetAssetBlueprintCapability::GetSectionNames() const
 {
-	return { TEXT("variable"), TEXT("function"), TEXT("component"), TEXT("graph"), TEXT("graphOverview"), TEXT("defaults") };
+	return { TEXT("variable"), TEXT("function"), TEXT("component"), TEXT("graph"), TEXT("graphOverview"), TEXT("defaults"), TEXT("orphaned"), TEXT("execPaths") };
 }
 
 TArray<FString> FGetAssetBlueprintCapability::GetDefaultSectionNames() const
@@ -427,6 +427,27 @@ bool FGetAssetBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject>& A
 	OutEntry->SetStringField(TEXT("name"), BP->GetName());
 	if (BP->ParentClass) { OutEntry->SetStringField(TEXT("parentClass"), BP->ParentClass->GetName()); }
 	FNexusAssetUtils::AppendBlueprintMetaFields(BP, OutEntry);
+
+#if WITH_EDITORONLY_DATA
+	{
+		FString StatusName = TEXT("Unknown");
+		switch (BP->Status)
+		{
+		case BS_Unknown: StatusName = TEXT("Unknown"); break;
+		case BS_Dirty: StatusName = TEXT("Dirty"); break;
+		case BS_Error: StatusName = TEXT("Error"); break;
+		case BS_UpToDate: StatusName = TEXT("UpToDate"); break;
+		case BS_BeingCreated: StatusName = TEXT("BeingCreated"); break;
+		case BS_UpToDateWithWarnings: StatusName = TEXT("UpToDateWithWarnings"); break;
+		default: break;
+		}
+		OutEntry->SetStringField(TEXT("compileStatus"), StatusName);
+		OutEntry->SetBoolField(TEXT("hasCompilerErrors"), BP->Status == BS_Error);
+	}
+#else
+	OutEntry->SetStringField(TEXT("compileStatus"), TEXT("Unknown"));
+	OutEntry->SetBoolField(TEXT("hasCompilerErrors"), false);
+#endif
 
 	OutTargetOpaque = static_cast<void*>(BP);
 	return true;
@@ -483,6 +504,58 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 		TSharedPtr<FJsonObject> CompResult = HandleBPComponents(BP, Q);
 		for (const auto& Pair : CompResult->Values)
 			InOutDetail->SetField(Pair.Key, Pair.Value);
+	}
+	else if (SectionName == TEXT("orphaned"))
+	{
+#if WITH_EDITOR
+		TArray<TSharedPtr<FJsonObject>> Pins;
+		FNexusBlueprintGraphUtils::CollectOrphanedPins(BP, Pins);
+		TArray<TSharedPtr<FJsonValue>> Arr;
+		for (const TSharedPtr<FJsonObject>& P : Pins)
+		{
+			Arr.Add(MakeShared<FJsonValueObject>(P));
+		}
+		InOutDetail->SetNumberField(TEXT("orphanedCount"), Arr.Num());
+		InOutDetail->SetArrayField(TEXT("orphanedPins"), Arr);
+#else
+		OutError = TEXT("orphaned only available in editor builds");
+#endif
+	}
+	else if (SectionName == TEXT("execPaths"))
+	{
+#if WITH_EDITOR
+		const bool bAll = FNexusJsonUtils::HasSectionAll(Args);
+		if (Q.GraphName.IsEmpty())
+		{
+			if (bAll)
+			{
+				InOutDetail->SetStringField(TEXT("note"),
+					TEXT("execPaths skipped: graphName required when sections=all"));
+			}
+			else
+			{
+				OutError = TEXT("execPaths requires graphName");
+			}
+			return;
+		}
+		UEdGraph* Target = FNexusBlueprintGraphUtils::FindBPGraph(BP, Q.GraphName);
+		if (!Target)
+		{
+			OutError = FString::Printf(TEXT("Graph '%s' not found"), *Q.GraphName);
+			return;
+		}
+		TArray<TSharedPtr<FJsonObject>> Paths;
+		FNexusBlueprintGraphUtils::CollectExecPaths(Target, Paths);
+		TArray<TSharedPtr<FJsonValue>> Arr;
+		for (const TSharedPtr<FJsonObject>& P : Paths)
+		{
+			Arr.Add(MakeShared<FJsonValueObject>(P));
+		}
+		InOutDetail->SetStringField(TEXT("graphName"), Target->GetName());
+		InOutDetail->SetArrayField(TEXT("execPaths"), Arr);
+#else
+		OutError = TEXT("execPaths only available in editor builds");
+#endif
 	}
 	else if (SectionName == TEXT("variable") || SectionName == TEXT("function"))
 	{

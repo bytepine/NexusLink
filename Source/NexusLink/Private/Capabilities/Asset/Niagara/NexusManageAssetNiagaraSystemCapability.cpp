@@ -30,41 +30,44 @@ void FManageAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.Name = TEXT("manage_asset_niagara_system");
 	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
-	Out.Description = TEXT("Batch edit Niagara. set_property/set_user_parameter/Emitter CRUD; add_module/remove_module (editor).");
+	Out.Description = TEXT("Batch edit Niagara. Emitter CRUD/module stack/RI params. Editor-only module ops.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 			{ TEXT("set_property"), TEXT("set_user_parameter"),
 			  TEXT("set_emitter_enabled"), TEXT("rename_emitter"),
 			  TEXT("add_emitter"), TEXT("remove_emitter"),
-			  TEXT("add_module"), TEXT("remove_module") }))
+			  TEXT("add_module"), TEXT("remove_module"),
+			  TEXT("set_module_parameter") }))
 		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Property path (set_property)")))
-		.Prop(TEXT("parameterName"), FNexusSchema::Str(TEXT("User parameter name (set_user_parameter)")))
+		.Prop(TEXT("parameterName"), FNexusSchema::Str(TEXT("User param or module input short name (e.g. SpawnRate)")))
 		.Prop(TEXT("emitterName"), FNexusSchema::Str(TEXT("Emitter name")))
 		.Prop(TEXT("newName"), FNexusSchema::Str(TEXT("rename_emitter new name")))
 		.Prop(TEXT("enabled"), FNexusSchema::Bool(TEXT("set_emitter_enabled")))
 		.Prop(TEXT("emitterPath"), FNexusSchema::Str(TEXT("add_emitter: existing NiagaraEmitter path; omit to create empty emitter")))
 		.Prop(TEXT("modulePath"), FNexusSchema::Str(TEXT("add_module: NiagaraScript module path")))
-		.Prop(TEXT("moduleName"), FNexusSchema::Str(TEXT("remove_module: module display name")))
-		.Prop(TEXT("usage"), FNexusSchema::Enum(TEXT("add_module script slot"),
+		.Prop(TEXT("moduleName"), FNexusSchema::Str(TEXT("remove_module / set_module_parameter FunctionCall name")))
+		.Prop(TEXT("usage"), FNexusSchema::Enum(TEXT("add_module / set_module_parameter script slot"),
 			{ TEXT("Spawn"), TEXT("Update"), TEXT("EmitterSpawn"), TEXT("EmitterUpdate") }))
 		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("New value formats; other structs via ImportText")))
 		.Required({ TEXT("action") })
 		.Build();
 #else
-	Out.Description = TEXT("Batch edit Niagara. set_property/Emitter CRUD; add_module/remove_module (editor).");
+	Out.Description = TEXT("Batch edit Niagara. Emitter CRUD/module stack/RI params. Editor-only module ops.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 			{ TEXT("set_property"), TEXT("set_emitter_enabled"), TEXT("rename_emitter"),
 			  TEXT("add_emitter"), TEXT("remove_emitter"),
-			  TEXT("add_module"), TEXT("remove_module") }))
+			  TEXT("add_module"), TEXT("remove_module"),
+			  TEXT("set_module_parameter") }))
 		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Property path (set_property)")))
+		.Prop(TEXT("parameterName"), FNexusSchema::Str(TEXT("Module input short name (set_module_parameter, e.g. SpawnRate)")))
 		.Prop(TEXT("emitterName"), FNexusSchema::Str(TEXT("Emitter name")))
 		.Prop(TEXT("newName"), FNexusSchema::Str(TEXT("rename_emitter new name")))
 		.Prop(TEXT("enabled"), FNexusSchema::Bool(TEXT("set_emitter_enabled")))
 		.Prop(TEXT("emitterPath"), FNexusSchema::Str(TEXT("add_emitter: existing NiagaraEmitter path; omit to create empty emitter")))
 		.Prop(TEXT("modulePath"), FNexusSchema::Str(TEXT("add_module: NiagaraScript module path")))
-		.Prop(TEXT("moduleName"), FNexusSchema::Str(TEXT("remove_module: module display name")))
-		.Prop(TEXT("usage"), FNexusSchema::Enum(TEXT("add_module script slot"),
+		.Prop(TEXT("moduleName"), FNexusSchema::Str(TEXT("remove_module / set_module_parameter FunctionCall name")))
+		.Prop(TEXT("usage"), FNexusSchema::Enum(TEXT("add_module / set_module_parameter script slot"),
 			{ TEXT("Spawn"), TEXT("Update"), TEXT("EmitterSpawn"), TEXT("EmitterUpdate") }))
 		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("New value string")))
 		.Required({ TEXT("action") })
@@ -79,7 +82,7 @@ void FManageAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.ExtraSearchKeywords = { TEXT("niagara"), TEXT("vfx"), TEXT("particle"), TEXT("fx"), TEXT("parameter") };
 	Out.RelatedCapabilities = { TEXT("get_asset_niagara_system"), TEXT("create_asset_niagara_system"), TEXT("search_asset") };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("Edit system props/user params/emitter CRUD; module stack via add_module/remove_module (editor)");
+	Out.WhenToUse = TEXT("Edit emitters/module stack/RI inputs; get_asset_niagara_system to read");
 }
 
 #if NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS
@@ -505,6 +508,49 @@ static void HandleNiagara_RemoveModule(const TSharedPtr<FJsonObject>& Op, FNexus
 #endif
 }
 
+static void HandleNiagara_SetModuleParameter(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+#if WITH_EDITOR
+	UNiagaraSystem* System = NiagaraFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString EmitterName = A.Str(TEXT("emitterName"));
+	const FString ModuleName = A.Str(TEXT("moduleName"));
+	const FString ParameterName = A.Str(TEXT("parameterName"));
+	const FString Value = A.Str(TEXT("value"));
+	const FString Usage = A.Str(TEXT("usage"));
+	if (EmitterName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("emitterName required"));
+		return;
+	}
+	if (ModuleName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_module_parameter requires moduleName"));
+		return;
+	}
+	if (ParameterName.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_module_parameter requires parameterName"));
+		return;
+	}
+	FString ModErr;
+	if (!FNexusNiagaraGraphUtils::SetModuleParameter(System, EmitterName, ModuleName, ParameterName, Usage, Value, ModErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), ModErr);
+		return;
+	}
+	MarkNiagaraDirty(Ctx);
+	Ctx.Entry->SetStringField(TEXT("emitterName"), EmitterName);
+	Ctx.Entry->SetStringField(TEXT("moduleName"), ModuleName);
+	Ctx.Entry->SetStringField(TEXT("parameterName"), ParameterName);
+	Ctx.Entry->SetStringField(TEXT("value"), Value);
+	if (!Usage.IsEmpty()) Ctx.Entry->SetStringField(TEXT("usage"), Usage);
+	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+#else
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_module_parameter editor only"));
+#endif
+}
+
 bool FManageAssetNiagaraSystemCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
@@ -535,6 +581,7 @@ void FManageAssetNiagaraSystemCapability::RegisterActions(TMap<FString, FNexusAc
 	OutHandlers.Add(TEXT("add_emitter"),         &HandleNiagara_AddEmitter);
 	OutHandlers.Add(TEXT("add_module"),          &HandleNiagara_AddModule);
 	OutHandlers.Add(TEXT("remove_module"),       &HandleNiagara_RemoveModule);
+	OutHandlers.Add(TEXT("set_module_parameter"), &HandleNiagara_SetModuleParameter);
 }
 
 REGISTER_MCP_CAPABILITY(FManageAssetNiagaraSystemCapability)

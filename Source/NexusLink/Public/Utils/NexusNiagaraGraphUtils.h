@@ -33,7 +33,15 @@ public:
 	static bool RemoveModule(UNiagaraSystem* System, const FString& EmitterName,
 		const FString& ModuleName, FString& OutError);
 
-	/** 列出发射器图上的 FunctionCall 模块。 */
+	/**
+	 * 写模块 RapidIteration 输入（Constants.<Emitter>.<Module>.<Input>）。
+	 * parameterName 为短名（如 SpawnRate），不是 Constants.* 全路径。
+	 */
+	static bool SetModuleParameter(UNiagaraSystem* System, const FString& EmitterName,
+		const FString& ModuleName, const FString& ParameterName, const FString& Usage,
+		const FString& Value, FString& OutError);
+
+	/** 列出发射器图上的 FunctionCall 模块（name / usage / inputs[]）。 */
 	static void CollectModules(const FNiagaraEmitterHandle& Handle, TArray<TSharedPtr<FJsonObject>>& OutModules);
 };
 

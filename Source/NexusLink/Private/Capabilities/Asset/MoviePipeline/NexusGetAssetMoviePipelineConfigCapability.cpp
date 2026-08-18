@@ -33,7 +33,8 @@ void FGetAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapabilityDef
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("mrq"), TEXT("output"), TEXT("resolution"), TEXT("aa"), TEXT("setting") };
 	Out.RelatedCapabilities = {
-		TEXT("manage_asset_movie_pipeline_config"), TEXT("create_asset_movie_pipeline_config")
+		TEXT("manage_asset_movie_pipeline_config"), TEXT("create_asset_movie_pipeline_config"),
+		TEXT("control_movie_pipeline")
 	};
 	Out.WhenToUse = TEXT("Read MRQ config structure; use manage_asset_movie_pipeline_config for writes");
 }

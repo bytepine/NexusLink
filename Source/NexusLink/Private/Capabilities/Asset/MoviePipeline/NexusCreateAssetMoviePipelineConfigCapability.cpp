@@ -28,7 +28,8 @@ void FCreateAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapability
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("mrq"), TEXT("render"), TEXT("movie"), TEXT("pipeline") };
 	Out.RelatedCapabilities = {
-		TEXT("get_asset_movie_pipeline_config"), TEXT("manage_asset_movie_pipeline_config")
+		TEXT("get_asset_movie_pipeline_config"), TEXT("manage_asset_movie_pipeline_config"),
+		TEXT("control_movie_pipeline")
 	};
 }
 

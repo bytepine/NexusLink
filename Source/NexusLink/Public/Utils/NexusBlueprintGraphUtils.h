@@ -61,6 +61,16 @@ public:
 
 	/** 构建图摘要 JSON（name / graphType / enabledNodeCount / disabledNodeCount / parentGraph）。 */
 	static TSharedPtr<FJsonObject> BuildBPGraphSummary(const UEdGraph* Graph);
+
+	/** 聚合 bOrphanedPin，上限 MaxCount 条：nodeId / pinName。 */
+	static void CollectOrphanedPins(UBlueprint* BP, TArray<TSharedPtr<FJsonObject>>& OutPins, int32 MaxCount = 32);
+
+	/**
+	 * 从 Event 节点沿 exec pin 走线性链。上限 MaxPaths 条 × MaxNodes 节点。
+	 * 每条：start / nodes[{nodeId,nodeTitle}]。
+	 */
+	static void CollectExecPaths(UEdGraph* Graph, TArray<TSharedPtr<FJsonObject>>& OutPaths,
+		int32 MaxPaths = 16, int32 MaxNodes = 32);
 };
 
 #endif // WITH_EDITOR

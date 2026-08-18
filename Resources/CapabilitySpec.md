@@ -72,9 +72,9 @@
 | `manage_*` 且 Schema 含 `operations[]` | `FNexusActionCapability` | `BuildDefinition` + `RegisterActions` + `PrepareTarget`；可选 `FinalizeTarget` / `AfterPrepareTarget` |
 | 只读且用 `sections[]`（含 `"all"`） | `FNexusMultiSectionCapability`（编辑器）或 `FNexusRuntimeMultiSectionCapability`（PIE） | `BuildDefinition`（`Out.InputSchema = BuildSchemaWithSections()`）+ `BuildCapabilitySchema` / `GetSectionNames` / `ExecuteSection` |
 | PIE 运行时（`*_runtime_*` / `list_runtime_*` / `eval_runtime_lua` 等，**无** `operations[]`） | `FNexusRuntimeCapability` | `BuildDefinition` + `Execute` |
-| 其余（`create_*` / `save`/`delete`/`rename`/`duplicate`/`unload` / 无 sections 的 `get_*` / `exec_command` / `control_pie` / `set_*_property`） | `FNexusCapability` | `BuildDefinition` + `Execute` |
+| 其余（`create_*` / `save`/`delete`/`rename`/`duplicate`/`unload` / 无 sections 的 `get_*` / `exec_command` / `control_pie` / `control_movie_pipeline` / `set_*_property`） | `FNexusCapability` | `BuildDefinition` + `Execute` |
 
-- `interact_*` / `control_pie` 的顶层 `action` 是**命令**，不是批量 `operations[]` → **不要**用 `FNexusActionCapability`
+- `interact_*` / `control_pie` / `control_movie_pipeline` 的顶层 `action` 是**命令**，不是批量 `operations[]` → **不要**用 `FNexusActionCapability`
 - `set_*_property` 走 `updates[]` → `FNexusCapability` 或 `FNexusRuntimeCapability`
 - 默认 `GetHostScope()=EditorOnly`；Runtime 基类会幂等补 `runtime` 分类标签
 - 插件门控 cap：`#if WITH_*` 包 class + `REGISTER_MCP_CAPABILITY`
@@ -264,7 +264,7 @@
 | Paper2D (`WITH_PAPER2D=1`, 9) | `create/get/manage_asset_paper_sprite`, `create/get/manage_asset_paper_flipbook`, `create/get/manage_asset_paper_tile_map` |
 | GeometryCollection (`WITH_GEOMETRY_COLLECTION=1`, UE5+, 3) | `create/get/manage_asset_geometry_collection` |
 | CommonUI (`WITH_COMMON_UI=1`, UE5+, 6) | `create/get/manage_asset_common_button_style`, `create/get/manage_asset_common_text_style` |
-| MoviePipeline (`WITH_MOVIE_RENDER_PIPELINE=1`, UE5+, 3) | `create/get/manage_asset_movie_pipeline_config` |
+| MoviePipeline (`WITH_MOVIE_RENDER_PIPELINE=1`, UE5+, 4) | `create/get/manage_asset_movie_pipeline_config`, `control_movie_pipeline` |
 | PoseSearch (`WITH_POSE_SEARCH=1`, UE 5.4+, 3) | `create/get/manage_asset_pose_search` |
 
 ### 6.5 禁止复活与计划缺口
@@ -448,7 +448,7 @@ public:
 | create 响应 | 成功条目必须含 `path` 字段 |
 | manage 收尾 | 框架向所有 `manage_asset_*` 注入可选 `saveToDisk`（默认 false）；仅 `manage_asset_blueprint` / `manage_asset_anim_blueprint` / `manage_asset_user_widget` 另注入 `compile`（默认 false）。UDS 仍自动编译。Material 用 `recompile` op。独立 `save_asset` / `compile_blueprint` 仍可用 |
 | Execute 卫生 | 非 MultiSection 的 cap 优先 `FNexusCapabilityResultBuilder::Build`；资产定位统一 `RequireString` + `EmitError`（或对应 Fatal/`MakeArgInvalid`）；禁止裸 `SetStringField("error")` 作为唯一失败路径 |
-| 有意保留 | 单目标内：`sections` / `propertyPaths` / `operations` / `updates`；领域数组经 `operations` 承载（勿再把 `fields`/`rows`/`keys`/`widgets` 当顶层操作容器）；runtime `interact_*` / `control_pie` 的顶层 `action`（命令式语义，非批量操作列表）；元工具 `calls[]` |
+| 有意保留 | 单目标内：`sections` / `propertyPaths` / `operations` / `updates`；领域数组经 `operations` 承载（勿再把 `fields`/`rows`/`keys`/`widgets` 当顶层操作容器）；runtime `interact_*` / `control_pie` / `control_movie_pipeline` 的顶层 `action`（命令式语义，非批量操作列表）；元工具 `calls[]` |
 
 ### 8.12 参数权威表 / Breaking 迁移
 

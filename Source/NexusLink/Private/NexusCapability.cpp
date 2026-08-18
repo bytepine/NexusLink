@@ -6,7 +6,11 @@
 #include "NexusMcpTool.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusEditorTransaction.h"
 #include "Dom/JsonObject.h"
+#if WITH_EDITOR
+#include "ScopedTransaction.h"
+#endif
 #include "Dom/JsonValue.h"
 #include "Math/UnrealMathUtility.h"
 
@@ -443,7 +447,17 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 	}
 
 	const double StartTime = FPlatformTime::Seconds();
+#if WITH_EDITOR
+	TUniquePtr<FScopedTransaction> Tx;
+	if (FNexusEditorTransaction::ShouldTransact(Def.Name, Def.Tags))
+	{
+		Tx = FNexusEditorTransaction::Begin(Def.Name);
+	}
+#endif
 	FCapabilityResult Result = Execute(Args);
+#if WITH_EDITOR
+	Tx.Reset();
+#endif
 	ApplyIfRequested(Def.Name, Args, Result);
 	const double ElapsedMs = (FPlatformTime::Seconds() - StartTime) * 1000.0;
 

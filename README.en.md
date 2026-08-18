@@ -157,7 +157,7 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 | Domain | Capabilities | Version Gate |
 |--------|-------------|-------------|
 | **Editor Context** | Editor info/context, **output log** (`get_output_log`: `preset=diagnose` / `order=newest` / `sinceSequence` incremental / `includeSummary`), console variables, viewport capture, asset CRUD/search, **refs & inheritance** (`get_asset_refs`: `dependencies`/`referencers`/`children`/`descendants`/`parent`/`ancestors`), PIE control, Gameplay Tags | All versions |
-| **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO; Actor `create` ensures BeginPlay; `parentClass=Interface` creates BPI; `manage` supports `K2Node_Event`, `add_function` / `add_interface`, `add_macro` / `add_timeline` / `add_dispatcher` / `add_local_variable` | All versions |
+| **Blueprint** | Blueprint variables / functions / graph nodes / wiring / components / CDO; `get` top-level `compileStatus`/`hasCompilerErrors`, sections `orphaned`/`execPaths`; Actor `create` ensures BeginPlay; `parentClass=Interface` creates BPI; `manage` supports `K2Node_Event`, `add_function` / `add_interface`, `add_macro` / `add_timeline` / `add_dispatcher` / `add_local_variable` | All versions |
 | **Animation** | AnimSequence (keyframes/curves/notifies), AnimBlueprint (state machines + AnimGraph SequencePlayer/BlendSpacePlayer/Slot/Blend/LayeredBoneBlend/ApplyAdditive/CachedPose/TwoBoneIK/LookAt/ModifyBone/AimOffset), AnimMontage (segments/sections; length refreshed after edit), BlendSpace (axes/samples), Skeleton / SkeletalMesh | All versions |
 | **Material** | Material / MaterialInstance / MaterialFunction (incl. graph write) / MaterialParameterCollection | All versions |
 | **Audio** | SoundWave, SoundCue (incl. create), MetaSound Source/Patch (Frontend Document / graph wiring), SoundClass / SoundAttenuation / SoundConcurrency / SoundSubmix | MetaSound: 5.0+, Patch: 5.1+ |
@@ -170,12 +170,12 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 | **Paper2D** | PaperSprite / PaperFlipbook (incl. create) / PaperTileMap (read-only) | Requires Paper2D plugin |
 | **Chaos** | GeometryCollection (blank create / damage thresholds; no mesh fracture) | UE 5.0+ |
 | **CommonUI** | CommonButtonStyle / CommonTextStyle; WBP still uses user_widget | UE 5.0+ CommonUI |
-| **Movie Render Queue** | MoviePipeline config output directory/resolution; does not start a render | UE 5.0+ |
+| **Movie Render Queue** | MoviePipeline config output/AA/settings; `control_movie_pipeline` enqueue/status/cancel (non-blocking) | UE 5.0+ |
 | **State / ViewModel** | StateTree (states/tasks/conditions/transitions + create), MVVM ViewModel / Binding (incl. manage) | UE 5.5+ |
 | **Physics / Sequencer** | PhysicsAsset (bodies/constraints), LevelSequence (binding-scoped tracks/float keys/transform incl. rotation + create) | All versions |
 | **Engine Core Assets** | Curve (Float/Vector/LinearColor/CurveTable), UserDefinedEnum, AnimComposite, PhysicalMaterial (incl. create), TextureRenderTarget2D, StringTable, Font (no create; TTF via `reimport_asset`), FoliageType, FileMediaSource | All versions |
 | **World Partition** | DataLayerAsset (type / debug color) | UE 5.1+ |
-| **VFX** | NiagaraSystem (emitter CRUD/enable/rename/create; empty `add_emitter`; `add_module`/`remove_module` stack) | Requires Niagara plugin |
+| **VFX** | NiagaraSystem (emitter CRUD/enable/rename/create; empty `add_emitter`; `add_module`/`remove_module`; `set_module_parameter` RapidIteration; `get` echoes `usage`/`inputs`) | Requires Niagara plugin |
 | **Runtime** | Actor list/spawn/destroy/property read-write/diff; Widget runtime (ComboBox set/read, ListView read); AnimInstance; GAS; audio/Niagara; `control_pie` pause/resume/step | Requires PIE/Game |
 | **Lua** | UnLua eval/dofile/hot-reload/globals/call stack/memory; `manage_asset_lua_binding` | Requires UnLua plugin |
 
@@ -183,6 +183,7 @@ Proxies connect to UE over WebSocket; tool capabilities match direct mode.
 
 ## Server Framework Features
 
+- [x] **Write-path Undo**: `FNexusEditorTransaction` wraps a single `Run` memory Execute; `call_capability.calls[]` (≥2) uses one outer transaction and `Apply`+`Cancel`s when `failureCount>0` (rolls back in-memory edits; `saveToDisk`/`compile` stay outside; in-transaction `add_variable` skips full Compile so GC cannot wipe Undo)
 - [x] MCP Streamable HTTP (`POST /stream`), per-session isolation (`Mcp-Session-Id`), multi-client concurrency safe
 - [x] `GET /status` — Stateless probe endpoint (project name, engine version, WS port, `netRole`)
 - [x] WebSocket server (default from 55000), for Rider / VSCode proxy long connections; `nexus/instructions` returns `InitializeInstructions.*.md` per ToolsListMode; `nexus/proxy_config` returns `ProxyConfig.json` (connection tool description, initialize prefix, error messages — fetched dynamically by proxies)
@@ -240,6 +241,8 @@ Two-layer automation framework:
 ```bash
 py scripts/build_unreal.py --version <version> --output release/
 ```
+
+The release zip **omits** `Source/NexusLinkTests` (L1 Automation stays in the source repo / Editor builds only).
 
 Output: `release/nexus-mcp-unreal-<version>.zip` (`EngineVersion: 4.26`, general install). Releases also include `nexus-mcp-unreal-<version>-ue5.8.zip` (Fab / UE 5.8). Extract to UE project `Plugins/Developer/`.
 

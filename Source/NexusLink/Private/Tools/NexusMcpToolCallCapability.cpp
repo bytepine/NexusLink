@@ -16,6 +16,10 @@
 #include "Utils/NexusCapResultAdapter.h"
 #include "Utils/NexusPackageLedger.h"
 #include "Utils/NexusHostUtils.h"
+#include "Utils/NexusEditorTransaction.h"
+#if WITH_EDITOR
+#include "ScopedTransaction.h"
+#endif
 
 // ── 进程内 redundant_call LRU 表 ──────────────────────────────────────────────
 struct FNexusCallCapabilityRedundantEntry
@@ -359,6 +363,14 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 		int32 SuccessCount = 0;
 		int32 FailureCount = 0;
 
+#if WITH_EDITOR
+		TUniquePtr<FScopedTransaction> BatchTx;
+		if (CallsArr->Num() >= 2)
+		{
+			BatchTx = FNexusEditorTransaction::Begin(TEXT("call_capability.calls"));
+		}
+#endif
+
 		for (const TSharedPtr<FJsonValue>& V : *CallsArr)
 		{
 			TSharedPtr<FJsonObject> Item = MakeShared<FJsonObject>();
@@ -460,10 +472,35 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			BatchResults.Add(MakeShared<FJsonValueObject>(Item));
 		}
 
+#if WITH_EDITOR
+		bool bRevertedBatch = false;
+		if (BatchTx.IsValid())
+		{
+			if (FailureCount > 0)
+			{
+				bRevertedBatch = BatchTx->IsOutstanding();
+				FNexusEditorTransaction::CancelAndRevert(BatchTx);
+			}
+			BatchTx.Reset();
+		}
+#endif
+
 		TSharedPtr<FJsonObject> Top = MakeShared<FJsonObject>();
 		Top->SetArrayField(TEXT("results"), BatchResults);
 		Top->SetNumberField(TEXT("successCount"), SuccessCount);
 		Top->SetNumberField(TEXT("failureCount"), FailureCount);
+		if (FailureCount > 0)
+		{
+			Top->SetStringField(TEXT("undoNote"),
+#if WITH_EDITOR
+				bRevertedBatch
+					? TEXT("Batch memory edits rolled back (saveToDisk/compile stay outside the transaction).")
+					: TEXT("Batch had failures; memory rollback skipped (no outstanding editor transaction).")
+#else
+				TEXT("Batch memory edits rolled back (saveToDisk/compile stay outside the transaction).")
+#endif
+			);
+		}
 		Result.StructuredContent = Top;
 		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Top);
 		Result.bIsError = (FailureCount == BatchResults.Num() && BatchResults.Num() > 0);
