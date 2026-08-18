@@ -5,6 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusVersionCompat.h"
 #if NX_UE_HAS_MOVIE_PIPELINE_PRIMARY_CONFIG
@@ -43,8 +44,7 @@ FCapabilityResult FGetAssetMoviePipelineConfigCapability::Execute(const TSharedP
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		const FString AssetPath = FNexusArgs(Arguments).Str(TEXT("assetPath"));
 		FNexusMoviePipelineConfig* Cfg = FNexusAssetUtils::LoadAssetWithFallback<FNexusMoviePipelineConfig>(AssetPath);
 		if (!Cfg)
 		{

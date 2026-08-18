@@ -66,7 +66,6 @@ struct FNexusCapSettingsUiLayout
 		if (L == TEXT("sequencer")) return TEXT("序列");
 		if (L == TEXT("statetree")) return TEXT("状态树");
 		if (L == TEXT("worldpartition")) return TEXT("世界分区");
-		if (L == TEXT("property")) return TEXT("属性");
 		if (L == TEXT("runtime")) return TEXT("运行时");
 		if (L == TEXT("actor")) return TEXT("场景对象");
 		if (L == TEXT("struct")) return TEXT("结构体");

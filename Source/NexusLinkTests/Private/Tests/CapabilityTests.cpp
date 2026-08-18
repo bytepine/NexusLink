@@ -5,9 +5,11 @@
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "NexusCapability.h"
+#include "NexusActionCapability.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpTool.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusEditorTransaction.h"
 #include "Utils/NexusAssetUtils.h"
@@ -73,6 +75,91 @@ protected:
 		Out.Description = TEXT("bare.");
 	}
 };
+
+/** ActionCapability 流程桩：不 REGISTER，避免污染运行时表。 */
+class FNexusTestActionCapability : public FNexusActionCapability
+{
+public:
+	bool bFailPrepare = false;
+	mutable int32 HandlerRuns = 0;
+	mutable int32 FinalizeCount = 0;
+
+	FCapabilityResult CallExecute(const TSharedPtr<FJsonObject>& Args) const
+	{
+		return Execute(Args);
+	}
+
+protected:
+	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override
+	{
+		Out.Name        = TEXT("test_action_flow");
+		Out.Description = TEXT("ActionCapability flow stub.");
+		Out.InputSchema = FNexusSchema::Object()
+			.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("path")))
+			.Prop(TEXT("operations"), FNexusSchema::ArrOfObj(TEXT("ops")))
+			.Build();
+	}
+
+	virtual void RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const override
+	{
+		OutHandlers.Add(TEXT("ping"), [this](const TSharedPtr<FJsonObject>&, FNexusActionContext& Ctx)
+		{
+			++HandlerRuns;
+			Ctx.Entry->SetBoolField(TEXT("ok"), true);
+		});
+	}
+
+	virtual bool PrepareTarget(
+		const TSharedPtr<FJsonObject>& /*Args*/,
+		TSharedPtr<FJsonObject>& /*Entry*/,
+		void*& OutTarget,
+		FString& OutError) const override
+	{
+		if (bFailPrepare)
+		{
+			OutError = TEXT("prepare failed");
+			return false;
+		}
+		OutTarget = reinterpret_cast<void*>(static_cast<UPTRINT>(1));
+		return true;
+	}
+
+	virtual void FinalizeTarget(void* /*Target*/) const override
+	{
+		++FinalizeCount;
+	}
+};
+
+static TSharedPtr<FJsonObject> MakeTestActionArgs(const TCHAR* Action /* nullptr = omit field */)
+{
+	TSharedPtr<FJsonObject> Args = MakeShared<FJsonObject>();
+	Args->SetStringField(TEXT("assetPath"), TEXT("/Game/X"));
+	TSharedPtr<FJsonObject> Op = MakeShared<FJsonObject>();
+	if (Action)
+	{
+		Op->SetStringField(TEXT("action"), Action);
+	}
+	TArray<TSharedPtr<FJsonValue>> Ops;
+	Ops.Add(MakeShared<FJsonValueObject>(Op));
+	Args->SetArrayField(TEXT("operations"), Ops);
+	return Args;
+}
+
+static FString FirstEntryError(const FCapabilityResult& R)
+{
+	if (R.Entries.Num() < 1 || !R.Entries[0].IsValid())
+	{
+		return FString();
+	}
+	const TSharedPtr<FJsonObject>* Obj = nullptr;
+	if (!R.Entries[0]->TryGetObject(Obj) || !Obj || !(*Obj).IsValid())
+	{
+		return FString();
+	}
+	FString Err;
+	(*Obj)->TryGetStringField(TEXT("error"), Err);
+	return Err;
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // 0. GetDefinition：拼装 Name / Description / InputSchema 的元数据（实例级 lazy 缓存）
@@ -497,10 +584,9 @@ bool FNexusLinkCapabilitySettingsGroupPathTest::RunTest(const FString& Parameter
 		FNexusCapabilityRegistry::MakeSettingsGroupPath(
 			TEXT("/repo/Private/Capabilities/Asset/NexusSearchAssetCapability.cpp")),
 		FString(TEXT("Asset")));
-	TestEqual(TEXT("tools path"),
+	TestTrue(TEXT("tools path unreachable"),
 		FNexusCapabilityRegistry::MakeSettingsGroupPath(
-			TEXT("/repo/Private/Tools/NexusMcpToolCallCapability.cpp")),
-		FString(TEXT("Tools")));
+			TEXT("/repo/Private/Tools/NexusMcpToolCallCapability.cpp")).IsEmpty());
 	TestTrue(TEXT("null file"), FNexusCapabilityRegistry::MakeSettingsGroupPath(nullptr).IsEmpty());
 	TestTrue(TEXT("unrelated path"),
 		FNexusCapabilityRegistry::MakeSettingsGroupPath(TEXT("/tmp/Foo.cpp")).IsEmpty());
@@ -514,9 +600,125 @@ bool FNexusLinkCapabilitySettingsGroupPathTest::RunTest(const FString& Parameter
 		AddError(TEXT("未注册 get_asset_blueprint"));
 	}
 
-	if (const FCapRecord* Lua = FNexusCapabilityRegistry::Get().FindRecordByName(TEXT("eval_runtime_lua")))
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FNexusLinkArgsFacadeTest,
+	"NexusLink.Utils.NexusArgs",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNexusLinkArgsFacadeTest::RunTest(const FString& Parameters)
+{
 	{
-		TestEqual(TEXT("registered Lua group"), Lua->SourceRelDir, FString(TEXT("Lua/Runtime")));
+		const TSharedPtr<FJsonObject> NullObj;
+		const FNexusArgs Empty(NullObj);
+		const TArray<FString> Ab = { TEXT("a"), TEXT("b") };
+		TestTrue(TEXT("null Str default"), Empty.Str(TEXT("k"), TEXT("d")) == TEXT("d"));
+		TestEqual(TEXT("null Num default"), Empty.Num(TEXT("k"), 3.0), 3.0);
+		TestEqual(TEXT("null Bool default"), Empty.Bool(TEXT("k"), true), true);
+		TestEqual(TEXT("null StrArr empty"), Empty.StrArr(TEXT("k")).Num(), 0);
+		TestEqual(TEXT("null EnumInt default"), Empty.EnumInt(TEXT("k"), Ab, 7), 7);
+	}
+
+	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+	Obj->SetStringField(TEXT("name"), TEXT("foo"));
+	Obj->SetNumberField(TEXT("zero"), 0.0);
+	Obj->SetBoolField(TEXT("flag"), true);
+	TArray<TSharedPtr<FJsonValue>> Arr;
+	Arr.Add(MakeShared<FJsonValueString>(TEXT("x")));
+	Obj->SetArrayField(TEXT("tags"), Arr);
+	Obj->SetStringField(TEXT("kind"), TEXT("B"));
+	const FNexusArgs A(Obj);
+
+	TestEqual(TEXT("Str hit"), A.Str(TEXT("name")), FString(TEXT("foo")));
+	TestTrue(TEXT("Str miss default"), A.Str(TEXT("missing"), TEXT("d")) == TEXT("d"));
+	TestEqual(TEXT("Num 0"), A.Num(TEXT("zero")), 0.0);
+	TestEqual(TEXT("Bool true"), A.Bool(TEXT("flag")), true);
+	TestEqual(TEXT("Bool miss default"), A.Bool(TEXT("nope")), false);
+	TestEqual(TEXT("StrArr n"), A.StrArr(TEXT("tags")).Num(), 1);
+	const TArray<FString> KindAB = { TEXT("a"), TEXT("b") };
+	const TArray<FString> KindXY = { TEXT("x"), TEXT("y") };
+	TestEqual(TEXT("EnumInt case"), A.EnumInt(TEXT("kind"), KindAB, -1), 1);
+	TestEqual(TEXT("EnumInt miss"), A.EnumInt(TEXT("kind"), KindXY, 4), 4);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FNexusLinkActionCapabilityFlowTest,
+	"NexusLink.Capability.ActionCapabilityFlow",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNexusLinkActionCapabilityFlowTest::RunTest(const FString& Parameters)
+{
+	{
+		FNexusTestActionCapability Cap;
+		const FCapabilityResult R = Cap.CallExecute(MakeShared<FJsonObject>());
+		TestEqual(TEXT("empty ops fatal"), R.FatalError, FString(TEXT("Missing or empty operations")));
+		TestEqual(TEXT("empty ops no finalize"), Cap.FinalizeCount, 0);
+		TestEqual(TEXT("empty ops no handler"), Cap.HandlerRuns, 0);
+	}
+
+	{
+		FNexusTestActionCapability Cap;
+		Cap.bFailPrepare = true;
+		const FCapabilityResult R = Cap.CallExecute(MakeTestActionArgs(TEXT("ping")));
+		TestEqual(TEXT("prepare fail fatal"), R.FatalError, FString(TEXT("prepare failed")));
+		TestEqual(TEXT("prepare fail no handler"), Cap.HandlerRuns, 0);
+		TestEqual(TEXT("prepare fail no finalize"), Cap.FinalizeCount, 0);
+	}
+
+	{
+		FNexusTestActionCapability Cap;
+		const FCapabilityResult R = Cap.CallExecute(MakeTestActionArgs(TEXT("nope")));
+		TestTrue(TEXT("unknown no fatal"), R.FatalError.IsEmpty());
+		TestEqual(TEXT("unknown error"), FirstEntryError(R), FString(TEXT("Unknown action: nope")));
+		TestEqual(TEXT("unknown finalize"), Cap.FinalizeCount, 1);
+		TestEqual(TEXT("unknown no handler"), Cap.HandlerRuns, 0);
+	}
+
+	{
+		FNexusTestActionCapability Cap;
+		const FCapabilityResult R = Cap.CallExecute(MakeTestActionArgs(nullptr));
+		TestTrue(TEXT("missing action no fatal"), R.FatalError.IsEmpty());
+		TestEqual(TEXT("missing action error"), FirstEntryError(R), FString(TEXT("Missing action")));
+		TestEqual(TEXT("missing action finalize"), Cap.FinalizeCount, 1);
+	}
+
+	{
+		FNexusTestActionCapability Cap;
+		TSharedPtr<FJsonObject> Args = MakeShared<FJsonObject>();
+		Args->SetStringField(TEXT("assetPath"), TEXT("/Game/X"));
+		TArray<TSharedPtr<FJsonValue>> Ops;
+		TSharedPtr<FJsonObject> Bad = MakeShared<FJsonObject>();
+		Bad->SetStringField(TEXT("action"), TEXT("nope"));
+		TSharedPtr<FJsonObject> Good = MakeShared<FJsonObject>();
+		Good->SetStringField(TEXT("action"), TEXT("ping"));
+		Ops.Add(MakeShared<FJsonValueObject>(Bad));
+		Ops.Add(MakeShared<FJsonValueObject>(Good));
+		Args->SetArrayField(TEXT("operations"), Ops);
+		const FCapabilityResult R = Cap.CallExecute(Args);
+		TestTrue(TEXT("continue no fatal"), R.FatalError.IsEmpty());
+		TestEqual(TEXT("continue entries"), R.Entries.Num(), 2);
+		TestEqual(TEXT("continue handler once"), Cap.HandlerRuns, 1);
+		TestEqual(TEXT("continue finalize"), Cap.FinalizeCount, 1);
+	}
+
+	{
+		FNexusTestActionCapability Cap;
+		const FCapabilityResult R = Cap.CallExecute(MakeTestActionArgs(TEXT("ping")));
+		TestTrue(TEXT("ping no fatal"), R.FatalError.IsEmpty());
+		TestEqual(TEXT("ping handler"), Cap.HandlerRuns, 1);
+		TestEqual(TEXT("ping finalize"), Cap.FinalizeCount, 1);
+		TestEqual(TEXT("ping entries"), R.Entries.Num(), 1);
+		if (R.Entries.Num() > 0 && R.Entries[0].IsValid())
+		{
+			const TSharedPtr<FJsonObject>* Obj = nullptr;
+			if (R.Entries[0]->TryGetObject(Obj) && Obj && (*Obj).IsValid())
+			{
+				TestTrue(TEXT("ping ok"), (*Obj)->GetBoolField(TEXT("ok")));
+			}
+		}
 	}
 
 	return true;

@@ -172,16 +172,7 @@ FString FNexusCapabilityRegistry::MakeSettingsGroupPath(const TCHAR* SourceFile)
 		return FString();
 	};
 
-	const FString CapsRel = RelDirAfterMarker(TEXT("Private/Capabilities/"));
-	if (!CapsRel.IsEmpty())
-	{
-		return CapsRel;
-	}
-	if (Path.Find(TEXT("Private/Tools/"), ESearchCase::IgnoreCase) != INDEX_NONE)
-	{
-		return TEXT("Tools");
-	}
-	return FString();
+	return RelDirAfterMarker(TEXT("Private/Capabilities/"));
 }
 
 void FNexusCapabilityRegistry::Register(TSharedRef<FNexusCapability> Cap, const TCHAR* SourceFile)

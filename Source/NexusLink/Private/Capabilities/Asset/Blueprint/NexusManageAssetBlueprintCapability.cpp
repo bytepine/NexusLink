@@ -133,7 +133,7 @@ static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	const FString& Action = Ctx.Action;
 	if (Action == TEXT("add_variable") || Action == TEXT("remove_variable"))
 	{
-		const FString VarName = Op->HasField(TEXT("variableName")) ? Op->GetStringField(TEXT("variableName")) : TEXT("");
+		const FString VarName = FNexusArgs(Op).Str(TEXT("variableName"));
 		if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("variableName is required"));
 	return; }
 		Entry->SetStringField(TEXT("variableName"), VarName);
@@ -150,9 +150,9 @@ static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 		}
 		else
 		{
-			if (!Op->HasField(TEXT("variableType"))) { Entry->SetStringField(TEXT("error"), TEXT("add_variable requires variableType"));
+			const FString VarTypeRaw = FNexusArgs(Op).Str(TEXT("variableType"));
+			if (VarTypeRaw.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_variable requires variableType"));
 	return; }
-			const FString VarTypeRaw = Op->GetStringField(TEXT("variableType"));
 
 			bool bVarExists = false;
 			for (const FBPVariableDescription& Var : BP->NewVariables)
@@ -222,7 +222,7 @@ static void HandleBP_FunctionGraph(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	const FString& Action = Ctx.Action;
 	if (Action == TEXT("add_function") || Action == TEXT("remove_function"))
 	{
-		const FString FuncName = Op->HasField(TEXT("functionName")) ? Op->GetStringField(TEXT("functionName")) : TEXT("");
+		const FString FuncName = FNexusArgs(Op).Str(TEXT("functionName"));
 		if (FuncName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("functionName is required"));
 	return; }
 		Entry->SetStringField(TEXT("functionName"), FuncName);
@@ -279,7 +279,7 @@ static void HandleBP_FunctionGraph(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	{
 		if (Action == TEXT("add_macro"))
 		{
-			const FString MacroName = Op->HasField(TEXT("functionName")) ? Op->GetStringField(TEXT("functionName")) : TEXT("");
+			const FString MacroName = FNexusArgs(Op).Str(TEXT("functionName"));
 			if (MacroName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_macro requires functionName"));
 	return; }
 			UEdGraph* NewGraph = FBlueprintEditorUtils::CreateNewGraph(BP, FName(*MacroName), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
@@ -290,7 +290,7 @@ static void HandleBP_FunctionGraph(const TSharedPtr<FJsonObject>& Op, FNexusActi
 		}
 		else if (Action == TEXT("add_timeline"))
 		{
-			const FString TlName = Op->HasField(TEXT("functionName")) ? Op->GetStringField(TEXT("functionName")) : TEXT("");
+			const FString TlName = FNexusArgs(Op).Str(TEXT("functionName"));
 			if (TlName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_timeline requires functionName"));
 	return; }
 			UTimelineTemplate* Tl = FBlueprintEditorUtils::AddNewTimeline(BP, FName(*TlName));
@@ -300,7 +300,7 @@ static void HandleBP_FunctionGraph(const TSharedPtr<FJsonObject>& Op, FNexusActi
 		}
 		else if (Action == TEXT("add_dispatcher"))
 		{
-			const FString VarName = Op->HasField(TEXT("variableName")) ? Op->GetStringField(TEXT("variableName")) : TEXT("");
+			const FString VarName = FNexusArgs(Op).Str(TEXT("variableName"));
 			if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_dispatcher requires variableName"));
 	return; }
 			FEdGraphPinType PinType;
@@ -310,8 +310,8 @@ static void HandleBP_FunctionGraph(const TSharedPtr<FJsonObject>& Op, FNexusActi
 		}
 		else
 		{
-			const FString FuncName = Op->HasField(TEXT("functionName")) ? Op->GetStringField(TEXT("functionName")) : TEXT("");
-			const FString VarName = Op->HasField(TEXT("variableName")) ? Op->GetStringField(TEXT("variableName")) : TEXT("");
+			const FString FuncName = FNexusArgs(Op).Str(TEXT("functionName"));
+			const FString VarName = FNexusArgs(Op).Str(TEXT("variableName"));
 			const FString VarTypeRaw = Op->HasField(TEXT("variableType")) ? Op->GetStringField(TEXT("variableType")) : TEXT("bool");
 			if (FuncName.IsEmpty() || VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_local_variable requires functionName and variableName"));
 	return; }
@@ -347,7 +347,7 @@ static void HandleBP_Interface(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 	const FString& Action = Ctx.Action;
 	if (Action == TEXT("add_interface") || Action == TEXT("remove_interface"))
 	{
-		const FString IfaceName = Op->HasField(TEXT("interfaceName")) ? Op->GetStringField(TEXT("interfaceName")) : TEXT("");
+		const FString IfaceName = FNexusArgs(Op).Str(TEXT("interfaceName"));
 		if (IfaceName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("interfaceName required (BPI path or interface class)"));
 	return; }
 		Entry->SetStringField(TEXT("interfaceName"), IfaceName);
@@ -599,7 +599,7 @@ static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 	const FString& Action = Ctx.Action;
 	// ── Graph / Wire actions: require graphName ───────────────────────────────
-	const FString GraphName = Op->HasField(TEXT("graphName")) ? Op->GetStringField(TEXT("graphName")) : TEXT("");
+	const FString GraphName = FNexusArgs(Op).Str(TEXT("graphName"));
 	if (GraphName.IsEmpty())
 	{
 		Entry->SetStringField(TEXT("error"), TEXT("Node/wire ops need graphName. Hint: get_asset_blueprint(sections=[\"graphOverview\"]) first."));
@@ -635,9 +635,9 @@ static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 	// ── Node actions ──────────────────────────────────────────────────────────
 	if (Action == TEXT("add_node"))
 	{
-		if (!Op->HasField(TEXT("nodeClass"))) { Entry->SetStringField(TEXT("error"), TEXT("add_node requires nodeClass"));
+		const FString NodeClass = FNexusArgs(Op).Str(TEXT("nodeClass"));
+		if (NodeClass.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_node requires nodeClass"));
 	return; }
-		const FString NodeClass = Op->GetStringField(TEXT("nodeClass"));
 		const int32 PosX = Op->HasField(TEXT("posX")) ? static_cast<int32>(Op->GetNumberField(TEXT("posX"))) : 0;
 		const int32 PosY = Op->HasField(TEXT("posY")) ? static_cast<int32>(Op->GetNumberField(TEXT("posY"))) : 0;
 
@@ -645,9 +645,9 @@ static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 
 		if (NodeClass == TEXT("K2Node_CallFunction"))
 		{
-			if (!Op->HasField(TEXT("functionName"))) { Entry->SetStringField(TEXT("error"), TEXT("K2Node_CallFunction requires functionName"));
+			const FString FuncName = FNexusArgs(Op).Str(TEXT("functionName"));
+			if (FuncName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("K2Node_CallFunction requires functionName"));
 	return; }
-			const FString FuncName = Op->GetStringField(TEXT("functionName"));
 			FString FuncClassName;
 			Op->TryGetStringField(TEXT("functionClass"), FuncClassName);
 
@@ -688,9 +688,9 @@ static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 		else if (NodeClass == TEXT("K2Node_Event"))
 		{
 			// functionName：ReceiveBeginPlay / BeginPlay；functionClass 默认 Actor
-			if (!Op->HasField(TEXT("functionName"))) { Entry->SetStringField(TEXT("error"), TEXT("K2Node_Event requires functionName (e.g. ReceiveBeginPlay)"));
+			FString EventName = FNexusArgs(Op).Str(TEXT("functionName"));
+			if (EventName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("K2Node_Event requires functionName (e.g. ReceiveBeginPlay)"));
 	return; }
-			FString EventName = Op->GetStringField(TEXT("functionName"));
 			if (EventName == TEXT("BeginPlay")) EventName = TEXT("ReceiveBeginPlay");
 			FString EventClassName = TEXT("Actor");
 			Op->TryGetStringField(TEXT("functionClass"), EventClassName);
@@ -715,9 +715,9 @@ static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 		}
 		else if (NodeClass == TEXT("K2Node_VariableGet") || NodeClass == TEXT("K2Node_VariableSet"))
 		{
-			if (!Op->HasField(TEXT("variableName"))) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("%s requires variableName"), *NodeClass));
+			const FString VarName = FNexusArgs(Op).Str(TEXT("variableName"));
+			if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("%s requires variableName"), *NodeClass));
 	return; }
-			const FString VarName = Op->GetStringField(TEXT("variableName"));
 
 			if (NodeClass == TEXT("K2Node_VariableGet"))
 			{
@@ -764,9 +764,9 @@ static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 
 	if (Action == TEXT("remove_node"))
 	{
-		if (!Op->HasField(TEXT("nodeId"))) { Entry->SetStringField(TEXT("error"), TEXT("remove_node requires nodeId"));
+		const FString NodeIdStr = FNexusArgs(Op).Str(TEXT("nodeId"));
+		if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("remove_node requires nodeId"));
 	return; }
-		const FString NodeIdStr = Op->GetStringField(TEXT("nodeId"));
 		UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
 		if (!Node) { Entry->SetStringField(TEXT("error"), TEXT("Node not found"));
 	return; }
@@ -780,9 +780,9 @@ static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 
 	if (Action == TEXT("set_node"))
 	{
-		if (!Op->HasField(TEXT("nodeId"))) { Entry->SetStringField(TEXT("error"), TEXT("set_node requires nodeId"));
+		const FString NodeIdStr = FNexusArgs(Op).Str(TEXT("nodeId"));
+		if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set_node requires nodeId"));
 	return; }
-		const FString NodeIdStr = Op->GetStringField(TEXT("nodeId"));
 		UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
 		if (!Node) { Entry->SetStringField(TEXT("error"), TEXT("Node not found"));
 	return; }
@@ -978,7 +978,7 @@ static void HandleBP_Wire(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 	const FString& Action = Ctx.Action;
 
-	const FString GraphName = Op->HasField(TEXT("graphName")) ? Op->GetStringField(TEXT("graphName")) : TEXT("");
+	const FString GraphName = FNexusArgs(Op).Str(TEXT("graphName"));
 	if (GraphName.IsEmpty())
 	{
 		Entry->SetStringField(TEXT("error"), TEXT("Node/wire ops need graphName. Hint: get_asset_blueprint(sections=[\"graphOverview\"]) first."));
@@ -994,8 +994,8 @@ static void HandleBP_Wire(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 	BP->Modify();
 	Graph->Modify();
 
-	const FString SrcNodeId  = Op->HasField(TEXT("sourceNodeId"))  ? Op->GetStringField(TEXT("sourceNodeId"))  : TEXT("");
-	const FString SrcPinName = Op->HasField(TEXT("sourcePinName")) ? Op->GetStringField(TEXT("sourcePinName")) : TEXT("");
+	const FString SrcNodeId  = FNexusArgs(Op).Str(TEXT("sourceNodeId"));
+	const FString SrcPinName = FNexusArgs(Op).Str(TEXT("sourcePinName"));
 	if (SrcNodeId.IsEmpty() || SrcPinName.IsEmpty())
 	{ Entry->SetStringField(TEXT("error"), TEXT("Wire ops require sourceNodeId and sourcePinName"));
 	return; }
@@ -1019,11 +1019,11 @@ static void HandleBP_Wire(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 
 	if (Action == TEXT("connect"))
 	{
-		if (!Op->HasField(TEXT("targetNodeId")) || !Op->HasField(TEXT("targetPinName")))
+		const FString DstNodeId  = FNexusArgs(Op).Str(TEXT("targetNodeId"));
+		const FString DstPinName = FNexusArgs(Op).Str(TEXT("targetPinName"));
+		if (DstNodeId.IsEmpty() || DstPinName.IsEmpty())
 		{ Entry->SetStringField(TEXT("error"), TEXT("connect requires targetNodeId and targetPinName"));
 	return;}
-		const FString DstNodeId  = Op->GetStringField(TEXT("targetNodeId"));
-		const FString DstPinName = Op->GetStringField(TEXT("targetPinName"));
 		UEdGraphNode* DstNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, DstNodeId);
 		if (!DstNode) { Entry->SetStringField(TEXT("error"), TEXT("Target node not found"));
 	return;}
@@ -1060,13 +1060,14 @@ static void HandleBP_Wire(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 
 	if (Action == TEXT("disconnect"))
 	{
-		if (!Op->HasField(TEXT("targetNodeId")) || !Op->HasField(TEXT("targetPinName")))
+		const FString DstNodeId  = FNexusArgs(Op).Str(TEXT("targetNodeId"));
+		const FString DstPinName = FNexusArgs(Op).Str(TEXT("targetPinName"));
+		if (DstNodeId.IsEmpty() || DstPinName.IsEmpty())
 		{ Entry->SetStringField(TEXT("error"), TEXT("disconnect requires targetNodeId and targetPinName"));
 	return;}
-		UEdGraphNode* DstNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, Op->GetStringField(TEXT("targetNodeId")));
+		UEdGraphNode* DstNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, DstNodeId);
 		if (!DstNode) { Entry->SetStringField(TEXT("error"), TEXT("Target node not found"));
 	return;}
-		const FString DstPinName = Op->GetStringField(TEXT("targetPinName"));
 		UEdGraphPin* DstPin = FNexusBlueprintGraphUtils::FindBPPin(DstNode, DstPinName);
 		if (!DstPin) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Target pin '%s' not found"), *DstPinName));
 	return;}
