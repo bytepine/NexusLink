@@ -63,22 +63,21 @@
 
 ### 2.1 唯一钩子（所有元数据集中填写）
 
-子类只需 override 两个纯虚方法：
+先按 §2.1.1 **选基类**，再 override 该基类要求的钩子。`FNexusActionCapability` / `FNexusMultiSectionCapability` 的 `Execute` 为 **final**，子类**禁止**再声明或实现 `Execute`。
 
-```cpp
-virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;
-virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) const override;
-```
+#### 2.1.1 基类选择（从上到下命中即停）
 
-**基类选择（宿主可见性，无需在 BuildDefinition 里处理）：**
+| 命中条件 | 继承 | 子类要实现 |
+|------|------|------|
+| `manage_*` 且 Schema 含 `operations[]` | `FNexusActionCapability` | `BuildDefinition` + `RegisterActions` + `PrepareTarget`；可选 `FinalizeTarget` / `AfterPrepareTarget` |
+| 只读且用 `sections[]`（含 `"all"`） | `FNexusMultiSectionCapability`（编辑器）或 `FNexusRuntimeMultiSectionCapability`（PIE） | `BuildDefinition`（`Out.InputSchema = BuildSchemaWithSections()`）+ `BuildCapabilitySchema` / `GetSectionNames` / `ExecuteSection` |
+| PIE 运行时（`*_runtime_*` / `list_runtime_*` / `eval_runtime_lua` 等，**无** `operations[]`） | `FNexusRuntimeCapability` | `BuildDefinition` + `Execute` |
+| 其余（`create_*` / `save`/`delete`/`rename`/`duplicate`/`unload` / 无 sections 的 `get_*` / `exec_command` / `control_pie` / `set_*_property`） | `FNexusCapability` | `BuildDefinition` + `Execute` |
 
-| 场景 | 继承 |
-|------|------|
-| 资产 / 编辑器能力（默认） | `FNexusCapability` 或 `FNexusMultiSectionCapability` |
-| PIE 运行时能力 | `FNexusRuntimeCapability` 或 `FNexusRuntimeMultiSectionCapability` |
-
-- 默认 `GetHostScope()=EditorOnly`：完整 Editor 可见
-- Runtime 基类：`GetHostScope()=Runtime`，用于标记 PIE 运行时能力；`GetDefinition` 会幂等补上 `runtime` 分类标签
+- `interact_*` / `control_pie` 的顶层 `action` 是**命令**，不是批量 `operations[]` → **不要**用 `FNexusActionCapability`
+- `set_*_property` 走 `updates[]` → `FNexusCapability` 或 `FNexusRuntimeCapability`
+- 默认 `GetHostScope()=EditorOnly`；Runtime 基类会幂等补 `runtime` 分类标签
+- 插件门控 cap：`#if WITH_*` 包 class + `REGISTER_MCP_CAPABILITY`
 - **插件加载范围**：主模块 `Type: Runtime`（Game/Server 可链接）；`StartupModule` / `ShutdownModule` 在 `!WITH_EDITOR` 时空返回；`REGISTER_MCP_CAPABILITY` / `REGISTER_MCP_TOOL` 在非编辑器构建编译为空——MCP 仅 Editor / PIE 实际运行。平台门控须同时写 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）
 
 `BuildDefinition` 中按需设置以下字段：
@@ -415,10 +414,10 @@ public:
 
 ### 8.9 Capability 实现样板约束
 
-所有 Capability `Execute()` **必须**遵守：
+`FNexusActionCapability` / `FNexusMultiSectionCapability` 子类**禁止**声明或实现 `Execute`。其余 cap 的 `Execute()`、Action handler、MultiSection `ExecuteSection` 必须遵守：
 
-- 禁止裸写 `FCapabilityResult _R` + lambda + `_R.Entries` 样板——改用 `FNexusCapabilityResultBuilder::AddEntry(...)`。
-- entry 级错误禁止直接 `SetStringField("error", ...)`——改用 `AddEntryError(OutEntries, ErrCode, Msg)`。
+- 禁止裸写 `FCapabilityResult _R` + lambda + `_R.Entries` 样板——改用 `FNexusCapabilityResultBuilder::AddEntry(...)`（Action handler 只写 `Ctx.Entry`，由基类 `OutEntries.Add`）。
+- entry 级错误：普通 cap 用 `AddEntryError(OutEntries, ErrCode, Msg)`；**Action handler** 写 `Ctx.Entry` 的 `error` 后 `return`，禁止 `OutEntries.Add` / `AddEntryError`。
 - 运行时 World 获取禁止手写 null 检查链——改用 `FNexusRuntimeUtils::RequirePlayWorld(OutError)`。
 - 新建资产 finalize 禁止手写 `MarkPackageDirty` + `AssetCreated` + Save 五件套——改用对应 `FNexusAssetUtils` 接口。
 - 带 `operations[]` 的新增 `manage_*` **必须**继承 `FNexusActionCapability`（`RegisterActions` 静态分派），禁止手写 `ExtractOperations` 循环壳；读参走 `FNexusArgs`。
