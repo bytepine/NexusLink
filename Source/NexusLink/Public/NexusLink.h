@@ -7,7 +7,6 @@
 
 class FNexusMcpServer;
 class FNexusLogCapture;
-class FExtender;
 
 /**
  * NexusLink 模块 —— UE 端 MCP 服务器入口。
@@ -43,9 +42,5 @@ private:
 	/** NexusLink.EnableMcp 控制台命令句柄。 */
 	class IConsoleObject* EnableMcpConsoleCommand = nullptr;
 
-#if WITH_EDITOR
-	/** Level Editor 工具栏状态组件的 Extender 句柄，关闭时用于移除。 */
-	TSharedPtr<FExtender> ToolbarExtender;
-#endif
 };
 

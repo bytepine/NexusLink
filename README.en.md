@@ -64,7 +64,7 @@ Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://gith
 
 > GAS / Niagara Capabilities require `GameplayAbilities` / `Niagara` enabled in the project `.uproject` (NexusLink detects the host and does **not** force-enable them via `.uplugin`). StateTree / MVVM Capabilities require UE 5.5+ with the corresponding engine plugins available.
 
-When disabled: the toolbar shows no port, IDE proxies cannot discover the instance, and AI direct connections to `http://127.0.0.1:45000/stream` get no response. See the full user guide at [docs/usage-guide.md](docs/usage-guide.md) §2.
+When disabled: the menu bar shows no port, IDE proxies cannot discover the instance, and AI direct connections to `http://127.0.0.1:45000/stream` get no response. See the full user guide at [docs/usage-guide.md](docs/usage-guide.md) §2.
 
 ## Example Project
 

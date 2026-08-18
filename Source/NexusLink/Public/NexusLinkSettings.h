@@ -72,12 +72,13 @@ public:
 	int32 WsPort = 0;
 
 	/**
-	 * 是否在编辑器状态栏和视口覆盖层中显示端口号。
-	 * 关闭时完全隐藏，不显示任何内容；开启后显示 MCP/WS 实际端口。
+	 * 是否在编辑器标题栏右侧显示端口号（与 FPS/内存/对象同一组）。
+	 * 默认开启；关闭 MCP 服务器时条目会注销，不会显示。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "服务器",
-		meta = (DisplayName = "在状态栏显示端口号"))
-	bool bShowPort = false;
+		meta = (DisplayName = "在状态栏显示端口号",
+			ToolTip = "默认开启。MCP 服务器关闭时不显示；取消勾选可在服务运行时隐藏端口"))
+	bool bShowPort = true;
 
 	/**
 	 * 是否启用 MCP 响应默认值压缩（list_actors / search_asset / get_asset / diff_actors 等）。

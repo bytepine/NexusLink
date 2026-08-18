@@ -145,13 +145,7 @@ void FNexusLinkModule::ShutdownModule()
 void FNexusLinkModule::StopMcpServer()
 {
 #if WITH_EDITOR
-	FNexusEditorStatusBar::UnregisterViewportStats();
-
-	if (ToolbarExtender.IsValid())
-	{
-		FNexusEditorStatusBar::Unregister(ToolbarExtender);
-		ToolbarExtender.Reset();
-	}
+	FNexusEditorStatusBar::Unregister();
 
 	// McpPort/WsPort 为 Transient；编辑器退出时 UObject 可能已卸载，勿访问 Settings
 	if (!IsEngineExitRequested())
@@ -242,7 +236,7 @@ bool FNexusLinkModule::TryStartMcpServer()
 
 #if WITH_EDITOR
 	// 将实际运行端口回写到设置对象，供设置面板只读显示（Transient，不持久化）
-	// 同时注册工具栏状态组件（需延迟一帧，确保 Level Editor 已完成初始化）
+	// 同时在主窗口菜单栏注册端口指示（延迟一帧，确保主窗口已创建）
 	CallNextTick([this, ActualMcpPort, ActualWsPort]()
 	{
 		if (IsEngineExitRequested())
@@ -254,8 +248,7 @@ bool FNexusLinkModule::TryStartMcpServer()
 			MutableSettings->McpPort = ActualMcpPort;
 			MutableSettings->WsPort  = ActualWsPort;
 		}
-		ToolbarExtender = FNexusEditorStatusBar::Register(ActualMcpPort, ActualWsPort);
-		FNexusEditorStatusBar::RegisterViewportStats(ActualMcpPort, ActualWsPort);
+		FNexusEditorStatusBar::Register(ActualMcpPort, ActualWsPort);
 	});
 #endif
 

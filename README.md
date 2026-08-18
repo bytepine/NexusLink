@@ -64,7 +64,7 @@ MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮�
 
 > GAS / Niagara 相关 Capability 需在项目 `.uproject` 中启用 `GameplayAbilities` / `Niagara`（NexusLink 按宿主探测，**不**在 `.uplugin` 里强制依赖）。StateTree / MVVM 能力需 UE 5.5+ 且引擎内置对应插件可用。
 
-未启用时：工具栏不显示端口、IDE 代理扫描不到实例、AI 直连 `http://127.0.0.1:45000/stream` 无响应。完整用户指南见 [docs/usage-guide.md](docs/usage-guide.md) §2。
+未启用时：菜单栏不显示端口、IDE 代理扫描不到实例、AI 直连 `http://127.0.0.1:45000/stream` 无响应。完整用户指南见 [docs/usage-guide.md](docs/usage-guide.md) §2。
 
 ## 示例工程
 

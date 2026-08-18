@@ -25,6 +25,7 @@
 
 #define NX_UE_HAS_UNLOAD_PACKAGES_DIRTY_FLAG  NX_UE_AT_LEAST(5, 0)  // UPackageTools::UnloadPackages(Packages, Err, bUnloadDirtyPackages) 第三参数仅 5.0+（4.26/4.27 只有 2 参重载）
 #define NX_UE_HAS_APP_STYLE            NX_UE_AT_LEAST(5, 0)  // FEditorStyle::Get() → FAppStyle::Get()（Styling/AppStyle.h）
+#define NX_UE_HAS_LEVEL_EDITOR_TITLE_BAR_ITEM  NX_UE_AT_LEAST(5, 0)  // FStatusBarItem/AddStatusBarItem → FTitleBarItem/AddTitleBarItem
 #define NX_UE_HAS_EQS                  NX_UE_AT_LEAST(5, 0)  // Environment Query System（EQS）插件；UE4 无 UEnvQuery 稳定 API
 #define NX_UE_HAS_FTSTICKER            NX_UE_AT_LEAST(5, 0)  // FTicker → FTSTicker
 #define NX_UE_HAS_SAVE_PACKAGE_ARGS    NX_UE_AT_LEAST(5, 0)  // UPackage::SavePackage(FSavePackageArgs)
