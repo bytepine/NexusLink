@@ -4,7 +4,7 @@
 
 An MCP integration plugin for Unreal Engine that exposes UE project context to AI tools via the MCP protocol.
 
-> Supports UE 4.26 and all later versions (including UE5). Module `Type: Runtime`; **MCP only runs in Editor / PIE**.
+> Supports UE 4.26 and all later versions (including UE5). Module `Type: UncookedOnly`; **MCP runs in the Editor binary (including `-server`/`-game`)** and is not compiled into cooked Game/Server packages.
 
 ## Installation & Enablement
 

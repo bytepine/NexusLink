@@ -114,8 +114,8 @@ struct FNexusCapabilityAutoRegister
  * 要求 CapClass 有默认构造函数且继承自 FNexusCapability；
  * Capability 的 Out.Name 在全局必须唯一。宏传入 __FILE__ 供设置面板按源码目录分组。
  *
- * 非编辑器构建（Game / Client / Server / Shipping）中 MCP 永不启动，
- * 故宏整体编译为空：游戏包启动阶段零静态初始化、零分配。
+ * 主模块 Type 为 UncookedOnly，cooked 目标不编本模块。!WITH_EDITOR 下宏仍为空：
+ * build_test Game 探针会临时改 Type=Runtime 编译这些 TU，须避免静态初始化分配。
  */
 #if WITH_EDITOR
 #define REGISTER_MCP_CAPABILITY(CapClass) \

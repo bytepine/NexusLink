@@ -39,7 +39,7 @@ graph TB
 四端端口与开关层数见 [usage-guide §1](./usage-guide.md)。Capability 清单以 `search_capabilities` / [tool-reference.md](./tool-reference.md) 为准，勿在本文手写总数。
 ## MCP 服务器生命周期
 
-`UNexusLinkSettings::bEnableMcpServer` 为总开关，**默认 `false`**。另支持命令行 **`-EnableNexusMcp`** 与控制台 **`NexusLink.EnableMcp 1|0`**（均会话级，不写盘）；与 Preferences 为 OR。主模块 **`Type: Runtime`**（Game/Server 可链接）；`StartupModule` / `ShutdownModule` 在 `!WITH_EDITOR` 时空返回；`REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 在非编辑器构建编译为空。平台门控双写 `PlatformAllowList`（UE5）+ `WhitelistPlatforms`（UE4.2x），避免 UE4 把模块链进移动端。MCP 仅 Editor / PIE 实际运行。未启用时不创建 `FNexusMcpServer`；Preferences 勾选后经 `PostEditChangeProperty` 即时启停。
+`UNexusLinkSettings::bEnableMcpServer` 为总开关，**默认 `false`**。另支持命令行 **`-EnableNexusMcp`** 与控制台 **`NexusLink.EnableMcp 1|0`**（均会话级，不写盘）；与 Preferences 为 OR。主模块 **`Type: UncookedOnly`**（Editor 二进制含 `-server`/`-game` 加载；cooked Game/Server 不编）；`REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 在 `!WITH_EDITOR` 下编译为空（供 Game 编译探针）。平台门控双写 `PlatformAllowList`（UE5）+ `WhitelistPlatforms`（UE4.2x），避免 UE4 把模块链进移动端 Editor。设置面板 / 状态栏仅 `GIsEditor` 时注册；MCP 监听在 editor-hosted `-server` 仍可启动。未启用时不创建 `FNexusMcpServer`；Preferences 勾选后经 `PostEditChangeProperty` 即时启停。
 
 **Capability 可见性**：完整 Editor 宿主暴露全部已启用 cap。`FNexusRuntimeCapability` 基类仍用于标记 PIE 运行时能力（分类标签）；插件本身不再进入纯 Game / DS。
 

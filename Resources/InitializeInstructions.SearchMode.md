@@ -1,6 +1,6 @@
 NexusLink MCP: Unreal Editor + runtime control (assets / PIE / UMG / Lua / animation / AI / editor).
 
-> Host note: **MCP is Editor / PIE only** (module Type=Runtime; Startup/Shutdown no-op when `!WITH_EDITOR`). Trigger keywords are in the proxy `initializePrefix`.
+> Host note: **MCP runs in the Editor binary** (Type=UncookedOnly; includes `-server`/`-game`; not in cooked Game/Server). Trigger keywords are in the proxy `initializePrefix`.
 
 ## Tool model
 

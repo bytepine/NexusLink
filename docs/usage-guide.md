@@ -56,7 +56,7 @@ flowchart TB
 2. **Edit → Plugins → Developer → NexusLink** — 启用插件
 3. 重启编辑器
 
-主模块 `Type` 为 **Runtime**（Game/Server 可链接）；`Startup`/`Shutdown` 在 `!WITH_EDITOR` 时空返回——**MCP 仅 Editor / PIE 实际运行**。
+主模块 `Type` 为 **UncookedOnly**（Editor 二进制含 `-server`/`-game` 会加载；cooked Game/Server 不编）——**MCP 跑在 Editor / PIE / editor-hosted `-server`**。
 
 ### 2.2 启用 MCP 服务器（必做）
 

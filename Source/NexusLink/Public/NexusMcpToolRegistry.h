@@ -64,9 +64,8 @@ struct FNexusMcpToolAutoRegister
  * 要求 FMyTool 有默认构造函数且继承自 FNexusMcpTool。
  * 注册时缓存 Definition，后续 tools/list 零开销。
  *
- * 非编辑器构建（Game / Client / Server / Shipping）中 MCP 永不启动
- * （见 FNexusLinkModule::StartupModule 的 !WITH_EDITOR 分支），
- * 故宏整体编译为空：避免游戏包在静态初始化期做任何分配与日志。
+ * 主模块 Type 为 UncookedOnly，cooked 目标不编本模块。!WITH_EDITOR 下宏仍为空：
+ * build_test Game 探针会临时改 Type=Runtime 编译这些 TU，须避免静态初始化分配与日志。
  */
 #if WITH_EDITOR
 #define REGISTER_MCP_TOOL(ToolClass) \

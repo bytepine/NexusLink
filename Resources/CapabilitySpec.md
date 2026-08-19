@@ -78,7 +78,7 @@
 - `set_*_property` 走 `updates[]` → `FNexusCapability` 或 `FNexusRuntimeCapability`
 - 默认 `GetHostScope()=EditorOnly`；Runtime 基类会幂等补 `runtime` 分类标签
 - 插件门控 cap：`#if WITH_*` 包 class + `REGISTER_MCP_CAPABILITY`
-- **插件加载范围**：主模块 `Type: Runtime`（Game/Server 可链接）；`StartupModule` / `ShutdownModule` 在 `!WITH_EDITOR` 时空返回；`REGISTER_MCP_CAPABILITY` / `REGISTER_MCP_TOOL` 在非编辑器构建编译为空——MCP 仅 Editor / PIE 实际运行。平台门控须同时写 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）
+- **插件加载范围**：主模块 `Type: UncookedOnly`（Editor 二进制含 `-server`/`-game` 加载；cooked Game/Server 不编）；`REGISTER_MCP_CAPABILITY` / `REGISTER_MCP_TOOL` 在 `!WITH_EDITOR` 下编译为空——MCP 跑在 Editor / PIE / editor-hosted `-server`。平台门控须同时写 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）
 
 `BuildDefinition` 中按需设置以下字段：
 

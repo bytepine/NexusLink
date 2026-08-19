@@ -11,6 +11,7 @@
 #include "Containers/Ticker.h"
 #include "Misc/App.h"
 #include "Misc/CommandLine.h"
+#include "CoreGlobals.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/Parse.h"
 #include "HAL/PlatformProcess.h"
@@ -68,21 +69,19 @@ static bool IsMcpServerRequestedAtStartup()
 
 void FNexusLinkModule::StartupModule()
 {
-#if !WITH_EDITOR
-	// Type=Runtime 以便 Game/Server 目标可链接；非编辑器构建不做任何初始化
-	UE_LOG(LogNexusLink, Log, TEXT("非编辑器构建：NexusLink 不启动（MCP 仅 Editor / PIE）"));
-	return;
-#else
-
-	// 尽早注册日志捕获器，确保不遗漏启动阶段的日志
+#if WITH_EDITOR
+	// 尽早注册日志捕获器，确保不遗漏启动阶段的日志（-server 无 UI 也要捕获）
 	LogCapture = MakeUnique<FNexusLogCapture>();
 	LogCapture->Register();
 
-	// 注册 Settings 自定义面板（按宿主 tags 分组的 Capability 树状列表）
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.RegisterCustomClassLayout(
-		UNexusLinkSettings::StaticClass()->GetFName(),
-		FOnGetDetailCustomizationInstance::CreateStatic(&FNexusLinkSettingsCustomization::MakeInstance));
+	// 设置面板仅完整 Editor UI；Editor.exe -server/-game 时 GIsEditor=false
+	if (GIsEditor)
+	{
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.RegisterCustomClassLayout(
+			UNexusLinkSettings::StaticClass()->GetFName(),
+			FOnGetDetailCustomizationInstance::CreateStatic(&FNexusLinkSettingsCustomization::MakeInstance));
+	}
 
 #if NX_UE_HAS_POST_ENGINE_INIT_ACCESSOR
 	FCoreDelegates::GetOnPostEngineInit().AddRaw(this, &FNexusLinkModule::OnPostEngineInit);
@@ -108,11 +107,7 @@ void FNexusLinkModule::StartupModule()
 
 void FNexusLinkModule::ShutdownModule()
 {
-#if !WITH_EDITOR
-	// 与 StartupModule 对称：非编辑器构建未初始化，直接返回
-	return;
-#else
-
+#if WITH_EDITOR
 #if NX_UE_HAS_POST_ENGINE_INIT_ACCESSOR
 	FCoreDelegates::GetOnPostEngineInit().RemoveAll(this);
 #else
@@ -125,7 +120,7 @@ void FNexusLinkModule::ShutdownModule()
 		EnableMcpConsoleCommand = nullptr;
 	}
 
-	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+	if (GIsEditor && FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.UnregisterCustomClassLayout(UNexusLinkSettings::StaticClass()->GetFName());
@@ -145,7 +140,10 @@ void FNexusLinkModule::ShutdownModule()
 void FNexusLinkModule::StopMcpServer()
 {
 #if WITH_EDITOR
-	FNexusEditorStatusBar::Unregister();
+	if (GIsEditor)
+	{
+		FNexusEditorStatusBar::Unregister();
+	}
 
 	// McpPort/WsPort 为 Transient；编辑器退出时 UObject 可能已卸载，勿访问 Settings
 	if (!IsEngineExitRequested())
@@ -236,7 +234,7 @@ bool FNexusLinkModule::TryStartMcpServer()
 
 #if WITH_EDITOR
 	// 将实际运行端口回写到设置对象，供设置面板只读显示（Transient，不持久化）
-	// 同时在主窗口菜单栏注册端口指示（延迟一帧，确保主窗口已创建）
+	// 状态栏仅完整 Editor UI；-server 无主窗口
 	CallNextTick([this, ActualMcpPort, ActualWsPort]()
 	{
 		if (IsEngineExitRequested())
@@ -248,7 +246,10 @@ bool FNexusLinkModule::TryStartMcpServer()
 			MutableSettings->McpPort = ActualMcpPort;
 			MutableSettings->WsPort  = ActualWsPort;
 		}
-		FNexusEditorStatusBar::Register(ActualMcpPort, ActualWsPort);
+		if (GIsEditor)
+		{
+			FNexusEditorStatusBar::Register(ActualMcpPort, ActualWsPort);
+		}
 	});
 #endif
 
@@ -279,9 +280,9 @@ void FNexusLinkModule::OnPostEngineInit()
 	}
 
 #if WITH_EDITOR
-	// 每会话启动时静默检查一次版本更新；仅当有新版本时弹出非阻塞通知
+	// 每会话启动时静默检查一次版本更新；仅当有新版本时弹出非阻塞通知（需 Editor UI）
 	static bool bVersionChecked = false;
-	if (!bVersionChecked && Settings->bCheckUpdateOnStartup)
+	if (GIsEditor && !bVersionChecked && Settings->bCheckUpdateOnStartup)
 	{
 		bVersionChecked = true;
 		CallNextTick([]()

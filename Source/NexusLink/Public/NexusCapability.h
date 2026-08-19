@@ -113,12 +113,13 @@ struct FNexusCapabilityDefinition
  * 默认 EditorOnly：新增资产/编辑器 cap 无需关心 DS/Game 过滤。
  * Runtime 目录下的 cap 继承 FNexusRuntimeCapability（或 MultiSection 变体）即可自动可见。
  *
- * 注意：MCP 仅在编辑器进程内运行（FNexusLinkModule::StartupModule 在 !WITH_EDITOR 时空操作，
- * 且 REGISTER_MCP_CAPABILITY 在 !WITH_EDITOR 下编译为空——避免游戏包在静态初始化期崩溃）。
+ * 注意：主模块 Type 为 UncookedOnly，cooked Game/Server 不编本模块。
+ * REGISTER_MCP_CAPABILITY 在 !WITH_EDITOR 下仍编译为空——build_test Game 探针会把 Type
+ * 临时改回 Runtime，避免静态初始化期崩溃。
  * 因此本枚举区分的是「编辑器进程内的宿主形态」（Editor 主进程 / PIE / editor-hosted DS），
  * 而非独立打包的 Game / Server 进程。
  * 若将来要让独立 DS / Game 包连接 MCP，必须同时回退 REGISTER_MCP_CAPABILITY 与
- * REGISTER_MCP_TOOL 的 WITH_EDITOR 条件编译，否则注册表为空、tools/list 返回空列表。
+ * REGISTER_MCP_TOOL 的 WITH_EDITOR 条件编译，并将模块 Type 改回 Runtime，否则注册表为空、tools/list 返回空列表。
  */
 enum class ENexusCapabilityHostScope : uint8
 {
