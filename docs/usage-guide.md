@@ -36,7 +36,7 @@ flowchart TB
 | **[NexusVSCode](https://github.com/bytepine/NexusVSCode)** | `http://127.0.0.1:6900/stream` | VSCode / Cursor / CodeBuddy / Windsurf |
 | **直连 UE** | `http://127.0.0.1:45000/stream` | 不用代理；须自行指定 UE 端口 |
 
-能力由 UE 侧 NexusLink 提供；Desktop / Rider / VSCode 只做发现与转发。
+能力由 UE 侧 NexusLink 提供；Desktop / Rider / VSCode 负责发现、转发，以及 [代理会话层](./proxy-session.md)（TTL 缓存、编辑器不可达时的读快照、写门控、Pause）。直连 UE 没有会话层。
 
 | 方式 | 须开启 |
 |------|--------|
@@ -214,6 +214,14 @@ UE 与各客户端均支持 per-session 隔离（`Mcp-Session-Id`）。可同时
 ### 多个 UE 实例同时运行
 
 每个 UE 实例自动分配不同端口。代理可发现全部实例并在托盘/状态栏切换。直连须手动指定端口。
+
+### 走代理时编辑器正在编译 / 重启
+
+代理会尽量返回上次读快照（结果带 `_proxy.degraded: "unavailable"`）。**不要**循环调用 `list_unreal_instances`。写操作仍失败。契约见 [proxy-session.md](./proxy-session.md)。直连 `:45000` 没有该层。
+
+### 代理弹出写操作确认
+
+Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性调用弹确认（`writeGate=destructive`）。可改为 `off` 或 `all`。Pause 会让后续远端调用在代理排队。
 
 ### 修改了属性但 UE 中没有生效 / 磁盘未变化
 

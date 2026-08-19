@@ -9,7 +9,7 @@
 
 ### Changed
 
-- docs: 文档信息架构——README 改为落地页；安装/四端接入收口到 `docs/usage-guide.md`（含 NexusDesktop 与开关矩阵）；开发/测试/发版迁入 `CONTRIBUTING.md`；Token 对照与内部架构留在 `docs/architecture.md`
+- docs: 文档信息架构——README 改为落地页；安装/四端接入收口到 `docs/usage-guide.md`（含 NexusDesktop 与开关矩阵）；开发/测试/发版迁入 `CONTRIBUTING.md`；Token 对照与内部架构留在 `docs/architecture.md`；新增 `docs/proxy-session.md`（代理 TTL 缓存 / 断线快照 / 写门控契约），usage-guide / architecture 不再写「只做发现与转发」
 
 ## [2.0.0-beta.1] - 2026-08-18
 

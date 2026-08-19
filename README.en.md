@@ -43,6 +43,7 @@ Default **SearchMode**: `tools/list` exposes 3 meta-tools (`search_capabilities`
 |-----|----------|
 | [docs/usage-guide.md](docs/usage-guide.md) | Install, settings panel, four clients |
 | [docs/architecture.md](docs/architecture.md) | Layering, Capability system, exposure modes |
+| [docs/proxy-session.md](docs/proxy-session.md) | Proxy session contract (TTL / degraded / write gate) |
 | [docs/tool-reference.md](docs/tool-reference.md) | Capability parameter reference (`py scripts/build_tool_reference.py`) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Add Capabilities, tests, packaging, release |
 | [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) | Capability metadata spec |

@@ -149,7 +149,7 @@ MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮�
 
 模式切换或 Capability 变更时，NexusLink 自动广播 `notifications/tools/list_changed`。
 
-代理层（Desktop / Rider / VSCode）连接 UE 后，通过 `nexus/instructions` 拉取 `InitializeInstructions.*.md`，通过 `nexus/proxy_config` 拉取 `ProxyConfig.json`（连接工具 description、initialize 前缀、错误文案），拼接到自身 `initialize.instructions` / `tools/list` 响应。
+代理层（Desktop / Rider / VSCode）连接 UE 后，通过 `nexus/instructions` 拉取 `InitializeInstructions.*.md`，通过 `nexus/proxy_config` 拉取 `ProxyConfig.json`（连接工具 description、initialize 前缀、错误文案），拼接到自身 `initialize.instructions` / `tools/list` 响应。代理另实现会话层（TTL 缓存、断线快照、写门控、Pause），契约见 [proxy-session.md](./proxy-session.md)；直连 `:45000` 无此层。
 
 ---
 

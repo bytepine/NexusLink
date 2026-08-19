@@ -43,6 +43,7 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。日常推荐经客户端�
 |------|------|
 | [docs/usage-guide.md](docs/usage-guide.md) | 安装、设置面板、四端接入 |
 | [docs/architecture.md](docs/architecture.md) | 分层、Capability 系统、暴露模式 |
+| [docs/proxy-session.md](docs/proxy-session.md) | 代理会话层契约（TTL / degraded / 写门控） |
 | [docs/tool-reference.md](docs/tool-reference.md) | Capability 参数手册（`py scripts/build_tool_reference.py` 生成） |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 新增 Capability、测试、打包、发版 |
 | [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) | Capability 元数据规范 |
