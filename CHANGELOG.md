@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [2.0.0-beta.2] - 2026-08-19
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Changed
 
 - chore(plugin): 主模块 `Type` 改为 **UncookedOnly**（Editor 二进制含 `-server`/`-game` 加载；cooked Game/Server 不编）；去掉 `!WITH_EDITOR` Startup 空转；设置面板 / 状态栏 / 升级通知仅 `GIsEditor`；MCP 监听不挡。README / InitializeInstructions / docs 同步
