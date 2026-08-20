@@ -36,7 +36,7 @@ graph TB
     CapRegistry --> Caps
 ```
 
-四端端口与开关层数见 [usage-guide §1](./usage-guide.md)。Capability 清单以 `search_capabilities` / [tool-reference.md](./tool-reference.md) 为准，勿在本文手写总数。
+四端端口与开关层数见 [usage-guide §1](./usage-guide.md)。Capability 清单以 `search_capabilities` / [tool-reference.zh.md](./tool-reference.zh.md) 为准，勿在本文手写总数。
 ## MCP 服务器生命周期
 
 `UNexusLinkSettings::bEnableMcpServer` 为总开关，**默认 `false`**。另支持命令行 **`-EnableNexusMcp`** 与控制台 **`NexusLink.EnableMcp 1|0`**（均会话级，不写盘）；与 Preferences 为 OR。主模块 **`Type: UncookedOnly`**（Editor 二进制含 `-server`/`-game` 加载；cooked Game/Server 不编）；`REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 在 `!WITH_EDITOR` 下编译为空（供 Game 编译探针）。平台门控双写 `PlatformAllowList`（UE5）+ `WhitelistPlatforms`（UE4.2x），避免 UE4 把模块链进移动端 Editor。设置面板 / 状态栏仅 `GIsEditor` 时注册；MCP 监听在 editor-hosted `-server` 仍可启动。未启用时不创建 `FNexusMcpServer`；Preferences 勾选后经 `PostEditChangeProperty` 即时启停。

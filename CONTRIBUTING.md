@@ -17,7 +17,7 @@
 3. 遵循 CapabilitySpec（命名 / 四段式描述 / 自检清单）
 4. Capability 通过 `call_capability` 元工具直接调用，或在 MultiTool 模式下作为独立 MCP Tool 暴露
 
-新增或修改 Capability 后运行 `py scripts/build_tool_reference.py` 重新生成 [docs/tool-reference.md](docs/tool-reference.md)。
+新增或修改 Capability 后运行 `py scripts/build_tool_reference.py`，**同时**重生英文 [docs/tool-reference.md](docs/tool-reference.md) 与中文 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)。不要只改其中一份生成段。新 cap 的中文 Description 补进 [scripts/tool_reference_zh.json](scripts/tool_reference_zh.json)；未收录的参数说明会按短语规则即时译成中文。
 
 ## 测试
 

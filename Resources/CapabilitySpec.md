@@ -281,7 +281,7 @@
 - 兄弟：`get`↔`manage`（资产）、`get`↔`set`（property）、`get`↔`interact`（命令）。
 - **禁止**指向未注册名；源码侧 `audit_capability_naming.py` 在 CI / `run_e2e` 前校验（按全量源码，含 `#if WITH_*` 文件）。
 - **运行期**：`FilterVisibleRelated` 再剥离当前宿主未注册 / 不可见 / 已禁用的名（`search_capabilities` related、`AttachMetaHints`、MultiTool `[see:]`）。
-- 变更 cap 名或路由：§6 登记表 + **SearchMode + MultiTool** + `scripts/build_tool_reference.py` + CHANGELOG。
+- 变更 cap 名或路由：§6 登记表 + **SearchMode + MultiTool** + `scripts/build_tool_reference.py`（中英 `tool-reference` 同时重生）+ CHANGELOG。
 
 ---
 

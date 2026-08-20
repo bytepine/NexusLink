@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- docs: `build_tool_reference.py` 同一趟同时生成英文 `docs/tool-reference.md` 与中文 `docs/tool-reference.zh.md`；中文 Description 在 `scripts/tool_reference_zh.json`，新参数说明按短语规则即时翻译
+
 ## [2.0.0-beta.2] - 2026-08-19
 
 > ⚠️ Pre-release，非生产环境使用。

@@ -1,6 +1,6 @@
 # NexusLink 使用指南
 
-面向最终用户：安装 UE 插件、选客户端、打开对应层开关。Capability 参数见 [`tool-reference.md`](./tool-reference.md)；架构见 [`architecture.md`](./architecture.md)。
+面向最终用户：安装 UE 插件、选客户端、打开对应层开关。Capability 参数见 [`tool-reference.zh.md`](./tool-reference.zh.md)（[English](./tool-reference.md)）；架构见 [`architecture.md`](./architecture.md)。
 
 ---
 
@@ -115,7 +115,7 @@ Preferences 与 `-EnableNexusMcp` / 控制台为 **OR**。CLI 不会改写 `bEna
 
 控制台行按钮：**打开目录** / **导出 Markdown** / **创建 GitHub Issue**。批量读取后若需保留包，对 `call_capability` 传 `keepLoaded=true`；立即释放用 `unload_asset`。
 
-自动埋点与 `submit_feedback` 的 schema 见 [`tool-reference.md`](./tool-reference.md#submit_feedback)。
+自动埋点与 `submit_feedback` 的 schema 见 [`tool-reference.zh.md`](./tool-reference.zh.md#submit_feedback)。
 
 ### 2.6 直连 UE
 
@@ -147,7 +147,7 @@ Preferences 与 `-EnableNexusMcp` / 控制台为 **OR**。CLI 不会改写 `bEna
 ### 2.7 工具模型（SearchMode）
 
 - **元工具（3 个）**：`search_capabilities`、`call_capability`、`submit_feedback`。不要把元工具名当作 `capability` 传入。
-- **Capability**：原子工作单元，随宿主插件/引擎版本裁剪。完整清单见 [`tool-reference.md`](./tool-reference.md)。
+- **Capability**：原子工作单元，随宿主插件/引擎版本裁剪。完整清单见 [`tool-reference.zh.md`](./tool-reference.zh.md)。
 - **SearchMode**（默认）：`tools/list` 仅 3 个元工具；先 `search_capabilities` 再 `call_capability`。日常与长会话推荐。
 - **MultiTool**：各已启用 Capability 为独立 Tool；仅当客户端必须一次枚举全 Tool 时使用。对比见 [architecture §暴露模式](./architecture.md#暴露模式toolslistmode)。
 

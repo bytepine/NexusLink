@@ -35,7 +35,7 @@ Public sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) (ThirdPerso
 
 ## Coverage
 
-Default **SearchMode**: `tools/list` exposes 3 meta-tools (`search_capabilities` / `call_capability` / `submit_feedback`); Capabilities are discovered on demand. Coverage includes editor, Blueprint, animation, material, audio, AI / EQS, GAS, UMG, Niagara, PIE runtime, UnLua, and more. Full parameters: [docs/tool-reference.md](docs/tool-reference.md). SearchMode vs MultiTool: [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode).
+Default **SearchMode**: `tools/list` exposes 3 meta-tools (`search_capabilities` / `call_capability` / `submit_feedback`); Capabilities are discovered on demand. Coverage includes editor, Blueprint, animation, material, audio, AI / EQS, GAS, UMG, Niagara, PIE runtime, UnLua, and more. Full parameters: [docs/tool-reference.md](docs/tool-reference.md) ([简体中文](docs/tool-reference.zh.md)). SearchMode vs MultiTool: [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode).
 
 ## Documentation
 
@@ -44,7 +44,7 @@ Default **SearchMode**: `tools/list` exposes 3 meta-tools (`search_capabilities`
 | [docs/usage-guide.md](docs/usage-guide.md) | Install, settings panel, four clients |
 | [docs/architecture.md](docs/architecture.md) | Layering, Capability system, exposure modes |
 | [docs/proxy-session.md](docs/proxy-session.md) | Proxy session contract (TTL / degraded / write gate) |
-| [docs/tool-reference.md](docs/tool-reference.md) | Capability parameter reference (`py scripts/build_tool_reference.py`) |
+| [docs/tool-reference.md](docs/tool-reference.md) / [简体中文](docs/tool-reference.zh.md) | Capability parameter reference (`py scripts/build_tool_reference.py` emits both) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Add Capabilities, tests, packaging, release |
 | [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) | Capability metadata spec |
 | [Resources/AIRules.mdc](Resources/AIRules.mdc) | IDE Rule template (copy into the game project; [usage-guide §2.8](docs/usage-guide.md#28-挂载-airules)) |

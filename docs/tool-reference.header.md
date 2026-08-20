@@ -1,5 +1,7 @@
 # NexusLink Tool Reference
 
+**Language / Language**: **English** · [简体中文](tool-reference.zh.md)
+
 This document lists all MCP tools and capabilities exposed by NexusLink with detailed parameter notes.
 
 > **Tools vs capabilities**

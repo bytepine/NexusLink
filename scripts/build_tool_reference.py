@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright byteyang. All Rights Reserved.
 """
-build_tool_reference.py — 从 Capabilities 源码和元工具源码半自动生成 docs/tool-reference.md。
+build_tool_reference.py — 从 Capabilities / 元工具源码生成 docs/tool-reference.md（英）与 docs/tool-reference.zh.md（中）。
 
 用法：
   # NexusLink 独立仓（推荐）
@@ -15,11 +15,14 @@ build_tool_reference.py — 从 Capabilities 源码和元工具源码半自动�
   --live URL   （可选）对运行中的 UE MCP 端点调 search_capabilities 补全 schema
                示例：--live http://127.0.0.1:45000/stream
 
-输出：
-  docs/tool-reference.md = tool-reference.header.md + AUTO-GENERATED 段
+输出（同一趟同时写出，禁止只改其中一份）：
+  docs/tool-reference.md    = tool-reference.header.md    + AUTO-GENERATED 段（英文）
+  docs/tool-reference.zh.md = tool-reference.header.zh.md + AUTO-GENERATED 段（中文）
 
   AUTO-GENERATED 段由脚本生成，禁止手工编辑；
-  手工维护内容在 docs/tool-reference.header.md（通用约定、引言等）。
+  手工维护内容在对应 header（通用约定、引言等）。
+  中文 Description / WhenToUse / 参数精确表在 scripts/tool_reference_zh.json；
+  未收录的新参数说明会按短语规则即时译成中文。
 
 规则：
   - 改 Capability schema 后须重跑本脚本，不要手工改生成段
@@ -33,6 +36,16 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+from tool_reference_i18n import (  # noqa: E402
+    DocLocale,
+    build_en_locale,
+    build_zh_locale,
+    heading_anchor,
+)
 
 # ── 目录分类映射（Capabilities 子目录 → 文档分类名） ────────────────────────────
 
@@ -486,24 +499,23 @@ def parse_meta_tool(cpp_path: Path) -> dict[str, Any] | None:
     return tool
 
 
-def render_cap_section(cap: dict[str, Any]) -> str:
+def render_cap_section(cap: dict[str, Any], locale: DocLocale) -> str:
     name = cap["name"]
-    desc = DOC_DESCRIPTIONS.get(name) or cap["description"]
+    desc = locale.cap_description(name, cap["description"])
+    labels = locale.labels
     lines = [f'### `{name}`\n', f'{desc}\n']
 
     if cap.get("prerequisites"):
         prereq_str = " / ".join(f"`{p}`" for p in cap["prerequisites"])
-        lines.append(f'**Prerequisites**: {prereq_str}\n')
+        lines.append(f'**{labels["prerequisites"]}**: {prereq_str}\n')
 
-    when = DOC_WHEN_TO_USE.get(name) or cap.get("when_to_use", "")
+    when = locale.cap_when(name, cap.get("when_to_use", ""))
     if when:
-        lines.append(f'**When to use**: {when}\n')
+        lines.append(f'**{labels["when_to_use"]}**: {when}\n')
 
-    # 构建参数展示列表
     required_set: set[str] = cap.get("required", set())
     params_display: list[dict[str, Any]] = []
 
-    # sections 参数（多 section cap 自动注入）
     sections: list[str] = cap.get("sections", [])
     if sections:
         sec_vals = " / ".join(f'`{s}`' for s in sections)
@@ -511,7 +523,7 @@ def render_cap_section(cap: dict[str, Any]) -> str:
             "name":        "sections",
             "type":        "string[]",
             "required":    False,
-            "description": f"Sections (multi-select): {sec_vals}",
+            "description": f'{labels["sections"]}: {sec_vals}',
         })
 
     for p in cap.get("params", []):
@@ -521,17 +533,18 @@ def render_cap_section(cap: dict[str, Any]) -> str:
         })
 
     if params_display:
-        lines.append("| Parameter | Type | Required | Description |")
+        lines.append(
+            f'| {labels["parameter"]} | {labels["type"]} | {labels["required"]} | {labels["description"]} |'
+        )
         lines.append("|------|------|:----:|------|")
         for p in params_display:
             req_mark = "★" if p.get("required") else ""
             typ = p.get("type", "string")
-            desc_p = (p.get("description") or "").strip()
-            if not desc_p:
-                desc_p = COMMON_PARAM_DESCRIPTIONS.get(p["name"], "")
+            desc_p = locale.param_desc(p["name"], p.get("description") or "", COMMON_PARAM_DESCRIPTIONS)
             if "enum" in p:
                 enum_vals = " / ".join(f'`{v}`' for v in p["enum"])
-                desc_p = f'{desc_p} enum: {enum_vals}' if desc_p else f'enum: {enum_vals}'
+                enum_tag = labels["enum"]
+                desc_p = f'{desc_p} {enum_tag}: {enum_vals}' if desc_p else f'{enum_tag}: {enum_vals}'
             items = p.get("items") or []
             if items:
                 item_bits = []
@@ -540,18 +553,22 @@ def render_cap_section(cap: dict[str, Any]) -> str:
                     if it.get("enum"):
                         bit += "(" + "/".join(it["enum"][:8]) + ("…" if len(it["enum"]) > 8 else "") + ")"
                     item_bits.append(bit)
-                desc_p = (desc_p + "; " if desc_p else "") + "item: " + ", ".join(item_bits)
+                desc_p = (desc_p + "; " if desc_p else "") + f'{labels["item"]}: ' + ", ".join(item_bits)
             lines.append(f'| `{p["name"]}` | `{typ}` | {req_mark} | {desc_p} |')
         lines.append("")
 
     if cap.get("related"):
         rel_str = ", ".join(f'`{r}`' for r in cap["related"])
-        lines.append(f'**Related capabilities**: {rel_str}\n')
+        lines.append(f'**{labels["related"]}**: {rel_str}\n')
 
     return "\n".join(lines)
 
 
-def render_markdown(categories: dict[str, list[dict]], header: str) -> str:
+def render_markdown(
+    categories: dict[str, list[dict]],
+    header: str,
+    locale: DocLocale,
+) -> str:
     cap_count  = sum(len(v) for k, v in categories.items() if k != "Meta tools")
     tool_count = len(categories.get("Meta tools", []))
 
@@ -560,15 +577,12 @@ def render_markdown(categories: dict[str, list[dict]], header: str) -> str:
     parts.append(f"<!-- {cap_count} capabilities + {tool_count} meta-tools -->")
     parts.append("")
 
-    # 目录
-    parts.append("## Contents\n")
+    parts.append(f'## {locale.labels["contents"]}\n')
     for cat in CATEGORY_ORDER:
         if cat not in categories:
             continue
-        # GitHub Markdown anchor 规则：小写、去特殊字符、空格→连字符
-        anchor = re.sub(r"[（）/\s]+", "-", cat.lower()).strip("-")
-        anchor = re.sub(r"-+", "-", anchor)
-        parts.append(f"- [{cat}](#{anchor})")
+        display = locale.category(cat)
+        parts.append(f"- [{display}](#{heading_anchor(display)})")
     parts.append("")
     parts.append("---")
     parts.append("")
@@ -577,9 +591,9 @@ def render_markdown(categories: dict[str, list[dict]], header: str) -> str:
         if cat not in categories:
             continue
         caps = sorted(categories[cat], key=lambda c: c["name"])
-        parts.append(f"## {cat}\n")
+        parts.append(f"## {locale.category(cat)}\n")
         for cap in caps:
-            parts.append(render_cap_section(cap))
+            parts.append(render_cap_section(cap, locale))
             parts.append("---")
             parts.append("")
 
@@ -649,13 +663,44 @@ def find_nexuslink_root(start: Path) -> Path:
     raise SystemExit(f"ERROR: NexusLink.uplugin not found near {start}")
 
 
-def resolve_doc_paths(link_root: Path) -> tuple[Path, Path, Path, Path]:
-    """返回 cap_root, tools_dir, header_path, output_path。"""
+def resolve_source_paths(link_root: Path) -> tuple[Path, Path, Path]:
+    """返回 cap_root, tools_dir, docs_dir。"""
     plugin_src = link_root / "Source" / "NexusLink"
     cap_root = plugin_src / "Private" / "Capabilities"
     tools_dir = plugin_src / "Private" / "Tools"
-    docs = link_root / "docs"
-    return cap_root, tools_dir, docs / "tool-reference.header.md", docs / "tool-reference.md"
+    return cap_root, tools_dir, link_root / "docs"
+
+
+def write_locale_doc(
+    categories: dict[str, list[dict[str, Any]]],
+    docs_dir: Path,
+    locale: DocLocale,
+) -> Path:
+    header_path = docs_dir / locale.header_name
+    output_path = docs_dir / locale.output_name
+    if header_path.exists():
+        header = header_path.read_text(encoding="utf-8")
+    else:
+        fallback = "# NexusLink Tool Reference\n\n" if locale.code == "en" else "# NexusLink 工具参考手册\n\n"
+        header = fallback
+        print(f"WARNING: header 文件不存在 {header_path}，使用最小 header", file=sys.stderr)
+
+    if locale.warn_missing:
+        names = [c["name"] for caps in categories.values() for c in caps]
+        missing = [n for n in names if n not in locale.descriptions]
+        if missing:
+            print(
+                f"WARNING: {len(missing)} caps 无中文 Description（已回落英文，请补 scripts/tool_reference_zh.json）："
+                + ", ".join(missing[:12])
+                + ("…" if len(missing) > 12 else ""),
+                file=sys.stderr,
+            )
+
+    content = render_markdown(categories, header, locale)
+    output_path.write_text(content, encoding="utf-8")
+    size_kb = output_path.stat().st_size // 1024
+    print(f"生成完毕：{output_path}（{size_kb} KB）", file=sys.stderr)
+    return output_path
 
 
 def main() -> None:
@@ -663,11 +708,13 @@ def main() -> None:
     parser.add_argument("--repo-root", default=None, help="NexusLink 仓根目录（含 NexusLink.uplugin）；默认自动探测")
     parser.add_argument("--live", default=None, metavar="URL",
                         help="UE MCP 端点 URL，用于 live schema 补全（可选，CI 不需要）")
+    parser.add_argument("--lang", choices=("all", "en", "zh"), default="all",
+                        help="生成语言（默认 all=中英同时写出）")
     args = parser.parse_args()
 
     script_dir = Path(__file__).resolve().parent
     link_root = Path(args.repo_root) if args.repo_root else find_nexuslink_root(script_dir)
-    cap_root, tools_dir, header_path, output_path = resolve_doc_paths(link_root)
+    cap_root, tools_dir, docs_dir = resolve_source_paths(link_root)
 
     if not cap_root.exists():
         print(f"ERROR: Capabilities dir not found: {cap_root}", file=sys.stderr)
@@ -706,7 +753,6 @@ def main() -> None:
             for cap in cap_list:
                 live_params = load_live_schema(args.live, cap["name"])
                 if live_params:
-                    # live 结果优先（含完整 enum），与静态解析合并
                     live_map = {p["name"]: p for p in live_params}
                     merged: list[dict] = []
                     seen_live: set[str] = set()
@@ -723,20 +769,20 @@ def main() -> None:
                     cap["params"] = merged
                     print(f"  ✓ {cap['name']} ({len(merged)} params)", file=sys.stderr)
 
-    # ── 加载 header ────────────────────────────────────────────────────────────
-    if header_path.exists():
-        header = header_path.read_text(encoding="utf-8")
-    else:
-        header = "# NexusLink 工具参考手册\n\n"
-        print(f"WARNING: header 文件不存在 {header_path}，使用最小 header", file=sys.stderr)
+    locales: list[DocLocale] = []
+    if args.lang in ("all", "en"):
+        locales.append(build_en_locale(
+            doc_descriptions=DOC_DESCRIPTIONS,
+            doc_when=DOC_WHEN_TO_USE,
+            common_params=COMMON_PARAM_DESCRIPTIONS,
+        ))
+    if args.lang in ("all", "zh"):
+        locales.append(build_zh_locale(common_param_zh={}))
 
-    # ── 生成并写出 ─────────────────────────────────────────────────────────────
-    content = render_markdown(categories, header)
-    output_path.write_text(content, encoding="utf-8")
-
-    size_kb = output_path.stat().st_size // 1024
-    print(f"\n生成完毕：{output_path}（{size_kb} KB）", file=sys.stderr)
-    print("禁止手工编辑 AUTO-GENERATED 段，改 schema 后重跑本脚本。", file=sys.stderr)
+    print("", file=sys.stderr)
+    for loc in locales:
+        write_locale_doc(categories, docs_dir, loc)
+    print("禁止手工编辑 AUTO-GENERATED 段，改 schema 后重跑本脚本（中英同时更新）。", file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。日常推荐经客户端�
 
 ## 能力范围
 
-默认 **SearchMode**：`tools/list` 仅 3 个元工具（`search_capabilities` / `call_capability` / `submit_feedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara、PIE 运行时、UnLua 等。完整参数见 [docs/tool-reference.md](docs/tool-reference.md)；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
+默认 **SearchMode**：`tools/list` 仅 3 个元工具（`search_capabilities` / `call_capability` / `submit_feedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara、PIE 运行时、UnLua 等。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
 
 ## 文档
 
@@ -44,7 +44,7 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。日常推荐经客户端�
 | [docs/usage-guide.md](docs/usage-guide.md) | 安装、设置面板、四端接入 |
 | [docs/architecture.md](docs/architecture.md) | 分层、Capability 系统、暴露模式 |
 | [docs/proxy-session.md](docs/proxy-session.md) | 代理会话层契约（TTL / degraded / 写门控） |
-| [docs/tool-reference.md](docs/tool-reference.md) | Capability 参数手册（`py scripts/build_tool_reference.py` 生成） |
+| [docs/tool-reference.zh.md](docs/tool-reference.zh.md) / [English](docs/tool-reference.md) | Capability 参数手册（`py scripts/build_tool_reference.py` 中英同时生成） |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 新增 Capability、测试、打包、发版 |
 | [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) | Capability 元数据规范 |
 | [Resources/AIRules.mdc](Resources/AIRules.mdc) | IDE Rule 模板（复制到游戏项目，见 [usage-guide §2.8](docs/usage-guide.md#28-挂载-airules)） |
