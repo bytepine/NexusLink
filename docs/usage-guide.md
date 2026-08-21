@@ -48,7 +48,35 @@ flowchart TB
 
 本机只开一个代理（Desktop `:6700` / Rider `:6800` / VSCode `:6900` 勿叠开）；叠开会重复扫描并各自连同一 UE。
 
-MCP 只信任**同一 OS 用户的本机 loopback**。`POST /stream` 与 WebSocket 须 Bearer token（代理从实例注册文件读取；直连从设置面板复制）。带 `Origin` 的浏览器请求会被拒绝。`GET /status` 仅探活，**不含 token**。`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 默认禁用，可在 Capabilities 面板打开。不要把端口映射到局域网或公网。
+MCP **默认**只绑本机 loopback。`POST /stream` 与 WebSocket 须 Bearer token（本机代理读 `{Temp}/NexusLink/{PID}.json`；跨机须从 UE 设置面板复制 token 填到中转的远程条目）。带 `Origin` 的浏览器请求会被拒绝。`GET /status` 仅探活，**不含 token**。`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 默认禁用。
+
+跨机（显式 IP，不扫网段）：
+
+1. **UE**：勾选 **允许局域网绑定**（HTTP 绑 `0.0.0.0`），开系统防火墙入站；**不要**做公网端口映射。拿到 token 的同网段主机都能连。
+2. **中转 → UE**：在 Desktop / Rider / VSCode 填 `remoteUnreal`（`host` + `mcpPort` + `authToken`）。只探这些地址的 `/status`。
+3. **AI → 中转**：勾选 listenLan / 允许局域网接入，把 `mcp.json` 的 `127.0.0.1` 换成中转机局域网 IP，Bearer 仍用代理 `proxyToken`。
+
+```json
+{
+  "mcpServers": {
+    "nexus-unreal": {
+      "url": "http://192.168.1.20:6900/stream",
+      "headers": { "Authorization": "Bearer <proxyToken>" }
+    }
+  }
+}
+```
+
+VSCode 远程条目示例（`settings.json`）：
+
+```json
+"nexusMcp.listenLan": true,
+"nexusMcp.remoteUnreal": [
+  { "host": "192.168.1.30", "mcpPort": 45000, "authToken": "<从 UE 设置复制>" }
+]
+```
+
+Rider / Desktop 远程列表每行：`192.168.1.30:45000 <token>`。
 
 ---
 

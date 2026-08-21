@@ -5,7 +5,6 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusLink.h"
 #include "Server/NexusMcpServer.h"
-#include "Utils/NexusHostUtils.h"
 
 UNexusLinkSettings::UNexusLinkSettings()
 {
@@ -169,6 +168,18 @@ void UNexusLinkSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 		else
 		{
 			Module.StopMcpServer();
+		}
+	}
+
+	// 局域网绑定变更：已在跑则停再启，使 DefaultBindAddress 立即生效
+	if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bAllowLanBind))
+	{
+		FNexusLinkModule& Module = FModuleManager::GetModuleChecked<FNexusLinkModule>(TEXT("NexusLink"));
+		const TSharedPtr<FNexusMcpServer>& Server = Module.GetMcpServer();
+		if (Server.IsValid() && Server->IsRunning())
+		{
+			Module.StopMcpServer();
+			Module.TryStartMcpServer();
 		}
 	}
 }

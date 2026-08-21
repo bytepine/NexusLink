@@ -7,6 +7,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- feat(mcp): 可选局域网绑定（`bAllowLanBind`，默认 loopback）；热切换即时重启监听
+
+### Security
+
+- 开局域网后同网段持有 Bearer 的主机均可连；勿做公网映射
+
 ## [2.0.0-beta.3] - 2026-08-21
 
 > ⚠️ Pre-release，非生产环境使用。

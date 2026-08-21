@@ -2,6 +2,7 @@
 
 #include "Server/NexusMcpServer.h"
 #include "Server/NexusMcpDispatcher.h"
+#include "NexusLinkSettings.h"
 #include "Utils/NexusVersionCompat.h"
 #include "HttpServerModule.h"
 #include "IHttpRouter.h"
@@ -124,18 +125,18 @@ bool FNexusMcpServer::Start(int32 InMcpPort, int32 InWsPort)
 	WebSocketPort = InWsPort;
 	AuthToken     = GenerateAuthToken();
 
+	const bool bLan = UNexusLinkSettings::Get() && UNexusLinkSettings::Get()->bAllowLanBind;
+	const TCHAR* BindAddr = bLan ? TEXT("0.0.0.0") : TEXT("127.0.0.1");
 	if (GConfig)
 	{
 		FString CurrentBind;
 		GConfig->GetString(TEXT("HTTPServer.Listeners"), TEXT("DefaultBindAddress"), CurrentBind, GEngineIni);
-		if (!CurrentBind.IsEmpty()
-			&& !CurrentBind.Equals(TEXT("127.0.0.1"), ESearchCase::IgnoreCase)
-			&& !CurrentBind.Equals(TEXT("localhost"), ESearchCase::IgnoreCase))
+		if (!CurrentBind.IsEmpty() && !CurrentBind.Equals(BindAddr, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogNexusMcpServer, Warning,
-				TEXT("覆盖 HTTP DefaultBindAddress=%s → 127.0.0.1"), *CurrentBind);
+				TEXT("覆盖 HTTP DefaultBindAddress=%s → %s"), *CurrentBind, BindAddr);
 		}
-		GConfig->SetString(TEXT("HTTPServer.Listeners"), TEXT("DefaultBindAddress"), TEXT("127.0.0.1"), GEngineIni);
+		GConfig->SetString(TEXT("HTTPServer.Listeners"), TEXT("DefaultBindAddress"), BindAddr, GEngineIni);
 	}
 
 	HttpRouter = FHttpServerModule::Get().GetHttpRouter(static_cast<uint32>(McpPort));
@@ -172,8 +173,8 @@ bool FNexusMcpServer::Start(int32 InMcpPort, int32 InWsPort)
 #endif
 
 	UE_LOG(LogNexusMcpServer, Log,
-		TEXT("NexusLink 服务器已启动\n  Streamable HTTP : http://127.0.0.1:%d/stream\n  Status          : http://127.0.0.1:%d/status\n  WebSocket       : ws://127.0.0.1:%d/"),
-		McpPort, McpPort, WebSocketPort);
+		TEXT("NexusLink 服务器已启动（bind %s）\n  Streamable HTTP : http://127.0.0.1:%d/stream\n  Status          : http://127.0.0.1:%d/status\n  WebSocket       : ws://127.0.0.1:%d/"),
+		BindAddr, McpPort, McpPort, WebSocketPort);
 	return true;
 }
 

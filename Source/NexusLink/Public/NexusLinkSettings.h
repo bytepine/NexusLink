@@ -56,6 +56,15 @@ public:
 	bool bEnableMcpServer = false;
 
 	/**
+	 * 是否允许 MCP HTTP 绑 0.0.0.0（局域网可达）。
+	 * 默认关闭，仅 127.0.0.1。开启后拿到 Bearer token 的同网段主机都能连；须开防火墙入站，勿做公网映射。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "服务器",
+		meta = (DisplayName = "允许局域网绑定",
+			ToolTip = "默认关（仅本机 loopback）。勾选后 HTTP 绑 0.0.0.0，跨机中转可连本编辑器；须配合防火墙，且勿把端口映射到公网"))
+	bool bAllowLanBind = false;
+
+	/**
 	 * MCP 服务器实际监听端口（只读）。
 	 * 由插件启动时自动分配，端口冲突时自动顺延，无需手动配置。
 	 */
