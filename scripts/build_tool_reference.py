@@ -40,6 +40,7 @@ from typing import Any
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
+from schema_extract import extract_object_chain_after  # noqa: E402
 from tool_reference_i18n import (  # noqa: E402
     DocLocale,
     build_en_locale,
@@ -80,8 +81,8 @@ CATEGORY_ORDER = [
 ]
 
 # ── Doc description overrides（key = capability/tool 名称） ──────────────────────────────
-# C++ Out.Description / Out.WhenToUse / schema text feed MCP and docs;
-# DOC_DESCRIPTIONS / DOC_WHEN_TO_USE optionally override C++ English copy for docs.
+# C++ Out.Description / schema text feed MCP and docs;
+# DOC_DESCRIPTIONS optionally override C++ English copy for docs.
 
 DOC_DESCRIPTIONS: dict[str, str] = {
     # Meta
@@ -90,8 +91,6 @@ DOC_DESCRIPTIONS: dict[str, str] = {
     "submit_feedback":    "Report capability/tool friction. Trigger: retry ≥2 with no progress, no suitable capability, schema guessing, or forced serial calls ≥3. `category`: `wrong_tool` / `misuse` / `schema_guess` / `search_zero` / `search_overflow` / `other`. Prefer structured fields (`attemptedArgs`, `actualError`, `expectedField`) over long `note`.",
 }
 
-DOC_WHEN_TO_USE: dict[str, str] = {}
-
 # ── Regex 模式 ─────────────────────────────────────────────────────────────────
 
 RE_NAME         = re.compile(r'Out\.Name\s*=\s*TEXT\("([^"]+)"\)')
@@ -99,7 +98,6 @@ RE_DESC         = re.compile(r'Out\.Description\s*=\s*TEXT\("([^"]+)"\)')
 RE_RELATED      = re.compile(r'Out\.RelatedCapabilities\s*=\s*\{([^}]+)\}')
 RE_PREREQ       = re.compile(r'Out\.Prerequisites\s*=\s*\{([^}]+)\}')
 RE_WHEN         = re.compile(r'Out\.WhenToUse\s*=\s*TEXT\("([^"]+)"\)')
-RE_TAG_ACCESS   = re.compile(r'FNexusMcpTags::(Readonly|Write)\b')
 RE_TEXT_VALUES  = re.compile(r'TEXT\("([^"]+)"\)')
 RE_USE_SECTIONS = re.compile(r'BuildSchemaWithSections\(\)')
 
@@ -119,31 +117,6 @@ RE_SECTION_RETURN = re.compile(
 
 def extract_text_values(raw: str) -> list[str]:
     return RE_TEXT_VALUES.findall(raw)
-
-
-def _extract_object_chain_after(text: str, start: int) -> str:
-    """从 start 起提取第一个 FNexusSchema::Object()…匹配 .Build()，跳过嵌套 Object()。"""
-    key = "FNexusSchema::Object()"
-    idx = text.find(key, start)
-    if idx < 0:
-        return ""
-    pos = idx + len(key)
-    depth = 1
-    i = pos
-    n = len(text)
-    while i < n and depth > 0:
-        if text.startswith(key, i):
-            depth += 1
-            i += len(key)
-            continue
-        if text.startswith(".Build()", i):
-            depth -= 1
-            if depth == 0:
-                return text[pos:i]
-            i += len(".Build()")
-            continue
-        i += 1
-    return ""
 
 
 def extract_schema_object_chain(text: str, anchor: str | None = None) -> str:
@@ -170,10 +143,10 @@ def extract_schema_object_chain(text: str, anchor: str | None = None) -> str:
     region = text[search_from:region_end]
     mret = re.search(r"return\s+FNexusSchema::Object\(\)", region)
     if mret:
-        chain = _extract_object_chain_after(region, mret.start())
+        chain = extract_object_chain_after(region, mret.start())
         if chain:
             return chain
-    return _extract_object_chain_after(region, 0)
+    return extract_object_chain_after(region, 0)
 
 
 def _first_text_literal(s: str) -> str:
@@ -265,7 +238,7 @@ def _map_type(schema_type: str) -> str:
 def _parse_item_schema_props(full_text: str, schema_chain: str, array_call_body: str) -> list[dict[str, Any]]:
     """尝试解析 ArrayOf 的 item Object Schema（变量引用或内联 Object）。"""
     # 内联：ArrayOf(desc, FNexusSchema::Object()…Build())
-    inline = _extract_object_chain_after(array_call_body, 0)
+    inline = extract_object_chain_after(array_call_body, 0)
     if inline.strip():
         nested, _ = parse_schema_block(inline)
         return nested
@@ -287,7 +260,7 @@ def _parse_item_schema_props(full_text: str, schema_chain: str, array_call_body:
     vm = pat.search(full_text)
     if not vm:
         return []
-    item_chain = _extract_object_chain_after(full_text, vm.start())
+    item_chain = extract_object_chain_after(full_text, vm.start())
     if not item_chain:
         return []
     nested, _ = parse_schema_block(item_chain)
@@ -378,11 +351,24 @@ def parse_section_names(text: str) -> list[str]:
     return []
 
 
-MANAGE_COMPILE_CAPS = frozenset({
-    "manage_asset_blueprint",
-    "manage_asset_anim_blueprint",
-    "manage_asset_user_widget",
-})
+_RE_SUPPORTS_COMPILE = re.compile(
+    r"static bool SupportsCompile\(const FString& Name\)\s*\{(.*?)^\s*\}",
+    re.MULTILINE | re.DOTALL,
+)
+_MANAGE_COMPILE_CAPS: frozenset[str] | None = None
+
+
+def load_manage_compile_caps() -> frozenset[str]:
+    """与 NexusCapability.cpp SupportsCompile 对齐，避免文档脚本另维护名单。"""
+    global _MANAGE_COMPILE_CAPS
+    if _MANAGE_COMPILE_CAPS is not None:
+        return _MANAGE_COMPILE_CAPS
+    cpp = Path(__file__).resolve().parent.parent / "Source" / "NexusLink" / "Private" / "NexusCapability.cpp"
+    text = cpp.read_text(encoding="utf-8", errors="replace")
+    m = _RE_SUPPORTS_COMPILE.search(text)
+    names = frozenset(re.findall(r'TEXT\("([^"]+)"\)', m.group(1))) if m else frozenset()
+    _MANAGE_COMPILE_CAPS = names
+    return names
 
 
 def inject_manage_finalize_params(cap: dict[str, Any]) -> None:
@@ -398,7 +384,7 @@ def inject_manage_finalize_params(cap: dict[str, Any]) -> None:
             "type":        "boolean",
             "description": "Save the package to disk after success",
         })
-    if name in MANAGE_COMPILE_CAPS and "compile" not in existing:
+    if name in load_manage_compile_caps() and "compile" not in existing:
         params.append({
             "name":        "compile",
             "type":        "boolean",
@@ -406,8 +392,8 @@ def inject_manage_finalize_params(cap: dict[str, Any]) -> None:
         })
 
 
-def parse_capability(cpp_path: Path) -> dict[str, Any] | None:
-    """解析单个 Capability cpp 文件，返回 capability dict 或 None"""
+def _parse_tool_file(cpp_path: Path, *, kind: str) -> dict[str, Any] | None:
+    """kind=capability|meta。解析单个 cpp，返回 dict 或 None。"""
     text = cpp_path.read_text(encoding="utf-8", errors="replace")
 
     m_name = RE_NAME.search(text)
@@ -416,87 +402,61 @@ def parse_capability(cpp_path: Path) -> dict[str, Any] | None:
         return None
 
     cap: dict[str, Any] = {
-        "name":         m_name.group(1),
-        "description":  m_desc.group(1),
-        "category":     infer_category(cpp_path),
-        "file":         str(cpp_path),
-        "params":       [],
-        "required":     set(),
-        "related":      [],
-        "prerequisites":[],
-        "sections":     [],
-        "access":       "readonly",
-        "when_to_use":  "",
+        "name":          m_name.group(1),
+        "description":   m_desc.group(1),
+        "category":      "Meta tools" if kind == "meta" else infer_category(cpp_path),
+        "file":          str(cpp_path),
+        "params":        [],
+        "required":      set(),
+        "related":       [],
+        "prerequisites": [],
+        "sections":      [],
+        "when_to_use":   "",
     }
 
-    # 读写属性
-    access_tags = RE_TAG_ACCESS.findall(text)
-    if "Write" in access_tags:
-        cap["access"] = "write"
+    if kind == "capability":
+        m_rel = RE_RELATED.search(text)
+        if m_rel:
+            cap["related"] = extract_text_values(m_rel.group(1))
+        m_pre = RE_PREREQ.search(text)
+        if m_pre:
+            cap["prerequisites"] = extract_text_values(m_pre.group(1))
+        m_when = RE_WHEN.search(text)
+        if m_when:
+            cap["when_to_use"] = m_when.group(1)
 
-    m_rel = RE_RELATED.search(text)
-    if m_rel:
-        cap["related"] = extract_text_values(m_rel.group(1))
-
-    m_pre = RE_PREREQ.search(text)
-    if m_pre:
-        cap["prerequisites"] = extract_text_values(m_pre.group(1))
-
-    m_when = RE_WHEN.search(text)
-    if m_when:
-        cap["when_to_use"] = m_when.group(1)
-
-    # Schema 解析（Object()…Build() 链，避免 .Required({}) 导致早停）
-    if RE_USE_SECTIONS.search(text):
-        schema_text = extract_schema_object_chain(text, "BuildCapabilitySchema")
-        if schema_text:
-            params, req = parse_schema_block(schema_text, full_source=text)
-            cap["params"]   = params
-            cap["required"] = req
-        cap["sections"] = parse_section_names(text)
-    else:
-        schema_text = extract_schema_object_chain(text, "InputSchema")
-        if not schema_text:
-            schema_text = extract_schema_object_chain(text)
-        if schema_text:
-            params, req = parse_schema_block(schema_text, full_source=text)
-            cap["params"]   = params
-            cap["required"] = req
-
-    inject_manage_finalize_params(cap)
-    return cap
-
-
-def parse_meta_tool(cpp_path: Path) -> dict[str, Any] | None:
-    """解析元工具（MCP Tool）cpp 文件"""
-    text = cpp_path.read_text(encoding="utf-8", errors="replace")
-
-    m_name = RE_NAME.search(text)
-    m_desc = RE_DESC.search(text)
-    if not m_name or not m_desc:
-        return None
-
-    tool: dict[str, Any] = {
-        "name":         m_name.group(1),
-        "description":  m_desc.group(1),
-        "category":     "Meta tools",
-        "file":         str(cpp_path),
-        "params":       [],
-        "required":     set(),
-        "related":      [],
-        "prerequisites":[],
-        "sections":     [],
-        "access":       "write",
-        "when_to_use":  "",
-    }
+        if RE_USE_SECTIONS.search(text):
+            schema_text = extract_schema_object_chain(text, "BuildCapabilitySchema")
+            if schema_text:
+                params, req = parse_schema_block(schema_text, full_source=text)
+                cap["params"] = params
+                cap["required"] = req
+            cap["sections"] = parse_section_names(text)
+        else:
+            schema_text = extract_schema_object_chain(text, "InputSchema")
+            if not schema_text:
+                schema_text = extract_schema_object_chain(text)
+            if schema_text:
+                params, req = parse_schema_block(schema_text, full_source=text)
+                cap["params"] = params
+                cap["required"] = req
+        inject_manage_finalize_params(cap)
+        return cap
 
     schema_text = extract_schema_object_chain(text, "InputSchema")
     if schema_text:
         params, req = parse_schema_block(schema_text, full_source=text)
-        tool["params"]   = params
-        tool["required"] = req
+        cap["params"] = params
+        cap["required"] = req
+    return cap
 
-    return tool
+
+def parse_capability(cpp_path: Path) -> dict[str, Any] | None:
+    return _parse_tool_file(cpp_path, kind="capability")
+
+
+def parse_meta_tool(cpp_path: Path) -> dict[str, Any] | None:
+    return _parse_tool_file(cpp_path, kind="meta")
 
 
 def render_cap_section(cap: dict[str, Any], locale: DocLocale) -> str:
@@ -773,11 +733,11 @@ def main() -> None:
     if args.lang in ("all", "en"):
         locales.append(build_en_locale(
             doc_descriptions=DOC_DESCRIPTIONS,
-            doc_when=DOC_WHEN_TO_USE,
+            doc_when={},
             common_params=COMMON_PARAM_DESCRIPTIONS,
         ))
     if args.lang in ("all", "zh"):
-        locales.append(build_zh_locale(common_param_zh={}))
+        locales.append(build_zh_locale())
 
     print("", file=sys.stderr)
     for loc in locales:

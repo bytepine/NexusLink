@@ -11,6 +11,15 @@
 
 - docs: `build_tool_reference.py` 同一趟同时生成英文 `docs/tool-reference.md` 与中文 `docs/tool-reference.zh.md`；中文 Description 在 `scripts/tool_reference_zh.json`，新参数说明按短语规则即时翻译
 
+### Fixed
+
+- docs: 参数说明短语部分命中后继续 glossary，避免中英混杂；`param_text` 仅保留自动翻译覆盖不了的条目
+
+### Changed
+
+- refactor: 文档脚本共用 schema 抽取、从 C++ `SupportsCompile` 解析 compile 名单；去掉未用的 `IsLegacyName`、JsonUtils 死方法与 `FNexusActionContext::Entries`
+- docs: usage-guide 注明本机只开一个 MCP 代理（Desktop / Rider / VSCode 勿叠开）
+
 ## [2.0.0-beta.2] - 2026-08-19
 
 > ⚠️ Pre-release，非生产环境使用。

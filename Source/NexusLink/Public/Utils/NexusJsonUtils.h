@@ -19,13 +19,6 @@ public:
 	/** 安全取字符串字段，键不存在时返回 Default。 */
 	static FString GetStringSafe(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Key, const FString& Default = FString());
 
-	/** 安全取整数字段，键不存在时返回 Default；结果 Clamp 到 [ClampMin, ClampMax]。 */
-	static int32 GetIntSafe(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Key,
-	                        int32 Default = 0, int32 ClampMin = 0, int32 ClampMax = INT32_MAX);
-
-	/** 安全取浮点字段，键不存在时返回 Default。 */
-	static float GetFloatSafe(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Key, float Default = 0.f);
-
 	/** 安全取布尔字段，键不存在时返回 Default。 */
 	static bool GetBoolSafe(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Key, bool Default = false);
 
@@ -67,7 +60,4 @@ public:
 
 	/** 将 JSON 对象序列化为紧凑字符串；Obj 无效时返回空串。 */
 	static FString SerializeCondensed(const TSharedPtr<FJsonObject>& Obj);
-
-	/** 将 JSON 值序列化为紧凑字符串；Value 无效时返回空串。 */
-	static FString SerializeValueCondensed(const TSharedPtr<FJsonValue>& Value);
 };

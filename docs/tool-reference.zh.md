@@ -66,10 +66,10 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `capability` | `string` |  | 单次调用的 Capability 名称 |
+| `capability` | `string` |  | Capability 精确名称 |
 | `arguments` | `object` |  | 单次调用的嵌套参数 |
-| `calls` | `object[]` |  | 批量：有序列表 [{capability,arguments?},...]; 条目: `capability`, `arguments` |
-| `keepLoaded` | `boolean` |  | 为 true 时不自动卸载本次调用引入的包（单条或批量）；默认 false |
+| `calls` | `object[]` |  | 批量调用列表：`[{capability, arguments}, ...]`; 条目: `capability`, `arguments` |
+| `keepLoaded` | `boolean` |  | 为 true 时不自动卸载本次调用引入的包 |
 
 ---
 
@@ -88,7 +88,7 @@
 | `category` | `string (enum)` | ★ | 反馈分类 枚举: `wrong_tool` / `misuse` / `schema_guess` / `search_zero` / `search_overflow` / `other` |
 | `note` | `string` |  | 问题自由文本描述（建议填写） |
 | `tool` | `string` |  | 涉及的 MCP 工具名 |
-| `capability` | `string` |  | 涉及的 Capability 名称 |
+| `capability` | `string` |  | Capability 精确名称 |
 | `query` | `string` |  | 引发问题的 search_capabilities 查询词 |
 | `attemptedArgs` | `string` |  | 触发问题的参数摘要 |
 | `actualError` | `string` |  | 实际收到的错误信息片段 |
@@ -109,7 +109,7 @@
 | `maxSize` | `integer` |  | 最大边长像素（0=原生） |
 | `actorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `widgetName` | `string` |  | 运行时 Widget 名 |
-| `ownerClass` | `string` |  | UserWidget 类过滤 |
+| `ownerClass` | `string` |  | 所属 UserWidget 类过滤 |
 | `padding` | `number` |  | Actor bounds padding ratio |
 | `viewAngle` | `string (enum)` |  | Actor crop camera angle 枚举: `front` / `back` / `left` / `right` / `top` / `bottom` |
 | `windowIndex` | `integer` |  | 顶层窗口索引（0=主窗口） |
@@ -126,7 +126,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `action` | `string (enum)` | ★ | PIE 操作 枚举: `start` / `stop` / `status` / `pause` / `resume` / `step` |
-| `mode` | `string (enum)` |  | 播放模式（仅 start） 枚举: `viewport` / `simulate` |
+| `mode` | `string (enum)` |  | 模式（见各 cap 的枚举说明） 枚举: `viewport` / `simulate` |
 
 **相关 Capability**: `exec_command`
 
@@ -156,7 +156,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `selection_actors` / `selection_assets` / `content_browser_path` |
-| `limit` | `integer` |  | 最大列表项数（selection 段） |
+| `limit` | `integer` |  | 每页最大条数 |
 
 **相关 Capability**: `get_editor_info`, `capture_viewport`, `search_asset`
 
@@ -178,11 +178,11 @@
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `hierarchy` / `actor` / `asset` / `referencers` |
 | `parentTag` | `string` |  | Root tag for subtree |
-| `actorName` | `string` |  | 运行时 Actor 名（actor 段） |
-| `assetPath` | `string` |  | 资产路径（asset 段） |
+| `actorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
+| `assetPath` | `string` |  | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `tag` | `string` |  | referencers section: GameplayTag full 名 |
 | `nameFilter` | `string` |  | 标签名过滤 |
-| `offset` | `integer` |  | referencers 段分页偏移 |
+| `offset` | `integer` |  | 分页偏移（从 0 起） |
 | `limit` | `integer` |  | 最大条数 |
 
 **相关 Capability**: `get_runtime_actor_property`
@@ -263,7 +263,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New AS Blueprint 包路径, e.g. '/Game/GAS/AS_Hero' |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `parentClass` | `string` |  | Parent class (默认 AttributeSet) |
 
 **相关 Capability**: `get_asset_attribute_set`, `manage_asset_attribute_set`, `manage_asset_blueprint`
@@ -331,7 +331,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New DataLayer asset 完整路径, e.g. /Game/WorldData/DL_New |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `type` | `string` |  | Runtime or Editor (默认 Runtime) |
 | `debugColor` | `string` |  | Debug color (#RRGGBB or color name, 可选) |
 
@@ -347,7 +347,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Enum asset 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `get_asset_enum`, `manage_asset_enum`
 
@@ -376,7 +376,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Font 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `get_asset_font`, `manage_asset_font`, `reimport_asset`
 
@@ -390,7 +390,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New GA Blueprint 包路径, e.g. '/Game/GAS/GA_Jump' |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `parentClass` | `string` |  | Parent class (默认 GameplayAbility) |
 
 **相关 Capability**: `get_asset_gameplay_ability`, `manage_asset_gameplay_ability`, `manage_asset_blueprint`
@@ -421,7 +421,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New GE Blueprint 包路径, e.g. '/Game/GAS/GE_Damage' |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `parentClass` | `string` |  | Parent class (默认 GameplayEffect) |
 
 **相关 Capability**: `get_asset_gameplay_effect`, `manage_asset_gameplay_effect`
@@ -510,7 +510,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Level 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `get_asset_level`, `manage_asset_level`
 
@@ -553,7 +553,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New MetaSound asset 完整路径, e.g. /Game/Audio/MS_NewSound |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `get_asset_meta_sound`, `manage_asset_meta_sound`, `search_asset`
 
@@ -567,7 +567,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New MetaSound Patch 完整路径, e.g. /Game/Audio/MSP_NewPatch |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `get_asset_meta_sound`, `manage_asset_meta_sound`, `search_asset`
 
@@ -651,7 +651,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New PCG Graph 完整路径, e.g. /Game/PCG/PCG_NewGraph |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `get_asset_pcg_graph`, `manage_asset_pcg_graph`, `search_asset`
 
@@ -713,7 +713,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundAttenuation 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `innerRadius` | `number` |  | Inner attenuation sphere radius (默认 400) |
 | `falloffDistance` | `number` |  | Attenuation distance (默认 3600) |
 
@@ -729,7 +729,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundClass 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `volume` | `number` |  | Volume multiplier (默认 1.0) |
 | `pitch` | `number` |  | Pitch multiplier (默认 1.0) |
 
@@ -745,7 +745,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundConcurrency 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `maxCount` | `integer` |  | 最大并发实例数（默认 16） |
 
 **相关 Capability**: `get_asset_sound_concurrency`, `manage_asset_sound_concurrency`
@@ -760,7 +760,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundCue 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `get_asset_sound_cue`, `manage_asset_sound_cue`
 
@@ -774,7 +774,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundSubmix 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `get_asset_sound_submix`, `manage_asset_sound_submix`
 
@@ -859,7 +859,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AttributeSet 蓝图路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_attribute_set`, `create_asset_attribute_set`
 
@@ -871,7 +871,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | CommonButtonStyle 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_common_button_style`, `create_asset_common_button_style`, `get_asset_common_text_style`
 
@@ -883,7 +883,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | CommonTextStyle 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_common_text_style`, `create_asset_common_text_style`, `get_asset_common_button_style`
 
@@ -897,7 +897,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | ControlRig 蓝图资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_control_rig`, `create_asset_control_rig`, `get_asset_skeleton`
 
@@ -923,7 +923,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | DataLayerAsset 路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_data_layer`, `create_asset_data_layer`, `search_asset`
 
@@ -935,7 +935,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Enum asset 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `create_asset_enum`, `manage_asset_enum`
 
@@ -947,7 +947,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | FoliageType 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_foliage_type`, `create_asset_foliage_type`
 
@@ -959,7 +959,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Font 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_font`, `create_asset_font`, `reimport_asset`
 
@@ -974,7 +974,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `metadata` / `tags` / `costs` / `graphOverview` |
-| `assetPath` | `string` | ★ | GameplayAbility 蓝图路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_gameplay_ability`, `manage_asset_blueprint`, `create_asset_gameplay_ability`
 
@@ -986,7 +986,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Cue Notify 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_gameplay_cue_notify`, `create_asset_gameplay_cue_notify`, `manage_asset_blueprint`
 
@@ -1001,7 +1001,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `policy` / `modifiers` / `tags` / `cues` |
-| `assetPath` | `string` | ★ | GameplayEffect 蓝图路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_gameplay_effect`, `create_asset_gameplay_effect`
 
@@ -1013,7 +1013,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | GeometryCollection 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_geometry_collection`, `create_asset_geometry_collection`
 
@@ -1027,7 +1027,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | IKRetargeter 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_ik_retargeter`, `get_asset_ik_rig`, `create_asset_ik_retargeter`
 
@@ -1041,7 +1041,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | IKRig 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_ik_rig`, `create_asset_ik_rig`, `get_asset_ik_retargeter`
 
@@ -1055,7 +1055,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | InputAction 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_input_action`, `create_asset_input_action`, `get_asset_input_mapping_context`
 
@@ -1069,7 +1069,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | InputMappingContext 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_input_mapping_context`, `create_asset_input_mapping_context`, `get_asset_input_action`
 
@@ -1086,12 +1086,12 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `actors` / `settings` |
-| `assetPath` | `string` | ★ | Level 资产路径 (/Game/.../*.umap 包路径) |
-| `classFilter` | `string` |  | Actor class name filter (可选) |
-| `nameFilter` | `string` |  | Actor 名/标签过滤（可选） |
-| `tagFilter` | `string` |  | Actor Tag 精确匹配（可选） |
-| `offset` | `integer` |  | actors 段分页偏移 |
-| `limit` | `integer` |  | actors 段每页条数 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `classFilter` | `string` |  | 类名过滤（子串/通配，可选） |
+| `nameFilter` | `string` |  | 名称或标签过滤（可选） |
+| `tagFilter` | `string` |  | Actor 标签精确匹配（可选） |
+| `offset` | `integer` |  | 分页偏移（从 0 起） |
+| `limit` | `integer` |  | 每页最大条数 |
 
 **相关 Capability**: `manage_asset_level`, `create_asset_level`, `search_asset`, `list_runtime_actors`, `get_asset_refs`
 
@@ -1105,7 +1105,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | LevelSequence 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_level_sequence`, `create_asset_level_sequence`, `search_asset`, `save_asset`
 
@@ -1117,7 +1117,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MediaSource 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_media_source`, `create_asset_media_source`
 
@@ -1131,7 +1131,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MetaSound Source or Patch 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_meta_sound`, `create_asset_meta_sound`, `create_asset_meta_sound_patch`, `search_asset`
 
@@ -1145,7 +1145,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MoviePipeline config 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_movie_pipeline_config`, `create_asset_movie_pipeline_config`, `control_movie_pipeline`
 
@@ -1159,7 +1159,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | NiagaraSystem 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_niagara_system`, `create_asset_niagara_system`, `search_asset`, `get_asset_refs`, `save_asset`
 
@@ -1171,7 +1171,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PaperFlipbook 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_paper_flipbook`, `create_asset_paper_flipbook`
 
@@ -1183,7 +1183,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PaperSprite 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_paper_sprite`, `create_asset_paper_sprite`
 
@@ -1197,7 +1197,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PaperTileMap 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_paper_tile_map`, `create_asset_paper_tile_map`, `get_asset_paper_sprite`, `get_asset_paper_flipbook`
 
@@ -1211,7 +1211,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PCG Graph 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_pcg_graph`, `create_asset_pcg_graph`, `search_asset`
 
@@ -1223,7 +1223,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PhysicalMaterial 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_physical_material`, `create_asset_physical_material`
 
@@ -1237,7 +1237,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PhysicsAsset 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_physics_asset`, `get_asset_skeletal_mesh`, `save_asset`
 
@@ -1251,7 +1251,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PoseSearchDatabase or Schema 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_pose_search`, `create_asset_pose_search`, `search_asset`
 
@@ -1266,9 +1266,9 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 要查询的资产路径 |
-| `direction` | `string (enum)` |  | dependencies=依赖；referencers=引用者；children=直接子类；descendants=全部子孙；parent=直接父类；ancestors=父类链 枚举: `dependencies` / `referencers` / `children` / `descendants` / `parent` / `ancestors` |
+| `direction` | `string (enum)` |  | 依赖方向：`dependencies` / `referencers` 枚举: `dependencies` / `referencers` / `children` / `descendants` / `parent` / `ancestors` |
 | `recursive` | `boolean` |  | Recursive package deps/refs; children equivalent to descendants |
-| `nameFilter` | `string` |  | Path or name 子串 filter |
+| `nameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `assetTypeFilter` | `string` |  | Filter by assetType 子串, e.g. Blueprint/MaterialInstance |
 | `offset` | `integer` |  | 分页偏移 |
 | `limit` | `integer` |  | 每页最大条数 |
@@ -1283,7 +1283,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | RenderTarget 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `create_asset_render_target`, `manage_asset_render_target`
 
@@ -1297,7 +1297,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SkeletalMesh 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_skeletal_mesh`, `search_asset`, `get_asset_skeleton`, `get_asset_refs`, `save_asset`
 
@@ -1309,7 +1309,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundAttenuation 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `create_asset_sound_attenuation`, `manage_asset_sound_attenuation`
 
@@ -1321,7 +1321,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundClass 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `create_asset_sound_class`, `manage_asset_sound_class`
 
@@ -1333,7 +1333,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundConcurrency 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `create_asset_sound_concurrency`, `manage_asset_sound_concurrency`
 
@@ -1347,7 +1347,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundCue 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_sound_cue`, `create_asset_sound_cue`, `search_asset`, `get_asset_sound_wave`, `get_asset_refs`
 
@@ -1359,7 +1359,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundSubmix 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_sound_submix`, `create_asset_sound_submix`, `search_asset`
 
@@ -1373,7 +1373,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundWave 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_sound_wave`, `search_asset`, `get_asset_sound_cue`, `get_asset_refs`
 
@@ -1387,7 +1387,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | StateTree 资产路径 (/Game/…/ST_Foo) |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_state_tree`, `search_asset`, `get_asset_behavior_tree`, `get_asset_refs`, `save_asset`
 
@@ -1401,7 +1401,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | StaticMesh 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_static_mesh`, `search_asset`, `get_asset_refs`, `save_asset`
 
@@ -1413,7 +1413,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | StringTable 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `limit` | `integer` |  | 最大返回条目数 |
 
 **相关 Capability**: `manage_asset_string_table`, `create_asset_string_table`
@@ -1428,7 +1428,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Texture2D 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_texture`, `search_asset`, `get_asset_refs`, `save_asset`
 
@@ -1442,7 +1442,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Widget 蓝图资产路径 (/Game/…/WBP_Foo) |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `get_asset_user_widget`, `manage_asset_user_widget`, `search_asset`, `get_asset_blueprint`, `manage_asset_view_model`
 
@@ -1456,7 +1456,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AttributeSet 蓝图路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set/reset), `attributeName`, `baseValue` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1470,7 +1470,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | CommonButtonStyle 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_property), `propertyPath`, `value` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1484,7 +1484,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | CommonTextStyle 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_property), `propertyPath`, `value` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1500,7 +1500,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | ControlRig 蓝图资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(rename_element/set_control_color/add_null/remove_element/add_rig_link/break_rig_link/add_rig_node/add_control…), `elementName`, `newName`, `r`, `g`, `b`, `a`, `parentName`, `elementType`(bone/control/null), `sourcePinPath`, `targetPinPath`, `structType`, `nodeName`, `pinPath`, `pinDefaultValue` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1530,8 +1530,8 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | DataLayerAsset 路径 |
-| `operations` | `object[]` | ★ | 操作列表；每项必须有 action |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `operations` | `object[]` | ★ | 批量操作：`[{action, ...}, ...]` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**: `get_asset_data_layer`, `create_asset_data_layer`
@@ -1544,7 +1544,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Enum asset 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`, `index`, `displayName` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1558,7 +1558,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | FoliageType 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_mesh/set_density/set_property), `meshPath`, `density`, `propertyPath`, `value` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1572,7 +1572,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Font 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_property), `propertyPath`, `value` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1588,7 +1588,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | GameplayAbility 蓝图路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_tags/set_policy/set_cost_cooldown), `tagContainer`(abilityTags/activationOwnedTags/activationRequiredTags/activationBlockedTags/cancelAbilitiesWithTag/blockAbilitiesWithTag), `tags`, `mode`(set/add/remove), `instancingPolicy`(NonInstanced/InstancedPerActor/InstancedPerExecution), `netExecutionPolicy`(LocalPredicted/LocalOnly/ServerInitiated/ServerOnly), `costGE`, `cooldownGE` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1602,7 +1602,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Cue Notify 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_cue_name), `cueName` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1618,7 +1618,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | GameplayEffect 蓝图路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_policy/set_tags/add_modifier/remove_modifier/set_modifier), `durationPolicy`(Instant/Infinite/HasDuration), `duration`, `period`, `tagContainer`(gameplayEffectTags/grantedTags/blockedAbilityTags), `tags`, `mode`(set/add/remove), `attribute`, `modifierOp`(Add/Multiply/Divide/Override), `magnitude`, `index` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1632,7 +1632,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | GeometryCollection 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_damage_threshold/set_property), `index`, `value`, `propertyPath` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1648,7 +1648,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | IKRetargeter 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(set_source_rig/set_target_rig/set_chain_source), `rigPath`, `targetChain`, `sourceChain` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1664,7 +1664,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | IKRig 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(set_preview_mesh/set_solver_enabled/add_chain/remove_chain/set_goal), `meshPath`, `solverIndex`, `enabled`, `chainName`, `startBone`, `endBone`, `goalName` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1680,7 +1680,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | InputAction 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(set_value_type/add_trigger/remove_trigger/add_modifier/remove_modifier/set_flags), `valueType`(Boolean/Axis1D/Axis2D/Axis3D), `className`, `consumesInput`, `reserveAllMappings` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1696,7 +1696,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | InputMappingContext 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(add_mapping/remove_mapping/clear_mappings), `actionPath`, `key` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1714,7 +1714,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Level 资产路径 (e.g. /Game/Maps/MyLevel) |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_property/spawn_actor/remove_actor/set_actor_property), `propertyPath`, `value`, `className`, `assetPath`, `location`, `rotation`, `actorName` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1730,7 +1730,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | LevelSequence 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(set_display_rate/set_playback_range/remove_binding/add_master_track/remove_master_track/add_possessable/add_spawnable/add_track…), `numerator`, `denominator`, `startFrame`, `endFrame`, `bindingGuid`, `possessableName`, `className`, `trackClass`(CameraCut/Audio/CinematicShot/Fade/Event/LevelVisibility/Slomo/Float…), `time`, `keyValue`, `x`, `y`, `z`, `pitch`, `yaw`, `roll` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1744,7 +1744,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MediaSource 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_file_path/set_loop), `mediaPath`, `loop` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1760,7 +1760,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MetaSound Source or Patch 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(add_input/remove_input/add_output/remove_output/add_node/remove_node/add_edge/remove_edge), `name`, `typeName`, `classID`, `nodeName`, `nodeID`, `fromNodeID`, `fromPin`, `toNodeID`, `toPin` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1776,7 +1776,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MoviePipeline config 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_output/set_anti_aliasing/add_setting/remove_setting/set_setting_property/set_setting_enabled), `directory`, `width`, `height`, `fileNameFormat`, `spatialSampleCount`, `temporalSampleCount`, `settingClass`(Output/AntiAliasing/HighRes/Camera/GameOverride/Color/Debug), `propertyPath`, `value`, `enabled` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1794,7 +1794,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | NiagaraSystem 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_property/set_user_parameter/set_emitter_enabled/rename_emitter/add_emitter/remove_emitter/add_module/remove_module…), `propertyPath`, `parameterName`, `emitterName`, `newName`, `enabled`, `emitterPath`, `modulePath`, `moduleName`, `usage`(Spawn/Update/EmitterSpawn/EmitterUpdate), `value` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1808,7 +1808,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PaperFlipbook 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(add_key/remove_key/set_frames_per_second), `spritePath`, `frameRun`, `keyIndex`, `framesPerSecond` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1822,7 +1822,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PaperSprite 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_source/set_pivot), `sourceTexturePath`, `pivotX`, `pivotY` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1838,7 +1838,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PaperTileMap 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_map_size/set_tile_size/set_tileset/add_layer/remove_layer/set_layer_name/set_cell/clear_cell), `mapWidth`, `mapHeight`, `tileWidth`, `tileHeight`, `tileSetPath`, `layerIndex`, `layerName`, `x`, `y`, `tileIndex` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1854,7 +1854,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PCG Graph 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(add_node/remove_node/add_edge/remove_edge) |
 | `action` | `string (enum)` |  | 操作 枚举: `add_node` / `remove_node` / `add_edge` / `remove_edge` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
@@ -1869,7 +1869,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PhysicalMaterial 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set), `friction`, `restitution`, `density`, `raiseMassToPower`, `surfaceType` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1885,7 +1885,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PhysicsAsset 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(set_physics_type/add_sphere/add_capsule/add_box/clear_shapes/add_constraint/remove_constraint), `boneName`, `physicsType`(Simulated/Kinematic/Default), `radius`, `halfHeight`, `extentX`, `extentY`, `extentZ`, `bone1`, `bone2`, `jointName` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1901,7 +1901,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PoseSearchDatabase 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表 |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1915,7 +1915,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | RenderTarget 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set), `sizeX`, `sizeY`, `formatValue`, `clearColorR`, `clearColorG`, `clearColorB`, `clearColorA` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1933,7 +1933,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SkeletalMesh 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_material_slot/set_property/add_socket/remove_socket/set_socket/set_lod_screen_size), `slotIndex`, `materialPath`, `propertyPath`, `value`, `socketName`, `boneName`, `locX`, `locY`, `locZ`, `pitch`, `yaw`, `roll`, `scaleX`, `scaleY`, `scaleZ`, `lodIndex`, `screenSize` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1947,7 +1947,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundAttenuation 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set), `innerRadius`, `falloffDistance`, `shapeValue`, `bAttenuate`, `bSpatialize`, `dBAtMax` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1961,7 +1961,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundClass 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set), `volume`, `pitch`, `lowPassFilter`, `attenuationScale` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1975,7 +1975,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundConcurrency 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set), `maxCount`, `resolutionRuleValue`, `retriggerTime`, `limitToOwner` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -1993,7 +1993,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundCue 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_property/add_node/remove_node/connect_nodes), `propertyPath`, `value`, `nodeClass`, `soundWavePath`, `parentNodeIndex`, `childSlot`, `nodeIndex`, `childIndex` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2007,7 +2007,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundSubmix 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set), `outputVolume`, `wetLevel`, `dryLevel`, `outputVolumeDB`, `wetLevelDB`, `dryLevelDB` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2025,7 +2025,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundWave 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量属性操作（至少一项）; 条目: `action`(set_property), `propertyPath`, `value` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2041,7 +2041,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | StateTree 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(add_state/remove_state/rename_state/recompile/add_task/remove_task/add_enter_condition/remove_enter_condition…), `stateName`, `newName`, `parentState`, `stateType`(State/Group/Linked/Subtree), `nodeType`, `targetState`, `index` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2059,7 +2059,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | StaticMesh 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(set_material_slot/set_property/set_collision_trace_flag/add_box_collision/add_sphere_collision/clear_simple_collision/add_socket/remove_socket…), `slotIndex`, `materialPath`, `propertyPath`, `value`, `collisionTraceFlag`(UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple), `x`, `y`, `z`, `extentX`, `extentY`, `extentZ`, `radius`, `socketName`, `locX`, `locY`, `locZ`, `pitch`, `yaw`, `roll`, `scaleX`, `scaleY`, `scaleZ`, `lodIndex`, `screenSize` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2073,7 +2073,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | StringTable 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(add_key/remove_key/set_source), `key`, `source` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2091,7 +2091,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Texture 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量属性操作（至少一项）; 条目: `action`(set_property), `propertyPath`, `value` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2107,7 +2107,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | WidgetBlueprint 路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(add_view_model/remove_view_model/add_binding/remove_binding), `viewModelName`, `viewModelClass`, `bindingIndex` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2162,7 +2162,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetType` | `string` |  | Blueprint/Widget/Material/AnimSequence/… 或 UClass；大项目避免 all |
+| `assetType` | `string` |  | 资产类型（如 Blueprint、Widget、World）；不要裸用 `all` 全扫 |
 | `pathFilter` | `string` |  | 功能级路径前缀（大项目勿用裸 /Game/） |
 | `query` | `string` |  | 分词 AND 匹配；匹配名称/路径/标签 |
 | `nameFilter` | `string` |  | 资产名称过滤 |
@@ -2214,7 +2214,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New Blueprint 包路径, e.g. '/Game/Blueprints/BP_NewActor' |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `parentClass` | `string` | ★ | 父类或 BP 路径。Interface 表示 BPI；Actor/Pawn/Character 为普通 BP |
 
 **相关 Capability**: `manage_asset_blueprint`, `get_asset_blueprint`
@@ -2284,7 +2284,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimComposite 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `skeletonPath` | `string` |  | Skeleton asset path (可选) |
 
 **相关 Capability**: `get_asset_anim_composite`, `manage_asset_anim_composite`
@@ -2299,7 +2299,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Montage 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `skeletonPath` | `string` | ★ | Skeleton 资产路径 |
 
 **相关 Capability**: `manage_asset_anim_montage`, `get_asset_anim_montage`
@@ -2332,7 +2332,7 @@
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `variables` / `statemachines` / `defaults` / `graphOverview` / `graph` |
 | `assetPath` | `string` |  | 动画蓝图资产路径 |
-| `nameFilter` | `string` |  | Variable/默认 name filter |
+| `nameFilter` | `string` |  | 名称或标签过滤（可选） |
 
 **相关 Capability**: `manage_asset_anim_blueprint`, `create_asset_anim_blueprint`
 
@@ -2344,7 +2344,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimComposite 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `create_asset_anim_composite`, `manage_asset_anim_composite`
 
@@ -2358,7 +2358,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | 动画 Montage 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_anim_montage`, `create_asset_anim_montage`, `get_runtime_actor_animation`
 
@@ -2372,7 +2372,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimSequence 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_anim_sequence`, `search_asset`, `get_asset_skeleton`, `get_asset_anim_montage`, `get_asset_refs`
 
@@ -2386,7 +2386,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | BlendSpace 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_blend_space`, `create_asset_blend_space`, `search_asset`
 
@@ -2400,9 +2400,9 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Skeleton 资产路径 |
-| `offset` | `integer` |  | Skeleton 列表分页偏移 |
-| `limit` | `integer` |  | Skeleton 列表每页条数 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `offset` | `integer` |  | 分页偏移（从 0 起） |
+| `limit` | `integer` |  | 每页最大条数 |
 
 **相关 Capability**: `manage_asset_skeleton`, `search_asset`, `get_asset_anim_blueprint`, `get_asset_skeletal_mesh`, `get_asset_refs`
 
@@ -2417,7 +2417,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `state` / `slots` / `variables` |
-| `actorName` | `string` |  | Actor 名 |
+| `actorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `nameFilter` | `string` |  | 变量/槽位名过滤 |
 
 **相关 Capability**: `interact_runtime_actor_animation`, `get_asset_anim_montage`
@@ -2433,7 +2433,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `action` | `string (enum)` | ★ | 动画命令 枚举: `play_montage` / `stop_montage` / `stop_all` / `set_anim_variable` / `jump_to_section` / `set_anim_class` |
-| `actorName` | `string` | ★ | Actor 名 |
+| `actorName` | `string` | ★ | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `montagePath` | `string` |  | Montage 资产路径 (play/stop/jump) |
 | `playRate` | `number` |  | Play rate |
 | `startSection` | `string` |  | Section name (play_montage/jump_to_section) |
@@ -2468,7 +2468,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimComposite 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(add_segment/remove_segment), `animPath`, `startPos`, `animStartTime`, `animEndTime`, `playRate`, `segmentIndex` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2484,7 +2484,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | 动画 Montage 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(add_segment/remove_segment/add_section/remove_section), `animSequencePath`, `slotName`, `startPos`, `animStartTime`, `animEndTime`, `segmentIndex`, `sectionName`, `sectionStartTime`, `nextSectionName` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2502,7 +2502,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimSequence 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量编辑操作（至少一项）; 条目: `action`(add_notify/remove_notify/set_frame_rate/set_root_motion/add_float_curve/set_curve_key/remove_curve), `notifyName`, `notifyClass`, `notifyIndex`, `time`, `duration`, `frameRate`, `rootMotion`, `curveName`, `value` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2518,7 +2518,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | BlendSpace 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(set_axis/add_sample/remove_sample), `axisIndex`, `displayName`, `min`, `max`, `gridNum`, `animationPath`, `x`, `y`, `sampleIndex` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2536,8 +2536,8 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Skeleton 资产路径 |
-| `operations` | `object[]` | ★ | 批量 Socket 操作（至少一项）; 条目: `action`(add_socket/remove_socket/modify_socket), `socketName`, `boneName`, `location`, `rotation`, `scale` |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `operations` | `object[]` | ★ | 批量操作：`[{action, ...}, ...]`; 条目: `action`(add_socket/remove_socket/modify_socket), `socketName`, `boneName`, `location`, `rotation`, `scale` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**: `get_asset_skeleton`, `get_asset_skeletal_mesh`
@@ -2635,7 +2635,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Material/MI/MaterialFunction 资产路径 (shared) |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量材质操作; 条目: `action`(set_param/add_node/remove_node/set_node/recompile/connect/disconnect/disconnect_all), `paramName`, `paramType`(scalar/vector/texture), `value`, `expressionClass`, `parameterName`, `defaultValue`, `nodeId`, `posX`, `posY`, `sourceNodeId`, `sourceOutputName`, `targetNodeId`, `targetInputName` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2683,7 +2683,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | UserDefinedStruct 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `propertyPaths` | `string[]` |  | 字段名过滤（首段） |
 
 **相关 Capability**: `manage_asset_struct_field`, `create_asset_struct`
@@ -2698,7 +2698,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | UserDefinedStruct 资产路径（共用） |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量字段操作; 条目: `action`(add/remove/set), `fieldName`, `fieldType`, `defaultValue`, `newName`, `newType` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2716,7 +2716,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New DataAsset 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `parentClass` | `string` |  | 非抽象父类名 |
 
 **相关 Capability**: `manage_asset_data_asset`, `get_asset_data_asset`
@@ -2731,7 +2731,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | 新 DataTable 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `rowStructName` | `string` | ★ | 行结构体类名（须已存在） |
 
 **相关 Capability**: `manage_asset_data_table`, `get_asset_data_table`
@@ -2746,7 +2746,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | DataAsset 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `nameFilter` | `string` |  | 属性名过滤（/regex/ ^前缀 后缀$） |
 | `propertyPaths` | `string[]` |  | 反射属性路径（点分，如 `Health` / `Mesh.RelativeLocation`） |
 | `offset` | `integer` |  | 分页偏移 |
@@ -2764,8 +2764,8 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | DataTable 资产路径 |
-| `mode` | `string (enum)` |  | auto：rowNames 非空则 rows 否则 schema；schema 忽略 rowNames；rows 要求 rowNames 枚举: `auto` / `schema` / `rows` |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `mode` | `string (enum)` |  | 模式（见各 cap 的枚举说明） 枚举: `auto` / `schema` / `rows` |
 | `rowNames` | `string[]` |  | 行名 (rows mode or auto with non-empty rowNames) |
 | `nameFilter` | `string` |  | 行名过滤（/regex/ ^前缀 后缀$） |
 | `propertyPaths` | `string[]` |  | 反射属性路径（点分，如 `Health` / `Mesh.RelativeLocation`） |
@@ -2784,7 +2784,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | DataAsset 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量属性操作（至少一项）; 条目: `action`(set/reset), `propertyName`, `value` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2800,7 +2800,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | DataTable 资产路径（共用） |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量行操作（至少一项）; 条目: `action`(add/remove/set), `rowName`, `fieldName`, `value` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2818,7 +2818,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | 新 WidgetBlueprint 包路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `parentClass` | `string` |  | Parent class (默认 UserWidget) |
 
 **相关 Capability**: `manage_asset_user_widget`, `get_asset_user_widget`
@@ -2834,11 +2834,11 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `widgets` / `animations` / `graphOverview` |
-| `assetPath` | `string` | ★ | Widget 蓝图资产路径 |
-| `nameFilter` | `string` |  | Widget/animation name substring (可选) |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `nameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `typeFilter` | `string` |  | Widget class 子串 (widgets section only) |
-| `offset` | `integer` |  | Widget 分页偏移（默认 0） |
-| `limit` | `integer` |  | 每页最大 Widget 数 1–500（默认 100） |
+| `offset` | `integer` |  | 分页偏移（从 0 起） |
+| `limit` | `integer` |  | 每页最大条数 |
 
 **相关 Capability**: `manage_asset_user_widget`, `create_asset_user_widget`, `get_asset_blueprint`, `manage_asset_blueprint`
 
@@ -2852,8 +2852,8 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | WidgetBlueprint 资产路径（共用） |
-| `operations` | `object[]` | ★ | 批量 Widget 操作; 条目: `action`(add/remove/set_slot/set_property/add_animation/remove_animation/add_track/add_key…), `widgetClass`, `widgetName`, `parentWidget`, `animationName`, `trackName`, `propertyPath`, `time`, `keyValue`, `value`, `anchorMinX`, `anchorMinY`, `anchorMaxX`, `anchorMaxY`, `alignmentX`, `alignmentY`, `offsetLeft`, `offsetTop`, `offsetRight`, `offsetBottom` |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `operations` | `object[]` | ★ | 批量操作：`[{action, ...}, ...]`; 条目: `action`(add/remove/set_slot/set_property/add_animation/remove_animation/add_track/add_key…), `widgetClass`, `widgetName`, `parentWidget`, `animationName`, `trackName`, `propertyPath`, `time`, `keyValue`, `value`, `anchorMinX`, `anchorMinY`, `anchorMaxX`, `anchorMaxY`, `alignmentX`, `alignmentY`, `offsetLeft`, `offsetTop`, `offsetRight`, `offsetBottom` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `compile` | `boolean` |  | 需要时编译蓝图（仅 BP/ABP/WBP） |
 
@@ -2990,7 +2990,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `actorName` | `string` | ★ | 运行时 Actor 名 |
+| `actorName` | `string` | ★ | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `luaPath` | `string` |  | Lua 点分路径 |
 | `nameFilter` | `string` |  | 键名过滤；支持 /regex/、^前缀、后缀$ |
 | `limit` | `integer` |  | 最大返回键数 |
@@ -3103,7 +3103,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `widgetName` | `string` | ★ | 运行时 Widget 名 |
-| `ownerClass` | `string` |  | Owner UserWidget 类/名过滤（可选） |
+| `ownerClass` | `string` |  | 所属 UserWidget 类过滤 |
 
 **相关 Capability**: `spawn_runtime_widget`, `list_runtime_widgets`
 
@@ -3136,7 +3136,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `abilities` / `effects` / `attributes` |
-| `actorName` | `string` |  | Actor name (可选; first ASC in World if omitted) |
+| `actorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 
 **相关 Capability**: `interact_runtime_actor_ability_system`, `get_gameplay_tags`, `get_runtime_actor_property`
 
@@ -3189,7 +3189,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `widgetName` | `string` |  | 运行时 Widget 名 |
-| `ownerClass` | `string` |  | UserWidget 过滤 |
+| `ownerClass` | `string` |  | 所属 UserWidget 类过滤 |
 | `propertyPaths` | `string[]` |  | 点分路径（批量） |
 
 **相关 Capability**: `set_runtime_widget_property`, `list_runtime_widgets`
@@ -3207,7 +3207,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `action` | `string (enum)` | ★ | 写操作 枚举: `activate_ability` / `cancel_ability` / `apply_effect` / `remove_effect` / `set_attribute` / `give_ability` / `clear_ability` / `execute_cue` / `add_loose_tag` / `remove_loose_tag` |
-| `actorName` | `string` |  | Actor name (可选; first ASC Pawn/Actor if omitted) |
+| `actorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `abilityPath` | `string` |  | GameplayAbility 资产路径 |
 | `effectPath` | `string` |  | GameplayEffect 资产路径 (apply/remove) |
 | `attributeName` | `string` |  | Attribute name: AttributeSetName.AttributeName (set_attribute) |
@@ -3231,7 +3231,7 @@
 |------|------|:----:|------|
 | `action` | `string (enum)` | ★ | 操作 枚举: `play_sound` |
 | `assetPath` | `string` | ★ | SoundCue/SoundWave 路径 |
-| `actorName` | `string` |  | 可选: attach to this Actor |
+| `actorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 
 **相关 Capability**: `get_asset_sound_cue`, `get_asset_sound_wave`
 
@@ -3248,8 +3248,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `action` | `string (enum)` | ★ | 操作 枚举: `activate` / `deactivate` |
-| `actorName` | `string` |  | Actor 名 |
-| `assetPath` | `string` |  | 可选 NiagaraSystem path (spawn on activate) |
+| `actorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
+| `assetPath` | `string` |  | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `get_asset_niagara_system`
 
@@ -3263,10 +3263,10 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `widgetName` | `string` | ★ | 子 Widget 名 |
+| `widgetName` | `string` | ★ | 运行时 Widget 名 |
 | `action` | `string (enum)` | ★ | 交互操作 枚举: `click` / `check` / `uncheck` / `toggle` / `set` / `read` |
 | `value` | `string` |  | action=set 时的新值 |
-| `ownerClass` | `string` |  | Owner UserWidget 类/名过滤 |
+| `ownerClass` | `string` |  | 所属 UserWidget 类过滤 |
 
 **相关 Capability**: `list_runtime_widgets`, `get_runtime_widget_property`
 
@@ -3280,9 +3280,9 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `classFilter` | `string` |  | Actor 类名子串匹配（可选） |
-| `nameFilter` | `string` |  | Actor 名或标签子串匹配（可选） |
-| `tagFilter` | `string` |  | 仅含此标签的 Actor（可选） |
+| `classFilter` | `string` |  | 类名过滤（子串/通配，可选） |
+| `nameFilter` | `string` |  | 名称或标签过滤（可选） |
+| `tagFilter` | `string` |  | Actor 标签精确匹配（可选） |
 | `offset` | `integer` |  | 分页偏移（默认 0） |
 | `limit` | `integer` |  | 最大条数 1–500（默认 100） |
 | `detail` | `string (enum)` |  | 响应详细度：minimal/standard/full 枚举: `minimal` / `standard` / `full` |
@@ -3299,8 +3299,8 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `classFilter` | `string` |  | UserWidget 类名过滤 |
-| `nameFilter` | `string` |  | 子 Widget 名过滤 |
+| `classFilter` | `string` |  | 类名过滤（子串/通配，可选） |
+| `nameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `textFilter` | `string` |  | 可见显示文本子串过滤 |
 | `offset` | `integer` |  | 分页偏移（默认 0） |
 | `limit` | `integer` |  | 最大条数 1–500（默认 100） |
@@ -3350,8 +3350,8 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` |  | 蓝图路径 (or className) |
-| `className` | `string` |  | Native 类名 (or assetPath) |
+| `assetPath` | `string` |  | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `className` | `string` |  | 原生 UClass 名 |
 | `locationX` | `number` |  | 生成 X |
 | `locationY` | `number` |  | 生成 Y |
 | `locationZ` | `number` |  | 生成 Z |
@@ -3371,7 +3371,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Widget 蓝图资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `zOrder` | `integer` |  | AddToViewport Z-order (默认 0) |
 
 **相关 Capability**: `list_runtime_widgets`, `interact_runtime_widget`
@@ -3402,7 +3402,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | BlackboardData 包路径, e.g. '/Game/AI/BB_Enemy' |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_blackboard`, `get_asset_blackboard`, `create_asset_behavior_tree`
 
@@ -3444,7 +3444,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` |  | BlackboardData 资产路径 |
+| `assetPath` | `string` |  | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `nameFilter` | `string` |  | 黑板键名过滤 |
 
 **相关 Capability**: `manage_asset_blackboard`, `get_asset_behavior_tree`
@@ -3459,7 +3459,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | EnvQuery 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 
 **相关 Capability**: `manage_asset_eqs`, `create_asset_eqs`, `get_asset_behavior_tree`
 
@@ -3473,7 +3473,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `actorName` | `string` |  | Controller or Pawn name (可选; first AIController if omitted) |
+| `actorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `nameFilter` | `string` |  | 黑板键名过滤 |
 
 **相关 Capability**: `interact_runtime_actor_behavior_tree`, `get_asset_behavior_tree`
@@ -3511,7 +3511,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `action` | `string (enum)` | ★ | 写操作 枚举: `set_blackboard` / `restart_tree` / `stop_tree` |
-| `actorName` | `string` |  | Controller or Pawn name (可选; first AIController if omitted) |
+| `actorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `keyName` | `string` |  | Blackboard 键名 (set_blackboard) |
 | `value` | `string` |  | Key value string (set_blackboard) |
 | `treePath` | `string` |  | BT asset path (restart_tree 可选; restarts current if omitted) |
@@ -3544,7 +3544,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | BlackboardData 或 BehaviorTree 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 批量键操作; 条目: `action`(add/remove/rename/set_parent), `keyName`, `keyType`(bool/float/int/string/name/vector/rotator/object…), `newName`, `parentPath` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -3560,7 +3560,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | EnvQuery 资产路径 |
+| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `operations` | `object[]` | ★ | 操作列表; 条目: `action`(add_option/remove_option/set_generator/add_test/remove_test), `optionIndex`, `generatorClass`, `testClass`, `testIndex` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 

@@ -92,7 +92,6 @@ FCapabilityResult FNexusActionCapability::Execute(const TSharedPtr<FJsonObject>&
 			Ctx.AssetPath = AssetPath;
 			Ctx.Action    = Action;
 			Ctx.Target    = Target;
-			Ctx.Entries   = &OutEntries;
 
 			(*Handler)(Op, Ctx);
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

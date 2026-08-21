@@ -14,9 +14,6 @@ public:
 	/** 若 Name 为旧名则返回规范名，否则返回 Trim 后的原名。 */
 	static FString Resolve(const FString& Name);
 
-	/** Name 是否为已知旧名（未改写的输入）。 */
-	static bool IsLegacyName(const FString& Name);
-
 	/** 旧名存在时返回规范名；否则返回空字符串。 */
 	static FString GetCanonicalNameForLegacy(const FString& LegacyName);
 };

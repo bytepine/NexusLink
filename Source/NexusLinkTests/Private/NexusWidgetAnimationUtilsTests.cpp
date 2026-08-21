@@ -2,9 +2,8 @@
 
 #include "Misc/AutomationTest.h"
 #include "NexusCapabilityRegistry.h"
+#include "NexusSchemaTestUtils.h"
 #include "Utils/NexusWidgetAnimationUtils.h"
-#include "Dom/JsonObject.h"
-#include "Dom/JsonValue.h"
 #include "UObject/Package.h"
 
 #if WITH_EDITOR
@@ -63,31 +62,9 @@ bool FNexusWidgetManageAnimationActionsInSchema::RunTest(const FString& Paramete
 	if (!Rec) return false;
 
 	TestTrue(TEXT("Related 含 manage_asset_blueprint"), Rec->Def.RelatedCapabilities.Contains(TEXT("manage_asset_blueprint")));
-	const TSharedPtr<FJsonObject>& Schema = Rec->Def.InputSchema;
-	TestTrue(TEXT("有 InputSchema"), Schema.IsValid());
-	if (!Schema.IsValid()) return false;
-
-	const TSharedPtr<FJsonObject>* Props = nullptr;
-	if (!Schema->TryGetObjectField(TEXT("properties"), Props) || !Props) return false;
-	const TSharedPtr<FJsonObject>* Ops = nullptr;
-	if (!(*Props)->TryGetObjectField(TEXT("operations"), Ops) || !Ops) return false;
-	const TSharedPtr<FJsonObject>* Items = nullptr;
-	if (!(*Ops)->TryGetObjectField(TEXT("items"), Items) || !Items) return false;
-	const TSharedPtr<FJsonObject>* ItemProps = nullptr;
-	if (!(*Items)->TryGetObjectField(TEXT("properties"), ItemProps) || !ItemProps) return false;
-	const TSharedPtr<FJsonObject>* Action = nullptr;
-	if (!(*ItemProps)->TryGetObjectField(TEXT("action"), Action) || !Action) return false;
-	const TArray<TSharedPtr<FJsonValue>>* Enums = nullptr;
-	if (!(*Action)->TryGetArrayField(TEXT("enum"), Enums) || !Enums) return false;
-
-	TArray<FString> Actions;
-	for (const TSharedPtr<FJsonValue>& V : *Enums)
-	{
-		Actions.Add(V->AsString());
-	}
-	TestTrue(TEXT("含 add_animation"), Actions.Contains(TEXT("add_animation")));
-	TestTrue(TEXT("含 add_track"), Actions.Contains(TEXT("add_track")));
-	TestTrue(TEXT("含 add_key"), Actions.Contains(TEXT("add_key")));
+	TestTrue(TEXT("含 add_animation"), NexusSchemaActionContains(TEXT("manage_asset_user_widget"), TEXT("add_animation"), *this));
+	TestTrue(TEXT("含 add_track"), NexusSchemaActionContains(TEXT("manage_asset_user_widget"), TEXT("add_track"), *this));
+	TestTrue(TEXT("含 add_key"), NexusSchemaActionContains(TEXT("manage_asset_user_widget"), TEXT("add_key"), *this));
 	return true;
 }
 

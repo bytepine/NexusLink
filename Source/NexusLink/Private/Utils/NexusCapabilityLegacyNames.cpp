@@ -52,11 +52,6 @@ FString FNexusCapabilityLegacyNames::Resolve(const FString& Name)
 	return Trimmed;
 }
 
-bool FNexusCapabilityLegacyNames::IsLegacyName(const FString& Name)
-{
-	return GetLegacyCapabilityNameMap().Contains(Name.TrimStartAndEnd());
-}
-
 FString FNexusCapabilityLegacyNames::GetCanonicalNameForLegacy(const FString& LegacyName)
 {
 	if (const FString* Canon = GetLegacyCapabilityNameMap().Find(LegacyName.TrimStartAndEnd()))

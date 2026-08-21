@@ -193,10 +193,6 @@ _PHRASES: list[tuple[str, str]] = [
     ("referencers section pagination offset", "referencers 段分页偏移"),
     ("Skeleton list pagination offset", "Skeleton 列表分页偏移"),
     ("Skeleton list page size", "Skeleton 列表每页条数"),
-    ("optional", "可选"),
-    ("Optional", "可选"),
-    ("default", "默认"),
-    ("Default", "默认"),
 ]
 
 # 较短词/词组，按长度降序替换；保留标识符与路径。
@@ -238,7 +234,6 @@ _GLOSSARY: list[tuple[str, str]] = [
     ("batch ops", "批量操作"),
     ("Batch edit", "批量编辑"),
     ("Operation", "操作"),
-    ("Action", "操作"),
 ]
 
 
@@ -263,6 +258,21 @@ _REGEXES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^Enable (.+)$", re.I), r"启用\1"),
     (re.compile(r"^(.+?) \(optional\)$", re.I), r"\1（可选）"),
 ]
+
+
+_EN_WORD = re.compile(r"[A-Za-z]{4,}")
+
+
+def residual_english(text: str) -> bool:
+    """翻译后仍残留较长英文词（标识符/路径除外）时视为未译完。"""
+    held: list[str] = []
+
+    def _hold(m: re.Match[str]) -> str:
+        held.append(m.group(0))
+        return " "
+
+    stripped = _KEEP.sub(_hold, text)
+    return bool(_EN_WORD.search(stripped))
 
 
 def translate_param_text(text: str, exact: dict[str, str] | None = None) -> str:
@@ -293,8 +303,6 @@ def translate_param_text(text: str, exact: dict[str, str] | None = None) -> str:
     out = src
     for en, zh in _PHRASES_SORTED:
         out = _swap(out, en, zh, ignore_case=False)
-    if has_cjk(out) and out != src:
-        return out
     held: list[str] = []
 
     def _hold(m: re.Match[str]) -> str:
@@ -305,12 +313,11 @@ def translate_param_text(text: str, exact: dict[str, str] | None = None) -> str:
     for en, zh in _GLOSSARY_SORTED:
         protected = _swap(protected, en, zh, ignore_case=True)
     restored = re.sub(r"\x00(\d+)\x00", lambda m: held[int(m.group(1))], protected)
-    if has_cjk(restored) and restored != src:
-        return restored
-    for pat, repl in _REGEXES:
-        m = pat.fullmatch(src)
-        if m:
-            return m.expand(repl)
+    if restored == src:
+        for pat, repl in _REGEXES:
+            m = pat.fullmatch(src)
+            if m:
+                return m.expand(repl)
     return restored
 
 
@@ -345,8 +352,9 @@ class DocLocale:
         if not text:
             return self.param_by_name.get(name, "")
         translated = translate_param_text(text, self.param_by_en)
-        if translated == text and name in self.param_by_name and not has_cjk(text):
-            return self.param_by_name[name]
+        if name in self.param_by_name and not has_cjk(text):
+            if translated == text or residual_english(translated):
+                return self.param_by_name[name]
         return translated
 
 
@@ -362,13 +370,12 @@ def load_zh_overlay() -> dict[str, Any]:
     return json.loads(_ZH_JSON.read_text(encoding="utf-8"))
 
 
-def build_zh_locale(*, common_param_zh: dict[str, str]) -> DocLocale:
+def build_zh_locale() -> DocLocale:
     overlay = load_zh_overlay()
     descriptions = dict(overlay.get("descriptions") or {})
     when_to_use = dict(overlay.get("when_to_use") or {})
     param_by_en = dict(overlay.get("param_text") or {})
-    param_by_name = dict(common_param_zh)
-    param_by_name.update(overlay.get("param_name") or {})
+    param_by_name = dict(overlay.get("param_name") or {})
     return DocLocale(
         code="zh",
         header_name="tool-reference.header.zh.md",

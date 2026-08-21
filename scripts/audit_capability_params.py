@@ -15,8 +15,12 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-PLUGIN_ROOT = SCRIPT_DIR.parent
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+from schema_extract import extract_object_chain_after  # noqa: E402
+
+PLUGIN_ROOT = _SCRIPTS_DIR.parent
 DEFAULT_CAP_ROOT = PLUGIN_ROOT / "Source" / "NexusLink" / "Private" / "Capabilities"
 
 RE_NAME = re.compile(r'Out\.Name\s*=\s*TEXT\("([^"]+)"\)')
@@ -77,30 +81,6 @@ class CapScan:
     is_lua: bool = False
 
 
-def _extract_object_chain_after(text: str, start: int) -> str:
-    """从 start 起找第一个 FNexusSchema::Object()…匹配 .Build()，跳过嵌套 Object()。"""
-    key = "FNexusSchema::Object()"
-    idx = text.find(key, start)
-    if idx < 0:
-        return ""
-    pos = idx + len(key)
-    depth = 1
-    i = pos
-    while i < len(text) and depth > 0:
-        if text.startswith("FNexusSchema::Object()", i):
-            depth += 1
-            i += len("FNexusSchema::Object()")
-            continue
-        if text.startswith(".Build()", i):
-            depth -= 1
-            if depth == 0:
-                return text[pos:i]
-            i += len(".Build()")
-            continue
-        i += 1
-    return ""
-
-
 def extract_top_level_schema_text(text: str) -> str:
     """提取顶层 InputSchema / BuildCapabilitySchema 的 Object() 链（不含 Op/Item Schema 前置块）。"""
     m = re.search(r"Out\.InputSchema\s*=", text)
@@ -109,10 +89,10 @@ def extract_top_level_schema_text(text: str) -> str:
         # 常见写法：lambda/IIFE 内先建 ItemSchema，再 return FNexusSchema::Object()…
         mret = re.search(r"return\s+FNexusSchema::Object\(\)", region)
         if mret:
-            chain = _extract_object_chain_after(region, mret.start())
+            chain = extract_object_chain_after(region, mret.start())
             if chain:
                 return chain
-        chain = _extract_object_chain_after(region, 0)
+        chain = extract_object_chain_after(region, 0)
         if chain:
             # 若首个 Object 是 item 块（无 assetPath/operations 等顶层键），尝试后续 Object
             props = _parse_schema_prop_names_depth0(chain)
@@ -122,7 +102,7 @@ def extract_top_level_schema_text(text: str) -> str:
                 idx = region.find(key)
                 if idx >= 0:
                     after = idx + len(key) + len(chain) + len(".Build()")
-                    chain2 = _extract_object_chain_after(region, after)
+                    chain2 = extract_object_chain_after(region, after)
                     if chain2:
                         return chain2
             return chain
@@ -132,13 +112,13 @@ def extract_top_level_schema_text(text: str) -> str:
         region = text[m.start() :]
         mret = re.search(r"return\s+FNexusSchema::Object\(\)", region)
         if mret:
-            chain = _extract_object_chain_after(region, mret.start())
+            chain = extract_object_chain_after(region, mret.start())
             if chain:
                 return chain
-        chain = _extract_object_chain_after(region, 0)
+        chain = extract_object_chain_after(region, 0)
         if chain:
             return chain
-    return _extract_object_chain_after(text, 0)
+    return extract_object_chain_after(text, 0)
 
 
 def _parse_schema_prop_names_depth0(schema_text: str) -> set[str]:

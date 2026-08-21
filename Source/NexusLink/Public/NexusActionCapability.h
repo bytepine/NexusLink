@@ -15,8 +15,6 @@ struct FNexusActionContext
 	FString AssetPath;
 	FString Action;
 	void* Target = nullptr;
-	/** 指向 ResultBuilder 内 OutEntries，仅 handler 执行期有效。 */
-	TArray<TSharedPtr<FJsonValue>>* Entries = nullptr;
 };
 
 /**

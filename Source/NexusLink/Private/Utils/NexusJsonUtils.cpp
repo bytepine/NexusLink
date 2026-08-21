@@ -14,24 +14,6 @@ FString FNexusJsonUtils::GetStringSafe(const TSharedPtr<FJsonObject>& Obj, const
 	return Default;
 }
 
-int32 FNexusJsonUtils::GetIntSafe(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Key, int32 Default, int32 ClampMin, int32 ClampMax)
-{
-	if (!Obj.IsValid()) return FMath::Clamp(Default, ClampMin, ClampMax);
-	double Num = 0.0;
-	if (Obj->TryGetNumberField(Key, Num))
-		return FMath::Clamp(static_cast<int32>(Num), ClampMin, ClampMax);
-	return FMath::Clamp(Default, ClampMin, ClampMax);
-}
-
-float FNexusJsonUtils::GetFloatSafe(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Key, float Default)
-{
-	if (!Obj.IsValid()) return Default;
-	double Num = 0.0;
-	if (Obj->TryGetNumberField(Key, Num))
-		return static_cast<float>(Num);
-	return Default;
-}
-
 bool FNexusJsonUtils::GetBoolSafe(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Key, bool Default)
 {
 	if (!Obj.IsValid()) return Default;
@@ -118,15 +100,5 @@ FString FNexusJsonUtils::SerializeCondensed(const TSharedPtr<FJsonObject>& Obj)
 	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W =
 		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Out);
 	FJsonSerializer::Serialize(Obj.ToSharedRef(), W);
-	return Out;
-}
-
-FString FNexusJsonUtils::SerializeValueCondensed(const TSharedPtr<FJsonValue>& Value)
-{
-	if (!Value.IsValid()) return FString();
-	FString Out;
-	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W =
-		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Out);
-	FJsonSerializer::Serialize(Value.ToSharedRef(), TEXT(""), W);
 	return Out;
 }
