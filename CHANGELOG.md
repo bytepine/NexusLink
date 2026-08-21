@@ -17,7 +17,7 @@
 
 ### Changed
 
-- refactor: 文档脚本共用 schema 抽取、从 C++ `SupportsCompile` 解析 compile 名单；去掉未用的 `IsLegacyName`、JsonUtils 死方法与 `FNexusActionContext::Entries`
+- refactor: Dispatcher JSON 读参改 `TryGet*Field`；删除 `SerializeJson` 转调与 `get_asset_blueprint` 未使用 `section`；`operations[]` 非 object 写 entry.error；旧名表 `Resources/legacy_capability_names.json`；`Run` 空串并入 ValidateArgs；`saveToDisk`/`compile` 改定义标志；plain create 收口 `CreatePlainAsset`；注册表 SchemaDump + `schema_catalog` / `doc_categories.json`
 - docs: usage-guide 注明本机只开一个 MCP 代理（Desktop / Rider / VSCode 勿叠开）
 
 ## [2.0.0-beta.2] - 2026-08-19

@@ -37,28 +37,14 @@ FCapabilityResult FCreateAssetInputActionCapability::Execute(const TSharedPtr<FJ
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
 		const FString AssetPath = A.Str(TEXT("assetPath"));
-
-		if (LoadObject<UInputAction>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UInputAction>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("InputAction already exists: %s"), *AssetPath));
-			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UPackage* Pkg = CreatePackage(*AssetPath);
-		if (!Pkg)
-		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create Package failed"));
-			return;
-		}
-
-		UInputAction* IA = NewObject<UInputAction>(Pkg, *AssetName, RF_Public | RF_Standalone);
-		if (!IA)
-		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("InputAction Createfailed"));
-			return;
-		}
+		UInputAction* IA = Cast<UInputAction>(Created.Asset);
 
 		// 设置 ValueType
 		FString ValueTypeStr;
@@ -74,7 +60,7 @@ FCapabilityResult FCreateAssetInputActionCapability::Execute(const TSharedPtr<FJ
 				IA->ValueType = EInputActionValueType::Boolean;
 		}
 
-		FNexusAssetUtils::NotifyAndSaveCreated(Pkg, IA, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(IA->GetOutermost(), IA, AssetPath);
 
 		OutEntry->SetStringField(TEXT("name"), IA->GetName());
 		OutEntry->SetStringField(TEXT("path"), FNexusAssetUtils::PackagePathOf(IA));

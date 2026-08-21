@@ -105,6 +105,12 @@ struct FNexusCapabilityDefinition
 	 */
 	TArray<FString> SearchAssetTypes;
 
+	/** 框架向 InputSchema 注入可选 saveToDisk（manage_asset_* 由 Action 基类 FinalizeDefinition 置位）。 */
+	bool bInjectSaveToDisk = false;
+
+	/** 框架向 InputSchema 注入可选 compile（仅 BP/ABP/WBP manage 在 BuildDefinition 置位）。 */
+	bool bInjectCompile = false;
+
 	bool HasTag(const FString& Tag) const { return Tags.Contains(Tag); }
 };
 
@@ -204,6 +210,15 @@ protected:
 	 * 仅在首次 GetDefinition() 时调用一次，结果被实例级缓存。
 	 */
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const = 0;
+
+	/** BuildDefinition 之后、InjectSchema 之前；默认给 manage_asset_* 打开 saveToDisk。 */
+	virtual void FinalizeDefinition(FNexusCapabilityDefinition& Def) const
+	{
+		if (Def.Name.StartsWith(TEXT("manage_asset_")))
+		{
+			Def.bInjectSaveToDisk = true;
+		}
+	}
 
 	/**
 	 * 完整执行逻辑：子类自主处理参数提取、循环，返回 FCapabilityResult。

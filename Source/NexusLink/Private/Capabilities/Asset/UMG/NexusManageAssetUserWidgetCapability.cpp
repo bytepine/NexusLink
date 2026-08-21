@@ -21,6 +21,7 @@
 void FManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_user_widget");
+	Out.bInjectCompile = true;
 	Out.SearchAssetTypes = {TEXT("Widget")};
 	Out.Description = TEXT("Batch edit WBP: widget tree/slots/props and animation tracks; EventGraph via manage_asset_blueprint.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>

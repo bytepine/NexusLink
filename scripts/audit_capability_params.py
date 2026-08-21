@@ -19,6 +19,7 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 from schema_extract import extract_object_chain_after  # noqa: E402
+from schema_catalog import load_capability_schemas, schema_top_prop_names  # noqa: E402
 
 PLUGIN_ROOT = _SCRIPTS_DIR.parent
 DEFAULT_CAP_ROOT = PLUGIN_ROOT / "Source" / "NexusLink" / "Private" / "Capabilities"
@@ -34,7 +35,8 @@ RE_ARG_READ = re.compile(
     r'RequireString\s*\(\s*\w+\s*,\s*TEXT\("([^"]+)"\)'
     r"|TryGet(?:String|Array|Bool|Number)Field\s*\(\s*(?:Arguments|Args)\s*,\s*TEXT\(\"([^\"]+)\"\)"
     r"|(?:Arguments|Args)\s*->\s*(?:TryGet\w*Field|HasField|Get(?:String|Array|Bool|Number)Field)\s*\(\s*TEXT\(\"([^\"]+)\"\)"
-    r"|FNexusJsonUtils::(?:GetStringArray|ExtractOperations)\s*\(\s*(?:Arguments|Args)\s*,\s*TEXT\(\"([^\"]+)\"\)"
+	r"|FNexusJsonUtils::(?:GetStringArray|ExtractOperations)\s*\(\s*(?:Arguments|Args)\s*,\s*TEXT\(\"([^\"]+)\"\)"
+    r"|\.(?:Str|Num|Bool|StrArr)\s*\(\s*TEXT\(\"([^\"]+)\""
     r")"
 )
 
@@ -171,7 +173,13 @@ def scan_capability_text(text: str, path: Path | None = None) -> CapScan | None:
     if not m:
         return None
     name = m.group(1)
-    schema = extract_top_level_schema_text(text)
+    catalog = load_capability_schemas() or {}
+    dumped = catalog.get(name)
+    if isinstance(dumped, dict) and dumped.get("properties"):
+        top_props = schema_top_prop_names(dumped)
+    else:
+        schema = extract_top_level_schema_text(text)
+        top_props = parse_schema_prop_names(schema)
     is_lua = False
     if path is not None:
         parts = {p.lower() for p in path.parts}
@@ -181,7 +189,7 @@ def scan_capability_text(text: str, path: Path | None = None) -> CapScan | None:
     return CapScan(
         path=path or Path("<memory>"),
         name=name,
-        top_props=parse_schema_prop_names(schema),
+        top_props=top_props,
         arg_reads=parse_arg_reads(text),
         is_lua=is_lua,
     )
@@ -279,6 +287,13 @@ def main(argv: list[str] | None = None) -> int:
         help="Capabilities 根目录（默认同插件 Source/.../Capabilities）",
     )
     args = parser.parse_args(argv)
+
+    gen = _SCRIPTS_DIR / "gen_legacy_capability_names.py"
+    if gen.is_file():
+        import subprocess
+        chk = subprocess.run([sys.executable, str(gen), "--check"], cwd=str(PLUGIN_ROOT))
+        if chk.returncode != 0:
+            return chk.returncode
 
     cap_root = args.cap_root.resolve()
     errors = audit_tree(cap_root)

@@ -67,11 +67,11 @@ FCapabilityResult FInteractRuntimeActorAnimationCapability::Execute(const TShare
 
 		FString MontagePath, StartSection, VarName, VarValue, AnimClassPath;
 		double PlayRate = 1.0;
-		Arguments->TryGetStringField(TEXT("montagePath"), MontagePath);
-		Arguments->TryGetStringField(TEXT("startSection"), StartSection);
-		Arguments->TryGetStringField(TEXT("variableName"), VarName);
-		Arguments->TryGetStringField(TEXT("value"), VarValue);
-		Arguments->TryGetStringField(TEXT("animClassPath"), AnimClassPath);
+		MontagePath = FNexusArgs(Arguments).Str(TEXT("montagePath"), MontagePath);
+		StartSection = FNexusArgs(Arguments).Str(TEXT("startSection"), StartSection);
+		VarName = FNexusArgs(Arguments).Str(TEXT("variableName"), VarName);
+		VarValue = FNexusArgs(Arguments).Str(TEXT("value"), VarValue);
+		AnimClassPath = FNexusArgs(Arguments).Str(TEXT("animClassPath"), AnimClassPath);
 		Arguments->TryGetNumberField(TEXT("playRate"), PlayRate);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();

@@ -39,20 +39,22 @@ FCapabilityResult FCreateAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 		return;
 #else
 		const FString AssetPath = A.Str(TEXT("assetPath"));
-		if (LoadObject<UStateTree>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UStateTree>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("StateTree already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UStateTree* ST = NewObject<UStateTree>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!ST) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Creation failed")); return; }
+		UStateTree* ST = Cast<UStateTree>(Created.Asset);
+		if (!ST)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		UStateTreeEditorData* Ed = NewObject<UStateTreeEditorData>(ST, NAME_None, RF_Transactional);
 		ST->EditorData = Ed;
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, ST, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(ST->GetOutermost(), ST, AssetPath);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), ST->GetName());
 		Entry->SetStringField(TEXT("path"), ST->GetPathName());

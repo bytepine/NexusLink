@@ -1,7 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Utils/NexusPropertyUtils.h"
-#include "Utils/NexusJsonUtils.h"
 #include "UObject/UnrealType.h"
 
 // ====================================================================
@@ -557,13 +556,6 @@ void FNexusPropertyUtils::CollectEditableProperties(UObject* Obj, TArray<TShared
 		O->SetStringField(TEXT("type"), It->GetCPPType());
 		OutArray.Add(MakeShared<FJsonValueObject>(O));
 	}
-}
-
-// --- JSON 序列化 ---
-
-FString FNexusPropertyUtils::SerializeJson(const TSharedPtr<FJsonObject>& Obj)
-{
-	return FNexusJsonUtils::SerializeCondensed(Obj);
 }
 
 bool FNexusPropertyUtils::WritePropertyAndEcho(

@@ -39,8 +39,8 @@ FCapabilityResult FInteractRuntimeActorNiagaraCapability::Execute(const TSharedP
 		const FNexusArgs A(Arguments);
 		const FString Action = A.Str(TEXT("action"));
 		FString ActorName, AssetPath;
-		Arguments->TryGetStringField(TEXT("actorName"), ActorName);
-		Arguments->TryGetStringField(TEXT("assetPath"), AssetPath);
+		ActorName = FNexusArgs(Arguments).Str(TEXT("actorName"), ActorName);
+		AssetPath = FNexusArgs(Arguments).Str(TEXT("assetPath"), AssetPath);
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
 

@@ -23,27 +23,15 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusMcpDispatcher, Log, All);
 
-// --- JSON 辅助函数（UE4/UE5 兼容） ---
-
-/** 安全读取字符串字段，字段不存在时返回 false。 */
-static bool NexusJsonGetString(const TSharedPtr<FJsonObject>& Obj, const FString& Key, FString& OutValue)
+/** 安全取嵌套对象；键不存在或类型非 object 时返回 nullptr。 */
+static TSharedPtr<FJsonObject> TryGetJsonObject(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Key)
 {
-	if (!Obj.IsValid() || !Obj->HasField(Key))
-	{
-		return false;
-	}
-	OutValue = Obj->GetStringField(Key);
-	return true;
-}
-
-/** 安全读取嵌套对象字段，字段不存在时返回 nullptr。 */
-static TSharedPtr<FJsonObject> NexusJsonGetObject(const TSharedPtr<FJsonObject>& Obj, const FString& Key)
-{
-	if (!Obj.IsValid() || !Obj->HasField(Key))
+	const TSharedPtr<FJsonObject>* Nested = nullptr;
+	if (!Obj.IsValid() || !Obj->TryGetObjectField(Key, Nested) || !Nested)
 	{
 		return nullptr;
 	}
-	return Obj->GetObjectField(Key);
+	return *Nested;
 }
 
 static const FString SupportedProtocolVersion = TEXT("2025-06-18");
@@ -79,14 +67,14 @@ void FNexusMcpDispatcher::Dispatch(const FString& JsonLine, FOnSendResponse PerR
 
 	// 校验 jsonrpc 版本
 	FString JsonRpcVersion;
-	if (!NexusJsonGetString(JsonMsg, TEXT("jsonrpc"), JsonRpcVersion) || JsonRpcVersion != TEXT("2.0"))
+	if (!JsonMsg->TryGetStringField(TEXT("jsonrpc"), JsonRpcVersion) || JsonRpcVersion != TEXT("2.0"))
 	{
 		SendError(nullptr, JsonRpcInvalidRequest, TEXT("Invalid JSON-RPC version"));
 		return;
 	}
 
 	FString Method;
-	if (!NexusJsonGetString(JsonMsg, TEXT("method"), Method))
+	if (!JsonMsg->TryGetStringField(TEXT("method"), Method))
 	{
 		SendError(nullptr, JsonRpcInvalidRequest, TEXT("Missing method"));
 		return;
@@ -99,7 +87,7 @@ void FNexusMcpDispatcher::Dispatch(const FString& JsonLine, FOnSendResponse PerR
 		Id = JsonMsg->TryGetField(TEXT("id"));
 	}
 
-	TSharedPtr<FJsonObject> Params = NexusJsonGetObject(JsonMsg, TEXT("params"));
+	TSharedPtr<FJsonObject> Params = TryGetJsonObject(JsonMsg, TEXT("params"));
 
 	// 方法路由
 	if (Method == TEXT("initialize"))
@@ -217,7 +205,10 @@ void FNexusMcpDispatcher::HandleInitialize(const TSharedPtr<FJsonValue>& Id, con
 	}
 
 	FString RequestedVersion;
-	NexusJsonGetString(Params, TEXT("protocolVersion"), RequestedVersion);
+	if (Params.IsValid())
+	{
+		Params->TryGetStringField(TEXT("protocolVersion"), RequestedVersion);
+	}
 
 	// 服务端始终使用自身支持的版本
 	ProtocolVersion = SupportedProtocolVersion;
@@ -460,13 +451,13 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 	}
 
 	FString ToolName;
-	if (!NexusJsonGetString(Params, TEXT("name"), ToolName))
+	if (!Params->TryGetStringField(TEXT("name"), ToolName))
 	{
 		SendError(Id, JsonRpcInvalidParams, TEXT("Missing tool name"));
 		return;
 	}
 
-	TSharedPtr<FJsonObject> Arguments = NexusJsonGetObject(Params, TEXT("arguments"));
+	TSharedPtr<FJsonObject> Arguments = TryGetJsonObject(Params, TEXT("arguments"));
 	if (!Arguments.IsValid())
 	{
 		Arguments = MakeShared<FJsonObject>();
@@ -570,7 +561,7 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 		FString EffectiveCapName = ToolName;
 		if (ToolName == TEXT("call_capability"))
 		{
-			NexusJsonGetString(Arguments, TEXT("capability"), EffectiveCapName);
+			Arguments->TryGetStringField(TEXT("capability"), EffectiveCapName);
 		}
 		InjectTtlMetadata(ToolResult, EffectiveCapName);
 	}
@@ -643,23 +634,23 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 void FNexusMcpDispatcher::HandleProxyFeedback(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Params)
 {
 	FString Category;
-	if (!Params.IsValid() || !NexusJsonGetString(Params, TEXT("category"), Category) || Category.IsEmpty())
+	if (!Params.IsValid() || !Params->TryGetStringField(TEXT("category"), Category) || Category.IsEmpty())
 	{
 		SendError(Id, JsonRpcInvalidParams, TEXT("Missing required field: category"));
 		return;
 	}
 
 	FNexusFeedback::FFields Fields;
-	NexusJsonGetString(Params, TEXT("tool"),  Fields.Tool);
-	NexusJsonGetString(Params, TEXT("proxy"), Fields.Proxy);
-	NexusJsonGetString(Params, TEXT("note"),  Fields.Note);
+	Params->TryGetStringField(TEXT("tool"), Fields.Tool);
+	Params->TryGetStringField(TEXT("proxy"), Fields.Proxy);
+	Params->TryGetStringField(TEXT("note"), Fields.Note);
 	FString ErrorText;
-	if (NexusJsonGetString(Params, TEXT("errorText"), ErrorText) ||
-		NexusJsonGetString(Params, TEXT("actualError"), ErrorText))
+	if (Params->TryGetStringField(TEXT("errorText"), ErrorText) ||
+		Params->TryGetStringField(TEXT("actualError"), ErrorText))
 	{
 		Fields.ErrorText = ErrorText;
 	}
-	NexusJsonGetString(Params, TEXT("attemptedArgs"), Fields.AttemptedArgs);
+	Params->TryGetStringField(TEXT("attemptedArgs"), Fields.AttemptedArgs);
 
 	// 代理层事件走既有 30 秒节流，与其它 auto 类别一致；bEnableFeedback=false 时静默跳过。
 	FNexusFeedback::RecordAuto(Category, Fields);
@@ -683,7 +674,7 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 	}
 
 	FString Method;
-	if (!NexusJsonGetString(JsonMsg, TEXT("method"), Method))
+	if (!JsonMsg->TryGetStringField(TEXT("method"), Method))
 	{
 		SendError(nullptr, JsonRpcInvalidRequest, TEXT("Missing method"));
 		return;
@@ -695,7 +686,7 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 		Id = JsonMsg->TryGetField(TEXT("id"));
 	}
 
-	TSharedPtr<FJsonObject> Params = NexusJsonGetObject(JsonMsg, TEXT("params"));
+	TSharedPtr<FJsonObject> Params = TryGetJsonObject(JsonMsg, TEXT("params"));
 
 	// 无状态路由：直接处理，无需 MCP 握手
 	if (Method == TEXT("ping"))

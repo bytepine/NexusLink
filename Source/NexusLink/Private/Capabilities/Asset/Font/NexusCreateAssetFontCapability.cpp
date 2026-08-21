@@ -29,19 +29,21 @@ FCapabilityResult FCreateAssetFontCapability::Execute(const TSharedPtr<FJsonObje
 	{
 		const FNexusArgs A(Arguments);
 		const FString AssetPath = A.Str(TEXT("assetPath"));
-		if (LoadObject<UFont>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UFont>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("Font already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UFont* Font = NewObject<UFont>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Font) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Font Createfailed")); return; }
+		UFont* Font = Cast<UFont>(Created.Asset);
+		if (!Font)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		Font->FontCacheType = EFontCacheType::Runtime;
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Font, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(Font->GetOutermost(), Font, AssetPath);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Font->GetName());
 		Entry->SetStringField(TEXT("path"), Font->GetPathName());

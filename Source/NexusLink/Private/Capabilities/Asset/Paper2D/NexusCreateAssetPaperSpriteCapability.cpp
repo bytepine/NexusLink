@@ -31,17 +31,19 @@ FCapabilityResult FCreateAssetPaperSpriteCapability::Execute(const TSharedPtr<FJ
 	{
 		const FNexusArgs A(Arguments);
 		const FString AssetPath = A.Str(TEXT("assetPath"));
-		if (LoadObject<UPaperSprite>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UPaperSprite>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("PaperSprite already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UPaperSprite* Sprite = NewObject<UPaperSprite>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Sprite) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Creation failed")); return; }
+		UPaperSprite* Sprite = Cast<UPaperSprite>(Created.Asset);
+		if (!Sprite)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		FString TexPath;
 		if (Arguments->TryGetStringField(TEXT("sourceTexturePath"), TexPath) && !TexPath.IsEmpty())
 		{
@@ -50,7 +52,7 @@ FCapabilityResult FCreateAssetPaperSpriteCapability::Execute(const TSharedPtr<FJ
 				Sprite->SetSourceTexture(Tex);
 			}
 		}
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Sprite, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(Sprite->GetOutermost(), Sprite, AssetPath);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Sprite->GetName());
 		Entry->SetStringField(TEXT("path"), Sprite->GetPathName());

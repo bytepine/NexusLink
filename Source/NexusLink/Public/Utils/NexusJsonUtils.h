@@ -33,6 +33,7 @@ public:
 
 	/**
 	 * sections 数组是否非空且不含 "all"（即调用方指定了具体子 section）。
+	 * 含 "all" 的混合数组（如 ["all","graph"]）视为 all，不算子段（与 MultiSection 展开语义一致）。
 	 */
 	static bool HasSubSection(const TSharedPtr<FJsonObject>& Obj);
 

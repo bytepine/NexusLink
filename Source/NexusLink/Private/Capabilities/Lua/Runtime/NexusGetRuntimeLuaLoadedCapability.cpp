@@ -51,7 +51,7 @@ FCapabilityResult FGetRuntimeLuaLoadedCapability::Execute(const TSharedPtr<FJson
 
 	FString NameFilter;
 	int32 Limit = 100;
-	Arguments->TryGetStringField(TEXT("nameFilter"), NameFilter);
+	NameFilter = FNexusArgs(Arguments).Str(TEXT("nameFilter"), NameFilter);
 	if (Arguments->HasField(TEXT("limit")))
 		Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
 

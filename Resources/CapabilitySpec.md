@@ -440,13 +440,13 @@ public:
 | 单目标 | **Capability 仅单目标**：禁止 Schema/Execute 再暴露或消费 `assetPaths` / `actorNames` / `widgetNames`。跨目标批量**只**走元工具 `call_capability.calls[]` |
 | 单目标内集合 | **保留** `sections` / `propertyPaths` / `operations` / `updates`（以及领域语义数组，见下表「有意保留」） |
 | manage 命令列表 | Schema **只**暴露 `operations: [{action, ...}]`；禁止 `ops`、禁止顶层裸 `action` 作为批量列表 |
-| Execute 读入 | 带 `operations[]` 的 `manage_*` 由 `FNexusActionCapability` 基类 `Execute` 调用 `ExtractOperations`（禁止子类再写循环壳）；**仅**读 `operations[]`；不回退 `ops`、不把顶层 `action`+其余字段合成单元素数组 |
-| Schema 严格性 | `FNexusSchema::Object()` 默认 `additionalProperties: false`；`AnyObject()` 显式 `true`（动态字段）。`FNexusCapability::Run` 在 required 校验之后、`Execute` 之前按 InputSchema **递归严格校验**（未知键 / type / required / enum / array items / 嵌套 object）；失败一律 `FCapabilityResult::MakeArgInvalid` |
+| Execute 读入 | 带 `operations[]` 的 `manage_*` 由 `FNexusActionCapability` 基类 `Execute` 调用 `ExtractOperations`（禁止子类再写循环壳）；**仅**读 `operations[]`；不回退 `ops`、不把顶层 `action`+其余字段合成单元素数组；非 object 元素写入对应 `entries[].error`（`Invalid operation (expected object)`），不静默跳过 |
+| Schema 严格性 | `FNexusSchema::Object()` 默认 `additionalProperties: false`；`AnyObject()` 显式 `true`（动态字段）。`FNexusCapability::Run` 在 `Execute` 之前按 InputSchema **递归严格校验**（未知键 / type / required / required 空串 / enum / array items / 嵌套 object）；失败一律 `FCapabilityResult::MakeArgInvalid` |
 | 结果信封 | 禁止「一条 Entry + 内嵌 `results[]`」的双层包裹；每个 op 必须对应一条独立 `OutEntries.Add(...)`，交由适配层 `AssembleStructuredContent` 统一提升/包装 |
 | `success` 字段 | 成功不写 `success`（无 `error` 即成功）；失败写 `error`，允许保留 `success:false` 辅助阅读；禁止写「成功恒为 true」或条件判断结果恒为 true 的 `success` |
 | create 入参 | **只**暴露 / 消费 `assetPath`；删除 `packagePath`+`assetName` 双字段路径 |
 | create 响应 | 成功条目必须含 `path` 字段 |
-| manage 收尾 | 框架向所有 `manage_asset_*` 注入可选 `saveToDisk`（默认 false）；仅 `manage_asset_blueprint` / `manage_asset_anim_blueprint` / `manage_asset_user_widget` 另注入 `compile`（默认 false）。UDS 仍自动编译。Material 用 `recompile` op。独立 `save_asset` / `compile_blueprint` 仍可用 |
+| manage 收尾 | 框架按定义标志注入：`bInjectSaveToDisk`（Action 基类对 `manage_asset_*` 置位）→ 可选 `saveToDisk`；`bInjectCompile`（仅 BP/ABP/WBP manage 的 BuildDefinition）→ 可选 `compile`。UDS 仍自动编译。Material 用 `recompile` op。独立 `save_asset` / `compile_blueprint` 仍可用 |
 | Execute 卫生 | 非 MultiSection 的 cap 优先 `FNexusCapabilityResultBuilder::Build`；资产定位统一 `RequireString` + `EmitError`（或对应 Fatal/`MakeArgInvalid`）；禁止裸 `SetStringField("error")` 作为唯一失败路径 |
 | 有意保留 | 单目标内：`sections` / `propertyPaths` / `operations` / `updates`；领域数组经 `operations` 承载（勿再把 `fields`/`rows`/`keys`/`widgets` 当顶层操作容器）；runtime `interact_*` / `control_pie` / `control_movie_pipeline` 的顶层 `action`（命令式语义，非批量操作列表）；元工具 `calls[]` |
 

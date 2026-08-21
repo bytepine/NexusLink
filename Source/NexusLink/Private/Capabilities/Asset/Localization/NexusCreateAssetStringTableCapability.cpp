@@ -31,23 +31,25 @@ FCapabilityResult FCreateAssetStringTableCapability::Execute(const TSharedPtr<FJ
 	{
 		const FNexusArgs A(Arguments);
 		const FString AssetPath = A.Str(TEXT("assetPath"));
-		if (LoadObject<UStringTable>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UStringTable>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("StringTable already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UStringTable* Table = NewObject<UStringTable>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Table) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Creation failed")); return; }
+		UStringTable* Table = Cast<UStringTable>(Created.Asset);
+		if (!Table)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		FString Namespace;
 		if (Arguments->TryGetStringField(TEXT("namespace"), Namespace) && !Namespace.IsEmpty())
 		{
 			Table->GetMutableStringTable()->SetNamespace(Namespace);
 		}
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Table, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(Table->GetOutermost(), Table, AssetPath);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Table->GetName());
 		Entry->SetStringField(TEXT("path"), Table->GetPathName());

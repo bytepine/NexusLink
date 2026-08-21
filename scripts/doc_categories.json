@@ -1,0 +1,43 @@
+{
+  "dir_category": {
+    "AI": "AI tools",
+    "Animation": "Animation assets",
+    "Blueprint": "Blueprint tools",
+    "DataAsset": "Data assets (DataAsset / DataTable)",
+    "Editor": "Editor tools",
+    "Lua": "Lua runtime tools",
+    "Material": "Material tools",
+    "Runtime": "Runtime tools",
+    "Struct": "Struct tools",
+    "UMG": "Widget blueprint tools",
+    "Asset": "General asset tools"
+  },
+  "category_order": [
+    "Meta tools",
+    "Editor tools",
+    "General asset tools",
+    "Blueprint tools",
+    "Animation assets",
+    "Material tools",
+    "Struct tools",
+    "Data assets (DataAsset / DataTable)",
+    "Widget blueprint tools",
+    "Lua runtime tools",
+    "Runtime tools",
+    "AI tools"
+  ],
+  "category_zh": {
+    "Meta tools": "元工具",
+    "Editor tools": "编辑器工具",
+    "General asset tools": "通用资产工具",
+    "Blueprint tools": "蓝图工具",
+    "Animation assets": "动画资产",
+    "Material tools": "材质工具",
+    "Struct tools": "结构体工具",
+    "Data assets (DataAsset / DataTable)": "数据资产（DataAsset / DataTable）",
+    "Widget blueprint tools": "控件蓝图工具",
+    "Lua runtime tools": "Lua 运行时工具",
+    "Runtime tools": "运行时工具",
+    "AI tools": "AI 工具"
+  }
+}

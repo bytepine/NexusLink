@@ -36,7 +36,7 @@ FCapabilityResult FInteractRuntimeActorAICapability::Execute(const TSharedPtr<FJ
 		const FNexusArgs A(Arguments);
 		const FString Action = A.Str(TEXT("action"));
 		FString ActorName;
-		Arguments->TryGetStringField(TEXT("actorName"), ActorName);
+		ActorName = FNexusArgs(Arguments).Str(TEXT("actorName"), ActorName);
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
 

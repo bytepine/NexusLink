@@ -78,7 +78,7 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 				bIncludeSummary = A.Bool(TEXT("includeSummary"));
 			if (Arguments->HasField(TEXT("summaryOnly")))
 				bSummaryOnly = A.Bool(TEXT("summaryOnly"));
-			Arguments->TryGetStringField(TEXT("categoryFilter"), CategoryFilter);
+			CategoryFilter = FNexusArgs(Arguments).Str(TEXT("categoryFilter"), CategoryFilter);
 			FString TmpVerbosity;
 			if (Arguments->TryGetStringField(TEXT("verbosity"), TmpVerbosity))
 			{

@@ -72,6 +72,7 @@ static void DestroyGraphNode(UEdGraphNode* Node)
 void FManageAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_anim_blueprint");
+	Out.bInjectCompile = true;
 	Out.SearchAssetTypes = {TEXT("AnimBlueprint")};
 	Out.Description = TEXT("Batch edit ABP. State machines and AnimGraph nodes; avoid K2.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()

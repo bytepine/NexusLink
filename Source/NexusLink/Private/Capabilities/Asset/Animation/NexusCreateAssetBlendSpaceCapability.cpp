@@ -37,7 +37,7 @@ FCapabilityResult FCreateAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 		FString AssetPath, SkeletonPath, BsType;
 		AssetPath    = A.Str(TEXT("assetPath"));
 		SkeletonPath = A.Str(TEXT("skeletonPath"));
-		Arguments->TryGetStringField(TEXT("blendSpaceType"), BsType);
+		BsType = A.Str(TEXT("blendSpaceType"), BsType);
 		const bool b1D = BsType.Contains(TEXT("1d"), ESearchCase::IgnoreCase)
 		               || BsType.Contains(TEXT("1D"), ESearchCase::CaseSensitive);
 
@@ -49,42 +49,23 @@ FCapabilityResult FCreateAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 			return;
 		}
 
-		if (LoadObject<UBlendSpace>(nullptr, *AssetPath))
+		UClass* BsClass = b1D ? UBlendSpace1D::StaticClass() : UBlendSpace::StaticClass();
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset(AssetPath, BsClass, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("BlendSpace already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-
-		// UE 4.26/5.0 中 UBlendSpace1D 继承自 UBlendSpaceBase（不继承自 UBlendSpace）
-		// UE 5.1+ 两者均继承自 UBlendSpace（BlendSpaceBase 合并）
-		// UE 5.0 已废弃 UBlendSpaceBase 但仍存在，用 pragma 抑制废弃警告
-		FString ActualType;
-		UObject* BSRaw = nullptr;
-		if (b1D)
-		{
-			BSRaw     = NewObject<UBlendSpace1D>(Package, *AssetName, RF_Public | RF_Standalone);
-			ActualType = TEXT("BlendSpace1D");
-		}
-		else
-		{
-			BSRaw     = NewObject<UBlendSpace>(Package, *AssetName, RF_Public | RF_Standalone);
-			ActualType = TEXT("BlendSpace");
-		}
-
-		if (!BSRaw) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("BlendSpace Createfailed")); return; }
+		UObject* BSRaw = Created.Asset;
+		FString ActualType = b1D ? TEXT("BlendSpace1D") : TEXT("BlendSpace");
 
 		// 通过 UAnimationAsset 公共接口设置骨骼（BlendSpace 继承自 UAnimationAsset）
 		if (UAnimationAsset* AnimAsset = Cast<UAnimationAsset>(BSRaw))
 		{
 			AnimAsset->SetSkeleton(Skeleton);
 		}
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, BSRaw, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(BSRaw->GetOutermost(), BSRaw, AssetPath);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),     BSRaw->GetName());

@@ -30,22 +30,22 @@ FCapabilityResult FCreateAssetLevelSequenceCapability::Execute(const TSharedPtr<
 	{
 		const FNexusArgs A(Arguments);
 		const FString AssetPath = A.Str(TEXT("assetPath"));
-		if (LoadObject<ULevelSequence>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<ULevelSequence>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("LevelSequence already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		ULevelSequence* LS = NewObject<ULevelSequence>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!LS) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("LevelSequence Createfailed")); return; }
+		ULevelSequence* LS = Cast<ULevelSequence>(Created.Asset);
+		if (!LS)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		LS->Initialize();
 
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, LS, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(LS->GetOutermost(), LS, AssetPath);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), LS->GetName());

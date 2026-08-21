@@ -44,21 +44,21 @@ FCapabilityResult FCreateAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 			return;
 		}
 
-		if (LoadObject<UAnimMontage>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UAnimMontage>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(TEXT("AnimMontage already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UAnimMontage* Montage = NewObject<UAnimMontage>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Montage) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("AnimMontage Createfailed")); return; }
-
+		UAnimMontage* Montage = Cast<UAnimMontage>(Created.Asset);
+		if (!Montage)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		Montage->SetSkeleton(Skeleton);
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Montage, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(Montage->GetOutermost(), Montage, AssetPath);
 
 		OutEntry->SetStringField(TEXT("name"),     Montage->GetName());
 		OutEntry->SetStringField(TEXT("path"),     Montage->GetPathName());

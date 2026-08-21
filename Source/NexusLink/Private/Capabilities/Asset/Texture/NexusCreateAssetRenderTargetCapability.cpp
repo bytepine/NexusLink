@@ -35,27 +35,26 @@ FCapabilityResult FCreateAssetRenderTargetCapability::Execute(const TSharedPtr<F
 		const int32 SizeX = static_cast<int32>(A.Num(TEXT("sizeX"), 256));
 		const int32 SizeY = static_cast<int32>(A.Num(TEXT("sizeY"), 256));
 
-		if (LoadObject<UTextureRenderTarget2D>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UTextureRenderTarget2D>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("RenderTarget already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UTextureRenderTarget2D* RT = NewObject<UTextureRenderTarget2D>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!RT) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("RenderTarget Createfailed")); return; }
-
+		UTextureRenderTarget2D* RT = Cast<UTextureRenderTarget2D>(Created.Asset);
+		if (!RT)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		RT->SizeX = SizeX;
 		RT->SizeY = SizeY;
 		RT->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA8;
 		RT->ClearColor = FLinearColor::Black;
 		RT->UpdateResourceImmediate(true);
 
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, RT, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(RT->GetOutermost(), RT, AssetPath);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),    RT->GetName());

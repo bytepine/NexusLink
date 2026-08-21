@@ -72,10 +72,10 @@ FCapabilityResult FInteractRuntimeActorBehaviorTreeCapability::Execute(const TSh
 		FString ActorName, KeyName, KeyValue, TreePath;
 		if (Arguments.IsValid())
 		{
-			Arguments->TryGetStringField(TEXT("actorName"), ActorName);
-			Arguments->TryGetStringField(TEXT("keyName"),   KeyName);
-			Arguments->TryGetStringField(TEXT("value"),     KeyValue);
-			Arguments->TryGetStringField(TEXT("treePath"),  TreePath);
+			ActorName = FNexusArgs(Arguments).Str(TEXT("actorName"), ActorName);
+			KeyName = FNexusArgs(Arguments).Str(TEXT("keyName"), KeyName);
+			KeyValue = FNexusArgs(Arguments).Str(TEXT("value"), KeyValue);
+			TreePath = FNexusArgs(Arguments).Str(TEXT("treePath"), TreePath);
 		}
 
 		AAIController* AICtrl = FindAIControllerForInteract(World, ActorName);

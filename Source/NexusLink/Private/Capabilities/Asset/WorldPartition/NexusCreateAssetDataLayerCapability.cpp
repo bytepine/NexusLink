@@ -67,7 +67,7 @@ FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 #if WITH_EDITOR
 		// 设置类型
 		FString TypeStr;
-		Arguments->TryGetStringField(TEXT("type"), TypeStr);
+		TypeStr = FNexusArgs(Arguments).Str(TEXT("type"), TypeStr);
 		EDataLayerType LayerType = EDataLayerType::Runtime;
 		if (TypeStr.Equals(TEXT("Editor"), ESearchCase::IgnoreCase))
 			LayerType = EDataLayerType::Editor;

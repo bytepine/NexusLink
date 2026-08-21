@@ -46,25 +46,21 @@ FCapabilityResult FCreateAssetGameplayCueNotifyCapability::Execute(const TShared
 			return;
 		}
 
-		if (LoadObject<UGameplayCueNotify_Static>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UGameplayCueNotify_Static>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("GameplayCueNotify already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UGameplayCueNotify_Static* Notify = NewObject<UGameplayCueNotify_Static>(
-			Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Notify) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Creation failed")); return; }
+		UGameplayCueNotify_Static* Notify = Cast<UGameplayCueNotify_Static>(Created.Asset);
 
 		FString CueName;
 		if (Arguments->TryGetStringField(TEXT("cueName"), CueName) && !CueName.IsEmpty())
 		{
 			Notify->GameplayCueName = FName(*CueName);
 		}
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Notify, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(Notify->GetOutermost(), Notify, AssetPath);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Notify->GetName());
 		Entry->SetStringField(TEXT("path"), Notify->GetPathName());

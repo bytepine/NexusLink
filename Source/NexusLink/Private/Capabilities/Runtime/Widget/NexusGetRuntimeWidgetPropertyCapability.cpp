@@ -71,7 +71,7 @@ FCapabilityResult FGetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<
 		const FString WN = A.Str(TEXT("widgetName"));
 
 		FString OwnerClass;
-		Arguments->TryGetStringField(TEXT("ownerClass"), OwnerClass);
+		OwnerClass = FNexusArgs(Arguments).Str(TEXT("ownerClass"), OwnerClass);
 
 		// 仅接受 propertyPaths[]；缺省则展开 children + layout
 		TArray<FString> PropertyPaths;

@@ -70,7 +70,7 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 			}
 
 			FString Mode = TEXT("viewport");
-			Arguments->TryGetStringField(TEXT("mode"), Mode);
+			Mode = FNexusArgs(Arguments).Str(TEXT("mode"), Mode);
 
 			ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
 			const bool bSimulate = Mode.Equals(TEXT("simulate"), ESearchCase::IgnoreCase);

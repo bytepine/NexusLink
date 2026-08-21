@@ -38,7 +38,7 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 		const FNexusArgs A(Arguments);
 		const FString AssetPath = A.Str(TEXT("assetPath"));
 		FString Kind = TEXT("Database");
-		Arguments->TryGetStringField(TEXT("assetKind"), Kind);
+		Kind = FNexusArgs(Arguments).Str(TEXT("assetKind"), Kind);
 		if (Kind.IsEmpty()) Kind = TEXT("Database");
 
 		const bool bSchema = Kind.Equals(TEXT("Schema"), ESearchCase::IgnoreCase);
@@ -51,18 +51,14 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 
 		if (bSchema)
 		{
-			if (LoadObject<UPoseSearchSchema>(nullptr, *AssetPath))
+			const FNexusAssetUtils::FAssetCreateOutcome Created =
+				FNexusAssetUtils::CreatePlainAsset<UPoseSearchSchema>(AssetPath);
+			if (!Created.Ok())
 			{
-				FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-					FString::Printf(TEXT("PoseSearchSchema already exists: %s"), *AssetPath));
+				FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 				return;
 			}
-			UPackage* Package = CreatePackage(*AssetPath);
-			if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-			const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-			UPoseSearchSchema* Schema = NewObject<UPoseSearchSchema>(Package, *AssetName, RF_Public | RF_Standalone);
-			if (!Schema) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("PoseSearchSchema Createfailed")); return; }
-			FNexusAssetUtils::NotifyAndSaveCreated(Package, Schema, AssetPath);
+			UPoseSearchSchema* Schema = Cast<UPoseSearchSchema>(Created.Asset);
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 			Entry->SetStringField(TEXT("name"), Schema->GetName());
 			Entry->SetStringField(TEXT("path"), Schema->GetPathName());
@@ -71,20 +67,17 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 			return;
 		}
 
-		if (LoadObject<UPoseSearchDatabase>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UPoseSearchDatabase>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("PoseSearchDatabase already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UPoseSearchDatabase* DB = NewObject<UPoseSearchDatabase>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!DB) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("PoseSearchDatabase Createfailed")); return; }
+		UPoseSearchDatabase* DB = Cast<UPoseSearchDatabase>(Created.Asset);
 
 		FString SchemaPath;
-		Arguments->TryGetStringField(TEXT("schemaPath"), SchemaPath);
+		SchemaPath = FNexusArgs(Arguments).Str(TEXT("schemaPath"), SchemaPath);
 		if (!SchemaPath.IsEmpty())
 		{
 			if (UPoseSearchSchema* Schema = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchSchema>(SchemaPath))
@@ -99,7 +92,7 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 			}
 		}
 
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, DB, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(DB->GetOutermost(), DB, AssetPath);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), DB->GetName());
 		Entry->SetStringField(TEXT("path"), DB->GetPathName());

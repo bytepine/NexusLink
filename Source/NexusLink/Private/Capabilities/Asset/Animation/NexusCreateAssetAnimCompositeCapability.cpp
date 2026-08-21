@@ -33,20 +33,19 @@ FCapabilityResult FCreateAssetAnimCompositeCapability::Execute(const TSharedPtr<
 
 		const FString AssetPath = A.Str(TEXT("assetPath"));
 
-		if (LoadObject<UAnimComposite>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UAnimComposite>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("AnimComposite already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UAnimComposite* Composite = NewObject<UAnimComposite>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Composite) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("AnimComposite Createfailed")); return; }
-
+		UAnimComposite* Composite = Cast<UAnimComposite>(Created.Asset);
+		if (!Composite)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		if (Arguments->HasField(TEXT("skeletonPath")))
 		{
 			const FString SkelPath = A.Str(TEXT("skeletonPath"));
@@ -54,7 +53,7 @@ FCapabilityResult FCreateAssetAnimCompositeCapability::Execute(const TSharedPtr<
 			if (Skeleton) Composite->SetSkeleton(Skeleton);
 		}
 
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Composite, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(Composite->GetOutermost(), Composite, AssetPath);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),          Composite->GetName());

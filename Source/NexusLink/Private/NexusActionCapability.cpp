@@ -61,6 +61,10 @@ FCapabilityResult FNexusActionCapability::Execute(const TSharedPtr<FJsonObject>&
 			const TSharedPtr<FJsonObject>* OpObjPtr = nullptr;
 			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr)
 			{
+				TSharedPtr<FJsonObject> BadEntry = MakeShared<FJsonObject>();
+				BadEntry->SetStringField(TEXT("path"), AssetPath);
+				BadEntry->SetStringField(TEXT("error"), TEXT("Invalid operation (expected object)"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(BadEntry));
 				continue;
 			}
 			const TSharedPtr<FJsonObject>& Op = *OpObjPtr;

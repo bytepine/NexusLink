@@ -125,7 +125,7 @@ static bool ValidateObject(
 		}
 	}
 
-	// required（嵌套；顶层空串拒绝仍由 Run 前置逻辑负责）
+	// required（含顶层：required string 拒绝空串）
 	const TArray<TSharedPtr<FJsonValue>>* ReqArr = nullptr;
 	if (Schema->TryGetArrayField(TEXT("required"), ReqArr) && ReqArr)
 	{
@@ -141,6 +141,16 @@ static bool ValidateObject(
 			{
 				OutError = FString::Printf(TEXT("Missing required field '%s'"), *JoinPath(Path, Field));
 				return false;
+			}
+			if (FieldVal->Type == EJson::String)
+			{
+				FString StrVal;
+				FieldVal->TryGetString(StrVal);
+				if (StrVal.IsEmpty())
+				{
+					OutError = FString::Printf(TEXT("Required field '%s' cannot be empty"), *JoinPath(Path, Field));
+					return false;
+				}
 			}
 		}
 	}
@@ -282,13 +292,6 @@ static bool IsManageAssetCap(const FString& Name)
 	return Name.StartsWith(TEXT("manage_asset_"));
 }
 
-static bool SupportsCompile(const FString& Name)
-{
-	return Name == TEXT("manage_asset_blueprint")
-		|| Name == TEXT("manage_asset_anim_blueprint")
-		|| Name == TEXT("manage_asset_user_widget");
-}
-
 static void InjectOptionalBool(TSharedPtr<FJsonObject>& Schema, const TCHAR* Name, const TCHAR* Desc)
 {
 	if (!Schema.IsValid())
@@ -315,12 +318,11 @@ static void InjectOptionalBool(TSharedPtr<FJsonObject>& Schema, const TCHAR* Nam
 
 static void InjectSchema(FNexusCapabilityDefinition& Def)
 {
-	if (!IsManageAssetCap(Def.Name))
+	if (Def.bInjectSaveToDisk)
 	{
-		return;
+		InjectOptionalBool(Def.InputSchema, TEXT("saveToDisk"), TEXT("Save the package to disk after success"));
 	}
-	InjectOptionalBool(Def.InputSchema, TEXT("saveToDisk"), TEXT("Save the package to disk after success"));
-	if (SupportsCompile(Def.Name))
+	if (Def.bInjectCompile)
 	{
 		InjectOptionalBool(Def.InputSchema, TEXT("compile"), TEXT("Compile blueprint if needed (BP/ABP/WBP only)"));
 	}
@@ -383,6 +385,7 @@ const FNexusCapabilityDefinition& FNexusCapability::GetDefinition() const
 	if (!bDefBuilt)
 	{
 		BuildDefinition(CachedDef);
+		FinalizeDefinition(CachedDef);
 		InjectSchema(CachedDef);
 		// Runtime 宿主范围：自动补分类标签，BuildDefinition 无需手写（亦可手写，幂等）
 		if (GetHostScope() == ENexusCapabilityHostScope::Runtime
@@ -402,42 +405,9 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 		? Arguments
 		: MakeShared<FJsonObject>();
 
-	// required 字段校验（从缓存 Definition 的 InputSchema 读取）
-	// 字符串类型额外拒绝空串，避免 HasField=true 却 "" 漏到 Execute 被记成 call_fatal
 	const FNexusCapabilityDefinition& Def = GetDefinition();
 	if (Def.InputSchema.IsValid())
 	{
-		const TArray<TSharedPtr<FJsonValue>>* ReqArr = nullptr;
-		if (Def.InputSchema->TryGetArrayField(TEXT("required"), ReqArr) && ReqArr)
-		{
-			for (const TSharedPtr<FJsonValue>& V : *ReqArr)
-			{
-				FString Field;
-				if (!V.IsValid() || !V->TryGetString(Field) || Field.IsEmpty())
-				{
-					continue;
-				}
-				// 用 TryGetField，勿直接 Values.Find(FString)：UE 5.8+ Values 键为 FSharedString
-				const TSharedPtr<FJsonValue> FieldVal = Args->TryGetField(Field);
-				if (!FieldVal.IsValid() || FieldVal->IsNull())
-				{
-					return FCapabilityResult::MakeArgInvalid(FString::Printf(
-						TEXT("Missing required field '%s' (capability '%s')"), *Field, *Def.Name));
-				}
-				if (FieldVal->Type == EJson::String)
-				{
-					FString StrVal;
-					FieldVal->TryGetString(StrVal);
-					if (StrVal.IsEmpty())
-					{
-						return FCapabilityResult::MakeArgInvalid(FString::Printf(
-							TEXT("Required field '%s' cannot be empty (capability '%s')"), *Field, *Def.Name));
-					}
-				}
-			}
-		}
-
-		// 按 InputSchema 递归严格校验（未知键 / type / required / enum / items）
 		FString SchemaErr;
 		if (!ValidateArgs(Args, Def.InputSchema, SchemaErr))
 		{

@@ -36,20 +36,19 @@ FCapabilityResult FCreateAssetIKRigCapability::Execute(const TSharedPtr<FJsonObj
 		FString AssetPath;
 		AssetPath = A.Str(TEXT("assetPath"));
 
-		if (LoadObject<UIKRigDefinition>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UIKRigDefinition>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("IKRig already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UIKRigDefinition* IKRig = NewObject<UIKRigDefinition>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!IKRig) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("IKRig Createfailed")); return; }
-
+		UIKRigDefinition* IKRig = Cast<UIKRigDefinition>(Created.Asset);
+		if (!IKRig)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		FString MeshPath;
 		if (Arguments->TryGetStringField(TEXT("meshPath"), MeshPath) && !MeshPath.IsEmpty())
 		{
@@ -57,7 +56,7 @@ FCapabilityResult FCreateAssetIKRigCapability::Execute(const TSharedPtr<FJsonObj
 			if (Mesh) IKRig->SetPreviewMesh(Mesh, false);
 		}
 
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, IKRig, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(IKRig->GetOutermost(), IKRig, AssetPath);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),      IKRig->GetName());

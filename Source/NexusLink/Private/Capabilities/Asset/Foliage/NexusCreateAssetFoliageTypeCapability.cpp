@@ -31,18 +31,14 @@ FCapabilityResult FCreateAssetFoliageTypeCapability::Execute(const TSharedPtr<FJ
 	{
 		const FNexusArgs A(Arguments);
 		const FString AssetPath = A.Str(TEXT("assetPath"));
-		if (LoadObject<UFoliageType_InstancedStaticMesh>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UFoliageType_InstancedStaticMesh>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("FoliageType already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UFoliageType_InstancedStaticMesh* Type = NewObject<UFoliageType_InstancedStaticMesh>(
-			Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Type) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Creation failed")); return; }
+		UFoliageType_InstancedStaticMesh* Type = Cast<UFoliageType_InstancedStaticMesh>(Created.Asset);
 
 		FString MeshPath;
 		if (Arguments->TryGetStringField(TEXT("meshPath"), MeshPath) && !MeshPath.IsEmpty())
@@ -52,7 +48,7 @@ FCapabilityResult FCreateAssetFoliageTypeCapability::Execute(const TSharedPtr<FJ
 				Type->Mesh = Mesh;
 			}
 		}
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Type, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(Type->GetOutermost(), Type, AssetPath);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Type->GetName());
 		Entry->SetStringField(TEXT("path"), Type->GetPathName());

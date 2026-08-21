@@ -33,24 +33,23 @@ FCapabilityResult FCreateAssetSoundClassCapability::Execute(const TSharedPtr<FJs
 
 		const FString AssetPath = A.Str(TEXT("assetPath"));
 
-		if (LoadObject<USoundClass>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<USoundClass>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("SoundClass already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		USoundClass* SC = NewObject<USoundClass>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!SC) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("SoundClass Createfailed")); return; }
-
+		USoundClass* SC = Cast<USoundClass>(Created.Asset);
+		if (!SC)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		if (Arguments->HasField(TEXT("volume"))) SC->Properties.Volume = (float)A.Num(TEXT("volume"));
 		if (Arguments->HasField(TEXT("pitch")))  SC->Properties.Pitch  = (float)A.Num(TEXT("pitch"));
 
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, SC, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(SC->GetOutermost(), SC, AssetPath);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),    SC->GetName());

@@ -42,9 +42,6 @@ public:
 		UObject* Obj,
 		TArray<TSharedPtr<FJsonValue>>& OutArray);
 
-	/** 将 FJsonObject 序列化为格式化 JSON 字符串。 */
-	static FString SerializeJson(const TSharedPtr<FJsonObject>& Obj);
-
 	// ── 跨版本属性序列化兼容 ──
 	static void ExportText(const FProperty* Prop, FString& OutValue, const void* Data)
 	{

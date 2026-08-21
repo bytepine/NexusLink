@@ -36,17 +36,11 @@ FCapabilityResult FCreateAssetDataAssetCapability::Execute(const TSharedPtr<FJso
 
 
 		const FString AssetPath = A.Str(TEXT("assetPath"));
-
-		// 磁盘上已存在包时也会命中，LoadObject 只能发现已加载对象
-		if (FPackageName::DoesPackageExist(AssetPath))
-		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("DataAsset already exists: %s"), *AssetPath));
-			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-			return;
-		}
-
 		FString ParentClassName = TEXT("PrimaryDataAsset");
-		if (Arguments->HasField(TEXT("parentClass"))) ParentClassName = A.Str(TEXT("parentClass"));
+		if (Arguments->HasField(TEXT("parentClass")))
+		{
+			ParentClassName = A.Str(TEXT("parentClass"));
+		}
 
 		UClass* ParentClass = FNexusAssetUtils::FindClassWithUPrefix(ParentClassName);
 		if (!ParentClass || !ParentClass->IsChildOf(UDataAsset::StaticClass()))
@@ -55,7 +49,6 @@ FCapabilityResult FCreateAssetDataAssetCapability::Execute(const TSharedPtr<FJso
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
-
 		if (ParentClass->HasAnyClassFlags(CLASS_Abstract))
 		{
 			OutEntry->SetStringField(TEXT("error"), FString::Printf(
@@ -65,22 +58,14 @@ FCapabilityResult FCreateAssetDataAssetCapability::Execute(const TSharedPtr<FJso
 			return;
 		}
 
-		FText PackageNameError;
-		if (!FPackageName::IsValidLongPackageName(AssetPath, false, &PackageNameError))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset(AssetPath, ParentClass);
+		if (!Created.Ok())
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid package path '%s': %s"), *AssetPath, *PackageNameError.ToString()));
-			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(TEXT("Failed to create package: %s"), *AssetPath)); return; }
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UDataAsset* NewDA = NewObject<UDataAsset>(Package, ParentClass, *AssetName, RF_Public | RF_Standalone);
-		if (!NewDA) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("DataAsset Createfailed")); return; }
-
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewDA, AssetPath);
+		UDataAsset* NewDA = Cast<UDataAsset>(Created.Asset);
 
 		OutEntry->SetStringField(TEXT("name"), NewDA->GetName());
 		OutEntry->SetStringField(TEXT("path"), NewDA->GetOutermost()->GetName());

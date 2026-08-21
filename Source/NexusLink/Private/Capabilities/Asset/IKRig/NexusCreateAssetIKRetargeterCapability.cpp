@@ -35,20 +35,22 @@ FCapabilityResult FCreateAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 	{
 		const FNexusArgs A(Arguments);
 		const FString AssetPath = A.Str(TEXT("assetPath"));
-		if (LoadObject<UIKRetargeter>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UIKRetargeter>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("IKRetargeter already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UIKRetargeter* R = NewObject<UIKRetargeter>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!R) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Creation failed")); return; }
+		UIKRetargeter* R = Cast<UIKRetargeter>(Created.Asset);
+		if (!R)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		FString SrcPath, TgtPath;
-		Arguments->TryGetStringField(TEXT("sourceRigPath"), SrcPath);
-		Arguments->TryGetStringField(TEXT("targetRigPath"), TgtPath);
+		SrcPath = FNexusArgs(Arguments).Str(TEXT("sourceRigPath"), SrcPath);
+		TgtPath = FNexusArgs(Arguments).Str(TEXT("targetRigPath"), TgtPath);
 		if (!SrcPath.IsEmpty())
 		{
 			if (UIKRigDefinition* Src = FNexusAssetUtils::LoadAssetWithFallback<UIKRigDefinition>(SrcPath))
@@ -63,7 +65,7 @@ FCapabilityResult FCreateAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 				R->SetIKRig(ERetargetSourceOrTarget::Target, Tgt);
 			}
 		}
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, R, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(R->GetOutermost(), R, AssetPath);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), R->GetName());
 		Entry->SetStringField(TEXT("path"), R->GetPathName());

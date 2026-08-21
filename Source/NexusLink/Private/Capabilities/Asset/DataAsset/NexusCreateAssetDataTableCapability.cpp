@@ -59,14 +59,7 @@ FCapabilityResult FCreateAssetDataTableCapability::Execute(const TSharedPtr<FJso
 		const FString AssetPath     = A.Str(TEXT("assetPath"));
 		const FString RowStructName = A.Str(TEXT("rowStructName"));
 
-		// 覆盖磁盘上已存在但未加载的包
-		if (FPackageName::DoesPackageExist(AssetPath))
-		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("DataTable already exists: %s"), *AssetPath));
-			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-			return;
-		}
-
+		// 覆盖磁盘上已存在但未加载的包 — CreatePlainAsset 已检查
 		UScriptStruct* RowStruct = FindRowStructByName(RowStructName);
 		if (!RowStruct)
 		{
@@ -75,23 +68,16 @@ FCapabilityResult FCreateAssetDataTableCapability::Execute(const TSharedPtr<FJso
 			return;
 		}
 
-		FText PackageNameError;
-		if (!FPackageName::IsValidLongPackageName(AssetPath, false, &PackageNameError))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UDataTable>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid package path '%s': %s"), *AssetPath, *PackageNameError.ToString()));
-			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, FString::Printf(TEXT("Failed to create package: %s"), *AssetPath)); return; }
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UDataTable* NewDT = NewObject<UDataTable>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!NewDT) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("DataTable Createfailed")); return; }
-
+		UDataTable* NewDT = Cast<UDataTable>(Created.Asset);
 		NewDT->RowStruct = RowStruct;
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewDT, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(NewDT->GetOutermost(), NewDT, AssetPath);
 
 		OutEntry->SetStringField(TEXT("path"), AssetPath);
 		OutEntry->SetStringField(TEXT("name"), NewDT->GetName());

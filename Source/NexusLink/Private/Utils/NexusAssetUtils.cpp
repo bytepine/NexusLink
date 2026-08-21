@@ -617,7 +617,8 @@ UUserDefinedStruct* FNexusAssetUtils::FindStructByName(const FString& StructName
 FNexusAssetUtils::FAssetCreateOutcome FNexusAssetUtils::CreatePlainAsset(
 	const FString& AssetPath,
 	UClass* AssetClass,
-	EObjectFlags Flags)
+	EObjectFlags Flags,
+	bool bNotifyAndSave)
 {
 	FAssetCreateOutcome Out;
 	if (!AssetClass)
@@ -659,7 +660,10 @@ FNexusAssetUtils::FAssetCreateOutcome FNexusAssetUtils::CreatePlainAsset(
 		return Out;
 	}
 
-	NotifyAndSaveCreated(Package, Asset, AssetPath);
+	if (bNotifyAndSave)
+	{
+		NotifyAndSaveCreated(Package, Asset, AssetPath);
+	}
 	Out.Asset = Asset;
 	return Out;
 }

@@ -70,6 +70,7 @@ static bool BlueprintAlreadyImplements(const UBlueprint* BP, const UClass* Iface
 void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_blueprint");
+	Out.bInjectCompile = true;
 	Out.SearchAssetTypes = {TEXT("Blueprint")};
 	Out.Description = TEXT("Batch edit BP: graphs/vars/funcs/macros/timelines/dispatchers/interfaces/nodes/promote_pin.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()

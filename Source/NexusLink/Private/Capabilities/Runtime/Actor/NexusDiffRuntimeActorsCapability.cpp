@@ -7,6 +7,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
 #include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusJsonUtils.h"
 #include "GameFramework/Actor.h"
 #include "NexusMcpTool.h"
 
@@ -51,14 +52,14 @@ static FNexusActorComparePairResult ComparePairCap(AActor* ActorA, AActor* Actor
 			{
 				ValueA = ResA->HasField(TEXT("value"))
 					? ResA->GetStringField(TEXT("value"))
-					: FNexusPropertyUtils::SerializeJson(ResA);
+					: FNexusJsonUtils::SerializeCondensed(ResA);
 			}
 			else { ValueA = FString::Printf(TEXT("[error] %s"), *ErrorA); }
 			if (bOkB)
 			{
 				ValueB = ResB->HasField(TEXT("value"))
 					? ResB->GetStringField(TEXT("value"))
-					: FNexusPropertyUtils::SerializeJson(ResB);
+					: FNexusJsonUtils::SerializeCondensed(ResB);
 			}
 			else { ValueB = FString::Printf(TEXT("[error] %s"), *ErrorB); }
 

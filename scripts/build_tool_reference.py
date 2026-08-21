@@ -41,6 +41,7 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 from schema_extract import extract_object_chain_after  # noqa: E402
+from schema_catalog import load_capability_schemas, params_from_input_schema  # noqa: E402
 from tool_reference_i18n import (  # noqa: E402
     DocLocale,
     build_en_locale,
@@ -50,35 +51,9 @@ from tool_reference_i18n import (  # noqa: E402
 
 # ── 目录分类映射（Capabilities 子目录 → 文档分类名） ────────────────────────────
 
-DIR_CATEGORY: dict[str, str] = {
-    "AI":        "AI tools",
-    "Animation": "Animation assets",
-    "Blueprint": "Blueprint tools",
-    "DataAsset": "Data assets (DataAsset / DataTable)",
-    "Editor":    "Editor tools",
-    "Lua":       "Lua runtime tools",
-    "Material":  "Material tools",
-    "Runtime":   "Runtime tools",
-    "Struct":    "Struct tools",
-    "UMG":       "Widget blueprint tools",
-    "Asset":     "General asset tools",
-}
-
-# 文档章节展示顺序
-CATEGORY_ORDER = [
-    "Meta tools",
-    "Editor tools",
-    "General asset tools",
-    "Blueprint tools",
-    "Animation assets",
-    "Material tools",
-    "Struct tools",
-    "Data assets (DataAsset / DataTable)",
-    "Widget blueprint tools",
-    "Lua runtime tools",
-    "Runtime tools",
-    "AI tools",
-]
+_DOC_CAT = json.loads((_SCRIPTS_DIR / "doc_categories.json").read_text(encoding="utf-8"))
+DIR_CATEGORY: dict[str, str] = _DOC_CAT["dir_category"]
+CATEGORY_ORDER: list[str] = _DOC_CAT["category_order"]
 
 # ── Doc description overrides（key = capability/tool 名称） ──────────────────────────────
 # C++ Out.Description / schema text feed MCP and docs;
@@ -351,23 +326,26 @@ def parse_section_names(text: str) -> list[str]:
     return []
 
 
-_RE_SUPPORTS_COMPILE = re.compile(
-    r"static bool SupportsCompile\(const FString& Name\)\s*\{(.*?)^\s*\}",
-    re.MULTILINE | re.DOTALL,
-)
+_RE_INJECT_COMPILE = re.compile(r"Out\.bInjectCompile\s*=\s*true")
+_RE_OUT_NAME = re.compile(r'Out\.Name\s*=\s*TEXT\("([^"]+)"\)')
 _MANAGE_COMPILE_CAPS: frozenset[str] | None = None
 
 
 def load_manage_compile_caps() -> frozenset[str]:
-    """与 NexusCapability.cpp SupportsCompile 对齐，避免文档脚本另维护名单。"""
+    """与各 manage cap BuildDefinition 的 Out.bInjectCompile 对齐。"""
     global _MANAGE_COMPILE_CAPS
     if _MANAGE_COMPILE_CAPS is not None:
         return _MANAGE_COMPILE_CAPS
-    cpp = Path(__file__).resolve().parent.parent / "Source" / "NexusLink" / "Private" / "NexusCapability.cpp"
-    text = cpp.read_text(encoding="utf-8", errors="replace")
-    m = _RE_SUPPORTS_COMPILE.search(text)
-    names = frozenset(re.findall(r'TEXT\("([^"]+)"\)', m.group(1))) if m else frozenset()
-    _MANAGE_COMPILE_CAPS = names
+    cap_root = Path(__file__).resolve().parent.parent / "Source" / "NexusLink" / "Private" / "Capabilities"
+    names: set[str] = set()
+    for path in cap_root.rglob("*.cpp"):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if not _RE_INJECT_COMPILE.search(text):
+            continue
+        m = _RE_OUT_NAME.search(text)
+        if m:
+            names.add(m.group(1))
+    _MANAGE_COMPILE_CAPS = frozenset(names)
     return names
 
 
@@ -413,6 +391,27 @@ def _parse_tool_file(cpp_path: Path, *, kind: str) -> dict[str, Any] | None:
         "sections":      [],
         "when_to_use":   "",
     }
+
+    catalog = load_capability_schemas() or {}
+    dumped = catalog.get(cap["name"]) if kind == "capability" else None
+    if isinstance(dumped, dict) and dumped.get("properties"):
+        params, req = params_from_input_schema(dumped)
+        cap["params"] = params
+        cap["required"] = req
+        if kind == "capability":
+            m_rel = RE_RELATED.search(text)
+            if m_rel:
+                cap["related"] = extract_text_values(m_rel.group(1))
+            m_pre = RE_PREREQ.search(text)
+            if m_pre:
+                cap["prerequisites"] = extract_text_values(m_pre.group(1))
+            m_when = RE_WHEN.search(text)
+            if m_when:
+                cap["when_to_use"] = m_when.group(1)
+            if RE_USE_SECTIONS.search(text):
+                cap["sections"] = parse_section_names(text)
+            inject_manage_finalize_params(cap)
+        return cap
 
     if kind == "capability":
         m_rel = RE_RELATED.search(text)

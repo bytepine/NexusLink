@@ -37,8 +37,8 @@ FCapabilityResult FInteractRuntimeActorAudioCapability::Execute(const TSharedPtr
 		const FNexusArgs A(Arguments);
 		const FString Action = A.Str(TEXT("action"));
 		FString AssetPath, ActorName;
-		Arguments->TryGetStringField(TEXT("assetPath"), AssetPath);
-		Arguments->TryGetStringField(TEXT("actorName"), ActorName);
+		AssetPath = FNexusArgs(Arguments).Str(TEXT("assetPath"), AssetPath);
+		ActorName = FNexusArgs(Arguments).Str(TEXT("actorName"), ActorName);
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
 

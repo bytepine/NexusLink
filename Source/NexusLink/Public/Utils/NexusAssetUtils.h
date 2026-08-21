@@ -211,20 +211,23 @@ public:
 	};
 
 	/**
-	 * 普通 UObject 资产创建：已存在检查 → CreatePackage → NewObject → NotifyAndSaveCreated。
+	 * 普通 UObject 资产创建：已存在检查 → CreatePackage → NewObject。
+	 * bNotifyAndSave=true（默认）时立刻 NotifyAndSaveCreated；需在落盘前写字段时传 false，由调用方自行 NotifyAndSaveCreated。
 	 * 错误消息为英文。
 	 */
 	static FAssetCreateOutcome CreatePlainAsset(
 		const FString& AssetPath,
 		UClass* AssetClass,
-		EObjectFlags Flags = RF_Public | RF_Standalone);
+		EObjectFlags Flags = RF_Public | RF_Standalone,
+		bool bNotifyAndSave = true);
 
 	template <typename TAsset>
 	static FAssetCreateOutcome CreatePlainAsset(
 		const FString& AssetPath,
-		EObjectFlags Flags = RF_Public | RF_Standalone)
+		EObjectFlags Flags = RF_Public | RF_Standalone,
+		bool bNotifyAndSave = true)
 	{
-		return CreatePlainAsset(AssetPath, TAsset::StaticClass(), Flags);
+		return CreatePlainAsset(AssetPath, TAsset::StaticClass(), Flags, bNotifyAndSave);
 	}
 
 	/**

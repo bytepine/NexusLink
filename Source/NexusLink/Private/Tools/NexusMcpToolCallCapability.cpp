@@ -66,25 +66,24 @@ static bool IsMetaMcpToolName(const FString& CapName)
 		|| CapName == TEXT("submit_feedback");
 }
 
-/** capability 未找到时的错误文案（含元工具误用、旧名提示）。 */
-static FString FormatUnknownCapabilityError(const FString& CapName)
+/** capability 未找到时的错误文案（含元工具误用、旧名已解析但仍未注册）。 */
+static FString FormatUnknownCapabilityError(const FString& RequestedName, const FString& ResolvedName)
 {
-	if (IsMetaMcpToolName(CapName))
+	if (IsMetaMcpToolName(RequestedName))
 	{
 		return FString::Printf(
 				TEXT("'%s' is an MCP meta-tool; call it directly via MCP tools/call, not via call_capability(capability=...)."),
-				*CapName);
+				*RequestedName);
 	}
-	const FString Canon = FNexusCapabilityLegacyNames::GetCanonicalNameForLegacy(CapName);
-	if (!Canon.IsEmpty())
+	if (!RequestedName.Equals(ResolvedName, ESearchCase::IgnoreCase) && !ResolvedName.IsEmpty())
 	{
 		return FString::Printf(
-				TEXT("Unknown capability '%s' (legacy name; canonical name is '%s'). Use the canonical name or search_capabilities."),
-				*CapName, *Canon);
+				TEXT("Unknown capability '%s' (resolved from legacy name to '%s', which is not registered). Use search_capabilities."),
+				*RequestedName, *ResolvedName);
 	}
 	return FString::Printf(
 			TEXT("Unknown capability '%s'. Use the search_capabilities MCP tool to list available capabilities."),
-			*CapName);
+			*RequestedName);
 }
 
 static TSharedPtr<FJsonObject> BuildCallErrorObject(const FString& ErrorKind, const FString& Error,
@@ -165,7 +164,7 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 			FNexusFeedback::FFields F;
 			F.Tool       = TEXT("call_capability");
 			F.Capability = R.RequestedCapName;
-			F.ErrorText  = FormatUnknownCapabilityError(R.RequestedCapName);
+			F.ErrorText  = FormatUnknownCapabilityError(R.RequestedCapName, R.CapName);
 			FNexusFeedback::RecordAuto(TEXT("call_unknown"), F);
 		}
 		return R;
@@ -413,7 +412,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				++SuccessCount;
 				break;
 	case FNexusCallCore::EStatus::Unknown:
-		Item->SetStringField(TEXT("error"), FormatUnknownCapabilityError(Core.RequestedCapName));
+		Item->SetStringField(TEXT("error"), FormatUnknownCapabilityError(Core.RequestedCapName, Core.CapName));
 		Item->SetStringField(TEXT("errorKind"), TEXT("unknown"));
 		if (!Core.RequestedCapName.Equals(Core.CapName, ESearchCase::IgnoreCase))
 		{
@@ -527,7 +526,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			Result.bIsError = true;
 			TSharedPtr<FJsonObject> Err = BuildCallErrorObject(
 				TEXT("unknown"),
-				FormatUnknownCapabilityError(Core.RequestedCapName),
+				FormatUnknownCapabilityError(Core.RequestedCapName, Core.CapName),
 				FString(),
 				TEXT("Use search_capabilities to find the canonical name; do not repeat call_capability."),
 				Core.RequestedCapName);

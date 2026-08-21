@@ -53,21 +53,8 @@ LABELS_ZH: dict[str, str] = {
     "item": "条目",
 }
 
-# 内部分类名（DIR_CATEGORY 值）→ 中文展示名。英文文档保持原名。
-CATEGORY_ZH: dict[str, str] = {
-    "Meta tools": "元工具",
-    "Editor tools": "编辑器工具",
-    "General asset tools": "通用资产工具",
-    "Blueprint tools": "蓝图工具",
-    "Animation assets": "动画资产",
-    "Material tools": "材质工具",
-    "Struct tools": "结构体工具",
-    "Data assets (DataAsset / DataTable)": "数据资产（DataAsset / DataTable）",
-    "Widget blueprint tools": "控件蓝图工具",
-    "Lua runtime tools": "Lua 运行时工具",
-    "Runtime tools": "运行时工具",
-    "AI tools": "AI 工具",
-}
+_DOC_CAT = json.loads((_DIR / "doc_categories.json").read_text(encoding="utf-8"))
+CATEGORY_ZH: dict[str, str] = _DOC_CAT["category_zh"]
 
 # ── 参数说明：短语表（长的优先）──────────────────────────────────────────────
 # 新 cap 的英文 schema 只要套这些句式，中文文档会自动跟上。

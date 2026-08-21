@@ -38,7 +38,7 @@ FCapabilityResult FGetRuntimeLuaEnvCapability::Execute(const TSharedPtr<FJsonObj
 	const int32 StackTop = lua_gettop(L);
 
 	FString TablePath;
-	Arguments->TryGetStringField(TEXT("luaPath"), TablePath);
+	TablePath = FNexusArgs(Arguments).Str(TEXT("luaPath"), TablePath);
 
 	if (TablePath.IsEmpty())
 	{
@@ -60,7 +60,7 @@ FCapabilityResult FGetRuntimeLuaEnvCapability::Execute(const TSharedPtr<FJsonObj
 
 	FString NameFilter;
 	int32 Limit = 100;
-	Arguments->TryGetStringField(TEXT("nameFilter"), NameFilter);
+	NameFilter = FNexusArgs(Arguments).Str(TEXT("nameFilter"), NameFilter);
 	if (Arguments->HasField(TEXT("limit")))
 		Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
 

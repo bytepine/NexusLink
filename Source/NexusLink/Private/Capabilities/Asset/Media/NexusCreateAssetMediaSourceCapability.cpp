@@ -30,23 +30,25 @@ FCapabilityResult FCreateAssetMediaSourceCapability::Execute(const TSharedPtr<FJ
 	{
 		const FNexusArgs A(Arguments);
 		const FString AssetPath = A.Str(TEXT("assetPath"));
-		if (LoadObject<UFileMediaSource>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UFileMediaSource>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("FileMediaSource already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UFileMediaSource* Source = NewObject<UFileMediaSource>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!Source) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Creation failed")); return; }
+		UFileMediaSource* Source = Cast<UFileMediaSource>(Created.Asset);
+		if (!Source)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		FString FilePath;
 		if (Arguments->TryGetStringField(TEXT("mediaPath"), FilePath) && !FilePath.IsEmpty())
 		{
 			Source->SetFilePath(FilePath);
 		}
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, Source, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(Source->GetOutermost(), Source, AssetPath);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Source->GetName());
 		Entry->SetStringField(TEXT("path"), Source->GetPathName());

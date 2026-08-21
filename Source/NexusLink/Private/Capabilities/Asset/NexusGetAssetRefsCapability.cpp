@@ -476,7 +476,7 @@ FCapabilityResult FGetAssetRefsCapability::Execute(const TSharedPtr<FJsonObject>
 		const FString AssetPath = A.Str(TEXT("assetPath"));
 
 		FString Direction = TEXT("dependencies");
-		Arguments->TryGetStringField(TEXT("direction"), Direction);
+		Direction = FNexusArgs(Arguments).Str(TEXT("direction"), Direction);
 		Direction = Direction.ToLower();
 		const bool bValidDirection =
 			Direction == TEXT("dependencies") || Direction == TEXT("referencers")
@@ -492,9 +492,9 @@ FCapabilityResult FGetAssetRefsCapability::Execute(const TSharedPtr<FJsonObject>
 
 		const bool bRecursive = Arguments->HasField(TEXT("recursive")) && A.Bool(TEXT("recursive"));
 		FString NameFilter;
-		Arguments->TryGetStringField(TEXT("nameFilter"), NameFilter);
+		NameFilter = FNexusArgs(Arguments).Str(TEXT("nameFilter"), NameFilter);
 		FString AssetTypeFilter;
-		Arguments->TryGetStringField(TEXT("assetTypeFilter"), AssetTypeFilter);
+		AssetTypeFilter = FNexusArgs(Arguments).Str(TEXT("assetTypeFilter"), AssetTypeFilter);
 
 		int32 Offset = 0, Limit = 100;
 		if (Arguments->HasField(TEXT("offset")))

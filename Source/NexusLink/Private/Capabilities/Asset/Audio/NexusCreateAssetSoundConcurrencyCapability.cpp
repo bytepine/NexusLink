@@ -32,24 +32,23 @@ FCapabilityResult FCreateAssetSoundConcurrencyCapability::Execute(const TSharedP
 
 		const FString AssetPath = A.Str(TEXT("assetPath"));
 
-		if (LoadObject<USoundConcurrency>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<USoundConcurrency>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("SoundConcurrency already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		USoundConcurrency* SC = NewObject<USoundConcurrency>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!SC) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("SoundConcurrency Createfailed")); return; }
-
+		USoundConcurrency* SC = Cast<USoundConcurrency>(Created.Asset);
+		if (!SC)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		if (Arguments->HasField(TEXT("maxCount")))
 			SC->Concurrency.MaxCount = FMath::Max(1, (int32)A.Num(TEXT("maxCount")));
 
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, SC, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(SC->GetOutermost(), SC, AssetPath);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),     SC->GetName());

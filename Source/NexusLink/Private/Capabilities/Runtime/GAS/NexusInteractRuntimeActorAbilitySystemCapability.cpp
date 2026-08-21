@@ -89,10 +89,10 @@ FCapabilityResult FInteractRuntimeActorAbilitySystemCapability::Execute(const TS
 		double Level = 1.0, Value = 0.0;
 		if (Arguments.IsValid())
 		{
-			Arguments->TryGetStringField(TEXT("abilityPath"),   AbilityPath);
-			Arguments->TryGetStringField(TEXT("effectPath"),    EffectPath);
-			Arguments->TryGetStringField(TEXT("attributeName"), AttrName);
-			Arguments->TryGetStringField(TEXT("tag"),           TagStr);
+			AbilityPath = FNexusArgs(Arguments).Str(TEXT("abilityPath"), AbilityPath);
+			EffectPath = FNexusArgs(Arguments).Str(TEXT("effectPath"), EffectPath);
+			AttrName = FNexusArgs(Arguments).Str(TEXT("attributeName"), AttrName);
+			TagStr = FNexusArgs(Arguments).Str(TEXT("tag"), TagStr);
 			Arguments->TryGetNumberField(TEXT("level"),  Level);
 			Arguments->TryGetNumberField(TEXT("value"),  Value);
 		}

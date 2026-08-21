@@ -38,36 +38,28 @@ FCapabilityResult FCreateAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 		if (Arguments->HasField(TEXT("curveType")))
 			CurveType = A.Str(TEXT("curveType")).ToLower();
 
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UObject* NewAsset = nullptr;
-
+		UClass* CurveClass = UCurveFloat::StaticClass();
 		if (CurveType == TEXT("vector"))
 		{
-			UCurveVector* C = NewObject<UCurveVector>(Package, *AssetName, RF_Public | RF_Standalone);
-			NewAsset = C;
+			CurveClass = UCurveVector::StaticClass();
 		}
 		else if (CurveType == TEXT("linear_color") || CurveType == TEXT("linearcolor"))
 		{
-			UCurveLinearColor* C = NewObject<UCurveLinearColor>(Package, *AssetName, RF_Public | RF_Standalone);
-			NewAsset = C;
+			CurveClass = UCurveLinearColor::StaticClass();
 		}
 		else if (CurveType == TEXT("curve_table") || CurveType == TEXT("curvetable"))
 		{
-			UCurveTable* C = NewObject<UCurveTable>(Package, *AssetName, RF_Public | RF_Standalone);
-			NewAsset = C;
+			CurveClass = UCurveTable::StaticClass();
 		}
-		else // float（默认）
+
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset(AssetPath, CurveClass);
+		if (!Created.Ok())
 		{
-			UCurveFloat* C = NewObject<UCurveFloat>(Package, *AssetName, RF_Public | RF_Standalone);
-			NewAsset = C;
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
+			return;
 		}
-
-		if (!NewAsset) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Object creation failed")); return; }
-
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewAsset, AssetPath);
+		UObject* NewAsset = Created.Asset;
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), NewAsset->GetName());

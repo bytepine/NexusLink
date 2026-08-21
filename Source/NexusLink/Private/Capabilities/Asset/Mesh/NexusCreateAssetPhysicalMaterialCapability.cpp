@@ -31,20 +31,22 @@ FCapabilityResult FCreateAssetPhysicalMaterialCapability::Execute(const TSharedP
 	{
 		const FNexusArgs A(Arguments);
 		const FString AssetPath = A.Str(TEXT("assetPath"));
-		if (LoadObject<UPhysicalMaterial>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UPhysicalMaterial>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("PhysicalMaterial already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		UPhysicalMaterial* PM = NewObject<UPhysicalMaterial>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!PM) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Creation failed")); return; }
+		UPhysicalMaterial* PM = Cast<UPhysicalMaterial>(Created.Asset);
+		if (!PM)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		if (Arguments->HasField(TEXT("friction"))) PM->Friction = static_cast<float>(A.Num(TEXT("friction")));
 		if (Arguments->HasField(TEXT("restitution"))) PM->Restitution = static_cast<float>(A.Num(TEXT("restitution")));
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, PM, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(PM->GetOutermost(), PM, AssetPath);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), PM->GetName());
 		Entry->SetStringField(TEXT("path"), PM->GetPathName());

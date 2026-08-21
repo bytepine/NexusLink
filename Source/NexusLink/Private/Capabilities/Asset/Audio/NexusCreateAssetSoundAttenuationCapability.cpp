@@ -33,26 +33,25 @@ FCapabilityResult FCreateAssetSoundAttenuationCapability::Execute(const TSharedP
 
 		const FString AssetPath = A.Str(TEXT("assetPath"));
 
-		if (LoadObject<USoundAttenuation>(nullptr, *AssetPath))
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<USoundAttenuation>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				FString::Printf(TEXT("SoundAttenuation already exists: %s"), *AssetPath));
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-
-		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Failed to create package")); return; }
-
-		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
-		USoundAttenuation* SA = NewObject<USoundAttenuation>(Package, *AssetName, RF_Public | RF_Standalone);
-		if (!SA) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("SoundAttenuation Createfailed")); return; }
-
+		USoundAttenuation* SA = Cast<USoundAttenuation>(Created.Asset);
+		if (!SA)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
+			return;
+		}
 		if (Arguments->HasField(TEXT("innerRadius")))
 			SA->Attenuation.AttenuationShapeExtents.X = (float)A.Num(TEXT("innerRadius"));
 		if (Arguments->HasField(TEXT("falloffDistance")))
 			SA->Attenuation.FalloffDistance = (float)A.Num(TEXT("falloffDistance"));
 
-		FNexusAssetUtils::NotifyAndSaveCreated(Package, SA, AssetPath);
+		FNexusAssetUtils::NotifyAndSaveCreated(SA->GetOutermost(), SA, AssetPath);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),           SA->GetName());

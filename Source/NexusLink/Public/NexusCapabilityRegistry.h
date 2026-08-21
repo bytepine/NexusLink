@@ -68,6 +68,9 @@ public:
 	 */
 	const FCapRecord* FindRecordByName(const FString& CapabilityName) const;
 
+	/** 读取 manage_* InputSchema 中 operations.items.action.enum；未注册或无该路径返回 false。 */
+	static bool CollectOperationActions(const FString& CapName, TArray<FString>& OutActions);
+
 	/**
 	 * 按 search_asset 返回的 assetType 解析推荐 get/manage Capability。
 	 * 索引来自各 cap BuildDefinition 声明的 SearchAssetTypes；无声明时 Out* 为空。

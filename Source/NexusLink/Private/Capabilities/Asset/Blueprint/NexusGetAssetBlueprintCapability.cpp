@@ -26,7 +26,6 @@
 
 struct FNexusBPQueryParams
 {
-	FString Section;
 	FString NameFilter;
 	FString GraphName;
 	FString GraphType;
@@ -39,7 +38,6 @@ static FNexusBPQueryParams ParseBPQueryParams(const TSharedPtr<FJsonObject>& Arg
 {
 	FNexusBPQueryParams P;
 	if (!Args.IsValid()) return P;
-	P.Section     = FNexusJsonUtils::GetStringSafe(Args, TEXT("section")).ToLower();
 	P.NameFilter  = FNexusJsonUtils::GetStringSafe(Args, TEXT("nameFilter"));
 	P.GraphName   = FNexusJsonUtils::GetStringSafe(Args, TEXT("graphName"));
 	P.GraphType   = FNexusJsonUtils::GetStringSafe(Args, TEXT("graphType")).ToLower();
