@@ -7,8 +7,7 @@
 #include "HttpRouteHandle.h"
 // 前向声明（完整定义由 .cpp 引入）
 class FNexusMcpDispatcher;
-#include "IWebSocketServer.h"
-#include "Containers/Ticker.h"
+#include "Containers/Set.h"
 
 class IHttpRouter;
 class IWebSocketServer;
@@ -36,6 +35,8 @@ public:
 	bool IsRunning() const { return bRunning; }
 	int32 GetMcpPort() const { return McpPort; }
 	int32 GetWsPort()  const { return WebSocketPort; }
+	/** 本进程 MCP 鉴权 token（不写入 /status）。 */
+	const FString& GetAuthToken() const { return AuthToken; }
 
 	/**
 	 * 向所有已连接的 WebSocket 客户端广播 JSON-RPC 通知。
@@ -86,6 +87,9 @@ private:
 	/** WebSocket 服务器。 */
 	TUniquePtr<IWebSocketServer> WebSocketServer;
 	TArray<INetworkingWebSocket*> ConnectedClients;
+	/** 已通过 WS 首帧 auth 的客户端。 */
+	TSet<INetworkingWebSocket*> AuthenticatedWsClients;
+	FString AuthToken;
 #if NX_UE_HAS_FTSTICKER_HANDLE
 	FTSTicker::FDelegateHandle WebSocketTickHandle;
 	FTSTicker::FDelegateHandle SessionCleanupTickHandle;

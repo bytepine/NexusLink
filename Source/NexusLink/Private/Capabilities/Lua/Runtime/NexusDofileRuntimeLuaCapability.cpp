@@ -37,10 +37,21 @@ FCapabilityResult FDofileRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObj
 	if (!RequireString(Arguments, TEXT("scriptPath"), ScriptPath, R.Entries))
 		return R;
 
-	FString AbsPath = FPaths::IsRelative(ScriptPath)
-		? FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Script"), ScriptPath)
-		: ScriptPath;
+	if (ScriptPath.IsEmpty() || !FPaths::IsRelative(ScriptPath) || ScriptPath.Contains(TEXT("..")))
+	{
+		return FCapabilityResult::MakeFatal(
+			TEXT("scriptPath must be relative to Content/Script/ and must not contain '..'"));
+	}
+
+	FString Root = FPaths::ConvertRelativePathToFull(
+		FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Script")));
+	FPaths::NormalizeDirectoryName(Root);
+	FString AbsPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(Root, ScriptPath));
 	FPaths::NormalizeFilename(AbsPath);
+	FPaths::CollapseRelativeDirectories(AbsPath);
+
+	if (!FPaths::IsUnderDirectory(AbsPath, Root))
+		return FCapabilityResult::MakeFatal(TEXT("scriptPath escapes Content/Script/"));
 
 	if (!FPaths::FileExists(AbsPath))
 		return FCapabilityResult::MakeFatal(FString::Printf(TEXT("File not found: %s"), *AbsPath));

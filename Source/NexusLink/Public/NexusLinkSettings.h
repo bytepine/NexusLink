@@ -72,6 +72,14 @@ public:
 	int32 WsPort = 0;
 
 	/**
+	 * 当前 MCP 鉴权 Token（只读，不落盘）。
+	 * 直连 UE 时须在 mcp.json 的 Authorization: Bearer 中填写；代理从实例注册文件读取。
+	 */
+	UPROPERTY(Transient, VisibleAnywhere, Category = "服务器",
+		meta = (DisplayName = "MCP 鉴权 Token"))
+	FString McpAuthToken;
+
+	/**
 	 * 是否在编辑器标题栏右侧显示端口号（与 FPS/内存/对象同一组）。
 	 * 默认开启；关闭 MCP 服务器时条目会注销，不会显示。
 	 */
@@ -256,6 +264,10 @@ public:
 	UPROPERTY(Config)
 	bool bCapabilityDefaultsApplied = false;
 
+	/** 是否已将危险 Capability（exec_command / eval_runtime_lua / dofile_runtime_lua）默认关闭。 */
+	UPROPERTY(Config)
+	bool bDangerousCapsDefaultOffApplied = false;
+
 	/** 判断指定 cap 是否启用（不在 DisabledCapabilities 中即为启用）。 */
 	bool IsCapabilityEnabled(const FString& CapabilityName) const;
 
@@ -270,6 +282,12 @@ public:
 
 	/** 首次启动时把当前已注册 cap 全部纳入 KnownCapabilityKeys（默认启用）。 */
 	void EnsureDefaultCapabilityMode();
+
+	/** 升级迁移：把危险 Capability 写入 DisabledCapabilities（一次性）。 */
+	void EnsureDangerousCapsDefaultOff();
+
+	/** 会话级打开危险 Capability（不写盘）；供 -NexusEnableDangerousCaps / 测试使用。 */
+	void EnableDangerousCapsForSession();
 
 	/**
 	 * 首次启动 / 升级时若白名单仍为空，写入诊断默认集并持久化。

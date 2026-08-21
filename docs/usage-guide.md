@@ -41,12 +41,14 @@ flowchart TB
 | 方式 | 须开启 |
 |------|--------|
 | 直连 UE | **一层**：UE **启用 MCP 服务器** + AI 配 `:45000` |
-| NexusDesktop | **两层**：UE **启用 MCP 服务器** + 托盘 **启用中转服务器** + AI 配 `:6700` |
+| NexusDesktop | **两层**：UE **启用 MCP 服务器** + 托盘 **启用中转服务器**（新安装默认关） + AI 配 `:6700` |
 | Rider / VSCode | **三层**：UE **启用 MCP 服务器** + IDE 代理 **启用** + AI 配 `:6800` / `:6900` |
 
 任一层关闭则不可用。端口冲突时各端会自动顺延，以界面显示的实际端口为准。
 
 本机只开一个代理（Desktop `:6700` / Rider `:6800` / VSCode `:6900` 勿叠开）；叠开会重复扫描并各自连同一 UE。
+
+MCP 只信任**同一 OS 用户的本机 loopback**。`POST /stream` 与 WebSocket 须 Bearer token（代理从实例注册文件读取；直连从设置面板复制）。带 `Origin` 的浏览器请求会被拒绝。`GET /status` 仅探活，**不含 token**。`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 默认禁用，可在 Capabilities 面板打开。不要把端口映射到局域网或公网。
 
 ---
 
@@ -129,18 +131,26 @@ Preferences 与 `-EnableNexusMcp` / 控制台为 **OR**。CLI 不会改写 `bEna
 {
   "mcpServers": {
     "nexus-link": {
-      "url": "http://127.0.0.1:45000/stream"
+      "url": "http://127.0.0.1:45000/stream",
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
     }
   }
 }
 ```
+
+Token 从设置面板「复制 mcp.json」取得，**不要**从 `GET /status` 猜。带 `Origin` 的浏览器请求会被拒绝。
 
 **CodeBuddy / Windsurf**：
 
 ```json
 "nexus-link": {
   "url": "http://127.0.0.1:45000/stream",
-  "transportType": "streamable-http"
+  "transportType": "streamable-http",
+  "headers": {
+    "Authorization": "Bearer <token>"
+  }
 }
 ```
 

@@ -152,6 +152,7 @@ void FNexusLinkModule::StopMcpServer()
 		{
 			MutableSettings->McpPort = 0;
 			MutableSettings->WsPort  = 0;
+			MutableSettings->McpAuthToken.Empty();
 		}
 	}
 #endif
@@ -229,7 +230,8 @@ bool FNexusLinkModule::TryStartMcpServer()
 		ActualMcpPort,
 		ActualWsPort,
 		FString(FApp::GetProjectName()),
-		FString::Printf(TEXT("%d.%d"), ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION)
+		FString::Printf(TEXT("%d.%d"), ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION),
+		McpServer->GetAuthToken()
 	);
 
 #if WITH_EDITOR
@@ -245,6 +247,10 @@ bool FNexusLinkModule::TryStartMcpServer()
 		{
 			MutableSettings->McpPort = ActualMcpPort;
 			MutableSettings->WsPort  = ActualWsPort;
+			if (McpServer.IsValid())
+			{
+				MutableSettings->McpAuthToken = McpServer->GetAuthToken();
+			}
 		}
 		if (GIsEditor)
 		{
@@ -260,7 +266,11 @@ void FNexusLinkModule::OnPostEngineInit()
 {
 	// 把当前已注册的 Capability 全部纳入 KnownCapabilityKeys（首次启动默认全部启用）
 	UNexusLinkSettings::Get()->EnsureDefaultCapabilityMode();
-	// 首次 / 升级：空白名单写入诊断默认集，避免全量捕获冲刷环形缓冲
+	UNexusLinkSettings::Get()->EnsureDangerousCapsDefaultOff();
+	if (FParse::Param(FCommandLine::Get(), TEXT("NexusEnableDangerousCaps")))
+	{
+		UNexusLinkSettings::Get()->EnableDangerousCapsForSession();
+	}
 	UNexusLinkSettings::Get()->EnsureLogCaptureDefaults();
 
 	const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();

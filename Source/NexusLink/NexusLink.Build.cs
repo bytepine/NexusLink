@@ -39,6 +39,7 @@ public class NexusLink : ModuleRules
 				"Settings", "Slate", "SlateCore", "EditorStyle", "UnrealEd", "LevelEditor",
 				"KismetCompiler", "Kismet", "BlueprintGraph", "AnimGraph", "UMGEditor", "AssetTools",
 				"MaterialEditor", "PropertyEditor", "ContentBrowser", "ContentBrowserData",
+				"ApplicationCore",
 			});
 			// LiveCoding 仅 Windows 平台存在
 			if (Target.Platform == UnrealTargetPlatform.Win64)

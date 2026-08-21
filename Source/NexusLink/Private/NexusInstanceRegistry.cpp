@@ -7,6 +7,7 @@
 #include "HAL/PlatformProcess.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
 #include "Dom/JsonObject.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusRegistry, Log, All);
@@ -50,7 +51,7 @@ static void CleanupStaleFiles()
 	}
 }
 
-void FNexusInstanceRegistry::Register(int32 McpPort, int32 WsPort, const FString& ProjectName, const FString& EngineVersion)
+void FNexusInstanceRegistry::Register(int32 McpPort, int32 WsPort, const FString& ProjectName, const FString& EngineVersion, const FString& AuthToken)
 {
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	const FString Dir = GetRegistryDir();
@@ -63,20 +64,17 @@ void FNexusInstanceRegistry::Register(int32 McpPort, int32 WsPort, const FString
 	// 清理已退出进程的残留文件（处理上次崩溃未能执行 Unregister 的情况）
 	CleanupStaleFiles();
 
-	// 对字段值做基础 JSON 转义（项目名通常为标识符，此处作健壮性处理）
-	auto EscapeJson = [](const FString& Str) -> FString
-	{
-		return Str.Replace(TEXT("\\"), TEXT("\\\\")).Replace(TEXT("\""), TEXT("\\\""));
-	};
+	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+	Obj->SetNumberField(TEXT("pid"), FPlatformProcess::GetCurrentProcessId());
+	Obj->SetNumberField(TEXT("mcpPort"), McpPort);
+	Obj->SetNumberField(TEXT("wsPort"), WsPort);
+	Obj->SetStringField(TEXT("projectName"), ProjectName);
+	Obj->SetStringField(TEXT("engineVersion"), EngineVersion);
+	Obj->SetStringField(TEXT("authToken"), AuthToken);
 
-	const FString Json = FString::Printf(
-		TEXT("{\"pid\":%u,\"mcpPort\":%d,\"wsPort\":%d,\"projectName\":\"%s\",\"engineVersion\":\"%s\"}"),
-		FPlatformProcess::GetCurrentProcessId(),
-		McpPort,
-		WsPort,
-		*EscapeJson(ProjectName),
-		*EscapeJson(EngineVersion)
-	);
+	FString Json;
+	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Json);
+	FJsonSerializer::Serialize(Obj.ToSharedRef(), Writer);
 
 	const FString FilePath = GetRegistryFilePath();
 	if (FFileHelper::SaveStringToFile(Json, *FilePath))

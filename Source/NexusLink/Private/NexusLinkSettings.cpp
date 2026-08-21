@@ -83,6 +83,34 @@ void UNexusLinkSettings::EnsureDefaultCapabilityMode()
 	}
 }
 
+static const TCHAR* GDangerousCapabilityNames[] = {
+	TEXT("exec_command"),
+	TEXT("eval_runtime_lua"),
+	TEXT("dofile_runtime_lua"),
+};
+
+void UNexusLinkSettings::EnsureDangerousCapsDefaultOff()
+{
+	if (bDangerousCapsDefaultOffApplied)
+	{
+		return;
+	}
+	bDangerousCapsDefaultOffApplied = true;
+	for (const TCHAR* Name : GDangerousCapabilityNames)
+	{
+		DisabledCapabilities.Add(Name);
+	}
+	SaveConfig();
+}
+
+void UNexusLinkSettings::EnableDangerousCapsForSession()
+{
+	for (const TCHAR* Name : GDangerousCapabilityNames)
+	{
+		DisabledCapabilities.Remove(Name);
+	}
+}
+
 bool UNexusLinkSettings::EnsureLogCaptureDefaults()
 {
 	if (bLogCaptureDefaultsApplied)

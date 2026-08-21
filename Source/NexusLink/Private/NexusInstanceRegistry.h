@@ -14,8 +14,8 @@
  */
 struct FNexusInstanceRegistry
 {
-	/** 注册当前实例，并清理已退出进程遗留的残留文件。 */
-	static void Register(int32 McpPort, int32 WsPort, const FString& ProjectName, const FString& EngineVersion);
+	/** 注册当前实例，并清理已退出进程遗留的残留文件。authToken 供代理在 /status 探活后读取。 */
+	static void Register(int32 McpPort, int32 WsPort, const FString& ProjectName, const FString& EngineVersion, const FString& AuthToken);
 
 	/** 注销当前实例，删除本进程写入的注册文件。 */
 	static void Unregister();

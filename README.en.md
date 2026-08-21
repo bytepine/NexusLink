@@ -11,8 +11,8 @@ An MCP integration plugin for Unreal Engine that exposes UE project context to A
 Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://github.com/bytepine/NexusLink/releases), or clone this repository into your project's `Plugins/Developer/NexusLink`.
 
 1. Place the plugin in `Plugins/Developer/NexusLink`, enable it under **Edit → Plugins → Developer → NexusLink**, and restart the editor
-2. **Edit → Editor Preferences → Plugins → NexusLink** — check **Enable MCP Server** (**off by default**). Once checked, HTTP (`POST /stream`) and WebSocket start immediately and the instance is registered for client discovery; unchecking stops them immediately — **no second restart**
-3. (Optional) For headless **editor** launches (e.g. `UEEditor-Cmd`), pass **`-EnableNexusMcp`** or console **`NexusLink.EnableMcp 1|0`** (session-only, does not write settings; OR with Preferences)
+2. **Edit → Editor Preferences → Plugins → NexusLink** — check **Enable MCP Server** (**off by default**). HTTP (`POST /stream`) and WebSocket start immediately. Connections require `Authorization: Bearer`; use **Copy mcp.json** in the settings panel
+3. (Optional) For headless **editor** launches (e.g. `UEEditor-Cmd`), pass **`-EnableNexusMcp`** or console **`NexusLink.EnableMcp 1|0`** (session-only, does not write settings; OR with Preferences). Tests may pass **`-NexusEnableDangerousCaps`** to enable `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua`
 
 GAS / Niagara Capabilities are detected from the host project; NexusLink does **not** force those plugins via `.uplugin`.
 

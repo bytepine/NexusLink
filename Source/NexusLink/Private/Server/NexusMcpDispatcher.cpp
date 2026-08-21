@@ -60,7 +60,7 @@ void FNexusMcpDispatcher::Dispatch(const FString& JsonLine, FOnSendResponse PerR
 
 	if (!FJsonSerializer::Deserialize(Reader, JsonMsg) || !JsonMsg.IsValid())
 	{
-		UE_LOG(LogNexusMcpDispatcher, Warning, TEXT("JSON 解析失败: %s"), *JsonLine);
+		UE_LOG(LogNexusMcpDispatcher, Warning, TEXT("JSON 解析失败（%d 字节）"), JsonLine.Len());
 		SendError(nullptr, JsonRpcParseError, TEXT("JSON parse error"));
 		return;
 	}
@@ -710,6 +710,7 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 		StatusObj->SetStringField(TEXT("engineVersion"), FString::Printf(TEXT("%d.%d"),
 			ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION));
 		StatusObj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
+		StatusObj->SetBoolField(TEXT("authRequired"), true);
 		SendResult(Id, StatusObj);
 	}
 	else if (Method == TEXT("nexus/instructions"))

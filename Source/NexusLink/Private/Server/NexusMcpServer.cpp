@@ -17,15 +17,39 @@
 #include "Engine/World.h"
 #include "Utils/NexusJsonUtils.h"
 #include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Async/Async.h"
+#include "Misc/Guid.h"
+#include "Misc/ConfigCacheIni.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusMcpServer, Log, All);
 
 static const FString StreamEndpoint  = TEXT("/stream");
 static const FString StatusEndpoint  = TEXT("/status");
 static const FString McpSessionHeader = TEXT("Mcp-Session-Id");
+static const int32 MaxMcpBodyBytes = 1024 * 1024;
+
+static FString GenerateAuthToken()
+{
+	return FGuid::NewGuid().ToString(EGuidFormats::Digits)
+		+ FGuid::NewGuid().ToString(EGuidFormats::Digits);
+}
+
+static bool TokensEqual(const FString& A, const FString& B)
+{
+	if (A.Len() != B.Len())
+	{
+		return false;
+	}
+	int32 Acc = 0;
+	for (int32 i = 0; i < A.Len(); ++i)
+	{
+		Acc |= static_cast<int32>(A[i]) ^ static_cast<int32>(B[i]);
+	}
+	return Acc == 0;
+}
 
 /**
  * 探测当前进程的网络角色：PIE/Game 世界存在时返回 DedicatedServer/ListenServer/Client/Standalone，
@@ -62,18 +86,9 @@ template<typename F>
 static FHttpRequestHandler MakeHttpHandler(F Fn) { return MoveTemp(Fn); }
 #endif
 
-static void AddCorsHeaders(FHttpServerResponse& Response)
-{
-	Response.Headers.Add(TEXT("Access-Control-Allow-Origin"),  { TEXT("*") });
-	Response.Headers.Add(TEXT("Access-Control-Allow-Methods"), { TEXT("GET, POST, OPTIONS") });
-	Response.Headers.Add(TEXT("Access-Control-Allow-Headers"), { TEXT("Content-Type, Mcp-Session-Id") });
-	Response.Headers.Add(TEXT("Access-Control-Expose-Headers"), { TEXT("Mcp-Session-Id") });
-}
-
 static void ReplyJson(const FHttpResultCallback& OnComplete, const FString& Json, const FString& SessionId = FString())
 {
 	auto Response = FHttpServerResponse::Create(Json, TEXT("application/json"));
-	AddCorsHeaders(*Response);
 	if (!SessionId.IsEmpty())
 	{
 		Response->Headers.Add(McpSessionHeader, { SessionId });
@@ -85,7 +100,6 @@ static void ReplyError(const FHttpResultCallback& OnComplete, EHttpServerRespons
 	const TCHAR* ErrorCode, const TCHAR* Message)
 {
 	auto ErrResponse = FHttpServerResponse::Error(Code, ErrorCode, Message);
-	AddCorsHeaders(*ErrResponse);
 	OnComplete(MoveTemp(ErrResponse));
 }
 
@@ -108,6 +122,21 @@ bool FNexusMcpServer::Start(int32 InMcpPort, int32 InWsPort)
 
 	McpPort       = InMcpPort;
 	WebSocketPort = InWsPort;
+	AuthToken     = GenerateAuthToken();
+
+	if (GConfig)
+	{
+		FString CurrentBind;
+		GConfig->GetString(TEXT("HTTPServer.Listeners"), TEXT("DefaultBindAddress"), CurrentBind, GEngineIni);
+		if (!CurrentBind.IsEmpty()
+			&& !CurrentBind.Equals(TEXT("127.0.0.1"), ESearchCase::IgnoreCase)
+			&& !CurrentBind.Equals(TEXT("localhost"), ESearchCase::IgnoreCase))
+		{
+			UE_LOG(LogNexusMcpServer, Warning,
+				TEXT("覆盖 HTTP DefaultBindAddress=%s → 127.0.0.1"), *CurrentBind);
+		}
+		GConfig->SetString(TEXT("HTTPServer.Listeners"), TEXT("DefaultBindAddress"), TEXT("127.0.0.1"), GEngineIni);
+	}
 
 	HttpRouter = FHttpServerModule::Get().GetHttpRouter(static_cast<uint32>(McpPort));
 	if (!HttpRouter.IsValid())
@@ -171,6 +200,8 @@ void FNexusMcpServer::Stop()
 
 	UnregisterRoutes();
 	HttpSessions.Empty();
+	AuthenticatedWsClients.Empty();
+	AuthToken.Empty();
 	WsDispatcher.Reset();
 
 	if (FHttpServerModule::IsAvailable())
@@ -182,15 +213,28 @@ void FNexusMcpServer::Stop()
 	UE_LOG(LogNexusMcpServer, Log, TEXT("NexusLink 服务器已停止"));
 }
 
-/** 从 Request.Headers 提取指定头的第一个值，不存在时返回空字符串。 */
+/** 从 Request.Headers 提取指定头的第一个值（大小写不敏感），不存在时返回空字符串。 */
 static FString GetRequestHeader(const FHttpServerRequest& Request, const FString& HeaderName)
 {
-	const TArray<FString>* Values = Request.Headers.Find(HeaderName);
-	if (Values && Values->Num() > 0)
+	for (const TPair<FString, TArray<FString>>& Pair : Request.Headers)
 	{
-		return (*Values)[0];
+		if (Pair.Key.Equals(HeaderName, ESearchCase::IgnoreCase) && Pair.Value.Num() > 0)
+		{
+			return Pair.Value[0];
+		}
 	}
 	return FString();
+}
+
+static bool ExtractBearerToken(const FString& AuthHeader, FString& OutToken)
+{
+	const FString Prefix = TEXT("Bearer ");
+	if (!AuthHeader.StartsWith(Prefix, ESearchCase::IgnoreCase))
+	{
+		return false;
+	}
+	OutToken = AuthHeader.Mid(Prefix.Len()).TrimStartAndEnd();
+	return !OutToken.IsEmpty();
 }
 
 void FNexusMcpServer::RegisterRoutes()
@@ -208,6 +252,28 @@ void FNexusMcpServer::RegisterRoutes()
 		EHttpServerRequestVerbs::VERB_POST,
 		MakeHttpHandler([WeakSelf](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete) -> bool
 		{
+			if (!GetRequestHeader(Request, TEXT("Origin")).IsEmpty())
+			{
+				ReplyError(OnComplete, EHttpServerResponseCodes::Denied,
+					TEXT("origin_forbidden"), TEXT("Browser Origin is not allowed"));
+				return true;
+			}
+
+			if (Request.Body.Num() > MaxMcpBodyBytes)
+			{
+				ReplyError(OnComplete, EHttpServerResponseCodes::BadRequest,
+					TEXT("payload_too_large"), TEXT("Request body exceeds 1MB"));
+				return true;
+			}
+
+			FString PresentedToken;
+			if (!ExtractBearerToken(GetRequestHeader(Request, TEXT("Authorization")), PresentedToken))
+			{
+				ReplyError(OnComplete, EHttpServerResponseCodes::Denied,
+					TEXT("unauthorized"), TEXT("Missing Authorization: Bearer token"));
+				return true;
+			}
+
 			FString JsonBody;
 			if (Request.Body.Num() > 0)
 			{
@@ -238,13 +304,20 @@ void FNexusMcpServer::RegisterRoutes()
 
 			FHttpResultCallback Complete = OnComplete;
 			AsyncTask(ENamedThreads::GameThread,
-				[WeakSelf, JsonBody, IncomingSessionId, bIsInitialize, Complete]()
+				[WeakSelf, JsonBody, IncomingSessionId, bIsInitialize, PresentedToken, Complete]()
 			{
 				const TSharedPtr<FNexusMcpServer> Server = WeakSelf.Pin();
 				if (!Server.IsValid() || !Server->IsRunning())
 				{
 					ReplyError(Complete, EHttpServerResponseCodes::ServerError,
 						TEXT("server_stopped"), TEXT("MCP server is stopping"));
+					return;
+				}
+
+				if (!TokensEqual(PresentedToken, Server->GetAuthToken()))
+				{
+					ReplyError(Complete, EHttpServerResponseCodes::Denied,
+						TEXT("unauthorized"), TEXT("Invalid Authorization token"));
 					return;
 				}
 
@@ -269,21 +342,10 @@ void FNexusMcpServer::RegisterRoutes()
 		})
 	);
 
-	// OPTIONS /stream — CORS 预检
-	StreamOptionsRouteHandle = HttpRouter->BindRoute(
-		FHttpPath(StreamEndpoint),
-		EHttpServerRequestVerbs::VERB_OPTIONS,
-		MakeHttpHandler([](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete) -> bool
-		{
-			auto Response = MakeUnique<FHttpServerResponse>();
-			Response->Code = EHttpServerResponseCodes::NoContent;
-			AddCorsHeaders(*Response);
-			OnComplete(MoveTemp(Response));
-			return true;
-		})
-	);
+	// OPTIONS /stream — 不再提供 CORS 预检（MCP 非浏览器客户端）
+	StreamOptionsRouteHandle.Reset();
 
-	// GET /status — 无状态探测；WorldContexts / NetMode 只能在 GameThread 读
+	// GET /status — 无状态探测；WorldContexts / NetMode 只能在 GameThread 读；不含 token
 	StatusRouteHandle = HttpRouter->BindRoute(
 		FHttpPath(StatusEndpoint),
 		EHttpServerRequestVerbs::VERB_GET,
@@ -308,6 +370,7 @@ void FNexusMcpServer::RegisterRoutes()
 				Obj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
 				Obj->SetNumberField(TEXT("wsPort"), Server->GetWsPort());
 				Obj->SetStringField(TEXT("netRole"), DetectCurrentNetRole());
+				Obj->SetBoolField(TEXT("authRequired"), true);
 				ReplyJson(Complete, FNexusJsonUtils::SerializeCondensed(Obj));
 			});
 			return true;
@@ -400,7 +463,7 @@ bool FNexusMcpServer::StartWebSocket()
 		FTickerDelegate::CreateRaw(this, &FNexusMcpServer::TickWebSocket), 0.0f);
 #endif
 
-	UE_LOG(LogNexusMcpServer, Log, TEXT("WebSocket 服务器已启动，端口: %d"), WsPort);
+	UE_LOG(LogNexusMcpServer, Log, TEXT("WebSocket 服务器已启动，端口: %d（引擎 Init 不暴露绑定地址；须 WS 首帧 auth）"), WsPort);
 	return true;
 }
 
@@ -416,6 +479,7 @@ void FNexusMcpServer::StopWebSocket()
 		WebSocketTickHandle.Reset();
 	}
 	ConnectedClients.Empty();
+	AuthenticatedWsClients.Empty();
 	WebSocketServer.Reset();
 }
 
@@ -437,6 +501,46 @@ void FNexusMcpServer::OnWebSocketClientConnected(INetworkingWebSocket* ClientWeb
 	ClientWebSocket->SetSocketClosedCallBack(OnDisconnected);
 }
 
+static void SendWsText(INetworkingWebSocket* ClientWebSocket, const FString& Json)
+{
+	if (!ClientWebSocket || Json.IsEmpty())
+	{
+		return;
+	}
+	FTCHARToUTF8 Utf8Converter(*Json);
+	ClientWebSocket->Send(
+		reinterpret_cast<const uint8*>(Utf8Converter.Get()),
+		Utf8Converter.Length(),
+		/*bPrependSize=*/false);
+}
+
+static FString MakeJsonRpcResult(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Result)
+{
+	TSharedPtr<FJsonObject> Msg = MakeShared<FJsonObject>();
+	Msg->SetStringField(TEXT("jsonrpc"), TEXT("2.0"));
+	if (Id.IsValid())
+	{
+		Msg->SetField(TEXT("id"), Id);
+	}
+	Msg->SetObjectField(TEXT("result"), Result);
+	return FNexusJsonUtils::SerializeCondensed(Msg);
+}
+
+static FString MakeJsonRpcError(const TSharedPtr<FJsonValue>& Id, int32 Code, const FString& Message)
+{
+	TSharedPtr<FJsonObject> Err = MakeShared<FJsonObject>();
+	Err->SetNumberField(TEXT("code"), Code);
+	Err->SetStringField(TEXT("message"), Message);
+	TSharedPtr<FJsonObject> Msg = MakeShared<FJsonObject>();
+	Msg->SetStringField(TEXT("jsonrpc"), TEXT("2.0"));
+	if (Id.IsValid())
+	{
+		Msg->SetField(TEXT("id"), Id);
+	}
+	Msg->SetObjectField(TEXT("error"), Err);
+	return FNexusJsonUtils::SerializeCondensed(Msg);
+}
+
 void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworkingWebSocket* ClientWebSocket)
 {
 	if (!WsDispatcher.IsValid() || !Data || DataSize <= 0 || !ClientWebSocket)
@@ -444,7 +548,6 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 		return;
 	}
 
-	// UTF-8 → FString
 	FUTF8ToTCHAR Converter(reinterpret_cast<const ANSICHAR*>(Data), DataSize);
 	FString JsonLine(Converter.Length(), Converter.Get());
 
@@ -457,27 +560,60 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 			return;
 		}
 
+		TSharedPtr<FJsonObject> JsonMsg;
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonLine);
+		TSharedPtr<FJsonValue> Id;
+		FString Method;
+		if (FJsonSerializer::Deserialize(Reader, JsonMsg) && JsonMsg.IsValid())
+		{
+			JsonMsg->TryGetStringField(TEXT("method"), Method);
+			if (JsonMsg->HasField(TEXT("id")))
+			{
+				Id = JsonMsg->TryGetField(TEXT("id"));
+			}
+		}
+
+		if (Method == TEXT("auth"))
+		{
+			FString Presented;
+			const TSharedPtr<FJsonObject>* ParamsObj = nullptr;
+			if (JsonMsg.IsValid() && JsonMsg->TryGetObjectField(TEXT("params"), ParamsObj) && ParamsObj)
+			{
+				(*ParamsObj)->TryGetStringField(TEXT("token"), Presented);
+			}
+			if (TokensEqual(Presented, AuthToken))
+			{
+				AuthenticatedWsClients.Add(ClientWebSocket);
+				TSharedPtr<FJsonObject> Ok = MakeShared<FJsonObject>();
+				Ok->SetBoolField(TEXT("ok"), true);
+				SendWsText(ClientWebSocket, MakeJsonRpcResult(Id, Ok));
+			}
+			else
+			{
+				SendWsText(ClientWebSocket, MakeJsonRpcError(Id, -32001, TEXT("unauthorized")));
+			}
+			return;
+		}
+
+		if (!AuthenticatedWsClients.Contains(ClientWebSocket) && Method != TEXT("ping"))
+		{
+			SendWsText(ClientWebSocket, MakeJsonRpcError(Id, -32001, TEXT("unauthorized")));
+			return;
+		}
+
 		FString ResponseJson;
 		WsDispatcher->DispatchDirect(JsonLine, [&ResponseJson](const FString& Json)
 		{
 			ResponseJson = Json;
 		});
-
-		if (!ResponseJson.IsEmpty())
-		{
-			FTCHARToUTF8 Utf8Converter(*ResponseJson);
-			ClientWebSocket->Send(
-				reinterpret_cast<const uint8*>(Utf8Converter.Get()),
-				Utf8Converter.Length(),
-				/*bPrependSize=*/false
-			);
-		}
+		SendWsText(ClientWebSocket, ResponseJson);
 	});
 }
 
 void FNexusMcpServer::OnWebSocketClientDisconnected(INetworkingWebSocket* ClientWebSocket)
 {
 	UE_LOG(LogNexusMcpServer, Verbose, TEXT("WebSocket 客户端已断开"));
+	AuthenticatedWsClients.Remove(ClientWebSocket);
 	ConnectedClients.Remove(ClientWebSocket);
 }
 
@@ -533,7 +669,7 @@ void FNexusMcpServer::BroadcastNotification(const FString& Method)
 	FTCHARToUTF8 Utf8Converter(*JsonStr);
 	for (INetworkingWebSocket* Client : ConnectedClients)
 	{
-		if (Client)
+		if (Client && AuthenticatedWsClients.Contains(Client))
 		{
 			Client->Send(
 				reinterpret_cast<const uint8*>(Utf8Converter.Get()),

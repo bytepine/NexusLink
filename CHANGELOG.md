@@ -19,6 +19,13 @@
 
 - refactor: Dispatcher JSON 读参改 `TryGet*Field`；删除 `SerializeJson` 转调与 `get_asset_blueprint` 未使用 `section`；`operations[]` 非 object 写 entry.error；旧名表 `Resources/legacy_capability_names.json`；`Run` 空串并入 ValidateArgs；`saveToDisk`/`compile` 改定义标志；plain create 收口 `CreatePlainAsset`；注册表 SchemaDump + `schema_catalog` / `doc_categories.json`
 - docs: usage-guide 注明本机只开一个 MCP 代理（Desktop / Rider / VSCode 勿叠开）
+- chore: `build_tool_reference.py` 注释去掉工作区内部路径
+
+### Security
+
+- MCP HTTP/WS 须 Bearer（token 写入 `{Temp}/NexusLink/{PID}.json`，不进 `/status`）；去掉 CORS `*`；带 Origin 的请求拒绝；body 上限 1MB；尽量绑 127.0.0.1
+- WebSocket 须首帧 `auth`；`dofile_runtime_lua` 限制在 `Content/Script/`
+- `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 默认禁用（升级一次性写入 DisabledCapabilities）；测试用 `-NexusEnableDangerousCaps`
 
 ## [2.0.0-beta.2] - 2026-08-19
 

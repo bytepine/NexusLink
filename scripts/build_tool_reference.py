@@ -8,8 +8,8 @@ build_tool_reference.py — 从 Capabilities / 元工具源码生成 docs/tool-r
   # NexusLink 独立仓（推荐）
   py scripts/build_tool_reference.py [--live URL]
 
-  # NexusWork 工作区
-  py nexus-unreal/Script/build_tool_reference.py [--live URL]
+  # 从含 NexusLink.uplugin 的仓库根运行
+  py scripts/build_tool_reference.py [--live URL]
 
   --repo-root  可选；含 NexusLink.uplugin 的目录（默认从脚本位置自动探测）
   --live URL   （可选）对运行中的 UE MCP 端点调 search_capabilities 补全 schema

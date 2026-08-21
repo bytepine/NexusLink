@@ -5,6 +5,7 @@
 #include "Editor/NexusLinkSettingsCustomization.h"
 #include "NexusFeedback.h"
 #include "NexusLinkSettings.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "NexusCapability.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpTool.h"
@@ -131,12 +132,44 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, DisabledCapabilities));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, KnownCapabilityKeys));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bCapabilityDefaultsApplied));
+	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bDangerousCapsDefaultOffApplied));
 
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	DetailBuilder.GetObjectsBeingCustomized(Objects);
 	if (Objects.Num() == 0) return;
 	SettingsPtr = Cast<UNexusLinkSettings>(Objects[0].Get());
 	if (!SettingsPtr.IsValid()) return;
+
+	IDetailCategoryBuilder& ServerCategory = DetailBuilder.EditCategory(
+		TEXT("服务器"), LOCTEXT("ServerCategory", "服务器"));
+	ServerCategory.AddCustomRow(LOCTEXT("CopyDirectMcp", "复制直连 mcp.json"))
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Text(LOCTEXT("CopyDirectMcpLabel", "直连配置"))
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+	]
+	.ValueContent()
+	[
+		SNew(SButton)
+		.Text(LOCTEXT("CopyDirectMcpBtn", "复制 mcp.json"))
+		.ToolTipText(LOCTEXT("CopyDirectMcpTip", "复制含 Authorization Bearer 的 Cursor mcp.json 片段"))
+		.OnClicked_Lambda([this]() -> FReply
+		{
+			UNexusLinkSettings* Settings = SettingsPtr.Get();
+			if (!Settings || Settings->McpPort <= 0 || Settings->McpAuthToken.IsEmpty())
+			{
+				FMessageDialog::Open(EAppMsgType::Ok,
+					LOCTEXT("CopyDirectMcpOff", "MCP 服务器未运行，请先勾选「启用 MCP 服务器」。"));
+				return FReply::Handled();
+			}
+			const FString Snippet = FString::Printf(
+				TEXT("{\n  \"mcpServers\": {\n    \"nexus-link\": {\n      \"url\": \"http://127.0.0.1:%d/stream\",\n      \"headers\": {\n        \"Authorization\": \"Bearer %s\"\n      }\n    }\n  }\n}"),
+				Settings->McpPort, *Settings->McpAuthToken);
+			FPlatformApplicationMisc::ClipboardCopy(*Snippet);
+			return FReply::Handled();
+		})
+	];
 
 	CategoryCaps.Empty();
 	CategoryCountTexts.Empty();
