@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [2.0.0-beta.3] - 2026-08-21
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Added
 
 - docs: `build_tool_reference.py` 同一趟同时生成英文 `docs/tool-reference.md` 与中文 `docs/tool-reference.zh.md`；中文 Description 在 `scripts/tool_reference_zh.json`，新参数说明按短语规则即时翻译
@@ -14,6 +18,7 @@
 ### Fixed
 
 - docs: 参数说明短语部分命中后继续 glossary，避免中英混杂；`param_text` 仅保留自动翻译覆盖不了的条目
+- fix(plugin): `NexusMcpServer.h` 补 `Containers/Ticker.h`，Game 目标（UE 5.1+ `WITH_EDITOR=0`）能解析 `FTSTicker::FDelegateHandle`
 
 ### Changed
 

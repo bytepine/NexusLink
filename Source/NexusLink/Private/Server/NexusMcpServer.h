@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Utils/NexusVersionCompat.h"
+#include "Containers/Ticker.h"
 #include "HttpRouteHandle.h"
 // 前向声明（完整定义由 .cpp 引入）
 class FNexusMcpDispatcher;
