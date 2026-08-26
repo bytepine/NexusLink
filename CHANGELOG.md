@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [2.0.0-beta.4] - 2026-08-26
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Added
 
 - feat(mcp): 可选局域网绑定（`bAllowLanBind`，默认 loopback）；热切换即时重启监听
