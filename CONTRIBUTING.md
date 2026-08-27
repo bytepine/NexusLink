@@ -31,10 +31,12 @@
   UEEditor-Cmd YourProject.uproject -ExecCmds="Automation RunTests NexusLink.; Quit" -unattended -nullrhi -NoSound -NoSplash
   ```
 
-- **L2 pytest E2E**（在宿主游戏工程的 `Tests/` 自行维护）：经 `call_capability` 做端到端回归（SearchMode 下调用，不依赖 MultiTool）：
+- **L2 pytest E2E**（在宿主游戏工程的 `Tests/` 自行维护）：经 `call_capability` 做端到端回归（SearchMode 下调用，不依赖 MultiTool）。日常默认 headless；发版按本次变更选模式（见下文「发版」）。
 
   ```powershell
   pip install -r Tests/requirements.txt
+  python Script/run_e2e.py
+  python Script/run_e2e.py --gui
   python Script/run_e2e.py --ue-url http://127.0.0.1:45000/stream
   ```
 
@@ -56,11 +58,24 @@ py scripts/build_unreal.py --version <version> --output release/
 
 GitHub Release **正文唯一来源**为 `CHANGELOG.md` 对应版本段落（CI 经 `scripts/extract_release_notes.py --verify` 提取）。禁止网页手写 Release 说明或 `gh release create`。
 
+**L2 E2E 按本次变更选模式**（打 tag 前；日常默认仍是 headless，**不要**发版时一律 `--gui`）。判定材料：本仓 `[Unreleased]`、相对上一 tag 的 `git diff`、拟发版文件。在**宿主游戏工程**（含 `Tests/` 与 `Script/run_e2e.py`）执行：
+
+| 本次发版内容 | 测试模式 | 命令 |
+|---|---|---|
+| 仅文档 / 发版脚本 / CHANGELOG（无 C++、cap、Tests） | 不强制 UE e2e | — |
+| 仅编辑器资产 / manage-get / schema / 无 GUI 信号的 cap | Headless | `py Script/run_e2e.py` |
+| 含 PIE / runtime Actor·Widget / UnLua / 视口 / RHI / `l4_runtime` / `lua` / `requires_gui` / `interact_runtime_*` / `spawn_runtime_*` / `control_pie` | GUI | `py Script/run_e2e.py --gui` |
+| 混合（两者都有） | GUI（超集） | `py Script/run_e2e.py --gui` |
+| 不确定 | 默认 GUI（CHANGELOG 已写 PIE / UnLua / viewport / `*_runtime_*` 时） | 同上 |
+
+GUI 信号：cap 名含 `_runtime_`；标记 `l4_runtime` / `lua` / `requires_gui`；`interact_runtime_*` / `spawn_runtime_*` / `control_pie`；`capture_viewport` / `get_asset_texture` / `eval_runtime_lua` / `dofile_runtime_lua`。不要把模块 `Type=Runtime` / UncookedOnly 当成 GUI 信号。`--full` 与 `--gui` 等价。策略细节见 [docs/testing.md](docs/testing.md)。
+
 **正式版**（`X.Y.Z`）：
 
-1. 归档 `[Unreleased]` → `[X.Y.Z] - YYYY-MM-DD`，更新 `VERSION`
-2. `py scripts/extract_release_notes.py --version X.Y.Z --verify`（预览 stdout，确认无误）
-3. `git commit` → `git tag -a nexus-link-vX.Y.Z` → `git push origin HEAD` + `git push origin nexus-link-vX.Y.Z`
+1. 按上表跑完（或明确跳过）L2 E2E
+2. 归档 `[Unreleased]` → `[X.Y.Z] - YYYY-MM-DD`，更新 `VERSION`
+3. `py scripts/extract_release_notes.py --version X.Y.Z --verify`（预览 stdout，确认无误）
+4. `git commit` → `git tag -a nexus-link-vX.Y.Z` → `git push origin HEAD` + `git push origin nexus-link-vX.Y.Z`
 
 **Pre-release**（`X.Y.Z-beta.N`）：步骤同上，tag 为 `nexus-link-vX.Y.Z-beta.N`；CI 创建 GitHub **Pre-release**。
 

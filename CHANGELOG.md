@@ -10,6 +10,7 @@
 ### Changed
 
 - ui(plugin): **额外鉴权 Token** 改为数组逐条添加（点 +），粘贴逗号/分号分隔会自动拆开；HTTP Bearer 仍支持逗号分隔
+- docs: 发版 L2 按本次变更选 headless 或 `--gui`（`CONTRIBUTING` / `docs/testing.md`）；日常默认仍 headless
 
 ## [2.0.0-beta.5] - 2026-08-27
 
