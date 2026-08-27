@@ -11,7 +11,7 @@
 从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载 `nexus-mcp-unreal-<version>.zip`，或克隆本仓库到项目的 `Plugins/Developer/NexusLink`。
 
 1. 将插件放入 `Plugins/Developer/NexusLink`，在 **Edit → Plugins → Developer → NexusLink** 中启用并重启编辑器
-2. **Edit → Editor Preferences → Plugins → NexusLink** — 勾选 **启用 MCP 服务器**（**默认关闭**）。勾选后即时启动 HTTP（`POST /stream`）与 WebSocket；取消勾选立即停止。**MCP 鉴权**默认开。Token、多机、开关组合见 [usage-guide §1.1](docs/usage-guide.md#11-鉴权)。默认仅本机 loopback；跨机再勾选 **允许局域网绑定**。
+2. **Edit → Editor Preferences → Plugins → NexusLink** — 勾选 **启用 MCP 服务器**（**默认关闭**）。勾选后即时启动 HTTP（`POST /stream`）与 WebSocket；取消勾选立即停止。**MCP 鉴权**默认开。Token、多机、开关组合见 [usage-guide §1.1](docs/usage-guide.md#11-鉴权)。默认仅本机 loopback；跨机再勾选 **允许局域网绑定**，用 **复制跨机连接** 选网卡 IP。
 3. （可选）无 UI 的编辑器启动（如 `UEEditor-Cmd`）可加 **`-EnableNexusMcp`** 或控制台 **`NexusLink.EnableMcp 1|0`**（会话级，不写盘；与 Preferences 为 OR）。测试可加 **`-NexusEnableDangerousCaps`** 打开 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua`
 
 GAS / Niagara 等 Capability 按宿主项目插件探测，NexusLink **不**在 `.uplugin` 里强制依赖。

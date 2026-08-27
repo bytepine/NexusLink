@@ -10,7 +10,7 @@
 ### Changed
 
 - ui(plugin): 设置面板去掉「复制 mcp.json」，鉴权 token 只读展示为 **MCP 鉴权 Token**，旁加「复制」仅写入 token
-- feat(mcp): 鉴权 token 本机唯一，UE / Desktop / Rider / VSCode 共用 `%LOCALAPPDATA%/NexusLink/mcp-auth-token`（macOS/Linux 为对应配置目录）；新增设置 **MCP 鉴权**（默认开），关闭后 HTTP/WS 不校验 token 且 `/status.authRequired=false`（同旧版）；**额外鉴权 Token** 可填其他机器 token，HTTP Bearer 支持逗号分隔多个；`usage-guide` §1.1 为鉴权正文
+- feat(mcp): 鉴权 token 本机唯一，UE / Desktop / Rider / VSCode 共用 `%LOCALAPPDATA%/NexusLink/mcp-auth-token`（macOS/Linux 为对应配置目录）；新增设置 **MCP 鉴权**（默认开），关闭后 HTTP/WS 不校验 token 且 `/status.authRequired=false`（同旧版）；**额外鉴权 Token** 可填其他机器 token，HTTP Bearer 支持逗号分隔多个；设置面板 **复制跨机连接** 可选网卡 IP（Bearer 仅本机 token，未开 MCP 也可复制）；局域网绑定且关鉴权时确认；`usage-guide` §1.1 / §1.2 为鉴权与跨机正文
 
 ## [2.0.0-beta.4] - 2026-08-26
 

@@ -58,6 +58,11 @@ private:
 	/** 设置面板对象弱引用。 */
 	TWeakObjectPtr<class UNexusLinkSettings> SettingsPtr;
 
+	/** 复制跨机连接用的网卡下拉（展示名）。 */
+	TArray<TSharedPtr<FString>> LanComboLabels;
+	TArray<FString> LanComboAddresses;
+	TSharedPtr<FString> SelectedLanLabel;
+
 	/** 分组 SortKey（注册期 SourceRelDir，如 Asset/Blueprint；回退为 tag 字面量或 _misc）→ cap 条目（按名字典序）。 */
 	TMap<FString, TArray<FCapEntry>> CategoryCaps;
 

@@ -5,6 +5,9 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusLink.h"
 #include "Server/NexusMcpServer.h"
+#if WITH_EDITOR
+#include "Misc/MessageDialog.h"
+#endif
 
 UNexusLinkSettings::UNexusLinkSettings()
 {
@@ -145,6 +148,31 @@ void UNexusLinkSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName ChangedProp = PropertyChangedEvent.GetPropertyName();
+
+	if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bAllowLanBind)
+		|| ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bRequireMcpAuth))
+	{
+		if (bAllowLanBind && !bRequireMcpAuth)
+		{
+			const EAppReturnType::Type Ret = FMessageDialog::Open(
+				EAppMsgType::YesNo,
+				NSLOCTEXT("NexusLink", "LanAuthWarn",
+					"局域网可达且未鉴权时，同网段主机都能控制编辑器。确定继续？不要做公网映射。"));
+			if (Ret != EAppReturnType::Yes)
+			{
+				if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bAllowLanBind))
+				{
+					bAllowLanBind = false;
+				}
+				else
+				{
+					bRequireMcpAuth = true;
+				}
+				SaveConfig();
+				return;
+			}
+		}
+	}
 
 	// 白名单变更时实时同步给日志捕获器（无需重启编辑器立即生效）
 	if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, LogCaptureCategories))

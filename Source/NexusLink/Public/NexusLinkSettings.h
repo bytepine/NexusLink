@@ -94,11 +94,11 @@ public:
 
 	/**
 	 * 当前 MCP 鉴权 Token（只读展示；本机唯一，不随进程更换）。
-	 * 直连 UE / 同机代理共用；文件在本机配置目录 NexusLink/mcp-auth-token。MCP 未运行时为空。
+	 * 直连 UE / 同机代理共用；文件在本机配置目录 NexusLink/mcp-auth-token。未开 MCP 也可复制。
 	 */
 	UPROPERTY(Transient, VisibleAnywhere, Category = "服务器",
 		meta = (DisplayName = "MCP 鉴权 Token",
-			ToolTip = "本机唯一，同机客户端共用。直连或跨机中转时复制此值填到 Bearer；不要从 GET /status 获取。MCP 未运行时为空"))
+			ToolTip = "本机唯一，同机客户端共用。直连或跨机中转时复制此值填到 Bearer；不要从 GET /status 获取。未开 MCP 也可复制。"))
 	FString McpAuthToken;
 
 	/**

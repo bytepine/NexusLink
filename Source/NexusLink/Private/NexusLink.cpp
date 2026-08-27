@@ -152,7 +152,7 @@ void FNexusLinkModule::StopMcpServer()
 		{
 			MutableSettings->McpPort = 0;
 			MutableSettings->WsPort  = 0;
-			MutableSettings->McpAuthToken.Empty();
+			// 本机 token 文件仍在，设置面板继续展示以便跨机复制
 		}
 	}
 #endif

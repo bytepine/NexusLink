@@ -5,6 +5,8 @@
 #include "Editor/NexusLinkSettingsCustomization.h"
 #include "NexusFeedback.h"
 #include "NexusLinkSettings.h"
+#include "NexusMcpAuth.h"
+#include "NexusLanHost.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "PropertyHandle.h"
 #include "NexusCapability.h"
@@ -15,6 +17,7 @@
 #include "DetailWidgetRow.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
@@ -141,6 +144,25 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 	SettingsPtr = Cast<UNexusLinkSettings>(Objects[0].Get());
 	if (!SettingsPtr.IsValid()) return;
 
+	SettingsPtr->McpAuthToken = FNexusMcpAuth::LoadOrCreateMachineToken(SettingsPtr->McpAuthToken);
+
+	LanComboLabels.Reset();
+	LanComboAddresses.Reset();
+	LanComboLabels.Add(MakeShared<FString>(FString::Printf(TEXT("本机 %s"), FNexusLanHost::Loopback)));
+	LanComboAddresses.Add(FNexusLanHost::Loopback);
+	const TArray<FNexusLanIPv4> LanAddrs = FNexusLanHost::ListLanIPv4();
+	for (const FNexusLanIPv4& A : LanAddrs)
+	{
+		LanComboLabels.Add(MakeShared<FString>(FString::Printf(TEXT("%s %s"), *A.Name, *A.Address)));
+		LanComboAddresses.Add(A.Address);
+	}
+	int32 DefaultIdx = 0;
+	if (SettingsPtr->bAllowLanBind && LanAddrs.Num() == 1)
+	{
+		DefaultIdx = 1;
+	}
+	SelectedLanLabel = LanComboLabels[DefaultIdx];
+
 	TSharedRef<IPropertyHandle> TokenHandle = DetailBuilder.GetProperty(
 		GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, McpAuthToken));
 	if (IDetailPropertyRow* TokenRow = DetailBuilder.EditDefaultProperty(TokenHandle))
@@ -151,35 +173,130 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 			TokenHandle->CreatePropertyNameWidget()
 		]
 		.ValueContent()
-		.MinDesiredWidth(280.0f)
+		.MinDesiredWidth(480.0f)
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.VAlign(VAlign_Center)
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
 			[
-				TokenHandle->CreatePropertyValueWidget(/*bDisplayDefaultPropertyButtons=*/false)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("CopyAuthToken", "复制"))
-				.ToolTipText(LOCTEXT("CopyAuthTokenTip", "仅复制鉴权 token"))
-				.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([this]()
-				{
-					return SettingsPtr.IsValid() && !SettingsPtr->McpAuthToken.IsEmpty();
-				})))
-				.OnClicked_Lambda([this]() -> FReply
-				{
-					if (SettingsPtr.IsValid() && !SettingsPtr->McpAuthToken.IsEmpty())
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				[
+					TokenHandle->CreatePropertyValueWidget(/*bDisplayDefaultPropertyButtons=*/false)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SButton)
+					.Text(LOCTEXT("CopyAuthToken", "复制"))
+					.ToolTipText(LOCTEXT("CopyAuthTokenTip", "仅复制鉴权 token"))
+					.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([this]()
 					{
-						FPlatformApplicationMisc::ClipboardCopy(*SettingsPtr->McpAuthToken);
-					}
-					return FReply::Handled();
-				})
+						return SettingsPtr.IsValid() && !SettingsPtr->McpAuthToken.IsEmpty();
+					})))
+					.OnClicked_Lambda([this]() -> FReply
+					{
+						if (SettingsPtr.IsValid() && !SettingsPtr->McpAuthToken.IsEmpty())
+						{
+							FPlatformApplicationMisc::ClipboardCopy(*SettingsPtr->McpAuthToken);
+						}
+						return FReply::Handled();
+					})
+				]
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f, 4.0f, 0.0f, 0.0f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SComboBox<TSharedPtr<FString>>)
+					.OptionsSource(&LanComboLabels)
+					.InitiallySelectedItem(SelectedLanLabel)
+					.OnGenerateWidget_Lambda([](TSharedPtr<FString> Item)
+					{
+						return SNew(STextBlock).Text(FText::FromString(Item.IsValid() ? *Item : FString()));
+					})
+					.OnSelectionChanged_Lambda([this](TSharedPtr<FString> Item, ESelectInfo::Type)
+					{
+						SelectedLanLabel = Item;
+					})
+					[
+						SNew(STextBlock)
+						.Text_Lambda([this]()
+						{
+							return FText::FromString(SelectedLanLabel.IsValid() ? *SelectedLanLabel : FString());
+						})
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SButton)
+					.Text(LOCTEXT("CopyLanPackage", "复制跨机连接"))
+					.ToolTipText(LOCTEXT("CopyLanPackageTip", "复制 AI mcp.json、中转 remoteUnreal 行与 VSCode 远程条目；Bearer 仅本机 token"))
+					.OnClicked_Lambda([this]() -> FReply
+					{
+						if (!SettingsPtr.IsValid())
+						{
+							return FReply::Handled();
+						}
+						FString Host = FNexusLanHost::Loopback;
+						for (int32 i = 0; i < LanComboLabels.Num(); ++i)
+						{
+							if (LanComboLabels[i] == SelectedLanLabel)
+							{
+								Host = LanComboAddresses[i];
+								break;
+							}
+						}
+						const FString Token = SettingsPtr->McpAuthToken.IsEmpty()
+							? FNexusMcpAuth::LoadOrCreateMachineToken()
+							: SettingsPtr->McpAuthToken;
+						SettingsPtr->McpAuthToken = Token;
+						const bool bRunning = SettingsPtr->McpPort > 0;
+						const int32 Port = bRunning ? SettingsPtr->McpPort : 45000;
+						FString Headers;
+						if (SettingsPtr->bRequireMcpAuth && !Token.IsEmpty())
+						{
+							Headers = FString::Printf(
+								TEXT(",\n  \"headers\": {\n    \"Authorization\": \"Bearer %s\"\n  }"),
+								*Token);
+						}
+						FString Note;
+						if (!bRunning)
+						{
+							Note = TEXT("# MCP 未运行，端口暂用 45000；以标题栏实际端口为准。\n");
+						}
+						const FString Package = FString::Printf(
+							TEXT("%s# 跨机连接 — %s:%d\n")
+							TEXT("# 1) AI 直连（粘贴到 mcp.json 的 mcpServers）\n")
+							TEXT("\"nexus-unreal\": {\n")
+							TEXT("  \"url\": \"http://%s:%d/stream\"%s\n")
+							TEXT("}\n\n")
+							TEXT("# 2) 中转 remoteUnreal（Rider / Desktop 每行一条）\n")
+							TEXT("%s:%d %s\n\n")
+							TEXT("# 3) VSCode settings.json\n")
+							TEXT("\"nexusMcp.remoteUnreal\": [\n")
+							TEXT("  { \"host\": \"%s\", \"mcpPort\": %d, \"authToken\": \"%s\" }\n")
+							TEXT("]"),
+							*Note, *Host, Port,
+							*Host, Port, *Headers,
+							*Host, Port, *Token,
+							*Host, Port, *Token);
+						FPlatformApplicationMisc::ClipboardCopy(*Package);
+						return FReply::Handled();
+					})
+				]
 			]
 		];
 	}

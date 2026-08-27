@@ -82,28 +82,32 @@ flowchart TB
 
 ### 1.2 跨机（显式 IP，不扫网段）
 
-1. **UE**：勾选 **允许局域网绑定**（HTTP 绑 `0.0.0.0`），开系统防火墙入站；**不要**做公网端口映射。
-2. **中转 → UE**：本机 UE 无需配置。远程填 `remoteUnreal`（`host` + `mcpPort`，token 可省略并改填 **额外鉴权 Token**）。只探这些地址的 `/status`。
-3. **AI → 中转**：勾选 listenLan / 允许局域网接入，把 `mcp.json` 的 `127.0.0.1` 换成中转机局域网 IP。Bearer 用中转机 token，或把本机 token 加到中转机的额外列表。
+在**提供服务的那一端**复制跨机连接，选对网卡 IP，再到对端粘贴。复制出的 Bearer **只带本机 token**（不要把额外 token 打进 mcp.json）。
+
+1. **UE**：勾选 **允许局域网绑定**（HTTP 绑 `0.0.0.0`），开系统防火墙入站；**不要**做公网端口映射。设置里选网卡 → **复制跨机连接**，得到 AI mcp.json、中转 `remoteUnreal` 一行、VSCode `remoteUnreal` 条目。未开 MCP 也可复制 token；端口未启动时暂用 `45000`，以标题栏实际端口为准。
+2. **中转 → UE**：本机 UE 无需配置。把上一步的远程行粘进 `remoteUnreal`（token 可省略并改填 **额外鉴权 Token**）。只探这些地址的 `/status`。
+3. **AI → 中转**：勾选 listenLan / 允许局域网接入，用命令/面板 **复制 MCP 客户端配置**（多网卡时先选 IP）。Bearer 用中转机本机 token。
+
+局域网绑定且关闭鉴权时会弹出确认：同网段主机都能控制编辑器。
 
 ```json
 {
   "mcpServers": {
     "nexus-unreal": {
       "url": "http://192.168.1.20:6900/stream",
-      "headers": { "Authorization": "Bearer <token1>, <token2>" }
+      "headers": { "Authorization": "Bearer <中转机本机 token>" }
     }
   }
 }
 ```
 
-VSCode 远程条目示例（`settings.json`）：
+VSCode 远程条目示例（也可从 UE「复制跨机连接」粘贴）：
 
 ```json
 "nexusMcp.listenLan": true,
 "nexusMcp.extraAuthTokens": ["<其他机器 token>"],
 "nexusMcp.remoteUnreal": [
-  { "host": "192.168.1.30", "mcpPort": 45000 }
+  { "host": "192.168.1.30", "mcpPort": 45000, "authToken": "<UE 本机 token>" }
 ]
 ```
 
@@ -167,7 +171,7 @@ Preferences 与 `-EnableNexusMcp` / 控制台为 **OR**。CLI 不会改写 `bEna
 | 插件信息 | 当前版本；**检查更新**；**启动时自动检查更新**（默认开） |
 | 启用 MCP 服务器 | 总开关，**默认关闭** |
 | MCP 鉴权 | 默认开；关闭后 HTTP/WS 不校验 token（同旧版） |
-| MCP 鉴权 Token | 本机唯一；旁有「复制」仅写入 token；直连 / 跨机中转填 Bearer；MCP 未运行时为空 |
+| MCP 鉴权 Token | 本机唯一；旁有「复制」仅写入 token，「复制跨机连接」可选网卡并带出 mcp.json / remoteUnreal；未开 MCP 也可复制 |
 | 额外鉴权 Token | 其他机器的 token，每行一个或逗号分隔；本机 token 无需再填 |
 | 工具列表模式 | **SearchMode**（默认，3 个元工具）或 **MultiTool**（各 Capability 独立 Tool） |
 | Capabilities | 按目录折叠，可按组或单条启用/禁用 |
