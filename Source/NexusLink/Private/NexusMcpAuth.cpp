@@ -130,7 +130,7 @@ static bool TokensEqual(const FString& A, const FString& B)
 	return Acc == 0;
 }
 
-static void ParseAuthTokens(const FString& Raw, TArray<FString>& Out)
+void FNexusMcpAuth::ParseAuthTokens(const FString& Raw, TArray<FString>& Out)
 {
 	TArray<FString> Parts;
 	Raw.ParseIntoArrayWS(Parts, TEXT(",;"), true);

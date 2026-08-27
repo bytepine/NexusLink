@@ -102,13 +102,16 @@ public:
 	FString McpAuthToken;
 
 	/**
-	 * 额外鉴权 Token（其他机器）。每行或逗号分隔；本机 token 始终有效。
+	 * 额外鉴权 Token（其他机器）。设置里逐条添加；本机 token 始终有效。
 	 * 直连 HTTP Bearer 与 WS 首帧 auth 命中任一项即可。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "服务器",
-		meta = (DisplayName = "额外鉴权 Token", MultiLine = "true",
-			ToolTip = "粘贴其他机器的 token，每行一个或逗号分隔。本机 MCP 鉴权 Token 无需再填。AI mcp.json 也可在 Bearer 里逗号分隔多个 token。"))
-	FString ExtraMcpAuthTokens;
+		meta = (DisplayName = "额外鉴权 Token",
+			ToolTip = "点 + 添加其他机器的 token。单条里若粘贴逗号/分号分隔会自动拆开。本机 MCP 鉴权 Token 无需再填。AI mcp.json 的 Bearer 仍可逗号分隔多个。"))
+	TArray<FString> ExtraMcpAuthTokens;
+
+	/** 把额外 token 拼成解析用字符串（换行分隔）。 */
+	FString GetExtraMcpAuthTokensText() const;
 
 	/**
 	 * 是否在编辑器标题栏右侧显示端口号（与 FPS/内存/对象同一组）。
@@ -326,6 +329,8 @@ public:
 	 * @return 是否写入了默认集
 	 */
 	bool EnsureLogCaptureDefaults();
+
+	virtual void PostInitProperties() override;
 
 	// UDeveloperSettings interface
 	virtual FName GetCategoryName() const override;

@@ -4,6 +4,7 @@
 #include "Editor/NexusLogCapture.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusLink.h"
+#include "NexusMcpAuth.h"
 #include "Server/NexusMcpServer.h"
 #if WITH_EDITOR
 #include "Misc/MessageDialog.h"
@@ -18,6 +19,35 @@ UNexusLinkSettings::UNexusLinkSettings()
 UNexusLinkSettings* UNexusLinkSettings::Get()
 {
 	return GetMutableDefault<UNexusLinkSettings>();
+}
+
+FString UNexusLinkSettings::GetExtraMcpAuthTokensText() const
+{
+	FString Out;
+	for (int32 i = 0; i < ExtraMcpAuthTokens.Num(); ++i)
+	{
+		if (i > 0)
+		{
+			Out += TEXT("\n");
+		}
+		Out += ExtraMcpAuthTokens[i];
+	}
+	return Out;
+}
+
+void UNexusLinkSettings::PostInitProperties()
+{
+	Super::PostInitProperties();
+	TArray<FString> Normalized;
+	for (const FString& Item : ExtraMcpAuthTokens)
+	{
+		FNexusMcpAuth::ParseAuthTokens(Item, Normalized);
+	}
+	if (Normalized != ExtraMcpAuthTokens)
+	{
+		ExtraMcpAuthTokens = MoveTemp(Normalized);
+		SaveConfig();
+	}
 }
 
 bool UNexusLinkSettings::IsMcpAuthRequired()
@@ -175,6 +205,29 @@ void UNexusLinkSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	}
 
 	// 白名单变更时实时同步给日志捕获器（无需重启编辑器立即生效）
+	if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, ExtraMcpAuthTokens))
+	{
+		TArray<FString> Expanded;
+		bool bSplit = false;
+		for (const FString& Item : ExtraMcpAuthTokens)
+		{
+			if (Item.Contains(TEXT(",")) || Item.Contains(TEXT(";"))
+				|| Item.Contains(TEXT("\n")) || Item.Contains(TEXT("\r")))
+			{
+				bSplit = true;
+				FNexusMcpAuth::ParseAuthTokens(Item, Expanded);
+			}
+			else
+			{
+				Expanded.Add(Item);
+			}
+		}
+		if (bSplit)
+		{
+			ExtraMcpAuthTokens = MoveTemp(Expanded);
+		}
+	}
+
 	if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, LogCaptureCategories))
 	{
 		FNexusLogCapture::Get().SetCategoryWhitelist(LogCaptureCategories);

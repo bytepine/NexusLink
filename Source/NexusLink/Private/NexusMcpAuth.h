@@ -19,4 +19,7 @@ struct FNexusMcpAuth
 	 * 命中 MachineToken 或 ExtraTokens 中任一项即通过。
 	 */
 	static bool IsTokenAccepted(const FString& PresentedRaw, const FString& MachineToken, const FString& ExtraTokens);
+
+	/** 按逗号/分号/空白拆出合法 token，追加到 Out（去重、小写）。 */
+	static void ParseAuthTokens(const FString& Raw, TArray<FString>& Out);
 };

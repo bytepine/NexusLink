@@ -301,7 +301,7 @@ void FNexusMcpServer::RegisterRoutes()
 					&& !FNexusMcpAuth::IsTokenAccepted(
 						PresentedToken,
 						Server->GetAuthToken(),
-						UNexusLinkSettings::Get() ? UNexusLinkSettings::Get()->ExtraMcpAuthTokens : FString()))
+						UNexusLinkSettings::Get() ? UNexusLinkSettings::Get()->GetExtraMcpAuthTokensText() : FString()))
 				{
 					ReplyError(Complete, EHttpServerResponseCodes::Denied,
 						TEXT("unauthorized"), TEXT("Invalid Authorization token"));
@@ -570,7 +570,7 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 				(*ParamsObj)->TryGetStringField(TEXT("token"), Presented);
 			}
 			// 鉴权关闭时仍接受 auth 并回 ok，兼容误发首帧的中转
-			const FString Extra = UNexusLinkSettings::Get() ? UNexusLinkSettings::Get()->ExtraMcpAuthTokens : FString();
+			const FString Extra = UNexusLinkSettings::Get() ? UNexusLinkSettings::Get()->GetExtraMcpAuthTokensText() : FString();
 			if (!bRequireAuth || FNexusMcpAuth::IsTokenAccepted(Presented, AuthToken, Extra))
 			{
 				AuthenticatedWsClients.Add(ClientWebSocket);
