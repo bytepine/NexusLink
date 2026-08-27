@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [2.0.0-beta.5] - 2026-08-27
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Changed
 
 - ui(plugin): 设置面板去掉「复制 mcp.json」，鉴权 token 只读展示为 **MCP 鉴权 Token**，旁加「复制」仅写入 token
