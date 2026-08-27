@@ -36,7 +36,7 @@ public:
 	bool IsRunning() const { return bRunning; }
 	int32 GetMcpPort() const { return McpPort; }
 	int32 GetWsPort()  const { return WebSocketPort; }
-	/** 本进程 MCP 鉴权 token（不写入 /status）。 */
+	/** 本机共享 MCP 鉴权 token（不写入 /status）。 */
 	const FString& GetAuthToken() const { return AuthToken; }
 
 	/**

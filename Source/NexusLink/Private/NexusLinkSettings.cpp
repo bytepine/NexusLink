@@ -17,6 +17,12 @@ UNexusLinkSettings* UNexusLinkSettings::Get()
 	return GetMutableDefault<UNexusLinkSettings>();
 }
 
+bool UNexusLinkSettings::IsMcpAuthRequired()
+{
+	const UNexusLinkSettings* Settings = Get();
+	return !Settings || Settings->bRequireMcpAuth;
+}
+
 FName UNexusLinkSettings::GetCategoryName() const
 {
 	return TEXT("Plugins");

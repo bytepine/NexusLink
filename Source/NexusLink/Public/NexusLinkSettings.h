@@ -45,6 +45,9 @@ public:
 	/** 获取单例。 */
 	static UNexusLinkSettings* Get();
 
+	/** 当前是否要求 MCP 鉴权；无 Settings 时视为开启。 */
+	static bool IsMcpAuthRequired();
+
 	/**
 	 * 是否启用 NexusLink MCP 服务器。
 	 * 默认关闭；勾选后启动 HTTP/WebSocket 服务并注册实例供 IDE 代理发现。
@@ -65,6 +68,15 @@ public:
 	bool bAllowLanBind = false;
 
 	/**
+	 * 是否要求 MCP HTTP Bearer 与 WebSocket 首帧 auth。
+	 * 默认开启。关闭后与旧版 NexusLink 相同：不校验 token，/status.authRequired=false。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "服务器",
+		meta = (DisplayName = "MCP 鉴权",
+			ToolTip = "默认开。关闭后 HTTP/WS 不校验 token，行为与旧版 NexusLink 相同；中转按 /status.authRequired 决定是否对 UE 做 WS 鉴权"))
+	bool bRequireMcpAuth = true;
+
+	/**
 	 * MCP 服务器实际监听端口（只读）。
 	 * 由插件启动时自动分配，端口冲突时自动顺延，无需手动配置。
 	 */
@@ -81,12 +93,22 @@ public:
 	int32 WsPort = 0;
 
 	/**
-	 * 当前 MCP 鉴权 Token（只读，不落盘）。
-	 * 直连 UE 时须在 mcp.json 的 Authorization: Bearer 中填写；代理从实例注册文件读取。
+	 * 当前 MCP 鉴权 Token（只读展示；本机唯一，不随进程更换）。
+	 * 直连 UE / 同机代理共用；文件在本机配置目录 NexusLink/mcp-auth-token。MCP 未运行时为空。
 	 */
 	UPROPERTY(Transient, VisibleAnywhere, Category = "服务器",
-		meta = (DisplayName = "MCP 鉴权 Token"))
+		meta = (DisplayName = "MCP 鉴权 Token",
+			ToolTip = "本机唯一，同机客户端共用。直连或跨机中转时复制此值填到 Bearer；不要从 GET /status 获取。MCP 未运行时为空"))
 	FString McpAuthToken;
+
+	/**
+	 * 额外鉴权 Token（其他机器）。每行或逗号分隔；本机 token 始终有效。
+	 * 直连 HTTP Bearer 与 WS 首帧 auth 命中任一项即可。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "服务器",
+		meta = (DisplayName = "额外鉴权 Token", MultiLine = "true",
+			ToolTip = "粘贴其他机器的 token，每行一个或逗号分隔。本机 MCP 鉴权 Token 无需再填。AI mcp.json 也可在 Bearer 里逗号分隔多个 token。"))
+	FString ExtraMcpAuthTokens;
 
 	/**
 	 * 是否在编辑器标题栏右侧显示端口号（与 FPS/内存/对象同一组）。

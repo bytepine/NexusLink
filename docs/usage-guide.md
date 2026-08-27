@@ -1,6 +1,6 @@
 # NexusLink 使用指南
 
-面向最终用户：安装 UE 插件、选客户端、打开对应层开关。Capability 参数见 [`tool-reference.zh.md`](./tool-reference.zh.md)（[English](./tool-reference.md)）；架构见 [`architecture.md`](./architecture.md)。
+面向最终用户：安装 UE 插件、选客户端、打开对应层开关、配置鉴权。Capability 参数见 [`tool-reference.zh.md`](./tool-reference.zh.md)（[English](./tool-reference.md)）；架构见 [`architecture.md`](./architecture.md)。
 
 ---
 
@@ -48,20 +48,50 @@ flowchart TB
 
 本机只开一个代理（Desktop `:6700` / Rider `:6800` / VSCode `:6900` 勿叠开）；叠开会重复扫描并各自连同一 UE。
 
-MCP **默认**只绑本机 loopback。`POST /stream` 与 WebSocket 须 Bearer token（本机代理读 `{Temp}/NexusLink/{PID}.json`；跨机须从 UE 设置面板复制 token 填到中转的远程条目）。带 `Origin` 的浏览器请求会被拒绝。`GET /status` 仅探活，**不含 token**。`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 默认禁用。
+默认只绑 loopback。带 `Origin` 的浏览器请求会被拒绝。`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 默认禁用。
 
-跨机（显式 IP，不扫网段）：
+### 1.1 鉴权
 
-1. **UE**：勾选 **允许局域网绑定**（HTTP 绑 `0.0.0.0`），开系统防火墙入站；**不要**做公网端口映射。拿到 token 的同网段主机都能连。
-2. **中转 → UE**：在 Desktop / Rider / VSCode 填 `remoteUnreal`（`host` + `mcpPort` + `authToken`）。只探这些地址的 `/status`。
-3. **AI → 中转**：勾选 listenLan / 允许局域网接入，把 `mcp.json` 的 `127.0.0.1` 换成中转机局域网 IP，Bearer 仍用代理 `proxyToken`。
+四端共用本机一份 token 文件（重启后不变）：
+
+| 系统 | 路径 |
+|------|------|
+| Windows | `%LOCALAPPDATA%\NexusLink\mcp-auth-token` |
+| macOS | `~/Library/Application Support/NexusLink/mcp-auth-token` |
+| Linux | `~/.config/NexusLink/mcp-auth-token` |
+
+`GET /status` 仅探活，**不含 token**。本机代理连本机 UE 会自动读该文件（及 `{Temp}/NexusLink/{PID}.json`），**无需**再配 remoteUnreal。
+
+| 开关 | 位置 | 默认 | 关闭后 |
+|------|------|------|--------|
+| **MCP 鉴权** | UE 编辑器偏好 | 开 | HTTP/WS 不校验；`/status.authRequired=false`（同旧版插件） |
+| **启用 MCP 鉴权** | Desktop / Rider / VSCode | 开 | AI 连该中转无需 Bearer（同旧版中转）；连 UE 仍看对方 `authRequired` |
+
+两端开关独立：
+
+| 中转 \ UE | UE 鉴权开 | UE 鉴权关 / 旧版 UE |
+|-----------|-----------|---------------------|
+| **中转鉴权开** | AI 须 Bearer；中转对 UE 发 WS auth | AI 须 Bearer；跳过 WS auth |
+| **中转鉴权关 / 旧版中转** | AI 无需 Bearer；中转仍对 UE 发 WS auth | 两边都不鉴权 |
+
+多 token（连多台机器）：
+
+- UE / 中转的 **额外鉴权 Token**：其他机器的 token，每行一个或逗号分隔；本机 token 始终有效
+- AI `mcp.json` 可写 `"Authorization": "Bearer <tok1>, <tok2>"`，对端命中任一项即可
+- 远程 UE：`host:mcpPort [token...]`，token 可省略并改用额外列表
+
+### 1.2 跨机（显式 IP，不扫网段）
+
+1. **UE**：勾选 **允许局域网绑定**（HTTP 绑 `0.0.0.0`），开系统防火墙入站；**不要**做公网端口映射。
+2. **中转 → UE**：本机 UE 无需配置。远程填 `remoteUnreal`（`host` + `mcpPort`，token 可省略并改填 **额外鉴权 Token**）。只探这些地址的 `/status`。
+3. **AI → 中转**：勾选 listenLan / 允许局域网接入，把 `mcp.json` 的 `127.0.0.1` 换成中转机局域网 IP。Bearer 用中转机 token，或把本机 token 加到中转机的额外列表。
 
 ```json
 {
   "mcpServers": {
     "nexus-unreal": {
       "url": "http://192.168.1.20:6900/stream",
-      "headers": { "Authorization": "Bearer <proxyToken>" }
+      "headers": { "Authorization": "Bearer <token1>, <token2>" }
     }
   }
 }
@@ -71,12 +101,13 @@ VSCode 远程条目示例（`settings.json`）：
 
 ```json
 "nexusMcp.listenLan": true,
+"nexusMcp.extraAuthTokens": ["<其他机器 token>"],
 "nexusMcp.remoteUnreal": [
-  { "host": "192.168.1.30", "mcpPort": 45000, "authToken": "<从 UE 设置复制>" }
+  { "host": "192.168.1.30", "mcpPort": 45000 }
 ]
 ```
 
-Rider / Desktop 远程列表每行：`192.168.1.30:45000 <token>`。
+Rider / Desktop 远程列表每行：`192.168.1.30:45000` 或 `192.168.1.30:45000 <token>`。
 
 ---
 
@@ -135,6 +166,9 @@ Preferences 与 `-EnableNexusMcp` / 控制台为 **OR**。CLI 不会改写 `bEna
 |------|------|
 | 插件信息 | 当前版本；**检查更新**；**启动时自动检查更新**（默认开） |
 | 启用 MCP 服务器 | 总开关，**默认关闭** |
+| MCP 鉴权 | 默认开；关闭后 HTTP/WS 不校验 token（同旧版） |
+| MCP 鉴权 Token | 本机唯一；旁有「复制」仅写入 token；直连 / 跨机中转填 Bearer；MCP 未运行时为空 |
+| 额外鉴权 Token | 其他机器的 token，每行一个或逗号分隔；本机 token 无需再填 |
 | 工具列表模式 | **SearchMode**（默认，3 个元工具）或 **MultiTool**（各 Capability 独立 Tool） |
 | Capabilities | 按目录折叠，可按组或单条启用/禁用 |
 | 启用反馈采集 | 总开关；取消后 auto/manual 都丢弃 |
@@ -168,7 +202,7 @@ Preferences 与 `-EnableNexusMcp` / 控制台为 **OR**。CLI 不会改写 `bEna
 }
 ```
 
-Token 从设置面板「复制 mcp.json」取得，**不要**从 `GET /status` 猜。带 `Origin` 的浏览器请求会被拒绝。
+Token 从设置面板 **MCP 鉴权 Token** 旁的「复制」取得。可逗号分隔多个；也可把对方 token 填进 **额外鉴权 Token**。不要从 `GET /status` 猜。完整规则见 [§1.1](#11-鉴权)。
 
 **CodeBuddy / Windsurf**：
 
@@ -241,11 +275,12 @@ Token 从设置面板「复制 mcp.json」取得，**不要**从 `GET /status` �
 
 ## 6. 常见问题
 
-### AI 客户端显示「MCP 初始化超时」
+### AI 客户端「MCP 初始化超时」
 
 - UE 已启动且 NexusLink 已加载，并勾选 **启用 MCP 服务器**
 - 代理模式下 Desktop 托盘已启用中转 / Rider 或 VSCode 总开关已开，且状态显示已连 UE
 - AI 配置的端口与界面显示的实际端口一致
+- 鉴权开启时 `mcp.json` 须带 `Authorization: Bearer`，且 token 是对端接受的那份（见 [§1.1](#11-鉴权)）
 
 ### 多个 AI 客户端同时使用
 

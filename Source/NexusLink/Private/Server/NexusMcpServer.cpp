@@ -24,6 +24,7 @@
 #include "Async/Async.h"
 #include "Misc/Guid.h"
 #include "Misc/ConfigCacheIni.h"
+#include "NexusMcpAuth.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusMcpServer, Log, All);
 
@@ -31,26 +32,6 @@ static const FString StreamEndpoint  = TEXT("/stream");
 static const FString StatusEndpoint  = TEXT("/status");
 static const FString McpSessionHeader = TEXT("Mcp-Session-Id");
 static const int32 MaxMcpBodyBytes = 1024 * 1024;
-
-static FString GenerateAuthToken()
-{
-	return FGuid::NewGuid().ToString(EGuidFormats::Digits)
-		+ FGuid::NewGuid().ToString(EGuidFormats::Digits);
-}
-
-static bool TokensEqual(const FString& A, const FString& B)
-{
-	if (A.Len() != B.Len())
-	{
-		return false;
-	}
-	int32 Acc = 0;
-	for (int32 i = 0; i < A.Len(); ++i)
-	{
-		Acc |= static_cast<int32>(A[i]) ^ static_cast<int32>(B[i]);
-	}
-	return Acc == 0;
-}
 
 /**
  * 探测当前进程的网络角色：PIE/Game 世界存在时返回 DedicatedServer/ListenServer/Client/Standalone，
@@ -123,7 +104,7 @@ bool FNexusMcpServer::Start(int32 InMcpPort, int32 InWsPort)
 
 	McpPort       = InMcpPort;
 	WebSocketPort = InWsPort;
-	AuthToken     = GenerateAuthToken();
+	AuthToken     = FNexusMcpAuth::LoadOrCreateMachineToken();
 
 	const bool bLan = UNexusLinkSettings::Get() && UNexusLinkSettings::Get()->bAllowLanBind;
 	const TCHAR* BindAddr = bLan ? TEXT("0.0.0.0") : TEXT("127.0.0.1");
@@ -268,7 +249,8 @@ void FNexusMcpServer::RegisterRoutes()
 			}
 
 			FString PresentedToken;
-			if (!ExtractBearerToken(GetRequestHeader(Request, TEXT("Authorization")), PresentedToken))
+			const bool bRequireAuth = UNexusLinkSettings::IsMcpAuthRequired();
+			if (bRequireAuth && !ExtractBearerToken(GetRequestHeader(Request, TEXT("Authorization")), PresentedToken))
 			{
 				ReplyError(OnComplete, EHttpServerResponseCodes::Denied,
 					TEXT("unauthorized"), TEXT("Missing Authorization: Bearer token"));
@@ -315,7 +297,11 @@ void FNexusMcpServer::RegisterRoutes()
 					return;
 				}
 
-				if (!TokensEqual(PresentedToken, Server->GetAuthToken()))
+				if (UNexusLinkSettings::IsMcpAuthRequired()
+					&& !FNexusMcpAuth::IsTokenAccepted(
+						PresentedToken,
+						Server->GetAuthToken(),
+						UNexusLinkSettings::Get() ? UNexusLinkSettings::Get()->ExtraMcpAuthTokens : FString()))
 				{
 					ReplyError(Complete, EHttpServerResponseCodes::Denied,
 						TEXT("unauthorized"), TEXT("Invalid Authorization token"));
@@ -371,7 +357,7 @@ void FNexusMcpServer::RegisterRoutes()
 				Obj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
 				Obj->SetNumberField(TEXT("wsPort"), Server->GetWsPort());
 				Obj->SetStringField(TEXT("netRole"), DetectCurrentNetRole());
-				Obj->SetBoolField(TEXT("authRequired"), true);
+				Obj->SetBoolField(TEXT("authRequired"), UNexusLinkSettings::IsMcpAuthRequired());
 				ReplyJson(Complete, FNexusJsonUtils::SerializeCondensed(Obj));
 			});
 			return true;
@@ -574,6 +560,7 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 			}
 		}
 
+		const bool bRequireAuth = UNexusLinkSettings::IsMcpAuthRequired();
 		if (Method == TEXT("auth"))
 		{
 			FString Presented;
@@ -582,7 +569,9 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 			{
 				(*ParamsObj)->TryGetStringField(TEXT("token"), Presented);
 			}
-			if (TokensEqual(Presented, AuthToken))
+			// 鉴权关闭时仍接受 auth 并回 ok，兼容误发首帧的中转
+			const FString Extra = UNexusLinkSettings::Get() ? UNexusLinkSettings::Get()->ExtraMcpAuthTokens : FString();
+			if (!bRequireAuth || FNexusMcpAuth::IsTokenAccepted(Presented, AuthToken, Extra))
 			{
 				AuthenticatedWsClients.Add(ClientWebSocket);
 				TSharedPtr<FJsonObject> Ok = MakeShared<FJsonObject>();
@@ -596,7 +585,7 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 			return;
 		}
 
-		if (!AuthenticatedWsClients.Contains(ClientWebSocket) && Method != TEXT("ping"))
+		if (bRequireAuth && !AuthenticatedWsClients.Contains(ClientWebSocket) && Method != TEXT("ping"))
 		{
 			SendWsText(ClientWebSocket, MakeJsonRpcError(Id, -32001, TEXT("unauthorized")));
 			return;

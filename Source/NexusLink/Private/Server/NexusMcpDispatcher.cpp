@@ -710,7 +710,7 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 		StatusObj->SetStringField(TEXT("engineVersion"), FString::Printf(TEXT("%d.%d"),
 			ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION));
 		StatusObj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
-		StatusObj->SetBoolField(TEXT("authRequired"), true);
+		StatusObj->SetBoolField(TEXT("authRequired"), UNexusLinkSettings::IsMcpAuthRequired());
 		SendResult(Id, StatusObj);
 	}
 	else if (Method == TEXT("nexus/instructions"))

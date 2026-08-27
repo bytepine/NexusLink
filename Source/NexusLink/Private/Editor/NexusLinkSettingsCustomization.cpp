@@ -6,6 +6,7 @@
 #include "NexusFeedback.h"
 #include "NexusLinkSettings.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "PropertyHandle.h"
 #include "NexusCapability.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpTool.h"
@@ -140,36 +141,48 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 	SettingsPtr = Cast<UNexusLinkSettings>(Objects[0].Get());
 	if (!SettingsPtr.IsValid()) return;
 
-	IDetailCategoryBuilder& ServerCategory = DetailBuilder.EditCategory(
-		TEXT("服务器"), LOCTEXT("ServerCategory", "服务器"));
-	ServerCategory.AddCustomRow(LOCTEXT("CopyDirectMcp", "复制直连 mcp.json"))
-	.NameContent()
-	[
-		SNew(STextBlock)
-		.Text(LOCTEXT("CopyDirectMcpLabel", "直连配置"))
-		.Font(IDetailLayoutBuilder::GetDetailFont())
-	]
-	.ValueContent()
-	[
-		SNew(SButton)
-		.Text(LOCTEXT("CopyDirectMcpBtn", "复制 mcp.json"))
-		.ToolTipText(LOCTEXT("CopyDirectMcpTip", "复制含 Authorization Bearer 的 Cursor mcp.json 片段"))
-		.OnClicked_Lambda([this]() -> FReply
-		{
-			UNexusLinkSettings* Settings = SettingsPtr.Get();
-			if (!Settings || Settings->McpPort <= 0 || Settings->McpAuthToken.IsEmpty())
-			{
-				FMessageDialog::Open(EAppMsgType::Ok,
-					LOCTEXT("CopyDirectMcpOff", "MCP 服务器未运行，请先勾选「启用 MCP 服务器」。"));
-				return FReply::Handled();
-			}
-			const FString Snippet = FString::Printf(
-				TEXT("{\n  \"mcpServers\": {\n    \"nexus-link\": {\n      \"url\": \"http://127.0.0.1:%d/stream\",\n      \"headers\": {\n        \"Authorization\": \"Bearer %s\"\n      }\n    }\n  }\n}"),
-				Settings->McpPort, *Settings->McpAuthToken);
-			FPlatformApplicationMisc::ClipboardCopy(*Snippet);
-			return FReply::Handled();
-		})
-	];
+	TSharedRef<IPropertyHandle> TokenHandle = DetailBuilder.GetProperty(
+		GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, McpAuthToken));
+	if (IDetailPropertyRow* TokenRow = DetailBuilder.EditDefaultProperty(TokenHandle))
+	{
+		TokenRow->CustomWidget()
+		.NameContent()
+		[
+			TokenHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		.MinDesiredWidth(280.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				TokenHandle->CreatePropertyValueWidget(/*bDisplayDefaultPropertyButtons=*/false)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("CopyAuthToken", "复制"))
+				.ToolTipText(LOCTEXT("CopyAuthTokenTip", "仅复制鉴权 token"))
+				.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([this]()
+				{
+					return SettingsPtr.IsValid() && !SettingsPtr->McpAuthToken.IsEmpty();
+				})))
+				.OnClicked_Lambda([this]() -> FReply
+				{
+					if (SettingsPtr.IsValid() && !SettingsPtr->McpAuthToken.IsEmpty())
+					{
+						FPlatformApplicationMisc::ClipboardCopy(*SettingsPtr->McpAuthToken);
+					}
+					return FReply::Handled();
+				})
+			]
+		];
+	}
 
 	CategoryCaps.Empty();
 	CategoryCountTexts.Empty();
