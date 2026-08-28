@@ -7,70 +7,6 @@
 
 ## [Unreleased]
 
-### Changed
-
-- ui(plugin): **额外鉴权 Token** 改为数组逐条添加（点 +），粘贴逗号/分号分隔会自动拆开；HTTP Bearer 仍支持逗号分隔
-- docs: 发版 L2 按本次变更选 headless 或 `--gui`（`CONTRIBUTING` / `docs/testing.md`）；日常默认仍 headless
-
-## [2.0.0-beta.5] - 2026-08-27
-
-> ⚠️ Pre-release，非生产环境使用。
-
-### Changed
-
-- ui(plugin): 设置面板去掉「复制 mcp.json」，鉴权 token 只读展示为 **MCP 鉴权 Token**，旁加「复制」仅写入 token
-- feat(mcp): 鉴权 token 本机唯一，UE / Desktop / Rider / VSCode 共用 `%LOCALAPPDATA%/NexusLink/mcp-auth-token`（macOS/Linux 为对应配置目录）；新增设置 **MCP 鉴权**（默认开），关闭后 HTTP/WS 不校验 token 且 `/status.authRequired=false`（同旧版）；**额外鉴权 Token** 可填其他机器 token，HTTP Bearer 支持逗号分隔多个；设置面板 **复制跨机连接** 可选网卡 IP（Bearer 仅本机 token，未开 MCP 也可复制）；局域网绑定且关鉴权时确认；`usage-guide` §1.1 / §1.2 为鉴权与跨机正文
-
-## [2.0.0-beta.4] - 2026-08-26
-
-> ⚠️ Pre-release，非生产环境使用。
-
-### Added
-
-- feat(mcp): 可选局域网绑定（`bAllowLanBind`，默认 loopback）；热切换即时重启监听
-
-### Security
-
-- 开局域网后同网段持有 Bearer 的主机均可连；勿做公网映射
-
-## [2.0.0-beta.3] - 2026-08-21
-
-> ⚠️ Pre-release，非生产环境使用。
-
-### Added
-
-- docs: `build_tool_reference.py` 同一趟同时生成英文 `docs/tool-reference.md` 与中文 `docs/tool-reference.zh.md`；中文 Description 在 `scripts/tool_reference_zh.json`，新参数说明按短语规则即时翻译
-
-### Fixed
-
-- docs: 参数说明短语部分命中后继续 glossary，避免中英混杂；`param_text` 仅保留自动翻译覆盖不了的条目
-- fix(plugin): `NexusMcpServer.h` 补 `Containers/Ticker.h`，Game 目标（UE 5.1+ `WITH_EDITOR=0`）能解析 `FTSTicker::FDelegateHandle`
-
-### Changed
-
-- refactor: Dispatcher JSON 读参改 `TryGet*Field`；删除 `SerializeJson` 转调与 `get_asset_blueprint` 未使用 `section`；`operations[]` 非 object 写 entry.error；旧名表 `Resources/legacy_capability_names.json`；`Run` 空串并入 ValidateArgs；`saveToDisk`/`compile` 改定义标志；plain create 收口 `CreatePlainAsset`；注册表 SchemaDump + `schema_catalog` / `doc_categories.json`
-- docs: usage-guide 注明本机只开一个 MCP 代理（Desktop / Rider / VSCode 勿叠开）
-- chore: `build_tool_reference.py` 注释去掉工作区内部路径
-
-### Security
-
-- MCP HTTP/WS 须 Bearer（token 写入 `{Temp}/NexusLink/{PID}.json`，不进 `/status`）；去掉 CORS `*`；带 Origin 的请求拒绝；body 上限 1MB；尽量绑 127.0.0.1
-- WebSocket 须首帧 `auth`；`dofile_runtime_lua` 限制在 `Content/Script/`
-- `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 默认禁用（升级一次性写入 DisabledCapabilities）；测试用 `-NexusEnableDangerousCaps`
-
-## [2.0.0-beta.2] - 2026-08-19
-
-> ⚠️ Pre-release，非生产环境使用。
-
-### Changed
-
-- chore(plugin): 主模块 `Type` 改为 **UncookedOnly**（Editor 二进制含 `-server`/`-game` 加载；cooked Game/Server 不编）；去掉 `!WITH_EDITOR` Startup 空转；设置面板 / 状态栏 / 升级通知仅 `GIsEditor`；MCP 监听不挡。README / InitializeInstructions / docs 同步
-- docs: 文档信息架构——README 改为落地页；安装/四端接入收口到 `docs/usage-guide.md`（含 NexusDesktop 与开关矩阵）；开发/测试/发版迁入 `CONTRIBUTING.md`；Token 对照与内部架构留在 `docs/architecture.md`；新增 `docs/proxy-session.md`（代理 TTL 缓存 / 断线快照 / 写门控契约），usage-guide / architecture 不再写「只做发现与转发」
-
-## [2.0.0-beta.1] - 2026-08-18
-
-> ⚠️ Pre-release，非生产环境使用。
-
 ### Added
 
 - feat(mcp): Capability 覆盖扩展（→221）——新领域 StringTable / Font / FoliageType / FileMediaSource（`mediaPath`，禁止旧键 `filePath`）、GAS `GameplayCueNotify_Static`、Paper2D Sprite/Flipbook/TileMap、GeometryCollection、CommonButtonStyle/CommonTextStyle、MoviePipeline config；写路径与工厂：MaterialFunction 写图、WBP 动画轨/key、ABP AnimGraph、Niagara Emitter CRUD、StateTree task/transition、LevelSequence possessable/track/key + `create_asset_level_sequence`、`manage_asset_view_model`、IK/`create_asset_ik_retargeter`、蓝图 macro/timeline/dispatcher、`control_pie` pause/resume/step、ComboBox/ListView、PCG `remove_edge`、`create_asset_sound_cue`/`physical_material`/`level`/`niagara_system`/`state_tree`、GAS give/cue/loose tag、`interact_runtime_actor_{audio,niagara,ai}`、`manage_asset_lua_binding`、ControlRig add_control/bone；闭环 create：`create_asset_sound_submix` / `create_asset_font` / `create_asset_pose_search`（Database|Schema，UE5.4+）。不含 Landscape 雕刻、Niagara 模块图、Able、关卡刷草
@@ -88,6 +24,8 @@
 - feat(mcp): 写路径 Undo——`FNexusEditorTransaction` 包 `Run` 内存 Execute（`saveToDisk`/`compile` 在事务外）；`call_capability.calls[]`（≥2）外层一笔，`failureCount>0` 时 `GUndo->Apply` 再 `Cancel` 回滚内存编辑（引擎 `Cancel` 不还原对象）；事务内 `add_variable` 跳过全量 Compile，避免 GC 冲掉 Undo
 - feat(mcp): `get_asset_blueprint` 顶层 `compileStatus`/`hasCompilerErrors`；新 section `orphaned`（孤立 pin）/`execPaths`（Event exec 链，需 `graphName`）
 - feat(mcp): `control_movie_pipeline` enqueue/status/cancel（UE5+ MRQ，立即返回 `jobId`）；Capability 计数 226→227
+- docs: `build_tool_reference.py` 同一趟同时生成英文 `docs/tool-reference.md` 与中文 `docs/tool-reference.zh.md`；中文 Description 在 `scripts/tool_reference_zh.json`，新参数说明按短语规则即时翻译
+- feat(mcp): 可选局域网绑定（`bAllowLanBind`，默认 loopback）；热切换即时重启监听
 
 ### Changed
 
@@ -105,6 +43,16 @@
 - chore(plugin): 发版 zip 排除 `Source/NexusLinkTests`，打包时从 `.uplugin` 去掉该模块（源码仓仍保留 L1 Automation）
 - perf(mcp): `call_capability` 批尾仅在实际卸载包后 `CollectGarbage`（空台账跳过）；`Skipped` 改 `TSet`；反馈节流表与 `redundant_call` 表按窗口 TTL 淘汰
 - perf(mcp): `FNexusLogCapture` 热路径——白名单 `FName` 精确命中免 `ToUpper`；`Query`/`Summarize` 先拷贝环形缓冲再过滤；`FNexusCompiledStringPattern` 预编译正则，避免每条日志重建 `FRegexPattern`
+- chore(plugin): 主模块 `Type` 改为 **UncookedOnly**（Editor 二进制含 `-server`/`-game` 加载；cooked Game/Server 不编）；去掉 `!WITH_EDITOR` Startup 空转；设置面板 / 状态栏 / 升级通知仅 `GIsEditor`；MCP 监听不挡。README / InitializeInstructions / docs 同步
+- docs: 文档信息架构——README 改为落地页；安装/四端接入收口到 `docs/usage-guide.md`（含 NexusDesktop 与开关矩阵）；开发/测试/发版迁入 `CONTRIBUTING.md`；Token 对照与内部架构留在 `docs/architecture.md`；新增 `docs/proxy-session.md`（代理 TTL 缓存 / 断线快照 / 写门控契约），usage-guide / architecture 不再写「只做发现与转发」
+- refactor: Dispatcher JSON 读参改 `TryGet*Field`；删除 `SerializeJson` 转调与 `get_asset_blueprint` 未使用 `section`；`operations[]` 非 object 写 entry.error；旧名表 `Resources/legacy_capability_names.json`；`Run` 空串并入 ValidateArgs；`saveToDisk`/`compile` 改定义标志；plain create 收口 `CreatePlainAsset`；注册表 SchemaDump + `schema_catalog` / `doc_categories.json`
+- docs: usage-guide 注明本机只开一个 MCP 代理（Desktop / Rider / VSCode 勿叠开）
+- chore: `build_tool_reference.py` 注释去掉工作区内部路径
+- ui(plugin): 设置面板去掉「复制 mcp.json」，鉴权 token 只读展示为 **MCP 鉴权 Token**，旁加「复制」仅写入 token
+- feat(mcp): 鉴权 token 本机唯一，UE / Desktop / Rider / VSCode 共用 `%LOCALAPPDATA%/NexusLink/mcp-auth-token`（macOS/Linux 为对应配置目录）；新增设置 **MCP 鉴权**（默认开），关闭后 HTTP/WS 不校验 token 且 `/status.authRequired=false`（同旧版）；**额外鉴权 Token** 可填其他机器 token，HTTP Bearer 支持逗号分隔多个；设置面板 **复制跨机连接** 可选网卡 IP（Bearer 仅本机 token，未开 MCP 也可复制）；局域网绑定且关鉴权时确认；`usage-guide` §1.1 / §1.2 为鉴权与跨机正文
+- ui(plugin): **额外鉴权 Token** 改为数组逐条添加（点 +），粘贴逗号/分号分隔会自动拆开；HTTP Bearer 仍支持逗号分隔
+- docs: 发版 L2 按本次变更选 headless 或 `--gui`（`CONTRIBUTING` / `docs/testing.md`）；日常默认仍 headless
+- docs: `usage-guide` 补 1.x→2.0 升级说明；鉴权兼容矩阵拆出「旧版（1.x）中转」一行（连开鉴权的 UE 会失败）；§1.2 补 WS 绑定地址的引擎版本差异；FAQ 补鉴权失败排查
 
 ### Fixed
 
@@ -120,6 +68,26 @@
 - fix(compat): 跨版本编译——`SetPIEWorldsPaused` 仅 UE5+；Widget 动画直写 `MovieScene`；MovieScene 5.2+ 用 `AddTrack`/`GetTracks`；蓝图接口走 `FTopLevelAssetPath`；5.8 Editor `SetSourceString` 三参；补 `StaticMesh`/`World`/`Package` 头文件；`GameplayCueName` 全版本为 `FName`；Niagara `SetIsEnabled`/`SetName` 需传入 System；5.1+ `AddEmitterHandle` 第三参 VersionGuid（`NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION`）；UE5.0 `Build.cs` 不用 `Regex`（UBT 无 `System.Text.RegularExpressions`）；5.6+ `promote_pin` `PerformAction` 走 `FVector2f`；5.7+ StaticMesh `SetCustomizedCollision` / `SetAutoComputeLODScreenSize`
 - fix(compat): `REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 在 `!WITH_EDITOR` 下编译为空；`RegisterTool` 静态初始化期禁止 `UE_LOG`（缓存到 `GetPendingWarnings()`，`StartupModule` 再打），避免 iOS 等平台启动 `EXC_BAD_ACCESS`
 - fix(plugin): `NexusLink.uplugin` 同时声明 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）——UE4 忽略前者，否则模块会链进移动端客户端
+- docs: 参数说明短语部分命中后继续 glossary，避免中英混杂；`param_text` 仅保留自动翻译覆盖不了的条目
+- fix(plugin): `NexusMcpServer.h` 补 `Containers/Ticker.h`，Game 目标（UE 5.1+ `WITH_EDITOR=0`）能解析 `FTSTicker::FDelegateHandle`
+- fix(mcp): 额外鉴权 Token 的逗号/分号分隔解析失效——`ParseIntoArrayWS` 的第二参是「单个分隔串」而非字符集，`a,b` 不会被拆开；改用显式分隔符集。旧配置迁移时若一条合法 token 都解析不出，保留原值并告警，不再静默清空并落盘
+- fix(mcp): `GET /status` 的 `version` 不再硬编码 `0.0.0`，改读 `.uplugin` 的 `VersionName`
+- fix(mcp): WS 收包后推迟到 GameThread 的任务改弱引用捕获（与 HTTP 路径一致），避免停服/析构后回调野指针
+- fix(mcp): 本机 token 落盘失败时不再打印「已就绪」，改为明确告警（该情况下 token 仅本进程内存有效，重启会变）
+- fix(plugin): 打包时 `IsBetaVersion` 按版本号注入（含 `-beta` 才为 true），正式版不再在插件列表显示 Beta
+
+### Security
+
+- MCP HTTP/WS 须 Bearer（token 写入 `{Temp}/NexusLink/{PID}.json`，不进 `/status`）；去掉 CORS `*`；带 Origin 的请求拒绝；body 上限 1MB；尽量绑 127.0.0.1
+- WebSocket 须首帧 `auth`；`dofile_runtime_lua` 限制在 `Content/Script/`
+- `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 默认禁用（升级一次性写入 DisabledCapabilities）；`-NexusEnableDangerousCaps` 改为只写会话级集合，不再落进 `DisabledCapabilities`，避免后续任意一次 SaveConfig 把危险 cap 永久打开
+- 开局域网后同网段持有 Bearer 的主机均可连；勿做公网映射
+- WebSocket 绑定地址随「允许局域网绑定」（UE 5.2+ 向引擎传 `BindAddress`）；UE 4.26–5.1 的引擎接口不支持指定绑定地址，WS 必然绑全部网卡，此时关闭鉴权会在启动日志报 Error
+- WS 单帧上限 1MB，与 HTTP 通道一致
+- HTTP 绑定地址改写本端口的 `ListenerOverrides`，不再改全局 `DefaultBindAddress`（检测到旧版本写入的残留键会告警提示可删）；UE 5.8 起广播配置变更使引擎缓存失效，热切换局域网绑定才真正生效
+- 通过直接改 ini 绕过确认框造成「局域网绑定 + 关闭鉴权」时，启动日志报 Error
+- MCP 鉴权从关切到开时清空「已通过 WS auth」名单，关鉴权期间连上的连接不再被视为已鉴权
+- POSIX 平台把 `mcp-auth-token` 文件权限收敛为 0600
 
 ## [1.16.2] - 2026-08-12
 
@@ -1120,4 +1088,3 @@
 - feat: 47 个 MCP 工具，覆盖蓝图 / DataTable / DataAsset / Struct / Widget / Actor / PIE 全领域
 - perf: JSON 响应精简——省略默认值字段、布尔仅非默认时写入，工具描述 token 压缩 60-70%
 - perf: MCP initialize instructions 内置标准工作流与 UE 陷阱提示
-

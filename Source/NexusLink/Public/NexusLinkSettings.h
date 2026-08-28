@@ -302,7 +302,14 @@ public:
 	UPROPERTY(Config)
 	bool bDangerousCapsDefaultOffApplied = false;
 
-	/** 判断指定 cap 是否启用（不在 DisabledCapabilities 中即为启用）。 */
+	/**
+	 * 会话级强制启用的 cap 名集合（`-NexusEnableDangerousCaps` / 测试用）。
+	 * 不带 Config，任何 SaveConfig 都不会把它落进 ini，避免一次测试把危险 cap 永久打开。
+	 */
+	UPROPERTY(Transient)
+	TSet<FString> SessionEnabledCapabilities;
+
+	/** 判断指定 cap 是否启用（会话级强制启用优先，其余看 DisabledCapabilities）。 */
 	bool IsCapabilityEnabled(const FString& CapabilityName) const;
 
 	/**

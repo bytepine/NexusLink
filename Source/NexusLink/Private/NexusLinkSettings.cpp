@@ -10,6 +10,8 @@
 #include "Misc/MessageDialog.h"
 #endif
 
+DEFINE_LOG_CATEGORY_STATIC(LogNexusLinkSettings, Log, All);
+
 UNexusLinkSettings::UNexusLinkSettings()
 {
 	CategoryName = TEXT("Plugins");
@@ -38,10 +40,18 @@ FString UNexusLinkSettings::GetExtraMcpAuthTokensText() const
 void UNexusLinkSettings::PostInitProperties()
 {
 	Super::PostInitProperties();
+	// 旧版本这里是逗号分隔的单个字符串，升级后按数组逐条归一化
 	TArray<FString> Normalized;
 	for (const FString& Item : ExtraMcpAuthTokens)
 	{
 		FNexusMcpAuth::ParseAuthTokens(Item, Normalized);
+	}
+	if (Normalized.Num() == 0 && ExtraMcpAuthTokens.Num() > 0)
+	{
+		// 全部解析不出合法 token 时保留原样并提示，避免把用户填的内容静默清空落盘
+		UE_LOG(LogNexusLinkSettings, Warning,
+			TEXT("额外鉴权 Token 中没有合法条目（须为 32-128 位十六进制），已保留原值未改写配置"));
+		return;
 	}
 	if (Normalized != ExtraMcpAuthTokens)
 	{
@@ -63,6 +73,10 @@ FName UNexusLinkSettings::GetCategoryName() const
 
 bool UNexusLinkSettings::IsCapabilityEnabled(const FString& CapabilityName) const
 {
+	if (SessionEnabledCapabilities.Contains(CapabilityName))
+	{
+		return true;
+	}
 	return !DisabledCapabilities.Contains(CapabilityName);
 }
 
@@ -75,6 +89,8 @@ void UNexusLinkSettings::SetCapabilityEnabled(const FString& CapabilityName, boo
 	else
 	{
 		DisabledCapabilities.Add(CapabilityName);
+		// 用户显式关闭时同时撤掉会话级强制启用，否则本次会话内关不掉
+		SessionEnabledCapabilities.Remove(CapabilityName);
 	}
 
 	if (bNotify)
@@ -143,9 +159,11 @@ void UNexusLinkSettings::EnsureDangerousCapsDefaultOff()
 
 void UNexusLinkSettings::EnableDangerousCapsForSession()
 {
+	// 只写会话级集合：DisabledCapabilities 一旦被改，后续任意一次 SaveConfig
+	// （EnsureLogCaptureDefaults、设置面板勾选等）都会把危险 cap 永久写成启用
 	for (const TCHAR* Name : GDangerousCapabilityNames)
 	{
-		DisabledCapabilities.Remove(Name);
+		SessionEnabledCapabilities.Add(Name);
 	}
 }
 
@@ -201,6 +219,17 @@ void UNexusLinkSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 				SaveConfig();
 				return;
 			}
+		}
+	}
+
+	// 鉴权从关切到开：关鉴权期间连上的 WS 连接不能继续算已鉴权
+	if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bRequireMcpAuth) && bRequireMcpAuth)
+	{
+		FNexusLinkModule& Module = FModuleManager::GetModuleChecked<FNexusLinkModule>(TEXT("NexusLink"));
+		const TSharedPtr<FNexusMcpServer>& Server = Module.GetMcpServer();
+		if (Server.IsValid() && Server->IsRunning())
+		{
+			Server->ResetWsAuthentications();
 		}
 	}
 

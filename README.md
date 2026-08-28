@@ -6,6 +6,8 @@
 
 > 支持 UE 4.26 及以上所有版本（含 UE5）。主模块 `Type: UncookedOnly`，**MCP 跑在 Editor 二进制（含 `-server`/`-game`）**；cooked 包不包含本模块。
 
+> **从 1.x 升级**：2.0 默认开启鉴权且 MCP/AI 可见文案改为英文，插件与客户端须同批升到 2.x。见 [usage-guide §0](docs/usage-guide.md#0-从-1x-升级到-20)。
+
 ## 安装与启用
 
 从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载 `nexus-mcp-unreal-<version>.zip`，或克隆本仓库到项目的 `Plugins/Developer/NexusLink`。

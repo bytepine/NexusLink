@@ -70,3 +70,16 @@ def test_patch_uplugin_strips_tests_module(tmp_path):
     assert data["EngineVersion"] == "5.8"
     names = [m.get("Name") for m in data["Modules"]]
     assert names == ["NexusLink"]
+
+
+def test_patch_uplugin_beta_flag_follows_version(tmp_path):
+    uplugin = tmp_path / "NexusLink.uplugin"
+    body = '{"VersionName":"0.0.0","IsBetaVersion":true,"Modules":[]}'
+
+    uplugin.write_text(body, encoding="utf-8")
+    patch_uplugin(str(uplugin), "2.0.0")
+    assert json.loads(uplugin.read_text(encoding="utf-8"))["IsBetaVersion"] is False
+
+    uplugin.write_text(body, encoding="utf-8")
+    patch_uplugin(str(uplugin), "2.1.0-beta.1")
+    assert json.loads(uplugin.read_text(encoding="utf-8"))["IsBetaVersion"] is True

@@ -45,6 +45,12 @@ public:
 	 */
 	void BroadcastNotification(const FString& Method);
 
+	/**
+	 * 清空「已通过 WS 首帧 auth」名单。
+	 * 鉴权从关切到开时必须调用：否则关鉴权期间连上的老连接会被继续视为已鉴权。
+	 */
+	void ResetWsAuthentications();
+
 private:
 	/** 注册 HTTP 路由。 */
 	void RegisterRoutes();

@@ -24,6 +24,9 @@
 #include "Async/Async.h"
 #include "Misc/Guid.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/Parse.h"
+#include "Interfaces/IPluginManager.h"
 #include "NexusMcpAuth.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusMcpServer, Log, All);
@@ -32,6 +35,58 @@ static const FString StreamEndpoint  = TEXT("/stream");
 static const FString StatusEndpoint  = TEXT("/status");
 static const FString McpSessionHeader = TEXT("Mcp-Session-Id");
 static const int32 MaxMcpBodyBytes = 1024 * 1024;
+
+/**
+ * 把绑定地址写成本端口的 ListenerOverrides 条目。
+ * 不再改 DefaultBindAddress——那是全局键，会连带影响工程内其他 HTTP 服务且我们从不回滚。
+ */
+static void ApplyHttpBindAddress(int32 Port, const TCHAR* BindAddr)
+{
+	if (!GConfig)
+	{
+		return;
+	}
+
+	static const FString Section = TEXT("HTTPServer.Listeners");
+
+	FString LegacyDefaultBind;
+	GConfig->GetString(*Section, TEXT("DefaultBindAddress"), LegacyDefaultBind, GEngineIni);
+	if (!LegacyDefaultBind.IsEmpty())
+	{
+		UE_LOG(LogNexusMcpServer, Warning,
+			TEXT("Engine.ini 里 HTTPServer.Listeners.DefaultBindAddress=%s 由旧版本 NexusLink 写入且影响全局；")
+			TEXT("本插件已改为只写本端口 ListenerOverrides，该键可手动删除"), *LegacyDefaultBind);
+	}
+
+	TArray<FString> Overrides;
+	GConfig->GetArray(*Section, TEXT("ListenerOverrides"), Overrides, GEngineIni);
+	Overrides.RemoveAll([Port](const FString& Entry)
+	{
+		FString Cleaned = Entry;
+		Cleaned.ReplaceInline(TEXT("("), TEXT(""));
+		Cleaned.ReplaceInline(TEXT(")"), TEXT(""));
+		uint32 ConfiguredPort = 0;
+		return FParse::Value(*Cleaned, TEXT("Port="), ConfiguredPort)
+			&& ConfiguredPort == static_cast<uint32>(Port);
+	});
+	Overrides.Add(FString::Printf(TEXT("(Port=%d,BindAddress=%s)"), Port, BindAddr));
+	GConfig->SetArray(*Section, TEXT("ListenerOverrides"), Overrides, GEngineIni);
+
+#if NX_UE_AT_LEAST(5, 2)
+	// UE 5.8 起 FHttpServerConfig 缓存 listener 配置，只有该委托能让缓存失效；
+	// 否则进程内第一次监听的地址会锁定整个会话，热切换局域网绑定不生效。
+	FCoreDelegates::TSOnConfigSectionsChanged().Broadcast(GEngineIni, TSet<FString>{ Section });
+#endif
+}
+
+static FString GetPluginVersionName()
+{
+	if (const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("NexusLink")))
+	{
+		return Plugin->GetDescriptor().VersionName;
+	}
+	return TEXT("0.0.0");
+}
 
 /**
  * 探测当前进程的网络角色：PIE/Game 世界存在时返回 DedicatedServer/ListenServer/Client/Standalone，
@@ -108,16 +163,14 @@ bool FNexusMcpServer::Start(int32 InMcpPort, int32 InWsPort)
 
 	const bool bLan = UNexusLinkSettings::Get() && UNexusLinkSettings::Get()->bAllowLanBind;
 	const TCHAR* BindAddr = bLan ? TEXT("0.0.0.0") : TEXT("127.0.0.1");
-	if (GConfig)
+	ApplyHttpBindAddress(McpPort, BindAddr);
+
+	// 设置面板改这两项时会弹确认框，但直接改 ini 绕得过去，这里补一道兜底告警
+	if (bLan && !UNexusLinkSettings::IsMcpAuthRequired())
 	{
-		FString CurrentBind;
-		GConfig->GetString(TEXT("HTTPServer.Listeners"), TEXT("DefaultBindAddress"), CurrentBind, GEngineIni);
-		if (!CurrentBind.IsEmpty() && !CurrentBind.Equals(BindAddr, ESearchCase::IgnoreCase))
-		{
-			UE_LOG(LogNexusMcpServer, Warning,
-				TEXT("覆盖 HTTP DefaultBindAddress=%s → %s"), *CurrentBind, BindAddr);
-		}
-		GConfig->SetString(TEXT("HTTPServer.Listeners"), TEXT("DefaultBindAddress"), BindAddr, GEngineIni);
+		UE_LOG(LogNexusMcpServer, Error,
+			TEXT("当前为「局域网绑定 + 关闭鉴权」：同网段任意主机都能无凭证控制本编辑器。")
+			TEXT("请开启 MCP 鉴权或取消局域网绑定，且不要把端口映射到公网"));
 	}
 
 	HttpRouter = FHttpServerModule::Get().GetHttpRouter(static_cast<uint32>(McpPort));
@@ -351,7 +404,7 @@ void FNexusMcpServer::RegisterRoutes()
 
 				TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 				Obj->SetStringField(TEXT("server"), TEXT("Nexus-Unreal"));
-				Obj->SetStringField(TEXT("version"), TEXT("0.0.0"));
+				Obj->SetStringField(TEXT("version"), GetPluginVersionName());
 				Obj->SetStringField(TEXT("engineVersion"),
 					FString::Printf(TEXT("%d.%d"), ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION));
 				Obj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
@@ -435,7 +488,16 @@ bool FNexusMcpServer::StartWebSocket()
 	OnConnected.BindRaw(this, &FNexusMcpServer::OnWebSocketClientConnected);
 
 	const int32 WsPort = WebSocketPort;
-	if (!WebSocketServer->Init(static_cast<uint32>(WsPort), OnConnected))
+	const bool bLan = UNexusLinkSettings::Get() && UNexusLinkSettings::Get()->bAllowLanBind;
+
+#if NX_UE_HAS_WS_BIND_ADDRESS
+	const FString WsBindAddress = bLan ? TEXT("0.0.0.0") : TEXT("127.0.0.1");
+	const bool bWsInited = WebSocketServer->Init(static_cast<uint32>(WsPort), OnConnected, WsBindAddress);
+#else
+	// 5.1 及更早的 Init 不暴露绑定地址，WS 一定绑全部网卡；仅靠首帧 auth 兜底
+	const bool bWsInited = WebSocketServer->Init(static_cast<uint32>(WsPort), OnConnected);
+#endif
+	if (!bWsInited)
 	{
 		UE_LOG(LogNexusMcpServer, Error, TEXT("WebSocket 服务器初始化失败，端口: %d"), WsPort);
 		WebSocketServer.Reset();
@@ -450,7 +512,20 @@ bool FNexusMcpServer::StartWebSocket()
 		FTickerDelegate::CreateRaw(this, &FNexusMcpServer::TickWebSocket), 0.0f);
 #endif
 
-	UE_LOG(LogNexusMcpServer, Log, TEXT("WebSocket 服务器已启动，端口: %d（引擎 Init 不暴露绑定地址；须 WS 首帧 auth）"), WsPort);
+#if NX_UE_HAS_WS_BIND_ADDRESS
+	UE_LOG(LogNexusMcpServer, Log, TEXT("WebSocket 服务器已启动，端口: %d，绑定: %s（须 WS 首帧 auth）"),
+		WsPort, *WsBindAddress);
+#else
+	UE_LOG(LogNexusMcpServer, Log,
+		TEXT("WebSocket 服务器已启动，端口: %d（UE 5.1 及更早的引擎 Init 不支持指定绑定地址，实际绑全部网卡；须 WS 首帧 auth）"),
+		WsPort);
+	if (!UNexusLinkSettings::IsMcpAuthRequired())
+	{
+		UE_LOG(LogNexusMcpServer, Error,
+			TEXT("WebSocket 端口 %d 在本引擎版本必然对局域网可达，而 MCP 鉴权已关闭：")
+			TEXT("同网段任意主机都能无凭证控制本编辑器，请开启 MCP 鉴权"), WsPort);
+	}
+#endif
 	return true;
 }
 
@@ -535,14 +610,29 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 		return;
 	}
 
+	// 与 HTTP 通道同一上限，避免超大帧在 GameThread 上解析
+	if (DataSize > MaxMcpBodyBytes)
+	{
+		UE_LOG(LogNexusMcpServer, Warning, TEXT("WebSocket 帧超过 1MB（%d 字节），已丢弃"), DataSize);
+		SendWsText(ClientWebSocket, MakeJsonRpcError(nullptr, -32600, TEXT("payload_too_large")));
+		return;
+	}
+
 	FUTF8ToTCHAR Converter(reinterpret_cast<const ANSICHAR*>(Data), DataSize);
 	FString JsonLine(Converter.Length(), Converter.Get());
 
 	// 勿在 WebSocket 收包回调里同步执行 tools/call：search_asset 等会阻塞 GameThread 数秒～数十秒，
 	// 同帧内无法继续 TickWebSocket，代理侧长连接易被判定超时/断开。推迟到本帧后续 GameThread 任务执行。
-	AsyncTask(ENamedThreads::GameThread, [this, ClientWebSocket, JsonLine = MoveTemp(JsonLine)]()
+	// 与 HTTP 路径一致用弱引用：任务跨帧执行，期间服务器可能已被停掉/析构
+	const TWeakPtr<FNexusMcpServer> WeakSelf = AsShared();
+	AsyncTask(ENamedThreads::GameThread, [WeakSelf, ClientWebSocket, JsonLine = MoveTemp(JsonLine)]()
 	{
-		if (!ConnectedClients.Contains(ClientWebSocket) || !WsDispatcher.IsValid())
+		const TSharedPtr<FNexusMcpServer> Self = WeakSelf.Pin();
+		if (!Self.IsValid() || !Self->IsRunning())
+		{
+			return;
+		}
+		if (!Self->ConnectedClients.Contains(ClientWebSocket) || !Self->WsDispatcher.IsValid())
 		{
 			return;
 		}
@@ -571,9 +661,9 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 			}
 			// 鉴权关闭时仍接受 auth 并回 ok，兼容误发首帧的中转
 			const FString Extra = UNexusLinkSettings::Get() ? UNexusLinkSettings::Get()->GetExtraMcpAuthTokensText() : FString();
-			if (!bRequireAuth || FNexusMcpAuth::IsTokenAccepted(Presented, AuthToken, Extra))
+			if (!bRequireAuth || FNexusMcpAuth::IsTokenAccepted(Presented, Self->AuthToken, Extra))
 			{
-				AuthenticatedWsClients.Add(ClientWebSocket);
+				Self->AuthenticatedWsClients.Add(ClientWebSocket);
 				TSharedPtr<FJsonObject> Ok = MakeShared<FJsonObject>();
 				Ok->SetBoolField(TEXT("ok"), true);
 				SendWsText(ClientWebSocket, MakeJsonRpcResult(Id, Ok));
@@ -585,19 +675,24 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 			return;
 		}
 
-		if (bRequireAuth && !AuthenticatedWsClients.Contains(ClientWebSocket) && Method != TEXT("ping"))
+		if (bRequireAuth && !Self->AuthenticatedWsClients.Contains(ClientWebSocket) && Method != TEXT("ping"))
 		{
 			SendWsText(ClientWebSocket, MakeJsonRpcError(Id, -32001, TEXT("unauthorized")));
 			return;
 		}
 
 		FString ResponseJson;
-		WsDispatcher->DispatchDirect(JsonLine, [&ResponseJson](const FString& Json)
+		Self->WsDispatcher->DispatchDirect(JsonLine, [&ResponseJson](const FString& Json)
 		{
 			ResponseJson = Json;
 		});
 		SendWsText(ClientWebSocket, ResponseJson);
 	});
+}
+
+void FNexusMcpServer::ResetWsAuthentications()
+{
+	AuthenticatedWsClients.Empty();
 }
 
 void FNexusMcpServer::OnWebSocketClientDisconnected(INetworkingWebSocket* ClientWebSocket)

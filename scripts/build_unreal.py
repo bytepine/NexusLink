@@ -107,6 +107,8 @@ def patch_uplugin(uplugin_path: str, version: str, engine_version: str | None = 
     with open(uplugin_path, encoding="utf-8") as f:
         data = json.load(f)
     data["VersionName"] = version
+    # 正式版不能带 Beta 标记（UE 插件列表会显示 Beta），预发布保留
+    data["IsBetaVersion"] = "-beta" in version
     if engine_version is not None:
         data["EngineVersion"] = engine_version
     modules = data.get("Modules")

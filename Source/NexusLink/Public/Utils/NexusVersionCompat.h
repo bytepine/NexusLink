@@ -39,6 +39,7 @@
 #define NX_UE_HAS_PROGRESS_GET_PERCENT NX_UE_AT_LEAST(5, 1)  // UProgressBar::Percent → GetPercent()
 #define NX_UE_HAS_FTSTICKER_HANDLE     NX_UE_AT_LEAST(5, 0)  // FDelegateHandle → FTSTicker::FDelegateHandle
 #define NX_UE_HAS_HTTP_DELEGATE        NX_UE_AT_LEAST(5, 4)  // FHttpRequestHandler 改为 TDelegate
+#define NX_UE_HAS_WS_BIND_ADDRESS      NX_UE_AT_LEAST(5, 2)  // IWebSocketServer::Init 第三参 BindAddress（5.1 及更早只能绑全部网卡）
 #define NX_UE_HAS_EXPORT_TEXT_DIRECT   NX_UE_AT_LEAST(5, 5)  // ExportTextItem_Direct → ExportText_Direct
 #define NX_UE_HAS_STRUCT_UTILS_HEADER  NX_UE_AT_LEAST(5, 5)  // Engine/UserDefinedStruct.h → StructUtils/
 #define NX_UE_HAS_MATERIAL_EDITOR_ONLY_DATA NX_UE_AT_LEAST(5, 1) // UMaterial::Expressions → GetEditorOnlyData()

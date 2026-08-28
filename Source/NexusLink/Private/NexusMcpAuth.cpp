@@ -8,6 +8,10 @@
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformProcess.h"
 
+#if PLATFORM_MAC || PLATFORM_LINUX
+#include <sys/stat.h>
+#endif
+
 DEFINE_LOG_CATEGORY_STATIC(LogNexusMcpAuth, Log, All);
 
 static bool IsValidAuthToken(const FString& S)
@@ -57,6 +61,14 @@ static FString GetMachineAuthTokenPath()
 	return FPaths::Combine(Base, TEXT("NexusLink"), TEXT("mcp-auth-token"));
 }
 
+// token 是长期凭证，POSIX 上默认 0644 同机其他用户可读，收敛为 0600
+static void RestrictTokenFilePermissions(const FString& Path)
+{
+#if PLATFORM_MAC || PLATFORM_LINUX
+	chmod(TCHAR_TO_UTF8(*Path), S_IRUSR | S_IWUSR);
+#endif
+}
+
 static bool TryReadTokenFile(const FString& Path, FString& OutToken)
 {
 	FString Raw;
@@ -95,21 +107,28 @@ FString FNexusMcpAuth::LoadOrCreateMachineToken(const FString& Seed)
 	PlatformFile.CreateDirectoryTree(*FPaths::GetPath(Path));
 
 	const FString Tmp = Path + FString::Printf(TEXT(".%u.tmp"), FPlatformProcess::GetCurrentProcessId());
-	if (FFileHelper::SaveStringToFile(Token, *Tmp))
+	if (!FFileHelper::SaveStringToFile(Token, *Tmp))
 	{
-		if (!PlatformFile.MoveFile(*Path, *Tmp))
-		{
-			PlatformFile.DeleteFile(*Tmp);
-			FString Winner;
-			if (TryReadTokenFile(Path, Winner))
-			{
-				return Winner;
-			}
-		}
+		// 落盘失败时 token 只存在于本进程内存：每次启动都会变，跨机/跨端配置随之失效
+		UE_LOG(LogNexusMcpAuth, Warning,
+			TEXT("无法写入本机鉴权 token（%s）：本次仅内存有效，重启后 token 会变，跨机配置需重新复制"), *Path);
+		return Token;
 	}
-	else
+
+	RestrictTokenFilePermissions(Tmp);
+
+	if (!PlatformFile.MoveFile(*Path, *Tmp))
 	{
-		UE_LOG(LogNexusMcpAuth, Warning, TEXT("无法写入本机鉴权 token：%s"), *Path);
+		PlatformFile.DeleteFile(*Tmp);
+		// 并发创建时以先落盘者为准
+		FString Winner;
+		if (TryReadTokenFile(Path, Winner))
+		{
+			return Winner;
+		}
+		UE_LOG(LogNexusMcpAuth, Warning,
+			TEXT("无法写入本机鉴权 token（%s）：本次仅内存有效，重启后 token 会变，跨机配置需重新复制"), *Path);
+		return Token;
 	}
 
 	UE_LOG(LogNexusMcpAuth, Log, TEXT("本机鉴权 token 已就绪：%s"), *Path);
@@ -132,8 +151,13 @@ static bool TokensEqual(const FString& A, const FString& B)
 
 void FNexusMcpAuth::ParseAuthTokens(const FString& Raw, TArray<FString>& Out)
 {
+	// 不能用 ParseIntoArrayWS(TEXT(",;"))：其 extra delim 是「单个分隔串」而非字符集，
+	// 只会拆字面 ",;"，单独的逗号/分号不生效。
+	static const TCHAR* const Delims[] = {
+		TEXT(" "), TEXT("\t"), TEXT("\r"), TEXT("\n"), TEXT(","), TEXT(";"),
+	};
 	TArray<FString> Parts;
-	Raw.ParseIntoArrayWS(Parts, TEXT(",;"), true);
+	Raw.ParseIntoArray(Parts, Delims, UE_ARRAY_COUNT(Delims), true);
 	for (const FString& Part : Parts)
 	{
 		FString T = Part;
