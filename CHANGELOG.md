@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-08-31
+
 ### Added
 
 - feat(mcp): Capability 覆盖扩展（→221）——新领域 StringTable / Font / FoliageType / FileMediaSource（`mediaPath`，禁止旧键 `filePath`）、GAS `GameplayCueNotify_Static`、Paper2D Sprite/Flipbook/TileMap、GeometryCollection、CommonButtonStyle/CommonTextStyle、MoviePipeline config；写路径与工厂：MaterialFunction 写图、WBP 动画轨/key、ABP AnimGraph、Niagara Emitter CRUD、StateTree task/transition、LevelSequence possessable/track/key + `create_asset_level_sequence`、`manage_asset_view_model`、IK/`create_asset_ik_retargeter`、蓝图 macro/timeline/dispatcher、`control_pie` pause/resume/step、ComboBox/ListView、PCG `remove_edge`、`create_asset_sound_cue`/`physical_material`/`level`/`niagara_system`/`state_tree`、GAS give/cue/loose tag、`interact_runtime_actor_{audio,niagara,ai}`、`manage_asset_lua_binding`、ControlRig add_control/bone；闭环 create：`create_asset_sound_submix` / `create_asset_font` / `create_asset_pose_search`（Database|Schema，UE5.4+）。不含 Landscape 雕刻、Niagara 模块图、Able、关卡刷草
@@ -65,7 +67,7 @@
 - fix(mcp): `relatedCapabilities` 运行期只保留当前宿主已注册且已启用的名（`search_capabilities` / MultiTool `[see:]`）；握手路由改为「插件门控」——GAS/Niagara/StateTree 等 `not_found` 即跳过
 - fix(mcp): AnimGraph 解析只剥 `UAnimGraphNode_`/`AnimGraphNode_` 前缀（禁止全局删字母 U）；`add_interface`/`remove_interface` 补 Action 守卫，避免拦住 `add_node`/`add_component`
 - fix(compat): DataLayer create/get/manage 在 `!NX_UE_HAS_DATA_LAYER_ASSET` stub 补 Schema/ResultBuilder include（UE4.26 unity 编序）
-- fix(compat): 跨版本编译——`SetPIEWorldsPaused` 仅 UE5+；Widget 动画直写 `MovieScene`；MovieScene 5.2+ 用 `AddTrack`/`GetTracks`；蓝图接口走 `FTopLevelAssetPath`；5.8 Editor `SetSourceString` 三参；补 `StaticMesh`/`World`/`Package` 头文件；`GameplayCueName` 全版本为 `FName`；Niagara `SetIsEnabled`/`SetName` 需传入 System；5.1+ `AddEmitterHandle` 第三参 VersionGuid（`NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION`）；UE5.0 `Build.cs` 不用 `Regex`（UBT 无 `System.Text.RegularExpressions`）；5.6+ `promote_pin` `PerformAction` 走 `FVector2f`；5.7+ StaticMesh `SetCustomizedCollision` / `SetAutoComputeLODScreenSize`
+- fix(compat): 跨版本编译——`SetPIEWorldsPaused` 仅 UE5+；Widget 动画直写 `MovieScene`；MovieScene 5.2+ 用 `AddTrack`/`GetTracks`；蓝图接口走 `FTopLevelAssetPath`；5.8 Editor `SetSourceString` 三参；补 `StaticMesh`/`World`/`Package` 头文件；`GameplayCueName` 全版本为 `FName`；Niagara `SetIsEnabled`/`SetName` 需传入 System；5.1+ `AddEmitterHandle` 第三参 VersionGuid（`NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION`）；UE5.0 `Build.cs` 不用 `Regex`（UBT 无 `System.Text.RegularExpressions`）；5.6+ `promote_pin` `PerformAction` 走 `FVector2f`；5.7+ StaticMesh `SetCustomizedCollision` / `SetAutoComputeLODScreenSize`；HTTP listener 热切换改 `NX_UE_HAS_TS_ON_CONFIG_SECTIONS_CHANGED`（`FCoreDelegates::TSOnConfigSectionsChanged`，UE 5.2+），业务源码不再写 `NX_UE_AT_LEAST`
 - fix(compat): `REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 在 `!WITH_EDITOR` 下编译为空；`RegisterTool` 静态初始化期禁止 `UE_LOG`（缓存到 `GetPendingWarnings()`，`StartupModule` 再打），避免 iOS 等平台启动 `EXC_BAD_ACCESS`
 - fix(plugin): `NexusLink.uplugin` 同时声明 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）——UE4 忽略前者，否则模块会链进移动端客户端
 - docs: 参数说明短语部分命中后继续 glossary，避免中英混杂；`param_text` 仅保留自动翻译覆盖不了的条目

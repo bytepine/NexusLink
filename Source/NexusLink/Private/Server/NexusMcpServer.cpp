@@ -72,7 +72,7 @@ static void ApplyHttpBindAddress(int32 Port, const TCHAR* BindAddr)
 	Overrides.Add(FString::Printf(TEXT("(Port=%d,BindAddress=%s)"), Port, BindAddr));
 	GConfig->SetArray(*Section, TEXT("ListenerOverrides"), Overrides, GEngineIni);
 
-#if NX_UE_AT_LEAST(5, 2)
+#if NX_UE_HAS_TS_ON_CONFIG_SECTIONS_CHANGED
 	// UE 5.8 起 FHttpServerConfig 缓存 listener 配置，只有该委托能让缓存失效；
 	// 否则进程内第一次监听的地址会锁定整个会话，热切换局域网绑定不生效。
 	FCoreDelegates::TSOnConfigSectionsChanged().Broadcast(GEngineIni, TSet<FString>{ Section });

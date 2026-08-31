@@ -29,6 +29,7 @@
 | `NX_UE_HAS_SCOPED_MATERIAL_DOMAIN` | 5.2 | 与 `MATERIAL_DOMAIN_HEADER` 同门槛（历史别名；枚举值仍为 `MD_*`） |
 | `NX_UE_HAS_MATERIAL_DOMAIN_HEADER` | 5.2 | `EMaterialDomain` 移至独立 `MaterialDomain.h`（5.1 及更早由 `Material.h` 完整提供） |
 | `NX_UE_HAS_SKELETAL_MATERIAL_COMMON_HEADER` | 5.2 | `FSkeletalMaterial` 完整定义在 `SkinnedAssetCommon.h`；5.2+ `SkeletalMesh.h` 仅前向声明 |
+| `NX_UE_HAS_TS_ON_CONFIG_SECTIONS_CHANGED` | 5.2 | `FCoreDelegates::TSOnConfigSectionsChanged`，使 `FHttpServerConfig` 监听缓存失效（热切换 LAN 绑定） |
 | `NX_UE_HAS_HTTP_DELEGATE` | 5.4 | `FHttpRequestHandler` 改为 `TDelegate` |
 | `NX_UE_HAS_EXPORT_TEXT_DIRECT` | 5.5 | `ExportTextItem_Direct` → `ExportText_Direct` |
 | `NX_UE_HAS_STRUCT_UTILS_HEADER` | 5.5 | `Engine/UserDefinedStruct.h` → `StructUtils/` |
