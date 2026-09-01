@@ -13,7 +13,8 @@ struct FNexusLanIPv4
 
 struct FNexusLanHost
 {
-	static constexpr TCHAR Loopback[] = TEXT("127.0.0.1");
+	/** C++14 下 constexpr 数组 ODR-use 需类外定义；Clang/ld（Mac）会报 Undefined symbols，MSVC 常放过。 */
+	static const TCHAR* Loopback;
 
 	/** 列出可写入跨机 url 的网卡 IPv4。 */
 	static TArray<FNexusLanIPv4> ListLanIPv4();

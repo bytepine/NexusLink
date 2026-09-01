@@ -2,6 +2,8 @@
 
 #include "NexusLanHost.h"
 
+const TCHAR* FNexusLanHost::Loopback = TEXT("127.0.0.1");
+
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <winsock2.h>
