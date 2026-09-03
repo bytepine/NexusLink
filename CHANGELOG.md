@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-09-03
+
 ### Fixed
 
 - fix(compat): Mac Clang 链接 `FNexusLanHost::Loopback` 未定义——`static constexpr TCHAR[]` 在 C++14 被 ODR-use 时需类外定义，改为 `.cpp` 中的 `const TCHAR*`
