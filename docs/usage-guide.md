@@ -337,3 +337,7 @@ Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性�
 ### 修改了属性但 UE 中没有生效 / 磁盘未变化
 
 `set_*_property` 改的是内存；须 `save_asset` 或 manage 传 `saveToDisk=true`。BP/ABP/WBP 可再传 `compile=true`。
+
+### MCP 搜不到 GAS / Niagara 等能力
+
+这些 Capability 在编译期按磁盘 `.uplugin` 探测（`WITH_GAS` 等），**不会**在插件浏览器里给 NexusLink 加依赖。自定义引擎若不在工程兄弟目录 `Engine/`，旧版会 miss；当前版本用 UBT 正在编译的引擎目录自动找 `Engine/Plugins`。确认：重编后 `Intermediate/.../Definitions.NexusLink.h` 中对应 `WITH_*` 为 `1`，并重启编辑器。`.uproject` 对该插件显式 `Enabled: false` 仍会关掉。环境变量 `WITH_GAS=1` / `=0` 可强制开/关。

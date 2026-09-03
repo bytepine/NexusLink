@@ -8,6 +8,7 @@
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
 #include "PaperSprite.h"
+#include "SpriteEditorOnlyTypes.h"
 #include "Engine/Texture2D.h"
 #include "NexusMcpTool.h"
 
@@ -49,7 +50,9 @@ FCapabilityResult FCreateAssetPaperSpriteCapability::Execute(const TSharedPtr<FJ
 		{
 			if (UTexture2D* Tex = FNexusAssetUtils::LoadAssetWithFallback<UTexture2D>(TexPath))
 			{
-				Sprite->SetSourceTexture(Tex);
+				FSpriteAssetInitParameters Init;
+				Init.SetTextureAndFill(Tex);
+				Sprite->InitializeSprite(Init);
 			}
 		}
 		FNexusAssetUtils::NotifyAndSaveCreated(Sprite->GetOutermost(), Sprite, AssetPath);

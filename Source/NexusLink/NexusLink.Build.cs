@@ -47,7 +47,7 @@ public class NexusLink : ModuleRules
 		}
 
 		string ProjectRoot = FindProjectRoot(ModuleDirectory);
-		var SearchDirs = CollectPluginSearchDirs(ProjectRoot);
+		var SearchDirs = CollectPluginSearchDirs(ProjectRoot, this);
 
 		// 可选插件表（顺序与旧版一致）
 		bool bHasUnLua = false;
@@ -174,23 +174,25 @@ public class NexusLink : ModuleRules
 		return null;
 	}
 
-	private static List<string> CollectPluginSearchDirs(string projectRoot)
+	private static List<string> CollectPluginSearchDirs(string projectRoot, ModuleRules Module)
 	{
 		var dirs = new List<string>();
+		var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
 		if (projectRoot != null)
 		{
-			string pp = System.IO.Path.Combine(projectRoot, "Plugins");
-			if (System.IO.Directory.Exists(pp)) dirs.Add(pp);
-			string ep = System.IO.Path.GetFullPath(System.IO.Path.Combine(projectRoot, "..", "Engine", "Plugins"));
-			if (System.IO.Directory.Exists(ep)) dirs.Add(ep);
+			TryAddSearchDir(System.IO.Path.Combine(projectRoot, "Plugins"), seen, dirs);
+			TryAddSearchDir(System.IO.Path.GetFullPath(System.IO.Path.Combine(projectRoot, "..", "Engine", "Plugins")), seen, dirs);
 		}
-		string eng = System.Environment.GetEnvironmentVariable("UE_ENGINE_DIRECTORY");
-		if (!string.IsNullOrEmpty(eng))
-		{
-			string ep = System.IO.Path.Combine(eng, "Plugins");
-			if (System.IO.Directory.Exists(ep)) dirs.Add(ep);
-		}
+		foreach (string eng in ResolveEngineDirectoryCandidates(Module))
+			TryAddSearchDir(System.IO.Path.Combine(eng, "Plugins"), seen, dirs);
 		return dirs;
+	}
+
+	private static void TryAddSearchDir(string dir, HashSet<string> seen, List<string> dirs)
+	{
+		if (string.IsNullOrEmpty(dir) || !System.IO.Directory.Exists(dir)) return;
+		try { dir = System.IO.Path.GetFullPath(dir); } catch (System.Exception) { return; }
+		if (seen.Add(dir)) dirs.Add(dir);
 	}
 
 	private static bool DetectAnyEnginePlugin(List<string> dirs, string[] names)
@@ -276,6 +278,20 @@ public class NexusLink : ModuleRules
 			{
 				bool st = p.GetGetMethod().IsStatic;
 				TryAddEngineDirectory(st ? p.GetValue(null) as string : p.GetValue(Module) as string, seen, list);
+			}
+		}
+		catch { }
+		try
+		{
+			// UE4 UBT：静态 UnrealBuildTool.EngineDirectory（自定义引擎 / 无 ModuleRules.EngineDirectory 时也能定位）
+			var ubt = typeof(ModuleRules).Assembly.GetType("UnrealBuildTool.UnrealBuildTool");
+			var f = ubt != null ? ubt.GetField("EngineDirectory",
+				System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static) : null;
+			object v = f != null ? f.GetValue(null) : null;
+			if (v != null)
+			{
+				var fn = v.GetType().GetProperty("FullName");
+				TryAddEngineDirectory(fn != null ? fn.GetValue(v) as string : v.ToString(), seen, list);
 			}
 		}
 		catch { }

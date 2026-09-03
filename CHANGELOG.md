@@ -10,6 +10,7 @@
 ### Fixed
 
 - fix(compat): Mac Clang 链接 `FNexusLanHost::Loopback` 未定义——`static constexpr TCHAR[]` 在 C++14 被 ODR-use 时需类外定义，改为 `.cpp` 中的 `const TCHAR*`
+- fix(plugin): 自定义引擎不在 `{Project}/../Engine` 时可选插件探测失败（GAS/Niagara 等 `WITH_*=0`，MCP 无对应 Capability）——`CollectPluginSearchDirs` 改用 UBT `EngineDirectory`；因此编进 Paper2D 后，`manage`/`create` 改走 `FScopedFlipbookMutator` / `InitializeSprite` / `SetPivotMode`（4.26 无 `SetSourceTexture`/`SetFramesPerSecond`）
 
 ## [2.0.0] - 2026-08-31
 

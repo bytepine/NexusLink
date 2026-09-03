@@ -69,9 +69,12 @@ static void HandleFlip_AddKey(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	{
 		Kf.Sprite = FNexusAssetUtils::LoadAssetWithFallback<UPaperSprite>(SpritePath);
 	}
-	Book->KeyFrames.Add(Kf);
+	{
+		FScopedFlipbookMutator Mut(Book);
+		Mut.KeyFrames.Add(Kf);
+	}
 	MarkFlipDirty(Ctx);
-	Ctx.Entry->SetNumberField(TEXT("keyCount"), Book->KeyFrames.Num());
+	Ctx.Entry->SetNumberField(TEXT("keyCount"), Book->GetNumKeyFrames());
 }
 
 static void HandleFlip_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -83,14 +86,17 @@ static void HandleFlip_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		return;
 	}
 	const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("keyIndex")));
-	if (!Book->KeyFrames.IsValidIndex(Idx))
+	if (!Book->IsValidKeyFrameIndex(Idx))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("keyIndex out of bounds"));
 		return;
 	}
-	Book->KeyFrames.RemoveAt(Idx);
+	{
+		FScopedFlipbookMutator Mut(Book);
+		Mut.KeyFrames.RemoveAt(Idx);
+	}
 	MarkFlipDirty(Ctx);
-	Ctx.Entry->SetNumberField(TEXT("keyCount"), Book->KeyFrames.Num());
+	Ctx.Entry->SetNumberField(TEXT("keyCount"), Book->GetNumKeyFrames());
 }
 
 static void HandleFlip_SetFPS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -101,7 +107,10 @@ static void HandleFlip_SetFPS(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_frames_per_second requires framesPerSecond"));
 		return;
 	}
-	Book->SetFramesPerSecond(static_cast<float>(Op->GetNumberField(TEXT("framesPerSecond"))));
+	{
+		FScopedFlipbookMutator Mut(Book);
+		Mut.FramesPerSecond = static_cast<float>(Op->GetNumberField(TEXT("framesPerSecond")));
+	}
 	MarkFlipDirty(Ctx);
 	Ctx.Entry->SetNumberField(TEXT("framesPerSecond"), Book->GetFramesPerSecond());
 }

@@ -366,7 +366,7 @@ public:
 3. 逻辑下沉 Utils（≥2 调用点或单点 ≥3 行 `#if`）；资产只读字段优先 `FNexusAssetUtils`。
 4. `build_test`：`UE_4.26` 必过；触及引擎 API 时加 `UE_5.0`、`UE_5.6`；`audit_capability_naming.py` PASS。
 
-**可选插件**：`WITH_GAS` / `WITH_NIAGARA` / `WITH_UNLUA` / `WITH_STATETREE` / `WITH_MVVM` 整 `.cpp` 文件守卫 + `Build.cs` 探测；文件内仍禁止裸 `NX_UE_AT_LEAST`。
+**可选插件**：`WITH_GAS` / `WITH_NIAGARA` / `WITH_UNLUA` / `WITH_STATETREE` / `WITH_MVVM` 整 `.cpp` 文件守卫 + `Build.cs` 探测（工程 `Plugins`、`{Project}/../Engine/Plugins`、以及 UBT `EngineDirectory` 下的 `Plugins`；`.uproject` 显式 `Enabled: false` 则关）；文件内仍禁止裸 `NX_UE_AT_LEAST`。
 
 **已登记宏（节选，完整列表以 `NexusVersionCompat.h` 为准）**
 

@@ -7,6 +7,7 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusArgs.h"
 #include "PaperSprite.h"
+#include "SpriteEditorOnlyTypes.h"
 #include "Engine/Texture2D.h"
 #include "NexusMcpTool.h"
 
@@ -72,7 +73,9 @@ static void HandleSprite_SetSource(const TSharedPtr<FJsonObject>& Op, FNexusActi
 		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Texture2D not found: %s"), *TexPath));
 		return;
 	}
-	Sprite->SetSourceTexture(Tex);
+	FSpriteAssetInitParameters Init;
+	Init.SetTextureAndFill(Tex);
+	Sprite->InitializeSprite(Init);
 	MarkSpriteDirty(Ctx);
 	Ctx.Entry->SetStringField(TEXT("sourceTexture"), Tex->GetPathName());
 }
@@ -83,7 +86,7 @@ static void HandleSprite_SetPivot(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	FVector2D Pivot = Sprite->GetPivotPosition();
 	if (Op->HasField(TEXT("pivotX"))) Pivot.X = static_cast<float>(Op->GetNumberField(TEXT("pivotX")));
 	if (Op->HasField(TEXT("pivotY"))) Pivot.Y = static_cast<float>(Op->GetNumberField(TEXT("pivotY")));
-	Sprite->SetPivotPosition(Pivot);
+	Sprite->SetPivotMode(ESpritePivotMode::Custom, Pivot, true);
 	MarkSpriteDirty(Ctx);
 	Ctx.Entry->SetNumberField(TEXT("pivotX"), Pivot.X);
 	Ctx.Entry->SetNumberField(TEXT("pivotY"), Pivot.Y);

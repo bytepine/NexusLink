@@ -109,6 +109,21 @@ public class NexusLinkTests : ModuleRules
 		}
 		catch { /* 属性不存在或访问失败时继续 */ }
 
+		try
+		{
+			// UE4 UBT：静态 UnrealBuildTool.EngineDirectory（自定义引擎 / 无 ModuleRules.EngineDirectory 时也能定位）
+			var ubt = typeof(ModuleRules).Assembly.GetType("UnrealBuildTool.UnrealBuildTool");
+			var f = ubt != null ? ubt.GetField("EngineDirectory",
+				System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static) : null;
+			object v = f != null ? f.GetValue(null) : null;
+			if (v != null)
+			{
+				var fn = v.GetType().GetProperty("FullName");
+				TryAddEngineDirectory(fn != null ? fn.GetValue(v) as string : v.ToString(), seen, list);
+			}
+		}
+		catch { }
+
 		TryAddEngineDirectory(System.Environment.GetEnvironmentVariable("UE_ENGINE_DIRECTORY"), seen, list);
 		TryAddEngineDirectory(System.Environment.GetEnvironmentVariable("UE4_ROOT"), seen, list);
 		TryAddEngineDirectory(System.Environment.GetEnvironmentVariable("UNREAL_ENGINE_PATH"), seen, list);
