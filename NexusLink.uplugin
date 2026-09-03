@@ -47,6 +47,86 @@
 		{
 			"Name": "WebSocketNetworking",
 			"Enabled": true
+		},
+		{
+			"Name": "UnLua",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "GameplayAbilities",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "Niagara",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "StateTree",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "ModelViewViewModel",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "EnhancedInput",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "ControlRig",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "IKRig",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "Metasound",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "PCG",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "PoseSearch",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "Paper2D",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "GeometryCollectionPlugin",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "GeometryCollectionEngine",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "CommonUI",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "MovieRenderPipeline",
+			"Enabled": false,
+			"Optional": true
 		}
 	]
 }

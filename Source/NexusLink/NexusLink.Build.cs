@@ -118,9 +118,92 @@ public class NexusLink : ModuleRules
 			if (C.RuntimeModules != null) PrivateDependencyModuleNames.AddRange(C.RuntimeModules);
 			if (Target.bBuildEditor && C.EditorModules != null) PrivateDependencyModuleNames.AddRange(C.EditorModules);
 			PublicDefinitions.Add(C.Define + "=1");
+			foreach (string file in C.UpluginFiles)
+				MarkOptionalPluginLinked(this, System.IO.Path.GetFileNameWithoutExtension(file));
 		}
 		else PublicDefinitions.Add(C.Define + "=0");
 		return on;
+	}
+
+	/// <summary>
+	/// 磁盘 .uplugin 保持 Enabled:false，不强制启用宿主插件。
+	/// UBT 在 ModuleRules 构造之后才根据 Descriptor.Plugins 建依赖；此处把实际链接的项改成 Enabled:true，消除「未声明插件依赖」警告。
+	/// </summary>
+	private static void MarkOptionalPluginLinked(ModuleRules Module, string pluginName)
+	{
+		if (string.IsNullOrEmpty(pluginName)) return;
+		try
+		{
+			var pluginField = typeof(ModuleRules).GetField("Plugin",
+				System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+			object pluginInfo = pluginField != null ? pluginField.GetValue(Module) : null;
+			if (pluginInfo != null)
+			{
+				object descriptor = pluginInfo.GetType().GetField("Descriptor") != null
+					? pluginInfo.GetType().GetField("Descriptor").GetValue(pluginInfo)
+					: pluginInfo.GetType().GetProperty("Descriptor").GetValue(pluginInfo);
+				if (descriptor != null)
+				{
+					var pluginsField = descriptor.GetType().GetField("Plugins");
+					object pluginsObj = pluginsField != null ? pluginsField.GetValue(descriptor) : null;
+					if (pluginsObj == null)
+					{
+						pluginsObj = new List<PluginReferenceDescriptor>();
+						pluginsField.SetValue(descriptor, pluginsObj);
+					}
+					var plugins = pluginsObj as System.Collections.IList;
+					if (plugins != null)
+					{
+						bool found = false;
+						foreach (object entry in plugins)
+						{
+							if (entry == null) continue;
+							var nameProp = entry.GetType().GetField("Name");
+							string n = nameProp != null ? nameProp.GetValue(entry) as string : null;
+							if (!string.Equals(n, pluginName, System.StringComparison.OrdinalIgnoreCase)) continue;
+							var en = entry.GetType().GetField("bEnabled");
+							if (en != null) en.SetValue(entry, true);
+							var opt = entry.GetType().GetField("bOptional");
+							if (opt != null) opt.SetValue(entry, true);
+							found = true;
+							break;
+						}
+						if (!found)
+						{
+							var added = new PluginReferenceDescriptor(pluginName, null, true);
+							added.bOptional = true;
+							plugins.Add(added);
+						}
+					}
+				}
+			}
+		}
+		catch { }
+
+		try
+		{
+			object inner = Module.Target;
+			var innerField = Module.Target.GetType().GetField("Inner",
+				System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+			if (innerField != null)
+			{
+				object v = innerField.GetValue(Module.Target);
+				if (v != null) inner = v;
+			}
+			var listField = inner.GetType().GetField("InternalPluginDependencies");
+			object listObj = listField != null ? listField.GetValue(inner) : null;
+			var list = listObj as System.Collections.IList;
+			if (list != null)
+			{
+				bool has = false;
+				foreach (object x in list)
+				{
+					if (string.Equals(x as string, pluginName, System.StringComparison.OrdinalIgnoreCase)) { has = true; break; }
+				}
+				if (!has) list.Add(pluginName);
+			}
+		}
+		catch { }
 	}
 
 	/// <summary>UnLua 主版本号（VersionName 首位数字）。</summary>
