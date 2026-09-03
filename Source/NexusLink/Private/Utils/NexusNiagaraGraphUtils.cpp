@@ -87,8 +87,10 @@ static void EnsureOutputChain(UNiagaraGraph* Graph, ENiagaraScriptUsage Usage, c
 static void BindScriptSource(UNiagaraScript* Script, UNiagaraScriptSource* Source)
 {
 	if (!Script || !Source) return;
-#if NX_UE_HAS_NIAGARA_VERSIONED_EMITTER
+#if NX_UE_HAS_NIAGARA_SCRIPT_SET_LATEST_SOURCE
 	Script->SetLatestSource(Source);
+#elif NX_UE_HAS_NIAGARA_SCRIPT_SET_SOURCE_GUID
+	Script->SetSource(Source, FGuid());
 #else
 	Script->SetSource(Source);
 #endif

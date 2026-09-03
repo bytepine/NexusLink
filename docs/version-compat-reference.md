@@ -51,6 +51,8 @@
 | `NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS` | `!5.2` | 5.2 前 `GetMasterTracks`/`AddMasterTrack`；5.2+ `GetTracks`/`AddTrack`（5.5 起旧 API 删除） |
 | `NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION` | 5.1 | `AddEmitterHandle` 第三参 `FGuid EmitterVersion`（空 Guid = 暴露版本） |
 | `NX_UE_HAS_NIAGARA_VERSIONED_EMITTER` | 5.1 | 发射器 `GraphSource`/脚本属性迁入 `FVersionedNiagaraEmitterData`；`SetSource` → `SetLatestSource` |
+| `NX_UE_HAS_NIAGARA_SCRIPT_SET_LATEST_SOURCE` | 5.0 | `UNiagaraScript::SetLatestSource` |
+| `NX_UE_HAS_NIAGARA_SCRIPT_SET_SOURCE_GUID` | 4.27（仅） | `UNiagaraScript::SetSource(Source, VersionGuid)` |
 
 ## UnLua 兼容宏
 
