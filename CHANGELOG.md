@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-09-04
+
 ### Fixed
 
 - fix(mcp): `search_capabilities` 反馈噪音与 schema 缺口——`search_overflow` 改为仅在结果真被截断（`TotalBeforeTrunc > MaxSearchResults`）时才记录，此前阈值低于返回上限导致 6–8 条完整结果也被误报；`ExtractParameters` 补齐数组参数的 `items.enum`（保留 `type: array`，不复用标量的 `AppendEnumField`），修复 `get_asset_blueprint` 等 11 个 MultiSection cap 的 `sections[]` 无枚举值问题；索引降噪——`CategoryTags` 只保留 `editor`（`blueprint`/`material`/`widget`/`struct`/`data`/`runtime` 与 cap 名 token 重复，注入反而扩大 `blueprint` 之类宽词命中面）；`manage_asset_gameplay_ability` 补复数 `tags` 关键词（原单数 `tag` 匹配不到 query token `tags`）；`get_gameplay_tags` 关键词去掉易误导的 `query`；文档/描述示例 `blueprint graph` → `blueprint variable`（前者更易触发 overflow）
