@@ -44,7 +44,9 @@ void FManageAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefi
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
-	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("ability"), TEXT("gameplay"), TEXT("ga"), TEXT("tag"), TEXT("policy"), TEXT("cost") };
+	// 补复数 "tags"：ScoreToken 的 prefix/substring 匹配都要求关键词长度 >= 查询 token 长度，
+	// 单数 "tag" 匹配不到查询 token "tags"（如 query="gameplay tags"）
+	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("ability"), TEXT("gameplay"), TEXT("ga"), TEXT("tag"), TEXT("tags"), TEXT("policy"), TEXT("cost") };
 	Out.RelatedCapabilities = { TEXT("get_asset_gameplay_ability"), TEXT("save_asset"), TEXT("manage_asset_blueprint") };
 	Out.WhenToUse = TEXT("CDO semantic fields; AbilityTask/logic graph via manage_asset_blueprint");
 }

@@ -59,7 +59,9 @@ void FGetGameplayTagsCapability::BuildDefinition(FNexusCapabilityDefinition& Out
 	Out.Description = TEXT("Query Tag tree/Actor/asset/referencers. sections includes referencers.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("hierarchy"), TEXT("container"), TEXT("query"), TEXT("gas"), TEXT("actor") };
+	// "query" 不是本 cap 的参数（易误导 Agent 照抄传参），去掉；name 已含 token "tags"
+	// （get_gameplay_tags 拆词），补单数 tag / 缩写 gtag 覆盖更多口语查询
+	Out.ExtraSearchKeywords = { TEXT("hierarchy"), TEXT("container"), TEXT("gas"), TEXT("actor"), TEXT("tag"), TEXT("gtag") };
 	Out.RelatedCapabilities = { TEXT("get_runtime_actor_property") };
 }
 

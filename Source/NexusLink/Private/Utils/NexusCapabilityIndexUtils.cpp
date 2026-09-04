@@ -40,6 +40,23 @@ static void AppendEnumField(const TSharedPtr<FJsonObject>& PropDef, TSharedPtr<F
 	Param->SetArrayField(TEXT("enum"), *EnumArr);
 }
 
+// 数组参数的 enum 挂在 items.enum 下（见 FNexusSchema::EnumArr，如 sections[]）；
+// 不能复用 AppendEnumField——那会把 type 硬改成 "string (enum)"，掩盖数组类型
+static void AppendArrayItemEnumField(const TSharedPtr<FJsonObject>& PropDef, TSharedPtr<FJsonObject>& Param)
+{
+	const TSharedPtr<FJsonObject>* ItemsObj = nullptr;
+	if (!PropDef.IsValid() || !PropDef->TryGetObjectField(TEXT("items"), ItemsObj) || !ItemsObj || !ItemsObj->IsValid())
+	{
+		return;
+	}
+	const TArray<TSharedPtr<FJsonValue>>* EnumArr = nullptr;
+	if (!(*ItemsObj)->TryGetArrayField(TEXT("enum"), EnumArr) || !EnumArr)
+	{
+		return;
+	}
+	Param->SetArrayField(TEXT("enum"), *EnumArr);
+}
+
 static void AppendParamFromProp(const FString& QualifiedName, const TSharedPtr<FJsonObject>& PropDef,
 	                              bool bRequired, TArray<TSharedPtr<FJsonValue>>& OutParams)
 {
@@ -67,7 +84,14 @@ static void AppendParamFromProp(const FString& QualifiedName, const TSharedPtr<F
 		Param->SetStringField(TEXT("description"), Desc);
 	}
 
-	AppendEnumField(PropDef, Param);
+	if (Type == TEXT("array"))
+	{
+		AppendArrayItemEnumField(PropDef, Param);
+	}
+	else
+	{
+		AppendEnumField(PropDef, Param);
+	}
 	OutParams.Add(MakeShared<FJsonValueObject>(Param));
 }
 

@@ -2766,8 +2766,8 @@
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
 | `mode` | `string (enum)` |  | 模式（见各 cap 的枚举说明） 枚举: `auto` / `schema` / `rows` |
-| `rowNames` | `string[]` |  | 行名 (rows mode or auto with non-empty rowNames) |
-| `nameFilter` | `string` |  | 行名过滤（/regex/ ^前缀 后缀$） |
+| `rowNames` | `string[]` |  | 行名 (rows mode or auto with non-empty rowNames); paginated by offset/limit |
+| `nameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `propertyPaths` | `string[]` |  | 反射属性路径（点分，如 `Health` / `Mesh.RelativeLocation`） |
 | `offset` | `integer` |  | 分页偏移 |
 | `limit` | `integer` |  | 每页最大行数 |

@@ -57,10 +57,10 @@ void FGetAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition& O
 	Out.Description = TEXT("Inspect DataTable rows or schema. mode=schema|rows; optional propertyPaths.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataTable asset path")))
-		.Prop(TEXT("mode"),       FNexusSchema::Enum(TEXT("auto: rows if rowNames non-empty else schema; schema ignores rowNames; rows requires rowNames"),
+		.Prop(TEXT("mode"),       FNexusSchema::Enum(TEXT("auto: rows if rowNames non-empty else schema; schema ignores rowNames/nameFilter for row export; rows requires rowNames or nameFilter"),
 			{ TEXT("auto"), TEXT("schema"), TEXT("rows") }, TEXT("auto")))
-		.Prop(TEXT("rowNames"),   FNexusSchema::StrArr(TEXT("Row name (rows mode or auto with non-empty rowNames)")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Row name filter (/regex/ ^prefix suffix$)")))
+		.Prop(TEXT("rowNames"),   FNexusSchema::StrArr(TEXT("Row name (rows mode or auto with non-empty rowNames); paginated by offset/limit")))
+		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Row name filter (/regex/ ^prefix suffix$); in mode=rows without rowNames, resolves+exports matching rows (paginated)")))
 		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Column/field filter (first segment); schema list and row export")))
 		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
 		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max rows per page"), 100, 1, 500))
@@ -98,18 +98,44 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 		FString Mode = TEXT("auto");
 		if (Arguments->HasField(TEXT("mode"))) Mode = A.Str(TEXT("mode")).ToLower();
 
+		TArray<FString> RowNames;
 		const TArray<TSharedPtr<FJsonValue>>* RowNamesArr = nullptr;
-		const bool bRowNamesPresent = Arguments->TryGetArrayField(TEXT("rowNames"), RowNamesArr) && RowNamesArr;
-		const bool bRowNamesNonEmpty = bRowNamesPresent && RowNamesArr->Num() > 0;
+		if (Arguments->TryGetArrayField(TEXT("rowNames"), RowNamesArr) && RowNamesArr)
+		{
+			for (const TSharedPtr<FJsonValue>& V : *RowNamesArr)
+			{
+				FString S;
+				if (V.IsValid() && V->TryGetString(S) && !S.IsEmpty()) RowNames.Add(S);
+			}
+		}
+		const bool bRowNamesNonEmpty = RowNames.Num() > 0;
+
+		FString NameFilter;
+		if (Arguments->HasField(TEXT("nameFilter"))) NameFilter = A.Str(TEXT("nameFilter"));
+		const bool bNameFilterNonEmpty = !NameFilter.IsEmpty();
+
+		int32 Offset = 0;
+		int32 Limit  = 100;
+		if (Arguments->HasField(TEXT("offset"))) Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
+		if (Arguments->HasField(TEXT("limit")))  Limit  = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
 
 		bool bUseRowMode = false;
 		if (Mode == TEXT("rows"))
 		{
-			if (!bRowNamesNonEmpty) { OutError = TEXT("mode=rows requires non-empty rowNames"); return; }
+			// rowNames 或 nameFilter 任一非空即可；nameFilter 单独出现时按过滤条件解出行名
+			if (!bRowNamesNonEmpty && !bNameFilterNonEmpty)
+			{
+				OutError = TEXT("mode=rows requires rowNames or nameFilter");
+				return;
+			}
 			bUseRowMode = true;
 		}
 		else if (Mode == TEXT("schema")) { bUseRowMode = false; }
-		else if (Mode == TEXT("auto") || Mode.IsEmpty()) { bUseRowMode = bRowNamesNonEmpty; }
+		else if (Mode == TEXT("auto") || Mode.IsEmpty())
+		{
+			// auto 语义不变：仅显式 rowNames 非空才导出整行值；单独 nameFilter 仍走下方 schema 分页行名（更省 token）
+			bUseRowMode = bRowNamesNonEmpty;
+		}
 		else { OutError = FString::Printf(TEXT("Invalid mode '%s' (auto|schema|rows)"), *Mode); return; }
 
 		// ── Row data mode：rows / auto 且 rowNames 非空 ───────────────────────────
@@ -118,20 +144,29 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 			const UScriptStruct* RowStruct = DT->GetRowStruct();
 			if (!RowStruct) { OutError = TEXT("DataTable has no row struct"); return; }
 
-			for (const TSharedPtr<FJsonValue>& Val : *RowNamesArr)
+			TArray<FString> TargetRowNames = RowNames;
+			if (TargetRowNames.Num() == 0 && bNameFilterNonEmpty)
 			{
-				TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-				FString RowName;
-				if (Val.IsValid()) Val->TryGetString(RowName);
-
-				Entry->SetStringField(TEXT("rowName"), RowName);
-
-				if (RowName.IsEmpty())
+				for (const FName& RN : DT->GetRowNames())
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("rowName is required"));
-					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-					continue;
+					FString S = RN.ToString();
+					if (FNexusStringMatchUtils::Matches(S, NameFilter)) TargetRowNames.Add(S);
 				}
+			}
+
+			// 两条路径统一分页（默认 100 / 上限 500），避免超大 rowNames/nameFilter 命中一次性导出全表值
+			const int32 TotalTargets = TargetRowNames.Num();
+			int32 Start, End;
+			FNexusJsonUtils::ComputeSlice(TotalTargets, Offset, Limit, Start, End);
+			OutTop->SetNumberField(TEXT("totalRowCount"), TotalTargets);
+			OutTop->SetNumberField(TEXT("offset"), Start);
+			OutTop->SetNumberField(TEXT("limit"),  Limit);
+
+			for (int32 i = Start; i < End; ++i)
+			{
+				const FString& RowName = TargetRowNames[i];
+				TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+				Entry->SetStringField(TEXT("rowName"), RowName);
 
 				const uint8* RowData = DT->FindRowUnchecked(FName(*RowName));
 				if (!RowData)
@@ -165,13 +200,6 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 		}
 
 		// ── Schema + 分页行名模式 ─────────────────────────────────────────────────
-		FString NameFilter;
-		int32   Offset = 0;
-		int32   Limit  = 100;
-		if (Arguments->HasField(TEXT("nameFilter"))) NameFilter = A.Str(TEXT("nameFilter"));
-		if (Arguments->HasField(TEXT("offset")))     Offset     = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
-		if (Arguments->HasField(TEXT("limit")))      Limit      = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
-
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		TSharedPtr<FJsonObject> One = HandleDataTable(DT, NameFilter, PropertyPaths, Offset, Limit);
 		for (const auto& Pair : One->Values) Entry->SetField(Pair.Key, Pair.Value);

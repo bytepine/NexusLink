@@ -19,7 +19,7 @@ For UE assets / PIE / blueprints / Widget / material / behavior tree / GAS / Lua
 
 | Step | Tool | Notes |
 |---|---|---|
-| 1 Discover capability | `search_capabilities` | Skip when cap name is known; otherwise `query` with 1–2 **narrow** words (e.g. `blueprint graph`, `runtime actor`, `behavior tree`); **no** business feature names, asset names, or over-broad single tokens (see §2) |
+| 1 Discover capability | `search_capabilities` | Skip when cap name is known; otherwise `query` with 1–2 **narrow** words (e.g. `blueprint variable`, `runtime actor`, `behavior tree`); **no** business feature names, asset names, or over-broad single tokens (see §2) |
 | 2 Discover asset paths | `search_asset` | Requires `assetType` + functional `pathFilter`; top-level `assets`; typed search adds top-level `recommendedGet`/`recommendedManage` — prefer those in step 3 |
 | 3 Read/write | `get_asset_*` / `manage_asset_*` / `list_runtime_*` etc. | `assetPath` **only** from `assets[].path`; prefer `recommendedGet`/`recommendedManage`; when lists include `<k>_defaults`, missing fields equal that value (`{**defaults,**entry}`) |
 | 4 Persist | `save_asset` or manage `saveToDisk=true` | Required after disk asset edits; BP/ABP/WBP may also pass `compile=true` |
@@ -65,7 +65,7 @@ Legacy keys → `arg_invalid`.
 
 | User intent | Flow |
 |----------|------|
-| Blueprint variables/graph | `search_asset(Blueprint, …)` → top-level `recommendedGet` (usually `get_asset_blueprint`) + `assets[].path`; if cap unknown, `search_capabilities(query="blueprint graph")` |
+| Blueprint variables/graph | `search_asset(Blueprint, …)` → top-level `recommendedGet` (usually `get_asset_blueprint`) + `assets[].path`; if cap unknown, `search_capabilities(query="blueprint variable")` |
 | Create/edit blueprint interface | `create_asset_blueprint(parentClass=Interface)` → `manage_asset_blueprint` `add_function` / `add_interface` |
 | Behavior tree / decorators | `search_asset(BehaviorTree, …)` → top-level `recommendedGet` (usually `get_asset_behavior_tree`) |
 | GA config | `search_asset(GameplayAbility, …)` → top-level `recommendedGet` (skip if GAS not enabled locally) |

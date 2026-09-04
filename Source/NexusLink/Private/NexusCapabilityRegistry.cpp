@@ -37,15 +37,12 @@ static TArray<FString> TokenizeIdentifier(const FString& Str)
 static TArray<FString> BuildKeywords(const FNexusCapabilityDefinition& Def,
                                      const TArray<FString>& ExtraKeywords)
 {
-	// 功能分类标签集合（从 Tags 中提取）
+	// 功能分类标签集合（从 Tags 中提取）：只留 editor——其余分类标签
+	// （blueprint/material/struct/data/widget/runtime）与 cap 名 token 高度重合，
+	// 注入索引会让单个宽泛分类词（如 "blueprint"）AND 命中整类 cap 引发 search_overflow；
+	// editor 不与任何 cap 名 token 重合（control_pie/exec_command/capture_viewport 等），保留
 	static const TArray<FString> CategoryTags = {
 		FNexusMcpTags::Editor,
-		FNexusMcpTags::Blueprint,
-		FNexusMcpTags::Material,
-		FNexusMcpTags::Struct,
-		FNexusMcpTags::Data,
-		FNexusMcpTags::Widget,
-		FNexusMcpTags::Runtime,
 	};
 
 	// Name 的 token 集合（用于剥离 ExtraKeywords 重叠）

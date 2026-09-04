@@ -215,7 +215,7 @@ static void EmitSuggestedQueries(TSharedPtr<FJsonObject>& Output, const TArray<F
 void FNexusMcpToolSearchCapabilities::BuildDefinition(FNexusMcpToolDefinition& Out) const
 {
 	Out.Name        = TEXT("search_capabilities");
-	Out.Description = TEXT("[Stage 3 - Discover] Find available capabilities—the first step for any UE operation.\nTrigger: user mentions UE/Blueprint/Widget/UMG/Material/Asset/BehaviorTree/ABP/DataAsset/GAS/Niagara/Level/PIE/Actor; call after instance discovery (read-only, no connect required).\nUsage: known name → capabilityName=<exact>; unknown → query=<narrow 1-2 words, e.g. blueprint graph>. Do not use blueprint/asset/runtime/animation alone. <=2 matches return full parameters[].\nConstraints: on failure check errorKind (not_found/disabled/unavailable/query_too_broad); _feedbackHint requires immediate submit_feedback.");
+	Out.Description = TEXT("[Stage 3 - Discover] Find available capabilities—the first step for any UE operation.\nTrigger: user mentions UE/Blueprint/Widget/UMG/Material/Asset/BehaviorTree/ABP/DataAsset/GAS/Niagara/Level/PIE/Actor; call after instance discovery (read-only, no connect required).\nUsage: known name → capabilityName=<exact>; unknown → query=<narrow 1-2 words, e.g. blueprint variable>. Do not use blueprint/asset/runtime/animation alone. <=2 matches return full parameters[].\nConstraints: on failure check errorKind (not_found/disabled/unavailable/query_too_broad); _feedbackHint requires immediate submit_feedback.");
 
 	TSharedPtr<FJsonObject> Schema = MakeShared<FJsonObject>();
 	Schema->SetStringField(TEXT("type"), TEXT("object"));
@@ -223,7 +223,7 @@ void FNexusMcpToolSearchCapabilities::BuildDefinition(FNexusMcpToolDefinition& O
 	TSharedPtr<FJsonObject> QueryProp = MakeShared<FJsonObject>();
 	QueryProp->SetStringField(TEXT("type"), TEXT("string"));
 	QueryProp->SetStringField(TEXT("description"),
-		TEXT("Narrow keywords (e.g. blueprint graph). Do not use blueprint/asset/runtime/animation alone; use capabilityName for exact names."));
+		TEXT("Narrow keywords (e.g. blueprint variable). Do not use blueprint/asset/runtime/animation alone; use capabilityName for exact names."));
 
 	TSharedPtr<FJsonObject> NameProp = MakeShared<FJsonObject>();
 	NameProp->SetStringField(TEXT("type"), TEXT("string"));
@@ -542,21 +542,24 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 			Output->SetStringField(TEXT("hint"), FString::Printf(
 				TEXT("Too many results (%d total, showing first %d). Narrow query to 1-2 precise words, or pass capabilityName=<exact name>."),
 				TotalBeforeTrunc, CapArr.Num()));
+
+			// 只在真被截断（结果超出 MaxSearchResults 未能全部返回）时才算 overflow；
+			// 6~8 命中但未截断（SearchOverflowThreshold < MaxSearchResults）时结果完整可用，不应逼迫上报
+			if (TotalBeforeTrunc > Settings->SearchOverflowThreshold)
+			{
+				FNexusFeedback::FFields F;
+				F.Tool       = TEXT("search_capabilities");
+				F.Query      = QueryRaw;
+				F.MatchCount = TotalBeforeTrunc;
+				FNexusFeedback::RecordAuto(TEXT("search_overflow"), F);
+				Output->SetStringField(TEXT("_feedbackHint"),
+					TEXT("submit_feedback(category=\"search_overflow\")"));
+			}
 		}
 		else
 		{
 			Output->SetStringField(TEXT("hint"),
 				TEXT("Multiple capabilities matched. Check whenToUse/relatedCapabilities, or pass capabilityName=<exact name> for full parameters."));
-		}
-		if (TotalBeforeTrunc > Settings->SearchOverflowThreshold)
-		{
-			FNexusFeedback::FFields F;
-			F.Tool       = TEXT("search_capabilities");
-			F.Query      = QueryRaw;
-			F.MatchCount = TotalBeforeTrunc;
-			FNexusFeedback::RecordAuto(TEXT("search_overflow"), F);
-			Output->SetStringField(TEXT("_feedbackHint"),
-				TEXT("submit_feedback(category=\"search_overflow\")"));
 		}
 	}
 

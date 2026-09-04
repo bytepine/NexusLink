@@ -421,14 +421,51 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	UBlueprint* BP = static_cast<UBlueprint*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 	const FString& Action = Ctx.Action;
+
+	// set_defaults 写 CDO（ImportText），与 SCS 组件树无关；不受下方 Actor 限制，
+	// 任意 Blueprint（含 GameplayAbility/UI/BPI）均可写自身 CDO 属性
+	if (Action == TEXT("set_defaults"))
+	{
+		FString PropPath, Value;
+		Op->TryGetStringField(TEXT("propertyPath"), PropPath);
+		Op->TryGetStringField(TEXT("value"),        Value);
+		if (PropPath.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set_defaults requires propertyPath"));
+	return; }
+		if (!BP->GeneratedClass) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint has no generated class"));
+	return; }
+
+		UObject* CDO = BP->GeneratedClass->GetDefaultObject();
+		if (!CDO) { Entry->SetStringField(TEXT("error"), TEXT("Failed to get CDO"));
+	return; }
+
+		TArray<FString> Segments;
+		PropPath.ParseIntoArray(Segments, TEXT("."), true);
+
+		FProperty* Prop   = nullptr;
+		void*      ValPtr = nullptr;
+		FString    PropErr;
+		if (!FNexusPropertyUtils::ResolvePropertyWrite(CDO, Segments, 0, Prop, ValPtr, PropErr)) { Entry->SetStringField(TEXT("error"), PropErr);
+	return; }
+		if (!FNexusPropertyUtils::ImportTextFromString(Prop, Value, ValPtr, CDO))
+		{
+			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to set '%s' = '%s'"), *PropPath, *Value));
+	return;
+		}
+
+		Entry->SetStringField(TEXT("propertyPath"), PropPath);
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+		FKismetEditorUtilities::CompileBlueprint(BP);
+	return;
+	}
+
 	if (Action == TEXT("add_component") || Action == TEXT("remove_component") ||
-	    Action == TEXT("set_component_property") || Action == TEXT("set_defaults"))
+	    Action == TEXT("set_component_property"))
 	{
 		if (!BP->ParentClass || !BP->ParentClass->IsChildOf(AActor::StaticClass()))
 		{
 			const FString ParentName = BP->ParentClass ? BP->ParentClass->GetName() : TEXT("(none)");
 			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("Blueprint parent is not Actor subclass: %s (parent=%s). add_component/set_defaults need Actor BP; use add_variable/add_function/add_node for GA/UI/BPI."),
+				TEXT("Blueprint parent is not Actor subclass: %s (parent=%s). add_component/remove_component/set_component_property need Actor BP; use add_variable/add_function/add_node for GA/UI/BPI, or manage_asset_gameplay_ability for GAS semantic fields."),
 				*Ctx.AssetPath, *ParentName));
 	return;
 		}
@@ -548,40 +585,6 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 			Template->MarkPackageDirty();
 			Entry->SetStringField(TEXT("componentName"), ComponentName);
 			Entry->SetStringField(TEXT("propertyPath"),  PropPath);
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			FKismetEditorUtilities::CompileBlueprint(BP);
-	return;
-		}
-
-		// set_defaults
-		{
-			FString PropPath, Value;
-			Op->TryGetStringField(TEXT("propertyPath"), PropPath);
-			Op->TryGetStringField(TEXT("value"),        Value);
-			if (PropPath.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set_defaults requires propertyPath"));
-	return; }
-			if (!BP->GeneratedClass) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint has no generated class"));
-	return; }
-
-			UObject* CDO = BP->GeneratedClass->GetDefaultObject();
-			if (!CDO) { Entry->SetStringField(TEXT("error"), TEXT("Failed to get CDO"));
-	return; }
-
-			TArray<FString> Segments;
-			PropPath.ParseIntoArray(Segments, TEXT("."), true);
-
-			FProperty* Prop   = nullptr;
-			void*      ValPtr = nullptr;
-			FString    PropErr;
-			if (!FNexusPropertyUtils::ResolvePropertyWrite(CDO, Segments, 0, Prop, ValPtr, PropErr)) { Entry->SetStringField(TEXT("error"), PropErr);
-	return; }
-			if (!FNexusPropertyUtils::ImportTextFromString(Prop, Value, ValPtr, CDO))
-			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to set '%s' = '%s'"), *PropPath, *Value));
-	return;
-			}
-
-			Entry->SetStringField(TEXT("propertyPath"), PropPath);
 			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 			FKismetEditorUtilities::CompileBlueprint(BP);
 	return;

@@ -64,7 +64,7 @@ Forbidden: `manage_animation`, `set_runtime_actor_animation`.
 - Write success does **not** return `success:true`; no `error` means success; `interact_*` changes runtime command state (not propertyPaths).
 - `*_asset_*` = disk; `*_runtime_*` needs PIE/Game.
 - `search_asset`: no `assetType=all` + bare `/Game/`; then use `recommended*` + `path`.
-- `search_capabilities`: infer name from patterns above and pass `capabilityName` (full `parameters[]` once); otherwise narrow 1–2 word `query` (e.g. `blueprint graph`); `query=""` is name-only catalog; **do not** use `blueprint` / `asset` / `runtime` / `animation` alone (`query_too_broad`). On failure check `errorKind` / `suggestedQueries`; `not_found` with unregistered hint → do not retry same domain; on `call_capability` `disabled` do not retry.
+- `search_capabilities`: infer name from patterns above and pass `capabilityName` (full `parameters[]` once); otherwise narrow 1–2 word `query` (e.g. `blueprint variable`); `query=""` is name-only catalog; **do not** use `blueprint` / `asset` / `runtime` / `animation` alone (`query_too_broad`). On failure check `errorKind` / `suggestedQueries`; `not_found` with unregistered hint → do not retry same domain; on `call_capability` `disabled` do not retry.
 - `get_runtime_actor_property` requires non-empty `actorName` (call `list_runtime_actors` first); `exec_command` requires non-empty `command`.
 - After `sections=["all"]`, no sub-section calls for 30s (`redundant_call`).
 - Retry ≥2 / no suitable cap / schema guessing / serial ≥3 → `submit_feedback`; **`_feedbackHint` is mandatory**.

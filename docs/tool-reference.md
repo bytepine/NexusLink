@@ -2765,9 +2765,9 @@ Inspect DataTable rows or schema. mode=schema|rows; optional propertyPaths.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | DataTable asset path |
-| `mode` | `string (enum)` |  | auto: rows if rowNames non-empty else schema; schema ignores rowNames; rows requires rowNames enum: `auto` / `schema` / `rows` |
-| `rowNames` | `string[]` |  | Row name (rows mode or auto with non-empty rowNames) |
-| `nameFilter` | `string` |  | Row name filter (/regex/ ^prefix suffix$) |
+| `mode` | `string (enum)` |  | auto: rows if rowNames non-empty else schema; schema ignores rowNames/nameFilter for row export; rows requires rowNames or nameFilter enum: `auto` / `schema` / `rows` |
+| `rowNames` | `string[]` |  | Row name (rows mode or auto with non-empty rowNames); paginated by offset/limit |
+| `nameFilter` | `string` |  | Row name filter (/regex/ ^prefix suffix$); in mode=rows without rowNames, resolves+exports matching rows (paginated) |
 | `propertyPaths` | `string[]` |  | Column/field filter (first segment); schema list and row export |
 | `offset` | `integer` |  | Pagination offset |
 | `limit` | `integer` |  | Max rows per page |
