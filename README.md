@@ -14,7 +14,7 @@
 
 1. 将插件放入 `Plugins/Developer/NexusLink`，在 **Edit → Plugins → Developer → NexusLink** 中启用并重启编辑器
 2. **Edit → Editor Preferences → Plugins → NexusLink** — 勾选 **启用 MCP 服务器**（**默认关闭**）。勾选后即时启动 HTTP（`POST /stream`）与 WebSocket；取消勾选立即停止。**MCP 鉴权**默认开。Token、多机、开关组合见 [usage-guide §1.1](docs/usage-guide.md#11-鉴权)。默认仅本机 loopback；跨机再勾选 **允许局域网绑定**，用 **复制跨机连接** 选网卡 IP。
-3. （可选）无 UI 的编辑器启动（如 `UEEditor-Cmd`）可加 **`-EnableNexusMcp`** 或控制台 **`NexusLink.EnableMcp 1|0`**（会话级，不写盘；与 Preferences 为 OR）。测试可加 **`-NexusEnableDangerousCaps`** 打开 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua`
+3. （可选）无 UI 的编辑器启动（如 `UEEditor-Cmd`）可加 **`-EnableNexusMcp`** 或控制台 **`NexusLink.EnableMcp 1|0`**（会话级，不写盘；与 Preferences 为 OR）。测试可加 **`-NexusEnableDangerousCaps`** 打开 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python`
 
 GAS / Niagara 等 Capability 按宿主项目插件探测，NexusLink **不**在 `.uplugin` 里强制依赖。
 
@@ -38,6 +38,38 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。日常推荐经客户端�
 ## 能力范围
 
 默认 **SearchMode**：`tools/list` 仅 3 个元工具（`search_capabilities` / `call_capability` / `submit_feedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara、PIE 运行时、UnLua 等。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
+
+## 危险 Capability（默认禁用）
+
+四个「脚本逃生舱」能力，安装或升级时按名写入禁用列表，**默认调不到**。需要时在 **Editor Preferences → Plugins → NexusLink** 里逐个勾选，或启动加 `-NexusEnableDangerousCaps`（会话级，不写盘）。手动勾选过的不会被后续升级覆盖。
+
+| Capability | 做什么 | 附加前提 |
+|---|---|---|
+| `exec_command` | 执行 UE 控制台命令并捕获输出 | — |
+| `exec_python` | 编辑器内执行 Python（`exec` / `file` / `eval`），回 stdout 与 traceback | 宿主启用 Python Editor Script Plugin |
+| `eval_runtime_lua` | 在 PIE/Game 执行 Lua 片段，返回压栈值 | UnLua + PIE |
+| `dofile_runtime_lua` | 从 `Content/Script/` 加载执行 `.lua` | UnLua + PIE |
+
+### 为什么默认关
+
+- **等价于进程内任意代码执行**：Python / Lua 可 `import os`、读写任意文件、起子进程。一旦开启，鉴权就成了唯一防线，按 Capability 的启用/禁用粒度全部失效。
+- **绕过写路径的安全网**：其余 Capability 的写操作统一包 `FNexusEditorTransaction`（可 Undo，`calls[]` 批量失败整体回滚），并受代理层写门控与内存记账约束；脚本里的修改不在这套包裹内，AI 改错了无法回滚。
+- **容易崩编辑器**：模型现写的脚本很容易碰到错误线程、失效对象或 GC，崩溃后也难归因。
+
+### 与默认开启的 Capability 的取舍
+
+| 维度 | 声明式 Capability（默认开） | 脚本逃生舱（默认关） |
+|---|---|---|
+| 覆盖面 | 覆盖已实现的域，没做的做不了 | 引擎暴露多少就能做多少，长尾全覆盖 |
+| 参数 | JSON Schema 校验，错参立即 `arg_invalid` | 自由文本，错误要等运行期 traceback |
+| 返回 | 结构化 + `*_defaults` 压缩，token 可控 | 非结构化 stdout，容易打爆响应体 |
+| 可撤销 | 统一事务包裹 | 无 |
+| 控制流 | `calls[]` 只能批量，无条件与循环 | 任意分支循环，一次往返做完 |
+| 跨版本 | `NX_*` 语义宏在编译期消化 4.26~5.8 差异 | 由脚本自己承担，UE4/UE5 API 差异易翻车 |
+
+### 什么时候才用
+
+先 `search_capabilities` 找专用 cap。只有三种情况值得开逃生舱：目标能力确实**没有**对应 Capability（顺手 `submit_feedback` 提一条）；需要一段带条件或循环的批处理；排查某个 cap 自身的 bug。用完建议关回去。
 
 ## 文档
 

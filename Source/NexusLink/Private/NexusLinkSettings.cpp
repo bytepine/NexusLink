@@ -141,20 +141,37 @@ static const TCHAR* GDangerousCapabilityNames[] = {
 	TEXT("exec_command"),
 	TEXT("eval_runtime_lua"),
 	TEXT("dofile_runtime_lua"),
+	TEXT("exec_python"),
 };
 
 void UNexusLinkSettings::EnsureDangerousCapsDefaultOff()
 {
-	if (bDangerousCapsDefaultOffApplied)
+	// 旧版本只有一个总开关，迁移时把当时的三个 cap 视为已处理，
+	// 否则用户手动启用过的 cap 会在本次升级被重新关掉
+	if (bDangerousCapsDefaultOffApplied && DangerousCapsDefaultOffApplied.Num() == 0)
 	{
-		return;
+		DangerousCapsDefaultOffApplied.Add(TEXT("exec_command"));
+		DangerousCapsDefaultOffApplied.Add(TEXT("eval_runtime_lua"));
+		DangerousCapsDefaultOffApplied.Add(TEXT("dofile_runtime_lua"));
 	}
-	bDangerousCapsDefaultOffApplied = true;
+
+	bool bChanged = false;
 	for (const TCHAR* Name : GDangerousCapabilityNames)
 	{
+		if (DangerousCapsDefaultOffApplied.Contains(Name))
+		{
+			continue;
+		}
+		DangerousCapsDefaultOffApplied.Add(Name);
 		DisabledCapabilities.Add(Name);
+		bChanged = true;
 	}
-	SaveConfig();
+
+	bDangerousCapsDefaultOffApplied = true;
+	if (bChanged)
+	{
+		SaveConfig();
+	}
 }
 
 void UNexusLinkSettings::EnableDangerousCapsForSession()

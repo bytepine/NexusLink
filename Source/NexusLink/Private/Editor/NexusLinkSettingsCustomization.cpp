@@ -137,6 +137,7 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, KnownCapabilityKeys));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bCapabilityDefaultsApplied));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bDangerousCapsDefaultOffApplied));
+	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, DangerousCapsDefaultOffApplied));
 
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	DetailBuilder.GetObjectsBeingCustomized(Objects);

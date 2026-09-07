@@ -39,7 +39,7 @@
 | `Diff` | 对比两个实体的属性差异 | `diff_runtime_actors` |
 | `Interact` | 触发 UI 交互（click/check/set） | `interact_runtime_widget` |
 | `Control` | 控制编辑器状态 | `control_pie` |
-| `Exec` | 执行命令/脚本 | `exec_command`, `eval_runtime_lua`, `dofile_runtime_lua` |
+| `Exec` | 执行命令/脚本 | `exec_command`, `exec_python`, `eval_runtime_lua`, `dofile_runtime_lua` |
 | `Inspect` | 只读查看内部结构（Lua 表/堆栈/元表） | `get_runtime_lua_stack` |
 | `Capture` | 截图 | `capture_viewport` |
 | `Query` | 系统级只读查询 | `get_asset_refs`, `get_gameplay_tags` |
@@ -266,6 +266,7 @@
 | CommonUI (`WITH_COMMON_UI=1`, UE5+, 6) | `create/get/manage_asset_common_button_style`, `create/get/manage_asset_common_text_style` |
 | MoviePipeline (`WITH_MOVIE_RENDER_PIPELINE=1`, UE5+, 4) | `create/get/manage_asset_movie_pipeline_config`, `control_movie_pipeline` |
 | PoseSearch (`WITH_POSE_SEARCH=1`, UE 5.4+, 3) | `create/get/manage_asset_pose_search` |
+| Python (`WITH_NEXUS_PYTHON=1`, 1) | `exec_python` |
 
 ### 6.5 禁止复活与计划缺口
 

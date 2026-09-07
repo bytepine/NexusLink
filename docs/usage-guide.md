@@ -16,7 +16,7 @@
 
 - **直连 UE 的 AI 配置须加 Bearer**：从 UE 设置面板复制 **MCP 鉴权 Token**（详见 [§1.1](#11-鉴权)）。经中转且中转在同机时无需配置。
 - **额外鉴权 Token 从「单行逗号分隔」改为逐条列表**：升级后自动拆分；若一条合法 token 都解析不出会保留原值并在日志告警，不会静默清空。
-- **危险 Capability 默认禁用**：`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 升级时一次性写入禁用列表，需要时在设置面板重新勾选。
+- **危险 Capability 默认禁用**：`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python` 升级时写入禁用列表，需要时在设置面板重新勾选。按名记录，后续版本新增的危险 cap 也会对老配置生效，且不会覆盖你手动启用过的。
 - **用过 2.0.0-beta 的工程**：beta 曾往 `Engine.ini` 写全局键 `[HTTPServer.Listeners] DefaultBindAddress`。正式版只写本端口的 `ListenerOverrides`，检测到该残留键会在启动日志告警，可手动删除。
 
 ---
@@ -65,7 +65,7 @@ flowchart TB
 
 本机只开一个代理（Desktop `:6700` / Rider `:6800` / VSCode `:6900` 勿叠开）；叠开会重复扫描并各自连同一 UE。
 
-默认只绑 loopback。带 `Origin` 的浏览器请求会被拒绝。`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 默认禁用。
+默认只绑 loopback。带 `Origin` 的浏览器请求会被拒绝。`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python` 默认禁用。
 
 ### 1.1 鉴权
 
@@ -341,3 +341,7 @@ Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性�
 ### MCP 搜不到 GAS / Niagara 等能力
 
 这些 Capability 在编译期按磁盘 `.uplugin` 探测（`WITH_GAS` 等），**不会**在插件浏览器里给 NexusLink 加依赖。自定义引擎若不在工程兄弟目录 `Engine/`，旧版会 miss；当前版本用 UBT 正在编译的引擎目录自动找 `Engine/Plugins`。确认：重编后 `Intermediate/.../Definitions.NexusLink.h` 中对应 `WITH_*` 为 `1`，并重启编辑器。`.uproject` 对该插件显式 `Enabled: false` 仍会关掉。环境变量 `WITH_GAS=1` / `=0` 可强制开/关。
+
+### `exec_python` 报 Python plugin module not loaded
+
+`exec_python`（编译期门控 `WITH_NEXUS_PYTHON`）还需要工程**启用** Python Editor Script Plugin：**Edit → Plugins → Scripting → Python Editor Script Plugin** 勾选后重启。该 cap 与 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 一样**默认禁用**，须在设置面板重新勾选或用 `-NexusEnableDangerousCaps` 启动。

@@ -298,9 +298,16 @@ public:
 	UPROPERTY(Config)
 	bool bCapabilityDefaultsApplied = false;
 
-	/** 是否已将危险 Capability（exec_command / eval_runtime_lua / dofile_runtime_lua）默认关闭。 */
+	/** 旧版总开关：是否已应用过危险 Capability 默认关闭。保留供升级迁移判定，新逻辑按名记录。 */
 	UPROPERTY(Config)
 	bool bDangerousCapsDefaultOffApplied = false;
+
+	/**
+	 * 已应用过「默认关闭」的危险 Capability 名集合。
+	 * 按名记录，后续版本新增危险 cap 时仍能对老配置生效，且不会重新关掉用户手动启用的 cap。
+	 */
+	UPROPERTY(Config)
+	TSet<FString> DangerousCapsDefaultOffApplied;
 
 	/**
 	 * 会话级强制启用的 cap 名集合（`-NexusEnableDangerousCaps` / 测试用）。
@@ -324,7 +331,7 @@ public:
 	/** 首次启动时把当前已注册 cap 全部纳入 KnownCapabilityKeys（默认启用）。 */
 	void EnsureDefaultCapabilityMode();
 
-	/** 升级迁移：把危险 Capability 写入 DisabledCapabilities（一次性）。 */
+	/** 升级迁移：把尚未处理过的危险 Capability 写入 DisabledCapabilities（按名一次性）。 */
 	void EnsureDangerousCapsDefaultOff();
 
 	/** 会话级打开危险 Capability（不写盘）；供 -NexusEnableDangerousCaps / 测试使用。 */

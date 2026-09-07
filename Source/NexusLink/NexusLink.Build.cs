@@ -79,6 +79,8 @@ public class NexusLink : ModuleRules
 			Opt(new[] { "GeometryCollectionPlugin.uplugin", "GeometryCollectionEngine.uplugin" }, "WITH_GEOMETRY_COLLECTION", "WITH_GEOMETRY_COLLECTION", 5, 0, new[] { "GeometryCollectionEngine" }),
 			Opt(new[] { "CommonUI.uplugin" }, "WITH_COMMON_UI", "WITH_COMMON_UI", 5, 0, new[] { "CommonUI" }),
 			Opt(new[] { "MovieRenderPipeline.uplugin" }, "WITH_MOVIE_RENDER_PIPELINE", "WITH_MOVIE_RENDER_PIPELINE", 5, 0, new[] { "MovieRenderPipelineCore", "MovieRenderPipelineSettings" }, new[] { "MovieRenderPipelineEditor" }),
+			// PythonScriptPlugin 的模块 Type=UncookedOnly，只在 Editor 目标链接；define 加 NEXUS_ 前缀避免与引擎自身的 WITH_PYTHON 冲突
+			Opt(new[] { "PythonScriptPlugin.uplugin" }, "WITH_NEXUS_PYTHON", "WITH_NEXUS_PYTHON", ed: new[] { "PythonScriptPlugin" }, uproj: "PythonScriptPlugin"),
 		};
 	}
 
