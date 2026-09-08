@@ -339,7 +339,12 @@ class DocLocale:
         if not text:
             return self.param_by_name.get(name, "")
         translated = translate_param_text(text, self.param_by_en)
-        if name in self.param_by_name and not has_cjk(text):
+        # param_text 精确表是人工按这条英文校订的，权威性高于按参数名兜底：同名参数在不同
+        # cap 里语义可能完全不同（scriptPath 在 Lua 指 Content/Script/，在 Python 指
+        # Content/Python/）。只有走启发式（短语/词表）后仍残留英文时才回落 param_name
+        if (name in self.param_by_name
+                and text not in self.param_by_en
+                and not has_cjk(text)):
             if translated == text or residual_english(translated):
                 return self.param_by_name[name]
         return translated

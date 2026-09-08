@@ -11,6 +11,10 @@
 
 - feat(mcp): Python 入口——危险 cap `exec_python`（走 `IPythonScriptPlugin::ExecPythonCommandEx`；`exec`/`eval` 传 `code`，`file` 传 `scriptPath`（相对 `Content/Python/`，C++ 侧校验相对路径、无 `..`、`.py` 后缀且文件存在，并回显绝对路径——UE 原生 `ExecuteFile` 按「首 token 是不是 `.py`」自动分流，路径写错会被当字面代码执行并报出与真实原因无关的 `NameError`）；`persistent` 控制 file 模式的 `FileExecutionScope`（字面代码走 `RunString`，本就共用 console 全局字典）；结构化返回 `output` / traceback `error`，`eval` 另回 `result`；输出按 200 行 + 单行 2000 字符双重截断；**默认禁用**）+ 只读 `get_python_api`（内省当前引擎 `unreal` 模块成员/签名/doc 首行；`target`/`query` 经白名单校验后作为字面量嵌入固定脚本，不接受用户代码，故默认开；支持 `offset`/`limit` 分页与 `searchDoc` 按 docstring 检索；探测失败（如该 API 在本版本不存在）同样回 `engineVersion`/`pythonVersion`——这正是最需要版本信息的时刻；写 Python 前先探测）；两者 `Prerequisites: python`（CapabilitySpec §2.4 新增该枚举值）；编译期按磁盘 `.uplugin` 门控 `WITH_NEXUS_PYTHON`（仅 Editor 目标，不强制宿主启用 Python 插件）；可用性检查统一走 `FNexusPythonRuntime`，UE 5.6+ 借 `IsPythonConfigured`/`IsPythonInitialized` 区分「已配置未启用」与「已启用未初始化」并给出对应排查提示。Capability 计数 227→229
 
+### Fixed
+
+- fix(docs): 中文 `tool-reference` 生成器丢弃人工校订的精确译文——`param_desc` 在 `residual_english()` 判定译文仍残留英文时会回落到按**参数名**兜底的 `param_name`，而该判定把译文里本就该保留的技术术语（`file` / `Actor` / `Montage` 等，全表 108 条命中）一律当作未译，导致同名参数被塞进别的 cap 的语义（`scriptPath` 在 Python cap 里显示成「Lua 脚本路径（相对 `Content/Script/`）」）。`param_text` 是按英文原文人工校订的，权威性高于按名兜底，命中即不再回落；随之暴露并补译 3 条本身没译完的词条（`Actor class name filter` / `Variable/default name filter` / `Widget/animation name substring`）。中文文档 20 行受益，其中 8 处 `assetPath` 从通用「资产包路径」恢复为各 cap 专属说明；`test_tool_reference_i18n` 补两条优先级回归
+
 ### Changed
 
 - chore(settings): 危险 Capability 默认关闭改为**按名记录**（`DangerousCapsDefaultOffApplied`），旧版单一 bool 标志仅用于迁移——此前老配置一旦置位，后续版本新增的危险 cap 不会被默认关掉；迁移时把原三个 cap 视为已处理，不会覆盖用户手动启用的状态

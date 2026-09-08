@@ -109,7 +109,7 @@
 | `maxSize` | `integer` |  | 最大边长像素（0=原生） |
 | `actorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `widgetName` | `string` |  | 运行时 Widget 名 |
-| `ownerClass` | `string` |  | 所属 UserWidget 类过滤 |
+| `ownerClass` | `string` |  | UserWidget 类过滤 |
 | `padding` | `number` |  | Actor bounds padding ratio |
 | `viewAngle` | `string (enum)` |  | Actor crop camera angle 枚举: `front` / `back` / `left` / `right` / `top` / `bottom` |
 | `windowIndex` | `integer` |  | 顶层窗口索引（0=主窗口） |
@@ -126,7 +126,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `action` | `string (enum)` | ★ | PIE 操作 枚举: `start` / `stop` / `status` / `pause` / `resume` / `step` |
-| `mode` | `string (enum)` |  | 模式（见各 cap 的枚举说明） 枚举: `viewport` / `simulate` |
+| `mode` | `string (enum)` |  | 播放模式（仅 start） 枚举: `viewport` / `simulate` |
 
 **相关 Capability**: `exec_command`
 
@@ -154,7 +154,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `code` | `string` |  | Python 源码；exec/eval 模式必填 |
-| `scriptPath` | `string` |  | 相对 Content/Python/ 的 .py 路径；`file` 模式必填 |
+| `scriptPath` | `string` |  | 相对 Content/Python/ 的 .py 路径；file 模式必填 |
 | `mode` | `string (enum)` |  | 执行源码、执行 .py 文件、或求值表达式 枚举: `exec` / `file` / `eval` |
 | `persistent` | `boolean` |  | file 模式：复用 console 全局字典，而非隔离作用域 |
 | `unattended` | `boolean` |  | 运行期间抑制模态弹窗 |
@@ -196,8 +196,8 @@
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `hierarchy` / `actor` / `asset` / `referencers` |
 | `parentTag` | `string` |  | Root tag for subtree |
-| `actorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
-| `assetPath` | `string` |  | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `actorName` | `string` |  | 运行时 Actor 名（actor 段） |
+| `assetPath` | `string` |  | 资产路径（asset 段） |
 | `tag` | `string` |  | referencers section: GameplayTag full 名 |
 | `nameFilter` | `string` |  | 标签名过滤 |
 | `offset` | `integer` |  | 分页偏移（从 0 起） |
@@ -1123,7 +1123,7 @@
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `actors` / `settings` |
 | `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
-| `classFilter` | `string` |  | 类名过滤（子串/通配，可选） |
+| `classFilter` | `string` |  | Actor 类名过滤（可选） |
 | `nameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `tagFilter` | `string` |  | Actor 标签精确匹配（可选） |
 | `offset` | `integer` |  | 分页偏移（从 0 起） |
@@ -2368,7 +2368,7 @@
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `variables` / `statemachines` / `defaults` / `graphOverview` / `graph` |
 | `assetPath` | `string` |  | 动画蓝图资产路径 |
-| `nameFilter` | `string` |  | 名称或标签过滤（可选） |
+| `nameFilter` | `string` |  | 变量/默认值名称过滤 |
 
 **相关 Capability**: `manage_asset_anim_blueprint`, `create_asset_anim_blueprint`
 
@@ -2394,7 +2394,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `assetPath` | `string` | ★ | 动画 Montage 资产路径 |
 
 **相关 Capability**: `manage_asset_anim_montage`, `create_asset_anim_montage`, `get_runtime_actor_animation`
 
@@ -2520,7 +2520,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `assetPath` | `string` | ★ | 动画 Montage 资产路径 |
 | `operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `action`(add_segment/remove_segment/add_section/remove_section), `animSequencePath`, `slotName`, `startPos`, `animStartTime`, `animEndTime`, `segmentIndex`, `sectionName`, `sectionStartTime`, `nextSectionName` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2734,7 +2734,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `assetPath` | `string` | ★ | UserDefinedStruct 资产路径（共用） |
 | `operations` | `object[]` | ★ | 批量字段操作; 条目: `action`(add/remove/set), `fieldName`, `fieldType`, `defaultValue`, `newName`, `newType` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2767,7 +2767,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `assetPath` | `string` | ★ | 新 DataTable 包路径 |
 | `rowStructName` | `string` | ★ | 行结构体类名（须已存在） |
 
 **相关 Capability**: `manage_asset_data_table`, `get_asset_data_table`
@@ -2836,7 +2836,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `assetPath` | `string` | ★ | DataTable 资产路径（共用） |
 | `operations` | `object[]` | ★ | 批量行操作（至少一项）; 条目: `action`(add/remove/set), `rowName`, `fieldName`, `value` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2854,7 +2854,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `assetPath` | `string` | ★ | 新 WidgetBlueprint 包路径 |
 | `parentClass` | `string` |  | Parent class (默认 UserWidget) |
 
 **相关 Capability**: `manage_asset_user_widget`, `get_asset_user_widget`
@@ -2871,7 +2871,7 @@
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `widgets` / `animations` / `graphOverview` |
 | `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
-| `nameFilter` | `string` |  | 名称或标签过滤（可选） |
+| `nameFilter` | `string` |  | Widget/动画名子串（可选） |
 | `typeFilter` | `string` |  | Widget class 子串 (widgets section only) |
 | `offset` | `integer` |  | 分页偏移（从 0 起） |
 | `limit` | `integer` |  | 每页最大条数 |
@@ -2888,7 +2888,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `assetPath` | `string` | ★ | WidgetBlueprint 资产路径（共用） |
 | `operations` | `object[]` | ★ | 批量操作：`[{action, ...}, ...]`; 条目: `action`(add/remove/set_slot/set_property/add_animation/remove_animation/add_track/add_key…), `widgetClass`, `widgetName`, `parentWidget`, `animationName`, `trackName`, `propertyPath`, `time`, `keyValue`, `value`, `anchorMinX`, `anchorMinY`, `anchorMaxX`, `anchorMaxY`, `alignmentX`, `alignmentY`, `offsetLeft`, `offsetTop`, `offsetRight`, `offsetBottom` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `compile` | `boolean` |  | 需要时编译蓝图（仅 BP/ABP/WBP） |
@@ -3225,7 +3225,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `widgetName` | `string` |  | 运行时 Widget 名 |
-| `ownerClass` | `string` |  | 所属 UserWidget 类过滤 |
+| `ownerClass` | `string` |  | UserWidget 过滤 |
 | `propertyPaths` | `string[]` |  | 点分路径（批量） |
 
 **相关 Capability**: `set_runtime_widget_property`, `list_runtime_widgets`
@@ -3302,7 +3302,7 @@
 | `widgetName` | `string` | ★ | 运行时 Widget 名 |
 | `action` | `string (enum)` | ★ | 交互操作 枚举: `click` / `check` / `uncheck` / `toggle` / `set` / `read` |
 | `value` | `string` |  | action=set 时的新值 |
-| `ownerClass` | `string` |  | 所属 UserWidget 类过滤 |
+| `ownerClass` | `string` |  | Owner UserWidget 类/名过滤 |
 
 **相关 Capability**: `list_runtime_widgets`, `get_runtime_widget_property`
 
@@ -3318,7 +3318,7 @@
 |------|------|:----:|------|
 | `classFilter` | `string` |  | 类名过滤（子串/通配，可选） |
 | `nameFilter` | `string` |  | 名称或标签过滤（可选） |
-| `tagFilter` | `string` |  | Actor 标签精确匹配（可选） |
+| `tagFilter` | `string` |  | 仅含此标签的 Actor（可选） |
 | `offset` | `integer` |  | 分页偏移（默认 0） |
 | `limit` | `integer` |  | 最大条数 1–500（默认 100） |
 | `detail` | `string (enum)` |  | 响应详细度：minimal/standard/full 枚举: `minimal` / `standard` / `full` |
@@ -3335,7 +3335,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `classFilter` | `string` |  | 类名过滤（子串/通配，可选） |
+| `classFilter` | `string` |  | UserWidget 类名过滤 |
 | `nameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `textFilter` | `string` |  | 可见显示文本子串过滤 |
 | `offset` | `integer` |  | 分页偏移（默认 0） |
@@ -3580,7 +3580,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
+| `assetPath` | `string` | ★ | BlackboardData 或 BehaviorTree 资产路径 |
 | `operations` | `object[]` | ★ | 批量键操作; 条目: `action`(add/remove/rename/set_parent), `keyName`, `keyType`(bool/float/int/string/name/vector/rotator/object…), `newName`, `parentPath` |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
