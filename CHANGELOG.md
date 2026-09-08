@@ -9,7 +9,7 @@
 
 ### Added
 
-- feat(mcp): Python 入口——危险 cap `exec_python`（`mode=exec|file|eval`，走 `IPythonScriptPlugin::ExecPythonCommandEx`，结构化返回 `output` / traceback `error`，`eval` 另回 `result`，**默认禁用**）+ 只读 `get_python_api`（内省当前引擎 `unreal` 模块成员/签名/doc 首行，默认开；写 Python 前先探测）；编译期按磁盘 `.uplugin` 门控 `WITH_NEXUS_PYTHON`（仅 Editor 目标，不强制宿主启用 Python 插件，未启用时报 `Python plugin module not loaded`）。Capability 计数 227→229
+- feat(mcp): Python 入口——危险 cap `exec_python`（走 `IPythonScriptPlugin::ExecPythonCommandEx`；`exec`/`eval` 传 `code`，`file` 传 `scriptPath`（相对 `Content/Python/`，C++ 侧校验相对路径、无 `..`、`.py` 后缀且文件存在，并回显绝对路径——UE 原生 `ExecuteFile` 按「首 token 是不是 `.py`」自动分流，路径写错会被当字面代码执行并报出与真实原因无关的 `NameError`）；`persistent` 控制 file 模式的 `FileExecutionScope`（字面代码走 `RunString`，本就共用 console 全局字典）；结构化返回 `output` / traceback `error`，`eval` 另回 `result`；输出按 200 行 + 单行 2000 字符双重截断；**默认禁用**）+ 只读 `get_python_api`（内省当前引擎 `unreal` 模块成员/签名/doc 首行；`target`/`query` 经白名单校验后作为字面量嵌入固定脚本，不接受用户代码，故默认开；支持 `offset`/`limit` 分页与 `searchDoc` 按 docstring 检索；探测失败（如该 API 在本版本不存在）同样回 `engineVersion`/`pythonVersion`——这正是最需要版本信息的时刻；写 Python 前先探测）；两者 `Prerequisites: python`（CapabilitySpec §2.4 新增该枚举值）；编译期按磁盘 `.uplugin` 门控 `WITH_NEXUS_PYTHON`（仅 Editor 目标，不强制宿主启用 Python 插件）；可用性检查统一走 `FNexusPythonRuntime`，UE 5.6+ 借 `IsPythonConfigured`/`IsPythonInitialized` 区分「已配置未启用」与「已启用未初始化」并给出对应排查提示。Capability 计数 227→229
 
 ### Changed
 

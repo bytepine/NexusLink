@@ -149,10 +149,14 @@ Run UE console command and capture output. Mirrored to LogConsole.
 
 Run editor Python. exec/file/eval; stdout and traceback. Probe with get_python_api first.
 
+**Prerequisites**: `python`
+
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `code` | `string` | ★ | Python source, or file path in file mode |
-| `mode` | `string (enum)` |  | Run source, run a file, or evaluate expression enum: `exec` / `file` / `eval` |
+| `code` | `string` |  | Python source; required in exec/eval modes |
+| `scriptPath` | `string` |  | Python file path relative to Content/Python/; required in file mode |
+| `mode` | `string (enum)` |  | Run source, run a .py file, or evaluate expression enum: `exec` / `file` / `eval` |
+| `persistent` | `boolean` |  | file mode: share console globals instead of isolated scope |
 | `unattended` | `boolean` |  | Suppress modal dialogs while running |
 
 **Related capabilities**: `get_python_api`, `exec_command`, `get_output_log`
@@ -229,11 +233,15 @@ Read UE console buffer. Diagnostic: preset=diagnose or newest+includeSummary; in
 
 Inspect unreal Python members. Live dir/signature for this engine bind. Probe before exec_python.
 
+**Prerequisites**: `python`
+
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `target` | `string` |  | Dotted unreal path to inspect |
 | `query` | `string` |  | Substring filter on member names |
-| `limit` | `integer` |  | Max members to return |
+| `searchDoc` | `boolean` |  | Also match query against docstrings |
+| `offset` | `integer` |  | Pagination offset |
+| `limit` | `integer` |  | Max members per page |
 
 **Related capabilities**: `exec_python`, `get_editor_info`
 

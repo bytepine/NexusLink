@@ -6,6 +6,8 @@
 
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
+#include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusPythonRuntime.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpTool.h"
@@ -87,11 +89,14 @@ void FGetPythonApiCapability::BuildDefinition(FNexusCapabilityDefinition& Out) c
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("target"), FNexusSchema::Str(TEXT("Dotted unreal path to inspect"), TEXT("unreal")))
 		.Prop(TEXT("query"), FNexusSchema::Str(TEXT("Substring filter on member names")))
-		.Prop(TEXT("limit"), FNexusSchema::Int(TEXT("Max members to return"), 30, 1, 100))
+		.Prop(TEXT("searchDoc"), FNexusSchema::Bool(TEXT("Also match query against docstrings"), true, false))
+		.Prop(TEXT("offset"), FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("limit"), FNexusSchema::Int(TEXT("Max members per page"), 30, 1, 100))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("inspect"), TEXT("signature"), TEXT("dir"), TEXT("bind"), TEXT("module") };
 	Out.RelatedCapabilities = { TEXT("exec_python"), TEXT("get_editor_info") };
+	Out.Prerequisites = { TEXT("python") };
 }
 
 FCapabilityResult FGetPythonApiCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -114,27 +119,16 @@ FCapabilityResult FGetPythonApiCapability::Execute(const TSharedPtr<FJsonObject>
 			TEXT("query may only contain letters, digits, and underscore"));
 	}
 
+	int32 Offset = 0;
 	int32 Limit = 30;
-	if (Arguments.IsValid())
-	{
-		double Num = 0.0;
-		if (Arguments->TryGetNumberField(TEXT("limit"), Num))
-		{
-			Limit = FMath::Clamp(static_cast<int32>(Num), 1, 100);
-		}
-	}
+	FNexusJsonUtils::ParseOffsetLimit(Arguments, Offset, Limit, 30, 100);
+	const bool bSearchDoc = A.Bool(TEXT("searchDoc"), false);
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		IPythonScriptPlugin* Python = IPythonScriptPlugin::Get();
-		if (!Python)
+		IPythonScriptPlugin* Python = nullptr;
+		if (!FNexusPythonRuntime::Acquire(Python, OutError))
 		{
-			OutError = TEXT("Python plugin module not loaded");
-			return;
-		}
-		if (!Python->IsPythonAvailable())
-		{
-			OutError = TEXT("Python support is not available in this editor build");
 			return;
 		}
 
@@ -143,12 +137,18 @@ FCapabilityResult FGetPythonApiCapability::Execute(const TSharedPtr<FJsonObject>
 			TEXT("import json,inspect,sys\n")
 			TEXT("TARGET=\"%s\"\n")
 			TEXT("QUERY=\"%s\"\n")
+			TEXT("OFFSET=%d\n")
 			TEXT("LIMIT=%d\n")
+			TEXT("SEARCHDOC=%s\n")
+			TEXT("PYVER=sys.version.split()[0]\n")
 			TEXT("def _kind(o):\n")
 			TEXT("  if inspect.isclass(o): return \"class\"\n")
 			TEXT("  if inspect.ismodule(o): return \"module\"\n")
 			TEXT("  if inspect.isroutine(o) or (callable(o) and not inspect.isclass(o)): return \"function\"\n")
 			TEXT("  return \"other\"\n")
+			TEXT("def _rawdoc(o):\n")
+			TEXT("  try: return getattr(o,'__doc__',None) or ''\n")
+			TEXT("  except Exception: return ''\n")
 			TEXT("def _first(s):\n")
 			TEXT("  if not s: return \"\"\n")
 			TEXT("  return s.strip().splitlines()[0][:200]\n")
@@ -156,7 +156,7 @@ FCapabilityResult FGetPythonApiCapability::Execute(const TSharedPtr<FJsonObject>
 			TEXT("  try:\n")
 			TEXT("    return str(inspect.signature(o))\n")
 			TEXT("  except Exception:\n")
-			TEXT("    line=_first(getattr(o,'__doc__',None) or '')\n")
+			TEXT("    line=_first(_rawdoc(o))\n")
 			TEXT("    return line if '(' in line else ''\n")
 			TEXT("try:\n")
 			TEXT("  parts=TARGET.split('.')\n")
@@ -166,19 +166,28 @@ FCapabilityResult FGetPythonApiCapability::Execute(const TSharedPtr<FJsonObject>
 			TEXT("  names=[n for n in dir(obj) if not n.startswith('_')]\n")
 			TEXT("  if QUERY:\n")
 			TEXT("    q=QUERY.lower()\n")
-			TEXT("    names=[n for n in names if q in n.lower()]\n")
+			TEXT("    if SEARCHDOC:\n")
+			TEXT("      sel=[]\n")
+			TEXT("      for n in names:\n")
+			TEXT("        if q in n.lower():\n")
+			TEXT("          sel.append(n); continue\n")
+			TEXT("        try: m=getattr(obj,n)\n")
+			TEXT("        except Exception: continue\n")
+			TEXT("        if q in _rawdoc(m).lower(): sel.append(n)\n")
+			TEXT("      names=sel\n")
+			TEXT("    else:\n")
+			TEXT("      names=[n for n in names if q in n.lower()]\n")
 			TEXT("  total=len(names)\n")
 			TEXT("  entries=[]\n")
-			TEXT("  for n in names[:LIMIT]:\n")
+			TEXT("  for n in names[OFFSET:OFFSET+LIMIT]:\n")
 			TEXT("    try: m=getattr(obj,n)\n")
 			TEXT("    except Exception: continue\n")
-			TEXT("    doc=_first(getattr(m,'__doc__',None) or '')\n")
-			TEXT("    entries.append({'name':n,'kind':_kind(m),'signature':_sig(m),'doc':doc})\n")
-			TEXT("  payload={'target':TARGET,'pythonVersion':sys.version.split()[0],'totalMatched':total,'entries':entries}\n")
+			TEXT("    entries.append({'name':n,'kind':_kind(m),'signature':_sig(m),'doc':_first(_rawdoc(m))})\n")
+			TEXT("  payload={'target':TARGET,'pythonVersion':PYVER,'totalMatched':total,'offset':OFFSET,'entries':entries}\n")
 			TEXT("except Exception as e:\n")
-			TEXT("  payload={'error':type(e).__name__+': '+str(e)}\n")
+			TEXT("  payload={'target':TARGET,'pythonVersion':PYVER,'error':type(e).__name__+': '+str(e)}\n")
 			TEXT("print('NEXUS_PY_API:'+json.dumps(payload,ensure_ascii=True))\n"),
-			*Target, *Query, Limit);
+			*Target, *Query, Offset, Limit, bSearchDoc ? TEXT("True") : TEXT("False"));
 
 		FPythonCommandEx Cmd;
 		Cmd.Command = Script;
@@ -209,16 +218,8 @@ FCapabilityResult FGetPythonApiCapability::Execute(const TSharedPtr<FJsonObject>
 			return;
 		}
 
-		FString ProbeError;
-		if (Parsed->TryGetStringField(TEXT("error"), ProbeError) && !ProbeError.IsEmpty())
-		{
-			TSharedPtr<FJsonObject> ErrEntry = MakeShared<FJsonObject>();
-			ErrEntry->SetStringField(TEXT("target"), Target);
-			ErrEntry->SetStringField(TEXT("error"), ProbeError);
-			OutEntries.Add(MakeShared<FJsonValueObject>(ErrEntry));
-			return;
-		}
-
+		// 成功与探测失败共用一条出口：「该 API 在本版本不存在」恰恰最需要版本信息，
+		// 错误分支同样要带 engineVersion / pythonVersion
 		Parsed->SetStringField(TEXT("engineVersion"), FString::Printf(TEXT("%d.%d.%d"),
 			ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION, ENGINE_PATCH_VERSION));
 		OutEntries.Add(MakeShared<FJsonValueObject>(Parsed));

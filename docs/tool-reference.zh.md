@@ -147,12 +147,16 @@
 
 ### `exec_python`
 
-在编辑器内执行 Python 脚本。exec/file/eval 三模式；捕获 stdout 与 traceback。写前先 get_python_api。
+在编辑器内执行 Python。exec 传 code、file 传 scriptPath、eval 求值；捕获 stdout 与 traceback。写前先 get_python_api。
+
+**前置条件**: `python`
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `code` | `string` | ★ | Python 源码；file 模式下为文件路径 |
-| `mode` | `string (enum)` |  | 执行源码、执行文件，或求值表达式 枚举: `exec` / `file` / `eval` |
+| `code` | `string` |  | Python 源码；exec/eval 模式必填 |
+| `scriptPath` | `string` |  | 相对 Content/Python/ 的 .py 路径；`file` 模式必填 |
+| `mode` | `string (enum)` |  | 执行源码、执行 .py 文件、或求值表达式 枚举: `exec` / `file` / `eval` |
+| `persistent` | `boolean` |  | file 模式：复用 console 全局字典，而非隔离作用域 |
 | `unattended` | `boolean` |  | 运行期间抑制模态弹窗 |
 
 **相关 Capability**: `get_python_api`, `exec_command`, `get_output_log`
@@ -227,13 +231,17 @@
 
 ### `get_python_api`
 
-内省当前引擎 unreal 模块成员。返回签名与 docstring 首行；写 Python 前先探测。
+内省当前引擎 unreal 模块成员。返回签名与 docstring 首行，支持分页；写 Python 前先探测。
+
+**前置条件**: `python`
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `target` | `string` |  | 要内省的 unreal 点分路径 |
 | `query` | `string` |  | 成员名子串过滤 |
-| `limit` | `integer` |  | 最大返回成员数 |
+| `searchDoc` | `boolean` |  | query 同时匹配 docstring |
+| `offset` | `integer` |  | 分页偏移 |
+| `limit` | `integer` |  | 每页最大成员数 |
 
 **相关 Capability**: `exec_python`, `get_editor_info`
 

@@ -50,6 +50,8 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。日常推荐经客户端�
 | `eval_runtime_lua` | 在 PIE/Game 执行 Lua 片段，返回压栈值 | UnLua + PIE |
 | `dofile_runtime_lua` | 从 `Content/Script/` 加载执行 `.lua` | UnLua + PIE |
 
+> 只读探测走 **`get_python_api`**：它同样需要 Python Editor Script Plugin，但只做 `inspect`，参数经白名单校验后嵌入固定脚本，不接受用户代码，因此**默认开启**。想知道某个 `unreal.*` API 在本引擎版本上存不存在，用它，不必为此打开 `exec_python`。
+
 ### 为什么默认关
 
 - **等价于进程内任意代码执行**：Python / Lua 可 `import os`、读写任意文件、起子进程。一旦开启，鉴权就成了唯一防线，按 Capability 的启用/禁用粒度全部失效。

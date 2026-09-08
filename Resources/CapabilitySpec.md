@@ -135,6 +135,7 @@
 |---|---|
 | `pie` | 需要 PIE/Game 会话运行中 |
 | `unlua` | 需要 UnLua 插件启用 |
+| `python` | 需要 Python Editor Script Plugin 启用且解释器已初始化 |
 | `editor_only` | 仅编辑器模式（非 PIE）可用 |
 | `ds_mode` | 仅 Dedicated Server 模式下有意义 |
 

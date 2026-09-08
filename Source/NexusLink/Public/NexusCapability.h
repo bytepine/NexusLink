@@ -79,7 +79,7 @@ struct FNexusCapabilityDefinition
 	TArray<FString> RelatedCapabilities;
 
 	/**
-	 * 前置依赖枚举（"pie" / "unlua" / "editor_only" / "ds_mode"）。
+	 * 前置依赖枚举（"pie" / "unlua" / "python" / "editor_only" / "ds_mode"）。
 	 * search_capabilities 返回时作为 prerequisites 字段透传，提醒 AI 检查运行环境。
 	 */
 	TArray<FString> Prerequisites;

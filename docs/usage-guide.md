@@ -345,3 +345,15 @@ Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性�
 ### `exec_python` 报 Python plugin module not loaded
 
 `exec_python`（编译期门控 `WITH_NEXUS_PYTHON`）还需要工程**启用** Python Editor Script Plugin：**Edit → Plugins → Scripting → Python Editor Script Plugin** 勾选后重启。该 cap 与 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 一样**默认禁用**，须在设置面板重新勾选或用 `-NexusEnableDangerousCaps` 启动。跨版本写 Python 前先用只读 `get_python_api`（默认开）核对当前引擎的 `unreal.*` 签名，不要凭记忆套 5.x API。
+
+UE 5.6+ 还会区分「已配置未启用」与「已启用未初始化」两种中间态，报错文案会直接说明该去 Project Settings 打开还是等编辑器启动完再重试。
+
+### `exec_python` 三种 mode 的差别
+
+| mode | 传什么 | 作用域 |
+|---|---|---|
+| `exec`（默认） | `code`：多语句字面脚本 | 始终是 console 全局字典，**变量与 import 会在多次调用间保留** |
+| `eval` | `code`：单个表达式，结果回 `result` | 同上，可读到 `exec` 留下的变量 |
+| `file` | `scriptPath`：相对 `Content/Python/` 的 `.py` | 默认隔离；`persistent=true` 才并入 console 字典 |
+
+`file` 模式的路径在 C++ 侧校验：必须相对、不含 `..`、以 `.py` 结尾且真实存在，否则直接 `arg_invalid`——UE 原生的 `ExecuteFile` 靠「首 token 是不是 `.py`」自动分流，路径写错会被当字面代码执行，报出与真实原因无关的 `NameError`。

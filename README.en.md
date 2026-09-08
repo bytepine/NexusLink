@@ -50,6 +50,8 @@ Four "script escape hatch" capabilities. They are written into the disabled list
 | `eval_runtime_lua` | Evaluate a Lua snippet in PIE/Game; returns stacked values | UnLua + PIE |
 | `dofile_runtime_lua` | Load and run a `.lua` file from `Content/Script/` | UnLua + PIE |
 
+> Read-only probing goes through **`get_python_api`**. It needs the same Python plugin but only runs `inspect`, embedding whitelist-validated arguments into a fixed script — it never accepts user code, so it is **enabled by default**. Use it to check whether an `unreal.*` API exists on this engine version instead of turning on `exec_python`.
+
 ### Why they are off by default
 
 - **Equivalent to arbitrary in-process code execution**: Python / Lua can `import os`, touch any file, and spawn subprocesses. Once enabled, auth is the only remaining boundary and per-capability enable/disable stops meaning anything.

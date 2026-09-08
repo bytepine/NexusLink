@@ -38,6 +38,7 @@ For UE assets / PIE / blueprints / Widget / material / behavior tree / GAS / Lua
 - ❌ `get_runtime_actor_*` / `set_runtime_actor_*` without `actorName` (call `list_runtime_actors` first)
 - ❌ `exec_command` without a non-empty `command`
 - ❌ Runtime Lua tools (`eval_runtime_lua`, etc.) without PIE / UnLua ready
+- ❌ Guess `unreal.*` Python APIs — they differ per engine version; probe with `get_python_api` before `exec_python`
 - ❌ Ignore `_feedbackHint` — call `submit_feedback`
 - ❌ Expect `success:true` on write success (no `error` means success; only explicit `success:false` is failure)
 - ❌ Pass `assetPaths` / `actorNames` / `widgetNames` to capabilities (cross-target via `call_capability.calls[]`)
@@ -72,6 +73,7 @@ Legacy keys → `arg_invalid`.
 | PIE actor properties | `list_runtime_actors` → `get_runtime_actor_property(actorName=…, propertyPaths=…)` |
 | PIE blackboard / active node | `get_runtime_actor_behavior_tree` (needs PIE + `actorName`) |
 | Console command | `exec_command(command="…")` (`command` required, non-empty) |
+| Editor automation via Python | `get_python_api(target="unreal", query="…")` to confirm the API exists on this engine → `exec_python`; both need Python Editor Script Plugin, and `exec_python` is disabled by default |
 | Errors / crashes / PIE logs | `get_output_log(preset="diagnose")` (newest + ≥warning + category summary); or `includeSummary`/`summaryOnly`; after repro use `latestSequence`→`sinceSequence`; narrow capture with `set_log_capture_filter` (Warning/Error always captured) |
 | Game design docs | Project **knowledge-base MCP** if available — not NexusLink asset search |
 
