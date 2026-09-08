@@ -45,6 +45,7 @@ Same as SearchMode: `get_asset_blueprint` before graph edits; Lua starts with `g
 - **`get_runtime_actor_property` requires non-empty `actorName`** — call `list_runtime_actors` first.
 - **`exec_command` requires non-empty `command`**.
 - Unsure whether an `unreal.*` API exists on this engine version: call `get_python_api` first; do not guess UE5 APIs on UE4 (or vice versa).
+- `exec_python` writes are only undoable via `obj.set_editor_property(...)` or an explicit `obj.modify()`; plain `obj.foo = x` is **not** recorded. Check the returned `undoRecorded` — `false` means Ctrl+Z will not roll this back.
 - Before `get/manage_asset_*`, call `search_asset`; prefer returned `recommendedGet` / `recommendedManage`.
 - After `sections=["all"]`, no sub-section calls for 30s.
 - `submit_feedback` triggers same as SearchMode; **`_feedbackHint` is mandatory**.

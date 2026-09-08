@@ -55,7 +55,7 @@ Four "script escape hatch" capabilities. They are written into the disabled list
 ### Why they are off by default
 
 - **Equivalent to arbitrary in-process code execution**: Python / Lua can `import os`, touch any file, and spawn subprocesses. Once enabled, auth is the only remaining boundary and per-capability enable/disable stops meaning anything.
-- **They bypass the write-path safety net**: every other Capability wraps its writes in `FNexusEditorTransaction` (undoable; a failed `calls[]` batch rolls back as a whole) and is subject to the proxy write gate and memory ledger. Edits made inside a script are outside that wrapper, so a bad AI edit cannot be rolled back.
+- **Only half the write-path safety net applies**: every other Capability wraps its writes in `FNexusEditorTransaction` (undoable; a failed `calls[]` batch rolls back as a whole). `exec_python` opens a transaction too, but UE only records objects that went through `Modify()`: the most natural Python form, `obj.foo = x`, uses `NotifyMode::Never` and is **not** recorded — only `obj.set_editor_property(...)` and an explicit `obj.modify()` are. A script mixing both leaves Ctrl+Z rolling back half the change, landing the asset in a state that never existed. The returned `undoRecorded` reports honestly whether this call produced any undoable record. Package-level operations (`create_asset` / `delete_asset` / `save_asset`) are outside transactions entirely.
 - **They crash the editor easily**: model-written scripts routinely hit the wrong thread, stale objects, or GC — and the crash is hard to attribute afterwards.
 
 ### Trade-off versus the default-enabled Capabilities
@@ -65,7 +65,7 @@ Four "script escape hatch" capabilities. They are written into the disabled list
 | Coverage | Only the domains already implemented | Whatever the engine exposes — full long tail |
 | Arguments | JSON Schema validated; bad args fail fast with `arg_invalid` | Free-form text; errors surface as a runtime traceback |
 | Response | Structured + `*_defaults` compaction, predictable token cost | Unstructured stdout, easy to blow up the response body |
-| Undo | Uniform transaction wrapper | None |
+| Undo | Uniform transaction wrapper | Only the `set_editor_property` / `modify()` path; direct assignment and package ops are not — partial rollback is easy to hit |
 | Control flow | `calls[]` batches only — no branching or loops | Arbitrary loops and branches in a single round trip |
 | Version drift | `NX_*` semantic macros absorb 4.26–5.8 differences at compile time | Left to the script; UE4/UE5 API differences break easily |
 

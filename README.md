@@ -55,7 +55,7 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。日常推荐经客户端�
 ### 为什么默认关
 
 - **等价于进程内任意代码执行**：Python / Lua 可 `import os`、读写任意文件、起子进程。一旦开启，鉴权就成了唯一防线，按 Capability 的启用/禁用粒度全部失效。
-- **绕过写路径的安全网**：其余 Capability 的写操作统一包 `FNexusEditorTransaction`（可 Undo，`calls[]` 批量失败整体回滚），并受代理层写门控与内存记账约束；脚本里的修改不在这套包裹内，AI 改错了无法回滚。
+- **写路径的安全网只剩半张**：其余 Capability 的写操作统一包 `FNexusEditorTransaction`（可 Undo，`calls[]` 批量失败整体回滚）。`exec_python` 同样开了事务，但 UE 只记录调用过 `Modify()` 的对象：Python 里最自然的 `obj.foo = x` 走 `NotifyMode::Never`，**不进事务**；只有 `obj.set_editor_property(...)` 与显式 `obj.modify()` 会。脚本混用两种写法时 Ctrl+Z 只回滚一半，资产会落进一个从未存在过的中间态。返回里的 `undoRecorded` 如实回报本次是否产生了可回滚记录。此外 `create_asset` / `delete_asset` / `save_asset` 等包级操作本来就不在事务范围内。
 - **容易崩编辑器**：模型现写的脚本很容易碰到错误线程、失效对象或 GC，崩溃后也难归因。
 
 ### 与默认开启的 Capability 的取舍
@@ -65,7 +65,7 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。日常推荐经客户端�
 | 覆盖面 | 覆盖已实现的域，没做的做不了 | 引擎暴露多少就能做多少，长尾全覆盖 |
 | 参数 | JSON Schema 校验，错参立即 `arg_invalid` | 自由文本，错误要等运行期 traceback |
 | 返回 | 结构化 + `*_defaults` 压缩，token 可控 | 非结构化 stdout，容易打爆响应体 |
-| 可撤销 | 统一事务包裹 | 无 |
+| 可撤销 | 统一事务包裹 | 仅 `set_editor_property` / `modify()` 路径可撤；直接赋值与包级操作不可，易半回滚 |
 | 控制流 | `calls[]` 只能批量，无条件与循环 | 任意分支循环，一次往返做完 |
 | 跨版本 | `NX_*` 语义宏在编译期消化 4.26~5.8 差异 | 由脚本自己承担，UE4/UE5 API 差异易翻车 |
 

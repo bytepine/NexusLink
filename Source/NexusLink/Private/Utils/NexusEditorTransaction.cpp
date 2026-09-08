@@ -6,6 +6,7 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "ScopedTransaction.h"
+#include "Editor/Transactor.h"
 #include "Misc/ITransaction.h"
 #endif
 
@@ -40,6 +41,19 @@ bool FNexusEditorTransaction::IsTransactionActive()
 #else
 	return false;
 #endif
+}
+
+int32 FNexusEditorTransaction::GetActiveRecordCount()
+{
+#if WITH_EDITOR
+	// 编辑器里 GUndo 恒为 UTransBuffer 用 FTransaction 建的，引擎自身（UTransBuffer::End）
+	// 也做同样的向下转型；对象在 Modify() 时即入 Records，无需等 Finalize
+	if (const FTransaction* Tx = static_cast<const FTransaction*>(GUndo))
+	{
+		return Tx->GetRecordCount();
+	}
+#endif
+	return 0;
 }
 
 #if WITH_EDITOR

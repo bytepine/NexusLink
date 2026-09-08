@@ -6,6 +6,7 @@
 
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
+#include "Utils/NexusEditorTransaction.h"
 #include "Utils/NexusPythonRuntime.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
@@ -149,11 +150,19 @@ FCapabilityResult FExecPythonCapability::Execute(const TSharedPtr<FJsonObject>& 
 			Cmd.Flags |= EPythonCommandFlags::Unattended;
 		}
 
+		// 基类 Run() 已为本 cap 开了一笔事务，但 UE 事务只记录调用过 Modify() 的对象：
+		// Python 的 obj.foo = x 走 NotifyMode::Never，不触发 PreEditChange/Modify，录不进去；
+		// set_editor_property 与显式 obj.modify() 才会。取执行前后的记录数差如实回报，
+		// 免得脚本混用两种写法时以为 Ctrl+Z 能撤干净
+		const int32 RecordsBefore = FNexusEditorTransaction::GetActiveRecordCount();
+
 		const bool bExecuted = Python->ExecPythonCommandEx(Cmd);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("mode"), ModeNames[ModeIdx]);
 		Entry->SetBoolField(TEXT("executed"), bExecuted);
+		Entry->SetBoolField(TEXT("undoRecorded"),
+			FNexusEditorTransaction::GetActiveRecordCount() > RecordsBefore);
 		if (bFileMode)
 		{
 			Entry->SetStringField(TEXT("scriptPath"), AbsPath);

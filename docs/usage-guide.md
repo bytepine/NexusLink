@@ -357,3 +357,24 @@ UE 5.6+ 还会区分「已配置未启用」与「已启用未初始化」两种
 | `file` | `scriptPath`：相对 `Content/Python/` 的 `.py` | 默认隔离；`persistent=true` 才并入 console 字典 |
 
 `file` 模式的路径在 C++ 侧校验：必须相对、不含 `..`、以 `.py` 结尾且真实存在，否则直接 `arg_invalid`——UE 原生的 `ExecuteFile` 靠「首 token 是不是 `.py`」自动分流，路径写错会被当字面代码执行，报出与真实原因无关的 `NameError`。
+
+### `exec_python` 的 Undo 语义与 `undoRecorded`
+
+`exec_python` 和其它写 cap 一样被 `FNexusEditorTransaction` 包了一笔事务，但 **UE 事务只记录调用过 `Modify()` 的对象**，而 Python 的两条写路径行为不同：
+
+| 写法 | 底层 NotifyMode | 触发 `Modify()` | 可 Undo |
+|---|---|---|---|
+| `obj.foo = x` | `Never`（Python 属性 setter 的默认值） | 否 | **否** |
+| `obj.set_editor_property("foo", x)` | `DEFAULT` → `PreEditChange` | 是 | 是 |
+| 先 `obj.modify()` 再改 | 显式 | 是 | 是 |
+| `unreal.XxxLibrary.foo()` | 看原生实现自己有没有 `Modify` | 不定 | 不定 |
+
+**要能撤销就用 `set_editor_property`**。混用两种写法最危险：Ctrl+Z 回滚一部分、留下另一部分，资产落进一个从未存在过的中间态。
+
+返回的 `undoRecorded` 是执行前后事务记录数的差值：`true` 表示本次确实产生了可回滚记录，`false` 表示 Ctrl+Z 撤不掉这次改动。注意它只说明「有没有」，不保证「全部」——脚本里一半走 `set_editor_property`、一半直接赋值时它同样是 `true`。若同一对象在本批 `calls[]` 中已被别的 cap 记录过，`Modify()` 不会新增记录，此时会偏保守地报 `false`。
+
+还有三类改动无论怎么写都撤不了：
+
+- **包级操作**：`create_asset` / `delete_asset` / `rename_asset` / `save_asset` 不在事务范围内。脚本「建资产 + 改属性」后撤销，只回滚属性，资产还在。
+- **脚本自己开事务**：Python 自带 `unreal.ScopedEditorTransaction`。它在我们已开的事务里属于嵌套，而 UE 的 `UTransBuffer::Cancel` 不支持部分取消（日志原话是 *Canceling transaction partially is unsupported. Canceling %s entirely.*）——脚本里一句 `tx.cancel()` 会取消整笔，`calls[]` 批量下会连带取消同批其它 cap 的写入。**不要在 `exec_python` 里 cancel 事务**。
+- **撑爆 undo 缓冲区**：上限来自 `GEditorPerProjectIni` 的 `[Undo] UndoBufferSize`，默认仅 16 MB，超出后会从头逐笔丢弃历史。循环 `Modify()` 上万个对象会把用户之前的手工操作历史一起挤掉；这类批量改写请拆批或改用声明式 cap。

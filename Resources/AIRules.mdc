@@ -39,6 +39,7 @@ For UE assets / PIE / blueprints / Widget / material / behavior tree / GAS / Lua
 - ❌ `exec_command` without a non-empty `command`
 - ❌ Runtime Lua tools (`eval_runtime_lua`, etc.) without PIE / UnLua ready
 - ❌ Guess `unreal.*` Python APIs — they differ per engine version; probe with `get_python_api` before `exec_python`
+- ❌ Assume `exec_python` writes are undoable — plain `obj.foo = x` is not recorded; use `obj.set_editor_property(...)` (or explicit `obj.modify()`) and check the returned `undoRecorded`
 - ❌ Ignore `_feedbackHint` — call `submit_feedback`
 - ❌ Expect `success:true` on write success (no `error` means success; only explicit `success:false` is failure)
 - ❌ Pass `assetPaths` / `actorNames` / `widgetNames` to capabilities (cross-target via `call_capability.calls[]`)
