@@ -37,7 +37,7 @@ static FString JoinPythonLogOutput(const TArray<FPythonLogOutputEntry>& LogOutpu
 void FExecPythonCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("exec_python");
-	Out.Description = TEXT("Run editor script via Python plugin. Statement/file/eval modes; captures stdout and traceback.");
+	Out.Description = TEXT("Run editor Python. exec/file/eval; stdout and traceback. Probe with get_python_api first.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("code"), FNexusSchema::Str(TEXT("Python source, or file path in file mode")))
 		.Prop(TEXT("mode"), FNexusSchema::Enum(TEXT("Run source, run a file, or evaluate expression"),
@@ -47,7 +47,7 @@ void FExecPythonCapability::BuildDefinition(FNexusCapabilityDefinition& Out) con
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("py"), TEXT("script"), TEXT("snippet"), TEXT("automation"), TEXT("scripting") };
-	Out.RelatedCapabilities = { TEXT("exec_command"), TEXT("get_output_log") };
+	Out.RelatedCapabilities = { TEXT("get_python_api"), TEXT("exec_command"), TEXT("get_output_log") };
 }
 
 FCapabilityResult FExecPythonCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const

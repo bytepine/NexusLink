@@ -48,7 +48,7 @@ Forbidden: `manage_animation`, `set_runtime_actor_animation`.
 
 **Lua**: `{eval|dofile|gc|hotreload}_runtime_lua` · `get_runtime_lua_*` · `set_runtime_lua` · `get_asset_lua_binding` · `manage_asset_lua_binding`; `hotreload_runtime_lua` requires UnLua **2.x**.
 
-**Plugin-gated**: GAS / Niagara / StateTree / MVVM / EQS / MetaSound / PCG / ControlRig / Enhanced Input / Paper2D / GeometryCollection / CommonUI / Movie Render Queue / Python (`exec_python`) register only with matching plugin+engine; `search_capabilities` `not_found` → skip, do not hard-call handshake names. Tag queries: `get_gameplay_tags` is always available.
+**Plugin-gated**: GAS / Niagara / StateTree / MVVM / EQS / MetaSound / PCG / ControlRig / Enhanced Input / Paper2D / GeometryCollection / CommonUI / Movie Render Queue / Python (`get_python_api` / `exec_python`) register only with matching plugin+engine; `search_capabilities` `not_found` → skip, do not hard-call handshake names. Tag queries: `get_gameplay_tags` is always available.
 
 **Editor**: `control_pie`, `control_movie_pipeline`, `exec_command`, `search_console_variables`, `capture_viewport`, `get_editor_context`, `get_output_log` / `set_log_capture_filter`, `get_editor_info`.
 
@@ -66,5 +66,6 @@ Forbidden: `manage_animation`, `set_runtime_actor_animation`.
 - `search_asset`: no `assetType=all` + bare `/Game/`; then use `recommended*` + `path`.
 - `search_capabilities`: infer name from patterns above and pass `capabilityName` (full `parameters[]` once); otherwise narrow 1–2 word `query` (e.g. `blueprint variable`); `query=""` is name-only catalog; **do not** use `blueprint` / `asset` / `runtime` / `animation` alone (`query_too_broad`). On failure check `errorKind` / `suggestedQueries`; `not_found` with unregistered hint → do not retry same domain; on `call_capability` `disabled` do not retry.
 - `get_runtime_actor_property` requires non-empty `actorName` (call `list_runtime_actors` first); `exec_command` requires non-empty `command`.
+- Unsure whether an `unreal.*` API exists on this engine version: call `get_python_api` first; do not guess UE5 APIs on UE4 (or vice versa).
 - After `sections=["all"]`, no sub-section calls for 30s (`redundant_call`).
 - Retry ≥2 / no suitable cap / schema guessing / serial ≥3 → `submit_feedback`; **`_feedbackHint` is mandatory**.

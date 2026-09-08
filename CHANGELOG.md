@@ -9,7 +9,7 @@
 
 ### Added
 
-- feat(mcp): `exec_python`——在编辑器内执行 Python（`mode=exec|file|eval`，走 `IPythonScriptPlugin::ExecPythonCommandEx`），结构化返回 `output`（stdout/warning，>200 行截断）与失败时的 `error`（traceback），`eval` 另回 `result`；编译期按磁盘 `.uplugin` 门控 `WITH_NEXUS_PYTHON`（仅 Editor 目标，不强制宿主启用 Python 插件，未启用时报 `Python plugin module not loaded`）；与 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 同列危险 cap，**默认禁用**。Capability 计数 227→228
+- feat(mcp): Python 入口——危险 cap `exec_python`（`mode=exec|file|eval`，走 `IPythonScriptPlugin::ExecPythonCommandEx`，结构化返回 `output` / traceback `error`，`eval` 另回 `result`，**默认禁用**）+ 只读 `get_python_api`（内省当前引擎 `unreal` 模块成员/签名/doc 首行，默认开；写 Python 前先探测）；编译期按磁盘 `.uplugin` 门控 `WITH_NEXUS_PYTHON`（仅 Editor 目标，不强制宿主启用 Python 插件，未启用时报 `Python plugin module not loaded`）。Capability 计数 227→229
 
 ### Changed
 

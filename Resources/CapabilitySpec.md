@@ -266,7 +266,7 @@
 | CommonUI (`WITH_COMMON_UI=1`, UE5+, 6) | `create/get/manage_asset_common_button_style`, `create/get/manage_asset_common_text_style` |
 | MoviePipeline (`WITH_MOVIE_RENDER_PIPELINE=1`, UE5+, 4) | `create/get/manage_asset_movie_pipeline_config`, `control_movie_pipeline` |
 | PoseSearch (`WITH_POSE_SEARCH=1`, UE 5.4+, 3) | `create/get/manage_asset_pose_search` |
-| Python (`WITH_NEXUS_PYTHON=1`, 1) | `exec_python` |
+| Python (`WITH_NEXUS_PYTHON=1`, 2) | `exec_python`, `get_python_api` |
 
 ### 6.5 禁止复活与计划缺口
 

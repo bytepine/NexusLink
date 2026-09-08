@@ -344,4 +344,4 @@ Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性�
 
 ### `exec_python` 报 Python plugin module not loaded
 
-`exec_python`（编译期门控 `WITH_NEXUS_PYTHON`）还需要工程**启用** Python Editor Script Plugin：**Edit → Plugins → Scripting → Python Editor Script Plugin** 勾选后重启。该 cap 与 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 一样**默认禁用**，须在设置面板重新勾选或用 `-NexusEnableDangerousCaps` 启动。
+`exec_python`（编译期门控 `WITH_NEXUS_PYTHON`）还需要工程**启用** Python Editor Script Plugin：**Edit → Plugins → Scripting → Python Editor Script Plugin** 勾选后重启。该 cap 与 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 一样**默认禁用**，须在设置面板重新勾选或用 `-NexusEnableDangerousCaps` 启动。跨版本写 Python 前先用只读 `get_python_api`（默认开）核对当前引擎的 `unreal.*` 签名，不要凭记忆套 5.x API。
