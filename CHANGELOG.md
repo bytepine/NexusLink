@@ -19,6 +19,8 @@
 ### Changed
 
 - chore(settings): 危险 Capability 默认关闭改为**按名记录**（`DangerousCapsDefaultOffApplied`），旧版单一 bool 标志仅用于迁移——此前老配置一旦置位，后续版本新增的危险 cap 不会被默认关掉；迁移时把原三个 cap 视为已处理，不会覆盖用户手动启用的状态
+- chore(release): 发版不再额外打 `nexus-mcp-unreal-<ver>-ue5.8.zip`，Release 只上传通用 `EngineVersion: 4.26` 包
+- docs: NexusDesktop macOS 安装包文件名改为 `NexusDesktop-darwin-arm64.dmg`（仅 Apple Silicon，不再提供 Universal / Intel）
 
 ## [2.0.2] - 2026-09-04
 

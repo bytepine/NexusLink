@@ -48,7 +48,6 @@ jobs:
         run: |
           VERSION="${{ steps.meta.outputs.version }}"
           python scripts/build_unreal.py --version "$VERSION" --output release/
-          python scripts/build_unreal.py --version "$VERSION" --engine-version 5.8 --output release/
 
       - name: Extract release notes from CHANGELOG
         run: |
@@ -67,7 +66,6 @@ jobs:
           body_path: release-notes.md
           files: |
             release/nexus-mcp-unreal-${{ steps.meta.outputs.version }}.zip
-            release/nexus-mcp-unreal-${{ steps.meta.outputs.version }}-ue5.8.zip
           generate_release_notes: false
           overwrite: true
           prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}

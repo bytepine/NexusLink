@@ -192,7 +192,7 @@ def main() -> int:
     parser.add_argument(
         "--engine-version",
         default=None,
-        help="覆盖 NexusLink.uplugin EngineVersion（如 Fab 提交 UE 5.8 包）",
+        help="覆盖 NexusLink.uplugin EngineVersion（如 Fab 多引擎版本提交）",
     )
     parser.add_argument("--output", default=None, help="默认 <repo>/release/")
     args = parser.parse_args()

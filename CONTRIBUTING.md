@@ -52,7 +52,7 @@ py scripts/build_unreal.py --version <version> --output release/
 
 发行 zip **不含** `Source/NexusLinkTests`（L1 Automation 仅源码仓 / 开发构建）。
 
-产物：`release/nexus-mcp-unreal-<version>.zip`（`EngineVersion: 4.26`，通用安装）；发版另附 `nexus-mcp-unreal-<version>-ue5.8.zip`（Fab / UE 5.8 专用）。解压到 UE 项目 `Plugins/Developer/`。
+产物：`release/nexus-mcp-unreal-<version>.zip`（`EngineVersion: 4.26`，通用安装）。解压到 UE 项目 `Plugins/Developer/`。
 
 ## 发版（维护者）
 
@@ -79,4 +79,4 @@ GUI 信号：cap 名含 `_runtime_`；标记 `l4_runtime` / `lua` / `requires_gu
 
 **Pre-release**（`X.Y.Z-beta.N`）：步骤同上，tag 为 `nexus-link-vX.Y.Z-beta.N`；CI 创建 GitHub **Pre-release**。
 
-push tag 后 `.github/workflows/release.yml` 打包 `nexus-mcp-unreal-<ver>.zip` 与 `nexus-mcp-unreal-<ver>-ue5.8.zip` 并发布 Release。
+push tag 后 `.github/workflows/release.yml` 打包 `nexus-mcp-unreal-<ver>.zip` 并发布 Release。
