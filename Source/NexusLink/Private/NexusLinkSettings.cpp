@@ -86,6 +86,15 @@ bool UNexusLinkSettings::IsCapabilityEnabled(const FString& CapabilityName) cons
 	return !DisabledCapabilities.Contains(CapabilityName);
 }
 
+bool UNexusLinkSettings::IsCapabilityCheckedInTree(const FString& CapabilityName) const
+{
+	if (SessionEnabledCapabilities.Contains(CapabilityName))
+	{
+		return true;
+	}
+	return !DisabledCapabilities.Contains(CapabilityName);
+}
+
 bool UNexusLinkSettings::IsDangerousCapability(const FString& CapabilityName)
 {
 	const FCapRecord* Rec = FNexusCapabilityRegistry::Get().FindRecordByName(CapabilityName);
@@ -190,14 +199,7 @@ void UNexusLinkSettings::EnsureDangerousCapsDefaultOff()
 			continue;
 		}
 		DangerousCapsDefaultOffApplied.Add(Name);
-		if (DangerousCapAccess == ENexusDangerousCapAccess::Confirm)
-		{
-			DisabledCapabilities.Remove(Name);
-		}
-		else
-		{
-			DisabledCapabilities.Add(Name);
-		}
+		DisabledCapabilities.Add(Name);
 		bChanged = true;
 	}
 
@@ -219,25 +221,10 @@ void UNexusLinkSettings::EnsureDangerousCapsDefaultOff()
 		bChanged = true;
 	}
 
-	if (DangerousCapAccess == ENexusDangerousCapAccess::Confirm && !bConfirmDangerousCapsDefaulted)
-	{
-		ApplyConfirmDangerousCapDefaults();
-		bChanged = true;
-	}
-
 	if (bChanged)
 	{
 		SaveConfig();
 	}
-}
-
-void UNexusLinkSettings::ApplyConfirmDangerousCapDefaults()
-{
-	for (const FString& Name : CollectDangerousCapabilityNames())
-	{
-		DisabledCapabilities.Remove(Name);
-	}
-	bConfirmDangerousCapsDefaulted = true;
 }
 
 void UNexusLinkSettings::EnableDangerousCapsForSession()
@@ -349,18 +336,6 @@ void UNexusLinkSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, ToolsListMode)
 		|| ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, DangerousCapAccess))
 	{
-		if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, DangerousCapAccess))
-		{
-			if (DangerousCapAccess == ENexusDangerousCapAccess::Confirm)
-			{
-				ApplyConfirmDangerousCapDefaults();
-			}
-			else
-			{
-				bConfirmDangerousCapsDefaulted = false;
-			}
-			SaveConfig();
-		}
 		FNexusLinkModule& Module = FModuleManager::GetModuleChecked<FNexusLinkModule>(TEXT("NexusLink"));
 		const TSharedPtr<FNexusMcpServer>& Server = Module.GetMcpServer();
 		if (Server.IsValid() && Server->IsRunning())

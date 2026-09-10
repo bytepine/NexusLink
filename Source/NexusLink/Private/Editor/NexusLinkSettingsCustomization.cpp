@@ -149,7 +149,6 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bDangerousCapsDefaultOffApplied));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, DangerousCapsDefaultOffApplied));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bDangerousCapAccessMigrated));
-	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bConfirmDangerousCapsDefaulted));
 
 	TSharedRef<IPropertyHandle> DangerAccessHandle = DetailBuilder.GetProperty(
 		GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, DangerousCapAccess));
@@ -701,7 +700,7 @@ TSharedRef<SWidget> FNexusLinkSettingsCustomization::CreateCapGroupWidget(FCapGr
 						return;
 					}
 					++TotalCount;
-					if (SettingsPtr->IsCapabilityEnabled(E.Name)) ++EnabledCount;
+					if (SettingsPtr->IsCapabilityCheckedInTree(E.Name)) ++EnabledCount;
 				});
 				if (TotalCount == 0) return ECheckBoxState::Unchecked;
 				if (EnabledCount == TotalCount) return ECheckBoxState::Checked;
@@ -782,7 +781,7 @@ TSharedRef<SWidget> FNexusLinkSettingsCustomization::CreateCapGroupWidget(FCapGr
 				})
 				.IsChecked_Lambda([this, CapName]() -> ECheckBoxState
 				{
-					return (SettingsPtr.IsValid() && SettingsPtr->IsCapabilityEnabled(CapName))
+					return (SettingsPtr.IsValid() && SettingsPtr->IsCapabilityCheckedInTree(CapName))
 						? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 				})
 				.OnCheckStateChanged_Lambda([this, CapName](ECheckBoxState NewState)
@@ -927,7 +926,7 @@ void FNexusLinkSettingsCustomization::RefreshCapCountsRecursive(UNexusLinkSettin
 			ForEachCapInSubtree(*N, [&](const FCapEntry& E)
 			{
 				++Total;
-				if (Settings->IsCapabilityEnabled(E.Name))
+				if (Settings->IsCapabilityCheckedInTree(E.Name))
 				{
 					++Enabled;
 				}

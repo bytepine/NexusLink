@@ -100,7 +100,8 @@ bool FNexusDangerousCapAccessMatrixTest::RunTest(const FString& Parameters)
 
 	S->DangerousCapAccess = ENexusDangerousCapAccess::Disabled;
 	S->DisabledCapabilities.Remove(Cap);
-	TestFalse(TEXT("Disabled mode ignores checkbox state"), S->IsCapabilityEnabled(Cap));
+	TestFalse(TEXT("Disabled mode does not enable dangerous cap"), S->IsCapabilityEnabled(Cap));
+	TestTrue(TEXT("Disabled mode still shows stored check"), S->IsCapabilityCheckedInTree(Cap));
 	TestFalse(TEXT("Disabled does not need confirm"), FNexusDangerousCapGate::NeedsConfirm(Cap));
 
 	S->DangerousCapAccess = ENexusDangerousCapAccess::Confirm;
@@ -161,11 +162,11 @@ bool FNexusDangerousCapConfirmOrDenyTest::RunTest(const FString& Parameters)
 	const ENexusDangerousCapAccess SavedAccess = S->DangerousCapAccess;
 	const TSet<FString> SavedDisabled = S->DisabledCapabilities;
 	const TSet<FString> SavedSession = S->SessionEnabledCapabilities;
-	const bool bSavedConfirmDefaulted = S->bConfirmDangerousCapsDefaulted;
 
 	S->SessionEnabledCapabilities.Empty();
 	S->DangerousCapAccess = ENexusDangerousCapAccess::Confirm;
-	S->ApplyConfirmDangerousCapDefaults();
+	S->DisabledCapabilities.Remove(TEXT("exec_command"));
+	S->DisabledCapabilities.Remove(TEXT("eval_runtime_lua"));
 
 	TSharedPtr<FJsonObject> Args = MakeShared<FJsonObject>();
 	Args->SetStringField(TEXT("command"), TEXT("stat fps"));
@@ -195,6 +196,5 @@ bool FNexusDangerousCapConfirmOrDenyTest::RunTest(const FString& Parameters)
 	S->DangerousCapAccess = SavedAccess;
 	S->DisabledCapabilities = SavedDisabled;
 	S->SessionEnabledCapabilities = SavedSession;
-	S->bConfirmDangerousCapsDefaulted = bSavedConfirmDefaulted;
 	return true;
 }
