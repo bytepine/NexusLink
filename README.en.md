@@ -45,8 +45,8 @@ Four "script escape hatch" capabilities carry the `dangerous` tag. **Editor Pref
 
 | Mode | Behavior |
 |---|---|
-| **Disabled** (default) | Same as today: search reports `disabled`, calls fail |
-| **Confirm each request** | Discoverable and callable; the editor prompts before each run. The AI must pass `reason` (purpose, expected effect, why no safer dedicated cap). Allow applies to **this call only**; deny returns `errorKind=user_denied` (do not retry). Timeout (default 90s) auto-denies. Exit immersive PIE if the window is hidden |
+| **Disabled** (default) | Search reports `disabled`, calls fail. Caps still appear in the tree, forced unchecked and not toggleable |
+| **Confirm each request** | Tree defaults to checked; you can uncheck. Checked caps are discoverable and callable; the editor prompts before each run. The AI must pass `reason` (purpose, expected effect, why no safer dedicated cap). Allow applies to **this call only**; deny returns `errorKind=user_denied` (do not retry). Timeout (default 90s) auto-denies. Exit immersive PIE if the window is hidden |
 | **Custom** | Per-cap checkboxes in the Capability tree; checked = always allow, no prompt |
 
 Launch with `-NexusEnableDangerousCaps` still session-enables all four (never written to settings) and overrides the access mode. Caps you enabled by hand are not overwritten by later upgrades; if any dangerous cap is already enabled, upgrade migrates to Custom.

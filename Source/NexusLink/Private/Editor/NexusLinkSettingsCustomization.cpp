@@ -127,13 +127,13 @@ const TArray<TPair<FString, FString>>& FNexusLinkSettingsCustomization::GetCateg
 	return Mapping;
 }
 
-static bool IncludeCapInSettingsTree(const UNexusLinkSettings* Settings, const FString& CapName)
+static bool CanEditCapInSettingsTree(const UNexusLinkSettings* Settings, const FString& CapName)
 {
 	if (!UNexusLinkSettings::IsDangerousCapability(CapName))
 	{
 		return true;
 	}
-	return Settings && Settings->DangerousCapAccess == ENexusDangerousCapAccess::Custom;
+	return Settings && Settings->DangerousCapAccess != ENexusDangerousCapAccess::Disabled;
 }
 
 TSharedRef<IDetailCustomization> FNexusLinkSettingsCustomization::MakeInstance()
@@ -149,6 +149,7 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bDangerousCapsDefaultOffApplied));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, DangerousCapsDefaultOffApplied));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bDangerousCapAccessMigrated));
+	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bConfirmDangerousCapsDefaulted));
 
 	TSharedRef<IPropertyHandle> DangerAccessHandle = DetailBuilder.GetProperty(
 		GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, DangerousCapAccess));
@@ -597,7 +598,7 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 				{
 					for (const FCapEntry& E : Pair.Value)
 					{
-						if (!IncludeCapInSettingsTree(SettingsPtr.Get(), E.Name))
+						if (!CanEditCapInSettingsTree(SettingsPtr.Get(), E.Name))
 						{
 							continue;
 						}
@@ -623,7 +624,7 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 				{
 					for (const FCapEntry& E : Pair.Value)
 					{
-						if (!IncludeCapInSettingsTree(SettingsPtr.Get(), E.Name))
+						if (!CanEditCapInSettingsTree(SettingsPtr.Get(), E.Name))
 						{
 							continue;
 						}
@@ -695,7 +696,7 @@ TSharedRef<SWidget> FNexusLinkSettingsCustomization::CreateCapGroupWidget(FCapGr
 				int32 TotalCount = 0;
 				ForEachCapInSubtree(*NodePtr, [&](const FCapEntry& E)
 				{
-					if (!IncludeCapInSettingsTree(SettingsPtr.Get(), E.Name))
+					if (!CanEditCapInSettingsTree(SettingsPtr.Get(), E.Name))
 					{
 						return;
 					}
@@ -713,7 +714,7 @@ TSharedRef<SWidget> FNexusLinkSettingsCustomization::CreateCapGroupWidget(FCapGr
 				const bool bEnable = (NewState != ECheckBoxState::Unchecked);
 				ForEachCapInSubtree(*NodePtr, [&](const FCapEntry& E)
 				{
-					if (!IncludeCapInSettingsTree(SettingsPtr.Get(), E.Name))
+					if (!CanEditCapInSettingsTree(SettingsPtr.Get(), E.Name))
 					{
 						return;
 					}
@@ -763,10 +764,6 @@ TSharedRef<SWidget> FNexusLinkSettingsCustomization::CreateCapGroupWidget(FCapGr
 	for (const FCapEntry& E : Node->Caps)
 	{
 		const FString CapName = E.Name;
-		if (!IncludeCapInSettingsTree(SettingsPtr.Get(), CapName))
-		{
-			continue;
-		}
 		const FString Desc    = E.Description;
 
 		Body->AddSlot()
@@ -779,6 +776,10 @@ TSharedRef<SWidget> FNexusLinkSettingsCustomization::CreateCapGroupWidget(FCapGr
 			.VAlign(VAlign_Center)
 			[
 				SNew(SCheckBox)
+				.IsEnabled_Lambda([this, CapName]()
+				{
+					return CanEditCapInSettingsTree(SettingsPtr.Get(), CapName);
+				})
 				.IsChecked_Lambda([this, CapName]() -> ECheckBoxState
 				{
 					return (SettingsPtr.IsValid() && SettingsPtr->IsCapabilityEnabled(CapName))
@@ -787,6 +788,7 @@ TSharedRef<SWidget> FNexusLinkSettingsCustomization::CreateCapGroupWidget(FCapGr
 				.OnCheckStateChanged_Lambda([this, CapName](ECheckBoxState NewState)
 				{
 					if (!SettingsPtr.IsValid()) return;
+					if (!CanEditCapInSettingsTree(SettingsPtr.Get(), CapName)) return;
 					SettingsPtr->SetCapabilityEnabled(CapName, NewState == ECheckBoxState::Checked);
 					RefreshCategoryHeaders();
 				})
@@ -924,10 +926,6 @@ void FNexusLinkSettingsCustomization::RefreshCapCountsRecursive(UNexusLinkSettin
 			int32 Total = 0;
 			ForEachCapInSubtree(*N, [&](const FCapEntry& E)
 			{
-				if (!IncludeCapInSettingsTree(Settings, E.Name))
-				{
-					return;
-				}
 				++Total;
 				if (Settings->IsCapabilityEnabled(E.Name))
 				{

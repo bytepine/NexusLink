@@ -38,7 +38,7 @@ enum class ENexusDangerousCapAccess : uint8
 {
 	/** 全部禁用：search 报 disabled，调用失败（默认）。 */
 	Disabled UMETA(DisplayName = "全部禁用"),
-	/** 每次手动确认：可发现；每次执行前编辑器弹窗，仅允许本次。 */
+	/** 每次手动确认：树里默认勾选、可取消；勾选的每次执行前弹窗，仅允许本次。 */
 	Confirm UMETA(DisplayName = "每次手动确认"),
 	/** 自定义开启：设置树里逐项勾选，勾上则始终允许、不弹窗。 */
 	Custom UMETA(DisplayName = "自定义开启"),
@@ -302,7 +302,7 @@ public:
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "危险 Capability",
 		meta = (DisplayName = "访问模式",
-			ToolTip = "全部禁用=默认不可调用；每次手动确认=AI 可请求但须在编辑器点允许；自定义开启=在下方 Capability 树逐项勾选"))
+			ToolTip = "全部禁用=树里显示但不可勾选、不可调用；每次手动确认=树里默认勾选可取消，勾选的须在编辑器点允许；自定义开启=勾上则始终允许、不弹窗"))
 	ENexusDangerousCapAccess DangerousCapAccess = ENexusDangerousCapAccess::Disabled;
 
 	/**
@@ -318,6 +318,10 @@ public:
 	/** 是否已把旧「逐项禁用」配置迁移到 DangerousCapAccess。 */
 	UPROPERTY(Config)
 	bool bDangerousCapAccessMigrated = false;
+
+	/** Confirm 模式是否已把危险 cap 默认勾上（离开 Confirm 会清掉，下次再进再默认勾选）。 */
+	UPROPERTY(Config)
+	bool bConfirmDangerousCapsDefaulted = false;
 
 	/**
 	 * 已禁用的 Capability 名集合（cap 名全局唯一，不再带 host 前缀）。
@@ -378,6 +382,9 @@ public:
 
 	/** 升级迁移：把尚未处理过的危险 Capability 写入 DisabledCapabilities（按名一次性）。 */
 	void EnsureDangerousCapsDefaultOff();
+
+	/** Confirm 模式默认勾选全部危险 cap（不改会话强制集合）。 */
+	void ApplyConfirmDangerousCapDefaults();
 
 	/** 会话级打开危险 Capability（不写盘）；供 -NexusEnableDangerousCaps / 测试使用。 */
 	void EnableDangerousCapsForSession();

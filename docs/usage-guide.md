@@ -16,7 +16,7 @@
 
 - **直连 UE 的 AI 配置须加 Bearer**：从 UE 设置面板复制 **MCP 鉴权 Token**（详见 [§1.1](#11-鉴权)）。经中转且中转在同机时无需配置。
 - **额外鉴权 Token 从「单行逗号分隔」改为逐条列表**：升级后自动拆分；若一条合法 token 都解析不出会保留原值并在日志告警，不会静默清空。
-- **危险 Capability 默认全部禁用**：`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python` 带 `dangerous` 标签。访问模式默认「全部禁用」；需要时在设置里改为「每次手动确认」或「自定义开启」，或用 `-NexusEnableDangerousCaps` 启动。按名记录，后续版本新增的危险 cap 也会对老配置生效，且不会覆盖你手动启用过的（升级时若已有启用项则迁到自定义开启）。
+- **危险 Capability 默认全部禁用**：`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python` 带 `dangerous` 标签。访问模式默认「全部禁用」（树里显示但不可勾选）；「每次手动确认」进入时默认勾选、可取消；「自定义开启」逐项勾选。或用 `-NexusEnableDangerousCaps` 启动。按名记录，后续版本新增的危险 cap 也会对老配置生效，且不会覆盖你手动启用过的（升级时若已有启用项则迁到自定义开启）。
 - **用过 2.0.0-beta 的工程**：beta 曾往 `Engine.ini` 写全局键 `[HTTPServer.Listeners] DefaultBindAddress`。正式版只写本端口的 `ListenerOverrides`，检测到该残留键会在启动日志告警，可手动删除。
 
 ---
@@ -344,7 +344,7 @@ Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性�
 
 ### `exec_python` 报 Python plugin module not loaded
 
-`exec_python`（编译期门控 `WITH_NEXUS_PYTHON`）还需要工程**启用** Python Editor Script Plugin：**Edit → Plugins → Scripting → Python Editor Script Plugin** 勾选后重启。该 cap 与 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 一样**默认禁用**，须把访问模式改为「每次手动确认」或「自定义开启」后勾选，或用 `-NexusEnableDangerousCaps` 启动。Confirm 模式还须传 `reason`，由编辑器弹窗批准本次请求。跨版本写 Python 前先用只读 `get_python_api`（默认开）核对当前引擎的 `unreal.*` 签名，不要凭记忆套 5.x API。
+`exec_python`（编译期门控 `WITH_NEXUS_PYTHON`）还需要工程**启用** Python Editor Script Plugin：**Edit → Plugins → Scripting → Python Editor Script Plugin** 勾选后重启。该 cap 与 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 一样**默认禁用**，须把访问模式改为「每次手动确认」（默认勾选，可取消）或「自定义开启」后勾选，或用 `-NexusEnableDangerousCaps` 启动。Confirm 模式还须传 `reason`，由编辑器弹窗批准本次请求。跨版本写 Python 前先用只读 `get_python_api`（默认开）核对当前引擎的 `unreal.*` 签名，不要凭记忆套 5.x API。
 
 UE 5.6+ 还会区分「已配置未启用」与「已启用未初始化」两种中间态，报错文案会直接说明该去 Project Settings 打开还是等编辑器启动完再重试。
 

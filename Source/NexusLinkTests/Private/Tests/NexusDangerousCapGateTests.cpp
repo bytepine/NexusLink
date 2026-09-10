@@ -99,14 +99,20 @@ bool FNexusDangerousCapAccessMatrixTest::RunTest(const FString& Parameters)
 	S->DisabledCapabilities.Add(Cap);
 
 	S->DangerousCapAccess = ENexusDangerousCapAccess::Disabled;
-	TestFalse(TEXT("Disabled mode hides dangerous cap"), S->IsCapabilityEnabled(Cap));
+	S->DisabledCapabilities.Remove(Cap);
+	TestFalse(TEXT("Disabled mode ignores checkbox state"), S->IsCapabilityEnabled(Cap));
 	TestFalse(TEXT("Disabled does not need confirm"), FNexusDangerousCapGate::NeedsConfirm(Cap));
 
 	S->DangerousCapAccess = ENexusDangerousCapAccess::Confirm;
-	TestTrue(TEXT("Confirm mode exposes dangerous cap"), S->IsCapabilityEnabled(Cap));
+	S->DisabledCapabilities.Add(Cap);
+	TestFalse(TEXT("Confirm respects uncheck"), S->IsCapabilityEnabled(Cap));
+	TestFalse(TEXT("unchecked Confirm does not need confirm"), FNexusDangerousCapGate::NeedsConfirm(Cap));
+	S->DisabledCapabilities.Remove(Cap);
+	TestTrue(TEXT("Confirm checked is enabled"), S->IsCapabilityEnabled(Cap));
 	TestTrue(TEXT("Confirm needs confirm"), FNexusDangerousCapGate::NeedsConfirm(Cap));
 
 	S->DangerousCapAccess = ENexusDangerousCapAccess::Custom;
+	S->DisabledCapabilities.Add(Cap);
 	TestFalse(TEXT("Custom respects DisabledCapabilities"), S->IsCapabilityEnabled(Cap));
 	S->DisabledCapabilities.Remove(Cap);
 	TestTrue(TEXT("Custom enabled when not disabled"), S->IsCapabilityEnabled(Cap));
@@ -153,10 +159,13 @@ bool FNexusDangerousCapConfirmOrDenyTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	const ENexusDangerousCapAccess SavedAccess = S->DangerousCapAccess;
+	const TSet<FString> SavedDisabled = S->DisabledCapabilities;
 	const TSet<FString> SavedSession = S->SessionEnabledCapabilities;
+	const bool bSavedConfirmDefaulted = S->bConfirmDangerousCapsDefaulted;
 
 	S->SessionEnabledCapabilities.Empty();
 	S->DangerousCapAccess = ENexusDangerousCapAccess::Confirm;
+	S->ApplyConfirmDangerousCapDefaults();
 
 	TSharedPtr<FJsonObject> Args = MakeShared<FJsonObject>();
 	Args->SetStringField(TEXT("command"), TEXT("stat fps"));
@@ -184,6 +193,8 @@ bool FNexusDangerousCapConfirmOrDenyTest::RunTest(const FString& Parameters)
 	}
 
 	S->DangerousCapAccess = SavedAccess;
+	S->DisabledCapabilities = SavedDisabled;
 	S->SessionEnabledCapabilities = SavedSession;
+	S->bConfirmDangerousCapsDefaulted = bSavedConfirmDefaulted;
 	return true;
 }

@@ -105,7 +105,8 @@ bool FNexusDangerousCapGate::NeedsConfirm(const FString& CapName)
 	{
 		return false;
 	}
-	return Settings->DangerousCapAccess == ENexusDangerousCapAccess::Confirm;
+	return Settings->DangerousCapAccess == ENexusDangerousCapAccess::Confirm
+		&& !Settings->DisabledCapabilities.Contains(CapName);
 }
 
 FString FNexusDangerousCapGate::ExtractPayload(const TSharedPtr<FJsonObject>& Args)
