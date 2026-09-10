@@ -267,7 +267,7 @@ Token 从设置面板 **MCP 鉴权 Token** 旁的「复制」取得。可逗号�
 
 独立托盘程序，**无需 IDE 插件**。默认 `:6700`。
 
-1. 从 [NexusDesktop Releases](https://github.com/bytepine/NexusDesktop/releases) 下载：**Windows** `NexusDesktop-windows-amd64-v<版本>-setup.exe`，**macOS** `NexusDesktop-darwin-universal.dmg`。不要下载 `*-update.zip`（应用内更新包）
+1. 从 [NexusDesktop Releases](https://github.com/bytepine/NexusDesktop/releases) 下载：**Windows** `NexusDesktop-windows-amd64-v<版本>-setup.exe`，**macOS** `NexusDesktop-darwin-arm64.dmg`（仅 Apple Silicon）。不要下载 `*-update.zip`（应用内更新包）
 2. 安装并启动，程序进入系统托盘（macOS 为菜单栏，不出现在 Dock）
 3. 托盘勾选 **启用中转服务器**
 4. AI 客户端指向 `http://127.0.0.1:6700/stream`
