@@ -61,7 +61,7 @@ CATEGORY_ORDER: list[str] = _DOC_CAT["category_order"]
 
 DOC_DESCRIPTIONS: dict[str, str] = {
     # Meta
-    "call_capability":    "Execute a capability (after search_asset / get_asset_*). On failure check errorKind: unknown/disabled/arg_invalid; do not retry disabled. Legacy names (e.g. create_blackboard) map to canonical names. Batch calls[] and single form are mutually exclusive.",
+    "call_capability": "Execute a capability (after search_asset / get_asset_*). On failure check errorKind: unknown/disabled/unavailable/arg_invalid/user_denied; do not retry disabled or user_denied. Confirm-mode dangerous caps need reason. Legacy names (e.g. create_blackboard) map to canonical names. Batch calls[] and single form are mutually exclusive.",
     "search_capabilities": "**Primary entry** — call before any blueprint/Widget/material/asset question. Prefer `capabilityName=<exact>`; `query` uses 1-2 word AND match. Failures: `errorKind` `not_found` / `disabled` / `disabled_only` (see `disabledCapabilities[]`); `query=get_asset` zero-hit hints route to `get_asset_<type>`. ≤2 matches return full `parameters[]`.",
     "submit_feedback":    "Report capability/tool friction. Trigger: retry ≥2 with no progress, no suitable capability, schema guessing, or forced serial calls ≥3. `category`: `wrong_tool` / `misuse` / `schema_guess` / `search_zero` / `search_overflow` / `other`. Prefer structured fields (`attemptedArgs`, `actualError`, `expectedField`) over long `note`.",
 }

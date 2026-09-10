@@ -1,6 +1,6 @@
 {
   "descriptions": {
-    "call_capability": "执行 Capability（在 search_asset / get_asset_* 之后）。失败时检查 errorKind：unknown/disabled/arg_invalid；disabled 不要重试。旧名（如 create_blackboard）映射到规范名。批量 calls[] 与单条形式互斥。",
+    "call_capability": "执行 Capability（在 search_asset / get_asset_* 之后）。失败时检查 errorKind：unknown/disabled/unavailable/arg_invalid/user_denied；disabled 与 user_denied 不要重试。Confirm 模式危险 cap 须传 reason。旧名（如 create_blackboard）映射到规范名。批量 calls[] 与单条形式互斥。",
     "capture_viewport": "截图编辑器/PIE/Actor/Widget。含 editor_desktop 整窗。",
     "compile_blueprint": "显式编译 Blueprint/ABP/WBP。可选 saveToDisk；manage 之后使用。",
     "control_movie_pipeline": "控制 MRQ 队列。enqueue/status/cancel。不等待渲染完成。UE5+。",
@@ -633,6 +633,7 @@
     "Z-order for AddToViewport (default: 0)": "AddToViewport 的 Z 序（默认 0）",
     "auto: non-empty rowNames => rows, else schema; schema: ignore rowNames; rows: require non-empty rowNames": "auto：rowNames 非空则 rows 否则 schema；schema：忽略 rowNames；rows：要求 rowNames 非空",
     "float / R,G,B,A / texture path": "float / R,G,B,A / 纹理路径",
+    "Purpose for the editor confirm dialog. Required in Confirm mode.": "编辑器确认弹窗用的目的说明；Confirm 模式必填",
     "Python source; required in exec/eval modes": "Python 源码；exec/eval 模式必填",
     "Python file path relative to Content/Python/; required in file mode": "相对 Content/Python/ 的 .py 路径；file 模式必填",
     "Run source, run a .py file, or evaluate expression": "执行源码、执行 .py 文件、或求值表达式",

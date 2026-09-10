@@ -31,6 +31,20 @@ enum class ENexusToolsListMode : uint8
 };
 
 /**
+ * 危险 Capability（tag=dangerous）的访问模式。
+ */
+UENUM()
+enum class ENexusDangerousCapAccess : uint8
+{
+	/** 全部禁用：search 报 disabled，调用失败（默认）。 */
+	Disabled UMETA(DisplayName = "全部禁用"),
+	/** 每次手动确认：可发现；每次执行前编辑器弹窗，仅允许本次。 */
+	Confirm UMETA(DisplayName = "每次手动确认"),
+	/** 自定义开启：设置树里逐项勾选，勾上则始终允许、不弹窗。 */
+	Custom UMETA(DisplayName = "自定义开启"),
+};
+
+/**
  * NexusLink 插件配置。
  * 位于编辑器菜单：Edit → Editor Preferences → Plugins → NexusLink。
  */
@@ -284,6 +298,28 @@ public:
 	bool bCheckUpdateOnStartup = true;
 
 	/**
+	 * 危险 Capability 访问模式（exec_command / exec_python / eval_runtime_lua / dofile_runtime_lua 等带 dangerous 标签的 cap）。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "危险 Capability",
+		meta = (DisplayName = "访问模式",
+			ToolTip = "全部禁用=默认不可调用；每次手动确认=AI 可请求但须在编辑器点允许；自定义开启=在下方 Capability 树逐项勾选"))
+	ENexusDangerousCapAccess DangerousCapAccess = ENexusDangerousCapAccess::Disabled;
+
+	/**
+	 * Confirm 模式弹窗等待秒数。0 = 不超时（仍受代理 tools/call 时限约束）。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "危险 Capability",
+		meta = (DisplayName = "确认超时（秒）",
+			EditCondition = "DangerousCapAccess == ENexusDangerousCapAccess::Confirm",
+			ClampMin = "0", ClampMax = "600",
+			ToolTip = "无操作则自动拒绝本次请求。默认 90，低于代理 120s 超时，避免迟到执行。0 = 不超时。"))
+	int32 DangerousCapConfirmTimeoutSec = 90;
+
+	/** 是否已把旧「逐项禁用」配置迁移到 DangerousCapAccess。 */
+	UPROPERTY(Config)
+	bool bDangerousCapAccessMigrated = false;
+
+	/**
 	 * 已禁用的 Capability 名集合（cap 名全局唯一，不再带 host 前缀）。
 	 * 首次启动默认全部启用，可在设置面板按分类切换。
 	 */
@@ -316,8 +352,17 @@ public:
 	UPROPERTY(Transient)
 	TSet<FString> SessionEnabledCapabilities;
 
-	/** 判断指定 cap 是否启用（会话级强制启用优先，其余看 DisabledCapabilities）。 */
+	/** 判断指定 cap 是否启用（会话级强制启用优先；危险 cap 再看访问模式）。 */
 	bool IsCapabilityEnabled(const FString& CapabilityName) const;
+
+	/** 注册表中是否带 dangerous 标签。未注册返回 false。 */
+	static bool IsDangerousCapability(const FString& CapabilityName);
+
+	/** 当前已注册的危险 Capability 名（按注册序）。 */
+	static TArray<FString> CollectDangerousCapabilityNames();
+
+	/** 升级推断：任一危险 cap 当前启用 → Custom，否则 Disabled。 */
+	static ENexusDangerousCapAccess ResolveAccessAfterUpgrade(bool bAnyDangerousCurrentlyEnabled);
 
 	/**
 	 * 设置 cap 启用/禁用状态。

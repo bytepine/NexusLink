@@ -39,9 +39,17 @@ Public sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) (ThirdPerso
 
 Default **SearchMode**: `tools/list` exposes 3 meta-tools (`search_capabilities` / `call_capability` / `submit_feedback`); Capabilities are discovered on demand. Coverage includes editor, Blueprint, animation, material, audio, AI / EQS, GAS, UMG, Niagara, PIE runtime, UnLua, and more. Full parameters: [docs/tool-reference.md](docs/tool-reference.md) ([简体中文](docs/tool-reference.zh.md)). SearchMode vs MultiTool: [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode).
 
-## Dangerous Capabilities (disabled by default)
+## Dangerous Capabilities (all disabled by default)
 
-Four "script escape hatch" capabilities. They are written into the disabled list by name on install/upgrade, so they are **not callable out of the box**. Enable them individually under **Editor Preferences → Plugins → NexusLink**, or launch with `-NexusEnableDangerousCaps` (session-only, never written to settings). Ones you enabled by hand are not overwritten by later upgrades.
+Four "script escape hatch" capabilities carry the `dangerous` tag. **Editor Preferences → Plugins → NexusLink → Dangerous Capability → Access mode**:
+
+| Mode | Behavior |
+|---|---|
+| **Disabled** (default) | Same as today: search reports `disabled`, calls fail |
+| **Confirm each request** | Discoverable and callable; the editor prompts before each run. The AI must pass `reason` (purpose, expected effect, why no safer dedicated cap). Allow applies to **this call only**; deny returns `errorKind=user_denied` (do not retry). Timeout (default 90s) auto-denies. Exit immersive PIE if the window is hidden |
+| **Custom** | Per-cap checkboxes in the Capability tree; checked = always allow, no prompt |
+
+Launch with `-NexusEnableDangerousCaps` still session-enables all four (never written to settings) and overrides the access mode. Caps you enabled by hand are not overwritten by later upgrades; if any dangerous cap is already enabled, upgrade migrates to Custom.
 
 | Capability | What it does | Extra requirement |
 |---|---|---|

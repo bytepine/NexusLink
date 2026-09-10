@@ -16,9 +16,10 @@ void FDofileRuntimeLuaCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 	Out.Description = TEXT("Load/run .lua from Content/Script/. Relative path; requires UnLua+PIE.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("scriptPath"), FNexusSchema::Str(TEXT("Lua file path (relative to Content/Script/)")))
+		.Prop(TEXT("reason"), FNexusSchema::Str(TEXT("Purpose for the editor confirm dialog. Required in Confirm mode.")))
 		.Required({ TEXT("scriptPath") })
 		.Build();
-	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
+	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime, FNexusMcpTags::Dangerous };
 	Out.ExtraSearchKeywords = { TEXT("require"), TEXT("script"), TEXT("file"), TEXT("load"), TEXT("execute") };
 	Out.RelatedCapabilities = { TEXT("eval_runtime_lua"), TEXT("hotreload_runtime_lua") };
 	Out.Prerequisites = { TEXT("unlua"), TEXT("pie") };

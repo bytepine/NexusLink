@@ -6,6 +6,7 @@
 #include "NexusMcpTool.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusDangerousCapGate.h"
 #include "Utils/NexusEditorTransaction.h"
 #include "Dom/JsonObject.h"
 #if WITH_EDITOR
@@ -326,6 +327,25 @@ static void InjectSchema(FNexusCapabilityDefinition& Def)
 	{
 		InjectOptionalBool(Def.InputSchema, TEXT("compile"), TEXT("Compile blueprint if needed (BP/ABP/WBP only)"));
 	}
+	if (Def.HasTag(FNexusMcpTags::Dangerous) && Def.InputSchema.IsValid())
+	{
+		TSharedPtr<FJsonObject> Props;
+		const TSharedPtr<FJsonObject>* PropsPtr = nullptr;
+		if (Def.InputSchema->TryGetObjectField(TEXT("properties"), PropsPtr) && PropsPtr && PropsPtr->IsValid())
+		{
+			Props = *PropsPtr;
+		}
+		else
+		{
+			Props = MakeShared<FJsonObject>();
+			Def.InputSchema->SetObjectField(TEXT("properties"), Props);
+		}
+		if (!Props->HasField(TEXT("reason")))
+		{
+			Props->SetObjectField(TEXT("reason"),
+				FNexusSchema::Str(TEXT("Purpose for the editor confirm dialog. Required in Confirm mode.")));
+		}
+	}
 }
 
 static bool HasSuccessfulEntry(const FCapabilityResult& Result)
@@ -413,6 +433,14 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 		{
 			return FCapabilityResult::MakeArgInvalid(FString::Printf(
 				TEXT("%s（Capability '%s'）"), *SchemaErr, *Def.Name));
+		}
+	}
+
+	{
+		FCapabilityResult Denied = FNexusDangerousCapGate::ConfirmOrDeny(Def.Name, Args);
+		if (!Denied.FatalError.IsEmpty())
+		{
+			return Denied;
 		}
 	}
 

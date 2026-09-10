@@ -15,6 +15,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
+#include "IPropertyUtilities.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
@@ -126,6 +127,15 @@ const TArray<TPair<FString, FString>>& FNexusLinkSettingsCustomization::GetCateg
 	return Mapping;
 }
 
+static bool IncludeCapInSettingsTree(const UNexusLinkSettings* Settings, const FString& CapName)
+{
+	if (!UNexusLinkSettings::IsDangerousCapability(CapName))
+	{
+		return true;
+	}
+	return Settings && Settings->DangerousCapAccess == ENexusDangerousCapAccess::Custom;
+}
+
 TSharedRef<IDetailCustomization> FNexusLinkSettingsCustomization::MakeInstance()
 {
 	return MakeShared<FNexusLinkSettingsCustomization>();
@@ -138,6 +148,18 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bCapabilityDefaultsApplied));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bDangerousCapsDefaultOffApplied));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, DangerousCapsDefaultOffApplied));
+	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bDangerousCapAccessMigrated));
+
+	TSharedRef<IPropertyHandle> DangerAccessHandle = DetailBuilder.GetProperty(
+		GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, DangerousCapAccess));
+	TSharedPtr<IPropertyUtilities> PropUtils = DetailBuilder.GetPropertyUtilities();
+	DangerAccessHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([PropUtils]()
+	{
+		if (PropUtils.IsValid())
+		{
+			PropUtils->ForceRefresh();
+		}
+	}));
 
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	DetailBuilder.GetObjectsBeingCustomized(Objects);
@@ -549,6 +571,10 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 		]
 	];
 
+	// ── 危险 Capability（置于 MCP Capabilities 之上）────────────────────────
+	DetailBuilder.EditCategory(
+		TEXT("危险 Capability"), LOCTEXT("DangerCapCategory", "危险 Capability"), ECategoryPriority::Default);
+
 	// ── MCP Capabilities 分类 ────────────────────────────────────────────────
 	IDetailCategoryBuilder& CapCategory = DetailBuilder.EditCategory(
 		TEXT("MCP Capabilities"), LOCTEXT("MCPCapsCategory", "MCP Capabilities"), ECategoryPriority::Uncommon);
@@ -571,6 +597,10 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 				{
 					for (const FCapEntry& E : Pair.Value)
 					{
+						if (!IncludeCapInSettingsTree(SettingsPtr.Get(), E.Name))
+						{
+							continue;
+						}
 						SettingsPtr->SetCapabilityEnabled(E.Name, true, /*bNotify=*/false);
 					}
 				}
@@ -593,6 +623,10 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 				{
 					for (const FCapEntry& E : Pair.Value)
 					{
+						if (!IncludeCapInSettingsTree(SettingsPtr.Get(), E.Name))
+						{
+							continue;
+						}
 						const bool bReadonly = E.Tags.Contains(FNexusMcpTags::Readonly);
 						SettingsPtr->SetCapabilityEnabled(E.Name, bReadonly, /*bNotify=*/false);
 					}
@@ -661,6 +695,10 @@ TSharedRef<SWidget> FNexusLinkSettingsCustomization::CreateCapGroupWidget(FCapGr
 				int32 TotalCount = 0;
 				ForEachCapInSubtree(*NodePtr, [&](const FCapEntry& E)
 				{
+					if (!IncludeCapInSettingsTree(SettingsPtr.Get(), E.Name))
+					{
+						return;
+					}
 					++TotalCount;
 					if (SettingsPtr->IsCapabilityEnabled(E.Name)) ++EnabledCount;
 				});
@@ -675,6 +713,10 @@ TSharedRef<SWidget> FNexusLinkSettingsCustomization::CreateCapGroupWidget(FCapGr
 				const bool bEnable = (NewState != ECheckBoxState::Unchecked);
 				ForEachCapInSubtree(*NodePtr, [&](const FCapEntry& E)
 				{
+					if (!IncludeCapInSettingsTree(SettingsPtr.Get(), E.Name))
+					{
+						return;
+					}
 					SettingsPtr->SetCapabilityEnabled(E.Name, bEnable, /*bNotify=*/false);
 				});
 				SettingsPtr->NotifyCapabilitiesChanged();
@@ -721,6 +763,10 @@ TSharedRef<SWidget> FNexusLinkSettingsCustomization::CreateCapGroupWidget(FCapGr
 	for (const FCapEntry& E : Node->Caps)
 	{
 		const FString CapName = E.Name;
+		if (!IncludeCapInSettingsTree(SettingsPtr.Get(), CapName))
+		{
+			continue;
+		}
 		const FString Desc    = E.Description;
 
 		Body->AddSlot()
@@ -878,6 +924,10 @@ void FNexusLinkSettingsCustomization::RefreshCapCountsRecursive(UNexusLinkSettin
 			int32 Total = 0;
 			ForEachCapInSubtree(*N, [&](const FCapEntry& E)
 			{
+				if (!IncludeCapInSettingsTree(Settings, E.Name))
+				{
+					return;
+				}
 				++Total;
 				if (Settings->IsCapabilityEnabled(E.Name))
 				{

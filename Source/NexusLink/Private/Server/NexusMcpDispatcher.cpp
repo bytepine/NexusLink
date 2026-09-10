@@ -6,6 +6,7 @@
 #include "NexusMcpToolRegistry.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusLinkSettings.h"
+#include "NexusMcpTool.h"
 #include "NexusFeedback.h"
 #include "Utils/NexusCapResultAdapter.h"
 #include "Utils/NexusResponseCompactorUtils.h"
@@ -493,7 +494,12 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 				F.ErrorText  = TEXT("Disabled in settings");
 				FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
 
-				SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("Capability '%s' is disabled in settings."), *Record->Def.Name));
+				FString DisabledMsg = FString::Printf(TEXT("Capability '%s' is disabled in settings."), *Record->Def.Name);
+				if (Record->Def.HasTag(FNexusMcpTags::Dangerous))
+				{
+					DisabledMsg += TEXT(" Set Editor Preferences → NexusLink → Dangerous Capability access to Confirm or Custom.");
+				}
+				SendError(Id, JsonRpcMethodNotFound, DisabledMsg);
 				return;
 			}
 

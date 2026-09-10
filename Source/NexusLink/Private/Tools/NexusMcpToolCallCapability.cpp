@@ -5,6 +5,7 @@
 #include "NexusCapability.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusLinkSettings.h"
+#include "NexusMcpTool.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpToolRegistry.h"
 #include "Dom/JsonObject.h"
@@ -18,6 +19,7 @@
 #include "Utils/NexusPackageLedger.h"
 #include "Utils/NexusHostUtils.h"
 #include "Utils/NexusEditorTransaction.h"
+#include "Utils/NexusDangerousCapGate.h"
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
 #endif
@@ -86,6 +88,15 @@ static FString FormatUnknownCapabilityError(const FString& RequestedName, const 
 			*RequestedName);
 }
 
+static FString DisabledHint(const FCapRecord* Rec)
+{
+	if (Rec && Rec->Def.HasTag(FNexusMcpTags::Dangerous))
+	{
+		return TEXT("Do not retry the same cap. Set Editor Preferences → NexusLink → Dangerous Capability access to Confirm or Custom.");
+	}
+	return TEXT("Do not retry the same cap. Enable it in Editor Preferences → NexusLink → MCP Capabilities, or use a read-only alternative.");
+}
+
 static TSharedPtr<FJsonObject> BuildCallErrorObject(const FString& ErrorKind, const FString& Error,
 	                                                    const FString& CapabilityName,
 	                                                    const FString& Hint = FString(),
@@ -131,6 +142,7 @@ struct FNexusCallCore final
 		Disabled,
 		Unavailable,
 		ArgInvalid,
+		UserDenied,
 		Fatal
 	};
 
@@ -248,19 +260,41 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 	{
 		const FString Digest = FNexusFeedback::BuildRedactedArgsSnapshot(Inner);
 
+		if (CapResult.bIsUserDenied)
+		{
+			TSharedPtr<FJsonObject> ErrObj = BuildCallErrorObject(
+				TEXT("user_denied"),
+				CapResult.FatalError,
+				Record->Def.Name,
+				TEXT("Do not retry; user denied this request."),
+				R.RequestedCapName);
+			R.Status        = FNexusCallCore::EStatus::UserDenied;
+			R.ArgInvalidErr = ErrObj;
+			return R;
+		}
+
 		if (CapResult.bIsArgInvalid)
 		{
-			FNexusFeedback::FFields F;
-			F.Tool       = TEXT("call_capability");
-			F.Capability = Record->Def.Name;
-			F.ArgsDigest = Digest;
-			F.ErrorText  = CapResult.FatalError;
-			FNexusFeedback::RecordAuto(TEXT("call_arg_invalid"), F);
+			if (!CapResult.bSkipFeedback)
+			{
+				FNexusFeedback::FFields F;
+				F.Tool       = TEXT("call_capability");
+				F.Capability = Record->Def.Name;
+				F.ArgsDigest = Digest;
+				F.ErrorText  = CapResult.FatalError;
+				FNexusFeedback::RecordAuto(TEXT("call_arg_invalid"), F);
+			}
 
 			TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
 			ErrObj->SetStringField(TEXT("error"),      CapResult.FatalError);
+			ErrObj->SetStringField(TEXT("errorKind"),  TEXT("arg_invalid"));
 			ErrObj->SetStringField(TEXT("capability"), Record->Def.Name);
 			AppendParametersSchema(Record->Def.InputSchema, ErrObj);
+			if (CapResult.bSkipFeedback)
+			{
+				ErrObj->SetStringField(TEXT("hint"),
+					TEXT("Pass reason (purpose, expected effect, why no safer dedicated capability) and retry once."));
+			}
 			R.Status          = FNexusCallCore::EStatus::ArgInvalid;
 			R.ArgInvalidErr   = ErrObj;
 			return R;
@@ -300,7 +334,7 @@ static TSharedPtr<FJsonObject> MergeNestedArguments(const TSharedPtr<FJsonObject
 void FNexusMcpToolCallCapability::BuildDefinition(FNexusMcpToolDefinition& Out) const
 {
 	Out.Name = TEXT("call_capability");
-	Out.Description = TEXT("[Stage 4 - Execute] Run read/write/interact via capability.\nTrigger: after search_capabilities returns parameter schema.\nPrerequisite: must search_capabilities first for parameter format.\nUsage: single capability+arguments; batch calls=[{capability,arguments},...].\nConstraints: on failure check errorKind (unknown/disabled/unavailable/arg_invalid); do not retry disabled; _feedbackHint requires submit_feedback.");
+	Out.Description = TEXT("[Stage 4 - Execute] Run read/write/interact via capability.\nTrigger: after search_capabilities returns parameter schema.\nPrerequisite: must search_capabilities first for parameter format.\nUsage: single capability+arguments; batch calls=[{capability,arguments},...].\nConstraints: on failure check errorKind (unknown/disabled/unavailable/arg_invalid/user_denied); do not retry disabled or user_denied; Confirm-mode dangerous caps need reason; _feedbackHint requires submit_feedback.");
 
 	const TSharedPtr<FJsonObject> CallItemSchema = FNexusSchema::Object()
 		.Prop(TEXT("capability"),
@@ -331,6 +365,8 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 
 	// 内存高水位批量驱逐：每次调用重置基线；keepLoaded=true 时本次调用（单条或整批 calls）整体不自动卸载。
 	// RAII 保证无论从哪个分支 return，本次调用结束时都会尝试一次批尾强制 flush（未被抑制时）。
+	FNexusDangerousCapGate::FBatchScope DangerousBatch;
+
 	FNexusPackageLedger::Get().ResetBaseline();
 	const bool bKeepLoaded = Parsed.Bool(TEXT("keepLoaded"));
 	FNexusPackageLedger::Get().SetSuppressedForThisCall(bKeepLoaded);
@@ -425,8 +461,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				Item->SetStringField(TEXT("error"), FString::Printf(
 					TEXT("Capability '%s' is disabled in settings."), *Core.Record->Def.Name));
 				Item->SetStringField(TEXT("errorKind"), TEXT("disabled"));
-				Item->SetStringField(TEXT("hint"),
-					TEXT("Do not retry the same cap. Enable it in Editor → Project Settings → NexusLink, or use a read-only alternative."));
+				Item->SetStringField(TEXT("hint"), DisabledHint(Core.Record));
 				if (!Core.RequestedCapName.Equals(Core.Record->Def.Name, ESearchCase::IgnoreCase))
 				{
 					Item->SetStringField(TEXT("requestedCapability"), Core.RequestedCapName);
@@ -452,7 +487,15 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				Core.ArgInvalidErr->TryGetStringField(TEXT("error"), ErrMsg);
 				Item->SetStringField(TEXT("error"), ErrMsg);
 				Item->SetStringField(TEXT("errorKind"), TEXT("arg_invalid"));
-				Item->SetStringField(TEXT("_feedbackHint"), TEXT("submit_feedback(category=\"schema_guess\")"));
+				FString Hint;
+				if (Core.ArgInvalidErr->TryGetStringField(TEXT("hint"), Hint) && !Hint.IsEmpty())
+				{
+					Item->SetStringField(TEXT("hint"), Hint);
+				}
+				else
+				{
+					Item->SetStringField(TEXT("_feedbackHint"), TEXT("submit_feedback(category=\"schema_guess\")"));
+				}
 				const TArray<TSharedPtr<FJsonValue>>* Par = nullptr;
 				if (Core.ArgInvalidErr->TryGetArrayField(TEXT("parameters"), Par) && Par)
 				{
@@ -461,6 +504,20 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			}
 			++FailureCount;
 			break;
+			case FNexusCallCore::EStatus::UserDenied:
+				{
+					FString ErrMsg;
+					if (Core.ArgInvalidErr.IsValid())
+					{
+						Core.ArgInvalidErr->TryGetStringField(TEXT("error"), ErrMsg);
+					}
+					Item->SetStringField(TEXT("error"), ErrMsg);
+					Item->SetStringField(TEXT("errorKind"), TEXT("user_denied"));
+					Item->SetStringField(TEXT("hint"),
+						TEXT("Do not retry; user denied this request."));
+				}
+				++FailureCount;
+				break;
 			case FNexusCallCore::EStatus::Fatal:
 				Item->SetStringField(TEXT("error"), Core.FatalMessage);
 				Item->SetStringField(TEXT("errorKind"), TEXT("fatal"));
@@ -545,7 +602,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				TEXT("disabled"),
 				ErrMsg,
 				Core.Record->Def.Name,
-				TEXT("Do not retry the same cap. Enable it in Editor → Project Settings → NexusLink, or use a read-only alternative."),
+				DisabledHint(Core.Record),
 				Core.RequestedCapName);
 			Result.StructuredContent = Err;
 			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
@@ -574,8 +631,20 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 	case FNexusCallCore::EStatus::ArgInvalid:
 		{
 			Result.bIsError = true;
-			Core.ArgInvalidErr->SetStringField(TEXT("_feedbackHint"),
-				TEXT("submit_feedback(category=\"schema_guess\")"));
+			FString Hint;
+			if (!Core.ArgInvalidErr->TryGetStringField(TEXT("hint"), Hint) || Hint.IsEmpty())
+			{
+				Core.ArgInvalidErr->SetStringField(TEXT("_feedbackHint"),
+					TEXT("submit_feedback(category=\"schema_guess\")"));
+			}
+			Result.StructuredContent = Core.ArgInvalidErr;
+			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Core.ArgInvalidErr);
+		}
+		return Result;
+	case FNexusCallCore::EStatus::UserDenied:
+		{
+			Result.bIsError = true;
+			Result.StructuredContent = Core.ArgInvalidErr;
 			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Core.ArgInvalidErr);
 		}
 		return Result;

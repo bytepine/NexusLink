@@ -39,9 +39,17 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。日常推荐经客户端�
 
 默认 **SearchMode**：`tools/list` 仅 3 个元工具（`search_capabilities` / `call_capability` / `submit_feedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara、PIE 运行时、UnLua 等。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
 
-## 危险 Capability（默认禁用）
+## 危险 Capability（默认全部禁用）
 
-四个「脚本逃生舱」能力，安装或升级时按名写入禁用列表，**默认调不到**。需要时在 **Editor Preferences → Plugins → NexusLink** 里逐个勾选，或启动加 `-NexusEnableDangerousCaps`（会话级，不写盘）。手动勾选过的不会被后续升级覆盖。
+四个「脚本逃生舱」能力带 `dangerous` 标签。**Editor Preferences → Plugins → NexusLink → 危险 Capability → 访问模式**：
+
+| 模式 | 行为 |
+|---|---|
+| **全部禁用**（默认） | 与现在相同：search 报 `disabled`，调用失败 |
+| **每次手动确认** | 可被 search/调用；每次执行前编辑器弹窗。AI 须传 `reason`（目的、预期效果、为何没有更安全的专用 cap）。允许仅针对**本次**；拒绝返回 `errorKind=user_denied`（不要重试）。超时（默认 90s）自动拒绝。全屏 PIE 下请先退出沉浸模式 |
+| **自定义开启** | 在 Capability 树逐项勾选；勾上则始终允许、不弹窗 |
+
+启动加 `-NexusEnableDangerousCaps` 仍会话级视为四个全部始终允许（不写盘），覆盖访问模式。手动勾选过的不会被后续升级覆盖；升级时若已有任一危险 cap 启用则迁到「自定义开启」。
 
 | Capability | 做什么 | 附加前提 |
 |---|---|---|

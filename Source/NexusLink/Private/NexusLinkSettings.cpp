@@ -5,6 +5,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusLink.h"
 #include "NexusMcpAuth.h"
+#include "NexusMcpTool.h"
 #include "Server/NexusMcpServer.h"
 #if WITH_EDITOR
 #include "Misc/MessageDialog.h"
@@ -77,7 +78,45 @@ bool UNexusLinkSettings::IsCapabilityEnabled(const FString& CapabilityName) cons
 	{
 		return true;
 	}
+	if (IsDangerousCapability(CapabilityName))
+	{
+		if (DangerousCapAccess == ENexusDangerousCapAccess::Disabled)
+		{
+			return false;
+		}
+		if (DangerousCapAccess == ENexusDangerousCapAccess::Confirm)
+		{
+			return true;
+		}
+		// Custom：走 DisabledCapabilities
+	}
 	return !DisabledCapabilities.Contains(CapabilityName);
+}
+
+bool UNexusLinkSettings::IsDangerousCapability(const FString& CapabilityName)
+{
+	const FCapRecord* Rec = FNexusCapabilityRegistry::Get().FindRecordByName(CapabilityName);
+	return Rec && Rec->Def.HasTag(FNexusMcpTags::Dangerous);
+}
+
+TArray<FString> UNexusLinkSettings::CollectDangerousCapabilityNames()
+{
+	TArray<FString> Names;
+	for (const FCapRecord& Rec : FNexusCapabilityRegistry::Get().GetAllRecords())
+	{
+		if (Rec.Def.HasTag(FNexusMcpTags::Dangerous))
+		{
+			Names.Add(Rec.Def.Name);
+		}
+	}
+	return Names;
+}
+
+ENexusDangerousCapAccess UNexusLinkSettings::ResolveAccessAfterUpgrade(bool bAnyDangerousCurrentlyEnabled)
+{
+	return bAnyDangerousCurrentlyEnabled
+		? ENexusDangerousCapAccess::Custom
+		: ENexusDangerousCapAccess::Disabled;
 }
 
 void UNexusLinkSettings::SetCapabilityEnabled(const FString& CapabilityName, bool bEnabled, bool bNotify)
@@ -137,15 +176,10 @@ void UNexusLinkSettings::EnsureDefaultCapabilityMode()
 	}
 }
 
-static const TCHAR* GDangerousCapabilityNames[] = {
-	TEXT("exec_command"),
-	TEXT("eval_runtime_lua"),
-	TEXT("dofile_runtime_lua"),
-	TEXT("exec_python"),
-};
-
 void UNexusLinkSettings::EnsureDangerousCapsDefaultOff()
 {
+	const TArray<FString> DangerousNames = CollectDangerousCapabilityNames();
+
 	// 旧版本只有一个总开关，迁移时把当时的三个 cap 视为已处理，
 	// 否则用户手动启用过的 cap 会在本次升级被重新关掉
 	if (bDangerousCapsDefaultOffApplied && DangerousCapsDefaultOffApplied.Num() == 0)
@@ -156,7 +190,7 @@ void UNexusLinkSettings::EnsureDangerousCapsDefaultOff()
 	}
 
 	bool bChanged = false;
-	for (const TCHAR* Name : GDangerousCapabilityNames)
+	for (const FString& Name : DangerousNames)
 	{
 		if (DangerousCapsDefaultOffApplied.Contains(Name))
 		{
@@ -168,6 +202,23 @@ void UNexusLinkSettings::EnsureDangerousCapsDefaultOff()
 	}
 
 	bDangerousCapsDefaultOffApplied = true;
+
+	if (!bDangerousCapAccessMigrated)
+	{
+		bool bAnyEnabled = false;
+		for (const FString& Name : DangerousNames)
+		{
+			if (!DisabledCapabilities.Contains(Name))
+			{
+				bAnyEnabled = true;
+				break;
+			}
+		}
+		DangerousCapAccess = ResolveAccessAfterUpgrade(bAnyEnabled);
+		bDangerousCapAccessMigrated = true;
+		bChanged = true;
+	}
+
 	if (bChanged)
 	{
 		SaveConfig();
@@ -178,7 +229,7 @@ void UNexusLinkSettings::EnableDangerousCapsForSession()
 {
 	// 只写会话级集合：DisabledCapabilities 一旦被改，后续任意一次 SaveConfig
 	// （EnsureLogCaptureDefaults、设置面板勾选等）都会把危险 cap 永久写成启用
-	for (const TCHAR* Name : GDangerousCapabilityNames)
+	for (const FString& Name : CollectDangerousCapabilityNames())
 	{
 		SessionEnabledCapabilities.Add(Name);
 	}
@@ -280,7 +331,8 @@ void UNexusLinkSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	}
 
 	// 工具列表模式变更时广播 notifications/tools/list_changed
-	if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, ToolsListMode))
+	if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, ToolsListMode)
+		|| ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, DangerousCapAccess))
 	{
 		FNexusLinkModule& Module = FModuleManager::GetModuleChecked<FNexusLinkModule>(TEXT("NexusLink"));
 		const TSharedPtr<FNexusMcpServer>& Server = Module.GetMcpServer();

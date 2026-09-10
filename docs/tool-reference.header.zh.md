@@ -14,6 +14,7 @@
 > - `not_found`：Capability 名不在注册表
 > - `disabled`：精确 `capabilityName` / cap 名 `query` 命中设置中已禁用的 cap
 > - `disabled_only`：模糊 `query` 只匹配到**已禁用**的 cap（见 `disabledCapabilities[]`）
+> - `call_capability` 另有 `user_denied`：编辑器用户拒绝危险 cap（不要重试）
 
 > **通用约定**
 > - 所有 `assetPath` 均为 UE 内容路径，例如 `/Game/Blueprints/BP_Player`

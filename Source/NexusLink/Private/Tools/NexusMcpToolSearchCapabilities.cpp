@@ -6,6 +6,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusLinkSettings.h"
 #include "NexusMcpToolRegistry.h"
+#include "NexusMcpTool.h"
 #include "Utils/NexusCapabilityIndexUtils.h"
 #include "Utils/NexusHostUtils.h"
 #include "Utils/NexusJsonUtils.h"
@@ -85,6 +86,11 @@ static void EmitCapabilityLookupError(FNexusCapabilityLookup::EStatus Status, co
 	Output->SetStringField(TEXT("capabilityName"), Record->Def.Name);
 	Output->SetStringField(TEXT("error"),
 			FString::Printf(TEXT("Capability '%s' is disabled in settings."), *Record->Def.Name));
+		if (Record->Def.HasTag(FNexusMcpTags::Dangerous))
+		{
+			Output->SetStringField(TEXT("hint"),
+				TEXT("Set Editor Preferences → NexusLink → Dangerous Capability access to Confirm or Custom."));
+		}
 }
 
 /** 模糊搜索：在已禁用 cap 中找与 query 匹配的候选（enabled 结果为空时提示用）。 */
@@ -477,7 +483,7 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		{
 			Output->SetStringField(TEXT("errorKind"), TEXT("disabled_only"));
 			Output->SetStringField(TEXT("hint"),
-				TEXT("No enabled matches; names below exist but are disabled in NexusLink settings. Enable in Editor Preferences and retry, or query=\"\" for the enabled catalog."));
+				TEXT("No enabled matches; names below exist but are disabled in NexusLink settings. For dangerous caps set access mode to Confirm or Custom in Editor Preferences, or query=\"\" for the enabled catalog."));
 			Output->SetArrayField(TEXT("disabledCapabilities"), DisabledArr);
 		}
 		else

@@ -167,6 +167,29 @@ struct FNexusCapResultAdapter final
 		if (!CapResult.FatalError.IsEmpty())
 		{
 			Result.bIsError  = true;
+			if (CapResult.bIsUserDenied)
+			{
+				TSharedPtr<FJsonObject> Err = MakeShared<FJsonObject>();
+				Err->SetStringField(TEXT("errorKind"), TEXT("user_denied"));
+				Err->SetStringField(TEXT("error"), CapResult.FatalError);
+				Err->SetStringField(TEXT("capability"), CapName);
+				Err->SetStringField(TEXT("hint"), TEXT("Do not retry; user denied this request."));
+				Result.StructuredContent = Err;
+				Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
+				return Result;
+			}
+			if (CapResult.bIsArgInvalid && CapResult.bSkipFeedback)
+			{
+				TSharedPtr<FJsonObject> Err = MakeShared<FJsonObject>();
+				Err->SetStringField(TEXT("errorKind"), TEXT("arg_invalid"));
+				Err->SetStringField(TEXT("error"), CapResult.FatalError);
+				Err->SetStringField(TEXT("capability"), CapName);
+				Err->SetStringField(TEXT("hint"),
+					TEXT("Pass reason (purpose, expected effect, why no safer dedicated capability) and retry once."));
+				Result.StructuredContent = Err;
+				Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
+				return Result;
+			}
 			Result.ErrorText = CapResult.FatalError;
 			return Result;
 		}

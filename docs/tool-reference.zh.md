@@ -14,6 +14,7 @@
 > - `not_found`：Capability 名不在注册表
 > - `disabled`：精确 `capabilityName` / cap 名 `query` 命中设置中已禁用的 cap
 > - `disabled_only`：模糊 `query` 只匹配到**已禁用**的 cap（见 `disabledCapabilities[]`）
+> - `call_capability` 另有 `user_denied`：编辑器用户拒绝危险 cap（不要重试）
 
 > **通用约定**
 > - 所有 `assetPath` 均为 UE 内容路径，例如 `/Game/Blueprints/BP_Player`
@@ -62,7 +63,7 @@
 
 ### `call_capability`
 
-执行 Capability（在 search_asset / get_asset_* 之后）。失败时检查 errorKind：unknown/disabled/arg_invalid；disabled 不要重试。旧名（如 create_blackboard）映射到规范名。批量 calls[] 与单条形式互斥。
+执行 Capability（在 search_asset / get_asset_* 之后）。失败时检查 errorKind：unknown/disabled/unavailable/arg_invalid/user_denied；disabled 与 user_denied 不要重试。Confirm 模式危险 cap 须传 reason。旧名（如 create_blackboard）映射到规范名。批量 calls[] 与单条形式互斥。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -140,6 +141,7 @@
 |------|------|:----:|------|
 | `command` | `string` | ★ | 要执行的控制台命令 |
 | `silent` | `boolean` |  | 跳过输出捕获 |
+| `reason` | `string` |  | 编辑器确认弹窗用的目的说明；Confirm 模式必填 |
 
 **相关 Capability**: `get_output_log`
 
@@ -158,6 +160,7 @@
 | `mode` | `string (enum)` |  | 执行源码、执行 .py 文件、或求值表达式 枚举: `exec` / `file` / `eval` |
 | `persistent` | `boolean` |  | file 模式：复用 console 全局字典，而非隔离作用域 |
 | `unattended` | `boolean` |  | 运行期间抑制模态弹窗 |
+| `reason` | `string` |  | 编辑器确认弹窗用的目的说明；Confirm 模式必填 |
 
 **相关 Capability**: `get_python_api`, `exec_command`, `get_output_log`
 
@@ -2908,6 +2911,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `scriptPath` | `string` | ★ | Lua 文件路径（相对 Content/Script/） |
+| `reason` | `string` |  | 编辑器确认弹窗用的目的说明；Confirm 模式必填 |
 
 **相关 Capability**: `eval_runtime_lua`, `hotreload_runtime_lua`
 
@@ -2922,6 +2926,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `code` | `string` | ★ | Lua 表达式或代码块 |
+| `reason` | `string` |  | 编辑器确认弹窗用的目的说明；Confirm 模式必填 |
 
 **相关 Capability**: `set_runtime_lua`, `get_runtime_lua_value`
 

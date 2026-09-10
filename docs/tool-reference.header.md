@@ -14,6 +14,7 @@ This document lists all MCP tools and capabilities exposed by NexusLink with det
 > - `not_found`: capability name not in registry
 > - `disabled`: exact `capabilityName` / cap-name `query` hit a cap disabled in settings
 > - `disabled_only`: fuzzy `query` matched only **disabled** caps (see `disabledCapabilities[]`)
+> - `call_capability` also uses `user_denied` when the editor user rejects a dangerous cap (do not retry)
 
 > **General conventions**
 > - All `assetPath` values are UE content paths, e.g. `/Game/Blueprints/BP_Player`

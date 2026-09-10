@@ -118,6 +118,7 @@
 |---|---|---|
 | `readonly` | 访问级别 | 只读标记，**不是沙箱**；禁用写类 cap 仍可能通过其它 cap 改工程 |
 | `write` | 访问级别 | 会修改数据/状态 |
+| `dangerous` | 访问级别 | 脚本逃生舱（任意代码/控制台）；**不进分类树、不进 search 关键词**。带此标签必须同时带 `write`。默认全部禁用；访问模式 Confirm/Custom 见设置面板 |
 | `editor` | 分类 | 通用/仅编辑器 |
 | `blueprint` | 分类 | Blueprint 资产 |
 | `material` | 分类 | Material / MaterialInstance 资产 |

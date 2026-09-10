@@ -15,9 +15,10 @@ void FEvalRuntimeLuaCapability::BuildDefinition(FNexusCapabilityDefinition& Out)
 	Out.Description = TEXT("Execute Lua snippet in PIE/Game; returns stacked values.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("code"), FNexusSchema::Str(TEXT("Lua expression or code block")))
+		.Prop(TEXT("reason"), FNexusSchema::Str(TEXT("Purpose for the editor confirm dialog. Required in Confirm mode.")))
 		.Required({ TEXT("code") })
 		.Build();
-	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
+	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime, FNexusMcpTags::Dangerous };
 	Out.ExtraSearchKeywords = { TEXT("script"), TEXT("code"), TEXT("expression"), TEXT("repl"), TEXT("snippet") };
 	Out.RelatedCapabilities = { TEXT("set_runtime_lua"), TEXT("get_runtime_lua_value") };
 	Out.Prerequisites = { TEXT("unlua"), TEXT("pie") };

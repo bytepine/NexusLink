@@ -189,6 +189,9 @@ void FNexusCapabilityRegistry::Register(TSharedRef<FNexusCapability> Cap, const 
 	// 命名动词硬校验（Description 长度改为规范建议，不再 ensure，避免静态初始化期刷屏）
 	ValidateCapabilityName(Def);
 
+	ensureMsgf(!Def.HasTag(FNexusMcpTags::Dangerous) || Def.HasTag(FNexusMcpTags::Write),
+		TEXT("[NexusCap] '%s' has dangerous tag but is not write"), *Def.Name);
+
 	// InputSchema deep-clone，防止 cap 子类持有同一指针被外部修改污染
 	Def.InputSchema = DeepCloneJsonObject(Def.InputSchema);
 

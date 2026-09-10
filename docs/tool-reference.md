@@ -14,6 +14,7 @@ This document lists all MCP tools and capabilities exposed by NexusLink with det
 > - `not_found`: capability name not in registry
 > - `disabled`: exact `capabilityName` / cap-name `query` hit a cap disabled in settings
 > - `disabled_only`: fuzzy `query` matched only **disabled** caps (see `disabledCapabilities[]`)
+> - `call_capability` also uses `user_denied` when the editor user rejects a dangerous cap (do not retry)
 
 > **General conventions**
 > - All `assetPath` values are UE content paths, e.g. `/Game/Blueprints/BP_Player`
@@ -62,7 +63,7 @@ This document lists all MCP tools and capabilities exposed by NexusLink with det
 
 ### `call_capability`
 
-Execute a capability (after search_asset / get_asset_*). On failure check errorKind: unknown/disabled/arg_invalid; do not retry disabled. Legacy names (e.g. create_blackboard) map to canonical names. Batch calls[] and single form are mutually exclusive.
+Execute a capability (after search_asset / get_asset_*). On failure check errorKind: unknown/disabled/unavailable/arg_invalid/user_denied; do not retry disabled or user_denied. Confirm-mode dangerous caps need reason. Legacy names (e.g. create_blackboard) map to canonical names. Batch calls[] and single form are mutually exclusive.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
@@ -140,6 +141,7 @@ Run UE console command and capture output. Mirrored to LogConsole.
 |------|------|:----:|------|
 | `command` | `string` | ★ | Console command to execute |
 | `silent` | `boolean` |  | Skip output capture |
+| `reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `get_output_log`
 
@@ -158,6 +160,7 @@ Run editor Python. exec/file/eval; stdout and traceback. Probe with get_python_a
 | `mode` | `string (enum)` |  | Run source, run a .py file, or evaluate expression enum: `exec` / `file` / `eval` |
 | `persistent` | `boolean` |  | file mode: share console globals instead of isolated scope |
 | `unattended` | `boolean` |  | Suppress modal dialogs while running |
+| `reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `get_python_api`, `exec_command`, `get_output_log`
 
@@ -2908,6 +2911,7 @@ Load/run .lua from Content/Script/. Relative path; requires UnLua+PIE.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `scriptPath` | `string` | ★ | Lua file path (relative to Content/Script/) |
+| `reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `eval_runtime_lua`, `hotreload_runtime_lua`
 
@@ -2922,6 +2926,7 @@ Execute Lua snippet in PIE/Game; returns stacked values.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `code` | `string` | ★ | Lua expression or code block |
+| `reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `set_runtime_lua`, `get_runtime_lua_value`
 

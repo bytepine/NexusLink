@@ -11,7 +11,7 @@ Desktop / Rider / VSCode 夹在 AI 客户端与 UE WebSocket 之间。本文是�
 | 层 | 做 | 不做 |
 |---|---|---|
 | **代理** | TTL/section 缓存、断线快照、写门控、Pause 排队、驾驶舱活动、大包落盘 | Capability 语义、`search_capabilities`、改 UE schema |
-| **UE** | 注入 `_snapshotAt` / `_ttl_seconds`（若该版本已实现） | 裁 Agent 历史、弹确认框 |
+| **UE** | 注入 `_snapshotAt` / `_ttl_seconds`（若该版本已实现）；危险 cap（`dangerous` 标签）在 Confirm 模式下弹确认框 | 裁 Agent 历史 |
 
 直连 `:45000` **没有**本层。Agent 必须能在缺 `_proxy` 时仍工作。
 
@@ -86,6 +86,8 @@ TTL：
 确认结果：`allow` / `deny` / `always`（本进程对该 capability 不再问）。  
 `deny` → JSON-RPC 错误 `errorKind: proxy_denied`。  
 无 UI 回调时（测试）：不阻塞，视为 `allow`。确认等待上限 **120s**，超时视为 `deny`。
+
+`writeGate: all` 时 `exec_*` / `eval_*` / `dofile_*` 也算写 cap，会**先在代理弹一次**。危险 cap 的代码执行确认在 **UE 侧**（直连 `:45000` 也生效）：Editor Preferences 访问模式为「每次手动确认」时由 NexusLink 弹窗，`errorKind=user_denied`。两层同时开会双重确认，建议危险 cap 交给 UE，代理 `writeGate` 保持 `destructive`。
 
 **Pause：** 后续远端 `tools/call` 在代理排队，不发往 UE；本地 `list_unreal_instances` / `connect_unreal_instance` 仍可用。解除后按到达序转发。
 

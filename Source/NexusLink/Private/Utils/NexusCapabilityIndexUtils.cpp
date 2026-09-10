@@ -4,6 +4,8 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusLinkSettings.h"
 #include "NexusCapability.h"
+#include "NexusMcpTool.h"
+#include "Utils/NexusDangerousCapGate.h"
 #include "Utils/NexusHostUtils.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
@@ -279,6 +281,13 @@ void FNexusCapabilityIndexUtils::AttachMetaHints(TSharedPtr<FJsonObject>& Entry,
 	if (!Def.WhenToUse.IsEmpty())
 	{
 		Entry->SetStringField(TEXT("whenToUse"), Def.WhenToUse);
+	}
+	if (Def.HasTag(FNexusMcpTags::Dangerous)
+		&& FNexusDangerousCapGate::NeedsConfirm(Def.Name))
+	{
+		Entry->SetBoolField(TEXT("confirmationRequired"), true);
+		Entry->SetStringField(TEXT("hint"),
+			TEXT("Dangerous capability: pass reason (purpose, expected effect, why no safer cap). The editor will prompt the user to allow or deny THIS call."));
 	}
 }
 

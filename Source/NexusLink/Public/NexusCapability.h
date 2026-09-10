@@ -23,6 +23,10 @@ struct FCapabilityResult
 	FString                        FatalError;
 	/** 标记 FatalError 源于参数校验（required 字段缺失/类型不符），用于区分 call_arg_invalid 与 call_fatal。 */
 	bool                           bIsArgInvalid = false;
+	/** 用户在编辑器确认框拒绝（或超时/无 UI）；映射 errorKind=user_denied，不记 call_fatal。 */
+	bool                           bIsUserDenied = false;
+	/** 为 true 时 call_capability 不 RecordAuto（如 Confirm 模式缺 reason，避免污染 call_arg_invalid）。 */
+	bool                           bSkipFeedback = false;
 
 	/** 工厂方法：快速构造一个只含错误的结果。 */
 	static FCapabilityResult MakeFatal(const FString& Error)
@@ -38,6 +42,25 @@ struct FCapabilityResult
 		FCapabilityResult R;
 		R.FatalError    = Error;
 		R.bIsArgInvalid = true;
+		return R;
+	}
+
+	/** Confirm 模式缺/弱 reason：对 AI 仍是 arg_invalid，但不记反馈。 */
+	static FCapabilityResult MakeArgInvalidNoFeedback(const FString& Error)
+	{
+		FCapabilityResult R;
+		R.FatalError    = Error;
+		R.bIsArgInvalid = true;
+		R.bSkipFeedback = true;
+		return R;
+	}
+
+	/** 用户拒绝本次危险 Capability 请求。 */
+	static FCapabilityResult MakeUserDenied(const FString& Error)
+	{
+		FCapabilityResult R;
+		R.FatalError    = Error;
+		R.bIsUserDenied = true;
 		return R;
 	}
 };

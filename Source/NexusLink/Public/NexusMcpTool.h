@@ -10,6 +10,8 @@ struct FNexusMcpTags
 {
 	static constexpr const TCHAR* Readonly  = TEXT("readonly");
 	static constexpr const TCHAR* Write     = TEXT("write");
+	/** 访问级：脚本逃生舱（任意代码/控制台）；不进分类树、不进 search 关键词。 */
+	static constexpr const TCHAR* Dangerous = TEXT("dangerous");
 	static constexpr const TCHAR* Editor    = TEXT("editor");
 	static constexpr const TCHAR* Blueprint = TEXT("blueprint");
 	static constexpr const TCHAR* Material  = TEXT("material");

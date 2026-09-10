@@ -89,9 +89,10 @@ void FExecCommandCapability::BuildDefinition(FNexusCapabilityDefinition& Out) co
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("command"), FNexusSchema::Str(TEXT("Console command to execute")))
 		.Prop(TEXT("silent"),  FNexusSchema::Bool(TEXT("Skip output capture"), false))
+		.Prop(TEXT("reason"),  FNexusSchema::Str(TEXT("Purpose for the editor confirm dialog. Required in Confirm mode.")))
 		.Required({ TEXT("command") })
 		.Build();
-	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
+	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor, FNexusMcpTags::Dangerous };
 	Out.ExtraSearchKeywords = { TEXT("console"), TEXT("cmd"), TEXT("cvar"), TEXT("stat"), TEXT("run") };
 	Out.RelatedCapabilities = { TEXT("get_output_log") };
 }

@@ -63,8 +63,9 @@ void FExecPythonCapability::BuildDefinition(FNexusCapabilityDefinition& Out) con
 			{ TEXT("exec"), TEXT("file"), TEXT("eval") }, TEXT("exec")))
 		.Prop(TEXT("persistent"), FNexusSchema::Bool(TEXT("file mode: share console globals instead of isolated scope"), true, false))
 		.Prop(TEXT("unattended"), FNexusSchema::Bool(TEXT("Suppress modal dialogs while running"), true, true))
+		.Prop(TEXT("reason"), FNexusSchema::Str(TEXT("Purpose for the editor confirm dialog. Required in Confirm mode.")))
 		.Build();
-	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
+	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor, FNexusMcpTags::Dangerous };
 	Out.ExtraSearchKeywords = { TEXT("py"), TEXT("script"), TEXT("snippet"), TEXT("automation"), TEXT("scripting") };
 	Out.RelatedCapabilities = { TEXT("get_python_api"), TEXT("exec_command"), TEXT("get_output_log") };
 	Out.Prerequisites = { TEXT("python") };

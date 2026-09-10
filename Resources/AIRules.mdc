@@ -37,6 +37,8 @@ For UE assets / PIE / blueprints / Widget / material / behavior tree / GAS / Lua
 - ❌ Call `get_asset_*` without `search_asset` first (missing `assetPath`)
 - ❌ `get_runtime_actor_*` / `set_runtime_actor_*` without `actorName` (call `list_runtime_actors` first)
 - ❌ `exec_command` without a non-empty `command`
+- ❌ Call dangerous caps (`exec_command` / `exec_python` / `eval_runtime_lua` / `dofile_runtime_lua`) in Confirm mode without `reason` (purpose, expected effect, why no safer dedicated cap)
+- ❌ Retry after `errorKind=user_denied` (user rejected this request)
 - ❌ Runtime Lua tools (`eval_runtime_lua`, etc.) without PIE / UnLua ready
 - ❌ Guess `unreal.*` Python APIs — they differ per engine version; probe with `get_python_api` before `exec_python`
 - ❌ Assume `exec_python` writes are undoable — plain `obj.foo = x` is not recorded; use `obj.set_editor_property(...)` (or explicit `obj.modify()`) and check the returned `undoRecorded`
@@ -73,7 +75,7 @@ Legacy keys → `arg_invalid`.
 | GA config | `search_asset(GameplayAbility, …)` → top-level `recommendedGet` (skip if GAS not enabled locally) |
 | PIE actor properties | `list_runtime_actors` → `get_runtime_actor_property(actorName=…, propertyPaths=…)` |
 | PIE blackboard / active node | `get_runtime_actor_behavior_tree` (needs PIE + `actorName`) |
-| Console command | `exec_command(command="…")` (`command` required, non-empty) |
+| Console command | `exec_command(command="…")` (`command` required, non-empty; Confirm mode also needs `reason`) |
 | Editor automation via Python | `get_python_api(target="unreal", query="…")` to confirm the API exists on this engine → `exec_python`; both need Python Editor Script Plugin, and `exec_python` is disabled by default |
 | Errors / crashes / PIE logs | `get_output_log(preset="diagnose")` (newest + ≥warning + category summary); or `includeSummary`/`summaryOnly`; after repro use `latestSequence`→`sinceSequence`; narrow capture with `set_log_capture_filter` (Warning/Error always captured) |
 | Game design docs | Project **knowledge-base MCP** if available — not NexusLink asset search |
