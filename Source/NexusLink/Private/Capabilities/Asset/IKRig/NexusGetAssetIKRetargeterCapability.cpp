@@ -8,8 +8,13 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #include "Retargeter/IKRetargeter.h"
+#if NX_UE_HAS_IK_RIG_RIG_SUBDIR
 #include "Rig/IKRigDefinition.h"
+#else
+#include "IKRigDefinition.h"
+#endif
 #include "NexusMcpTool.h"
 
 void FGetAssetIKRetargeterCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -47,14 +52,33 @@ FCapabilityResult FGetAssetIKRetargeterCapability::Execute(const TSharedPtr<FJso
 		Entry->SetStringField(TEXT("name"),      Retargeter->GetName());
 		Entry->SetStringField(TEXT("assetType"), TEXT("IKRetargeter"));
 
+#if NX_UE_HAS_IK_RETARGETER_GET_IKRIG
 		const UIKRigDefinition* SrcRig = Retargeter->GetIKRig(ERetargetSourceOrTarget::Source);
 		const UIKRigDefinition* TgtRig = Retargeter->GetIKRig(ERetargetSourceOrTarget::Target);
+#else
+		const UIKRigDefinition* SrcRig = Retargeter->GetSourceIKRig();
+		const UIKRigDefinition* TgtRig = Retargeter->GetTargetIKRig();
+#endif
 		if (SrcRig) Entry->SetStringField(TEXT("sourceIKRig"), SrcRig->GetPathName());
 		if (TgtRig) Entry->SetStringField(TEXT("targetIKRig"), TgtRig->GetPathName());
 
 		// Chain Mapping
-		const TArray<TObjectPtr<URetargetChainSettings>>& AllChains = Retargeter->GetAllChainSettings();
 		TArray<TSharedPtr<FJsonValue>> ChainsArr;
+#if NX_UE_HAS_IK_RETARGETER_CHAIN_MAPPING
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		const TArray<FRetargetChainPair>& Pairs = Retargeter->GetChainMapping().GetChainPairs();
+		for (const FRetargetChainPair& Pair : Pairs)
+		{
+			TSharedPtr<FJsonObject> CObj = MakeShared<FJsonObject>();
+			CObj->SetStringField(TEXT("sourceChain"), Pair.SourceChainName.ToString());
+			CObj->SetStringField(TEXT("targetChain"), Pair.TargetChainName.ToString());
+			ChainsArr.Add(MakeShared<FJsonValueObject>(CObj));
+		}
+		Entry->SetArrayField(TEXT("chainMapping"), ChainsArr);
+		Entry->SetNumberField(TEXT("chainCount"), Pairs.Num());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#else
+		const TArray<TObjectPtr<URetargetChainSettings>>& AllChains = Retargeter->GetAllChainSettings();
 		for (const TObjectPtr<URetargetChainSettings>& CS : AllChains)
 		{
 			if (!CS) continue;
@@ -65,6 +89,7 @@ FCapabilityResult FGetAssetIKRetargeterCapability::Execute(const TSharedPtr<FJso
 		}
 		Entry->SetArrayField(TEXT("chainMapping"),  ChainsArr);
 		Entry->SetNumberField(TEXT("chainCount"),   AllChains.Num());
+#endif
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

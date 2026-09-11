@@ -8,9 +8,19 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #include "Retargeter/IKRetargeter.h"
+#if NX_UE_HAS_IK_RETARGET_SETTINGS_HEADER
 #include "Retargeter/IKRetargetSettings.h"
+#endif
+#if NX_UE_HAS_IK_RIG_RIG_SUBDIR
 #include "Rig/IKRigDefinition.h"
+#else
+#include "IKRigDefinition.h"
+#endif
+#if WITH_EDITOR
+#include "RetargetEditor/IKRetargeterController.h"
+#endif
 #include "NexusMcpTool.h"
 
 void FManageAssetIKRetargeterCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -113,7 +123,30 @@ static void HandleIKR_SetChainSource(const TSharedPtr<FJsonObject>& Op, FNexusAc
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_chain_source requires targetChain"));
 		return;
 	}
+#if WITH_EDITOR && NX_UE_HAS_IK_RETARGETER_SET_SOURCE_CHAIN
+	UIKRetargeterController* Ctrl = UIKRetargeterController::GetController(Retargeter);
+	if (!Ctrl)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to get IKRetargeterController"));
+		return;
+	}
+	if (!Ctrl->SetSourceChain(FName(*SourceChain), FName(*TargetChain)))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"),
+			FString::Printf(TEXT("Chain not found: %s"), *TargetChain));
+		return;
+	}
+#else
+#if NX_UE_HAS_IK_RETARGETER_GET_CHAIN_MAP_BY_NAME
 	const TObjectPtr<URetargetChainSettings> CS = Retargeter->GetChainMapByName(FName(*TargetChain));
+#else
+	// 5.0 无 GetChainMapByName，按 TargetChain 遍历 ChainSettings
+	TObjectPtr<URetargetChainSettings> CS = nullptr;
+	for (const TObjectPtr<URetargetChainSettings>& Candidate : Retargeter->GetAllChainSettings())
+	{
+		if (Candidate && Candidate->TargetChain == FName(*TargetChain)) { CS = Candidate; break; }
+	}
+#endif
 	if (!CS)
 	{
 		Ctx.Entry->SetStringField(TEXT("error"),
@@ -121,6 +154,7 @@ static void HandleIKR_SetChainSource(const TSharedPtr<FJsonObject>& Op, FNexusAc
 		return;
 	}
 	CS->SourceChain = FName(*SourceChain);
+#endif
 	MarkIKRDirty(Ctx);
 	Ctx.Entry->SetStringField(TEXT("targetChain"), TargetChain);
 	Ctx.Entry->SetStringField(TEXT("sourceChain"), SourceChain);

@@ -9,9 +9,47 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
+#include "Utils/NexusVersionCompat.h"
 #include "Retargeter/IKRetargeter.h"
+#if NX_UE_HAS_IK_RIG_RIG_SUBDIR
 #include "Rig/IKRigDefinition.h"
+#else
+#include "IKRigDefinition.h"
+#endif
+#if WITH_EDITOR
+#include "RetargetEditor/IKRetargeterController.h"
+#endif
 #include "NexusMcpTool.h"
+
+static void ApplyIKRetargeterRigs(UIKRetargeter* R, UIKRigDefinition* Src, UIKRigDefinition* Tgt)
+{
+#if WITH_EDITOR
+	UIKRetargeterController* Ctrl = UIKRetargeterController::GetController(R);
+	if (!Ctrl) return;
+	if (Src)
+	{
+#if NX_UE_HAS_IK_RETARGETER_CONTROLLER_SET_IKRIG
+		Ctrl->SetIKRig(ERetargetSourceOrTarget::Source, Src);
+#else
+		Ctrl->SetSourceIKRig(Src);
+#endif
+	}
+	if (Tgt)
+	{
+#if NX_UE_HAS_IK_RETARGETER_CONTROLLER_SET_IKRIG
+		Ctrl->SetIKRig(ERetargetSourceOrTarget::Target, Tgt);
+#elif NX_UE_HAS_IK_RETARGETER_CONTROLLER_SET_TARGET_IKRIG
+		Ctrl->SetTargetIKRig(Tgt);
+#else
+		// 5.1 既无 SetTargetIKRig 也无 SetIKRig，TargetIKRigAsset 为私有：只能跳过
+#endif
+	}
+#else
+	(void)R;
+	(void)Src;
+	(void)Tgt;
+#endif
+}
 
 void FCreateAssetIKRetargeterCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -55,14 +93,14 @@ FCapabilityResult FCreateAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 		{
 			if (UIKRigDefinition* Src = FNexusAssetUtils::LoadAssetWithFallback<UIKRigDefinition>(SrcPath))
 			{
-				R->SetIKRig(ERetargetSourceOrTarget::Source, Src);
+				ApplyIKRetargeterRigs(R, Src, nullptr);
 			}
 		}
 		if (!TgtPath.IsEmpty())
 		{
 			if (UIKRigDefinition* Tgt = FNexusAssetUtils::LoadAssetWithFallback<UIKRigDefinition>(TgtPath))
 			{
-				R->SetIKRig(ERetargetSourceOrTarget::Target, Tgt);
+				ApplyIKRetargeterRigs(R, nullptr, Tgt);
 			}
 		}
 		FNexusAssetUtils::NotifyAndSaveCreated(R->GetOutermost(), R, AssetPath);

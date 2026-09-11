@@ -9,7 +9,11 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusVersionCompat.h"
+#if NX_UE_HAS_CONTROL_RIG_BLUEPRINT_LEGACY_HEADER
+#include "ControlRigBlueprintLegacy.h"
+#else
 #include "ControlRigBlueprint.h"
+#endif
 #include "Rigs/RigHierarchy.h"
 #include "Rigs/RigHierarchyDefines.h"
 #include "RigVMModel/RigVMGraph.h"
@@ -17,6 +21,16 @@
 #include "RigVMModel/RigVMPin.h"
 #include "RigVMModel/RigVMLink.h"
 #include "NexusMcpTool.h"
+
+// 5.4+ 用 GetFName()；5.3 的 GetName() 返回的就是 FName
+static FString RigElementName(const FRigBaseElement* Elem)
+{
+#if NX_UE_HAS_RIG_ELEMENT_GET_FNAME
+	return Elem->GetFName().ToString();
+#else
+	return Elem->GetName().ToString();
+#endif
+}
 
 void FGetAssetControlRigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -56,7 +70,11 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 		if (USkeletalMesh* PreviewMesh = CRBp->GetPreviewMesh())
 			Entry->SetStringField(TEXT("previewMesh"), PreviewMesh->GetPathName());
 
+#if NX_UE_HAS_CONTROL_RIG_BLUEPRINT_GET_HIERARCHY
 		const URigHierarchy* Hier = CRBp->GetHierarchy();
+#else
+		const URigHierarchy* Hier = CRBp->Hierarchy;
+#endif
 		if (!Hier) { OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 
 		// 骨骼
@@ -65,7 +83,7 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 		{
 			if (!Bone) continue;
 			TSharedPtr<FJsonObject> BObj = MakeShared<FJsonObject>();
-			BObj->SetStringField(TEXT("name"), Bone->GetName());
+			BObj->SetStringField(TEXT("name"), RigElementName(Bone));
 			BonesArr.Add(MakeShared<FJsonValueObject>(BObj));
 		}
 		Entry->SetArrayField(TEXT("bones"), BonesArr);
@@ -76,7 +94,7 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 		{
 			if (!Ctrl) continue;
 			TSharedPtr<FJsonObject> CObj = MakeShared<FJsonObject>();
-			CObj->SetStringField(TEXT("name"), Ctrl->GetName());
+			CObj->SetStringField(TEXT("name"), RigElementName(Ctrl));
 			CObj->SetNumberField(TEXT("controlType"), static_cast<int32>(Ctrl->Settings.ControlType));
 			CtrlsArr.Add(MakeShared<FJsonValueObject>(CObj));
 		}
@@ -88,7 +106,7 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 		{
 			if (!Null) continue;
 			TSharedPtr<FJsonObject> NObj = MakeShared<FJsonObject>();
-			NObj->SetStringField(TEXT("name"), Null->GetName());
+			NObj->SetStringField(TEXT("name"), RigElementName(Null));
 			NullsArr.Add(MakeShared<FJsonValueObject>(NObj));
 		}
 		Entry->SetArrayField(TEXT("nulls"), NullsArr);
@@ -105,7 +123,7 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 				if (!Node) continue;
 				TSharedPtr<FJsonObject> NObj = MakeShared<FJsonObject>();
 				NObj->SetStringField(TEXT("path"),  Node->GetNodePath());
-				NObj->SetStringField(TEXT("title"), Node->GetNodeTitle().ToString());
+				NObj->SetStringField(TEXT("title"), Node->GetNodeTitle());
 
 				TArray<TSharedPtr<FJsonValue>> InPins, OutPins;
 				for (URigVMPin* Pin : Node->GetPins())

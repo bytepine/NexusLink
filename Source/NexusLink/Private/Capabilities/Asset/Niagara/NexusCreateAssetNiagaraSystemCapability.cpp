@@ -10,6 +10,10 @@
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
 #include "NiagaraSystem.h"
+#if WITH_EDITOR
+#include "Factories/Factory.h"
+#include "Modules/ModuleManager.h"
+#endif
 #include "NexusMcpTool.h"
 
 void FCreateAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -32,18 +36,65 @@ FCapabilityResult FCreateAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 	{
 		const FNexusArgs A(Arguments);
 		const FString AssetPath = A.Str(TEXT("assetPath"));
-		const FNexusAssetUtils::FAssetCreateOutcome Created =
-			FNexusAssetUtils::CreatePlainAsset<UNiagaraSystem>(AssetPath);
-		if (!Created.Ok())
+#if !WITH_EDITOR
+		OutError = TEXT("create_asset_niagara_system only available in editor builds");
+		return;
+#else
+		if (FNexusAssetUtils::PackageExists(AssetPath))
 		{
-			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
+			FNexusCapabilityResultBuilder::AddEntryError(
+				OutEntries, FString::Printf(TEXT("NiagaraSystem already exists: %s"), *AssetPath));
 			return;
 		}
-		UNiagaraSystem* Sys = Cast<UNiagaraSystem>(Created.Asset);
+
+		// 必须走工厂：裸 NewObject 的 System 缺 SystemSpawnScript 等必需图，落盘时引擎断言。
+		// 工厂类按名反射取，避免直接引用 UNiagaraSystemFactoryNew——它的 InitializeSystem
+		// 在 UE ≤5.1 没有 NIAGARAEDITOR_API 导出，硬链会失败。
+#if NX_UE_HAS_FIND_FIRST_OBJECT
+		UClass* FactoryClass = FindFirstObject<UClass>(TEXT("NiagaraSystemFactoryNew"), EFindFirstObjectOptions::NativeFirst);
+#else
+		UClass* FactoryClass = FindObject<UClass>(ANY_PACKAGE, TEXT("NiagaraSystemFactoryNew"));
+#endif
+		if (!FactoryClass)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("NiagaraSystemFactoryNew not found"));
+			return;
+		}
+
+		FText PackageNameError;
+		if (!FPackageName::IsValidLongPackageName(AssetPath, false, &PackageNameError))
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
+				FString::Printf(TEXT("Invalid package path '%s': %s"), *AssetPath, *PackageNameError.ToString()));
+			return;
+		}
+		UPackage* Package = CreatePackage(*AssetPath);
+		if (!Package)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
+				FString::Printf(TEXT("Failed to create package: %s"), *AssetPath));
+			return;
+		}
+
+		// 直接调 FactoryCreateNew，不走 IAssetTools::CreateAsset：后者会先调
+		// ConfigureProperties()，UE 5.7 的 Niagara 工厂在那里弹 Slate 向导窗，headless 下会挂。
+		UFactory* Factory = NewObject<UFactory>(GetTransientPackage(), FactoryClass);
+		UObject* NewAsset = Factory->FactoryCreateNew(
+			UNiagaraSystem::StaticClass(), Package, *FPackageName::GetShortName(AssetPath),
+			RF_Public | RF_Standalone, nullptr, GWarn);
+		UNiagaraSystem* Sys = Cast<UNiagaraSystem>(NewAsset);
+		if (!Sys)
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(
+				OutEntries, FString::Printf(TEXT("Failed to create NiagaraSystem: %s"), *AssetPath));
+			return;
+		}
+		FNexusAssetUtils::NotifyAndSaveCreated(Package, Sys, AssetPath);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Sys->GetName());
 		Entry->SetStringField(TEXT("path"), Sys->GetPathName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+#endif
 	});
 }
 

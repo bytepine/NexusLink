@@ -32,7 +32,7 @@ FCapabilityResult FGetAssetCommonTextStyleCapability::Execute(const TSharedPtr<F
 	{
 		FString AssetPath;
 		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
-		UCommonTextStyle* Style = FNexusAssetUtils::LoadAssetWithFallback<UCommonTextStyle>(AssetPath);
+		UCommonTextStyle* Style = FNexusAssetUtils::LoadAssetOrBlueprintCDO<UCommonTextStyle>(AssetPath);
 		if (!Style)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},

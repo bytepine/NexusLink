@@ -8,6 +8,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #include "NexusMcpTool.h"
 #include "InputMappingContext.h"
 #include "InputAction.h"
@@ -79,10 +80,7 @@ static void HandleIMC_AddMapping(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("InputAction not found: %s"), *ActionPath));
 		return;
 	}
-	FEnhancedActionKeyMapping NewMapping;
-	NewMapping.Action = IA;
-	NewMapping.Key = FKey(*KeyName);
-	IMC->Mappings.Add(NewMapping);
+	IMC->MapKey(IA, FKey(*KeyName));
 	Ctx.Entry->SetStringField(TEXT("addedKey"), KeyName);
 	MarkIMCDirty(Ctx);
 }
@@ -102,14 +100,34 @@ static void HandleIMC_RemoveMapping(const TSharedPtr<FJsonObject>& Op, FNexusAct
 		? FNexusAssetUtils::LoadAssetWithFallback<UInputAction>(ActionPath)
 		: nullptr;
 	const FKey FilterKey = bHasKey ? FKey(*KeyName) : EKeys::Invalid;
-	const int32 Before = IMC->Mappings.Num();
-	IMC->Mappings.RemoveAll([&](const FEnhancedActionKeyMapping& M)
+	const TArray<FEnhancedActionKeyMapping>& Maps = IMC->GetMappings();
+	const int32 Before = Maps.Num();
+	if (FilterIA && bHasKey)
 	{
-		const bool bMatchAction = !FilterIA || M.Action.Get() == FilterIA;
-		const bool bMatchKey    = !bHasKey  || M.Key == FilterKey;
-		return bMatchAction && bMatchKey;
-	});
-	const int32 Removed = Before - IMC->Mappings.Num();
+		IMC->UnmapKey(FilterIA, FilterKey);
+	}
+	else if (FilterIA)
+	{
+#if NX_UE_HAS_IMC_UNMAP_ALL_KEYS_FROM_ACTION
+		IMC->UnmapAllKeysFromAction(FilterIA);
+#else
+		IMC->UnmapAction(FilterIA);
+#endif
+	}
+	else
+	{
+		TArray<FEnhancedActionKeyMapping> Copy = Maps;
+		for (const FEnhancedActionKeyMapping& M : Copy)
+		{
+			// 5.0 的 Action 是裸指针，5.1+ 才是 TObjectPtr
+			const UInputAction* Action = M.Action;
+			if (Action && M.Key == FilterKey)
+			{
+				IMC->UnmapKey(Action, FilterKey);
+			}
+		}
+	}
+	const int32 Removed = Before - IMC->GetMappings().Num();
 	Ctx.Entry->SetNumberField(TEXT("removedCount"), Removed);
 	if (Removed > 0) MarkIMCDirty(Ctx);
 }
@@ -118,8 +136,8 @@ static void HandleIMC_ClearMappings(const TSharedPtr<FJsonObject>& Op, FNexusAct
 {
 	(void)Op;
 	UInputMappingContext* IMC = IMCFrom(Ctx);
-	const int32 Count = IMC->Mappings.Num();
-	IMC->Mappings.Empty();
+	const int32 Count = IMC->GetMappings().Num();
+	IMC->UnmapAll();
 	Ctx.Entry->SetNumberField(TEXT("clearedCount"), Count);
 	MarkIMCDirty(Ctx);
 }

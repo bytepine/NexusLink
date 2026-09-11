@@ -11,7 +11,12 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusVersionCompat.h"
+#if NX_UE_HAS_CONTROL_RIG_BLUEPRINT_LEGACY_HEADER
+#include "ControlRigBlueprintLegacy.h"
+#else
 #include "ControlRigBlueprint.h"
+#endif
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "ControlRig.h"
 #include "NexusMcpTool.h"

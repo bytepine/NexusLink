@@ -199,7 +199,8 @@ static FCapabilityResult PromptUser(const FString& CapName, const FString& Reaso
 		SNew(SBorder)
 		.Padding(12.0f)
 #if NX_UE_HAS_APP_STYLE
-		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+		// 走 Get().GetBrush：静态 FAppStyle::GetBrush 直到 5.1 才有，5.0 只有 Get()
+		.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 #else
 		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 #endif

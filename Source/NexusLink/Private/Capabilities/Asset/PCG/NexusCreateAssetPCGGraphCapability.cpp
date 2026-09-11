@@ -15,7 +15,7 @@
 void FCreateAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("create_asset_pcg_graph");
-	Out.Description = TEXT("Create PCG Graph asset.; use get_asset_ for readspcg_graph.");
+	Out.Description = TEXT("Create PCG Graph asset.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("New PCG Graph full path, e.g. /Game/PCG/PCG_NewGraph")))
 		.Required({ TEXT("assetPath") })

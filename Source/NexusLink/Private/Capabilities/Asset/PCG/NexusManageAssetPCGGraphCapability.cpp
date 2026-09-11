@@ -27,6 +27,13 @@ void FManageAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition&
 			FNexusSchema::Object()
 			.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
 				{ TEXT("add_node"), TEXT("remove_node"), TEXT("add_edge"), TEXT("remove_edge") }))
+			.Prop(TEXT("settingsClass"), FNexusSchema::Str(TEXT("UPCGSettings subclass name (add_node)")))
+			.Prop(TEXT("nodeId"),        FNexusSchema::Str(TEXT("Node id (remove_node)")))
+			.Prop(TEXT("fromNodeId"),    FNexusSchema::Str(TEXT("Edge source node id (add/remove_edge)")))
+			.Prop(TEXT("toNodeId"),      FNexusSchema::Str(TEXT("Edge target node id (add/remove_edge)")))
+			.Prop(TEXT("fromPin"),       FNexusSchema::Str(TEXT("Edge source pin name, default Out")))
+			.Prop(TEXT("toPin"),         FNexusSchema::Str(TEXT("Edge target pin name, default In")))
+			.Required({ TEXT("action") })
 			.Build().ToSharedRef()))
 		.Required({ TEXT("assetPath"), TEXT("operations") })
 		.Build();

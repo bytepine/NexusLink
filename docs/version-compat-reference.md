@@ -35,6 +35,26 @@
 | `NX_UE_HAS_STRUCT_UTILS_HEADER` | 5.5 | `Engine/UserDefinedStruct.h` → `StructUtils/` |
 | `NX_UE_HAS_ALLOW_SHRINKING_ENUM` | 5.5 | `TArray::Pop(bool)` → `Pop(EAllowShrinking)` |
 | `NX_UE_HAS_EDGRAPH_PERFORM_ACTION_VECTOR2F` | 5.6 | `FEdGraphSchemaAction::PerformAction` 改 `FVector2f`（`FVector2D`  overload C4996） |
+| `NX_UE_HAS_IK_RIG_SOLVER_STRUCTS` | 5.6 | `UIKRigDefinition::GetSolverArray()` → `GetSolverStructs()`（`FIKRigSolverBase`） |
+| `NX_UE_HAS_IK_RIG_ADD_CHAIN_GOAL` | 5.2 | `AddRetargetChain(..., GoalName)`；5.0 三参无 Goal |
+| `NX_UE_HAS_IK_RIG_ADD_CHAIN_BONE_CHAIN_ONLY` | 仅 5.1 | 该版 `AddRetargetChain` 只收 `FBoneChain`（5.0 三参、5.2+ 四参） |
+| `NX_UE_HAS_IK_RIG_RIG_SUBDIR` | 5.3 | IKRig 公共头迁入 `Rig/`：`IKRigDefinition.h` → `Rig/IKRigDefinition.h`、`Solvers/` → `Rig/Solvers/` |
+| `NX_UE_HAS_IK_RETARGET_SETTINGS_HEADER` | 5.2 | `Retargeter/IKRetargetSettings.h`；5.0/5.1 相关结构在 `IKRetargeter.h` 内 |
+| `NX_UE_HAS_IK_RIG_CONTROLLER_GET_CONTROLLER` | 5.2 | `UIKRigController::GetController`；5.0/5.1 为 `GetIKRigController` |
+| `NX_UE_HAS_IK_RETARGETER_GET_CHAIN_MAP_BY_NAME` | 5.1 | `UIKRetargeter::GetChainMapByName`；5.0 只能遍历 `GetAllChainSettings()` |
+| `NX_UE_HAS_IK_RETARGETER_CONTROLLER_SET_IKRIG` | 5.2 | `UIKRetargeterController::SetIKRig(ERetargetSourceOrTarget)`；5.0 `SetSourceIKRig`/`SetTargetIKRig` |
+| `NX_UE_HAS_IK_RETARGETER_CONTROLLER_SET_TARGET_IKRIG` | 仅 5.0 | `SetTargetIKRig`；5.1 移除且无公开替代（`TargetIKRigAsset` 私有），5.2+ 由 `SetIKRig` 接管 |
+| `NX_UE_HAS_IK_RETARGETER_GET_IKRIG` | 5.4 | `UIKRetargeter::GetIKRig(ERetargetSourceOrTarget)`；更早 `GetSourceIKRig`/`GetTargetIKRig` |
+| `NX_UE_HAS_IK_RETARGETER_SET_SOURCE_CHAIN` | 5.4 | `UIKRetargeterController::SetSourceChain` |
+| `NX_UE_HAS_IK_RETARGETER_CHAIN_MAPPING` | 5.6 | `GetChainMapping()` / `FRetargetChainPair` |
+| `NX_UE_HAS_CONTROL_RIG_BLUEPRINT_LEGACY_HEADER` | 5.7 | `ControlRigBlueprint.h` → `ControlRigBlueprintLegacy.h` |
+| `NX_UE_HAS_CONTROL_RIG_BLUEPRINT_GET_HIERARCHY` | 5.4 | `UControlRigBlueprint::GetHierarchy()`；5.3- 直接访问 `Hierarchy` 成员 |
+| `NX_UE_HAS_RIG_ELEMENT_GET_FNAME` | 5.4 | `FRigBaseElement::GetFName()`（`GetName()` 改返回 `FString`）；5.3 的 `GetName()` 返回 `FName` |
+| `NX_UE_HAS_METASOUND_CLASS_GET_DEFAULT_INTERFACE` | 5.6 | `FMetasoundFrontendClass::Interface` → `Get/SetDefaultInterface` |
+| `NX_UE_HAS_METASOUND_GET_CONST_DOCUMENT` | 5.4 | `IMetaSoundDocumentInterface::GetConstDocument()`；5.3 为 const 版 `GetDocument()` |
+| `NX_UE_HAS_METASOUND_GRAPH_PAGES` | 5.5 | `FMetasoundFrontendGraphClass::IterateGraphPages`；5.3/5.4 只有单个 `Graph` |
+| `NX_UE_HAS_POSE_SEARCH_NUM_ANIMATION_ASSETS` | 5.5 | `UPoseSearchDatabase::GetNumAnimationAssets()`；5.4 为 `GetAnimationAssets().Num()` |
+| `NX_UE_HAS_IMC_UNMAP_ALL_KEYS_FROM_ACTION` | 5.1 | `UInputMappingContext::UnmapAllKeysFromAction`；5.0 为 `UnmapAction` |
 | `NX_UE_HAS_STATIC_MESH_CUSTOM_COLLISION_ACCESSOR` | 5.7 | `UStaticMesh::bCustomizedCollision` → `SetCustomizedCollision` |
 | `NX_UE_HAS_STATIC_MESH_AUTO_LOD_SCREENSIZE_ACCESSOR` | 5.7 | `UStaticMesh::bAutoComputeLODScreenSize` → `SetAutoComputeLODScreenSize` |
 | `NX_UE_HAS_JSON_TSHAREDSTRING_KEY` | 5.8 | `FJsonObject::Values` 键类型 `FString` → `UE::FSharedString` |

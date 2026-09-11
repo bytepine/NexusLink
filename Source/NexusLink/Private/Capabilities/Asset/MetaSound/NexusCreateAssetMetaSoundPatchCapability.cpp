@@ -19,7 +19,7 @@
 void FCreateAssetMetaSoundPatchCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("create_asset_meta_sound_patch");
-	Out.Description = TEXT("Create MetaSound Patch (reusable subgraph, ≥UE5.1). Reads via get_asset_meta_sound.");
+	Out.Description = TEXT("Create MetaSound Patch (reusable subgraph, ≥UE5.1).");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("New MetaSound Patch full path, e.g. /Game/Audio/MSP_NewPatch")))
 		.Required({ TEXT("assetPath") })

@@ -28,7 +28,22 @@ static FString InputActionValueTypeToStr(EInputActionValueType Type)
 	}
 }
 
-// ── 辅助：将 TObjectPtr<UObject> 数组序列化为类名列表 ─────────────────────────
+// ── 辅助：将对象指针数组序列化为类名列表 ─────────────────────────────────────
+// 5.0 的 Triggers/Modifiers 是裸指针数组，5.1+ 才换成 TObjectPtr，故两个重载都要有。
+
+template<typename T>
+static TArray<TSharedPtr<FJsonValue>> BuildClassNameArray(const TArray<T*>& Items)
+{
+	TArray<TSharedPtr<FJsonValue>> Result;
+	for (const T* Item : Items)
+	{
+		if (Item)
+		{
+			Result.Add(MakeShared<FJsonValueString>(Item->GetClass()->GetName()));
+		}
+	}
+	return Result;
+}
 
 template<typename T>
 static TArray<TSharedPtr<FJsonValue>> BuildClassNameArray(const TArray<TObjectPtr<T>>& Items)
@@ -80,7 +95,7 @@ FCapabilityResult FGetAssetInputActionCapability::Execute(const TSharedPtr<FJson
 		OutEntry->SetStringField(TEXT("name"),       IA->GetName());
 		OutEntry->SetStringField(TEXT("path"),       FNexusAssetUtils::PackagePathOf(IA));
 		OutEntry->SetStringField(TEXT("valueType"),  InputActionValueTypeToStr(IA->ValueType));
-		OutEntry->SetBoolField(TEXT("consumesInput"),    IA->bConsumesInput);
+		OutEntry->SetBoolField(TEXT("consumesInput"),    IA->bConsumeInput);
 		OutEntry->SetBoolField(TEXT("reserveAllMappings"), IA->bReserveAllMappings);
 
 		// Triggers

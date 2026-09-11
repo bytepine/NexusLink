@@ -76,7 +76,7 @@ bool FManageAssetCommonTextStyleCapability::PrepareTarget(
 {
 	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
 	Entry->SetStringField(TEXT("path"), AssetPath);
-	UCommonTextStyle* Style = FNexusAssetUtils::LoadAssetWithFallback<UCommonTextStyle>(AssetPath);
+	UCommonTextStyle* Style = FNexusAssetUtils::LoadAssetOrBlueprintCDO<UCommonTextStyle>(AssetPath);
 	if (!Style)
 	{
 		OutError = FString::Printf(TEXT("Failed to load CommonTextStyle: %s"), *AssetPath);

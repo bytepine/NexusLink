@@ -69,7 +69,7 @@ public class NexusLink : ModuleRules
 			Opt(new[] { "StateTree.uplugin" }, "WITH_STATETREE", "WITH_STATETREE", 5, 5, new[] { "StateTreeModule" }, new[] { "StateTreeEditorModule" }),
 			Opt(new[] { "ModelViewViewModel.uplugin" }, "WITH_MVVM", "WITH_MVVM", 5, 5, new[] { "ModelViewViewModel" }, new[] { "ModelViewViewModelBlueprint" }),
 			Opt(new[] { "EnhancedInput.uplugin" }, "WITH_ENHANCED_INPUT", "WITH_ENHANCED_INPUT", 5, 0, new[] { "EnhancedInput" }, new[] { "InputEditor" }),
-			Opt(new[] { "ControlRig.uplugin" }, "WITH_CONTROL_RIG", "WITH_CONTROL_RIG", 5, 0, new[] { "ControlRig", "RigVM" }, new[] { "ControlRigDeveloper" }),
+			Opt(new[] { "ControlRig.uplugin" }, "WITH_CONTROL_RIG", "WITH_CONTROL_RIG", 5, 0, new[] { "ControlRig", "RigVM" }, new[] { "ControlRigDeveloper", "RigVMDeveloper" }),
 			Opt(new[] { "IKRig.uplugin" }, "WITH_IK_RIG", "WITH_IK_RIG", 5, 0, new[] { "IKRig" }, new[] { "IKRigEditor", "IKRigDeveloper" }),
 			Opt(new[] { "Metasound.uplugin" }, "WITH_METASOUND", "WITH_METASOUND", 5, 0, new[] { "MetasoundEngine", "MetasoundFrontend", "MetasoundGraphCore" }, new[] { "MetasoundEditor" }),
 			Opt(new[] { "PCG.uplugin" }, "WITH_PCG", "WITH_PCG", 5, 4, new[] { "PCG" }, new[] { "PCGEditor" }),
@@ -108,10 +108,6 @@ public class NexusLink : ModuleRules
 			&& DetectAnyEnginePlugin(SearchDirs, C.UpluginFiles);
 		if (on && C.UprojectPluginName != null && ProjectRoot != null
 			&& IsPluginExplicitlyDisabledInUproject(ProjectRoot, C.UprojectPluginName))
-			on = false;
-		// BuildPlugin 的 HostProject 会扫到整份 Engine/Plugins；真实工程（含自定义引擎）仍按磁盘探测
-		if (on && C.Define != "WITH_UNLUA"
-			&& (ProjectRoot == null || IsBuildPluginHostProject(ProjectRoot)))
 			on = false;
 		// UncookedOnly 的 Game 目标（WITH_EDITOR=0）不编引擎可选插件：那些 cap 大量用编辑器 API
 		if (on && !Target.bBuildEditor && C.Define != "WITH_UNLUA")
@@ -327,19 +323,6 @@ public class NexusLink : ModuleRules
 				}
 				catch (System.Exception) { }
 		return false;
-	}
-
-	private static bool IsBuildPluginHostProject(string projectRoot)
-	{
-		if (string.IsNullOrEmpty(projectRoot)) return false;
-		try
-		{
-			string name = System.IO.Path.GetFileName(projectRoot);
-			if (string.Equals(name, "HostProject", System.StringComparison.OrdinalIgnoreCase))
-				return true;
-			return System.IO.Directory.GetFiles(projectRoot, "HostProject.uproject").Length > 0;
-		}
-		catch (System.Exception) { return false; }
 	}
 
 	private static bool JsonHasEnabledLiteral(string json, string literal)

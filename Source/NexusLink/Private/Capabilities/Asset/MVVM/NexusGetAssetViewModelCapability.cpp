@@ -13,6 +13,7 @@
 #include "NexusMcpTool.h"
 #if WITH_EDITOR
 #include "WidgetBlueprint.h"
+#include "WidgetBlueprintExtension.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMBlueprintViewBinding.h"
@@ -115,15 +116,8 @@ FCapabilityResult FGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonOb
 		OutEntry->SetStringField(TEXT("path"), FNexusAssetUtils::PackagePathOf(WBP));
 
 		// 从 WBP 扩展中取 MVVM 视图对象
-		UMVVMWidgetBlueprintExtension_View* MvvmExt = nullptr;
-		for (UWidgetBlueprintExtension* Ext : WBP->GetExtensions())
-		{
-			MvvmExt = Cast<UMVVMWidgetBlueprintExtension_View>(Ext);
-			if (MvvmExt)
-			{
-				break;
-			}
-		}
+		UMVVMWidgetBlueprintExtension_View* MvvmExt =
+			UWidgetBlueprintExtension::GetExtension<UMVVMWidgetBlueprintExtension_View>(WBP);
 
 		if (!MvvmExt)
 		{

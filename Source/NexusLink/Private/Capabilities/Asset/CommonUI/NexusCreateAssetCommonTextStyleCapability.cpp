@@ -32,14 +32,17 @@ FCapabilityResult FCreateAssetCommonTextStyleCapability::Execute(const TSharedPt
 	{
 		const FNexusArgs A(Arguments);
 		const FString AssetPath = A.Str(TEXT("assetPath"));
+		// UCommonTextStyle 是 UCLASS(Abstract, Blueprintable)：只能建 Blueprint 子类，
+		// 直接 NewObject 会在 StaticAllocateObject 触发抽象类 ensure。
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
-			FNexusAssetUtils::CreatePlainAsset<UCommonTextStyle>(AssetPath);
+			FNexusAssetUtils::CreateBlueprintAsset(
+				AssetPath, TEXT("CommonTextStyle"), UCommonTextStyle::StaticClass());
 		if (!Created.Ok())
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		UCommonTextStyle* Style = Cast<UCommonTextStyle>(Created.Asset);
+		UObject* Style = Created.Asset;
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Style->GetName());
 		Entry->SetStringField(TEXT("path"), Style->GetPathName());

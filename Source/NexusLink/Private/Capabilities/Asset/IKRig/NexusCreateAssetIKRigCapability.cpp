@@ -9,7 +9,12 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusVersionCompat.h"
+#if NX_UE_HAS_IK_RIG_RIG_SUBDIR
 #include "Rig/IKRigDefinition.h"
+#else
+#include "IKRigDefinition.h"
+#endif
 #include "Engine/SkeletalMesh.h"
 #include "NexusMcpTool.h"
 

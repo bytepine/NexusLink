@@ -120,10 +120,14 @@ static void HandleGA_SetPolicy(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 	if (Op->TryGetStringField(TEXT("instancingPolicy"), InstPolicyStr) && !InstPolicyStr.IsEmpty())
 	{
 		uint8 V = 0;
+		bool bParsed = true;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if      (InstPolicyStr == TEXT("NonInstanced"))          V = (uint8)EGameplayAbilityInstancingPolicy::NonInstanced;
 		else if (InstPolicyStr == TEXT("InstancedPerActor"))     V = (uint8)EGameplayAbilityInstancingPolicy::InstancedPerActor;
 		else if (InstPolicyStr == TEXT("InstancedPerExecution")) V = (uint8)EGameplayAbilityInstancingPolicy::InstancedPerExecution;
-		else
+		else bParsed = false;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		if (!bParsed)
 		{
 			Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid instancingPolicy: %s"), *InstPolicyStr));
 			return;

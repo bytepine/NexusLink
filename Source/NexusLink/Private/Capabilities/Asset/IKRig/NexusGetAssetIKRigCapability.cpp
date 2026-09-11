@@ -8,8 +8,19 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusVersionCompat.h"
+#if NX_UE_HAS_IK_RIG_RIG_SUBDIR
 #include "Rig/IKRigDefinition.h"
+#else
+#include "IKRigDefinition.h"
+#endif
+#if NX_UE_HAS_IK_RIG_SOLVER_STRUCTS
+#include "Rig/Solvers/IKRigSolverBase.h"
+#elif NX_UE_HAS_IK_RIG_RIG_SUBDIR
 #include "Rig/Solvers/IKRigSolver.h"
+#else
+#include "IKRigSolver.h"
+#endif
 #include "NexusMcpTool.h"
 
 void FGetAssetIKRigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -52,6 +63,21 @@ FCapabilityResult FGetAssetIKRigCapability::Execute(const TSharedPtr<FJsonObject
 
 		// Solvers
 		TArray<TSharedPtr<FJsonValue>> SolversArr;
+#if NX_UE_HAS_IK_RIG_SOLVER_STRUCTS
+		const TArray<FInstancedStruct>& SolverStructs = IKRig->GetSolverStructs();
+		for (int32 i = 0; i < SolverStructs.Num(); ++i)
+		{
+			const FInstancedStruct& Inst = SolverStructs[i];
+			if (!Inst.IsValid()) continue;
+			TSharedPtr<FJsonObject> SObj = MakeShared<FJsonObject>();
+			SObj->SetNumberField(TEXT("index"), i);
+			const UScriptStruct* ST = Inst.GetScriptStruct();
+			SObj->SetStringField(TEXT("class"), ST ? ST->GetName() : TEXT(""));
+			const FIKRigSolverBase& Solver = Inst.Get<FIKRigSolverBase>();
+			SObj->SetBoolField(TEXT("enabled"), Solver.IsEnabled());
+			SolversArr.Add(MakeShared<FJsonValueObject>(SObj));
+		}
+#else
 		const TArray<UIKRigSolver*>& Solvers = IKRig->GetSolverArray();
 		for (int32 i = 0; i < Solvers.Num(); ++i)
 		{
@@ -62,6 +88,7 @@ FCapabilityResult FGetAssetIKRigCapability::Execute(const TSharedPtr<FJsonObject
 			SObj->SetBoolField(TEXT("enabled"),   Solvers[i]->IsEnabled());
 			SolversArr.Add(MakeShared<FJsonValueObject>(SObj));
 		}
+#endif
 		Entry->SetArrayField(TEXT("solvers"), SolversArr);
 
 		// BoneChains (Retarget Chains)

@@ -53,13 +53,21 @@ static const FString& ResultErrorText(const FCapabilityResult& R)
 	return R.FatalError;
 }
 
+// ── 辅助：从注册表取实例 ──────────────────────────────────────────────────────
+// 走注册表而非直接 new：capability 类声明在 Private 头里，直接实例化会逼它们
+// 额外导出 NEXUSLINK_API（全仓其余 cap 都不导出）。
+
+static FNexusCapability* FindCapability(const TCHAR* CapName)
+{
+	const FCapRecord* Record = FNexusCapabilityRegistry::Get().FindRecordByName(CapName);
+	return Record ? &Record->Instance.Get() : nullptr;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // §1  get_asset_state_tree — 元数据 / 注册表 / 参数校验
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #if WITH_STATETREE
-
-#include "Capabilities/Asset/StateTree/NexusGetAssetStateTreeCapability.h"
 
 // ─── 1a. 元数据 ───────────────────────────────────────────────────────────────
 
@@ -70,8 +78,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FNexusStateTreeCapDefinitionTest::RunTest(const FString& Parameters)
 {
-	FGetAssetStateTreeCapability Cap;
-	const FNexusCapabilityDefinition& Def = Cap.GetDefinition();
+	FNexusCapability* Cap = FindCapability(TEXT("get_asset_state_tree"));
+	if (!Cap) { AddError(TEXT("get_asset_state_tree not found in registry")); return false; }
+	const FNexusCapabilityDefinition& Def = Cap->GetDefinition();
 
 	TestEqual(TEXT("Name == get_asset_state_tree"),
 		Def.Name, FString(TEXT("get_asset_state_tree")));
@@ -123,14 +132,15 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FNexusStateTreeCapMissingPathTest::RunTest(const FString& Parameters)
 {
-	FGetAssetStateTreeCapability Cap;
+	FNexusCapability* Cap = FindCapability(TEXT("get_asset_state_tree"));
+	if (!Cap) { AddError(TEXT("get_asset_state_tree not found in registry")); return false; }
 
 	// 空参数对象 → 应返回错误（通过公开 Run() 调用）
-	const FCapabilityResult R1 = Cap.Run(MakeArgs());
+	const FCapabilityResult R1 = Cap->Run(MakeArgs());
 	TestTrue(TEXT("empty args → error"), ResultHasError(R1));
 
 	// assetPath 为空串 → 应返回错误
-	const FCapabilityResult R2 = Cap.Run(MakeArgs(TEXT("assetPath"), TEXT("")));
+	const FCapabilityResult R2 = Cap->Run(MakeArgs(TEXT("assetPath"), TEXT("")));
 	TestTrue(TEXT("empty assetPath → error"), ResultHasError(R2));
 
 	return true;
@@ -145,9 +155,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FNexusStateTreeCapInvalidPathTest::RunTest(const FString& Parameters)
 {
-	FGetAssetStateTreeCapability Cap;
+	FNexusCapability* Cap = FindCapability(TEXT("get_asset_state_tree"));
+	if (!Cap) { AddError(TEXT("get_asset_state_tree not found in registry")); return false; }
 
-	const FCapabilityResult R = Cap.Run(
+	const FCapabilityResult R = Cap->Run(
 		MakeArgs(TEXT("assetPath"), TEXT("/Game/__DoesNotExist_StateTree_XYZ__")));
 
 	// 不应崩溃；应报告资产未找到
@@ -164,8 +175,6 @@ bool FNexusStateTreeCapInvalidPathTest::RunTest(const FString& Parameters)
 
 #if WITH_MVVM
 
-#include "Capabilities/Asset/MVVM/NexusGetAssetViewModelCapability.h"
-
 // ─── 2a. 元数据 ───────────────────────────────────────────────────────────────
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
@@ -175,8 +184,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FNexusMvvmCapDefinitionTest::RunTest(const FString& Parameters)
 {
-	FGetAssetViewModelCapability Cap;
-	const FNexusCapabilityDefinition& Def = Cap.GetDefinition();
+	FNexusCapability* Cap = FindCapability(TEXT("get_asset_view_model"));
+	if (!Cap) { AddError(TEXT("get_asset_view_model not found in registry")); return false; }
+	const FNexusCapabilityDefinition& Def = Cap->GetDefinition();
 
 	TestEqual(TEXT("Name == get_asset_view_model"),
 		Def.Name, FString(TEXT("get_asset_view_model")));
@@ -235,14 +245,15 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FNexusMvvmCapMissingPathTest::RunTest(const FString& Parameters)
 {
-	FGetAssetViewModelCapability Cap;
+	FNexusCapability* Cap = FindCapability(TEXT("get_asset_view_model"));
+	if (!Cap) { AddError(TEXT("get_asset_view_model not found in registry")); return false; }
 
 	// 空参数 → 错误（通过公开 Run() 调用）
-	const FCapabilityResult R1 = Cap.Run(MakeArgs());
+	const FCapabilityResult R1 = Cap->Run(MakeArgs());
 	TestTrue(TEXT("empty args → error"), ResultHasError(R1));
 
 	// 空路径 → 错误
-	const FCapabilityResult R2 = Cap.Run(MakeArgs(TEXT("assetPath"), TEXT("")));
+	const FCapabilityResult R2 = Cap->Run(MakeArgs(TEXT("assetPath"), TEXT("")));
 	TestTrue(TEXT("empty assetPath → error"), ResultHasError(R2));
 
 	return true;
@@ -257,9 +268,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FNexusMvvmCapInvalidPathTest::RunTest(const FString& Parameters)
 {
-	FGetAssetViewModelCapability Cap;
+	FNexusCapability* Cap = FindCapability(TEXT("get_asset_view_model"));
+	if (!Cap) { AddError(TEXT("get_asset_view_model not found in registry")); return false; }
 
-	const FCapabilityResult R = Cap.Run(
+	const FCapabilityResult R = Cap->Run(
 		MakeArgs(TEXT("assetPath"), TEXT("/Game/__DoesNotExist_WBP_XYZ__")));
 
 	TestTrue(TEXT("invalid path → error (no crash)"), ResultHasError(R));

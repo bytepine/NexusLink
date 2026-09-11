@@ -46,16 +46,18 @@ FCapabilityResult FGetAssetInputMappingContextCapability::Execute(const TSharedP
 		OutEntry->SetStringField(TEXT("assetType"), TEXT("InputMappingContext"));
 		OutEntry->SetStringField(TEXT("name"),      IMC->GetName());
 		OutEntry->SetStringField(TEXT("path"),      FNexusAssetUtils::PackagePathOf(IMC));
-		OutEntry->SetNumberField(TEXT("mappingsCount"), IMC->Mappings.Num());
+		OutEntry->SetNumberField(TEXT("mappingsCount"), IMC->GetMappings().Num());
 
 		TArray<TSharedPtr<FJsonValue>> MappingArr;
-		for (const FEnhancedActionKeyMapping& M : IMC->Mappings)
+		for (const FEnhancedActionKeyMapping& M : IMC->GetMappings())
 		{
 			TSharedPtr<FJsonObject> MObj = MakeShared<FJsonObject>();
-			if (M.Action)
+			// 5.0 的 Action 是裸指针，5.1+ 才是 TObjectPtr：过一道裸指针避免 .Get()
+			const UInputAction* Action = M.Action;
+			if (Action)
 			{
-				MObj->SetStringField(TEXT("action"), FNexusAssetUtils::PackagePathOf(M.Action.Get()));
-				MObj->SetStringField(TEXT("actionName"), M.Action->GetName());
+				MObj->SetStringField(TEXT("action"), FNexusAssetUtils::PackagePathOf(Action));
+				MObj->SetStringField(TEXT("actionName"), Action->GetName());
 			}
 			MObj->SetStringField(TEXT("key"), M.Key.ToString());
 			MObj->SetNumberField(TEXT("triggersCount"), M.Triggers.Num());

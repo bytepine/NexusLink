@@ -8,10 +8,20 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusVersionCompat.h"
+#if NX_UE_HAS_IK_RIG_RIG_SUBDIR
 #include "Rig/IKRigDefinition.h"
-#include "Rig/Solvers/IKRigSolver.h"
-#include "Rig/IKRigDefinition.h"
+#else
+#include "IKRigDefinition.h"
+#endif
 #include "Engine/SkeletalMesh.h"
+#if NX_UE_HAS_IK_RIG_SOLVER_STRUCTS
+#include "Rig/Solvers/IKRigSolverBase.h"
+#elif NX_UE_HAS_IK_RIG_RIG_SUBDIR
+#include "Rig/Solvers/IKRigSolver.h"
+#else
+#include "IKRigSolver.h"
+#endif
 #if WITH_EDITOR
 #include "RigEditor/IKRigController.h"
 #endif
@@ -91,35 +101,14 @@ static void HandleIK_SetPreviewMesh(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	Ctx.Entry->SetStringField(TEXT("meshPath"), MeshPath);
 }
 
-static void HandleIK_SetSolverEnabled(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
-{
-	UIKRigDefinition* IKRig = IKFrom(Ctx);
-	int32 SolverIdx = -1;
-	if (Op->HasField(TEXT("solverIndex")))
-		SolverIdx = static_cast<int32>(Op->GetNumberField(TEXT("solverIndex")));
-	bool bEnabled = true;
-	if (Op->HasField(TEXT("enabled")))
-		Op->TryGetBoolField(TEXT("enabled"), bEnabled);
-	const TArray<UIKRigSolver*>& Solvers = IKRig->GetSolverArray();
-	if (!Solvers.IsValidIndex(SolverIdx))
-	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("solverIndex out of bounds"));
-		return;
-	}
-#if WITH_EDITOR
-	Solvers[SolverIdx]->SetEnabled(bEnabled);
-	MarkIKDirty(Ctx);
-	Ctx.Entry->SetNumberField(TEXT("solverIndex"), SolverIdx);
-	Ctx.Entry->SetBoolField(TEXT("enabled"), bEnabled);
-#else
-	Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_solver_enabled editor only"));
-#endif
-}
-
 #if WITH_EDITOR
 static UIKRigController* RequireIKController(FNexusActionContext& Ctx)
 {
+#if NX_UE_HAS_IK_RIG_CONTROLLER_GET_CONTROLLER
 	UIKRigController* Ctrl = UIKRigController::GetController(IKFrom(Ctx));
+#else
+	UIKRigController* Ctrl = UIKRigController::GetIKRigController(IKFrom(Ctx));
+#endif
 	if (!Ctrl)
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to get IKRigController"));
@@ -127,6 +116,43 @@ static UIKRigController* RequireIKController(FNexusActionContext& Ctx)
 	return Ctrl;
 }
 #endif
+
+static void HandleIK_SetSolverEnabled(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	int32 SolverIdx = -1;
+	if (Op->HasField(TEXT("solverIndex")))
+		SolverIdx = static_cast<int32>(Op->GetNumberField(TEXT("solverIndex")));
+	bool bEnabled = true;
+	if (Op->HasField(TEXT("enabled")))
+		Op->TryGetBoolField(TEXT("enabled"), bEnabled);
+#if WITH_EDITOR
+#if NX_UE_HAS_IK_RIG_SOLVER_STRUCTS
+	UIKRigController* Ctrl = RequireIKController(Ctx);
+	if (!Ctrl) return;
+	if (!Ctrl->SetSolverEnabled(SolverIdx, bEnabled))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("solverIndex out of bounds"));
+		return;
+	}
+#else
+	UIKRigDefinition* IKRig = IKFrom(Ctx);
+	const TArray<UIKRigSolver*>& Solvers = IKRig->GetSolverArray();
+	if (!Solvers.IsValidIndex(SolverIdx))
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("solverIndex out of bounds"));
+		return;
+	}
+	Solvers[SolverIdx]->SetEnabled(bEnabled);
+#endif
+	MarkIKDirty(Ctx);
+	Ctx.Entry->SetNumberField(TEXT("solverIndex"), SolverIdx);
+	Ctx.Entry->SetBoolField(TEXT("enabled"), bEnabled);
+#else
+	(void)SolverIdx;
+	(void)bEnabled;
+	Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_solver_enabled editor only"));
+#endif
+}
 
 static void HandleIK_AddChain(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
@@ -140,7 +166,13 @@ static void HandleIK_AddChain(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("chainName required"));
 		return;
 	}
+#if NX_UE_HAS_IK_RIG_ADD_CHAIN_GOAL
+	Ctrl->AddRetargetChain(FName(*ChainName), FName(*A.Str(TEXT("startBone"))), FName(*A.Str(TEXT("endBone"))), NAME_None);
+#elif NX_UE_HAS_IK_RIG_ADD_CHAIN_BONE_CHAIN_ONLY
+	Ctrl->AddRetargetChain(FBoneChain(FName(*ChainName), FName(*A.Str(TEXT("startBone"))), FName(*A.Str(TEXT("endBone")))));
+#else
 	Ctrl->AddRetargetChain(FName(*ChainName), FName(*A.Str(TEXT("startBone"))), FName(*A.Str(TEXT("endBone"))));
+#endif
 	MarkIKDirty(Ctx);
 	Ctx.Entry->SetStringField(TEXT("chainName"), ChainName);
 #else

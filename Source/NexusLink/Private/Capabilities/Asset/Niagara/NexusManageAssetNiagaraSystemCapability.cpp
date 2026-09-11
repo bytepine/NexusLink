@@ -124,7 +124,7 @@ static bool SetNiagaraUserParameter(UNiagaraSystem* System, const FString& Param
 			continue;
 		}
 		const FNiagaraTypeDefinition& TypeDef = Var.GetType();
-		const FName TypeName = TypeDef.GetName();
+		const FName TypeName = TypeDef.GetFName();
 		TArray<uint8> Data;
 		Data.SetNumZeroed(TypeDef.GetSize());
 

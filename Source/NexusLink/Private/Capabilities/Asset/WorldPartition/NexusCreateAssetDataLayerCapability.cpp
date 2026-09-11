@@ -18,7 +18,7 @@
 void FCreateAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("create_asset_data_layer");
-	Out.Description = TEXT("Create DataLayer asset (UDataLayerAsset, ≥UE5.1). type: Runtime or Editor.; use get_asset_ for readsdata_layer.");
+	Out.Description = TEXT("Create DataLayer asset (UDataLayerAsset, ≥UE5.1). type: Runtime or Editor.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("New DataLayer asset full path, e.g. /Game/WorldData/DL_New")))
 		.Prop(TEXT("type"),        FNexusSchema::Str(TEXT("Runtime or Editor (default Runtime)")))

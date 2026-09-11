@@ -94,10 +94,12 @@ static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, int3
 			TSharedPtr<FJsonObject> TObj = MakeShared<FJsonObject>();
 			// 目标状态名：若 State 指针有效取名字，否则记录类型
 			TObj->SetStringField(TEXT("trigger"), UEnum::GetValueAsString(T.Trigger));
-			if (T.State.IsValid())
+#if WITH_EDITORONLY_DATA
+			if (T.State.ID.IsValid())
 			{
-				TObj->SetStringField(TEXT("target"), T.State->Name.ToString());
+				TObj->SetStringField(TEXT("target"), T.State.Name.ToString());
 			}
+#endif
 			TransArr.Add(MakeShared<FJsonValueObject>(TObj));
 		}
 		Obj->SetArrayField(TEXT("transitions"), TransArr);

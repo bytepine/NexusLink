@@ -17,6 +17,29 @@
 #include "Metasound.h"
 #endif
 
+static const FMetasoundFrontendNode* FindMSNode(const FMetasoundFrontendGraph& Graph, const FGuid& NodeID)
+{
+	return Graph.Nodes.FindByPredicate([&](const FMetasoundFrontendNode& N) { return N.GetID() == NodeID; });
+}
+
+static FGuid FindOutputVertexID(const FMetasoundFrontendNode& Node, const FName PinName)
+{
+	for (const FMetasoundFrontendVertex& V : Node.Interface.Outputs)
+	{
+		if (V.Name == PinName) return V.VertexID;
+	}
+	return FGuid();
+}
+
+static FGuid FindInputVertexID(const FMetasoundFrontendNode& Node, const FName PinName)
+{
+	for (const FMetasoundFrontendVertex& V : Node.Interface.Inputs)
+	{
+		if (V.Name == PinName) return V.VertexID;
+	}
+	return FGuid();
+}
+
 void FManageAssetMetaSoundCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("manage_asset_meta_sound");
@@ -90,7 +113,11 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 		return;
 	}
 	const FNexusArgs A(Op);
+#if NX_UE_HAS_METASOUND_CLASS_GET_DEFAULT_INTERFACE
+	FMetasoundFrontendClassInterface& Iface = Doc->RootGraph.GetDefaultInterface();
+#else
 	FMetasoundFrontendClassInterface& Iface = Doc->RootGraph.Interface;
+#endif
 
 	const FString Action = A.Str(TEXT("action")).ToLower();
 	if (Action == TEXT("add_input"))
@@ -176,14 +203,14 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 			return;
 		}
 		FMetasoundFrontendNode NewNode;
-		NewNode.ID = FGuid::NewGuid();
+		NewNode.UpdateID(FGuid::NewGuid());
 		NewNode.ClassID = ClassGuid;
 		if (!NodeName.IsEmpty())
 		{
 			NewNode.Name = FName(*NodeName);
 		}
 		Doc->RootGraph.Graph.Nodes.Add(NewNode);
-		Result->SetStringField(TEXT("nodeID"), NewNode.ID.ToString());
+		Result->SetStringField(TEXT("nodeID"), NewNode.GetID().ToString());
 	}
 	else if (Action == TEXT("remove_node"))
 	{
@@ -198,7 +225,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 			[&](const FMetasoundFrontendNode& N) { return N.GetID() == NodeGuid; });
 		const int32 RemovedEdges = Doc->RootGraph.Graph.Edges.RemoveAll(
 			[&](const FMetasoundFrontendEdge& E) {
-				return E.From.NodeID == NodeGuid || E.To.NodeID == NodeGuid;
+				return E.FromNodeID == NodeGuid || E.ToNodeID == NodeGuid;
 			});
 		Result->SetNumberField(TEXT("removedEdges"), RemovedEdges);
 		if (RemovedNodes == 0)
@@ -218,16 +245,28 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 			return;
 		}
 		FMetasoundFrontendEdge NewEdge;
-		FGuid::Parse(FromNodeIDStr, NewEdge.From.NodeID);
-		NewEdge.From.VertexName = FName(*FromPin);
-		FGuid::Parse(ToNodeIDStr, NewEdge.To.NodeID);
-		NewEdge.To.VertexName = FName(*ToPin);
+		FGuid::Parse(FromNodeIDStr, NewEdge.FromNodeID);
+		FGuid::Parse(ToNodeIDStr, NewEdge.ToNodeID);
+		const FMetasoundFrontendNode* FromNode = FindMSNode(Doc->RootGraph.Graph, NewEdge.FromNodeID);
+		const FMetasoundFrontendNode* ToNode = FindMSNode(Doc->RootGraph.Graph, NewEdge.ToNodeID);
+		if (!FromNode || !ToNode)
+		{
+			Result->SetStringField(TEXT("error"), TEXT("add_edge: fromNodeID or toNodeID not found"));
+			return;
+		}
+		NewEdge.FromVertexID = FindOutputVertexID(*FromNode, FName(*FromPin));
+		NewEdge.ToVertexID = FindInputVertexID(*ToNode, FName(*ToPin));
+		if (!NewEdge.FromVertexID.IsValid() || !NewEdge.ToVertexID.IsValid())
+		{
+			Result->SetStringField(TEXT("error"), TEXT("add_edge: fromPin/toPin not found on node"));
+			return;
+		}
 		const bool bExists = Doc->RootGraph.Graph.Edges.ContainsByPredicate(
 			[&](const FMetasoundFrontendEdge& E) {
-				return E.From.NodeID == NewEdge.From.NodeID &&
-				       E.From.VertexName == NewEdge.From.VertexName &&
-				       E.To.NodeID == NewEdge.To.NodeID &&
-				       E.To.VertexName == NewEdge.To.VertexName;
+				return E.FromNodeID == NewEdge.FromNodeID &&
+				       E.FromVertexID == NewEdge.FromVertexID &&
+				       E.ToNodeID == NewEdge.ToNodeID &&
+				       E.ToVertexID == NewEdge.ToVertexID;
 			});
 		if (bExists)
 		{
@@ -248,10 +287,14 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 		FGuid::Parse(FromNodeIDStr, FromGuid);
 		FGuid::Parse(ToNodeIDStr, ToGuid);
 		const FName FromPinName(*FromPin), ToPinName(*ToPin);
+		const FMetasoundFrontendNode* FromNode = FindMSNode(Doc->RootGraph.Graph, FromGuid);
+		const FMetasoundFrontendNode* ToNode = FindMSNode(Doc->RootGraph.Graph, ToGuid);
+		const FGuid FromVid = FromNode ? FindOutputVertexID(*FromNode, FromPinName) : FGuid();
+		const FGuid ToVid = ToNode ? FindInputVertexID(*ToNode, ToPinName) : FGuid();
 		const int32 Removed = Doc->RootGraph.Graph.Edges.RemoveAll(
 			[&](const FMetasoundFrontendEdge& E) {
-				return E.From.NodeID == FromGuid && E.From.VertexName == FromPinName &&
-				       E.To.NodeID == ToGuid && E.To.VertexName == ToPinName;
+				return E.FromNodeID == FromGuid && E.FromVertexID == FromVid &&
+				       E.ToNodeID == ToGuid && E.ToVertexID == ToVid;
 			});
 		if (Removed == 0)
 		{

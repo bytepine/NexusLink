@@ -25,6 +25,8 @@
 
 两层自动化：
 
+- **L0 跨版本编译**（宿主工程 `Script/build_test.py`）：UAT `BuildPlugin`。Editor 阶段按**该引擎** `Engine/Plugins` 探测编进可选插件 Capability（GAS/Niagara/ControlRig 等）；Game 阶段 `WITH_EDITOR=0` 仍不编这些 cap。
+
 - **L1 C++ Automation**（`Source/NexusLinkTests/`）：纯工具函数 + 插件加载 + Capability 注册表冒烟 + `FNexusResponseCompactorUtils` 全量断言。经 UEEditor-Cmd 触发：
 
   ```bash

@@ -11,6 +11,7 @@
 #include "UObject/Object.h"
 #include "UObject/Package.h"
 #include "UObject/Class.h"
+#include "Engine/Blueprint.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusPackageLedger.h"
 
@@ -69,11 +70,24 @@ public:
 		}
 	}
 
+	/**
+	 * 包是否已存在（已在内存中或在磁盘上）。
+	 * 加载前必须过这一关：部分资产类型（MetaSound / PCG 等）在包不存在时会自己再拼一层
+	 * 路径前缀，拼成 /Game//Game/... 后触发 CreatePackage 的双斜杠 check 直接崩编辑器。
+	 */
+	static bool PackageExists(const FString& AssetPath)
+	{
+		if (AssetPath.IsEmpty()) return false;
+		const FString PackageName = FPackageName::ObjectPathToPackageName(AssetPath);
+		if (PackageName.IsEmpty() || !FPackageName::IsValidLongPackageName(PackageName)) return false;
+		return FindPackage(nullptr, *PackageName) != nullptr || FPackageName::DoesPackageExist(PackageName);
+	}
+
 	/** 加载资产；自动 fallback 到 "Path.BaseFilename" 形式（UE 资产系统常见需求）。 */
 	template <typename TAsset>
 	static TAsset* LoadAssetWithFallback(const FString& AssetPath)
 	{
-		if (AssetPath.IsEmpty()) return nullptr;
+		if (AssetPath.IsEmpty() || !PackageExists(AssetPath)) return nullptr;
 		TAsset* Asset = LoadObject<TAsset>(nullptr, *AssetPath);
 		if (!Asset)
 		{
@@ -81,6 +95,20 @@ public:
 			Asset = LoadObject<TAsset>(nullptr, *Fallback);
 		}
 		return Asset;
+	}
+
+	/**
+	 * 加载资产；若该路径上是 Blueprint，则返回其 GeneratedClass 的 CDO。
+	 * 供 UCLASS(Abstract, Blueprintable) 类型使用（如 CommonUI 的 Style）：这类资产
+	 * 在编辑器里只能以 Blueprint 子类存在，数据挂在 CDO 上。
+	 */
+	template <typename TAsset>
+	static TAsset* LoadAssetOrBlueprintCDO(const FString& AssetPath)
+	{
+		if (TAsset* Direct = LoadAssetWithFallback<TAsset>(AssetPath)) return Direct;
+		const UBlueprint* BP = LoadAssetWithFallback<UBlueprint>(AssetPath);
+		if (!BP || !BP->GeneratedClass) return nullptr;
+		return Cast<TAsset>(BP->GeneratedClass->GetDefaultObject());
 	}
 
 	/**

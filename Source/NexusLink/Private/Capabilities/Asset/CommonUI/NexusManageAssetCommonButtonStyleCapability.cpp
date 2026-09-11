@@ -76,7 +76,7 @@ bool FManageAssetCommonButtonStyleCapability::PrepareTarget(
 {
 	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
 	Entry->SetStringField(TEXT("path"), AssetPath);
-	UCommonButtonStyle* Style = FNexusAssetUtils::LoadAssetWithFallback<UCommonButtonStyle>(AssetPath);
+	UCommonButtonStyle* Style = FNexusAssetUtils::LoadAssetOrBlueprintCDO<UCommonButtonStyle>(AssetPath);
 	if (!Style)
 	{
 		OutError = FString::Printf(TEXT("Failed to load CommonButtonStyle: %s"), *AssetPath);

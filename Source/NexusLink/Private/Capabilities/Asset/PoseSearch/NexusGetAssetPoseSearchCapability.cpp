@@ -47,7 +47,11 @@ FCapabilityResult FGetAssetPoseSearchCapability::Execute(const TSharedPtr<FJsonO
 			if (DB->Schema)
 				Entry->SetStringField(TEXT("schema"), DB->Schema->GetPathName());
 
+#if NX_UE_HAS_POSE_SEARCH_NUM_ANIMATION_ASSETS
 			Entry->SetNumberField(TEXT("animationAssetCount"), DB->GetNumAnimationAssets());
+#else
+			Entry->SetNumberField(TEXT("animationAssetCount"), DB->GetAnimationAssets().Num());
+#endif
 
 			// Tags
 			TArray<TSharedPtr<FJsonValue>> TagsArr;
@@ -65,17 +69,18 @@ FCapabilityResult FGetAssetPoseSearchCapability::Execute(const TSharedPtr<FJsonO
 			Entry->SetStringField(TEXT("assetType"), TEXT("PoseSearchSchema"));
 			Entry->SetStringField(TEXT("name"), Schema->GetName());
 
-			// Channels
+			// Channels（5.4+ Channels 为 private，走 GetChannels）
 			TArray<TSharedPtr<FJsonValue>> ChArr;
-			for (const UPoseSearchFeatureChannel* Ch : Schema->Channels)
+			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChPtr : Schema->GetChannels())
 			{
+				const UPoseSearchFeatureChannel* Ch = ChPtr.Get();
 				if (!Ch) continue;
 				TSharedPtr<FJsonObject> ChObj = MakeShared<FJsonObject>();
 				ChObj->SetStringField(TEXT("class"), Ch->GetClass()->GetName());
 				ChArr.Add(MakeShared<FJsonValueObject>(ChObj));
 			}
 			Entry->SetArrayField(TEXT("channels"), ChArr);
-			Entry->SetNumberField(TEXT("channelCount"), Schema->Channels.Num());
+			Entry->SetNumberField(TEXT("channelCount"), Schema->GetChannels().Num());
 
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;

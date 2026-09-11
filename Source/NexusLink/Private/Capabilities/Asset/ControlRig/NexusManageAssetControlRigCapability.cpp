@@ -8,7 +8,12 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusVersionCompat.h"
+#if NX_UE_HAS_CONTROL_RIG_BLUEPRINT_LEGACY_HEADER
+#include "ControlRigBlueprintLegacy.h"
+#else
 #include "ControlRigBlueprint.h"
+#endif
 #include "Rigs/RigHierarchy.h"
 #include "Rigs/RigHierarchyController.h"
 #include "Rigs/RigHierarchyDefines.h"
@@ -123,8 +128,8 @@ static void HandleCR_RenameElement(const TSharedPtr<FJsonObject>& Op, FNexusActi
 		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Element not found: %s"), *ElemName));
 		return;
 	}
-	const bool bOk = S->Controller->RenameElement(Key, FName(*NewName));
-	if (!bOk) Ctx.Entry->SetStringField(TEXT("error"), TEXT("rename_element failed"));
+	const FRigElementKey Renamed = S->Controller->RenameElement(Key, FName(*NewName));
+	if (!Renamed.IsValid()) Ctx.Entry->SetStringField(TEXT("error"), TEXT("rename_element failed"));
 	else
 	{
 		Ctx.Entry->SetStringField(TEXT("newName"), NewName);
@@ -167,7 +172,8 @@ static void HandleCR_AddNull(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_null requires elementName"));
 		return;
 	}
-	const FRigElementKey NewKey = S->Controller->AddNull(FName(*ElemName), ParentBoneKey(A.Str(TEXT("parentName"))));
+	const FRigElementKey NewKey = S->Controller->AddNull(
+		FName(*ElemName), ParentBoneKey(A.Str(TEXT("parentName"))), FTransform::Identity);
 	if (!NewKey.IsValid()) Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_null failed"));
 	else
 	{
@@ -279,7 +285,8 @@ static void HandleCR_AddControl(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 	}
 	FRigControlSettings Settings;
 	const FRigElementKey NewKey = S->Controller->AddControl(
-		FName(*ElemName), ParentBoneKey(A.Str(TEXT("parentName"))), Settings, FRigControlValue(), false);
+		FName(*ElemName), ParentBoneKey(A.Str(TEXT("parentName"))), Settings, FRigControlValue(),
+		FTransform::Identity, FTransform::Identity, false);
 	if (!NewKey.IsValid()) Ctx.Entry->SetStringField(TEXT("error"), TEXT("Failed to add element"));
 	else
 	{
@@ -300,7 +307,7 @@ static void HandleCR_AddBone(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 	}
 	const FRigElementKey NewKey = S->Controller->AddBone(
 		FName(*ElemName), ParentBoneKey(A.Str(TEXT("parentName"))),
-		FTransform::Identity, true, ERigTransformType::InitialLocal);
+		FTransform::Identity, true, ERigBoneType::User);
 	if (!NewKey.IsValid()) Ctx.Entry->SetStringField(TEXT("error"), TEXT("Failed to add element"));
 	else
 	{
@@ -317,6 +324,12 @@ static void HandleCR_SetPinDefault(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	if (PinPath.IsEmpty())
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_pin_default requires pinPath"));
+		return;
+	}
+	// 空值必须自己拦下：RigVMController 内部对空默认值有 ensure，透传过去会污染编辑器日志
+	if (PinVal.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_pin_default requires non-empty pinDefaultValue"));
 		return;
 	}
 	URigVMController* VmCtrl = RequireVmCtrl(Ctx);
@@ -340,7 +353,11 @@ bool FManageAssetControlRigCapability::PrepareTarget(
 		OutError = FString::Printf(TEXT("ControlRig Blueprint not found: %s"), *AssetPath);
 		return false;
 	}
+#if NX_UE_HAS_CONTROL_RIG_BLUEPRINT_GET_HIERARCHY
 	URigHierarchy* Hier = CRBp->GetHierarchy();
+#else
+	URigHierarchy* Hier = CRBp->Hierarchy;
+#endif
 	URigHierarchyController* Controller = Hier ? Hier->GetController(true) : nullptr;
 	if (!Controller)
 	{

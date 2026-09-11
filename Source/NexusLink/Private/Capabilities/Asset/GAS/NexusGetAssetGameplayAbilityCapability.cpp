@@ -17,6 +17,7 @@
 
 static FString GA_InstancingPolicyToStr(uint8 V)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	switch ((EGameplayAbilityInstancingPolicy::Type)V)
 	{
 		case EGameplayAbilityInstancingPolicy::NonInstanced:          return TEXT("NonInstanced");
@@ -24,6 +25,7 @@ static FString GA_InstancingPolicyToStr(uint8 V)
 		case EGameplayAbilityInstancingPolicy::InstancedPerExecution: return TEXT("InstancedPerExecution");
 		default: return TEXT("Unknown");
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 static FString GA_NetExecPolicyToStr(uint8 V)

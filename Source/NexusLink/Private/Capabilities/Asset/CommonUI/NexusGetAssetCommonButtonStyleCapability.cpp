@@ -32,7 +32,7 @@ FCapabilityResult FGetAssetCommonButtonStyleCapability::Execute(const TSharedPtr
 	{
 		FString AssetPath;
 		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
-		UCommonButtonStyle* Style = FNexusAssetUtils::LoadAssetWithFallback<UCommonButtonStyle>(AssetPath);
+		UCommonButtonStyle* Style = FNexusAssetUtils::LoadAssetOrBlueprintCDO<UCommonButtonStyle>(AssetPath);
 		if (!Style)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},

@@ -15,7 +15,7 @@
 void FCreateAssetMetaSoundCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name        = TEXT("create_asset_meta_sound");
-	Out.Description = TEXT("Create MetaSound Source asset.; use get_asset_ for readsmeta_sound.");
+	Out.Description = TEXT("Create MetaSound Source asset.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("New MetaSound asset full path, e.g. /Game/Audio/MS_NewSound")))
 		.Required({ TEXT("assetPath") })

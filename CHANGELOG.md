@@ -15,12 +15,22 @@
 ### Fixed
 
 - fix(docs): 中文 `tool-reference` 生成器丢弃人工校订的精确译文——`param_desc` 在 `residual_english()` 判定译文仍残留英文时会回落到按**参数名**兜底的 `param_name`，而该判定把译文里本就该保留的技术术语（`file` / `Actor` / `Montage` 等，全表 108 条命中）一律当作未译，导致同名参数被塞进别的 cap 的语义（`scriptPath` 在 Python cap 里显示成「Lua 脚本路径（相对 `Content/Script/`）」）。`param_text` 是按英文原文人工校订的，权威性高于按名兜底，命中即不再回落；随之暴露并补译 3 条本身没译完的词条（`Actor class name filter` / `Variable/default name filter` / `Widget/animation name substring`）。中文文档 20 行受益，其中 8 处 `assetPath` 从通用「资产包路径」恢复为各 cap 专属说明；`test_tool_reference_i18n` 补两条优先级回归
+- fix(compat): 5.7 宿主编进 MetaSound/MVVM/Niagara/StateTree/ControlRig/IKRig/PoseSearch/GAS/EnhancedInput——Frontend Edge 用 `FromNodeID`/`VertexID`、Node `UpdateID`；MVVM `RequestExtension`/`GetViewModelId`/`GetExtension`；Niagara `GetFName`/`GetInstance().Emitter`；StateTree 迁移目标用 `State.ID`/`Name`；ControlRig 头文件 `ControlRigBlueprintLegacy.h`，`AddNull`/`AddControl`/`AddBone`/`RenameElement` 对齐 5.0+ 签名，Editor 链 `RigVMDeveloper`；IKRig `GetSolverStructs`、IKRetargeter 走 Controller `SetIKRig`/`SetSourceChain`；PoseSearch `GetChannels()`；GAS `NonInstanced` 去 C4996；InputAction `bConsumeInput`、IMC `GetMappings`/`MapKey`；`StateTreeMvvmCapabilityTests` 改从注册表取实例（原先直接构造 Private 头里的 cap，链接不到；不为此破例导出 `NEXUSLINK_API`）。`build_test` Editor/`BuildPlugin` 不再因 HostProject 整段关掉可选插件，与宿主同一套磁盘探测
+- fix(asset): `LoadAssetWithFallback` 加载前先过 `PackageExists`（内存中或磁盘上）——MetaSound / PCG 等类型对不存在的包会自己再拼一层 `/Game/` 前缀，拼成 `/Game//Game/...` 后触发 `CreatePackage` 的双斜杠 check 直接崩编辑器；现在包不存在即返回 nullptr，由各 cap 正常报 not found
+- fix(asset): `create_asset_niagara_system` 保存时崩编辑器——裸 `NewObject<UNiagaraSystem>` 缺 `SystemSpawnScript` 等必需图，落盘在引擎内断言。改按名反射取 `NiagaraSystemFactoryNew` 并直接调 `FactoryCreateNew`：不硬链是因为 `InitializeSystem` 在 UE ≤5.1 没有 `NIAGARAEDITOR_API` 导出；不走 `IAssetTools::CreateAsset` 是因为它会先调 `ConfigureProperties()`，UE 5.7 的 Niagara 工厂在那里弹 Slate 向导窗，headless 下直接把编辑器带走
+- fix(asset): `create_asset_common_button_style` / `create_asset_common_text_style` 触发抽象类 ensure——`UCommonButtonStyle` / `UCommonTextStyle` 都是 `UCLASS(Abstract, Blueprintable)`，只能以 Blueprint 子类存在，`NewObject` 会在 `StaticAllocateObject` 报「Class which was marked abstract」。改建 Blueprint 子类，对应 get/manage 走新增的 `LoadAssetOrBlueprintCDO`（资产是 Blueprint 时取 `GeneratedClass` 的 CDO）
+- fix(asset): `manage_asset_view_model` 对未初始化的 WidgetBlueprint 报 `BlueprintView is empty`——`RequestExtension` 只挂扩展不建 View，首次编辑时补调 `CreateBlueprintViewInstance()`
+- fix(mcp): `manage_asset_pcg_graph` 的 op 参数全被严格校验拦下——handler 读 `settingsClass`/`nodeId`/`fromNodeId`/`toNodeId`/`fromPin`/`toPin`，schema 里却只声明了 `action`，补齐并把 `action` 标为必填
+- fix(mcp): `manage_asset_control_rig` 的 `set_pin_default` 透传空值触发 RigVM 内部 ensure，改为自己拦下并回 `requires non-empty pinDefaultValue`
+- fix(mcp): 三个 create cap 的描述被坏掉的批量替换拼成 `...asset.; use get_asset_ for readsmeta_sound.`（MetaSound / MetaSound Patch / PCG / DataLayer）——删去该后缀，读取入口本就在 `RelatedCapabilities` 里；顺带修好 `search_capabilities(query="get_asset")` 被这些描述抢走命中、返回不了路由 hint
+- fix(compat): 可选插件 Capability 补齐 UE 5.0–5.4 编译路径——这些文件此前从未被任何编译门编到，`build_test` 打开可选插件后一次性暴露。IKRig 头 5.3 起才迁 `Rig/` 子目录、`IKRetargetSettings.h` 5.2 起才有、`UIKRigController::GetController` 5.2 起（更早 `GetIKRigController`）、`AddRetargetChain` 5.0 三参 / 5.1 收 `FBoneChain` / 5.2+ 四参、`GetChainMapByName` 5.1 起（5.0 遍历 `GetAllChainSettings`）、5.1 无 `SetTargetIKRig` 公开替代故跳过；ControlRig `UControlRigBlueprint::GetHierarchy()` 与 `FRigBaseElement::GetFName()` 均 5.4 起；MetaSound `MetasoundDocumentInterface.h` 5.3 起、`GetConstDocument` 5.4 起、`IterateGraphPages` 5.5 起（更早走单个 `Graph`）；PoseSearch `GetNumAnimationAssets` 5.5 起（5.4 为 `GetAnimationAssets().Num()`）；EnhancedInput `UnmapAllKeysFromAction` 5.1 起（5.0 为 `UnmapAction`）、5.0 的 `Action`/`Triggers`/`Modifiers` 仍是裸指针；`FAppStyle::GetBrush` 静态版 5.1 才有，改走 `Get().GetBrush`；`NX_UE_HAS_MOVIE_PIPELINE_PRIMARY_CONFIG` 门槛从 5.1 修正为 5.2。UE_4.26–UE_5.8 全版本 BuildPlugin PASS / 零警告
 
 ### Changed
 
 - chore(settings): 危险 Capability 默认关闭改为**按名记录**（`DangerousCapsDefaultOffApplied`），旧版单一 bool 标志仅用于迁移——此前老配置一旦置位，后续版本新增的危险 cap 不会被默认关掉；迁移时把原三个 cap 视为已处理，不会覆盖用户手动启用的状态
 - chore(release): 发版不再额外打 `nexus-mcp-unreal-<ver>-ue5.8.zip`，Release 只上传通用 `EngineVersion: 4.26` 包
 - docs: NexusDesktop macOS 安装包文件名改为 `NexusDesktop-darwin-arm64.dmg`（仅 Apple Silicon，不再提供 Universal / Intel）
+- docs: CapabilitySpec `build_test`——兼容下限仍 `UE_4.26` 全量必过；日常冒烟 / NexusUnreal 宿主默认 `UE_5.7`
 
 ## [2.0.2] - 2026-09-04
 

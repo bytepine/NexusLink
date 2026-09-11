@@ -120,16 +120,56 @@
 #define NX_UE_HAS_CONTROL_RIG_STABLE  NX_UE_AT_LEAST(5, 0)
 // UE 5.4+ URigHierarchy API 变更：GetBones()/GetControls() → ForEach
 #define NX_UE_HAS_RIG_HIERARCHY_FOREACH  NX_UE_AT_LEAST(5, 4)
+// UE 5.7 ControlRigBlueprint.h 迁到 ControlRigBlueprintLegacy.h
+#define NX_UE_HAS_CONTROL_RIG_BLUEPRINT_LEGACY_HEADER  NX_UE_AT_LEAST(5, 7)
+// UE 5.4+ UControlRigBlueprint::GetHierarchy()；5.3 及更早直接访问 Hierarchy 成员
+#define NX_UE_HAS_CONTROL_RIG_BLUEPRINT_GET_HIERARCHY  NX_UE_AT_LEAST(5, 4)
+// UE 5.4+ FRigBaseElement::GetFName() 取 FName（GetName() 改返回 FString）；5.3 的 GetName() 返回 FName
+#define NX_UE_HAS_RIG_ELEMENT_GET_FNAME  NX_UE_AT_LEAST(5, 4)
 
 // ── IKRig 版本兼容 ──
 // IKRig 插件仅存在于 UE 5.0+
 #define NX_UE_HAS_IK_RIG  NX_UE_AT_LEAST(5, 0)
+// UE 5.3+ IKRig 公共头迁入 Rig/ 子目录：IKRigDefinition.h → Rig/IKRigDefinition.h、Solvers/ → Rig/Solvers/
+#define NX_UE_HAS_IK_RIG_RIG_SUBDIR  NX_UE_AT_LEAST(5, 3)
+// UE 5.2+ 才有 Retargeter/IKRetargetSettings.h（5.0/5.1 相关结构在 IKRetargeter.h 内）
+#define NX_UE_HAS_IK_RETARGET_SETTINGS_HEADER  NX_UE_AT_LEAST(5, 2)
+// UE 5.2+ UIKRigController::GetController(...)；5.0/5.1 为 GetIKRigController
+#define NX_UE_HAS_IK_RIG_CONTROLLER_GET_CONTROLLER  NX_UE_AT_LEAST(5, 2)
+// UE 5.1+ UIKRetargeter::GetChainMapByName；5.0 只能遍历 GetAllChainSettings()
+#define NX_UE_HAS_IK_RETARGETER_GET_CHAIN_MAP_BY_NAME  NX_UE_AT_LEAST(5, 1)
+
+// ── EnhancedInput 版本兼容 ──
+// UE 5.1+ UInputMappingContext::UnmapAllKeysFromAction；5.0 为 UnmapAction
+#define NX_UE_HAS_IMC_UNMAP_ALL_KEYS_FROM_ACTION  NX_UE_AT_LEAST(5, 1)
+// UE 5.2+ UIKRetargeterController::SetIKRig(ERetargetSourceOrTarget)；5.0/5.1 为 SetSourceIKRig/SetTargetIKRig
+#define NX_UE_HAS_IK_RETARGETER_CONTROLLER_SET_IKRIG  NX_UE_AT_LEAST(5, 2)
+// UE 5.4+ UIKRetargeter::GetIKRig(ERetargetSourceOrTarget)；更早 GetSourceIKRig/GetTargetIKRig
+#define NX_UE_HAS_IK_RETARGETER_GET_IKRIG  NX_UE_AT_LEAST(5, 4)
+// UE 5.6+ GetSolverArray() → GetSolverStructs()（FIKRigSolverBase 栈）
+#define NX_UE_HAS_IK_RIG_SOLVER_STRUCTS  NX_UE_AT_LEAST(5, 6)
+// UE 5.2+ AddRetargetChain(ChainName, Start, End, GoalName)；5.0 为三个 FName 无 Goal
+#define NX_UE_HAS_IK_RIG_ADD_CHAIN_GOAL  NX_UE_AT_LEAST(5, 2)
+// UE 5.1 这一版 AddRetargetChain 只接受 FBoneChain（5.0 三参、5.2+ 四参）
+#define NX_UE_HAS_IK_RIG_ADD_CHAIN_BONE_CHAIN_ONLY  (NX_UE_AT_LEAST(5, 1) && !NX_UE_AT_LEAST(5, 2))
+// UE 5.0 UIKRetargeterController::SetTargetIKRig；5.1 移除且无公开替代，5.2+ 由 SetIKRig 接管
+#define NX_UE_HAS_IK_RETARGETER_CONTROLLER_SET_TARGET_IKRIG  (!NX_UE_AT_LEAST(5, 1))
+// UE 5.4+ UIKRetargeterController::SetSourceChain(Source, Target)
+#define NX_UE_HAS_IK_RETARGETER_SET_SOURCE_CHAIN  NX_UE_AT_LEAST(5, 4)
+// UE 5.6+ FRetargetChainMapping / GetChainMapping()
+#define NX_UE_HAS_IK_RETARGETER_CHAIN_MAPPING  NX_UE_AT_LEAST(5, 6)
 
 // ── MetaSound 版本兼容 ──
 // UE 5.0+ 提供 MetaSound；5.3+ Frontend API 引入 FMetaSoundFrontendDocument
 #define NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT  NX_UE_AT_LEAST(5, 3)
 // UE 5.1+ 提供 UMetaSoundPatch（可复用子图资产）
 #define NX_UE_HAS_METASOUND_PATCH  NX_UE_AT_LEAST(5, 1)
+// UE 5.6+ FMetasoundFrontendClass::Interface 弃用，改 Get/SetDefaultInterface
+#define NX_UE_HAS_METASOUND_CLASS_GET_DEFAULT_INTERFACE  NX_UE_AT_LEAST(5, 6)
+// UE 5.5+ 引入分页图 FMetasoundFrontendGraphClass::IterateGraphPages；5.3/5.4 只有单个 Graph
+#define NX_UE_HAS_METASOUND_GRAPH_PAGES  NX_UE_AT_LEAST(5, 5)
+// UE 5.4+ IMetaSoundDocumentInterface::GetConstDocument()；5.3 为 const 版 GetDocument()
+#define NX_UE_HAS_METASOUND_GET_CONST_DOCUMENT  NX_UE_AT_LEAST(5, 4)
 
 // ── DataLayer / World Partition 版本兼容 ──
 // UE 5.1+ 提供 UDataLayerAsset（WorldPartition/DataLayer/DataLayerAsset.h）
@@ -146,6 +186,8 @@
 // ── PoseSearch 版本兼容 ──
 // PoseSearch 插件 UE 5.4+ 稳定
 #define NX_UE_HAS_POSE_SEARCH_STABLE  NX_UE_AT_LEAST(5, 4)
+// UE 5.5+ UPoseSearchDatabase::GetNumAnimationAssets()；5.4 只有 GetAnimationAssets()
+#define NX_UE_HAS_POSE_SEARCH_NUM_ANIMATION_ASSETS  NX_UE_AT_LEAST(5, 5)
 
 // ── Curve 版本兼容 ──
 // UE 4.25+ UCurveTable::GetRowMap() 返回 TMap<FName, FRealCurve*>（UE4 也已迁移）
@@ -178,8 +220,8 @@
 #define NX_UE_HAS_LISTVIEW_GET_NUM_ITEMS  NX_UE_AT_LEAST(5, 0)
 
 // ── Movie Render Queue 版本兼容 ──
-// UE 5.1+ UMoviePipelinePrimaryConfig；5.0 仍为 UMoviePipelineMasterConfig
-#define NX_UE_HAS_MOVIE_PIPELINE_PRIMARY_CONFIG  NX_UE_AT_LEAST(5, 1)
+// UE 5.2+ UMoviePipelinePrimaryConfig；5.0/5.1 仍为 UMoviePipelineMasterConfig
+#define NX_UE_HAS_MOVIE_PIPELINE_PRIMARY_CONFIG  NX_UE_AT_LEAST(5, 2)
 
 // ── Python Script Plugin 版本兼容 ──
 // UE 5.6+ IPythonScriptPlugin 新增 IsPythonConfigured()/IsPythonInitialized()，可区分

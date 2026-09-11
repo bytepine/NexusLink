@@ -323,7 +323,11 @@ bool FNexusNiagaraGraphUtils::RemoveModule(UNiagaraSystem* System, const FString
 
 static UNiagaraEmitter* EmitterFromHandle(const FNiagaraEmitterHandle& Handle)
 {
+#if NX_UE_HAS_NIAGARA_VERSIONED_EMITTER
+	return Handle.GetInstance().Emitter;
+#else
 	return Handle.GetInstance();
+#endif
 }
 
 static FString UniqueEmitterNameOf(const FNiagaraEmitterHandle& Handle)

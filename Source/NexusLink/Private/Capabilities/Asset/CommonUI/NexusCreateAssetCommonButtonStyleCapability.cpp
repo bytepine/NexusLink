@@ -32,14 +32,17 @@ FCapabilityResult FCreateAssetCommonButtonStyleCapability::Execute(const TShared
 	{
 		const FNexusArgs A(Arguments);
 		const FString AssetPath = A.Str(TEXT("assetPath"));
+		// UCommonButtonStyle 是 UCLASS(Abstract, Blueprintable)：只能建 Blueprint 子类，
+		// 直接 NewObject 会在 StaticAllocateObject 触发抽象类 ensure。
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
-			FNexusAssetUtils::CreatePlainAsset<UCommonButtonStyle>(AssetPath);
+			FNexusAssetUtils::CreateBlueprintAsset(
+				AssetPath, TEXT("CommonButtonStyle"), UCommonButtonStyle::StaticClass());
 		if (!Created.Ok())
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
 			return;
 		}
-		UCommonButtonStyle* Style = Cast<UCommonButtonStyle>(Created.Asset);
+		UObject* Style = Created.Asset;
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Style->GetName());
 		Entry->SetStringField(TEXT("path"), Style->GetPathName());

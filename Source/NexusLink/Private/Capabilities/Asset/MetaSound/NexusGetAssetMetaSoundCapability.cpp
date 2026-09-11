@@ -12,7 +12,9 @@
 #include "Utils/NexusVersionCompat.h"
 #include "NexusMcpTool.h"
 #include "MetasoundSource.h"
+#if NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT
 #include "MetasoundDocumentInterface.h"
+#endif
 #include "MetasoundFrontendDocument.h"
 #if NX_UE_HAS_METASOUND_PATCH
 #include "Metasound.h"
@@ -71,8 +73,17 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 		IMetaSoundDocumentInterface* DocIface = Cast<IMetaSoundDocumentInterface>(SoundAsset);
 		if (DocIface)
 		{
+#if NX_UE_HAS_METASOUND_GET_CONST_DOCUMENT
 			const FMetasoundFrontendDocument& Doc = DocIface->GetConstDocument();
+#else
+			const FMetasoundFrontendDocument& Doc =
+				static_cast<const IMetaSoundDocumentInterface*>(DocIface)->GetDocument();
+#endif
+#if NX_UE_HAS_METASOUND_CLASS_GET_DEFAULT_INTERFACE
+			const FMetasoundFrontendClassInterface& Iface = Doc.RootGraph.GetDefaultInterface();
+#else
 			const FMetasoundFrontendClassInterface& Iface = Doc.RootGraph.Interface;
+#endif
 
 			// inputs
 			TArray<TSharedPtr<FJsonValue>> InputsArr;
@@ -99,7 +110,7 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 		// 图节点与连线：遍历所有分页图
 		TArray<TSharedPtr<FJsonValue>> NodesArr;
 		TArray<TSharedPtr<FJsonValue>> EdgesArr;
-		Doc.RootGraph.IterateGraphPages([&](const FMetasoundFrontendGraph& Graph)
+		auto CollectGraph = [&](const FMetasoundFrontendGraph& Graph)
 		{
 			for (const FMetasoundFrontendNode& Node : Graph.Nodes)
 			{
@@ -120,13 +131,37 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 			for (const FMetasoundFrontendEdge& Edge : Graph.Edges)
 			{
 				TSharedPtr<FJsonObject> EObj = MakeShared<FJsonObject>();
-				EObj->SetStringField(TEXT("fromNodeID"), Edge.From.NodeID.ToString());
-				EObj->SetStringField(TEXT("fromPin"),    Edge.From.VertexName.ToString());
-				EObj->SetStringField(TEXT("toNodeID"),   Edge.To.NodeID.ToString());
-				EObj->SetStringField(TEXT("toPin"),      Edge.To.VertexName.ToString());
+				EObj->SetStringField(TEXT("fromNodeID"), Edge.FromNodeID.ToString());
+				EObj->SetStringField(TEXT("toNodeID"), Edge.ToNodeID.ToString());
+				FName FromPin, ToPin;
+				for (const FMetasoundFrontendNode& N : Graph.Nodes)
+				{
+					if (N.GetID() == Edge.FromNodeID)
+					{
+						for (const FMetasoundFrontendVertex& V : N.Interface.Outputs)
+						{
+							if (V.VertexID == Edge.FromVertexID) { FromPin = V.Name; break; }
+						}
+					}
+					if (N.GetID() == Edge.ToNodeID)
+					{
+						for (const FMetasoundFrontendVertex& V : N.Interface.Inputs)
+						{
+							if (V.VertexID == Edge.ToVertexID) { ToPin = V.Name; break; }
+						}
+					}
+				}
+				EObj->SetStringField(TEXT("fromPin"), FromPin.ToString());
+				EObj->SetStringField(TEXT("toPin"), ToPin.ToString());
 				EdgesArr.Add(MakeShared<FJsonValueObject>(EObj));
 			}
-		});
+		};
+#if NX_UE_HAS_METASOUND_GRAPH_PAGES
+		Doc.RootGraph.IterateGraphPages(CollectGraph);
+#else
+		// 5.3/5.4 无分页图，RootGraph 直接持有唯一 Graph
+		CollectGraph(Doc.RootGraph.Graph);
+#endif
 		Entry->SetArrayField(TEXT("nodes"), NodesArr);
 		Entry->SetArrayField(TEXT("edges"), EdgesArr);
 

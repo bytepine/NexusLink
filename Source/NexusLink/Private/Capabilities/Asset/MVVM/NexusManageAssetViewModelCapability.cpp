@@ -11,6 +11,7 @@
 #include "NexusMcpTool.h"
 #if WITH_EDITOR
 #include "WidgetBlueprint.h"
+#include "WidgetBlueprintExtension.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMBlueprintViewBinding.h"
@@ -91,12 +92,11 @@ static void HandleVM_RemoveViewModel(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	UMVVMBlueprintView* View = VMState(Ctx)->View;
 	const FString VmName = FNexusArgs(Op).Str(TEXT("viewModelName"));
 	bool bRemoved = false;
-	const TArray<FMVVMBlueprintViewModelContext> Vms = View->GetViewModels();
-	for (const FMVVMBlueprintViewModelContext& VmCtx : Vms)
+	for (const FMVVMBlueprintViewModelContext& VmCtx : View->GetViewModels())
 	{
-		if (VmCtx.ViewModelName.ToString().Equals(VmName, ESearchCase::IgnoreCase))
+		if (VmCtx.GetViewModelName().ToString().Equals(VmName, ESearchCase::IgnoreCase))
 		{
-			View->RemoveViewModel(VmCtx.ViewModelContextId);
+			View->RemoveViewModel(VmCtx.GetViewModelId());
 			bRemoved = true;
 			break;
 		}
@@ -147,9 +147,15 @@ bool FManageAssetViewModelCapability::PrepareTarget(
 		OutError = FString::Printf(TEXT("WidgetBlueprint not found: %s"), *AssetPath);
 		return false;
 	}
-	UMVVMWidgetBlueprintExtension_View* MvvmExt = UMVVMWidgetBlueprintExtension_View::Request(WBP);
+	UMVVMWidgetBlueprintExtension_View* MvvmExt = UMVVMWidgetBlueprintExtension_View::RequestExtension<UMVVMWidgetBlueprintExtension_View>(WBP);
 	if (!MvvmExt) { OutError = TEXT("Unable to get MVVM extension"); return false; }
 	UMVVMBlueprintView* View = MvvmExt->GetBlueprintView();
+	if (!View)
+	{
+		// RequestExtension 只挂扩展，不建 View；首次编辑必须自己建一个
+		MvvmExt->CreateBlueprintViewInstance();
+		View = MvvmExt->GetBlueprintView();
+	}
 	if (!View) { OutError = TEXT("BlueprintView is empty"); return false; }
 	FViewModelActionState* State = new FViewModelActionState();
 	State->WBP = WBP;

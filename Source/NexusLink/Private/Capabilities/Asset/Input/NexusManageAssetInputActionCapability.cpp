@@ -195,7 +195,7 @@ static void HandleIA_SetFlags(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	bool bConsumeVal;
 	if (Op->TryGetBoolField(TEXT("consumesInput"), bConsumeVal))
 	{
-		IA->bConsumesInput = bConsumeVal;
+		IA->bConsumeInput = bConsumeVal;
 		MarkIADirty(Ctx);
 	}
 	bool bReserveVal;
