@@ -30,7 +30,7 @@
 - chore(settings): 危险 Capability 默认关闭改为**按名记录**（`DangerousCapsDefaultOffApplied`），旧版单一 bool 标志仅用于迁移——此前老配置一旦置位，后续版本新增的危险 cap 不会被默认关掉；迁移时把原三个 cap 视为已处理，不会覆盖用户手动启用的状态
 - chore(release): 发版不再额外打 `nexus-mcp-unreal-<ver>-ue5.8.zip`，Release 只上传通用 `EngineVersion: 4.26` 包
 - docs: NexusDesktop macOS 安装包文件名改为 `NexusDesktop-darwin-arm64.dmg`（仅 Apple Silicon，不再提供 Universal / Intel）
-- docs: CapabilitySpec `build_test`——兼容下限仍 `UE_4.26` 全量必过；日常冒烟 / NexusUnreal 宿主默认 `UE_5.7`
+- docs: 宿主 `build_test` 改为工程级跨版本编译（`Nexus.uproject` 的 `NexusEditor` / `Nexus`），不再只 `BuildPlugin` 本插件；每套引擎临时目录隔离 Intermediate、支持 `--max-workers` 并行、不改仓库工程；`CONTRIBUTING` / CapabilitySpec 可选插件段同步；兼容下限仍 `UE_4.26` 全量必过；日常冒烟 / NexusUnreal 宿主默认 `UE_5.7`
 
 ## [2.0.2] - 2026-09-04
 

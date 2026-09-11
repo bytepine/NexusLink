@@ -369,7 +369,7 @@ public:
 3. 逻辑下沉 Utils（≥2 调用点或单点 ≥3 行 `#if`）；资产只读字段优先 `FNexusAssetUtils`。
 4. `build_test`：兼容下限 `UE_4.26` 全量必过；日常冒烟 / 示例宿主默认 `UE_5.7`；触及引擎 API 时加 `UE_5.0`、`UE_5.6`；`audit_capability_naming.py` PASS。
 
-**可选插件**：`WITH_GAS` / `WITH_NIAGARA` / `WITH_UNLUA` / `WITH_STATETREE` / `WITH_MVVM` 等整 `.cpp` 文件守卫 + `Build.cs` 探测（工程 `Plugins`、`{Project}/../Engine/Plugins`、以及 UBT `EngineDirectory` 下的 `Plugins`；真实工程 `.uproject` 显式 `Enabled: false` 则关）。`build_test` **Editor / BuildPlugin** 与宿主一样按**该引擎**磁盘探测编进可选 cap（HostProject 不再整段关掉）；**Game** 目标仍不编（编辑器 API）。文件内仍禁止裸 `NX_UE_AT_LEAST`。
+**可选插件**：`WITH_GAS` / `WITH_NIAGARA` / `WITH_UNLUA` / `WITH_STATETREE` / `WITH_MVVM` 等整 `.cpp` 文件守卫 + `Build.cs` 探测（工程 `Plugins`、`{Project}/../Engine/Plugins`、以及 UBT `EngineDirectory` 下的 `Plugins`；真实工程 `.uproject` 显式 `Enabled: false` 则关）。宿主 `build_test` 编整个 `Nexus.uproject`：`NexusEditor` 与宿主一样按**该引擎**磁盘探测编进可选 cap；`Nexus` Game 目标 `WITH_EDITOR=0`，UncookedOnly 的 NexusLink 不进 cooked Game。文件内仍禁止裸 `NX_UE_AT_LEAST`。
 
 **已登记宏（节选，完整列表以 `NexusVersionCompat.h` 为准）**
 
