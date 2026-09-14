@@ -132,7 +132,7 @@ void FNexusMcpDispatcher::Dispatch(const FString& JsonLine, FOnSendResponse PerR
 	}
 }
 
-void FNexusMcpDispatcher::SendResult(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Result)
+FString FNexusMcpDispatcher::MakeJsonRpcResult(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Result)
 {
 	TSharedPtr<FJsonObject> Response = MakeShared<FJsonObject>();
 	Response->SetStringField(TEXT("jsonrpc"), TEXT("2.0"));
@@ -141,10 +141,10 @@ void FNexusMcpDispatcher::SendResult(const TSharedPtr<FJsonValue>& Id, const TSh
 		Response->SetField(TEXT("id"), Id);
 	}
 	Response->SetObjectField(TEXT("result"), Result);
-	SendCallback(FNexusJsonUtils::SerializeCondensed(Response));
+	return FNexusJsonUtils::SerializeCondensed(Response);
 }
 
-void FNexusMcpDispatcher::SendError(const TSharedPtr<FJsonValue>& Id, int32 Code, const FString& Message)
+FString FNexusMcpDispatcher::MakeJsonRpcError(const TSharedPtr<FJsonValue>& Id, int32 Code, const FString& Message)
 {
 	TSharedPtr<FJsonObject> Response = MakeShared<FJsonObject>();
 	Response->SetStringField(TEXT("jsonrpc"), TEXT("2.0"));
@@ -161,7 +161,17 @@ void FNexusMcpDispatcher::SendError(const TSharedPtr<FJsonValue>& Id, int32 Code
 	Error->SetNumberField(TEXT("code"), Code);
 	Error->SetStringField(TEXT("message"), Message);
 	Response->SetObjectField(TEXT("error"), Error);
-	SendCallback(FNexusJsonUtils::SerializeCondensed(Response));
+	return FNexusJsonUtils::SerializeCondensed(Response);
+}
+
+void FNexusMcpDispatcher::SendResult(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Result)
+{
+	SendCallback(MakeJsonRpcResult(Id, Result));
+}
+
+void FNexusMcpDispatcher::SendError(const TSharedPtr<FJsonValue>& Id, int32 Code, const FString& Message)
+{
+	SendCallback(MakeJsonRpcError(Id, Code, Message));
 }
 
 /**

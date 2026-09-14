@@ -36,6 +36,17 @@ static const FString StatusEndpoint  = TEXT("/status");
 static const FString McpSessionHeader = TEXT("Mcp-Session-Id");
 static const int32 MaxMcpBodyBytes = 1024 * 1024;
 
+/** UTF-8 字节流转 FString（HTTP body 与 WS 帧共用，避免两处重复 FUTF8ToTCHAR 样板）。 */
+static FString Utf8BytesToString(const uint8* Data, int32 NumBytes)
+{
+	if (!Data || NumBytes <= 0)
+	{
+		return FString();
+	}
+	FUTF8ToTCHAR Converter(reinterpret_cast<const ANSICHAR*>(Data), NumBytes);
+	return FString(Converter.Length(), Converter.Get());
+}
+
 /**
  * 把绑定地址写成本端口的 ListenerOverrides 条目。
  * 不再改 DefaultBindAddress——那是全局键，会连带影响工程内其他 HTTP 服务且我们从不回滚。
@@ -310,12 +321,7 @@ void FNexusMcpServer::RegisterRoutes()
 				return true;
 			}
 
-			FString JsonBody;
-			if (Request.Body.Num() > 0)
-			{
-				FUTF8ToTCHAR Converter(reinterpret_cast<const ANSICHAR*>(Request.Body.GetData()), Request.Body.Num());
-				JsonBody = FString(Converter.Length(), Converter.Get());
-			}
+			const FString JsonBody = Utf8BytesToString(Request.Body.GetData(), Request.Body.Num());
 
 			if (JsonBody.IsEmpty())
 			{
@@ -436,6 +442,31 @@ TSharedPtr<FNexusMcpDispatcher> FNexusMcpServer::GetOrCreateDispatcher(
 	check(IsInGameThread());
 	if (bIsInitialize)
 	{
+		// 达到并发上限：驱逐最久未活动的会话，保证新客户端总能握手成功
+		const int32 MaxSessions = UNexusLinkSettings::Get() ? UNexusLinkSettings::Get()->MaxConcurrentSessions : 0;
+		if (MaxSessions > 0 && HttpSessions.Num() >= MaxSessions)
+		{
+			// 会话数上限很小（ClampMax 128），线性扫描比维护额外的 LRU 序列更省事
+			FString OldestSessionId;
+			FDateTime OldestActivity = FDateTime::MaxValue();
+			for (const auto& Pair : HttpSessions)
+			{
+				if (!Pair.Value.IsValid()) continue;
+				const FDateTime Activity = Pair.Value->GetLastActivityAt();
+				if (Activity < OldestActivity)
+				{
+					OldestActivity = Activity;
+					OldestSessionId = Pair.Key;
+				}
+			}
+			if (!OldestSessionId.IsEmpty())
+			{
+				HttpSessions.Remove(OldestSessionId);
+				UE_LOG(LogNexusMcpServer, Warning, TEXT("MCP 会话数达上限（%d），驱逐最久未活动会话: %s"),
+					MaxSessions, *OldestSessionId);
+			}
+		}
+
 		// initialize 请求：创建新会话
 		OutSessionId = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
 		TSharedPtr<FNexusMcpDispatcher> NewDispatcher =
@@ -576,33 +607,6 @@ static void SendWsText(INetworkingWebSocket* ClientWebSocket, const FString& Jso
 		/*bPrependSize=*/false);
 }
 
-static FString MakeJsonRpcResult(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Result)
-{
-	TSharedPtr<FJsonObject> Msg = MakeShared<FJsonObject>();
-	Msg->SetStringField(TEXT("jsonrpc"), TEXT("2.0"));
-	if (Id.IsValid())
-	{
-		Msg->SetField(TEXT("id"), Id);
-	}
-	Msg->SetObjectField(TEXT("result"), Result);
-	return FNexusJsonUtils::SerializeCondensed(Msg);
-}
-
-static FString MakeJsonRpcError(const TSharedPtr<FJsonValue>& Id, int32 Code, const FString& Message)
-{
-	TSharedPtr<FJsonObject> Err = MakeShared<FJsonObject>();
-	Err->SetNumberField(TEXT("code"), Code);
-	Err->SetStringField(TEXT("message"), Message);
-	TSharedPtr<FJsonObject> Msg = MakeShared<FJsonObject>();
-	Msg->SetStringField(TEXT("jsonrpc"), TEXT("2.0"));
-	if (Id.IsValid())
-	{
-		Msg->SetField(TEXT("id"), Id);
-	}
-	Msg->SetObjectField(TEXT("error"), Err);
-	return FNexusJsonUtils::SerializeCondensed(Msg);
-}
-
 void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworkingWebSocket* ClientWebSocket)
 {
 	if (!WsDispatcher.IsValid() || !Data || DataSize <= 0 || !ClientWebSocket)
@@ -614,12 +618,11 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 	if (DataSize > MaxMcpBodyBytes)
 	{
 		UE_LOG(LogNexusMcpServer, Warning, TEXT("WebSocket 帧超过 1MB（%d 字节），已丢弃"), DataSize);
-		SendWsText(ClientWebSocket, MakeJsonRpcError(nullptr, -32600, TEXT("payload_too_large")));
+		SendWsText(ClientWebSocket, FNexusMcpDispatcher::MakeJsonRpcError(nullptr, -32600, TEXT("payload_too_large")));
 		return;
 	}
 
-	FUTF8ToTCHAR Converter(reinterpret_cast<const ANSICHAR*>(Data), DataSize);
-	FString JsonLine(Converter.Length(), Converter.Get());
+	FString JsonLine = Utf8BytesToString(static_cast<const uint8*>(Data), DataSize);
 
 	// 勿在 WebSocket 收包回调里同步执行 tools/call：search_asset 等会阻塞 GameThread 数秒～数十秒，
 	// 同帧内无法继续 TickWebSocket，代理侧长连接易被判定超时/断开。推迟到本帧后续 GameThread 任务执行。
@@ -666,18 +669,18 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 				Self->AuthenticatedWsClients.Add(ClientWebSocket);
 				TSharedPtr<FJsonObject> Ok = MakeShared<FJsonObject>();
 				Ok->SetBoolField(TEXT("ok"), true);
-				SendWsText(ClientWebSocket, MakeJsonRpcResult(Id, Ok));
+				SendWsText(ClientWebSocket, FNexusMcpDispatcher::MakeJsonRpcResult(Id, Ok));
 			}
 			else
 			{
-				SendWsText(ClientWebSocket, MakeJsonRpcError(Id, -32001, TEXT("unauthorized")));
+				SendWsText(ClientWebSocket, FNexusMcpDispatcher::MakeJsonRpcError(Id, -32001, TEXT("unauthorized")));
 			}
 			return;
 		}
 
 		if (bRequireAuth && !Self->AuthenticatedWsClients.Contains(ClientWebSocket) && Method != TEXT("ping"))
 		{
-			SendWsText(ClientWebSocket, MakeJsonRpcError(Id, -32001, TEXT("unauthorized")));
+			SendWsText(ClientWebSocket, FNexusMcpDispatcher::MakeJsonRpcError(Id, -32001, TEXT("unauthorized")));
 			return;
 		}
 

@@ -13,6 +13,7 @@
 #include "EdGraph/EdGraphPin.h"
 
 class UBlueprint;
+class UFunction;
 
 /**
  * Blueprint 蓝图图/节点/Pin 结构操作与序列化公共工具。
@@ -71,6 +72,26 @@ public:
 	 */
 	static void CollectExecPaths(UEdGraph* Graph, TArray<TSharedPtr<FJsonObject>>& OutPaths,
 		int32 MaxPaths = 16, int32 MaxNodes = 32);
+
+	// ── 写侧：add_node 各分支共用的节点创建 + 放置（消除 manage cap 里 5 处重复的放置样板） ──
+
+	/** 把新建节点挂进图并完成 Guid/Pin 初始化与定位（节点创建各分支共用尾巴）。 */
+	static void PlaceNewNode(UEdGraph* Graph, UEdGraphNode* Node, int32 PosX, int32 PosY);
+
+	/** 三级回退解析函数：指定类 → 全局同名 → 全局 "K2_" 前缀；均未命中返回 nullptr。 */
+	static UFunction* ResolveGraphFunction(const FString& FuncName, const FString& FuncClassName);
+
+	/** 新建 K2Node_CallFunction 并放置。 */
+	static UEdGraphNode* MakeCallFunctionNode(UEdGraph* Graph, UFunction* Func, int32 PosX, int32 PosY);
+
+	/** 取已有 Event override 或新建 K2Node_Event 并放置。 */
+	static UEdGraphNode* MakeEventNode(UBlueprint* BP, UEdGraph* Graph, const FString& EventName, UClass* EventClass, int32 PosX, int32 PosY);
+
+	/** 新建 self 成员变量的 Get/Set 节点并放置（bSetter 选 VariableSet）。 */
+	static UEdGraphNode* MakeVariableNode(UEdGraph* Graph, const FString& VarName, bool bSetter, int32 PosX, int32 PosY);
+
+	/** 按 UClass 新建任意 UEdGraphNode 子类并放置。 */
+	static UEdGraphNode* MakeGenericNode(UEdGraph* Graph, UClass* NodeClass, int32 PosX, int32 PosY);
 };
 
 #endif // WITH_EDITOR

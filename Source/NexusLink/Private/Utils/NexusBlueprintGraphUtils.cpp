@@ -2,12 +2,17 @@
 
 #include "Utils/NexusBlueprintGraphUtils.h"
 #include "Utils/NexusVersionCompat.h"
+#include "Utils/NexusAssetUtils.h"
 
 #if WITH_EDITOR
 #include "Engine/Blueprint.h"
 #include "UObject/UObjectIterator.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_Event.h"
+#include "K2Node_CallFunction.h"
+#include "K2Node_VariableGet.h"
+#include "K2Node_VariableSet.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 
 void FNexusBlueprintGraphUtils::CollectAllGraphs(UBlueprint* BP, TArray<UEdGraph*>& OutGraphs)
 {
@@ -254,6 +259,102 @@ void FNexusBlueprintGraphUtils::CollectExecPaths(UEdGraph* Graph, TArray<TShared
 		PathObj->SetArrayField(TEXT("nodes"), NodesArr);
 		OutPaths.Add(PathObj);
 	}
+}
+
+// ── 写侧：add_node 各分支共用的节点创建 + 放置 ─────────────────────────────────
+
+void FNexusBlueprintGraphUtils::PlaceNewNode(UEdGraph* Graph, UEdGraphNode* Node, int32 PosX, int32 PosY)
+{
+	if (!Graph || !Node) return;
+	Graph->AddNode(Node, false, false);
+	Node->CreateNewGuid();
+	Node->PostPlacedNewNode();
+	Node->AllocateDefaultPins();
+	Node->NodePosX = PosX;
+	Node->NodePosY = PosY;
+}
+
+UFunction* FNexusBlueprintGraphUtils::ResolveGraphFunction(const FString& FuncName, const FString& FuncClassName)
+{
+	if (!FuncClassName.IsEmpty())
+	{
+		if (UClass* Owner = FNexusAssetUtils::FindClassWithUPrefix(FuncClassName))
+		{
+			if (UFunction* Func = Owner->FindFunctionByName(*FuncName))
+			{
+				return Func;
+			}
+		}
+	}
+	for (TObjectIterator<UClass> It; It; ++It)
+	{
+		if (UFunction* Func = It->FindFunctionByName(*FuncName))
+		{
+			return Func;
+		}
+	}
+	const FString K2Name = TEXT("K2_") + FuncName;
+	for (TObjectIterator<UClass> It; It; ++It)
+	{
+		if (UFunction* Func = It->FindFunctionByName(*K2Name))
+		{
+			return Func;
+		}
+	}
+	return nullptr;
+}
+
+UEdGraphNode* FNexusBlueprintGraphUtils::MakeCallFunctionNode(UEdGraph* Graph, UFunction* Func, int32 PosX, int32 PosY)
+{
+	if (!Graph || !Func) return nullptr;
+	UK2Node_CallFunction* Node = NewObject<UK2Node_CallFunction>(Graph);
+	Node->SetFlags(RF_Transactional);
+	Node->SetFromFunction(Func);
+	PlaceNewNode(Graph, Node, PosX, PosY);
+	return Node;
+}
+
+UEdGraphNode* FNexusBlueprintGraphUtils::MakeEventNode(UBlueprint* BP, UEdGraph* Graph, const FString& EventName, UClass* EventClass, int32 PosX, int32 PosY)
+{
+	if (!BP || !Graph || !EventClass) return nullptr;
+	if (UK2Node_Event* Existing = FBlueprintEditorUtils::FindOverrideForFunction(BP, EventClass, FName(*EventName)))
+	{
+		Existing->SetEnabledState(ENodeEnabledState::Enabled, true);
+		return Existing;
+	}
+	UK2Node_Event* Node = NewObject<UK2Node_Event>(Graph);
+	Node->SetFlags(RF_Transactional);
+	Node->EventReference.SetExternalMember(FName(*EventName), EventClass);
+	Node->bOverrideFunction = true;
+	PlaceNewNode(Graph, Node, PosX, PosY);
+	return Node;
+}
+
+UEdGraphNode* FNexusBlueprintGraphUtils::MakeVariableNode(UEdGraph* Graph, const FString& VarName, bool bSetter, int32 PosX, int32 PosY)
+{
+	if (!Graph) return nullptr;
+	if (bSetter)
+	{
+		UK2Node_VariableSet* Node = NewObject<UK2Node_VariableSet>(Graph);
+		Node->SetFlags(RF_Transactional);
+		Node->VariableReference.SetSelfMember(FName(*VarName));
+		PlaceNewNode(Graph, Node, PosX, PosY);
+		return Node;
+	}
+	UK2Node_VariableGet* Node = NewObject<UK2Node_VariableGet>(Graph);
+	Node->SetFlags(RF_Transactional);
+	Node->VariableReference.SetSelfMember(FName(*VarName));
+	PlaceNewNode(Graph, Node, PosX, PosY);
+	return Node;
+}
+
+UEdGraphNode* FNexusBlueprintGraphUtils::MakeGenericNode(UEdGraph* Graph, UClass* NodeClass, int32 PosX, int32 PosY)
+{
+	if (!Graph || !NodeClass) return nullptr;
+	UEdGraphNode* Node = NewObject<UEdGraphNode>(Graph, NodeClass);
+	Node->SetFlags(RF_Transactional);
+	PlaceNewNode(Graph, Node, PosX, PosY);
+	return Node;
 }
 
 #endif // WITH_EDITOR

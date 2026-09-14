@@ -655,39 +655,11 @@ static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 			FString FuncClassName;
 			Op->TryGetStringField(TEXT("functionClass"), FuncClassName);
 
-			UFunction* Func = nullptr;
-			if (!FuncClassName.IsEmpty())
-			{
-				if (UClass* Owner = FNexusAssetUtils::FindClassWithUPrefix(FuncClassName))
-					Func = Owner->FindFunctionByName(*FuncName);
-			}
-			if (!Func)
-			{
-				for (TObjectIterator<UClass> It; It; ++It)
-				{
-					if (UFunction* F = It->FindFunctionByName(*FuncName))
-					{ Func = F; break; }
-				}
-			}
-			if (!Func)
-			{
-				const FString K2Name = TEXT("K2_") + FuncName;
-				for (TObjectIterator<UClass> It; It; ++It)
-				{
-					if (UFunction* F = It->FindFunctionByName(*K2Name))
-					{ Func = F; break; }
-				}
-			}
+			UFunction* Func = FNexusBlueprintGraphUtils::ResolveGraphFunction(FuncName, FuncClassName);
 			if (!Func) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Function '%s' not found (tried 'K2_%s')"), *FuncName, *FuncName));
 	return; }
 
-			UK2Node_CallFunction* Node = NewObject<UK2Node_CallFunction>(Graph);
-			Node->SetFlags(RF_Transactional);
-			Node->SetFromFunction(Func);
-			Graph->AddNode(Node, false, false);
-			Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
-			Node->NodePosX = PosX; Node->NodePosY = PosY;
-			NewNode = Node;
+			NewNode = FNexusBlueprintGraphUtils::MakeCallFunctionNode(Graph, Func, PosX, PosY);
 		}
 		else if (NodeClass == TEXT("K2Node_Event"))
 		{
@@ -700,22 +672,7 @@ static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 			Op->TryGetStringField(TEXT("functionClass"), EventClassName);
 			UClass* EventClass = FNexusAssetUtils::FindClassWithUPrefix(EventClassName);
 			if (!EventClass) EventClass = AActor::StaticClass();
-			if (UK2Node_Event* Existing = FBlueprintEditorUtils::FindOverrideForFunction(BP, EventClass, FName(*EventName)))
-			{
-				Existing->SetEnabledState(ENodeEnabledState::Enabled, true);
-				NewNode = Existing;
-			}
-			else
-			{
-				UK2Node_Event* Node = NewObject<UK2Node_Event>(Graph);
-				Node->SetFlags(RF_Transactional);
-				Node->EventReference.SetExternalMember(FName(*EventName), EventClass);
-				Node->bOverrideFunction = true;
-				Graph->AddNode(Node, false, false);
-				Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
-				Node->NodePosX = PosX; Node->NodePosY = PosY;
-				NewNode = Node;
-			}
+			NewNode = FNexusBlueprintGraphUtils::MakeEventNode(BP, Graph, EventName, EventClass, PosX, PosY);
 		}
 		else if (NodeClass == TEXT("K2Node_VariableGet") || NodeClass == TEXT("K2Node_VariableSet"))
 		{
@@ -723,26 +680,7 @@ static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 			if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("%s requires variableName"), *NodeClass));
 	return; }
 
-			if (NodeClass == TEXT("K2Node_VariableGet"))
-			{
-				UK2Node_VariableGet* Node = NewObject<UK2Node_VariableGet>(Graph);
-				Node->SetFlags(RF_Transactional);
-				Node->VariableReference.SetSelfMember(FName(*VarName));
-				Graph->AddNode(Node, false, false);
-				Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
-				Node->NodePosX = PosX; Node->NodePosY = PosY;
-				NewNode = Node;
-			}
-			else
-			{
-				UK2Node_VariableSet* Node = NewObject<UK2Node_VariableSet>(Graph);
-				Node->SetFlags(RF_Transactional);
-				Node->VariableReference.SetSelfMember(FName(*VarName));
-				Graph->AddNode(Node, false, false);
-				Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
-				Node->NodePosX = PosX; Node->NodePosY = PosY;
-				NewNode = Node;
-			}
+			NewNode = FNexusBlueprintGraphUtils::MakeVariableNode(Graph, VarName, NodeClass == TEXT("K2Node_VariableSet"), PosX, PosY);
 		}
 		else
 		{
@@ -750,12 +688,7 @@ static void HandleBP_GraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 			if (!NodeUClass || !NodeUClass->IsChildOf(UEdGraphNode::StaticClass()))
 			{ Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Node class '%s' not found"), *NodeClass));
 	return; }
-			UEdGraphNode* Node = NewObject<UEdGraphNode>(Graph, NodeUClass);
-			Node->SetFlags(RF_Transactional);
-			Graph->AddNode(Node, false, false);
-			Node->CreateNewGuid(); Node->PostPlacedNewNode(); Node->AllocateDefaultPins();
-			Node->NodePosX = PosX; Node->NodePosY = PosY;
-			NewNode = Node;
+			NewNode = FNexusBlueprintGraphUtils::MakeGenericNode(Graph, NodeUClass, PosX, PosY);
 		}
 
 	Entry->SetStringField(TEXT("nodeId"),    NewNode->NodeGuid.ToString());

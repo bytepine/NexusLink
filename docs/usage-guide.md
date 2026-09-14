@@ -193,6 +193,7 @@ Preferences 与 `-EnableNexusMcp` / 控制台为 **OR**。CLI 不会改写 `bEna
 | MCP 鉴权 | 默认开；关闭后 HTTP/WS 不校验 token（同旧版） |
 | MCP 鉴权 Token | 本机唯一；旁有「复制」仅写入 token，「复制跨机连接」可选网卡并带出 mcp.json / remoteUnreal；未开 MCP 也可复制 |
 | 额外鉴权 Token | 其他机器的 token，点 + 逐条添加；本机 token 无需再填 |
+| 并发会话数上限 | 默认 16；0 = 不限制，达上限驱逐最久未活动的 HTTP 会话 |
 | 工具列表模式 | **SearchMode**（默认，3 个元工具）或 **MultiTool**（各 Capability 独立 Tool） |
 | Capabilities | 按目录折叠，可按组或单条启用/禁用 |
 | 启用反馈采集 | 总开关；取消后 auto/manual 都丢弃 |

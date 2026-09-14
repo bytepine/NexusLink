@@ -63,6 +63,12 @@ public:
 	/** 设置当前会话 ID，仅供反馈采集器关联事件来源；为空表示无会话上下文（如 WebSocket）。 */
 	void SetSessionId(const FString& InSessionId) { SessionId = InSessionId; }
 
+	/** 构造 JSON-RPC 2.0 result 响应文本（供 HTTP/WS 传输层的握手前错误复用）。 */
+	static FString MakeJsonRpcResult(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Result);
+
+	/** 构造 JSON-RPC 2.0 error 响应文本；Id 无效时写 "id": null（JSON-RPC 2.0 §5 要求错误响应必须带 id）。 */
+	static FString MakeJsonRpcError(const TSharedPtr<FJsonValue>& Id, int32 Code, const FString& Message);
+
 private:
 	void SendResult(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Result);
 	void SendError(const TSharedPtr<FJsonValue>& Id, int32 Code, const FString& Message);

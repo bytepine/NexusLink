@@ -181,7 +181,7 @@ sequenceDiagram
     S-->>C: 200
 ```
 
-每个 HTTP 会话通过 `Mcp-Session-Id` 隔离，支持多 AI 客户端并发。
+每个 HTTP 会话通过 `Mcp-Session-Id` 隔离，支持多 AI 客户端并发。并发会话数达设置里的上限（默认 16，0=不限制）时，`GetOrCreateDispatcher` 驱逐最久未活动（`LastActivityAt`）的会话，保证新客户端总能握手成功；被驱逐会话再来请求会按已有的 404 `session_not_found` 处理。
 
 HTTP 收包线程只拷贝请求体与 header，然后 `AsyncTask` 回切 GameThread 再碰 `HttpSessions` / `Dispatch` / `DetectCurrentNetRole`，并用推迟的 `OnComplete` 回写响应（不再 `FEvent::Wait` 阻塞收包线程）。`GET /status` 同样回切 GameThread，避免非 GT 读 `GEngine->GetWorldContexts()`。
 

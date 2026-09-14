@@ -91,6 +91,16 @@ public:
 	bool bRequireMcpAuth = true;
 
 	/**
+	 * HTTP MCP 并发会话数上限。达到上限时驱逐最久未活动的会话，保证新客户端总能连上。
+	 * 设为 0 表示不限制（仅靠握手 5 分钟 / 空闲 30 分钟的定时驱逐）。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "服务器",
+		meta = (DisplayName = "并发会话数上限",
+			ToolTip = "HTTP 会话数达到此值时驱逐最久未活动的会话；0 = 不限制",
+			ClampMin = "0", ClampMax = "128"))
+	int32 MaxConcurrentSessions = 16;
+
+	/**
 	 * MCP 服务器实际监听端口（只读）。
 	 * 由插件启动时自动分配，端口冲突时自动顺延，无需手动配置。
 	 */
