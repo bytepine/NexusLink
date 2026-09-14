@@ -85,6 +85,9 @@ jobs:
       - name: Audit capability params
         run: python scripts/audit_capability_params.py
 
+      - name: Audit capability naming
+        run: python scripts/audit_capability_naming.py
+
   link-check:
     name: nexus-link-markdown-links
     runs-on: ubuntu-latest

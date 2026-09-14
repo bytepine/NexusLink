@@ -210,7 +210,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 - [ ] **命名**：`Out.Name` 符合 §6 决策树；非 pattern cap 已登记 InitializeInstructions 例外表
 - [ ] 运行时（PIE/Game/DS）能力继承 `FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`（资产/编辑器能力保持默认基类）
 
-> 注册期 `FNexusCapabilityRegistry::Register()` 仅硬校验命名动词（§6）；Description 长度与 §4 格式/重叠/关键词条数由规范自检 / `Script/audit_capability_naming.py` CI 门禁负责，避免 Dev 构建启动时 ensure 闪退。
+> 注册期 `FNexusCapabilityRegistry::Register()` 仅硬校验命名动词（§6）；Description 长度与 §4 格式/重叠/关键词条数由规范自检 / `scripts/audit_capability_naming.py` CI 门禁负责，避免 Dev 构建启动时 ensure 闪退。
 
 ---
 

@@ -19,7 +19,15 @@
 
 改 InputSchema 后：在编辑器跑 Automation `NexusLink.Smoke.PluginAndRegistry.SchemaDump`，更新 `scripts/generated/capability_schemas.json`，再跑 `py scripts/build_tool_reference.py`（优先读该 json；无文件时仍从 C++ 链抽取）。旧名表改 `Resources/legacy_capability_names.json` 后跑 `py scripts/gen_legacy_capability_names.py`。
 
-新增或修改 Capability 后运行 `py scripts/build_tool_reference.py`，**同时**重生英文 [docs/tool-reference.md](docs/tool-reference.md) 与中文 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)。不要只改其中一份生成段。新 cap 的中文 Description 补进 [scripts/tool_reference_zh.json](scripts/tool_reference_zh.json)；未收录的参数说明会按短语规则即时译成中文。
+新增或修改 Capability 后运行 `py scripts/build_tool_reference.py`，**同时**重生英文 [docs/tool-reference.md](docs/tool-reference.md) 与中文 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)。不要只改其中一份生成段。新 cap 的中文 Description 补进 [scripts/tool_reference_zh.json](scripts/tool_reference_zh.json)；未收录的参数说明会按短语规则即时译成中文。增减 cap 后同步改 `scripts/audit_capability_naming.py` 的 `EXPECTED_CAP_COUNT`。
+
+插件仓脚本门禁（不依赖 UE；宿主 `run_e2e.py` 前置也会跑前两条）：
+
+```bash
+py scripts/audit_capability_params.py
+py scripts/audit_capability_naming.py
+py scripts/audit_doc_sync.py   # 报告：代码 vs tool-reference / 中文 overlay
+```
 
 ## 测试
 
