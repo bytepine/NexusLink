@@ -17,7 +17,7 @@
  *   - call_arg_invalid : call_capability 参数校验失败（缺少 required 字段或类型不符），与 call_fatal 平级自动埋点
  *   - call_fatal       : call_capability 执行时致命错误（非参数校验问题）
  *   - redundant_call   : 同 capability + identity 的子 section 在短窗口内重复调用（前次已含 sections=["all"]）
- *   - slow_call        : capability 执行耗时超过 SlowCallThresholdMs 阈值
+ *   - slow_call        : capability 执行耗时超过 SlowCallThresholdMs 阈值（含最终报错的调用，Note 标注 "(error)"）
  *   - proxy_timeout       : IDE/Desktop 代理转发 tools/call 超时（UE 未在时限内响应）
  *   - proxy_disconnect    : IDE/Desktop 代理转发时 WebSocket 未连接/已断开
  *   - proxy_connect_fail  : IDE/Desktop 代理 connect_unreal_instance 连接失败

@@ -39,6 +39,27 @@ static const FString SupportedProtocolVersion = TEXT("2025-06-18");
 static const FString ServerName               = TEXT("Nexus-Unreal");
 static const FString ServerVersion            = TEXT("0.0.0");
 
+/**
+ * 统一记录 tools/call 端到端耗时（含响应压缩/TTL注入/序列化，即 EmitToolResult 返回之后）。
+ * 超过 SlowCallThresholdMs 升为 Warning，便于反馈关闭时仍能从日志捞慢调用；不写 feedback——
+ * call_capability 与 MultiTool 直调 cap 均已在 FNexusCapability::Run 记 slow_call，这里再记会双计。
+ */
+static void LogToolCallDuration(const FString& ToolName, bool bIsError, double DurationMs, int32 ResponseBytes)
+{
+	const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
+	const int32 ThresholdMs = Settings ? Settings->SlowCallThresholdMs : 0;
+	if (ThresholdMs > 0 && DurationMs > static_cast<double>(ThresholdMs))
+	{
+		UE_LOG(LogNexusMcpDispatcher, Warning, TEXT("工具 '%s' 执行%s（%.0f ms > 阈值 %d ms, %d 字节）"),
+			*ToolName, bIsError ? TEXT("出错") : TEXT("成功"), DurationMs, ThresholdMs, ResponseBytes);
+	}
+	else
+	{
+		UE_LOG(LogNexusMcpDispatcher, Log, TEXT("工具 '%s' 执行%s（%.0f ms, %d 字节）"),
+			*ToolName, bIsError ? TEXT("出错") : TEXT("成功"), DurationMs, ResponseBytes);
+	}
+}
+
 // JSON-RPC 2.0 标准错误码
 static constexpr int32 JsonRpcParseError     = -32700;
 static constexpr int32 JsonRpcInvalidRequest = -32600;
@@ -518,8 +539,6 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 			const double ExecStartSec = FPlatformTime::Seconds();
 			FCapabilityResult CapResult = Record->Instance->Run(Arguments);
 			FNexusMcpToolResult ToolResult = FNexusCapResultAdapter::Convert(CapResult, Record->Def.Name, Arguments);
-			const double ExecDurationMs = (FPlatformTime::Seconds() - ExecStartSec) * 1000.0;
-			(void)ExecDurationMs; // 预留给未来慢调用检测
 
 			// 响应压缩
 			if (!ToolResult.bIsError && ToolResult.StructuredContent.IsValid())
@@ -530,7 +549,9 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 			// TTL 元数据注入（MultiTool 模式下 ToolName 即 capability 名，可直接 lookup）
 			InjectTtlMetadata(ToolResult, ToolName);
 
-			EmitToolResult(Id, ToolResult);
+			const int32 ResponseBytes = EmitToolResult(Id, ToolResult);
+			const double ExecDurationMs = (FPlatformTime::Seconds() - ExecStartSec) * 1000.0;
+			LogToolCallDuration(ToolName, ToolResult.bIsError, ExecDurationMs, ResponseBytes);
 			return;
 		}
 
@@ -562,7 +583,6 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 
 	const double ExecStartSec = FPlatformTime::Seconds();
 	FNexusMcpToolResult ToolResult = Tool->Execute(Arguments);
-	const double ExecDurationMs = (FPlatformTime::Seconds() - ExecStartSec) * 1000.0;
 	// 全工具默认响应压缩：对 StructuredContent 递归抽取所有"对象数组"字段的主流值
 	// 到同级 <field>_defaults，条目内等值字段随即省略。受 bCompactResponseDefaults 总开关控制；
 	// 工具内已手动写入 <field>_defaults 时合并新键、不覆盖已有 ForcedDefault。
@@ -585,9 +605,8 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 
 	// 统一序列化并发送（与 MultiTool 路径共用 EmitToolResult，避免重复维护 content/structuredContent 分支）
 	const int32 ResponseBytes = EmitToolResult(Id, ToolResult);
-	UE_LOG(LogNexusMcpDispatcher, Log, TEXT("工具 '%s' 执行%s（%.0f ms, %d 字节）"),
-		*ToolName, ToolResult.bIsError ? TEXT("出错") : TEXT("成功"),
-		ExecDurationMs, ResponseBytes);
+	const double TotalDurationMs = (FPlatformTime::Seconds() - ExecStartSec) * 1000.0;
+	LogToolCallDuration(ToolName, ToolResult.bIsError, TotalDurationMs, ResponseBytes);
 }
 
 void FNexusMcpDispatcher::HandleProxyFeedback(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Params)

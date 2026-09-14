@@ -199,7 +199,7 @@ Preferences 与 `-EnableNexusMcp` / 控制台为 **OR**。CLI 不会改写 `bEna
 | 启用反馈采集 | 总开关；取消后 auto/manual 都丢弃 |
 | Feedback Issue 仓库 | GitHub `owner/repo`，供「创建 GitHub Issue」预填 |
 | 搜索过载阈值 / 最大搜索结果数 | 控制 `search_overflow` 与返回条数上限 |
-| 慢调用阈值 (ms) | 超过则记 `slow_call` |
+| 慢调用阈值 (ms) | 超过则记 `slow_call`（含最终报错的调用），同时驱动传输层慢调用告警日志 |
 | 响应默认值压缩 | JSON 响应抽取重复字段到 `*_defaults`（缺省即默认） |
 | 自动卸载读取引入的包 | 批量只读达阈值后整批卸载（默认开） |
 | 卸载阈值（包数量） / 内存高水位（MB） | 默认 16 包 / 1024 MB |
@@ -318,6 +318,14 @@ Token 从设置面板 **MCP 鉴权 Token** 旁的「复制」取得。可逗号�
 | 填了额外 Token 仍被拒 | token 不合法（须 32–128 位十六进制），或粘贴了别的字段 | 逐条重新添加；UE 日志会打印「没有合法条目」告警 |
 
 同机四端共用一份 token 文件，正常无需任何配置；出现 401 多半是跨机或版本不齐。
+
+### 工具调用久不返回 / 代理报超时
+
+`tools/call` 全程同步执行，UE 端没有请求级超时；代理侧（Desktop/Rider/VSCode）统一 120s 超时且**不重试**，同一长连接上的请求还会串行排队——一个慢调用会连带堵住同会话后续请求。
+
+- 优先避免触发慢调用：`search_asset` 不要用 `assetType=all` 配 `pathFilter=/Game/` 之类的宽搜（已有的 arg-invalid 校验只挡最坏情形）；蓝图批量编译/存盘、`capture_viewport` 等本身耗时随场景规模增长
+- 直连 `:45000` 没有代理的 120s 限制，但编辑器仍会同帧掉帧到调用结束
+- 排查数据来源：UE 输出日志按 `LogNexusMcpDispatcher` 过滤 Warning（超过慢调用阈值会打印耗时）；反馈报告（[§2.5](#25-设置面板与反馈)）的 `slow_call`（含最终报错的慢调用）与代理侧 `proxy_timeout` 两个 category
 
 ### 多个 AI 客户端同时使用
 

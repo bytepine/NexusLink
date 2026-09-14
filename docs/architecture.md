@@ -194,6 +194,16 @@ sequenceDiagram
 
 HTTP 收包线程只拷贝请求体与 header，然后 `AsyncTask` 回切 GameThread 再碰 `HttpSessions` / `Dispatch` / `DetectCurrentNetRole`，并用推迟的 `OnComplete` 回写响应（不再 `FEvent::Wait` 阻塞收包线程）。`GET /status` 同样回切 GameThread，避免非 GT 读 `GEngine->GetWorldContexts()`。
 
+### 同步执行模型与已知限制
+
+`tools/call` 从 `Dispatch`/`DispatchDirect` 到 `EmitToolResult` 全程同步跑在 GameThread，回切只发生在收发两端（见上），执行期间不会让出。重 capability（蓝图编译、资产落盘、`FlushRenderingCommands` 截图、全表资产扫描）会让整个编辑器同帧掉帧——这是相关 UE API 本身仅限 GameThread 调用的直接后果，非 NexusLink 传输层的实现缺陷，也没有切片/异步空间。
+
+HTTP `/stream` 是无状态 request-response，没有 SSE/chunked 等推送通道；WebSocket 虽可 `BroadcastNotification` 推送，但三个代理目前只识别 `notifications/tools/list_changed`，其余通知一律丢弃。因此长任务无法用「返回 pending + 事后推送」的方式实现——唯一现实路径是让请求原样挂着，直到 capability 跑完。
+
+代理侧（Desktop/Rider/VSCode）对 `tools/call` 统一 120s 超时且超时不重试；同一长连接上的请求还会串行排队，一个慢调用会连带堵塞同会话的后续请求。
+
+可观测点：传输层耗时超过 `SlowCallThresholdMs`（§2.5）时，`NexusMcpDispatcher.cpp` 的 `LogToolCallDuration` 会打 Warning 级日志（覆盖压缩/TTL注入/序列化的端到端耗时）；capability 层的 `slow_call` feedback category 同阈值触发，现在也覆盖「慢且最终报错」的调用（Note 标 `(error)`）。代理侧超时另有 `proxy_timeout` category。
+
 ### WebSocket 代理通道（Desktop / Rider / VSCode）
 
 ```mermaid

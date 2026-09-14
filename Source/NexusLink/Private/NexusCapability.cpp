@@ -460,8 +460,9 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 		Result.FatalError.IsEmpty() ? TEXT("none") : *Result.FatalError,
 		ElapsedMs);
 
-	// 慢调用自动埋点
-	if (Result.FatalError.IsEmpty() && !Result.bIsArgInvalid)
+	// 慢调用自动埋点：只排除参数校验失败（快速失败且噪声大），慢的致命错误也要记——
+	// 「卡了 N 秒最后报错」比「卡了 N 秒成功」更该被看见
+	if (!Result.bIsArgInvalid)
 	{
 		const UNexusLinkSettings* S = UNexusLinkSettings::Get();
 		if (S && S->bEnableFeedback && S->SlowCallThresholdMs > 0
@@ -473,7 +474,8 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 			? Def.Name
 			: TEXT("call_capability");
 		F.Capability = Def.Name;
-			F.Note       = FString::Printf(TEXT("%.0fms > threshold %dms"), ElapsedMs, S->SlowCallThresholdMs);
+			F.Note       = FString::Printf(TEXT("%.0fms > threshold %dms%s"), ElapsedMs, S->SlowCallThresholdMs,
+				Result.FatalError.IsEmpty() ? TEXT("") : TEXT(" (error)"));
 			FNexusFeedback::RecordAuto(TEXT("slow_call"), F);
 		}
 	}
