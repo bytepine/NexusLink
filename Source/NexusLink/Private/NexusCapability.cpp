@@ -5,13 +5,10 @@
 #include "NexusLinkSettings.h"
 #include "NexusMcpTool.h"
 #include "NexusMcpSchemaBuilder.h"
-#include "Utils/NexusAssetUtils.h"
+#include "NexusEditorServices.h"
 #include "Utils/NexusDangerousCapGate.h"
 #include "Utils/NexusEditorTransaction.h"
 #include "Dom/JsonObject.h"
-#if WITH_EDITOR
-#include "ScopedTransaction.h"
-#endif
 #include "Dom/JsonValue.h"
 #include "Math/UnrealMathUtility.h"
 
@@ -395,7 +392,8 @@ static void ApplyIfRequested(
 	{
 		Result.TopFields = MakeShared<FJsonObject>();
 	}
-	FNexusAssetUtils::ApplyManageFinalize(AssetPath, bCompile, bSaveToDisk, Result.TopFields);
+	// 编译/存盘需要 Kismet2/UnrealEd，实现在 NexusLinkEditor，经钩子转发
+	FNexusEditorServices::ApplyManageFinalize(AssetPath, bCompile, bSaveToDisk, Result.TopFields);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -445,17 +443,13 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 	}
 
 	const double StartTime = FPlatformTime::Seconds();
-#if WITH_EDITOR
-	TUniquePtr<FScopedTransaction> Tx;
+	TUniquePtr<INexusTransactionHandle> Tx;
 	if (FNexusEditorTransaction::ShouldTransact(Def.Name, Def.Tags))
 	{
 		Tx = FNexusEditorTransaction::Begin(Def.Name);
 	}
-#endif
 	FCapabilityResult Result = Execute(Args);
-#if WITH_EDITOR
 	Tx.Reset();
-#endif
 	ApplyIfRequested(Def.Name, Args, Result);
 	const double ElapsedMs = (FPlatformTime::Seconds() - StartTime) * 1000.0;
 

@@ -336,15 +336,20 @@ def load_manage_compile_caps() -> frozenset[str]:
     global _MANAGE_COMPILE_CAPS
     if _MANAGE_COMPILE_CAPS is not None:
         return _MANAGE_COMPILE_CAPS
-    cap_root = Path(__file__).resolve().parent.parent / "Source" / "NexusLink" / "Private" / "Capabilities"
+    plugin_root = Path(__file__).resolve().parent.parent
+    cap_roots = [
+        plugin_root / "Source" / "NexusLink" / "Private" / "Capabilities",
+        plugin_root / "Source" / "NexusLinkEditor" / "Private" / "Capabilities",
+    ]
     names: set[str] = set()
-    for path in cap_root.rglob("*.cpp"):
-        text = path.read_text(encoding="utf-8", errors="replace")
-        if not _RE_INJECT_COMPILE.search(text):
-            continue
-        m = _RE_OUT_NAME.search(text)
-        if m:
-            names.add(m.group(1))
+    for cap_root in cap_roots:
+        for path in cap_root.rglob("*.cpp"):
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if not _RE_INJECT_COMPILE.search(text):
+                continue
+            m = _RE_OUT_NAME.search(text)
+            if m:
+                names.add(m.group(1))
     _MANAGE_COMPILE_CAPS = frozenset(names)
     return names
 
@@ -622,12 +627,15 @@ def find_nexuslink_root(start: Path) -> Path:
     raise SystemExit(f"ERROR: NexusLink.uplugin not found near {start}")
 
 
-def resolve_source_paths(link_root: Path) -> tuple[Path, Path, Path]:
-    """返回 cap_root, tools_dir, docs_dir。"""
+def resolve_source_paths(link_root: Path) -> tuple[list[Path], Path, Path]:
+    """返回 cap_roots（NexusLink + NexusLinkEditor 两个模块根）, tools_dir, docs_dir。"""
     plugin_src = link_root / "Source" / "NexusLink"
-    cap_root = plugin_src / "Private" / "Capabilities"
+    cap_roots = [
+        plugin_src / "Private" / "Capabilities",
+        link_root / "Source" / "NexusLinkEditor" / "Private" / "Capabilities",
+    ]
     tools_dir = plugin_src / "Private" / "Tools"
-    return cap_root, tools_dir, link_root / "docs"
+    return cap_roots, tools_dir, link_root / "docs"
 
 
 def write_locale_doc(
@@ -673,16 +681,17 @@ def main() -> None:
 
     script_dir = Path(__file__).resolve().parent
     link_root = Path(args.repo_root) if args.repo_root else find_nexuslink_root(script_dir)
-    cap_root, tools_dir, docs_dir = resolve_source_paths(link_root)
+    cap_roots, tools_dir, docs_dir = resolve_source_paths(link_root)
 
-    if not cap_root.exists():
-        print(f"ERROR: Capabilities dir not found: {cap_root}", file=sys.stderr)
+    if not any(r.exists() for r in cap_roots):
+        print(f"ERROR: Capabilities dir not found: {cap_roots}", file=sys.stderr)
         sys.exit(1)
 
     # ── 解析 Capabilities ──────────────────────────────────────────────────────
     categories: dict[str, list[dict[str, Any]]] = {}
     cap_count = 0
-    for cpp_file in sorted(cap_root.rglob("*.cpp")):
+    cpp_files = [p for r in cap_roots if r.exists() for p in r.rglob("*.cpp")]
+    for cpp_file in sorted(cpp_files):
         cap = parse_capability(cpp_file)
         if cap:
             cat = cap["category"]

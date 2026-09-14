@@ -4,7 +4,7 @@
 
 基于 Unreal Engine 的 MCP 集成插件，将 UE 项目上下文通过 MCP 协议暴露给 AI 工具。
 
-> 支持 UE 4.26 及以上所有版本（含 UE5）。主模块 `Type: UncookedOnly`，**MCP 跑在 Editor 二进制（含 `-server`/`-game`）**；cooked 包不包含本模块。
+> 支持 UE 4.26 及以上所有版本（含 UE5）。插件拆两个模块：`NexusLink`（`Type: Runtime`，Development/DebugGame 的独立 Game/DS 也能托管 MCP）+ `NexusLinkEditor`（`Type: Editor`，编辑器 UI）；**Shipping 编译期整体剔除 MCP 服务器**。
 
 > **从 1.x 升级**：2.0 默认开启鉴权且 MCP/AI 可见文案改为英文，插件与客户端须同批升到 2.x。见 [usage-guide §0](docs/usage-guide.md#0-从-1x-升级到-20)。
 

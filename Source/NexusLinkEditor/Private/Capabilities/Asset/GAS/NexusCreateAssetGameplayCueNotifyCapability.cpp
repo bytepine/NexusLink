@@ -1,0 +1,70 @@
+﻿// Copyright byteyang. All Rights Reserved.
+
+#include "Capabilities/Asset/GAS/NexusCreateAssetGameplayCueNotifyCapability.h"
+
+#if WITH_GAS
+
+#include "NexusCapabilityRegistry.h"
+#include "NexusMcpSchemaBuilder.h"
+#include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
+#include "GameplayCueNotify_Static.h"
+#include "NexusMcpTool.h"
+
+void FCreateAssetGameplayCueNotifyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+{
+	Out.Name = TEXT("create_asset_gameplay_cue_notify");
+	Out.Description = TEXT("Create GameplayCueNotify_Static. Use create_asset_blueprint for kind=actor.");
+	Out.InputSchema = FNexusSchema::Object()
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("kind"), FNexusSchema::Enum(TEXT("Kind"), { TEXT("static"), TEXT("actor") }, TEXT("static")))
+		.Prop(TEXT("cueName"), FNexusSchema::Str(TEXT("GameplayCue Tag (optional)")))
+		.Required({ TEXT("assetPath") })
+		.Build();
+	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
+	Out.ExtraSearchKeywords = { TEXT("cue"), TEXT("notify"), TEXT("gc"), TEXT("fx") };
+	Out.RelatedCapabilities = {
+		TEXT("get_asset_gameplay_cue_notify"), TEXT("manage_asset_gameplay_cue_notify"),
+		TEXT("create_asset_blueprint")
+	};
+	Out.WhenToUse = TEXT("Create Static Cue Notify; Actor BP via create_asset_blueprint");
+}
+
+FCapabilityResult FCreateAssetGameplayCueNotifyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+{
+	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	{
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
+		FString Kind = TEXT("static");
+		if (Arguments->HasField(TEXT("kind"))) Kind = A.Str(TEXT("kind")).ToLower();
+		if (Kind == TEXT("actor"))
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
+				TEXT("For kind=actor use create_asset_blueprint(parentClass=GameplayCueNotify_Actor)"));
+			return;
+		}
+
+		const FNexusAssetUtils::FAssetCreateOutcome Created =
+			FNexusAssetUtils::CreatePlainAsset<UGameplayCueNotify_Static>(AssetPath, RF_Public | RF_Standalone, false);
+		if (!Created.Ok())
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
+			return;
+		}
+		UGameplayCueNotify_Static* Notify = Cast<UGameplayCueNotify_Static>(Created.Asset);
+
+		FString CueName;
+		if (Arguments->TryGetStringField(TEXT("cueName"), CueName) && !CueName.IsEmpty())
+		{
+			Notify->GameplayCueName = FName(*CueName);
+		}
+		FNexusAssetUtils::NotifyAndSaveCreated(Notify->GetOutermost(), Notify, AssetPath);
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, Notify);
+	});
+}
+
+REGISTER_MCP_CAPABILITY(FCreateAssetGameplayCueNotifyCapability)
+
+#endif

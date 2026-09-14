@@ -3,6 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NexusLinkBuildConfig.h"
+
+// Shipping 不带 MCP 服务器（NEXUSLINK_WITH_SERVER=0），HTTP/HTTPServer/WebSocketNetworking
+// 模块未链接，本头文件整体裁掉；FNexusMcpServer 仅作为不完整类型出现在 FNexusLinkModule 的指针成员上。
+#if NEXUSLINK_WITH_SERVER
+
 #include "Utils/NexusVersionCompat.h"
 #include "Containers/Ticker.h"
 #include "HttpRouteHandle.h"
@@ -109,3 +115,5 @@ private:
 	int32 WebSocketPort = 0;
 	bool  bRunning      = false;
 };
+
+#endif // NEXUSLINK_WITH_SERVER

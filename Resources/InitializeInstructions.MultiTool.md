@@ -1,6 +1,6 @@
 NexusLink MCP: Unreal Editor + runtime control (**MultiTool mode**).
 
-> **Host note**: **MCP runs in the Editor binary** (Type=UncookedOnly; includes `-server`/`-game`; not in cooked Game/Server).
+> **Host note**: **MCP runs in the Editor binary, and in Development/DebugGame standalone Game/DS builds** (`NexusLink` module is `Type: Runtime`; `NexusLinkEditor` is `Type: Editor`; Shipping strips the server at compile time).
 
 ## Tool model
 

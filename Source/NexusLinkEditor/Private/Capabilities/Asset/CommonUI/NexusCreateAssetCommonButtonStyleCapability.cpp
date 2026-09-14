@@ -1,0 +1,52 @@
+﻿// Copyright byteyang. All Rights Reserved.
+
+#include "Capabilities/Asset/CommonUI/NexusCreateAssetCommonButtonStyleCapability.h"
+#if WITH_COMMON_UI
+#include "NexusCapabilityRegistry.h"
+#include "NexusMcpSchemaBuilder.h"
+#include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusAssetEditorUtils.h"
+#include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusArgs.h"
+#include "CommonButtonBase.h"
+#include "NexusMcpTool.h"
+
+void FCreateAssetCommonButtonStyleCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+{
+	Out.Name = TEXT("create_asset_common_button_style");
+	Out.Description = TEXT("Create CommonButtonStyle. WBP widget tree still uses user_widget.");
+	Out.InputSchema = FNexusSchema::Object()
+		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Required({ TEXT("assetPath") })
+		.Build();
+	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Widget };
+	Out.ExtraSearchKeywords = { TEXT("commonui"), TEXT("button"), TEXT("style") };
+	Out.RelatedCapabilities = {
+		TEXT("get_asset_common_button_style"), TEXT("manage_asset_common_button_style"),
+		TEXT("create_asset_common_text_style")
+	};
+}
+
+FCapabilityResult FCreateAssetCommonButtonStyleCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+{
+	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	{
+		const FNexusArgs A(Arguments);
+		const FString AssetPath = A.Str(TEXT("assetPath"));
+		// UCommonButtonStyle 是 UCLASS(Abstract, Blueprintable)：只能建 Blueprint 子类，
+		// 直接 NewObject 会在 StaticAllocateObject 触发抽象类 ensure。
+		const FNexusAssetEditorUtils::FAssetCreateOutcome Created =
+			FNexusAssetEditorUtils::CreateBlueprintAsset(
+				AssetPath, TEXT("CommonButtonStyle"), UCommonButtonStyle::StaticClass());
+		if (!Created.Ok())
+		{
+			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, Created.Error);
+			return;
+		}
+		UObject* Style = Created.Asset;
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, Style);
+	});
+}
+
+REGISTER_MCP_CAPABILITY(FCreateAssetCommonButtonStyleCapability)
+#endif

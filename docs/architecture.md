@@ -39,9 +39,9 @@ graph TB
 四端端口与开关层数见 [usage-guide §1](./usage-guide.md)。Capability 清单以 `search_capabilities` / [tool-reference.zh.md](./tool-reference.zh.md) 为准，勿在本文手写总数。
 ## MCP 服务器生命周期
 
-`UNexusLinkSettings::bEnableMcpServer` 为总开关，**默认 `false`**。另支持命令行 **`-EnableNexusMcp`** 与控制台 **`NexusLink.EnableMcp 1|0`**（均会话级，不写盘）；与 Preferences 为 OR。主模块 **`Type: UncookedOnly`**（Editor 二进制含 `-server`/`-game` 加载；cooked Game/Server 不编）；`REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 在 `!WITH_EDITOR` 下编译为空（供 Game 编译探针）。平台门控双写 `PlatformAllowList`（UE5）+ `WhitelistPlatforms`（UE4.2x），避免 UE4 把模块链进移动端 Editor。设置面板 / 状态栏仅 `GIsEditor` 时注册；MCP 监听在 editor-hosted `-server` 仍可启动。未启用时不创建 `FNexusMcpServer`；Preferences 勾选后经 `PostEditChangeProperty` 即时启停。
+`UNexusLinkSettings::bEnableMcpServer` 为总开关，**默认 `false`**。另支持命令行 **`-EnableNexusMcp`** 与控制台 **`NexusLink.EnableMcp 1|0`**（均会话级，不写盘）；与 Preferences 为 OR。cooked Game/DS 额外支持 **`-NexusMcpPort=`** / **`-NexusWsPort=`** / **`-NexusAllowLan`** 覆盖默认端口与 LAN 绑定。插件拆两个模块：`NexusLink`（**`Type: Runtime`**，可进 cooked Game/DS）承载 Server / Dispatcher / Registry / 3 个元工具 / Runtime cap；`NexusLinkEditor`（**`Type: Editor`**，仅编辑器二进制加载）承载 Editor cap 与设置面板 / 状态栏 UI。`REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 由 **`NEXUSLINK_WITH_SERVER`**（`!UE_BUILD_SHIPPING`）门控——Shipping 编译期整体剔除服务器与注册表。平台门控双写 `PlatformAllowList`（UE5）+ `WhitelistPlatforms`（UE4.2x）。设置面板 / 状态栏仅编辑器模块加载时注册；MCP 监听在 Development/DebugGame 的独立 Game/DS 与 editor-hosted `-server` 均可启动。未启用时不创建 `FNexusMcpServer`；Preferences 勾选后经 `PostEditChangeProperty` 即时启停。
 
-**Capability 可见性**：完整 Editor 宿主暴露全部已启用 cap。`FNexusRuntimeCapability` 基类仍用于标记 PIE 运行时能力（分类标签）；插件本身不再进入纯 Game / DS。
+**Capability 可见性**：完整 Editor 宿主暴露全部已启用 cap。cooked Game/DS（Development/DebugGame）仅暴露 `NexusLink` 模块的 Runtime cap（`FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`），`NexusLinkEditor` 的 Editor cap 不参与编译，也就不会注册；Shipping 不含服务器，无 cap 暴露。
 
 ## 分层职责
 
@@ -80,21 +80,30 @@ REGISTER_MCP_CAPABILITY(FNexusSearchAssetCapability);
 ```
 
 宏展开后利用 C++ 静态初始化，在模块加载期自动向全局注册表注册实例。新增 Capability 只需：
-1. 在对应域目录下新建 .h/.cpp
-2. 按 CapabilitySpec §2.1.1 选基类（`manage_*` + `operations[]` → `FNexusActionCapability`，禁止 override `Execute`；其余见该表）并实现对应钩子
-3. 文件底部添加 `REGISTER_MCP_CAPABILITY(ClassName)`
+1. 按 CapabilitySpec §2.1.0 **选模块**（PIE/Game 活对象、不落盘 → `NexusLink` Runtime 模块；磁盘资产 / 编辑器 API / 落盘 → `NexusLinkEditor` 模块）
+2. 在对应模块 `Source/<模块>/Private/Capabilities/` 下的域目录新建 .h/.cpp
+3. 按 CapabilitySpec §2.1.1 选基类（`manage_*` + `operations[]` → `FNexusActionCapability`，禁止 override `Execute`；其余见该表；基类范围随第 1 步选定的模块收窄）并实现对应钩子
+4. 文件底部添加 `REGISTER_MCP_CAPABILITY(ClassName)`
 
 无需修改任何已有代码。
 
 ### 域分类目录
 
+两个模块各自的 `Private/Capabilities/` 均沿用相同的域分类结构（分组锚点不含模块名，设置面板 cap 树零感知模块拆分）：
+
 ```mermaid
 flowchart LR
-    Root["Capabilities/"]
-    Root --> Asset["Asset/<br/>蓝图·材质·结构体·动画·Widget…"]
-    Root --> Editor["Editor/<br/>截图·PIE·日志…"]
-    Root --> Lua["Lua/<br/>UnLua 绑定与运行时"]
-    Root --> Runtime["Runtime/<br/>Actor·Widget 运行时"]
+    subgraph RT["NexusLink (Runtime)"]
+        RootRT["Capabilities/"]
+        RootRT --> Runtime["Runtime/<br/>Actor·Widget 运行时"]
+        RootRT --> LuaRT["Lua/Runtime/<br/>UnLua 运行时求值"]
+    end
+    subgraph ED["NexusLinkEditor (Editor)"]
+        RootED["Capabilities/"]
+        RootED --> Asset["Asset/<br/>蓝图·材质·结构体·动画·Widget…"]
+        RootED --> Editor["Editor/<br/>截图·PIE·日志…"]
+        RootED --> LuaED["Lua/<br/>UnLua 绑定（非运行时）"]
+    end
 ```
 
 ### Tool 与 Capability 解耦

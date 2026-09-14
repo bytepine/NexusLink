@@ -8,9 +8,10 @@
 /**
  * 运行时 Capability 基类——标记 PIE 等运行时能力（自动补 runtime 分类标签）。
  *
- * 主模块 Type=UncookedOnly：Editor 二进制（含 -server/-game）加载，cooked Game/Server 不编。
- * 「运行时」指编辑器进程内的 PIE / editor-hosted DS，而非独立打包的 Game / Server 进程。
- * 新增 PIE 运行时能力：继承本类（或 FNexusRuntimeMultiSectionCapability）即可。
+ * NexusLink 主模块 Type=Runtime：Editor 二进制与 Development/DebugGame 的独立 Game/DS 均加载；Shipping 编译期整体剔除。
+ * 「运行时」既包括编辑器进程内的 PIE / editor-hosted DS，也包括独立打包的 Game / DS 进程。
+ * 新增 PIE/Game 运行时能力：继承本类（或 FNexusRuntimeMultiSectionCapability）即可。
+ * 落地目录：Source/NexusLink/Private/Capabilities/{Runtime,Lua/Runtime}/<域>/（见 CapabilitySpec.md §2.1.0）。
  */
 class NEXUSLINK_API FNexusRuntimeCapability : public FNexusCapability
 {

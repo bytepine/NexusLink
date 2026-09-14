@@ -3,10 +3,72 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
+/// <summary>
+/// NexusLink（Runtime 模块）：Server / Dispatcher / Auth / Registry / 元工具 / 34 个 Runtime cap /
+/// 运行时 Utils。不链接任何 UnrealEd 系编辑器模块，Development/DebugGame 独立 Game / DedicatedServer
+/// 包可直接编入。编辑器专属实现（195 个 EditorOnly cap、编辑器 Utils、Slate 设置定制）在 NexusLinkEditor。
+/// </summary>
 public class NexusLink : ModuleRules
 {
+	public NexusLink(ReadOnlyTargetRules Target) : base(Target)
+	{
+		NexusLinkOptionalPlugins.ApplyCustomEngineCompatDefines(this);
+
+		PublicDependencyModuleNames.AddRange(new[] { "Core", "DeveloperSettings" });
+		PrivateDependencyModuleNames.AddRange(new[]
+		{
+			"CoreUObject", "Engine", "Projects", "Sockets", "Networking", "Json", "JsonUtilities",
+			"AssetRegistry", "UMG", "GameplayTags", "AIModule", "GameplayTasks",
+			"ImageWrapper", "AnimGraphRuntime", "RenderCore", "PhysicsCore",
+			"LevelSequence", "MovieScene", "MovieSceneTracks", "Foliage", "MediaAssets",
+			"Slate", "SlateCore", "ApplicationCore", "InputCore",
+		});
+
+		// Shipping 不带 MCP 服务器（NexusLinkBuildConfig.h 的 NEXUSLINK_WITH_SERVER=0），
+		// 传输层依赖随之不链，避免正式包内残留未用的 HTTP/WS 监听代码
+		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+		{
+			PrivateDependencyModuleNames.AddRange(new[]
+			{
+				"HTTP",
+				// UE 5.0+ 将模块 HttpServer 重命名为 HTTPServer
+				Target.GetType().GetProperty("Version") != null ? "HTTPServer" : "HttpServer",
+				"WebSocketNetworking",
+			});
+		}
+
+		string ProjectRoot = NexusLinkOptionalPlugins.FindProjectRoot(ModuleDirectory);
+		var SearchDirs = NexusLinkOptionalPlugins.CollectPluginSearchDirs(ProjectRoot, this);
+
+		// Runtime 模块只消费 34 个 Runtime cap 用到的三个可选插件（UnLua / GAS / Niagara）的运行时部分；
+		// 不链接任何 EditorModules（即便当前 Target 是 NexusEditor，也不允许 ed: 部分进入本模块）。
+		// 其余可选插件（StateTree/MVVM/ControlRig/... 等）只被 Editor 域 cap 使用，宏由
+		// NexusLinkEditor.Build.cs 定义，本模块不重复 Add（避免 C4005 重定义）。
+		bool bHasUnLua = false;
+		foreach (var C in NexusLinkOptionalPlugins.BuildFullTable())
+		{
+			if (C.Define != "WITH_UNLUA" && C.Define != "WITH_GAS" && C.Define != "WITH_NIAGARA")
+			{
+				continue;
+			}
+			if (NexusLinkOptionalPlugins.Apply(this, Target, C, SearchDirs, ProjectRoot, bAllowEditorModules: false)
+				&& C.Define == "WITH_UNLUA")
+				bHasUnLua = true;
+		}
+		NexusLinkOptionalPlugins.ApplyUnLuaVersionDefines(this, bHasUnLua, SearchDirs);
+	}
+}
+
+/// <summary>
+/// NexusLink（Runtime）与 NexusLinkEditor（Editor）共用的可选插件探测/引擎兼容逻辑。
+/// UBT 把同一 Target 编译图里所有模块的 *.Build.cs 编译进同一个 Rules Assembly，
+/// 故这个类即便定义在 NexusLink.Build.cs 里，NexusLinkEditor.Build.cs 也能直接引用
+/// （无需 using/命名空间），不必额外建一个不会被 UBT 发现的独立 .cs 文件。
+/// </summary>
+public static class NexusLinkOptionalPlugins
+{
 	/// <summary>可选插件探测配置：UpluginFiles、MinEngine、模块、Define、EnvVar。</summary>
-	private struct OptionalPluginConfig
+	public struct OptionalPluginConfig
 	{
 		public string[] UpluginFiles;
 		public string UprojectPluginName; // 非空时检查 .uproject Enabled
@@ -16,50 +78,8 @@ public class NexusLink : ModuleRules
 		public bool EnvVarSupportsDisable; // 默认 true；UnLua 仅 =1
 	}
 
-	public NexusLink(ReadOnlyTargetRules Target) : base(Target)
-	{
-		ApplyCustomEngineCompatDefines(this);
-
-		PublicDependencyModuleNames.AddRange(new[] { "Core", "DeveloperSettings" });
-		PrivateDependencyModuleNames.AddRange(new[]
-		{
-			"CoreUObject", "Engine", "Projects", "Sockets", "Networking", "Json", "JsonUtilities",
-			"HTTP",
-			// UE 5.0+ 将模块 HttpServer 重命名为 HTTPServer
-			Target.GetType().GetProperty("Version") != null ? "HTTPServer" : "HttpServer",
-			"WebSocketNetworking", "AssetRegistry", "UMG", "GameplayTags", "AIModule", "GameplayTasks",
-			"ImageWrapper", "AnimGraphRuntime", "RenderCore", "PhysicsCore",
-			"LevelSequence", "MovieScene", "MovieSceneTracks", "Foliage", "MediaAssets",
-		});
-
-		if (Target.bBuildEditor)
-		{
-			PrivateDependencyModuleNames.AddRange(new[]
-			{
-				"Settings", "Slate", "SlateCore", "EditorStyle", "UnrealEd", "LevelEditor",
-				"KismetCompiler", "Kismet", "BlueprintGraph", "AnimGraph", "UMGEditor", "AssetTools",
-				"MaterialEditor", "PropertyEditor", "ContentBrowser", "ContentBrowserData",
-				"ApplicationCore", "InputCore",
-			});
-			// LiveCoding 仅 Windows 平台存在
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-				PrivateDependencyModuleNames.Add("LiveCoding");
-		}
-
-		string ProjectRoot = FindProjectRoot(ModuleDirectory);
-		var SearchDirs = CollectPluginSearchDirs(ProjectRoot, this);
-
-		// 可选插件表（顺序与旧版一致）
-		bool bHasUnLua = false;
-		foreach (var C in BuildOptionalPluginTable())
-		{
-			if (ApplyOptionalPlugin(Target, C, SearchDirs, ProjectRoot) && C.Define == "WITH_UNLUA")
-				bHasUnLua = true;
-		}
-		ApplyUnLuaVersionDefines(bHasUnLua, SearchDirs);
-	}
-
-	private static OptionalPluginConfig[] BuildOptionalPluginTable()
+	/// <summary>全量可选插件表（两模块共用，顺序与旧版一致）。</summary>
+	public static OptionalPluginConfig[] BuildFullTable()
 	{
 		return new[]
 		{
@@ -85,7 +105,7 @@ public class NexusLink : ModuleRules
 	}
 
 	/// <summary>表项工厂，省略参数用默认值。</summary>
-	private static OptionalPluginConfig Opt(
+	public static OptionalPluginConfig Opt(
 		string[] files, string define, string env,
 		int minMajor = 0, int minMinor = 0,
 		string[] rt = null, string[] ed = null,
@@ -101,16 +121,18 @@ public class NexusLink : ModuleRules
 		};
 	}
 
-	private bool ApplyOptionalPlugin(ReadOnlyTargetRules Target, OptionalPluginConfig C,
-		List<string> SearchDirs, string ProjectRoot)
+	/// <summary>
+	/// 探测并按需应用一条可选插件配置到指定模块。
+	/// bAllowEditorModules=false 时即使检测到编辑器目标也不链接 C.EditorModules
+	/// （用于 NexusLink Runtime 模块：不应再携带任何 UnrealEd 系依赖)。
+	/// </summary>
+	public static bool Apply(ModuleRules Module, ReadOnlyTargetRules Target, OptionalPluginConfig C,
+		List<string> SearchDirs, string ProjectRoot, bool bAllowEditorModules, bool bDefineMacro = true)
 	{
 		bool on = MeetsMinEngineVersion(Target, C.MinEngineMajor, C.MinEngineMinor)
 			&& DetectAnyEnginePlugin(SearchDirs, C.UpluginFiles);
 		if (on && C.UprojectPluginName != null && ProjectRoot != null
 			&& IsPluginExplicitlyDisabledInUproject(ProjectRoot, C.UprojectPluginName))
-			on = false;
-		// UncookedOnly 的 Game 目标（WITH_EDITOR=0）不编引擎可选插件：那些 cap 大量用编辑器 API
-		if (on && !Target.bBuildEditor && C.Define != "WITH_UNLUA")
 			on = false;
 		if (on && C.RuntimeModules != null)
 		{
@@ -126,21 +148,21 @@ public class NexusLink : ModuleRules
 
 		if (on)
 		{
-			if (C.PublicRuntimeModules != null) PublicDependencyModuleNames.AddRange(C.PublicRuntimeModules);
-			if (C.RuntimeModules != null) PrivateDependencyModuleNames.AddRange(C.RuntimeModules);
-			if (Target.bBuildEditor && C.EditorModules != null)
+			if (C.PublicRuntimeModules != null) Module.PublicDependencyModuleNames.AddRange(C.PublicRuntimeModules);
+			if (C.RuntimeModules != null) Module.PrivateDependencyModuleNames.AddRange(C.RuntimeModules);
+			if (bAllowEditorModules && Target.bBuildEditor && C.EditorModules != null)
 			{
 				foreach (string m in C.EditorModules)
 				{
 					if (ModuleRulesFileExists(SearchDirs, m))
-						PrivateDependencyModuleNames.Add(m);
+						Module.PrivateDependencyModuleNames.Add(m);
 				}
 			}
-			PublicDefinitions.Add(C.Define + "=1");
+			if (bDefineMacro) Module.PublicDefinitions.Add(C.Define + "=1");
 			foreach (string file in C.UpluginFiles)
-				MarkOptionalPluginLinked(this, System.IO.Path.GetFileNameWithoutExtension(file));
+				MarkOptionalPluginLinked(Module, System.IO.Path.GetFileNameWithoutExtension(file));
 		}
-		else PublicDefinitions.Add(C.Define + "=0");
+		else if (bDefineMacro) Module.PublicDefinitions.Add(C.Define + "=0");
 		return on;
 	}
 
@@ -148,7 +170,7 @@ public class NexusLink : ModuleRules
 	/// 磁盘 .uplugin 保持 Enabled:false，不强制启用宿主插件。
 	/// UBT 在 ModuleRules 构造之后才根据 Descriptor.Plugins 建依赖；此处把实际链接的项改成 Enabled:true，消除「未声明插件依赖」警告。
 	/// </summary>
-	private static void MarkOptionalPluginLinked(ModuleRules Module, string pluginName)
+	public static void MarkOptionalPluginLinked(ModuleRules Module, string pluginName)
 	{
 		if (string.IsNullOrEmpty(pluginName)) return;
 		try
@@ -225,10 +247,10 @@ public class NexusLink : ModuleRules
 		catch { }
 	}
 
-	/// <summary>UnLua 主版本号（VersionName 首位数字）。</summary>
-	private void ApplyUnLuaVersionDefines(bool bHasUnLua, List<string> SearchDirs)
+	/// <summary>UnLua 主版本号（VersionName 首位数字）；供两模块各自设置 UNLUA_VERSION_MAJOR。</summary>
+	public static void ApplyUnLuaVersionDefines(ModuleRules Module, bool bHasUnLua, List<string> SearchDirs)
 	{
-		if (!bHasUnLua) { PublicDefinitions.Add("UNLUA_VERSION_MAJOR=0"); return; }
+		if (!bHasUnLua) { Module.PublicDefinitions.Add("UNLUA_VERSION_MAJOR=0"); return; }
 
 		int major = 1;
 		foreach (string dir in SearchDirs)
@@ -255,17 +277,17 @@ public class NexusLink : ModuleRules
 			}
 			catch (System.Exception) { }
 		}
-		PublicDefinitions.Add("UNLUA_VERSION_MAJOR=" + major);
+		Module.PublicDefinitions.Add("UNLUA_VERSION_MAJOR=" + major);
 	}
 
-	private static bool MeetsMinEngineVersion(ReadOnlyTargetRules T, int maj, int min)
+	public static bool MeetsMinEngineVersion(ReadOnlyTargetRules T, int maj, int min)
 	{
 		if (maj <= 0) return true;
 		if (T.Version.MajorVersion > maj) return true;
 		return T.Version.MajorVersion == maj && T.Version.MinorVersion >= min;
 	}
 
-	private static string FindProjectRoot(string moduleDir)
+	public static string FindProjectRoot(string moduleDir)
 	{
 		for (int i = 0; i < 10 && moduleDir != null; ++i)
 		{
@@ -276,7 +298,7 @@ public class NexusLink : ModuleRules
 		return null;
 	}
 
-	private static List<string> CollectPluginSearchDirs(string projectRoot, ModuleRules Module)
+	public static List<string> CollectPluginSearchDirs(string projectRoot, ModuleRules Module)
 	{
 		var dirs = new List<string>();
 		var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
@@ -290,7 +312,7 @@ public class NexusLink : ModuleRules
 		return dirs;
 	}
 
-	private static bool ModuleRulesFileExists(List<string> dirs, string moduleName)
+	public static bool ModuleRulesFileExists(List<string> dirs, string moduleName)
 	{
 		if (string.IsNullOrEmpty(moduleName) || dirs == null) return false;
 		string file = moduleName + ".Build.cs";
@@ -304,14 +326,14 @@ public class NexusLink : ModuleRules
 		return false;
 	}
 
-	private static void TryAddSearchDir(string dir, HashSet<string> seen, List<string> dirs)
+	public static void TryAddSearchDir(string dir, HashSet<string> seen, List<string> dirs)
 	{
 		if (string.IsNullOrEmpty(dir) || !System.IO.Directory.Exists(dir)) return;
 		try { dir = System.IO.Path.GetFullPath(dir); } catch (System.Exception) { return; }
 		if (seen.Add(dir)) dirs.Add(dir);
 	}
 
-	private static bool DetectAnyEnginePlugin(List<string> dirs, string[] names)
+	public static bool DetectAnyEnginePlugin(List<string> dirs, string[] names)
 	{
 		if (names == null) return false;
 		foreach (string name in names)
@@ -325,7 +347,7 @@ public class NexusLink : ModuleRules
 		return false;
 	}
 
-	private static bool JsonHasEnabledLiteral(string json, string literal)
+	public static bool JsonHasEnabledLiteral(string json, string literal)
 	{
 		int idx = 0;
 		while ((idx = json.IndexOf("\"Enabled\"", idx, System.StringComparison.Ordinal)) >= 0)
@@ -347,7 +369,7 @@ public class NexusLink : ModuleRules
 	}
 
 	/// <summary>.uproject 显式 Enabled:false（空白容忍）且非 true 时返回 true。</summary>
-	private static bool IsPluginExplicitlyDisabledInUproject(string projectRoot, string pluginName)
+	public static bool IsPluginExplicitlyDisabledInUproject(string projectRoot, string pluginName)
 	{
 		try
 		{
@@ -363,13 +385,13 @@ public class NexusLink : ModuleRules
 		return false;
 	}
 
-	private static void ApplyCustomEngineCompatDefines(ModuleRules Module)
+	public static void ApplyCustomEngineCompatDefines(ModuleRules Module)
 	{
 		if (ShouldDefineWithEditorEncryption(Module))
 			Module.PublicDefinitions.Add("WITH_EDITOR_ENCRYPTION=0");
 	}
 
-	private static bool ShouldDefineWithEditorEncryption(ModuleRules Module)
+	public static bool ShouldDefineWithEditorEncryption(ModuleRules Module)
 	{
 		foreach (string d in ResolveEngineDirectoryCandidates(Module))
 		{
@@ -381,7 +403,7 @@ public class NexusLink : ModuleRules
 		return System.Environment.GetEnvironmentVariable("NEXUS_WITH_EDITOR_ENCRYPTION_FALLBACK") == "1";
 	}
 
-	private static List<string> ResolveEngineDirectoryCandidates(ModuleRules Module)
+	public static List<string> ResolveEngineDirectoryCandidates(ModuleRules Module)
 	{
 		var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
 		var list = new List<string>();
@@ -416,7 +438,7 @@ public class NexusLink : ModuleRules
 		return list;
 	}
 
-	private static void TryAddEngineDirectory(string dir, HashSet<string> seen, List<string> list)
+	public static void TryAddEngineDirectory(string dir, HashSet<string> seen, List<string> list)
 	{
 		if (string.IsNullOrEmpty(dir)) return;
 		try

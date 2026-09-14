@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "NexusMcpTool.h"
+#include "NexusLinkBuildConfig.h"
 
 /** 工具工厂函数类型，创建并返回一个新的工具实例。 */
 using FNexusMcpToolFactory = TFunction<TSharedPtr<FNexusMcpTool>()>;
@@ -64,10 +65,10 @@ struct FNexusMcpToolAutoRegister
  * 要求 FMyTool 有默认构造函数且继承自 FNexusMcpTool。
  * 注册时缓存 Definition，后续 tools/list 零开销。
  *
- * 主模块 Type 为 UncookedOnly，cooked 目标不编本模块。!WITH_EDITOR 下宏仍为空：
- * build_test Game 探针会临时改 Type=Runtime 编译这些 TU，须避免静态初始化分配与日志。
+ * NexusLink 主模块 Type 为 Runtime：Development/DebugGame 下独立 Game / DedicatedServer
+ * 包同样编译并注册本宏；Shipping 下 NEXUSLINK_WITH_SERVER=0，宏为空。
  */
-#if WITH_EDITOR
+#if NEXUSLINK_WITH_SERVER
 #define REGISTER_MCP_TOOL(ToolClass) \
 	static FNexusMcpToolAutoRegister AutoRegister_##ToolClass( \
 		ToolClass().GetDefinition(), \

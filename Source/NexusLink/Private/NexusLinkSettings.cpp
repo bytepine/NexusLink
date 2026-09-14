@@ -1,7 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "NexusLinkSettings.h"
-#include "Editor/NexusLogCapture.h"
+#include "Log/NexusLogCapture.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusLink.h"
 #include "NexusMcpAuth.h"
@@ -144,6 +144,7 @@ void UNexusLinkSettings::NotifyCapabilitiesChanged()
 {
 	SaveConfig();
 
+#if NEXUSLINK_WITH_SERVER
 	// MultiTool 模式下 Capability 启用/禁用会影响工具列表，需广播通知
 	if (ToolsListMode == ENexusToolsListMode::MultiTool)
 	{
@@ -154,6 +155,7 @@ void UNexusLinkSettings::NotifyCapabilitiesChanged()
 			Server->BroadcastNotification(TEXT("notifications/tools/list_changed"));
 		}
 	}
+#endif // NEXUSLINK_WITH_SERVER
 }
 
 void UNexusLinkSettings::EnsureDefaultCapabilityMode()

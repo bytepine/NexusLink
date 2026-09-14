@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
+#include "NexusLinkBuildConfig.h"
 
 /**
  * Capability 注册记录 —— 注册期构建一次，运行期只读。
@@ -117,10 +118,10 @@ struct FNexusCapabilityAutoRegister
  * 要求 CapClass 有默认构造函数且继承自 FNexusCapability；
  * Capability 的 Out.Name 在全局必须唯一。宏传入 __FILE__ 供设置面板按源码目录分组。
  *
- * 主模块 Type 为 UncookedOnly，cooked 目标不编本模块。!WITH_EDITOR 下宏仍为空：
- * build_test Game 探针会临时改 Type=Runtime 编译这些 TU，须避免静态初始化分配。
+ * NexusLink 主模块 Type 为 Runtime：Development/DebugGame 下独立 Game / DedicatedServer
+ * 包同样编译并注册本宏；Shipping 下 NEXUSLINK_WITH_SERVER=0，宏为空。
  */
-#if WITH_EDITOR
+#if NEXUSLINK_WITH_SERVER
 #define REGISTER_MCP_CAPABILITY(CapClass) \
 	static FNexusCapabilityAutoRegister AutoRegisterCap_##CapClass( \
 		MakeShared<CapClass>(), TEXT(__FILE__) \

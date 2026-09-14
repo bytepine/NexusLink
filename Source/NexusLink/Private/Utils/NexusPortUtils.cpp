@@ -4,13 +4,6 @@
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 
-#if WITH_EDITOR
-#include "ISettingsModule.h"
-#include "Modules/ModuleManager.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#endif
-
 bool FNexusPortUtils::IsPortInUse(int32 Port)
 {
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
@@ -64,16 +57,3 @@ int32 FNexusPortUtils::FindAvailablePort(int32 StartPort, const TArray<int32>& E
 	}
 	return -1;
 }
-
-#if WITH_EDITOR
-
-void FNexusPortUtils::OpenSettingsPanel()
-{
-	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-	if (SettingsModule)
-	{
-		SettingsModule->ShowViewer(TEXT("Editor"), TEXT("Plugins"), TEXT("NexusLink"));
-	}
-}
-
-#endif // WITH_EDITOR

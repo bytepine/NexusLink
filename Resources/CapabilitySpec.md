@@ -63,7 +63,19 @@
 
 ### 2.1 唯一钩子（所有元数据集中填写）
 
-先按 §2.1.1 **选基类**，再 override 该基类要求的钩子。`FNexusActionCapability` / `FNexusMultiSectionCapability` 的 `Execute` 为 **final**，子类**禁止**再声明或实现 `Execute`。
+先按 §2.1.0 **选模块**，再按 §2.1.1 **选基类**（模块选定后基类范围自动收窄），最后 override 该基类要求的钩子。`FNexusActionCapability` / `FNexusMultiSectionCapability` 的 `Execute` 为 **final**，子类**禁止**再声明或实现 `Execute`。
+
+#### 2.1.0 模块选择（Runtime / Editor，从上到下命中即停）
+
+NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cooked Game/DS）与 `NexusLinkEditor`（`Type: Editor`，仅编辑器加载）。**基类即模块**——229 个既有 cap 均未手写 `GetHostScope()` override，宿主范围完全由基类继承决定，选错基类会导致 Game 相编译失败。
+
+| 命中条件 | 落地模块 | 落地目录 |
+|------|------|------|
+| 操作对象是 **PIE/Game world 里的活对象**（Actor、Widget、ASC、Niagara 组件、Lua VM），只用引擎运行时 API 与反射，不落盘 | `NexusLink`（Runtime） | `Source/NexusLink/Private/Capabilities/{Runtime,Lua/Runtime}/<域>/` |
+| 操作对象是**磁盘资产**，或需要 `UnrealEd` / `Kismet*` / `AssetTools` / `GEditor` / 编辑器事务 / 资产编译落盘 | `NexusLinkEditor`（Editor） | `Source/NexusLinkEditor/Private/Capabilities/<域>/` |
+| 两者都要 | 拆成两个 cap；确实无法拆时放 Editor 模块，并在描述里写明不支持独立 DS | 同上按拆分结果各自落位 |
+
+模块一旦选定，基类范围随之收窄为下表中对应的子集（Runtime 系 vs 其余）；两者不可跨选，`Plugins/NexusLink/scripts/audit_capability_params.py` 会校验基类与文件路径模块一致性，不符即 FAIL。
 
 #### 2.1.1 基类选择（从上到下命中即停）
 
@@ -78,7 +90,7 @@
 - `set_*_property` 走 `updates[]` → `FNexusCapability` 或 `FNexusRuntimeCapability`
 - 默认 `GetHostScope()=EditorOnly`；Runtime 基类会幂等补 `runtime` 分类标签
 - 插件门控 cap：`#if WITH_*` 包 class + `REGISTER_MCP_CAPABILITY`
-- **插件加载范围**：主模块 `Type: UncookedOnly`（Editor 二进制含 `-server`/`-game` 加载；cooked Game/Server 不编）；`REGISTER_MCP_CAPABILITY` / `REGISTER_MCP_TOOL` 在 `!WITH_EDITOR` 下编译为空——MCP 跑在 Editor / PIE / editor-hosted `-server`。平台门控须同时写 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）
+- **插件加载范围**：`NexusLink` 主模块 `Type: Runtime`（可进 cooked Game/DS），`NexusLinkEditor` 子模块 `Type: Editor`（仅编辑器二进制加载）；`REGISTER_MCP_CAPABILITY` / `REGISTER_MCP_TOOL` 由 `NEXUSLINK_WITH_SERVER`（`!UE_BUILD_SHIPPING`）门控——MCP 跑在 Editor / PIE / 非 Shipping 的独立 Game/DS。平台门控须同时写 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）
 
 `BuildDefinition` 中按需设置以下字段：
 
@@ -369,7 +381,7 @@ public:
 3. 逻辑下沉 Utils（≥2 调用点或单点 ≥3 行 `#if`）；资产只读字段优先 `FNexusAssetUtils`。
 4. `build_test`：兼容下限 `UE_4.26` 全量必过；日常冒烟 / 示例宿主默认 `UE_5.7`；触及引擎 API 时加 `UE_5.0`、`UE_5.6`；`audit_capability_naming.py` PASS。
 
-**可选插件**：`WITH_GAS` / `WITH_NIAGARA` / `WITH_UNLUA` / `WITH_STATETREE` / `WITH_MVVM` 等整 `.cpp` 文件守卫 + `Build.cs` 探测（工程 `Plugins`、`{Project}/../Engine/Plugins`、以及 UBT `EngineDirectory` 下的 `Plugins`；真实工程 `.uproject` 显式 `Enabled: false` 则关）。宿主 `build_test` 编整个 `Nexus.uproject`：`NexusEditor` 与宿主一样按**该引擎**磁盘探测编进可选 cap；`Nexus` Game 目标 `WITH_EDITOR=0`，UncookedOnly 的 NexusLink 不进 cooked Game。文件内仍禁止裸 `NX_UE_AT_LEAST`。
+**可选插件**：`WITH_GAS` / `WITH_NIAGARA` / `WITH_UNLUA` / `WITH_STATETREE` / `WITH_MVVM` 等整 `.cpp` 文件守卫 + `Build.cs` 探测（工程 `Plugins`、`{Project}/../Engine/Plugins`、以及 UBT `EngineDirectory` 下的 `Plugins`；真实工程 `.uproject` 显式 `Enabled: false` 则关）。宿主 `build_test` 编整个 `Nexus.uproject`：`NexusEditor` 与宿主一样按**该引擎**磁盘探测编进可选 cap；`Nexus` Game 目标 `WITH_EDITOR=0`，`Type: Editor` 的 `NexusLinkEditor` 不进 cooked Game，`Type: Runtime` 的 `NexusLink` 会进。文件内仍禁止裸 `NX_UE_AT_LEAST`。
 
 **已登记宏（节选，完整列表以 `NexusVersionCompat.h` 为准）**
 

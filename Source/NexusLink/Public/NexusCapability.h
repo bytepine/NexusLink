@@ -139,22 +139,19 @@ struct FNexusCapabilityDefinition
 
 /**
  * Capability 在宿主上的可见范围。
- * 默认 EditorOnly：新增资产/编辑器 cap 无需关心 DS/Game 过滤。
- * Runtime 目录下的 cap 继承 FNexusRuntimeCapability（或 MultiSection 变体）即可自动可见。
+ * 默认 EditorOnly：新增资产/编辑器 cap 无需关心 DS/Game 过滤，随 NexusLinkEditor 模块编译。
+ * Runtime 目录下的 cap 继承 FNexusRuntimeCapability（或 MultiSection 变体），
+ * 随 NexusLink（Runtime 模块）编译，独立 Game / DedicatedServer 包也可发现/调用。
  *
- * 注意：主模块 Type 为 UncookedOnly，cooked Game/Server 不编本模块。
- * REGISTER_MCP_CAPABILITY 在 !WITH_EDITOR 下仍编译为空——build_test Game 探针会把 Type
- * 临时改回 Runtime，避免静态初始化期崩溃。
- * 因此本枚举区分的是「编辑器进程内的宿主形态」（Editor 主进程 / PIE / editor-hosted DS），
- * 而非独立打包的 Game / Server 进程。
- * 若将来要让独立 DS / Game 包连接 MCP，必须同时回退 REGISTER_MCP_CAPABILITY 与
- * REGISTER_MCP_TOOL 的 WITH_EDITOR 条件编译，并将模块 Type 改回 Runtime，否则注册表为空、tools/list 返回空列表。
+ * 新增 cap 前先判模块归属，见 CapabilitySpec.md §2.1.0；本枚举值必须与源码落地的模块一致
+ * （EditorOnly → Source/NexusLinkEditor，Runtime → Source/NexusLink），
+ * audit_capability_params.py 会校验二者一致性。
  */
 enum class ENexusCapabilityHostScope : uint8
 {
-	/** 仅完整 Editor 宿主（非 Dedicated Server）。 */
+	/** 仅完整 Editor 宿主（非 Dedicated Server）；实现位于 NexusLinkEditor 模块。 */
 	EditorOnly,
-	/** Editor 主进程 + PIE + editor-hosted Dedicated Server 均可发现/调用。 */
+	/** Editor 主进程 + PIE + 独立 Game / DedicatedServer 均可发现/调用；实现位于 NexusLink 模块。 */
 	Runtime,
 };
 

@@ -18,27 +18,19 @@
 #include "Components/MultiLineEditableText.h"
 #include "UObject/UObjectIterator.h"
 
-#if WITH_EDITOR
-#include "Editor.h"
-#endif
-
 // --- 获取活跃 World ---
 
 UWorld* FNexusRuntimeUtils::GetActiveWorld()
 {
-#if WITH_EDITOR
-	// PIE 优先
-	if (GEditor)
+	// PIE 优先；不依赖 GEditor（Runtime 模块不链接 UnrealEd），WorldContexts 里的
+	// WorldType 本身已足够判断是否处于 PIE 会话。
+	for (const FWorldContext& Ctx : GEngine->GetWorldContexts())
 	{
-		for (const FWorldContext& Ctx : GEngine->GetWorldContexts())
+		if (Ctx.WorldType == EWorldType::PIE && Ctx.World())
 		{
-			if (Ctx.WorldType == EWorldType::PIE && Ctx.World())
-			{
-				return Ctx.World();
-			}
+			return Ctx.World();
 		}
 	}
-#endif
 	// 回退到第一个 Game/Editor World
 	for (const FWorldContext& Ctx : GEngine->GetWorldContexts())
 	{

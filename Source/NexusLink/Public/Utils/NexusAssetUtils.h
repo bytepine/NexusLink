@@ -15,8 +15,6 @@
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusPackageLedger.h"
 
-class UWidgetBlueprint;
-class UWidget;
 class UTexture2D;
 class UAnimSequence;
 class UStaticMesh;
@@ -146,11 +144,8 @@ public:
 	 */
 	static UClass* FindClassWithUPrefix(const FString& ClassName);
 
-	/** 通用 Widget Blueprint 加载（含双路径 fallback）。 */
-	static UWidgetBlueprint* LoadWidgetBP(const FString& AssetPath);
-
-	/** 在 WidgetBlueprint 的 WidgetTree 上按名字查找子 Widget。 */
-	static UWidget* FindWidgetByName(UWidgetBlueprint* WBP, const FString& WidgetName);
+	// LoadWidgetBP / FindWidgetByName 需要 UMGEditor（UWidgetBlueprint 是编辑器专属类），
+	// 已迁移到 FNexusAssetEditorUtils（见 NexusAssetEditorUtils.h）。
 
 	/**
 	 * 保存新创建的资产到磁盘。
@@ -161,35 +156,9 @@ public:
 	 */
 	static bool SaveNewAsset(UPackage* Package, UObject* Asset, const FString& PackagePath);
 
-	/**
-	 * save_asset 安全落盘：解析主资产后复用 SaveNewAsset。
-	 * Live Coding 开启时仅 MarkPackageDirty，bOutDeferred=true。
-	 * @return 是否已成功写入磁盘
-	 */
-	static bool SaveDirtyPackage(UPackage* Package, const FString& PackagePath, const FString& AssetPathHint, bool& bOutDeferred, FString& OutNote);
-
-	/**
-	 * 编译蓝图并保存到磁盘（Blueprint / AnimBlueprint / WidgetBlueprint 通用）。
-	 * @param Package    资产所在的 UPackage
-	 * @param Blueprint  要编译的蓝图
-	 * @param PackagePath 包路径
-	 * @return 是否保存成功
-	 */
-	static bool CompileAndSaveBlueprint(UPackage* Package, class UBlueprint* Blueprint, const FString& PackagePath);
-
-	/**
-	 * manage 收尾：按需编译（UBlueprint）与可选落盘。由 FNexusCapability::Run 在 Execute 成功后调用。
-	 * 编译失败或包未找到时写入 compileError/saveError，不设 FatalError。
-	 * @param AssetPath    入参 assetPath
-	 * @param bCompile     是否编译（仅 BP/ABP/WBP 应传 true）
-	 * @param bSaveToDisk  是否落盘
-	 * @param OutTop       写入 compiled/saved/hasCompilerErrors 等顶层字段
-	 */
-	static void ApplyManageFinalize(
-		const FString& AssetPath,
-		bool bCompile,
-		bool bSaveToDisk,
-		TSharedPtr<FJsonObject>& OutTop);
+	// SaveDirtyPackage / CompileAndSaveBlueprint / ApplyManageFinalize 需要 Kismet2 / LiveCoding
+	// 检测（UnrealEd），已迁移到 FNexusAssetEditorUtils；ApplyManageFinalize 的调用方经
+	// FNexusEditorServices::ApplyManageFinalize 钩子转发（见 NexusEditorServices.h）。
 
 	/**
 	 * 从 UObject 的外部包取包路径字符串（常用于写入 JSON 的 "path" 字段）。
@@ -258,19 +227,8 @@ public:
 		return CreatePlainAsset(AssetPath, TAsset::StaticClass(), Flags, bNotifyAndSave);
 	}
 
-	/**
-	 * 蓝图类资产创建：DoesPackageExist → 解析父类 → CreatePackage → CreateBlueprint → NotifyCompileAndSave。
-	 * ExpectedBase 非空时父类须为其子类。BlueprintClass/GeneratedClass 默认 UBlueprint / UBlueprintGeneratedClass。
-	 * 仅 WITH_EDITOR 可用；非编辑器返回 Error。
-	 * bCompileAndSave=false 时只创建不编译落盘，供调用方补节点后再 NotifyCompileAndSave。
-	 */
-	static FAssetCreateOutcome CreateBlueprintAsset(
-		const FString& AssetPath,
-		const FString& ParentClassPath,
-		UClass* ExpectedBase,
-		UClass* BlueprintClass = nullptr,
-		UClass* GeneratedClass = nullptr,
-		bool bCompileAndSave = true);
+	// CreateBlueprintAsset 需要 Kismet2::CreateBlueprint（UnrealEd），已迁移到
+	// FNexusAssetEditorUtils::CreateBlueprintAsset（返回类型改为 FNexusAssetEditorUtils::FAssetCreateOutcome）。
 
 	/**
 	 * 新资产创建 finalize 三件套（P2 消除）：MarkPackageDirty + AssetCreated + SaveNewAsset。
@@ -281,14 +239,8 @@ public:
 	 */
 	static bool NotifyAndSaveCreated(UPackage* Package, UObject* Asset, const FString& PackagePath);
 
-	/**
-	 * 新蓝图创建 finalize 三件套（P2 消除）：MarkPackageDirty + AssetCreated + CompileAndSaveBlueprint。
-	 * 等价于：
-	 *   Package->MarkPackageDirty();
-	 *   FAssetRegistryModule::AssetCreated(Blueprint);
-	 *   FNexusAssetUtils::CompileAndSaveBlueprint(Package, Blueprint, PackagePath);
-	 */
-	static bool NotifyCompileAndSave(UPackage* Package, class UBlueprint* Blueprint, const FString& PackagePath);
+	// NotifyCompileAndSave 依赖 CompileAndSaveBlueprint（已迁移），随其一起迁移到
+	// FNexusAssetEditorUtils::NotifyCompileAndSave。
 
 	/**
 	 * 写入 blueprintType（normal/interface/…）与 implementedInterfaces[]（空数组也写出）。

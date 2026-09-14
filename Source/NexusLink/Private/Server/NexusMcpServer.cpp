@@ -1,9 +1,16 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Server/NexusMcpServer.h"
+
+// Shipping 不带 MCP 服务器：HTTP/HTTPServer/WebSocketNetworking 模块未链接，本 TU 整体裁掉。
+// NexusMcpServer.h 已 #include "NexusLinkBuildConfig.h" 并自我裁剪；UBT 要求 .cpp 首个 include
+// 必须是同名头，故不再在此单独 #include "NexusLinkBuildConfig.h"。
+#if NEXUSLINK_WITH_SERVER
+
 #include "Server/NexusMcpDispatcher.h"
 #include "NexusLinkSettings.h"
 #include "Utils/NexusVersionCompat.h"
+#include "Misc/CommandLine.h"
 #include "HttpServerModule.h"
 #include "IHttpRouter.h"
 #include "HttpServerRequest.h"
@@ -35,6 +42,19 @@ static const FString StreamEndpoint  = TEXT("/stream");
 static const FString StatusEndpoint  = TEXT("/status");
 static const FString McpSessionHeader = TEXT("Mcp-Session-Id");
 static const int32 MaxMcpBodyBytes = 1024 * 1024;
+
+/**
+ * 是否绑定 0.0.0.0：Preferences 勾选 或 命令行 -NexusAllowLan
+ *（独立 Game / DedicatedServer 包没有 Preferences UI，只能靠命令行覆盖）。
+ */
+static bool IsLanBindRequested()
+{
+	if (UNexusLinkSettings::Get() && UNexusLinkSettings::Get()->bAllowLanBind)
+	{
+		return true;
+	}
+	return FParse::Param(FCommandLine::Get(), TEXT("NexusAllowLan"));
+}
 
 /** UTF-8 字节流转 FString（HTTP body 与 WS 帧共用，避免两处重复 FUTF8ToTCHAR 样板）。 */
 static FString Utf8BytesToString(const uint8* Data, int32 NumBytes)
@@ -172,7 +192,7 @@ bool FNexusMcpServer::Start(int32 InMcpPort, int32 InWsPort)
 	WebSocketPort = InWsPort;
 	AuthToken     = FNexusMcpAuth::LoadOrCreateMachineToken();
 
-	const bool bLan = UNexusLinkSettings::Get() && UNexusLinkSettings::Get()->bAllowLanBind;
+	const bool bLan = IsLanBindRequested();
 	const TCHAR* BindAddr = bLan ? TEXT("0.0.0.0") : TEXT("127.0.0.1");
 	ApplyHttpBindAddress(McpPort, BindAddr);
 
@@ -519,7 +539,7 @@ bool FNexusMcpServer::StartWebSocket()
 	OnConnected.BindRaw(this, &FNexusMcpServer::OnWebSocketClientConnected);
 
 	const int32 WsPort = WebSocketPort;
-	const bool bLan = UNexusLinkSettings::Get() && UNexusLinkSettings::Get()->bAllowLanBind;
+	const bool bLan = IsLanBindRequested();
 
 #if NX_UE_HAS_WS_BIND_ADDRESS
 	const FString WsBindAddress = bLan ? TEXT("0.0.0.0") : TEXT("127.0.0.1");
@@ -770,3 +790,5 @@ void FNexusMcpServer::BroadcastNotification(const FString& Method)
 	UE_LOG(LogNexusMcpServer, Log, TEXT("已广播通知 '%s' 到 %d 个 WebSocket 客户端"),
 		*Method, ConnectedClients.Num());
 }
+
+#endif // NEXUSLINK_WITH_SERVER

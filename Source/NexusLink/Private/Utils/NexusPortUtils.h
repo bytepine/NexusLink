@@ -17,8 +17,6 @@ public:
 	/** 从 StartPort 开始向上查找第一个未被占用的端口；ExcludePorts 额外排除；返 -1 表示全部被占。 */
 	static int32 FindAvailablePort(int32 StartPort, const TArray<int32>& ExcludePorts = TArray<int32>(), int32 MaxAttempts = 100);
 
-#if WITH_EDITOR
-	/** 打开 NexusLink 设置面板。 */
-	static void OpenSettingsPanel();
-#endif
+	// 打开设置面板改走 FNexusEditorServices::OpenSettingsPanel 钩子（见 NexusEditorServices.h），
+	// 真实实现（ISettingsModule，需要 Settings 编辑器模块）在 NexusPortUtilsImpl.cpp。
 };

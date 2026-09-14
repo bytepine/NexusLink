@@ -4,7 +4,7 @@
 
 An MCP integration plugin for Unreal Engine that exposes UE project context to AI tools via the MCP protocol.
 
-> Supports UE 4.26 and all later versions (including UE5). Module `Type: UncookedOnly`; **MCP runs in the Editor binary (including `-server`/`-game`)** and is not compiled into cooked Game/Server packages.
+> Supports UE 4.26 and all later versions (including UE5). Split into two modules: `NexusLink` (`Type: Runtime`; standalone Development/DebugGame Game/DS builds can host MCP too) + `NexusLinkEditor` (`Type: Editor`; editor UI). **Shipping builds strip the MCP server entirely at compile time.**
 
 > **Upgrading from 1.x**: 2.0 enables auth by default and switches all MCP/AI-facing text to English. Upgrade the plugin and clients to 2.x together — see [usage-guide §0](docs/usage-guide.md#0-从-1x-升级到-20) (Chinese).
 

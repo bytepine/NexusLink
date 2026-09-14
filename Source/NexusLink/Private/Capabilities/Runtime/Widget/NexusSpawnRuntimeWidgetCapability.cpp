@@ -2,8 +2,6 @@
 
 #include "Capabilities/Runtime/Widget/NexusSpawnRuntimeWidgetCapability.h"
 
-#if WITH_EDITOR
-
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
@@ -11,9 +9,14 @@
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 #include "Blueprint/UserWidget.h"
-#include "WidgetBlueprint.h"
 #include "GameFramework/PlayerController.h"
 #include "NexusMcpTool.h"
+#if WITH_EDITOR
+// UWidgetBlueprint（UMGEditor 模块）本类不可直接依赖：NexusLink 是 Runtime 模块，不链接任何
+// UnrealEd 系模块。GeneratedClass 是基类 UBlueprint 的成员，用 UBlueprint 即可拿到，
+// 不需要 UWidgetBlueprint 的具体类型。
+#include "Engine/Blueprint.h"
+#endif
 
 void FSpawnRuntimeWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -59,14 +62,17 @@ FCapabilityResult FSpawnRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonO
 		if (!PC) { Entry->SetStringField(TEXT("error"), TEXT("PlayerController not found")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 
 		UClass* WidgetClass = nullptr;
-		UWidgetBlueprint* WBP = LoadObject<UWidgetBlueprint>(nullptr, *AssetPath);
-		if (!WBP) WBP = LoadObject<UWidgetBlueprint>(nullptr, *(AssetPath + TEXT(".") + FPaths::GetBaseFilename(AssetPath)));
+#if WITH_EDITOR
+		UBlueprint* WBP = LoadObject<UBlueprint>(nullptr, *AssetPath);
+		if (!WBP) WBP = LoadObject<UBlueprint>(nullptr, *(AssetPath + TEXT(".") + FPaths::GetBaseFilename(AssetPath)));
 		if (WBP && WBP->GeneratedClass)
 		{
 			WidgetClass = WBP->GeneratedClass;
 		}
 		else
+#endif
 		{
+			// cooked 包（Game/DS）资产只剩 WidgetBlueprintGeneratedClass，直接按 UClass 加载
 			WidgetClass = LoadObject<UClass>(nullptr, *AssetPath);
 		}
 
@@ -91,5 +97,3 @@ FCapabilityResult FSpawnRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonO
 }
 
 REGISTER_MCP_CAPABILITY(FSpawnRuntimeWidgetCapability)
-
-#endif // WITH_EDITOR

@@ -1,17 +1,10 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Utils/NexusPackageLedger.h"
-#include "Utils/NexusVersionCompat.h"
 #include "NexusLinkSettings.h"
+#include "NexusEditorServices.h"
 #include "UObject/Package.h"
-#include "UObject/UObjectHash.h"
 #include "HAL/PlatformMemory.h"
-
-#if WITH_EDITOR
-#include "PackageTools.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "Editor.h"
-#endif
 
 FNexusPackageLedger& FNexusPackageLedger::Get()
 {
@@ -85,89 +78,16 @@ FNexusPackageLedger::FFlushStats FNexusPackageLedger::UnloadPackagesSafely(
 {
 	FFlushStats Stats;
 
-#if !WITH_EDITOR
-	return Stats;
-#else
 	if (!IsInGameThread())
 	{
 		return Stats;
 	}
 
-	TArray<UPackage*> ToUnload;
-	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor ? GEditor->GetEditorSubsystem<UAssetEditorSubsystem>() : nullptr;
-
-	for (UPackage* Pkg : Packages)
-	{
-		if (!Pkg)
-		{
-			continue;
-		}
-
-		if (bSkipDirty && Pkg->IsDirty())
-		{
-			// 保护未保存修改
-			Stats.Skipped++;
-			if (OutSkipped) OutSkipped->Add(Pkg);
-			continue;
-		}
-
-		if (Pkg->HasAnyPackageFlags(PKG_CompiledIn) || Pkg == GetTransientPackage())
-		{
-			// 引擎内建 / transient 包，不应由本机制处理
-			Stats.Skipped++;
-			if (OutSkipped) OutSkipped->Add(Pkg);
-			continue;
-		}
-
-		bool bHasOpenEditor = false;
-		if (AssetEditorSubsystem)
-		{
-			UObject* PrimaryAsset = nullptr;
-			ForEachObjectWithPackage(Pkg, [&PrimaryAsset](UObject* Obj)
-			{
-				if (Obj && !Obj->IsA(UPackage::StaticClass()) && Obj->HasAllFlags(RF_Public | RF_Standalone))
-				{
-					PrimaryAsset = Obj;
-					return false;
-				}
-				return true;
-			});
-			if (PrimaryAsset && AssetEditorSubsystem->FindEditorsForAsset(PrimaryAsset).Num() > 0)
-			{
-				bHasOpenEditor = true;
-			}
-		}
-		if (bHasOpenEditor)
-		{
-			// 用户正在编辑该资产
-			Stats.Skipped++;
-			if (OutSkipped) OutSkipped->Add(Pkg);
-			continue;
-		}
-
-		ToUnload.Add(Pkg);
-	}
-
-	if (ToUnload.Num() > 0)
-	{
-		FText ErrorMsg;
-#if NX_UE_HAS_UNLOAD_PACKAGES_DIRTY_FLAG
-		UPackageTools::UnloadPackages(ToUnload, ErrorMsg, /*bUnloadDirtyPackages=*/!bSkipDirty);
-#else
-		// UE 4.26/4.27：UnloadPackages 无 bUnloadDirtyPackages 参数；本函数已在上面按 bSkipDirty
-		// 过滤掉 dirty 包，ToUnload 中若仍含 dirty 包（bSkipDirty=false 强制卸载）则交由引擎默认行为处理。
-		UPackageTools::UnloadPackages(ToUnload, ErrorMsg);
-#endif
-		Stats.Unloaded = ToUnload.Num();
-	}
-
-	if (bGC && Stats.Unloaded > 0)
-	{
-		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-	}
-
+	// 实际卸载逻辑（UPackageTools / AssetEditorSubsystem / GEditor）经钩子转发到 NexusLinkEditor；
+	// 未安装钩子（独立 Game/DS 包）时钩子默认实现直接返回 0，等价于「无编辑器可卸载」。
+	Stats.Unloaded = FNexusEditorServices::FlushPackages(Packages, bSkipDirty, bGC, OutSkipped);
+	Stats.Skipped = OutSkipped ? OutSkipped->Num() : FMath::Max(0, Packages.Num() - Stats.Unloaded);
 	return Stats;
-#endif
 }
 
 FNexusPackageLedger::FFlushStats FNexusPackageLedger::Flush(bool bGC)

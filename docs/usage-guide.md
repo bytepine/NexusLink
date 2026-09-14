@@ -143,7 +143,7 @@ Rider / Desktop 远程列表每行：`192.168.1.30:45000` 或 `192.168.1.30:4500
 2. **Edit → Plugins → Developer → NexusLink** — 启用插件
 3. 重启编辑器
 
-主模块 `Type` 为 **UncookedOnly**（Editor 二进制含 `-server`/`-game` 会加载；cooked Game/Server 不编）——**MCP 跑在 Editor / PIE / editor-hosted `-server`**。
+插件拆两个模块：`NexusLink`（**`Type: Runtime`**）+ `NexusLinkEditor`（**`Type: Editor`**，仅编辑器二进制加载）——**MCP 跑在 Editor / PIE / editor-hosted `-server`，以及 Development/DebugGame 的独立 Game/DS**（`-EnableNexusMcp` 开，可选 `-NexusMcpPort=` / `-NexusWsPort=` / `-NexusAllowLan`）；Shipping 编译期整体剔除服务器。
 
 ### 2.2 启用 MCP 服务器（必做）
 

@@ -20,9 +20,6 @@
 #include "Utils/NexusHostUtils.h"
 #include "Utils/NexusEditorTransaction.h"
 #include "Utils/NexusDangerousCapGate.h"
-#if WITH_EDITOR
-#include "ScopedTransaction.h"
-#endif
 
 // ── 进程内 redundant_call LRU 表 ──────────────────────────────────────────────
 struct FNexusCallCapabilityRedundantEntry
@@ -399,13 +396,11 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 		int32 SuccessCount = 0;
 		int32 FailureCount = 0;
 
-#if WITH_EDITOR
-		TUniquePtr<FScopedTransaction> BatchTx;
+		TUniquePtr<INexusTransactionHandle> BatchTx;
 		if (CallsArr->Num() >= 2)
 		{
 			BatchTx = FNexusEditorTransaction::Begin(TEXT("call_capability.calls"));
 		}
-#endif
 
 		for (const TSharedPtr<FJsonValue>& V : *CallsArr)
 		{
@@ -529,7 +524,6 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			BatchResults.Add(MakeShared<FJsonValueObject>(Item));
 		}
 
-#if WITH_EDITOR
 		bool bRevertedBatch = false;
 		if (BatchTx.IsValid())
 		{
@@ -540,7 +534,6 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			}
 			BatchTx.Reset();
 		}
-#endif
 
 		TSharedPtr<FJsonObject> Top = MakeShared<FJsonObject>();
 		Top->SetArrayField(TEXT("results"), BatchResults);
@@ -549,13 +542,9 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 		if (FailureCount > 0)
 		{
 			Top->SetStringField(TEXT("undoNote"),
-#if WITH_EDITOR
 				bRevertedBatch
 					? TEXT("Batch memory edits rolled back (saveToDisk/compile stay outside the transaction).")
 					: TEXT("Batch had failures; memory rollback skipped (no outstanding editor transaction).")
-#else
-				TEXT("Batch memory edits rolled back (saveToDisk/compile stay outside the transaction).")
-#endif
 			);
 		}
 		Result.StructuredContent = Top;

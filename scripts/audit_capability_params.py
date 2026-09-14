@@ -22,7 +22,18 @@ from schema_extract import extract_object_chain_after  # noqa: E402
 from schema_catalog import load_capability_schemas, schema_top_prop_names  # noqa: E402
 
 PLUGIN_ROOT = _SCRIPTS_DIR.parent
-DEFAULT_CAP_ROOT = PLUGIN_ROOT / "Source" / "NexusLink" / "Private" / "Capabilities"
+# 双模块拆分：Runtime 系 cap 在 NexusLink，其余在 NexusLinkEditor
+NEXUSLINK_CAP_ROOT = PLUGIN_ROOT / "Source" / "NexusLink" / "Private" / "Capabilities"
+NEXUSLINKEDITOR_CAP_ROOT = PLUGIN_ROOT / "Source" / "NexusLinkEditor" / "Private" / "Capabilities"
+DEFAULT_CAP_ROOTS = [NEXUSLINK_CAP_ROOT, NEXUSLINKEDITOR_CAP_ROOT]
+
+# §2.1.0 选模块判定：基类即模块。Runtime 系基类必须落在 Source/NexusLink/，其余落在
+# Source/NexusLinkEditor/（Resources/CapabilitySpec.md §2.1.0 / .cursor/rules/nexuslink-capability.mdc）。
+RUNTIME_BASE_CLASSES = {"FNexusRuntimeCapability", "FNexusRuntimeMultiSectionCapability"}
+EDITOR_BASE_CLASSES = {"FNexusCapability", "FNexusActionCapability", "FNexusMultiSectionCapability"}
+RE_CLASS_BASE = re.compile(
+    r"class\s+(?:\w+_API\s+)?(F\w+Capability\w*)\s*:\s*public\s+(F\w+Capability\w*)"
+)
 
 RE_NAME = re.compile(r'Out\.Name\s*=\s*TEXT\("([^"]+)"\)')
 RE_PROP_NAME = re.compile(r'\.(?:Prop|Required)\s*\(\s*TEXT\("([^"]+)"\)')
@@ -278,13 +289,44 @@ def audit_tree(cap_root: Path) -> list[Violation]:
     return errs
 
 
+def audit_module_placement(cap_root: Path, expect_runtime: bool) -> list[Violation]:
+    """§2.1.0 选模块：基类即模块。逐个 .h 解析基类，校验它落在正确的模块根下。"""
+    if not cap_root.is_dir():
+        return []
+    errs: list[Violation] = []
+    for path in sorted(cap_root.rglob("*.h")):
+        text = path.read_text(encoding="utf-8-sig", errors="replace")
+        m = RE_CLASS_BASE.search(text)
+        if not m:
+            continue
+        cls_name, base_name = m.group(1), m.group(2)
+        if base_name in RUNTIME_BASE_CLASSES:
+            is_runtime_base = True
+        elif base_name in EDITOR_BASE_CLASSES:
+            is_runtime_base = False
+        else:
+            # 基类本身不是已知的 5 个基类之一（如某 cap 继承自另一具体 cap），跳过判定
+            continue
+        if is_runtime_base != expect_runtime:
+            want = "Source/NexusLink/" if is_runtime_base else "Source/NexusLinkEditor/"
+            errs.append(
+                Violation(
+                    path,
+                    cls_name,
+                    "module_placement",
+                    f"基类 '{base_name}' 应落在 {want}，实际位于 {cap_root}",
+                )
+            )
+    return errs
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--cap-root",
         type=Path,
-        default=DEFAULT_CAP_ROOT,
-        help="Capabilities 根目录（默认同插件 Source/.../Capabilities）",
+        default=None,
+        help="单个 Capabilities 根目录（默认扫描 NexusLink + NexusLinkEditor 两个模块根）",
     )
     args = parser.parse_args(argv)
 
@@ -295,8 +337,17 @@ def main(argv: list[str] | None = None) -> int:
         if chk.returncode != 0:
             return chk.returncode
 
-    cap_root = args.cap_root.resolve()
-    errors = audit_tree(cap_root)
+    cap_roots = [args.cap_root.resolve()] if args.cap_root else DEFAULT_CAP_ROOTS
+    errors: list[Violation] = []
+    n_files = 0
+    for cap_root in cap_roots:
+        errors.extend(audit_tree(cap_root))
+        n_files += len(list(cap_root.rglob("*.cpp"))) if cap_root.is_dir() else 0
+
+    # §2.1.0 模块归属：单根扫描（--cap-root 手动指定）时不知道该模块的期望基类族，跳过
+    if not args.cap_root:
+        errors.extend(audit_module_placement(NEXUSLINK_CAP_ROOT, expect_runtime=True))
+        errors.extend(audit_module_placement(NEXUSLINKEDITOR_CAP_ROOT, expect_runtime=False))
 
     for e in errors:
         print(f"[error] {e.format(PLUGIN_ROOT)}", file=sys.stderr)
@@ -305,7 +356,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[audit_params] FAIL ({len(errors)} error(s))", file=sys.stderr)
         return 1
 
-    n_files = len(list(cap_root.rglob("*.cpp"))) if cap_root.is_dir() else 0
     print(f"[audit_params] PASS ({n_files} cpp files scanned)", file=sys.stdout)
     return 0
 

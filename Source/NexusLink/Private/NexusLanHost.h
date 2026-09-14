@@ -11,7 +11,7 @@ struct FNexusLanIPv4
 	FString Address;
 };
 
-struct FNexusLanHost
+struct NEXUSLINK_API FNexusLanHost
 {
 	/** C++14 下 constexpr 数组 ODR-use 需类外定义；Clang/ld（Mac）会报 Undefined symbols，MSVC 常放过。 */
 	static const TCHAR* Loopback;

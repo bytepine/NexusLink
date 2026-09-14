@@ -2,7 +2,7 @@
 
 #pragma once
 
-// Utils 层：Editor（内存管理）
+// Utils 层：内存管理（记账为 runtime 安全；UnloadPackagesSafely 实际卸载经 FNexusEditorServices::FlushPackages 钩子转发）
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 

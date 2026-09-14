@@ -1,13 +1,14 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "NexusLink.h"
+#include "NexusLinkBuildConfig.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Server/NexusMcpServer.h"
 #include "NexusLinkSettings.h"
 #include "NexusMcpToolRegistry.h"
 #include "Utils/NexusPortUtils.h"
 #include "NexusInstanceRegistry.h"
-#include "Editor/NexusLogCapture.h"
+#include "Log/NexusLogCapture.h"
 #include "Containers/Ticker.h"
 #include "Misc/App.h"
 #include "Misc/CommandLine.h"
@@ -16,16 +17,7 @@
 #include "Misc/Parse.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/IConsoleManager.h"
-#if WITH_EDITOR
-#include "Editor/NexusEditorStatusBar.h"
-#include "Editor/NexusLinkSettingsCustomization.h"
-#include "NexusUpdateChecker.h"
-#include "PropertyEditorModule.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#endif
-
-#define LOCTEXT_NAMESPACE "FNexusLinkModule"
+#include "NexusEditorServices.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusLink, Log, All);
 
@@ -69,19 +61,13 @@ static bool IsMcpServerRequestedAtStartup()
 
 void FNexusLinkModule::StartupModule()
 {
-#if WITH_EDITOR
-	// 尽早注册日志捕获器，确保不遗漏启动阶段的日志（-server 无 UI 也要捕获）
+	// 尽早注册日志捕获器，确保不遗漏启动阶段的日志（Game/DS -server 无 UI 也要捕获）
 	LogCapture = MakeUnique<FNexusLogCapture>();
 	LogCapture->Register();
 
-	// 设置面板仅完整 Editor UI；Editor.exe -server/-game 时 GIsEditor=false
-	if (GIsEditor)
-	{
-		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyModule.RegisterCustomClassLayout(
-			UNexusLinkSettings::StaticClass()->GetFName(),
-			FOnGetDetailCustomizationInstance::CreateStatic(&FNexusLinkSettingsCustomization::MakeInstance));
-	}
+	// PropertyEditor 设置面板定制、状态栏、更新检查通知均为编辑器专属 UI，
+	// 由 NexusLinkEditor 模块的 FNexusLinkEditorModule::StartupModule 负责注册
+	// （该模块链接本模块后启动，安装 FNexusEditorServices 钩子）。
 
 #if NX_UE_HAS_POST_ENGINE_INIT_ACCESSOR
 	FCoreDelegates::GetOnPostEngineInit().AddRaw(this, &FNexusLinkModule::OnPostEngineInit);
@@ -91,7 +77,7 @@ void FNexusLinkModule::StartupModule()
 
 	EnableMcpConsoleCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("NexusLink.EnableMcp"),
-		HELP_TEXT("会话级启停 MCP（不写 Preferences）。用法: NexusLink.EnableMcp 1|0；无参数打印当前状态。仅编辑器有效。"),
+		HELP_TEXT("会话级启停 MCP（不写 Preferences）。用法: NexusLink.EnableMcp 1|0；无参数打印当前状态。"),
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FNexusLinkModule::HandleEnableMcpCommand),
 		ECVF_Default);
 
@@ -102,12 +88,10 @@ void FNexusLinkModule::StartupModule()
 	{
 		UE_LOG(LogNexusLink, Warning, TEXT("%s"), *Warning);
 	}
-#endif // WITH_EDITOR
 }
 
 void FNexusLinkModule::ShutdownModule()
 {
-#if WITH_EDITOR
 #if NX_UE_HAS_POST_ENGINE_INIT_ACCESSOR
 	FCoreDelegates::GetOnPostEngineInit().RemoveAll(this);
 #else
@@ -120,12 +104,6 @@ void FNexusLinkModule::ShutdownModule()
 		EnableMcpConsoleCommand = nullptr;
 	}
 
-	if (GIsEditor && FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
-	{
-		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyModule.UnregisterCustomClassLayout(UNexusLinkSettings::StaticClass()->GetFName());
-	}
-
 	StopMcpServer();
 
 	// 注销日志捕获器（析构时自动调用，此处显式提前注销）
@@ -134,16 +112,12 @@ void FNexusLinkModule::ShutdownModule()
 		LogCapture->Unregister();
 		LogCapture.Reset();
 	}
-#endif // WITH_EDITOR
 }
 
 void FNexusLinkModule::StopMcpServer()
 {
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		FNexusEditorStatusBar::Unregister();
-	}
+	// 状态栏是编辑器专属 UI，通过钩子反向通知（Runtime 无钩子实现时为安全空操作）
+	FNexusEditorServices::NotifyServerStopped();
 
 	// McpPort/WsPort 为 Transient；编辑器退出时 UObject 可能已卸载，勿访问 Settings
 	if (!IsEngineExitRequested())
@@ -155,8 +129,8 @@ void FNexusLinkModule::StopMcpServer()
 			// 本机 token 文件仍在，设置面板继续展示以便跨机复制
 		}
 	}
-#endif
 
+#if NEXUSLINK_WITH_SERVER
 	if (McpServer.IsValid())
 	{
 		FNexusInstanceRegistry::Unregister();
@@ -165,10 +139,17 @@ void FNexusLinkModule::StopMcpServer()
 		McpServer.Reset();
 		UE_LOG(LogNexusLink, Log, TEXT("NexusLink MCP 服务器已停止"));
 	}
+#endif
 }
 
 bool FNexusLinkModule::TryStartMcpServer()
 {
+#if !NEXUSLINK_WITH_SERVER
+	// Shipping 编译期剔除服务器（NEXUSLINK_WITH_SERVER=0）：HTTP/HTTPServer/WebSocketNetworking
+	// 未链接，FNexusMcpServer 仅剩前向声明，此路径直接短路，不触碰该不完整类型。
+	UE_LOG(LogNexusLink, Warning, TEXT("Shipping 配置不带 MCP 服务器（编译期剔除）"));
+	return false;
+#else
 	if (McpServer.IsValid() && McpServer->IsRunning())
 	{
 		return true;
@@ -234,9 +215,8 @@ bool FNexusLinkModule::TryStartMcpServer()
 		McpServer->GetAuthToken()
 	);
 
-#if WITH_EDITOR
 	// 将实际运行端口回写到设置对象，供设置面板只读显示（Transient，不持久化）
-	// 状态栏仅完整 Editor UI；-server 无主窗口
+	// 状态栏是编辑器专属 UI，通过钩子反向通知（Runtime 无钩子实现时为安全空操作）
 	CallNextTick([this, ActualMcpPort, ActualWsPort]()
 	{
 		if (IsEngineExitRequested())
@@ -252,14 +232,11 @@ bool FNexusLinkModule::TryStartMcpServer()
 				MutableSettings->McpAuthToken = McpServer->GetAuthToken();
 			}
 		}
-		if (GIsEditor)
-		{
-			FNexusEditorStatusBar::Register(ActualMcpPort, ActualWsPort);
-		}
+		FNexusEditorServices::NotifyServerStarted(ActualMcpPort, ActualWsPort);
 	});
-#endif
 
 	return true;
+#endif // NEXUSLINK_WITH_SERVER
 }
 
 void FNexusLinkModule::OnPostEngineInit()
@@ -289,47 +266,16 @@ void FNexusLinkModule::OnPostEngineInit()
 		TryStartMcpServer();
 	}
 
-#if WITH_EDITOR
-	// 每会话启动时静默检查一次版本更新；仅当有新版本时弹出非阻塞通知（需 Editor UI）
-	static bool bVersionChecked = false;
-	if (GIsEditor && !bVersionChecked && Settings->bCheckUpdateOnStartup)
-	{
-		bVersionChecked = true;
-		CallNextTick([]()
-		{
-			FNexusUpdateChecker::CheckAsync(
-				[](bool bHasUpdate, FString LatestVersion, FString CurrentVersion)
-				{
-					if (!bHasUpdate)
-					{
-						return;
-					}
-					FNotificationInfo Info(FText::FromString(
-						FString::Printf(TEXT("NexusLink 有新版本可用：%s（当前 %s）"),
-							*LatestVersion, *CurrentVersion)));
-					Info.bFireAndForget = true;
-					Info.ExpireDuration = 10.0f;
-					Info.bUseSuccessFailIcons = true;
-					Info.bUseLargeFont = false;
-					Info.Hyperlink = FSimpleDelegate::CreateLambda([]()
-					{
-						FPlatformProcess::LaunchURL(
-							TEXT("https://github.com/bytepine/NexusLink/releases"),
-							nullptr, nullptr);
-					});
-					Info.HyperlinkText = LOCTEXT("UpdateNotifLink", "查看 Releases 页面");
-					FSlateNotificationManager::Get().AddNotification(Info)
-						->SetCompletionState(SNotificationItem::CS_Success);
-				}
-			);
-		});
-	}
-#endif
+	// 版本更新检查通知是编辑器专属 UI，由 FNexusLinkEditorModule::OnPostEngineInit 负责
 }
 
 void FNexusLinkModule::HandleEnableMcpCommand(const TArray<FString>& Args)
 {
+#if NEXUSLINK_WITH_SERVER
 	const bool bRunning = McpServer.IsValid() && McpServer->IsRunning();
+#else
+	const bool bRunning = false;
+#endif
 	if (Args.Num() < 1)
 	{
 		UE_LOG(LogNexusLink, Log, TEXT("NexusLink.EnableMcp 当前=%s（用法: NexusLink.EnableMcp 1|0）"),
@@ -371,7 +317,5 @@ void FNexusLinkModule::HandleEnableMcpCommand(const TArray<FString>& Args)
 		UE_LOG(LogNexusLink, Log, TEXT("NexusLink.EnableMcp: MCP 已关闭（会话级，未写 Preferences）"));
 	}
 }
-
-#undef LOCTEXT_NAMESPACE
 
 IMPLEMENT_MODULE(FNexusLinkModule, NexusLink)
