@@ -63,9 +63,7 @@ FCapabilityResult FCreateAssetIKRigCapability::Execute(const TSharedPtr<FJsonObj
 
 		FNexusAssetUtils::NotifyAndSaveCreated(IKRig->GetOutermost(), IKRig, AssetPath);
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),      IKRig->GetName());
-		Entry->SetStringField(TEXT("path"),      IKRig->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(IKRig);
 		Entry->SetStringField(TEXT("assetType"), TEXT("IKRigDefinition"));
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

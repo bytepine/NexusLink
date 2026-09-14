@@ -8,6 +8,8 @@
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 
+class UObject;
+
 /**
  * Capability Execute() 返回壳统一助手。
  *
@@ -58,4 +60,14 @@ public:
 	/** 向 OutEntries 追加一个 entry（确保 Entry 有效才追加）。 */
 	static void AddEntry(TArray<TSharedPtr<FJsonValue>>& OutEntries,
 	                     const TSharedPtr<FJsonObject>& Entry);
+
+	/**
+	 * 构造只含 name/path 的创建结果 entry（create_asset_* 尾巴助手）。
+	 * 调用方可继续 SetStringField 追加字段（如 skeleton/parentClass）后自行 AddEntry。
+	 * Obj 为 nullptr 时返回带 error 字段的 entry。
+	 */
+	static TSharedPtr<FJsonObject> MakeCreatedEntry(const UObject* Obj);
+
+	/** 追加一条只含 name/path 的创建结果 entry（等价 MakeCreatedEntry + AddEntry）。 */
+	static void AddCreatedEntry(TArray<TSharedPtr<FJsonValue>>& OutEntries, const UObject* Obj);
 };

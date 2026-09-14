@@ -143,6 +143,126 @@ static FString NormalizeAssetTypeShortcut(const FString& TypeLower)
 	return TypeLower;
 }
 
+/**
+ * search_asset 同构类型分支的表项：Aliases 命中（或 assetType=all）即按 Class 查 AssetRegistry，
+ * 写入 OutType。仅覆盖「class 加 path filter 到 AddEntry」这一形状；blueprint（排除 WidgetBlueprint）、
+ * blendspace（按子类分派输出类型）、GAS 三项（按 ParentClass tag 过滤蓝图）等雪花分支保留为 Execute() 内显式代码。
+ */
+struct FNexusSearchTypeEntry final
+{
+	const TCHAR*    OutType;
+	UClass*         Class;
+	bool            bRecursiveClasses;
+	TArray<FString> Aliases;
+};
+
+// ── 三张表：分别对应 Execute() 中 blueprint 之后、blendspace 之后、GAS 之后三段同构分支 ──
+// StaticClass() 在静态初始化期不可调用，故用函数内 static + 立即调用 lambda 延迟到首次调用。
+
+static const TArray<FNexusSearchTypeEntry>& GetSearchTypeTableEarly()
+{
+	static const TArray<FNexusSearchTypeEntry> Table = []
+	{
+		TArray<FNexusSearchTypeEntry> T;
+#if WITH_EDITOR
+		T.Add({ TEXT("Widget"), UWidgetBlueprint::StaticClass(), false, { TEXT("widget") } });
+#endif
+		T.Add({ TEXT("Struct"), UUserDefinedStruct::StaticClass(), false, { TEXT("struct") } });
+		T.Add({ TEXT("DataTable"), UDataTable::StaticClass(), true, { TEXT("datatable") } });
+		T.Add({ TEXT("DataAsset"), UDataAsset::StaticClass(), true, { TEXT("dataasset") } });
+		T.Add({ TEXT("Material"), UMaterial::StaticClass(), false, { TEXT("material") } });
+		T.Add({ TEXT("MaterialInstance"), UMaterialInstanceConstant::StaticClass(), true, { TEXT("materialinstance") } });
+		T.Add({ TEXT("AnimMontage"), UAnimMontage::StaticClass(), true, { TEXT("animmontage"), TEXT("anim_montage") } });
+		T.Add({ TEXT("AnimBlueprint"), UAnimBlueprint::StaticClass(), true, { TEXT("animblueprint"), TEXT("anim_blueprint") } });
+		T.Add({ TEXT("BehaviorTree"), UBehaviorTree::StaticClass(), true, { TEXT("behaviortree"), TEXT("behavior_tree") } });
+		T.Add({ TEXT("Blackboard"), UBlackboardData::StaticClass(), true, { TEXT("blackboard") } });
+		T.Add({ TEXT("Texture2D"), UTexture2D::StaticClass(), true, { TEXT("texture2d"), TEXT("texture") } });
+		T.Add({ TEXT("StaticMesh"), UStaticMesh::StaticClass(), true, { TEXT("staticmesh"), TEXT("static_mesh") } });
+		T.Add({ TEXT("SkeletalMesh"), USkeletalMesh::StaticClass(), true, { TEXT("skeletalmesh"), TEXT("skeletal_mesh") } });
+		T.Add({ TEXT("AnimSequence"), UAnimSequence::StaticClass(), true, { TEXT("animsequence"), TEXT("anim_sequence") } });
+		return T;
+	}();
+	return Table;
+}
+
+static const TArray<FNexusSearchTypeEntry>& GetSearchTypeTableMid()
+{
+	static const TArray<FNexusSearchTypeEntry> Table = []
+	{
+		TArray<FNexusSearchTypeEntry> T;
+		T.Add({ TEXT("Skeleton"), USkeleton::StaticClass(), true, { TEXT("skeleton") } });
+		T.Add({ TEXT("SoundWave"), USoundWave::StaticClass(), true, { TEXT("soundwave"), TEXT("sound_wave") } });
+		T.Add({ TEXT("SoundCue"), USoundCue::StaticClass(), true, { TEXT("soundcue"), TEXT("sound_cue") } });
+		T.Add({ TEXT("CurveFloat"), UCurveFloat::StaticClass(), true, { TEXT("curvefloat"), TEXT("curve_float"), TEXT("curve") } });
+		T.Add({ TEXT("CurveVector"), UCurveVector::StaticClass(), true, { TEXT("curvevector"), TEXT("curve_vector") } });
+		T.Add({ TEXT("CurveLinearColor"), UCurveLinearColor::StaticClass(), true, { TEXT("curvelinearcolor"), TEXT("curve_linear_color") } });
+		T.Add({ TEXT("CurveTable"), UCurveTable::StaticClass(), true, { TEXT("curvetable"), TEXT("curve_table") } });
+		T.Add({ TEXT("UserDefinedEnum"), UUserDefinedEnum::StaticClass(), true, { TEXT("userdefinedelnum"), TEXT("enum"), TEXT("user_defined_enum") } });
+		T.Add({ TEXT("AnimComposite"), UAnimComposite::StaticClass(), true, { TEXT("animcomposite"), TEXT("anim_composite") } });
+		T.Add({ TEXT("PhysicalMaterial"), UPhysicalMaterial::StaticClass(), true, { TEXT("physicalmaterial"), TEXT("physical_material") } });
+		T.Add({ TEXT("TextureRenderTarget2D"), UTextureRenderTarget2D::StaticClass(), true, { TEXT("rendertarget"), TEXT("render_target"), TEXT("texturerendertarget2d") } });
+		T.Add({ TEXT("SoundClass"), USoundClass::StaticClass(), true, { TEXT("soundclass"), TEXT("sound_class") } });
+		T.Add({ TEXT("SoundAttenuation"), USoundAttenuation::StaticClass(), true, { TEXT("soundattenuation"), TEXT("sound_attenuation") } });
+		T.Add({ TEXT("SoundConcurrency"), USoundConcurrency::StaticClass(), true, { TEXT("soundconcurrency"), TEXT("sound_concurrency") } });
+		T.Add({ TEXT("SoundSubmix"), USoundSubmix::StaticClass(), true, { TEXT("soundsubmix"), TEXT("sound_submix") } });
+		T.Add({ TEXT("World"), UWorld::StaticClass(), true, { TEXT("world"), TEXT("level"), TEXT("map") } });
+#if WITH_NIAGARA
+		T.Add({ TEXT("NiagaraSystem"), UNiagaraSystem::StaticClass(), true, { TEXT("niagarasystem"), TEXT("niagara_system") } });
+#endif
+#if WITH_STATETREE
+		T.Add({ TEXT("StateTree"), UStateTree::StaticClass(), true, { TEXT("statetree"), TEXT("state_tree") } });
+#endif
+#if WITH_METASOUND
+		T.Add({ TEXT("MetaSoundSource"), UMetaSoundSource::StaticClass(), true, { TEXT("metasoundsource"), TEXT("meta_sound_source"), TEXT("metasound") } });
+#if NX_UE_HAS_METASOUND_PATCH
+		T.Add({ TEXT("MetaSoundPatch"), UMetaSoundPatch::StaticClass(), true, { TEXT("metasoundpatch"), TEXT("meta_sound_patch") } });
+#endif
+#endif
+#if WITH_PCG
+		T.Add({ TEXT("PCGGraph"), UPCGGraph::StaticClass(), true, { TEXT("pcggraph"), TEXT("pcg_graph"), TEXT("pcg") } });
+#endif
+#if WITH_POSE_SEARCH
+		T.Add({ TEXT("PoseSearchDatabase"), UPoseSearchDatabase::StaticClass(), true, { TEXT("posesearchdatabase"), TEXT("pose_search_database"), TEXT("posesearch") } });
+		T.Add({ TEXT("PoseSearchSchema"), UPoseSearchSchema::StaticClass(), true, { TEXT("posesearchschema"), TEXT("pose_search_schema") } });
+#endif
+		return T;
+	}();
+	return Table;
+}
+
+static const TArray<FNexusSearchTypeEntry>& GetSearchTypeTableLate()
+{
+	static const TArray<FNexusSearchTypeEntry> Table = []
+	{
+		TArray<FNexusSearchTypeEntry> T;
+#if NX_UE_HAS_DATA_LAYER_ASSET
+		T.Add({ TEXT("DataLayerAsset"), UDataLayerAsset::StaticClass(), true, { TEXT("datalayerasset"), TEXT("data_layer_asset"), TEXT("datalayer") } });
+#endif
+		return T;
+	}();
+	return Table;
+}
+
+/** TypeLower 是否命中内置 shortcut（blueprint/blendspace/GAS 三项等雪花 + 三张同构表）；用于 UClass 动态回退前的判定。 */
+static bool IsKnownSearchAssetType(const FString& TypeLower)
+{
+	if (TypeLower == TEXT("blueprint")) return true;
+	if (TypeLower == TEXT("blendspace") || TypeLower == TEXT("blend_space")) return true;
+#if WITH_GAS
+	if (TypeLower == TEXT("gameplayability") || TypeLower == TEXT("gameplay_ability")) return true;
+	if (TypeLower == TEXT("gameplayeffect") || TypeLower == TEXT("gameplay_effect")) return true;
+	if (TypeLower == TEXT("attributeset") || TypeLower == TEXT("attribute_set")) return true;
+#endif
+	for (const TArray<FNexusSearchTypeEntry>* Table : { &GetSearchTypeTableEarly(), &GetSearchTypeTableMid(), &GetSearchTypeTableLate() })
+	{
+		for (const FNexusSearchTypeEntry& Entry : *Table)
+		{
+			if (Entry.Aliases.Contains(TypeLower)) return true;
+		}
+	}
+	return false;
+}
+
 void FSearchAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("search_asset");
@@ -231,6 +351,21 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 
 		const bool bIsAll = (TypeLower == TEXT("all"));
 
+		/** 表驱动分支执行：命中 Aliases（或 assetType=all）时按 Entry.Class 查 AssetRegistry 写入 AddEntry。 */
+		auto RunTypeEntry = [&](const FNexusSearchTypeEntry& Entry)
+		{
+			if (!Entry.Class) return;
+			if (!bIsAll && !Entry.Aliases.Contains(TypeLower)) return;
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, Entry.Class);
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = Entry.bRecursiveClasses;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, Entry.OutType);
+		};
+
 		if (bIsAll || TypeLower == TEXT("blueprint"))
 		{
 			FARFilter Filter;
@@ -247,171 +382,10 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			}
 		}
 
-#if WITH_EDITOR
-		if (bIsAll || TypeLower == TEXT("widget"))
+		// widget..animsequence：同构分支表驱动
+		for (const FNexusSearchTypeEntry& Entry : GetSearchTypeTableEarly())
 		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UWidgetBlueprint::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("Widget"));
-		}
-#endif
-
-		if (bIsAll || TypeLower == TEXT("struct"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UUserDefinedStruct::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("Struct"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("datatable"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UDataTable::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("DataTable"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("dataasset"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UDataAsset::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("DataAsset"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("material"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UMaterial::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("Material"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("materialinstance"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UMaterialInstanceConstant::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("MaterialInstance"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("animmontage") || TypeLower == TEXT("anim_montage"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UAnimMontage::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("AnimMontage"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("animblueprint") || TypeLower == TEXT("anim_blueprint"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UAnimBlueprint::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("AnimBlueprint"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("behaviortree") || TypeLower == TEXT("behavior_tree"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UBehaviorTree::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("BehaviorTree"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("blackboard"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UBlackboardData::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("Blackboard"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("texture2d") || TypeLower == TEXT("texture"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UTexture2D::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("Texture2D"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("staticmesh") || TypeLower == TEXT("static_mesh"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UStaticMesh::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("StaticMesh"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("skeletalmesh") || TypeLower == TEXT("skeletal_mesh"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, USkeletalMesh::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("SkeletalMesh"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("animsequence") || TypeLower == TEXT("anim_sequence"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UAnimSequence::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("AnimSequence"));
+			RunTypeEntry(Entry);
 		}
 
 		if (bIsAll || TypeLower == TEXT("blendspace") || TypeLower == TEXT("blend_space"))
@@ -430,291 +404,11 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			}
 		}
 
-		if (bIsAll || TypeLower == TEXT("skeleton"))
+		// skeleton..posesearchschema：同构分支表驱动（含可选模块守卫）
+		for (const FNexusSearchTypeEntry& Entry : GetSearchTypeTableMid())
 		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, USkeleton::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("Skeleton"));
+			RunTypeEntry(Entry);
 		}
-
-		if (bIsAll || TypeLower == TEXT("soundwave") || TypeLower == TEXT("sound_wave"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, USoundWave::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("SoundWave"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("soundcue") || TypeLower == TEXT("sound_cue"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, USoundCue::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("SoundCue"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("curvefloat") || TypeLower == TEXT("curve_float") || TypeLower == TEXT("curve"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UCurveFloat::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("CurveFloat"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("curvevector") || TypeLower == TEXT("curve_vector"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UCurveVector::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("CurveVector"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("curvelinearcolor") || TypeLower == TEXT("curve_linear_color"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UCurveLinearColor::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("CurveLinearColor"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("curvetable") || TypeLower == TEXT("curve_table"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UCurveTable::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("CurveTable"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("userdefinedelnum") || TypeLower == TEXT("enum") || TypeLower == TEXT("user_defined_enum"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UUserDefinedEnum::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("UserDefinedEnum"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("animcomposite") || TypeLower == TEXT("anim_composite"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UAnimComposite::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("AnimComposite"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("physicalmaterial") || TypeLower == TEXT("physical_material"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UPhysicalMaterial::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("PhysicalMaterial"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("rendertarget") || TypeLower == TEXT("render_target") || TypeLower == TEXT("texturerendertarget2d"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UTextureRenderTarget2D::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("TextureRenderTarget2D"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("soundclass") || TypeLower == TEXT("sound_class"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, USoundClass::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("SoundClass"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("soundattenuation") || TypeLower == TEXT("sound_attenuation"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, USoundAttenuation::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("SoundAttenuation"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("soundconcurrency") || TypeLower == TEXT("sound_concurrency"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, USoundConcurrency::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("SoundConcurrency"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("soundsubmix") || TypeLower == TEXT("sound_submix"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, USoundSubmix::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("SoundSubmix"));
-		}
-
-		if (bIsAll || TypeLower == TEXT("world") || TypeLower == TEXT("level") || TypeLower == TEXT("map"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UWorld::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("World"));
-		}
-
-#if WITH_NIAGARA
-		if (bIsAll || TypeLower == TEXT("niagarasystem") || TypeLower == TEXT("niagara_system"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UNiagaraSystem::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("NiagaraSystem"));
-		}
-#endif
-
-#if WITH_STATETREE
-		if (bIsAll || TypeLower == TEXT("statetree") || TypeLower == TEXT("state_tree"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UStateTree::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("StateTree"));
-		}
-#endif
-
-#if WITH_METASOUND
-		if (bIsAll || TypeLower == TEXT("metasoundsource") || TypeLower == TEXT("meta_sound_source") || TypeLower == TEXT("metasound"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UMetaSoundSource::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("MetaSoundSource"));
-		}
-#if NX_UE_HAS_METASOUND_PATCH
-		if (bIsAll || TypeLower == TEXT("metasoundpatch") || TypeLower == TEXT("meta_sound_patch"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UMetaSoundPatch::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("MetaSoundPatch"));
-		}
-#endif // NX_UE_HAS_METASOUND_PATCH
-#endif // WITH_METASOUND
-
-#if WITH_PCG
-		if (bIsAll || TypeLower == TEXT("pcggraph") || TypeLower == TEXT("pcg_graph") || TypeLower == TEXT("pcg"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UPCGGraph::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("PCGGraph"));
-		}
-#endif
-
-#if WITH_POSE_SEARCH
-		if (bIsAll || TypeLower == TEXT("posesearchdatabase") || TypeLower == TEXT("pose_search_database") || TypeLower == TEXT("posesearch"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UPoseSearchDatabase::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("PoseSearchDatabase"));
-		}
-		if (bIsAll || TypeLower == TEXT("posesearchschema") || TypeLower == TEXT("pose_search_schema"))
-		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UPoseSearchSchema::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("PoseSearchSchema"));
-		}
-#endif
 
 #if WITH_GAS
 		auto AddGasBlueprintEntries = [&](const TCHAR* ParentSubstr, const TCHAR* OutType)
@@ -749,75 +443,13 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		}
 #endif
 
-#if NX_UE_HAS_DATA_LAYER_ASSET
-		if (bIsAll || TypeLower == TEXT("datalayerasset") || TypeLower == TEXT("data_layer_asset") || TypeLower == TEXT("datalayer"))
+		// datalayerasset：表驱动（唯一项，含可选模块守卫）
+		for (const FNexusSearchTypeEntry& Entry : GetSearchTypeTableLate())
 		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UDataLayerAsset::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets) AddEntry(A, TEXT("DataLayerAsset"));
+			RunTypeEntry(Entry);
 		}
-#endif
 
-		if (!bIsAll
-			&& TypeLower != TEXT("blueprint") && TypeLower != TEXT("widget")
-			&& TypeLower != TEXT("struct") && TypeLower != TEXT("datatable")
-			&& TypeLower != TEXT("dataasset") && TypeLower != TEXT("material")
-			&& TypeLower != TEXT("materialinstance")
-			&& TypeLower != TEXT("animmontage") && TypeLower != TEXT("anim_montage")
-			&& TypeLower != TEXT("animblueprint") && TypeLower != TEXT("anim_blueprint")
-			&& TypeLower != TEXT("behaviortree") && TypeLower != TEXT("behavior_tree")
-			&& TypeLower != TEXT("blackboard")
-			&& TypeLower != TEXT("texture2d") && TypeLower != TEXT("texture")
-			&& TypeLower != TEXT("staticmesh") && TypeLower != TEXT("static_mesh")
-			&& TypeLower != TEXT("skeletalmesh") && TypeLower != TEXT("skeletal_mesh")
-			&& TypeLower != TEXT("animsequence") && TypeLower != TEXT("anim_sequence")
-			&& TypeLower != TEXT("skeleton")
-			&& TypeLower != TEXT("soundwave") && TypeLower != TEXT("sound_wave")
-			&& TypeLower != TEXT("soundcue") && TypeLower != TEXT("sound_cue")
-			&& TypeLower != TEXT("curvefloat") && TypeLower != TEXT("curve_float") && TypeLower != TEXT("curve")
-			&& TypeLower != TEXT("curvevector") && TypeLower != TEXT("curve_vector")
-			&& TypeLower != TEXT("curvelinearcolor") && TypeLower != TEXT("curve_linear_color")
-			&& TypeLower != TEXT("curvetable") && TypeLower != TEXT("curve_table")
-			&& TypeLower != TEXT("userdefinedelnum") && TypeLower != TEXT("enum") && TypeLower != TEXT("user_defined_enum")
-			&& TypeLower != TEXT("animcomposite") && TypeLower != TEXT("anim_composite")
-			&& TypeLower != TEXT("physicalmaterial") && TypeLower != TEXT("physical_material")
-			&& TypeLower != TEXT("rendertarget") && TypeLower != TEXT("render_target") && TypeLower != TEXT("texturerendertarget2d")
-			&& TypeLower != TEXT("soundclass") && TypeLower != TEXT("sound_class")
-			&& TypeLower != TEXT("soundattenuation") && TypeLower != TEXT("sound_attenuation")
-			&& TypeLower != TEXT("soundconcurrency") && TypeLower != TEXT("sound_concurrency")
-			&& TypeLower != TEXT("soundsubmix") && TypeLower != TEXT("sound_submix")
-			&& TypeLower != TEXT("world") && TypeLower != TEXT("level") && TypeLower != TEXT("map")
-#if WITH_NIAGARA
-			&& TypeLower != TEXT("niagarasystem") && TypeLower != TEXT("niagara_system")
-#endif
-#if WITH_STATETREE
-			&& TypeLower != TEXT("statetree") && TypeLower != TEXT("state_tree")
-#endif
-#if WITH_METASOUND
-			&& TypeLower != TEXT("metasoundsource") && TypeLower != TEXT("meta_sound_source") && TypeLower != TEXT("metasound")
-			&& TypeLower != TEXT("metasoundpatch") && TypeLower != TEXT("meta_sound_patch")
-#endif
-#if WITH_PCG
-			&& TypeLower != TEXT("pcggraph") && TypeLower != TEXT("pcg_graph") && TypeLower != TEXT("pcg")
-#endif
-#if WITH_POSE_SEARCH
-			&& TypeLower != TEXT("posesearchdatabase") && TypeLower != TEXT("pose_search_database") && TypeLower != TEXT("posesearch")
-			&& TypeLower != TEXT("posesearchschema") && TypeLower != TEXT("pose_search_schema")
-#endif
-#if WITH_GAS
-			&& TypeLower != TEXT("gameplayability") && TypeLower != TEXT("gameplay_ability")
-			&& TypeLower != TEXT("gameplayeffect") && TypeLower != TEXT("gameplay_effect")
-			&& TypeLower != TEXT("attributeset") && TypeLower != TEXT("attribute_set")
-#endif
-#if NX_UE_HAS_DATA_LAYER_ASSET
-			&& TypeLower != TEXT("datalayerasset") && TypeLower != TEXT("data_layer_asset") && TypeLower != TEXT("datalayer")
-#endif
-			)
+		if (!bIsAll && !IsKnownSearchAssetType(TypeLower))
 		{
 	#if NX_UE_HAS_FIND_FIRST_OBJECT
 			UClass* TargetClass = FindFirstObject<UClass>(*AssetType, EFindFirstObjectOptions::NativeFirst);
@@ -930,4 +562,3 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 }
 
 REGISTER_MCP_CAPABILITY(FSearchAssetCapability)
-

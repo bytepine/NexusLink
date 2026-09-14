@@ -51,9 +51,7 @@ FCapabilityResult FCreateAssetSoundClassCapability::Execute(const TSharedPtr<FJs
 
 		FNexusAssetUtils::NotifyAndSaveCreated(SC->GetOutermost(), SC, AssetPath);
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),    SC->GetName());
-		Entry->SetStringField(TEXT("path"),    SC->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(SC);
 		Entry->SetNumberField(TEXT("volume"),  SC->Properties.Volume);
 		Entry->SetNumberField(TEXT("pitch"),   SC->Properties.Pitch);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

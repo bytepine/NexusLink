@@ -104,10 +104,7 @@ FCapabilityResult FCreateAssetIKRetargeterCapability::Execute(const TSharedPtr<F
 			}
 		}
 		FNexusAssetUtils::NotifyAndSaveCreated(R->GetOutermost(), R, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), R->GetName());
-		Entry->SetStringField(TEXT("path"), R->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, R);
 	});
 }
 

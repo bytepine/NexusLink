@@ -97,9 +97,7 @@ FCapabilityResult FCreateAssetPaperTileMapCapability::Execute(const TSharedPtr<F
 		}
 
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, Map, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Map->GetName());
-		Entry->SetStringField(TEXT("path"), Map->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(Map);
 		Entry->SetNumberField(TEXT("mapWidth"), Map->MapWidth);
 		Entry->SetNumberField(TEXT("mapHeight"), Map->MapHeight);
 		Entry->SetNumberField(TEXT("tileWidth"), Map->TileWidth);

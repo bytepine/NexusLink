@@ -31,6 +31,7 @@
 - chore(release): 发版不再额外打 `nexus-mcp-unreal-<ver>-ue5.8.zip`，Release 只上传通用 `EngineVersion: 4.26` 包
 - docs: NexusDesktop macOS 安装包文件名改为 `NexusDesktop-darwin-arm64.dmg`（仅 Apple Silicon，不再提供 Universal / Intel）
 - docs: 安装路径改为 `Plugins/NexusLink`（不再放 `Plugins/Developer/`）；L1 C++ Automation 迁到宿主工程独立插件 `NexusLinkTestSuite`，`build_unreal` 不再剔除 Tests 模块
+- refactor(plugin): 五项零行为变更结构重构——5 个单调用方 Utils 头（`NexusBehaviorTreeInspectUtils` / `NexusEditorContextUtils` / `NexusGameplayTagReferencerUtils` / `NexusSoundCueUtils` / `NexusCapabilityLegacyNames`）由 `Public/Utils` 降级到 `Private/Utils`；`HandleToolsCall` 改为复用 `EmitToolResult`（其签名改为返回 content 字节数供调用方记日志），消除与 MultiTool 路径重复的序列化分支；`NexusFeedback.cpp`（1383 行）按记录/报告职责拆分为 `NexusFeedback.cpp`（节流记录）与新增 `NexusFeedbackReport.cpp`（Issue 草稿/导出），共享助手收进新增 `NexusFeedbackInternal.h`；`FNexusCapabilityResultBuilder` 新增 `MakeCreatedEntry`/`AddCreatedEntry`，替换 53 个 `create_asset_*` cap 里重复的 name/path 结果尾巴；`search_asset` 里约 35 条同构的「按 Class 查 AssetRegistry」分支收进文件内 static 表，`blueprint`/`blendspace`/GAS 三项/UClass 回退等有特殊逻辑的分支保持原位置与顺序不变。全仓净减约 660 行，不改 MCP 协议输出、不改任何 cap 的 schema 字面量
 
 ## [2.0.2] - 2026-09-04
 

@@ -49,10 +49,7 @@ FCapabilityResult FCreateAssetMediaSourceCapability::Execute(const TSharedPtr<FJ
 			Source->SetFilePath(FilePath);
 		}
 		FNexusAssetUtils::NotifyAndSaveCreated(Source->GetOutermost(), Source, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Source->GetName());
-		Entry->SetStringField(TEXT("path"), Source->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, Source);
 	});
 }
 

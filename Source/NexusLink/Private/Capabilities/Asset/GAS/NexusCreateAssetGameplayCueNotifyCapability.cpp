@@ -61,10 +61,7 @@ FCapabilityResult FCreateAssetGameplayCueNotifyCapability::Execute(const TShared
 			Notify->GameplayCueName = FName(*CueName);
 		}
 		FNexusAssetUtils::NotifyAndSaveCreated(Notify->GetOutermost(), Notify, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Notify->GetName());
-		Entry->SetStringField(TEXT("path"), Notify->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, Notify);
 	});
 }
 

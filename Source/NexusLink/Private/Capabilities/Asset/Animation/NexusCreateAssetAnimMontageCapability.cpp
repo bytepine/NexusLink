@@ -31,8 +31,6 @@ FCapabilityResult FCreateAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-
 
 		const FString AssetPath    = A.Str(TEXT("assetPath"));
 		const FString SkeletonPath = A.Str(TEXT("skeletonPath"));
@@ -60,8 +58,7 @@ FCapabilityResult FCreateAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 		Montage->SetSkeleton(Skeleton);
 		FNexusAssetUtils::NotifyAndSaveCreated(Montage->GetOutermost(), Montage, AssetPath);
 
-		OutEntry->SetStringField(TEXT("name"),     Montage->GetName());
-		OutEntry->SetStringField(TEXT("path"),     Montage->GetPathName());
+		TSharedPtr<FJsonObject> OutEntry = FNexusCapabilityResultBuilder::MakeCreatedEntry(Montage);
 		OutEntry->SetStringField(TEXT("skeleton"), Skeleton->GetPathName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});

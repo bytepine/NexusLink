@@ -364,7 +364,7 @@ Create curve asset: CurveFloat/CurveVector/CurveLinearColor/CurveTable.
 
 ### `create_asset_data_layer`
 
-Create DataLayer asset (UDataLayerAsset, ≥UE5.1). type: Runtime or Editor.; use get_asset_ for readsdata_layer.
+Create DataLayer asset (UDataLayerAsset, ≥UE5.1). type: Runtime or Editor.
 
 **When to use**: Create World Partition DataLayer (≥UE5.1) with Runtime/Editor type and debug color
 
@@ -586,7 +586,7 @@ Create FileMediaSource. Optional mediaPath. Playback via interact_runtime_actor.
 
 ### `create_asset_meta_sound`
 
-Create MetaSound Source asset.; use get_asset_ for readsmeta_sound.
+Create MetaSound Source asset.
 
 **When to use**: Create new MetaSound Source asset
 
@@ -600,7 +600,7 @@ Create MetaSound Source asset.; use get_asset_ for readsmeta_sound.
 
 ### `create_asset_meta_sound_patch`
 
-Create MetaSound Patch (reusable subgraph, ≥UE5.1). Reads via get_asset_meta_sound.
+Create MetaSound Patch (reusable subgraph, ≥UE5.1).
 
 **When to use**: Create reusable MetaSound Patch subgraph (≥UE5.1)
 
@@ -684,7 +684,7 @@ Create PaperTileMap. optional mapWidth/Height, tileWidth/Height, tileSetPath.
 
 ### `create_asset_pcg_graph`
 
-Create PCG Graph asset.; use get_asset_ for readspcg_graph.
+Create PCG Graph asset.
 
 **When to use**: Create new PCG Graph asset (UE 5.4+)
 
@@ -1894,8 +1894,14 @@ Manage PCG Graph: add_node/remove_node/add_edge/remove_edge (UE 5.4+).
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | PCG Graph asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(add_node/remove_node/add_edge/remove_edge) |
-| `action` | `string (enum)` |  | Action enum: `add_node` / `remove_node` / `add_edge` / `remove_edge` |
+| `operations` | `object[]` | ★ | Operation list; item: `action`(add_node/remove_node/add_edge/remove_edge), `settingsClass`, `nodeId`, `fromNodeId`, `toNodeId`, `fromPin`, `toPin` |
+| `action` | `string (enum)` | ★ | Action enum: `add_node` / `remove_node` / `add_edge` / `remove_edge` |
+| `settingsClass` | `string` |  | UPCGSettings subclass name (add_node) |
+| `nodeId` | `string` |  | Node id (remove_node) |
+| `fromNodeId` | `string` |  | Edge source node id (add/remove_edge) |
+| `toNodeId` | `string` |  | Edge target node id (add/remove_edge) |
+| `fromPin` | `string` |  | Edge source pin name, default Out |
+| `toPin` | `string` |  | Edge target pin name, default In |
 | `saveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `get_asset_pcg_graph`, `create_asset_pcg_graph`

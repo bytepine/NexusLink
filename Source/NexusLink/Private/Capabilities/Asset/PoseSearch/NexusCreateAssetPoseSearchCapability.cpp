@@ -59,9 +59,7 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 				return;
 			}
 			UPoseSearchSchema* Schema = Cast<UPoseSearchSchema>(Created.Asset);
-			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("name"), Schema->GetName());
-			Entry->SetStringField(TEXT("path"), Schema->GetPathName());
+			TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(Schema);
 			Entry->SetStringField(TEXT("assetKind"), TEXT("Schema"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
@@ -93,9 +91,7 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 		}
 
 		FNexusAssetUtils::NotifyAndSaveCreated(DB->GetOutermost(), DB, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), DB->GetName());
-		Entry->SetStringField(TEXT("path"), DB->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(DB);
 		Entry->SetStringField(TEXT("assetKind"), TEXT("Database"));
 		if (DB->Schema) Entry->SetStringField(TEXT("schemaPath"), DB->Schema->GetPathName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

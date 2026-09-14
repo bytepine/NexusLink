@@ -49,10 +49,7 @@ FCapabilityResult FCreateAssetFoliageTypeCapability::Execute(const TSharedPtr<FJ
 			}
 		}
 		FNexusAssetUtils::NotifyAndSaveCreated(Type->GetOutermost(), Type, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Type->GetName());
-		Entry->SetStringField(TEXT("path"), Type->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, Type);
 	});
 }
 

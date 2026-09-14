@@ -37,10 +37,7 @@ FCapabilityResult FCreateAssetSoundCueCapability::Execute(const TSharedPtr<FJson
 			return;
 		}
 		USoundCue* Cue = Cast<USoundCue>(Created.Asset);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Cue->GetName());
-		Entry->SetStringField(TEXT("path"), Cue->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, Cue);
 	});
 }
 

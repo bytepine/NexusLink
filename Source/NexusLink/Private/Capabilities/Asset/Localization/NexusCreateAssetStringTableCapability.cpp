@@ -50,10 +50,7 @@ FCapabilityResult FCreateAssetStringTableCapability::Execute(const TSharedPtr<FJ
 			Table->GetMutableStringTable()->SetNamespace(Namespace);
 		}
 		FNexusAssetUtils::NotifyAndSaveCreated(Table->GetOutermost(), Table, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Table->GetName());
-		Entry->SetStringField(TEXT("path"), Table->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, Table);
 	});
 }
 

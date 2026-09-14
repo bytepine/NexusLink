@@ -57,10 +57,7 @@ FCapabilityResult FCreateAssetStructCapability::Execute(const TSharedPtr<FJsonOb
 
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewStruct, AssetPath);
 
-		Entry->SetStringField(TEXT("name"),   NewStruct->GetName());
-		Entry->SetStringField(TEXT("path"),   NewStruct->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
-	
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, NewStruct);
 	});
 }
 

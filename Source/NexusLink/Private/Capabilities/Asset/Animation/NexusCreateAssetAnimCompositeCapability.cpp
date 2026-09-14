@@ -55,9 +55,7 @@ FCapabilityResult FCreateAssetAnimCompositeCapability::Execute(const TSharedPtr<
 
 		FNexusAssetUtils::NotifyAndSaveCreated(Composite->GetOutermost(), Composite, AssetPath);
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),          Composite->GetName());
-		Entry->SetStringField(TEXT("path"),          Composite->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(Composite);
 		Entry->SetNumberField(TEXT("segmentCount"),  Composite->AnimationTrack.AnimSegments.Num());
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

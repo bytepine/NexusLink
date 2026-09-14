@@ -44,9 +44,7 @@ FCapabilityResult FCreateAssetFontCapability::Execute(const TSharedPtr<FJsonObje
 		}
 		Font->FontCacheType = EFontCacheType::Runtime;
 		FNexusAssetUtils::NotifyAndSaveCreated(Font->GetOutermost(), Font, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Font->GetName());
-		Entry->SetStringField(TEXT("path"), Font->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(Font);
 		Entry->SetStringField(TEXT("fontCacheType"), TEXT("Runtime"));
 		Entry->SetStringField(TEXT("note"), TEXT("Empty Font; glyphs need import or editor fill"));
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

@@ -50,9 +50,7 @@ FCapabilityResult FCreateAssetSoundConcurrencyCapability::Execute(const TSharedP
 
 		FNexusAssetUtils::NotifyAndSaveCreated(SC->GetOutermost(), SC, AssetPath);
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),     SC->GetName());
-		Entry->SetStringField(TEXT("path"),     SC->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(SC);
 		Entry->SetNumberField(TEXT("maxCount"), SC->Concurrency.MaxCount);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

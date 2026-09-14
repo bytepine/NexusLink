@@ -62,9 +62,7 @@ FCapabilityResult FCreateAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FNexusAssetUtils::NotifyCompileAndSave(AnimBP->GetOutermost(), AnimBP, AssetPath);
 
-		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		OutEntry->SetStringField(TEXT("name"),     AnimBP->GetName());
-		OutEntry->SetStringField(TEXT("path"),     AnimBP->GetPathName());
+		TSharedPtr<FJsonObject> OutEntry = FNexusCapabilityResultBuilder::MakeCreatedEntry(AnimBP);
 		OutEntry->SetStringField(TEXT("skeleton"), Skeleton->GetPathName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});

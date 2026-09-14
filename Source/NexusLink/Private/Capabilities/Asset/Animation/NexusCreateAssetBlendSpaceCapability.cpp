@@ -67,9 +67,7 @@ FCapabilityResult FCreateAssetBlendSpaceCapability::Execute(const TSharedPtr<FJs
 		}
 		FNexusAssetUtils::NotifyAndSaveCreated(BSRaw->GetOutermost(), BSRaw, AssetPath);
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),     BSRaw->GetName());
-		Entry->SetStringField(TEXT("path"),     BSRaw->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(BSRaw);
 		Entry->SetStringField(TEXT("assetType"), ActualType);
 		Entry->SetStringField(TEXT("skeleton"), Skeleton->GetPathName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

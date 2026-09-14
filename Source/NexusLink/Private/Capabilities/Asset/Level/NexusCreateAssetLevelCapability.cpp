@@ -52,9 +52,7 @@ FCapabilityResult FCreateAssetLevelCapability::Execute(const TSharedPtr<FJsonObj
 			RF_Public | RF_Standalone, nullptr, GWarn);
 		if (!NewWorld) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("WorldFactory Createfailed")); return; }
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewWorld, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), NewWorld->GetName());
-		Entry->SetStringField(TEXT("path"), NewWorld->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(NewWorld);
 		Entry->SetStringField(TEXT("assetType"), TEXT("World"));
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 #endif

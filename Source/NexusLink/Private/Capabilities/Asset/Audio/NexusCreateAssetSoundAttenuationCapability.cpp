@@ -53,9 +53,7 @@ FCapabilityResult FCreateAssetSoundAttenuationCapability::Execute(const TSharedP
 
 		FNexusAssetUtils::NotifyAndSaveCreated(SA->GetOutermost(), SA, AssetPath);
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),           SA->GetName());
-		Entry->SetStringField(TEXT("path"),           SA->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(SA);
 		Entry->SetNumberField(TEXT("innerRadius"),    SA->Attenuation.AttenuationShapeExtents.X);
 		Entry->SetNumberField(TEXT("falloffDistance"),SA->Attenuation.FalloffDistance);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

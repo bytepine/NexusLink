@@ -50,9 +50,7 @@ FCapabilityResult FCreateAssetControlRigCapability::Execute(const TSharedPtr<FJs
 			return;
 		}
 		UControlRigBlueprint* CRBp = Cast<UControlRigBlueprint>(Created.Asset);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),     CRBp->GetName());
-		Entry->SetStringField(TEXT("path"),     CRBp->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(CRBp);
 		Entry->SetStringField(TEXT("assetType"), TEXT("ControlRigBlueprint"));
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

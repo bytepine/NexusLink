@@ -61,9 +61,7 @@ FCapabilityResult FCreateAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 		}
 		UObject* NewAsset = Created.Asset;
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), NewAsset->GetName());
-		Entry->SetStringField(TEXT("path"), NewAsset->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(NewAsset);
 		Entry->SetStringField(TEXT("curveType"), CurveType);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

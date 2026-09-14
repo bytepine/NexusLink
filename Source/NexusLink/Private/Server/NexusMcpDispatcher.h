@@ -67,8 +67,11 @@ private:
 	void SendResult(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Result);
 	void SendError(const TSharedPtr<FJsonValue>& Id, int32 Code, const FString& Message);
 
-	/** 将 FNexusMcpToolResult 统一序列化并发送给客户端（供 MultiTool 模式复用）。 */
-	void EmitToolResult(const TSharedPtr<FJsonValue>& Id, const FNexusMcpToolResult& ToolResult);
+	/**
+	 * 将 FNexusMcpToolResult 统一序列化并发送给客户端（供 MultiTool 与 ToolRegistry 路径复用）。
+	 * @return content[0].text 的字节数（0 表示空 content，供调用方记日志）。
+	 */
+	int32 EmitToolResult(const TSharedPtr<FJsonValue>& Id, const FNexusMcpToolResult& ToolResult);
 
 	void HandleInitialize(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Params);
 	void HandleInitialized();

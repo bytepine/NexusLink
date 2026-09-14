@@ -56,9 +56,7 @@ FCapabilityResult FCreateAssetRenderTargetCapability::Execute(const TSharedPtr<F
 
 		FNexusAssetUtils::NotifyAndSaveCreated(RT->GetOutermost(), RT, AssetPath);
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),    RT->GetName());
-		Entry->SetStringField(TEXT("path"),    RT->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(RT);
 		Entry->SetNumberField(TEXT("sizeX"),   RT->SizeX);
 		Entry->SetNumberField(TEXT("sizeY"),   RT->SizeY);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

@@ -38,10 +38,7 @@ FCapabilityResult FCreateAssetSoundSubmixCapability::Execute(const TSharedPtr<FJ
 			return;
 		}
 		USoundSubmix* SM = Cast<USoundSubmix>(Created.Asset);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), SM->GetName());
-		Entry->SetStringField(TEXT("path"), SM->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, SM);
 	});
 }
 

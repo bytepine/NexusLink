@@ -47,9 +47,7 @@ FCapabilityResult FCreateAssetLevelSequenceCapability::Execute(const TSharedPtr<
 
 		FNexusAssetUtils::NotifyAndSaveCreated(LS->GetOutermost(), LS, AssetPath);
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), LS->GetName());
-		Entry->SetStringField(TEXT("path"), LS->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(LS);
 		Entry->SetStringField(TEXT("assetType"), TEXT("LevelSequence"));
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

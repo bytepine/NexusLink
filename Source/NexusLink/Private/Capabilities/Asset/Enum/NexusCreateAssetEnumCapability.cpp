@@ -63,9 +63,7 @@ FCapabilityResult FCreateAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewEnum, AssetPath);
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),         NewEnum->GetName());
-		Entry->SetStringField(TEXT("path"),         NewEnum->GetPathName());
+		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(NewEnum);
 		Entry->SetNumberField(TEXT("entryCount"),   NewEnum->NumEnums() - 1); // 减去内部 _MAX
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 #endif // WITH_EDITOR

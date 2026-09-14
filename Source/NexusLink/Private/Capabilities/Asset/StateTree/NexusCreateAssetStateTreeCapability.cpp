@@ -55,10 +55,7 @@ FCapabilityResult FCreateAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 		UStateTreeEditorData* Ed = NewObject<UStateTreeEditorData>(ST, NAME_None, RF_Transactional);
 		ST->EditorData = Ed;
 		FNexusAssetUtils::NotifyAndSaveCreated(ST->GetOutermost(), ST, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), ST->GetName());
-		Entry->SetStringField(TEXT("path"), ST->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, ST);
 #endif
 	});
 }

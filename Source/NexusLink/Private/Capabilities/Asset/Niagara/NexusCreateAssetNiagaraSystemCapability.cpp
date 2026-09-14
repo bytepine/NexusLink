@@ -90,10 +90,7 @@ FCapabilityResult FCreateAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 			return;
 		}
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, Sys, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Sys->GetName());
-		Entry->SetStringField(TEXT("path"), Sys->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, Sys);
 #endif
 	});
 }

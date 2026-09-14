@@ -47,10 +47,7 @@ FCapabilityResult FCreateAssetPhysicalMaterialCapability::Execute(const TSharedP
 		if (Arguments->HasField(TEXT("friction"))) PM->Friction = static_cast<float>(A.Num(TEXT("friction")));
 		if (Arguments->HasField(TEXT("restitution"))) PM->Restitution = static_cast<float>(A.Num(TEXT("restitution")));
 		FNexusAssetUtils::NotifyAndSaveCreated(PM->GetOutermost(), PM, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), PM->GetName());
-		Entry->SetStringField(TEXT("path"), PM->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, PM);
 	});
 }
 

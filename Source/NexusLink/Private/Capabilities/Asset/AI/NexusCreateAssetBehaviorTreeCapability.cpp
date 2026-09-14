@@ -39,11 +39,7 @@ FCapabilityResult FCreateAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 			return;
 		}
 		UBehaviorTree* BT = Cast<UBehaviorTree>(Created.Asset);
-		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		OutEntry->SetStringField(TEXT("name"), BT->GetName());
-		OutEntry->SetStringField(TEXT("path"), BT->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-	
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, BT);
 	});
 }
 

@@ -39,11 +39,7 @@ FCapabilityResult FCreateAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 			return;
 		}
 		UBlackboardData* BB = Cast<UBlackboardData>(Created.Asset);
-		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		OutEntry->SetStringField(TEXT("name"), BB->GetName());
-		OutEntry->SetStringField(TEXT("path"), BB->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-	
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, BB);
 	});
 }
 

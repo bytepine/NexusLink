@@ -47,10 +47,7 @@ FCapabilityResult FCreateAssetMoviePipelineConfigCapability::Execute(const TShar
 			return;
 		}
 		FNexusMoviePipelineConfig* Cfg = Cast<FNexusMoviePipelineConfig>(Created.Asset);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Cfg->GetName());
-		Entry->SetStringField(TEXT("path"), Cfg->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, Cfg);
 	});
 }
 

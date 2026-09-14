@@ -3,6 +3,7 @@
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
+#include "UObject/Object.h"
 
 void FNexusCapabilityResultBuilder::AddEntryError(TArray<TSharedPtr<FJsonValue>>& OutEntries,
                                                    const FString& Msg)
@@ -34,4 +35,22 @@ void FNexusCapabilityResultBuilder::AddEntry(TArray<TSharedPtr<FJsonValue>>& Out
 {
 	if (Entry.IsValid())
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+}
+
+TSharedPtr<FJsonObject> FNexusCapabilityResultBuilder::MakeCreatedEntry(const UObject* Obj)
+{
+	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+	if (!Obj)
+	{
+		Entry->SetStringField(TEXT("error"), TEXT("Create failed"));
+		return Entry;
+	}
+	Entry->SetStringField(TEXT("name"), Obj->GetName());
+	Entry->SetStringField(TEXT("path"), Obj->GetPathName());
+	return Entry;
+}
+
+void FNexusCapabilityResultBuilder::AddCreatedEntry(TArray<TSharedPtr<FJsonValue>>& OutEntries, const UObject* Obj)
+{
+	OutEntries.Add(MakeShared<FJsonValueObject>(MakeCreatedEntry(Obj)));
 }

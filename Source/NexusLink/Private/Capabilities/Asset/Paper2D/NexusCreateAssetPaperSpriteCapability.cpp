@@ -56,10 +56,7 @@ FCapabilityResult FCreateAssetPaperSpriteCapability::Execute(const TSharedPtr<FJ
 			}
 		}
 		FNexusAssetUtils::NotifyAndSaveCreated(Sprite->GetOutermost(), Sprite, AssetPath);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Sprite->GetName());
-		Entry->SetStringField(TEXT("path"), Sprite->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, Sprite);
 	});
 }
 

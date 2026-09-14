@@ -1894,8 +1894,14 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `assetPath` | `string` | ★ | 资产包路径（来自 `search_asset`，格式 `/Game/...`） |
-| `operations` | `object[]` | ★ | 操作列表; 条目: `action`(add_node/remove_node/add_edge/remove_edge) |
-| `action` | `string (enum)` |  | 操作 枚举: `add_node` / `remove_node` / `add_edge` / `remove_edge` |
+| `operations` | `object[]` | ★ | 操作列表; 条目: `action`(add_node/remove_node/add_edge/remove_edge), `settingsClass`, `nodeId`, `fromNodeId`, `toNodeId`, `fromPin`, `toPin` |
+| `action` | `string (enum)` | ★ | 操作 枚举: `add_node` / `remove_node` / `add_edge` / `remove_edge` |
+| `settingsClass` | `string` |  | UPCGSettings subclass name (add_node) |
+| `nodeId` | `string` |  | 节点 id (remove_node) |
+| `fromNodeId` | `string` |  | Edge source 节点 id (add/remove_edge) |
+| `toNodeId` | `string` |  | Edge target 节点 id (add/remove_edge) |
+| `fromPin` | `string` |  | Edge source 引脚名, 默认 Out |
+| `toPin` | `string` |  | Edge target 引脚名, 默认 In |
 | `saveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**: `get_asset_pcg_graph`, `create_asset_pcg_graph`

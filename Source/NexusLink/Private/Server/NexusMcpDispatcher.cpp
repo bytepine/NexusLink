@@ -358,7 +358,7 @@ void FNexusMcpDispatcher::HandleToolsList(const TSharedPtr<FJsonValue>& Id, cons
 	SendResult(Id, Result);
 }
 
-void FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, const FNexusMcpToolResult& ToolResult)
+int32 FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, const FNexusMcpToolResult& ToolResult)
 {
 	// 统一序列化
 	FString ResponseText;
@@ -411,6 +411,7 @@ void FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, const
 	}
 
 	SendResult(Id, Result);
+	return ResponseText.Len();
 }
 
 /**
@@ -572,67 +573,9 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 		InjectTtlMetadata(ToolResult, EffectiveCapName);
 	}
 
-	// 统一序列化：成功走 StructuredContent（pretty JSON），失败走 ErrorText
-	// 极少数工具会填 OutputText 覆盖默认文本
-	FString ResponseText;
-	if (ToolResult.bIsError)
-	{
-		ResponseText = ToolResult.ErrorText;
-	}
-	else if (!ToolResult.OutputText.IsEmpty())
-	{
-		ResponseText = ToolResult.OutputText;
-	}
-	else if (ToolResult.StructuredContent.IsValid())
-	{
-		ResponseText = FNexusJsonUtils::SerializeCondensed(ToolResult.StructuredContent);
-	}
-
-	// 构建 tool result 响应：content 与 structuredContent 二选一。
-	// ContentMode=Content（默认）：仅 content[0].text（完整 JSON），不输出 structuredContent；
-	// ContentMode=StructuredContent：仅 structuredContent（原生 JSON），不输出 content。
-	TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
-	Result->SetBoolField(TEXT("isError"), ToolResult.bIsError);
-
-	if (ToolResult.bIsError)
-	{
-		// 错误始终走 content
-		TArray<TSharedPtr<FJsonValue>> ContentArray;
-		TSharedPtr<FJsonObject> TextContent = MakeShared<FJsonObject>();
-		TextContent->SetStringField(TEXT("type"), TEXT("text"));
-		TextContent->SetStringField(TEXT("text"), ToolResult.ErrorText);
-		ContentArray.Add(MakeShared<FJsonValueObject>(TextContent));
-		Result->SetArrayField(TEXT("content"), ContentArray);
-	}
-	else if (ToolResult.StructuredContent.IsValid() && UNexusLinkSettings::Get()->ContentMode == ENexusContentMode::StructuredContent)
-	{
-		// ContentMode=StructuredContent：优先走 structuredContent（即使工具设了 OutputText 也走结构化）
-		Result->SetObjectField(TEXT("structuredContent"), ToolResult.StructuredContent);
-	}
-	else if (!ToolResult.OutputText.IsEmpty())
-	{
-		// 工具显式提供纯文本输出，走 content
-		TArray<TSharedPtr<FJsonValue>> ContentArray;
-		TSharedPtr<FJsonObject> TextContent = MakeShared<FJsonObject>();
-		TextContent->SetStringField(TEXT("type"), TEXT("text"));
-		TextContent->SetStringField(TEXT("text"), ToolResult.OutputText);
-		ContentArray.Add(MakeShared<FJsonValueObject>(TextContent));
-		Result->SetArrayField(TEXT("content"), ContentArray);
-	}
-	else if (ToolResult.StructuredContent.IsValid())
-	{
-		// ContentMode=Content（默认）：StructuredContent 序列化为 content[0].text
-		TArray<TSharedPtr<FJsonValue>> ContentArray;
-		TSharedPtr<FJsonObject> TextContent = MakeShared<FJsonObject>();
-		TextContent->SetStringField(TEXT("type"), TEXT("text"));
-		TextContent->SetStringField(TEXT("text"), ResponseText);
-		ContentArray.Add(MakeShared<FJsonValueObject>(TextContent));
-		Result->SetArrayField(TEXT("content"), ContentArray);
-	}
-
-	const int64 ResponseBytes = static_cast<int64>(ResponseText.Len());
-	SendResult(Id, Result);
-	UE_LOG(LogNexusMcpDispatcher, Log, TEXT("工具 '%s' 执行%s（%.0f ms, %lld 字节）"),
+	// 统一序列化并发送（与 MultiTool 路径共用 EmitToolResult，避免重复维护 content/structuredContent 分支）
+	const int32 ResponseBytes = EmitToolResult(Id, ToolResult);
+	UE_LOG(LogNexusMcpDispatcher, Log, TEXT("工具 '%s' 执行%s（%.0f ms, %d 字节）"),
 		*ToolName, ToolResult.bIsError ? TEXT("出错") : TEXT("成功"),
 		ExecDurationMs, ResponseBytes);
 }

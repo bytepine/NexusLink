@@ -37,10 +37,7 @@ FCapabilityResult FCreateAssetPaperFlipbookCapability::Execute(const TSharedPtr<
 			return;
 		}
 		UPaperFlipbook* Book = Cast<UPaperFlipbook>(Created.Asset);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Book->GetName());
-		Entry->SetStringField(TEXT("path"), Book->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, Book);
 	});
 }
 

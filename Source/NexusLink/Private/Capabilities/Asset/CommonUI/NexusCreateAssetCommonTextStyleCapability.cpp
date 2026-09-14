@@ -43,10 +43,7 @@ FCapabilityResult FCreateAssetCommonTextStyleCapability::Execute(const TSharedPt
 			return;
 		}
 		UObject* Style = Created.Asset;
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Style->GetName());
-		Entry->SetStringField(TEXT("path"), Style->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, Style);
 	});
 }
 

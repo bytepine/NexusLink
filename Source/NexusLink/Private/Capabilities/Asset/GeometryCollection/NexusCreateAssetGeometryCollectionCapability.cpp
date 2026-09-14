@@ -37,10 +37,7 @@ FCapabilityResult FCreateAssetGeometryCollectionCapability::Execute(const TShare
 			return;
 		}
 		UGeometryCollection* GC = Cast<UGeometryCollection>(Created.Asset);
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), GC->GetName());
-		Entry->SetStringField(TEXT("path"), GC->GetPathName());
-		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, GC);
 	});
 }
 
