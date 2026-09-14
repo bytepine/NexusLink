@@ -203,6 +203,20 @@ struct FNexusSchema
 		return P;
 	}
 
+	/** 标量 anyOf：string / number / boolean / null（JSON Schema `type` 数组）。 */
+	static TSharedRef<FJsonObject> AnyScalar(const TCHAR* Desc)
+	{
+		TSharedRef<FJsonObject> P = MakeShared<FJsonObject>();
+		TArray<TSharedPtr<FJsonValue>> Types;
+		Types.Add(MakeShared<FJsonValueString>(TEXT("string")));
+		Types.Add(MakeShared<FJsonValueString>(TEXT("number")));
+		Types.Add(MakeShared<FJsonValueString>(TEXT("boolean")));
+		Types.Add(MakeShared<FJsonValueString>(TEXT("null")));
+		P->SetArrayField(TEXT("type"), Types);
+		P->SetStringField(TEXT("description"), Desc);
+		return P;
+	}
+
 	static FObjectBuilder Object() { return FObjectBuilder(); }
 
 	/** 空 schema：无参工具；additionalProperties:false，拒绝任意入参键。 */

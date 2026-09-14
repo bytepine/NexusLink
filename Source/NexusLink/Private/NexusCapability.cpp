@@ -190,14 +190,66 @@ static bool ValidateValue(
 		return true;
 	}
 
-	FString ExpectedType;
-	if (Schema->TryGetStringField(TEXT("type"), ExpectedType) && !ExpectedType.IsEmpty())
+	TArray<FString> ExpectedTypes;
 	{
-		FString ActualType;
-		if (!MatchesJsonType(Value, ExpectedType, ActualType))
+		const TArray<TSharedPtr<FJsonValue>>* TypeArr = nullptr;
+		FString SingleType;
+		if (Schema->TryGetArrayField(TEXT("type"), TypeArr) && TypeArr && TypeArr->Num() > 0)
 		{
+			for (const TSharedPtr<FJsonValue>& T : *TypeArr)
+			{
+				FString Name;
+				if (T.IsValid() && T->TryGetString(Name) && !Name.IsEmpty())
+				{
+					ExpectedTypes.Add(Name);
+				}
+			}
+		}
+		else if (Schema->TryGetStringField(TEXT("type"), SingleType) && !SingleType.IsEmpty())
+		{
+			ExpectedTypes.Add(SingleType);
+		}
+	}
+	if (ExpectedTypes.Num() > 0)
+	{
+		const bool bValueNull = !Value.IsValid() || Value->IsNull();
+		bool bMatch = false;
+		FString ActualType;
+		for (const FString& ExpectedType : ExpectedTypes)
+		{
+			if (ExpectedType.Equals(TEXT("null"), ESearchCase::IgnoreCase))
+			{
+				if (bValueNull)
+				{
+					bMatch = true;
+					ActualType = TEXT("null");
+					break;
+				}
+				continue;
+			}
+			if (bValueNull)
+			{
+				continue;
+			}
+			if (MatchesJsonType(Value, ExpectedType, ActualType))
+			{
+				bMatch = true;
+				break;
+			}
+		}
+		if (!bMatch)
+		{
+			if (ActualType.IsEmpty())
+			{
+				ActualType = bValueNull ? TEXT("null") : TEXT("unknown");
+				if (!bValueNull)
+				{
+					MatchesJsonType(Value, TEXT(""), ActualType);
+				}
+			}
+			FString ExpectedJoined = FString::Join(ExpectedTypes, TEXT("|"));
 			OutError = FString::Printf(TEXT("Field '%s' expected type %s, got %s"),
-					Path.IsEmpty() ? TEXT("$") : *Path, *ExpectedType, *ActualType);
+					Path.IsEmpty() ? TEXT("$") : *Path, *ExpectedJoined, *ActualType);
 			return false;
 		}
 	}

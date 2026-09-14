@@ -15,7 +15,7 @@ void FSetRuntimeLuaCapability::BuildDefinition(FNexusCapabilityDefinition& Out) 
 	Out.Description = TEXT("Assign Lua global or nested field. Dot path; string/number/bool/null.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("luaPath"), FNexusSchema::Str(TEXT("Dot path target for set")))
-		.Required(TEXT("value"),   FNexusSchema::AnyObject(TEXT("Value (string/number/boolean/null)")))
+		.Required(TEXT("value"),   FNexusSchema::AnyScalar(TEXT("Value (string/number/boolean/null)")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("value"), TEXT("variable"), TEXT("field"), TEXT("path"), TEXT("assign") };

@@ -81,7 +81,7 @@ RE_REQUIRED_LIST = re.compile(r'\.Required\s*\(\s*\{([^}]+)\}\s*\)')
 # .Prop / .Required(TEXT("name"), FNexusSchema::Type(
 RE_PROP_TYPED = re.compile(
     r'\.(Prop|Required)\s*\(\s*TEXT\("([^"]+)"\)\s*,\s*FNexusSchema::'
-    r'(StrArr|Str|Int|Bool|Num|EnumArr|Enum|ArrayOf|ArrOfObj|AnyObject)\s*\(',
+    r'(StrArr|Str|Int|Bool|Num|EnumArr|Enum|ArrayOf|ArrOfObj|AnyScalar|AnyObject)\s*\(',
 )
 # GetSectionNames return { TEXT("a"), ... }
 RE_SECTION_RETURN = re.compile(
@@ -204,6 +204,7 @@ def _map_type(schema_type: str) -> str:
         "Enum":      "string (enum)",
         "EnumArr":   "string[]",
         "AnyObject": "object",
+        "AnyScalar": "string|number|boolean|null",
         "ArrayOf":   "object[]",
         "ArrOfObj":  "object[]",
         "Array":     "array",

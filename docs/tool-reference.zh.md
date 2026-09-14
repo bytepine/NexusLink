@@ -3117,7 +3117,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `luaPath` | `string` | ★ | set 的点路径目标 |
-| `value` | `object` | ★ | 值（string/number/boolean/null） |
+| `value` | `string\|number\|boolean\|null` | ★ | 值（string/number/boolean/null） |
 
 **相关 Capability**: `get_runtime_lua_value`, `eval_runtime_lua`
 

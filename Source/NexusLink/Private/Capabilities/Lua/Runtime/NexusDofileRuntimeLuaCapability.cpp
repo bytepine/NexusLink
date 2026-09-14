@@ -55,7 +55,11 @@ FCapabilityResult FDofileRuntimeLuaCapability::Execute(const TSharedPtr<FJsonObj
 		return FCapabilityResult::MakeFatal(TEXT("scriptPath escapes Content/Script/"));
 
 	if (!FPaths::FileExists(AbsPath))
-		return FCapabilityResult::MakeFatal(FString::Printf(TEXT("File not found: %s"), *AbsPath));
+	{
+		EmitError(R.Entries, {{TEXT("scriptPath"), AbsPath}},
+			FString::Printf(TEXT("File not found: %s"), *AbsPath));
+		return R;
+	}
 
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 	const int32 StackTop = lua_gettop(L);

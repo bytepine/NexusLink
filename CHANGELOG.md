@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [2.1.0-beta.1] - 2026-09-14
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Added
 
 - feat(plugin): 双模块拆分，打通独立 Game/DS 运行时 MCP——单体 `NexusLink`（原 `Type: UncookedOnly`）拆成 `NexusLink`（`Type: Runtime`，Server/Dispatcher/Auth/Registry/3 个元工具/Feedback/34 个 Runtime cap，可进 cooked Game/DS）+ `NexusLinkEditor`（`Type: Editor`，195 个 EditorOnly cap、编辑器 Utils、设置面板定制、状态栏、`NexusUpdateChecker`，仅编辑器二进制加载）。新增 `NexusLinkBuildConfig.h` 的 `NEXUSLINK_WITH_SERVER`（`!UE_BUILD_SHIPPING`）门控 `REGISTER_MCP_CAPABILITY`/`REGISTER_MCP_TOOL` 与 HTTP/HTTPServer/WebSocketNetworking 链接，Shipping 编译期整体剔除服务器与注册表；`NexusLink.cpp` 启动链路（LogCapture/`OnPostEngineInit`/控制台命令/`TryStartMcpServer`/`StopMcpServer`）解除 `WITH_EDITOR` 门控，Development/DebugGame 独立 Game/DS 传 `-EnableNexusMcp` 即可托管 MCP；新增 `-NexusMcpPort=`/`-NexusWsPort=`/`-NexusAllowLan` 命令行开关覆盖默认端口与 LAN 绑定。新增 `FNexusEditorServices` 钩子表，把 `ApplyManageFinalize`/`EditorTransaction`/`DangerousCapGate` 确认 UI/`PackageLedger` Flush/状态栏通知等 5 处运行时→编辑器反向依赖改为可空函数指针，编辑器模块启动时安装，运行时无 UI 时降级为安全默认行为；`NexusAssetUtils` 拆分为 runtime 侧（load/exists/metadata/`CreatePlainAsset`/`SaveNewAsset`）与新增的 `NexusAssetEditorUtils`（编译/存盘/建 BP/Widget BP/`ApplyManageFinalize`）；`NexusRuntimeUtils::GetActiveWorld` 改用 `GEngine->GetWorldContexts()` 去除 `GEditor` 依赖。新增 cap 的模块归属规范落地为「基类即模块」机械判定（`CapabilitySpec.md` §2.1.0、`CONTRIBUTING.md`、`docs/architecture.md`、`.cursor/rules/nexuslink-capability.mdc`），并在 `scripts/audit_capability_params.py` 增加基类与文件路径模块一致性断言（不符即 FAIL，插件 CI 与 `run_e2e.py` 前置门均会跑）；`NexusDangerousCapGate::ConfirmOrDeny` 的 Slate 确认框实现整段迁到 `NexusLinkEditor`（经 `PromptDangerousCapConfirm` 钩子调用，Runtime 侧不再直接引用 `FEditorStyle`/`Slate` 弹窗代码），`NexusLink.cpp`/`NexusLinkSettings.cpp` 里 `FNexusMcpServer` 全部调用点补齐 `NEXUSLINK_WITH_SERVER` 门控（此前 Shipping 因不完整类型编译失败）。UE_4.26–5.8 全 11 版本 `build_test`（Editor + Game 两相）零 FAIL 零 WARNING，额外手动验证 `Nexus` Shipping 目标编译通过且不链接 HTTP/HTTPServer/WebSocketNetworking
@@ -17,6 +21,8 @@
 
 ### Fixed
 
+- fix(mcp): `set_runtime_lua` 的 `value` 改为 `AnyScalar`（string/number/boolean/null）；此前误标 `AnyObject`，传字符串会被 schema 校验拦下。框架校验现支持 JSON Schema `type` 为数组
+- fix(mcp): `dofile_runtime_lua` 文件不存在改为条目级 `error`（与同 cap 的 load/exec 失败一致），不再 `MakeFatal`
 - fix(docs): 中文 `tool-reference` 生成器丢弃人工校订的精确译文——`param_desc` 在 `residual_english()` 判定译文仍残留英文时会回落到按**参数名**兜底的 `param_name`，而该判定把译文里本就该保留的技术术语（`file` / `Actor` / `Montage` 等，全表 108 条命中）一律当作未译，导致同名参数被塞进别的 cap 的语义（`scriptPath` 在 Python cap 里显示成「Lua 脚本路径（相对 `Content/Script/`）」）。`param_text` 是按英文原文人工校订的，权威性高于按名兜底，命中即不再回落；随之暴露并补译 3 条本身没译完的词条（`Actor class name filter` / `Variable/default name filter` / `Widget/animation name substring`）。中文文档 20 行受益，其中 8 处 `assetPath` 从通用「资产包路径」恢复为各 cap 专属说明；`test_tool_reference_i18n` 补两条优先级回归
 - fix(compat): 5.7 宿主编进 MetaSound/MVVM/Niagara/StateTree/ControlRig/IKRig/PoseSearch/GAS/EnhancedInput——Frontend Edge 用 `FromNodeID`/`VertexID`、Node `UpdateID`；MVVM `RequestExtension`/`GetViewModelId`/`GetExtension`；Niagara `GetFName`/`GetInstance().Emitter`；StateTree 迁移目标用 `State.ID`/`Name`；ControlRig 头文件 `ControlRigBlueprintLegacy.h`，`AddNull`/`AddControl`/`AddBone`/`RenameElement` 对齐 5.0+ 签名，Editor 链 `RigVMDeveloper`；IKRig `GetSolverStructs`、IKRetargeter 走 Controller `SetIKRig`/`SetSourceChain`；PoseSearch `GetChannels()`；GAS `NonInstanced` 去 C4996；InputAction `bConsumeInput`、IMC `GetMappings`/`MapKey`；`StateTreeMvvmCapabilityTests` 改从注册表取实例（原先直接构造 Private 头里的 cap，链接不到；不为此破例导出 `NEXUSLINK_API`）。`build_test` Editor/`BuildPlugin` 不再因 HostProject 整段关掉可选插件，与宿主同一套磁盘探测
 - fix(asset): `LoadAssetWithFallback` 加载前先过 `PackageExists`（内存中或磁盘上）——MetaSound / PCG 等类型对不存在的包会自己再拼一层 `/Game/` 前缀，拼成 `/Game//Game/...` 后触发 `CreatePackage` 的双斜杠 check 直接崩编辑器；现在包不存在即返回 nullptr，由各 cap 正常报 not found

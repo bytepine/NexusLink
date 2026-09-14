@@ -456,7 +456,7 @@ public:
 | 单目标内集合 | **保留** `sections` / `propertyPaths` / `operations` / `updates`（以及领域语义数组，见下表「有意保留」） |
 | manage 命令列表 | Schema **只**暴露 `operations: [{action, ...}]`；禁止 `ops`、禁止顶层裸 `action` 作为批量列表 |
 | Execute 读入 | 带 `operations[]` 的 `manage_*` 由 `FNexusActionCapability` 基类 `Execute` 调用 `ExtractOperations`（禁止子类再写循环壳）；**仅**读 `operations[]`；不回退 `ops`、不把顶层 `action`+其余字段合成单元素数组；非 object 元素写入对应 `entries[].error`（`Invalid operation (expected object)`），不静默跳过 |
-| Schema 严格性 | `FNexusSchema::Object()` 默认 `additionalProperties: false`；`AnyObject()` 显式 `true`（动态字段）。`FNexusCapability::Run` 在 `Execute` 之前按 InputSchema **递归严格校验**（未知键 / type / required / required 空串 / enum / array items / 嵌套 object）；失败一律 `FCapabilityResult::MakeArgInvalid` |
+| Schema 严格性 | `FNexusSchema::Object()` 默认 `additionalProperties: false`；`AnyObject()` 显式 `true`（动态字段）；`AnyScalar()` 为 `type: [string,number,boolean,null]`。`FNexusCapability::Run` 在 `Execute` 之前按 InputSchema **递归严格校验**（未知键 / type（string 或数组） / required / required 空串 / enum / array items / 嵌套 object）；失败一律 `FCapabilityResult::MakeArgInvalid` |
 | 结果信封 | 禁止「一条 Entry + 内嵌 `results[]`」的双层包裹；每个 op 必须对应一条独立 `OutEntries.Add(...)`，交由适配层 `AssembleStructuredContent` 统一提升/包装 |
 | `success` 字段 | 成功不写 `success`（无 `error` 即成功）；失败写 `error`，允许保留 `success:false` 辅助阅读；禁止写「成功恒为 true」或条件判断结果恒为 true 的 `success` |
 | create 入参 | **只**暴露 / 消费 `assetPath`；删除 `packagePath`+`assetName` 双字段路径 |

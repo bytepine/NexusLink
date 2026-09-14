@@ -3117,7 +3117,7 @@ Assign Lua global or nested field. Dot path; string/number/bool/null.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `luaPath` | `string` | ★ | Dot path target for set |
-| `value` | `object` | ★ | Value (string/number/boolean/null) |
+| `value` | `string\|number\|boolean\|null` | ★ | Value (string/number/boolean/null) |
 
 **Related capabilities**: `get_runtime_lua_value`, `eval_runtime_lua`
 
