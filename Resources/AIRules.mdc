@@ -9,7 +9,7 @@ alwaysApply: false
 > - **InitializeInstructions** (UE handshake): capability routing table, meta-tool constraints, read/write naming.
 > - **This Rule** (IDE-side): enforce discover tools → find paths → read/write; forbid guessing cap names/paths; fill project-level `pathFilter` prefixes.
 >
-> Source: `Plugins/Developer/NexusLink/Resources/AIRules.mdc` — diff generic sections into your project copy after plugin upgrades.
+> Source: `Plugins/NexusLink/Resources/AIRules.mdc` — diff generic sections into your project copy after plugin upgrades.
 
 ---
 

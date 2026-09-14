@@ -12,7 +12,6 @@ from build_unreal import (  # noqa: E402
     assert_no_lfs_pointers,
     is_lfs_pointer,
     patch_uplugin,
-    should_exclude,
 )
 
 _POINTER = (
@@ -50,26 +49,17 @@ def test_assert_no_lfs_pointers_ok(tmp_path):
     assert_no_lfs_pointers(str(tmp_path))
 
 
-def test_should_exclude_nexuslinktests():
-    assert should_exclude("Source/NexusLinkTests/NexusLinkTests.Build.cs", False) is True
-    assert should_exclude("Source/NexusLink/NexusLink.Build.cs", False) is False
-
-
-def test_patch_uplugin_strips_tests_module(tmp_path):
+def test_patch_uplugin_sets_version_and_engine(tmp_path):
     uplugin = tmp_path / "NexusLink.uplugin"
     uplugin.write_text(
-        '{"VersionName":"0.0.0","Modules":['
-        '{"Name":"NexusLink","Type":"Runtime"},'
-        '{"Name":"NexusLinkTests","Type":"DeveloperTool"}'
-        "]}",
+        '{"VersionName":"0.0.0","Modules":[{"Name":"NexusLink","Type":"UncookedOnly"}]}',
         encoding="utf-8",
     )
     patch_uplugin(str(uplugin), "1.17.0", engine_version="5.8")
     data = json.loads(uplugin.read_text(encoding="utf-8"))
     assert data["VersionName"] == "1.17.0"
     assert data["EngineVersion"] == "5.8"
-    names = [m.get("Name") for m in data["Modules"]]
-    assert names == ["NexusLink"]
+    assert [m.get("Name") for m in data["Modules"]] == ["NexusLink"]
 
 
 def test_patch_uplugin_beta_flag_follows_version(tmp_path):

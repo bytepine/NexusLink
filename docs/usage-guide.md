@@ -139,7 +139,7 @@ Rider / Desktop 远程列表每行：`192.168.1.30:45000` 或 `192.168.1.30:4500
 
 ### 2.1 安装
 
-1. 从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载 `nexus-mcp-unreal-*.zip`，解压到项目 `Plugins/Developer/NexusLink`
+1. 从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载 `nexus-mcp-unreal-*.zip`，解压到项目 `Plugins/NexusLink`
 2. **Edit → Plugins → Developer → NexusLink** — 启用插件
 3. 重启编辑器
 

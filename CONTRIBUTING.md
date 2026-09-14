@@ -27,7 +27,7 @@
 
 - **L0 跨版本编译**（宿主工程 `Script/build_test.py`）：对本机已装的每套引擎编整个 `Nexus.uproject`（`NexusEditor` + `Nexus` Game）。编进游戏模块与工程内插件（NexusLink、UnLua 等）。每套引擎在临时目录隔离 Intermediate，不改仓库工程；默认 `--max-workers 3` 并行。
 
-- **L1 C++ Automation**（`Source/NexusLinkTests/`）：纯工具函数 + 插件加载 + Capability 注册表冒烟 + `FNexusResponseCompactorUtils` 全量断言。经 UEEditor-Cmd 触发：
+- **L1 C++ Automation**（宿主工程 `Plugins/NexusLinkTestSuite/`，**不**在本仓）：纯工具函数 + 插件加载 + Capability 注册表冒烟 + `FNexusResponseCompactorUtils` 全量断言。经 UEEditor-Cmd 触发：
 
   ```bash
   UEEditor-Cmd YourProject.uproject -ExecCmds="Automation RunTests NexusLink.; Quit" -unattended -nullrhi -NoSound -NoSplash
@@ -52,9 +52,9 @@
 py scripts/build_unreal.py --version <version> --output release/
 ```
 
-发行 zip **不含** `Source/NexusLinkTests`（L1 Automation 仅源码仓 / 开发构建）。
+发行 zip 为插件本体。L1 Automation 在示例工程 `NexusLinkTestSuite`，不在本仓。
 
-产物：`release/nexus-mcp-unreal-<version>.zip`（`EngineVersion: 4.26`，通用安装）。解压到 UE 项目 `Plugins/Developer/`。
+产物：`release/nexus-mcp-unreal-<version>.zip`（`EngineVersion: 4.26`，通用安装）。解压到 UE 项目 `Plugins/`（zip 顶层为 `NexusLink/`）。
 
 ## 发版（维护者）
 

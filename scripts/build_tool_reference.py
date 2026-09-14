@@ -616,7 +616,7 @@ def find_nexuslink_root(start: Path) -> Path:
     for base in (start, start.parent, start.parent.parent):
         if (base / "NexusLink.uplugin").is_file():
             return base
-        nested = base / "Plugins" / "Developer" / "NexusLink"
+        nested = base / "Plugins" / "NexusLink"
         if (nested / "NexusLink.uplugin").is_file():
             return nested
     raise SystemExit(f"ERROR: NexusLink.uplugin not found near {start}")

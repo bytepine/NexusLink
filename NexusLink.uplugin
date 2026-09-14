@@ -28,19 +28,6 @@
 				"Win64",
 				"Mac"
 			]
-		},
-		{
-			"Name": "NexusLinkTests",
-			"Type": "DeveloperTool",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [
-				"Win64",
-				"Mac"
-			],
-			"WhitelistPlatforms": [
-				"Win64",
-				"Mac"
-			]
 		}
 	],
 	"Plugins": [
