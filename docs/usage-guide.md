@@ -151,10 +151,10 @@ MCP HTTP/WebSocket **默认不启动**。启停统一由三层来源解析，**�
 
 | 场景 | 启用方式 | 持久化 | 角色是否读 Preferences |
 |---|---|---|---|
-| 编辑器（含 PIE） | Preferences 勾选，或运行时控制台 | 勾选持久；控制台会话级 | 是 |
-| editor-hosted `-server`（DS 模式） | 同上（同一编辑器进程） | 同上 | 是 |
-| 编辑器二进制以 `-game` 启动 | 启动参数 `-EnableNexusMcp`，或控制台 | 不持久 | **否**（须显式启动参数/控制台，不继承勾选） |
-| Development/DebugGame 独立 Game/DS | 启动参数 `-EnableNexusMcp`，或控制台 | 不持久 | **否** |
+| 编辑器（含 PIE） | Preferences 勾选，或运行时控制台；PIE 内 `NexusLink.Mcp panel` 可开调试面板 | 勾选持久；控制台/面板会话级 | 是 |
+| editor-hosted `-server`（DS 模式） | 同上（同一编辑器进程）；无视口，用 `status` 不用 `panel` | 同上 | 是 |
+| 编辑器二进制以 `-game` 启动 | 启动参数 `-EnableNexusMcp`，或控制台；有视口时可用 `panel` | 不持久 | **否**（须显式启动参数/控制台，不继承勾选） |
+| Development/DebugGame 独立 Game/DS | 启动参数 `-EnableNexusMcp`，或控制台；Game 包 `~` 后 `panel` 可开调试面板，DS 无视口用 `status` | 不持久 | **否** |
 | cook / commandlet 进程 | 启动参数 `-EnableNexusMcp` | 不持久 | **否** |
 | Shipping | 不可用（编译期剔除） | — | — |
 
@@ -197,6 +197,7 @@ NexusLink.Mcp panel on|off                    ; 显式打开/关闭
 - **编辑器标题栏右侧**（与 FPS/内存/对象同一组）显示 MCP/WS 端口号（默认开启；关闭 MCP 后不显示）
 - Preferences 面板「运行状态」只读字段：展示实际运行/停止状态、生效来源、未启动时的原因
 - 控制台 `NexusLink.Mcp status`：额外显示绑定地址与鉴权开关
+- 游戏内调试面板 `NexusLink.Mcp panel`（PIE / 独立 Game 包，见 [§2.4](#24-游戏内调试面板pie--独立包)）：可视化运行信息与 Capability 会话开关
 - 输出日志可见 `NexusLink 服务器已启动`，或未启用时的提示
 
 ### 2.4 游戏内调试面板（PIE / 独立包）
@@ -208,7 +209,7 @@ NexusLink.Mcp panel on|off                    ; 显式打开/关闭
 - 每条 cap 前的勾选框是**会话级临时开关**：不写 `DisabledCapabilities`、不 `SaveConfig`，退出进程即失效；「清除本会话覆盖」一键恢复到 Preferences 持久配置状态
 - `Esc` 或点击「关闭」按钮退出；面板打开时临时切到 `FInputModeGameAndUI` 并显示鼠标，关闭后尽量还原
 
-危险 Capability 的访问模式（全部禁用/确认/自定义）仍由 Preferences 决定；面板的勾选只在**该访问模式允许的范围内**临时开关单条，不能绕过「全部禁用」把危险 cap 整体解锁到不受限状态之外的行为。
+危险 Capability 的 Preferences 访问模式（全部禁用 / 确认 / 自定义）本身不改；面板勾选是**单条会话覆盖**：即使访问模式是「全部禁用」，仍可临时启用某一条（等同 `-NexusEnableDangerousCaps` 的单条版），不影响其他危险 cap，也不写 ini。退出进程或点「清除本会话覆盖」即恢复。
 
 ### 2.5 端口
 
@@ -368,6 +369,10 @@ UE 与各客户端均支持 per-session 隔离（`Mcp-Session-Id`）。可同时
 ### 多个 UE 实例同时运行
 
 每个 UE 实例自动分配不同端口。代理可发现全部实例并在托盘/状态栏切换。直连须手动指定端口。
+
+### 游戏里怎么看 MCP 状态 / 临时关某个 Capability
+
+PIE 或 Development 独立包按 `~` 打开控制台，执行 `NexusLink.Mcp panel`。面板上半是运行信息与开启/关闭/重启，下半可按会话临时勾选 Capability（不写 Preferences）。Dedicated Server 无视口，改用 `NexusLink.Mcp status`。Shipping 编译期剔除 MCP，无此命令。详见 [§2.4](#24-游戏内调试面板pie--独立包)。
 
 ### 走代理时编辑器正在编译 / 重启
 
