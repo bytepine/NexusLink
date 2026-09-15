@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "0.0.0",
 	"FriendlyName": "NexusLink",
-	"Description": "MCP (Model Context Protocol) server for Unreal Engine. Two modules: NexusLink (Runtime) hosts the server/dispatcher/34 runtime capabilities and can ship into cooked Development/DebugGame standalone Game/DedicatedServer builds (stripped entirely in Shipping); NexusLinkEditor (Editor) hosts the 195 editor-only capabilities and Slate settings UI, editor hosts only. Platform gating is declared twice on purpose: PlatformAllowList (UE5) and WhitelistPlatforms (UE4.2x) — UE4 ignores the UE5 key entirely, so dropping it would load the module on mobile Editor targets.",
+	"Description": "MCP (Model Context Protocol) server for Unreal Engine. Two modules: NexusLink (Runtime) hosts the server/dispatcher/38 runtime capabilities and can ship into cooked Development/DebugGame standalone Game/DedicatedServer builds (stripped entirely in Shipping); NexusLinkEditor (Editor) hosts the 192 editor-only capabilities and Slate settings UI, editor hosts only. Platform gating is declared twice on purpose: PlatformAllowList (UE5) and WhitelistPlatforms (UE4.2x) — UE4 ignores the UE5 key entirely, so dropping it would load the module on mobile Editor targets.",
 	"Category": "Developer Tools",
 	"CreatedBy": "byteyang",
 	"CreatedByURL": "https://github.com/bytepine",

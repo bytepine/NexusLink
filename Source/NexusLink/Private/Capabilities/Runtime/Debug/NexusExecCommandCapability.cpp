@@ -115,6 +115,7 @@ FCapabilityResult FExecCommandCapability::Execute(const TSharedPtr<FJsonObject>&
 		const int32 LogMark = bSilent ? 0 : FNexusLogCapture::Get().GetTotalWritten();
 
 		bool bExecResult = false;
+		bool bFallbackUsed = false;
 		FString DeviceOutput;
 
 		if (bSilent)
@@ -134,7 +135,7 @@ FCapabilityResult FExecCommandCapability::Execute(const TSharedPtr<FJsonObject>&
 			if (PC)
 			{
 				const FString PCOutput = PC->ConsoleCommand(Command, !bSilent);
-				bExecResult = true;
+				bFallbackUsed = true;
 				if (!bSilent && DeviceOutput.IsEmpty() && !PCOutput.IsEmpty())
 					DeviceOutput = PCOutput;
 			}
@@ -145,6 +146,10 @@ FCapabilityResult FExecCommandCapability::Execute(const TSharedPtr<FJsonObject>&
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 		OutEntry->SetStringField(TEXT("command"),  Command);
 		OutEntry->SetBoolField(TEXT("executed"),   bExecResult);
+		if (bFallbackUsed)
+		{
+			OutEntry->SetBoolField(TEXT("fallbackUsed"), true);
+		}
 		if (!bSilent && !Output.IsEmpty())
 		{
 			OutEntry->SetStringField(TEXT("output"), Output);

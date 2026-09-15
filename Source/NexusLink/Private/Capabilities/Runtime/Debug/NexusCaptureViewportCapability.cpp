@@ -24,14 +24,12 @@ void FCaptureViewportCapability::BuildDefinition(FNexusCapabilityDefinition& Out
 		.Prop(TEXT("widgetName"),  FNexusSchema::Str(TEXT("runtime UMG Widget; uses Game viewport")))
 		.Prop(TEXT("ownerClass"),  FNexusSchema::Str(TEXT("UserWidget class filter")))
 		.Prop(TEXT("padding"),     FNexusSchema::Num(TEXT("Actor bounds padding ratio"), 0.1))
-		.Prop(TEXT("viewAngle"),   FNexusSchema::Enum(TEXT("Ignored at Runtime (needs LevelEditor camera)"),
-			{ TEXT("front"), TEXT("back"), TEXT("left"), TEXT("right"), TEXT("top"), TEXT("bottom") }, TEXT("front")))
-		.Prop(TEXT("windowIndex"), FNexusSchema::Int(TEXT("Top-level window index (0=main)"), 0, 0))
+		.Prop(TEXT("windowIndex"), FNexusSchema::Int(TEXT("Top-level window index; omit for first/active")))
 		.Prop(TEXT("validateOnly"), FNexusSchema::Bool(TEXT("If true skip image; validate target/viewport only"), false))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("screenshot"), TEXT("image"), TEXT("screen"), TEXT("snap"), TEXT("photo") };
-	Out.RelatedCapabilities = { TEXT("list_runtime_widgets"), TEXT("list_runtime_actors") };
+	Out.RelatedCapabilities = { TEXT("capture_editor_panel"), TEXT("list_runtime_widgets"), TEXT("list_runtime_actors") };
 	Out.WhenToUse = TEXT("Screenshot Game/PIE viewport or the game window for visual debug");
 }
 

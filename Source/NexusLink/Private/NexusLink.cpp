@@ -197,7 +197,7 @@ bool FNexusLinkModule::TryStartMcpServer()
 		return false;
 	}
 
-	UE_LOG(LogNexusLink, Log, TEXT("NexusLink 服务器已启动，MCP: http://127.0.0.1:%d/mcp，WS: ws://127.0.0.1:%d/"), ActualMcpPort, ActualWsPort);
+	UE_LOG(LogNexusLink, Log, TEXT("NexusLink 服务器已启动，MCP: http://127.0.0.1:%d/stream，WS: ws://127.0.0.1:%d/"), ActualMcpPort, ActualWsPort);
 
 	// 向临时目录写入注册文件，供 Rider 等客户端无需端口扫描即可发现本实例
 	FNexusInstanceRegistry::Register(

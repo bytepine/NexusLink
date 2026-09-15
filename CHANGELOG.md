@@ -7,6 +7,17 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- fix(runtime): `RequirePlayWorld` 只认 PIE/Game，不再回落到编辑器关卡——未开 PIE 时 `destroy_runtime_actor` / `set_runtime_actor_property` / 多数 `interact_runtime_*` 会改到关卡 Actor。只读查询仍走 `GetActiveWorld`（可回落 Editor）。`spawn_runtime_widget` 与 `interact_runtime_actor_behavior_tree` 改走同一入口
+- fix(mcp): `exec_command` 的 `executed` 跟 `GEngine->Exec`；PlayerController 回退不再无条件报成功，另标 `fallbackUsed`
+- fix(mcp): MultiTool `tools/call` 补 `IsCapabilityVisibleOnHost`，与 `tools/list` / `call_capability` 对齐
+- fix(mcp): `capture_viewport` 去掉 schema 里会让客户端默认带上的 `viewAngle`（Runtime 不支持，配 `actorName` 直接失败），`windowIndex` 省略不再写成默认 0，`RelatedCapabilities` 补 `capture_editor_panel`；`capture_editor_panel` 的 `viewAngle` 去掉 default `front`；`get_runtime_actor_animation` 的 `actorName` 标 Required；`initialize.serverInfo.version` 改读 `.uplugin`；启动日志 `/mcp` → `/stream`
+
+### Changed
+
+- docs: `.uplugin` / CapabilitySpec 计数改为 38 Runtime + 192 Editor = 230
+
 ## [2.1.0-beta.2] - 2026-09-15
 
 > ⚠️ Pre-release，非生产环境使用。

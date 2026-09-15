@@ -20,21 +20,15 @@
 
 // --- 获取活跃 World ---
 
-UWorld* FNexusRuntimeUtils::GetActiveWorld()
+static UWorld* FindWorldOfType(EWorldType::Type Type)
 {
-	// PIE 优先；不依赖 GEditor（Runtime 模块不链接 UnrealEd），WorldContexts 里的
-	// WorldType 本身已足够判断是否处于 PIE 会话。
-	for (const FWorldContext& Ctx : GEngine->GetWorldContexts())
+	if (!GEngine)
 	{
-		if (Ctx.WorldType == EWorldType::PIE && Ctx.World())
-		{
-			return Ctx.World();
-		}
+		return nullptr;
 	}
-	// 回退到第一个 Game/Editor World
 	for (const FWorldContext& Ctx : GEngine->GetWorldContexts())
 	{
-		if ((Ctx.WorldType == EWorldType::Game || Ctx.WorldType == EWorldType::Editor) && Ctx.World())
+		if (Ctx.WorldType == Type && Ctx.World())
 		{
 			return Ctx.World();
 		}
@@ -42,12 +36,33 @@ UWorld* FNexusRuntimeUtils::GetActiveWorld()
 	return nullptr;
 }
 
+UWorld* FNexusRuntimeUtils::GetActiveWorld()
+{
+	// PIE 优先；不依赖 GEditor（Runtime 模块不链接 UnrealEd），WorldContexts 里的
+	// WorldType 本身已足够判断是否处于 PIE 会话。
+	if (UWorld* Pie = FindWorldOfType(EWorldType::PIE))
+	{
+		return Pie;
+	}
+	if (UWorld* Game = FindWorldOfType(EWorldType::Game))
+	{
+		return Game;
+	}
+	return FindWorldOfType(EWorldType::Editor);
+}
+
 UWorld* FNexusRuntimeUtils::RequirePlayWorld(FString& OutError)
 {
-	UWorld* World = GetActiveWorld();
-	if (!World)
-		OutError = TEXT("No active World");
-	return World;
+	if (UWorld* Pie = FindWorldOfType(EWorldType::PIE))
+	{
+		return Pie;
+	}
+	if (UWorld* Game = FindWorldOfType(EWorldType::Game))
+	{
+		return Game;
+	}
+	OutError = TEXT("No PIE/Game World (start Play-In-Editor or run as Game)");
+	return nullptr;
 }
 
 FString FNexusRuntimeUtils::GetActorLabelOrName(const AActor* Actor)

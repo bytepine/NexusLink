@@ -2413,7 +2413,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `sections` | `string[]` |  | 查询段（可多选）: `state` / `slots` / `variables` |
-| `actorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
+| `actorName` | `string` | ★ | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `nameFilter` | `string` |  | 变量/槽位名过滤 |
 
 **相关 Capability**: `interact_runtime_actor_animation`, `get_asset_anim_montage`
@@ -3091,11 +3091,10 @@
 | `widgetName` | `string` |  | 运行时 UMG Widget；走 Game 视口 |
 | `ownerClass` | `string` |  | UserWidget 类过滤 |
 | `padding` | `number` |  | Actor 包围盒留白比例 |
-| `viewAngle` | `string (enum)` |  | Runtime 忽略（需要 LevelEditor 相机） 枚举: `front` / `back` / `left` / `right` / `top` / `bottom` |
-| `windowIndex` | `integer` |  | 顶层窗口索引（0=主窗口） |
+| `windowIndex` | `integer` |  | Top-level window index; omit for first/active |
 | `validateOnly` | `boolean` |  | 为 true 时跳过截图，仅校验 target/视口 |
 
-**相关 Capability**: `list_runtime_widgets`, `list_runtime_actors`
+**相关 Capability**: `capture_editor_panel`, `list_runtime_widgets`, `list_runtime_actors`
 
 ---
 

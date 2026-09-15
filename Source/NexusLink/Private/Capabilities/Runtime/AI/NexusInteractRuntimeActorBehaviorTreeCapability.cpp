@@ -66,8 +66,8 @@ FCapabilityResult FInteractRuntimeActorBehaviorTreeCapability::Execute(const TSh
 		const FNexusArgs A(Arguments);
 		const FString Action = A.Str(TEXT("action"));
 
-		UWorld* World = FNexusRuntimeUtils::GetActiveWorld();
-		if (!World) { OutError = TEXT("No active World"); return; }
+		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
+		if (!World) { return; }
 
 		FString ActorName, KeyName, KeyValue, TreePath;
 		if (Arguments.IsValid())

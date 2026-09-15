@@ -399,6 +399,7 @@ static void InjectSchema(FNexusCapabilityDefinition& Def)
 
 static bool HasSuccessfulEntry(const FCapabilityResult& Result)
 {
+	// 多目标 manage_* 部分成功时仍 compile/save 成功的那几条，避免「既不回滚也不落盘」。
 	for (const TSharedPtr<FJsonValue>& V : Result.Entries)
 	{
 		if (!V.IsValid() || V->Type != EJson::Object)
@@ -501,6 +502,8 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 		Tx = FNexusEditorTransaction::Begin(Def.Name);
 	}
 	FCapabilityResult Result = Execute(Args);
+	// 单 cap 故意提交：部分失败仍保留已成功的改动（能做多少做多少）。
+	// 跨目标回滚由 call_capability 批处理在 failureCount>0 时 CancelAndRevert。
 	Tx.Reset();
 	ApplyIfRequested(Def.Name, Args, Result);
 	const double ElapsedMs = (FPlatformTime::Seconds() - StartTime) * 1000.0;

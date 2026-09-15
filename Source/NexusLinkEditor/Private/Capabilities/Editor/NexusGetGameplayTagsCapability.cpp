@@ -168,8 +168,13 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 			return;
 		}
 
-		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
-		if (!World) return;
+		// 只读：未开 PIE 时仍可扫编辑器关卡 Actor
+		UWorld* World = FNexusRuntimeUtils::GetActiveWorld();
+		if (!World)
+		{
+			OutError = TEXT("No active World");
+			return;
+		}
 
 		AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
 		if (!Actor) { OutError = FString::Printf(TEXT("Actor not found: %s"), *ActorName); return; }

@@ -67,7 +67,7 @@
 
 #### 2.1.0 模块选择（Runtime / Editor，从上到下命中即停）
 
-NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cooked Game/DS）与 `NexusLinkEditor`（`Type: Editor`，仅编辑器加载）。**基类即模块**——229 个既有 cap 均未手写 `GetHostScope()` override，宿主范围完全由基类继承决定，选错基类会导致 Game 相编译失败。
+NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cooked Game/DS）与 `NexusLinkEditor`（`Type: Editor`，仅编辑器加载）。**基类即模块**——230 个既有 cap 均未手写 `GetHostScope()` override，宿主范围完全由基类继承决定，选错基类会导致 Game 相编译失败。
 
 | 命中条件 | 落地模块 | 落地目录 |
 |------|------|------|

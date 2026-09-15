@@ -15,12 +15,16 @@ class UWorld;
 class NEXUSLINK_API FNexusRuntimeUtils
 {
 public:
+	/**
+	 * 当前活跃 World：PIE 优先，否则第一个 Game 或 Editor World。
+	 * 只读查询若需在未开 PIE 时看编辑器关卡，用本函数。写路径请用 RequirePlayWorld。
+	 */
 	static UWorld*               GetActiveWorld();
 
 	/**
-	 * 获取当前活跃 World（P3 消除）；失败时填写 OutError 并返回 nullptr。
-	 * 替代样板：
-	 *   UWorld* W = GetActiveWorld(); if (!W) { OutError = TEXT("No active World"); return; }
+	 * 只要 PIE 或 Game World。编辑器空闲（仅 Editor World）时返回 nullptr。
+	 * 失败时填写 OutError。Runtime 写 cap（spawn/destroy/set/interact）必须走这里，
+	 * 避免未开 PIE 时改到关卡里的 Actor。
 	 */
 	static UWorld* RequirePlayWorld(FString& OutError);
 	/** 编辑器下返回 ActorLabel，非编辑器回退 GetName()。 */

@@ -2413,7 +2413,7 @@ Get AnimInstance from running skeletal mesh. sections=state|slots|variables.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `sections` | `string[]` |  | Sections (multi-select): `state` / `slots` / `variables` |
-| `actorName` | `string` |  | Actor name |
+| `actorName` | `string` | ★ | Actor name |
 | `nameFilter` | `string` |  | Variable/slot name filter |
 
 **Related capabilities**: `interact_runtime_actor_animation`, `get_asset_anim_montage`
@@ -3091,11 +3091,10 @@ Capture Game/PIE viewport or top-level window; optional Actor/UMG crop. No Level
 | `widgetName` | `string` |  | runtime UMG Widget; uses Game viewport |
 | `ownerClass` | `string` |  | UserWidget class filter |
 | `padding` | `number` |  | Actor bounds padding ratio |
-| `viewAngle` | `string (enum)` |  | Ignored at Runtime (needs LevelEditor camera) enum: `front` / `back` / `left` / `right` / `top` / `bottom` |
-| `windowIndex` | `integer` |  | Top-level window index (0=main) |
+| `windowIndex` | `integer` |  | Top-level window index; omit for first/active |
 | `validateOnly` | `boolean` |  | If true skip image; validate target/viewport only |
 
-**Related capabilities**: `list_runtime_widgets`, `list_runtime_actors`
+**Related capabilities**: `capture_editor_panel`, `list_runtime_widgets`, `list_runtime_actors`
 
 ---
 

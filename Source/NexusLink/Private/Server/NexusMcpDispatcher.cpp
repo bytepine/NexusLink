@@ -37,7 +37,19 @@ static TSharedPtr<FJsonObject> TryGetJsonObject(const TSharedPtr<FJsonObject>& O
 
 static const FString SupportedProtocolVersion = TEXT("2025-06-18");
 static const FString ServerName               = TEXT("Nexus-Unreal");
-static const FString ServerVersion            = TEXT("0.0.0");
+
+static FString GetPluginVersionName()
+{
+	if (const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("NexusLink")))
+	{
+		const FString Version = Plugin->GetDescriptor().VersionName.TrimStartAndEnd();
+		if (!Version.IsEmpty())
+		{
+			return Version;
+		}
+	}
+	return TEXT("0.0.0");
+}
 
 /**
  * 统一记录 tools/call 端到端耗时（含响应压缩/TTL注入/序列化，即 EmitToolResult 返回之后）。
@@ -253,7 +265,7 @@ void FNexusMcpDispatcher::HandleInitialize(const TSharedPtr<FJsonValue>& Id, con
 
 	TSharedPtr<FJsonObject> ServerInfoObj = MakeShared<FJsonObject>();
 	ServerInfoObj->SetStringField(TEXT("name"), ServerName);
-	ServerInfoObj->SetStringField(TEXT("version"), ServerVersion);
+	ServerInfoObj->SetStringField(TEXT("version"), GetPluginVersionName());
 
 	TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
 	Result->SetStringField(TEXT("protocolVersion"), ProtocolVersion);
@@ -518,6 +530,18 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 				SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("Tool not found: %s"), *ToolName));
 				return;
 			}
+			if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*Record))
+			{
+				FNexusFeedback::FFields F;
+				F.Tool       = ToolName;
+				F.Capability = Record->Def.Name;
+				F.ErrorText  = TEXT("Unavailable on current host (runtime only)");
+				FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
+
+				SendError(Id, JsonRpcMethodNotFound, FString::Printf(
+					TEXT("Capability '%s' is unavailable on current host (runtime only)."), *Record->Def.Name));
+				return;
+			}
 			if (!Settings->IsCapabilityEnabled(Record->Def.Name))
 			{
 				FNexusFeedback::FFields F;
@@ -684,7 +708,7 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 		// 返回编辑器状态信息（与 GET /status 相同内容，供 WebSocket 通道使用）
 		TSharedPtr<FJsonObject> StatusObj = MakeShared<FJsonObject>();
 		StatusObj->SetStringField(TEXT("server"), TEXT("Nexus-Unreal"));
-		StatusObj->SetStringField(TEXT("version"), ServerVersion);
+		StatusObj->SetStringField(TEXT("version"), GetPluginVersionName());
 		StatusObj->SetStringField(TEXT("engineVersion"), FString::Printf(TEXT("%d.%d"),
 			ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION));
 		StatusObj->SetStringField(TEXT("projectName"), FApp::GetProjectName());

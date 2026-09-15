@@ -46,7 +46,7 @@ void FGetRuntimeActorAnimationCapability::BuildDefinition(FNexusCapabilityDefini
 TSharedPtr<FJsonObject> FGetRuntimeActorAnimationCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("actorName"),   FNexusSchema::Str(TEXT("Actor name")))
+		.Required(TEXT("actorName"), FNexusSchema::Str(TEXT("Actor name")))
 		.Prop(TEXT("nameFilter"),  FNexusSchema::Str(TEXT("Variable/slot name filter")))
 		.Build();
 }

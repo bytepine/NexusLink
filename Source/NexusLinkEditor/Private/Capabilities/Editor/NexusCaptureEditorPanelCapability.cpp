@@ -26,7 +26,7 @@ void FCaptureEditorPanelCapability::BuildDefinition(FNexusCapabilityDefinition& 
 		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Actor name/tag; crop to editor-viewport bounds")))
 		.Prop(TEXT("padding"),   FNexusSchema::Num(TEXT("Actor bounds padding ratio"), 0.1))
 		.Prop(TEXT("viewAngle"), FNexusSchema::Enum(TEXT("Move editor camera to this angle; needs actorName"),
-			{ TEXT("front"), TEXT("back"), TEXT("left"), TEXT("right"), TEXT("top"), TEXT("bottom") }, TEXT("front")))
+			{ TEXT("front"), TEXT("back"), TEXT("left"), TEXT("right"), TEXT("top"), TEXT("bottom") }))
 		.Prop(TEXT("validateOnly"), FNexusSchema::Bool(TEXT("If true skip image; validate panel only"), false))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };

@@ -4,10 +4,11 @@
 
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
+#include "Utils/NexusRuntimeUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Engine/World.h"
-#include "Engine/Engine.h"
+#include "Misc/Paths.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "NexusMcpTool.h"
@@ -45,18 +46,15 @@ FCapabilityResult FSpawnRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonO
 		const int32 ZOrder = Arguments->HasField(TEXT("zOrder"))
 			? static_cast<int32>(A.Num(TEXT("zOrder"))) : 0;
 
-		UWorld* World = nullptr;
-		if (GEngine)
-		{
-			for (const FWorldContext& Ctx : GEngine->GetWorldContexts())
-			{
-				if ((Ctx.WorldType == EWorldType::PIE || Ctx.WorldType == EWorldType::Game) && Ctx.World())
-				{ World = Ctx.World(); break; }
-			}
-		}
-
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		if (!World) { Entry->SetStringField(TEXT("error"), TEXT("No running World (start control_pie first)")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		FString WorldError;
+		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(WorldError);
+		if (!World)
+		{
+			Entry->SetStringField(TEXT("error"), WorldError);
+			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+			return;
+		}
 
 		APlayerController* PC = World->GetFirstPlayerController();
 		if (!PC) { Entry->SetStringField(TEXT("error"), TEXT("PlayerController not found")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
