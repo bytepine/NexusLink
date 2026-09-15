@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- feat(server): 独立 Game/DS 包运行时可用控制台 **`NexusLink.EnableMcp 1|0`** 启停 MCP（效果同启动参数 `-EnableNexusMcp`，不写 Preferences）；回显走 `FOutputDevice`（打包后 `~` 控制台可见监听地址）。可选 `Port=`/`WsPort=`/`Lan=1` 或同形 `-NexusMcpPort=`/`-NexusWsPort=`/`-NexusAllowLan`。补实现此前文档已写的 CLI 端口覆盖（`-NexusMcpPort=`/`-NexusWsPort=`）
+
 ## [2.1.0-beta.1] - 2026-09-14
 
 > ⚠️ Pre-release，非生产环境使用。

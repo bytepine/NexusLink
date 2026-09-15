@@ -32,8 +32,8 @@ private:
 	/** 延迟到引擎完全初始化后再按设置启动 MCP 服务器。 */
 	void OnPostEngineInit();
 
-	/** 控制台：NexusLink.EnableMcp 1|0（会话级，不写 Preferences）。 */
-	void HandleEnableMcpCommand(const TArray<FString>& Args);
+	/** 控制台：NexusLink.EnableMcp 1|0（会话级，不写 Preferences）。回显走 FOutputDevice，独立 Game 包 `~` 可见。 */
+	void HandleEnableMcpCommand(const TArray<FString>& Args, class UWorld* World, class FOutputDevice& Ar);
 
 	TSharedPtr<FNexusMcpServer>  McpServer;
 	/** 日志捕获器，模块生命周期内持续收集 UE 输出日志。 */
@@ -41,6 +41,10 @@ private:
 
 	/** NexusLink.EnableMcp 控制台命令句柄。 */
 	class IConsoleObject* EnableMcpConsoleCommand = nullptr;
+
+	/** 控制台会话级端口覆盖；0=沿用 CLI / 默认 45000、55000。 */
+	int32 SessionMcpPort = 0;
+	int32 SessionWsPort = 0;
 
 };
 

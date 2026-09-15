@@ -43,12 +43,23 @@ static const FString StatusEndpoint  = TEXT("/status");
 static const FString McpSessionHeader = TEXT("Mcp-Session-Id");
 static const int32 MaxMcpBodyBytes = 1024 * 1024;
 
+static int8 GSessionLanBindOverride = -1;
+
+void FNexusMcpServer::SetSessionLanBindOverride(int8 Override)
+{
+	GSessionLanBindOverride = Override;
+}
+
 /**
- * 是否绑定 0.0.0.0：Preferences 勾选 或 命令行 -NexusAllowLan
- *（独立 Game / DedicatedServer 包没有 Preferences UI，只能靠命令行覆盖）。
+ * 是否绑定 0.0.0.0：控制台会话覆盖 > Preferences 勾选 > 命令行 -NexusAllowLan
+ *（独立 Game / DedicatedServer 包没有 Preferences UI，靠命令行或控制台覆盖）。
  */
 static bool IsLanBindRequested()
 {
+	if (GSessionLanBindOverride >= 0)
+	{
+		return GSessionLanBindOverride != 0;
+	}
 	if (UNexusLinkSettings::Get() && UNexusLinkSettings::Get()->bAllowLanBind)
 	{
 		return true;

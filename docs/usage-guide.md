@@ -143,7 +143,7 @@ Rider / Desktop 远程列表每行：`192.168.1.30:45000` 或 `192.168.1.30:4500
 2. **Edit → Plugins → Developer → NexusLink** — 启用插件
 3. 重启编辑器
 
-插件拆两个模块：`NexusLink`（**`Type: Runtime`**）+ `NexusLinkEditor`（**`Type: Editor`**，仅编辑器二进制加载）——**MCP 跑在 Editor / PIE / editor-hosted `-server`，以及 Development/DebugGame 的独立 Game/DS**（`-EnableNexusMcp` 开，可选 `-NexusMcpPort=` / `-NexusWsPort=` / `-NexusAllowLan`）；Shipping 编译期整体剔除服务器。
+插件拆两个模块：`NexusLink`（**`Type: Runtime`**）+ `NexusLinkEditor`（**`Type: Editor`**，仅编辑器二进制加载）——**MCP 跑在 Editor / PIE / editor-hosted `-server`，以及 Development/DebugGame 的独立 Game/DS**（启动参数 `-EnableNexusMcp` 或运行时控制台 `NexusLink.EnableMcp 1`，可选 `-NexusMcpPort=` / `-NexusWsPort=` / `-NexusAllowLan`）；Shipping 编译期整体剔除服务器。
 
 ### 2.2 启用 MCP 服务器（必做）
 
@@ -159,17 +159,24 @@ MCP HTTP/WebSocket **默认不启动**，任选以下方式：
 
 ```bat
 UE4Editor.exe YourProject.uproject -EnableNexusMcp
+Nexus.exe -EnableNexusMcp
 ```
+
+可选：`-NexusMcpPort=45000` `-NexusWsPort=55000` `-NexusAllowLan`
 
 **方式 C — 控制台（仅本进程，不写盘）**
 
+编辑器输出日志，或独立 Game 包按 `~` 打开控制台：
+
 ```
-NexusLink.EnableMcp 1   ; 开启
-NexusLink.EnableMcp 0   ; 关闭
-NexusLink.EnableMcp     ; 查看 on/off
+NexusLink.EnableMcp 1                         ; 开启（同 -EnableNexusMcp）
+NexusLink.EnableMcp 1 Port=45001 Lan=1        ; 指定端口并允许 LAN
+NexusLink.EnableMcp 1 -NexusMcpPort=45001 -NexusAllowLan
+NexusLink.EnableMcp 0                         ; 关闭
+NexusLink.EnableMcp                           ; 查看 on/off 与监听地址
 ```
 
-Preferences 与 `-EnableNexusMcp` / 控制台为 **OR**。CLI 不会改写 `bEnableMcpServer`。
+Preferences 与 `-EnableNexusMcp` / 控制台为 **OR**。CLI 与控制台都不会改写 `bEnableMcpServer`。
 
 ### 2.3 确认运行状态
 
@@ -178,7 +185,7 @@ Preferences 与 `-EnableNexusMcp` / 控制台为 **OR**。CLI 不会改写 `bEna
 
 ### 2.4 端口
 
-- 默认 MCP HTTP `45000`，WebSocket `55000`
+- 默认 MCP HTTP `45000`，WebSocket `55000`；可用 `-NexusMcpPort=` / `-NexusWsPort=` 或控制台 `Port=` / `WsPort=` 指定起始端口
 - 冲突时自动切到下一可用端口；设置面板只读显示实际端口
 - 可开关「在状态栏显示端口号」（**默认开启**）
 

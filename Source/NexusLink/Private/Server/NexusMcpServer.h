@@ -46,6 +46,12 @@ public:
 	const FString& GetAuthToken() const { return AuthToken; }
 
 	/**
+	 * 控制台会话级 LAN 覆盖（不写 Preferences）。
+	 * -1=沿用 Preferences / -NexusAllowLan；0=强制 loopback；1=强制 0.0.0.0。
+	 */
+	static void SetSessionLanBindOverride(int8 Override);
+
+	/**
 	 * 向所有已连接的 WebSocket 客户端广播 JSON-RPC 通知。
 	 * HTTP 会话为无状态 request-response，无法主动推送；客户端下次 tools/list 时自动获取最新列表。
 	 */

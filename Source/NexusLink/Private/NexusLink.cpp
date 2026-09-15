@@ -17,6 +17,8 @@
 #include "Misc/Parse.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/OutputDevice.h"
+#include "Engine/World.h"
 #include "NexusEditorServices.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusLink, Log, All);
@@ -77,8 +79,8 @@ void FNexusLinkModule::StartupModule()
 
 	EnableMcpConsoleCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("NexusLink.EnableMcp"),
-		HELP_TEXT("会话级启停 MCP（不写 Preferences）。用法: NexusLink.EnableMcp 1|0；无参数打印当前状态。"),
-		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FNexusLinkModule::HandleEnableMcpCommand),
+		HELP_TEXT("会话级启停 MCP（不写 Preferences）。独立 Game 包按 ~ 打开控制台即可，效果同 -EnableNexusMcp。用法: NexusLink.EnableMcp 1|0 [Port=] [WsPort=] [Lan=1|-NexusAllowLan]；无参数打印状态与监听地址。"),
+		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateRaw(this, &FNexusLinkModule::HandleEnableMcpCommand),
 		ECVF_Default);
 
 	UE_LOG(LogNexusLink, Log, TEXT("NexusLink 模块已加载，等待引擎初始化完成..."));
@@ -155,10 +157,26 @@ bool FNexusLinkModule::TryStartMcpServer()
 		return true;
 	}
 
-	// 端口从默认值开始自动寻找可用端口，冲突时向上顺延（无需用户手动配置）
-	constexpr int32 DefaultMcpPort  = 45000;
-	constexpr int32 DefaultWsPort   = 55000;
+	// 端口：控制台会话覆盖 > -NexusMcpPort= / -NexusWsPort= > 默认 45000 / 55000；冲突时向上顺延
+	constexpr int32 FallbackMcpPort = 45000;
+	constexpr int32 FallbackWsPort  = 55000;
 	constexpr int32 MaxStartRetries = 3;
+
+	auto ResolveStartPort = [](int32 SessionOverride, const TCHAR* CliKey, int32 Fallback) -> int32
+	{
+		if (SessionOverride > 0 && SessionOverride <= 65535)
+		{
+			return SessionOverride;
+		}
+		int32 CliPort = 0;
+		if (FParse::Value(FCommandLine::Get(), CliKey, CliPort) && CliPort > 0 && CliPort <= 65535)
+		{
+			return CliPort;
+		}
+		return Fallback;
+	};
+	const int32 DefaultMcpPort = ResolveStartPort(SessionMcpPort, TEXT("NexusMcpPort="), FallbackMcpPort);
+	const int32 DefaultWsPort  = ResolveStartPort(SessionWsPort, TEXT("NexusWsPort="), FallbackWsPort);
 
 	// 读取其他活跃实例已占用的端口，避免 bind 探测与实际监听之间的 TOCTOU 竞态
 	TArray<int32> ExcludePorts = FNexusInstanceRegistry::GetClaimedPorts();
@@ -259,7 +277,7 @@ void FNexusLinkModule::OnPostEngineInit()
 	if (!IsMcpServerRequestedAtStartup())
 	{
 		UE_LOG(LogNexusLink, Log,
-			TEXT("MCP 服务器未启用。可在 Preferences 勾选、启动参数 -EnableNexusMcp，或控制台 NexusLink.EnableMcp 1"));
+			TEXT("MCP 服务器未启用。可在 Preferences 勾选、启动参数 -EnableNexusMcp，或运行时控制台 NexusLink.EnableMcp 1"));
 	}
 	else
 	{
@@ -269,53 +287,140 @@ void FNexusLinkModule::OnPostEngineInit()
 	// 版本更新检查通知是编辑器专属 UI，由 FNexusLinkEditorModule::OnPostEngineInit 负责
 }
 
-void FNexusLinkModule::HandleEnableMcpCommand(const TArray<FString>& Args)
+static bool ParseEnableToken(const FString& Token, bool& bEnable, bool& bDisable)
 {
-#if NEXUSLINK_WITH_SERVER
-	const bool bRunning = McpServer.IsValid() && McpServer->IsRunning();
+	bEnable =
+		Token == TEXT("1")
+		|| Token.Equals(TEXT("true"), ESearchCase::IgnoreCase)
+		|| Token.Equals(TEXT("on"), ESearchCase::IgnoreCase);
+	bDisable =
+		Token == TEXT("0")
+		|| Token.Equals(TEXT("false"), ESearchCase::IgnoreCase)
+		|| Token.Equals(TEXT("off"), ESearchCase::IgnoreCase);
+	return bEnable || bDisable;
+}
+
+/** 解析 Port=/WsPort=/Lan= 以及与启动参数同形的 -NexusMcpPort= / -NexusWsPort= / -NexusAllowLan。 */
+static bool ApplyListenOverridesFromArgs(
+	const TArray<FString>& Args,
+	int32 FirstIndex,
+	int32& OutMcpPort,
+	int32& OutWsPort,
+	int8& OutLan)
+{
+	bool bAny = false;
+	for (int32 i = FirstIndex; i < Args.Num(); ++i)
+	{
+		const FString& Token = Args[i];
+		int32 Parsed = 0;
+		// WsPort 必须先于 Port，避免 "WsPort=x" 被 "Port=" 误吃
+		if (FParse::Value(*Token, TEXT("NexusWsPort="), Parsed)
+			|| FParse::Value(*Token, TEXT("WsPort="), Parsed))
+		{
+			OutWsPort = Parsed;
+			bAny = true;
+			continue;
+		}
+		if (FParse::Value(*Token, TEXT("NexusMcpPort="), Parsed)
+			|| FParse::Value(*Token, TEXT("Port="), Parsed))
+		{
+			OutMcpPort = Parsed;
+			bAny = true;
+			continue;
+		}
+		if (Token.Equals(TEXT("-NexusAllowLan"), ESearchCase::IgnoreCase)
+			|| Token.Equals(TEXT("NexusAllowLan"), ESearchCase::IgnoreCase))
+		{
+			OutLan = 1;
+			bAny = true;
+			continue;
+		}
+		FString LanValue;
+		if (FParse::Value(*Token, TEXT("Lan="), LanValue) && !LanValue.IsEmpty())
+		{
+			const bool bLanOn =
+				LanValue == TEXT("1")
+				|| LanValue.Equals(TEXT("true"), ESearchCase::IgnoreCase)
+				|| LanValue.Equals(TEXT("on"), ESearchCase::IgnoreCase);
+			OutLan = bLanOn ? 1 : 0;
+			bAny = true;
+		}
+	}
+	return bAny;
+}
+
+void FNexusLinkModule::HandleEnableMcpCommand(const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	(void)World;
+#if !NEXUSLINK_WITH_SERVER
+	Ar.Log(TEXT("Shipping 配置不带 MCP 服务器（编译期剔除）"));
+	UE_LOG(LogNexusLink, Warning, TEXT("Shipping 配置不带 MCP 服务器（编译期剔除）"));
 #else
-	const bool bRunning = false;
-#endif
+	const bool bRunning = McpServer.IsValid() && McpServer->IsRunning();
+	auto PrintListen = [this, &Ar](const TCHAR* Prefix)
+	{
+		const int32 McpPort = McpServer.IsValid() ? McpServer->GetMcpPort() : 0;
+		const int32 WsPort  = McpServer.IsValid() ? McpServer->GetWsPort() : 0;
+		Ar.Logf(TEXT("%s http://127.0.0.1:%d/stream  ws://127.0.0.1:%d/"), Prefix, McpPort, WsPort);
+	};
+
 	if (Args.Num() < 1)
 	{
-		UE_LOG(LogNexusLink, Log, TEXT("NexusLink.EnableMcp 当前=%s（用法: NexusLink.EnableMcp 1|0）"),
-			bRunning ? TEXT("on") : TEXT("off"));
-		return;
-	}
-
-	const FString& Arg0 = Args[0];
-	const bool bEnable =
-		Arg0 == TEXT("1")
-		|| Arg0.Equals(TEXT("true"), ESearchCase::IgnoreCase)
-		|| Arg0.Equals(TEXT("on"), ESearchCase::IgnoreCase);
-
-	const bool bDisable =
-		Arg0 == TEXT("0")
-		|| Arg0.Equals(TEXT("false"), ESearchCase::IgnoreCase)
-		|| Arg0.Equals(TEXT("off"), ESearchCase::IgnoreCase);
-
-	if (!bEnable && !bDisable)
-	{
-		UE_LOG(LogNexusLink, Warning, TEXT("NexusLink.EnableMcp 参数无效 '%s'（期望 1|0）"), *Arg0);
-		return;
-	}
-
-	if (bEnable)
-	{
-		if (TryStartMcpServer())
+		if (bRunning)
 		{
-			UE_LOG(LogNexusLink, Log, TEXT("NexusLink.EnableMcp: MCP 已开启（会话级，未写 Preferences）"));
+			PrintListen(TEXT("NexusLink.EnableMcp 当前=on"));
 		}
 		else
 		{
-			UE_LOG(LogNexusLink, Error, TEXT("NexusLink.EnableMcp: 启动失败"));
+			Ar.Log(TEXT("NexusLink.EnableMcp 当前=off（用法: NexusLink.EnableMcp 1|0 [Port=] [WsPort=] [Lan=1|-NexusAllowLan]）"));
 		}
+		return;
+	}
+
+	bool bEnable = false;
+	bool bDisable = false;
+	const bool bHasOnOff = ParseEnableToken(Args[0], bEnable, bDisable);
+	if (!bHasOnOff)
+	{
+		Ar.Logf(TEXT("NexusLink.EnableMcp 参数无效 '%s'（期望 1|0）"), *Args[0]);
+		UE_LOG(LogNexusLink, Warning, TEXT("NexusLink.EnableMcp 参数无效 '%s'（期望 1|0）"), *Args[0]);
+		return;
+	}
+
+	int8 LanOverride = -1;
+	const bool bGotOverride = ApplyListenOverridesFromArgs(
+		Args, 1, SessionMcpPort, SessionWsPort, LanOverride);
+	if (LanOverride >= 0)
+	{
+		FNexusMcpServer::SetSessionLanBindOverride(LanOverride);
+	}
+
+	if (bDisable)
+	{
+		SessionMcpPort = 0;
+		SessionWsPort = 0;
+		FNexusMcpServer::SetSessionLanBindOverride(-1);
+		StopMcpServer();
+		Ar.Log(TEXT("NexusLink.EnableMcp: MCP 已关闭（会话级，未写 Preferences）"));
+		UE_LOG(LogNexusLink, Log, TEXT("NexusLink.EnableMcp: MCP 已关闭（会话级，未写 Preferences）"));
+		return;
+	}
+
+	if (bRunning && bGotOverride)
+	{
+		StopMcpServer();
+	}
+	if (TryStartMcpServer())
+	{
+		PrintListen(TEXT("NexusLink.EnableMcp: MCP 已开启（会话级，未写 Preferences）"));
+		UE_LOG(LogNexusLink, Log, TEXT("NexusLink.EnableMcp: MCP 已开启（会话级，未写 Preferences）"));
 	}
 	else
 	{
-		StopMcpServer();
-		UE_LOG(LogNexusLink, Log, TEXT("NexusLink.EnableMcp: MCP 已关闭（会话级，未写 Preferences）"));
+		Ar.Log(TEXT("NexusLink.EnableMcp: 启动失败"));
+		UE_LOG(LogNexusLink, Error, TEXT("NexusLink.EnableMcp: 启动失败"));
 	}
+#endif
 }
 
 IMPLEMENT_MODULE(FNexusLinkModule, NexusLink)
