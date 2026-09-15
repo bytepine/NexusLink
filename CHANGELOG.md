@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [2.1.0-beta.2] - 2026-09-15
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Fixed
 
 - fix(runtime): `get_runtime_actor_animation` 的 `state` 段在独立 Game 对 ThirdPerson 角色空指针崩溃——`GetStateMachineInstance(idx)` 按 `AnimNodeProperties` 倒序取值，第 0 项常不是状态机而返回 nullptr，随后 `->GetCurrentState()` 读 `+0x24` 触发 `EXCEPTION_ACCESS_VIOLATION`。改为遍历 `GetBakedStateMachines()` 并用 `GetStateMachineInstanceFromName` + 空指针跳过
