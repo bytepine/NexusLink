@@ -6,7 +6,7 @@
 #include "Modules/ModuleManager.h"
 
 /**
- * NexusLinkEditor 模块 —— 承载 195 个 EditorOnly Capability、编辑器 Utils、
+ * NexusLinkEditor 模块 —— 承载 192 个 EditorOnly Capability、编辑器 Utils、
  * Slate 设置定制面板 / 状态栏 / 版本检查。仅完整 Editor 宿主加载。
  *
  * StartupModule 里做两件 NexusLink（Runtime）本身做不了的事：

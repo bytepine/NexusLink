@@ -211,6 +211,25 @@ NexusLink.Mcp panel on|off                    ; 显式打开/关闭
 
 危险 Capability 的 Preferences 访问模式（全部禁用 / 确认 / 自定义）本身不改；面板勾选是**单条会话覆盖**：即使访问模式是「全部禁用」，仍可临时启用某一条（等同 `-NexusEnableDangerousCaps` 的单条版），不影响其他危险 cap，也不写 ini。退出进程或点「清除本会话覆盖」即恢复。
 
+### 2.4.1 独立包 MCP debug 清单
+
+Development/DebugGame 独立 Game 只加载 `NexusLink` Runtime 模块，catalog **没有** `control_pie` / `get_editor_context` / `search_asset` 等 Editor cap。现场排查用下面这些（均已在 Runtime 注册）：
+
+| 意图 | Capability | 说明 |
+|------|------------|------|
+| 读 Output Log | `get_output_log`（`preset=diagnose`） | 环形缓冲本就在 Runtime；独立包可直接 MCP 读 |
+| 收窄采集 | `set_log_capture_filter` | Warning/Error 始终写入 |
+| 控制台命令 | `exec_command` | `GEngine->Exec`；**Dangerous**，默认不在 catalog |
+| 视口截图 | `capture_viewport` | `target=pie` 为 Game 视口；`editor`/`editor_desktop` 为顶层窗口。面板 tab 与 `viewAngle` 属编辑器专属，独立包没有 |
+| 定位对象 | `list_runtime_actors` / `list_runtime_widgets` | `classFilter` / `nameFilter` / `tagFilter` |
+| Actor 现场 | `get_runtime_actor_property` | `diagnose=visibility\|transform\|world_transform\|defaults`；改完用 `set_runtime_actor_property` 再 get |
+| 动画 / AI / GAS | `get_runtime_actor_animation` / `_behavior_tree` / `_ability_system` | 写入走对应 `interact_*` |
+| Lua | `get_runtime_lua_env` → `get_runtime_lua_value` / `_object` / `_stack` | REPL：`eval_runtime_lua` / `dofile_runtime_lua`（Dangerous） |
+
+**危险 cap**（`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua`）默认 `DangerousCapAccess=Disabled`，独立包 **Confirm 模式没有编辑器确认窗**，会被 deny。要开闸：面板会话勾选、Preferences **自定义开启**，或启动参数 `-NexusEnableDangerousCaps`。
+
+调用链示例：看不见 → `list_runtime_actors` → `get_runtime_actor_property diagnose=visibility|transform`；日志 → `get_output_log preset=diagnose`；截图 → `capture_viewport target=pie`（可先 `validateOnly=true`）。
+
 ### 2.5 端口
 
 - 默认 MCP HTTP `45000`，WebSocket `55000`；可用 `-NexusMcpPort=` / `-NexusWsPort=` 或控制台 `Port=` / `WsPort=` 指定起始端口
@@ -373,6 +392,12 @@ UE 与各客户端均支持 per-session 隔离（`Mcp-Session-Id`）。可同时
 ### 游戏里怎么看 MCP 状态 / 临时关某个 Capability
 
 PIE 或 Development 独立包按 `~` 打开控制台，执行 `NexusLink.Mcp panel`。面板上半是运行信息与开启/关闭/重启，下半可按会话临时勾选 Capability（不写 Preferences）。Dedicated Server 无视口，改用 `NexusLink.Mcp status`。Shipping 编译期剔除 MCP，无此命令。详见 [§2.4](#24-游戏内调试面板pie--独立包)。
+
+### 独立包搜不到 `get_output_log` / `capture_viewport` / `exec_command`
+
+这四个已迁到 Runtime，Development 独立包 catalog 里应能搜到（`exec_command` 除外：它带 `dangerous`，默认 Disabled）。不要按旧文档去 Editor 分类找。截图用 `target=pie` 或 `editor`/`editor_desktop`。
+
+LevelEditor 面板 tab（`content_browser` / `details` / `output_log` …）与按 `viewAngle` 环绕拍 Actor 改由 **`capture_editor_panel`** 提供，仅编辑器可见，独立包搜不到属预期。`capture_editor_panel target=list` 可列出面板名、Tab ID 与当前是否打开；未登记的 Tab ID 也能直接传。
 
 ### 走代理时编辑器正在编译 / 重启
 

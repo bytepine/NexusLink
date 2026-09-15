@@ -97,13 +97,13 @@ REGISTER_MCP_CAPABILITY(FNexusSearchAssetCapability);
 flowchart LR
     subgraph RT["NexusLink (Runtime)"]
         RootRT["Capabilities/"]
-        RootRT --> Runtime["Runtime/<br/>Actor·Widget 运行时"]
+        RootRT --> Runtime["Runtime/<br/>Actor·Widget·Debug"]
         RootRT --> LuaRT["Lua/Runtime/<br/>UnLua 运行时求值"]
     end
     subgraph ED["NexusLinkEditor (Editor)"]
         RootED["Capabilities/"]
         RootED --> Asset["Asset/<br/>蓝图·材质·结构体·动画·Widget…"]
-        RootED --> Editor["Editor/<br/>截图·PIE·日志…"]
+        RootED --> Editor["Editor/<br/>PIE·编辑器上下文·面板截图…"]
         RootED --> LuaED["Lua/<br/>UnLua 绑定（非运行时）"]
     end
 ```

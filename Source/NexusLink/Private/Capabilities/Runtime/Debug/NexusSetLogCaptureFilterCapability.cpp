@@ -1,11 +1,7 @@
-﻿// Copyright byteyang. All Rights Reserved.
+// Copyright byteyang. All Rights Reserved.
 
-#include "Capabilities/Editor/NexusSetLogCaptureFilterCapability.h"
-
-#if WITH_EDITOR
-
+#include "Capabilities/Runtime/Debug/NexusSetLogCaptureFilterCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
-#include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Log/NexusLogCapture.h"
@@ -23,18 +19,15 @@ void FSetLogCaptureFilterCapability::BuildDefinition(FNexusCapabilityDefinition&
 			     "Warning/Error always written regardless of this list.")))
 		.Required({ TEXT("categories") })
 		.Build();
-	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
+	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("configure"), TEXT("whitelist"), TEXT("category"), TEXT("include"), TEXT("exclude") };
 	Out.RelatedCapabilities = { TEXT("get_output_log") };
 }
 
 FCapabilityResult FSetLogCaptureFilterCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
-
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-
-
 		const TArray<TSharedPtr<FJsonValue>>* CatArrPtr = nullptr;
 		if (!Arguments->TryGetArrayField(TEXT("categories"), CatArrPtr) || !CatArrPtr)
 		{
@@ -73,10 +66,7 @@ FCapabilityResult FSetLogCaptureFilterCapability::Execute(const TSharedPtr<FJson
 				? TEXT("Capturing ALL log categories (Warning/Error always captured)")
 				: FString::Printf(TEXT("Capturing %d log category filters (Warning/Error always captured)"), Categories.Num()));
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-	
 	});
 }
 
 REGISTER_MCP_CAPABILITY(FSetLogCaptureFilterCapability)
-
-#endif // WITH_EDITOR

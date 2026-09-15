@@ -1,9 +1,9 @@
-// Copyright byteyang. All Rights Reserved.
+﻿// Copyright byteyang. All Rights Reserved.
 
 using UnrealBuildTool;
 
 /// <summary>
-/// NexusLinkEditor（Editor 模块）：195 个 EditorOnly cap、编辑器 Utils、Slate 设置定制 / 状态栏 /
+/// NexusLinkEditor（Editor 模块）：192 个 EditorOnly cap、编辑器 Utils、Slate 设置定制 / 状态栏 /
 /// UpdateChecker。只在完整 Editor 宿主加载（Type=Editor，Game/DS 目标不编译本模块）。
 /// 依赖 NexusLink（Runtime）取 Public API（Capability 基类、Registry、Editor 服务钩子表等）。
 /// </summary>
@@ -42,7 +42,7 @@ public class NexusLinkEditor : ModuleRules
 		string ProjectRoot = NexusLinkOptionalPlugins.FindProjectRoot(ModuleDirectory);
 		var SearchDirs = NexusLinkOptionalPlugins.CollectPluginSearchDirs(ProjectRoot, this);
 
-		// Editor 模块覆盖全量可选插件表：195 个 EditorOnly cap 里用到的资产编辑/图编辑功能
+		// Editor 模块覆盖全量可选插件表：192 个 EditorOnly cap 里用到的资产编辑/图编辑功能
 		// 需要各插件的 Runtime 模块（资产数据类型）与 EditorModules（编译器/图编辑器）两部分。
 		// WITH_UNLUA/WITH_GAS/WITH_NIAGARA 及 UNLUA_VERSION_MAJOR 的宏已由 NexusLink（Runtime）
 		// PublicDefinitions 传递到本模块，这里只补链 EditorModules，不重复 Add 宏（避免 C4005 重定义）。

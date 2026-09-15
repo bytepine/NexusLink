@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
-/** set_log_capture_filter 工具的唯一 Capability —— 设置日志分类白名单。*/
-class FSetLogCaptureFilterCapability : public FNexusCapability
+/** capture_viewport —— 截图 Game/PIE 视口或顶层窗口；Actor/UMG 可二次裁切。*/
+class FCaptureViewportCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

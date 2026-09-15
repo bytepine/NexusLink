@@ -41,7 +41,7 @@
 | `Control` | 控制编辑器状态 | `control_pie` |
 | `Exec` | 执行命令/脚本 | `exec_command`, `exec_python`, `eval_runtime_lua`, `dofile_runtime_lua` |
 | `Inspect` | 只读查看内部结构（Lua 表/堆栈/元表） | `get_runtime_lua_stack` |
-| `Capture` | 截图 | `capture_viewport` |
+| `Capture` | 截图 | `capture_viewport`（Runtime 视口/窗口）、`capture_editor_panel`（LevelEditor 面板） |
 | `Query` | 系统级只读查询 | `get_asset_refs`, `get_gameplay_tags` |
 | `Hot-reload` | 热重载模块 | `hotreload_runtime_lua` |
 
@@ -83,8 +83,8 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 |------|------|------|
 | `manage_*` 且 Schema 含 `operations[]` | `FNexusActionCapability` | `BuildDefinition` + `RegisterActions` + `PrepareTarget`；可选 `FinalizeTarget` / `AfterPrepareTarget` |
 | 只读且用 `sections[]`（含 `"all"`） | `FNexusMultiSectionCapability`（编辑器）或 `FNexusRuntimeMultiSectionCapability`（PIE） | `BuildDefinition`（`Out.InputSchema = BuildSchemaWithSections()`）+ `BuildCapabilitySchema` / `GetSectionNames` / `ExecuteSection` |
-| PIE 运行时（`*_runtime_*` / `list_runtime_*` / `eval_runtime_lua` 等，**无** `operations[]`） | `FNexusRuntimeCapability` | `BuildDefinition` + `Execute` |
-| 其余（`create_*` / `save`/`delete`/`rename`/`duplicate`/`unload` / 无 sections 的 `get_*` / `exec_command` / `control_pie` / `control_movie_pipeline` / `set_*_property`） | `FNexusCapability` | `BuildDefinition` + `Execute` |
+| PIE/Game 运行时（`*_runtime_*` / `list_runtime_*` / `eval_runtime_lua` / `get_output_log` / `set_log_capture_filter` / `exec_command` / `capture_viewport` 等，**无** `operations[]`） | `FNexusRuntimeCapability` | `BuildDefinition` + `Execute` |
+| 其余（`create_*` / `save`/`delete`/`rename`/`duplicate`/`unload` / 无 sections 的 `get_*` / `control_pie` / `control_movie_pipeline` / `set_*_property`） | `FNexusCapability` | `BuildDefinition` + `Execute` |
 
 - `interact_*` / `control_pie` / `control_movie_pipeline` 的顶层 `action` 是**命令**，不是批量 `operations[]` → **不要**用 `FNexusActionCapability`
 - `set_*_property` 走 `updates[]` → `FNexusCapability` 或 `FNexusRuntimeCapability`
@@ -172,7 +172,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | `node`, `pin`, `wire`, `graph`, `connection` | `manage_asset_blueprint`, `manage_asset_material` |
 | `tag`, `gameplay tag`, `gtag` | `get_gameplay_tags` |
 | `log`, `output`, `console` | `get_output_log`, `exec_command` |
-| `screenshot`, `snap`, `capture`, `photo` | `capture_viewport` |
+| `screenshot`, `snap`, `capture`, `photo` | `capture_viewport`；编辑器面板 tab 用 `capture_editor_panel` |
 | `spawn`, `create actor`, `instantiate` | `spawn_runtime_actor` |
 | `kill`, `remove actor`, `delete actor` | `destroy_runtime_actor` |
 | `montage`, `play`, `anim slot` | `get_asset_anim_montage`, `get_runtime_actor_animation`, `interact_runtime_actor_animation` |
@@ -268,10 +268,10 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 
 | 分类 | Capability |
 |------|------------|
-| Editor (8) | `capture_viewport`, `compile_blueprint`, `control_pie`, `exec_command`, `get_editor_info`, `get_gameplay_tags`, `get_output_log`, `set_log_capture_filter` |
+| Editor (5) | `capture_editor_panel`, `compile_blueprint`, `control_pie`, `get_editor_info`, `get_gameplay_tags` |
 | 通用资产 (7) | 见 §6.2 例外行 |
 | Lua (14, `WITH_UNLUA`) | `eval_runtime_lua`, `dofile_runtime_lua`, `gc_runtime_lua`, `hotreload_runtime_lua`, `set_runtime_lua`, `get_runtime_lua_env`, `get_runtime_lua_value`, `get_runtime_lua_loaded`, `get_runtime_lua_stack`, `get_runtime_lua_metatable`, `get_runtime_lua_object`, `get_runtime_lua_memory`, `get_asset_lua_binding`, `manage_asset_lua_binding` |
-| Runtime 非标 | `diff_runtime_actors`, `get_runtime_slate_widget` |
+| Runtime 非标 | `diff_runtime_actors`, `get_runtime_slate_widget`, `get_output_log`, `set_log_capture_filter`, `exec_command`, `capture_viewport` |
 | GAS (`WITH_GAS=1`, 14) | `create/get/manage_asset_gameplay_ability`, `create/get/manage_asset_gameplay_effect`, `create/get/manage_asset_attribute_set`, `create/get/manage_asset_gameplay_cue_notify`, `get_runtime_actor_ability_system`, `interact_runtime_actor_ability_system` |
 | StateTree (`WITH_STATETREE=1`, UE 5.5+, 3) | `get_asset_state_tree`, `manage_asset_state_tree`, `create_asset_state_tree` |
 | MVVM (`WITH_MVVM=1`, UE 5.5+, 2) | `get_asset_view_model`, `manage_asset_view_model` |
@@ -318,9 +318,9 @@ Utils 按依赖方向划分为 6 层，依赖只能从高层流向低层，**禁
 | **Result** | Capability 返回壳构造 | `NexusCapabilityResultBuilder` |
 | **Reflection** | UObject 反射/属性读写 | `NexusPropertyUtils`、`NexusPropertyReportUtils` |
 | **Asset** | 资产加载/蓝图/图结构 | `NexusAssetUtils`、`NexusBlueprintGraphUtils` |
-| **Runtime** | 运行时 World/Actor/Widget | `NexusRuntimeUtils` |
+| **Runtime** | 运行时 World/Actor/Widget | `NexusRuntimeUtils`、`NexusCaptureUtils`（Game 视口 / Slate 截图） |
 | **Domain** | 领域专用（引用面窄） | `NexusLuaUtils`、`NexusMaterialUtils`、`NexusAnimGraphUtils`、`NexusWidgetAnimationUtils`、`NexusBehaviorTreeInspectUtils`、`NexusPinTypeUtils` |
-| **Editor** | `WITH_EDITOR` 专属 | `NexusPortUtils`、`NexusEditorCaptureUtils`、`NexusCapabilityIndexUtils` |
+| **Editor** | `WITH_EDITOR` 专属 | `NexusPortUtils`、`NexusEditorContextUtils`、`NexusEditorCaptureUtils`、`NexusCapabilityIndexUtils` |
 
 **依赖规则**：Common 不得依赖任何其他层；Result/Reflection 只能依赖 Common；Asset 可依赖 Reflection/Common；Runtime 可依赖 Reflection/Common；Domain/Editor 可依赖 Common，Editor 还可依赖 Asset。
 

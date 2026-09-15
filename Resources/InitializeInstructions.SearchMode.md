@@ -44,13 +44,13 @@ Forbidden: `manage_animation`, `set_runtime_actor_animation`.
 
 **Assets**: prefer `search_asset` → `recommended*`; otherwise `{get|manage|create}_asset_{type}` — type ∈ `blueprint` / `material` / `anim_blueprint` / `anim_montage` / `user_widget` / `behavior_tree` / `blackboard` / `data_table` / `data_asset` / `struct` / `texture` / `static_mesh` / `skeletal_mesh` / `anim_sequence` / `skeleton` / `sound_wave` / `sound_cue` / `level` / `level_sequence` / `physical_material` / `string_table` / `foliage_type` / `font` / `media_source`. One (verb, type) covers all sub-aspects (do not look for `manage_asset_blueprint_variable`, etc.). Exceptions: `manage_asset_struct_field`, `get_asset_refs`, `get_asset_lua_binding`, `manage_asset_lua_binding`, `export_asset`, `reimport_asset`, `compile_blueprint`, `save_asset` / `rename_asset` / `duplicate_asset` / `delete_asset` / `unload_asset`.
 
-**Runtime**: `{verb}_runtime_{target}[_aspect]` (`list`/`get`/`set`/`spawn`/`destroy`/`interact`/`diff`; target=`actor`/`widget`/`slate_widget`, actor may add `_property`/`_animation`/`_behavior_tree`/`_audio`/`_niagara`/`_ai`/`_ability_system`). Animation: read `get_runtime_actor_animation`, write `interact_runtime_actor_animation`. Non-pattern: `interact_runtime_widget`, `diff_runtime_actors`, `get_runtime_slate_widget`.
+**Runtime**: `{verb}_runtime_{target}[_aspect]` (`list`/`get`/`set`/`spawn`/`destroy`/`interact`/`diff`; target=`actor`/`widget`/`slate_widget`, actor may add `_property`/`_animation`/`_behavior_tree`/`_audio`/`_niagara`/`_ai`/`_ability_system`). Animation: read `get_runtime_actor_animation`, write `interact_runtime_actor_animation`. Non-pattern: `interact_runtime_widget`, `diff_runtime_actors`, `get_runtime_slate_widget`, `get_output_log` / `set_log_capture_filter`, `exec_command`, `capture_viewport`.
 
 **Lua**: `{eval|dofile|gc|hotreload}_runtime_lua` · `get_runtime_lua_*` · `set_runtime_lua` · `get_asset_lua_binding` · `manage_asset_lua_binding`; `hotreload_runtime_lua` requires UnLua **2.x**.
 
 **Plugin-gated**: GAS / Niagara / StateTree / MVVM / EQS / MetaSound / PCG / ControlRig / Enhanced Input / Paper2D / GeometryCollection / CommonUI / Movie Render Queue / Python (`get_python_api` / `exec_python`) register only with matching plugin+engine; `search_capabilities` `not_found` → skip, do not hard-call handshake names. Tag queries: `get_gameplay_tags` is always available.
 
-**Editor**: `control_pie`, `control_movie_pipeline`, `exec_command`, `search_console_variables`, `capture_viewport`, `get_editor_context`, `get_output_log` / `set_log_capture_filter`, `get_editor_info`.
+**Editor**: `control_pie`, `control_movie_pipeline`, `search_console_variables`, `capture_editor_panel`, `get_editor_context`, `get_editor_info`.
 
 ## Workflow notes
 

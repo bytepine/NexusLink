@@ -1,9 +1,6 @@
-﻿// Copyright byteyang. All Rights Reserved.
+// Copyright byteyang. All Rights Reserved.
 
-#include "Capabilities/Editor/NexusGetOutputLogCapability.h"
-
-#if WITH_EDITOR
-
+#include "Capabilities/Runtime/Debug/NexusGetOutputLogCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
@@ -32,14 +29,14 @@ void FGetOutputLogCapability::BuildDefinition(FNexusCapabilityDefinition& Out) c
 		.Prop(TEXT("textFilter"),     FNexusSchema::Str(TEXT("Single text substring filter")))
 		.Prop(TEXT("textFilters"),    FNexusSchema::StrArr(TEXT("Text filter (OR); overrides textFilter")))
 		.Build();
-	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
+	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("logs"), TEXT("console"), TEXT("messages"), TEXT("verbosity"), TEXT("warning"), TEXT("diagnose"), TEXT("summary") };
 	Out.RelatedCapabilities = { TEXT("set_log_capture_filter"), TEXT("exec_command") };
+	Out.WhenToUse = TEXT("Diagnose errors/warnings from Output Log in Editor or packaged Game");
 }
 
 FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
-
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
@@ -254,10 +251,7 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-	
 	});
 }
 
 REGISTER_MCP_CAPABILITY(FGetOutputLogCapability)
-
-#endif // WITH_EDITOR

@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
+#include "NexusRuntimeCapability.h"
 
-/** capture_viewport 工具的唯一 Capability —— 截图编辑器 UI / PIE / Actor / Widget。*/
-class FCaptureViewportCapability : public FNexusCapability
+/** exec_command —— 执行 UE 控制台命令并捕获输出（GEngine->Exec，Dangerous）。*/
+class FExecCommandCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -1,7 +1,8 @@
 {
   "descriptions": {
     "call_capability": "执行 Capability（在 search_asset / get_asset_* 之后）。失败时检查 errorKind：unknown/disabled/unavailable/arg_invalid/user_denied；disabled 与 user_denied 不要重试。Confirm 模式危险 cap 须传 reason。旧名（如 create_blackboard）映射到规范名。批量 calls[] 与单条形式互斥。",
-    "capture_viewport": "截图编辑器/PIE/Actor/Widget。含 editor_desktop 整窗。",
+    "capture_editor_panel": "截图 LevelEditor 面板 tab，或按视角拍 Actor。仅编辑器；Game/PIE 视口走 capture_viewport。",
+    "capture_viewport": "截图 Game/PIE 视口或顶层窗口；可选 Actor/UMG 裁切。面板与 viewAngle 走 capture_editor_panel。",
     "compile_blueprint": "显式编译 Blueprint/ABP/WBP。可选 saveToDisk；manage 之后使用。",
     "control_movie_pipeline": "控制 MRQ 队列。enqueue/status/cancel。不等待渲染完成。UE5+。",
     "control_pie": "启动/停止/暂停/单步 PIE。action=start|stop|status|pause|resume|step。",
@@ -234,6 +235,8 @@
     "unload_asset": "手动卸载已加载的包。兜底用；通常自动卸载即可。"
   },
   "when_to_use": {
+    "capture_editor_panel": "截编辑器面板/关卡视口，或按固定视角拍 Actor",
+    "capture_viewport": "截 Game/PIE 视口或游戏窗口做视觉排查",
     "compile_blueprint": "manage 未带 compile 时显式编译",
     "control_movie_pipeline": "用配置+序列入队 MRQ；磁盘设置走 manage_asset_movie_pipeline_config",
     "create_asset_anim_blueprint": "创建空白动画蓝图；需要 skeletonPath",
@@ -328,6 +331,7 @@
     "get_asset_user_widget": "控件树/动画在此读取；EventGraph 写入走 manage_asset_blueprint",
     "get_asset_view_model": "读 Widget 蓝图上的 MVVM ViewModel 与绑定（source↔target/方向/转换）",
     "get_editor_context": "读编辑器选中；PIE 中用 list_runtime_actors",
+    "get_output_log": "从 Output Log 诊断错误/警告（编辑器或独立包）",
     "get_runtime_actor_ability_system": "在 PIE 中读 Actor 的 Ability/GE/属性；写入走 interact_runtime_actor_ability_system",
     "get_runtime_actor_property": "只读字段，不做修改",
     "get_runtime_lua_env": "浏览所有键（env）或读单键（value）",
@@ -389,6 +393,7 @@
   "param_text": {
     "Action": "操作",
     "Actor bbox padding ratio": "Actor 包围盒 padding 比例",
+    "Actor bounds padding ratio": "Actor 包围盒留白比例",
     "Actor class name filter (optional)": "Actor 类名过滤（可选）",
     "Actor diagnose preset": "Actor 诊断预设",
     "Actor name (actor target)": "Actor 名（actor 目标）",
@@ -474,6 +479,7 @@
     "Graph name (node/wire actions)": "图名（节点/连线操作）",
     "Graph type filter": "图类型过滤",
     "Image format": "图片格式",
+    "Ignored at Runtime (needs LevelEditor camera)": "Runtime 忽略（需要 LevelEditor 相机）",
     "Include pin details (graph)": "包含引脚详情（graph）",
     "Include wire info (graph)": "包含连线信息（graph）",
     "Index in decorators[]/services[] to remove or modify": "decorators[]/services[] 中要删改的索引",
@@ -568,6 +574,7 @@
     "Row struct class name (must exist)": "行结构体类名（须已存在）",
     "Runtime Actor name (actor section)": "运行时 Actor 名（actor 段）",
     "Runtime UMG widget; target=pie": "运行时 UMG Widget；target=pie",
+    "runtime UMG Widget; uses Game viewport": "运行时 UMG Widget；走 Game 视口",
     "Runtime actor name": "运行时 Actor 名",
     "Runtime widget name": "运行时 Widget 名",
     "SCS variable name (add/remove/set_component_property)": "SCS 变量名（add/remove/set_component_property）",

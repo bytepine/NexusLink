@@ -12,7 +12,7 @@
 
 **路径 B — Capability**（主流路径）
 
-1. **先按 [CapabilitySpec.md](Resources/CapabilitySpec.md) §2.1.0 选模块**（PIE/Game 活对象、不落盘 → `NexusLink` Runtime 模块；磁盘资产 / 编辑器 API / 落盘 → `NexusLinkEditor` 模块），再按 §2.1.1 **选基类**（`manage_*` + `operations[]` → `FNexusActionCapability`，子类禁止 `Execute`；`sections[]` → MultiSection；PIE → Runtime；其余 → `FNexusCapability`），最后在对应模块下创建 `Source/<模块>/Private/Capabilities/<分类>/NexusXxxCapability.h/.cpp`
+1. **先按 [CapabilitySpec.md](Resources/CapabilitySpec.md) §2.1.0 选模块**（PIE/Game 活对象、不落盘 → `NexusLink` Runtime 模块；磁盘资产 / 编辑器 API / 落盘 → `NexusLinkEditor` 模块），再按 §2.1.1 **选基类**（`manage_*` + `operations[]` → `FNexusActionCapability`，子类禁止 `Execute`；`sections[]` → MultiSection；PIE/Game 运行时含 `get_output_log` / `exec_command` / `capture_viewport` → `FNexusRuntimeCapability`；其余 → `FNexusCapability`），最后在对应模块下创建 `Source/<模块>/Private/Capabilities/<分类>/NexusXxxCapability.h/.cpp`
 2. 实现该基类要求的钩子（Action：`BuildDefinition` + `RegisterActions` + `PrepareTarget`；普通：`BuildDefinition` + `Execute`）；资产 get/manage 须填 `Out.SearchAssetTypes`；`.cpp` 末尾 `REGISTER_MCP_CAPABILITY(...)`
 3. 遵循 CapabilitySpec（命名 / 四段式描述 / 自检清单）
 4. Capability 通过 `call_capability` 元工具直接调用，或在 MultiTool 模式下作为独立 MCP Tool 暴露
@@ -78,7 +78,7 @@ GitHub Release **正文唯一来源**为 `CHANGELOG.md` 对应版本段落（CI 
 | 混合（两者都有） | GUI（超集） | `py Script/run_e2e.py --gui` |
 | 不确定 | 默认 GUI（CHANGELOG 已写 PIE / UnLua / viewport / `*_runtime_*` 时） | 同上 |
 
-GUI 信号：cap 名含 `_runtime_`；标记 `l4_runtime` / `lua` / `requires_gui`；`interact_runtime_*` / `spawn_runtime_*` / `control_pie`；`capture_viewport` / `get_asset_texture` / `eval_runtime_lua` / `dofile_runtime_lua`。不要把 cap 所属模块（`NexusLink` Runtime / `NexusLinkEditor` Editor）当成 GUI 信号。`--full` 与 `--gui` 等价。策略细节见 [docs/testing.md](docs/testing.md)。
+GUI 信号：cap 名含 `_runtime_`；标记 `l4_runtime` / `lua` / `requires_gui`；`interact_runtime_*` / `spawn_runtime_*` / `control_pie`；`capture_viewport` / `capture_editor_panel` / `get_asset_texture` / `eval_runtime_lua` / `dofile_runtime_lua`。不要把 cap 所属模块（`NexusLink` Runtime / `NexusLinkEditor` Editor）当成 GUI 信号。`--full` 与 `--gui` 等价。策略细节见 [docs/testing.md](docs/testing.md)。
 
 **正式版**（`X.Y.Z`）：
 

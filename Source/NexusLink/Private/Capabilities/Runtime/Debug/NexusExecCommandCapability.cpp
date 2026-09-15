@@ -1,22 +1,16 @@
-﻿// Copyright byteyang. All Rights Reserved.
+// Copyright byteyang. All Rights Reserved.
 
-#include "Capabilities/Editor/NexusExecCommandCapability.h"
-
-#if WITH_EDITOR
-
+#include "Capabilities/Runtime/Debug/NexusExecCommandCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
+#include "Utils/NexusRuntimeUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Log/NexusLogCapture.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
-
-#if WITH_EDITOR
-#include "Editor.h"
 #include "NexusMcpTool.h"
-#endif
 
 /** 临时 OutputDevice，拦截 Exec 输出到字符串缓冲区。*/
 class FNexusCapExecOutputDevice : public FOutputDevice
@@ -89,21 +83,19 @@ void FExecCommandCapability::BuildDefinition(FNexusCapabilityDefinition& Out) co
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("command"), FNexusSchema::Str(TEXT("Console command to execute")))
 		.Prop(TEXT("silent"),  FNexusSchema::Bool(TEXT("Skip output capture"), false))
-		.Prop(TEXT("reason"),  FNexusSchema::Str(TEXT("Purpose for the editor confirm dialog. Required in Confirm mode.")))
+		.Prop(TEXT("reason"),  FNexusSchema::Str(TEXT("Purpose for Confirm-mode gate. Required in Confirm mode.")))
 		.Required({ TEXT("command") })
 		.Build();
-	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor, FNexusMcpTags::Dangerous };
+	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime, FNexusMcpTags::Dangerous };
 	Out.ExtraSearchKeywords = { TEXT("console"), TEXT("cmd"), TEXT("cvar"), TEXT("stat"), TEXT("run") };
 	Out.RelatedCapabilities = { TEXT("get_output_log") };
 }
 
 FCapabilityResult FExecCommandCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
-
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-
 		const FString Command = A.Str(TEXT("command"));
 
 		bool bSilent = false;
@@ -111,16 +103,7 @@ FCapabilityResult FExecCommandCapability::Execute(const TSharedPtr<FJsonObject>&
 
 		if (!GEngine) { OutError = TEXT("GEngine unavailable"); return; }
 
-		UWorld* World = nullptr;
-	#if WITH_EDITOR
-		if (GEditor)
-		{
-			for (const FWorldContext& Ctx : GEngine->GetWorldContexts())
-			{
-				if (Ctx.WorldType == EWorldType::PIE && Ctx.World()) { World = Ctx.World(); break; }
-			}
-		}
-	#endif
+		UWorld* World = FNexusRuntimeUtils::GetActiveWorld();
 		if (!World)
 		{
 			for (const FWorldContext& Ctx : GEngine->GetWorldContexts())
@@ -168,10 +151,7 @@ FCapabilityResult FExecCommandCapability::Execute(const TSharedPtr<FJsonObject>&
 			MirrorExecOutputToLogCapture(Command, Output);
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
-	
 	});
 }
 
 REGISTER_MCP_CAPABILITY(FExecCommandCapability)
-
-#endif // WITH_EDITOR

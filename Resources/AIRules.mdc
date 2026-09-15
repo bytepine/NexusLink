@@ -76,8 +76,9 @@ Legacy keys → `arg_invalid`.
 | PIE actor properties | `list_runtime_actors` → `get_runtime_actor_property(actorName=…, propertyPaths=…)` |
 | PIE blackboard / active node | `get_runtime_actor_behavior_tree` (needs PIE + `actorName`) |
 | Console command | `exec_command(command="…")` (`command` required, non-empty; Confirm mode also needs `reason`) |
+| Screenshot | `capture_viewport` for Game/PIE viewport or full window; `capture_editor_panel` for LevelEditor panel tabs and Actor `viewAngle` shots (Editor only) |
 | Editor automation via Python | `get_python_api(target="unreal", query="…")` to confirm the API exists on this engine → `exec_python`; both need Python Editor Script Plugin, and `exec_python` is disabled by default |
-| Errors / crashes / PIE logs | `get_output_log(preset="diagnose")` (newest + ≥warning + category summary); or `includeSummary`/`summaryOnly`; after repro use `latestSequence`→`sinceSequence`; narrow capture with `set_log_capture_filter` (Warning/Error always captured) |
+| Errors / crashes / PIE / packaged Game logs | `get_output_log(preset="diagnose")` (newest + ≥warning + category summary); or `includeSummary`/`summaryOnly`; after repro use `latestSequence`→`sinceSequence`; narrow capture with `set_log_capture_filter` (Warning/Error always captured) |
 | Game design docs | Project **knowledge-base MCP** if available — not NexusLink asset search |
 
 ---

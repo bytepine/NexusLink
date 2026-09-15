@@ -4,9 +4,9 @@ using UnrealBuildTool;
 using System.Collections.Generic;
 
 /// <summary>
-/// NexusLink（Runtime 模块）：Server / Dispatcher / Auth / Registry / 元工具 / 34 个 Runtime cap /
+/// NexusLink（Runtime 模块）：Server / Dispatcher / Auth / Registry / 元工具 / 38 个 Runtime cap /
 /// 运行时 Utils。不链接任何 UnrealEd 系编辑器模块，Development/DebugGame 独立 Game / DedicatedServer
-/// 包可直接编入。编辑器专属实现（195 个 EditorOnly cap、编辑器 Utils、Slate 设置定制）在 NexusLinkEditor。
+/// 包可直接编入。编辑器专属实现（192 个 EditorOnly cap、编辑器 Utils、Slate 设置定制）在 NexusLinkEditor。
 /// </summary>
 public class NexusLink : ModuleRules
 {
@@ -37,10 +37,16 @@ public class NexusLink : ModuleRules
 			});
 		}
 
+		// FWidgetRenderer 仅 Game/Editor/Client 需要；Dedicated Server 无 RHI 视口
+		if (Target.Type != TargetType.Server)
+		{
+			PrivateDependencyModuleNames.Add("SlateRHIRenderer");
+		}
+
 		string ProjectRoot = NexusLinkOptionalPlugins.FindProjectRoot(ModuleDirectory);
 		var SearchDirs = NexusLinkOptionalPlugins.CollectPluginSearchDirs(ProjectRoot, this);
 
-		// Runtime 模块只消费 34 个 Runtime cap 用到的三个可选插件（UnLua / GAS / Niagara）的运行时部分；
+		// Runtime 模块只消费 38 个 Runtime cap 用到的三个可选插件（UnLua / GAS / Niagara）的运行时部分；
 		// 不链接任何 EditorModules（即便当前 Target 是 NexusEditor，也不允许 ed: 部分进入本模块）。
 		// 其余可选插件（StateTree/MVVM/ControlRig/... 等）只被 Editor 域 cap 使用，宏由
 		// NexusLinkEditor.Build.cs 定义，本模块不重复 Add（避免 C4005 重定义）。
