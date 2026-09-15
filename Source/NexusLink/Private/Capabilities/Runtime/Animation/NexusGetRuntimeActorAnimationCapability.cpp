@@ -134,23 +134,27 @@ void FGetRuntimeActorAnimationCapability::ExecuteSection(const FString&         
 		if (AnimBPClass)
 		{
 			TArray<TSharedPtr<FJsonValue>> StateMachines;
+			const TArray<FBakedAnimationStateMachine>& BakedMachines = AnimBPClass->GetBakedStateMachines();
 			for (int32 MachineIdx = 0;
-			     MachineIdx < AnimBPClass->AnimNodeProperties.Num() && StateMachines.Num() < 20;
+			     MachineIdx < BakedMachines.Num() && StateMachines.Num() < 20;
 			     ++MachineIdx)
 			{
-				const FBakedAnimationStateMachine* BakedSM = AnimBPClass->GetBakedStateMachines().IsValidIndex(MachineIdx)
-					? &AnimBPClass->GetBakedStateMachines()[MachineIdx] : nullptr;
-				if (!BakedSM) continue;
+				const FBakedAnimationStateMachine& BakedSM = BakedMachines[MachineIdx];
 
 				TSharedPtr<FJsonObject> SMObj = MakeShared<FJsonObject>();
-				SMObj->SetStringField(TEXT("name"), BakedSM->MachineName.ToString());
+				SMObj->SetStringField(TEXT("name"), BakedSM.MachineName.ToString());
 
-				const int32 CurrentStateIdx = AnimInst->GetStateMachineInstance(MachineIdx)->GetCurrentState();
-				if (BakedSM->States.IsValidIndex(CurrentStateIdx))
+				// GetStateMachineInstance(idx) 按 AnimNodeProperties 倒序取节点，
+				// 第 0 项常常不是状态机 → 返回 nullptr；ThirdPerson 角色上会 AV 读 +0x24。
+				if (const FAnimNode_StateMachine* SMInstance = AnimInst->GetStateMachineInstanceFromName(BakedSM.MachineName))
 				{
-					SMObj->SetStringField(TEXT("currentState"), BakedSM->States[CurrentStateIdx].StateName.ToString());
+					const int32 CurrentStateIdx = SMInstance->GetCurrentState();
+					if (BakedSM.States.IsValidIndex(CurrentStateIdx))
+					{
+						SMObj->SetStringField(TEXT("currentState"), BakedSM.States[CurrentStateIdx].StateName.ToString());
+					}
 				}
-				SMObj->SetNumberField(TEXT("stateCount"), BakedSM->States.Num());
+				SMObj->SetNumberField(TEXT("stateCount"), BakedSM.States.Num());
 				StateMachines.Add(MakeShared<FJsonValueObject>(SMObj));
 			}
 			if (StateMachines.Num() > 0)

@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- fix(runtime): `get_runtime_actor_animation` 的 `state` 段在独立 Game 对 ThirdPerson 角色空指针崩溃——`GetStateMachineInstance(idx)` 按 `AnimNodeProperties` 倒序取值，第 0 项常不是状态机而返回 nullptr，随后 `->GetCurrentState()` 读 `+0x24` 触发 `EXCEPTION_ACCESS_VIOLATION`。改为遍历 `GetBakedStateMachines()` 并用 `GetStateMachineInstanceFromName` + 空指针跳过
+
 ### Added
 
 - feat(server): MCP 启停统一管理——新增 `FNexusMcpActivation` 作为唯一「期望状态」解析层，优先级统一为 **控制台会话覆盖 > 启动参数 `-EnableNexusMcp` > Preferences 勾选（仅可信角色）> 默认关闭**，端口/LAN 绑定走同一优先级（此前端口是 会话>CLI>默认、LAN 是 会话>Preferences>CLI，两套不一致）。「可信角色」= `GIsEditor && !IsRunningCommandlet()`：编辑器二进制以 `-game`/`-server` 启动的子进程、cook/commandlet 进程不再继承 Preferences 勾选各自抢起一份 MCP（此前会各起一份、端口顺延、写进多份 instance registry）。控制台命令重命名为 **`NexusLink.Mcp on|off|status|restart`**（原 `NexusLink.EnableMcp 1|0` 直接替换，不保留别名），`off` 用三态覆盖稳定压制后续任意 Preferences 改动重新拉起服务；新增 `status` 输出监听地址/鉴权开关/生效来源/未启动原因，`restart` 按当前已生效覆盖重启。新增 `FNexusLinkModule::ApplyDesiredMcpState()` 作为唯一启停应用点（启动时/Preferences 勾选变化/控制台命令均经它），结果回写 Preferences 新增的只读 `McpRuntimeStatus` 字段，避免只看勾选框误判实际运行状态。补实现此前文档已写的 CLI 端口覆盖（`-NexusMcpPort=`/`-NexusWsPort=`）
