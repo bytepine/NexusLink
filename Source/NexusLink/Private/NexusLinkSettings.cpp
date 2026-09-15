@@ -4,6 +4,7 @@
 #include "Log/NexusLogCapture.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusLink.h"
+#include "NexusMcpActivation.h"
 #include "NexusMcpAuth.h"
 #include "NexusMcpTool.h"
 #include "Server/NexusMcpServer.h"
@@ -346,30 +347,27 @@ void UNexusLinkSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 		}
 	}
 
-	// MCP 服务器总开关：运行时即时启停，无需重启编辑器
+	// MCP 服务器总开关：运行时即时启停，无需重启编辑器。
+	// 勾选是用户明确的一次交互，清掉控制台会话覆盖，让这次操作说了算（否则控制台此前的 off 会压制勾选）。
 	if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bEnableMcpServer))
 	{
 		FNexusLinkModule& Module = FModuleManager::GetModuleChecked<FNexusLinkModule>(TEXT("NexusLink"));
-		if (bEnableMcpServer)
-		{
-			Module.TryStartMcpServer();
-		}
-		else
-		{
-			Module.StopMcpServer();
-		}
+		FNexusMcpActivation::SetConsoleEnable(TOptional<bool>());
+		FNexusMcpActivation::ClearConsoleOverrides();
+		Module.ApplyDesiredMcpState();
 	}
 
-	// 局域网绑定变更：已在跑则停再启，使 DefaultBindAddress 立即生效
+	// 局域网绑定变更：已在跑则停再启，使 DefaultBindAddress 立即生效；同样视为用户明确操作，清掉控制台覆盖
 	if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bAllowLanBind))
 	{
 		FNexusLinkModule& Module = FModuleManager::GetModuleChecked<FNexusLinkModule>(TEXT("NexusLink"));
+		FNexusMcpActivation::ClearConsoleOverrides();
 		const TSharedPtr<FNexusMcpServer>& Server = Module.GetMcpServer();
 		if (Server.IsValid() && Server->IsRunning())
 		{
 			Module.StopMcpServer();
-			Module.TryStartMcpServer();
 		}
+		Module.ApplyDesiredMcpState();
 	}
 }
 #endif

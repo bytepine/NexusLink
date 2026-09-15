@@ -44,12 +44,8 @@ public:
 	int32 GetWsPort()  const { return WebSocketPort; }
 	/** 本机共享 MCP 鉴权 token（不写入 /status）。 */
 	const FString& GetAuthToken() const { return AuthToken; }
-
-	/**
-	 * 控制台会话级 LAN 覆盖（不写 Preferences）。
-	 * -1=沿用 Preferences / -NexusAllowLan；0=强制 loopback；1=强制 0.0.0.0。
-	 */
-	static void SetSessionLanBindOverride(int8 Override);
+	/** 本次启动实际是否绑定 0.0.0.0（局域网可达）；供 status 命令展示实际绑定地址。 */
+	bool IsLanBound() const { return bLanBound; }
 
 	/**
 	 * 向所有已连接的 WebSocket 客户端广播 JSON-RPC 通知。
@@ -120,6 +116,7 @@ private:
 	int32 McpPort       = 0;
 	int32 WebSocketPort = 0;
 	bool  bRunning      = false;
+	bool  bLanBound     = false;
 };
 
 #endif // NEXUSLINK_WITH_SERVER

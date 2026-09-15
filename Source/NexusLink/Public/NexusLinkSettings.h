@@ -117,6 +117,15 @@ public:
 	int32 WsPort = 0;
 
 	/**
+	 * MCP 运行状态（只读）；由 FNexusLinkModule::ApplyDesiredMcpState 统一写入。
+	 * 勾选态与实际运行态可能不一致（如控制台已会话级关闭但勾选仍为开），此字段展示实际状态与生效来源/未启动原因，
+	 * 避免只看勾选框误判。
+	 */
+	UPROPERTY(Transient, VisibleAnywhere, Category = "服务器",
+		meta = (DisplayName = "运行状态"))
+	FString McpRuntimeStatus = TEXT("未知（尚未初始化）");
+
+	/**
 	 * 当前 MCP 鉴权 Token（只读展示；本机唯一，不随进程更换）。
 	 * 直连 UE / 同机代理共用；文件在本机配置目录 NexusLink/mcp-auth-token。未开 MCP 也可复制。
 	 */

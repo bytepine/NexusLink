@@ -14,7 +14,7 @@
 
 1. 将插件放入 `Plugins/NexusLink`，在 **Edit → Plugins → Developer → NexusLink** 中启用并重启编辑器
 2. **Edit → Editor Preferences → Plugins → NexusLink** — 勾选 **启用 MCP 服务器**（**默认关闭**）。勾选后即时启动 HTTP（`POST /stream`）与 WebSocket；取消勾选立即停止。**MCP 鉴权**默认开。Token、多机、开关组合见 [usage-guide §1.1](docs/usage-guide.md#11-鉴权)。默认仅本机 loopback；跨机再勾选 **允许局域网绑定**，用 **复制跨机连接** 选网卡 IP。
-3. （可选）无 UI 的编辑器启动（如 `UEEditor-Cmd`）或 **Development/DebugGame 独立 Game 包**可加 **`-EnableNexusMcp`**；包内也可按 `~` 输入控制台 **`NexusLink.EnableMcp 1|0`**（会话级，不写盘；与 Preferences 为 OR）。测试可加 **`-NexusEnableDangerousCaps`** 打开 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python`
+3. （可选）无 UI 的编辑器启动（如 `UEEditor-Cmd`）或 **Development/DebugGame 独立 Game 包**可加 **`-EnableNexusMcp`**；包内也可按 `~` 输入控制台 **`NexusLink.Mcp on|off|status|restart`**（会话级，不写盘）。启停统一按 **控制台 > 启动参数 > Preferences（仅编辑器角色）** 优先级判定——`-game`/`-server` 子进程与 cook/commandlet 不继承 Preferences 勾选，须显式给启动参数或控制台。测试可加 **`-NexusEnableDangerousCaps`** 打开 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python`
 
 GAS / Niagara 等 Capability 按宿主项目插件探测，NexusLink **不**在 `.uplugin` 里强制依赖。
 

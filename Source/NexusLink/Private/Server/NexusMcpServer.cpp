@@ -9,6 +9,7 @@
 
 #include "Server/NexusMcpDispatcher.h"
 #include "NexusLinkSettings.h"
+#include "NexusMcpActivation.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Misc/CommandLine.h"
 #include "HttpServerModule.h"
@@ -43,28 +44,14 @@ static const FString StatusEndpoint  = TEXT("/status");
 static const FString McpSessionHeader = TEXT("Mcp-Session-Id");
 static const int32 MaxMcpBodyBytes = 1024 * 1024;
 
-static int8 GSessionLanBindOverride = -1;
-
-void FNexusMcpServer::SetSessionLanBindOverride(int8 Override)
-{
-	GSessionLanBindOverride = Override;
-}
-
 /**
- * 是否绑定 0.0.0.0：控制台会话覆盖 > Preferences 勾选 > 命令行 -NexusAllowLan
+ * 是否绑定 0.0.0.0：统一走 FNexusMcpActivation::ResolveListenConfig()，
+ * 优先级为 控制台会话覆盖 > 启动参数 -NexusAllowLan > Preferences 勾选（仅可信角色）> 默认关闭
  *（独立 Game / DedicatedServer 包没有 Preferences UI，靠命令行或控制台覆盖）。
  */
 static bool IsLanBindRequested()
 {
-	if (GSessionLanBindOverride >= 0)
-	{
-		return GSessionLanBindOverride != 0;
-	}
-	if (UNexusLinkSettings::Get() && UNexusLinkSettings::Get()->bAllowLanBind)
-	{
-		return true;
-	}
-	return FParse::Param(FCommandLine::Get(), TEXT("NexusAllowLan"));
+	return FNexusMcpActivation::ResolveListenConfig().bLan;
 }
 
 /** UTF-8 字节流转 FString（HTTP body 与 WS 帧共用，避免两处重复 FUTF8ToTCHAR 样板）。 */
@@ -204,6 +191,7 @@ bool FNexusMcpServer::Start(int32 InMcpPort, int32 InWsPort)
 	AuthToken     = FNexusMcpAuth::LoadOrCreateMachineToken();
 
 	const bool bLan = IsLanBindRequested();
+	bLanBound = bLan;
 	const TCHAR* BindAddr = bLan ? TEXT("0.0.0.0") : TEXT("127.0.0.1");
 	ApplyHttpBindAddress(McpPort, BindAddr);
 
@@ -262,6 +250,7 @@ void FNexusMcpServer::Stop()
 	}
 
 	bRunning = false;
+	bLanBound = false;
 	StopWebSocket();
 
 	// 移除会话清理 Ticker

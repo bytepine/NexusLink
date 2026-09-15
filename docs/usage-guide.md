@@ -143,19 +143,30 @@ Rider / Desktop 远程列表每行：`192.168.1.30:45000` 或 `192.168.1.30:4500
 2. **Edit → Plugins → Developer → NexusLink** — 启用插件
 3. 重启编辑器
 
-插件拆两个模块：`NexusLink`（**`Type: Runtime`**）+ `NexusLinkEditor`（**`Type: Editor`**，仅编辑器二进制加载）——**MCP 跑在 Editor / PIE / editor-hosted `-server`，以及 Development/DebugGame 的独立 Game/DS**（启动参数 `-EnableNexusMcp` 或运行时控制台 `NexusLink.EnableMcp 1`，可选 `-NexusMcpPort=` / `-NexusWsPort=` / `-NexusAllowLan`）；Shipping 编译期整体剔除服务器。
+插件拆两个模块：`NexusLink`（**`Type: Runtime`**）+ `NexusLinkEditor`（**`Type: Editor`**，仅编辑器二进制加载）——**MCP 跑在 Editor / PIE / editor-hosted `-server`，以及 Development/DebugGame 的独立 Game/DS**；Shipping 编译期整体剔除服务器。
 
 ### 2.2 启用 MCP 服务器（必做）
 
-MCP HTTP/WebSocket **默认不启动**，任选以下方式：
+MCP HTTP/WebSocket **默认不启动**。启停统一由三层来源解析，**优先级：控制台 > 启动参数 > Preferences 勾选**（仅编辑器进程且非 commandlet 时 Preferences 才生效；见下表「角色是否读 Preferences」）：
 
-**方式 A — 设置面板（持久）**
+| 场景 | 启用方式 | 持久化 | 角色是否读 Preferences |
+|---|---|---|---|
+| 编辑器（含 PIE） | Preferences 勾选，或运行时控制台 | 勾选持久；控制台会话级 | 是 |
+| editor-hosted `-server`（DS 模式） | 同上（同一编辑器进程） | 同上 | 是 |
+| 编辑器二进制以 `-game` 启动 | 启动参数 `-EnableNexusMcp`，或控制台 | 不持久 | **否**（须显式启动参数/控制台，不继承勾选） |
+| Development/DebugGame 独立 Game/DS | 启动参数 `-EnableNexusMcp`，或控制台 | 不持久 | **否** |
+| cook / commandlet 进程 | 启动参数 `-EnableNexusMcp` | 不持久 | **否** |
+| Shipping | 不可用（编译期剔除） | — | — |
+
+非编辑器角色不读 Preferences，避免这些子进程继承勾选各自抢起一份 MCP、把端口顺延占满、客户端要在多个实例里挑。
+
+**方式 A — 设置面板（持久，仅编辑器角色生效）**
 
 1. **Edit → Editor Preferences → Plugins → NexusLink**
-2. 在 **服务器** 分类下勾选 **启用 MCP 服务器**
+2. 在 **服务器** 分类下勾选 **启用 MCP 服务器**；下方**运行状态**只读字段实时显示当前实际状态与生效来源
 3. 保存后**即时生效**；取消勾选立即停止 HTTP/WebSocket 并注销实例
 
-**方式 B — 命令行（仅本进程，不写盘）**
+**方式 B — 命令行（仅本进程，不写盘，任何角色均可）**
 
 ```bat
 UE4Editor.exe YourProject.uproject -EnableNexusMcp
@@ -169,18 +180,21 @@ Nexus.exe -EnableNexusMcp
 编辑器输出日志，或独立 Game 包按 `~` 打开控制台：
 
 ```
-NexusLink.EnableMcp 1                         ; 开启（同 -EnableNexusMcp）
-NexusLink.EnableMcp 1 Port=45001 Lan=1        ; 指定端口并允许 LAN
-NexusLink.EnableMcp 1 -NexusMcpPort=45001 -NexusAllowLan
-NexusLink.EnableMcp 0                         ; 关闭
-NexusLink.EnableMcp                           ; 查看 on/off 与监听地址
+NexusLink.Mcp on                              ; 开启（同 -EnableNexusMcp）
+NexusLink.Mcp on Port=45001 Lan=1             ; 指定端口并允许 LAN
+NexusLink.Mcp on -NexusMcpPort=45001 -NexusAllowLan
+NexusLink.Mcp off                             ; 关闭（稳定压制，不受后续 Preferences 改动重新拉起）
+NexusLink.Mcp status                          ; 查看 on/off、监听地址、鉴权开关、生效来源/未启动原因
+NexusLink.Mcp restart                         ; 按当前已生效的覆盖重新启动
 ```
 
-Preferences 与 `-EnableNexusMcp` / 控制台为 **OR**。CLI 与控制台都不会改写 `bEnableMcpServer`。
+控制台是最高优先级：`off` 会稳定压制后续任意 Preferences 改动重新拉起服务，直到再次 `on` 或用户在 Preferences 面板显式重新勾选。
 
 ### 2.3 确认运行状态
 
 - **编辑器标题栏右侧**（与 FPS/内存/对象同一组）显示 MCP/WS 端口号（默认开启；关闭 MCP 后不显示）
+- Preferences 面板「运行状态」只读字段：展示实际运行/停止状态、生效来源、未启动时的原因
+- 控制台 `NexusLink.Mcp status`：额外显示绑定地址与鉴权开关
 - 输出日志可见 `NexusLink 服务器已启动`，或未启用时的提示
 
 ### 2.4 端口
