@@ -14,7 +14,7 @@ Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://gith
 
 1. Place the plugin in `Plugins/NexusLink`, enable it under **Edit → Plugins → Developer → NexusLink**, and restart the editor
 2. **Edit → Editor Preferences → Plugins → NexusLink** — check **Enable MCP Server** (**off by default**). HTTP (`POST /stream`) and WebSocket start immediately. **MCP Auth** is on by default. Tokens, extra tokens, and on/off combinations: [usage-guide §1.1](docs/usage-guide.md#11-鉴权). Binds loopback by default; for remote relays also check **Allow LAN bind** and use **Copy remote connection** to pick a NIC IP.
-3. (Optional) For headless **editor** launches (e.g. `UEEditor-Cmd`) or **Development/DebugGame standalone Game** builds, pass **`-EnableNexusMcp`**. Inside a packaged game you can also open the console (`~`) and run **`NexusLink.Mcp on|off|status|restart`** (session-only, does not write settings). Precedence is **console > launch args > Preferences (editor role only)**: `-game`/`-server` sub-processes and cook/commandlet runs don't inherit the Preferences checkbox and need an explicit launch arg or console command. Tests may pass **`-NexusEnableDangerousCaps`** to enable `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python`
+3. (Optional) For headless **editor** launches (e.g. `UEEditor-Cmd`) or **Development/DebugGame standalone Game** builds, pass **`-EnableNexusMcp`**. Inside a packaged game you can also open the console (`~`) and run **`NexusLink.Mcp on|off|status|restart|panel`** (session-only, does not write settings; `panel` opens an in-game MCP debug panel, works in PIE and standalone builds alike, showing runtime info and letting you toggle Capabilities for the session). Precedence is **console > launch args > Preferences (editor role only)**: `-game`/`-server` sub-processes and cook/commandlet runs don't inherit the Preferences checkbox and need an explicit launch arg or console command. Tests may pass **`-NexusEnableDangerousCaps`** to enable `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python`
 
 GAS / Niagara Capabilities are detected from the host project; NexusLink does **not** force those plugins via `.uplugin`.
 
@@ -91,7 +91,7 @@ Try `search_capabilities` for a dedicated cap first. Only three cases justify th
 | [docs/tool-reference.md](docs/tool-reference.md) / [简体中文](docs/tool-reference.zh.md) | Capability parameter reference (`py scripts/build_tool_reference.py` emits both) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Add Capabilities, tests, packaging, release |
 | [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) | Capability metadata spec |
-| [Resources/AIRules.mdc](Resources/AIRules.mdc) | IDE Rule template (copy into the game project; [usage-guide §2.8](docs/usage-guide.md#28-挂载-airules)) |
+| [Resources/AIRules.mdc](Resources/AIRules.mdc) | IDE Rule template (copy into the game project; [usage-guide §2.9](docs/usage-guide.md#29-挂载-airules)) |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 
 ## License

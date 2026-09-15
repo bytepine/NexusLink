@@ -10,6 +10,7 @@
 ### Added
 
 - feat(server): MCP 启停统一管理——新增 `FNexusMcpActivation` 作为唯一「期望状态」解析层，优先级统一为 **控制台会话覆盖 > 启动参数 `-EnableNexusMcp` > Preferences 勾选（仅可信角色）> 默认关闭**，端口/LAN 绑定走同一优先级（此前端口是 会话>CLI>默认、LAN 是 会话>Preferences>CLI，两套不一致）。「可信角色」= `GIsEditor && !IsRunningCommandlet()`：编辑器二进制以 `-game`/`-server` 启动的子进程、cook/commandlet 进程不再继承 Preferences 勾选各自抢起一份 MCP（此前会各起一份、端口顺延、写进多份 instance registry）。控制台命令重命名为 **`NexusLink.Mcp on|off|status|restart`**（原 `NexusLink.EnableMcp 1|0` 直接替换，不保留别名），`off` 用三态覆盖稳定压制后续任意 Preferences 改动重新拉起服务；新增 `status` 输出监听地址/鉴权开关/生效来源/未启动原因，`restart` 按当前已生效覆盖重启。新增 `FNexusLinkModule::ApplyDesiredMcpState()` 作为唯一启停应用点（启动时/Preferences 勾选变化/控制台命令均经它），结果回写 Preferences 新增的只读 `McpRuntimeStatus` 字段，避免只看勾选框误判实际运行状态。补实现此前文档已写的 CLI 端口覆盖（`-NexusMcpPort=`/`-NexusWsPort=`）
+- feat(ui): 游戏内 MCP 调试面板——`NexusLink.Mcp panel [on|off]` 打开/关闭一层纯 Runtime Slate 视口叠加层（`NexusMcpDebugOverlay` + `SNexusMcpDebugPanel`，PIE / 独立 Game/DS 通用，不依赖 UMG 资产，随 `NEXUSLINK_WITH_SERVER` 一起被 Shipping 剔除）；上半展示 MCP 运行信息（来源/监听地址/鉴权）并提供开启/关闭/重启（与控制台命令同一套 `FNexusMcpActivation` 覆盖），下半按当前宿主可见性列出 Capability（独立包仅 Runtime，PIE 编辑器宿主 Editor+Runtime），按源码目录分组折叠、支持名称/描述过滤。新增 `UNexusLinkSettings::SessionDisabledCapabilities` + `SetSessionCapabilityEnabled()`/`ClearSessionCapabilityOverrides()`：面板勾选走会话级临时启停（判定优先级：会话禁用 > 会话启用 > 危险访问模式 > 持久 `DisabledCapabilities`），全程 Transient、不 `SaveConfig`，不影响 ini 与 Preferences 树勾选态，进程退出即失效
 
 ## [2.1.0-beta.1] - 2026-09-14
 

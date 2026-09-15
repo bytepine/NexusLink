@@ -21,6 +21,7 @@
 #include "Misc/OutputDevice.h"
 #include "Engine/World.h"
 #include "NexusEditorServices.h"
+#include "UI/NexusMcpDebugOverlay.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusLink, Log, All);
 
@@ -66,7 +67,8 @@ void FNexusLinkModule::StartupModule()
 	McpConsoleCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("NexusLink.Mcp"),
 		HELP_TEXT("会话级启停 MCP（不写 Preferences）。独立 Game 包按 ~ 打开控制台即可，效果同 -EnableNexusMcp。")
-		HELP_TEXT("用法: NexusLink.Mcp on|off|status|restart [Port=] [WsPort=] [Lan=1|-NexusAllowLan]；无参数同 status。"),
+		HELP_TEXT("用法: NexusLink.Mcp on|off|status|restart [Port=] [WsPort=] [Lan=1|-NexusAllowLan]；无参数同 status。")
+		HELP_TEXT("NexusLink.Mcp panel [on|off] 打开/关闭游戏内调试面板（PIE/独立包通用；无子参数 = toggle，Esc 可关）。"),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateRaw(this, &FNexusLinkModule::HandleMcpCommand),
 		ECVF_Default);
 
@@ -419,6 +421,33 @@ void FNexusLinkModule::HandleMcpCommand(const TArray<FString>& Args, UWorld* Wor
 	}
 
 	const FString& Verb = Args[0];
+
+	if (Verb.Equals(TEXT("panel"), ESearchCase::IgnoreCase))
+	{
+		// 子参数可选 on|off；无子参数 = toggle。DS / 无 GameViewport 时 Open 静默无操作，
+		// 靠 IsOpen() 判断本次是否真的打开来给用户准确提示，不额外猜测宿主类型。
+		bool bSubEnable = false;
+		bool bSubDisable = false;
+		const bool bHasSubToken = Args.Num() > 1 && ParseEnableToken(Args[1], bSubEnable, bSubDisable);
+
+		if (bHasSubToken && bSubDisable)
+		{
+			FNexusMcpDebugOverlay::Close();
+		}
+		else if (bHasSubToken && bSubEnable)
+		{
+			FNexusMcpDebugOverlay::Open(World);
+		}
+		else
+		{
+			FNexusMcpDebugOverlay::Toggle(World);
+		}
+
+		Ar.Log(FNexusMcpDebugOverlay::IsOpen()
+			? TEXT("NexusLink.Mcp panel 已打开（Esc 或再次执行本命令可关）")
+			: TEXT("NexusLink.Mcp panel 已关闭（若本次未打开：当前无可用 GameViewport，改用 status 查看信息）"));
+		return;
+	}
 
 	if (Verb.Equals(TEXT("restart"), ESearchCase::IgnoreCase))
 	{

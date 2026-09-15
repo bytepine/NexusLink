@@ -371,7 +371,14 @@ public:
 	UPROPERTY(Transient)
 	TSet<FString> SessionEnabledCapabilities;
 
-	/** 判断指定 cap 是否启用（会话级强制启用优先；危险 cap 再看访问模式）。 */
+	/**
+	 * 会话级强制禁用的 cap 名集合（游戏内 MCP 调试面板临时关闭用）。
+	 * 不带 Config，不落盘；与 SessionEnabledCapabilities 互斥维护，判定优先级见 IsCapabilityEnabled。
+	 */
+	UPROPERTY(Transient)
+	TSet<FString> SessionDisabledCapabilities;
+
+	/** 判断指定 cap 是否启用（会话级禁用最高优先，其次会话级强制启用，最后危险访问模式/持久禁用）。 */
 	bool IsCapabilityEnabled(const FString& CapabilityName) const;
 
 	/** 设置树勾选态（只看 DisabledCapabilities / 会话强制，不看访问模式）。全部禁用时仍显示原勾选但置灰。 */
@@ -395,6 +402,9 @@ public:
 	/** 持久化 DisabledCapabilities。批量 SetCapabilityEnabled(…, false) 后统一调用。 */
 	void NotifyCapabilitiesChanged();
 
+	/** MultiTool 下广播 notifications/tools/list_changed，不落盘；会话级覆盖（不经 SaveConfig）用这个。 */
+	void BroadcastCapabilitiesChanged() const;
+
 	/** 首次启动时把当前已注册 cap 全部纳入 KnownCapabilityKeys（默认启用）。 */
 	void EnsureDefaultCapabilityMode();
 
@@ -403,6 +413,17 @@ public:
 
 	/** 会话级打开危险 Capability（不写盘）；供 -NexusEnableDangerousCaps / 测试使用。 */
 	void EnableDangerousCapsForSession();
+
+	/**
+	 * 会话级临时开关某个 cap（不写盘、不动 DisabledCapabilities）；供游戏内 MCP 调试面板使用。
+	 * bEnabled=true 时若该 cap 当前因持久配置被禁用，加入 SessionEnabledCapabilities 临时抬起；
+	 * bEnabled=false 时加入 SessionDisabledCapabilities 临时压制。两个集合互斥，写入一方会先从另一方移除。
+	 * @param bBroadcast 是否立即广播 tools/list_changed（MultiTool 下）；批量操作时可传 false，最后统一广播。
+	 */
+	void SetSessionCapabilityEnabled(const FString& CapabilityName, bool bEnabled, bool bBroadcast = true);
+
+	/** 清空本会话所有临时覆盖（SessionEnabledCapabilities 与 SessionDisabledCapabilities），恢复到持久配置状态。 */
+	void ClearSessionCapabilityOverrides();
 
 	/**
 	 * 首次启动 / 升级时若白名单仍为空，写入诊断默认集并持久化。

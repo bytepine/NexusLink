@@ -43,6 +43,8 @@ graph TB
 
 **Capability 可见性**：完整 Editor 宿主暴露全部已启用 cap。cooked Game/DS（Development/DebugGame）仅暴露 `NexusLink` 模块的 Runtime cap（`FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`），`NexusLinkEditor` 的 Editor cap 不参与编译，也就不会注册；Shipping 不含服务器，无 cap 暴露。
 
+**游戏内调试面板**：`NexusLink.Mcp panel`（`Source/NexusLink/Private/UI/NexusMcpDebugOverlay.{h,cpp}` + `SNexusMcpDebugPanel.{h,cpp}`，同随 `NEXUSLINK_WITH_SERVER` 门控）在 PIE / 独立 Game/DS 共用同一份纯 Runtime Slate 代码，走 `UGameViewportClient::AddViewportWidgetContent` 视口叠加层，不依赖 UMG 资产、不链接 `NexusLinkEditor`。MCP 区直接复用 `FNexusMcpActivation`/`ApplyDesiredMcpState`；Capability 区按 `FNexusHostUtils::IsCapabilityVisibleOnHost` 过滤后展示，勾选走新增的 `UNexusLinkSettings::SetSessionCapabilityEnabled` / `SessionDisabledCapabilities`（与既有 `SessionEnabledCapabilities` 对称，判定优先级：会话禁用 > 会话启用 > 危险访问模式 > 持久 `DisabledCapabilities`），全程 Transient、不 `SaveConfig`，进程退出即失效，`ClearSessionCapabilityOverrides()` 一键恢复。
+
 ## 分层职责
 
 | 层次 | 组件 | 职责 |
@@ -202,7 +204,7 @@ HTTP `/stream` 是无状态 request-response，没有 SSE/chunked 等推送通�
 
 代理侧（Desktop/Rider/VSCode）对 `tools/call` 统一 120s 超时且超时不重试；同一长连接上的请求还会串行排队，一个慢调用会连带堵塞同会话的后续请求。
 
-可观测点：传输层耗时超过 `SlowCallThresholdMs`（§2.5）时，`NexusMcpDispatcher.cpp` 的 `LogToolCallDuration` 会打 Warning 级日志（覆盖压缩/TTL注入/序列化的端到端耗时）；capability 层的 `slow_call` feedback category 同阈值触发，现在也覆盖「慢且最终报错」的调用（Note 标 `(error)`）。代理侧超时另有 `proxy_timeout` category。
+可观测点：传输层耗时超过 `SlowCallThresholdMs`（§2.6）时，`NexusMcpDispatcher.cpp` 的 `LogToolCallDuration` 会打 Warning 级日志（覆盖压缩/TTL注入/序列化的端到端耗时）；capability 层的 `slow_call` feedback category 同阈值触发，现在也覆盖「慢且最终报错」的调用（Note 标 `(error)`）。代理侧超时另有 `proxy_timeout` category。
 
 ### WebSocket 代理通道（Desktop / Rider / VSCode）
 
@@ -235,7 +237,7 @@ WebSocket 通道共享单一 `WsDispatcher`，无状态握手开销。NexusDeskt
 - **MCP Streamable HTTP**（`POST /stream`）+ `GET /status` 无状态探测；per-session（`Mcp-Session-Id`）
 - **WebSocket**（默认 55000 起）：`nexus/instructions`、`nexus/proxy_config`
 - **按 Capability 启用/禁用**、响应 `*_defaults` 压缩、内存高水位批量驱逐（`FNexusPackageLedger`）、`search_asset` 的 `recommendedGet` / `recommendedManage`
-- 设置面板与反馈闭环见 [usage-guide §2.5](./usage-guide.md#25-设置面板与反馈)
+- 设置面板与反馈闭环见 [usage-guide §2.6](./usage-guide.md#26-设置面板与反馈)
 
 ---
 

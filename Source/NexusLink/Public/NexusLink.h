@@ -40,7 +40,10 @@ private:
 	/** 延迟到引擎完全初始化后再按设置启动 MCP 服务器。 */
 	void OnPostEngineInit();
 
-	/** 控制台：NexusLink.Mcp on|off|status|restart（会话级，不写 Preferences）。回显走 FOutputDevice，独立 Game 包 `~` 可见。 */
+	/**
+	 * 控制台：NexusLink.Mcp on|off|status|restart|panel（会话级，不写 Preferences）。
+	 * 回显走 FOutputDevice，独立 Game 包 `~` 可见；panel 额外挂 Slate 视口叠加层（PIE/独立包通用）。
+	 */
 	void HandleMcpCommand(const TArray<FString>& Args, class UWorld* World, class FOutputDevice& Ar);
 
 	TSharedPtr<FNexusMcpServer>  McpServer;

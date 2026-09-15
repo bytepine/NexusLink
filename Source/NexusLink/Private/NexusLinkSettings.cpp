@@ -75,6 +75,11 @@ FName UNexusLinkSettings::GetCategoryName() const
 
 bool UNexusLinkSettings::IsCapabilityEnabled(const FString& CapabilityName) const
 {
+	// 会话级临时压制优先级最高：游戏内调试面板关掉的 cap，即便持久配置是启用也立刻不可用
+	if (SessionDisabledCapabilities.Contains(CapabilityName))
+	{
+		return false;
+	}
 	if (SessionEnabledCapabilities.Contains(CapabilityName))
 	{
 		return true;
@@ -144,7 +149,11 @@ void UNexusLinkSettings::SetCapabilityEnabled(const FString& CapabilityName, boo
 void UNexusLinkSettings::NotifyCapabilitiesChanged()
 {
 	SaveConfig();
+	BroadcastCapabilitiesChanged();
+}
 
+void UNexusLinkSettings::BroadcastCapabilitiesChanged() const
+{
 #if NEXUSLINK_WITH_SERVER
 	// MultiTool 模式下 Capability 启用/禁用会影响工具列表，需广播通知
 	if (ToolsListMode == ENexusToolsListMode::MultiTool)
@@ -238,6 +247,46 @@ void UNexusLinkSettings::EnableDangerousCapsForSession()
 	{
 		SessionEnabledCapabilities.Add(Name);
 	}
+}
+
+void UNexusLinkSettings::SetSessionCapabilityEnabled(const FString& CapabilityName, bool bEnabled, bool bBroadcast)
+{
+	if (bEnabled)
+	{
+		SessionDisabledCapabilities.Remove(CapabilityName);
+		// 只有持久配置本就禁用（普通禁用或危险 cap 全部禁用模式）时才需要会话强制启用；
+		// 否则加入 SessionEnabledCapabilities 没有额外效果，也没有坏处，但保持集合干净更好排查
+		if (!DisabledCapabilities.Contains(CapabilityName)
+			&& !(IsDangerousCapability(CapabilityName) && DangerousCapAccess == ENexusDangerousCapAccess::Disabled))
+		{
+			SessionEnabledCapabilities.Remove(CapabilityName);
+		}
+		else
+		{
+			SessionEnabledCapabilities.Add(CapabilityName);
+		}
+	}
+	else
+	{
+		SessionEnabledCapabilities.Remove(CapabilityName);
+		SessionDisabledCapabilities.Add(CapabilityName);
+	}
+
+	if (bBroadcast)
+	{
+		BroadcastCapabilitiesChanged();
+	}
+}
+
+void UNexusLinkSettings::ClearSessionCapabilityOverrides()
+{
+	if (SessionEnabledCapabilities.Num() == 0 && SessionDisabledCapabilities.Num() == 0)
+	{
+		return;
+	}
+	SessionEnabledCapabilities.Empty();
+	SessionDisabledCapabilities.Empty();
+	BroadcastCapabilitiesChanged();
 }
 
 bool UNexusLinkSettings::EnsureLogCaptureDefaults()

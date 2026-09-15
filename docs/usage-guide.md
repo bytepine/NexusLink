@@ -186,6 +186,8 @@ NexusLink.Mcp on -NexusMcpPort=45001 -NexusAllowLan
 NexusLink.Mcp off                             ; 关闭（稳定压制，不受后续 Preferences 改动重新拉起）
 NexusLink.Mcp status                          ; 查看 on/off、监听地址、鉴权开关、生效来源/未启动原因
 NexusLink.Mcp restart                         ; 按当前已生效的覆盖重新启动
+NexusLink.Mcp panel                           ; 打开/关闭游戏内调试面板（PIE / 独立包通用，无子参数 = toggle）
+NexusLink.Mcp panel on|off                    ; 显式打开/关闭
 ```
 
 控制台是最高优先级：`off` 会稳定压制后续任意 Preferences 改动重新拉起服务，直到再次 `on` 或用户在 Preferences 面板显式重新勾选。
@@ -197,13 +199,24 @@ NexusLink.Mcp restart                         ; 按当前已生效的覆盖重�
 - 控制台 `NexusLink.Mcp status`：额外显示绑定地址与鉴权开关
 - 输出日志可见 `NexusLink 服务器已启动`，或未启用时的提示
 
-### 2.4 端口
+### 2.4 游戏内调试面板（PIE / 独立包）
+
+`~` 打开控制台执行 `NexusLink.Mcp panel`（或 `panel on`/`panel off`），挂一层 Slate 视口叠加层，不依赖任何 UMG 资产，Shipping 编译期整体剔除：
+
+- **MCP 信息**：运行态、生效来源、监听地址、鉴权开关；面板内 **开启 / 关闭 / 重启** 按钮与控制台 `on`/`off`/`restart` 走同一套 `FNexusMcpActivation` 会话覆盖
+- **Capability 列表**：按当前宿主可见性过滤（独立包只见 Runtime cap；PIE 编辑器宿主同时见 Editor+Runtime），按源码目录分组折叠，支持名称/描述过滤
+- 每条 cap 前的勾选框是**会话级临时开关**：不写 `DisabledCapabilities`、不 `SaveConfig`，退出进程即失效；「清除本会话覆盖」一键恢复到 Preferences 持久配置状态
+- `Esc` 或点击「关闭」按钮退出；面板打开时临时切到 `FInputModeGameAndUI` 并显示鼠标，关闭后尽量还原
+
+危险 Capability 的访问模式（全部禁用/确认/自定义）仍由 Preferences 决定；面板的勾选只在**该访问模式允许的范围内**临时开关单条，不能绕过「全部禁用」把危险 cap 整体解锁到不受限状态之外的行为。
+
+### 2.5 端口
 
 - 默认 MCP HTTP `45000`，WebSocket `55000`；可用 `-NexusMcpPort=` / `-NexusWsPort=` 或控制台 `Port=` / `WsPort=` 指定起始端口
 - 冲突时自动切到下一可用端口；设置面板只读显示实际端口
 - 可开关「在状态栏显示端口号」（**默认开启**）
 
-### 2.5 设置面板与反馈
+### 2.6 设置面板与反馈
 
 入口：`Edit → Editor Preferences → Plugins → NexusLink`。反馈数据只落本地 `<ProjectRoot>/.nexus-feedback/`，零网络外发。
 
@@ -229,7 +242,7 @@ NexusLink.Mcp restart                         ; 按当前已生效的覆盖重�
 
 自动埋点与 `submit_feedback` 的 schema 见 [`tool-reference.zh.md`](./tool-reference.zh.md#submit_feedback)。
 
-### 2.6 直连 UE
+### 2.7 直连 UE
 
 先完成 [§2.2](#22-启用-mcp-服务器必做)，再在 AI 客户端配置：
 
@@ -264,7 +277,7 @@ Token 从设置面板 **MCP 鉴权 Token** 旁的「复制」取得。可逗号�
 
 端口若自动切换，以编辑器标题栏/设置面板为准。
 
-### 2.7 工具模型（SearchMode）
+### 2.8 工具模型（SearchMode）
 
 - **元工具（3 个）**：`search_capabilities`、`call_capability`、`submit_feedback`。不要把元工具名当作 `capability` 传入。
 - **Capability**：原子工作单元，随宿主插件/引擎版本裁剪。完整清单见 [`tool-reference.zh.md`](./tool-reference.zh.md)。
@@ -273,7 +286,7 @@ Token 从设置面板 **MCP 鉴权 Token** 旁的「复制」取得。可逗号�
 
 读资产：`search_asset`（`assetType` + `pathFilter`）→ 用返回的 `assets[].path` 与 `recommendedGet` / `recommendedManage`。参数契约与 Breaking 键以 [`InitializeInstructions.SearchMode.md`](../Resources/InitializeInstructions.SearchMode.md) 与 [`CapabilitySpec.md`](../Resources/CapabilitySpec.md) 为准。
 
-### 2.8 挂载 AIRules
+### 2.9 挂载 AIRules
 
 插件 [`AIRules.mdc`](../Resources/AIRules.mdc) **不**经 MCP 注入，需复制到游戏项目 IDE Rules，与握手 Instructions 互补。
 
@@ -346,7 +359,7 @@ Token 从设置面板 **MCP 鉴权 Token** 旁的「复制」取得。可逗号�
 
 - 优先避免触发慢调用：`search_asset` 不要用 `assetType=all` 配 `pathFilter=/Game/` 之类的宽搜（已有的 arg-invalid 校验只挡最坏情形）；蓝图批量编译/存盘、`capture_viewport` 等本身耗时随场景规模增长
 - 直连 `:45000` 没有代理的 120s 限制，但编辑器仍会同帧掉帧到调用结束
-- 排查数据来源：UE 输出日志按 `LogNexusMcpDispatcher` 过滤 Warning（超过慢调用阈值会打印耗时）；反馈报告（[§2.5](#25-设置面板与反馈)）的 `slow_call`（含最终报错的慢调用）与代理侧 `proxy_timeout` 两个 category
+- 排查数据来源：UE 输出日志按 `LogNexusMcpDispatcher` 过滤 Warning（超过慢调用阈值会打印耗时）；反馈报告（[§2.6](#26-设置面板与反馈)）的 `slow_call`（含最终报错的慢调用）与代理侧 `proxy_timeout` 两个 category
 
 ### 多个 AI 客户端同时使用
 

@@ -14,7 +14,7 @@
 
 1. 将插件放入 `Plugins/NexusLink`，在 **Edit → Plugins → Developer → NexusLink** 中启用并重启编辑器
 2. **Edit → Editor Preferences → Plugins → NexusLink** — 勾选 **启用 MCP 服务器**（**默认关闭**）。勾选后即时启动 HTTP（`POST /stream`）与 WebSocket；取消勾选立即停止。**MCP 鉴权**默认开。Token、多机、开关组合见 [usage-guide §1.1](docs/usage-guide.md#11-鉴权)。默认仅本机 loopback；跨机再勾选 **允许局域网绑定**，用 **复制跨机连接** 选网卡 IP。
-3. （可选）无 UI 的编辑器启动（如 `UEEditor-Cmd`）或 **Development/DebugGame 独立 Game 包**可加 **`-EnableNexusMcp`**；包内也可按 `~` 输入控制台 **`NexusLink.Mcp on|off|status|restart`**（会话级，不写盘）。启停统一按 **控制台 > 启动参数 > Preferences（仅编辑器角色）** 优先级判定——`-game`/`-server` 子进程与 cook/commandlet 不继承 Preferences 勾选，须显式给启动参数或控制台。测试可加 **`-NexusEnableDangerousCaps`** 打开 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python`
+3. （可选）无 UI 的编辑器启动（如 `UEEditor-Cmd`）或 **Development/DebugGame 独立 Game 包**可加 **`-EnableNexusMcp`**；包内也可按 `~` 输入控制台 **`NexusLink.Mcp on|off|status|restart|panel`**（会话级，不写盘；`panel` 打开游戏内 MCP 调试面板，PIE / 独立包通用，可查看运行信息并临时开关 Capability）。启停统一按 **控制台 > 启动参数 > Preferences（仅编辑器角色）** 优先级判定——`-game`/`-server` 子进程与 cook/commandlet 不继承 Preferences 勾选，须显式给启动参数或控制台。测试可加 **`-NexusEnableDangerousCaps`** 打开 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python`
 
 GAS / Niagara 等 Capability 按宿主项目插件探测，NexusLink **不**在 `.uplugin` 里强制依赖。
 
@@ -91,7 +91,7 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。日常推荐经客户端�
 | [docs/tool-reference.zh.md](docs/tool-reference.zh.md) / [English](docs/tool-reference.md) | Capability 参数手册（`py scripts/build_tool_reference.py` 中英同时生成） |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 新增 Capability、测试、打包、发版 |
 | [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) | Capability 元数据规范 |
-| [Resources/AIRules.mdc](Resources/AIRules.mdc) | IDE Rule 模板（复制到游戏项目，见 [usage-guide §2.8](docs/usage-guide.md#28-挂载-airules)） |
+| [Resources/AIRules.mdc](Resources/AIRules.mdc) | IDE Rule 模板（复制到游戏项目，见 [usage-guide §2.9](docs/usage-guide.md#29-挂载-airules)） |
 | [CHANGELOG.md](CHANGELOG.md) | 版本记录 |
 
 ## License
