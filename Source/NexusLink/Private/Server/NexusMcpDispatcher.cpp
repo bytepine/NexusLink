@@ -38,7 +38,7 @@ static TSharedPtr<FJsonObject> TryGetJsonObject(const TSharedPtr<FJsonObject>& O
 static const FString SupportedProtocolVersion = TEXT("2025-06-18");
 static const FString ServerName               = TEXT("Nexus-Unreal");
 
-static FString GetPluginVersionName()
+static FString GetNexusLinkUpluginVersionName()
 {
 	if (const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("NexusLink")))
 	{
@@ -265,7 +265,7 @@ void FNexusMcpDispatcher::HandleInitialize(const TSharedPtr<FJsonValue>& Id, con
 
 	TSharedPtr<FJsonObject> ServerInfoObj = MakeShared<FJsonObject>();
 	ServerInfoObj->SetStringField(TEXT("name"), ServerName);
-	ServerInfoObj->SetStringField(TEXT("version"), GetPluginVersionName());
+	ServerInfoObj->SetStringField(TEXT("version"), GetNexusLinkUpluginVersionName());
 
 	TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
 	Result->SetStringField(TEXT("protocolVersion"), ProtocolVersion);
@@ -708,7 +708,7 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 		// 返回编辑器状态信息（与 GET /status 相同内容，供 WebSocket 通道使用）
 		TSharedPtr<FJsonObject> StatusObj = MakeShared<FJsonObject>();
 		StatusObj->SetStringField(TEXT("server"), TEXT("Nexus-Unreal"));
-		StatusObj->SetStringField(TEXT("version"), GetPluginVersionName());
+		StatusObj->SetStringField(TEXT("version"), GetNexusLinkUpluginVersionName());
 		StatusObj->SetStringField(TEXT("engineVersion"), FString::Printf(TEXT("%d.%d"),
 			ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION));
 		StatusObj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
