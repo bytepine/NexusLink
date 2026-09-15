@@ -9,7 +9,9 @@
 #include "Log/NexusLogCapture.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "Engine/Player.h"
 #include "GameFramework/PlayerController.h"
+#include "Misc/OutputDeviceNull.h"
 #include "NexusMcpTool.h"
 
 /** 临时 OutputDevice，拦截 Exec 输出到字符串缓冲区。*/
@@ -132,12 +134,24 @@ FCapabilityResult FExecCommandCapability::Execute(const TSharedPtr<FJsonObject>&
 		if (!bExecResult && World)
 		{
 			APlayerController* PC = World->GetFirstPlayerController();
-			if (PC)
+			UPlayer* Player = PC ? PC->Player : nullptr;
+			if (Player)
 			{
-				const FString PCOutput = PC->ConsoleCommand(Command, !bSilent);
 				bFallbackUsed = true;
-				if (!bSilent && DeviceOutput.IsEmpty() && !PCOutput.IsEmpty())
-					DeviceOutput = PCOutput;
+				if (bSilent)
+				{
+					FOutputDeviceNull NullOut;
+					bExecResult = Player->Exec(World, *Command, NullOut);
+				}
+				else
+				{
+					FNexusCapExecOutputDevice PcOut;
+					bExecResult = Player->Exec(World, *Command, PcOut);
+					if (DeviceOutput.IsEmpty() && !PcOut.Buffer.IsEmpty())
+					{
+						DeviceOutput = PcOut.Buffer;
+					}
+				}
 			}
 		}
 
