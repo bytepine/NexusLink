@@ -6,7 +6,9 @@
     python scripts/extract_release_notes.py --version <X.Y.Z-beta.N> --verify
 
 --verify  发版前门禁：VERSION 与 --version 一致，且 CHANGELOG [版本号] 段落非空。
-          支持 Release（X.Y.Z）与 Pre-release（X.Y.Z-beta.N）。CI release.yml 与 release-version skill 均须带此参数。
+          支持 Release（X.Y.Z）与 Pre-release（X.Y.Z-beta.N）。正式版若存在同系列
+          [X.Y.Z-beta.N]，还须覆盖那些 beta 出现过的 ### 小节（去重汇总进正式段）。
+          CI release.yml 与 release-version skill 均须带此参数。
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ import re
 import sys
 
 _HEADING_RE = re.compile(r"^##\s+\[([^\]]+)\](?:\s+-\s+[^\n]+)?\s*$", re.MULTILINE)
+_H3_RE = re.compile(r"^###\s+(.+)$", re.MULTILINE)
 
 
 def is_prerelease_version(version: str) -> bool:
@@ -39,6 +42,25 @@ def extract_section(changelog_text: str, version: str) -> str:
                 raise ValueError(f"CHANGELOG [{version}] 段落为空")
             return body
     raise ValueError(f"CHANGELOG 中未找到 [{version}] 段落")
+
+
+def collect_h3(body: str) -> set[str]:
+    return {m.group(1).strip() for m in _H3_RE.finditer(body)}
+
+
+def collect_beta_h3s(changelog_text: str, release_version: str) -> set[str]:
+    """同 Base 的 [X.Y.Z-beta.N] 小节标题，供正式版汇总门禁。"""
+    found: set[str] = set()
+    prefix = f"{release_version}-beta."
+    for m in _HEADING_RE.finditer(changelog_text):
+        name = m.group(1).strip()
+        if not name.startswith(prefix):
+            continue
+        start = m.end()
+        nxt = _HEADING_RE.search(changelog_text, start)
+        end = nxt.start() if nxt else len(changelog_text)
+        found |= collect_h3(changelog_text[start:end])
+    return found
 
 
 def main() -> int:
@@ -65,6 +87,13 @@ def main() -> int:
         with open(args.changelog, encoding="utf-8") as f:
             text = f.read()
         notes = extract_section(text, args.version)
+        if args.verify and not is_prerelease_version(args.version):
+            missing = sorted(collect_beta_h3s(text, args.version) - collect_h3(notes))
+            if missing:
+                raise ValueError(
+                    f"正式版 CHANGELOG [{args.version}] 须汇总同系列 beta 内容，"
+                    f"缺少小节: {', '.join(missing)}"
+                )
     except (OSError, ValueError) as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         return 1
