@@ -9,35 +9,25 @@
 
 ## [2.1.0] - 2026-09-15
 
-相对 2.0.2 的正式版，含 `2.1.0-beta.1` / `2.1.0-beta.2` 已发布内容的去重汇总。
-
 ### Added
 
-- feat(plugin): 双模块拆分——`NexusLink`（`Type: Runtime`，Development/DebugGame 独立 Game/DS 可托管 MCP）+ `NexusLinkEditor`（`Type: Editor`）。`NEXUSLINK_WITH_SERVER`（`!UE_BUILD_SHIPPING`）编译期剔除 MCP 服务器；启动参数 `-EnableNexusMcp` / `-NexusMcpPort=` / `-NexusWsPort=` / `-NexusAllowLan`。运行时→编辑器反向依赖改为 `FNexusEditorServices` 可空钩子
-- feat(server): MCP 启停统一为 **控制台会话覆盖 > `-EnableNexusMcp` > Preferences（仅可信编辑器角色）> 默认关**。控制台改为 `NexusLink.Mcp on|off|status|restart|panel`（`panel` 打开游戏内 Runtime 调试面板，PIE / 独立包通用，会话级启停 Capability，不写盘）
-- feat(mcp): 危险 Capability 三模式（全部禁用 / 每次确认 / 自定义开启）；`-NexusEnableDangerousCaps` 仍会话级绕过
-- feat(mcp): Python 入口——危险 `exec_python` + 只读 `get_python_api`（`Prerequisites: python`）
-- feat(runtime): `get_output_log` / `set_log_capture_filter` / `exec_command` / `capture_viewport` 迁入 Runtime；编辑器面板截图与 Actor 环绕改由 `capture_editor_panel` 承接
-- feat(server): HTTP `MaxConcurrentSessions`（默认 16）；`tools/call` 慢调用 Warning + `slow_call` 反馈
+- feat(plugin): 双模块——`NexusLink` Runtime（独立 Game/DS 可托管 MCP）+ `NexusLinkEditor`；Shipping 剔除服务器。`-EnableNexusMcp` / `-NexusMcpPort=` / `-NexusWsPort=` / `-NexusAllowLan`
+- feat(server): 启停：控制台 > `-EnableNexusMcp` > Preferences（仅编辑器）> 关。`NexusLink.Mcp on|off|status|restart|panel`
+- feat(mcp): 危险 cap 三模式（全关 / 每次确认 / 自定义）；`exec_python`（危险）+ `get_python_api`（只读）
+- feat(runtime): `get_output_log` / `set_log_capture_filter` / `exec_command` / `capture_viewport` 进 Runtime；编辑器截图走 `capture_editor_panel`
+- feat(server): `MaxConcurrentSessions` 默认 16；慢调用 Warning
 
 ### Changed
 
-- docs: `.uplugin` / CapabilitySpec 计数改为 38 Runtime + 192 Editor = 230
-- chore(settings): 危险 cap 默认关闭改为按名记录，后续新增危险 cap 也会默认关
-- chore(release): 只上传通用 `EngineVersion: 4.26` 包，不再额外打 ue5.8 zip
-- docs: 安装路径改为 `Plugins/NexusLink`；L1 测试迁到宿主 `NexusLinkTestSuite`；naming/doc-sync 审计脚本收回本仓
-- refactor(plugin): Utils / Feedback / JSON-RPC / Action 助手等结构收口（MCP 协议与 schema 字面量不变）
+- docs: 38 Runtime + 192 Editor = 230；安装路径 `Plugins/NexusLink`；发版只出 `EngineVersion: 4.26` 通用包
+- chore(settings): 危险 cap 默认关闭改为按名记录
 
 ### Fixed
 
-- fix(runtime): `RequirePlayWorld` 只认 PIE/Game，不再回落到编辑器关卡——未开 PIE 时 `destroy_runtime_actor` / `set_runtime_actor_property` / 多数 `interact_runtime_*` 会改到关卡 Actor。只读查询仍走 `GetActiveWorld`（可回落 Editor）。`spawn_runtime_widget` 与 `interact_runtime_actor_behavior_tree` 改走同一入口
-- fix(mcp): `exec_command` 的 `executed` 跟 `GEngine->Exec`，失败再走 `UPlayer::Exec` 的返回值（不再无条件报成功）；PC 回退另标 `fallbackUsed`
-- fix(mcp): MultiTool `tools/call` 补 `IsCapabilityVisibleOnHost`，与 `tools/list` / `call_capability` 对齐
-- fix(mcp): `capture_viewport` 去掉 schema 里会让客户端默认带上的 `viewAngle`（Runtime 不支持，配 `actorName` 直接失败），`windowIndex` 省略不再写成默认 0，`RelatedCapabilities` 补 `capture_editor_panel`；`capture_editor_panel` 的 `viewAngle` 去掉 default `front`；`get_runtime_actor_animation` 的 `actorName` 标 Required；`initialize.serverInfo.version` 改读 `.uplugin`（Unity 下与 `NexusMcpServer` 的同名 static 错开）；启动日志 `/mcp` → `/stream`
-- fix(runtime): `get_runtime_actor_animation` 的 `state` 段在独立 Game 对 ThirdPerson 角色空指针崩溃——改为遍历 `GetBakedStateMachines()` 并用 `GetStateMachineInstanceFromName` + 空指针跳过
-- fix(mcp): `set_runtime_lua` 的 `value` 改为 `AnyScalar`；`dofile_runtime_lua` 文件不存在改为条目级 `error`；中文 `tool-reference` 不再把术语误判成未译而按参数名回落
-- fix(compat): 可选插件 Capability 补齐 UE 4.26–5.8 编译路径；5.7 宿主可编进 MetaSound/MVVM/Niagara/StateTree/ControlRig/IKRig/PoseSearch/GAS/EnhancedInput
-- fix(asset): `LoadAssetWithFallback` 加载前先过 `PackageExists`（避免 MetaSound/PCG 双斜杠崩编辑器）；`create_asset_niagara_system` 改走工厂；CommonUI Style 改建 Blueprint 子类；`manage_asset_view_model` 首次补建 View；补齐 `manage_asset_pcg_graph` / `manage_asset_control_rig` schema 与空值拦截；修好三个 create cap 被拼坏的描述
+- fix(runtime): 未开 PIE 时 runtime 写路径不再落到编辑器关卡 Actor
+- fix(mcp): `set_runtime_lua` 的 `value` 接受标量；`dofile_runtime_lua` 缺文件改为条目级错误
+- fix(compat): 可选插件 Capability 补齐 UE 4.26–5.8
+- fix(asset): 缺失包不再二次加 `/Game/` 前缀崩编辑器；Niagara / CommonUI Style 创建；ViewModel 首次建 View；PCG / ControlRig schema
 
 ## [2.1.0-beta.2] - 2026-09-15
 

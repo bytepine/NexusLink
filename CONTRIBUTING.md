@@ -83,7 +83,7 @@ GUI 信号：cap 名含 `_runtime_`；标记 `l4_runtime` / `lua` / `requires_gu
 **正式版**（`X.Y.Z`）：
 
 1. 按上表跑完（或明确跳过）L2 E2E
-2. 归档 `[Unreleased]` → `[X.Y.Z] - YYYY-MM-DD`，更新 `VERSION`。若已有 `[X.Y.Z-beta.N]`，把这些 beta **去重汇总**进 `[X.Y.Z]`（GitHub 正式 Release 只展示该段，不得只写 beta 之后的增量）；beta 段落保留不删
+2. 归档 `[Unreleased]` → `[X.Y.Z] - YYYY-MM-DD`，更新 `VERSION`。若已有 `[X.Y.Z-beta.N]`，把用户可见能力去重汇总进 `[X.Y.Z]`（短句、最终行为；本版本新功能上的 fix 不写）。GitHub 正式 Release 只展示该段；beta 段落保留不删
 3. `py scripts/extract_release_notes.py --version X.Y.Z --verify`（预览 stdout，确认无误）
 4. `git commit` → `git tag -a nexus-link-vX.Y.Z` → `git push origin HEAD` + `git push origin nexus-link-vX.Y.Z`
 

@@ -7,7 +7,8 @@
 
 --verify  发版前门禁：VERSION 与 --version 一致，且 CHANGELOG [版本号] 段落非空。
           支持 Release（X.Y.Z）与 Pre-release（X.Y.Z-beta.N）。正式版若存在同系列
-          [X.Y.Z-beta.N]，还须覆盖那些 beta 出现过的 ### 小节（去重汇总进正式段）。
+          [X.Y.Z-beta.N]，还须覆盖那些 beta 出现过的 ### Added（用户可见新功能须进正式段）。
+          不强制覆盖 beta 的 Fixed/Changed（本版本新功能上的 fix 可舍去）。
           CI release.yml 与 release-version skill 均须带此参数。
 """
 
@@ -88,11 +89,13 @@ def main() -> int:
             text = f.read()
         notes = extract_section(text, args.version)
         if args.verify and not is_prerelease_version(args.version):
-            missing = sorted(collect_beta_h3s(text, args.version) - collect_h3(notes))
-            if missing:
+            missing_added = (
+                "Added" in collect_beta_h3s(text, args.version)
+                and "Added" not in collect_h3(notes)
+            )
+            if missing_added:
                 raise ValueError(
-                    f"正式版 CHANGELOG [{args.version}] 须汇总同系列 beta 内容，"
-                    f"缺少小节: {', '.join(missing)}"
+                    f"正式版 CHANGELOG [{args.version}] 须汇总同系列 beta 的 Added"
                 )
     except (OSError, ValueError) as e:
         print(f"[ERROR] {e}", file=sys.stderr)
