@@ -8,28 +8,42 @@
 
 > **从 1.x 升级**：2.0 默认开启鉴权且 MCP/AI 可见文案改为英文，插件与客户端须同批升到 2.x。见 [usage-guide §0](docs/usage-guide.md#0-从-1x-升级到-20)。
 
-## 安装与启用
+## 5 分钟快速开始（推荐 NexusDesktop）
 
-从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载 `nexus-mcp-unreal-<version>.zip`，或克隆本仓库到项目的 `Plugins/NexusLink`。
+日常使用推荐独立中转 [NexusDesktop](https://github.com/bytepine/NexusDesktop)：无需安装 IDE 扩展，固定端口，多开 UE 时可切换实例。
 
-1. 将插件放入 `Plugins/NexusLink`，在 **Edit → Plugins → Developer → NexusLink** 中启用并重启编辑器
-2. **Edit → Editor Preferences → Plugins → NexusLink** — 勾选 **启用 MCP 服务器**（**默认关闭**）。勾选后即时启动 HTTP（`POST /stream`）与 WebSocket；取消勾选立即停止。**MCP 鉴权**默认开。Token、多机、开关组合见 [usage-guide §1.1](docs/usage-guide.md#11-鉴权)。默认仅本机 loopback；跨机再勾选 **允许局域网绑定**，用 **复制跨机连接** 选网卡 IP。
-3. （可选）无 UI 的编辑器启动（如 `UEEditor-Cmd`）或 **Development/DebugGame 独立 Game 包**可加 **`-EnableNexusMcp`**；包内也可按 `~` 输入控制台 **`NexusLink.Mcp on|off|status|restart|panel`**（会话级，不写盘；`panel` 打开游戏内 MCP 调试面板，PIE / 独立包通用，可查看运行信息并临时开关 Capability）。启停统一按 **控制台 > 启动参数 > Preferences（仅编辑器角色）** 优先级判定——`-game`/`-server` 子进程与 cook/commandlet 不继承 Preferences 勾选，须显式给启动参数或控制台。测试可加 **`-NexusEnableDangerousCaps`** 打开 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python`
+1. 从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载 `nexus-mcp-unreal-<version>.zip`，解压到项目 `Plugins/NexusLink`
+2. 在 **Edit → Plugins → Developer → NexusLink** 中启用插件并重启编辑器
+3. 在 **Edit → Editor Preferences → Plugins → NexusLink** 中勾选 **启用 MCP 服务器**（默认关闭），确认运行状态和标题栏显示 MCP / WS 端口
+4. 从 [NexusDesktop Releases](https://github.com/bytepine/NexusDesktop/releases) 下载当前最新正式版：Windows 选 `*-setup.exe`，macOS 选 `.dmg`；`*-update.zip` 不是安装包
+5. 启动 NexusDesktop，在托盘勾选 **启用中转服务器**（默认 `:6700`），确认状态行显示当前 UE 项目
+6. 托盘选择 **MCP 客户端配置…**，选 **Streamable HTTP** 和 Cursor / CodeBuddy，将生成的配置粘贴到 AI 客户端
+7. 重启 MCP 会话；默认 SearchMode 下应看到 `search_capabilities`、`call_capability`、`submit_feedback` 3 个元工具
+
+> **安全**：MCP 鉴权默认开启。Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中；分享截图前必须打码。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
+
+未启用 UE 端服务时，标题栏不显示端口、NexusDesktop 扫不到实例、直连 `http://127.0.0.1:45000/stream` 无响应。完整步骤、鉴权与跨机接入见 [使用指南](docs/usage-guide.md)。
+
+## 其他连接方式
+
+NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。本机只开一个代理，避免多个代理重复扫描并连接同一 UE。
+
+| 客户端 | MCP 端点 | 说明 |
+|--------|----------|------|
+| **[NexusDesktop](https://github.com/bytepine/NexusDesktop)**（推荐） | `http://127.0.0.1:6700/stream` | 独立托盘，无需 IDE 扩展 |
+| **[NexusRider](https://github.com/bytepine/NexusRider)** | `http://127.0.0.1:6800/stream` | Rider Marketplace 搜索 **Nexus MCP** |
+| **[NexusVSCode](https://github.com/bytepine/NexusVSCode)** | `http://127.0.0.1:6900/stream` | VSCode / Cursor / CodeBuddy / Windsurf 扩展 |
+| 直连 UE | `http://127.0.0.1:45000/stream` | 无代理缓存、写门控和多实例切换 |
+
+## 运行时 / Dedicated Server 调试
+
+- 编辑器和 PIE 可使用 Preferences 开关；Development / DebugGame 的独立 Game、`-game` / `-server` 子进程及 commandlet 不读取该开关，启动时显式追加 `-EnableNexusMcp`
+- 若默认端口已被其他 UE 进程占用，服务会自动顺延；在 NexusDesktop 中选择对应实例
+- PIE / 独立 Game 可用 `NexusLink.Mcp panel` 查看状态并临时开关 Capability；Dedicated Server 无视口，使用 `NexusLink.Mcp status`
+- Runtime Capability 可调试日志、Actor 属性、动画、行为树、GAS、Widget、Lua 等；Dedicated Server 没有视口和 UMG
+- Shipping 构建在编译期剔除 MCP
 
 GAS / Niagara 等 Capability 按宿主项目插件探测，NexusLink **不**在 `.uplugin` 里强制依赖。
-
-未启用时：标题栏不显示端口、客户端扫描不到实例、直连 `http://127.0.0.1:45000/stream` 无响应。完整步骤见 [docs/usage-guide.md](docs/usage-guide.md)。
-
-## 接入 AI 客户端
-
-NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。日常推荐经客户端代理（固定端口、多实例切换）；也可直连 UE。四端端口与开关层数见 [usage-guide §1](docs/usage-guide.md)。
-
-| 客户端 | 端点 | 说明 |
-|--------|------|------|
-| **[NexusDesktop](https://github.com/bytepine/NexusDesktop)** | `:6700` | 独立托盘程序；Windows `Setup.exe` / macOS `.dmg`（不要下载 `*-update.zip`） |
-| **[NexusRider](https://github.com/bytepine/NexusRider)** | `:6800` | Rider Marketplace 搜索 **Nexus MCP** |
-| **[NexusVSCode](https://github.com/bytepine/NexusVSCode)** | `:6900` | 扩展商店搜索 **Nexus MCP** |
-| 直连 UE | `:45000` | 不用代理；须自行指定 UE 端口 |
 
 ## 示例工程
 
@@ -37,7 +51,7 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。日常推荐经客户端�
 
 ## 能力范围
 
-默认 **SearchMode**：`tools/list` 仅 3 个元工具（`search_capabilities` / `call_capability` / `submit_feedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara、PIE 运行时、UnLua 等。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
+默认 **SearchMode**：`tools/list` 仅 3 个元工具（`search_capabilities` / `call_capability` / `submit_feedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara、UnLua，以及 PIE / 独立 Game / Dedicated Server 运行时调试。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
 
 ## 危险 Capability（默认全部禁用）
 

@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- docs: 中英文落地页与使用指南新增 NexusDesktop 推荐快速路径、Token/写操作安全提示和独立 Game/DS 运行时调试说明；修正 `-server` 进程不读取 Preferences、须显式传 `-EnableNexusMcp`
+
 ## [2.1.0] - 2026-09-15
 
 ### Added

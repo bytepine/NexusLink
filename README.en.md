@@ -8,28 +8,42 @@ An MCP integration plugin for Unreal Engine that exposes UE project context to A
 
 > **Upgrading from 1.x**: 2.0 enables auth by default and switches all MCP/AI-facing text to English. Upgrade the plugin and clients to 2.x together — see [usage-guide §0](docs/usage-guide.md#0-从-1x-升级到-20) (Chinese).
 
-## Installation & Enablement
+## 5-minute quick start (NexusDesktop recommended)
 
-Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://github.com/bytepine/NexusLink/releases), or clone this repository into your project's `Plugins/NexusLink`.
+For daily use, the recommended relay is [NexusDesktop](https://github.com/bytepine/NexusDesktop): no IDE extension, a stable endpoint, and instance switching when multiple UE processes are running.
 
-1. Place the plugin in `Plugins/NexusLink`, enable it under **Edit → Plugins → Developer → NexusLink**, and restart the editor
-2. **Edit → Editor Preferences → Plugins → NexusLink** — check **Enable MCP Server** (**off by default**). HTTP (`POST /stream`) and WebSocket start immediately. **MCP Auth** is on by default. Tokens, extra tokens, and on/off combinations: [usage-guide §1.1](docs/usage-guide.md#11-鉴权). Binds loopback by default; for remote relays also check **Allow LAN bind** and use **Copy remote connection** to pick a NIC IP.
-3. (Optional) For headless **editor** launches (e.g. `UEEditor-Cmd`) or **Development/DebugGame standalone Game** builds, pass **`-EnableNexusMcp`**. Inside a packaged game you can also open the console (`~`) and run **`NexusLink.Mcp on|off|status|restart|panel`** (session-only, does not write settings; `panel` opens an in-game MCP debug panel, works in PIE and standalone builds alike, showing runtime info and letting you toggle Capabilities for the session). Precedence is **console > launch args > Preferences (editor role only)**: `-game`/`-server` sub-processes and cook/commandlet runs don't inherit the Preferences checkbox and need an explicit launch arg or console command. Tests may pass **`-NexusEnableDangerousCaps`** to enable `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python`
+1. Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) and extract it to `Plugins/NexusLink`
+2. Enable **Edit → Plugins → Developer → NexusLink**, then restart the editor
+3. Open **Edit → Editor Preferences → Plugins → NexusLink**, check **Enable MCP Server** (off by default), and verify the runtime status and title-bar MCP / WS ports
+4. Download the latest stable [NexusDesktop release](https://github.com/bytepine/NexusDesktop/releases): use `*-setup.exe` on Windows or `.dmg` on macOS; `*-update.zip` is not an installer
+5. Start NexusDesktop, check **Enable relay server** in the tray (default `:6700`), and verify that the status line shows the current UE project
+6. Choose **MCP client configuration…** in the tray, select **Streamable HTTP** and Cursor / CodeBuddy, then paste the generated configuration into the AI client
+7. Restart the MCP session. Default SearchMode should expose 3 meta-tools: `search_capabilities`, `call_capability`, and `submit_feedback`
+
+> **Security**: MCP auth is on by default. Treat the token as a credential: never commit it, paste it into public documentation, or expose it in screenshots. Review version-control changes before committing because write calls modify real assets or runtime state.
+
+When the UE-side server is disabled, the title bar shows no port, NexusDesktop cannot discover the instance, and direct `http://127.0.0.1:45000/stream` connections get no response. For full setup, auth, and remote-host instructions, see the [usage guide](docs/usage-guide.md) (Chinese).
+
+## Other connection options
+
+NexusLink serves HTTP `:45000` + WebSocket `:55000`. Run only one local proxy so multiple proxies do not scan and connect to the same UE process.
+
+| Client | MCP endpoint | Notes |
+|--------|--------------|-------|
+| **[NexusDesktop](https://github.com/bytepine/NexusDesktop)** (recommended) | `http://127.0.0.1:6700/stream` | Standalone tray app; no IDE extension |
+| **[NexusRider](https://github.com/bytepine/NexusRider)** | `http://127.0.0.1:6800/stream` | Rider Marketplace: **Nexus MCP** |
+| **[NexusVSCode](https://github.com/bytepine/NexusVSCode)** | `http://127.0.0.1:6900/stream` | VSCode / Cursor / CodeBuddy / Windsurf extension |
+| Direct UE | `http://127.0.0.1:45000/stream` | No proxy cache, write gate, or instance switching |
+
+## Runtime / Dedicated Server debugging
+
+- Editor and PIE can use the Preferences switch. Development / DebugGame standalone Game builds, `-game` / `-server` child processes, and commandlets do not read that switch; explicitly append `-EnableNexusMcp` to their launch arguments
+- If another UE process owns the default ports, the server advances to the next available ports; select the intended instance in NexusDesktop
+- PIE and standalone Game can use `NexusLink.Mcp panel` for status and session-only Capability toggles. Dedicated Server has no viewport; use `NexusLink.Mcp status`
+- Runtime Capabilities cover logs, Actor properties, animation, behavior trees, GAS, widgets, Lua, and more. Dedicated Server has no viewport or UMG
+- Shipping builds strip MCP at compile time
 
 GAS / Niagara Capabilities are detected from the host project; NexusLink does **not** force those plugins via `.uplugin`.
-
-When disabled: the title bar shows no port, clients cannot discover the instance, and a direct connection to `http://127.0.0.1:45000/stream` gets no response. Full steps: [docs/usage-guide.md](docs/usage-guide.md).
-
-## Connect an AI client
-
-NexusLink serves HTTP `:45000` + WebSocket `:55000`. Daily use: a client proxy (fixed port, multi-instance switching). You can also connect to UE directly. Ports and switch layers: [usage-guide §1](docs/usage-guide.md).
-
-| Client | Endpoint | Notes |
-|--------|----------|-------|
-| **[NexusDesktop](https://github.com/bytepine/NexusDesktop)** | `:6700` | Standalone tray app; Windows `Setup.exe` / macOS `.dmg` (do not download `*-update.zip`) |
-| **[NexusRider](https://github.com/bytepine/NexusRider)** | `:6800` | Rider Marketplace: **Nexus MCP** |
-| **[NexusVSCode](https://github.com/bytepine/NexusVSCode)** | `:6900` | Extension marketplace: **Nexus MCP** |
-| Direct UE | `:45000` | No proxy; you must specify the UE port |
 
 ## Example project
 
@@ -37,7 +51,7 @@ Public sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) (ThirdPerso
 
 ## Coverage
 
-Default **SearchMode**: `tools/list` exposes 3 meta-tools (`search_capabilities` / `call_capability` / `submit_feedback`); Capabilities are discovered on demand. Coverage includes editor, Blueprint, animation, material, audio, AI / EQS, GAS, UMG, Niagara, PIE runtime, UnLua, and more. Full parameters: [docs/tool-reference.md](docs/tool-reference.md) ([简体中文](docs/tool-reference.zh.md)). SearchMode vs MultiTool: [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode).
+Default **SearchMode**: `tools/list` exposes 3 meta-tools (`search_capabilities` / `call_capability` / `submit_feedback`); Capabilities are discovered on demand. Coverage includes editor, Blueprint, animation, material, audio, AI / EQS, GAS, UMG, Niagara, UnLua, and PIE / standalone Game / Dedicated Server runtime debugging. Full parameters: [docs/tool-reference.md](docs/tool-reference.md) ([简体中文](docs/tool-reference.zh.md)). SearchMode vs MultiTool: [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode).
 
 ## Dangerous Capabilities (all disabled by default)
 

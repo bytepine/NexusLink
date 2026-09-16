@@ -4,6 +4,23 @@
 
 ---
 
+## 快速开始（推荐 NexusDesktop）
+
+首次接入按这一条主路径即可：
+
+1. 从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载插件，解压到项目 `Plugins/NexusLink`，在 **Edit → Plugins → Developer → NexusLink** 中启用并重启
+2. 在 **Edit → Editor Preferences → Plugins → NexusLink** 中勾选 **启用 MCP 服务器**，确认运行状态和标题栏显示 MCP / WS 端口
+3. 从 [NexusDesktop Releases](https://github.com/bytepine/NexusDesktop/releases) 下载当前最新正式版：Windows 选 `*-setup.exe`，macOS 选 `.dmg`；不要下载 `*-update.zip`
+4. 启动 NexusDesktop，在托盘勾选 **启用中转服务器**，确认状态行显示当前 UE 项目
+5. 托盘选择 **MCP 客户端配置…**，选 **Streamable HTTP** 和 Cursor / CodeBuddy，将生成的配置粘贴到 AI 客户端
+6. 重启 MCP 会话；默认 SearchMode 下应看到 `search_capabilities`、`call_capability`、`submit_feedback` 3 个元工具
+
+> **安全**：Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
+
+编辑器 / PIE 直接读取 Preferences 开关；另起的 `-game` / `-server` 进程、Development / DebugGame 独立 Game / DS 及 commandlet 须在原启动参数后追加 `-EnableNexusMcp`。多进程端口冲突会自动顺延，再从 NexusDesktop 选择目标实例。
+
+---
+
 ## 0. 从 1.x 升级到 2.0
 
 2.0 有两处不向下兼容，升级前先看这里。
@@ -48,7 +65,7 @@ flowchart TB
 
 | 接入 | 端点 | 适用 |
 |------|------|------|
-| **[NexusDesktop](https://github.com/bytepine/NexusDesktop)** | `http://127.0.0.1:6700/stream` | 独立托盘程序，无需 IDE 插件 |
+| **[NexusDesktop](https://github.com/bytepine/NexusDesktop)**（推荐） | `http://127.0.0.1:6700/stream` | 独立托盘程序，无需 IDE 插件 |
 | **[NexusRider](https://github.com/bytepine/NexusRider)** | `http://127.0.0.1:6800/stream` | JetBrains Rider |
 | **[NexusVSCode](https://github.com/bytepine/NexusVSCode)** | `http://127.0.0.1:6900/stream` | VSCode / Cursor / CodeBuddy / Windsurf |
 | **直连 UE** | `http://127.0.0.1:45000/stream` | 不用代理；须自行指定 UE 端口 |
@@ -68,6 +85,8 @@ flowchart TB
 默认只绑 loopback。带 `Origin` 的浏览器请求会被拒绝。`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python` 默认全部禁用（见危险 Capability 访问模式）。
 
 ### 1.1 鉴权
+
+> Token 是访问凭证：不要提交 `mcp.json`、粘贴到公开文档或在截图中暴露完整值；分享日志和截图前先脱敏。
 
 四端共用本机一份 token 文件（重启后不变）：
 
@@ -152,7 +171,7 @@ MCP HTTP/WebSocket **默认不启动**。启停统一由三层来源解析，**�
 | 场景 | 启用方式 | 持久化 | 角色是否读 Preferences |
 |---|---|---|---|
 | 编辑器（含 PIE） | Preferences 勾选，或运行时控制台；PIE 内 `NexusLink.Mcp panel` 可开调试面板 | 勾选持久；控制台/面板会话级 | 是 |
-| editor-hosted `-server`（DS 模式） | 同上（同一编辑器进程）；无视口，用 `status` 不用 `panel` | 同上 | 是 |
+| 编辑器二进制以 `-server` 启动（DS 模式） | 启动参数 `-EnableNexusMcp`；无视口，用 `status` 不用 `panel` | 不持久 | **否**（须显式启动参数，不继承勾选） |
 | 编辑器二进制以 `-game` 启动 | 启动参数 `-EnableNexusMcp`，或控制台；有视口时可用 `panel` | 不持久 | **否**（须显式启动参数/控制台，不继承勾选） |
 | Development/DebugGame 独立 Game/DS | 启动参数 `-EnableNexusMcp`，或控制台；Game 包 `~` 后 `panel` 可开调试面板，DS 无视口用 `status` | 不持久 | **否** |
 | cook / commandlet 进程 | 启动参数 `-EnableNexusMcp` | 不持久 | **否** |
@@ -211,9 +230,11 @@ NexusLink.Mcp panel on|off                    ; 显式打开/关闭
 
 危险 Capability 的 Preferences 访问模式（全部禁用 / 确认 / 自定义）本身不改；面板勾选是**单条会话覆盖**：即使访问模式是「全部禁用」，仍可临时启用某一条（等同 `-NexusEnableDangerousCaps` 的单条版），不影响其他危险 cap，也不写 ini。退出进程或点「清除本会话覆盖」即恢复。
 
-### 2.4.1 独立包 MCP debug 清单
+### 2.4.1 独立 Game / DS MCP debug 清单
 
 Development/DebugGame 独立 Game 只加载 `NexusLink` Runtime 模块，catalog **没有** `control_pie` / `get_editor_context` / `search_asset` 等 Editor cap。现场排查用下面这些（均已在 Runtime 注册）：
+
+Dedicated Server 同样可使用 Runtime Capability 调试日志、Actor、动画 / AI / GAS 等运行时内容，但没有视口和 UMG：不能使用 `panel`、视口截图或 Widget 工具，状态检查用 `NexusLink.Mcp status`。
 
 | 意图 | Capability | 说明 |
 |------|------------|------|
