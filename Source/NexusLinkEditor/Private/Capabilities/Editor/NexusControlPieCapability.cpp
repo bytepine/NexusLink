@@ -6,6 +6,7 @@
 
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
+#include "Utils/NexusRuntimeUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusVersionCompat.h"
@@ -52,12 +53,34 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 
 		if (Action.Equals(TEXT("status"), ESearchCase::IgnoreCase))
 		{
-			const bool bRunning    = GEditor->IsPlayingSessionInEditor();
-			const bool bSimulating = GEditor->IsSimulatingInEditor();
+			const bool bRunning      = GEditor->IsPlayingSessionInEditor();
+			const bool bSimulating   = GEditor->IsSimulatingInEditor();
+			const bool bHasPlayWorld = FNexusRuntimeUtils::HasPlayWorld();
 			OutEntry->SetBoolField(TEXT("isPIERunning"), bRunning);
+			OutEntry->SetBoolField(TEXT("hasPlayWorld"), bHasPlayWorld);
 			if (bSimulating) OutEntry->SetBoolField(TEXT("isPIESimulating"), true);
-			OutEntry->SetStringField(TEXT("state"), bRunning
-				? (bSimulating ? TEXT("simulating") : TEXT("playing")) : TEXT("stopped"));
+			FString State = TEXT("stopped");
+			if (bRunning)
+			{
+				if (!bHasPlayWorld)
+				{
+					State = TEXT("starting");
+				}
+				else if (bSimulating)
+				{
+					State = TEXT("simulating");
+				}
+				else
+				{
+					State = TEXT("playing");
+				}
+			}
+			OutEntry->SetStringField(TEXT("state"), State);
+			if (bRunning && !bHasPlayWorld)
+			{
+				OutEntry->SetStringField(TEXT("hint"),
+					TEXT("PIE session started but play World is not ready; wait for hasPlayWorld before list_runtime_*"));
+			}
 		}
 		else if (Action.Equals(TEXT("start"), ESearchCase::IgnoreCase))
 		{

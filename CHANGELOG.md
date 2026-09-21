@@ -7,9 +7,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- feat(mcp): `/status` 增加 `hostKind`（Editor/Game/DedicatedServer，不随 PIE 变）与 `hasPlayWorld`；`get_editor_context` 新 section `current_map`；`control_pie` / `get_editor_info` 回显 `hasPlayWorld`（session 已起但 play World 未就绪时 `state=starting`）
+
 ### Changed
 
 - docs: 中英文落地页与使用指南新增 NexusDesktop 推荐快速路径、Token/写操作安全提示和独立 Game/DS 运行时调试说明；修正 `-server` 进程不读取 Preferences、须显式传 `-EnableNexusMcp`
+- feat(mcp): `get_asset_refs` / `exec_python` 补口语 keywords；`search_capabilities` 对原生 C++ `UENUM` 返回越界 hint（UserDefinedEnum 走 `get_asset_enum`）
+
+### Fixed
+
+- fix(mcp): `search_capabilities` `routingHints` 与 `search_asset` `recommendedGet`/`recommendedManage` 按宿主过滤；Game/DS 上 unknown cap 提示改连 Editor 实例（`list_unreal_instances.hostKind`）
 
 ## [2.1.0] - 2026-09-15
 

@@ -462,7 +462,9 @@ void FGetAssetRefsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) c
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = {
 		TEXT("references"), TEXT("deps"), TEXT("usage"), TEXT("links"), TEXT("callers"),
-		TEXT("inheritance"), TEXT("subclass"), TEXT("parent"), TEXT("children"), TEXT("descendants")
+		TEXT("inheritance"), TEXT("subclass"), TEXT("parent"), TEXT("children"), TEXT("descendants"),
+		TEXT("ref"), TEXT("reference"), TEXT("referencer"), TEXT("dependency"),
+		TEXT("get refs"), TEXT("get ref")
 	};
 	Out.RelatedCapabilities = { TEXT("search_asset"), TEXT("get_asset_blueprint") };
 	Out.WhenToUse = TEXT("Query refs/deps or Blueprint subclass/parent chain");

@@ -208,6 +208,19 @@ static bool TryGatedPluginHint(const FString& QueryLower, FString& OutHint)
 	return false;
 }
 
+static bool TryIntentHint(const FString& QueryLower, FString& OutHint)
+{
+	if (QueryLower.Contains(TEXT("cpp enum"))
+		|| QueryLower.Contains(TEXT("uenum"))
+		|| QueryLower.Contains(TEXT("class reflection"))
+		|| QueryLower.Contains(TEXT("native enum")))
+	{
+		OutHint = TEXT("Native C++ UENUM / class reflection is out of scope. Use get_asset_enum for UserDefinedEnum assets.");
+		return true;
+	}
+	return false;
+}
+
 static void EmitSuggestedQueries(TSharedPtr<FJsonObject>& Output, const TArray<FString>& Suggested)
 {
 	TArray<TSharedPtr<FJsonValue>> Arr;
@@ -500,6 +513,14 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 				{
 					Hint = GateHint;
 				}
+				else if (TryIntentHint(QueryRaw.ToLower(), GateHint))
+				{
+					Hint = GateHint;
+				}
+				else if (!FNexusHostUtils::IsFullEditorCapabilityHost())
+				{
+					Hint = TEXT("No matching capability on this Game/DS host (runtime caps only). Use query=\"\" for the local catalog; connect to an Editor instance (list_unreal_instances hostKind=Editor) for asset tools.");
+				}
 			}
 			Output->SetStringField(TEXT("errorKind"), TEXT("not_found"));
 			Output->SetStringField(TEXT("hint"), Hint);
@@ -517,7 +538,8 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		for (const FString& FbName : FallbackCaps)
 		{
 			const FCapRecord* R = FNexusCapabilityRegistry::Get().FindRecordByName(FbName);
-			if (R && Settings->IsCapabilityEnabled(R->Def.Name))
+			if (R && Settings->IsCapabilityEnabled(R->Def.Name)
+				&& FNexusHostUtils::IsCapabilityVisibleOnHost(*R))
 			{
 				TSharedPtr<FJsonObject> FbEntry = MakeShared<FJsonObject>();
 				FbEntry->SetStringField(TEXT("name"),        R->Def.Name);
@@ -566,6 +588,14 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		{
 			Output->SetStringField(TEXT("hint"),
 				TEXT("Multiple capabilities matched. Check whenToUse/relatedCapabilities, or pass capabilityName=<exact name> for full parameters."));
+		}
+	}
+
+	{
+		FString IntentHint;
+		if (TryIntentHint(QueryTrimmed.ToLower(), IntentHint))
+		{
+			Output->SetStringField(TEXT("hint"), IntentHint);
 		}
 	}
 

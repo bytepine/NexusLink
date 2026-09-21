@@ -19,6 +19,12 @@ struct NEXUSLINK_API FNexusHostUtils
 	 */
 	static bool IsFullEditorCapabilityHost();
 
+	/**
+	 * 进程级宿主种类：Editor / Game / DedicatedServer。
+	 * 与 netRole 正交，不随 PIE 开停变化；供 /status 与代理选实例。
+	 */
+	static FString GetHostKind();
+
 	/** 当前宿主是否可发现/调用该 Capability（看 GetHostScope，不看 Tags）。 */
 	static bool IsCapabilityVisibleOnHost(const FCapRecord& Record);
 

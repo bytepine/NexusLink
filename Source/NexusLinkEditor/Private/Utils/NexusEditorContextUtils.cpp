@@ -130,3 +130,29 @@ bool FNexusEditorContextUtils::CollectContentBrowserPath(FString& OutPath, FStri
 	return false;
 #endif
 }
+
+bool FNexusEditorContextUtils::CollectCurrentEditorMap(FString& OutAssetPath, FString& OutMapName, FString& OutError)
+{
+#if WITH_EDITOR
+	if (!GEditor)
+	{
+		OutError = TEXT("GEditor unavailable");
+		return false;
+	}
+
+	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+	if (!EditorWorld)
+	{
+		OutError = TEXT("No editor World");
+		return false;
+	}
+
+	const UObject* Package = EditorWorld->GetOutermost();
+	OutAssetPath = Package ? Package->GetName() : FString();
+	OutMapName = EditorWorld->GetMapName();
+	return true;
+#else
+	OutError = TEXT("Only available in editor builds");
+	return false;
+#endif
+}

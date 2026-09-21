@@ -182,7 +182,8 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | `skeletal mesh`, `skmesh` | `get_asset_skeletal_mesh`, `get_asset_skeleton` |
 | `sound`, `audio`, `sfx` | `get_asset_sound_wave`, `get_asset_sound_cue` |
 | `niagara`, `vfx`, `fx` | `get_asset_niagara_system` |
-| `level`, `map`, `umap`, `world` | `get_asset_level` |
+| `level`, `map`, `umap`, `world` | `get_asset_level`（已知 `assetPath` 的磁盘关卡） |
+| `current map`, `open level`, `loaded map` | `get_editor_context`（section `current_map`；当前编辑器打开的关卡，非 PIE World） |
 | `state machine`, `transition`, `anim graph` | `manage_asset_anim_blueprint`, `get_asset_anim_blueprint` |
 | `blackboard`, `bb key` | `get_asset_blackboard`, `get_runtime_actor_behavior_tree` |
 | `bt node`, `task`, `service`, `decorator` | `get_asset_behavior_tree`, `manage_asset_behavior_tree` |
@@ -194,6 +195,8 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | `struct field`, `struct type` | `manage_asset_struct_field`, `get_asset_struct` |
 | `row`, `datatable row` | `manage_asset_data_table`, `get_asset_data_table` |
 | `cdo`, `default value`, `class default` | `get_asset_blueprint` (section=defaults), `manage_asset_data_asset` |
+
+原生 C++ `UENUM` / 头文件反射不在范围；UserDefinedEnum 资产用 `get_asset_enum`。
 
 ---
 

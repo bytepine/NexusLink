@@ -36,6 +36,8 @@
 #include "Misc/Parse.h"
 #include "Interfaces/IPluginManager.h"
 #include "NexusMcpAuth.h"
+#include "Utils/NexusHostUtils.h"
+#include "Utils/NexusRuntimeUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusMcpServer, Log, All);
 
@@ -436,6 +438,8 @@ void FNexusMcpServer::RegisterRoutes()
 				Obj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
 				Obj->SetNumberField(TEXT("wsPort"), Server->GetWsPort());
 				Obj->SetStringField(TEXT("netRole"), DetectCurrentNetRole());
+				Obj->SetStringField(TEXT("hostKind"), FNexusHostUtils::GetHostKind());
+				Obj->SetBoolField(TEXT("hasPlayWorld"), FNexusRuntimeUtils::HasPlayWorld());
 				Obj->SetBoolField(TEXT("authRequired"), UNexusLinkSettings::IsMcpAuthRequired());
 				ReplyJson(Complete, FNexusJsonUtils::SerializeCondensed(Obj));
 			});

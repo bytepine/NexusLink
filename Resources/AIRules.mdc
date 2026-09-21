@@ -35,7 +35,7 @@ For UE assets / PIE / blueprints / Widget / material / behavior tree / GAS / Lua
 - ❌ Over-broad single-token `search_capabilities` queries: `blueprint` / `asset` / `runtime` / `animation` (causes `search_overflow`; add action or subdomain, e.g. `blueprint variable`, `runtime actor`)
 - ❌ Guess `/Game/...` paths; no `assetType=all` + bare `/Game/` without filters
 - ❌ Call `get_asset_*` without `search_asset` first (missing `assetPath`)
-- ❌ `get_runtime_actor_*` / `set_runtime_actor_*` without `actorName` (call `list_runtime_actors` first)
+- ❌ `get_runtime_actor_*` / `set_runtime_actor_*` without `actorName` (call `list_runtime_actors` first; wait for `hasPlayWorld`)
 - ❌ `exec_command` without a non-empty `command`
 - ❌ Call dangerous caps (`exec_command` / `exec_python` / `eval_runtime_lua` / `dofile_runtime_lua`) in Confirm mode without `reason` (purpose, expected effect, why no safer dedicated cap)
 - ❌ Retry after `errorKind=user_denied` (user rejected this request)
@@ -73,7 +73,8 @@ Legacy keys → `arg_invalid`.
 | Create/edit blueprint interface | `create_asset_blueprint(parentClass=Interface)` → `manage_asset_blueprint` `add_function` / `add_interface` |
 | Behavior tree / decorators | `search_asset(BehaviorTree, …)` → top-level `recommendedGet` (usually `get_asset_behavior_tree`) |
 | GA config | `search_asset(GameplayAbility, …)` → top-level `recommendedGet` (skip if GAS not enabled locally) |
-| PIE actor properties | `list_runtime_actors` → `get_runtime_actor_property(actorName=…, propertyPaths=…)` |
+| Current editor map / open level | `get_editor_context(sections=["current_map"])` — not `get_asset_level` (needs a known path) and not `list_runtime_actors` |
+| PIE actor properties | After `hasPlayWorld`, `list_runtime_actors` → `get_runtime_actor_property(actorName=…, propertyPaths=…)` |
 | PIE blackboard / active node | `get_runtime_actor_behavior_tree` (needs PIE + `actorName`) |
 | Console command | `exec_command(command="…")` (`command` required, non-empty; Confirm mode also needs `reason`) |
 | Screenshot | `capture_viewport` for Game/PIE viewport or full window; `capture_editor_panel` for LevelEditor panel tabs and Actor `viewAngle` shots (Editor only) |

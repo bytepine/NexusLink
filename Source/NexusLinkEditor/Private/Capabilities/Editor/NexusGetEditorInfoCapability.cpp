@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusRuntimeUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpTool.h"
@@ -64,6 +65,7 @@ FCapabilityResult FGetEditorInfoCapability::Execute(const TSharedPtr<FJsonObject
 	#else
 		OutEntry->SetBoolField(TEXT("isEditor"), false);
 	#endif
+		OutEntry->SetBoolField(TEXT("hasPlayWorld"), FNexusRuntimeUtils::HasPlayWorld());
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	

@@ -65,6 +65,12 @@ UWorld* FNexusRuntimeUtils::RequirePlayWorld(FString& OutError)
 	return nullptr;
 }
 
+bool FNexusRuntimeUtils::HasPlayWorld()
+{
+	FString Unused;
+	return RequirePlayWorld(Unused) != nullptr;
+}
+
 FString FNexusRuntimeUtils::GetActorLabelOrName(const AActor* Actor)
 {
 	if (!Actor) return FString();

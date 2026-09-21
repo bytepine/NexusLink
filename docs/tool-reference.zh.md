@@ -161,7 +161,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | 查询段（可多选）: `selection_actors` / `selection_assets` / `content_browser_path` |
+| `sections` | `string[]` |  | 查询段（可多选）: `selection_actors` / `selection_assets` / `content_browser_path` / `current_map` |
 | `limit` | `integer` |  | 每页最大条数 |
 
 **相关 Capability**: `get_editor_info`, `capture_viewport`, `search_asset`

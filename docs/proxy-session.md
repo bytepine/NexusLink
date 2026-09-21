@@ -39,6 +39,21 @@ Desktop / Rider / VSCode 夹在 AI 客户端与 UE WebSocket 之间。本文是�
 
 ---
 
+## 8. `/status` 与选实例
+
+UE `GET /status` 在 `netRole` 之外增加：
+
+| 字段 | 含义 |
+|------|------|
+| `hostKind` | `Editor` / `Game` / `DedicatedServer`。进程级，**不随 PIE 变化** |
+| `hasPlayWorld` | 是否存在 PIE/Game World（与 `list_runtime_*` 探测一致） |
+
+`netRole` 在编辑器开 PIE 后会变成 `Standalone`/`Client` 等，**不要**再用它判断是不是 Editor 进程。
+
+三端自动连接：`hostKind=Editor` 优先 → 旧 UE 无 `hostKind` 时回落 `netRole=Editor` → 否则 `found[0]`。`list_unreal_instances` 透出这两个字段。`hasPlayWorld=false` 时不要调 `list_runtime_*`。
+
+---
+
 ## 3. TTL 缓存键
 
 对 `call_capability`：`capability` + 内层 `arguments`（去掉 `targetPort`）。  

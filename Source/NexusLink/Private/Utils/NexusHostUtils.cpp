@@ -14,6 +14,19 @@ bool FNexusHostUtils::IsFullEditorCapabilityHost()
 #endif
 }
 
+FString FNexusHostUtils::GetHostKind()
+{
+	if (IsRunningDedicatedServer())
+	{
+		return TEXT("DedicatedServer");
+	}
+	if (IsFullEditorCapabilityHost())
+	{
+		return TEXT("Editor");
+	}
+	return TEXT("Game");
+}
+
 bool FNexusHostUtils::IsCapabilityVisibleOnHost(const FCapRecord& Record)
 {
 	return IsCapabilityVisibleOnHost(Record, IsFullEditorCapabilityHost());

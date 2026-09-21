@@ -74,15 +74,24 @@ static FString FormatUnknownCapabilityError(const FString& RequestedName, const 
 				TEXT("'%s' is an MCP meta-tool; call it directly via MCP tools/call, not via call_capability(capability=...)."),
 				*RequestedName);
 	}
+	FString Msg;
 	if (!RequestedName.Equals(ResolvedName, ESearchCase::IgnoreCase) && !ResolvedName.IsEmpty())
 	{
-		return FString::Printf(
+		Msg = FString::Printf(
 				TEXT("Unknown capability '%s' (resolved from legacy name to '%s', which is not registered). Use search_capabilities."),
 				*RequestedName, *ResolvedName);
 	}
-	return FString::Printf(
+	else
+	{
+		Msg = FString::Printf(
 			TEXT("Unknown capability '%s'. Use the search_capabilities MCP tool to list available capabilities."),
 			*RequestedName);
+	}
+	if (!FNexusHostUtils::IsFullEditorCapabilityHost())
+	{
+		Msg += TEXT(" Current host is Game/DS (runtime caps only); connect to an Editor instance (list_unreal_instances hostKind=Editor) for asset tools.");
+	}
+	return Msg;
 }
 
 static FString DisabledHint(const FCapRecord* Rec)

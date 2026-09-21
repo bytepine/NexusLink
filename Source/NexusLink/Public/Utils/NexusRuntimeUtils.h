@@ -27,6 +27,9 @@ public:
 	 * 避免未开 PIE 时改到关卡里的 Actor。
 	 */
 	static UWorld* RequirePlayWorld(FString& OutError);
+
+	/** 是否存在 PIE 或 Game World（RequirePlayWorld 非空）。 */
+	static bool HasPlayWorld();
 	/** 编辑器下返回 ActorLabel，非编辑器回退 GetName()。 */
 	static FString               GetActorLabelOrName(const AActor* Actor);
 	static AActor*               FindActorByName(UWorld* World, const FString& ActorName);

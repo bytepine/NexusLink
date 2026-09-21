@@ -153,15 +153,15 @@ Run editor Python. exec/file/eval; stdout and traceback. Probe with get_python_a
 
 ### `get_editor_context`
 
-Read editor selection and browse paths. 3 sections; editor World != PIE.
+Read editor selection, browse path, and current map. editor World != PIE.
 
 **Prerequisites**: `editor_only`
 
-**When to use**: Read editor selection; use list_runtime_actors in PIE
+**When to use**: Read editor selection or current map; use list_runtime_actors in PIE
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `selection_actors` / `selection_assets` / `content_browser_path` |
+| `sections` | `string[]` |  | Sections (multi-select): `selection_actors` / `selection_assets` / `content_browser_path` / `current_map` |
 | `limit` | `integer` |  | Max list items (selection section) |
 
 **Related capabilities**: `get_editor_info`, `capture_viewport`, `search_asset`

@@ -66,7 +66,7 @@ void FExecPythonCapability::BuildDefinition(FNexusCapabilityDefinition& Out) con
 		.Prop(TEXT("reason"), FNexusSchema::Str(TEXT("Purpose for the editor confirm dialog. Required in Confirm mode.")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor, FNexusMcpTags::Dangerous };
-	Out.ExtraSearchKeywords = { TEXT("py"), TEXT("script"), TEXT("snippet"), TEXT("automation"), TEXT("scripting") };
+	Out.ExtraSearchKeywords = { TEXT("py"), TEXT("script"), TEXT("snippet"), TEXT("automation"), TEXT("scripting"), TEXT("execute python") };
 	Out.RelatedCapabilities = { TEXT("get_python_api"), TEXT("exec_command"), TEXT("get_output_log") };
 	Out.Prerequisites = { TEXT("python") };
 }

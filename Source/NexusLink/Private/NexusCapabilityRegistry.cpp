@@ -3,6 +3,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpTool.h"           // FNexusMcpTags
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusHostUtils.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "Serialization/JsonSerializer.h"
@@ -314,6 +315,21 @@ void FNexusCapabilityRegistry::ResolveSearchAssetRoute(
 		OutRecommendedGet = Route->RecommendedGet;
 		OutRecommendedManage = Route->RecommendedManage;
 	}
+
+	auto ClearIfInvisible = [this](FString& Name)
+	{
+		if (Name.IsEmpty())
+		{
+			return;
+		}
+		const FCapRecord* Rec = FindRecordByName(Name);
+		if (!Rec || !FNexusHostUtils::IsCapabilityVisibleOnHost(*Rec))
+		{
+			Name.Reset();
+		}
+	};
+	ClearIfInvisible(OutRecommendedGet);
+	ClearIfInvisible(OutRecommendedManage);
 }
 
 void FNexusCapabilityRegistry::Reset()

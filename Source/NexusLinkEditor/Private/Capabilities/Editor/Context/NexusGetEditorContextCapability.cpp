@@ -12,13 +12,16 @@
 void FGetEditorContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_editor_context");
-	Out.Description = TEXT("Read editor selection and browse paths. 3 sections; editor World != PIE.");
+	Out.Description = TEXT("Read editor selection, browse path, and current map. editor World != PIE.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.Prerequisites = { TEXT("editor_only") };
-	Out.ExtraSearchKeywords = { TEXT("selection"), TEXT("content browser"), TEXT("picker"), TEXT("focused") };
+	Out.ExtraSearchKeywords = {
+		TEXT("selection"), TEXT("content browser"), TEXT("picker"), TEXT("focused"),
+		TEXT("current map"), TEXT("open level"), TEXT("loaded map")
+	};
 	Out.RelatedCapabilities = { TEXT("get_editor_info"), TEXT("capture_viewport"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("Read editor selection; use list_runtime_actors in PIE");
+	Out.WhenToUse = TEXT("Read editor selection or current map; use list_runtime_actors in PIE");
 }
 
 TSharedPtr<FJsonObject> FGetEditorContextCapability::BuildCapabilitySchema() const
@@ -30,12 +33,12 @@ TSharedPtr<FJsonObject> FGetEditorContextCapability::BuildCapabilitySchema() con
 
 TArray<FString> FGetEditorContextCapability::GetSectionNames() const
 {
-	return { TEXT("selection_actors"), TEXT("selection_assets"), TEXT("content_browser_path") };
+	return { TEXT("selection_actors"), TEXT("selection_assets"), TEXT("content_browser_path"), TEXT("current_map") };
 }
 
 TArray<FString> FGetEditorContextCapability::GetDefaultSectionNames() const
 {
-	return { TEXT("selection_actors"), TEXT("selection_assets"), TEXT("content_browser_path") };
+	return { TEXT("selection_actors"), TEXT("selection_assets"), TEXT("content_browser_path"), TEXT("current_map") };
 }
 
 void FGetEditorContextCapability::ExecuteSection(const FString&                 SectionName,
@@ -80,6 +83,18 @@ void FGetEditorContextCapability::ExecuteSection(const FString&                 
 			return;
 		}
 		InOutDetail->SetStringField(TEXT("path"), Path);
+	}
+	else if (SectionName == TEXT("current_map"))
+	{
+		FString AssetPath;
+		FString MapName;
+		if (!FNexusEditorContextUtils::CollectCurrentEditorMap(AssetPath, MapName, OutError))
+		{
+			return;
+		}
+		InOutDetail->SetStringField(TEXT("assetPath"), AssetPath);
+		InOutDetail->SetStringField(TEXT("mapName"), MapName);
+		InOutDetail->SetBoolField(TEXT("isEditorWorld"), true);
 	}
 	else
 	{

@@ -50,7 +50,7 @@ Forbidden: `manage_animation`, `set_runtime_actor_animation`.
 
 **Plugin-gated**: GAS / Niagara / StateTree / MVVM / EQS / MetaSound / PCG / ControlRig / Enhanced Input / Paper2D / GeometryCollection / CommonUI / Movie Render Queue / Python (`get_python_api` / `exec_python`) register only with matching plugin+engine; `search_capabilities` `not_found` → skip, do not hard-call handshake names. Tag queries: `get_gameplay_tags` is always available.
 
-**Editor**: `control_pie`, `control_movie_pipeline`, `search_console_variables`, `capture_editor_panel`, `get_editor_context`, `get_editor_info`.
+**Editor**: `control_pie`, `control_movie_pipeline`, `search_console_variables`, `capture_editor_panel`, `get_editor_context` (selection + `current_map`), `get_editor_info`.
 
 ## Workflow notes
 
@@ -62,10 +62,10 @@ Forbidden: `manage_animation`, `set_runtime_actor_animation`.
 ## Hard rules
 
 - Write success does **not** return `success:true`; no `error` means success; `interact_*` changes runtime command state (not propertyPaths).
-- `*_asset_*` = disk; `*_runtime_*` needs PIE/Game.
+- `*_asset_*` = disk (Editor host); `*_runtime_*` needs PIE/Game (`hasPlayWorld`); Game/DS host (`hostKind` ≠ Editor) has no `get_asset_*`.
 - `search_asset`: no `assetType=all` + bare `/Game/`; then use `recommended*` + `path`.
 - `search_capabilities`: infer name from patterns above and pass `capabilityName` (full `parameters[]` once); otherwise narrow 1–2 word `query` (e.g. `blueprint variable`); `query=""` is name-only catalog; **do not** use `blueprint` / `asset` / `runtime` / `animation` alone (`query_too_broad`). On failure check `errorKind` / `suggestedQueries`; `not_found` with unregistered hint → do not retry same domain; on `call_capability` `disabled` or `user_denied` do not retry.
-- `get_runtime_actor_property` requires non-empty `actorName` (call `list_runtime_actors` first); `exec_command` requires non-empty `command`. Dangerous caps (`exec_command` / `exec_python` / `eval_runtime_lua` / `dofile_runtime_lua`) in Confirm mode require `reason` (purpose, expected effect, why no safer dedicated cap); `confirmationRequired: true` on search details. Do not retry `user_denied`.
+- `get_runtime_actor_property` requires non-empty `actorName` (call `list_runtime_actors` first, after `control_pie`/`get_editor_info` `hasPlayWorld=true`); `exec_command` requires non-empty `command`. Dangerous caps (`exec_command` / `exec_python` / `eval_runtime_lua` / `dofile_runtime_lua`) in Confirm mode require `reason` (purpose, expected effect, why no safer dedicated cap); `confirmationRequired: true` on search details. Do not retry `user_denied`.
 - Unsure whether an `unreal.*` API exists on this engine version: call `get_python_api` first; do not guess UE5 APIs on UE4 (or vice versa).
 - `exec_python` writes are only undoable when they go through `obj.set_editor_property(...)` or an explicit `obj.modify()`; plain `obj.foo = x` is **not** recorded. Prefer the former, and check the returned `undoRecorded` — `false` means Ctrl+Z will not roll this back.
 - After `sections=["all"]`, no sub-section calls for 30s (`redundant_call`).
