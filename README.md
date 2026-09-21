@@ -38,7 +38,8 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。本机只开一个代理�
 ## 运行时 / Dedicated Server 调试
 
 - 编辑器和 PIE 可使用 Preferences 开关；Development / DebugGame 的独立 Game、`-game` / `-server` 子进程及 commandlet 不读取该开关，启动时显式追加 `-EnableNexusMcp`
-- 若默认端口已被其他 UE 进程占用，服务会自动顺延；在 NexusDesktop 中选择对应实例
+- 若默认端口已被其他 UE 进程占用，服务会自动顺延；在 NexusDesktop 中选择对应实例。多开时按 `/status.hostKind` 区分 Editor / Game / DedicatedServer（不随 PIE 变）；当前编辑器关卡用 `get_editor_context` 的 `current_map`
+
 - PIE / 独立 Game 可用 `NexusLink.Mcp panel` 查看状态并临时开关 Capability；Dedicated Server 无视口，使用 `NexusLink.Mcp status`
 - Runtime Capability 可调试日志、Actor 属性、动画、行为树、GAS、Widget、Lua 等；Dedicated Server 没有视口和 UMG
 - Shipping 构建在编译期剔除 MCP

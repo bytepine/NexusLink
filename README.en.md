@@ -38,7 +38,8 @@ NexusLink serves HTTP `:45000` + WebSocket `:55000`. Run only one local proxy so
 ## Runtime / Dedicated Server debugging
 
 - Editor and PIE can use the Preferences switch. Development / DebugGame standalone Game builds, `-game` / `-server` child processes, and commandlets do not read that switch; explicitly append `-EnableNexusMcp` to their launch arguments
-- If another UE process owns the default ports, the server advances to the next available ports; select the intended instance in NexusDesktop
+- If another UE process owns the default ports, the server advances to the next available ports; select the intended instance in NexusDesktop. With multiple processes, use `/status.hostKind` (Editor / Game / DedicatedServer; does not change during PIE). The open editor map is `get_editor_context` section `current_map`
+
 - PIE and standalone Game can use `NexusLink.Mcp panel` for status and session-only Capability toggles. Dedicated Server has no viewport; use `NexusLink.Mcp status`
 - Runtime Capabilities cover logs, Actor properties, animation, behavior trees, GAS, widgets, Lua, and more. Dedicated Server has no viewport or UMG
 - Shipping builds strip MCP at compile time
