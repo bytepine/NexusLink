@@ -98,7 +98,7 @@ TTL：
 | `destructive`（默认） | `delete_asset` / `rename_asset`；`control_pie` 且 `action` 为 stop/end/quit；`manage_*` 且某 `operations[].action` 含 delete/remove/destroy |
 | `all` | 一切写 cap（非 `get_`/`list_`/`search_`/`submit_feedback`） |
 
-确认结果：`allow` / `deny` / `always`（本进程对该 capability 不再问）。  
+确认结果：`allow` / `deny` / `always`（当前 MCP 会话对该 capability 不再问；新 `initialize` 再问）。  
 `deny` → JSON-RPC 错误 `errorKind: proxy_denied`。  
 无 UI 回调时（测试）：不阻塞，视为 `allow`。确认等待上限 **120s**，超时视为 `deny`。
 

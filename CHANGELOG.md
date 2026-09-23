@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- docs: 代理写门控 `always` 按当前 MCP 会话记住，不再写成进程级
+
 ## [2.1.1] - 2026-09-21
 
 ### Added
