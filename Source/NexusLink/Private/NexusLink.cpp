@@ -409,7 +409,7 @@ void FNexusLinkModule::HandleMcpCommand(const TArray<FString>& Args, UWorld* Wor
 		if (bRunning)
 		{
 			const TCHAR* BindAddr = McpServer->IsLanBound() ? TEXT("0.0.0.0") : TEXT("127.0.0.1");
-			Ar.Logf(TEXT("NexusLink.Mcp 状态=on（来源：%s） http://%s:%d/stream  ws://%s:%d/  鉴权=%s"),
+			Ar.Logf(TEXT("NexusLink.Mcp 状态=on（来源：%s） http://%s:%d/stream  ws://%s:%d/  身份验证=%s"),
 				NexusMcpSourceToString(Source), BindAddr, McpServer->GetMcpPort(), BindAddr, McpServer->GetWsPort(),
 				UNexusLinkSettings::IsMcpAuthRequired() ? TEXT("开") : TEXT("关"));
 		}

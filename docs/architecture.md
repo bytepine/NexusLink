@@ -82,7 +82,7 @@ REGISTER_MCP_CAPABILITY(FNexusSearchAssetCapability);
 ```
 
 宏展开后利用 C++ 静态初始化，在模块加载期自动向全局注册表注册实例。新增 Capability 只需：
-1. 按 CapabilitySpec §2.1.0 **选模块**（PIE/Game 活对象、不落盘 → `NexusLink` Runtime 模块；磁盘资产 / 编辑器 API / 落盘 → `NexusLinkEditor` 模块）
+1. 按 CapabilitySpec §2.1.0 **选模块**（PIE/Game 活对象、不保存到磁盘 → `NexusLink` Runtime 模块；磁盘资产 / 编辑器 API / 保存到磁盘 → `NexusLinkEditor` 模块）
 2. 在对应模块 `Source/<模块>/Private/Capabilities/` 下的域目录新建 .h/.cpp
 3. 按 CapabilitySpec §2.1.1 选基类（`manage_*` + `operations[]` → `FNexusActionCapability`，禁止 override `Execute`；其余见该表；基类范围随第 1 步选定的模块收窄）并实现对应钩子
 4. 文件底部添加 `REGISTER_MCP_CAPABILITY(ClassName)`
@@ -160,7 +160,7 @@ MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮�
 
 模式切换或 Capability 变更时，NexusLink 自动广播 `notifications/tools/list_changed`。
 
-代理层（Desktop / Rider / VSCode）连接 UE 后，通过 `nexus/instructions` 拉取 `InitializeInstructions.*.md`，通过 `nexus/proxy_config` 拉取 `ProxyConfig.json`（连接工具 description、initialize 前缀、错误文案），拼接到自身 `initialize.instructions` / `tools/list` 响应。代理另实现会话层（TTL 缓存、断线快照、写门控、Pause），契约见 [proxy-session.md](./proxy-session.md)；直连 `:45000` 无此层。
+代理层（Desktop / Rider / VSCode）连接 UE 后，通过 `nexus/instructions` 拉取 `InitializeInstructions.*.md`，通过 `nexus/proxy_config` 拉取 `ProxyConfig.json`（连接工具 description、initialize 前缀、错误文案），拼接到自身 `initialize.instructions` / `tools/list` 响应。代理另实现会话层（TTL 缓存、断线快照、写入前确认、Pause），约定见 [proxy-session.md](./proxy-session.md)；直连 `:45000` 无此层。
 
 ---
 
@@ -198,13 +198,13 @@ HTTP 收包线程只拷贝请求体与 header，然后 `AsyncTask` 回切 GameTh
 
 ### 同步执行模型与已知限制
 
-`tools/call` 从 `Dispatch`/`DispatchDirect` 到 `EmitToolResult` 全程同步跑在 GameThread，回切只发生在收发两端（见上），执行期间不会让出。重 capability（蓝图编译、资产落盘、`FlushRenderingCommands` 截图、全表资产扫描）会让整个编辑器同帧掉帧——这是相关 UE API 本身仅限 GameThread 调用的直接后果，非 NexusLink 传输层的实现缺陷，也没有切片/异步空间。
+`tools/call` 从 `Dispatch`/`DispatchDirect` 到 `EmitToolResult` 全程同步跑在 GameThread，回切只发生在收发两端（见上），执行期间不会让出。重 capability（蓝图编译、资产保存到磁盘、`FlushRenderingCommands` 截图、全表资产扫描）会让整个编辑器同帧掉帧——这是相关 UE API 本身仅限 GameThread 调用的直接后果，非 NexusLink 传输层的实现缺陷，也没有切片/异步空间。
 
 HTTP `/stream` 是无状态 request-response，没有 SSE/chunked 等推送通道；WebSocket 虽可 `BroadcastNotification` 推送，但三个代理目前只识别 `notifications/tools/list_changed`，其余通知一律丢弃。因此长任务无法用「返回 pending + 事后推送」的方式实现——唯一现实路径是让请求原样挂着，直到 capability 跑完。
 
-代理侧（Desktop/Rider/VSCode）对 `tools/call` 统一 120s 超时且超时不重试；同一长连接上的请求还会串行排队，一个慢调用会连带堵塞同会话的后续请求。
+代理里（Desktop/Rider/VSCode）对 `tools/call` 统一 120s 超时且超时不重试；同一长连接上的请求还会串行排队，一个慢调用会连带堵塞同会话的后续请求。
 
-可观测点：传输层耗时超过 `SlowCallThresholdMs`（§2.6）时，`NexusMcpDispatcher.cpp` 的 `LogToolCallDuration` 会打 Warning 级日志（覆盖压缩/TTL注入/序列化的端到端耗时）；capability 层的 `slow_call` feedback category 同阈值触发，现在也覆盖「慢且最终报错」的调用（Note 标 `(error)`）。代理侧超时另有 `proxy_timeout` category。
+可观测点：传输层耗时超过 `SlowCallThresholdMs`（§2.6）时，`NexusMcpDispatcher.cpp` 的 `LogToolCallDuration` 会打 Warning 级日志（覆盖压缩/TTL注入/序列化的端到端耗时）；capability 层的 `slow_call` feedback category 同阈值触发，现在也覆盖「慢且最终报错」的调用（Note 标 `(error)`）。代理里超时另有 `proxy_timeout` category。
 
 ### WebSocket 代理通道（Desktop / Rider / VSCode）
 

@@ -1,6 +1,6 @@
 # NexusLink 使用指南
 
-面向最终用户：安装 UE 插件、选客户端、打开对应层开关、配置鉴权。Capability 参数见 [`tool-reference.zh.md`](./tool-reference.zh.md)（[English](./tool-reference.md)）；架构见 [`architecture.md`](./architecture.md)。
+面向最终用户：安装 UE 插件、选客户端、打开对应层开关、配置身份验证。Capability 参数见 [`tool-reference.zh.md`](./tool-reference.zh.md)（[English](./tool-reference.md)）；架构见 [`architecture.md`](./architecture.md)。
 
 ---
 
@@ -17,7 +17,7 @@
 
 > **安全**：Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
 
-编辑器 / PIE 直接读取 Preferences 开关；另起的 `-game` / `-server` 进程、Development / DebugGame 独立 Game / DS 及 commandlet 须在原启动参数后追加 `-EnableNexusMcp`。多进程端口冲突会自动顺延，再从 NexusDesktop 选择目标实例。
+编辑器 / PIE 直接读取 Preferences 开关；另起的 `-game` / `-server` 进程、Development / DebugGame 独立 Game / DS 及 commandlet 须在原启动参数后追加 `-EnableNexusMcp`。多进程端口冲突会自动换成下一个端口，再从 NexusDesktop 选择目标实例。
 
 ---
 
@@ -25,14 +25,14 @@
 
 2.0 有两处不向下兼容，升级前先看这里。
 
-**① 默认开启鉴权 —— 四端须同批升级。** 1.x 的中转不会发 WS 首帧 `auth`，连不上开着鉴权的 2.0 UE。UE 插件与 NexusDesktop / NexusRider / NexusVSCode 请一起升到 2.x；只能升一半时，临时在 UE 关掉 **MCP 鉴权** 顶一下，但别停在这个状态。
+**① 默认开启身份验证 —— 四端须同批升级。** 1.x 的中转不会发 WS 首帧 `auth`，连不上开着身份验证的 2.0 UE。UE 插件与 NexusDesktop / NexusRider / NexusVSCode 请一起升到 2.x；只能升一半时，临时在 UE 关掉 **MCP 身份验证** 顶一下，但别停在这个状态。
 
 **② MCP/AI 可见文案全部英文化。** Capability 描述、报错文案、AIRules 等改为英文（源码注释、设置面板、UE_LOG 仍中文）。如果你有依赖中文报错串的自建脚本/提示词，需要同步改。
 
 其他升级注意：
 
-- **直连 UE 的 AI 配置须加 Bearer**：从 UE 设置面板复制 **MCP 鉴权 Token**（详见 [§1.1](#11-鉴权)）。经中转且中转在同机时无需配置。
-- **额外鉴权 Token 从「单行逗号分隔」改为逐条列表**：升级后自动拆分；若一条合法 token 都解析不出会保留原值并在日志告警，不会静默清空。
+- **直连 UE 的 AI 配置须加 Bearer**：从 UE 设置面板复制 **MCP 身份验证 Token**（详见 [§1.1](#11-身份验证)）。经中转且中转在同机时无需配置。
+- **额外身份验证 Token 从「单行逗号分隔」改为逐条列表**：升级后自动拆分；若一条合法 token 都解析不出会保留原值并在日志告警，不会静默清空。
 - **危险 Capability 默认全部禁用**：`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python` 带 `dangerous` 标签。访问模式默认「全部禁用」（树里保留勾选但置灰不可改）；「每次手动确认」沿用勾选，可改；「自定义开启」逐项勾选。或用 `-NexusEnableDangerousCaps` 启动。按名记录，后续版本新增的危险 cap 也会对老配置生效，且不会覆盖你手动启用过的（升级时若已有启用项则迁到自定义开启）。
 - **用过 2.0.0-beta 的工程**：beta 曾往 `Engine.ini` 写全局键 `[HTTPServer.Listeners] DefaultBindAddress`。正式版只写本端口的 `ListenerOverrides`，检测到该残留键会在启动日志告警，可手动删除。
 
@@ -70,7 +70,7 @@ flowchart TB
 | **[NexusVSCode](https://github.com/bytepine/NexusVSCode)** | `http://127.0.0.1:6900/stream` | VSCode / Cursor / CodeBuddy / Windsurf |
 | **直连 UE** | `http://127.0.0.1:45000/stream` | 不用代理；须自行指定 UE 端口 |
 
-能力由 UE 侧 NexusLink 提供；Desktop / Rider / VSCode 负责发现、转发，以及 [代理会话层](./proxy-session.md)（TTL 缓存、编辑器不可达时的读快照、写门控、Pause）。直连 UE 没有会话层。
+能力由 UE 里的 NexusLink 提供；Desktop / Rider / VSCode 负责发现、转发，以及 [代理会话层](./proxy-session.md)（TTL 缓存、编辑器不可达时的读快照、写入前确认、Pause）。直连 UE 没有会话层。
 
 | 方式 | 须开启 |
 |------|--------|
@@ -78,13 +78,13 @@ flowchart TB
 | NexusDesktop | **两层**：UE **启用 MCP 服务器** + 托盘 **启用中转服务器**（新安装默认关） + AI 配 `:6700` |
 | Rider / VSCode | **三层**：UE **启用 MCP 服务器** + IDE 代理 **启用** + AI 配 `:6800` / `:6900` |
 
-任一层关闭则不可用。端口冲突时各端会自动顺延，以界面显示的实际端口为准。
+任一层关闭则不可用。端口冲突时各端会自动换成下一个端口，以界面显示的实际端口为准。
 
-本机只开一个代理（Desktop `:6700` / Rider `:6800` / VSCode `:6900` 勿叠开）；叠开会重复扫描并各自连同一 UE。
+本机只开一个代理（Desktop `:6700` / Rider `:6800` / VSCode `:6900` 不要同时开）；同时开会重复扫描并各自连同一 UE。
 
 默认只绑 loopback。带 `Origin` 的浏览器请求会被拒绝。`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python` 默认全部禁用（见危险 Capability 访问模式）。
 
-### 1.1 鉴权
+### 1.1 身份验证
 
 > Token 是访问凭证：不要提交 `mcp.json`、粘贴到公开文档或在截图中暴露完整值；分享日志和截图前先脱敏。
 
@@ -96,24 +96,24 @@ flowchart TB
 | macOS | `~/Library/Application Support/NexusLink/mcp-auth-token` |
 | Linux | `~/.config/NexusLink/mcp-auth-token` |
 
-`GET /status` 仅探活，**不含 token**。本机代理连本机 UE 会自动读该文件（及 `{Temp}/NexusLink/{PID}.json`），**无需**再配 remoteUnreal。
+`GET /status` 只检查服务在不在，**不含 token**。本机代理连本机 UE 会自动读该文件（及 `{Temp}/NexusLink/{PID}.json`），**无需**再配 remoteUnreal。
 
 | 开关 | 位置 | 默认 | 关闭后 |
 |------|------|------|--------|
-| **MCP 鉴权** | UE 编辑器偏好 | 开 | HTTP/WS 不校验；`/status.authRequired=false`（同旧版插件） |
-| **启用 MCP 鉴权** | Desktop / Rider / VSCode | 开 | AI 连该中转无需 Bearer（同旧版中转）；连 UE 仍看对方 `authRequired` |
+| **MCP 身份验证** | UE 编辑器偏好 | 开 | HTTP/WS 不校验；`/status.authRequired=false`（同旧版插件） |
+| **启用 MCP 身份验证** | Desktop / Rider / VSCode | 开 | AI 连该中转无需 Bearer（同旧版中转）；连 UE 仍看对方 `authRequired` |
 
 两端开关独立：
 
-| 中转 \ UE | UE 鉴权开 | UE 鉴权关 / 旧版 UE |
+| 中转 \ UE | UE 身份验证开 | UE 身份验证关 / 旧版 UE |
 |-----------|-----------|---------------------|
-| **中转鉴权开** | AI 须 Bearer；中转对 UE 发 WS auth | AI 须 Bearer；跳过 WS auth |
-| **中转鉴权关** | AI 无需 Bearer；中转仍对 UE 发 WS auth | 两边都不鉴权 |
-| **旧版（1.x）中转** | **连不上**：1.x 不发 WS 首帧 auth → 升级中转，或临时关 UE 鉴权 | 两边都不鉴权 |
+| **中转身份验证开** | AI 须 Bearer；中转对 UE 发 WS auth | AI 须 Bearer；跳过 WS auth |
+| **中转身份验证关** | AI 无需 Bearer；中转仍对 UE 发 WS auth | 两边都不做身份验证 |
+| **旧版（1.x）中转** | **连不上**：1.x 不发 WS 首帧 auth → 升级中转，或临时关 UE 身份验证 | 两边都不做身份验证 |
 
 多 token（连多台机器）：
 
-- UE / Desktop / Rider 的 **额外鉴权 Token**：设置里逐条添加（VSCode 为 `extraAuthTokens` 数组）；本机 token 始终有效
+- UE / Desktop / Rider 的 **额外身份验证 Token**：设置里逐条添加（VSCode 为 `extraAuthTokens` 数组）；本机 token 始终有效
 - AI `mcp.json` 可写 `"Authorization": "Bearer <tok1>, <tok2>"`，对端命中任一项即可
 - 远程 UE：`host:mcpPort [token...]`，token 可省略并改用额外列表
 
@@ -122,12 +122,12 @@ flowchart TB
 在**提供服务的那一端**复制跨机连接，选对网卡 IP，再到对端粘贴。复制出的 Bearer **只带本机 token**（不要把额外 token 打进 mcp.json）。
 
 1. **UE**：勾选 **允许局域网绑定**（HTTP 绑 `0.0.0.0`），开系统防火墙入站；**不要**做公网端口映射。设置里选网卡 → **复制跨机连接**，得到 AI mcp.json、中转 `remoteUnreal` 一行、VSCode `remoteUnreal` 条目。未开 MCP 也可复制 token；端口未启动时暂用 `45000`，以标题栏实际端口为准。
-2. **中转 → UE**：本机 UE 无需配置。把上一步的远程行粘进 `remoteUnreal`（token 可省略并改填 **额外鉴权 Token**）。只探这些地址的 `/status`。
+2. **中转 → UE**：本机 UE 无需配置。把上一步的远程行粘进 `remoteUnreal`（token 可省略并改填 **额外身份验证 Token**）。只探这些地址的 `/status`。
 3. **AI → 中转**：勾选 listenLan / 允许局域网接入，用命令/面板 **复制 MCP 客户端配置**（多网卡时先选 IP）。Bearer 用中转机本机 token。
 
-局域网绑定且关闭鉴权时会弹出确认：同网段主机都能控制编辑器。
+局域网绑定且关闭身份验证时会弹出确认：同网段主机都能控制编辑器。
 
-**WS 端口（`:55000`）的绑定地址受引擎版本限制**：UE 5.2+ 按「允许局域网绑定」绑 `127.0.0.1` 或 `0.0.0.0`；UE 4.26–5.1 的引擎接口不支持指定绑定地址，WS 一律绑全部网卡，只能靠首帧 auth 兜底 —— 这些版本上**不要关闭 MCP 鉴权**（关闭时启动日志会报 Error）。
+**WS 端口（`:55000`）的绑定地址受引擎版本限制**：UE 5.2+ 按「允许局域网绑定」绑 `127.0.0.1` 或 `0.0.0.0`；UE 4.26–5.1 的引擎接口不支持指定绑定地址，WS 一律绑全部网卡，只能靠首帧 auth 兜底 —— 这些版本上**不要关闭 MCP 身份验证**（关闭时启动日志会报 Error）。
 
 ```json
 {
@@ -177,7 +177,7 @@ MCP HTTP/WebSocket **默认不启动**。启停统一由三层来源解析，**�
 | cook / commandlet 进程 | 启动参数 `-EnableNexusMcp` | 不持久 | **否** |
 | Shipping | 不可用（编译期剔除） | — | — |
 
-非编辑器角色不读 Preferences，避免这些子进程继承勾选各自抢起一份 MCP、把端口顺延占满、客户端要在多个实例里挑。
+非编辑器角色不读 Preferences，避免这些子进程继承勾选各自抢起一份 MCP、把端口一个个占满、客户端要在多个实例里挑。
 
 **方式 A — 设置面板（持久，仅编辑器角色生效）**
 
@@ -203,7 +203,7 @@ NexusLink.Mcp on                              ; 开启（同 -EnableNexusMcp）
 NexusLink.Mcp on Port=45001 Lan=1             ; 指定端口并允许 LAN
 NexusLink.Mcp on -NexusMcpPort=45001 -NexusAllowLan
 NexusLink.Mcp off                             ; 关闭（稳定压制，不受后续 Preferences 改动重新拉起）
-NexusLink.Mcp status                          ; 查看 on/off、监听地址、鉴权开关、生效来源/未启动原因
+NexusLink.Mcp status                          ; 查看 on/off、监听地址、身份验证开关、生效来源/未启动原因
 NexusLink.Mcp restart                         ; 按当前已生效的覆盖重新启动
 NexusLink.Mcp panel                           ; 打开/关闭游戏内调试面板（PIE / 独立包通用，无子参数 = toggle）
 NexusLink.Mcp panel on|off                    ; 显式打开/关闭
@@ -215,7 +215,7 @@ NexusLink.Mcp panel on|off                    ; 显式打开/关闭
 
 - **编辑器标题栏右侧**（与 FPS/内存/对象同一组）显示 MCP/WS 端口号（默认开启；关闭 MCP 后不显示）
 - Preferences 面板「运行状态」只读字段：展示实际运行/停止状态、生效来源、未启动时的原因
-- 控制台 `NexusLink.Mcp status`：额外显示绑定地址与鉴权开关
+- 控制台 `NexusLink.Mcp status`：额外显示绑定地址与身份验证开关
 - 游戏内调试面板 `NexusLink.Mcp panel`（PIE / 独立 Game 包，见 [§2.4](#24-游戏内调试面板pie--独立包)）：可视化运行信息与 Capability 会话开关
 - 输出日志可见 `NexusLink 服务器已启动`，或未启用时的提示
 
@@ -223,7 +223,7 @@ NexusLink.Mcp panel on|off                    ; 显式打开/关闭
 
 `~` 打开控制台执行 `NexusLink.Mcp panel`（或 `panel on`/`panel off`），挂一层 Slate 视口叠加层，不依赖任何 UMG 资产，Shipping 编译期整体剔除：
 
-- **MCP 信息**：运行态、生效来源、监听地址、鉴权开关；面板内 **开启 / 关闭 / 重启** 按钮与控制台 `on`/`off`/`restart` 走同一套 `FNexusMcpActivation` 会话覆盖
+- **MCP 信息**：运行态、生效来源、监听地址、身份验证开关；面板内 **开启 / 关闭 / 重启** 按钮与控制台 `on`/`off`/`restart` 走同一套 `FNexusMcpActivation` 会话覆盖
 - **Capability 列表**：按当前宿主可见性过滤（独立包只见 Runtime cap；PIE 编辑器宿主同时见 Editor+Runtime），按源码目录分组折叠，支持名称/描述过滤
 - 每条 cap 前的勾选框是**会话级临时开关**：不写 `DisabledCapabilities`、不 `SaveConfig`，退出进程即失效；「清除本会话覆盖」一键恢复到 Preferences 持久配置状态
 - `Esc` 或点击「关闭」按钮退出；面板打开时临时切到 `FInputModeGameAndUI` 并显示鼠标，关闭后尽量还原
@@ -265,9 +265,9 @@ Dedicated Server 同样可使用 Runtime Capability 调试日志、Actor、动�
 |------|------|
 | 插件信息 | 当前版本；**检查更新**；**启动时自动检查更新**（默认开） |
 | 启用 MCP 服务器 | 总开关，**默认关闭** |
-| MCP 鉴权 | 默认开；关闭后 HTTP/WS 不校验 token（同旧版） |
-| MCP 鉴权 Token | 本机唯一；旁有「复制」仅写入 token，「复制跨机连接」可选网卡并带出 mcp.json / remoteUnreal；未开 MCP 也可复制 |
-| 额外鉴权 Token | 其他机器的 token，点 + 逐条添加；本机 token 无需再填 |
+| MCP 身份验证 | 默认开；关闭后 HTTP/WS 不校验 token（同旧版） |
+| MCP 身份验证 Token | 本机唯一；旁有「复制」仅写入 token，「复制跨机连接」可选网卡并带出 mcp.json / remoteUnreal；未开 MCP 也可复制 |
+| 额外身份验证 Token | 其他机器的 token，点 + 逐条添加；本机 token 无需再填 |
 | 并发会话数上限 | 默认 16；0 = 不限制，达上限驱逐最久未活动的 HTTP 会话 |
 | 工具列表模式 | **SearchMode**（默认，3 个元工具）或 **MultiTool**（各 Capability 独立 Tool） |
 | Capabilities | 按目录折叠，可按组或单条启用/禁用 |
@@ -302,7 +302,7 @@ Dedicated Server 同样可使用 Runtime Capability 调试日志、Actor、动�
 }
 ```
 
-Token 从设置面板 **MCP 鉴权 Token** 旁的「复制」取得。可逗号分隔多个；也可把对方 token 填进 **额外鉴权 Token**。不要从 `GET /status` 猜。完整规则见 [§1.1](#11-鉴权)。
+Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可逗号分隔多个；也可把对方 token 填进 **额外身份验证 Token**。不要从 `GET /status` 猜。完整规则见 [§1.1](#11-身份验证)。
 
 **CodeBuddy / Windsurf**：
 
@@ -325,7 +325,7 @@ Token 从设置面板 **MCP 鉴权 Token** 旁的「复制」取得。可逗号�
 - **SearchMode**（默认）：`tools/list` 仅 3 个元工具；先 `search_capabilities` 再 `call_capability`。日常与长会话推荐。
 - **MultiTool**：各已启用 Capability 为独立 Tool；仅当客户端必须一次枚举全 Tool 时使用。对比见 [architecture §暴露模式](./architecture.md#暴露模式toolslistmode)。
 
-读资产：`search_asset`（`assetType` + `pathFilter`）→ 用返回的 `assets[].path` 与 `recommendedGet` / `recommendedManage`。参数契约与 Breaking 键以 [`InitializeInstructions.SearchMode.md`](../Resources/InitializeInstructions.SearchMode.md) 与 [`CapabilitySpec.md`](../Resources/CapabilitySpec.md) 为准。
+读资产：`search_asset`（`assetType` + `pathFilter`）→ 用返回的 `assets[].path` 与 `recommendedGet` / `recommendedManage`。参数约定与 Breaking 键以 [`InitializeInstructions.SearchMode.md`](../Resources/InitializeInstructions.SearchMode.md) 与 [`CapabilitySpec.md`](../Resources/CapabilitySpec.md) 为准。
 
 ### 2.9 挂载 AIRules
 
@@ -359,7 +359,7 @@ Token 从设置面板 **MCP 鉴权 Token** 旁的「复制」取得。可逗号�
 3. **Settings → Tools → Nexus MCP** — 勾选 **启用 Nexus MCP 服务器**（默认 `:6800`）
 4. AI 客户端指向 `http://127.0.0.1:6800/stream`
 
-设置项、状态栏、多窗口端口顺延见 [NexusRider README](https://github.com/bytepine/NexusRider/blob/master/README.md)。
+设置项、状态栏、多窗口端口自动换成下一个见 [NexusRider README](https://github.com/bytepine/NexusRider/blob/master/README.md)。
 
 ---
 
@@ -380,7 +380,7 @@ Token 从设置面板 **MCP 鉴权 Token** 旁的「复制」取得。可逗号�
 - UE 已启动且 NexusLink 已加载，并勾选 **启用 MCP 服务器**
 - 代理模式下 Desktop 托盘已启用中转 / Rider 或 VSCode 总开关已开，且状态显示已连 UE
 - AI 配置的端口与界面显示的实际端口一致
-- 鉴权开启时 `mcp.json` 须带 `Authorization: Bearer`，且 token 是对端接受的那份（见 [§1.1](#11-鉴权)）
+- 身份验证开启时 `mcp.json` 须带 `Authorization: Bearer`，且 token 是对端接受的那份（见 [§1.1](#11-身份验证)）
 
 ### 连接被拒（401 / `unauthorized`）
 
@@ -388,19 +388,19 @@ Token 从设置面板 **MCP 鉴权 Token** 旁的「复制」取得。可逗号�
 
 | 现象 | 原因 | 处理 |
 |------|------|------|
-| AI → 中转/UE 报 401 | `mcp.json` 没带 Bearer，或 token 不是对端接受的那份 | 从对端设置面板复制 token（UE 是 **MCP 鉴权 Token**）；跨机用对端本机 token |
-| 中转日志显示 WS auth 失败 | 中转拿不到 UE 的 token（多为跨机、或用了旧版中转） | 跨机在中转填 `remoteUnreal` 的 token，或把 UE token 加到中转 **额外鉴权 Token**；旧版中转须升级 |
+| AI → 中转/UE 报 401 | `mcp.json` 没带 Bearer，或 token 不是对端接受的那份 | 从对端设置面板复制 token（UE 是 **MCP 身份验证 Token**）；跨机用对端本机 token |
+| 中转日志显示 WS auth 失败 | 中转拿不到 UE 的 token（多为跨机、或用了旧版中转） | 跨机在中转填 `remoteUnreal` 的 token，或把 UE token 加到中转 **额外身份验证 Token**；旧版中转须升级 |
 | 填了额外 Token 仍被拒 | token 不合法（须 32–128 位十六进制），或粘贴了别的字段 | 逐条重新添加；UE 日志会打印「没有合法条目」告警 |
 
 同机四端共用一份 token 文件，正常无需任何配置；出现 401 多半是跨机或版本不齐。
 
 ### 工具调用久不返回 / 代理报超时
 
-`tools/call` 全程同步执行，UE 端没有请求级超时；代理侧（Desktop/Rider/VSCode）统一 120s 超时且**不重试**，同一长连接上的请求还会串行排队——一个慢调用会连带堵住同会话后续请求。
+`tools/call` 全程同步执行，UE 端没有请求级超时；代理里（Desktop/Rider/VSCode）统一 120s 超时且**不重试**，同一长连接上的请求还会串行排队——一个慢调用会连带堵住同会话后续请求。
 
 - 优先避免触发慢调用：`search_asset` 不要用 `assetType=all` 配 `pathFilter=/Game/` 之类的宽搜（已有的 arg-invalid 校验只挡最坏情形）；蓝图批量编译/存盘、`capture_viewport` 等本身耗时随场景规模增长
 - 直连 `:45000` 没有代理的 120s 限制，但编辑器仍会同帧掉帧到调用结束
-- 排查数据来源：UE 输出日志按 `LogNexusMcpDispatcher` 过滤 Warning（超过慢调用阈值会打印耗时）；反馈报告（[§2.6](#26-设置面板与反馈)）的 `slow_call`（含最终报错的慢调用）与代理侧 `proxy_timeout` 两个 category
+- 排查数据来源：UE 输出日志按 `LogNexusMcpDispatcher` 过滤 Warning（超过慢调用阈值会打印耗时）；反馈报告（[§2.6](#26-设置面板与反馈)）的 `slow_call`（含最终报错的慢调用）与代理里 `proxy_timeout` 两个 category
 
 ### 多个 AI 客户端同时使用
 
@@ -422,7 +422,7 @@ LevelEditor 面板 tab（`content_browser` / `details` / `output_log` …）与�
 
 ### 走代理时编辑器正在编译 / 重启
 
-代理会尽量返回上次读快照（结果带 `_proxy.degraded: "unavailable"`）。**不要**循环调用 `list_unreal_instances`。写操作仍失败。契约见 [proxy-session.md](./proxy-session.md)。直连 `:45000` 没有该层。
+代理会尽量返回上次读快照（结果带 `_proxy.degraded: "unavailable"`）。**不要**循环调用 `list_unreal_instances`。写操作仍失败。约定见 [proxy-session.md](./proxy-session.md)。直连 `:45000` 没有该层。
 
 ### 代理弹出写操作确认
 
@@ -438,7 +438,7 @@ Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性�
 
 ### `exec_python` 报 Python plugin module not loaded
 
-`exec_python`（编译期门控 `WITH_NEXUS_PYTHON`）还需要工程**启用** Python Editor Script Plugin：**Edit → Plugins → Scripting → Python Editor Script Plugin** 勾选后重启。该 cap 与 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 一样**默认禁用**，须把访问模式改为「每次手动确认」或「自定义开启」并勾选对应 cap，或用 `-NexusEnableDangerousCaps` 启动。Confirm 模式还须传 `reason`，由编辑器弹窗批准本次请求。跨版本写 Python 前先用只读 `get_python_api`（默认开）核对当前引擎的 `unreal.*` 签名，不要凭记忆套 5.x API。
+`exec_python`（编译时才包含 `WITH_NEXUS_PYTHON`）还需要工程**启用** Python Editor Script Plugin：**Edit → Plugins → Scripting → Python Editor Script Plugin** 勾选后重启。该 cap 与 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 一样**默认禁用**，须把访问模式改为「每次手动确认」或「自定义开启」并勾选对应 cap，或用 `-NexusEnableDangerousCaps` 启动。Confirm 模式还须传 `reason`，由编辑器弹窗批准本次请求。跨版本写 Python 前先用只读 `get_python_api`（默认开）核对当前引擎的 `unreal.*` 签名，不要凭记忆套 5.x API。
 
 UE 5.6+ 还会区分「已配置未启用」与「已启用未初始化」两种中间态，报错文案会直接说明该去 Project Settings 打开还是等编辑器启动完再重试。
 
@@ -450,7 +450,7 @@ UE 5.6+ 还会区分「已配置未启用」与「已启用未初始化」两种
 | `eval` | `code`：单个表达式，结果回 `result` | 同上，可读到 `exec` 留下的变量 |
 | `file` | `scriptPath`：相对 `Content/Python/` 的 `.py` | 默认隔离；`persistent=true` 才并入 console 字典 |
 
-`file` 模式的路径在 C++ 侧校验：必须相对、不含 `..`、以 `.py` 结尾且真实存在，否则直接 `arg_invalid`——UE 原生的 `ExecuteFile` 靠「首 token 是不是 `.py`」自动分流，路径写错会被当字面代码执行，报出与真实原因无关的 `NameError`。
+`file` 模式的路径在 C++ 里校验：必须相对、不含 `..`、以 `.py` 结尾且真实存在，否则直接 `arg_invalid`——UE 原生的 `ExecuteFile` 靠「首 token 是不是 `.py`」自动分流，路径写错会被当字面代码执行，报出与真实原因无关的 `NameError`。
 
 ### `exec_python` 的 Undo 语义与 `undoRecorded`
 

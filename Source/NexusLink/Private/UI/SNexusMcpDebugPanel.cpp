@@ -191,7 +191,7 @@ FText SNexusMcpDebugPanel::GetMcpStatusText() const
 
 		const TCHAR* BindAddr = Server->IsLanBound() ? TEXT("0.0.0.0") : TEXT("127.0.0.1");
 		return FText::FromString(FString::Printf(
-			TEXT("状态：运行中（来源：%s）\nHTTP: http://%s:%d/stream\nWS: ws://%s:%d/\n鉴权：%s"),
+			TEXT("状态：运行中（来源：%s）\nHTTP: http://%s:%d/stream\nWS: ws://%s:%d/\n身份验证：%s"),
 			McpSourceToDisplayString(Source),
 			BindAddr, Server->GetMcpPort(),
 			BindAddr, Server->GetWsPort(),

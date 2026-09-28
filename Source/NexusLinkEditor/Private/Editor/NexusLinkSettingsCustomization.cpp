@@ -216,7 +216,7 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 				[
 					SNew(SButton)
 					.Text(LOCTEXT("CopyAuthToken", "复制"))
-					.ToolTipText(LOCTEXT("CopyAuthTokenTip", "仅复制鉴权 token"))
+					.ToolTipText(LOCTEXT("CopyAuthTokenTip", "只复制身份验证 token"))
 					.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([this]()
 					{
 						return SettingsPtr.IsValid() && !SettingsPtr->McpAuthToken.IsEmpty();

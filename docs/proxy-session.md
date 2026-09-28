@@ -1,4 +1,4 @@
-# 代理会话层契约
+# 代理会话层约定
 
 Desktop / Rider / VSCode 夹在 AI 客户端与 UE WebSocket 之间。本文是三端必须对齐的协议补丁；游戏语义仍只在 NexusLink。
 
@@ -10,7 +10,7 @@ Desktop / Rider / VSCode 夹在 AI 客户端与 UE WebSocket 之间。本文是�
 
 | 层 | 做 | 不做 |
 |---|---|---|
-| **代理** | TTL/section 缓存、断线快照、写门控、Pause 排队、驾驶舱活动、大包落盘 | Capability 语义、`search_capabilities`、改 UE schema |
+| **代理** | TTL/section 缓存、断线快照、写入前确认、Pause 排队、驾驶舱活动、大包保存到磁盘 | Capability 语义、`search_capabilities`、改 UE schema |
 | **UE** | 注入 `_snapshotAt` / `_ttl_seconds`（若该版本已实现）；危险 cap（`dangerous` 标签）在 Confirm 模式下弹确认框 | 裁 Agent 历史 |
 
 直连 `:45000` **没有**本层。Agent 必须能在缺 `_proxy` 时仍工作。
@@ -27,8 +27,8 @@ Desktop / Rider / VSCode 夹在 AI 客户端与 UE WebSocket 之间。本文是�
 | `degraded` | `"unavailable"` | UE 不可达，返回上次读快照 |
 | `snapshotAt` | ISO-8601 UTC | 快照时间（优先 UE `_snapshotAt`） |
 | `offloaded` | `true` | 正文已写入本地文件 |
-| `path` | string | 落盘绝对路径 |
-| `bytes` | number | 落盘字节数 |
+| `path` | string | 保存到磁盘的绝对路径 |
+| `bytes` | number | 保存到磁盘的字节数 |
 | `note` | string | 给 Agent 的短提示（固定英文，避免打穿 Prompt Cache 的 initialize；此处是 call 结果） |
 
 `degraded` 时 **禁止** 循环调用 `list_unreal_instances`。`note` 示例：
@@ -50,7 +50,7 @@ UE `GET /status` 在 `netRole` 之外增加：
 
 `netRole` 在编辑器开 PIE 后会变成 `Standalone`/`Client` 等，**不要**再用它判断是不是 Editor 进程。
 
-三端自动连接：`hostKind=Editor` 优先 → 旧 UE 无 `hostKind` 时回落 `netRole=Editor` → 否则 `found[0]`。`list_unreal_instances` 透出这两个字段。`hasPlayWorld=false` 时不要调 `list_runtime_*`。
+三端自动连接：`hostKind=Editor` 优先 → 旧 UE 无 `hostKind` 时改用 `netRole=Editor` → 否则 `found[0]`。`list_unreal_instances` 透出这两个字段。`hasPlayWorld=false` 时不要调 `list_runtime_*`。
 
 ---
 
@@ -80,7 +80,7 @@ TTL：
 
 `tools/list`：保持现有行为（断线仍返回上次工具名）。
 
-`tools/call` 读路径且 WS 断开：若有该 cap 的快照（耐久读即使过期也可：`search_*`、`get_asset_*`、`get_editor_*`、`get_asset_refs`、`get_gameplay_tags`、`get_asset_lua_binding`），返回快照并打 `degraded: "unavailable"`。
+`tools/call` 读路径且 WS 断开：若有该 cap 的快照（还能用的上次读取结果即使过期也可：`search_*`、`get_asset_*`、`get_editor_*`、`get_asset_refs`、`get_gameplay_tags`、`get_asset_lua_binding`），返回快照并打 `degraded: "unavailable"`。
 
 运行时/日志等易过期 cap 过期后 **不** 提供 degraded，走 `proxy_not_connected`。
 
@@ -88,7 +88,7 @@ TTL：
 
 ---
 
-## 5. 写门控与 Pause
+## 5. 写入前确认与 Pause
 
 配置项 `writeGate`（三端同名语义）：
 
@@ -102,7 +102,7 @@ TTL：
 `deny` → JSON-RPC 错误 `errorKind: proxy_denied`。  
 无 UI 回调时（测试）：不阻塞，视为 `allow`。确认等待上限 **120s**，超时视为 `deny`。
 
-`writeGate: all` 时 `exec_*` / `eval_*` / `dofile_*` 也算写 cap，会**先在代理弹一次**。危险 cap 的代码执行确认在 **UE 侧**（直连 `:45000` 也生效）：Editor Preferences 访问模式为「每次手动确认」时由 NexusLink 弹窗，`errorKind=user_denied`。两层同时开会双重确认，建议危险 cap 交给 UE，代理 `writeGate` 保持 `destructive`。
+`writeGate: all` 时 `exec_*` / `eval_*` / `dofile_*` 也算写 cap，会**先在代理弹一次**。危险 cap 的代码执行确认在 **UE 里**（直连 `:45000` 也生效）：Editor Preferences 访问模式为「每次手动确认」时由 NexusLink 弹窗，`errorKind=user_denied`。两层同时开会双重确认，建议危险 cap 交给 UE，代理 `writeGate` 保持 `destructive`。
 
 **Pause：** 后续远端 `tools/call` 在代理排队，不发往 UE；本地 `list_unreal_instances` / `connect_unreal_instance` 仍可用。解除后按到达序转发。
 
@@ -114,6 +114,6 @@ TTL：
 
 ---
 
-## 7. 大包落盘
+## 7. 大包保存到磁盘
 
 `content[0].text` 超过 **48000** 字符时写入系统临时目录 `nexus-mcp-offload/`，结果 JSON 改为摘要 + `_proxy.offloaded` / `path` / `bytes`。Agent 可用 Read 工具打开该路径。

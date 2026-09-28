@@ -327,7 +327,7 @@ void UNexusLinkSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 			const EAppReturnType::Type Ret = FMessageDialog::Open(
 				EAppMsgType::YesNo,
 				NSLOCTEXT("NexusLink", "LanAuthWarn",
-					"局域网可达且未鉴权时，同网段主机都能控制编辑器。确定继续？不要做公网映射。"));
+					"局域网可达且没做身份验证时，同网段主机都能控制编辑器。确定继续？不要做公网映射。"));
 			if (Ret != EAppReturnType::Yes)
 			{
 				if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, bAllowLanBind))

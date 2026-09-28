@@ -86,8 +86,8 @@ public:
 	 * 默认开启。关闭后与旧版 NexusLink 相同：不校验 token，/status.authRequired=false。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "服务器",
-		meta = (DisplayName = "MCP 鉴权",
-			ToolTip = "默认开。关闭后 HTTP/WS 不校验 token，行为与旧版 NexusLink 相同；中转按 /status.authRequired 决定是否对 UE 做 WS 鉴权"))
+		meta = (DisplayName = "MCP 身份验证",
+			ToolTip = "默认开。关闭后 HTTP/WS 不校验 token，行为与旧版 NexusLink 相同；中转按 /status.authRequired 决定是否对 UE 做 WS 身份验证"))
 	bool bRequireMcpAuth = true;
 
 	/**
@@ -130,7 +130,7 @@ public:
 	 * 直连 UE / 同机代理共用；文件在本机配置目录 NexusLink/mcp-auth-token。未开 MCP 也可复制。
 	 */
 	UPROPERTY(Transient, VisibleAnywhere, Category = "服务器",
-		meta = (DisplayName = "MCP 鉴权 Token",
+		meta = (DisplayName = "MCP 身份验证 Token",
 			ToolTip = "本机唯一，同机客户端共用。直连或跨机中转时复制此值填到 Bearer；不要从 GET /status 获取。未开 MCP 也可复制。"))
 	FString McpAuthToken;
 
@@ -139,8 +139,8 @@ public:
 	 * 直连 HTTP Bearer 与 WS 首帧 auth 命中任一项即可。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "服务器",
-		meta = (DisplayName = "额外鉴权 Token",
-			ToolTip = "点 + 添加其他机器的 token。单条里若粘贴逗号/分号分隔会自动拆开。本机 MCP 鉴权 Token 无需再填。AI mcp.json 的 Bearer 仍可逗号分隔多个。"))
+		meta = (DisplayName = "额外身份验证 Token",
+			ToolTip = "点 + 添加其他机器的 token。单条里若粘贴逗号/分号分隔会自动拆开。本机 MCP 身份验证 Token 无需再填。AI mcp.json 的 Bearer 仍可逗号分隔多个。"))
 	TArray<FString> ExtraMcpAuthTokens;
 
 	/** 把额外 token 拼成解析用字符串（换行分隔）。 */
@@ -241,7 +241,7 @@ public:
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "AI 反馈",
 		meta = (DisplayName = "启用反馈记录",
-			ToolTip = "勾选：记录 Capability 搜索/调用失败事件与 AI 手动反馈；取消：完全关闭落盘"))
+			ToolTip = "勾选：记录 Capability 搜索/调用失败事件与 AI 手动反馈；取消：完全不再写入磁盘"))
 	bool bEnableFeedback = true;
 
 	/**

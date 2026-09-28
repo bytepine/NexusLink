@@ -6,7 +6,7 @@
 
 > 支持 UE 4.26 及以上所有版本（含 UE5）。插件拆两个模块：`NexusLink`（`Type: Runtime`，Development/DebugGame 的独立 Game/DS 也能托管 MCP）+ `NexusLinkEditor`（`Type: Editor`，编辑器 UI）；**Shipping 编译期整体剔除 MCP 服务器**。
 
-> **从 1.x 升级**：2.0 默认开启鉴权且 MCP/AI 可见文案改为英文，插件与客户端须同批升到 2.x。见 [usage-guide §0](docs/usage-guide.md#0-从-1x-升级到-20)。
+> **从 1.x 升级**：2.0 默认开启身份验证且 MCP/AI 可见文案改为英文，插件与客户端须同批升到 2.x。见 [usage-guide §0](docs/usage-guide.md#0-从-1x-升级到-20)。
 
 ## 5 分钟快速开始（推荐 NexusDesktop）
 
@@ -20,9 +20,9 @@
 6. 托盘选择 **MCP 客户端配置…**，选 **Streamable HTTP** 和 Cursor / CodeBuddy，将生成的配置粘贴到 AI 客户端
 7. 重启 MCP 会话；默认 SearchMode 下应看到 `search_capabilities`、`call_capability`、`submit_feedback` 3 个元工具
 
-> **安全**：MCP 鉴权默认开启。Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中；分享截图前必须打码。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
+> **安全**：MCP 身份验证默认开启。Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中；分享截图前必须打码。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
 
-未启用 UE 端服务时，标题栏不显示端口、NexusDesktop 扫不到实例、直连 `http://127.0.0.1:45000/stream` 无响应。完整步骤、鉴权与跨机接入见 [使用指南](docs/usage-guide.md)。
+未启用 UE 端服务时，标题栏不显示端口、NexusDesktop 扫不到实例、直连 `http://127.0.0.1:45000/stream` 无响应。完整步骤、身份验证与跨机接入见 [使用指南](docs/usage-guide.md)。
 
 ## 其他连接方式
 
@@ -33,12 +33,12 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。本机只开一个代理�
 | **[NexusDesktop](https://github.com/bytepine/NexusDesktop)**（推荐） | `http://127.0.0.1:6700/stream` | 独立托盘，无需 IDE 扩展 |
 | **[NexusRider](https://github.com/bytepine/NexusRider)** | `http://127.0.0.1:6800/stream` | Rider Marketplace 搜索 **Nexus MCP** |
 | **[NexusVSCode](https://github.com/bytepine/NexusVSCode)** | `http://127.0.0.1:6900/stream` | VSCode / Cursor / CodeBuddy / Windsurf 扩展 |
-| 直连 UE | `http://127.0.0.1:45000/stream` | 无代理缓存、写门控和多实例切换 |
+| 直连 UE | `http://127.0.0.1:45000/stream` | 无代理缓存、写入前确认和多实例切换 |
 
 ## 运行时 / Dedicated Server 调试
 
 - 编辑器和 PIE 可使用 Preferences 开关；Development / DebugGame 的独立 Game、`-game` / `-server` 子进程及 commandlet 不读取该开关，启动时显式追加 `-EnableNexusMcp`
-- 若默认端口已被其他 UE 进程占用，服务会自动顺延；在 NexusDesktop 中选择对应实例。多开时按 `/status.hostKind` 区分 Editor / Game / DedicatedServer（不随 PIE 变）；当前编辑器关卡用 `get_editor_context` 的 `current_map`
+- 若默认端口已被其他 UE 进程占用，服务会自动换成下一个端口；在 NexusDesktop 中选择对应实例。多开时按 `/status.hostKind` 区分 Editor / Game / DedicatedServer（不随 PIE 变）；当前编辑器关卡用 `get_editor_context` 的 `current_map`
 
 - PIE / 独立 Game 可用 `NexusLink.Mcp panel` 查看状态并临时开关 Capability；Dedicated Server 无视口，使用 `NexusLink.Mcp status`
 - Runtime Capability 可调试日志、Actor 属性、动画、行为树、GAS、Widget、Lua 等；Dedicated Server 没有视口和 UMG
@@ -77,7 +77,7 @@ GAS / Niagara 等 Capability 按宿主项目插件探测，NexusLink **不**在 
 
 ### 为什么默认关
 
-- **等价于进程内任意代码执行**：Python / Lua 可 `import os`、读写任意文件、起子进程。一旦开启，鉴权就成了唯一防线，按 Capability 的启用/禁用粒度全部失效。
+- **等价于进程内任意代码执行**：Python / Lua 可 `import os`、读写任意文件、起子进程。一旦开启，身份验证就成了唯一防线，按 Capability 的启用/禁用粒度全部失效。
 - **写路径的安全网只剩半张**：其余 Capability 的写操作统一包 `FNexusEditorTransaction`（可 Undo，`calls[]` 批量失败整体回滚）。`exec_python` 同样开了事务，但 UE 只记录调用过 `Modify()` 的对象：Python 里最自然的 `obj.foo = x` 走 `NotifyMode::Never`，**不进事务**；只有 `obj.set_editor_property(...)` 与显式 `obj.modify()` 会。脚本混用两种写法时 Ctrl+Z 只回滚一半，资产会落进一个从未存在过的中间态。返回里的 `undoRecorded` 如实回报本次是否产生了可回滚记录。此外 `create_asset` / `delete_asset` / `save_asset` 等包级操作本来就不在事务范围内。
 - **容易崩编辑器**：模型现写的脚本很容易碰到错误线程、失效对象或 GC，崩溃后也难归因。
 
@@ -100,9 +100,9 @@ GAS / Niagara 等 Capability 按宿主项目插件探测，NexusLink **不**在 
 
 | 文档 | 受众 |
 |------|------|
-| [docs/usage-guide.md](docs/usage-guide.md) | 安装、开关层、**鉴权**、四端接入 |
+| [docs/usage-guide.md](docs/usage-guide.md) | 安装、开关层、**身份验证**、四端接入 |
 | [docs/architecture.md](docs/architecture.md) | 分层、Capability 系统、暴露模式 |
-| [docs/proxy-session.md](docs/proxy-session.md) | 代理会话层契约（TTL / degraded / 写门控） |
+| [docs/proxy-session.md](docs/proxy-session.md) | 代理会话层约定（TTL / degraded / 写入前确认） |
 | [docs/tool-reference.zh.md](docs/tool-reference.zh.md) / [English](docs/tool-reference.md) | Capability 参数手册（`py scripts/build_tool_reference.py` 中英同时生成） |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 新增 Capability、测试、打包、发版 |
 | [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) | Capability 元数据规范 |
