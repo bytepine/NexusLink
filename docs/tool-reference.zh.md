@@ -3161,9 +3161,9 @@
 
 ### `get_output_log`
 
-读取 UE 控制台缓冲。诊断：preset=diagnose 或 newest+includeSummary；sinceSequence 增量。
+控制台缓冲。先 watch 装上筛选，操作后再 collectWatch=true。查错用 preset=diagnose。
 
-**适用场景**: 从 Output Log 诊断错误/警告（编辑器或独立包）
+**适用场景**: 操作前传 watch（categories/textIncludes/textExcludes/verbosity），操作后 collectWatch=true。查错仍用 preset=diagnose。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -3178,6 +3178,9 @@
 | `verbosity` | `string (enum)` |  | 最低详细级别 枚举: `error` / `warning` / `display` / `log` / `verbose` / `veryverbose` / `all` |
 | `textFilter` | `string` |  | 单文本子串过滤 |
 | `textFilters` | `string[]` |  | 文本过滤（OR）；覆盖 textFilter |
+| `collectWatch` | `boolean` |  | 返回已装上的 watch 缓冲 |
+| `disarm` | `boolean` |  | 本次调用后卸下 watch |
+| `watch` | `object` |  | categories、textIncludes、textExcludes、verbosity；空对象表示先全收; 字段: `categories`, `textIncludes`, `textExcludes`, `verbosity`(error/warning/display/log/verbose/veryverbose/all) |
 
 **相关 Capability**: `set_log_capture_filter`, `exec_command`
 

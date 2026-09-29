@@ -8,14 +8,79 @@
 #include "Log/NexusLogCapture.h"
 #include "Utils/NexusResponseCompactorUtils.h"
 #include "NexusMcpTool.h"
+#include "Algo/Reverse.h"
+
+static ELogVerbosity::Type ParseLogVerbosity(const FString& VerbosityStr)
+{
+	if (VerbosityStr == TEXT("fatal"))       return ELogVerbosity::Fatal;
+	if (VerbosityStr == TEXT("error"))       return ELogVerbosity::Error;
+	if (VerbosityStr == TEXT("warning"))     return ELogVerbosity::Warning;
+	if (VerbosityStr == TEXT("display"))     return ELogVerbosity::Display;
+	if (VerbosityStr == TEXT("verbose"))     return ELogVerbosity::Verbose;
+	if (VerbosityStr == TEXT("veryverbose")) return ELogVerbosity::VeryVerbose;
+	if (VerbosityStr == TEXT("all"))         return ELogVerbosity::All;
+	return ELogVerbosity::Log;
+}
+
+static const TCHAR* LogVerbosityLabel(ELogVerbosity::Type V)
+{
+	switch (V)
+	{
+	case ELogVerbosity::Fatal:       return TEXT("Fatal");
+	case ELogVerbosity::Error:       return TEXT("Error");
+	case ELogVerbosity::Warning:     return TEXT("Warning");
+	case ELogVerbosity::Display:     return TEXT("Display");
+	case ELogVerbosity::Log:         return TEXT("Log");
+	case ELogVerbosity::Verbose:     return TEXT("Verbose");
+	case ELogVerbosity::VeryVerbose: return TEXT("VeryVerbose");
+	default:                         return TEXT("Unknown");
+	}
+}
+
+static void ReadStringArray(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Key, TArray<FString>& Out)
+{
+	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
+	if (!Obj.IsValid() || !Obj->TryGetArrayField(Key, Arr) || !Arr) return;
+	for (const TSharedPtr<FJsonValue>& V : *Arr)
+	{
+		if (!V.IsValid() || V->Type != EJson::String) continue;
+		FString S = V->AsString().TrimStartAndEnd();
+		if (!S.IsEmpty()) Out.Add(MoveTemp(S));
+	}
+}
+
+static TSharedPtr<FJsonValue> LogEntryJson(const FNexusLogEntry& E)
+{
+	TSharedPtr<FJsonObject> Item = MakeShared<FJsonObject>();
+	if (!E.Category.IsEmpty()) Item->SetStringField(TEXT("category"), E.Category);
+	Item->SetStringField(TEXT("verbosity"), LogVerbosityLabel(E.Verbosity));
+	if (!E.Message.IsEmpty())  Item->SetStringField(TEXT("message"), E.Message);
+	Item->SetNumberField(TEXT("timestamp"), E.Timestamp);
+	if (E.WallTime.GetTicks() > 0)
+	{
+		Item->SetStringField(TEXT("time"), E.WallTime.ToIso8601());
+	}
+	Item->SetNumberField(TEXT("sequence"), E.Sequence);
+	if (E.Repeat > 1) Item->SetNumberField(TEXT("repeat"), E.Repeat);
+	return MakeShared<FJsonValueObject>(Item);
+}
 
 void FGetOutputLogCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("get_output_log");
-	Out.Description = TEXT("Read UE console buffer. Diagnostic: preset=diagnose or newest+includeSummary; incremental via sinceSequence.");
+	Out.Description = TEXT("Console buffer. Arm watch, act, collectWatch=true. Or preset=diagnose.");
+	TSharedPtr<FJsonObject> WatchSchema = FNexusSchema::Object()
+		.Prop(TEXT("categories"), FNexusSchema::StrArr(TEXT("Category substrings; empty=all")))
+		.Prop(TEXT("textIncludes"), FNexusSchema::StrArr(TEXT("Message substrings; any match")))
+		.Prop(TEXT("textExcludes"), FNexusSchema::StrArr(TEXT("Drop messages containing these")))
+		.Prop(TEXT("verbosity"), FNexusSchema::Enum(TEXT("Minimum verbosity level"),
+			{ TEXT("error"), TEXT("warning"), TEXT("display"), TEXT("log"), TEXT("verbose"), TEXT("veryverbose"), TEXT("all") }, TEXT("log")))
+		.Build();
+	WatchSchema->SetStringField(TEXT("description"),
+		TEXT("categories, textIncludes, textExcludes, verbosity; empty arms capture-all"));
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("offset"),         FNexusSchema::Int(TEXT("Pagination offset (along order direction)"), 0, 0))
-		.Prop(TEXT("limit"),          FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
+		.Prop(TEXT("limit"),          FNexusSchema::Int(TEXT("Max items per page"), 100, 1, FNexusLogCapture::MaxWatchEntries))
 		.Prop(TEXT("order"),          FNexusSchema::Enum(TEXT("Sort: newest=latest first (diagnostic default), oldest=ascending"),
 			{ TEXT("newest"), TEXT("oldest") }, TEXT("newest")))
 		.Prop(TEXT("sinceSequence"),  FNexusSchema::Int(TEXT("Return logs with Sequence greater than this (incremental; pass last latestSequence)"), -1, -1))
@@ -28,11 +93,14 @@ void FGetOutputLogCapability::BuildDefinition(FNexusCapabilityDefinition& Out) c
 			{ TEXT("error"), TEXT("warning"), TEXT("display"), TEXT("log"), TEXT("verbose"), TEXT("veryverbose"), TEXT("all") }, TEXT("log")))
 		.Prop(TEXT("textFilter"),     FNexusSchema::Str(TEXT("Single text substring filter")))
 		.Prop(TEXT("textFilters"),    FNexusSchema::StrArr(TEXT("Text filter (OR); overrides textFilter")))
+		.Prop(TEXT("watch"),          WatchSchema.ToSharedRef())
+		.Prop(TEXT("collectWatch"),   FNexusSchema::Bool(TEXT("Return the armed watch buffer"), true, false))
+		.Prop(TEXT("disarm"),         FNexusSchema::Bool(TEXT("Disarm the watch after this call"), true, false))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("logs"), TEXT("console"), TEXT("messages"), TEXT("verbosity"), TEXT("warning"), TEXT("diagnose"), TEXT("summary") };
+	Out.ExtraSearchKeywords = { TEXT("logs"), TEXT("console"), TEXT("messages"), TEXT("verbosity"), TEXT("warning"), TEXT("diagnose"), TEXT("summary"), TEXT("watch") };
 	Out.RelatedCapabilities = { TEXT("set_log_capture_filter"), TEXT("exec_command") };
-	Out.WhenToUse = TEXT("Diagnose errors/warnings from Output Log in Editor or packaged Game");
+	Out.WhenToUse = TEXT("Arm watch{} (categories/textIncludes/textExcludes/verbosity), act, collectWatch=true.");
 }
 
 FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -50,6 +118,10 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 		bool  bPresetDiagnose = false;
 		bool  bVerbosityExplicit = false;
 		bool  bLimitExplicit = false;
+		bool  bOrderExplicit = false;
+		bool  bCollectWatch = false;
+		bool  bDisarm = false;
+		const TSharedPtr<FJsonObject>* WatchObj = nullptr;
 		FString CategoryFilter;
 		FString VerbosityStr = TEXT("log");
 		TArray<FString> TextFilters;
@@ -60,14 +132,17 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 				Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
 			if (Arguments->HasField(TEXT("limit")))
 			{
-				Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
+				Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, FNexusLogCapture::MaxWatchEntries);
 				bLimitExplicit = true;
 			}
 			if (Arguments->HasField(TEXT("sinceSequence")))
 				SinceSequence = static_cast<int32>(A.Num(TEXT("sinceSequence")));
 			FString OrderStr;
 			if (Arguments->TryGetStringField(TEXT("order"), OrderStr))
+			{
 				bNewestFirst = !OrderStr.Equals(TEXT("oldest"), ESearchCase::IgnoreCase);
+				bOrderExplicit = true;
+			}
 			FString PresetStr;
 			if (Arguments->TryGetStringField(TEXT("preset"), PresetStr))
 				bPresetDiagnose = PresetStr.Equals(TEXT("diagnose"), ESearchCase::IgnoreCase);
@@ -94,6 +169,86 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 				if (Arguments->TryGetStringField(TEXT("textFilter"), SingleFilter) && !SingleFilter.IsEmpty())
 					TextFilters.Add(SingleFilter);
 			}
+			if (Arguments->HasField(TEXT("collectWatch")))
+				bCollectWatch = A.Bool(TEXT("collectWatch"));
+			if (Arguments->HasField(TEXT("disarm")))
+				bDisarm = A.Bool(TEXT("disarm"));
+			Arguments->TryGetObjectField(TEXT("watch"), WatchObj);
+		}
+
+		const bool bHasWatch = WatchObj && WatchObj->IsValid();
+		if (bHasWatch && bCollectWatch)
+		{
+			OutError = TEXT("Pass watch to arm, or collectWatch to read, not both");
+			return;
+		}
+		if (bHasWatch)
+		{
+			FNexusLogWatchSpec Spec;
+			ReadStringArray(*WatchObj, TEXT("categories"), Spec.Categories);
+			ReadStringArray(*WatchObj, TEXT("textIncludes"), Spec.TextIncludes);
+			ReadStringArray(*WatchObj, TEXT("textExcludes"), Spec.TextExcludes);
+			FString WatchVerb;
+			if ((*WatchObj)->TryGetStringField(TEXT("verbosity"), WatchVerb))
+				Spec.MinVerbosity = ParseLogVerbosity(WatchVerb.ToLower());
+			const int32 ArmedAt = FNexusLogCapture::Get().ArmWatch(Spec);
+
+			TSharedPtr<FJsonObject> Armed = MakeShared<FJsonObject>();
+			Armed->SetStringField(TEXT("watch"), TEXT("armed"));
+			Armed->SetNumberField(TEXT("sinceSequence"), ArmedAt);
+			Armed->SetNumberField(TEXT("latestSequence"), ArmedAt);
+			Armed->SetNumberField(TEXT("totalCount"), 0);
+			Armed->SetArrayField(TEXT("entries"), TArray<TSharedPtr<FJsonValue>>());
+			Armed->SetStringField(TEXT("hint"),
+				TEXT("After the action, call get_output_log with collectWatch=true"));
+			OutEntries.Add(MakeShared<FJsonValueObject>(Armed));
+			return;
+		}
+		if (bDisarm && !bCollectWatch)
+		{
+			FNexusLogCapture::Get().DisarmWatch();
+			TSharedPtr<FJsonObject> Disarmed = MakeShared<FJsonObject>();
+			Disarmed->SetStringField(TEXT("watch"), TEXT("disarmed"));
+			Disarmed->SetNumberField(TEXT("totalCount"), 0);
+			Disarmed->SetNumberField(TEXT("latestSequence"), FNexusLogCapture::Get().GetLatestSequence());
+			Disarmed->SetArrayField(TEXT("entries"), TArray<TSharedPtr<FJsonValue>>());
+			OutEntries.Add(MakeShared<FJsonValueObject>(Disarmed));
+			return;
+		}
+		if (bCollectWatch)
+		{
+			if (!FNexusLogCapture::Get().IsWatchArmed())
+			{
+				OutError = TEXT("No log watch armed; pass watch={} first");
+				return;
+			}
+			if (!bOrderExplicit) bNewestFirst = false;
+			if (!bLimitExplicit) Limit = FNexusLogCapture::MaxWatchEntries;
+
+			int32 Dropped = 0;
+			int32 ArmedAt = -1;
+			TArray<FNexusLogEntry> Watched = FNexusLogCapture::Get().CopyWatchEntries(Dropped, ArmedAt);
+			const int32 WatchedTotal = Watched.Num();
+			if (bNewestFirst) Algo::Reverse(Watched);
+			const int32 PageStart = FMath::Clamp(Offset, 0, WatchedTotal);
+			const int32 PageEnd = FMath::Min(PageStart + Limit, WatchedTotal);
+			TArray<TSharedPtr<FJsonValue>> WatchedJson;
+			for (int32 i = PageStart; i < PageEnd; ++i)
+				WatchedJson.Add(LogEntryJson(Watched[i]));
+			if (bDisarm) FNexusLogCapture::Get().DisarmWatch();
+
+			TSharedPtr<FJsonObject> Collected = MakeShared<FJsonObject>();
+			Collected->SetStringField(TEXT("watch"), bDisarm ? TEXT("disarmed") : TEXT("armed"));
+			Collected->SetNumberField(TEXT("sinceSequence"), ArmedAt);
+			Collected->SetNumberField(TEXT("totalCount"), WatchedTotal);
+			Collected->SetNumberField(TEXT("offset"), Offset);
+			Collected->SetNumberField(TEXT("limit"), Limit);
+			Collected->SetStringField(TEXT("order"), bNewestFirst ? TEXT("newest") : TEXT("oldest"));
+			Collected->SetNumberField(TEXT("latestSequence"), FNexusLogCapture::Get().GetLatestSequence());
+			if (Dropped > 0) Collected->SetNumberField(TEXT("dropped"), Dropped);
+			Collected->SetArrayField(TEXT("entries"), WatchedJson);
+			OutEntries.Add(MakeShared<FJsonValueObject>(Collected));
+			return;
 		}
 
 		// diagnose 预设：最新 + ≥Warning + 摘要；未显式指定 limit 时压到 ≤50
@@ -109,30 +264,7 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 			bIncludeSummary = true;
 		}
 
-		ELogVerbosity::Type VerbosityFilter = ELogVerbosity::Log;
-		if      (VerbosityStr == TEXT("fatal"))       VerbosityFilter = ELogVerbosity::Fatal;
-		else if (VerbosityStr == TEXT("error"))        VerbosityFilter = ELogVerbosity::Error;
-		else if (VerbosityStr == TEXT("warning"))      VerbosityFilter = ELogVerbosity::Warning;
-		else if (VerbosityStr == TEXT("display"))      VerbosityFilter = ELogVerbosity::Display;
-		else if (VerbosityStr == TEXT("log"))          VerbosityFilter = ELogVerbosity::Log;
-		else if (VerbosityStr == TEXT("verbose"))      VerbosityFilter = ELogVerbosity::Verbose;
-		else if (VerbosityStr == TEXT("veryverbose"))  VerbosityFilter = ELogVerbosity::VeryVerbose;
-		else if (VerbosityStr == TEXT("all"))          VerbosityFilter = ELogVerbosity::All;
-
-		auto VerbosityToString = [](ELogVerbosity::Type V) -> FString
-		{
-			switch (V)
-			{
-			case ELogVerbosity::Fatal:       return TEXT("Fatal");
-			case ELogVerbosity::Error:       return TEXT("Error");
-			case ELogVerbosity::Warning:     return TEXT("Warning");
-			case ELogVerbosity::Display:     return TEXT("Display");
-			case ELogVerbosity::Log:         return TEXT("Log");
-			case ELogVerbosity::Verbose:     return TEXT("Verbose");
-			case ELogVerbosity::VeryVerbose: return TEXT("VeryVerbose");
-			default:                         return TEXT("Unknown");
-			}
-		};
+		const ELogVerbosity::Type VerbosityFilter = ParseLogVerbosity(VerbosityStr);
 
 		int32 TotalCount = 0;
 		TArray<FNexusLogEntry> Entries;
@@ -164,18 +296,7 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 		TArray<TSharedPtr<FJsonValue>> LogArray;
 		for (const FNexusLogEntry& E : Entries)
 		{
-			TSharedPtr<FJsonObject> Item = MakeShared<FJsonObject>();
-			if (!E.Category.IsEmpty()) Item->SetStringField(TEXT("category"), E.Category);
-			Item->SetStringField(TEXT("verbosity"), VerbosityToString(E.Verbosity));
-			if (!E.Message.IsEmpty())  Item->SetStringField(TEXT("message"),  E.Message);
-			Item->SetNumberField(TEXT("timestamp"), E.Timestamp);
-			// ISO-8601 UTC，便于与用户「刚才」对齐；相对秒 timestamp 保留兼容
-			if (E.WallTime.GetTicks() > 0)
-			{
-				Item->SetStringField(TEXT("time"), E.WallTime.ToIso8601());
-			}
-			Item->SetNumberField(TEXT("sequence"),  E.Sequence);
-			LogArray.Add(MakeShared<FJsonValueObject>(Item));
+			LogArray.Add(LogEntryJson(E));
 		}
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
@@ -209,7 +330,7 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 			int32 WarningCount = 0;
 			for (const TPair<ELogVerbosity::Type, int32>& Pair : ByVerb)
 			{
-				VerbObj->SetNumberField(VerbosityToString(Pair.Key), Pair.Value);
+				VerbObj->SetNumberField(LogVerbosityLabel(Pair.Key), Pair.Value);
 				if (Pair.Key == ELogVerbosity::Error) ErrorCount = Pair.Value;
 				else if (Pair.Key == ELogVerbosity::Warning) WarningCount = Pair.Value;
 			}
@@ -231,7 +352,7 @@ FCapabilityResult FGetOutputLogCapability::Execute(const TSharedPtr<FJsonObject>
 				if (VerbosityStr != TEXT("all"))
 				{
 					// verbosity 是下限：Warning 页里 Error 条保留字段覆盖 defaults
-					EntryCompactor.AddForcedDefault(TEXT("verbosity"), VerbosityToString(VerbosityFilter));
+					EntryCompactor.AddForcedDefault(TEXT("verbosity"), FString(LogVerbosityLabel(VerbosityFilter)));
 				}
 				EntryCompactor.CompactArray(LogArray);
 				EntryCompactor.Emit(OutEntry, TEXT("entries"));

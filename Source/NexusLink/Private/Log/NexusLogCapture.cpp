@@ -13,6 +13,7 @@ FNexusLogCapture::FNexusLogCapture()
 {
 	// 预分配环形缓冲区
 	Buffer.SetNum(MaxEntries);
+	WatchBuffer.SetNum(MaxWatchEntries);
 	Singleton = this;
 }
 
@@ -127,13 +128,13 @@ bool FNexusLogCapture::MatchesFilters(
 void FNexusLogCapture::CopyFilledEntries(TArray<FNexusLogEntry>& Out) const
 {
 	FScopeLock Lock(&Mutex);
-	const int32 Filled = FMath::Min(TotalWritten, MaxEntries);
+	const int32 Filled = FMath::Min(SlotWrites, MaxEntries);
 	Out.Reset(Filled);
 	if (Filled <= 0)
 	{
 		return;
 	}
-	const int32 StartIdx = (TotalWritten >= MaxEntries) ? WriteIndex : 0;
+	const int32 StartIdx = (SlotWrites >= MaxEntries) ? WriteIndex : 0;
 	for (int32 i = 0; i < Filled; ++i)
 	{
 		Out.Add(Buffer[(StartIdx + i) % MaxEntries]);
@@ -147,11 +148,17 @@ void FNexusLogCapture::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, 
 
 	FScopeLock Lock(&Mutex);
 
-	// 白名单过滤必须在锁内读取 Whitelist；Warning/Error 始终放行，避免收窄后漏诊
+	// 白名单过滤必须在锁内读取 Whitelist；Warning/Error 始终放行，避免收窄后漏诊。
+	// watch 独立于白名单：未放行的行仍可能进旁路缓冲。
 	const bool bSevere = Verbosity <= ELogVerbosity::Warning;
-	if (!bSevere && !IsAllowed(Category)) return;
-
-	WriteEntryLocked(Category.ToString(), Verbosity, V);
+	if (bSevere || IsAllowed(Category))
+	{
+		WriteEntryLocked(Category.ToString(), Verbosity, V);
+	}
+	if (bWatchArmed)
+	{
+		TryWriteWatchLocked(Category.ToString(), Verbosity, V);
+	}
 }
 
 void FNexusLogCapture::AppendEntry(const FString& Category, ELogVerbosity::Type Verbosity, const FString& Message)
@@ -160,26 +167,168 @@ void FNexusLogCapture::AppendEntry(const FString& Category, ELogVerbosity::Type 
 
 	FScopeLock Lock(&Mutex);
 	WriteEntryLocked(Category, Verbosity, *Message);
+	TryWriteWatchLocked(Category, Verbosity, *Message);
+}
+
+void FNexusLogCapture::WriteRingLocked(
+	TArray<FNexusLogEntry>& Ring,
+	int32 Capacity,
+	int32& WriteIndex,
+	int32& SlotWrites,
+	int32& SequenceClock,
+	int32& Dropped,
+	bool bCountDrops,
+	const FString& Category,
+	ELogVerbosity::Type Verbosity,
+	const TCHAR* Message)
+{
+	if (SlotWrites > 0)
+	{
+		const int32 LastIdx = (WriteIndex - 1 + Capacity) % Capacity;
+		FNexusLogEntry& Last = Ring[LastIdx];
+		if (Last.Verbosity == Verbosity && Last.Category == Category && Last.Message == Message)
+		{
+			Last.Repeat++;
+			Last.Timestamp = FPlatformTime::Seconds();
+			Last.WallTime = FDateTime::UtcNow();
+			Last.Sequence = SequenceClock++;
+			return;
+		}
+	}
+
+	if (bCountDrops && SlotWrites >= Capacity)
+	{
+		Dropped++;
+	}
+
+	FNexusLogEntry& Entry = Ring[WriteIndex];
+	Entry.Category = Category;
+	Entry.Verbosity = Verbosity;
+	Entry.Message = Message;
+	Entry.Timestamp = FPlatformTime::Seconds();
+	Entry.WallTime = FDateTime::UtcNow();
+	Entry.Sequence = SequenceClock++;
+	Entry.Repeat = 1;
+
+	WriteIndex = (WriteIndex + 1) % Capacity;
+	SlotWrites++;
 }
 
 void FNexusLogCapture::WriteEntryLocked(const FString& Category, ELogVerbosity::Type Verbosity, const TCHAR* Message)
 {
-	FNexusLogEntry& Entry = Buffer[WriteIndex % MaxEntries];
-	Entry.Category   = Category;
-	Entry.Verbosity  = Verbosity;
-	Entry.Message    = Message;
-	Entry.Timestamp  = FPlatformTime::Seconds();
-	Entry.WallTime   = FDateTime::UtcNow();
-	Entry.Sequence   = TotalWritten;
+	int32 IgnoredDrops = 0;
+	WriteRingLocked(
+		Buffer, MaxEntries, WriteIndex, SlotWrites, NextSequence,
+		IgnoredDrops, false, Category, Verbosity, Message);
+}
 
-	WriteIndex = (WriteIndex + 1) % MaxEntries;
-	TotalWritten++;
+static bool NexusLogContainsI(const TCHAR* Haystack, const FString& Needle)
+{
+	return !Needle.IsEmpty() && Haystack && FCString::Stristr(Haystack, *Needle) != nullptr;
+}
+
+void FNexusLogCapture::TryWriteWatchLocked(const FString& Category, ELogVerbosity::Type Verbosity, const TCHAR* Message)
+{
+	if (!bWatchArmed || !Message) return;
+
+	if (WatchSpec.MinVerbosity != ELogVerbosity::All && Verbosity > WatchSpec.MinVerbosity)
+	{
+		return;
+	}
+	if (WatchSpec.Categories.Num() > 0)
+	{
+		bool bCat = false;
+		for (const FString& Cat : WatchSpec.Categories)
+		{
+			if (NexusLogContainsI(*Category, Cat))
+			{
+				bCat = true;
+				break;
+			}
+		}
+		if (!bCat) return;
+	}
+	if (WatchSpec.TextIncludes.Num() > 0)
+	{
+		bool bHit = false;
+		for (const FString& Inc : WatchSpec.TextIncludes)
+		{
+			if (NexusLogContainsI(Message, Inc))
+			{
+				bHit = true;
+				break;
+			}
+		}
+		if (!bHit) return;
+	}
+	for (const FString& Exc : WatchSpec.TextExcludes)
+	{
+		if (NexusLogContainsI(Message, Exc)) return;
+	}
+
+	WriteRingLocked(
+		WatchBuffer, MaxWatchEntries, WatchWriteIndex, WatchSlots, WatchSequence,
+		WatchDropped, true, Category, Verbosity, Message);
+}
+
+int32 FNexusLogCapture::ArmWatch(const FNexusLogWatchSpec& Spec)
+{
+	FScopeLock Lock(&Mutex);
+	WatchSpec = Spec;
+	WatchSpec.Categories.RemoveAll([](const FString& S) { return S.IsEmpty(); });
+	WatchSpec.TextIncludes.RemoveAll([](const FString& S) { return S.IsEmpty(); });
+	WatchSpec.TextExcludes.RemoveAll([](const FString& S) { return S.IsEmpty(); });
+	bWatchArmed = true;
+	WatchWriteIndex = 0;
+	WatchSlots = 0;
+	WatchSequence = 0;
+	WatchDropped = 0;
+	ArmedLatestSequence = NextSequence > 0 ? NextSequence - 1 : -1;
+	return ArmedLatestSequence;
+}
+
+void FNexusLogCapture::DisarmWatch()
+{
+	FScopeLock Lock(&Mutex);
+	bWatchArmed = false;
+	WatchSlots = 0;
+	WatchWriteIndex = 0;
+	WatchSequence = 0;
+	WatchDropped = 0;
+	ArmedLatestSequence = -1;
+}
+
+bool FNexusLogCapture::IsWatchArmed() const
+{
+	FScopeLock Lock(&Mutex);
+	return bWatchArmed;
+}
+
+TArray<FNexusLogEntry> FNexusLogCapture::CopyWatchEntries(int32& OutDropped, int32& OutArmedLatestSequence) const
+{
+	FScopeLock Lock(&Mutex);
+	OutDropped = WatchDropped;
+	OutArmedLatestSequence = ArmedLatestSequence;
+
+	TArray<FNexusLogEntry> Out;
+	const int32 Filled = FMath::Min(WatchSlots, MaxWatchEntries);
+	if (!bWatchArmed || Filled <= 0)
+	{
+		return Out;
+	}
+	const int32 StartIdx = (WatchSlots >= MaxWatchEntries) ? WatchWriteIndex : 0;
+	Out.Reserve(Filled);
+	for (int32 i = 0; i < Filled; ++i)
+	{
+		Out.Add(WatchBuffer[(StartIdx + i) % MaxWatchEntries]);
+	}
+	return Out;
 }
 
 int32 FNexusLogCapture::GetTotalWritten() const
 {
 	FScopeLock Lock(&Mutex);
-	return TotalWritten;
+	return NextSequence;
 }
 
 TArray<FNexusLogEntry> FNexusLogCapture::CollectSince(int32 SinceSequence) const
@@ -187,10 +336,10 @@ TArray<FNexusLogEntry> FNexusLogCapture::CollectSince(int32 SinceSequence) const
 	FScopeLock Lock(&Mutex);
 
 	TArray<FNexusLogEntry> Result;
-	const int32 Filled = FMath::Min(TotalWritten, MaxEntries);
+	const int32 Filled = FMath::Min(SlotWrites, MaxEntries);
 	if (Filled <= 0) return Result;
 
-	const int32 StartIdx = (TotalWritten >= MaxEntries) ? WriteIndex : 0;
+	const int32 StartIdx = (SlotWrites >= MaxEntries) ? WriteIndex : 0;
 	Result.Reserve(Filled);
 
 	for (int32 i = 0; i < Filled; ++i)
@@ -207,7 +356,7 @@ TArray<FNexusLogEntry> FNexusLogCapture::CollectSince(int32 SinceSequence) const
 int32 FNexusLogCapture::GetLatestSequence() const
 {
 	FScopeLock Lock(&Mutex);
-	return TotalWritten > 0 ? TotalWritten - 1 : -1;
+	return NextSequence > 0 ? NextSequence - 1 : -1;
 }
 
 TArray<FNexusLogEntry> FNexusLogCapture::Query(
@@ -293,13 +442,14 @@ void FNexusLogCapture::Summarize(
 		if (!MatchesFilters(E, CompiledCategory, VerbosityFilter, CompiledText))
 			continue;
 
-		OutByVerbosity.FindOrAdd(E.Verbosity)++;
+		const int32 N = FMath::Max(1, E.Repeat);
+		OutByVerbosity.FindOrAdd(E.Verbosity) += N;
 
 		FNexusLogCategoryStat& Stat = ByCat.FindOrAdd(E.Category);
 		Stat.Category = E.Category;
-		Stat.Count++;
-		if (E.Verbosity == ELogVerbosity::Error) Stat.Errors++;
-		else if (E.Verbosity == ELogVerbosity::Warning) Stat.Warnings++;
+		Stat.Count += N;
+		if (E.Verbosity == ELogVerbosity::Error) Stat.Errors += N;
+		else if (E.Verbosity == ELogVerbosity::Warning) Stat.Warnings += N;
 	}
 
 	ByCat.GenerateValueArray(OutByCategory);

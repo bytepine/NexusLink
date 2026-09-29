@@ -3161,9 +3161,9 @@ Run UE console command and capture output. Mirrored to LogConsole.
 
 ### `get_output_log`
 
-Read UE console buffer. Diagnostic: preset=diagnose or newest+includeSummary; incremental via sinceSequence.
+Console buffer. Arm watch, act, collectWatch=true. Or preset=diagnose.
 
-**When to use**: Diagnose errors/warnings from Output Log in Editor or packaged Game
+**When to use**: Arm watch{} (categories/textIncludes/textExcludes/verbosity), act, collectWatch=true.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
@@ -3178,6 +3178,9 @@ Read UE console buffer. Diagnostic: preset=diagnose or newest+includeSummary; in
 | `verbosity` | `string (enum)` |  | Minimum verbosity level enum: `error` / `warning` / `display` / `log` / `verbose` / `veryverbose` / `all` |
 | `textFilter` | `string` |  | Single text substring filter |
 | `textFilters` | `string[]` |  | Text filter (OR); overrides textFilter |
+| `collectWatch` | `boolean` |  | Return the armed watch buffer |
+| `disarm` | `boolean` |  | Disarm the watch after this call |
+| `watch` | `object` |  | categories, textIncludes, textExcludes, verbosity; empty arms capture-all; fields: `categories`, `textIncludes`, `textExcludes`, `verbosity`(error/warning/display/log/verbose/veryverbose/all) |
 
 **Related capabilities**: `set_log_capture_filter`, `exec_command`
 

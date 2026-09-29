@@ -37,6 +37,7 @@ LABELS_EN: dict[str, str] = {
     "sections": "Sections (multi-select)",
     "enum": "enum",
     "item": "item",
+    "fields": "fields",
 }
 
 LABELS_ZH: dict[str, str] = {
@@ -51,6 +52,7 @@ LABELS_ZH: dict[str, str] = {
     "sections": "查询段（可多选）",
     "enum": "枚举",
     "item": "条目",
+    "fields": "字段",
 }
 
 _DOC_CAT = json.loads((_DIR / "doc_categories.json").read_text(encoding="utf-8"))
@@ -163,6 +165,13 @@ _PHRASES: list[tuple[str, str]] = [
     ("Lua dot-separated path", "Lua 点分路径"),
     ("Skip output capture", "跳过输出捕获"),
     ("Minimum verbosity level", "最低详细级别"),
+    ("categories, textIncludes, textExcludes, verbosity; empty arms capture-all",
+     "categories、textIncludes、textExcludes、verbosity；空对象表示先全收"),
+    ("Return the armed watch buffer", "返回已装上的 watch 缓冲"),
+    ("Disarm the watch after this call", "本次调用后卸下 watch"),
+    ("Category substrings; empty=all", "分类子串；空=全部"),
+    ("Message substrings; any match", "正文子串；命中任一即可"),
+    ("Drop messages containing these", "丢掉正文含这些子串的行"),
     ("Log category substring (case insensitive)", "日志分类子串（不区分大小写）"),
     ("Text filter (OR); overrides textFilter", "文本过滤（OR）；覆盖 textFilter"),
     ("Owner UserWidget class/name filter (optional)", "Owner UserWidget 类/名过滤（可选）"),

@@ -14,7 +14,7 @@ When connected to UE: MCP first—do not guess `/Game/...` or grep the repo alon
 
 - Response body is the main cost: keep `sections` narrow (avoid `all`), start with small `limit`; for logs use `get_output_log` ≤50 with `categoryFilter` / `verbosity` / `textFilter`, paginate with `offset` if needed.
 - When lists include `<k>_defaults`, missing fields equal that value (`merged={**defaults,**entry}`).
-- Diagnostic logs: prefer `preset=diagnose` (newest + ≥warning + `summaryByCategory`/`errorCount` + limit≤50); or manual `order=newest` + `includeSummary`; note `latestSequence` before repro, then `sinceSequence` for deltas. Entries include UTC `time` (ISO-8601).
+- Diagnostic logs: prefer `preset=diagnose` (newest + ≥warning + `summaryByCategory`/`errorCount` + limit≤50); or manual `order=newest` + `includeSummary`; note `latestSequence` before repro, then `sinceSequence` for deltas. Entries include UTC `time` (ISO-8601). To capture only the next action: `get_output_log` with `watch` (categories/textIncludes/textExcludes/verbosity), act, then `collectWatch=true`. Consecutive duplicates collapse to `repeat`.
 - **Single target**: capabilities use only `assetPath` / `actorName` / `widgetName`; cross-target batch via `call_capability(calls=[{capability,arguments},…])` in one round. Within one target keep `sections` / `propertyPaths` / `operations` / `updates`.
 - Prefer `search_capabilities` with `capabilityName` once for full `parameters[]`.
 

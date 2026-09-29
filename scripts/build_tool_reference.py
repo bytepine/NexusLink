@@ -83,6 +83,11 @@ RE_PROP_TYPED = re.compile(
     r'\.(Prop|Required)\s*\(\s*TEXT\("([^"]+)"\)\s*,\s*FNexusSchema::'
     r'(StrArr|Str|Int|Bool|Num|EnumArr|Enum|ArrayOf|ArrOfObj|AnyScalar|AnyObject)\s*\(',
 )
+# .Prop(TEXT("name"), WatchSchema.ToSharedRef()) — 嵌套对象变量
+RE_PROP_SCHEMA_OBJ = re.compile(
+    r'\.(Prop|Required)\s*\(\s*TEXT\("([^"]+)"\)\s*,\s*'
+    r'([A-Za-z_][A-Za-z0-9_]*)\.ToSharedRef\s*\(\s*\)\s*\)'
+)
 # GetSectionNames return { TEXT("a"), ... }
 RE_SECTION_RETURN = re.compile(
     r'GetSectionNames\(\)\s*(?:const\s*)?\{.*?return\s*\{([^}]+)\}',
@@ -155,6 +160,9 @@ COMMON_PARAM_DESCRIPTIONS: dict[str, str] = {
     "query":           "Search keywords (1–2 words, AND match)",
     "offset":          "Pagination offset (from 0)",
     "limit":           "Max items per page",
+    "watch":           "categories, textIncludes, textExcludes, verbosity; empty arms capture-all",
+    "collectWatch":    "Return the armed watch buffer",
+    "disarm":          "Disarm the watch after this call",
     "capability":      "Exact capability name",
     "capabilityName":  "Exact capability name (`search_capabilities` shortcut)",
     "arguments":       "JSON object for the capability (nested; do not flatten to top level)",
@@ -316,7 +324,28 @@ def parse_schema_block(
                 items = nested
         _add_param(method, pname, schema_type, desc, enum_vals, items)
 
+    if full_source:
+        for m in RE_PROP_SCHEMA_OBJ.finditer(text):
+            method, pname, var = m.group(1), m.group(2), m.group(3)
+            nested = _params_of_schema_var(full_source, var)
+            _add_param(method, pname, "AnyObject", "", None, nested or None)
+
     return params, required_fields
+
+
+def _params_of_schema_var(full_text: str, var: str) -> list[dict[str, Any]]:
+    """解析 `TSharedPtr<FJsonObject> Var = FNexusSchema::Object()…Build()` 的字段。"""
+    pat = re.compile(
+        rf'(?:const\s+)?(?:TSharedPtr|TSharedRef)\s*<\s*FJsonObject\s*>\s+{re.escape(var)}\s*=\s*FNexusSchema::Object\(\)'
+    )
+    vm = pat.search(full_text)
+    if not vm:
+        return []
+    item_chain = extract_object_chain_after(full_text, vm.start())
+    if not item_chain:
+        return []
+    nested, _ = parse_schema_block(item_chain, full_source=full_text)
+    return nested
 
 
 def parse_section_names(text: str) -> list[str]:
@@ -518,7 +547,8 @@ def render_cap_section(cap: dict[str, Any], locale: DocLocale) -> str:
                     if it.get("enum"):
                         bit += "(" + "/".join(it["enum"][:8]) + ("…" if len(it["enum"]) > 8 else "") + ")"
                     item_bits.append(bit)
-                desc_p = (desc_p + "; " if desc_p else "") + f'{labels["item"]}: ' + ", ".join(item_bits)
+                nest_label = labels["item"] if "[]" in typ else labels["fields"]
+                desc_p = (desc_p + "; " if desc_p else "") + f'{nest_label}: ' + ", ".join(item_bits)
             lines.append(f'| `{p["name"]}` | `{typ}` | {req_mark} | {desc_p} |')
         lines.append("")
 

@@ -238,8 +238,9 @@ Dedicated Server 同样可使用 Runtime Capability 调试日志、Actor、动�
 
 | 意图 | Capability | 说明 |
 |------|------------|------|
-| 读 Output Log | `get_output_log`（`preset=diagnose`） | 环形缓冲本就在 Runtime；独立包可直接 MCP 读 |
-| 收窄采集 | `set_log_capture_filter` | Warning/Error 始终写入 |
+| 读 Output Log | `get_output_log`（`preset=diagnose`） | 环形缓冲本就在 Runtime；独立包可直接 MCP 读。连续相同行合并为 `repeat` |
+| 只看接下来的操作 | `get_output_log` 的 `watch`，操作后再 `collectWatch=true` | 会话旁路缓冲，不写配置；Warning 也要命中筛选 |
+| 收窄采集 | `set_log_capture_filter` | 持久分类白名单，会写配置；Warning/Error 始终写入 |
 | 控制台命令 | `exec_command` | `GEngine->Exec`；**Dangerous**，默认不在 catalog |
 | 视口截图 | `capture_viewport` | `target=pie` 为 Game 视口；`editor`/`editor_desktop` 为顶层窗口。面板 tab 与 `viewAngle` 属编辑器专属，独立包没有 |
 | 定位对象 | `list_runtime_actors` / `list_runtime_widgets` | `classFilter` / `nameFilter` / `tagFilter` |
@@ -249,7 +250,7 @@ Dedicated Server 同样可使用 Runtime Capability 调试日志、Actor、动�
 
 **危险 cap**（`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua`）默认 `DangerousCapAccess=Disabled`，独立包 **Confirm 模式没有编辑器确认窗**，会被 deny。要开闸：面板会话勾选、Preferences **自定义开启**，或启动参数 `-NexusEnableDangerousCaps`。
 
-调用链示例：看不见 → `list_runtime_actors` → `get_runtime_actor_property diagnose=visibility|transform`；日志 → `get_output_log preset=diagnose`；截图 → `capture_viewport target=pie`（可先 `validateOnly=true`）。
+调用链示例：看不见 → `list_runtime_actors` → `get_runtime_actor_property diagnose=visibility|transform`；已有报错 → `get_output_log preset=diagnose`；只看接下来的操作 → `get_output_log` 先传 `watch` 再 `collectWatch=true`；截图 → `capture_viewport target=pie`（可先 `validateOnly=true`）。
 
 ### 2.5 端口
 

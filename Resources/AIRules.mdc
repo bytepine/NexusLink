@@ -79,7 +79,7 @@ Legacy keys → `arg_invalid`.
 | Console command | `exec_command(command="…")` (`command` required, non-empty; Confirm mode also needs `reason`) |
 | Screenshot | `capture_viewport` for Game/PIE viewport or full window; `capture_editor_panel` for LevelEditor panel tabs and Actor `viewAngle` shots (Editor only) |
 | Editor automation via Python | `get_python_api(target="unreal", query="…")` to confirm the API exists on this engine → `exec_python`; both need Python Editor Script Plugin, and `exec_python` is disabled by default |
-| Errors / crashes / PIE / packaged Game logs | `get_output_log(preset="diagnose")` (newest + ≥warning + category summary); or `includeSummary`/`summaryOnly`; after repro use `latestSequence`→`sinceSequence`; narrow capture with `set_log_capture_filter` (Warning/Error always captured) |
+| Errors / crashes / PIE / packaged Game logs | Errors: `get_output_log(preset="diagnose")`. Logs from the next action: `get_output_log(watch={categories,textIncludes,textExcludes,verbosity})` then `collectWatch=true` (side buffer; consecutive duplicates collapse to `repeat`). `set_log_capture_filter` is the persistent category whitelist (Warning/Error always captured) |
 | Game design docs | Project **knowledge-base MCP** if available — not NexusLink asset search |
 
 ---
