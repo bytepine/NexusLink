@@ -20,7 +20,7 @@ bool FNexusEditorTransaction::ShouldTransact(const FString& CapName, const TArra
 	{
 		return false;
 	}
-	if (CapName.Contains(TEXT("_runtime_")) || CapName.Contains(TEXT("_lua")))
+	if (CapName.Contains(TEXT("_runtime_")))
 	{
 		return false;
 	}

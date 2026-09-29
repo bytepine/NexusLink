@@ -1,4 +1,4 @@
-NexusLink MCP: Unreal Editor + runtime control (assets / PIE / UMG / Lua / animation / AI / editor).
+NexusLink MCP: Unreal Editor + runtime control (assets / PIE / UMG / animation / AI / editor). UnLua Capabilities ship in [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) and appear in `search_capabilities` only when that plugin is loaded.
 
 > Host note: **MCP runs in the Editor binary, and in Development/DebugGame standalone Game/DS builds** (`NexusLink` module is `Type: Runtime`; `NexusLinkEditor` is `Type: Editor`; Shipping strips the server at compile time). Trigger keywords are in the proxy `initializePrefix`.
 
@@ -25,7 +25,7 @@ When connected to UE: MCP first—do not guess `/Game/...` or grep the repo alon
 | Single target + `calls[]` | No `assetPaths`/`actorNames`/`widgetNames`; cross-target only via meta-tool `calls[]` |
 | manage → `operations[]` | No top-level `fields`/`rows`/`keys`/`widgets`/`ops`/bare `action` synthesis |
 | get → `propertyPaths[]` | Writes use `updates[].propertyPath` |
-| Renames | `newPath`→`destAssetPath`; `blueprintPath`→`assetPath`; `ownerWidget`→`ownerClass`; `filePath`→`scriptPath`; Lua `path`→`luaPath`; `classPath`→`className` |
+| Renames | `newPath`→`destAssetPath`; `blueprintPath`→`assetPath`; `ownerWidget`→`ownerClass`; `filePath`→`scriptPath`; `classPath`→`className` |
 
 Legacy keys always → `arg_invalid`; no alias compatibility.
 
@@ -42,11 +42,11 @@ Forbidden: `manage_animation`, `set_runtime_actor_animation`.
 
 ## Routing (patterns + exceptions)
 
-**Assets**: prefer `search_asset` → `recommended*`; otherwise `{get|manage|create}_asset_{type}` — type ∈ `blueprint` / `material` / `anim_blueprint` / `anim_montage` / `user_widget` / `behavior_tree` / `blackboard` / `data_table` / `data_asset` / `struct` / `texture` / `static_mesh` / `skeletal_mesh` / `anim_sequence` / `skeleton` / `sound_wave` / `sound_cue` / `level` / `level_sequence` / `physical_material` / `string_table` / `foliage_type` / `font` / `media_source`. One (verb, type) covers all sub-aspects (do not look for `manage_asset_blueprint_variable`, etc.). Exceptions: `manage_asset_struct_field`, `get_asset_refs`, `get_asset_lua_binding`, `manage_asset_lua_binding`, `export_asset`, `reimport_asset`, `compile_blueprint`, `save_asset` / `rename_asset` / `duplicate_asset` / `delete_asset` / `unload_asset`.
+**Assets**: prefer `search_asset` → `recommended*`; otherwise `{get|manage|create}_asset_{type}` — type ∈ `blueprint` / `material` / `anim_blueprint` / `anim_montage` / `user_widget` / `behavior_tree` / `blackboard` / `data_table` / `data_asset` / `struct` / `texture` / `static_mesh` / `skeletal_mesh` / `anim_sequence` / `skeleton` / `sound_wave` / `sound_cue` / `level` / `level_sequence` / `physical_material` / `string_table` / `foliage_type` / `font` / `media_source`. One (verb, type) covers all sub-aspects (do not look for `manage_asset_blueprint_variable`, etc.). Exceptions: `manage_asset_struct_field`, `get_asset_refs`, `export_asset`, `reimport_asset`, `compile_blueprint`, `save_asset` / `rename_asset` / `duplicate_asset` / `delete_asset` / `unload_asset`.
 
 **Runtime**: `{verb}_runtime_{target}[_aspect]` (`list`/`get`/`set`/`spawn`/`destroy`/`interact`/`diff`; target=`actor`/`widget`/`slate_widget`, actor may add `_property`/`_animation`/`_behavior_tree`/`_audio`/`_niagara`/`_ai`/`_ability_system`). Animation: read `get_runtime_actor_animation`, write `interact_runtime_actor_animation`. Non-pattern: `interact_runtime_widget`, `diff_runtime_actors`, `get_runtime_slate_widget`, `get_output_log` / `set_log_capture_filter`, `exec_command`, `capture_viewport`.
 
-**Lua**: `{eval|dofile|gc|hotreload}_runtime_lua` · `get_runtime_lua_*` · `set_runtime_lua` · `get_asset_lua_binding` · `manage_asset_lua_binding`; `hotreload_runtime_lua` requires UnLua **2.x**.
+**UnLua**: not in this plugin. [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) registers those capabilities when installed; discover with `search_capabilities` (e.g. `lua binding`). `eval_runtime_lua` / `dofile_runtime_lua` are dangerous and off by default. Table paths use `luaPath`; script paths use `scriptPath`.
 
 **Plugin-gated**: GAS / Niagara / StateTree / MVVM / EQS / MetaSound / PCG / ControlRig / Enhanced Input / Paper2D / GeometryCollection / CommonUI / Movie Render Queue / Python (`get_python_api` / `exec_python`) register only with matching plugin+engine; `search_capabilities` `not_found` → skip, do not hard-call handshake names. Tag queries: `get_gameplay_tags` is always available.
 
@@ -55,9 +55,8 @@ Forbidden: `manage_animation`, `set_runtime_actor_animation`.
 ## Workflow notes
 
 1. Before blueprint writes: `get_asset_blueprint(sections=["graphOverview"])`, use returned graph names; non-Actor BP forbids `add_component` / `set_defaults`. BPI: `create_asset_blueprint(parentClass=Interface)`; functions/impl via `add_function` / `add_interface`. WBP tree/animation: `manage_asset_user_widget` (`add_track` may take `widgetName`+`propertyPath`); `get_asset_user_widget(sections=["graphOverview"])` lists graphs, EventGraph via `manage_asset_blueprint`.
-2. Lua: `get_asset_lua_binding` first; if `bound=false`, stop. Bindings via `manage_asset_lua_binding`.
-3. Behavior trees: after edits `saveToDisk` or `save_asset`; change type with `replace_node`; graph drift with `sync_graph`.
-4. manage optional `saveToDisk` (default false); only BP/ABP/WBP manage may pass `compile` (default false). Standalone `save_asset` / `compile_blueprint` still available.
+2. Behavior trees: after edits `saveToDisk` or `save_asset`; change type with `replace_node`; graph drift with `sync_graph`.
+3. manage optional `saveToDisk` (default false); only BP/ABP/WBP manage may pass `compile` (default false). Standalone `save_asset` / `compile_blueprint` still available.
 
 ## Hard rules
 
@@ -65,7 +64,7 @@ Forbidden: `manage_animation`, `set_runtime_actor_animation`.
 - `*_asset_*` = disk (Editor host); `*_runtime_*` needs PIE/Game (`hasPlayWorld`); Game/DS host (`hostKind` ≠ Editor) has no `get_asset_*`.
 - `search_asset`: no `assetType=all` + bare `/Game/`; then use `recommended*` + `path`.
 - `search_capabilities`: infer name from patterns above and pass `capabilityName` (full `parameters[]` once); otherwise narrow 1–2 word `query` (e.g. `blueprint variable`); `query=""` is name-only catalog; **do not** use `blueprint` / `asset` / `runtime` / `animation` alone (`query_too_broad`). On failure check `errorKind` / `suggestedQueries`; `not_found` with unregistered hint → do not retry same domain; on `call_capability` `disabled` or `user_denied` do not retry.
-- `get_runtime_actor_property` requires non-empty `actorName` (call `list_runtime_actors` first, after `control_pie`/`get_editor_info` `hasPlayWorld=true`); `exec_command` requires non-empty `command`. Dangerous caps (`exec_command` / `exec_python` / `eval_runtime_lua` / `dofile_runtime_lua`) in Confirm mode require `reason` (purpose, expected effect, why no safer dedicated cap); `confirmationRequired: true` on search details. Do not retry `user_denied`.
+- `get_runtime_actor_property` requires non-empty `actorName` (call `list_runtime_actors` first, after `control_pie`/`get_editor_info` `hasPlayWorld=true`); `exec_command` requires non-empty `command`. Dangerous caps (`exec_command` / `exec_python`, plus any `dangerous` cap registered by NexusLinkExt) in Confirm mode require `reason` (purpose, expected effect, why no safer dedicated cap); `confirmationRequired: true` on search details. Do not retry `user_denied`.
 - Unsure whether an `unreal.*` API exists on this engine version: call `get_python_api` first; do not guess UE5 APIs on UE4 (or vice versa).
 - `exec_python` writes are only undoable when they go through `obj.set_editor_property(...)` or an explicit `obj.modify()`; plain `obj.foo = x` is **not** recorded. Prefer the former, and check the returned `undoRecorded` — `false` means Ctrl+Z will not roll this back.
 - After `sections=["all"]`, no sub-section calls for 30s (`redundant_call`).

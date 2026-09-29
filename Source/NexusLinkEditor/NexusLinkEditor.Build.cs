@@ -42,13 +42,13 @@ public class NexusLinkEditor : ModuleRules
 		string ProjectRoot = NexusLinkOptionalPlugins.FindProjectRoot(ModuleDirectory);
 		var SearchDirs = NexusLinkOptionalPlugins.CollectPluginSearchDirs(ProjectRoot, this);
 
-		// Editor 模块覆盖全量可选插件表：192 个 EditorOnly cap 里用到的资产编辑/图编辑功能
+		// Editor 模块覆盖全量可选插件表：190 个 EditorOnly cap 里用到的资产编辑/图编辑功能
 		// 需要各插件的 Runtime 模块（资产数据类型）与 EditorModules（编译器/图编辑器）两部分。
-		// WITH_UNLUA/WITH_GAS/WITH_NIAGARA 及 UNLUA_VERSION_MAJOR 的宏已由 NexusLink（Runtime）
-		// PublicDefinitions 传递到本模块，这里只补链 EditorModules，不重复 Add 宏（避免 C4005 重定义）。
+		// WITH_GAS/WITH_NIAGARA 的宏已由 NexusLink（Runtime）PublicDefinitions 传递到本模块，
+		// 这里只补链 EditorModules，不重复 Add 宏（避免 C4005 重定义）。
 		foreach (var C in NexusLinkOptionalPlugins.BuildFullTable())
 		{
-			bool bSharedWithRuntime = C.Define == "WITH_UNLUA" || C.Define == "WITH_GAS" || C.Define == "WITH_NIAGARA";
+			bool bSharedWithRuntime = C.Define == "WITH_GAS" || C.Define == "WITH_NIAGARA";
 			NexusLinkOptionalPlugins.Apply(this, Target, C, SearchDirs, ProjectRoot,
 				bAllowEditorModules: true, bDefineMacro: !bSharedWithRuntime);
 		}

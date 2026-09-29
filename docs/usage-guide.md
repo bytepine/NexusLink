@@ -33,7 +33,7 @@
 
 - **直连 UE 的 AI 配置须加 Bearer**：从 UE 设置面板复制 **MCP 身份验证 Token**（详见 [§1.1](#11-身份验证)）。经中转且中转在同机时无需配置。
 - **额外身份验证 Token 从「单行逗号分隔」改为逐条列表**：升级后自动拆分；若一条合法 token 都解析不出会保留原值并在日志告警，不会静默清空。
-- **危险 Capability 默认全部禁用**：`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python` 带 `dangerous` 标签。访问模式默认「全部禁用」（树里保留勾选但置灰不可改）；「每次手动确认」沿用勾选，可改；「自定义开启」逐项勾选。或用 `-NexusEnableDangerousCaps` 启动。按名记录，后续版本新增的危险 cap 也会对老配置生效，且不会覆盖你手动启用过的（升级时若已有启用项则迁到自定义开启）。
+- **危险 Capability 默认全部禁用**：`exec_command` / `exec_python` 带 `dangerous` 标签。UnLua 的 `eval_runtime_lua` / `dofile_runtime_lua` 在 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)，同样默认禁用。访问模式默认「全部禁用」（树里保留勾选但置灰不可改）；「每次手动确认」沿用勾选，可改；「自定义开启」逐项勾选。或用 `-NexusEnableDangerousCaps` 启动。按名记录，后续版本新增的危险 cap 也会对老配置生效，且不会覆盖你手动启用过的（升级时若已有启用项则迁到自定义开启）。
 - **用过 2.0.0-beta 的工程**：beta 曾往 `Engine.ini` 写全局键 `[HTTPServer.Listeners] DefaultBindAddress`。正式版只写本端口的 `ListenerOverrides`，检测到该残留键会在启动日志告警，可手动删除。
 
 ---
@@ -82,7 +82,7 @@ flowchart TB
 
 本机只开一个代理（Desktop `:6700` / Rider `:6800` / VSCode `:6900` 不要同时开）；同时开会重复扫描并各自连同一 UE。
 
-默认只绑 loopback。带 `Origin` 的浏览器请求会被拒绝。`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` / `exec_python` 默认全部禁用（见危险 Capability 访问模式）。
+默认只绑 loopback。带 `Origin` 的浏览器请求会被拒绝。`exec_command` / `exec_python` 默认全部禁用（见危险 Capability 访问模式）。
 
 ### 1.1 身份验证
 
@@ -246,9 +246,9 @@ Dedicated Server 同样可使用 Runtime Capability 调试日志、Actor、动�
 | 定位对象 | `list_runtime_actors` / `list_runtime_widgets` | `classFilter` / `nameFilter` / `tagFilter` |
 | Actor 现场 | `get_runtime_actor_property` | `diagnose=visibility\|transform\|world_transform\|defaults`；改完用 `set_runtime_actor_property` 再 get |
 | 动画 / AI / GAS | `get_runtime_actor_animation` / `_behavior_tree` / `_ability_system` | 写入走对应 `interact_*` |
-| Lua | `get_runtime_lua_env` → `get_runtime_lua_value` / `_object` / `_stack` | REPL：`eval_runtime_lua` / `dofile_runtime_lua`（Dangerous） |
+| UnLua | 不在本插件 | 安装 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) 后用 `search_capabilities` 找 `get_runtime_lua_*` / `eval_runtime_lua` |
 
-**危险 cap**（`exec_command` / `eval_runtime_lua` / `dofile_runtime_lua`）默认 `DangerousCapAccess=Disabled`，独立包 **Confirm 模式没有编辑器确认窗**，会被 deny。要开闸：面板会话勾选、Preferences **自定义开启**，或启动参数 `-NexusEnableDangerousCaps`。
+**危险 cap**（`exec_command` / `exec_python`）默认 `DangerousCapAccess=Disabled`，独立包 **Confirm 模式没有编辑器确认窗**，会被 deny。要开闸：面板会话勾选、Preferences **自定义开启**，或启动参数 `-NexusEnableDangerousCaps`。
 
 调用链示例：看不见 → `list_runtime_actors` → `get_runtime_actor_property diagnose=visibility|transform`；已有报错 → `get_output_log preset=diagnose`；只看接下来的操作 → `get_output_log` 先传 `watch` 再 `collectWatch=true`；截图 → `capture_viewport target=pie`（可先 `validateOnly=true`）。
 
@@ -439,7 +439,7 @@ Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性�
 
 ### `exec_python` 报 Python plugin module not loaded
 
-`exec_python`（编译时才包含 `WITH_NEXUS_PYTHON`）还需要工程**启用** Python Editor Script Plugin：**Edit → Plugins → Scripting → Python Editor Script Plugin** 勾选后重启。该 cap 与 `exec_command` / `eval_runtime_lua` / `dofile_runtime_lua` 一样**默认禁用**，须把访问模式改为「每次手动确认」或「自定义开启」并勾选对应 cap，或用 `-NexusEnableDangerousCaps` 启动。Confirm 模式还须传 `reason`，由编辑器弹窗批准本次请求。跨版本写 Python 前先用只读 `get_python_api`（默认开）核对当前引擎的 `unreal.*` 签名，不要凭记忆套 5.x API。
+`exec_python`（编译时才包含 `WITH_NEXUS_PYTHON`）还需要工程**启用** Python Editor Script Plugin：**Edit → Plugins → Scripting → Python Editor Script Plugin** 勾选后重启。该 cap 与 `exec_command` 一样**默认禁用**，须把访问模式改为「每次手动确认」或「自定义开启」并勾选对应 cap，或用 `-NexusEnableDangerousCaps` 启动。Confirm 模式还须传 `reason`，由编辑器弹窗批准本次请求。跨版本写 Python 前先用只读 `get_python_api`（默认开）核对当前引擎的 `unreal.*` 签名，不要凭记忆套 5.x API。
 
 UE 5.6+ 还会区分「已配置未启用」与「已启用未初始化」两种中间态，报错文案会直接说明该去 Project Settings 打开还是等编辑器启动完再重试。
 

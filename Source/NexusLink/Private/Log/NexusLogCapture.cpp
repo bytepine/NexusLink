@@ -43,7 +43,6 @@ TArray<FString> FNexusLogCapture::GetDefaultDiagnosticCategories()
 		TEXT("LogCore"),
 		TEXT("LogStackWalk"),
 		TEXT("LogNexusLink"),
-		TEXT("LogUnLua"),
 		TEXT("LogPIE"),
 	};
 }

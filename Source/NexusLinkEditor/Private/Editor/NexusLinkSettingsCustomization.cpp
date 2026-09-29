@@ -54,7 +54,6 @@ struct FNexusCapSettingsUiLayout
 		if (L == TEXT("input")) return TEXT("输入");
 		if (L == TEXT("level")) return TEXT("关卡");
 		if (L == TEXT("localization")) return TEXT("本地化");
-		if (L == TEXT("lua")) return TEXT("Lua");
 		if (L == TEXT("material")) return TEXT("材质");
 		if (L == TEXT("media")) return TEXT("媒体");
 		if (L == TEXT("mesh")) return TEXT("网格");

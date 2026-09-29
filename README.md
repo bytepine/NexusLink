@@ -41,22 +41,26 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。本机只开一个代理�
 - 若默认端口已被其他 UE 进程占用，服务会自动换成下一个端口；在 NexusDesktop 中选择对应实例。多开时按 `/status.hostKind` 区分 Editor / Game / DedicatedServer（不随 PIE 变）；当前编辑器关卡用 `get_editor_context` 的 `current_map`
 
 - PIE / 独立 Game 可用 `NexusLink.Mcp panel` 查看状态并临时开关 Capability；Dedicated Server 无视口，使用 `NexusLink.Mcp status`
-- Runtime Capability 可调试日志、Actor 属性、动画、行为树、GAS、Widget、Lua 等；Dedicated Server 没有视口和 UMG
+- Runtime Capability 可调试日志、Actor 属性、动画、行为树、GAS、Widget 等；Dedicated Server 没有视口和 UMG
 - Shipping 构建在编译期剔除 MCP
 
 GAS / Niagara 等 Capability 按宿主项目插件探测，NexusLink **不**在 `.uplugin` 里强制依赖。
 
+## 可选插件 Capability：[NexusLinkExt](https://github.com/bytepine/NexusLinkExt)
+
+UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) 后，它们注册进同一套 MCP，用 `search_capabilities` 发现。示例工程 [NexusUnreal](https://github.com/bytepine/NexusUnreal) 以子模块挂在 `Plugins/NexusLinkExt`。当前 Ext 提供 UnLua 运行时调试和蓝图绑定；其中 `eval_runtime_lua` / `dofile_runtime_lua` 与下面的脚本逃生舱一样默认禁用。
+
 ## 示例工程
 
-公开示例 [NexusUnreal](https://github.com/bytepine/NexusUnreal)（ThirdPerson 模板 + UnLua + MCP 回归测试）。插件以子模块挂载，**不随示例仓分发**；克隆须 `--recurse-submodules` 或单独安装本插件。
+公开示例 [NexusUnreal](https://github.com/bytepine/NexusUnreal)（ThirdPerson 模板 + MCP 回归测试）。插件以子模块挂载，**不随示例仓分发**；克隆须 `--recurse-submodules` 或单独安装本插件。
 
 ## 能力范围
 
-默认 **SearchMode**：`tools/list` 仅 3 个元工具（`search_capabilities` / `call_capability` / `submit_feedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara、UnLua，以及 PIE / 独立 Game / Dedicated Server 运行时调试。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
+默认 **SearchMode**：`tools/list` 仅 3 个元工具（`search_capabilities` / `call_capability` / `submit_feedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara，以及 PIE / 独立 Game / Dedicated Server 运行时调试。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
 
 ## 危险 Capability（默认全部禁用）
 
-四个「脚本逃生舱」能力带 `dangerous` 标签。**Editor Preferences → Plugins → NexusLink → 危险 Capability → 访问模式**：
+本插件里的脚本逃生舱是 `exec_command` 与 `exec_python`，带 `dangerous` 标签。**Editor Preferences → Plugins → NexusLink → 危险 Capability → 访问模式**：
 
 | 模式 | 行为 |
 |---|---|
@@ -64,20 +68,18 @@ GAS / Niagara 等 Capability 按宿主项目插件探测，NexusLink **不**在 
 | **每次手动确认** | 沿用勾选记录，可改。勾选的可被 search/调用，每次执行前编辑器弹窗。AI 须传 `reason`（目的、预期效果、为何没有更安全的专用 cap）。允许仅针对**本次**；拒绝返回 `errorKind=user_denied`（不要重试）。超时（默认 90s）自动拒绝。全屏 PIE 下请先退出沉浸模式 |
 | **自定义开启** | 在 Capability 树逐项勾选；勾上则始终允许、不弹窗 |
 
-启动加 `-NexusEnableDangerousCaps` 仍会话级视为四个全部始终允许（不写盘），覆盖访问模式。手动勾选过的不会被后续升级覆盖；升级时若已有任一危险 cap 启用则迁到「自定义开启」。
+启动加 `-NexusEnableDangerousCaps` 仍会话级视为当前已注册的危险 Capability 全部始终允许（不写盘），覆盖访问模式。手动勾选过的不会被后续升级覆盖；升级时若已有任一危险 cap 启用则迁到「自定义开启」。
 
 | Capability | 做什么 | 附加前提 |
 |---|---|---|
 | `exec_command` | 执行 UE 控制台命令并捕获输出 | — |
 | `exec_python` | 编辑器内执行 Python（`exec` / `file` / `eval`），回 stdout 与 traceback | 宿主启用 Python Editor Script Plugin |
-| `eval_runtime_lua` | 在 PIE/Game 执行 Lua 片段，返回压栈值 | UnLua + PIE |
-| `dofile_runtime_lua` | 从 `Content/Script/` 加载执行 `.lua` | UnLua + PIE |
 
 > 只读探测走 **`get_python_api`**：它同样需要 Python Editor Script Plugin，但只做 `inspect`，参数经白名单校验后嵌入固定脚本，不接受用户代码，因此**默认开启**。想知道某个 `unreal.*` API 在本引擎版本上存不存在，用它，不必为此打开 `exec_python`。
 
 ### 为什么默认关
 
-- **等价于进程内任意代码执行**：Python / Lua 可 `import os`、读写任意文件、起子进程。一旦开启，身份验证就成了唯一防线，按 Capability 的启用/禁用粒度全部失效。
+- **等价于进程内任意代码执行**：Python 可 `import os`、读写任意文件、起子进程。一旦开启，身份验证就成了唯一防线，按 Capability 的启用/禁用粒度全部失效。
 - **写路径的安全网只剩半张**：其余 Capability 的写操作统一包 `FNexusEditorTransaction`（可 Undo，`calls[]` 批量失败整体回滚）。`exec_python` 同样开了事务，但 UE 只记录调用过 `Modify()` 的对象：Python 里最自然的 `obj.foo = x` 走 `NotifyMode::Never`，**不进事务**；只有 `obj.set_editor_property(...)` 与显式 `obj.modify()` 会。脚本混用两种写法时 Ctrl+Z 只回滚一半，资产会落进一个从未存在过的中间态。返回里的 `undoRecorded` 如实回报本次是否产生了可回滚记录。此外 `create_asset` / `delete_asset` / `save_asset` 等包级操作本来就不在事务范围内。
 - **容易崩编辑器**：模型现写的脚本很容易碰到错误线程、失效对象或 GC，崩溃后也难归因。
 

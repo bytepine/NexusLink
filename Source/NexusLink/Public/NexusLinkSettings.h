@@ -317,7 +317,7 @@ public:
 	bool bCheckUpdateOnStartup = true;
 
 	/**
-	 * 危险 Capability 访问模式（exec_command / exec_python / eval_runtime_lua / dofile_runtime_lua 等带 dangerous 标签的 cap）。
+	 * 危险 Capability 访问模式（带 dangerous 标签的 cap，如 exec_command / exec_python）。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "危险 Capability",
 		meta = (DisplayName = "访问模式",

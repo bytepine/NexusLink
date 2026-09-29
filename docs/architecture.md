@@ -91,20 +91,18 @@ REGISTER_MCP_CAPABILITY(FNexusSearchAssetCapability);
 
 ### 域分类目录
 
-两个模块各自的 `Private/Capabilities/` 均沿用相同的域分类结构（分组锚点不含模块名，设置面板 cap 树零感知模块拆分）：
+`NexusLink` / `NexusLinkEditor` 的 `Private/Capabilities/` 沿用同一套域分类（分组锚点不含模块名）。可选插件 Capability 见 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)。
 
 ```mermaid
 flowchart LR
     subgraph RT["NexusLink (Runtime)"]
         RootRT["Capabilities/"]
         RootRT --> Runtime["Runtime/<br/>Actor·Widget·Debug"]
-        RootRT --> LuaRT["Lua/Runtime/<br/>UnLua 运行时求值"]
     end
     subgraph ED["NexusLinkEditor (Editor)"]
         RootED["Capabilities/"]
         RootED --> Asset["Asset/<br/>蓝图·材质·结构体·动画·Widget…"]
         RootED --> Editor["Editor/<br/>PIE·编辑器上下文·面板截图…"]
-        RootED --> LuaED["Lua/<br/>UnLua 绑定（非运行时）"]
     end
 ```
 

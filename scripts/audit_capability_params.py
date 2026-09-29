@@ -91,7 +91,6 @@ class CapScan:
     name: str
     top_props: set[str] = field(default_factory=set)
     arg_reads: set[str] = field(default_factory=set)
-    is_lua: bool = False
 
 
 def extract_top_level_schema_text(text: str) -> str:
@@ -191,18 +190,11 @@ def scan_capability_text(text: str, path: Path | None = None) -> CapScan | None:
     else:
         schema = extract_top_level_schema_text(text)
         top_props = parse_schema_prop_names(schema)
-    is_lua = False
-    if path is not None:
-        parts = {p.lower() for p in path.parts}
-        is_lua = "lua" in parts
-    elif "/Lua/" in text or "\\Lua\\" in text:
-        is_lua = True
     return CapScan(
         path=path or Path("<memory>"),
         name=name,
         top_props=top_props,
         arg_reads=parse_arg_reads(text),
-        is_lua=is_lua,
     )
 
 
@@ -238,10 +230,6 @@ def audit_cap(cap: CapScan) -> list[Violation]:
             "get_singular_propertyPath",
             "get 侧禁止单数 `propertyPath`；只用 `propertyPaths[]`",
         )
-
-    # Lua 入参 path / filePath（filePath 已在 FORBIDDEN_ALWAYS）
-    if cap.is_lua and "path" in combined:
-        add("lua_path", "Lua 入参禁止 `path`；改用 `luaPath`（dofile 用 `scriptPath`）")
 
     # manage：必须 operations；禁止顶层领域容器与顶层 action
     if name.startswith("manage_"):

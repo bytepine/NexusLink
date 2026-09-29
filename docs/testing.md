@@ -56,7 +56,7 @@ python Script/run_e2e.py --ue-url http://127.0.0.1:45000/stream
 | 命令 | 用途 |
 |---|---|
 | `pytest Tests -m "not l4_runtime"` | 跳过需要 PIE 的用例 |
-| `pytest Tests -m "not lua"` | 跳过 UnLua 相关用例 |
+| `pytest Tests -m "not lua"` | 跳过宿主里 NexusLinkExt 的 Lua 用例 |
 | `pytest Tests -k blueprint` | 只跑蓝图相关用例 |
 | `pytest Tests --keep-artifacts` | 保留 `/Game/_McpTest/<ts>/` 方便诊断 |
 
@@ -75,7 +75,7 @@ Tests 目录建议按功能域拆分 `test_*.py`，与下列阶段对应：
 | 八：Gameplay Tags | `test_70_gameplay_tags.py` |
 | 九：AI + 动画资产 | `test_80_ai_anim_assets.py` |
 | 十：资产管理 | `test_90_asset_mgmt.py` |
-| 十一：PIE Runtime（含 Lua） | `test_95_pie_runtime.py` |
+| 十一：PIE Runtime（含 NexusLinkExt Lua） | `test_95_pie_runtime.py` |
 | 十二：清理 + 日志健康 | session 级 fixture + `test_90_asset_mgmt.py` 末尾 |
 
 ## 约束
@@ -84,6 +84,6 @@ Tests 目录建议按功能域拆分 `test_*.py`，与下列阶段对应：
 - 任意单工具失败不影响其他用例；用例间不要共享可变状态（除 session 级 fixture）。
 - 新增 Capability → 同步在对应 `test_*.py` 写至少一个 happy-path 用例。
 - **默认验证**：宿主工程 `py Script/run_e2e.py`（headless，快）。日常 / CI **不要**改成默认 GUI。
-- **命令行无法覆盖**（PIE / UnLua / 视口-RHI）→ 用例打 `l4_runtime` / `lua` / `requires_gui`；须在 `py Script/run_e2e.py --gui` 下通过。
+- **命令行无法覆盖**（PIE / NexusLinkExt Lua / 视口-RHI）→ 用例打 `l4_runtime` / `lua` / `requires_gui`；须在 `py Script/run_e2e.py --gui` 下通过。
 - **全量回归**：`--gui` 或 `--full`（GUI Editor），含上述打标用例。
 - **发版验证**：按**本次发布的变更**选 headless 或 `--gui`（判定表见 [CONTRIBUTING.md 发版](../CONTRIBUTING.md)），不要一律 GUI。

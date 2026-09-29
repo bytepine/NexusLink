@@ -41,22 +41,26 @@ NexusLink serves HTTP `:45000` + WebSocket `:55000`. Run only one local proxy so
 - If another UE process owns the default ports, the server advances to the next available ports; select the intended instance in NexusDesktop. With multiple processes, use `/status.hostKind` (Editor / Game / DedicatedServer; does not change during PIE). The open editor map is `get_editor_context` section `current_map`
 
 - PIE and standalone Game can use `NexusLink.Mcp panel` for status and session-only Capability toggles. Dedicated Server has no viewport; use `NexusLink.Mcp status`
-- Runtime Capabilities cover logs, Actor properties, animation, behavior trees, GAS, widgets, Lua, and more. Dedicated Server has no viewport or UMG
+- Runtime Capabilities cover logs, Actor properties, animation, behavior trees, GAS, widgets, and more. Dedicated Server has no viewport or UMG
 - Shipping builds strip MCP at compile time
 
 GAS / Niagara Capabilities are detected from the host project; NexusLink does **not** force those plugins via `.uplugin`.
 
+## Optional-plugin Capabilities: [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)
+
+Capabilities for optional plugins such as UnLua are not in this repo. Install [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) and they register into the same MCP server; discover them with `search_capabilities`. The sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) mounts it as a submodule at `Plugins/NexusLinkExt`. Today Ext covers UnLua runtime debugging and Blueprint binding. `eval_runtime_lua` / `dofile_runtime_lua` are dangerous and disabled by default, same as the escape hatches below.
+
 ## Example project
 
-Public sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) (ThirdPerson template + UnLua + MCP regression tests). The plugin is a git submodule and **is not bundled** with the sample; clone with `--recurse-submodules` or install this plugin separately.
+Public sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) (ThirdPerson template + MCP regression tests). The plugin is a git submodule and **is not bundled** with the sample; clone with `--recurse-submodules` or install this plugin separately.
 
 ## Coverage
 
-Default **SearchMode**: `tools/list` exposes 3 meta-tools (`search_capabilities` / `call_capability` / `submit_feedback`); Capabilities are discovered on demand. Coverage includes editor, Blueprint, animation, material, audio, AI / EQS, GAS, UMG, Niagara, UnLua, and PIE / standalone Game / Dedicated Server runtime debugging. Full parameters: [docs/tool-reference.md](docs/tool-reference.md) ([简体中文](docs/tool-reference.zh.md)). SearchMode vs MultiTool: [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode).
+Default **SearchMode**: `tools/list` exposes 3 meta-tools (`search_capabilities` / `call_capability` / `submit_feedback`); Capabilities are discovered on demand. Coverage includes editor, Blueprint, animation, material, audio, AI / EQS, GAS, UMG, Niagara, and PIE / standalone Game / Dedicated Server runtime debugging. Full parameters: [docs/tool-reference.md](docs/tool-reference.md) ([简体中文](docs/tool-reference.zh.md)). SearchMode vs MultiTool: [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode).
 
 ## Dangerous Capabilities (all disabled by default)
 
-Four "script escape hatch" capabilities carry the `dangerous` tag. **Editor Preferences → Plugins → NexusLink → Dangerous Capability → Access mode**:
+The script escape hatches in this plugin are `exec_command` and `exec_python`. They carry the `dangerous` tag. **Editor Preferences → Plugins → NexusLink → Dangerous Capability → Access mode**:
 
 | Mode | Behavior |
 |---|---|
@@ -64,20 +68,18 @@ Four "script escape hatch" capabilities carry the `dangerous` tag. **Editor Pref
 | **Confirm each request** | Keeps existing checkmarks; you can change them. Checked caps are discoverable and callable; the editor prompts before each run. The AI must pass `reason` (purpose, expected effect, why no safer dedicated cap). Allow applies to **this call only**; deny returns `errorKind=user_denied` (do not retry). Timeout (default 90s) auto-denies. Exit immersive PIE if the window is hidden |
 | **Custom** | Per-cap checkboxes in the Capability tree; checked = always allow, no prompt |
 
-Launch with `-NexusEnableDangerousCaps` still session-enables all four (never written to settings) and overrides the access mode. Caps you enabled by hand are not overwritten by later upgrades; if any dangerous cap is already enabled, upgrade migrates to Custom.
+Launch with `-NexusEnableDangerousCaps` still session-enables every registered dangerous Capability (never written to settings) and overrides the access mode. Caps you enabled by hand are not overwritten by later upgrades; if any dangerous cap is already enabled, upgrade migrates to Custom.
 
 | Capability | What it does | Extra requirement |
 |---|---|---|
 | `exec_command` | Run a UE console command and capture its output | — |
 | `exec_python` | Run Python in the editor (`exec` / `file` / `eval`); returns stdout and traceback | Python Editor Script Plugin enabled in the host project |
-| `eval_runtime_lua` | Evaluate a Lua snippet in PIE/Game; returns stacked values | UnLua + PIE |
-| `dofile_runtime_lua` | Load and run a `.lua` file from `Content/Script/` | UnLua + PIE |
 
 > Read-only probing goes through **`get_python_api`**. It needs the same Python plugin but only runs `inspect`, embedding whitelist-validated arguments into a fixed script — it never accepts user code, so it is **enabled by default**. Use it to check whether an `unreal.*` API exists on this engine version instead of turning on `exec_python`.
 
 ### Why they are off by default
 
-- **Equivalent to arbitrary in-process code execution**: Python / Lua can `import os`, touch any file, and spawn subprocesses. Once enabled, auth is the only remaining boundary and per-capability enable/disable stops meaning anything.
+- **Equivalent to arbitrary in-process code execution**: Python can `import os`, touch any file, and spawn subprocesses. Once enabled, auth is the only remaining boundary and per-capability enable/disable stops meaning anything.
 - **Only half the write-path safety net applies**: every other Capability wraps its writes in `FNexusEditorTransaction` (undoable; a failed `calls[]` batch rolls back as a whole). `exec_python` opens a transaction too, but UE only records objects that went through `Modify()`: the most natural Python form, `obj.foo = x`, uses `NotifyMode::Never` and is **not** recorded — only `obj.set_editor_property(...)` and an explicit `obj.modify()` are. A script mixing both leaves Ctrl+Z rolling back half the change, landing the asset in a state that never existed. The returned `undoRecorded` reports honestly whether this call produced any undoable record. Package-level operations (`create_asset` / `delete_asset` / `save_asset`) are outside transactions entirely.
 - **They crash the editor easily**: model-written scripts routinely hit the wrong thread, stale objects, or GC — and the crash is hard to attribute afterwards.
 

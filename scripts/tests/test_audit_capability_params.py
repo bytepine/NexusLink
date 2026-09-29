@@ -63,20 +63,13 @@ void FBadManage::BuildDefinition(FNexusCapabilityDefinition& Out) const
 }
 '''
 
-FIXTURE_BAD_RENAME_LUA = r'''
+FIXTURE_BAD_RENAME = r'''
 void FBadRename::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("rename_asset");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("源")))
 		.Prop(TEXT("newPath"), FNexusSchema::Str(TEXT("旧目标")))
-		.Build();
-}
-void FBadLua::BuildDefinition(FNexusCapabilityDefinition& Out) const
-{
-	Out.Name = TEXT("dofile_runtime_lua");
-	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("filePath"), FNexusSchema::Str(TEXT("旧脚本路径")))
 		.Build();
 }
 '''
@@ -114,8 +107,8 @@ void FBadSpawn::BuildDefinition(FNexusCapabilityDefinition& Out) const
 '''
 
 
-def _rules(text: str, *, lua_path: Path | None = None) -> set[str]:
-    cap = scan_capability_text(text, lua_path)
+def _rules(text: str, *, path: Path | None = None) -> set[str]:
+    cap = scan_capability_text(text, path)
     assert cap is not None
     return {v.rule for v in audit_cap(cap)}
 
@@ -144,28 +137,8 @@ def test_manage_requires_operations_and_bans_top_containers():
 
 
 def test_forbid_newPath_and_filePath():
-    # 文件含两个 Out.Name —— scan 只取第一个
-    rules = _rules(FIXTURE_BAD_RENAME_LUA)
+    rules = _rules(FIXTURE_BAD_RENAME)
     assert "forbidden_param" in rules
-
-
-def test_lua_path_with_lua_dir(tmp_path: Path):
-    cpp = tmp_path / "Lua" / "Runtime" / "NexusGetRuntimeLuaEnvCapability.cpp"
-    cpp.parent.mkdir(parents=True)
-    cpp.write_text(
-        '''
-void FCap::BuildDefinition(FNexusCapabilityDefinition& Out) const
-{
-	Out.Name = TEXT("get_runtime_lua_env");
-	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("path"), FNexusSchema::Str(TEXT("旧")))
-		.Build();
-}
-''',
-        encoding="utf-8",
-    )
-    rules = {v.rule for v in audit_file(cpp)}
-    assert "lua_path" in rules
 
 
 def test_set_property_requires_updates():

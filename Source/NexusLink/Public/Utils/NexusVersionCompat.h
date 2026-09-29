@@ -227,10 +227,3 @@
 // UE 5.6+ IPythonScriptPlugin 新增 IsPythonConfigured()/IsPythonInitialized()，可区分
 // 「已配置未启用」与「已启用未初始化」；5.5 及更早只有 IsPythonAvailable()
 #define NX_UE_HAS_PYTHON_INIT_STATE_QUERY  NX_UE_AT_LEAST(5, 6)
-
-// ── UnLua 版本兼容 ──
-// UNLUA_VERSION_MAJOR 由 NexusLink.Build.cs 从 UnLua.uplugin VersionName 自动注入
-// 1.X: FLuaContext + GLuaCxt，无 HotReload
-// 2.X: UnLua::FLuaEnv，支持 HotReload
-#define NX_UNLUA_HAS_LUA_ENV       (WITH_UNLUA && UNLUA_VERSION_MAJOR >= 2) // FLuaEnv API
-#define NX_UNLUA_HAS_HOT_RELOAD    (WITH_UNLUA && UNLUA_VERSION_MAJOR >= 2) // FLuaEnv::HotReload()

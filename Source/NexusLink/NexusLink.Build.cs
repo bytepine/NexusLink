@@ -4,9 +4,9 @@ using UnrealBuildTool;
 using System.Collections.Generic;
 
 /// <summary>
-/// NexusLink（Runtime 模块）：Server / Dispatcher / Auth / Registry / 元工具 / 38 个 Runtime cap /
+/// NexusLink（Runtime 模块）：Server / Dispatcher / Auth / Registry / 元工具 / 26 个 Runtime cap /
 /// 运行时 Utils。不链接任何 UnrealEd 系编辑器模块，Development/DebugGame 独立 Game / DedicatedServer
-/// 包可直接编入。编辑器专属实现（192 个 EditorOnly cap、编辑器 Utils、Slate 设置定制）在 NexusLinkEditor。
+/// 包可直接编入。编辑器专属实现（190 个 EditorOnly cap、编辑器 Utils、Slate 设置定制）在 NexusLinkEditor。
 /// </summary>
 public class NexusLink : ModuleRules
 {
@@ -46,22 +46,18 @@ public class NexusLink : ModuleRules
 		string ProjectRoot = NexusLinkOptionalPlugins.FindProjectRoot(ModuleDirectory);
 		var SearchDirs = NexusLinkOptionalPlugins.CollectPluginSearchDirs(ProjectRoot, this);
 
-		// Runtime 模块只消费 38 个 Runtime cap 用到的三个可选插件（UnLua / GAS / Niagara）的运行时部分；
-		// 不链接任何 EditorModules（即便当前 Target 是 NexusEditor，也不允许 ed: 部分进入本模块）。
-		// 其余可选插件（StateTree/MVVM/ControlRig/... 等）只被 Editor 域 cap 使用，宏由
-		// NexusLinkEditor.Build.cs 定义，本模块不重复 Add（避免 C4005 重定义）。
-		bool bHasUnLua = false;
+		// Runtime 模块只消费 GAS / Niagara 的运行时部分；不链接任何 EditorModules
+		// （即便当前 Target 是 NexusEditor，也不允许 ed: 部分进入本模块）。
+		// 其余可选插件只被 Editor 域 cap 使用，
+		// 宏由 NexusLinkEditor.Build.cs 定义，本模块不重复 Add（避免 C4005 重定义）。
 		foreach (var C in NexusLinkOptionalPlugins.BuildFullTable())
 		{
-			if (C.Define != "WITH_UNLUA" && C.Define != "WITH_GAS" && C.Define != "WITH_NIAGARA")
+			if (C.Define != "WITH_GAS" && C.Define != "WITH_NIAGARA")
 			{
 				continue;
 			}
-			if (NexusLinkOptionalPlugins.Apply(this, Target, C, SearchDirs, ProjectRoot, bAllowEditorModules: false)
-				&& C.Define == "WITH_UNLUA")
-				bHasUnLua = true;
+			NexusLinkOptionalPlugins.Apply(this, Target, C, SearchDirs, ProjectRoot, bAllowEditorModules: false);
 		}
-		NexusLinkOptionalPlugins.ApplyUnLuaVersionDefines(this, bHasUnLua, SearchDirs);
 	}
 }
 
@@ -81,7 +77,7 @@ public static class NexusLinkOptionalPlugins
 		public int MinEngineMajor, MinEngineMinor;
 		public string[] PublicRuntimeModules, RuntimeModules, EditorModules;
 		public string Define, EnvVar;
-		public bool EnvVarSupportsDisable; // 默认 true；UnLua 仅 =1
+		public bool EnvVarSupportsDisable; // 默认 true；false 时环境变量只认 =1
 	}
 
 	/// <summary>全量可选插件表（两模块共用，顺序与旧版一致）。</summary>
@@ -89,7 +85,6 @@ public static class NexusLinkOptionalPlugins
 	{
 		return new[]
 		{
-			Opt(new[] { "UnLua.uplugin" }, "WITH_UNLUA", "WITH_UNLUA", pub: new[] { "Lua" }, rt: new[] { "UnLua" }, noDisable: true),
 			Opt(new[] { "GameplayAbilities.uplugin" }, "WITH_GAS", "WITH_GAS", rt: new[] { "GameplayAbilities" }, uproj: "GameplayAbilities"),
 			Opt(new[] { "Niagara.uplugin" }, "WITH_NIAGARA", "WITH_NIAGARA", rt: new[] { "Niagara" }, ed: new[] { "NiagaraEditor" }, uproj: "Niagara"),
 			Opt(new[] { "StateTree.uplugin" }, "WITH_STATETREE", "WITH_STATETREE", 5, 5, new[] { "StateTreeModule" }, new[] { "StateTreeEditorModule" }),
@@ -251,39 +246,6 @@ public static class NexusLinkOptionalPlugins
 			}
 		}
 		catch { }
-	}
-
-	/// <summary>UnLua 主版本号（VersionName 首位数字）；供两模块各自设置 UNLUA_VERSION_MAJOR。</summary>
-	public static void ApplyUnLuaVersionDefines(ModuleRules Module, bool bHasUnLua, List<string> SearchDirs)
-	{
-		if (!bHasUnLua) { Module.PublicDefinitions.Add("UNLUA_VERSION_MAJOR=0"); return; }
-
-		int major = 1;
-		foreach (string dir in SearchDirs)
-		{
-			if (major > 1) break;
-			try
-			{
-				foreach (string path in System.IO.Directory.GetFiles(dir, "UnLua.uplugin", System.IO.SearchOption.AllDirectories))
-				{
-					string json = System.IO.File.ReadAllText(path);
-					int vi = json.IndexOf("\"VersionName\"");
-					if (vi >= 0)
-					{
-						int qi = json.IndexOf("\"", json.IndexOf(":", vi) + 1);
-						if (qi >= 0)
-						{
-							int ds = qi + 1, de = ds;
-							while (de < json.Length && char.IsDigit(json[de])) de++;
-							if (de > ds) int.TryParse(json.Substring(ds, de - ds), out major);
-						}
-					}
-					break;
-				}
-			}
-			catch (System.Exception) { }
-		}
-		Module.PublicDefinitions.Add("UNLUA_VERSION_MAJOR=" + major);
 	}
 
 	public static bool MeetsMinEngineVersion(ReadOnlyTargetRules T, int maj, int min)

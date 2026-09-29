@@ -39,11 +39,9 @@
 | `Diff` | 对比两个实体的属性差异 | `diff_runtime_actors` |
 | `Interact` | 触发 UI 交互（click/check/set） | `interact_runtime_widget` |
 | `Control` | 控制编辑器状态 | `control_pie` |
-| `Exec` | 执行命令/脚本 | `exec_command`, `exec_python`, `eval_runtime_lua`, `dofile_runtime_lua` |
-| `Inspect` | 只读查看内部结构（Lua 表/堆栈/元表） | `get_runtime_lua_stack` |
+| `Exec` | 执行命令/脚本 | `exec_command`, `exec_python` |
 | `Capture` | 截图 | `capture_viewport`（Runtime 视口/窗口）、`capture_editor_panel`（LevelEditor 面板） |
 | `Query` | 系统级只读查询 | `get_asset_refs`, `get_gameplay_tags` |
-| `Hot-reload` | 热重载模块 | `hotreload_runtime_lua` |
 
 ### 1.2 反例 → 正例对照
 
@@ -67,11 +65,12 @@
 
 #### 2.1.0 模块选择（Runtime / Editor，从上到下命中即停）
 
-NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cooked Game/DS）与 `NexusLinkEditor`（`Type: Editor`，仅编辑器加载）。**基类即模块**——230 个既有 cap 均未手写 `GetHostScope()` override，宿主范围完全由基类继承决定，选错基类会导致 Game 相编译失败。
+NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cooked Game/DS）与 `NexusLinkEditor`（`Type: Editor`，仅编辑器加载）。**基类即模块**——本插件既有 cap 均未手写 `GetHostScope()` override，宿主范围完全由基类继承决定，选错基类会导致 Game 相编译失败。
 
 | 命中条件 | 落地模块 | 落地目录 |
 |------|------|------|
-| 操作对象是 **PIE/Game world 里的活对象**（Actor、Widget、ASC、Niagara 组件、Lua VM），只用引擎运行时 API 与反射，不落盘 | `NexusLink`（Runtime） | `Source/NexusLink/Private/Capabilities/{Runtime,Lua/Runtime}/<域>/` |
+| UnLua（Lua VM / 蓝图 `UnLuaInterface` 绑定） | 示例工程 `NexusLinkExt` / `NexusLinkExtEditor` | `Plugins/NexusLinkExt/Source/NexusLinkExt/Private/Capabilities/Lua/Runtime/` 与 `.../NexusLinkExtEditor/Private/Capabilities/Lua/Asset/` |
+| 操作对象是 **PIE/Game world 里的活对象**（Actor、Widget、ASC、Niagara 组件），只用引擎运行时 API 与反射，不落盘 | `NexusLink`（Runtime） | `Source/NexusLink/Private/Capabilities/Runtime/<域>/` |
 | 操作对象是**磁盘资产**，或需要 `UnrealEd` / `Kismet*` / `AssetTools` / `GEditor` / 编辑器事务 / 资产编译落盘 | `NexusLinkEditor`（Editor） | `Source/NexusLinkEditor/Private/Capabilities/<域>/` |
 | 两者都要 | 拆成两个 cap；确实无法拆时放 Editor 模块，并在描述里写明不支持独立 DS | 同上按拆分结果各自落位 |
 
@@ -83,7 +82,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 |------|------|------|
 | `manage_*` 且 Schema 含 `operations[]` | `FNexusActionCapability` | `BuildDefinition` + `RegisterActions` + `PrepareTarget`；可选 `FinalizeTarget` / `AfterPrepareTarget` |
 | 只读且用 `sections[]`（含 `"all"`） | `FNexusMultiSectionCapability`（编辑器）或 `FNexusRuntimeMultiSectionCapability`（PIE） | `BuildDefinition`（`Out.InputSchema = BuildSchemaWithSections()`）+ `BuildCapabilitySchema` / `GetSectionNames` / `ExecuteSection` |
-| PIE/Game 运行时（`*_runtime_*` / `list_runtime_*` / `eval_runtime_lua` / `get_output_log` / `set_log_capture_filter` / `exec_command` / `capture_viewport` 等，**无** `operations[]`） | `FNexusRuntimeCapability` | `BuildDefinition` + `Execute` |
+| PIE/Game 运行时（`*_runtime_*` / `list_runtime_*` / `get_output_log` / `set_log_capture_filter` / `exec_command` / `capture_viewport` 等，**无** `operations[]`） | `FNexusRuntimeCapability` | `BuildDefinition` + `Execute` |
 | 其余（`create_*` / `save`/`delete`/`rename`/`duplicate`/`unload` / 无 sections 的 `get_*` / `control_pie` / `control_movie_pipeline` / `set_*_property`） | `FNexusCapability` | `BuildDefinition` + `Execute` |
 
 - `interact_*` / `control_pie` / `control_movie_pipeline` 的顶层 `action` 是**命令**，不是批量 `operations[]` → **不要**用 `FNexusActionCapability`
@@ -147,7 +146,6 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | 值 | 含义 |
 |---|---|
 | `pie` | 需要 PIE/Game 会话运行中 |
-| `unlua` | 需要 UnLua 插件启用 |
 | `python` | 需要 Python Editor Script Plugin 启用且解释器已初始化 |
 | `editor_only` | 仅编辑器模式（非 PIE）可用 |
 | `ds_mode` | 仅 Dedicated Server 模式下有意义 |
@@ -160,7 +158,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 
 这些词来自 Tags 或普遍命中所有 cap，无区分价值：
 
-`asset`, `runtime`, `editor`, `blueprint`, `widget`, `material`, `struct`, `data`, `lua`, `actor`
+`asset`, `runtime`, `editor`, `blueprint`, `widget`, `material`, `struct`, `data`, `actor`
 
 （凡是 name token 都会被自动剥离）
 
@@ -190,7 +188,6 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | `pie`, `play in editor`, `simulate` | `control_pie` |
 | `diff`, `compare`, `delta` | `diff_runtime_actors` |
 | `ref`, `dependency`, `reference`, `referencer`, `inheritance`, `subclass`, `parent class` | `get_asset_refs` |
-| `unlua`, `hot reload`, `lua bind` | `hotreload_runtime_lua`, `get_asset_lua_binding` |
 | `slider`, `button`, `text`, `image`, `checkbox` | `interact_runtime_widget`, `get_runtime_widget_property` |
 | `struct field`, `struct type` | `manage_asset_struct_field`, `get_asset_struct` |
 | `row`, `datatable row` | `manage_asset_data_table`, `get_asset_data_table` |
@@ -246,13 +243,13 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 
 - `snake_case`，全局唯一，仅小写字母与下划线。
 - C++：`F{PascalCase}Capability`，文件 `Nexus{PascalCase}Capability.{h,cpp}`。
-- Token 顺序：`{verb}_{scope}_{target}_{aspect?}`；`scope` 为 `asset` | `runtime` 时须出现在名中；Editor / 通用 / Lua 例外见 §6.4。
+- Token 顺序：`{verb}_{scope}_{target}_{aspect?}`；`scope` 为 `asset` | `runtime` 时须出现在名中；Editor / 通用例外见 §6.4。
 
 ### 6.2 Asset 盘（编辑器资产）
 
 - **默认**：`{get|manage|create}_asset_{type}`（`blueprint` / `material` / `user_widget` / `anim_blueprint` / …）。
 - **Manage** = 磁盘资产结构性增删改（节点、行、字段、片段）；**禁止**用于 PIE 播放、GA 施放等运行时命令。
-- **通用例外（完整名）**：`search_asset`、`save_asset`、`rename_asset`、`duplicate_asset`、`delete_asset`、`unload_asset`、`get_asset_refs`、`get_asset_lua_binding`、`manage_asset_lua_binding`、`manage_asset_struct_field`。
+- **通用例外（完整名）**：`search_asset`、`save_asset`、`rename_asset`、`duplicate_asset`、`delete_asset`、`unload_asset`、`get_asset_refs`、`manage_asset_struct_field`。
 
 ### 6.3 Runtime（PIE / Game）
 
@@ -273,7 +270,6 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 |------|------------|
 | Editor (5) | `capture_editor_panel`, `compile_blueprint`, `control_pie`, `get_editor_info`, `get_gameplay_tags` |
 | 通用资产 (7) | 见 §6.2 例外行 |
-| Lua (14, `WITH_UNLUA`) | `eval_runtime_lua`, `dofile_runtime_lua`, `gc_runtime_lua`, `hotreload_runtime_lua`, `set_runtime_lua`, `get_runtime_lua_env`, `get_runtime_lua_value`, `get_runtime_lua_loaded`, `get_runtime_lua_stack`, `get_runtime_lua_metatable`, `get_runtime_lua_object`, `get_runtime_lua_memory`, `get_asset_lua_binding`, `manage_asset_lua_binding` |
 | Runtime 非标 | `diff_runtime_actors`, `get_runtime_slate_widget`, `get_output_log`, `set_log_capture_filter`, `exec_command`, `capture_viewport` |
 | GAS (`WITH_GAS=1`, 14) | `create/get/manage_asset_gameplay_ability`, `create/get/manage_asset_gameplay_effect`, `create/get/manage_asset_attribute_set`, `create/get/manage_asset_gameplay_cue_notify`, `get_runtime_actor_ability_system`, `interact_runtime_actor_ability_system` |
 | StateTree (`WITH_STATETREE=1`, UE 5.5+, 3) | `get_asset_state_tree`, `manage_asset_state_tree`, `create_asset_state_tree` |
@@ -322,7 +318,7 @@ Utils 按依赖方向划分为 6 层，依赖只能从高层流向低层，**禁
 | **Reflection** | UObject 反射/属性读写 | `NexusPropertyUtils`、`NexusPropertyReportUtils` |
 | **Asset** | 资产加载/蓝图/图结构 | `NexusAssetUtils`、`NexusBlueprintGraphUtils` |
 | **Runtime** | 运行时 World/Actor/Widget | `NexusRuntimeUtils`、`NexusCaptureUtils`（Game 视口 / Slate 截图） |
-| **Domain** | 领域专用（引用面窄） | `NexusLuaUtils`、`NexusMaterialUtils`、`NexusAnimGraphUtils`、`NexusWidgetAnimationUtils`、`NexusBehaviorTreeInspectUtils`、`NexusPinTypeUtils` |
+| **Domain** | 领域专用（引用面窄） | `NexusMaterialUtils`、`NexusAnimGraphUtils`、`NexusWidgetAnimationUtils`、`NexusBehaviorTreeInspectUtils`、`NexusPinTypeUtils` |
 | **Editor** | `WITH_EDITOR` 专属 | `NexusPortUtils`、`NexusEditorContextUtils`、`NexusEditorCaptureUtils`、`NexusCapabilityIndexUtils` |
 
 **依赖规则**：Common 不得依赖任何其他层；Result/Reflection 只能依赖 Common；Asset 可依赖 Reflection/Common；Runtime 可依赖 Reflection/Common；Domain/Editor 可依赖 Common，Editor 还可依赖 Asset。
@@ -384,7 +380,7 @@ public:
 3. 逻辑下沉 Utils（≥2 调用点或单点 ≥3 行 `#if`）；资产只读字段优先 `FNexusAssetUtils`。
 4. `build_test`：兼容下限 `UE_4.26` 全量必过；日常冒烟 / 示例宿主默认 `UE_5.7`；触及引擎 API 时加 `UE_5.0`、`UE_5.6`；`audit_capability_naming.py` PASS。
 
-**可选插件**：`WITH_GAS` / `WITH_NIAGARA` / `WITH_UNLUA` / `WITH_STATETREE` / `WITH_MVVM` 等整 `.cpp` 文件守卫 + `Build.cs` 探测（工程 `Plugins`、`{Project}/../Engine/Plugins`、以及 UBT `EngineDirectory` 下的 `Plugins`；真实工程 `.uproject` 显式 `Enabled: false` 则关）。宿主 `build_test` 编整个 `Nexus.uproject`：`NexusEditor` 与宿主一样按**该引擎**磁盘探测编进可选 cap；`Nexus` Game 目标 `WITH_EDITOR=0`，`Type: Editor` 的 `NexusLinkEditor` 不进 cooked Game，`Type: Runtime` 的 `NexusLink` 会进。文件内仍禁止裸 `NX_UE_AT_LEAST`。
+**可选插件**：`WITH_GAS` / `WITH_NIAGARA` / `WITH_STATETREE` / `WITH_MVVM` 等整 `.cpp` 文件守卫 + `Build.cs` 探测。`WITH_UNLUA` 在 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)。本插件探测范围：工程 `Plugins`、`{Project}/../Engine/Plugins`、以及 UBT `EngineDirectory` 下的 `Plugins`；真实工程 `.uproject` 显式 `Enabled: false` 则关。宿主 `build_test` 编整个 `Nexus.uproject`：`NexusEditor` 与宿主一样按**该引擎**磁盘探测编进可选 cap；`Nexus` Game 目标 `WITH_EDITOR=0`，`Type: Editor` 的 `NexusLinkEditor` 不进 cooked Game，`Type: Runtime` 的 `NexusLink` 会进。文件内仍禁止裸 `NX_UE_AT_LEAST`。
 
 **已登记宏（节选，完整列表以 `NexusVersionCompat.h` 为准）**
 
@@ -408,7 +404,7 @@ public:
 
 ### 8.6 `#if` 守卫规则
 
-- `WITH_EDITOR` / `WITH_UNLUA` / `NX_UE_HAS_*` 只包裹**必要分支**，禁止在头文件里把整个类体包进守卫。
+- `WITH_EDITOR` / `NX_UE_HAS_*` 只包裹**必要分支**，禁止在头文件里把整个类体包进守卫。
 - Editor 专属 Utils 文件名须体现（`NexusEditor*Utils` / `NexusPort*Utils`）。
 
 ### 8.7 依赖单向性（硬限制）
@@ -476,7 +472,6 @@ public:
 |---|---|---|
 | `assetPaths` / `actorNames` / `widgetNames` | （删除）→ `call_capability.calls[]` | Capability 单目标；跨目标批量只走元工具 |
 | `newPath` | `destAssetPath` | 复制/迁移目标路径 |
-| Lua `path` | `luaPath` | 避免与资产 `path`/`assetPath` 混淆 |
 | `filePath` | `scriptPath` | 脚本磁盘/工程相对路径 |
 | `ownerWidget` | `ownerClass` | Widget 归属类 |
 | spawn `blueprintPath` | `assetPath` | 生成用蓝图资产路径统一 |

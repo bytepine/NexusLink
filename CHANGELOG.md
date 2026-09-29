@@ -17,6 +17,7 @@
 
 ### Changed
 
+- refactor(plugin): UnLua 的 14 个 Capability 与 `FNexusLuaUtils` 移到 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)（`NexusLinkExt` / `NexusLinkExtEditor`）；本插件不再探测 `WITH_UNLUA`。文档、握手说明和工具目录改为指向该仓库。宿主 L1 的 UnLua 用例在示例工程 `NexusLinkExtTestSuite`，不在 `NexusLinkTestSuite`
 - docs: 代理写门控 `always` 按当前 MCP 会话记住，不再写成进程级
 - docs: 说明和界面里的生造词改为日常说法（鉴权→身份验证，写操作门控→写入前确认）
 

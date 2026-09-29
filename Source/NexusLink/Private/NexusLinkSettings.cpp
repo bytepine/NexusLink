@@ -194,13 +194,11 @@ void UNexusLinkSettings::EnsureDangerousCapsDefaultOff()
 {
 	const TArray<FString> DangerousNames = CollectDangerousCapabilityNames();
 
-	// 旧版本只有一个总开关，迁移时把当时的三个 cap 视为已处理，
+	// 旧版本只有一个总开关，迁移时把当时已有的 exec_command 视为已处理，
 	// 否则用户手动启用过的 cap 会在本次升级被重新关掉
 	if (bDangerousCapsDefaultOffApplied && DangerousCapsDefaultOffApplied.Num() == 0)
 	{
 		DangerousCapsDefaultOffApplied.Add(TEXT("exec_command"));
-		DangerousCapsDefaultOffApplied.Add(TEXT("eval_runtime_lua"));
-		DangerousCapsDefaultOffApplied.Add(TEXT("dofile_runtime_lua"));
 	}
 
 	bool bChanged = false;

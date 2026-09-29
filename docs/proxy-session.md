@@ -80,7 +80,7 @@ TTL：
 
 `tools/list`：保持现有行为（断线仍返回上次工具名）。
 
-`tools/call` 读路径且 WS 断开：若有该 cap 的快照（还能用的上次读取结果即使过期也可：`search_*`、`get_asset_*`、`get_editor_*`、`get_asset_refs`、`get_gameplay_tags`、`get_asset_lua_binding`），返回快照并打 `degraded: "unavailable"`。
+`tools/call` 读路径且 WS 断开：若有该 cap 的快照（还能用的上次读取结果即使过期也可：`search_*`、`get_asset_*`、`get_editor_*`、`get_asset_refs`、`get_gameplay_tags`），返回快照并打 `degraded: "unavailable"`。
 
 运行时/日志等易过期 cap 过期后 **不** 提供 degraded，走 `proxy_not_connected`。
 

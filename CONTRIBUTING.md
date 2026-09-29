@@ -33,9 +33,9 @@ py scripts/audit_doc_sync.py   # 报告：代码 vs tool-reference / 中文 over
 
 两层自动化：
 
-- **L0 跨版本编译**（宿主工程 `Script/build_test.py`）：对本机已装的每套引擎编整个 `Nexus.uproject`（`NexusEditor` + `Nexus` Game）。编进游戏模块与工程内插件（NexusLink、UnLua 等）。每套引擎在临时目录隔离 Intermediate，不改仓库工程；默认 `--max-workers 3` 并行。
+- **L0 跨版本编译**（宿主工程 `Script/build_test.py`）：对本机已装的每套引擎编整个 `Nexus.uproject`（`NexusEditor` + `Nexus` Game）。编进游戏模块与工程内插件（NexusLink、NexusLinkExt 等）。每套引擎在临时目录隔离 Intermediate，不改仓库工程；默认 `--max-workers 3` 并行。
 
-- **L1 C++ Automation**（宿主工程 `Plugins/NexusLinkTestSuite/`，**不**在本仓）：纯工具函数 + 插件加载 + Capability 注册表冒烟 + `FNexusResponseCompactorUtils` 全量断言。经 UEEditor-Cmd 触发：
+- **L1 C++ Automation**（宿主工程，**不**在本仓）：`Plugins/NexusLinkTestSuite/` 覆盖本插件；UnLua Capability 在 `Plugins/NexusLinkExtTestSuite/`。经 UEEditor-Cmd 触发：
 
   ```bash
   UEEditor-Cmd YourProject.uproject -ExecCmds="Automation RunTests NexusLink.; Quit" -unattended -nullrhi -NoSound -NoSplash
@@ -74,11 +74,11 @@ GitHub Release **正文唯一来源**为 `CHANGELOG.md` 对应版本段落（CI 
 |---|---|---|
 | 仅文档 / 发版脚本 / CHANGELOG（无 C++、cap、Tests） | 不强制 UE e2e | — |
 | 仅编辑器资产 / manage-get / schema / 无 GUI 信号的 cap | Headless | `py Script/run_e2e.py` |
-| 含 PIE / runtime Actor·Widget / UnLua / 视口 / RHI / `l4_runtime` / `lua` / `requires_gui` / `interact_runtime_*` / `spawn_runtime_*` / `control_pie` | GUI | `py Script/run_e2e.py --gui` |
+| 含 PIE / runtime Actor·Widget / NexusLinkExt Lua / 视口 / RHI / `l4_runtime` / `lua` / `requires_gui` / `interact_runtime_*` / `spawn_runtime_*` / `control_pie` | GUI | `py Script/run_e2e.py --gui` |
 | 混合（两者都有） | GUI（超集） | `py Script/run_e2e.py --gui` |
-| 不确定 | 默认 GUI（CHANGELOG 已写 PIE / UnLua / viewport / `*_runtime_*` 时） | 同上 |
+| 不确定 | 默认 GUI（CHANGELOG 已写 PIE / NexusLinkExt / viewport / `*_runtime_*` 时） | 同上 |
 
-GUI 信号：cap 名含 `_runtime_`；标记 `l4_runtime` / `lua` / `requires_gui`；`interact_runtime_*` / `spawn_runtime_*` / `control_pie`；`capture_viewport` / `capture_editor_panel` / `get_asset_texture` / `eval_runtime_lua` / `dofile_runtime_lua`。不要把 cap 所属模块（`NexusLink` Runtime / `NexusLinkEditor` Editor）当成 GUI 信号。`--full` 与 `--gui` 等价。策略细节见 [docs/testing.md](docs/testing.md)。
+GUI 信号：cap 名含 `_runtime_`；标记 `l4_runtime` / `lua` / `requires_gui`；`interact_runtime_*` / `spawn_runtime_*` / `control_pie`；`capture_viewport` / `capture_editor_panel` / `get_asset_texture`。`lua` 与 `eval_runtime_lua` / `dofile_runtime_lua` 属于 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)，不在本仓。不要把 cap 所属模块（`NexusLink` Runtime / `NexusLinkEditor` Editor）当成 GUI 信号。`--full` 与 `--gui` 等价。策略细节见 [docs/testing.md](docs/testing.md)。
 
 **正式版**（`X.Y.Z`）：
 

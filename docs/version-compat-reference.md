@@ -74,13 +74,6 @@
 | `NX_UE_HAS_NIAGARA_SCRIPT_SET_LATEST_SOURCE` | 5.0 | `UNiagaraScript::SetLatestSource` |
 | `NX_UE_HAS_NIAGARA_SCRIPT_SET_SOURCE_GUID` | 4.27（仅） | `UNiagaraScript::SetSource(Source, VersionGuid)` |
 
-## UnLua 兼容宏
-
-| 宏名 | 条件 | 说明 |
-|---|---|---|
-| `NX_UNLUA_HAS_LUA_ENV` | `WITH_UNLUA && UNLUA_VERSION_MAJOR >= 2` | UnLua 2.x `FLuaEnv` API 可用 |
-| `NX_UNLUA_HAS_HOT_RELOAD` | `WITH_UNLUA && UNLUA_VERSION_MAJOR >= 2` | `FLuaEnv::HotReload()` 可用 |
-
 ## 使用规范
 
 1. **禁止**直接使用 `ENGINE_MAJOR_VERSION` / `ENGINE_MINOR_VERSION` 做条件编译

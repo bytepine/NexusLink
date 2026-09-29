@@ -166,7 +166,7 @@ static bool IsOverBroadCapabilityQuery(const FString& TokenLower, TArray<FString
 	if (TokenLower == TEXT("runtime"))
 	{
 		OutSuggested = {
-			TEXT("runtime actor"), TEXT("runtime widget"), TEXT("runtime lua")
+			TEXT("runtime actor"), TEXT("runtime widget"), TEXT("runtime niagara")
 		};
 		return true;
 	}

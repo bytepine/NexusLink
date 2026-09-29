@@ -174,8 +174,7 @@ COMMON_PARAM_DESCRIPTIONS: dict[str, str] = {
     "direction":       "Dependency direction: `dependencies` / `referencers`",
     "category":        "Feedback or log category",
     "note":            "Additional notes (optional)",
-    "scriptPath":      "Lua script path (relative to Content/Script/)",
-    "luaPath":         "Lua dotted path",
+    "scriptPath":      "File path relative to Content/Python/ (exec_python file mode)",
     "className":       "Native UClass name",
     "keepLoaded":      "When true, do not auto-unload packages introduced by this call",
 }

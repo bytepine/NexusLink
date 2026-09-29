@@ -18,7 +18,7 @@ struct NEXUSLINK_API FNexusEditorTransaction final
 {
 	FNexusEditorTransaction() = delete;
 
-	/** Write 且非 Readonly/Runtime，且不在磁盘/PIE/Lua/命令黑名单。纯标签逻辑，不经钩子。 */
+	/** Write 且非 Readonly/Runtime，且不在磁盘/PIE/命令黑名单。纯标签逻辑，不经钩子。 */
 	static bool ShouldTransact(const FString& CapName, const TArray<FString>& Tags);
 
 	/** 当前是否已有未结束的编辑器事务。 */
