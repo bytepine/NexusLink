@@ -78,14 +78,15 @@ static FORCEINLINE TSharedPtr<FJsonValue> FindField(const TSharedPtr<FJsonObject
 	return Obj->TryGetField(Field);
 }
 
-/** 进程级共享的身份字段排除集：避免 SetAutoDiscover 每次都往 per-instance TSet 里塞 13 个字符串。 */
+/** 进程级共享的身份字段排除集：避免 SetAutoDiscover 每次都往 per-instance TSet 里塞 15 个字符串。 */
 static const TSet<FString>& GetBuiltinAutoDiscoverExclusions()
 {
 	static const TSet<FString> Singleton = []() {
 		TSet<FString> S;
 		S.Reserve(16);
 		S.Add(TEXT("name"));      S.Add(TEXT("path"));    S.Add(TEXT("assetPath")); S.Add(TEXT("nodeId"));
-		S.Add(TEXT("tag"));       S.Add(TEXT("message")); S.Add(TEXT("timestamp")); S.Add(TEXT("frame"));
+		S.Add(TEXT("tag"));       S.Add(TEXT("message")); S.Add(TEXT("timestamp")); S.Add(TEXT("time"));
+		S.Add(TEXT("sequence"));  S.Add(TEXT("frame"));
 		S.Add(TEXT("id"));        S.Add(TEXT("label"));   S.Add(TEXT("title"));     S.Add(TEXT("text"));
 		S.Add(TEXT("error"));
 		return S;
@@ -160,7 +161,7 @@ void FNexusResponseCompactorUtils::AddForcedDefaultIfUnanimous(
 void FNexusResponseCompactorUtils::SetAutoDiscover(bool bEnable, TArray<FString> AdditionalExclusions)
 {
 	bAutoDiscover = bEnable;
-	// per-instance 仅保留调用方追加的业务特有字段；内置 13 个身份字段走进程级共享 TSet
+	// per-instance 仅保留调用方追加的业务特有字段；内置 15 个身份字段走进程级共享 TSet
 	for (const FString& F : AdditionalExclusions)
 	{
 		if (!F.IsEmpty())
@@ -172,23 +173,28 @@ void FNexusResponseCompactorUtils::SetAutoDiscover(bool bEnable, TArray<FString>
 
 void FNexusResponseCompactorUtils::TryCompactField(const FString& Field, TArray<TSharedPtr<FJsonValue>>& Items)
 {
+	// 主流值最多 N-D+1。D 超过此上限时占比不可能达到 MinMatchRatio，全唯一字段在这里停下。
+	const int32 ItemCount = Items.Num();
+	const int32 NeedMatch = FMath::CeilToInt(MinMatchRatio * static_cast<float>(ItemCount));
+	const int32 MaxBuckets = ItemCount - NeedMatch + 1;
+
 	// 压缩目标字段的基数在真实负载里通常 ≤ 5：用小桶线性扫替代 TMap<FString,...>，
 	// 消灭 JsonValueKey 的 FString::Printf 分配与 hash 开销。
 	TArray<TPair<TSharedPtr<FJsonValue>, int32>, TInlineAllocator<8>> Buckets;
 	int32 HaveCount = 0;
-	int32 ObjectCount = 0;
 	for (const TSharedPtr<FJsonValue>& Item : Items)
 	{
 		if (!Item.IsValid() || Item->Type != EJson::Object)
 		{
 			continue;
 		}
-		++ObjectCount;
 		const TSharedPtr<FJsonObject> Obj = Item->AsObject();
 		const TSharedPtr<FJsonValue> ItemVal = FindField(Obj, Field);
+		// 缺字段的条目合并时会被 defaults 填上主流值；inherited / isConst 等
+		// 「仅非默认才写出」的稀疏字段会因此被污染。必须全员持有才抽取。
 		if (!IsScalarValue(ItemVal))
 		{
-			continue;
+			return;
 		}
 		++HaveCount;
 
@@ -204,17 +210,15 @@ void FNexusResponseCompactorUtils::TryCompactField(const FString& Field, TArray<
 		}
 		if (!bMerged)
 		{
+			if (Buckets.Num() >= MaxBuckets)
+			{
+				return;
+			}
 			Buckets.Emplace(ItemVal, 1);
 		}
 	}
 
 	if (HaveCount == 0)
-	{
-		return;
-	}
-	// 缺字段的条目合并时会被 defaults 填上主流值；inherited / isConst 等
-	// 「仅非默认才写出」的稀疏字段会因此被污染。必须全员持有才抽取。
-	if (HaveCount != ObjectCount)
 	{
 		return;
 	}
@@ -250,6 +254,10 @@ void FNexusResponseCompactorUtils::TryCompactField(const FString& Field, TArray<
 	}
 
 	// 执行抽取：所有等值条目直接按类型化比较剥离该字段（无需二次生成字符串 key）
+	if (!Defaults.IsValid())
+	{
+		Defaults = MakeShared<FJsonObject>();
+	}
 	for (const TSharedPtr<FJsonValue>& Item : Items)
 	{
 		if (!Item.IsValid() || Item->Type != EJson::Object)
@@ -268,7 +276,7 @@ void FNexusResponseCompactorUtils::TryCompactField(const FString& Field, TArray<
 
 void FNexusResponseCompactorUtils::CompactArray(TArray<TSharedPtr<FJsonValue>>& Items)
 {
-	Defaults = MakeShared<FJsonObject>();
+	Defaults.Reset();
 
 	if (Items.Num() == 0)
 	{
@@ -313,6 +321,10 @@ void FNexusResponseCompactorUtils::CompactArray(TArray<TSharedPtr<FJsonValue>>& 
 			{
 				Obj->RemoveField(Field);
 			}
+		}
+		if (!Defaults.IsValid())
+		{
+			Defaults = MakeShared<FJsonObject>();
 		}
 		Defaults->SetField(Field, DefVal);
 	}
@@ -464,19 +476,25 @@ static void AutoCompactRecursiveImpl(const TSharedPtr<FJsonObject>& Parent, int3
 		TArray<TSharedPtr<FJsonValue>>& Items =
 			const_cast<TArray<TSharedPtr<FJsonValue>>&>(ItemsRef);
 
+		// 工具侧 ForcedDefault 已写入的键排除出自动扫描，避免剥掉后合并时不覆盖、还原成旧默认
+		const FString DefaultsKey = Field + TEXT("_defaults");
+		const TSharedPtr<FJsonObject>* ExistingPtr = nullptr;
+		TArray<FString> ExistingKeys;
+		if (Parent->TryGetObjectField(DefaultsKey, ExistingPtr) && ExistingPtr && (*ExistingPtr).IsValid())
+		{
+			(*ExistingPtr)->Values.GetKeys(ExistingKeys);
+		}
+
 		FNexusResponseCompactorUtils Local;
-		Local.SetAutoDiscover(true);
+		Local.SetAutoDiscover(true, MoveTemp(ExistingKeys));
 		Local.CompactArray(Items);
 		if (!Local.HasDefaults())
 		{
 			continue;
 		}
 
-		const FString DefaultsKey = Field + TEXT("_defaults");
-		const TSharedPtr<FJsonObject>* ExistingPtr = nullptr;
-		if (Parent->TryGetObjectField(DefaultsKey, ExistingPtr) && ExistingPtr && (*ExistingPtr).IsValid())
+		if (ExistingPtr && (*ExistingPtr).IsValid())
 		{
-			// 工具侧 ForcedDefault 已写入：只补新键，不覆盖（避免改写入参驱动的强制默认）
 			TSharedPtr<FJsonObject> Existing = *ExistingPtr;
 			for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : Local.GetDefaults()->Values)
 			{

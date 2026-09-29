@@ -36,7 +36,7 @@
  *      C.CompactArray(PageArray);
  *      C.Emit(ResultObj, TEXT("properties"));   // 写入 properties_defaults
  *    手动写入 `<prefix>_defaults` 后，自动模式**合并**新发现的字段，不覆盖已有键
- *    （ForcedDefault 保持权威）。
+ *    （ForcedDefault 保持权威），且不再剥离这些键。
  *
  * 消费侧合并规则：merged = {**defaults, **entry}（entry 覆盖 defaults 同名字段）
  */
@@ -69,7 +69,7 @@ public:
 	/**
 	 * 开启自动扫描模式：CompactArray 除处理显式 Candidates 外，还会自动扫描条目里
 	 * 所有其他标量字段并尝试统计抽取，同样受三阈值约束。
-	 * 内置排除集已含 name/path/assetPath/nodeId/tag/message/timestamp/frame/id/label/text/error；
+	 * 内置排除集已含 name/path/assetPath/nodeId/tag/message/timestamp/time/sequence/frame/id/label/title/text/error；
 	 * AdditionalExclusions 可追加业务特有的身份字段。
 	 */
 	void SetAutoDiscover(bool bEnable, TArray<FString> AdditionalExclusions = {});
@@ -109,7 +109,7 @@ private:
 
 	/** 自动扫描所有标量字段；false 时只处理显式 Candidates。 */
 	bool bAutoDiscover = false;
-	/** 调用方追加的业务特有排除字段；内置 13 个身份字段走 cpp 侧进程级共享 TSet，避免 per-instance 重复分配。 */
+	/** 调用方追加的业务特有排除字段；内置 15 个身份字段走 cpp 侧进程级共享 TSet，避免 per-instance 重复分配。 */
 	TSet<FString> ExtraAutoDiscoverExclusions;
 
 	/**

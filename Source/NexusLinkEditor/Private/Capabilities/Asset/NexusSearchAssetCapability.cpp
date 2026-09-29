@@ -9,7 +9,6 @@
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusStringMatchUtils.h"
-#include "Utils/NexusResponseCompactorUtils.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/AssetData.h"
 #include "Engine/Blueprint.h"
@@ -550,13 +549,6 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			}
 		}
 		OutTop->SetArrayField(TEXT("assets"), PageArray);
-		if (!bIsAll && PageArray.Num() > 0)
-		{
-			FNexusResponseCompactorUtils AssetCompactor;
-			AssetCompactor.AddForcedDefault(TEXT("assetType"), AllEntries[Start].Type);
-			AssetCompactor.CompactArray(PageArray);
-			AssetCompactor.Emit(OutTop, TEXT("assets"));
-		}
 	
 	});
 }

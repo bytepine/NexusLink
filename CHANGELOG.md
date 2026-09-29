@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- fix(mcp): 响应默认值压缩不再剥离工具已写入的 `*_defaults` 键（避免 `get_output_log` 把整页 Error 还原成 Warning）；高基数字段提前放弃；`search_asset` 的 `assetType` 改由自动压缩抽取
+
 ### Changed
 
 - docs: 代理写门控 `always` 按当前 MCP 会话记住，不再写成进程级
