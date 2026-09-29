@@ -12,7 +12,7 @@
 
 **路径 B — Capability**（主流路径）
 
-1. **先按 [CapabilitySpec.md](Resources/CapabilitySpec.md) §2.1.0 选模块**（PIE/Game 活对象、不保存到磁盘 → `NexusLink` Runtime 模块；磁盘资产 / 编辑器 API / 保存到磁盘 → `NexusLinkEditor` 模块），再按 §2.1.1 **选基类**（`manage_*` + `operations[]` → `FNexusActionCapability`，子类禁止 `Execute`；`sections[]` → MultiSection；PIE/Game 运行时含 `get_output_log` / `exec_command` / `capture_viewport` → `FNexusRuntimeCapability`；其余 → `FNexusCapability`），最后在对应模块下创建 `Source/<模块>/Private/Capabilities/<分类>/NexusXxxCapability.h/.cpp`
+1. **先按 [CapabilitySpec.md](Resources/CapabilitySpec.md) §2.1.0 选模块**。可选插件的 Capability（当前是 UnLua）不进本插件，按 §2.1.2 放到 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)。本插件内：PIE/Game 活对象、不保存到磁盘 → `NexusLink` Runtime 模块；磁盘资产 / 编辑器 API / 保存到磁盘 → `NexusLinkEditor` 模块。再按 §2.1.1 **选基类**（`manage_*` + `operations[]` → `FNexusActionCapability`，子类禁止 `Execute`；`sections[]` → MultiSection；PIE/Game 运行时含 `get_output_log` / `exec_command` / `capture_viewport` → `FNexusRuntimeCapability`；其余 → `FNexusCapability`），最后在对应模块下创建 `Source/<模块>/Private/Capabilities/<分类>/NexusXxxCapability.h/.cpp`
 2. 实现该基类要求的钩子（Action：`BuildDefinition` + `RegisterActions` + `PrepareTarget`；普通：`BuildDefinition` + `Execute`）；资产 get/manage 须填 `Out.SearchAssetTypes`；`.cpp` 末尾 `REGISTER_MCP_CAPABILITY(...)`
 3. 遵循 CapabilitySpec（命名 / 四段式描述 / 自检清单）
 4. Capability 通过 `call_capability` 元工具直接调用，或在 MultiTool 模式下作为独立 MCP Tool 暴露

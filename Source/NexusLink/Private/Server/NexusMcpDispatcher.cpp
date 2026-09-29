@@ -13,6 +13,7 @@
 #include "Utils/NexusHostUtils.h"
 #include "Utils/NexusCapabilityIndexUtils.h"
 #include "Utils/NexusJsonUtils.h"
+#include "NexusInstructionRegistry.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Dom/JsonValue.h"
@@ -207,12 +208,29 @@ void FNexusMcpDispatcher::SendError(const TSharedPtr<FJsonValue>& Id, int32 Code
 	SendCallback(MakeJsonRpcError(Id, Code, Message));
 }
 
+/** 只读本插件 Resources 下的握手正文。扩展片段由 FNexusInstructionRegistry 提供。 */
+static FString LoadNexusLinkInstructions(const TCHAR* FileName)
+{
+	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("NexusLink"));
+	if (!Plugin.IsValid())
+	{
+		return FString();
+	}
+	const FString Path = FPaths::Combine(Plugin->GetBaseDir(), TEXT("Resources"), FileName);
+	FString Text;
+	if (!FFileHelper::LoadFileToString(Text, *Path))
+	{
+		return FString();
+	}
+	Text.TrimStartAndEndInline();
+	return Text;
+}
+
 /**
- * 读取 Plugin/Resources/InitializeInstructions[.MultiTool].md 并返回。
- * 按当前 ToolsListMode 选择对应文件：
- *   - SearchMode  → InitializeInstructions.md（完整路由表 + 调用规范）
- *   - MultiTool   → InitializeInstructions.MultiTool.md（精简全局约束）
- * 文件缺失时回退到最小占位符，保证握手不会失败。
+ * 按 ToolsListMode 选本插件说明，再接上已注册的扩展片段。
+ *   - SearchMode  → InitializeInstructions.SearchMode.md
+ *   - MultiTool   → InitializeInstructions.MultiTool.md
+ * 本插件文件缺失时回退到最小占位符，保证握手不会失败。
  */
 static FString BuildInitializeInstructions()
 {
@@ -223,19 +241,12 @@ static FString BuildInitializeInstructions()
 		? TEXT("InitializeInstructions.MultiTool.md")
 		: TEXT("InitializeInstructions.SearchMode.md");
 
-	FString Base;
-	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("NexusLink"));
-	if (Plugin.IsValid())
-	{
-		const FString Path = FPaths::Combine(
-			Plugin->GetBaseDir(), TEXT("Resources"), FileName);
-		FFileHelper::LoadFileToString(Base, *Path);
-	}
+	FString Base = LoadNexusLinkInstructions(FileName);
 	if (Base.IsEmpty())
 	{
 		Base = TEXT("NexusLink MCP: Unreal Editor + runtime control.");
 	}
-	return Base;
+	return FNexusInstructionRegistry::Get().Append(Base, bMultiTool);
 }
 
 void FNexusMcpDispatcher::HandleInitialize(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Params)
@@ -717,7 +728,7 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 	}
 	else if (Method == TEXT("nexus/instructions"))
 	{
-		// 返回 InitializeInstructions.md 内容，供 WS 通道的代理拼接到自身 initialize.instructions。
+		// 返回握手说明（本插件正文 + 已注册的扩展片段）。
 		// 不复用 MCP initialize：避免污染握手语义和状态机。
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 		Obj->SetStringField(TEXT("instructions"), BuildInitializeInstructions());

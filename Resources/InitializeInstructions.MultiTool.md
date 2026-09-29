@@ -1,4 +1,4 @@
-NexusLink MCP: Unreal Editor + runtime control (**MultiTool mode**).
+NexusLink MCP: Unreal Editor + runtime control (**MultiTool mode**). Registered extension fragments are appended after this text.
 
 > **Host note**: **MCP runs in the Editor binary, and in Development/DebugGame standalone Game/DS builds** (`NexusLink` module is `Type: Runtime`; `NexusLinkEditor` is `Type: Editor`; Shipping strips the server at compile time).
 
@@ -32,11 +32,11 @@ When connected to UE: **call MCP first** before answering blueprint/Widget/mater
 
 ## Parameter contract (Breaking)
 
-Same as SearchMode: no `assetPaths`/`actorNames`/`widgetNames`; manage only `operations[]`; get only `propertyPaths[]`; `newPath`→`destAssetPath`, `blueprintPath`→`assetPath`, `ownerWidget`→`ownerClass`, `filePath`→`scriptPath`, `classPath`→`className`. Legacy keys → `arg_invalid`. UnLua caps, when [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) is loaded, use `luaPath` / `scriptPath` (not `path` / `filePath`).
+Same as SearchMode: no `assetPaths`/`actorNames`/`widgetNames`; manage only `operations[]`; get only `propertyPaths[]`; `newPath`→`destAssetPath`, `blueprintPath`→`assetPath`, `ownerWidget`→`ownerClass`, `filePath`→`scriptPath`, `classPath`→`className`. Legacy keys → `arg_invalid`.
 
 ## Blueprint / GAS
 
-Same as SearchMode: `get_asset_blueprint` before graph edits; GAS graphs via `manage_asset_blueprint`; behavior trees save with `saveToDisk` or `save_asset` (`replace_node` for type changes, `sync_graph` for graph drift). manage optional `saveToDisk`; BP/ABP/WBP may pass `compile`. UnLua binding starts with `get_asset_lua_binding` only when NexusLinkExt is in `tools/list`.
+Same as SearchMode: `get_asset_blueprint` before graph edits; GAS graphs via `manage_asset_blueprint`; behavior trees save with `saveToDisk` or `save_asset` (`replace_node` for type changes, `sync_graph` for graph drift). manage optional `saveToDisk`; BP/ABP/WBP may pass `compile`.
 
 ## Hard rules
 

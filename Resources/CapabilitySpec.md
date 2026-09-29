@@ -69,7 +69,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 
 | 命中条件 | 落地模块 | 落地目录 |
 |------|------|------|
-| UnLua（Lua VM / 蓝图 `UnLuaInterface` 绑定） | 示例工程 `NexusLinkExt` / `NexusLinkExtEditor` | `Plugins/NexusLinkExt/Source/NexusLinkExt/Private/Capabilities/Lua/Runtime/` 与 `.../NexusLinkExtEditor/Private/Capabilities/Lua/Asset/` |
+| UnLua（Lua VM / 蓝图 `UnLuaInterface` 绑定） | `NexusLinkExt` / `NexusLinkExtEditor` | `Plugins/NexusLinkExt/Source/NexusLinkExt/Private/Capabilities/Lua/Runtime/` 与 `.../NexusLinkExtEditor/Private/Capabilities/Lua/Asset/` |
 | 操作对象是 **PIE/Game world 里的活对象**（Actor、Widget、ASC、Niagara 组件），只用引擎运行时 API 与反射，不落盘 | `NexusLink`（Runtime） | `Source/NexusLink/Private/Capabilities/Runtime/<域>/` |
 | 操作对象是**磁盘资产**，或需要 `UnrealEd` / `Kismet*` / `AssetTools` / `GEditor` / 编辑器事务 / 资产编译落盘 | `NexusLinkEditor`（Editor） | `Source/NexusLinkEditor/Private/Capabilities/<域>/` |
 | 两者都要 | 拆成两个 cap；确实无法拆时放 Editor 模块，并在描述里写明不支持独立 DS | 同上按拆分结果各自落位 |
@@ -90,6 +90,19 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 - 默认 `GetHostScope()=EditorOnly`；Runtime 基类会幂等补 `runtime` 分类标签
 - 插件门控 cap：`#if WITH_*` 包 class + `REGISTER_MCP_CAPABILITY`
 - **插件加载范围**：`NexusLink` 主模块 `Type: Runtime`（可进 cooked Game/DS），`NexusLinkEditor` 子模块 `Type: Editor`（仅编辑器二进制加载）；`REGISTER_MCP_CAPABILITY` / `REGISTER_MCP_TOOL` 由 `NEXUSLINK_WITH_SERVER`（`!UE_BUILD_SHIPPING`）门控——MCP 跑在 Editor / PIE / 非 Shipping 的独立 Game/DS。平台门控须同时写 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）
+
+#### 2.1.2 扩展插件（可选插件 Capability）
+
+依赖某个可选插件、而 NexusLink **不**探测该插件时，Capability 放进扩展插件，不放进 `NexusLink` / `NexusLinkEditor`。当前扩展插件是 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)。主插件不扫描扩展插件目录，只认下面两种注册。
+
+| 事项 | 规则 |
+|------|------|
+| 模块 | 只用已有的 `NexusLinkExt`（Runtime）与 `NexusLinkExtEditor`（Editor）。新域放 `Capabilities/<域>/`，不为此再加模块 |
+| 基类 | 仍按 §2.1.1。`.cpp` 末尾 `REGISTER_MCP_CAPABILITY`，与主插件同一张注册表 |
+| 门控宏 | `WITH_*` 只由**首次**链接该可选插件的模块写入 `PublicDefinitions`。另一模块再链接时不要重定义（C4005） |
+| 危险 | 在该 cap 的 `Out.Tags` 加上 `FNexusMcpTags::Dangerous`，并带 `write`。主插件按标签识别：默认禁用、确认框、`-NexusEnableDangerousCaps`。不要把名字写进 NexusLink |
+| 握手说明 | 扩展插件 `StartupModule` 读取自己的 `Resources/InitializeInstructions.SearchMode.md` 与 `InitializeInstructions.MultiTool.md`，调用 `FNexusInstructionRegistry::Get().Register(插件名, …)`。`ShutdownModule` 里 `Unregister`。片段只写本插件的 cap。主插件把已注册片段按名称接在自己的说明后面 |
+| 测试 | L1 放示例工程 `Plugins/NexusLinkExtTestSuite`（前缀 `NexusLinkExt.`），不进扩展插件仓 |
 
 `BuildDefinition` 中按需设置以下字段：
 

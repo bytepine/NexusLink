@@ -1,4 +1,4 @@
-NexusLink MCP: Unreal Editor + runtime control (assets / PIE / UMG / animation / AI / editor). UnLua Capabilities ship in [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) and appear in `search_capabilities` only when that plugin is loaded.
+NexusLink MCP: Unreal Editor + runtime control (assets / PIE / UMG / animation / AI / editor). Registered extension fragments are appended after this text.
 
 > Host note: **MCP runs in the Editor binary, and in Development/DebugGame standalone Game/DS builds** (`NexusLink` module is `Type: Runtime`; `NexusLinkEditor` is `Type: Editor`; Shipping strips the server at compile time). Trigger keywords are in the proxy `initializePrefix`.
 
@@ -46,8 +46,6 @@ Forbidden: `manage_animation`, `set_runtime_actor_animation`.
 
 **Runtime**: `{verb}_runtime_{target}[_aspect]` (`list`/`get`/`set`/`spawn`/`destroy`/`interact`/`diff`; target=`actor`/`widget`/`slate_widget`, actor may add `_property`/`_animation`/`_behavior_tree`/`_audio`/`_niagara`/`_ai`/`_ability_system`). Animation: read `get_runtime_actor_animation`, write `interact_runtime_actor_animation`. Non-pattern: `interact_runtime_widget`, `diff_runtime_actors`, `get_runtime_slate_widget`, `get_output_log` / `set_log_capture_filter`, `exec_command`, `capture_viewport`.
 
-**UnLua**: not in this plugin. [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) registers those capabilities when installed; discover with `search_capabilities` (e.g. `lua binding`). `eval_runtime_lua` / `dofile_runtime_lua` are dangerous and off by default. Table paths use `luaPath`; script paths use `scriptPath`.
-
 **Plugin-gated**: GAS / Niagara / StateTree / MVVM / EQS / MetaSound / PCG / ControlRig / Enhanced Input / Paper2D / GeometryCollection / CommonUI / Movie Render Queue / Python (`get_python_api` / `exec_python`) register only with matching plugin+engine; `search_capabilities` `not_found` → skip, do not hard-call handshake names. Tag queries: `get_gameplay_tags` is always available.
 
 **Editor**: `control_pie`, `control_movie_pipeline`, `search_console_variables`, `capture_editor_panel`, `get_editor_context` (selection + `current_map`), `get_editor_info`.
@@ -64,7 +62,7 @@ Forbidden: `manage_animation`, `set_runtime_actor_animation`.
 - `*_asset_*` = disk (Editor host); `*_runtime_*` needs PIE/Game (`hasPlayWorld`); Game/DS host (`hostKind` ≠ Editor) has no `get_asset_*`.
 - `search_asset`: no `assetType=all` + bare `/Game/`; then use `recommended*` + `path`.
 - `search_capabilities`: infer name from patterns above and pass `capabilityName` (full `parameters[]` once); otherwise narrow 1–2 word `query` (e.g. `blueprint variable`); `query=""` is name-only catalog; **do not** use `blueprint` / `asset` / `runtime` / `animation` alone (`query_too_broad`). On failure check `errorKind` / `suggestedQueries`; `not_found` with unregistered hint → do not retry same domain; on `call_capability` `disabled` or `user_denied` do not retry.
-- `get_runtime_actor_property` requires non-empty `actorName` (call `list_runtime_actors` first, after `control_pie`/`get_editor_info` `hasPlayWorld=true`); `exec_command` requires non-empty `command`. Dangerous caps (`exec_command` / `exec_python`, plus any `dangerous` cap registered by NexusLinkExt) in Confirm mode require `reason` (purpose, expected effect, why no safer dedicated cap); `confirmationRequired: true` on search details. Do not retry `user_denied`.
+- `get_runtime_actor_property` requires non-empty `actorName` (call `list_runtime_actors` first, after `control_pie`/`get_editor_info` `hasPlayWorld=true`); `exec_command` requires non-empty `command`. Caps tagged `dangerous` (`exec_command` / `exec_python`, and any later plugin that sets the same tag) in Confirm mode require `reason` (purpose, expected effect, why no safer dedicated cap); `confirmationRequired: true` on search details. Do not retry `user_denied`.
 - Unsure whether an `unreal.*` API exists on this engine version: call `get_python_api` first; do not guess UE5 APIs on UE4 (or vice versa).
 - `exec_python` writes are only undoable when they go through `obj.set_editor_property(...)` or an explicit `obj.modify()`; plain `obj.foo = x` is **not** recorded. Prefer the former, and check the returned `undoRecorded` — `false` means Ctrl+Z will not roll this back.
 - After `sections=["all"]`, no sub-section calls for 30s (`redundant_call`).

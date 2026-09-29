@@ -142,6 +142,8 @@ NexusLink 支持两种 `tools/list` 暴露模式，可在 Editor Preferences →
 | **SearchMode**（默认） | 3 个元工具 | `InitializeInstructions.SearchMode.md`（精简路由 / 硬规则） | AI 通过 `search_capabilities` 按需发现，降低每轮 tools/list token |
 | **MultiTool** | `submit_feedback` + 全部已启用 Capability（各作独立 MCP Tool） | `InitializeInstructions.MultiTool.md`（精简全局约束） | 需要客户端一次性枚举全部能力的场景 |
 
+已启用的扩展插件通过 `FNexusInstructionRegistry` 注册同名片段，握手时按名称接在正文后。未注册则不拼。
+
 MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮次**重新注入 prompt。固定开销粗估（以当时已注册 Capability 计、源码 schema 解析、chars÷4；不含 call 返回体与对话历史）：
 
 | 分量 | SearchMode | MultiTool | 差额 |

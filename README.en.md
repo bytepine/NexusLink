@@ -48,7 +48,7 @@ GAS / Niagara Capabilities are detected from the host project; NexusLink does **
 
 ## Optional-plugin Capabilities: [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)
 
-Capabilities for optional plugins such as UnLua are not in this repo. Install [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) and they register into the same MCP server; discover them with `search_capabilities`. The sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) mounts it as a submodule at `Plugins/NexusLinkExt`. Today Ext covers UnLua runtime debugging and Blueprint binding. `eval_runtime_lua` / `dofile_runtime_lua` are dangerous and disabled by default, same as the escape hatches below.
+Capabilities for optional plugins such as UnLua are not in this repo. Install [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) and they register into the same MCP server; discover them with `search_capabilities`. The sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) mounts it as a submodule at `Plugins/NexusLinkExt`. Ext is released on its own (`nexus-linkext-v*` tags, `nexus-mcp-ext-<ver>.zip`). Today Ext covers UnLua runtime debugging and Blueprint binding. `eval_runtime_lua` / `dofile_runtime_lua` are dangerous and disabled by default, same as the escape hatches below.
 
 ## Example project
 

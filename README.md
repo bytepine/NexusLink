@@ -48,7 +48,7 @@ GAS / Niagara 等 Capability 按宿主项目插件探测，NexusLink **不**在 
 
 ## 可选插件 Capability：[NexusLinkExt](https://github.com/bytepine/NexusLinkExt)
 
-UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) 后，它们注册进同一套 MCP，用 `search_capabilities` 发现。示例工程 [NexusUnreal](https://github.com/bytepine/NexusUnreal) 以子模块挂在 `Plugins/NexusLinkExt`。当前 Ext 提供 UnLua 运行时调试和蓝图绑定；其中 `eval_runtime_lua` / `dofile_runtime_lua` 与下面的脚本逃生舱一样默认禁用。
+UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) 后，它们注册进同一套 MCP，用 `search_capabilities` 发现。示例工程 [NexusUnreal](https://github.com/bytepine/NexusUnreal) 以子模块挂在 `Plugins/NexusLinkExt`。Ext 单独发版（tag `nexus-linkext-v*`，产物 `nexus-mcp-ext-<ver>.zip`）。当前 Ext 提供 UnLua 运行时调试和蓝图绑定；其中 `eval_runtime_lua` / `dofile_runtime_lua` 与下面的脚本逃生舱一样默认禁用。
 
 ## 示例工程
 
