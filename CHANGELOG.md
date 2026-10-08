@@ -7,13 +7,17 @@
 
 ## [Unreleased]
 
+## [2.2.0-beta.1] - 2026-10-08
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Added
 
 - feat(mcp): `get_output_log` 会话 `watch`（categories/textIncludes/textExcludes/verbosity）装上旁路缓冲（1000 条），操作后 `collectWatch=true` 只读这段；不写配置。连续相同日志合并为 `repeat`，旁路溢出返回 `dropped`
 
 ### Fixed
 
-- fix(mcp): 响应默认值压缩不再剥离工具已写入的 `*_defaults` 键（避免 `get_output_log` 把整页 Error 还原成 Warning）；高基数字段提前放弃；`search_asset` 的 `assetType` 改由自动压缩抽取
+- fix(mcp): 响应默认值压缩不再剥离工具已写入的 `*_defaults` 键（避免 `get_output_log` 把整页 Error 还原成 Warning）；高基数字段提前放弃；`search_asset` 的 `assetType` 改由自动压缩抽取。UE 5.8 上已有 `*_defaults` 的键按条目转成 `FString`（`Values` 键不再是 `FString`）
 
 ### Changed
 

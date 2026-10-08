@@ -482,7 +482,13 @@ static void AutoCompactRecursiveImpl(const TSharedPtr<FJsonObject>& Parent, int3
 		TArray<FString> ExistingKeys;
 		if (Parent->TryGetObjectField(DefaultsKey, ExistingPtr) && ExistingPtr && (*ExistingPtr).IsValid())
 		{
-			(*ExistingPtr)->Values.GetKeys(ExistingKeys);
+			const auto& ExistingValues = (*ExistingPtr)->Values;
+			ExistingKeys.Reserve(ExistingValues.Num());
+			// UE 5.8 Values 键是 FSharedString，GetKeys(TArray<FString>) 对不上；*Key 两边都是 TCHAR*
+			for (const auto& Pair : ExistingValues)
+			{
+				ExistingKeys.Add(FString(*Pair.Key));
+			}
 		}
 
 		FNexusResponseCompactorUtils Local;
