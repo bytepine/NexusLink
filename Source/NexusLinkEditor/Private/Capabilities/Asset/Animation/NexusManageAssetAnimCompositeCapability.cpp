@@ -61,6 +61,11 @@ static void MarkCompDirty(FNexusActionContext& Ctx)
 static void HandleComp_AddSegment(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UAnimComposite* Composite = CompFrom(Ctx);
+	if (!Composite)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("AnimComposite is null"));
+		return;
+	}
 	const FString AnimPath = FNexusArgs(Op).Str(TEXT("animPath"));
 	UAnimSequenceBase* AnimRef = AnimPath.IsEmpty()
 		? nullptr
@@ -106,6 +111,11 @@ static void HandleComp_AddSegment(const TSharedPtr<FJsonObject>& Op, FNexusActio
 static void HandleComp_RemoveSegment(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UAnimComposite* Composite = CompFrom(Ctx);
+	if (!Composite)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("AnimComposite is null"));
+		return;
+	}
 	if (!Op->HasField(TEXT("segmentIndex")))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_segment requires segmentIndex"));

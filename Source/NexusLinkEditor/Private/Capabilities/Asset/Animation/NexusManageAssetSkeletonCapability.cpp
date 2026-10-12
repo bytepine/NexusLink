@@ -90,6 +90,11 @@ static USkeletalMeshSocket* FindSkeletonSocket(USkeleton* Skeleton, const FName&
 static void HandleSkel_AddSocket(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	USkeleton* Skeleton = SkelFrom(Ctx);
+	if (!Skeleton)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Skeleton is null"));
+		return;
+	}
 	const FNexusArgs A(Op);
 	const FString SocketName = A.Str(TEXT("socketName"));
 	if (SocketName.IsEmpty())
@@ -127,6 +132,11 @@ static void HandleSkel_AddSocket(const TSharedPtr<FJsonObject>& Op, FNexusAction
 static void HandleSkel_RemoveSocket(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	USkeleton* Skeleton = SkelFrom(Ctx);
+	if (!Skeleton)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Skeleton is null"));
+		return;
+	}
 	const FString SocketName = FNexusArgs(Op).Str(TEXT("socketName"));
 	if (SocketName.IsEmpty())
 	{
@@ -157,6 +167,11 @@ static void HandleSkel_RemoveSocket(const TSharedPtr<FJsonObject>& Op, FNexusAct
 static void HandleSkel_ModifySocket(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	USkeleton* Skeleton = SkelFrom(Ctx);
+	if (!Skeleton)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Skeleton is null"));
+		return;
+	}
 	const FNexusArgs A(Op);
 	const FString SocketName = A.Str(TEXT("socketName"));
 	if (SocketName.IsEmpty())

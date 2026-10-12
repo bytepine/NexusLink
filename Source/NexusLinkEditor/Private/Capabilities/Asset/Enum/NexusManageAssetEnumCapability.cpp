@@ -63,6 +63,11 @@ static void HandleEnum_AddEntry(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 {
 	(void)Op;
 	UUserDefinedEnum* Enum = EnumFrom(Ctx);
+	if (!Enum)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("UserDefinedEnum is null"));
+		return;
+	}
 	FEnumEditorUtils::AddNewEnumeratorForUserDefinedEnum(Enum);
 	Ctx.Entry->SetNumberField(TEXT("newIndex"), Enum->NumEnums() - 2); // 最新项（-2：跳 _MAX）
 	MarkEnumDirty(Ctx);
@@ -71,6 +76,11 @@ static void HandleEnum_AddEntry(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 static void HandleEnum_RemoveEntry(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UUserDefinedEnum* Enum = EnumFrom(Ctx);
+	if (!Enum)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("UserDefinedEnum is null"));
+		return;
+	}
 	if (!Op->HasField(TEXT("index")))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_entry requires index"));
@@ -91,6 +101,11 @@ static void HandleEnum_RemoveEntry(const TSharedPtr<FJsonObject>& Op, FNexusActi
 static void HandleEnum_SetDisplayName(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UUserDefinedEnum* Enum = EnumFrom(Ctx);
+	if (!Enum)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("UserDefinedEnum is null"));
+		return;
+	}
 	if (!Op->HasField(TEXT("index")) || !Op->HasField(TEXT("displayName")))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_display_name requires index and displayName"));

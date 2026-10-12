@@ -56,6 +56,11 @@ static void MarkPSDirty(FNexusActionContext& Ctx)
 static void HandlePS_SetSchema(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPoseSearchDatabase* DB = PSFrom(Ctx);
+	if (!DB)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PoseSearchDatabase is null"));
+		return;
+	}
 	FString SchemaPath;
 	Op->TryGetStringField(TEXT("schemaPath"), SchemaPath);
 	if (SchemaPath.IsEmpty())
@@ -78,6 +83,11 @@ static void HandlePS_SetSchema(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 static void HandlePS_AddTag(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPoseSearchDatabase* DB = PSFrom(Ctx);
+	if (!DB)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PoseSearchDatabase is null"));
+		return;
+	}
 	FString TagStr;
 	Op->TryGetStringField(TEXT("tag"), TagStr);
 	if (TagStr.IsEmpty())
@@ -97,6 +107,11 @@ static void HandlePS_AddTag(const TSharedPtr<FJsonObject>& Op, FNexusActionConte
 static void HandlePS_RemoveTag(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPoseSearchDatabase* DB = PSFrom(Ctx);
+	if (!DB)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PoseSearchDatabase is null"));
+		return;
+	}
 	FString TagStr;
 	Op->TryGetStringField(TEXT("tag"), TagStr);
 	const FName TagName(*TagStr);

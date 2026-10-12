@@ -79,6 +79,11 @@ static FString RequireParamName(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 static void HandleMPC_AddScalar(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMaterialParameterCollection* MPC = MPCFrom(Ctx);
+	if (!MPC)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("MaterialParameterCollection is null"));
+		return;
+	}
 	const FString ParamName = RequireParamName(Op, Ctx, TEXT("add_scalar requires paramName"));
 	if (ParamName.IsEmpty()) return;
 	const bool bExists = MPC->ScalarParameters.ContainsByPredicate(
@@ -100,6 +105,11 @@ static void HandleMPC_AddScalar(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 static void HandleMPC_AddVector(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMaterialParameterCollection* MPC = MPCFrom(Ctx);
+	if (!MPC)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("MaterialParameterCollection is null"));
+		return;
+	}
 	const FString ParamName = RequireParamName(Op, Ctx, TEXT("add_vector requires paramName"));
 	if (ParamName.IsEmpty()) return;
 	const bool bExists = MPC->VectorParameters.ContainsByPredicate(
@@ -126,6 +136,11 @@ static void HandleMPC_AddVector(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 static void HandleMPC_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMaterialParameterCollection* MPC = MPCFrom(Ctx);
+	if (!MPC)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("MaterialParameterCollection is null"));
+		return;
+	}
 	const FString ParamName = RequireParamName(Op, Ctx, TEXT("remove requires paramName"));
 	if (ParamName.IsEmpty()) return;
 	const int32 SBefore = MPC->ScalarParameters.Num();
@@ -142,6 +157,11 @@ static void HandleMPC_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 static void HandleMPC_SetScalarDefault(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMaterialParameterCollection* MPC = MPCFrom(Ctx);
+	if (!MPC)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("MaterialParameterCollection is null"));
+		return;
+	}
 	const FString ParamName = RequireParamName(Op, Ctx, TEXT("set_scalar_default requires paramName"));
 	if (ParamName.IsEmpty()) return;
 	FCollectionScalarParameter* Found = MPC->ScalarParameters.FindByPredicate(
@@ -160,6 +180,11 @@ static void HandleMPC_SetScalarDefault(const TSharedPtr<FJsonObject>& Op, FNexus
 static void HandleMPC_SetVectorDefault(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMaterialParameterCollection* MPC = MPCFrom(Ctx);
+	if (!MPC)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("MaterialParameterCollection is null"));
+		return;
+	}
 	const FString ParamName = RequireParamName(Op, Ctx, TEXT("set_vector_default requires paramName"));
 	if (ParamName.IsEmpty()) return;
 	FCollectionVectorParameter* Found = MPC->VectorParameters.FindByPredicate(

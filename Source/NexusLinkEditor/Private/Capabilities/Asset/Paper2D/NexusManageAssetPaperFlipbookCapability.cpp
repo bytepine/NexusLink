@@ -62,6 +62,11 @@ static void MarkFlipDirty(FNexusActionContext& Ctx)
 static void HandleFlip_AddKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPaperFlipbook* Book = FlipFrom(Ctx);
+	if (!Book)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperFlipbook is null"));
+		return;
+	}
 	FPaperFlipbookKeyFrame Kf;
 	Kf.FrameRun = Op->HasField(TEXT("frameRun")) ? static_cast<int32>(Op->GetNumberField(TEXT("frameRun"))) : 1;
 	FString SpritePath;
@@ -80,6 +85,11 @@ static void HandleFlip_AddKey(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 static void HandleFlip_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPaperFlipbook* Book = FlipFrom(Ctx);
+	if (!Book)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperFlipbook is null"));
+		return;
+	}
 	if (!Op->HasField(TEXT("keyIndex")))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_key requires keyIndex"));
@@ -102,6 +112,11 @@ static void HandleFlip_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusAction
 static void HandleFlip_SetFPS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPaperFlipbook* Book = FlipFrom(Ctx);
+	if (!Book)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperFlipbook is null"));
+		return;
+	}
 	if (!Op->HasField(TEXT("framesPerSecond")))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_frames_per_second requires framesPerSecond"));

@@ -102,6 +102,11 @@ static bool RequireFieldName(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 static void HandleUDS_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UUserDefinedStruct* Struct = UDSFrom(Ctx);
+	if (!Struct)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("UserDefinedStruct is null"));
+		return;
+	}
 	FString FieldName;
 	if (!RequireFieldName(Op, Ctx, FieldName)) return;
 	const FGuid Target = FindUDSFieldGuid(Struct, FieldName);
@@ -121,6 +126,11 @@ static void HandleUDS_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 static void HandleUDS_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UUserDefinedStruct* Struct = UDSFrom(Ctx);
+	if (!Struct)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("UserDefinedStruct is null"));
+		return;
+	}
 	FString FieldName;
 	if (!RequireFieldName(Op, Ctx, FieldName)) return;
 	if (!Op->HasField(TEXT("fieldType")))
@@ -154,6 +164,11 @@ static void HandleUDS_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 static void HandleUDS_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UUserDefinedStruct* Struct = UDSFrom(Ctx);
+	if (!Struct)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("UserDefinedStruct is null"));
+		return;
+	}
 	FString FieldName;
 	if (!RequireFieldName(Op, Ctx, FieldName)) return;
 	const FGuid Target = FindUDSFieldGuid(Struct, FieldName);

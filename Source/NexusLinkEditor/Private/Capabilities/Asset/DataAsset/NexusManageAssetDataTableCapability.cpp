@@ -98,6 +98,11 @@ static bool RequireRowName(const TSharedPtr<FJsonObject>& Op, FNexusActionContex
 static void HandleDT_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UDataTable* DT = DTFrom(Ctx);
+	if (!DT)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataTable is null"));
+		return;
+	}
 	FString RowName;
 	if (!RequireRowName(Op, Ctx, RowName)) return;
 
@@ -156,6 +161,11 @@ static void HandleDT_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 static void HandleDT_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UDataTable* DT = DTFrom(Ctx);
+	if (!DT)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataTable is null"));
+		return;
+	}
 	FString RowName;
 	if (!RequireRowName(Op, Ctx, RowName)) return;
 
@@ -172,6 +182,11 @@ static void HandleDT_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionConte
 static void HandleDT_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UDataTable* DT = DTFrom(Ctx);
+	if (!DT)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataTable is null"));
+		return;
+	}
 	FString RowName;
 	if (!RequireRowName(Op, Ctx, RowName)) return;
 

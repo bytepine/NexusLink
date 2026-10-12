@@ -68,6 +68,11 @@ static void MarkIMCDirty(FNexusActionContext& Ctx)
 static void HandleIMC_AddMapping(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UInputMappingContext* IMC = IMCFrom(Ctx);
+	if (!IMC)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputMappingContext is null"));
+		return;
+	}
 	FString ActionPath, KeyName;
 	if (!Op->TryGetStringField(TEXT("actionPath"), ActionPath) || !Op->TryGetStringField(TEXT("key"), KeyName))
 	{
@@ -88,6 +93,11 @@ static void HandleIMC_AddMapping(const TSharedPtr<FJsonObject>& Op, FNexusAction
 static void HandleIMC_RemoveMapping(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UInputMappingContext* IMC = IMCFrom(Ctx);
+	if (!IMC)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputMappingContext is null"));
+		return;
+	}
 	FString ActionPath, KeyName;
 	const bool bHasAction = Op->TryGetStringField(TEXT("actionPath"), ActionPath);
 	const bool bHasKey    = Op->TryGetStringField(TEXT("key"), KeyName);
@@ -136,6 +146,11 @@ static void HandleIMC_ClearMappings(const TSharedPtr<FJsonObject>& Op, FNexusAct
 {
 	(void)Op;
 	UInputMappingContext* IMC = IMCFrom(Ctx);
+	if (!IMC)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputMappingContext is null"));
+		return;
+	}
 	const int32 Count = IMC->GetMappings().Num();
 	IMC->UnmapAll();
 	Ctx.Entry->SetNumberField(TEXT("clearedCount"), Count);

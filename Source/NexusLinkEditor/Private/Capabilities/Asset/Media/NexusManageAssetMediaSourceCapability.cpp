@@ -58,6 +58,11 @@ static void MarkMSDirty(FNexusActionContext& Ctx)
 static void HandleMS_SetFilePath(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UFileMediaSource* Source = MSFrom(Ctx);
+	if (!Source)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("FileMediaSource is null"));
+		return;
+	}
 	FString FilePath;
 	if (!Op->TryGetStringField(TEXT("mediaPath"), FilePath) || FilePath.IsEmpty())
 	{

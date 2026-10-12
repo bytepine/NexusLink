@@ -114,6 +114,11 @@ static UScriptStruct* FindStateTreeNodeStruct(const FString& NodeType)
 static void HandleST_AddState(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UStateTreeEditorData* EdData = EdFrom(Ctx);
+	if (!EdData)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("StateTreeEditorData is null"));
+		return;
+	}
 	const FNexusArgs A(Op);
 	const FString StateName = A.Str(TEXT("stateName"));
 	if (StateName.IsEmpty())
@@ -155,6 +160,11 @@ static void HandleST_AddState(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 static void HandleST_RemoveState(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UStateTreeEditorData* EdData = EdFrom(Ctx);
+	if (!EdData)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("StateTreeEditorData is null"));
+		return;
+	}
 	const FString StateName = FNexusArgs(Op).Str(TEXT("stateName"));
 	if (StateName.IsEmpty())
 	{

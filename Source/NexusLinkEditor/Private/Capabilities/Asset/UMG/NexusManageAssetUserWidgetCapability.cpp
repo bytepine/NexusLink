@@ -101,6 +101,11 @@ static void MarkWBPMutated(FNexusActionContext& Ctx)
 static void HandleWBP_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	if (!WBP)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("WidgetBlueprint is null"));
+		return;
+	}
 	const FString WidgetName = FNexusArgs(Op).Str(TEXT("widgetName"));
 	if (WidgetName.IsEmpty())
 	{
@@ -129,6 +134,11 @@ static void HandleWBP_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 static void HandleWBP_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	if (!WBP)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("WidgetBlueprint is null"));
+		return;
+	}
 	const FNexusArgs A(Op);
 	const FString WidgetClass = A.Str(TEXT("widgetClass"));
 	if (WidgetClass.IsEmpty())
@@ -190,6 +200,11 @@ static void HandleWBP_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 static void HandleWBP_SetSlot(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	if (!WBP)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("WidgetBlueprint is null"));
+		return;
+	}
 	const FString WidgetName = FNexusArgs(Op).Str(TEXT("widgetName"));
 	if (WidgetName.IsEmpty())
 	{
@@ -217,6 +232,11 @@ static void HandleWBP_SetSlot(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 static void HandleWBP_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	if (!WBP)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("WidgetBlueprint is null"));
+		return;
+	}
 	const FNexusArgs A(Op);
 	const FString WidgetName = A.Str(TEXT("widgetName"));
 	const FString PropPath = A.Str(TEXT("propertyPath"));

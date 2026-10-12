@@ -61,6 +61,11 @@ static void MarkGCDirty(FNexusActionContext& Ctx)
 static void HandleGC_SetDamageThreshold(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UGeometryCollection* GC = GCFrom(Ctx);
+	if (!GC)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("GeometryCollection is null"));
+		return;
+	}
 	if (!Op->HasField(TEXT("value")))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_damage_threshold requires value"));

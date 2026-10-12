@@ -61,6 +61,11 @@ static void MarkSpriteDirty(FNexusActionContext& Ctx)
 static void HandleSprite_SetSource(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPaperSprite* Sprite = SpriteFrom(Ctx);
+	if (!Sprite)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperSprite is null"));
+		return;
+	}
 	FString TexPath;
 	if (!Op->TryGetStringField(TEXT("sourceTexturePath"), TexPath) || TexPath.IsEmpty())
 	{
@@ -83,6 +88,11 @@ static void HandleSprite_SetSource(const TSharedPtr<FJsonObject>& Op, FNexusActi
 static void HandleSprite_SetPivot(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPaperSprite* Sprite = SpriteFrom(Ctx);
+	if (!Sprite)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperSprite is null"));
+		return;
+	}
 	FVector2D Pivot = Sprite->GetPivotPosition();
 	if (Op->HasField(TEXT("pivotX"))) Pivot.X = static_cast<float>(Op->GetNumberField(TEXT("pivotX")));
 	if (Op->HasField(TEXT("pivotY"))) Pivot.Y = static_cast<float>(Op->GetNumberField(TEXT("pivotY")));

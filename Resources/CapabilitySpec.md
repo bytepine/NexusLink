@@ -448,6 +448,7 @@ public:
 - 运行时 World 获取禁止手写 null 检查链——改用 `FNexusRuntimeUtils::RequirePlayWorld(OutError)`。
 - 新建资产 finalize 禁止手写 `MarkPackageDirty` + `AssetCreated` + Save 五件套——改用对应 `FNexusAssetUtils` 接口。
 - 带 `operations[]` 的新增 `manage_*` **必须**继承 `FNexusActionCapability`（`RegisterActions` 静态分派），禁止手写 `ExtractOperations` 循环壳；读参走 `FNexusArgs`。
+- 函数返回的指针，解引用前**必须**判空。`XxxFrom(Ctx)`、`LoadObject` 等只要有 `nullptr` 返回路径，调用方在 `->` 之前要判空：Action handler 写 `Ctx.Entry` 的 `error` 后 `return`；返回指针的 helper 则 `return nullptr`。`if (T* P = Foo())` 包住后续 `->` 同样满足。只在 helper 里 `return nullptr`、调用方直接 `->`，静态检查仍会报。
 
 ### 8.10 提交前自检（6 条）
 

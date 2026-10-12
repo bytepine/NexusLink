@@ -76,6 +76,11 @@ static void MarkTileMapDirty(FNexusActionContext& Ctx)
 static UPaperTileLayer* ResolveLayerCell(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, int32& OutLayerIdx, int32& OutX, int32& OutY)
 {
 	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Map)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperTileMap is null"));
+		return nullptr;
+	}
 	if (!Op->HasField(TEXT("layerIndex")) || !Op->HasField(TEXT("x")) || !Op->HasField(TEXT("y")))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_cell/clear_cell requires layerIndex、x、y"));
@@ -101,6 +106,11 @@ static UPaperTileLayer* ResolveLayerCell(const TSharedPtr<FJsonObject>& Op, FNex
 static void HandlePTM_SetMapSize(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Map)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperTileMap is null"));
+		return;
+	}
 	if (!Op->HasField(TEXT("mapWidth")) || !Op->HasField(TEXT("mapHeight")))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_map_size requires mapWidth and mapHeight"));
@@ -117,6 +127,11 @@ static void HandlePTM_SetMapSize(const TSharedPtr<FJsonObject>& Op, FNexusAction
 static void HandlePTM_SetTileSize(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Map)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperTileMap is null"));
+		return;
+	}
 	if (!Op->HasField(TEXT("tileWidth")) && !Op->HasField(TEXT("tileHeight")))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_tile_size requires tileWidth and/or tileHeight"));
@@ -138,6 +153,11 @@ static void HandlePTM_SetTileSize(const TSharedPtr<FJsonObject>& Op, FNexusActio
 static void HandlePTM_SetTileset(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Map)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperTileMap is null"));
+		return;
+	}
 	const FString TileSetPath = FNexusArgs(Op).Str(TEXT("tileSetPath"));
 	if (TileSetPath.IsEmpty())
 	{
@@ -158,6 +178,11 @@ static void HandlePTM_SetTileset(const TSharedPtr<FJsonObject>& Op, FNexusAction
 static void HandlePTM_AddLayer(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Map)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperTileMap is null"));
+		return;
+	}
 	UPaperTileLayer* Layer = Map->AddNewLayer();
 	if (!Layer)
 	{
@@ -178,6 +203,11 @@ static void HandlePTM_AddLayer(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 static void HandlePTM_RemoveLayer(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Map)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperTileMap is null"));
+		return;
+	}
 	if (!Op->HasField(TEXT("layerIndex")))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_layer requires layerIndex"));
@@ -212,6 +242,11 @@ static void HandlePTM_RemoveLayer(const TSharedPtr<FJsonObject>& Op, FNexusActio
 static void HandlePTM_SetLayerName(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Map)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperTileMap is null"));
+		return;
+	}
 	if (!Op->HasField(TEXT("layerIndex")) || !Op->HasField(TEXT("layerName")))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_layer_name requires layerIndex and layerName"));
@@ -233,6 +268,11 @@ static void HandlePTM_SetLayerName(const TSharedPtr<FJsonObject>& Op, FNexusActi
 static void HandlePTM_SetCell(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPaperTileMap* Map = TileMapFrom(Ctx);
+	if (!Map)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperTileMap is null"));
+		return;
+	}
 	int32 LayerIdx = 0, X = 0, Y = 0;
 	UPaperTileLayer* Layer = ResolveLayerCell(Op, Ctx, LayerIdx, X, Y);
 	if (!Layer) return;

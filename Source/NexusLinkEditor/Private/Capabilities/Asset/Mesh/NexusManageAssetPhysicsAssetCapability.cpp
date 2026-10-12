@@ -109,6 +109,11 @@ static USkeletalBodySetup* GetOrCreateBody(UPhysicsAsset* PA, const FString& Bon
 static void HandlePA_SetPhysicsType(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPhysicsAsset* PA = PAFrom(Ctx);
+	if (!PA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PhysicsAsset is null"));
+		return;
+	}
 	const FNexusArgs A(Op);
 	const FString BoneName = A.Str(TEXT("boneName"));
 	USkeletalBodySetup* BS = GetOrCreateBody(PA, BoneName);
@@ -125,6 +130,11 @@ static void HandlePA_SetPhysicsType(const TSharedPtr<FJsonObject>& Op, FNexusAct
 static void HandlePA_AddSphere(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPhysicsAsset* PA = PAFrom(Ctx);
+	if (!PA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PhysicsAsset is null"));
+		return;
+	}
 	const FNexusArgs A(Op);
 	USkeletalBodySetup* BS = GetOrCreateBody(PA, A.Str(TEXT("boneName")));
 	FKSphereElem Sphere;
@@ -138,6 +148,11 @@ static void HandlePA_AddSphere(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 static void HandlePA_AddCapsule(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPhysicsAsset* PA = PAFrom(Ctx);
+	if (!PA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PhysicsAsset is null"));
+		return;
+	}
 	const FNexusArgs A(Op);
 	USkeletalBodySetup* BS = GetOrCreateBody(PA, A.Str(TEXT("boneName")));
 	FKSphylElem Capsule;
@@ -152,6 +167,11 @@ static void HandlePA_AddCapsule(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 static void HandlePA_AddBox(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPhysicsAsset* PA = PAFrom(Ctx);
+	if (!PA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PhysicsAsset is null"));
+		return;
+	}
 	const FNexusArgs A(Op);
 	USkeletalBodySetup* BS = GetOrCreateBody(PA, A.Str(TEXT("boneName")));
 	FKBoxElem Box;
@@ -168,6 +188,11 @@ static void HandlePA_AddBox(const TSharedPtr<FJsonObject>& Op, FNexusActionConte
 static void HandlePA_ClearShapes(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPhysicsAsset* PA = PAFrom(Ctx);
+	if (!PA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PhysicsAsset is null"));
+		return;
+	}
 	const FString BoneName = FNexusArgs(Op).Str(TEXT("boneName"));
 	USkeletalBodySetup* BS = FindBodyByBone(PA, BoneName);
 	if (!BS)
@@ -185,6 +210,11 @@ static void HandlePA_ClearShapes(const TSharedPtr<FJsonObject>& Op, FNexusAction
 static void HandlePA_AddConstraint(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPhysicsAsset* PA = PAFrom(Ctx);
+	if (!PA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PhysicsAsset is null"));
+		return;
+	}
 	FString Bone1, Bone2;
 	if (!Op->TryGetStringField(TEXT("bone1"), Bone1) || !Op->TryGetStringField(TEXT("bone2"), Bone2))
 	{
@@ -203,6 +233,11 @@ static void HandlePA_AddConstraint(const TSharedPtr<FJsonObject>& Op, FNexusActi
 static void HandlePA_RemoveConstraint(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPhysicsAsset* PA = PAFrom(Ctx);
+	if (!PA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PhysicsAsset is null"));
+		return;
+	}
 	FString JointName;
 	Op->TryGetStringField(TEXT("jointName"), JointName);
 	const int32 Before = PA->ConstraintSetup.Num();

@@ -57,6 +57,11 @@ static void MarkDLDirty(FNexusActionContext& Ctx)
 static void HandleDL_SetType(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UDataLayerAsset* DLA = DLFrom(Ctx);
+	if (!DLA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataLayerAsset is null"));
+		return;
+	}
 	FString TypeStr;
 	Op->TryGetStringField(TEXT("type"), TypeStr);
 	EDataLayerType LayerType = EDataLayerType::Runtime;
@@ -70,6 +75,11 @@ static void HandleDL_SetType(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 static void HandleDL_SetDebugColor(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UDataLayerAsset* DLA = DLFrom(Ctx);
+	if (!DLA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataLayerAsset is null"));
+		return;
+	}
 	FString ColorStr;
 	Op->TryGetStringField(TEXT("color"), ColorStr);
 	if (ColorStr.IsEmpty())

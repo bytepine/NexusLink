@@ -89,6 +89,11 @@ static FProperty* ResolveDAProp(UDataAsset* DA, const TSharedPtr<FJsonObject>& O
 static void HandleDA_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UDataAsset* DA = DAFrom(Ctx);
+	if (!DA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataAsset is null"));
+		return;
+	}
 	FProperty* Prop = ResolveDAProp(DA, Op, Ctx);
 	if (!Prop) return;
 	void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(DA);
@@ -110,6 +115,11 @@ static void HandleDA_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 static void HandleDA_Reset(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UDataAsset* DA = DAFrom(Ctx);
+	if (!DA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataAsset is null"));
+		return;
+	}
 	FProperty* Prop = ResolveDAProp(DA, Op, Ctx);
 	if (!Prop) return;
 	void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(DA);

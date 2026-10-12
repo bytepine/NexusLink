@@ -87,6 +87,11 @@ static void HandleFol_SetMesh(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 static void HandleFol_SetDensity(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UFoliageType* Type = FolFrom(Ctx);
+	if (!Type)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("FoliageType is null"));
+		return;
+	}
 	if (!Op->HasField(TEXT("density")))
 	{
 		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_density requires density"));

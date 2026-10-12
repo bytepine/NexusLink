@@ -71,6 +71,11 @@ static FString RequireSTKey(const TSharedPtr<FJsonObject>& Op, FNexusActionConte
 static void HandleST_AddOrSetSource(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UStringTable* Table = STFrom(Ctx);
+	if (!Table)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("StringTable is null"));
+		return;
+	}
 	const FString Key = RequireSTKey(Op, Ctx);
 	if (Key.IsEmpty()) return;
 	FString Source;
@@ -94,6 +99,11 @@ static void HandleST_AddOrSetSource(const TSharedPtr<FJsonObject>& Op, FNexusAct
 static void HandleST_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UStringTable* Table = STFrom(Ctx);
+	if (!Table)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("StringTable is null"));
+		return;
+	}
 	const FString Key = RequireSTKey(Op, Ctx);
 	if (Key.IsEmpty()) return;
 	Table->GetMutableStringTable()->RemoveSourceString(Key);

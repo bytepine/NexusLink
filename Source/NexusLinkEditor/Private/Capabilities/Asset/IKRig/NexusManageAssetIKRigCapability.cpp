@@ -83,6 +83,11 @@ static void MarkIKDirty(FNexusActionContext& Ctx)
 static void HandleIK_SetPreviewMesh(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UIKRigDefinition* IKRig = IKFrom(Ctx);
+	if (!IKRig)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("IKRigDefinition is null"));
+		return;
+	}
 	const FString MeshPath = FNexusArgs(Op).Str(TEXT("meshPath"));
 	if (MeshPath.IsEmpty())
 	{
@@ -136,6 +141,11 @@ static void HandleIK_SetSolverEnabled(const TSharedPtr<FJsonObject>& Op, FNexusA
 	}
 #else
 	UIKRigDefinition* IKRig = IKFrom(Ctx);
+	if (!IKRig)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("IKRigDefinition is null"));
+		return;
+	}
 	const TArray<UIKRigSolver*>& Solvers = IKRig->GetSolverArray();
 	if (!Solvers.IsValidIndex(SolverIdx))
 	{

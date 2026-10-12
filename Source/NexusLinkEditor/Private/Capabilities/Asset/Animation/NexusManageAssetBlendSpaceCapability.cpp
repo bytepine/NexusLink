@@ -82,6 +82,11 @@ static void MarkBSDirty(FNexusActionContext& Ctx)
 static void HandleBS_SetAxis(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UBlendSpace* BS = BSFrom(Ctx);
+	if (!BS)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("BlendSpace is null"));
+		return;
+	}
 	int32 AxisIdx = 0;
 	if (Op->HasField(TEXT("axisIndex")))
 		AxisIdx = static_cast<int32>(Op->GetNumberField(TEXT("axisIndex")));

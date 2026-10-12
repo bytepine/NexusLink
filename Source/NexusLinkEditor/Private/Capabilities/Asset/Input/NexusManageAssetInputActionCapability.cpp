@@ -92,6 +92,11 @@ static void MarkIADirty(FNexusActionContext& Ctx)
 static void HandleIA_SetValueType(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UInputAction* IA = IAFrom(Ctx);
+	if (!IA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputAction is null"));
+		return;
+	}
 	FString VT;
 	if (!Op->TryGetStringField(TEXT("valueType"), VT))
 	{
@@ -112,6 +117,11 @@ static void HandleIA_SetValueType(const TSharedPtr<FJsonObject>& Op, FNexusActio
 static void HandleIA_AddTrigger(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UInputAction* IA = IAFrom(Ctx);
+	if (!IA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputAction is null"));
+		return;
+	}
 	FString ClassName;
 	if (!Op->TryGetStringField(TEXT("className"), ClassName))
 	{
@@ -133,6 +143,11 @@ static void HandleIA_AddTrigger(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 static void HandleIA_RemoveTrigger(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UInputAction* IA = IAFrom(Ctx);
+	if (!IA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputAction is null"));
+		return;
+	}
 	FString ClassName;
 	if (!Op->TryGetStringField(TEXT("className"), ClassName))
 	{
@@ -152,6 +167,11 @@ static void HandleIA_RemoveTrigger(const TSharedPtr<FJsonObject>& Op, FNexusActi
 static void HandleIA_AddModifier(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UInputAction* IA = IAFrom(Ctx);
+	if (!IA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputAction is null"));
+		return;
+	}
 	FString ClassName;
 	if (!Op->TryGetStringField(TEXT("className"), ClassName))
 	{
@@ -173,6 +193,11 @@ static void HandleIA_AddModifier(const TSharedPtr<FJsonObject>& Op, FNexusAction
 static void HandleIA_RemoveModifier(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UInputAction* IA = IAFrom(Ctx);
+	if (!IA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputAction is null"));
+		return;
+	}
 	FString ClassName;
 	if (!Op->TryGetStringField(TEXT("className"), ClassName))
 	{
@@ -192,6 +217,11 @@ static void HandleIA_RemoveModifier(const TSharedPtr<FJsonObject>& Op, FNexusAct
 static void HandleIA_SetFlags(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UInputAction* IA = IAFrom(Ctx);
+	if (!IA)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputAction is null"));
+		return;
+	}
 	bool bConsumeVal;
 	if (Op->TryGetBoolField(TEXT("consumesInput"), bConsumeVal))
 	{

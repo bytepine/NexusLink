@@ -74,6 +74,11 @@ static void MarkIKRDirty(FNexusActionContext& Ctx)
 static void HandleIKR_SetRig(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, bool bSource)
 {
 	UIKRetargeter* Retargeter = IKRFrom(Ctx);
+	if (!Retargeter)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("IKRetargeter is null"));
+		return;
+	}
 	const FString RigPath = FNexusArgs(Op).Str(TEXT("rigPath"));
 	if (RigPath.IsEmpty())
 	{
@@ -115,6 +120,11 @@ static void HandleIKR_SetTargetRig(const TSharedPtr<FJsonObject>& Op, FNexusActi
 static void HandleIKR_SetChainSource(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UIKRetargeter* Retargeter = IKRFrom(Ctx);
+	if (!Retargeter)
+	{
+		Ctx.Entry->SetStringField(TEXT("error"), TEXT("IKRetargeter is null"));
+		return;
+	}
 	const FNexusArgs A(Op);
 	const FString TargetChain = A.Str(TEXT("targetChain"));
 	const FString SourceChain = A.Str(TEXT("sourceChain"));
