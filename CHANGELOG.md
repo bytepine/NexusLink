@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [2.2.0-beta.2] - 2026-10-12
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Fixed
 
 - fix(mcp): `manage_asset_*` 在目标资产为空时写入 error 并返回，不再解引用空指针。CapabilitySpec §8.9 要求函数返回的指针在解引用前判空
