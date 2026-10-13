@@ -7,9 +7,24 @@
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-13
+
+### Added
+
+- feat(mcp): `get_output_log` 会话 `watch`（categories / textIncludes / textExcludes / verbosity）旁路缓冲 1000 条；操作后 `collectWatch=true` 只读这段，不写配置。连续相同日志合并为 `repeat`，溢出返回 `dropped`
+
 ### Changed
 
-- MultiTool 的 `tools/list` 在启用集、列表模式和危险 Capability 访问没变时复用上次结果。未超过慢调用阈值的成功 `tools/call` 日志改为 Verbose，出错和慢调用仍按原级别记录。`search_asset` 在 `assetType=all` 时 GAS 蓝图复用同一次 Blueprint 查询，返回内容不变；`UserDefinedEnum` 可用别名 `userdefinedenum`
+- UnLua 的 14 个 Capability 与 `FNexusLuaUtils` 移到 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)（`NexusLinkExt` / `NexusLinkExtEditor`）。本插件不再探测 `WITH_UNLUA`。握手说明只拼已注册片段。工具目录不再收录这些 Capability。UnLua L1 在示例工程 `NexusLinkExtTestSuite`。NexusLinkExt 单独发版（tag `nexus-linkext-v*`）
+- 代理写门控 `always` 按当前 MCP 会话记住
+- 说明和界面使用「身份验证」「写入前确认」
+- MultiTool 的 `tools/list` 在启用集、列表模式和危险 Capability 访问没变时复用上次结果。未超过慢调用阈值的成功 `tools/call` 记 Verbose；出错和慢调用仍按原级别
+
+### Fixed
+
+- `manage_asset_*` 目标资产为空时返回 error
+- 响应默认值压缩保留工具已写入的 `*_defaults`。UE 5.8 上这些键按条目转成 `FString`
+- `search_asset` 接受 `userdefinedenum` 作为 `UserDefinedEnum` 的类型名
 
 ## [2.2.0-beta.2] - 2026-10-12
 
