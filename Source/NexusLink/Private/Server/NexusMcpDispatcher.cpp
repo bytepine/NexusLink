@@ -1,6 +1,7 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
 #include "Server/NexusMcpDispatcher.h"
+#include "Server/NexusToolsListCache.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Server/NexusProxyConfig.h"
 #include "NexusMcpToolRegistry.h"
@@ -66,12 +67,37 @@ static void LogToolCallDuration(const FString& ToolName, bool bIsError, double D
 		UE_LOG(LogNexusMcpDispatcher, Warning, TEXT("工具 '%s' 执行%s（%.0f ms > 阈值 %d ms, %d 字节）"),
 			*ToolName, bIsError ? TEXT("出错") : TEXT("成功"), DurationMs, ThresholdMs, ResponseBytes);
 	}
+	else if (bIsError)
+	{
+		UE_LOG(LogNexusMcpDispatcher, Log, TEXT("工具 '%s' 执行出错（%.0f ms, %d 字节）"),
+			*ToolName, DurationMs, ResponseBytes);
+	}
 	else
 	{
-		UE_LOG(LogNexusMcpDispatcher, Log, TEXT("工具 '%s' 执行%s（%.0f ms, %d 字节）"),
-			*ToolName, bIsError ? TEXT("出错") : TEXT("成功"), DurationMs, ResponseBytes);
+		UE_LOG(LogNexusMcpDispatcher, Verbose, TEXT("工具 '%s' 执行成功（%.0f ms, %d 字节）"),
+			*ToolName, DurationMs, ResponseBytes);
 	}
 }
+
+static int32 GNexusToolsListGeneration = 0;
+
+void NexusBumpToolsListGeneration()
+{
+	++GNexusToolsListGeneration;
+}
+
+int32 NexusGetToolsListGeneration()
+{
+	return GNexusToolsListGeneration;
+}
+
+struct FNexusCachedMultiToolList
+{
+	int32 Generation = INDEX_NONE;
+	TArray<TSharedPtr<FJsonValue>> Tools;
+};
+
+static FNexusCachedMultiToolList GNexusCachedMultiToolList;
 
 // JSON-RPC 2.0 标准错误码
 static constexpr int32 JsonRpcParseError     = -32700;
@@ -347,6 +373,13 @@ void FNexusMcpDispatcher::HandleToolsList(const TSharedPtr<FJsonValue>& Id, cons
 
 	if (Settings->ToolsListMode == ENexusToolsListMode::MultiTool)
 	{
+		const int32 Generation = NexusGetToolsListGeneration();
+		if (GNexusCachedMultiToolList.Generation == Generation)
+		{
+			ToolsArray = GNexusCachedMultiToolList.Tools;
+		}
+		else
+		{
 		// MultiTool 模式：每个已启用 Capability 作为独立 Tool 暴露；保留 submit_feedback
 		const TArray<FCapRecord>& AllRecords = FNexusCapabilityRegistry::Get().GetAllRecords();
 		ToolsArray.Reserve(AllRecords.Num());
@@ -394,6 +427,9 @@ void FNexusMcpDispatcher::HandleToolsList(const TSharedPtr<FJsonValue>& Id, cons
 				ToolsArray.Add(MakeShared<FJsonValueObject>(ToolDefToJson(Def)));
 				break;
 			}
+		}
+		GNexusCachedMultiToolList.Generation = Generation;
+		GNexusCachedMultiToolList.Tools = ToolsArray;
 		}
 	}
 	else

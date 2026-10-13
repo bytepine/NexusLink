@@ -196,7 +196,7 @@ static const TArray<FNexusSearchTypeEntry>& GetSearchTypeTableMid()
 		T.Add({ TEXT("CurveVector"), UCurveVector::StaticClass(), true, { TEXT("curvevector"), TEXT("curve_vector") } });
 		T.Add({ TEXT("CurveLinearColor"), UCurveLinearColor::StaticClass(), true, { TEXT("curvelinearcolor"), TEXT("curve_linear_color") } });
 		T.Add({ TEXT("CurveTable"), UCurveTable::StaticClass(), true, { TEXT("curvetable"), TEXT("curve_table") } });
-		T.Add({ TEXT("UserDefinedEnum"), UUserDefinedEnum::StaticClass(), true, { TEXT("userdefinedelnum"), TEXT("enum"), TEXT("user_defined_enum") } });
+		T.Add({ TEXT("UserDefinedEnum"), UUserDefinedEnum::StaticClass(), true, { TEXT("userdefinedenum"), TEXT("enum"), TEXT("user_defined_enum") } });
 		T.Add({ TEXT("AnimComposite"), UAnimComposite::StaticClass(), true, { TEXT("animcomposite"), TEXT("anim_composite") } });
 		T.Add({ TEXT("PhysicalMaterial"), UPhysicalMaterial::StaticClass(), true, { TEXT("physicalmaterial"), TEXT("physical_material") } });
 		T.Add({ TEXT("TextureRenderTarget2D"), UTextureRenderTarget2D::StaticClass(), true, { TEXT("rendertarget"), TEXT("render_target"), TEXT("texturerendertarget2d") } });
@@ -365,16 +365,28 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			for (const FAssetData& A : Assets) AddEntry(A, Entry.OutType);
 		};
 
-		if (bIsAll || TypeLower == TEXT("blueprint"))
+		// Blueprint 与 GAS 共用一次查询。all 模式下先记成 Blueprint，后续 GAS 命中被 SeenPaths 丢掉，语义不变。
+		TArray<FAssetData> BlueprintAssets;
+		bool bBlueprintAssetsLoaded = false;
+		auto EnsureBlueprintAssets = [&]()
 		{
+			if (bBlueprintAssetsLoaded)
+			{
+				return;
+			}
+			bBlueprintAssetsLoaded = true;
 			FARFilter Filter;
 			NEXUS_FILTER_ADD_CLASS(Filter, UBlueprint::StaticClass());
 			Filter.PackagePaths.Add(FName(*PathFilter));
 			Filter.bRecursivePaths = true;
 			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets)
+			Registry.GetAssets(Filter, BlueprintAssets);
+		};
+
+		if (bIsAll || TypeLower == TEXT("blueprint"))
+		{
+			EnsureBlueprintAssets();
+			for (const FAssetData& A : BlueprintAssets)
 			{
 				if (NEXUS_ASSET_CLASS_NAME(A) == TEXT("WidgetBlueprint")) continue;
 				AddEntry(A, TEXT("Blueprint"));
@@ -412,14 +424,8 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 #if WITH_GAS
 		auto AddGasBlueprintEntries = [&](const TCHAR* ParentSubstr, const TCHAR* OutType)
 		{
-			FARFilter Filter;
-			NEXUS_FILTER_ADD_CLASS(Filter, UBlueprint::StaticClass());
-			Filter.PackagePaths.Add(FName(*PathFilter));
-			Filter.bRecursivePaths = true;
-			Filter.bRecursiveClasses = true;
-			TArray<FAssetData> Assets;
-			Registry.GetAssets(Filter, Assets);
-			for (const FAssetData& A : Assets)
+			EnsureBlueprintAssets();
+			for (const FAssetData& A : BlueprintAssets)
 			{
 				FString ParentClass;
 				if (!A.GetTagValue(TEXT("ParentClass"), ParentClass)) continue;

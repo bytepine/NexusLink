@@ -8,6 +8,7 @@
 #include "NexusMcpAuth.h"
 #include "NexusMcpTool.h"
 #include "Server/NexusMcpServer.h"
+#include "Server/NexusToolsListCache.h"
 #if WITH_EDITOR
 #include "Misc/MessageDialog.h"
 #endif
@@ -140,6 +141,7 @@ void UNexusLinkSettings::SetCapabilityEnabled(const FString& CapabilityName, boo
 		SessionEnabledCapabilities.Remove(CapabilityName);
 	}
 
+	NexusBumpToolsListGeneration();
 	if (bNotify)
 	{
 		NotifyCapabilitiesChanged();
@@ -233,6 +235,7 @@ void UNexusLinkSettings::EnsureDangerousCapsDefaultOff()
 
 	if (bChanged)
 	{
+		NexusBumpToolsListGeneration();
 		SaveConfig();
 	}
 }
@@ -245,6 +248,7 @@ void UNexusLinkSettings::EnableDangerousCapsForSession()
 	{
 		SessionEnabledCapabilities.Add(Name);
 	}
+	NexusBumpToolsListGeneration();
 }
 
 void UNexusLinkSettings::SetSessionCapabilityEnabled(const FString& CapabilityName, bool bEnabled, bool bBroadcast)
@@ -270,6 +274,7 @@ void UNexusLinkSettings::SetSessionCapabilityEnabled(const FString& CapabilityNa
 		SessionDisabledCapabilities.Add(CapabilityName);
 	}
 
+	NexusBumpToolsListGeneration();
 	if (bBroadcast)
 	{
 		BroadcastCapabilitiesChanged();
@@ -284,6 +289,7 @@ void UNexusLinkSettings::ClearSessionCapabilityOverrides()
 	}
 	SessionEnabledCapabilities.Empty();
 	SessionDisabledCapabilities.Empty();
+	NexusBumpToolsListGeneration();
 	BroadcastCapabilitiesChanged();
 }
 
@@ -386,6 +392,7 @@ void UNexusLinkSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	if (ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, ToolsListMode)
 		|| ChangedProp == GET_MEMBER_NAME_CHECKED(UNexusLinkSettings, DangerousCapAccess))
 	{
+		NexusBumpToolsListGeneration();
 		FNexusLinkModule& Module = FModuleManager::GetModuleChecked<FNexusLinkModule>(TEXT("NexusLink"));
 		const TSharedPtr<FNexusMcpServer>& Server = Module.GetMcpServer();
 		if (Server.IsValid() && Server->IsRunning())

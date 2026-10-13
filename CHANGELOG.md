@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- MultiTool 的 `tools/list` 在启用集、列表模式和危险 Capability 访问没变时复用上次结果。未超过慢调用阈值的成功 `tools/call` 日志改为 Verbose，出错和慢调用仍按原级别记录。`search_asset` 在 `assetType=all` 时 GAS 蓝图复用同一次 Blueprint 查询，返回内容不变；`UserDefinedEnum` 可用别名 `userdefinedenum`
+
 ## [2.2.0-beta.2] - 2026-10-12
 
 > ⚠️ Pre-release，非生产环境使用。

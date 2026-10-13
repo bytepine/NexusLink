@@ -1,6 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "NexusCapabilityRegistry.h"
+#include "Server/NexusToolsListCache.h"
 #include "NexusMcpTool.h"           // FNexusMcpTags
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusHostUtils.h"
@@ -208,6 +209,7 @@ void FNexusCapabilityRegistry::Register(TSharedRef<FNexusCapability> Cap, const 
 	const int32 Idx = Records.Add(MoveTemp(Record));
 	NameIndex.Add(NameLow, Idx);
 	IndexSearchAssetTypes(Records[Idx].Def);
+	NexusBumpToolsListGeneration();
 }
 
 void FNexusCapabilityRegistry::IndexSearchAssetTypes(const FNexusCapabilityDefinition& Def)
@@ -337,4 +339,5 @@ void FNexusCapabilityRegistry::Reset()
 	Records.Reset();
 	NameIndex.Reset();
 	SearchAssetRouteIndex.Reset();
+	NexusBumpToolsListGeneration();
 }
