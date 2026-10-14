@@ -15,37 +15,37 @@
 #endif
 #include "Misc/PackageName.h"
 
-void FCreateAssetMaterialFunctionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetMaterialFunctionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_material_function");
+	Out.Name = TEXT("CreateAssetMaterialFunction");
 	Out.Description = TEXT("Create empty UMaterialFunction. Optional description and bExposeToLibrary.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path (/Game/…/MF_MyFunc)")))
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path (/Game/…/MF_MyFunc)")))
 		.Prop(TEXT("description"),     FNexusSchema::Str(TEXT("Function description (optional)")))
-		.Prop(TEXT("exposeToLibrary"), FNexusSchema::Bool(TEXT("Show in material function library")))
+		.Prop(TEXT("bExposeToLibrary"), FNexusSchema::Bool(TEXT("Show in material function library")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Material };
-	Out.ExtraSearchKeywords = { TEXT("mf"), TEXT("function"), TEXT("material"), TEXT("shader"), TEXT("reuse") };
-	Out.RelatedCapabilities = { TEXT("get_asset_material"), TEXT("manage_asset_material"), TEXT("create_asset_material") };
-	Out.WhenToUse = TEXT("Create MaterialFunction; add nodes via manage_asset_material");
+	Out.ExtraSearchKeywords = { TEXT("mf"), TEXT("Function"), TEXT("Material"), TEXT("shader"), TEXT("reuse") };
+	Out.RelatedCapabilities = { TEXT("GetAssetMaterial"), TEXT("ManageAssetMaterial"), TEXT("CreateAssetMaterial") };
+	Out.WhenToUse = TEXT("Create MaterialFunction; add nodes via ManageAssetMaterial");
 }
 
-FCapabilityResult FCreateAssetMaterialFunctionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetMaterialFunctionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("create_asset_material_function only available in editor builds");
+		OutError = TEXT("CreateAssetMaterialFunction only available in editor builds");
 		return;
 #else
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		if (FPackageName::DoesPackageExist(AssetPath))
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("MaterialFunction already exists: %s"), *AssetPath));
+			OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("MaterialFunction already exists: %s"), *AssetPath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -73,7 +73,7 @@ FCapabilityResult FCreateAssetMaterialFunctionCapability::Execute(const TSharedP
 		}
 
 		bool bExpose;
-		if (Arguments->TryGetBoolField(TEXT("exposeToLibrary"), bExpose))
+		if (Arguments->TryGetBoolField(TEXT("bExposeToLibrary"), bExpose))
 		{
 			MF->bExposeToLibrary = bExpose;
 			bDirty = true;
@@ -84,12 +84,12 @@ FCapabilityResult FCreateAssetMaterialFunctionCapability::Execute(const TSharedP
 			MF->MarkPackageDirty();
 		}
 
-		OutEntry->SetStringField(TEXT("assetType"), TEXT("MaterialFunction"));
+		OutEntry->SetStringField(TEXT("AssetType"), TEXT("MaterialFunction"));
 		OutEntry->SetStringField(TEXT("name"),    MF->GetName());
-		OutEntry->SetStringField(TEXT("path"),    FNexusAssetUtils::PackagePathOf(MF));
+		OutEntry->SetStringField(TEXT("Path"),    FNexusAssetUtils::PackagePathOf(MF));
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 #endif
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetMaterialFunctionCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetMaterialFunctionCapability)

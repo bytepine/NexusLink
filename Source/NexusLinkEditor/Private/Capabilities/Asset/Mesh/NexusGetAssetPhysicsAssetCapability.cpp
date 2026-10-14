@@ -30,28 +30,28 @@ static FString PhysicsTypeToStr(EPhysicsType Type)
 
 // ── Capability ────────────────────────────────────────────────────────────────
 
-void FGetAssetPhysicsAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetPhysicsAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_physics_asset");
+	Out.Name = TEXT("GetAssetPhysicsAsset");
 	Out.SearchAssetTypes = {TEXT("PhysicsAsset")};
 	Out.Description = TEXT("List PhysicsAsset Bodies and Constraints overview.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("PhysicsAsset asset path")))
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("PhysicsAsset asset path")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("physics"), TEXT("physasset"), TEXT("ragdoll"), TEXT("body"), TEXT("constraint"), TEXT("collision"), TEXT("skeleton") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_physics_asset"), TEXT("get_asset_skeletal_mesh"), TEXT("save_asset") };
+	Out.ExtraSearchKeywords = { TEXT("physics"), TEXT("physasset"), TEXT("ragdoll"), TEXT("body"), TEXT("constraint"), TEXT("Collision"), TEXT("Skeleton") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetPhysicsAsset"), TEXT("GetAssetSkeletalMesh"), TEXT("SaveAsset") };
 	Out.WhenToUse = TEXT("Read PhysicsAsset Body bone names/shape counts and Constraint list");
 }
 
-FCapabilityResult FGetAssetPhysicsAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetPhysicsAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		UPhysicsAsset* PA = FNexusAssetUtils::LoadAssetWithFallback<UPhysicsAsset>(AssetPath);
 		if (!PA)
@@ -60,11 +60,11 @@ FCapabilityResult FGetAssetPhysicsAssetCapability::Execute(const TSharedPtr<FJso
 			return;
 		}
 
-		OutEntry->SetStringField(TEXT("assetType"),       TEXT("PhysicsAsset"));
+		OutEntry->SetStringField(TEXT("AssetType"),       TEXT("PhysicsAsset"));
 		OutEntry->SetStringField(TEXT("name"),            PA->GetName());
-		OutEntry->SetStringField(TEXT("path"),            FNexusAssetUtils::PackagePathOf(PA));
-		OutEntry->SetNumberField(TEXT("bodiesCount"),     PA->SkeletalBodySetups.Num());
-		OutEntry->SetNumberField(TEXT("constraintsCount"), PA->ConstraintSetup.Num());
+		OutEntry->SetStringField(TEXT("Path"),            FNexusAssetUtils::PackagePathOf(PA));
+		OutEntry->SetNumberField(TEXT("BodiesCount"),     PA->SkeletalBodySetups.Num());
+		OutEntry->SetNumberField(TEXT("ConstraintsCount"), PA->ConstraintSetup.Num());
 
 		// Body setups
 		TArray<TSharedPtr<FJsonValue>> BodiesArr;
@@ -72,15 +72,15 @@ FCapabilityResult FGetAssetPhysicsAssetCapability::Execute(const TSharedPtr<FJso
 		{
 			if (!BS) continue;
 			TSharedPtr<FJsonObject> BObj = MakeShared<FJsonObject>();
-			BObj->SetStringField(TEXT("boneName"),    BS->BoneName.ToString());
-			BObj->SetStringField(TEXT("physicsType"), PhysicsTypeToStr(BS->PhysicsType));
-			BObj->SetNumberField(TEXT("spheresCount"),   BS->AggGeom.SphereElems.Num());
-			BObj->SetNumberField(TEXT("boxesCount"),     BS->AggGeom.BoxElems.Num());
-			BObj->SetNumberField(TEXT("capsulesCount"),  BS->AggGeom.SphylElems.Num());
-			BObj->SetNumberField(TEXT("convexCount"),    BS->AggGeom.ConvexElems.Num());
+			BObj->SetStringField(TEXT("BoneName"),    BS->BoneName.ToString());
+			BObj->SetStringField(TEXT("PhysicsType"), PhysicsTypeToStr(BS->PhysicsType));
+			BObj->SetNumberField(TEXT("SpheresCount"),   BS->AggGeom.SphereElems.Num());
+			BObj->SetNumberField(TEXT("BoxesCount"),     BS->AggGeom.BoxElems.Num());
+			BObj->SetNumberField(TEXT("CapsulesCount"),  BS->AggGeom.SphylElems.Num());
+			BObj->SetNumberField(TEXT("ConvexCount"),    BS->AggGeom.ConvexElems.Num());
 			BodiesArr.Add(MakeShared<FJsonValueObject>(BObj));
 		}
-		OutEntry->SetArrayField(TEXT("bodies"), BodiesArr);
+		OutEntry->SetArrayField(TEXT("Bodies"), BodiesArr);
 
 		// Constraints
 		TArray<TSharedPtr<FJsonValue>> ConstrArr;
@@ -88,15 +88,15 @@ FCapabilityResult FGetAssetPhysicsAssetCapability::Execute(const TSharedPtr<FJso
 		{
 			if (!CT) continue;
 			TSharedPtr<FJsonObject> CObj = MakeShared<FJsonObject>();
-			CObj->SetStringField(TEXT("jointName"),  CT->DefaultInstance.JointName.ToString());
-			CObj->SetStringField(TEXT("bone1"),      CT->DefaultInstance.ConstraintBone1.ToString());
-			CObj->SetStringField(TEXT("bone2"),      CT->DefaultInstance.ConstraintBone2.ToString());
+			CObj->SetStringField(TEXT("JointName"),  CT->DefaultInstance.JointName.ToString());
+			CObj->SetStringField(TEXT("Bone1"),      CT->DefaultInstance.ConstraintBone1.ToString());
+			CObj->SetStringField(TEXT("Bone2"),      CT->DefaultInstance.ConstraintBone2.ToString());
 			ConstrArr.Add(MakeShared<FJsonValueObject>(CObj));
 		}
-		OutEntry->SetArrayField(TEXT("constraints"), ConstrArr);
+		OutEntry->SetArrayField(TEXT("Constraints"), ConstrArr);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetPhysicsAssetCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetPhysicsAssetCapability)

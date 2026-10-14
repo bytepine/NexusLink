@@ -7,7 +7,7 @@
 
 struct FNexusActionContext;
 
-/** manage_asset_blueprint 的图节点与连线操作。 */
+/** ManageAssetBlueprint 的图节点与连线操作。 */
 struct FNexusBlueprintGraphOps final
 {
 	static void HandleGraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx);

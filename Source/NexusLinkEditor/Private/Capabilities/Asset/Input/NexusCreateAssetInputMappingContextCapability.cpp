@@ -12,25 +12,25 @@
 #include "NexusMcpTool.h"
 #include "InputMappingContext.h"
 
-void FCreateAssetInputMappingContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetInputMappingContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_input_mapping_context");
+	Out.Name = TEXT("CreateAssetInputMappingContext");
 	Out.Description = TEXT("Create empty InputMappingContext; bind Action-Key via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path (/Game/…/IMC_Default)")))
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path (/Game/…/IMC_Default)")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("mapping"), TEXT("imc"), TEXT("enhanced"), TEXT("keybind"), TEXT("context") };
-	Out.RelatedCapabilities = { TEXT("get_asset_input_mapping_context"), TEXT("manage_asset_input_mapping_context"), TEXT("create_asset_input_action") };
+	Out.RelatedCapabilities = { TEXT("GetAssetInputMappingContext"), TEXT("ManageAssetInputMappingContext"), TEXT("CreateAssetInputAction") };
 	Out.WhenToUse = TEXT("Create InputMappingContext; add Action-Key bindings via manage");
 }
 
-FCapabilityResult FCreateAssetInputMappingContextCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetInputMappingContextCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<UInputMappingContext>(AssetPath);
 		if (!Created.Ok())
@@ -41,11 +41,11 @@ FCapabilityResult FCreateAssetInputMappingContextCapability::Execute(const TShar
 		UInputMappingContext* IMC = Cast<UInputMappingContext>(Created.Asset);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 		OutEntry->SetStringField(TEXT("name"), IMC->GetName());
-		OutEntry->SetStringField(TEXT("path"), FNexusAssetUtils::PackagePathOf(IMC));
+		OutEntry->SetStringField(TEXT("Path"), FNexusAssetUtils::PackagePathOf(IMC));
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetInputMappingContextCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetInputMappingContextCapability)
 
 #endif // WITH_ENHANCED_INPUT

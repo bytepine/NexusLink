@@ -7,7 +7,7 @@
 
 /**
  * 编辑器只读上下文：关卡选中 Actor、Content Browser 选中资产与当前路径。
- * editor World ≠ PIE；PIE 选中请用 list_runtime_actors / get_runtime_actor_property。
+ * editor World ≠ PIE；PIE 选中请用 ListRuntimeActors / GetRuntimeActorProperty。
  */
 class FNexusEditorContextUtils final
 {

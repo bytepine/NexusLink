@@ -7,8 +7,8 @@
 
 #include "NexusActionCapability.h"
 
-/** manage_asset_gameplay_cue_notify：set_cue_name。Actor BP 图走 blueprint。 */
-class FManageAssetGameplayCueNotifyCapability : public FNexusActionCapability
+/** ManageAssetGameplayCueNotify：SetCueName。Actor BP 图走 blueprint。 */
+class FNexusManageAssetGameplayCueNotifyCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

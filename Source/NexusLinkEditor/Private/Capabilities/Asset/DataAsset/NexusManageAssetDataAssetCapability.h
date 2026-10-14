@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_data_asset — 批量 set（校验 ImportText）/ reset（从类 CDO 拷贝）；ops 至少一项；成功后统一 MarkPackageDirty。 */
-class FManageAssetDataAssetCapability : public FNexusActionCapability
+/** ManageAssetDataAsset — 批量 set（校验 ImportText）/ reset（从类 CDO 拷贝）；ops 至少一项；成功后统一 MarkPackageDirty。 */
+class FNexusManageAssetDataAssetCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

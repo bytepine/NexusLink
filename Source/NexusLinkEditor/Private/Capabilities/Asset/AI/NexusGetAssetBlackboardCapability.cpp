@@ -9,22 +9,22 @@
 #include "BehaviorTree/BlackboardData.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetBlackboardCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetBlackboardCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_blackboard");
+	Out.Name = TEXT("GetAssetBlackboard");
 	Out.SearchAssetTypes = {TEXT("Blackboard")};
 	Out.Description = TEXT("Inspect BB key definitions. Name/type snapshot; read-only.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("BlackboardData asset path")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Blackboard key name filter")))
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("BlackboardData asset path")))
+		.Prop(TEXT("NameFilter"), FNexusSchema::Str(TEXT("Blackboard key name filter")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
-	Out.ExtraSearchKeywords = { TEXT("blackboard"), TEXT("bb"), TEXT("keys"), TEXT("ai") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_blackboard"), TEXT("get_asset_behavior_tree") };
-	Out.WhenToUse = TEXT("Read BB key list; runtime values via get_runtime_actor_behavior_tree");
+	Out.ExtraSearchKeywords = { TEXT("Blackboard"), TEXT("bb"), TEXT("Keys"), TEXT("ai") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetBlackboard"), TEXT("GetAssetBehaviorTree") };
+	Out.WhenToUse = TEXT("Read BB key list; runtime values via GetRuntimeActorBehaviorTree");
 }
 
-FCapabilityResult FGetAssetBlackboardCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetBlackboardCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -33,12 +33,12 @@ FCapabilityResult FGetAssetBlackboardCapability::Execute(const TSharedPtr<FJsonO
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
 		FString NameFilter;
-		Arguments->TryGetStringField(TEXT("nameFilter"), NameFilter);
+		Arguments->TryGetStringField(TEXT("NameFilter"), NameFilter);
 
 		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
+		if (!Arguments->TryGetStringField(TEXT("AssetPath"), AssetPath) || AssetPath.IsEmpty())
 		{
-			OutEntry->SetStringField(TEXT("error"), TEXT("assetPath is required"));
+			OutEntry->SetStringField(TEXT("Error"), TEXT("AssetPath is required"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -47,7 +47,7 @@ FCapabilityResult FGetAssetBlackboardCapability::Execute(const TSharedPtr<FJsonO
 
 		if (!BB)
 		{
-			OutEntry->SetStringField(TEXT("error"), TEXT("BlackboardData not found at given path"));
+			OutEntry->SetStringField(TEXT("Error"), TEXT("BlackboardData not found at given path"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -71,7 +71,7 @@ FCapabilityResult FGetAssetBlackboardCapability::Execute(const TSharedPtr<FJsonO
 			}
 			Keys.Add(MakeShared<FJsonValueObject>(KeyObj));
 		}
-		OutEntry->SetArrayField(TEXT("keys"), Keys);
+		OutEntry->SetArrayField(TEXT("Keys"), Keys);
 
 		// 递归收集所有 parent 链上的 keys
 		TArray<TSharedPtr<FJsonValue>> InheritedKeys;
@@ -92,19 +92,19 @@ FCapabilityResult FGetAssetBlackboardCapability::Execute(const TSharedPtr<FJsonO
 					TypeName.RemoveFromStart(TEXT("BlackboardKeyType_"));
 					KeyObj->SetStringField(TEXT("type"), TypeName);
 				}
-				KeyObj->SetStringField(TEXT("from"), Cur->GetPathName());
+				KeyObj->SetStringField(TEXT("From"), Cur->GetPathName());
 				InheritedKeys.Add(MakeShared<FJsonValueObject>(KeyObj));
 			}
 		}
 		if (InheritedKeys.Num() > 0)
 		{
-			OutEntry->SetArrayField(TEXT("parentKeys"), InheritedKeys);
+			OutEntry->SetArrayField(TEXT("ParentKeys"), InheritedKeys);
 		}
 
 		// 输出直接 parent 路径
 		if (BB->Parent)
 		{
-			OutEntry->SetStringField(TEXT("parentPath"), BB->Parent->GetPathName());
+			OutEntry->SetStringField(TEXT("ParentPath"), BB->Parent->GetPathName());
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
@@ -112,5 +112,5 @@ FCapabilityResult FGetAssetBlackboardCapability::Execute(const TSharedPtr<FJsonO
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetBlackboardCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetBlackboardCapability)
 

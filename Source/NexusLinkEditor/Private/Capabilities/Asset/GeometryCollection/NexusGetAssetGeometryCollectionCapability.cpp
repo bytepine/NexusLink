@@ -9,45 +9,45 @@
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetGeometryCollectionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetGeometryCollectionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_geometry_collection");
+	Out.Name = TEXT("GetAssetGeometryCollection");
 	Out.SearchAssetTypes = {TEXT("GeometryCollection")};
 	Out.Description = TEXT("Read GeometryCollection: damage threshold/class summary.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GeometryCollection asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("GeometryCollection asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("chaos"), TEXT("damage"), TEXT("cluster") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_geometry_collection"), TEXT("create_asset_geometry_collection") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetGeometryCollection"), TEXT("CreateAssetGeometryCollection") };
 }
 
-FCapabilityResult FGetAssetGeometryCollectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetGeometryCollectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		if (!FNexusCapability::RequireString(Arguments, TEXT("AssetPath"), AssetPath, OutEntries, {})) return;
 		UGeometryCollection* GC = FNexusAssetUtils::LoadAssetWithFallback<UGeometryCollection>(AssetPath);
 		if (!GC)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("Path"), AssetPath}},
 				FString::Printf(TEXT("Failed to load GeometryCollection: %s"), *AssetPath));
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), GC->GetName());
-		Entry->SetStringField(TEXT("path"), GC->GetPathName());
+		Entry->SetStringField(TEXT("Path"), GC->GetPathName());
 		TArray<TSharedPtr<FJsonValue>> Thresholds;
 		for (float V : GC->DamageThreshold)
 		{
 			Thresholds.Add(MakeShared<FJsonValueNumber>(V));
 		}
-		Entry->SetArrayField(TEXT("damageThreshold"), Thresholds);
+		Entry->SetArrayField(TEXT("DamageThreshold"), Thresholds);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetGeometryCollectionCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetGeometryCollectionCapability)
 #endif

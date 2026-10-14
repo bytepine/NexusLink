@@ -11,7 +11,7 @@
  * 完整同步 EdGraph 与编译后的 BakedStateMachines。
  * 变量管理仍由 manage_blueprint_variable 负责。
  */
-class FManageAssetAnimBlueprintCapability : public FNexusActionCapability
+class FNexusManageAssetAnimBlueprintCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

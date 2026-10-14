@@ -8,29 +8,29 @@
 #include "Sound/SoundSubmix.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetSoundSubmixCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetSoundSubmixCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_sound_submix");
+	Out.Name = TEXT("ManageAssetSoundSubmix");
 	Out.SearchAssetTypes = {TEXT("SoundSubmix")};
 	Out.Description = TEXT("Set SoundSubmix volume (UE5.1+ uses dB fields; see InputSchema).");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),         FNexusSchema::Enum(TEXT("Action"), { TEXT("set") }))
-		.Prop(TEXT("outputVolume"),   FNexusSchema::Num(TEXT("Output volume linear [0,1] (UE4/5.0)")))
-		.Prop(TEXT("wetLevel"),       FNexusSchema::Num(TEXT("Wet level linear [0,1] (UE4/5.0)")))
-		.Prop(TEXT("dryLevel"),       FNexusSchema::Num(TEXT("Dry level linear [0,1] (UE4/5.0)")))
-		.Prop(TEXT("outputVolumeDB"), FNexusSchema::Num(TEXT("Output volume dB [-96,0] (UE5.1+)")))
-		.Prop(TEXT("wetLevelDB"),     FNexusSchema::Num(TEXT("Wet level dB [-96,0] (UE5.1+)")))
-		.Prop(TEXT("dryLevelDB"),     FNexusSchema::Num(TEXT("Dry level dB [-96,0] (UE5.1+)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"),         FNexusSchema::Enum(TEXT("Action"), { TEXT("Set") }))
+		.Prop(TEXT("OutputVolume"),   FNexusSchema::Num(TEXT("Output volume linear [0,1] (UE4/5.0)")))
+		.Prop(TEXT("WetLevel"),       FNexusSchema::Num(TEXT("Wet level linear [0,1] (UE4/5.0)")))
+		.Prop(TEXT("DryLevel"),       FNexusSchema::Num(TEXT("Dry level linear [0,1] (UE4/5.0)")))
+		.Prop(TEXT("OutputVolumeDB"), FNexusSchema::Num(TEXT("Output volume dB [-96,0] (UE5.1+)")))
+		.Prop(TEXT("WetLevelDB"),     FNexusSchema::Num(TEXT("Wet level dB [-96,0] (UE5.1+)")))
+		.Prop(TEXT("DryLevelDB"),     FNexusSchema::Num(TEXT("Dry level dB [-96,0] (UE5.1+)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundSubmix asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("SoundSubmix asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("submix"), TEXT("sound"), TEXT("audio"), TEXT("volume"), TEXT("wet"), TEXT("dry") };
-	Out.RelatedCapabilities = { TEXT("get_asset_sound_submix"), TEXT("create_asset_sound_submix") };
+	Out.ExtraSearchKeywords = { TEXT("submix"), TEXT("Sound"), TEXT("audio"), TEXT("Volume"), TEXT("wet"), TEXT("dry") };
+	Out.RelatedCapabilities = { TEXT("GetAssetSoundSubmix"), TEXT("CreateAssetSoundSubmix") };
 }
 
 struct FSubmixActionState
@@ -48,35 +48,35 @@ static void HandleSubmix_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 {
 	USoundSubmix* SM = SubmixState(Ctx)->SM;
 #if NX_UE_HAS_SUBMIX_LINEAR_VOLUME_FIELDS
-	if (Op->HasField(TEXT("outputVolume"))) SM->OutputVolume = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("outputVolume"))), 0.f, 1.f);
-	if (Op->HasField(TEXT("wetLevel")))     SM->WetLevel     = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("wetLevel"))),     0.f, 1.f);
-	if (Op->HasField(TEXT("dryLevel")))     SM->DryLevel     = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("dryLevel"))),     0.f, 1.f);
+	if (Op->HasField(TEXT("OutputVolume"))) SM->OutputVolume = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("OutputVolume"))), 0.f, 1.f);
+	if (Op->HasField(TEXT("WetLevel")))     SM->WetLevel     = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("WetLevel"))),     0.f, 1.f);
+	if (Op->HasField(TEXT("DryLevel")))     SM->DryLevel     = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("DryLevel"))),     0.f, 1.f);
 #else
-	if (Op->HasField(TEXT("outputVolumeDB"))) SM->OutputVolumeModulation.Value = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("outputVolumeDB"))), -96.f, 0.f);
-	if (Op->HasField(TEXT("wetLevelDB")))     SM->WetLevelModulation.Value     = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("wetLevelDB"))),     -96.f, 0.f);
-	if (Op->HasField(TEXT("dryLevelDB")))     SM->DryLevelModulation.Value     = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("dryLevelDB"))),     -96.f, 0.f);
+	if (Op->HasField(TEXT("OutputVolumeDB"))) SM->OutputVolumeModulation.Value = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("OutputVolumeDB"))), -96.f, 0.f);
+	if (Op->HasField(TEXT("WetLevelDB")))     SM->WetLevelModulation.Value     = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("WetLevelDB"))),     -96.f, 0.f);
+	if (Op->HasField(TEXT("DryLevelDB")))     SM->DryLevelModulation.Value     = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("DryLevelDB"))),     -96.f, 0.f);
 #endif
 	SubmixState(Ctx)->bDirty = true;
 	Ctx.Entry->SetStringField(TEXT("name"), SM->GetName());
 #if NX_UE_HAS_SUBMIX_LINEAR_VOLUME_FIELDS
-	Ctx.Entry->SetNumberField(TEXT("outputVolume"), SM->OutputVolume);
-	Ctx.Entry->SetNumberField(TEXT("wetLevel"),     SM->WetLevel);
-	Ctx.Entry->SetNumberField(TEXT("dryLevel"),     SM->DryLevel);
+	Ctx.Entry->SetNumberField(TEXT("OutputVolume"), SM->OutputVolume);
+	Ctx.Entry->SetNumberField(TEXT("WetLevel"),     SM->WetLevel);
+	Ctx.Entry->SetNumberField(TEXT("DryLevel"),     SM->DryLevel);
 #else
-	Ctx.Entry->SetNumberField(TEXT("outputVolumeDB"), SM->OutputVolumeModulation.Value);
-	Ctx.Entry->SetNumberField(TEXT("wetLevelDB"),     SM->WetLevelModulation.Value);
-	Ctx.Entry->SetNumberField(TEXT("dryLevelDB"),     SM->DryLevelModulation.Value);
+	Ctx.Entry->SetNumberField(TEXT("OutputVolumeDB"), SM->OutputVolumeModulation.Value);
+	Ctx.Entry->SetNumberField(TEXT("WetLevelDB"),     SM->WetLevelModulation.Value);
+	Ctx.Entry->SetNumberField(TEXT("DryLevelDB"),     SM->DryLevelModulation.Value);
 #endif
 }
 
-bool FManageAssetSoundSubmixCapability::PrepareTarget(
+bool FNexusManageAssetSoundSubmixCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	USoundSubmix* SM = LoadObject<USoundSubmix>(nullptr, *AssetPath);
 	if (!SM)
 	{
@@ -89,7 +89,7 @@ bool FManageAssetSoundSubmixCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetSoundSubmixCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetSoundSubmixCapability::FinalizeTarget(void* Target) const
 {
 	FSubmixActionState* State = static_cast<FSubmixActionState*>(Target);
 	if (!State) return;
@@ -97,9 +97,9 @@ void FManageAssetSoundSubmixCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetSoundSubmixCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetSoundSubmixCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set"), &HandleSubmix_Set);
+	OutHandlers.Add(TEXT("Set"), &HandleSubmix_Set);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetSoundSubmixCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetSoundSubmixCapability)

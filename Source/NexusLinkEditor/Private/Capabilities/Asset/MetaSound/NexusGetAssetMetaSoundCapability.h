@@ -7,8 +7,8 @@
 
 #if WITH_METASOUND
 
-/** get_asset_meta_sound — 读取 MetaSound Source 的 inputs/outputs/nodes 概览。 */
-class FGetAssetMetaSoundCapability : public FNexusCapability
+/** GetAssetMetaSound — 读取 MetaSound Source 的 inputs/outputs/nodes 概览。 */
+class FNexusGetAssetMetaSoundCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

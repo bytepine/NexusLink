@@ -12,19 +12,19 @@
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
-void FManageAssetPoseSearchCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetPoseSearchCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name        = TEXT("manage_asset_pose_search");
+	Out.Name        = TEXT("ManageAssetPoseSearch");
 	Out.SearchAssetTypes = {TEXT("PoseSearchDatabase"), TEXT("PoseSearchSchema")};
-	Out.Description = TEXT("Manage PoseSearchDatabase: set_schema/add_tag/remove_tag (UE 5.4+).");
+	Out.Description = TEXT("Manage PoseSearchDatabase: SetSchema/AddTag/RemoveTag (UE 5.4+).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PoseSearchDatabase asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrOfObj(TEXT("Operation list")))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("PoseSearchDatabase asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrOfObj(TEXT("Operation list")))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("pose"), TEXT("search"), TEXT("motion"), TEXT("matching"), TEXT("schema"), TEXT("tag") };
-	Out.RelatedCapabilities = { TEXT("get_asset_pose_search"), TEXT("create_asset_pose_search"), TEXT("search_asset") };
+	Out.ExtraSearchKeywords = { TEXT("pose"), TEXT("search"), TEXT("motion"), TEXT("matching"), TEXT("Schema"), TEXT("Tag") };
+	Out.RelatedCapabilities = { TEXT("GetAssetPoseSearch"), TEXT("CreateAssetPoseSearch"), TEXT("SearchAsset") };
 	Out.WhenToUse = TEXT("Set PoseSearch Database Schema or modify Tags");
 }
 
@@ -58,26 +58,26 @@ static void HandlePS_SetSchema(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 	UPoseSearchDatabase* DB = PSFrom(Ctx);
 	if (!DB)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PoseSearchDatabase is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PoseSearchDatabase is null"));
 		return;
 	}
 	FString SchemaPath;
-	Op->TryGetStringField(TEXT("schemaPath"), SchemaPath);
+	Op->TryGetStringField(TEXT("SchemaPath"), SchemaPath);
 	if (SchemaPath.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_schema requires schemaPath"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetSchema requires SchemaPath"));
 		return;
 	}
 	UPoseSearchSchema* Schema = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchSchema>(SchemaPath);
 	if (!Schema)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"),
+		Ctx.Entry->SetStringField(TEXT("Error"),
 			FString::Printf(TEXT("PoseSearchSchema not found: %s"), *SchemaPath));
 		return;
 	}
 	DB->Schema = Schema;
 	MarkPSDirty(Ctx);
-	Ctx.Entry->SetStringField(TEXT("schemaPath"), SchemaPath);
+	Ctx.Entry->SetStringField(TEXT("SchemaPath"), SchemaPath);
 }
 
 static void HandlePS_AddTag(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -85,14 +85,14 @@ static void HandlePS_AddTag(const TSharedPtr<FJsonObject>& Op, FNexusActionConte
 	UPoseSearchDatabase* DB = PSFrom(Ctx);
 	if (!DB)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PoseSearchDatabase is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PoseSearchDatabase is null"));
 		return;
 	}
 	FString TagStr;
-	Op->TryGetStringField(TEXT("tag"), TagStr);
+	Op->TryGetStringField(TEXT("Tag"), TagStr);
 	if (TagStr.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_tag requires tag parameter"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddTag requires tag parameter"));
 		return;
 	}
 	const FName TagName(*TagStr);
@@ -101,7 +101,7 @@ static void HandlePS_AddTag(const TSharedPtr<FJsonObject>& Op, FNexusActionConte
 		DB->Tags.Add(TagName);
 		MarkPSDirty(Ctx);
 	}
-	Ctx.Entry->SetStringField(TEXT("tag"), TagStr);
+	Ctx.Entry->SetStringField(TEXT("Tag"), TagStr);
 }
 
 static void HandlePS_RemoveTag(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -109,26 +109,26 @@ static void HandlePS_RemoveTag(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 	UPoseSearchDatabase* DB = PSFrom(Ctx);
 	if (!DB)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PoseSearchDatabase is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PoseSearchDatabase is null"));
 		return;
 	}
 	FString TagStr;
-	Op->TryGetStringField(TEXT("tag"), TagStr);
+	Op->TryGetStringField(TEXT("Tag"), TagStr);
 	const FName TagName(*TagStr);
 	const int32 Removed = DB->Tags.Remove(TagName);
 	if (Removed > 0) MarkPSDirty(Ctx);
 	if (Removed == 0)
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("tag '%s' does not exist"), *TagStr));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("tag '%s' does not exist"), *TagStr));
 }
 
-bool FManageAssetPoseSearchCapability::PrepareTarget(
+bool FNexusManageAssetPoseSearchCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UPoseSearchDatabase* DB = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchDatabase>(AssetPath);
 	if (!DB)
 	{
@@ -141,7 +141,7 @@ bool FManageAssetPoseSearchCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetPoseSearchCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetPoseSearchCapability::FinalizeTarget(void* Target) const
 {
 	FPoseSearchActionState* State = static_cast<FPoseSearchActionState*>(Target);
 	if (!State) return;
@@ -152,13 +152,13 @@ void FManageAssetPoseSearchCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetPoseSearchCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetPoseSearchCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_schema"),  &HandlePS_SetSchema);
-	OutHandlers.Add(TEXT("add_tag"),     &HandlePS_AddTag);
-	OutHandlers.Add(TEXT("remove_tag"),  &HandlePS_RemoveTag);
+	OutHandlers.Add(TEXT("SetSchema"),  &HandlePS_SetSchema);
+	OutHandlers.Add(TEXT("AddTag"),     &HandlePS_AddTag);
+	OutHandlers.Add(TEXT("RemoveTag"),  &HandlePS_RemoveTag);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetPoseSearchCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetPoseSearchCapability)
 
 #endif // WITH_POSE_SEARCH

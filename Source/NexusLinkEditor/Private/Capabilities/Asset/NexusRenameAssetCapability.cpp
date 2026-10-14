@@ -12,21 +12,21 @@
 #include "IAssetTools.h"
 #include "NexusMcpTool.h"
 
-void FRenameAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusRenameAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("rename_asset");
+	Out.Name = TEXT("RenameAsset");
 	Out.Description = TEXT("Move or rename asset. Auto-generates redirectors.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("Current asset path")))
-		.Prop(TEXT("destAssetPath"), FNexusSchema::Str(TEXT("Target full asset path")))
-		.Required({ TEXT("assetPath"), TEXT("destAssetPath") })
+		.Prop(TEXT("AssetPath"),     FNexusSchema::Str(TEXT("Current asset path")))
+		.Prop(TEXT("DestAssetPath"), FNexusSchema::Str(TEXT("Target full asset path")))
+		.Required({ TEXT("AssetPath"), TEXT("DestAssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("move"), TEXT("relocate"), TEXT("path"), TEXT("redirect"), TEXT("package") };
-	Out.RelatedCapabilities = { TEXT("save_asset"), TEXT("delete_asset") };
+	Out.ExtraSearchKeywords = { TEXT("move"), TEXT("relocate"), TEXT("Path"), TEXT("redirect"), TEXT("package") };
+	Out.RelatedCapabilities = { TEXT("SaveAsset"), TEXT("DeleteAsset") };
 }
 
-FCapabilityResult FRenameAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusRenameAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -34,13 +34,13 @@ FCapabilityResult FRenameAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		const FNexusArgs A(Arguments);
 
 
-		const FString OldPath = A.Str(TEXT("assetPath"));
-		const FString DestAssetPath = A.Str(TEXT("destAssetPath"));
+		const FString OldPath = A.Str(TEXT("AssetPath"));
+		const FString DestAssetPath = A.Str(TEXT("DestAssetPath"));
 
 		FText PathErrText;
 		if (!FPackageName::IsValidLongPackageName(DestAssetPath, false, &PathErrText))
 		{
-			OutError = FString::Printf(TEXT("Invalid destAssetPath: %s"), *PathErrText.ToString());
+			OutError = FString::Printf(TEXT("Invalid DestAssetPath: %s"), *PathErrText.ToString());
 			return;
 		}
 
@@ -72,19 +72,19 @@ FCapabilityResult FRenameAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		if (!bOk)
 		{
-			Entry->SetBoolField(TEXT("success"), false);
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Renamefailed: %s -> %s"), *OldPath, *DestAssetPath));
+			Entry->SetBoolField(TEXT("bSuccess"), false);
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Renamefailed: %s -> %s"), *OldPath, *DestAssetPath));
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("oldPath"), OldPath);
-			Entry->SetStringField(TEXT("destAssetPath"), DestAssetPath);
+			Entry->SetStringField(TEXT("OldPath"), OldPath);
+			Entry->SetStringField(TEXT("DestAssetPath"), DestAssetPath);
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FRenameAssetCapability)
+REGISTER_MCP_CAPABILITY(FNexusRenameAssetCapability)
 
 #endif // WITH_EDITOR

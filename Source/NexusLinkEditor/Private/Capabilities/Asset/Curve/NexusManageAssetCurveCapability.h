@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_curve：对曲线资产进行 add_key / set_key / remove_key / set_interp 操作。 */
-class FManageAssetCurveCapability : public FNexusActionCapability
+/** ManageAssetCurve：对曲线资产进行 AddKey / SetKey / RemoveKey / SetInterp 操作。 */
+class FNexusManageAssetCurveCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

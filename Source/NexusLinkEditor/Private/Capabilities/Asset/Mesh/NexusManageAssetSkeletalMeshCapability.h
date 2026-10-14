@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_skeletal_mesh — 编辑 SkeletalMesh 属性（材质槽）。*/
-class FManageAssetSkeletalMeshCapability : public FNexusActionCapability
+/** ManageAssetSkeletalMesh — 编辑 SkeletalMesh 属性（材质槽）。*/
+class FNexusManageAssetSkeletalMeshCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

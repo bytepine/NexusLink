@@ -14,7 +14,7 @@ class UWidget;
  * Runtime 截图辅助：Game/PIE 视口 ReadPixels、顶层窗口 FWidgetRenderer、
  * Actor/UMG 屏幕包围盒裁切、PNG/JPEG 保存。不依赖 UnrealEd / LevelEditor。
  *
- * 导出为 Public：NexusLinkEditor 的 capture_editor_panel 复用这里的像素裁切 /
+ * 导出为 Public：NexusLinkEditor 的 CaptureEditorPanel 复用这里的像素裁切 /
  * 缩放 / 保存与 Slate 渲染，编辑器侧只补 LevelEditor 面板 tab 与相机视角部分。
  */
 class NEXUSLINK_API FNexusCaptureUtils final

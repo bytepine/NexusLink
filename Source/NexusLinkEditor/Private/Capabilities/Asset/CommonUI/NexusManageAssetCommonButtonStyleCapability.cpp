@@ -10,27 +10,27 @@
 #include "CommonButtonBase.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetCommonButtonStyleCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetCommonButtonStyleCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_common_button_style");
+	Out.Name = TEXT("ManageAssetCommonButtonStyle");
 	Out.SearchAssetTypes = {TEXT("CommonButtonStyle")};
-	Out.Description = TEXT("Batch edit CommonButtonStyle. operations[].action=set_property.");
+	Out.Description = TEXT("Batch edit CommonButtonStyle. operations[].Action=SetProperty.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("set_property") }))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Property path")))
-		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("New property value")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("SetProperty") }))
+		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("Property path")))
+		.Prop(TEXT("Value"), FNexusSchema::Str(TEXT("New property value")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("CommonButtonStyle asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("CommonButtonStyle asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = { TEXT("commonui"), TEXT("button"), TEXT("style") };
 	Out.RelatedCapabilities = {
-		TEXT("get_asset_common_button_style"), TEXT("create_asset_common_button_style"),
-		TEXT("manage_asset_common_text_style")
+		TEXT("GetAssetCommonButtonStyle"), TEXT("CreateAssetCommonButtonStyle"),
+		TEXT("ManageAssetCommonTextStyle")
 	};
 }
 
@@ -49,33 +49,33 @@ static void HandleCBS_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActio
 {
 	UCommonButtonStyle* Style = CBSState(Ctx)->Style;
 	FString PropPath, Value;
-	Op->TryGetStringField(TEXT("propertyPath"), PropPath);
-	Op->TryGetStringField(TEXT("value"), Value);
+	Op->TryGetStringField(TEXT("PropertyPath"), PropPath);
+	Op->TryGetStringField(TEXT("Value"), Value);
 	if (PropPath.IsEmpty() || Value.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyPath and value"));
 		return;
 	}
 	FString OldVal, ActualVal, Err;
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(Style, { PropPath }, 0, Value, OldVal, ActualVal, Err))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), Err);
+		Ctx.Entry->SetStringField(TEXT("Error"), Err);
 		return;
 	}
 	CBSState(Ctx)->bDirty = true;
-	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
-	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
-	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);
 }
 
-bool FManageAssetCommonButtonStyleCapability::PrepareTarget(
+bool FNexusManageAssetCommonButtonStyleCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UCommonButtonStyle* Style = FNexusAssetUtils::LoadAssetOrBlueprintCDO<UCommonButtonStyle>(AssetPath);
 	if (!Style)
 	{
@@ -88,7 +88,7 @@ bool FManageAssetCommonButtonStyleCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetCommonButtonStyleCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetCommonButtonStyleCapability::FinalizeTarget(void* Target) const
 {
 	FCommonBtnStyleState* State = static_cast<FCommonBtnStyleState*>(Target);
 	if (!State) return;
@@ -96,10 +96,10 @@ void FManageAssetCommonButtonStyleCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetCommonButtonStyleCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetCommonButtonStyleCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_property"), &HandleCBS_SetProperty);
+	OutHandlers.Add(TEXT("SetProperty"), &HandleCBS_SetProperty);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetCommonButtonStyleCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetCommonButtonStyleCapability)
 #endif

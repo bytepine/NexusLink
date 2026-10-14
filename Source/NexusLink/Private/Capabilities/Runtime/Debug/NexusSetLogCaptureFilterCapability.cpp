@@ -8,28 +8,28 @@
 #include "NexusLinkSettings.h"
 #include "NexusMcpTool.h"
 
-void FSetLogCaptureFilterCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusSetLogCaptureFilterCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("set_log_capture_filter");
-	Out.Description = TEXT("Configure buffered log categories. Empty=all; Warning/Error always captured. Affects get_output_log.");
+	Out.Name = TEXT("SetLogCaptureFilter");
+	Out.Description = TEXT("Configure buffered log categories. Empty=all; Warning/Error always captured. Affects GetOutputLog.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("categories"), FNexusSchema::StrArr(
+		.Prop(TEXT("Categories"), FNexusSchema::StrArr(
 			TEXT("Log category substrings to capture. Empty array=all. "
 			     "Examples: [\"LogTemp\"], [\"LogBlueprintUserMessages\",\"LogNexusLink\"], []. "
 			     "Warning/Error always written regardless of this list.")))
-		.Required({ TEXT("categories") })
+		.Required({ TEXT("Categories") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("configure"), TEXT("whitelist"), TEXT("category"), TEXT("include"), TEXT("exclude") };
-	Out.RelatedCapabilities = { TEXT("get_output_log") };
+	Out.ExtraSearchKeywords = { TEXT("configure"), TEXT("whitelist"), TEXT("Category"), TEXT("include"), TEXT("exclude") };
+	Out.RelatedCapabilities = { TEXT("GetOutputLog") };
 }
 
-FCapabilityResult FSetLogCaptureFilterCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusSetLogCaptureFilterCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const TArray<TSharedPtr<FJsonValue>>* CatArrPtr = nullptr;
-		if (!Arguments->TryGetArrayField(TEXT("categories"), CatArrPtr) || !CatArrPtr)
+		if (!Arguments->TryGetArrayField(TEXT("Categories"), CatArrPtr) || !CatArrPtr)
 		{
 			OutError = TEXT("Missing categories (string array)");
 			return;
@@ -59,9 +59,9 @@ FCapabilityResult FSetLogCaptureFilterCapability::Execute(const TSharedPtr<FJson
 			CatArr.Add(MakeShared<FJsonValueString>(Cat));
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		OutEntry->SetStringField(TEXT("captureFilter"), Categories.Num() == 0 ? TEXT("all") : TEXT("custom"));
-		OutEntry->SetArrayField(TEXT("categories"), CatArr);
-		OutEntry->SetStringField(TEXT("note"),
+		OutEntry->SetStringField(TEXT("CaptureFilter"), Categories.Num() == 0 ? TEXT("All") : TEXT("custom"));
+		OutEntry->SetArrayField(TEXT("Categories"), CatArr);
+		OutEntry->SetStringField(TEXT("Note"),
 			Categories.Num() == 0
 				? TEXT("Capturing ALL log categories (Warning/Error always captured)")
 				: FString::Printf(TEXT("Capturing %d log category filters (Warning/Error always captured)"), Categories.Num()));
@@ -69,4 +69,4 @@ FCapabilityResult FSetLogCaptureFilterCapability::Execute(const TSharedPtr<FJson
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FSetLogCaptureFilterCapability)
+REGISTER_MCP_CAPABILITY(FNexusSetLogCaptureFilterCapability)

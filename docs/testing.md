@@ -10,18 +10,18 @@ NexusLink 默认工作在 **SearchMode**（仅暴露 3 个元工具）；全量�
 
 | 元工具 | 说明 |
 |---|---|
-| `search_capabilities` | 按关键词或精确名称查询 Capability |
-| `call_capability` | 调用任意 Capability，参数嵌套在 `arguments` 字段 |
-| `submit_feedback` | 向 NexusLink 提交反馈 |
+| `SearchCapabilities` | 按关键词或精确名称查询 Capability |
+| `CallCapability` | 调用任意 Capability，参数嵌套在 `Arguments` 字段 |
+| `SubmitFeedback` | 向 NexusLink 提交反馈 |
 
 ### `MCPClient.call()` 路由行为
 
 测试中的 `mcp.call("工具名", **kwargs)` 会自动路由：
 
-- **元工具**（`search_capabilities` / `call_capability` / `submit_feedback`）：直接调用。
-- **其他所有名称**：通过 `call_capability` 元工具转发，自动应用 `_framework/legacy_map.py` 中的历史名称映射。
+- **元工具**（`SearchCapabilities` / `CallCapability` / `SubmitFeedback`）：直接调用。
+- **其他所有名称**：通过 `CallCapability` 元工具转发，自动应用 `_framework/legacy_map.py` 中的历史名称映射。
 
-推荐新测试使用 `mcp.call_capability("精确capability名", ...)` 明确指定 capability。
+推荐新测试使用 `mcp.CallCapability("精确capability名", ...)` 明确指定 capability。
 
 ## 快速开始
 

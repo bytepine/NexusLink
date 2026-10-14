@@ -336,10 +336,10 @@ static bool ValidateArgs(
 	return ValidateObject(Args, Schema, FString(), OutError);
 }
 
-// manage 收尾 mixin：向 Schema 注入 saveToDisk；BP/ABP/WBP 另注入 compile
+// manage 收尾 mixin：向 Schema 注入 bSaveToDisk；BP/ABP/WBP 另注入 compile
 static bool IsManageAssetCap(const FString& Name)
 {
-	return Name.StartsWith(TEXT("manage_asset_"));
+	return Name.StartsWith(TEXT("ManageAsset"));
 }
 
 static void InjectOptionalBool(TSharedPtr<FJsonObject>& Schema, const TCHAR* Name, const TCHAR* Desc)
@@ -370,11 +370,11 @@ static void InjectSchema(FNexusCapabilityDefinition& Def)
 {
 	if (Def.bInjectSaveToDisk)
 	{
-		InjectOptionalBool(Def.InputSchema, TEXT("saveToDisk"), TEXT("Save the package to disk after success"));
+		InjectOptionalBool(Def.InputSchema, TEXT("bSaveToDisk"), TEXT("Save the package to disk after success"));
 	}
 	if (Def.bInjectCompile)
 	{
-		InjectOptionalBool(Def.InputSchema, TEXT("compile"), TEXT("Compile blueprint if needed (BP/ABP/WBP only)"));
+		InjectOptionalBool(Def.InputSchema, TEXT("bCompile"), TEXT("Compile blueprint if needed (BP/ABP/WBP only)"));
 	}
 	if (Def.HasTag(FNexusMcpTags::Dangerous) && Def.InputSchema.IsValid())
 	{
@@ -389,9 +389,9 @@ static void InjectSchema(FNexusCapabilityDefinition& Def)
 			Props = MakeShared<FJsonObject>();
 			Def.InputSchema->SetObjectField(TEXT("properties"), Props);
 		}
-		if (!Props->HasField(TEXT("reason")))
+		if (!Props->HasField(TEXT("Reason")))
 		{
-			Props->SetObjectField(TEXT("reason"),
+			Props->SetObjectField(TEXT("Reason"),
 				FNexusSchema::Str(TEXT("Purpose for the editor confirm dialog. Required in Confirm mode.")));
 		}
 	}
@@ -407,7 +407,7 @@ static bool HasSuccessfulEntry(const FCapabilityResult& Result)
 			continue;
 		}
 		const TSharedPtr<FJsonObject> Obj = V->AsObject();
-		if (Obj.IsValid() && !Obj->HasField(TEXT("error")))
+		if (Obj.IsValid() && !Obj->HasField(TEXT("Error")))
 		{
 			return true;
 		}
@@ -427,15 +427,15 @@ static void ApplyIfRequested(
 
 	bool bCompile = false;
 	bool bSaveToDisk = false;
-	Args->TryGetBoolField(TEXT("compile"), bCompile);
-	Args->TryGetBoolField(TEXT("saveToDisk"), bSaveToDisk);
+	Args->TryGetBoolField(TEXT("bCompile"), bCompile);
+	Args->TryGetBoolField(TEXT("bSaveToDisk"), bSaveToDisk);
 	if (!bCompile && !bSaveToDisk)
 	{
 		return;
 	}
 
 	FString AssetPath;
-	Args->TryGetStringField(TEXT("assetPath"), AssetPath);
+	Args->TryGetStringField(TEXT("AssetPath"), AssetPath);
 	if (AssetPath.IsEmpty())
 	{
 		return;
@@ -503,16 +503,16 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 	}
 	FCapabilityResult Result = Execute(Args);
 	// 单 cap 故意提交：部分失败仍保留已成功的改动（能做多少做多少）。
-	// 跨目标回滚由 call_capability 批处理在 failureCount>0 时 CancelAndRevert。
+	// 跨目标回滚由 CallCapability 批处理在 FailureCount>0 时 CancelAndRevert。
 	Tx.Reset();
 	ApplyIfRequested(Def.Name, Args, Result);
 	const double ElapsedMs = (FPlatformTime::Seconds() - StartTime) * 1000.0;
 
 	UE_LOG(LogNexusCapability, Verbose,
-		TEXT("[cap] %s  entries=%d  error=%s  %.1fms"),
+		TEXT("[cap] %s  Entries=%d  Error=%s  %.1fms"),
 		*Def.Name,
 		Result.Entries.Num(),
-		Result.FatalError.IsEmpty() ? TEXT("none") : *Result.FatalError,
+		Result.FatalError.IsEmpty() ? TEXT("None") : *Result.FatalError,
 		ElapsedMs);
 
 	// 慢调用自动埋点：只排除参数校验失败（快速失败且噪声大），慢的致命错误也要记——
@@ -524,14 +524,14 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 			&& static_cast<int32>(ElapsedMs) > S->SlowCallThresholdMs)
 		{
 		FNexusFeedback::FFields F;
-		// MultiTool 模式下直接调 cap，MCP tool 名即 cap 名；SearchMode 下经 call_capability 中转
+		// MultiTool 模式下直接调 cap，MCP tool 名即 cap 名；SearchMode 下经 CallCapability 中转
 		F.Tool       = (UNexusLinkSettings::Get()->ToolsListMode == ENexusToolsListMode::MultiTool)
 			? Def.Name
-			: TEXT("call_capability");
+			: TEXT("CallCapability");
 		F.Capability = Def.Name;
 			F.Note       = FString::Printf(TEXT("%.0fms > threshold %dms%s"), ElapsedMs, S->SlowCallThresholdMs,
 				Result.FatalError.IsEmpty() ? TEXT("") : TEXT(" (error)"));
-			FNexusFeedback::RecordAuto(TEXT("slow_call"), F);
+			FNexusFeedback::RecordAuto(TEXT("SlowCall"), F);
 		}
 	}
 
@@ -583,6 +583,6 @@ void FNexusCapability::EmitError(TArray<TSharedPtr<FJsonValue>>& OutEntries,
 	{
 		Entry->SetStringField(KV.Key, KV.Value);
 	}
-	Entry->SetStringField(TEXT("error"), Error);
+	Entry->SetStringField(TEXT("Error"), Error);
 	OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 }

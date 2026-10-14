@@ -65,7 +65,7 @@ namespace
 		{
 			return nullptr;
 		}
-		const FString Session = FString::Printf(TEXT("MCP: %s"), Title.IsEmpty() ? TEXT("capability") : *Title);
+		const FString Session = FString::Printf(TEXT("MCP: %s"), Title.IsEmpty() ? TEXT("Capability") : *Title);
 		TUniquePtr<FScopedTransaction> Tx = MakeUnique<FScopedTransaction>(FText::FromString(Session));
 		// Construct 在 GEditor->Trans 为空或 GIsTransacting 时 Index=-1，对象仍在但无法回滚
 		if (!Tx.IsValid() || !Tx->IsOutstanding())

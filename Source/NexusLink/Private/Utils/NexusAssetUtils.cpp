@@ -66,22 +66,22 @@ void FNexusAssetUtils::AppendAnimSequenceMetadataFields(const UAnimSequence* Seq
 	}
 	// UE4 部分 Anim API 非 const；只读快照，不修改资产。
 	UAnimSequence* SeqMut = const_cast<UAnimSequence*>(Seq);
-	Entry->SetNumberField(TEXT("length"), SeqMut->GetPlayLength());
+	Entry->SetNumberField(TEXT("Length"), SeqMut->GetPlayLength());
 #if NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL && WITH_EDITOR
 	if (const IAnimationDataModel* Model = SeqMut->GetDataModel())
 	{
-		Entry->SetNumberField(TEXT("numFrames"), static_cast<double>(Model->GetNumberOfFrames()));
-		Entry->SetNumberField(TEXT("frameRate"), Model->GetFrameRate().AsDecimal());
+		Entry->SetNumberField(TEXT("NumFrames"), static_cast<double>(Model->GetNumberOfFrames()));
+		Entry->SetNumberField(TEXT("FrameRate"), Model->GetFrameRate().AsDecimal());
 	}
 #elif NX_UE_HAS_ANIM_SEQUENCE_SAMPLING_API
-	Entry->SetNumberField(TEXT("numFrames"), static_cast<double>(SeqMut->GetNumberOfSampledKeys()));
-	Entry->SetNumberField(TEXT("frameRate"), SeqMut->GetSamplingFrameRate().AsDecimal());
+	Entry->SetNumberField(TEXT("NumFrames"), static_cast<double>(SeqMut->GetNumberOfSampledKeys()));
+	Entry->SetNumberField(TEXT("FrameRate"), SeqMut->GetSamplingFrameRate().AsDecimal());
 #elif WITH_EDITOR
-	Entry->SetNumberField(TEXT("numFrames"), SeqMut->GetNumberOfFrames());
-	Entry->SetNumberField(TEXT("frameRate"), SeqMut->GetFrameRate());
+	Entry->SetNumberField(TEXT("NumFrames"), SeqMut->GetNumberOfFrames());
+	Entry->SetNumberField(TEXT("FrameRate"), SeqMut->GetFrameRate());
 #endif
 #if NX_UE_HAS_ANIM_SEQUENCE_LOOP_FIELD
-	Entry->SetBoolField(TEXT("loop"), SeqMut->bLoop);
+	Entry->SetBoolField(TEXT("bLoop"), SeqMut->bLoop);
 #endif
 }
 
@@ -98,25 +98,25 @@ void FNexusAssetUtils::AppendAnimSequenceNotifyFields(const UAnimSequence* Seq, 
 	{
 		const FAnimNotifyEvent& Ev = SeqMut->Notifies[i];
 		TSharedPtr<FJsonObject> N = MakeShared<FJsonObject>();
-		N->SetNumberField(TEXT("index"), static_cast<double>(i));
+		N->SetNumberField(TEXT("Index"), static_cast<double>(i));
 		N->SetStringField(TEXT("name"), Ev.NotifyName.ToString());
-		N->SetNumberField(TEXT("time"), static_cast<double>(Ev.GetTime()));
-		N->SetNumberField(TEXT("duration"), static_cast<double>(Ev.GetDuration()));
+		N->SetNumberField(TEXT("Time"), static_cast<double>(Ev.GetTime()));
+		N->SetNumberField(TEXT("Duration"), static_cast<double>(Ev.GetDuration()));
 		if (Ev.Notify)
 		{
-			N->SetStringField(TEXT("notifyClass"), Ev.Notify->GetClass()->GetName());
+			N->SetStringField(TEXT("NotifyClass"), Ev.Notify->GetClass()->GetName());
 		}
 		else if (Ev.NotifyStateClass)
 		{
-			N->SetStringField(TEXT("notifyClass"), Ev.NotifyStateClass->GetClass()->GetName());
-			N->SetBoolField(TEXT("isState"), true);
+			N->SetStringField(TEXT("NotifyClass"), Ev.NotifyStateClass->GetClass()->GetName());
+			N->SetBoolField(TEXT("bIsState"), true);
 		}
 		NotifyArr.Add(MakeShared<FJsonValueObject>(N));
 	}
-	Entry->SetArrayField(TEXT("notifies"), NotifyArr);
+	Entry->SetArrayField(TEXT("Notifies"), NotifyArr);
 	if (SeqMut->Notifies.Num() > MaxNotifies)
 	{
-		Entry->SetNumberField(TEXT("notifiesTruncated"), static_cast<double>(SeqMut->Notifies.Num() - MaxNotifies));
+		Entry->SetNumberField(TEXT("NotifiesTruncated"), static_cast<double>(SeqMut->Notifies.Num() - MaxNotifies));
 	}
 }
 
@@ -135,36 +135,36 @@ static void AppendFloatCurvesToJson(const TArray<FFloatCurve>& FloatCurves, TSha
 	constexpr int32 MaxCurves = 64;
 	constexpr int32 MaxKeysPerCurve = 64;
 	const int32 CurveCount = FMath::Min(FloatCurves.Num(), MaxCurves);
-	for (int32 Ci = 0; Ci < CurveCount; ++Ci)
+	for (int32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
 	{
-		const FFloatCurve& FC = FloatCurves[Ci];
+		const FFloatCurve& FC = FloatCurves[CurveIndex];
 		TSharedPtr<FJsonObject> CObj = MakeShared<FJsonObject>();
 		CObj->SetStringField(TEXT("name"), NexusGetFloatCurveName(FC).ToString());
 
 		TArray<float> Times, Values;
 		const_cast<FFloatCurve&>(FC).GetKeys(Times, Values);
 		const int32 KeyCount = FMath::Min(Times.Num(), MaxKeysPerCurve);
-		CObj->SetNumberField(TEXT("keyCount"), static_cast<double>(Times.Num()));
+		CObj->SetNumberField(TEXT("KeyCount"), static_cast<double>(Times.Num()));
 
 		TArray<TSharedPtr<FJsonValue>> KeysArr;
-		for (int32 Ki = 0; Ki < KeyCount; ++Ki)
+		for (int32 KeyIndex = 0; KeyIndex < KeyCount; ++KeyIndex)
 		{
 			TSharedPtr<FJsonObject> K = MakeShared<FJsonObject>();
-			K->SetNumberField(TEXT("time"), static_cast<double>(Times[Ki]));
-			K->SetNumberField(TEXT("value"), static_cast<double>(Values.IsValidIndex(Ki) ? Values[Ki] : 0.f));
+			K->SetNumberField(TEXT("Time"), static_cast<double>(Times[KeyIndex]));
+			K->SetNumberField(TEXT("Value"), static_cast<double>(Values.IsValidIndex(KeyIndex) ? Values[KeyIndex] : 0.f));
 			KeysArr.Add(MakeShared<FJsonValueObject>(K));
 		}
-		CObj->SetArrayField(TEXT("keys"), KeysArr);
+		CObj->SetArrayField(TEXT("Keys"), KeysArr);
 		if (Times.Num() > MaxKeysPerCurve)
 		{
-			CObj->SetNumberField(TEXT("keysTruncated"), static_cast<double>(Times.Num() - MaxKeysPerCurve));
+			CObj->SetNumberField(TEXT("KeysTruncated"), static_cast<double>(Times.Num() - MaxKeysPerCurve));
 		}
 		CurvesArr.Add(MakeShared<FJsonValueObject>(CObj));
 	}
-	Entry->SetArrayField(TEXT("curves"), CurvesArr);
+	Entry->SetArrayField(TEXT("Curves"), CurvesArr);
 	if (FloatCurves.Num() > MaxCurves)
 	{
-		Entry->SetNumberField(TEXT("curvesTruncated"), static_cast<double>(FloatCurves.Num() - MaxCurves));
+		Entry->SetNumberField(TEXT("CurvesTruncated"), static_cast<double>(FloatCurves.Num() - MaxCurves));
 	}
 }
 
@@ -188,13 +188,13 @@ void FNexusAssetUtils::AppendAnimSequenceCurveFields(const UAnimSequence* Seq, T
 	FStructProperty* StructProp = FindFProperty<FStructProperty>(SeqMut->GetClass(), TEXT("RawCurveData"));
 	if (!StructProp)
 	{
-		Entry->SetArrayField(TEXT("curves"), TArray<TSharedPtr<FJsonValue>>());
+		Entry->SetArrayField(TEXT("Curves"), TArray<TSharedPtr<FJsonValue>>());
 		return;
 	}
 	FRawCurveTracks* Tracks = StructProp->ContainerPtrToValuePtr<FRawCurveTracks>(SeqMut);
 	if (!Tracks)
 	{
-		Entry->SetArrayField(TEXT("curves"), TArray<TSharedPtr<FJsonValue>>());
+		Entry->SetArrayField(TEXT("Curves"), TArray<TSharedPtr<FJsonValue>>());
 		return;
 	}
 	AppendFloatCurvesToJson(Tracks->FloatCurves, Entry);
@@ -322,7 +322,7 @@ void FNexusAssetUtils::AppendBlueprintMetaFields(const UBlueprint* BP, TSharedPt
 	case BPTYPE_FunctionLibrary: TypeStr = TEXT("functionLibrary"); break;
 	default:                     TypeStr = TEXT("unknown"); break;
 	}
-	OutEntry->SetStringField(TEXT("blueprintType"), TypeStr);
+	OutEntry->SetStringField(TEXT("BlueprintType"), TypeStr);
 
 	TArray<TSharedPtr<FJsonValue>> Ifaces;
 #if WITH_EDITOR
@@ -335,7 +335,7 @@ void FNexusAssetUtils::AppendBlueprintMetaFields(const UBlueprint* BP, TSharedPt
 		}
 	}
 #endif
-	OutEntry->SetArrayField(TEXT("implementedInterfaces"), Ifaces);
+	OutEntry->SetArrayField(TEXT("ImplementedInterfaces"), Ifaces);
 }
 
 UUserDefinedStruct* FNexusAssetUtils::FindStructByName(const FString& StructName)
@@ -379,7 +379,7 @@ FNexusAssetUtils::FAssetCreateOutcome FNexusAssetUtils::CreatePlainAsset(
 	}
 	if (AssetPath.IsEmpty())
 	{
-		Out.Error = TEXT("assetPath is empty");
+		Out.Error = TEXT("AssetPath is empty");
 		return Out;
 	}
 	if (StaticFindObject(AssetClass, nullptr, *AssetPath)

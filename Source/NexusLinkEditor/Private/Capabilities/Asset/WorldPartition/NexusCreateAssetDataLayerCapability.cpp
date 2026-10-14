@@ -15,36 +15,36 @@
 #include "UObject/Package.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 
-void FCreateAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name        = TEXT("create_asset_data_layer");
+	Out.Name        = TEXT("CreateAssetDataLayer");
 	Out.Description = TEXT("Create DataLayer asset (UDataLayerAsset, ≥UE5.1). type: Runtime or Editor.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("New DataLayer asset full path, e.g. /Game/WorldData/DL_New")))
+		.Prop(TEXT("AssetPath"),   FNexusSchema::Str(TEXT("New DataLayer asset full path, e.g. /Game/WorldData/DL_New")))
 		.Prop(TEXT("type"),        FNexusSchema::Str(TEXT("Runtime or Editor (default Runtime)")))
-		.Prop(TEXT("debugColor"),  FNexusSchema::Str(TEXT("Debug color (#RRGGBB or color name, optional)")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("DebugColor"),  FNexusSchema::Str(TEXT("Debug color (#RRGGBB or color name, optional)")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("datalayer"), TEXT("data layer"), TEXT("world partition"), TEXT("streaming"), TEXT("level") };
-	Out.RelatedCapabilities = { TEXT("get_asset_data_layer"), TEXT("manage_asset_data_layer"), TEXT("search_asset") };
+	Out.ExtraSearchKeywords = { TEXT("datalayer"), TEXT("data layer"), TEXT("world partition"), TEXT("streaming"), TEXT("Level") };
+	Out.RelatedCapabilities = { TEXT("GetAssetDataLayer"), TEXT("ManageAssetDataLayer"), TEXT("SearchAsset") };
 	Out.WhenToUse = TEXT("Create World Partition DataLayer (≥UE5.1) with Runtime/Editor type and debug color");
 }
 
-FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString FullPath = A.Str(TEXT("assetPath"));
+		const FString FullPath = A.Str(TEXT("AssetPath"));
 		const FString AssetName = FPaths::GetBaseFilename(FullPath);
 
 		if (FNexusAssetUtils::LoadAssetWithFallback<UDataLayerAsset>(FullPath))
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"),   FullPath);
-			Entry->SetStringField(TEXT("assetType"),   TEXT("DataLayerAsset"));
-			Entry->SetBoolField(TEXT("alreadyExists"), true);
+			Entry->SetStringField(TEXT("Path"),   FullPath);
+			Entry->SetStringField(TEXT("AssetType"),   TEXT("DataLayerAsset"));
+			Entry->SetBoolField(TEXT("bAlreadyExists"), true);
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -52,7 +52,7 @@ FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 		UPackage* Package = CreatePackage(*FullPath);
 		if (!Package)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), FullPath}}, TEXT("Unable to create Package"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("Path"), FullPath}}, TEXT("Unable to create Package"));
 			return;
 		}
 
@@ -75,7 +75,7 @@ FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 
 		// 设置调试颜色（可选）
 		FString ColorStr;
-		if (Arguments->TryGetStringField(TEXT("debugColor"), ColorStr) && !ColorStr.IsEmpty())
+		if (Arguments->TryGetStringField(TEXT("DebugColor"), ColorStr) && !ColorStr.IsEmpty())
 		{
 			FColor Color = FColor::FromHex(ColorStr);
 			DLA->SetDebugColor(Color);
@@ -87,15 +87,15 @@ FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJso
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, DLA, FullPath);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), DLA->GetPathName());
-		Entry->SetStringField(TEXT("assetType"), TEXT("DataLayerAsset"));
+		Entry->SetStringField(TEXT("Path"), DLA->GetPathName());
+		Entry->SetStringField(TEXT("AssetType"), TEXT("DataLayerAsset"));
 		Entry->SetStringField(TEXT("type"),      DLA->GetType() == EDataLayerType::Runtime ? TEXT("Runtime") : TEXT("Editor"));
-		Entry->SetBoolField(TEXT("created"),     true);
+		Entry->SetBoolField(TEXT("bCreated"),     true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetDataLayerCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetDataLayerCapability)
 
 #else // NX_UE_HAS_DATA_LAYER_ASSET
 
@@ -104,22 +104,22 @@ REGISTER_MCP_CAPABILITY(FCreateAssetDataLayerCapability)
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name        = TEXT("create_asset_data_layer");
+	Out.Name        = TEXT("CreateAssetDataLayer");
 	Out.Description = TEXT("(DataLayerAsset requires UE5.1+ on this engine)");
 	Out.InputSchema = FNexusSchema::Object().Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 }
 
-FCapabilityResult FCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJsonObject>&) const
+FCapabilityResult FNexusCreateAssetDataLayerCapability::Execute(const TSharedPtr<FJsonObject>&) const
 {
 	return FNexusCapabilityResultBuilder::Build([](auto& OutEntries, auto&, auto& OutError)
 	{
-		OutError = TEXT("create_asset_data_layer requires UE5.1+");
+		OutError = TEXT("CreateAssetDataLayer requires UE5.1+");
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetDataLayerCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetDataLayerCapability)
 
 #endif // NX_UE_HAS_DATA_LAYER_ASSET

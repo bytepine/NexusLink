@@ -13,39 +13,39 @@
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
-void FCreateAssetPoseSearchCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetPoseSearchCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_pose_search");
+	Out.Name = TEXT("CreateAssetPoseSearch");
 	Out.Description = TEXT("Create PoseSearchDatabase or PoseSearchSchema (UE 5.4+).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Prop(TEXT("assetKind"), FNexusSchema::Enum(TEXT("Asset kind"), {
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("AssetKind"), FNexusSchema::Enum(TEXT("Asset kind"), {
 			TEXT("Database"), TEXT("Schema")
 		}))
-		.Prop(TEXT("schemaPath"), FNexusSchema::Str(TEXT("Optional Schema path when creating Database")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("SchemaPath"), FNexusSchema::Str(TEXT("Optional Schema path when creating Database")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("pose"), TEXT("search"), TEXT("motion"), TEXT("matching"), TEXT("database"), TEXT("schema") };
-	Out.RelatedCapabilities = { TEXT("get_asset_pose_search"), TEXT("manage_asset_pose_search") };
+	Out.ExtraSearchKeywords = { TEXT("pose"), TEXT("search"), TEXT("motion"), TEXT("matching"), TEXT("database"), TEXT("Schema") };
+	Out.RelatedCapabilities = { TEXT("GetAssetPoseSearch"), TEXT("ManageAssetPoseSearch") };
 	Out.WhenToUse = TEXT("Create PoseSearch Database/Schema from scratch; entry CRUD limited");
 }
 
-FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		FString Kind = TEXT("Database");
-		Kind = FNexusArgs(Arguments).Str(TEXT("assetKind"), Kind);
+		Kind = FNexusArgs(Arguments).Str(TEXT("AssetKind"), Kind);
 		if (Kind.IsEmpty()) Kind = TEXT("Database");
 
 		const bool bSchema = Kind.Equals(TEXT("Schema"), ESearchCase::IgnoreCase);
 		if (!bSchema && !Kind.Equals(TEXT("Database"), ESearchCase::IgnoreCase))
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				TEXT("assetKind must be Database or Schema"));
+				TEXT("AssetKind must be Database or Schema"));
 			return;
 		}
 
@@ -60,7 +60,7 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 			}
 			UPoseSearchSchema* Schema = Cast<UPoseSearchSchema>(Created.Asset);
 			TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(Schema);
-			Entry->SetStringField(TEXT("assetKind"), TEXT("Schema"));
+			Entry->SetStringField(TEXT("AssetKind"), TEXT("Schema"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -75,7 +75,7 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 		UPoseSearchDatabase* DB = Cast<UPoseSearchDatabase>(Created.Asset);
 
 		FString SchemaPath;
-		SchemaPath = FNexusArgs(Arguments).Str(TEXT("schemaPath"), SchemaPath);
+		SchemaPath = FNexusArgs(Arguments).Str(TEXT("SchemaPath"), SchemaPath);
 		if (!SchemaPath.IsEmpty())
 		{
 			if (UPoseSearchSchema* Schema = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchSchema>(SchemaPath))
@@ -92,12 +92,12 @@ FCapabilityResult FCreateAssetPoseSearchCapability::Execute(const TSharedPtr<FJs
 
 		FNexusAssetUtils::NotifyAndSaveCreated(DB->GetOutermost(), DB, AssetPath);
 		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(DB);
-		Entry->SetStringField(TEXT("assetKind"), TEXT("Database"));
-		if (DB->Schema) Entry->SetStringField(TEXT("schemaPath"), DB->Schema->GetPathName());
+		Entry->SetStringField(TEXT("AssetKind"), TEXT("Database"));
+		if (DB->Schema) Entry->SetStringField(TEXT("SchemaPath"), DB->Schema->GetPathName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetPoseSearchCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetPoseSearchCapability)
 
 #endif // WITH_POSE_SEARCH

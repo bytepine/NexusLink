@@ -9,25 +9,25 @@
 #include "FileMediaSource.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetMediaSourceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetMediaSourceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_media_source");
+	Out.Name = TEXT("ManageAssetMediaSource");
 	Out.SearchAssetTypes = {TEXT("FileMediaSource"), TEXT("MediaSource")};
-	Out.Description = TEXT("Batch edit FileMediaSource. action=set_file_path/set_loop.");
+	Out.Description = TEXT("Batch edit FileMediaSource. Action=SetFilePath/SetLoop.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("set_file_path"), TEXT("set_loop") }))
-		.Prop(TEXT("mediaPath"), FNexusSchema::Str(TEXT("Media file path (set_file_path)")))
-		.Prop(TEXT("loop"), FNexusSchema::Bool(TEXT("Loop flag (set_loop, reflected field)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("SetFilePath"), TEXT("SetLoop") }))
+		.Prop(TEXT("MediaPath"), FNexusSchema::Str(TEXT("Media file path (SetFilePath)")))
+		.Prop(TEXT("bLoop"), FNexusSchema::Bool(TEXT("Loop flag (SetLoop, reflected field)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MediaSource asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("MediaSource asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("video"), TEXT("path"), TEXT("loop"), TEXT("media") };
-	Out.RelatedCapabilities = { TEXT("get_asset_media_source"), TEXT("create_asset_media_source") };
+	Out.ExtraSearchKeywords = { TEXT("video"), TEXT("Path"), TEXT("bLoop"), TEXT("media") };
+	Out.RelatedCapabilities = { TEXT("GetAssetMediaSource"), TEXT("CreateAssetMediaSource") };
 }
 
 struct FMediaSourceActionState
@@ -60,49 +60,49 @@ static void HandleMS_SetFilePath(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	UFileMediaSource* Source = MSFrom(Ctx);
 	if (!Source)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("FileMediaSource is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("FileMediaSource is null"));
 		return;
 	}
 	FString FilePath;
-	if (!Op->TryGetStringField(TEXT("mediaPath"), FilePath) || FilePath.IsEmpty())
+	if (!Op->TryGetStringField(TEXT("MediaPath"), FilePath) || FilePath.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_file_path requires mediaPath"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetFilePath requires MediaPath"));
 		return;
 	}
 	Source->SetFilePath(FilePath);
 	MarkMSDirty(Ctx);
-	Ctx.Entry->SetStringField(TEXT("mediaPath"), Source->GetFilePath());
+	Ctx.Entry->SetStringField(TEXT("MediaPath"), Source->GetFilePath());
 }
 
 static void HandleMS_SetLoop(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UFileMediaSource* Source = MSFrom(Ctx);
-	if (!Op->HasField(TEXT("loop")))
+	if (!Op->HasField(TEXT("bLoop")))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_loop requires loop"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetLoop requires loop"));
 		return;
 	}
-	const bool bLoop = Op->GetBoolField(TEXT("loop"));
+	const bool bLoop = Op->GetBoolField(TEXT("bLoop"));
 	FString OldVal, ActualVal, Err;
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(
 		Source, { TEXT("Loop") }, 0, bLoop ? TEXT("True") : TEXT("False"), OldVal, ActualVal, Err))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"),
+		Ctx.Entry->SetStringField(TEXT("Error"),
 			Err.IsEmpty() ? TEXT("no Loop field") : Err);
 		return;
 	}
 	MarkMSDirty(Ctx);
-	Ctx.Entry->SetBoolField(TEXT("loop"), bLoop);
+	Ctx.Entry->SetBoolField(TEXT("bLoop"), bLoop);
 }
 
-bool FManageAssetMediaSourceCapability::PrepareTarget(
+bool FNexusManageAssetMediaSourceCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UFileMediaSource* Source = FNexusAssetUtils::LoadAssetWithFallback<UFileMediaSource>(AssetPath);
 	if (!Source)
 	{
@@ -115,7 +115,7 @@ bool FManageAssetMediaSourceCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetMediaSourceCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetMediaSourceCapability::FinalizeTarget(void* Target) const
 {
 	FMediaSourceActionState* State = static_cast<FMediaSourceActionState*>(Target);
 	if (!State) return;
@@ -126,10 +126,10 @@ void FManageAssetMediaSourceCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetMediaSourceCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetMediaSourceCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_file_path"), &HandleMS_SetFilePath);
-	OutHandlers.Add(TEXT("set_loop"),      &HandleMS_SetLoop);
+	OutHandlers.Add(TEXT("SetFilePath"), &HandleMS_SetFilePath);
+	OutHandlers.Add(TEXT("SetLoop"),      &HandleMS_SetLoop);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetMediaSourceCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetMediaSourceCapability)

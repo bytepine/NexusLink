@@ -13,26 +13,26 @@
 #include "GameFramework/Actor.h"
 #include "NexusMcpTool.h"
 
-void FListRuntimeActorsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusListRuntimeActorsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("list_runtime_actors");
+	Out.Name = TEXT("ListRuntimeActors");
 	Out.Description = TEXT("List Actors in PIE/Game. Filter by class/tag/name; returns refs not properties.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("classFilter"), FNexusSchema::Str(TEXT("Actor class name substring match (optional)")))
-		.Prop(TEXT("nameFilter"),  FNexusSchema::Str(TEXT("Actor name or tag substring match (optional)")))
-		.Prop(TEXT("tagFilter"),   FNexusSchema::Str(TEXT("Only Actors with this tag (optional)")))
-		.Prop(TEXT("offset"),      FNexusSchema::Int(TEXT("Pagination offset (default 0)")))
-		.Prop(TEXT("limit"),       FNexusSchema::Int(TEXT("Max count 1-500 (default 100)")))
-		.Prop(TEXT("detail"),      FNexusSchema::Enum(TEXT("Response verbosity: minimal/standard/full"),
-			{ TEXT("minimal"), TEXT("standard"), TEXT("full") }, TEXT("standard")))
+		.Prop(TEXT("ClassFilter"), FNexusSchema::Str(TEXT("Actor class name substring match (optional)")))
+		.Prop(TEXT("NameFilter"),  FNexusSchema::Str(TEXT("Actor name or tag substring match (optional)")))
+		.Prop(TEXT("TagFilter"),   FNexusSchema::Str(TEXT("Only Actors with this tag (optional)")))
+		.Prop(TEXT("Offset"),      FNexusSchema::Int(TEXT("Pagination offset (default 0)")))
+		.Prop(TEXT("Limit"),       FNexusSchema::Int(TEXT("Max count 1-500 (default 100)")))
+		.Prop(TEXT("Detail"),      FNexusSchema::Enum(TEXT("Response verbosity: minimal/standard/full"),
+			{ TEXT("Minimal"), TEXT("Standard"), TEXT("Full") }, TEXT("Standard")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("scene"), TEXT("world"), TEXT("filter"), TEXT("find"), TEXT("tag") };
-	Out.RelatedCapabilities = { TEXT("get_runtime_actor_property"), TEXT("diff_runtime_actors") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.ExtraSearchKeywords = { TEXT("scene"), TEXT("World"), TEXT("filter"), TEXT("find"), TEXT("Tag") };
+	Out.RelatedCapabilities = { TEXT("GetRuntimeActorProperty"), TEXT("DiffRuntimeActors") };
+	Out.Prerequisites = { TEXT("PIE") };
 }
 
-FCapabilityResult FListRuntimeActorsCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusListRuntimeActorsCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -43,17 +43,17 @@ FCapabilityResult FListRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 		if (!World) return;
 
 		FString ClassFilter, NameFilter, TagFilter;
-		FString DetailMode = TEXT("standard");
+		FString DetailMode = TEXT("Standard");
 		int32 Offset = 0, Limit = 100;
 
 		if (Arguments.IsValid())
 		{
-			if (Arguments->HasField(TEXT("classFilter"))) ClassFilter = A.Str(TEXT("classFilter"));
-			if (Arguments->HasField(TEXT("nameFilter")))  NameFilter  = A.Str(TEXT("nameFilter"));
-			if (Arguments->HasField(TEXT("tagFilter")))   TagFilter   = A.Str(TEXT("tagFilter"));
-			if (Arguments->HasField(TEXT("offset")))      Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
-			if (Arguments->HasField(TEXT("limit")))       Limit  = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
-			if (Arguments->HasField(TEXT("detail")))      DetailMode = A.Str(TEXT("detail")).ToLower();
+			if (Arguments->HasField(TEXT("ClassFilter"))) ClassFilter = A.Str(TEXT("ClassFilter"));
+			if (Arguments->HasField(TEXT("NameFilter")))  NameFilter  = A.Str(TEXT("NameFilter"));
+			if (Arguments->HasField(TEXT("TagFilter")))   TagFilter   = A.Str(TEXT("TagFilter"));
+			if (Arguments->HasField(TEXT("Offset")))      Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("Offset"))));
+			if (Arguments->HasField(TEXT("Limit")))       Limit  = FMath::Clamp(static_cast<int32>(A.Num(TEXT("Limit"))), 1, 500);
+			if (Arguments->HasField(TEXT("Detail")))      DetailMode = A.Str(TEXT("Detail")).ToLower();
 		}
 
 		struct FActorEntry { FString Name; FString Label; FString Class; FString Location; };
@@ -92,35 +92,35 @@ FCapabilityResult FListRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 		const int32 Total = All.Num();
 		int32 Start, End; FNexusJsonUtils::ComputeSlice(Total, Offset, Limit, Start, End);
 
-		const bool bMinimal = (DetailMode == TEXT("minimal"));
+		const bool bMinimal = (DetailMode == TEXT("Minimal"));
 		TArray<TSharedPtr<FJsonValue>> Page;
 		for (int32 i = Start; i < End; ++i)
 		{
 			TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
 			O->SetStringField(TEXT("name"), All[i].Name);
-			if (!bMinimal && !All[i].Label.IsEmpty()) O->SetStringField(TEXT("label"), All[i].Label);
-			O->SetStringField(TEXT("class"), All[i].Class);
-			if (!bMinimal) O->SetStringField(TEXT("location"), All[i].Location);
+			if (!bMinimal && !All[i].Label.IsEmpty()) O->SetStringField(TEXT("Label"), All[i].Label);
+			O->SetStringField(TEXT("Class"), All[i].Class);
+			if (!bMinimal) O->SetStringField(TEXT("Location"), All[i].Location);
 			Page.Add(MakeShared<FJsonValueObject>(O));
 		}
 
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-	Entry->SetStringField(TEXT("world"), World->GetName());
-	Entry->SetNumberField(TEXT("totalCount"), Total);
-	Entry->SetNumberField(TEXT("offset"), Start);
-	Entry->SetNumberField(TEXT("limit"), Limit);
-	Entry->SetArrayField(TEXT("actors"), Page);
+	Entry->SetStringField(TEXT("World"), World->GetName());
+	Entry->SetNumberField(TEXT("TotalCount"), Total);
+	Entry->SetNumberField(TEXT("Offset"), Start);
+	Entry->SetNumberField(TEXT("Limit"), Limit);
+	Entry->SetArrayField(TEXT("Actors"), Page);
 		if (!ClassFilter.IsEmpty() && Page.Num() > 0)
 		{
 			FNexusResponseCompactorUtils ActorCompactor;
-			ActorCompactor.AddForcedDefaultIfUnanimous(TEXT("class"), Page);
+			ActorCompactor.AddForcedDefaultIfUnanimous(TEXT("Class"), Page);
 			ActorCompactor.CompactArray(Page);
-			ActorCompactor.Emit(Entry, TEXT("actors"));
+			ActorCompactor.Emit(Entry, TEXT("Actors"));
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FListRuntimeActorsCapability)
+REGISTER_MCP_CAPABILITY(FNexusListRuntimeActorsCapability)
 

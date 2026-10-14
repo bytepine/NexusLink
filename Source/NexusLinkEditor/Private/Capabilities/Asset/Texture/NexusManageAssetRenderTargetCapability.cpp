@@ -7,30 +7,30 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetRenderTargetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetRenderTargetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_render_target");
+	Out.Name = TEXT("ManageAssetRenderTarget");
 	Out.SearchAssetTypes = {TEXT("TextureRenderTarget2D")};
-	Out.Description = TEXT("Edit TextureRenderTarget2D: sizeX/sizeY/formatValue/clearColor(r,g,b,a).");
+	Out.Description = TEXT("Edit TextureRenderTarget2D: SizeX/SizeY/FormatValue/ClearColor(r,g,b,a).");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Action"), { TEXT("set") }))
-		.Prop(TEXT("sizeX"),        FNexusSchema::Int(TEXT("Width (≥1)"), 0, 1))
-		.Prop(TEXT("sizeY"),        FNexusSchema::Int(TEXT("Height (≥1)"), 0, 1))
-		.Prop(TEXT("formatValue"),  FNexusSchema::Int(TEXT("ETextureRenderTargetFormat enum: 0=RGBA8,1=RGBA16f…")))
-		.Prop(TEXT("clearColorR"),  FNexusSchema::Num(TEXT("ClearColor R [0,1]")))
-		.Prop(TEXT("clearColorG"),  FNexusSchema::Num(TEXT("ClearColor G [0,1]")))
-		.Prop(TEXT("clearColorB"),  FNexusSchema::Num(TEXT("ClearColor B [0,1]")))
-		.Prop(TEXT("clearColorA"),  FNexusSchema::Num(TEXT("ClearColor A [0,1]")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Action"), { TEXT("Set") }))
+		.Prop(TEXT("SizeX"),        FNexusSchema::Int(TEXT("Width (≥1)"), 0, 1))
+		.Prop(TEXT("SizeY"),        FNexusSchema::Int(TEXT("Height (≥1)"), 0, 1))
+		.Prop(TEXT("FormatValue"),  FNexusSchema::Int(TEXT("ETextureRenderTargetFormat enum: 0=RGBA8,1=RGBA16f…")))
+		.Prop(TEXT("ClearColorR"),  FNexusSchema::Num(TEXT("ClearColor R [0,1]")))
+		.Prop(TEXT("ClearColorG"),  FNexusSchema::Num(TEXT("ClearColor G [0,1]")))
+		.Prop(TEXT("ClearColorB"),  FNexusSchema::Num(TEXT("ClearColor B [0,1]")))
+		.Prop(TEXT("ClearColorA"),  FNexusSchema::Num(TEXT("ClearColor A [0,1]")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("RenderTarget asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("RenderTarget asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("render"), TEXT("target"), TEXT("resize"), TEXT("format"), TEXT("clear") };
-	Out.RelatedCapabilities = { TEXT("create_asset_render_target"), TEXT("get_asset_render_target") };
+	Out.ExtraSearchKeywords = { TEXT("render"), TEXT("Target"), TEXT("resize"), TEXT("Format"), TEXT("clear") };
+	Out.RelatedCapabilities = { TEXT("CreateAssetRenderTarget"), TEXT("GetAssetRenderTarget") };
 }
 
 struct FRTActionState
@@ -48,33 +48,33 @@ static void HandleRT_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 {
 	UTextureRenderTarget2D* RT = RTState(Ctx)->RT;
 	bool bResized = false;
-	if (Op->HasField(TEXT("sizeX"))) { RT->SizeX = FMath::Max(1, static_cast<int32>(Op->GetNumberField(TEXT("sizeX")))); bResized = true; }
-	if (Op->HasField(TEXT("sizeY"))) { RT->SizeY = FMath::Max(1, static_cast<int32>(Op->GetNumberField(TEXT("sizeY")))); bResized = true; }
-	if (Op->HasField(TEXT("formatValue")))
+	if (Op->HasField(TEXT("SizeX"))) { RT->SizeX = FMath::Max(1, static_cast<int32>(Op->GetNumberField(TEXT("SizeX")))); bResized = true; }
+	if (Op->HasField(TEXT("SizeY"))) { RT->SizeY = FMath::Max(1, static_cast<int32>(Op->GetNumberField(TEXT("SizeY")))); bResized = true; }
+	if (Op->HasField(TEXT("FormatValue")))
 	{
-		RT->RenderTargetFormat = ETextureRenderTargetFormat(static_cast<int32>(Op->GetNumberField(TEXT("formatValue"))));
+		RT->RenderTargetFormat = ETextureRenderTargetFormat(static_cast<int32>(Op->GetNumberField(TEXT("FormatValue"))));
 		bResized = true;
 	}
-	if (Op->HasField(TEXT("clearColorR"))) RT->ClearColor.R = static_cast<float>(Op->GetNumberField(TEXT("clearColorR")));
-	if (Op->HasField(TEXT("clearColorG"))) RT->ClearColor.G = static_cast<float>(Op->GetNumberField(TEXT("clearColorG")));
-	if (Op->HasField(TEXT("clearColorB"))) RT->ClearColor.B = static_cast<float>(Op->GetNumberField(TEXT("clearColorB")));
-	if (Op->HasField(TEXT("clearColorA"))) RT->ClearColor.A = static_cast<float>(Op->GetNumberField(TEXT("clearColorA")));
+	if (Op->HasField(TEXT("ClearColorR"))) RT->ClearColor.R = static_cast<float>(Op->GetNumberField(TEXT("ClearColorR")));
+	if (Op->HasField(TEXT("ClearColorG"))) RT->ClearColor.G = static_cast<float>(Op->GetNumberField(TEXT("ClearColorG")));
+	if (Op->HasField(TEXT("ClearColorB"))) RT->ClearColor.B = static_cast<float>(Op->GetNumberField(TEXT("ClearColorB")));
+	if (Op->HasField(TEXT("ClearColorA"))) RT->ClearColor.A = static_cast<float>(Op->GetNumberField(TEXT("ClearColorA")));
 	if (bResized) RT->UpdateResourceImmediate(true);
 	RTState(Ctx)->bDirty = true;
 	Ctx.Entry->SetStringField(TEXT("name"),        RT->GetName());
-	Ctx.Entry->SetNumberField(TEXT("sizeX"),       RT->SizeX);
-	Ctx.Entry->SetNumberField(TEXT("sizeY"),       RT->SizeY);
-	Ctx.Entry->SetNumberField(TEXT("formatValue"), static_cast<double>(static_cast<int32>(RT->RenderTargetFormat)));
+	Ctx.Entry->SetNumberField(TEXT("SizeX"),       RT->SizeX);
+	Ctx.Entry->SetNumberField(TEXT("SizeY"),       RT->SizeY);
+	Ctx.Entry->SetNumberField(TEXT("FormatValue"), static_cast<double>(static_cast<int32>(RT->RenderTargetFormat)));
 }
 
-bool FManageAssetRenderTargetCapability::PrepareTarget(
+bool FNexusManageAssetRenderTargetCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UTextureRenderTarget2D* RT = LoadObject<UTextureRenderTarget2D>(nullptr, *AssetPath);
 	if (!RT)
 	{
@@ -87,7 +87,7 @@ bool FManageAssetRenderTargetCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetRenderTargetCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetRenderTargetCapability::FinalizeTarget(void* Target) const
 {
 	FRTActionState* State = static_cast<FRTActionState*>(Target);
 	if (!State) return;
@@ -95,9 +95,9 @@ void FManageAssetRenderTargetCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetRenderTargetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetRenderTargetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set"), &HandleRT_Set);
+	OutHandlers.Add(TEXT("Set"), &HandleRT_Set);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetRenderTargetCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetRenderTargetCapability)

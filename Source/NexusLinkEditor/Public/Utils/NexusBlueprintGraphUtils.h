@@ -17,7 +17,7 @@ class UFunction;
 
 /**
  * Blueprint 蓝图图/节点/Pin 结构操作与序列化公共工具。
- * 供 get_asset_blueprint 与 manage_asset_blueprint 共用，消除两侧重复的静态辅助函数。
+ * 供 GetAssetBlueprint 与 ManageAssetBlueprint 共用，消除两侧重复的静态辅助函数。
  */
 class NEXUSLINKEDITOR_API FNexusBlueprintGraphUtils final
 {
@@ -42,10 +42,10 @@ public:
 	/** 节点可用 PinName 列表（用于引脚未找到时的错误提示）。 */
 	static FString FormatBPPinNameHint(UEdGraphNode* Node, int32 MaxNames = 12);
 
-	/** Pin 方向枚举 → 小写字符串（"input" / "output" / "unknown"）。 */
+	/** Pin 方向枚举 → 小写字符串（"input" / "Output" / "unknown"）。 */
 	static FString PinDirectionToString(EEdGraphPinDirection Dir);
 
-	/** 将单个 Pin 序列化为 JSON：direction / pinCategory / containerType / isReference / isConst / bOrphan 始终写出。 */
+	/** 将单个 Pin 序列化为 JSON：direction / PinCategory / ContainerType / bIsReference / bIsConst / bOrphan 始终写出。 */
 	static TSharedPtr<FJsonObject> SerializeBPPin(const UEdGraphPin* Pin);
 
 	/** 将单个节点（含所有 Pin）序列化为 JSON；bIsNodeEnabled 始终写出。 */
@@ -60,20 +60,20 @@ public:
 	/** 取图的直接父图名称（适用于嵌套子图）；无父图时返回空字符串。 */
 	static FString GetBPParentGraphName(const UEdGraph* Graph);
 
-	/** 构建图摘要 JSON（name / graphType / enabledNodeCount / disabledNodeCount / parentGraph）。 */
+	/** 构建图摘要 JSON（name / GraphType / EnabledNodeCount / DisabledNodeCount / ParentGraph）。 */
 	static TSharedPtr<FJsonObject> BuildBPGraphSummary(const UEdGraph* Graph);
 
-	/** 聚合 bOrphanedPin，上限 MaxCount 条：nodeId / pinName。 */
+	/** 聚合 bOrphanedPin，上限 MaxCount 条：NodeId / PinName。 */
 	static void CollectOrphanedPins(UBlueprint* BP, TArray<TSharedPtr<FJsonObject>>& OutPins, int32 MaxCount = 32);
 
 	/**
 	 * 从 Event 节点沿 exec pin 走线性链。上限 MaxPaths 条 × MaxNodes 节点。
-	 * 每条：start / nodes[{nodeId,nodeTitle}]。
+	 * 每条：start / nodes[{NodeId,NodeTitle}]。
 	 */
 	static void CollectExecPaths(UEdGraph* Graph, TArray<TSharedPtr<FJsonObject>>& OutPaths,
 		int32 MaxPaths = 16, int32 MaxNodes = 32);
 
-	// ── 写侧：add_node 各分支共用的节点创建 + 放置（消除 manage cap 里 5 处重复的放置样板） ──
+	// ── 写侧：AddNode 各分支共用的节点创建 + 放置（消除 manage cap 里 5 处重复的放置样板） ──
 
 	/** 把新建节点挂进图并完成 Guid/Pin 初始化与定位（节点创建各分支共用尾巴）。 */
 	static void PlaceNewNode(UEdGraph* Graph, UEdGraphNode* Node, int32 PosX, int32 PosY);

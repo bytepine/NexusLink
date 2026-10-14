@@ -8,8 +8,8 @@
 
 #include "NexusActionCapability.h"
 
-/** manage_asset_niagara_system — 编辑 Niagara 系统用户暴露参数。*/
-class FManageAssetNiagaraSystemCapability : public FNexusActionCapability
+/** ManageAssetNiagaraSystem — 编辑 Niagara 系统用户暴露参数。*/
+class FNexusManageAssetNiagaraSystemCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

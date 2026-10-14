@@ -3,8 +3,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_sound_submix：创建 USoundSubmix 资产。 */
-class FCreateAssetSoundSubmixCapability : public FNexusCapability
+/** CreateAssetSoundSubmix：创建 USoundSubmix 资产。 */
+class FNexusCreateAssetSoundSubmixCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

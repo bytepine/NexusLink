@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** save_asset 工具的唯一 Capability —— 批量保存资产到磁盘。 */
-class FSaveAssetCapability : public FNexusCapability
+/** SaveAsset 工具的唯一 Capability —— 批量保存资产到磁盘。 */
+class FNexusSaveAssetCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

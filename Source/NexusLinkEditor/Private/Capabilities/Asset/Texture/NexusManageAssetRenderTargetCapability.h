@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_render_target：修改 TextureRenderTarget2D 的尺寸/格式/清除色。 */
-class FManageAssetRenderTargetCapability : public FNexusActionCapability
+/** ManageAssetRenderTarget：修改 TextureRenderTarget2D 的尺寸/格式/清除色。 */
+class FNexusManageAssetRenderTargetCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -19,36 +19,36 @@
 
 // ── Capability 元数据 ─────────────────────────────────────────────────────────
 
-void FGetRuntimeActorAbilitySystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetRuntimeActorAbilitySystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_runtime_actor_ability_system");
-	Out.Description = TEXT("Read Actor ASC snapshot in PIE. sections=abilities|effects|attributes. Writes via interact.");
+	Out.Name = TEXT("GetRuntimeActorAbilitySystem");
+	Out.Description = TEXT("Read Actor ASC snapshot in PIE. Sections=abilities|effects|attributes. Writes via interact.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Runtime, FNexusMcpTags::Gas };
-	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("asc"), TEXT("ability"), TEXT("runtime"), TEXT("pie") };
-	Out.RelatedCapabilities = { TEXT("interact_runtime_actor_ability_system"), TEXT("get_gameplay_tags"), TEXT("get_runtime_actor_property") };
-	Out.Prerequisites = { TEXT("pie") };
-	Out.WhenToUse = TEXT("Read Actor abilities/GE/attributes in PIE; write via interact_runtime_actor_ability_system");
+	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("asc"), TEXT("ability"), TEXT("Runtime"), TEXT("PIE") };
+	Out.RelatedCapabilities = { TEXT("InteractRuntimeActorAbilitySystem"), TEXT("GetGameplayTags"), TEXT("GetRuntimeActorProperty") };
+	Out.Prerequisites = { TEXT("PIE") };
+	Out.WhenToUse = TEXT("Read Actor abilities/GE/attributes in PIE; write via InteractRuntimeActorAbilitySystem");
 }
 
-TSharedPtr<FJsonObject> FGetRuntimeActorAbilitySystemCapability::BuildCapabilitySchema() const
+TSharedPtr<FJsonObject> FNexusGetRuntimeActorAbilitySystemCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Actor name (optional; first ASC in World if omitted)")))
+		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Actor name (optional; first ASC in World if omitted)")))
 		.Build();
 }
 
-TArray<FString> FGetRuntimeActorAbilitySystemCapability::GetSectionNames() const
+TArray<FString> FNexusGetRuntimeActorAbilitySystemCapability::GetSectionNames() const
 {
-	return { TEXT("abilities"), TEXT("effects"), TEXT("attributes") };
+	return { TEXT("Abilities"), TEXT("Effects"), TEXT("Attributes") };
 }
 
-TArray<FString> FGetRuntimeActorAbilitySystemCapability::GetDefaultSectionNames() const
+TArray<FString> FNexusGetRuntimeActorAbilitySystemCapability::GetDefaultSectionNames() const
 {
-	return { TEXT("abilities"), TEXT("effects"), TEXT("attributes") };
+	return { TEXT("Abilities"), TEXT("Effects"), TEXT("Attributes") };
 }
 
-bool FGetRuntimeActorAbilitySystemCapability::PrepareEntry(
+bool FNexusGetRuntimeActorAbilitySystemCapability::PrepareEntry(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>&       OutEntry,
 	void*&                         OutTargetOpaque,
@@ -59,7 +59,7 @@ bool FGetRuntimeActorAbilitySystemCapability::PrepareEntry(
 	if (!World) { OutError = WorldError; return false; }
 
 	FString ActorName;
-	if (Args.IsValid()) Args->TryGetStringField(TEXT("actorName"), ActorName);
+	if (Args.IsValid()) Args->TryGetStringField(TEXT("ActorName"), ActorName);
 
 	UAbilitySystemComponent* ASC = nullptr;
 
@@ -71,7 +71,7 @@ bool FGetRuntimeActorAbilitySystemCapability::PrepareEntry(
 			ASC = FNexusGasUtils::FindAbilitySystemComponent(*It);
 			if (ASC)
 			{
-				OutEntry->SetStringField(TEXT("actorName"), (*It)->GetName());
+				OutEntry->SetStringField(TEXT("ActorName"), (*It)->GetName());
 				break;
 			}
 		}
@@ -83,14 +83,14 @@ bool FGetRuntimeActorAbilitySystemCapability::PrepareEntry(
 		if (!Actor) { OutError = FString::Printf(TEXT("Actor not found: %s"), *ActorName); return false; }
 		ASC = FNexusGasUtils::FindAbilitySystemComponent(Actor);
 		if (!ASC) { OutError = FString::Printf(TEXT("Actor '%s' has no AbilitySystemComponent"), *ActorName); return false; }
-		OutEntry->SetStringField(TEXT("actorName"), ActorName);
+		OutEntry->SetStringField(TEXT("ActorName"), ActorName);
 	}
 
 	OutTargetOpaque = static_cast<void*>(ASC);
 	return true;
 }
 
-void FGetRuntimeActorAbilitySystemCapability::ExecuteSection(
+void FNexusGetRuntimeActorAbilitySystemCapability::ExecuteSection(
 	const FString&                 SectionName,
 	const TSharedPtr<FJsonObject>& Args,
 	void*                          TargetOpaque,
@@ -100,7 +100,7 @@ void FGetRuntimeActorAbilitySystemCapability::ExecuteSection(
 	UAbilitySystemComponent* ASC = static_cast<UAbilitySystemComponent*>(TargetOpaque);
 	if (!ASC) { OutError = TEXT("Invalid ASC pointer"); return; }
 
-	if (SectionName == TEXT("abilities"))
+	if (SectionName == TEXT("Abilities"))
 	{
 		TArray<TSharedPtr<FJsonValue>> Abilities;
 		TArray<FGameplayAbilitySpec> Specs = ASC->GetActivatableAbilities();
@@ -109,17 +109,17 @@ void FGetRuntimeActorAbilitySystemCapability::ExecuteSection(
 			TSharedPtr<FJsonObject> AbObj = MakeShared<FJsonObject>();
 			if (Spec.Ability)
 			{
-				AbObj->SetStringField(TEXT("abilityClass"), Spec.Ability->GetClass()->GetName());
-				AbObj->SetNumberField(TEXT("level"),        Spec.Level);
-				AbObj->SetBoolField(TEXT("isActive"),       Spec.IsActive());
-				AbObj->SetNumberField(TEXT("inputID"),      Spec.InputID);
+				AbObj->SetStringField(TEXT("AbilityClass"), Spec.Ability->GetClass()->GetName());
+				AbObj->SetNumberField(TEXT("Level"),        Spec.Level);
+				AbObj->SetBoolField(TEXT("bIsActive"),       Spec.IsActive());
+				AbObj->SetNumberField(TEXT("InputId"),      Spec.InputID);
 			}
 			Abilities.Add(MakeShared<FJsonValueObject>(AbObj));
 		}
-		InOutDetail->SetArrayField(TEXT("abilities"), Abilities);
-		InOutDetail->SetNumberField(TEXT("count"),    Abilities.Num());
+		InOutDetail->SetArrayField(TEXT("Abilities"), Abilities);
+		InOutDetail->SetNumberField(TEXT("Count"),    Abilities.Num());
 	}
-	else if (SectionName == TEXT("effects"))
+	else if (SectionName == TEXT("Effects"))
 	{
 		TArray<TSharedPtr<FJsonValue>> Effects;
 		TArray<FActiveGameplayEffectHandle> AllHandles = ASC->GetActiveEffects(FGameplayEffectQuery());
@@ -132,7 +132,7 @@ void FGetRuntimeActorAbilitySystemCapability::ExecuteSection(
 			TSharedPtr<FJsonObject> GEObj = MakeShared<FJsonObject>();
 			if (ActiveGE->Spec.Def)
 			{
-				GEObj->SetStringField(TEXT("effectClass"), ActiveGE->Spec.Def->GetClass()->GetName());
+				GEObj->SetStringField(TEXT("EffectClass"), ActiveGE->Spec.Def->GetClass()->GetName());
 			}
 			// StackCount 在 UE4 为 public，在 UE5.8 变为 private，用反射统一访问
 			{
@@ -142,18 +142,18 @@ void FGetRuntimeActorAbilitySystemCapability::ExecuteSection(
 				if (SCProp)
 					StackCount = (int32)SCProp->GetSignedIntPropertyValue(
 						SCProp->ContainerPtrToValuePtr<void>(&ActiveGE->Spec));
-				GEObj->SetNumberField(TEXT("stackCount"), StackCount);
+				GEObj->SetNumberField(TEXT("StackCount"), StackCount);
 			}
-			GEObj->SetNumberField(TEXT("level"),          ActiveGE->Spec.GetLevel());
+			GEObj->SetNumberField(TEXT("Level"),          ActiveGE->Spec.GetLevel());
 			const float RemainingTime = ASC->GetGameplayEffectDuration(Handle);
 			if (RemainingTime >= 0.f)
-				GEObj->SetNumberField(TEXT("remainingTime"), RemainingTime);
+				GEObj->SetNumberField(TEXT("RemainingTime"), RemainingTime);
 			Effects.Add(MakeShared<FJsonValueObject>(GEObj));
 		}
-		InOutDetail->SetArrayField(TEXT("effects"), Effects);
-		InOutDetail->SetNumberField(TEXT("count"),  Effects.Num());
+		InOutDetail->SetArrayField(TEXT("Effects"), Effects);
+		InOutDetail->SetNumberField(TEXT("Count"),  Effects.Num());
 	}
-	else if (SectionName == TEXT("attributes"))
+	else if (SectionName == TEXT("Attributes"))
 	{
 		TArray<TSharedPtr<FJsonValue>> Attrs;
 		// 枚举所有已注册 AttributeSet 的属性
@@ -174,17 +174,17 @@ void FGetRuntimeActorAbilitySystemCapability::ExecuteSection(
 				FGameplayAttribute Attr(StructProp);
 				TSharedPtr<FJsonObject> AObj = MakeShared<FJsonObject>();
 				AObj->SetStringField(TEXT("name"),          PropIt->GetName());
-				AObj->SetStringField(TEXT("attributeSet"),  AttrClass->GetName());
-				AObj->SetNumberField(TEXT("baseValue"),     ASC->GetNumericAttributeBase(Attr));
-				AObj->SetNumberField(TEXT("currentValue"),  ASC->GetNumericAttribute(Attr));
+				AObj->SetStringField(TEXT("AttributeSet"),  AttrClass->GetName());
+				AObj->SetNumberField(TEXT("BaseValue"),     ASC->GetNumericAttributeBase(Attr));
+				AObj->SetNumberField(TEXT("CurrentValue"),  ASC->GetNumericAttribute(Attr));
 				Attrs.Add(MakeShared<FJsonValueObject>(AObj));
 			}
 		}
-		InOutDetail->SetArrayField(TEXT("attributes"), Attrs);
-		InOutDetail->SetNumberField(TEXT("count"),     Attrs.Num());
+		InOutDetail->SetArrayField(TEXT("Attributes"), Attrs);
+		InOutDetail->SetNumberField(TEXT("Count"),     Attrs.Num());
 	}
 }
 
-REGISTER_MCP_CAPABILITY(FGetRuntimeActorAbilitySystemCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetRuntimeActorAbilitySystemCapability)
 
 #endif // WITH_GAS

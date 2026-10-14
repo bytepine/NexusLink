@@ -40,59 +40,59 @@ static TArray<TSharedPtr<FJsonValue>> GetGE_InheritedTagAdded(UObject* CDO, cons
 
 // ── Capability 元数据 ─────────────────────────────────────────────────────────
 
-void FGetAssetGameplayEffectCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetGameplayEffectCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_gameplay_effect");
+	Out.Name = TEXT("GetAssetGameplayEffect");
 	Out.SearchAssetTypes = {TEXT("GameplayEffect")};
-	Out.Description = TEXT("Read GE Blueprint. sections=policy|modifiers|tags|cues; read-only.");
+	Out.Description = TEXT("Read GE Blueprint. Sections=policy|modifiers|tags|cues; read-only.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Gas };
-	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("effect"), TEXT("ge"), TEXT("modifier"), TEXT("duration") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_gameplay_effect"), TEXT("create_asset_gameplay_effect") };
+	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("effect"), TEXT("ge"), TEXT("modifier"), TEXT("Duration") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetGameplayEffect"), TEXT("CreateAssetGameplayEffect") };
 	Out.WhenToUse = TEXT("Read GE duration/Modifier/Tag/Cue; no writes");
 }
 
-TSharedPtr<FJsonObject> FGetAssetGameplayEffectCapability::BuildCapabilitySchema() const
+TSharedPtr<FJsonObject> FNexusGetAssetGameplayEffectCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GameplayEffect Blueprint path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("GameplayEffect Blueprint path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 }
 
-TArray<FString> FGetAssetGameplayEffectCapability::GetSectionNames() const
+TArray<FString> FNexusGetAssetGameplayEffectCapability::GetSectionNames() const
 {
-	return { TEXT("policy"), TEXT("modifiers"), TEXT("tags"), TEXT("cues") };
+	return { TEXT("policy"), TEXT("Modifiers"), TEXT("Tags"), TEXT("cues") };
 }
 
-TArray<FString> FGetAssetGameplayEffectCapability::GetDefaultSectionNames() const
+TArray<FString> FNexusGetAssetGameplayEffectCapability::GetDefaultSectionNames() const
 {
-	return { TEXT("policy"), TEXT("modifiers"), TEXT("tags") };
+	return { TEXT("policy"), TEXT("Modifiers"), TEXT("Tags") };
 }
 
-bool FGetAssetGameplayEffectCapability::PrepareEntry(
+bool FNexusGetAssetGameplayEffectCapability::PrepareEntry(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>&       OutEntry,
 	void*&                         OutTargetOpaque,
 	FString&                       OutError) const
 {
 	FString Path;
-	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-	{ OutError = TEXT("Missing assetPath"); return false; }
+	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("AssetPath"), Path) || Path.IsEmpty())
+	{ OutError = TEXT("Missing AssetPath"); return false; }
 
 	FString LoadError;
 	UBlueprint* BP = FNexusGasUtils::LoadGameplayEffectBlueprint(Path, LoadError);
 	if (!BP) { OutError = LoadError; return false; }
 
-	OutEntry->SetStringField(TEXT("path"), Path);
+	OutEntry->SetStringField(TEXT("Path"), Path);
 	OutEntry->SetStringField(TEXT("name"),      BP->GetName());
-	if (BP->ParentClass) OutEntry->SetStringField(TEXT("parentClass"), BP->ParentClass->GetName());
+	if (BP->ParentClass) OutEntry->SetStringField(TEXT("ParentClass"), BP->ParentClass->GetName());
 
 	OutTargetOpaque = static_cast<void*>(BP);
 	return true;
 }
 
-void FGetAssetGameplayEffectCapability::ExecuteSection(
+void FNexusGetAssetGameplayEffectCapability::ExecuteSection(
 	const FString&                 SectionName,
 	const TSharedPtr<FJsonObject>& Args,
 	void*                          TargetOpaque,
@@ -107,34 +107,34 @@ void FGetAssetGameplayEffectCapability::ExecuteSection(
 
 	if (SectionName == TEXT("policy"))
 	{
-		InOutDetail->SetStringField(TEXT("durationPolicy"), GE_DurationPolicyToStr(NxGasGetEnumByte(CDO, TEXT("DurationPolicy"))));
+		InOutDetail->SetStringField(TEXT("DurationPolicy"), GE_DurationPolicyToStr(NxGasGetEnumByte(CDO, TEXT("DurationPolicy"))));
 		if (FScalableFloat* P = NxGasPropPtr<FScalableFloat>(CDO, TEXT("Period")))
-			InOutDetail->SetNumberField(TEXT("period"), P->Value);
+			InOutDetail->SetNumberField(TEXT("Period"), P->Value);
 		if (FGameplayEffectModifierMagnitude* M = NxGasPropPtr<FGameplayEffectModifierMagnitude>(CDO, TEXT("DurationMagnitude")))
 		{
 			float DurVal = 0.f;
 			if (M->GetStaticMagnitudeIfPossible(1.f, DurVal))
-				InOutDetail->SetNumberField(TEXT("duration"), DurVal);
+				InOutDetail->SetNumberField(TEXT("Duration"), DurVal);
 		}
 	}
-	else if (SectionName == TEXT("modifiers"))
+	else if (SectionName == TEXT("Modifiers"))
 	{
 		UGameplayEffect* GECDO = BP->GeneratedClass->GetDefaultObject<UGameplayEffect>();
-		InOutDetail->SetArrayField(TEXT("modifiers"), FNexusGasUtils::SerializeGEModifiers(GECDO));
+		InOutDetail->SetArrayField(TEXT("Modifiers"), FNexusGasUtils::SerializeGEModifiers(GECDO));
 	}
-	else if (SectionName == TEXT("tags"))
+	else if (SectionName == TEXT("Tags"))
 	{
-		InOutDetail->SetArrayField(TEXT("gameplayEffectTags"), GetGE_InheritedTagAdded(CDO, TEXT("InheritableGameplayEffectTags")));
-		InOutDetail->SetArrayField(TEXT("grantedTags"),        GetGE_InheritedTagAdded(CDO, TEXT("InheritableOwnedTagsContainer")));
+		InOutDetail->SetArrayField(TEXT("GameplayEffectTags"), GetGE_InheritedTagAdded(CDO, TEXT("InheritableGameplayEffectTags")));
+		InOutDetail->SetArrayField(TEXT("GrantedTags"),        GetGE_InheritedTagAdded(CDO, TEXT("InheritableOwnedTagsContainer")));
 		// InheritableBlockedAbilityTagsContainer 仅部分 UE 版本有，反射访问安全跳过
 		TArray<TSharedPtr<FJsonValue>> BlockedTags = GetGE_InheritedTagAdded(CDO, TEXT("InheritableBlockedAbilityTagsContainer"));
 		if (BlockedTags.Num() > 0 || FindFProperty<FProperty>(CDO->GetClass(), TEXT("InheritableBlockedAbilityTagsContainer")))
-			InOutDetail->SetArrayField(TEXT("blockedAbilityTags"), BlockedTags);
+			InOutDetail->SetArrayField(TEXT("BlockedAbilityTags"), BlockedTags);
 
 		if (FGameplayTagRequirements* Req = NxGasPropPtr<FGameplayTagRequirements>(CDO, TEXT("ApplicationTagRequirements")))
 		{
-			InOutDetail->SetArrayField(TEXT("applicationRequiredTags"), FNexusGasUtils::SerializeTagContainer(Req->RequireTags));
-			InOutDetail->SetArrayField(TEXT("applicationIgnoredTags"),  FNexusGasUtils::SerializeTagContainer(Req->IgnoreTags));
+			InOutDetail->SetArrayField(TEXT("ApplicationRequiredTags"), FNexusGasUtils::SerializeTagContainer(Req->RequireTags));
+			InOutDetail->SetArrayField(TEXT("ApplicationIgnoredTags"),  FNexusGasUtils::SerializeTagContainer(Req->IgnoreTags));
 		}
 	}
 	else if (SectionName == TEXT("cues"))
@@ -145,10 +145,10 @@ void FGetAssetGameplayEffectCapability::ExecuteSection(
 			for (const FGameplayEffectCue& Cue : *CueArr)
 				Cues.Append(FNexusGasUtils::SerializeTagContainer(Cue.GameplayCueTags));
 		}
-		InOutDetail->SetArrayField(TEXT("gameplayCueTags"), Cues);
+		InOutDetail->SetArrayField(TEXT("GameplayCueTags"), Cues);
 	}
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetGameplayEffectCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetGameplayEffectCapability)
 
 #endif // WITH_GAS

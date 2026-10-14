@@ -26,10 +26,10 @@ public:
 	}
 };
 
-/** exec_command 控制台输出在 get_output_log 中的分类名。*/
+/** ExecCommand 控制台输出在 GetOutputLog 中的分类名。*/
 static const TCHAR* GExecLogCategory = TEXT("LogConsole");
 
-/** 将 exec 捕获到的控制台输出镜像到日志缓冲区，供 get_output_log 查询。*/
+/** 将 exec 捕获到的控制台输出镜像到日志缓冲区，供 GetOutputLog 查询。*/
 static void MirrorExecOutputToLogCapture(const FString& Command, const FString& Output)
 {
 	if (Output.IsEmpty()) return;
@@ -78,30 +78,30 @@ static FString MergeExecOutput(const FString& DeviceOutput, int32 LogMark)
 	return Combined;
 }
 
-void FExecCommandCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusExecCommandCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("exec_command");
+	Out.Name = TEXT("ExecCommand");
 	Out.Description = TEXT("Run UE console command and capture output. Mirrored to LogConsole.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("command"), FNexusSchema::Str(TEXT("Console command to execute")))
-		.Prop(TEXT("silent"),  FNexusSchema::Bool(TEXT("Skip output capture"), false))
-		.Prop(TEXT("reason"),  FNexusSchema::Str(TEXT("Purpose for Confirm-mode gate. Required in Confirm mode.")))
-		.Required({ TEXT("command") })
+		.Prop(TEXT("Command"), FNexusSchema::Str(TEXT("Console command to execute")))
+		.Prop(TEXT("bSilent"),  FNexusSchema::Bool(TEXT("Skip output capture"), false))
+		.Prop(TEXT("Reason"),  FNexusSchema::Str(TEXT("Purpose for Confirm-mode gate. Required in Confirm mode.")))
+		.Required({ TEXT("Command") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime, FNexusMcpTags::Dangerous };
 	Out.ExtraSearchKeywords = { TEXT("console"), TEXT("cmd"), TEXT("cvar"), TEXT("stat"), TEXT("run") };
-	Out.RelatedCapabilities = { TEXT("get_output_log") };
+	Out.RelatedCapabilities = { TEXT("GetOutputLog") };
 }
 
-FCapabilityResult FExecCommandCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusExecCommandCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString Command = A.Str(TEXT("command"));
+		const FString Command = A.Str(TEXT("Command"));
 
 		bool bSilent = false;
-		Arguments->TryGetBoolField(TEXT("silent"), bSilent);
+		Arguments->TryGetBoolField(TEXT("bSilent"), bSilent);
 
 		if (!GEngine) { OutError = TEXT("GEngine unavailable"); return; }
 
@@ -158,19 +158,19 @@ FCapabilityResult FExecCommandCapability::Execute(const TSharedPtr<FJsonObject>&
 		const FString Output = bSilent ? FString() : MergeExecOutput(DeviceOutput, LogMark);
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		OutEntry->SetStringField(TEXT("command"),  Command);
-		OutEntry->SetBoolField(TEXT("executed"),   bExecResult);
+		OutEntry->SetStringField(TEXT("Command"),  Command);
+		OutEntry->SetBoolField(TEXT("bExecuted"),   bExecResult);
 		if (bFallbackUsed)
 		{
-			OutEntry->SetBoolField(TEXT("fallbackUsed"), true);
+			OutEntry->SetBoolField(TEXT("bFallbackUsed"), true);
 		}
 		if (!bSilent && !Output.IsEmpty())
 		{
-			OutEntry->SetStringField(TEXT("output"), Output);
+			OutEntry->SetStringField(TEXT("Output"), Output);
 			MirrorExecOutputToLogCapture(Command, Output);
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FExecCommandCapability)
+REGISTER_MCP_CAPABILITY(FNexusExecCommandCapability)

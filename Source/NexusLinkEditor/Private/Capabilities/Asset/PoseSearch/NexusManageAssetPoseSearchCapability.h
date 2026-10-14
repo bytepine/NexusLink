@@ -8,8 +8,8 @@
 
 #include "NexusActionCapability.h"
 
-/** manage_asset_pose_search — 管理 PoseSearchDatabase：set_schema/add_tag/remove_tag（UE 5.4+）。 */
-class FManageAssetPoseSearchCapability : public FNexusActionCapability
+/** ManageAssetPoseSearch — 管理 PoseSearchDatabase：SetSchema/AddTag/RemoveTag（UE 5.4+）。 */
+class FNexusManageAssetPoseSearchCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

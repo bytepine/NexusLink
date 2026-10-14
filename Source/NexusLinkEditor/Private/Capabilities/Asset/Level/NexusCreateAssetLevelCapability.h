@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_level：编辑器创建空白 UWorld 地图。 */
-class FCreateAssetLevelCapability : public FNexusCapability
+/** CreateAssetLevel：编辑器创建空白 UWorld 地图。 */
+class FNexusCreateAssetLevelCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

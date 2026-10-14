@@ -10,33 +10,33 @@
 #include "BehaviorTree/BlackboardData.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_behavior_tree");
+	Out.Name = TEXT("GetAssetBehaviorTree");
 	Out.SearchAssetTypes = {TEXT("BehaviorTree")};
 	Out.Description = TEXT("Inspect BT structure snapshot. Path index and node props; read-only.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("BehaviorTree asset path")))
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("BehaviorTree asset path")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
-	Out.ExtraSearchKeywords = { TEXT("bt"), TEXT("behaviortree"), TEXT("blackboard"), TEXT("node"), TEXT("task") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_behavior_tree"), TEXT("create_asset_behavior_tree"), TEXT("get_asset_blackboard") };
+	Out.ExtraSearchKeywords = { TEXT("bt"), TEXT("behaviortree"), TEXT("Blackboard"), TEXT("Node"), TEXT("task") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetBehaviorTree"), TEXT("CreateAssetBehaviorTree"), TEXT("GetAssetBlackboard") };
 	Out.WhenToUse = TEXT("Read BT path index/properties/decorator params");
 }
 
-FCapabilityResult FGetAssetBehaviorTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetBehaviorTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		OutEntry->SetStringField(TEXT("section"), TEXT("overview"));
+		OutEntry->SetStringField(TEXT("Section"), TEXT("overview"));
 
 		FString AssetPath;
-		if (!Arguments->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
+		if (!Arguments->TryGetStringField(TEXT("AssetPath"), AssetPath) || AssetPath.IsEmpty())
 		{
-			OutEntry->SetStringField(TEXT("error"), TEXT("assetPath is required"));
+			OutEntry->SetStringField(TEXT("Error"), TEXT("AssetPath is required"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -44,7 +44,7 @@ FCapabilityResult FGetAssetBehaviorTreeCapability::Execute(const TSharedPtr<FJso
 		UBehaviorTree* BT = FNexusAssetUtils::LoadAssetWithFallback<UBehaviorTree>(AssetPath);
 		if (!BT)
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("BehaviorTree not found: %s"), *AssetPath));
+			OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("BehaviorTree not found: %s"), *AssetPath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -53,7 +53,7 @@ FCapabilityResult FGetAssetBehaviorTreeCapability::Execute(const TSharedPtr<FJso
 
 		if (BT->BlackboardAsset)
 		{
-			OutEntry->SetStringField(TEXT("blackboard"), BT->BlackboardAsset->GetPathName());
+			OutEntry->SetStringField(TEXT("Blackboard"), BT->BlackboardAsset->GetPathName());
 		}
 
 		if (BT->RootNode)
@@ -61,7 +61,7 @@ FCapabilityResult FGetAssetBehaviorTreeCapability::Execute(const TSharedPtr<FJso
 			TSharedPtr<FJsonObject> RootInfo = FNexusBehaviorTreeInspectUtils::BuildBTNodeInfo(BT->RootNode);
 			if (RootInfo.IsValid())
 			{
-				OutEntry->SetObjectField(TEXT("rootNode"), RootInfo);
+				OutEntry->SetObjectField(TEXT("RootNode"), RootInfo);
 			}
 		}
 
@@ -70,4 +70,4 @@ FCapabilityResult FGetAssetBehaviorTreeCapability::Execute(const TSharedPtr<FJso
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetBehaviorTreeCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetBehaviorTreeCapability)

@@ -17,54 +17,54 @@
 #include "UObject/UnrealType.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetBlendSpaceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetBlendSpaceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_blend_space");
+	Out.Name = TEXT("GetAssetBlendSpace");
 	Out.SearchAssetTypes = {TEXT("BlendSpace"), TEXT("BlendSpace1D")};
-	Out.Description = TEXT("Read BlendSpace snapshot: axis params + samples. Use manage_asset_blend_space for writes.");
+	Out.Description = TEXT("Read BlendSpace snapshot: axis params + samples. Use ManageAssetBlendSpace for writes.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("BlendSpace asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("BlendSpace asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("blend"), TEXT("axis"), TEXT("sample"), TEXT("locomotion"), TEXT("1d"), TEXT("2d") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_blend_space"), TEXT("create_asset_blend_space"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("Read BlendSpace axis defs and sample anims; use manage_asset_blend_space for writes");
+	Out.RelatedCapabilities = { TEXT("ManageAssetBlendSpace"), TEXT("CreateAssetBlendSpace"), TEXT("SearchAsset") };
+	Out.WhenToUse = TEXT("Read BlendSpace axis defs and sample anims; use ManageAssetBlendSpace for writes");
 }
 
 // 将 FBlendParameter 写入 JSON 对象
 static void AppendAxisParam(const FBlendParameter& Param, TSharedPtr<FJsonObject>& AxisObj)
 {
-	AxisObj->SetStringField(TEXT("displayName"), Param.DisplayName);
-	AxisObj->SetNumberField(TEXT("min"),          Param.Min);
-	AxisObj->SetNumberField(TEXT("max"),          Param.Max);
-	AxisObj->SetNumberField(TEXT("gridNum"),      Param.GridNum);
+	AxisObj->SetStringField(TEXT("DisplayName"), Param.DisplayName);
+	AxisObj->SetNumberField(TEXT("Min"),          Param.Min);
+	AxisObj->SetNumberField(TEXT("Max"),          Param.Max);
+	AxisObj->SetNumberField(TEXT("GridNum"),      Param.GridNum);
 }
 
-FCapabilityResult FGetAssetBlendSpaceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetBlendSpaceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString Path = A.Str(TEXT("assetPath"));
+		const FString Path = A.Str(TEXT("AssetPath"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), Path);
+		Entry->SetStringField(TEXT("Path"), Path);
 
 		UBlendSpace* BS = FNexusAssetUtils::LoadAssetWithFallback<UBlendSpace>(Path);
 		if (!BS)
 		{
-			Entry->SetStringField(TEXT("error"),
+			Entry->SetStringField(TEXT("Error"),
 				FString::Printf(TEXT("BlendSpace not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 
 		Entry->SetStringField(TEXT("name"), BS->GetName());
-		const bool b1D = BS->IsA<UBlendSpace1D>();
-		Entry->SetStringField(TEXT("assetType"), b1D ? TEXT("BlendSpace1D") : TEXT("BlendSpace"));
+		const bool bIsBlendSpace1D = BS->IsA(UBlendSpace1D::StaticClass());
+		Entry->SetStringField(TEXT("AssetType"), bIsBlendSpace1D ? TEXT("BlendSpace1D") : TEXT("BlendSpace"));
 		if (const USkeleton* Skel = BS->GetSkeleton())
-			Entry->SetStringField(TEXT("skeleton"), Skel->GetPathName());
+			Entry->SetStringField(TEXT("Skeleton"), Skel->GetPathName());
 
 		// 轴参数（横轴 BlendParameters[0]，纵轴 BlendParameters[1]，仅2D有效）
 		// BlendParameters 在所有版本均为 protected；UE5.0+ 提供 GetBlendParameter()，低版本走反射
@@ -104,43 +104,43 @@ FCapabilityResult FGetAssetBlendSpaceCapability::Execute(const TSharedPtr<FJsonO
 		{
 			TSharedPtr<FJsonObject> AxisObj0 = MakeShared<FJsonObject>();
 			AppendAxisParam(*Axis0, AxisObj0);
-			AxisObj0->SetNumberField(TEXT("axisIndex"), 0);
+			AxisObj0->SetNumberField(TEXT("AxisIndex"), 0);
 			AxesArr.Add(MakeShared<FJsonValueObject>(AxisObj0));
 		}
-		if (!b1D)
+		if (!bIsBlendSpace1D)
 		{
 			if (const FBlendParameter* Axis1 = GetBlendParamSafe(1))
 			{
 				TSharedPtr<FJsonObject> AxisObj1 = MakeShared<FJsonObject>();
 				AppendAxisParam(*Axis1, AxisObj1);
-				AxisObj1->SetNumberField(TEXT("axisIndex"), 1);
+				AxisObj1->SetNumberField(TEXT("AxisIndex"), 1);
 				AxesArr.Add(MakeShared<FJsonValueObject>(AxisObj1));
 			}
 		}
-		Entry->SetArrayField(TEXT("axes"), AxesArr);
+		Entry->SetArrayField(TEXT("Axes"), AxesArr);
 
 		// 样本列表
 		const TArray<FBlendSample>& Samples = BS->GetBlendSamples();
 		TArray<TSharedPtr<FJsonValue>> SamplesArr;
-		for (int32 i = 0; i < Samples.Num(); ++i)
+		for (int32 SampleIndex = 0; SampleIndex < Samples.Num(); ++SampleIndex)
 		{
-			const FBlendSample& S = Samples[i];
+			const FBlendSample& S = Samples[SampleIndex];
 			TSharedPtr<FJsonObject> SObj = MakeShared<FJsonObject>();
-			SObj->SetNumberField(TEXT("index"), i);
+			SObj->SetNumberField(TEXT("Index"), SampleIndex);
 			SObj->SetNumberField(TEXT("x"),      S.SampleValue.X);
 			SObj->SetNumberField(TEXT("y"),      S.SampleValue.Y);
 #if NX_UE_HAS_BLEND_SAMPLE_IS_VALID
-			SObj->SetBoolField(TEXT("isValid"),  S.bIsValid);
+			SObj->SetBoolField(TEXT("bIsValid"),  S.bIsValid);
 #endif
 			if (S.Animation)
-				SObj->SetStringField(TEXT("animation"), S.Animation->GetPathName());
+				SObj->SetStringField(TEXT("Animation"), S.Animation->GetPathName());
 			SamplesArr.Add(MakeShared<FJsonValueObject>(SObj));
 		}
-		Entry->SetArrayField(TEXT("samples"), SamplesArr);
-		Entry->SetNumberField(TEXT("sampleCount"), Samples.Num());
+		Entry->SetArrayField(TEXT("Samples"), SamplesArr);
+		Entry->SetNumberField(TEXT("SampleCount"), Samples.Num());
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetBlendSpaceCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetBlendSpaceCapability)

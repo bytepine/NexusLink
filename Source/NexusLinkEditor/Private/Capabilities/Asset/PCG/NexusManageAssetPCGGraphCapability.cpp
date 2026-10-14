@@ -16,30 +16,30 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 
-void FManageAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name        = TEXT("manage_asset_pcg_graph");
+	Out.Name        = TEXT("ManageAssetPCGGraph");
 	Out.SearchAssetTypes = {TEXT("PCGGraph")};
-	Out.Description = TEXT("Manage PCG Graph: add_node/remove_node/add_edge/remove_edge (UE 5.4+).");
+	Out.Description = TEXT("Manage PCG Graph: AddNode/RemoveNode/AddEdge/RemoveEdge (UE 5.4+).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("PCG Graph asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"),
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("PCG Graph asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Operation list"),
 			FNexusSchema::Object()
-			.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
-				{ TEXT("add_node"), TEXT("remove_node"), TEXT("add_edge"), TEXT("remove_edge") }))
-			.Prop(TEXT("settingsClass"), FNexusSchema::Str(TEXT("UPCGSettings subclass name (add_node)")))
-			.Prop(TEXT("nodeId"),        FNexusSchema::Str(TEXT("Node id (remove_node)")))
-			.Prop(TEXT("fromNodeId"),    FNexusSchema::Str(TEXT("Edge source node id (add/remove_edge)")))
-			.Prop(TEXT("toNodeId"),      FNexusSchema::Str(TEXT("Edge target node id (add/remove_edge)")))
-			.Prop(TEXT("fromPin"),       FNexusSchema::Str(TEXT("Edge source pin name, default Out")))
-			.Prop(TEXT("toPin"),         FNexusSchema::Str(TEXT("Edge target pin name, default In")))
-			.Required({ TEXT("action") })
+			.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"),
+				{ TEXT("AddNode"), TEXT("RemoveNode"), TEXT("AddEdge"), TEXT("RemoveEdge") }))
+			.Prop(TEXT("SettingsClass"), FNexusSchema::Str(TEXT("UPCGSettings subclass name (AddNode)")))
+			.Prop(TEXT("NodeId"),        FNexusSchema::Str(TEXT("Node id (RemoveNode)")))
+			.Prop(TEXT("FromNodeId"),    FNexusSchema::Str(TEXT("Edge source node id (add/RemoveEdge)")))
+			.Prop(TEXT("ToNodeId"),      FNexusSchema::Str(TEXT("Edge target node id (add/RemoveEdge)")))
+			.Prop(TEXT("FromPin"),       FNexusSchema::Str(TEXT("Edge source pin name, default Out")))
+			.Prop(TEXT("ToPin"),         FNexusSchema::Str(TEXT("Edge target pin name, default In")))
+			.Required({ TEXT("Action") })
 			.Build().ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("pcg"), TEXT("procedural"), TEXT("node"), TEXT("edge"), TEXT("connect") };
-	Out.RelatedCapabilities = { TEXT("get_asset_pcg_graph"), TEXT("create_asset_pcg_graph") };
+	Out.ExtraSearchKeywords = { TEXT("pcg"), TEXT("procedural"), TEXT("Node"), TEXT("edge"), TEXT("Connect") };
+	Out.RelatedCapabilities = { TEXT("GetAssetPCGGraph"), TEXT("CreateAssetPCGGraph") };
 	Out.WhenToUse = TEXT("Add/remove PCG Graph nodes or connect pins");
 }
 
@@ -61,10 +61,10 @@ static UPCGNode* FindPCGNodeById(UPCGGraph* Graph, const FString& NodeId)
 static void HandlePCG_AddNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPCGGraph* Graph = PCGFrom(Ctx);
-	const FString SettingsClassName = FNexusArgs(Op).Str(TEXT("settingsClass"));
+	const FString SettingsClassName = FNexusArgs(Op).Str(TEXT("SettingsClass"));
 	if (SettingsClassName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_node requires settingsClass (UPCGSettings subclass name)"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddNode requires SettingsClass (UPCGSettings subclass name)"));
 		return;
 	}
 
@@ -75,47 +75,47 @@ static void HandlePCG_AddNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 #endif
 	if (!SettingsClass || !SettingsClass->IsChildOf(UPCGSettings::StaticClass()))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"),
-			FString::Printf(TEXT("settingsClass '%s' not found or not UPCGSettings subclass"), *SettingsClassName));
+		Ctx.Entry->SetStringField(TEXT("Error"),
+			FString::Printf(TEXT("SettingsClass '%s' not found or not UPCGSettings subclass"), *SettingsClassName));
 		return;
 	}
 
 	UPCGSettings* NewSettings = NewObject<UPCGSettings>(Graph, SettingsClass, NAME_None, RF_Transactional);
 	if (!NewSettings)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Failed to create PCGSettings instance"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Failed to create PCGSettings instance"));
 		return;
 	}
 
 	UPCGNode* NewNode = Graph->AddNode(NewSettings);
 	if (!NewNode)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("AddNode failed"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddNode failed"));
 		return;
 	}
 
-	Ctx.Entry->SetStringField(TEXT("nodeId"), NewNode->GetName());
-	Ctx.Entry->SetStringField(TEXT("settingsClass"), SettingsClassName);
+	Ctx.Entry->SetStringField(TEXT("NodeId"), NewNode->GetName());
+	Ctx.Entry->SetStringField(TEXT("SettingsClass"), SettingsClassName);
 }
 
 static void HandlePCG_RemoveNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UPCGGraph* Graph = PCGFrom(Ctx);
-	const FString NodeId = FNexusArgs(Op).Str(TEXT("nodeId"));
+	const FString NodeId = FNexusArgs(Op).Str(TEXT("NodeId"));
 	if (NodeId.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_node requires nodeId"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveNode requires NodeId"));
 		return;
 	}
 	UPCGNode* TargetNode = FindPCGNodeById(Graph, NodeId);
 	if (!TargetNode)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"),
+		Ctx.Entry->SetStringField(TEXT("Error"),
 			FString::Printf(TEXT("Node '%s' not found"), *NodeId));
 		return;
 	}
 	Graph->RemoveNode(TargetNode);
-	Ctx.Entry->SetStringField(TEXT("nodeId"), NodeId);
+	Ctx.Entry->SetStringField(TEXT("NodeId"), NodeId);
 }
 
 static bool ResolvePCGEdgeEnds(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx,
@@ -123,20 +123,20 @@ static bool ResolvePCGEdgeEnds(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 {
 	UPCGGraph* Graph = PCGFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString FromId = A.Str(TEXT("fromNodeId"));
-	const FString ToId   = A.Str(TEXT("toNodeId"));
-	const FString FromPin = A.Str(TEXT("fromPin"));
-	const FString ToPin   = A.Str(TEXT("toPin"));
+	const FString FromId = A.Str(TEXT("FromNodeId"));
+	const FString ToId   = A.Str(TEXT("ToNodeId"));
+	const FString FromPin = A.Str(TEXT("FromPin"));
+	const FString ToPin   = A.Str(TEXT("ToPin"));
 	if (FromId.IsEmpty() || ToId.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), MissingErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), MissingErr);
 		return false;
 	}
 	OutFrom = FindPCGNodeById(Graph, FromId);
 	OutTo   = FindPCGNodeById(Graph, ToId);
 	if (!OutFrom || !OutTo)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Source or target node not found"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Source or target node not found"));
 		return false;
 	}
 	OutFromLabel = FromPin.IsEmpty() ? NAME_None : FName(*FromPin);
@@ -150,7 +150,7 @@ static void HandlePCG_AddEdge(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	UPCGNode* ToNode = nullptr;
 	FName FromLabel, ToLabel;
 	if (!ResolvePCGEdgeEnds(Op, Ctx, FromNode, ToNode, FromLabel, ToLabel,
-		TEXT("add_edge requires fromNodeId and toNodeId")))
+		TEXT("AddEdge requires FromNodeId and ToNodeId")))
 	{
 		return;
 	}
@@ -163,21 +163,21 @@ static void HandlePCG_RemoveEdge(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	UPCGNode* ToNode = nullptr;
 	FName FromLabel, ToLabel;
 	if (!ResolvePCGEdgeEnds(Op, Ctx, FromNode, ToNode, FromLabel, ToLabel,
-		TEXT("remove_edge requires fromNodeId and toNodeId")))
+		TEXT("RemoveEdge requires FromNodeId and ToNodeId")))
 	{
 		return;
 	}
 	PCGFrom(Ctx)->RemoveEdge(FromNode, FromLabel, ToNode, ToLabel);
 }
 
-bool FManageAssetPCGGraphCapability::PrepareTarget(
+bool FNexusManageAssetPCGGraphCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UPCGGraph* Graph = FNexusAssetUtils::LoadAssetWithFallback<UPCGGraph>(AssetPath);
 	if (!Graph)
 	{
@@ -188,7 +188,7 @@ bool FManageAssetPCGGraphCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetPCGGraphCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetPCGGraphCapability::FinalizeTarget(void* Target) const
 {
 	if (UPCGGraph* Graph = static_cast<UPCGGraph*>(Target))
 	{
@@ -196,14 +196,14 @@ void FManageAssetPCGGraphCapability::FinalizeTarget(void* Target) const
 	}
 }
 
-void FManageAssetPCGGraphCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetPCGGraphCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("add_node"),    &HandlePCG_AddNode);
-	OutHandlers.Add(TEXT("remove_node"), &HandlePCG_RemoveNode);
-	OutHandlers.Add(TEXT("add_edge"),    &HandlePCG_AddEdge);
-	OutHandlers.Add(TEXT("remove_edge"), &HandlePCG_RemoveEdge);
+	OutHandlers.Add(TEXT("AddNode"),    &HandlePCG_AddNode);
+	OutHandlers.Add(TEXT("RemoveNode"), &HandlePCG_RemoveNode);
+	OutHandlers.Add(TEXT("AddEdge"),    &HandlePCG_AddEdge);
+	OutHandlers.Add(TEXT("RemoveEdge"), &HandlePCG_RemoveEdge);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetPCGGraphCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetPCGGraphCapability)
 
 #endif // WITH_PCG

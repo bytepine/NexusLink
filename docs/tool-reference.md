@@ -5,35 +5,35 @@
 This document lists all MCP tools and capabilities exposed by NexusLink with detailed parameter notes.
 
 > **Tools vs capabilities**
-> - **MCP tools (3)**: `search_capabilities`, `call_capability`, `submit_feedback` — call directly via MCP `tools/call`.
-> - **Capabilities (all others)**: via `call_capability`: single `capability` + `arguments`; or batch `calls=[{capability,arguments?},...]`. Every `###` section below except meta-tools is a capability; the heading is the `capability` field value.
+> - **MCP tools (3)**: `SearchCapabilities`, `CallCapability`, `SubmitFeedback` — call directly via MCP `tools/call`.
+> - **Capabilities (all others)**: via `CallCapability`: single `Capability` + `Arguments`; or batch `Calls=[{capability,arguments?},...]`. Every `###` section below except meta-tools is a capability; the heading is the `Capability` field value.
 >
-> Example (single): `call_capability(capability="list_runtime_actors", arguments={"classFilter":"BP_Enemy"})`
+> Example (single): `CallCapability(Capability="ListRuntimeActors", Arguments={"ClassFilter":"BP_Enemy"})`
 
-> **`search_capabilities` failure kinds** (check `errorKind`; do not rely on a single `error` string)
-> - `not_found`: capability name not in registry
-> - `disabled`: exact `capabilityName` / cap-name `query` hit a cap disabled in settings
-> - `disabled_only`: fuzzy `query` matched only **disabled** caps (see `disabledCapabilities[]`)
-> - `call_capability` also uses `user_denied` when the editor user rejects a dangerous cap (do not retry)
+> **`SearchCapabilities` failure kinds** (check `ErrorKind`; do not rely on a single `Error` string)
+> - `NotFound`: capability name not in registry
+> - `disabled`: exact `CapabilityName` / cap-name `Query` hit a cap disabled in settings
+> - `DisabledOnly`: fuzzy `Query` matched only **disabled** caps (see `DisabledCapabilities[]`)
+> - `CallCapability` also uses `UserDenied` when the editor user rejects a dangerous cap (do not retry)
 
 > **General conventions**
-> - All `assetPath` values are UE content paths, e.g. `/Game/Blueprints/BP_Player`
-> - Property paths (`propertyPath`) support `A.B.C` dot drill-down + container indices `[i]` / `["key"]`:
+> - All `AssetPath` values are UE content paths, e.g. `/Game/Blueprints/BP_Player`
+> - Property paths (`PropertyPath`) support `A.B.C` dot drill-down + container indices `[i]` / `["Key"]`:
 >     - Arrays: `Items[0]`, `Matrix[0][1]`
 >     - Maps: `Users["alice"].Score` (key compared to `ExportText`; string keys strip quotes)
 >     - Sets: `Tags["Player.Ally"]`
 >     - Combined: `MyComp.RelativeLocation.X`, `Users["alice"].Modules[2].Name`
 >     - Segments split on `.`; map string keys **cannot contain `.`**
 > - Filters support substring (`Player`), prefix (`^BP_`), suffix (`Actor$`), regex (`/^BP_.+$/`)
-> - List tools support `offset` (default 0) and `limit` (default 100, max 500)
+> - List tools support `Offset` (default 0) and `Limit` (default 100, max 500)
 > - ★ marks required parameters
-> - **manage finalize**: all `manage_asset_*` accept optional `saveToDisk` (default false); only `manage_asset_blueprint` / `manage_asset_anim_blueprint` / `manage_asset_user_widget` also accept `compile` (default false). UDS fields still auto-compile after edits; materials use `recompile` op. Standalone `save_asset` / `compile_blueprint` remain available
-> - **Single target + cross-target batch (Breaking)**: capabilities handle one target (`assetPath` / `actorName` / `widgetName`); cross-target via `call_capability(calls=[{capability,arguments?},...])`. Within one target keep `sections` / `propertyPaths` / `operations` / `updates`. No `assetPaths`/`actorNames`/`widgetNames` or legacy keys (`blueprintPath`→`assetPath`, `newPath`→`destAssetPath`, `ownerWidget`→`ownerClass`, `filePath`→`scriptPath`, top-level `fields`/`rows`/`keys`/`widgets`→`operations`); legacy keys → `arg_invalid`
-> - **Response default compaction (enabled globally)**: `NexusMcpDispatcher` recursively scans object-array fields `K` in `structuredContent` before serialization. Only scalar fields (string / number / bool / null) present on **every** object entry are candidates; when the dominant value meets thresholds (`MinCount=2` / `MinMatchRatio=0.7` / `MinNetSaveBytes=20`), write `<K>_defaults` at the same level and omit equal fields from entries. Sparse fields (only some entries) are not extracted. Identity fields (`name` / `path` / `assetPath` / `nodeId` / `tag` / `message` / `timestamp` / `frame` / `id` / `label` / `title` / `text` / `error`) never enter defaults. ForcedDefault: typed `search_asset` extracts `assetType`; `get_output_log` with `verbosity≠all` extracts floor; filters like `categoryFilter` / `list_runtime_actors.classFilter` / `list_runtime_widgets.classFilter` extract only when **all entries on the page agree** (N=1 included; do not treat filter substrings as defaults).
+> - **manage finalize**: all `manage_asset_*` accept optional `bSaveToDisk` (default false); only `ManageAssetBlueprint` / `ManageAssetAnimBlueprint` / `ManageAssetUserWidget` also accept `bCompile` (default false). UDS fields still auto-compile after edits; materials use `Recompile` op. Standalone `SaveAsset` / `CompileBlueprint` remain available
+> - **Single target + cross-target batch (Breaking)**: capabilities handle one target (`AssetPath` / `ActorName` / `WidgetName`); cross-target via `CallCapability(Calls=[{capability,arguments?},...])`. Within one target keep `Sections` / `PropertyPaths` / `Operations` / `Updates`. No `assetPaths`/`actorNames`/`widgetNames` or legacy keys (`blueprintPath`→`AssetPath`, `newPath`→`DestAssetPath`, `ownerWidget`→`OwnerClass`, `FilePath`→`ScriptPath`, top-level `Fields`/`Rows`/`Keys`/`Widgets`→`Operations`); legacy keys → `ArgInvalid`
+> - **Response default compaction (enabled globally)**: `NexusMcpDispatcher` recursively scans object-array fields `K` in `StructuredContent` before serialization. Only scalar fields (string / number / bool / null) present on **every** object entry are candidates; when the dominant value meets thresholds (`MinCount=2` / `MinMatchRatio=0.7` / `MinNetSaveBytes=20`), write `<K>_defaults` at the same level and omit equal fields from entries. Sparse fields (only some entries) are not extracted. Identity fields (`name` / `Path` / `AssetPath` / `NodeId` / `Tag` / `Message` / `Timestamp` / `frame` / `Id` / `Label` / `Title` / `text` / `Error`) never enter defaults. ForcedDefault: typed `SearchAsset` extracts `AssetType`; `GetOutputLog` with `verbosity≠all` extracts floor; filters like `CategoryFilter` / `ListRuntimeActors.ClassFilter` / `ListRuntimeWidgets.ClassFilter` extract only when **all entries on the page agree** (N=1 included; do not treat filter substrings as defaults).
 >
 >   **Merge rule**: `merged = {**defaults, **entry}`; missing entry fields equal defaults.
 >
->   **Merge / skip**: when `<K>_defaults` already exists, merge new keys without overwriting ForcedDefault; skip field names ending in `_defaults` or equal to `content`.
+>   **Merge / skip**: when `<K>_defaults` already exists, merge new keys without overwriting ForcedDefault; skip field names ending in `_defaults` or equal to `Content`.
 >
 >   Toggle: Editor → Editor Preferences → Plugins → NexusLink → `Compact response defaults`.
 
@@ -60,230 +60,230 @@ This document lists all MCP tools and capabilities exposed by NexusLink with det
 
 ## Meta tools
 
-### `call_capability`
+### `CallCapability`
 
-Execute a capability (after search_asset / get_asset_*). On failure check errorKind: unknown/disabled/unavailable/arg_invalid/user_denied; do not retry disabled or user_denied. Confirm-mode dangerous caps need reason. Legacy names (e.g. create_blackboard) map to canonical names. Batch calls[] and single form are mutually exclusive.
-
-| Parameter | Type | Required | Description |
-|------|------|:----:|------|
-| `capability` | `string` |  | Capability name for a single call |
-| `arguments` | `object` |  | Nested arguments for a single call |
-| `calls` | `object[]` |  | Batch: ordered list [{capability,arguments?},...]; item: `capability`, `arguments` |
-| `keepLoaded` | `boolean` |  | When true, do not auto-unload packages introduced by this call (single or batch); default false |
-
----
-
-### `search_capabilities`
-
-**Primary entry** — call before any blueprint/Widget/material/asset question. Prefer `capabilityName=<exact>`; `query` uses 1-2 word AND match. Failures: `errorKind` `not_found` / `disabled` / `disabled_only` (see `disabledCapabilities[]`); `query=get_asset` zero-hit hints route to `get_asset_<type>`. ≤2 matches return full `parameters[]`.
-
----
-
-### `submit_feedback`
-
-Report capability/tool friction. Trigger: retry ≥2 with no progress, no suitable capability, schema guessing, or forced serial calls ≥3. `category`: `wrong_tool` / `misuse` / `schema_guess` / `search_zero` / `search_overflow` / `other`. Prefer structured fields (`attemptedArgs`, `actualError`, `expectedField`) over long `note`.
+Execute a capability (after SearchAsset / get_asset_*). On failure check ErrorKind: unknown/disabled/unavailable/ArgInvalid/UserDenied; do not retry disabled or UserDenied. Confirm-mode dangerous caps need reason. Legacy names (e.g. create_blackboard) map to canonical names. Batch calls[] and single form are mutually exclusive.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `category` | `string (enum)` | ★ | Feedback category enum: `wrong_tool` / `misuse` / `schema_guess` / `search_zero` / `search_overflow` / `other` |
-| `note` | `string` |  | Free-text problem description (recommended) |
-| `tool` | `string` |  | MCP tool name involved |
-| `capability` | `string` |  | Capability name involved |
-| `query` | `string` |  | search_capabilities query that caused the issue |
-| `attemptedArgs` | `string` |  | Summary of arguments that triggered the issue |
-| `actualError` | `string` |  | Snippet of the actual error received |
-| `expectedField` | `string` |  | Missing, ambiguous, or guessed field name |
+| `Capability` | `string` |  | Capability name for a single call |
+| `Arguments` | `object` |  | Nested arguments for a single call |
+| `Calls` | `object[]` |  | Batch: ordered list [{capability,arguments?},...]; item: `Capability`, `Arguments` |
+| `bKeepLoaded` | `boolean` |  | When true, do not auto-unload packages introduced by this call (single or batch); default false |
+
+---
+
+### `SearchCapabilities`
+
+**Primary entry** — call before any blueprint/Widget/material/asset question. Prefer `CapabilityName=<exact>`; `Query` uses 1-2 word AND match. Failures: `ErrorKind` `NotFound` / `disabled` / `DisabledOnly` (see `DisabledCapabilities[]`); `Query=GetAsset` zero-hit hints route to `get_asset_<type>`. ≤2 matches return full `parameters[]`.
+
+---
+
+### `SubmitFeedback`
+
+Report capability/tool friction. Trigger: retry ≥2 with no progress, no suitable capability, schema guessing, or forced serial calls ≥3. `Category`: `WrongTool` / `Misuse` / `SchemaGuess` / `SearchZero` / `SearchOverflow` / `Other`. Prefer structured fields (`AttemptedArgs`, `ActualError`, `ExpectedField`) over long `Note`.
+
+| Parameter | Type | Required | Description |
+|------|------|:----:|------|
+| `Category` | `string (enum)` | ★ | Feedback category enum: `WrongTool` / `Misuse` / `SchemaGuess` / `SearchZero` / `SearchOverflow` / `Other` |
+| `Note` | `string` |  | Free-text problem description (recommended) |
+| `Tool` | `string` |  | MCP tool name involved |
+| `Capability` | `string` |  | Capability name involved |
+| `Query` | `string` |  | SearchCapabilities query that caused the issue |
+| `AttemptedArgs` | `string` |  | Summary of arguments that triggered the issue |
+| `ActualError` | `string` |  | Snippet of the actual error received |
+| `ExpectedField` | `string` |  | Missing, ambiguous, or guessed field name |
 
 ---
 
 ## Editor tools
 
-### `capture_editor_panel`
+### `CaptureEditorPanel`
 
-Screenshot a LevelEditor panel tab, or an Actor from a fixed camera angle. Editor only; use capture_viewport for Game/PIE.
+Screenshot a LevelEditor panel tab, or an Actor from a fixed camera angle. Editor only; use CaptureViewport for Game/PIE.
 
 **When to use**: Screenshot an editor panel/level viewport, or an Actor from a fixed angle
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `target` | `string` |  | Panel name or Tab ID; 'list' enumerates |
-| `format` | `string (enum)` |  | Image format enum: `png` / `jpg` |
-| `maxSize` | `integer` |  | Max edge pixels (0=native) |
-| `actorName` | `string` |  | Actor name/tag; crop to editor-viewport bounds |
-| `padding` | `number` |  | Actor bounds padding ratio |
-| `viewAngle` | `string (enum)` |  | Move editor camera to this angle; needs actorName enum: `front` / `back` / `left` / `right` / `top` / `bottom` |
-| `validateOnly` | `boolean` |  | If true skip image; validate panel only |
+| `Target` | `string` |  | Panel name or Tab ID; 'list' enumerates |
+| `Format` | `string (enum)` |  | Image format enum: `png` / `jpg` |
+| `MaxSize` | `integer` |  | Max edge pixels (0=native) |
+| `ActorName` | `string` |  | Actor name/tag; crop to editor-viewport bounds |
+| `Padding` | `number` |  | Actor bounds padding ratio |
+| `ViewAngle` | `string (enum)` |  | Move editor camera to this angle; needs ActorName enum: `Front` / `Back` / `Left` / `Right` / `Top` / `Bottom` |
+| `bValidateOnly` | `boolean` |  | If true skip image; validate panel only |
 
-**Related capabilities**: `capture_viewport`, `get_editor_context`
+**Related capabilities**: `CaptureViewport`, `GetEditorContext`
 
 ---
 
-### `control_pie`
+### `ControlPie`
 
-Start/stop/pause/step PIE. action=start|stop|status|pause|resume|step.
+Start/stop/pause/step PIE. Action=start|stop|status|pause|resume|step.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `action` | `string (enum)` | ★ | PIE operation enum: `start` / `stop` / `status` / `pause` / `resume` / `step` |
-| `mode` | `string (enum)` |  | Play mode (start only) enum: `viewport` / `simulate` |
+| `Action` | `string (enum)` | ★ | PIE operation enum: `Start` / `Stop` / `Status` / `Pause` / `Resume` / `Step` |
+| `Mode` | `string (enum)` |  | Play mode (start only) enum: `Viewport` / `Simulate` |
 
-**Related capabilities**: `exec_command`
+**Related capabilities**: `ExecCommand`
 
 ---
 
-### `exec_python`
+### `ExecPython`
 
-Run editor Python. exec/file/eval; stdout and traceback. Probe with get_python_api first.
+Run editor Python. exec/file/eval; stdout and traceback. Probe with GetPythonApi first.
 
 **Prerequisites**: `python`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `code` | `string` |  | Python source; required in exec/eval modes |
-| `scriptPath` | `string` |  | Python file path relative to Content/Python/; required in file mode |
-| `mode` | `string (enum)` |  | Run source, run a .py file, or evaluate expression enum: `exec` / `file` / `eval` |
-| `persistent` | `boolean` |  | file mode: share console globals instead of isolated scope |
-| `unattended` | `boolean` |  | Suppress modal dialogs while running |
-| `reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
+| `Code` | `string` |  | Python source; required in exec/eval modes |
+| `ScriptPath` | `string` |  | Python file path relative to Content/Python/; required in file mode |
+| `Mode` | `string (enum)` |  | Run source, run a .py file, or evaluate expression enum: `Exec` / `File` / `Eval` |
+| `bPersistent` | `boolean` |  | file mode: share console globals instead of isolated scope |
+| `bUnattended` | `boolean` |  | Suppress modal dialogs while running |
+| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
-**Related capabilities**: `get_python_api`, `exec_command`, `get_output_log`
+**Related capabilities**: `GetPythonApi`, `ExecCommand`, `GetOutputLog`
 
 ---
 
-### `get_editor_context`
+### `GetEditorContext`
 
 Read editor selection, browse path, and current map. editor World != PIE.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
-**When to use**: Read editor selection or current map; use list_runtime_actors in PIE
+**When to use**: Read editor selection or current map; use ListRuntimeActors in PIE
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `selection_actors` / `selection_assets` / `content_browser_path` / `current_map` |
-| `limit` | `integer` |  | Max list items (selection section) |
+| `Sections` | `string[]` |  | Sections (multi-select): `SelectionActors` / `SelectionAssets` / `ContentBrowserPath` / `CurrentMap` |
+| `Limit` | `integer` |  | Max list items (selection section) |
 
-**Related capabilities**: `get_editor_info`, `capture_viewport`, `search_asset`
+**Related capabilities**: `GetEditorInfo`, `CaptureViewport`, `SearchAsset`
 
 ---
 
-### `get_editor_info`
+### `GetEditorInfo`
 
 Return UE version, project, platform, build config. No params.
 
-**Related capabilities**: `get_output_log`
+**Related capabilities**: `GetOutputLog`
 
 ---
 
-### `get_gameplay_tags`
+### `GetGameplayTags`
 
 Query Tag tree/Actor/asset/referencers. sections includes referencers.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `hierarchy` / `actor` / `asset` / `referencers` |
-| `parentTag` | `string` |  | Root tag for subtree |
-| `actorName` | `string` |  | Runtime Actor name (actor section) |
-| `assetPath` | `string` |  | Asset path (asset section) |
-| `tag` | `string` |  | referencers section: GameplayTag full name |
-| `nameFilter` | `string` |  | Tag name filter |
-| `offset` | `integer` |  | referencers section pagination offset |
-| `limit` | `integer` |  | Max count |
+| `Sections` | `string[]` |  | Sections (multi-select): `Hierarchy` / `Actor` / `Asset` / `Referencers` |
+| `ParentTag` | `string` |  | Root tag for subtree |
+| `ActorName` | `string` |  | Runtime Actor name (actor section) |
+| `AssetPath` | `string` |  | Asset path (asset section) |
+| `Tag` | `string` |  | referencers section: GameplayTag full name |
+| `NameFilter` | `string` |  | Tag name filter |
+| `Offset` | `integer` |  | referencers section pagination offset |
+| `Limit` | `integer` |  | Max count |
 
-**Related capabilities**: `get_runtime_actor_property`
+**Related capabilities**: `GetRuntimeActorProperty`
 
 ---
 
-### `get_python_api`
+### `GetPythonApi`
 
-Inspect unreal Python members. Live dir/signature for this engine bind. Probe before exec_python.
+Inspect unreal Python members. Live dir/signature for this engine bind. Probe before ExecPython.
 
 **Prerequisites**: `python`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `target` | `string` |  | Dotted unreal path to inspect |
-| `query` | `string` |  | Substring filter on member names |
-| `searchDoc` | `boolean` |  | Also match query against docstrings |
-| `offset` | `integer` |  | Pagination offset |
-| `limit` | `integer` |  | Max members per page |
+| `Target` | `string` |  | Dotted unreal path to inspect |
+| `Query` | `string` |  | Substring filter on member names |
+| `bSearchDoc` | `boolean` |  | Also match query against docstrings |
+| `Offset` | `integer` |  | Pagination offset |
+| `Limit` | `integer` |  | Max members per page |
 
-**Related capabilities**: `exec_python`, `get_editor_info`
+**Related capabilities**: `ExecPython`, `GetEditorInfo`
 
 ---
 
-### `search_console_variables`
+### `SearchConsoleVariables`
 
 Search console variable names. Substring match; read-only.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `query` | `string` | ★ | Variable name substring (required) |
-| `offset` | `integer` |  | Pagination offset |
-| `limit` | `integer` |  | Max items per page |
+| `Query` | `string` | ★ | Variable name substring (required) |
+| `Offset` | `integer` |  | Pagination offset |
+| `Limit` | `integer` |  | Max items per page |
 
-**Related capabilities**: `exec_command`
+**Related capabilities**: `ExecCommand`
 
 ---
 
 ## General asset tools
 
-### `control_movie_pipeline`
+### `ControlMoviePipeline`
 
 Control MRQ queue. enqueue/status/cancel. Does not wait for render. UE5+.
 
-**When to use**: Enqueue MRQ from config+sequence; disk settings via manage_asset_movie_pipeline_config
+**When to use**: Enqueue MRQ from config+sequence; disk settings via ManageAssetMoviePipelineConfig
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `action` | `string (enum)` | ★ | Queue operation enum: `enqueue` / `status` / `cancel` |
-| `assetPath` | `string` |  | MoviePipeline config path (enqueue) |
-| `sequencePath` | `string` |  | LevelSequence path (enqueue) |
+| `Action` | `string (enum)` | ★ | Queue operation enum: `Enqueue` / `Status` / `Cancel` |
+| `AssetPath` | `string` |  | MoviePipeline config path (enqueue) |
+| `SequencePath` | `string` |  | LevelSequence path (enqueue) |
 
-**Related capabilities**: `get_asset_movie_pipeline_config`, `manage_asset_movie_pipeline_config`, `create_asset_movie_pipeline_config`
+**Related capabilities**: `GetAssetMoviePipelineConfig`, `ManageAssetMoviePipelineConfig`, `CreateAssetMoviePipelineConfig`
 
 ---
 
-### `create_asset_attribute_set`
+### `CreateAssetAttributeSet`
 
 Create AttributeSet BP; defaults via manage_as, vars via manage_bp.
 
-**When to use**: Create empty AttributeSet BP; add vars via manage_asset_blueprint
+**When to use**: Create empty AttributeSet BP; add vars via ManageAssetBlueprint
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New AS Blueprint package path, e.g. '/Game/GAS/AS_Hero' |
-| `parentClass` | `string` |  | Parent class (default AttributeSet) |
+| `AssetPath` | `string` | ★ | New AS Blueprint package path, e.g. '/Game/GAS/AS_Hero' |
+| `ParentClass` | `string` |  | Parent class (default AttributeSet) |
 
-**Related capabilities**: `get_asset_attribute_set`, `manage_asset_attribute_set`, `manage_asset_blueprint`
+**Related capabilities**: `GetAssetAttributeSet`, `ManageAssetAttributeSet`, `ManageAssetBlueprint`
 
 ---
 
-### `create_asset_common_button_style`
+### `CreateAssetCommonButtonStyle`
 
 Create CommonButtonStyle. WBP widget tree still uses user_widget.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
+| `AssetPath` | `string` | ★ | Asset package path |
 
-**Related capabilities**: `get_asset_common_button_style`, `manage_asset_common_button_style`, `create_asset_common_text_style`
+**Related capabilities**: `GetAssetCommonButtonStyle`, `ManageAssetCommonButtonStyle`, `CreateAssetCommonTextStyle`
 
 ---
 
-### `create_asset_common_text_style`
+### `CreateAssetCommonTextStyle`
 
 Create CommonTextStyle. WBP widget tree still uses user_widget.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
+| `AssetPath` | `string` | ★ | Asset package path |
 
-**Related capabilities**: `get_asset_common_text_style`, `manage_asset_common_text_style`, `create_asset_common_button_style`
+**Related capabilities**: `GetAssetCommonTextStyle`, `ManageAssetCommonTextStyle`, `CreateAssetCommonButtonStyle`
 
 ---
 
-### `create_asset_control_rig`
+### `CreateAssetControlRig`
 
 Create empty ControlRig Blueprint; add bones/controls via manage.
 
@@ -291,13 +291,13 @@ Create empty ControlRig Blueprint; add bones/controls via manage.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset path (package path) |
+| `AssetPath` | `string` | ★ | Asset path (package path) |
 
-**Related capabilities**: `get_asset_control_rig`, `manage_asset_control_rig`
+**Related capabilities**: `GetAssetControlRig`, `ManageAssetControlRig`
 
 ---
 
-### `create_asset_curve`
+### `CreateAssetCurve`
 
 Create curve asset: CurveFloat/CurveVector/CurveLinearColor/CurveTable.
 
@@ -305,14 +305,14 @@ Create curve asset: CurveFloat/CurveVector/CurveLinearColor/CurveTable.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
-| `curveType` | `string` |  | float (default)/ vector / linear_color / curve_table |
+| `AssetPath` | `string` | ★ | Asset package path |
+| `CurveType` | `string` |  | float (default)/ vector / LinearColor / CurveTable |
 
-**Related capabilities**: `get_asset_curve`, `manage_asset_curve`
+**Related capabilities**: `GetAssetCurve`, `ManageAssetCurve`
 
 ---
 
-### `create_asset_data_layer`
+### `CreateAssetDataLayer`
 
 Create DataLayer asset (UDataLayerAsset, ≥UE5.1). type: Runtime or Editor.
 
@@ -320,15 +320,15 @@ Create DataLayer asset (UDataLayerAsset, ≥UE5.1). type: Runtime or Editor.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New DataLayer asset full path, e.g. /Game/WorldData/DL_New |
+| `AssetPath` | `string` | ★ | New DataLayer asset full path, e.g. /Game/WorldData/DL_New |
 | `type` | `string` |  | Runtime or Editor (default Runtime) |
-| `debugColor` | `string` |  | Debug color (#RRGGBB or color name, optional) |
+| `DebugColor` | `string` |  | Debug color (#RRGGBB or color name, optional) |
 
-**Related capabilities**: `get_asset_data_layer`, `manage_asset_data_layer`, `search_asset`
+**Related capabilities**: `GetAssetDataLayer`, `ManageAssetDataLayer`, `SearchAsset`
 
 ---
 
-### `create_asset_enum`
+### `CreateAssetEnum`
 
 Create UserDefinedEnum asset; add/remove entries via manage.
 
@@ -336,116 +336,116 @@ Create UserDefinedEnum asset; add/remove entries via manage.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Enum asset package path |
+| `AssetPath` | `string` | ★ | Enum asset package path |
 
-**Related capabilities**: `get_asset_enum`, `manage_asset_enum`
+**Related capabilities**: `GetAssetEnum`, `ManageAssetEnum`
 
 ---
 
-### `create_asset_foliage_type`
+### `CreateAssetFoliageType`
 
-Create FoliageType (InstancedStaticMesh). Optional meshPath. No level painting.
+Create FoliageType (InstancedStaticMesh). Optional MeshPath. No level painting.
 
 **When to use**: Create foliage type asset; level painting via editor
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
-| `meshPath` | `string` |  | StaticMesh path (optional) |
+| `AssetPath` | `string` | ★ | Asset package path |
+| `MeshPath` | `string` |  | StaticMesh path (optional) |
 
-**Related capabilities**: `get_asset_foliage_type`, `manage_asset_foliage_type`
+**Related capabilities**: `GetAssetFoliageType`, `ManageAssetFoliageType`
 
 ---
 
-### `create_asset_font`
+### `CreateAssetFont`
 
 Create empty Font asset (Runtime cache default; glyphs need import/edit).
 
-**When to use**: Create Font shell; props via manage_asset_font, glyphs via reimport
+**When to use**: Create Font shell; props via ManageAssetFont, glyphs via reimport
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Font package path |
+| `AssetPath` | `string` | ★ | Font package path |
 
-**Related capabilities**: `get_asset_font`, `manage_asset_font`, `reimport_asset`
+**Related capabilities**: `GetAssetFont`, `ManageAssetFont`, `ReimportAsset`
 
 ---
 
-### `create_asset_gameplay_ability`
+### `CreateAssetGameplayAbility`
 
 Create GameplayAbility BP; policy/tags via manage_ga, graph via manage_bp.
 
-**When to use**: Create empty GA BP; graph edits via manage_asset_blueprint
+**When to use**: Create empty GA BP; graph edits via ManageAssetBlueprint
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New GA Blueprint package path, e.g. '/Game/GAS/GA_Jump' |
-| `parentClass` | `string` |  | Parent class (default GameplayAbility) |
+| `AssetPath` | `string` | ★ | New GA Blueprint package path, e.g. '/Game/GAS/GA_Jump' |
+| `ParentClass` | `string` |  | Parent class (default GameplayAbility) |
 
-**Related capabilities**: `get_asset_gameplay_ability`, `manage_asset_gameplay_ability`, `manage_asset_blueprint`
+**Related capabilities**: `GetAssetGameplayAbility`, `ManageAssetGameplayAbility`, `ManageAssetBlueprint`
 
 ---
 
-### `create_asset_gameplay_cue_notify`
+### `CreateAssetGameplayCueNotify`
 
-Create GameplayCueNotify_Static. Use create_asset_blueprint for kind=actor.
+Create GameplayCueNotify_Static. Use CreateAssetBlueprint for Kind=actor.
 
-**When to use**: Create Static Cue Notify; Actor BP via create_asset_blueprint
+**When to use**: Create Static Cue Notify; Actor BP via CreateAssetBlueprint
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
-| `kind` | `string (enum)` |  | Kind enum: `static` / `actor` |
-| `cueName` | `string` |  | GameplayCue Tag (optional) |
+| `AssetPath` | `string` | ★ | Asset package path |
+| `Kind` | `string (enum)` |  | Kind enum: `Static` / `Actor` |
+| `CueName` | `string` |  | GameplayCue Tag (optional) |
 
-**Related capabilities**: `get_asset_gameplay_cue_notify`, `manage_asset_gameplay_cue_notify`, `create_asset_blueprint`
+**Related capabilities**: `GetAssetGameplayCueNotify`, `ManageAssetGameplayCueNotify`, `CreateAssetBlueprint`
 
 ---
 
-### `create_asset_gameplay_effect`
+### `CreateAssetGameplayEffect`
 
 Create GameplayEffect BP; Duration/Modifier/Tag via manage_ge.
 
-**When to use**: Create empty GE BP; edit Modifier/Duration via manage_asset_gameplay_effect
+**When to use**: Create empty GE BP; edit Modifier/Duration via ManageAssetGameplayEffect
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New GE Blueprint package path, e.g. '/Game/GAS/GE_Damage' |
-| `parentClass` | `string` |  | Parent class (default GameplayEffect) |
+| `AssetPath` | `string` | ★ | New GE Blueprint package path, e.g. '/Game/GAS/GE_Damage' |
+| `ParentClass` | `string` |  | Parent class (default GameplayEffect) |
 
-**Related capabilities**: `get_asset_gameplay_effect`, `manage_asset_gameplay_effect`
+**Related capabilities**: `GetAssetGameplayEffect`, `ManageAssetGameplayEffect`
 
 ---
 
-### `create_asset_geometry_collection`
+### `CreateAssetGeometryCollection`
 
 Create empty GeometryCollection. Does not fracture StaticMesh.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
+| `AssetPath` | `string` | ★ | Asset package path |
 
-**Related capabilities**: `get_asset_geometry_collection`, `manage_asset_geometry_collection`
+**Related capabilities**: `GetAssetGeometryCollection`, `ManageAssetGeometryCollection`
 
 ---
 
-### `create_asset_ik_retargeter`
+### `CreateAssetIKRetargeter`
 
 Create empty IKRetargeter; optional source/target IKRig.
 
-**When to use**: Create IKRetargeter; aligns with create_asset_ik_rig
+**When to use**: Create IKRetargeter; aligns with CreateAssetIKRig
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
-| `sourceRigPath` | `string` |  | Source IKRig path |
-| `targetRigPath` | `string` |  | Target IKRig path |
+| `AssetPath` | `string` | ★ | Asset package path |
+| `SourceRigPath` | `string` |  | Source IKRig path |
+| `TargetRigPath` | `string` |  | Target IKRig path |
 
-**Related capabilities**: `get_asset_ik_retargeter`, `manage_asset_ik_retargeter`, `create_asset_ik_rig`
+**Related capabilities**: `GetAssetIKRetargeter`, `ManageAssetIKRetargeter`, `CreateAssetIKRig`
 
 ---
 
-### `create_asset_ik_rig`
+### `CreateAssetIKRig`
 
 Create empty IKRig; optional preview SkeletalMesh.
 
@@ -453,29 +453,29 @@ Create empty IKRig; optional preview SkeletalMesh.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset path (package path) |
-| `meshPath` | `string` |  | Optional preview SkeletalMesh path |
+| `AssetPath` | `string` | ★ | Asset path (package path) |
+| `MeshPath` | `string` |  | Optional preview SkeletalMesh path |
 
-**Related capabilities**: `get_asset_ik_rig`, `manage_asset_ik_rig`, `get_asset_ik_retargeter`
+**Related capabilities**: `GetAssetIKRig`, `ManageAssetIKRig`, `GetAssetIKRetargeter`
 
 ---
 
-### `create_asset_input_action`
+### `CreateAssetInputAction`
 
-Create empty InputAction; add Trigger/Modifier via manage after valueType.
+Create empty InputAction; add Trigger/Modifier via manage after ValueType.
 
 **When to use**: Create InputAction; configure Trigger/Modifier via manage
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path (/Game/…/IA_Jump) |
-| `valueType` | `string (enum)` |  | Value type enum: `Boolean` / `Axis1D` / `Axis2D` / `Axis3D` |
+| `AssetPath` | `string` | ★ | Asset package path (/Game/…/IA_Jump) |
+| `ValueType` | `string (enum)` |  | Value type enum: `Boolean` / `Axis1D` / `Axis2D` / `Axis3D` |
 
-**Related capabilities**: `get_asset_input_action`, `manage_asset_input_action`, `create_asset_input_mapping_context`
+**Related capabilities**: `GetAssetInputAction`, `ManageAssetInputAction`, `CreateAssetInputMappingContext`
 
 ---
 
-### `create_asset_input_mapping_context`
+### `CreateAssetInputMappingContext`
 
 Create empty InputMappingContext; bind Action-Key via manage.
 
@@ -483,29 +483,29 @@ Create empty InputMappingContext; bind Action-Key via manage.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path (/Game/…/IMC_Default) |
+| `AssetPath` | `string` | ★ | Asset package path (/Game/…/IMC_Default) |
 
-**Related capabilities**: `get_asset_input_mapping_context`, `manage_asset_input_mapping_context`, `create_asset_input_action`
+**Related capabilities**: `GetAssetInputMappingContext`, `ManageAssetInputMappingContext`, `CreateAssetInputAction`
 
 ---
 
-### `create_asset_level`
+### `CreateAssetLevel`
 
 Create empty level (UWorld). Editor only.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
-**When to use**: Create empty map; Actors via manage_asset_level
+**When to use**: Create empty map; Actors via ManageAssetLevel
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Level package path |
+| `AssetPath` | `string` | ★ | Level package path |
 
-**Related capabilities**: `get_asset_level`, `manage_asset_level`
+**Related capabilities**: `GetAssetLevel`, `ManageAssetLevel`
 
 ---
 
-### `create_asset_level_sequence`
+### `CreateAssetLevelSequence`
 
 Create empty LevelSequence and initialize MovieScene.
 
@@ -513,28 +513,28 @@ Create empty LevelSequence and initialize MovieScene.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
+| `AssetPath` | `string` | ★ | Asset package path |
 
-**Related capabilities**: `get_asset_level_sequence`, `manage_asset_level_sequence`
+**Related capabilities**: `GetAssetLevelSequence`, `ManageAssetLevelSequence`
 
 ---
 
-### `create_asset_media_source`
+### `CreateAssetMediaSource`
 
-Create FileMediaSource. Optional mediaPath. Playback via interact_runtime_actor.
+Create FileMediaSource. Optional MediaPath. Playback via interact_runtime_actor.
 
 **When to use**: Create FileMediaSource; does not handle playback
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
-| `mediaPath` | `string` |  | Media file path (optional) |
+| `AssetPath` | `string` | ★ | Asset package path |
+| `MediaPath` | `string` |  | Media file path (optional) |
 
-**Related capabilities**: `get_asset_media_source`, `manage_asset_media_source`
+**Related capabilities**: `GetAssetMediaSource`, `ManageAssetMediaSource`
 
 ---
 
-### `create_asset_meta_sound`
+### `CreateAssetMetaSound`
 
 Create MetaSound Source asset.
 
@@ -542,13 +542,13 @@ Create MetaSound Source asset.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New MetaSound asset full path, e.g. /Game/Audio/MS_NewSound |
+| `AssetPath` | `string` | ★ | New MetaSound asset full path, e.g. /Game/Audio/MS_NewSound |
 
-**Related capabilities**: `get_asset_meta_sound`, `manage_asset_meta_sound`, `search_asset`
+**Related capabilities**: `GetAssetMetaSound`, `ManageAssetMetaSound`, `SearchAsset`
 
 ---
 
-### `create_asset_meta_sound_patch`
+### `CreateAssetMetaSoundPatch`
 
 Create MetaSound Patch (reusable subgraph, ≥UE5.1).
 
@@ -556,83 +556,83 @@ Create MetaSound Patch (reusable subgraph, ≥UE5.1).
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New MetaSound Patch full path, e.g. /Game/Audio/MSP_NewPatch |
+| `AssetPath` | `string` | ★ | New MetaSound Patch full path, e.g. /Game/Audio/MSP_NewPatch |
 
-**Related capabilities**: `get_asset_meta_sound`, `manage_asset_meta_sound`, `search_asset`
+**Related capabilities**: `GetAssetMetaSound`, `ManageAssetMetaSound`, `SearchAsset`
 
 ---
 
-### `create_asset_movie_pipeline_config`
+### `CreateAssetMoviePipelineConfig`
 
 Create empty MoviePipeline config. Does not trigger render.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
+| `AssetPath` | `string` | ★ | Asset package path |
 
-**Related capabilities**: `get_asset_movie_pipeline_config`, `manage_asset_movie_pipeline_config`, `control_movie_pipeline`
+**Related capabilities**: `GetAssetMoviePipelineConfig`, `ManageAssetMoviePipelineConfig`, `ControlMoviePipeline`
 
 ---
 
-### `create_asset_niagara_system`
+### `CreateAssetNiagaraSystem`
 
-Create empty NiagaraSystem. Module stack via manage add_emitter/add_module.
+Create empty NiagaraSystem. Module stack via manage AddEmitter/AddModule.
 
 **When to use**: Create Niagara system; emitters/modules via manage
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
+| `AssetPath` | `string` | ★ | Asset package path |
 
-**Related capabilities**: `get_asset_niagara_system`, `manage_asset_niagara_system`
+**Related capabilities**: `GetAssetNiagaraSystem`, `ManageAssetNiagaraSystem`
 
 ---
 
-### `create_asset_paper_flipbook`
+### `CreateAssetPaperFlipbook`
 
 Create PaperFlipbook. Add frames via manage.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
+| `AssetPath` | `string` | ★ | Asset package path |
 
-**Related capabilities**: `get_asset_paper_flipbook`, `manage_asset_paper_flipbook`
+**Related capabilities**: `GetAssetPaperFlipbook`, `ManageAssetPaperFlipbook`
 
 ---
 
-### `create_asset_paper_sprite`
+### `CreateAssetPaperSprite`
 
-Create PaperSprite. optional sourceTexturePath.
+Create PaperSprite. optional SourceTexturePath.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
-| `sourceTexturePath` | `string` |  | Source Texture2D path (optional) |
+| `AssetPath` | `string` | ★ | Asset package path |
+| `SourceTexturePath` | `string` |  | Source Texture2D path (optional) |
 
-**Related capabilities**: `get_asset_paper_sprite`, `manage_asset_paper_sprite`
+**Related capabilities**: `GetAssetPaperSprite`, `ManageAssetPaperSprite`
 
 ---
 
-### `create_asset_paper_tile_map`
+### `CreateAssetPaperTileMap`
 
-Create PaperTileMap. optional mapWidth/Height, tileWidth/Height, tileSetPath.
+Create PaperTileMap. optional MapWidth/Height, TileWidth/Height, TileSetPath.
 
 **When to use**: Create PaperTileMap; edit size/layers/cells via manage
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
-| `mapWidth` | `integer` |  | Map width (cells, engine default) |
-| `mapHeight` | `integer` |  | Map height (cells) |
-| `tileWidth` | `integer` |  | Tile pixel width |
-| `tileHeight` | `integer` |  | Tile pixel height |
-| `tileSetPath` | `string` |  | default PaperTileSet path (optional) |
+| `AssetPath` | `string` | ★ | Asset package path |
+| `MapWidth` | `integer` |  | Map width (cells, engine default) |
+| `MapHeight` | `integer` |  | Map height (cells) |
+| `TileWidth` | `integer` |  | Tile pixel width |
+| `TileHeight` | `integer` |  | Tile pixel height |
+| `TileSetPath` | `string` |  | default PaperTileSet path (optional) |
 
-**Related capabilities**: `get_asset_paper_tile_map`, `manage_asset_paper_tile_map`, `search_asset`
+**Related capabilities**: `GetAssetPaperTileMap`, `ManageAssetPaperTileMap`, `SearchAsset`
 
 ---
 
-### `create_asset_pcg_graph`
+### `CreateAssetPCGGraph`
 
 Create PCG Graph asset.
 
@@ -640,13 +640,13 @@ Create PCG Graph asset.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New PCG Graph full path, e.g. /Game/PCG/PCG_NewGraph |
+| `AssetPath` | `string` | ★ | New PCG Graph full path, e.g. /Game/PCG/PCG_NewGraph |
 
-**Related capabilities**: `get_asset_pcg_graph`, `manage_asset_pcg_graph`, `search_asset`
+**Related capabilities**: `GetAssetPCGGraph`, `ManageAssetPCGGraph`, `SearchAsset`
 
 ---
 
-### `create_asset_physical_material`
+### `CreateAssetPhysicalMaterial`
 
 Create PhysicalMaterial. optional friction/restitution.
 
@@ -654,15 +654,15 @@ Create PhysicalMaterial. optional friction/restitution.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
-| `friction` | `number` |  | Friction |
-| `restitution` | `number` |  | Restitution |
+| `AssetPath` | `string` | ★ | Asset package path |
+| `Friction` | `number` |  | Friction |
+| `Restitution` | `number` |  | Restitution |
 
-**Related capabilities**: `get_asset_physical_material`, `manage_asset_physical_material`
+**Related capabilities**: `GetAssetPhysicalMaterial`, `ManageAssetPhysicalMaterial`
 
 ---
 
-### `create_asset_pose_search`
+### `CreateAssetPoseSearch`
 
 Create PoseSearchDatabase or PoseSearchSchema (UE 5.4+).
 
@@ -670,15 +670,15 @@ Create PoseSearchDatabase or PoseSearchSchema (UE 5.4+).
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
-| `assetKind` | `string (enum)` |  | Asset kind enum: `Database` / `Schema` |
-| `schemaPath` | `string` |  | Optional Schema path when creating Database |
+| `AssetPath` | `string` | ★ | Asset package path |
+| `AssetKind` | `string (enum)` |  | Asset kind enum: `Database` / `Schema` |
+| `SchemaPath` | `string` |  | Optional Schema path when creating Database |
 
-**Related capabilities**: `get_asset_pose_search`, `manage_asset_pose_search`
+**Related capabilities**: `GetAssetPoseSearch`, `ManageAssetPoseSearch`
 
 ---
 
-### `create_asset_render_target`
+### `CreateAssetRenderTarget`
 
 Create TextureRenderTarget2D; edit size/format via manage.
 
@@ -686,15 +686,15 @@ Create TextureRenderTarget2D; edit size/format via manage.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
-| `sizeX` | `integer` |  | Width (default 256) |
-| `sizeY` | `integer` |  | Height (default 256) |
+| `AssetPath` | `string` | ★ | Asset package path |
+| `SizeX` | `integer` |  | Width (default 256) |
+| `SizeY` | `integer` |  | Height (default 256) |
 
-**Related capabilities**: `get_asset_render_target`, `manage_asset_render_target`
+**Related capabilities**: `GetAssetRenderTarget`, `ManageAssetRenderTarget`
 
 ---
 
-### `create_asset_sound_attenuation`
+### `CreateAssetSoundAttenuation`
 
 Create SoundAttenuation asset (attenuation curve/shape).
 
@@ -702,15 +702,15 @@ Create SoundAttenuation asset (attenuation curve/shape).
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundAttenuation package path |
-| `innerRadius` | `number` |  | Inner attenuation sphere radius (default 400) |
-| `falloffDistance` | `number` |  | Attenuation distance (default 3600) |
+| `AssetPath` | `string` | ★ | SoundAttenuation package path |
+| `InnerRadius` | `number` |  | Inner attenuation sphere radius (default 400) |
+| `FalloffDistance` | `number` |  | Attenuation distance (default 3600) |
 
-**Related capabilities**: `get_asset_sound_attenuation`, `manage_asset_sound_attenuation`
+**Related capabilities**: `GetAssetSoundAttenuation`, `ManageAssetSoundAttenuation`
 
 ---
 
-### `create_asset_sound_class`
+### `CreateAssetSoundClass`
 
 Create SoundClass asset (volume/pitch hierarchy node).
 
@@ -718,15 +718,15 @@ Create SoundClass asset (volume/pitch hierarchy node).
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundClass package path |
-| `volume` | `number` |  | Volume multiplier (default 1.0) |
-| `pitch` | `number` |  | Pitch multiplier (default 1.0) |
+| `AssetPath` | `string` | ★ | SoundClass package path |
+| `Volume` | `number` |  | Volume multiplier (default 1.0) |
+| `Pitch` | `number` |  | Pitch multiplier (default 1.0) |
 
-**Related capabilities**: `get_asset_sound_class`, `manage_asset_sound_class`
+**Related capabilities**: `GetAssetSoundClass`, `ManageAssetSoundClass`
 
 ---
 
-### `create_asset_sound_concurrency`
+### `CreateAssetSoundConcurrency`
 
 Create SoundConcurrency asset (max concurrent instances).
 
@@ -734,56 +734,56 @@ Create SoundConcurrency asset (max concurrent instances).
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundConcurrency package path |
-| `maxCount` | `integer` |  | Max concurrent instances (default 16) |
+| `AssetPath` | `string` | ★ | SoundConcurrency package path |
+| `MaxCount` | `integer` |  | Max concurrent instances (default 16) |
 
-**Related capabilities**: `get_asset_sound_concurrency`, `manage_asset_sound_concurrency`
+**Related capabilities**: `GetAssetSoundConcurrency`, `ManageAssetSoundConcurrency`
 
 ---
 
-### `create_asset_sound_cue`
+### `CreateAssetSoundCue`
 
-Create empty SoundCue. Add nodes via manage_asset_sound_cue.
+Create empty SoundCue. Add nodes via ManageAssetSoundCue.
 
-**When to use**: Create SoundCue; aligns with create_asset_sound_class
+**When to use**: Create SoundCue; aligns with CreateAssetSoundClass
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundCue package path |
+| `AssetPath` | `string` | ★ | SoundCue package path |
 
-**Related capabilities**: `get_asset_sound_cue`, `manage_asset_sound_cue`
+**Related capabilities**: `GetAssetSoundCue`, `ManageAssetSoundCue`
 
 ---
 
-### `create_asset_sound_submix`
+### `CreateAssetSoundSubmix`
 
 Create SoundSubmix asset (mix bus node).
 
-**When to use**: Create SoundSubmix from scratch; volume via manage_asset_sound_submix
+**When to use**: Create SoundSubmix from scratch; volume via ManageAssetSoundSubmix
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundSubmix package path |
+| `AssetPath` | `string` | ★ | SoundSubmix package path |
 
-**Related capabilities**: `get_asset_sound_submix`, `manage_asset_sound_submix`
+**Related capabilities**: `GetAssetSoundSubmix`, `ManageAssetSoundSubmix`
 
 ---
 
-### `create_asset_state_tree`
+### `CreateAssetStateTree`
 
 Create empty StateTree. UE 5.5+.
 
-**When to use**: Create StateTree; structure via manage_asset_state_tree
+**When to use**: Create StateTree; structure via ManageAssetStateTree
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
+| `AssetPath` | `string` | ★ | Asset package path |
 
-**Related capabilities**: `get_asset_state_tree`, `manage_asset_state_tree`
+**Related capabilities**: `GetAssetStateTree`, `ManageAssetStateTree`
 
 ---
 
-### `create_asset_string_table`
+### `CreateAssetStringTable`
 
 Create StringTable. optional namespace.
 
@@ -791,56 +791,56 @@ Create StringTable. optional namespace.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
-| `namespace` | `string` |  | Namespace (optional) |
+| `AssetPath` | `string` | ★ | Asset package path |
+| `Namespace` | `string` |  | Namespace (optional) |
 
-**Related capabilities**: `get_asset_string_table`, `manage_asset_string_table`
+**Related capabilities**: `GetAssetStringTable`, `ManageAssetStringTable`
 
 ---
 
-### `delete_asset`
+### `DeleteAsset`
 
 Delete single asset package. Best-effort redirector cleanup; irreversible.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset path, e.g. '/Game/BP/BP_MyActor' |
+| `AssetPath` | `string` | ★ | Asset path, e.g. '/Game/BP/BP_MyActor' |
 
-**Related capabilities**: `save_asset`, `rename_asset`
+**Related capabilities**: `SaveAsset`, `RenameAsset`
 
 ---
 
-### `duplicate_asset`
+### `DuplicateAsset`
 
 Copy editor asset to new path. Source unchanged.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Source asset path |
-| `destAssetPath` | `string` | ★ | Target full asset path (package + name) |
+| `AssetPath` | `string` | ★ | Source asset path |
+| `DestAssetPath` | `string` | ★ | Target full asset path (package + name) |
 
-**Related capabilities**: `rename_asset`, `delete_asset`
+**Related capabilities**: `RenameAsset`, `DeleteAsset`
 
 ---
 
-### `export_asset`
+### `ExportAsset`
 
 Export asset to disk file. Uses UE ExportToFile.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
 **When to use**: Export asset to external file (FBX/OBJ/PNG)
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset path |
-| `outputPath` | `string` |  | Export file path (ext included; empty auto-exports to Saved/Exported/) |
+| `AssetPath` | `string` | ★ | Asset path |
+| `OutputPath` | `string` |  | Export file path (ext included; empty auto-exports to Saved/Exported/) |
 
-**Related capabilities**: `search_asset`, `duplicate_asset`
+**Related capabilities**: `SearchAsset`, `DuplicateAsset`
 
 ---
 
-### `get_asset_attribute_set`
+### `GetAssetAttributeSet`
 
 Read all FGameplayAttributeData defaults in AttributeSet BP; read-only.
 
@@ -848,195 +848,195 @@ Read all FGameplayAttributeData defaults in AttributeSet BP; read-only.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AttributeSet Blueprint path |
+| `AssetPath` | `string` | ★ | AttributeSet Blueprint path |
 
-**Related capabilities**: `manage_asset_attribute_set`, `create_asset_attribute_set`
+**Related capabilities**: `ManageAssetAttributeSet`, `CreateAssetAttributeSet`
 
 ---
 
-### `get_asset_common_button_style`
+### `GetAssetCommonButtonStyle`
 
 Read CommonButtonStyle metadata. WBP still uses user_widget.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | CommonButtonStyle asset path |
+| `AssetPath` | `string` | ★ | CommonButtonStyle asset path |
 
-**Related capabilities**: `manage_asset_common_button_style`, `create_asset_common_button_style`, `get_asset_common_text_style`
+**Related capabilities**: `ManageAssetCommonButtonStyle`, `CreateAssetCommonButtonStyle`, `GetAssetCommonTextStyle`
 
 ---
 
-### `get_asset_common_text_style`
+### `GetAssetCommonTextStyle`
 
 Read CommonTextStyle metadata. WBP still uses user_widget.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | CommonTextStyle asset path |
+| `AssetPath` | `string` | ★ | CommonTextStyle asset path |
 
-**Related capabilities**: `manage_asset_common_text_style`, `create_asset_common_text_style`, `get_asset_common_button_style`
+**Related capabilities**: `ManageAssetCommonTextStyle`, `CreateAssetCommonTextStyle`, `GetAssetCommonButtonStyle`
 
 ---
 
-### `get_asset_control_rig`
+### `GetAssetControlRig`
 
-Read ControlRig BP hierarchy (bones/controls/Null) and RigVM graph. Use manage_asset_control_rig for writes.
+Read ControlRig BP hierarchy (bones/controls/Null) and RigVM graph. Use ManageAssetControlRig for writes.
 
-**When to use**: Read ControlRig hierarchy and RigVM nodes/wires; use manage_asset_control_rig for writes
+**When to use**: Read ControlRig hierarchy and RigVM nodes/wires; use ManageAssetControlRig for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | ControlRig Blueprint asset path |
+| `AssetPath` | `string` | ★ | ControlRig Blueprint asset path |
 
-**Related capabilities**: `manage_asset_control_rig`, `create_asset_control_rig`, `get_asset_skeleton`
+**Related capabilities**: `ManageAssetControlRig`, `CreateAssetControlRig`, `GetAssetSkeleton`
 
 ---
 
-### `get_asset_curve`
+### `GetAssetCurve`
 
 Read curve asset channels and keyframes (CurveFloat/Vector/LinearColor/CurveTable).
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
+| `AssetPath` | `string` | ★ | Asset package path |
 
-**Related capabilities**: `create_asset_curve`, `manage_asset_curve`
+**Related capabilities**: `CreateAssetCurve`, `ManageAssetCurve`
 
 ---
 
-### `get_asset_data_layer`
+### `GetAssetDataLayer`
 
-Read DataLayer asset props: type (Runtime/Editor), debug color (>=UE5.1). Use manage_asset_data_layer for writes.
+Read DataLayer asset props: type (Runtime/Editor), debug color (>=UE5.1). Use ManageAssetDataLayer for writes.
 
 **When to use**: Read DataLayerAsset type and debug color (>=UE5.1)
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | DataLayerAsset path |
+| `AssetPath` | `string` | ★ | DataLayerAsset path |
 
-**Related capabilities**: `manage_asset_data_layer`, `create_asset_data_layer`, `search_asset`
+**Related capabilities**: `ManageAssetDataLayer`, `CreateAssetDataLayer`, `SearchAsset`
 
 ---
 
-### `get_asset_enum`
+### `GetAssetEnum`
 
-Read UserDefinedEnum entries (name/displayName/value).
+Read UserDefinedEnum entries (name/DisplayName/value).
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Enum asset package path |
+| `AssetPath` | `string` | ★ | Enum asset package path |
 
-**Related capabilities**: `create_asset_enum`, `manage_asset_enum`
+**Related capabilities**: `CreateAssetEnum`, `ManageAssetEnum`
 
 ---
 
-### `get_asset_foliage_type`
+### `GetAssetFoliageType`
 
 Read FoliageType: mesh/density/radius/AlignToNormal. LandscapeGrassType not included.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | FoliageType asset path |
+| `AssetPath` | `string` | ★ | FoliageType asset path |
 
-**Related capabilities**: `manage_asset_foliage_type`, `create_asset_foliage_type`
+**Related capabilities**: `ManageAssetFoliageType`, `CreateAssetFoliageType`
 
 ---
 
-### `get_asset_font`
+### `GetAssetFont`
 
-Read Font: size/char count/cache type. Use reimport_asset for empty fonts.
+Read Font: size/char count/cache type. Use ReimportAsset for empty fonts.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Font asset path |
+| `AssetPath` | `string` | ★ | Font asset path |
 
-**Related capabilities**: `manage_asset_font`, `create_asset_font`, `reimport_asset`
+**Related capabilities**: `ManageAssetFont`, `CreateAssetFont`, `ReimportAsset`
 
 ---
 
-### `get_asset_gameplay_ability`
+### `GetAssetGameplayAbility`
 
-Read GA Blueprint. sections=metadata|tags|costs|graphOverview; read-only.
+Read GA Blueprint. Sections=metadata|tags|costs|graphOverview; read-only.
 
-**When to use**: Read GA policy/Tag/Cost; graph reads via get_asset_blueprint
+**When to use**: Read GA policy/Tag/Cost; graph reads via GetAssetBlueprint
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `metadata` / `tags` / `costs` / `graphOverview` |
-| `assetPath` | `string` | ★ | GameplayAbility Blueprint path |
+| `Sections` | `string[]` |  | Sections (multi-select): `metadata` / `Tags` / `costs` / `graphOverview` |
+| `AssetPath` | `string` | ★ | GameplayAbility Blueprint path |
 
-**Related capabilities**: `manage_asset_gameplay_ability`, `manage_asset_blueprint`, `create_asset_gameplay_ability`
+**Related capabilities**: `ManageAssetGameplayAbility`, `ManageAssetBlueprint`, `CreateAssetGameplayAbility`
 
 ---
 
-### `get_asset_gameplay_cue_notify`
+### `GetAssetGameplayCueNotify`
 
 Read GameplayCueNotify: CueName/class name/is Blueprint.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Cue Notify asset path |
+| `AssetPath` | `string` | ★ | Cue Notify asset path |
 
-**Related capabilities**: `manage_asset_gameplay_cue_notify`, `create_asset_gameplay_cue_notify`, `manage_asset_blueprint`
+**Related capabilities**: `ManageAssetGameplayCueNotify`, `CreateAssetGameplayCueNotify`, `ManageAssetBlueprint`
 
 ---
 
-### `get_asset_gameplay_effect`
+### `GetAssetGameplayEffect`
 
-Read GE Blueprint. sections=policy|modifiers|tags|cues; read-only.
+Read GE Blueprint. Sections=policy|modifiers|tags|cues; read-only.
 
 **When to use**: Read GE duration/Modifier/Tag/Cue; no writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `policy` / `modifiers` / `tags` / `cues` |
-| `assetPath` | `string` | ★ | GameplayEffect Blueprint path |
+| `Sections` | `string[]` |  | Sections (multi-select): `policy` / `Modifiers` / `Tags` / `cues` |
+| `AssetPath` | `string` | ★ | GameplayEffect Blueprint path |
 
-**Related capabilities**: `manage_asset_gameplay_effect`, `create_asset_gameplay_effect`
+**Related capabilities**: `ManageAssetGameplayEffect`, `CreateAssetGameplayEffect`
 
 ---
 
-### `get_asset_geometry_collection`
+### `GetAssetGeometryCollection`
 
 Read GeometryCollection: damage threshold/class summary.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | GeometryCollection asset path |
+| `AssetPath` | `string` | ★ | GeometryCollection asset path |
 
-**Related capabilities**: `manage_asset_geometry_collection`, `create_asset_geometry_collection`
+**Related capabilities**: `ManageAssetGeometryCollection`, `CreateAssetGeometryCollection`
 
 ---
 
-### `get_asset_ik_retargeter`
+### `GetAssetIKRetargeter`
 
-Read IKRetargeter: source/target IKRig, chain mappings. Use manage_asset_ik_retargeter for writes.
+Read IKRetargeter: source/target IKRig, chain mappings. Use ManageAssetIKRetargeter for writes.
 
-**When to use**: Read IKRetargeter config; use manage_asset_ik_retargeter for writes
+**When to use**: Read IKRetargeter config; use ManageAssetIKRetargeter for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | IKRetargeter asset path |
+| `AssetPath` | `string` | ★ | IKRetargeter asset path |
 
-**Related capabilities**: `manage_asset_ik_retargeter`, `get_asset_ik_rig`, `create_asset_ik_retargeter`
+**Related capabilities**: `ManageAssetIKRetargeter`, `GetAssetIKRig`, `CreateAssetIKRetargeter`
 
 ---
 
-### `get_asset_ik_rig`
+### `GetAssetIKRig`
 
-Read IKRig: preview mesh/Solver/BoneChain lists. Use manage_asset_ik_rig for writes.
+Read IKRig: preview mesh/Solver/BoneChain lists. Use ManageAssetIKRig for writes.
 
-**When to use**: Read IKRig structure overview; use manage_asset_ik_rig for writes
+**When to use**: Read IKRig structure overview; use ManageAssetIKRig for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | IKRig asset path |
+| `AssetPath` | `string` | ★ | IKRig asset path |
 
-**Related capabilities**: `manage_asset_ik_rig`, `create_asset_ik_rig`, `get_asset_ik_retargeter`
+**Related capabilities**: `ManageAssetIKRig`, `CreateAssetIKRig`, `GetAssetIKRetargeter`
 
 ---
 
-### `get_asset_input_action`
+### `GetAssetInputAction`
 
 Read InputAction config: ValueType/Trigger/Modifier/flags. UE5+.
 
@@ -1044,13 +1044,13 @@ Read InputAction config: ValueType/Trigger/Modifier/flags. UE5+.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | InputAction asset path |
+| `AssetPath` | `string` | ★ | InputAction asset path |
 
-**Related capabilities**: `manage_asset_input_action`, `create_asset_input_action`, `get_asset_input_mapping_context`
+**Related capabilities**: `ManageAssetInputAction`, `CreateAssetInputAction`, `GetAssetInputMappingContext`
 
 ---
 
-### `get_asset_input_mapping_context`
+### `GetAssetInputMappingContext`
 
 List all IMC Action-Key bindings and Trigger/Modifier counts. UE5+.
 
@@ -1058,35 +1058,35 @@ List all IMC Action-Key bindings and Trigger/Modifier counts. UE5+.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | InputMappingContext asset path |
+| `AssetPath` | `string` | ★ | InputMappingContext asset path |
 
-**Related capabilities**: `manage_asset_input_mapping_context`, `create_asset_input_mapping_context`, `get_asset_input_action`
+**Related capabilities**: `ManageAssetInputMappingContext`, `CreateAssetInputMappingContext`, `GetAssetInputAction`
 
 ---
 
-### `get_asset_level`
+### `GetAssetLevel`
 
-Inspect level snapshot. Writes via manage_asset_level.
+Inspect level snapshot. Writes via ManageAssetLevel.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
-**When to use**: Read on-disk level; WorldSettings via manage_asset_level
+**When to use**: Read on-disk level; WorldSettings via ManageAssetLevel
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `actors` / `settings` |
-| `assetPath` | `string` | ★ | Level asset path (/Game/.../*.umap package path) |
-| `classFilter` | `string` |  | Actor class name filter (optional) |
-| `nameFilter` | `string` |  | Actor name/tag filter (optional) |
-| `tagFilter` | `string` |  | Actor Tag exact match (optional) |
-| `offset` | `integer` |  | actors section pagination offset |
-| `limit` | `integer` |  | actors section page size |
+| `Sections` | `string[]` |  | Sections (multi-select): `Actors` / `Settings` |
+| `AssetPath` | `string` | ★ | Level asset path (/Game/.../*.umap package path) |
+| `ClassFilter` | `string` |  | Actor class name filter (optional) |
+| `NameFilter` | `string` |  | Actor name/tag filter (optional) |
+| `TagFilter` | `string` |  | Actor Tag exact match (optional) |
+| `Offset` | `integer` |  | actors section pagination offset |
+| `Limit` | `integer` |  | actors section page size |
 
-**Related capabilities**: `manage_asset_level`, `create_asset_level`, `search_asset`, `list_runtime_actors`, `get_asset_refs`
+**Related capabilities**: `ManageAssetLevel`, `CreateAssetLevel`, `SearchAsset`, `ListRuntimeActors`, `GetAssetRefs`
 
 ---
 
-### `get_asset_level_sequence`
+### `GetAssetLevelSequence`
 
 Read LevelSequence duration/frame rate, Bindings and Track type overview.
 
@@ -1094,131 +1094,131 @@ Read LevelSequence duration/frame rate, Bindings and Track type overview.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | LevelSequence asset path |
+| `AssetPath` | `string` | ★ | LevelSequence asset path |
 
-**Related capabilities**: `manage_asset_level_sequence`, `create_asset_level_sequence`, `search_asset`, `save_asset`
+**Related capabilities**: `ManageAssetLevelSequence`, `CreateAssetLevelSequence`, `SearchAsset`, `SaveAsset`
 
 ---
 
-### `get_asset_media_source`
+### `GetAssetMediaSource`
 
-Read FileMediaSource: mediaPath.
+Read FileMediaSource: MediaPath.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MediaSource asset path |
+| `AssetPath` | `string` | ★ | MediaSource asset path |
 
-**Related capabilities**: `manage_asset_media_source`, `create_asset_media_source`
+**Related capabilities**: `ManageAssetMediaSource`, `CreateAssetMediaSource`
 
 ---
 
-### `get_asset_meta_sound`
+### `GetAssetMetaSound`
 
-Read MetaSound Source/Patch: inputs/outputs/node summary (Patch >=5.1). Use manage_asset_meta_sound for writes.
+Read MetaSound Source/Patch: inputs/outputs/node summary (Patch >=5.1). Use ManageAssetMetaSound for writes.
 
-**When to use**: Read MetaSound Source/Patch inputs/outputs/nodes; use manage_asset_meta_sound for writes
+**When to use**: Read MetaSound Source/Patch inputs/outputs/nodes; use ManageAssetMetaSound for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MetaSound Source or Patch asset path |
+| `AssetPath` | `string` | ★ | MetaSound Source or Patch asset path |
 
-**Related capabilities**: `manage_asset_meta_sound`, `create_asset_meta_sound`, `create_asset_meta_sound_patch`, `search_asset`
+**Related capabilities**: `ManageAssetMetaSound`, `CreateAssetMetaSound`, `CreateAssetMetaSoundPatch`, `SearchAsset`
 
 ---
 
-### `get_asset_movie_pipeline_config`
+### `GetAssetMoviePipelineConfig`
 
 Read MoviePipeline config: output/resolution, settings[], AA/HighRes summary.
 
-**When to use**: Read MRQ config structure; use manage_asset_movie_pipeline_config for writes
+**When to use**: Read MRQ config structure; use ManageAssetMoviePipelineConfig for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MoviePipeline config asset path |
+| `AssetPath` | `string` | ★ | MoviePipeline config asset path |
 
-**Related capabilities**: `manage_asset_movie_pipeline_config`, `create_asset_movie_pipeline_config`, `control_movie_pipeline`
+**Related capabilities**: `ManageAssetMoviePipelineConfig`, `CreateAssetMoviePipelineConfig`, `ControlMoviePipeline`
 
 ---
 
-### `get_asset_niagara_system`
+### `GetAssetNiagaraSystem`
 
-Inspect NiagaraSystem snapshot. Writes via manage_asset_niagara_system.
+Inspect NiagaraSystem snapshot. Writes via ManageAssetNiagaraSystem.
 
-**When to use**: Read Niagara emitters and module stack; use manage_asset_niagara_system for writes
+**When to use**: Read Niagara emitters and module stack; use ManageAssetNiagaraSystem for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | NiagaraSystem asset path |
+| `AssetPath` | `string` | ★ | NiagaraSystem asset path |
 
-**Related capabilities**: `manage_asset_niagara_system`, `create_asset_niagara_system`, `search_asset`, `get_asset_refs`, `save_asset`
+**Related capabilities**: `ManageAssetNiagaraSystem`, `CreateAssetNiagaraSystem`, `SearchAsset`, `GetAssetRefs`, `SaveAsset`
 
 ---
 
-### `get_asset_paper_flipbook`
+### `GetAssetPaperFlipbook`
 
 Read PaperFlipbook: frame rate/keyframe summary.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PaperFlipbook asset path |
+| `AssetPath` | `string` | ★ | PaperFlipbook asset path |
 
-**Related capabilities**: `manage_asset_paper_flipbook`, `create_asset_paper_flipbook`
+**Related capabilities**: `ManageAssetPaperFlipbook`, `CreateAssetPaperFlipbook`
 
 ---
 
-### `get_asset_paper_sprite`
+### `GetAssetPaperSprite`
 
 Read PaperSprite: source texture/pixel region/pivot.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PaperSprite asset path |
+| `AssetPath` | `string` | ★ | PaperSprite asset path |
 
-**Related capabilities**: `manage_asset_paper_sprite`, `create_asset_paper_sprite`
+**Related capabilities**: `ManageAssetPaperSprite`, `CreateAssetPaperSprite`
 
 ---
 
-### `get_asset_paper_tile_map`
+### `GetAssetPaperTileMap`
 
-Read PaperTileMap: size/layers/tilesets. Use manage/create_asset_paper_tile_map for writes.
+Read PaperTileMap: size/layers/tilesets. Use manage/CreateAssetPaperTileMap for writes.
 
-**When to use**: Read PaperTileMap metadata; use manage_asset_paper_tile_map for writes
+**When to use**: Read PaperTileMap metadata; use ManageAssetPaperTileMap for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PaperTileMap asset path |
+| `AssetPath` | `string` | ★ | PaperTileMap asset path |
 
-**Related capabilities**: `manage_asset_paper_tile_map`, `create_asset_paper_tile_map`, `get_asset_paper_sprite`, `get_asset_paper_flipbook`
+**Related capabilities**: `ManageAssetPaperTileMap`, `CreateAssetPaperTileMap`, `GetAssetPaperSprite`, `GetAssetPaperFlipbook`
 
 ---
 
-### `get_asset_pcg_graph`
+### `GetAssetPCGGraph`
 
-Read PCG Graph node list and pin overview. Use manage_asset_pcg_graph for writes.
+Read PCG Graph node list and pin overview. Use ManageAssetPCGGraph for writes.
 
-**When to use**: Read PCG Graph node structure; use manage_asset_pcg_graph for writes
+**When to use**: Read PCG Graph node structure; use ManageAssetPCGGraph for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PCG Graph asset path |
+| `AssetPath` | `string` | ★ | PCG Graph asset path |
 
-**Related capabilities**: `manage_asset_pcg_graph`, `create_asset_pcg_graph`, `search_asset`
+**Related capabilities**: `ManageAssetPCGGraph`, `CreateAssetPCGGraph`, `SearchAsset`
 
 ---
 
-### `get_asset_physical_material`
+### `GetAssetPhysicalMaterial`
 
 Read PhysicalMaterial: friction/restitution/density/surface type.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PhysicalMaterial asset path |
+| `AssetPath` | `string` | ★ | PhysicalMaterial asset path |
 
-**Related capabilities**: `manage_asset_physical_material`, `create_asset_physical_material`
+**Related capabilities**: `ManageAssetPhysicalMaterial`, `CreateAssetPhysicalMaterial`
 
 ---
 
-### `get_asset_physics_asset`
+### `GetAssetPhysicsAsset`
 
 List PhysicsAsset Bodies and Constraints overview.
 
@@ -1226,27 +1226,27 @@ List PhysicsAsset Bodies and Constraints overview.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PhysicsAsset asset path |
+| `AssetPath` | `string` | ★ | PhysicsAsset asset path |
 
-**Related capabilities**: `manage_asset_physics_asset`, `get_asset_skeletal_mesh`, `save_asset`
+**Related capabilities**: `ManageAssetPhysicsAsset`, `GetAssetSkeletalMesh`, `SaveAsset`
 
 ---
 
-### `get_asset_pose_search`
+### `GetAssetPoseSearch`
 
-Read PoseSearchDatabase or Schema overview. Use manage_asset_pose_search for writes.
+Read PoseSearchDatabase or Schema overview. Use ManageAssetPoseSearch for writes.
 
-**When to use**: Read PoseSearch DB schema and anim asset count; use manage_asset_pose_search for writes
+**When to use**: Read PoseSearch DB schema and anim asset count; use ManageAssetPoseSearch for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PoseSearchDatabase or Schema asset path |
+| `AssetPath` | `string` | ★ | PoseSearchDatabase or Schema asset path |
 
-**Related capabilities**: `manage_asset_pose_search`, `create_asset_pose_search`, `search_asset`
+**Related capabilities**: `ManageAssetPoseSearch`, `CreateAssetPoseSearch`, `SearchAsset`
 
 ---
 
-### `get_asset_refs`
+### `GetAssetRefs`
 
 Query deps/refs/inheritance. direction includes children|ancestors; filter by type.
 
@@ -1254,121 +1254,121 @@ Query deps/refs/inheritance. direction includes children|ancestors; filter by ty
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset path to query |
-| `direction` | `string (enum)` |  | dependencies=deps; referencers=referencers; children=direct subclasses; descendants=all descendants; parent=direct parent; ancestors=parent chain enum: `dependencies` / `referencers` / `children` / `descendants` / `parent` / `ancestors` |
-| `recursive` | `boolean` |  | Recursive package deps/refs; children equivalent to descendants |
-| `nameFilter` | `string` |  | Path or name substring filter |
-| `assetTypeFilter` | `string` |  | Filter by assetType substring, e.g. Blueprint/MaterialInstance |
-| `offset` | `integer` |  | Pagination offset |
-| `limit` | `integer` |  | Max items per page |
+| `AssetPath` | `string` | ★ | Asset path to query |
+| `Direction` | `string (enum)` |  | Dependencies=deps; Referencers=referencers; Children=direct subclasses; Descendants=all descendants; Parent=direct parent; Ancestors=parent chain enum: `Dependencies` / `Referencers` / `Children` / `Descendants` / `Parent` / `Ancestors` |
+| `bRecursive` | `boolean` |  | Recursive package deps/refs; children equivalent to descendants |
+| `NameFilter` | `string` |  | Path or name substring filter |
+| `AssetTypeFilter` | `string` |  | Filter by AssetType substring, e.g. Blueprint/MaterialInstance |
+| `Offset` | `integer` |  | Pagination offset |
+| `Limit` | `integer` |  | Max items per page |
 
-**Related capabilities**: `search_asset`, `get_asset_blueprint`
+**Related capabilities**: `SearchAsset`, `GetAssetBlueprint`
 
 ---
 
-### `get_asset_render_target`
+### `GetAssetRenderTarget`
 
 Read TextureRenderTarget2D: size/format/clear color/generate Mips.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | RenderTarget asset path |
+| `AssetPath` | `string` | ★ | RenderTarget asset path |
 
-**Related capabilities**: `create_asset_render_target`, `manage_asset_render_target`
+**Related capabilities**: `CreateAssetRenderTarget`, `ManageAssetRenderTarget`
 
 ---
 
-### `get_asset_skeletal_mesh`
+### `GetAssetSkeletalMesh`
 
-Inspect SkeletalMesh snapshot. Writes via manage_asset_skeletal_mesh.
+Inspect SkeletalMesh snapshot. Writes via ManageAssetSkeletalMesh.
 
-**When to use**: Read skeletal mesh metadata; use manage_asset_skeletal_mesh for writes
+**When to use**: Read skeletal mesh metadata; use ManageAssetSkeletalMesh for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SkeletalMesh asset path |
+| `AssetPath` | `string` | ★ | SkeletalMesh asset path |
 
-**Related capabilities**: `manage_asset_skeletal_mesh`, `search_asset`, `get_asset_skeleton`, `get_asset_refs`, `save_asset`
+**Related capabilities**: `ManageAssetSkeletalMesh`, `SearchAsset`, `GetAssetSkeleton`, `GetAssetRefs`, `SaveAsset`
 
 ---
 
-### `get_asset_sound_attenuation`
+### `GetAssetSoundAttenuation`
 
-Read SoundAttenuation: shape/innerRadius/falloffDistance/bAttenuate/bSpatialize.
+Read SoundAttenuation: shape/InnerRadius/FalloffDistance/bAttenuate/bSpatialize.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundAttenuation asset path |
+| `AssetPath` | `string` | ★ | SoundAttenuation asset path |
 
-**Related capabilities**: `create_asset_sound_attenuation`, `manage_asset_sound_attenuation`
+**Related capabilities**: `CreateAssetSoundAttenuation`, `ManageAssetSoundAttenuation`
 
 ---
 
-### `get_asset_sound_class`
+### `GetAssetSoundClass`
 
-Read SoundClass: volume/pitch/lowPassFilter/parentClass/childClasses.
+Read SoundClass: volume/pitch/LowPassFilter/ParentClass/ChildClasses.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundClass asset path |
+| `AssetPath` | `string` | ★ | SoundClass asset path |
 
-**Related capabilities**: `create_asset_sound_class`, `manage_asset_sound_class`
+**Related capabilities**: `CreateAssetSoundClass`, `ManageAssetSoundClass`
 
 ---
 
-### `get_asset_sound_concurrency`
+### `GetAssetSoundConcurrency`
 
-Read SoundConcurrency: maxCount/resolutionRule/retriggerTime.
+Read SoundConcurrency: MaxCount/ResolutionRule/RetriggerTime.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundConcurrency asset path |
+| `AssetPath` | `string` | ★ | SoundConcurrency asset path |
 
-**Related capabilities**: `create_asset_sound_concurrency`, `manage_asset_sound_concurrency`
+**Related capabilities**: `CreateAssetSoundConcurrency`, `ManageAssetSoundConcurrency`
 
 ---
 
-### `get_asset_sound_cue`
+### `GetAssetSoundCue`
 
-Inspect SoundCue snapshot. Writes via manage_asset_sound_cue.
+Inspect SoundCue snapshot. Writes via ManageAssetSoundCue.
 
-**When to use**: Read Cue node tree; root props via manage_asset_sound_cue
+**When to use**: Read Cue node tree; root props via ManageAssetSoundCue
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundCue asset path |
+| `AssetPath` | `string` | ★ | SoundCue asset path |
 
-**Related capabilities**: `manage_asset_sound_cue`, `create_asset_sound_cue`, `search_asset`, `get_asset_sound_wave`, `get_asset_refs`
+**Related capabilities**: `ManageAssetSoundCue`, `CreateAssetSoundCue`, `SearchAsset`, `GetAssetSoundWave`, `GetAssetRefs`
 
 ---
 
-### `get_asset_sound_submix`
+### `GetAssetSoundSubmix`
 
-Read SoundSubmix: outputVolume/wetLevel/dryLevel/effectChainCount/parentSubmix.
+Read SoundSubmix: OutputVolume/WetLevel/DryLevel/EffectChainCount/ParentSubmix.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundSubmix asset path |
+| `AssetPath` | `string` | ★ | SoundSubmix asset path |
 
-**Related capabilities**: `manage_asset_sound_submix`, `create_asset_sound_submix`, `search_asset`
+**Related capabilities**: `ManageAssetSoundSubmix`, `CreateAssetSoundSubmix`, `SearchAsset`
 
 ---
 
-### `get_asset_sound_wave`
+### `GetAssetSoundWave`
 
-Inspect SoundWave snapshot. Writes via manage_asset_sound_wave.
+Inspect SoundWave snapshot. Writes via ManageAssetSoundWave.
 
-**When to use**: Read wave metadata; use manage_asset_sound_wave for writes
+**When to use**: Read wave metadata; use ManageAssetSoundWave for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundWave asset path |
+| `AssetPath` | `string` | ★ | SoundWave asset path |
 
-**Related capabilities**: `manage_asset_sound_wave`, `search_asset`, `get_asset_sound_cue`, `get_asset_refs`
+**Related capabilities**: `ManageAssetSoundWave`, `SearchAsset`, `GetAssetSoundCue`, `GetAssetRefs`
 
 ---
 
-### `get_asset_state_tree`
+### `GetAssetStateTree`
 
 Inspect StateTree structure. Read-only. UE 5.5+.
 
@@ -1376,54 +1376,54 @@ Inspect StateTree structure. Read-only. UE 5.5+.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | StateTree asset path (/Game/…/ST_Foo) |
+| `AssetPath` | `string` | ★ | StateTree asset path (/Game/…/ST_Foo) |
 
-**Related capabilities**: `manage_asset_state_tree`, `search_asset`, `get_asset_behavior_tree`, `get_asset_refs`, `save_asset`
+**Related capabilities**: `ManageAssetStateTree`, `SearchAsset`, `GetAssetBehaviorTree`, `GetAssetRefs`, `SaveAsset`
 
 ---
 
-### `get_asset_static_mesh`
+### `GetAssetStaticMesh`
 
-Inspect StaticMesh snapshot. Writes via manage_asset_static_mesh.
+Inspect StaticMesh snapshot. Writes via ManageAssetStaticMesh.
 
-**When to use**: Read mesh metadata; use manage_asset_static_mesh for writes
+**When to use**: Read mesh metadata; use ManageAssetStaticMesh for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | StaticMesh asset path |
+| `AssetPath` | `string` | ★ | StaticMesh asset path |
 
-**Related capabilities**: `manage_asset_static_mesh`, `search_asset`, `get_asset_refs`, `save_asset`
+**Related capabilities**: `ManageAssetStaticMesh`, `SearchAsset`, `GetAssetRefs`, `SaveAsset`
 
 ---
 
-### `get_asset_string_table`
+### `GetAssetStringTable`
 
 Read StringTable: namespace/keys/source string summary.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | StringTable asset path |
-| `limit` | `integer` |  | Max entries to return |
+| `AssetPath` | `string` | ★ | StringTable asset path |
+| `Limit` | `integer` |  | Max entries to return |
 
-**Related capabilities**: `manage_asset_string_table`, `create_asset_string_table`
+**Related capabilities**: `ManageAssetStringTable`, `CreateAssetStringTable`
 
 ---
 
-### `get_asset_texture`
+### `GetAssetTexture`
 
-Inspect Texture2D snapshot. Writes via manage_asset_texture.
+Inspect Texture2D snapshot. Writes via ManageAssetTexture.
 
-**When to use**: Read texture metadata; use manage_asset_texture for writes
+**When to use**: Read texture metadata; use ManageAssetTexture for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Texture2D asset path |
+| `AssetPath` | `string` | ★ | Texture2D asset path |
 
-**Related capabilities**: `manage_asset_texture`, `search_asset`, `get_asset_refs`, `save_asset`
+**Related capabilities**: `ManageAssetTexture`, `SearchAsset`, `GetAssetRefs`, `SaveAsset`
 
 ---
 
-### `get_asset_view_model`
+### `GetAssetViewModel`
 
 Inspect WBP MVVM ViewModels and Bindings. Read-only. UE 5.5+.
 
@@ -1431,13 +1431,13 @@ Inspect WBP MVVM ViewModels and Bindings. Read-only. UE 5.5+.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Widget Blueprint asset path (/Game/…/WBP_Foo) |
+| `AssetPath` | `string` | ★ | Widget Blueprint asset path (/Game/…/WBP_Foo) |
 
-**Related capabilities**: `get_asset_user_widget`, `manage_asset_user_widget`, `search_asset`, `get_asset_blueprint`, `manage_asset_view_model`
+**Related capabilities**: `GetAssetUserWidget`, `ManageAssetUserWidget`, `SearchAsset`, `GetAssetBlueprint`, `ManageAssetViewModel`
 
 ---
 
-### `manage_asset_attribute_set`
+### `ManageAssetAttributeSet`
 
 Batch set/reset AttributeSet CDO FGameplayAttributeData defaults.
 
@@ -1445,273 +1445,273 @@ Batch set/reset AttributeSet CDO FGameplayAttributeData defaults.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AttributeSet Blueprint path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set/reset), `attributeName`, `baseValue` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | AttributeSet Blueprint path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(set/reset), `AttributeName`, `BaseValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_attribute_set`, `save_asset`, `create_asset_attribute_set`
+**Related capabilities**: `GetAssetAttributeSet`, `SaveAsset`, `CreateAssetAttributeSet`
 
 ---
 
-### `manage_asset_common_button_style`
+### `ManageAssetCommonButtonStyle`
 
-Batch edit CommonButtonStyle. operations[].action=set_property.
+Batch edit CommonButtonStyle. operations[].Action=SetProperty.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | CommonButtonStyle asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_property), `propertyPath`, `value` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | CommonButtonStyle asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetProperty), `PropertyPath`, `bValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_common_button_style`, `create_asset_common_button_style`, `manage_asset_common_text_style`
+**Related capabilities**: `GetAssetCommonButtonStyle`, `CreateAssetCommonButtonStyle`, `ManageAssetCommonTextStyle`
 
 ---
 
-### `manage_asset_common_text_style`
+### `ManageAssetCommonTextStyle`
 
-Batch edit CommonTextStyle. operations[].action=set_property.
+Batch edit CommonTextStyle. operations[].Action=SetProperty.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | CommonTextStyle asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_property), `propertyPath`, `value` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | CommonTextStyle asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetProperty), `PropertyPath`, `bValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_common_text_style`, `create_asset_common_text_style`, `manage_asset_common_button_style`
+**Related capabilities**: `GetAssetCommonTextStyle`, `CreateAssetCommonTextStyle`, `ManageAssetCommonButtonStyle`
 
 ---
 
-### `manage_asset_control_rig`
+### `ManageAssetControlRig`
 
 Edit ControlRig hierarchy and RigVM graph. See operations[].action.
 
-**When to use**: Edit ControlRig hierarchy and RigVM graph; persist with save_asset
+**When to use**: Edit ControlRig hierarchy and RigVM graph; persist with SaveAsset
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | ControlRig Blueprint asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(rename_element/set_control_color/add_null/remove_element/add_rig_link/break_rig_link/add_rig_node/add_control…), `elementName`, `newName`, `r`, `g`, `b`, `a`, `parentName`, `elementType`(bone/control/null), `sourcePinPath`, `targetPinPath`, `structType`, `nodeName`, `pinPath`, `pinDefaultValue` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | ControlRig Blueprint asset path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(RenameElement/SetControlColor/AddNull/RemoveElement/AddRigLink/BreakRigLink/AddRigNode/AddControl…), `ElementName`, `NewName`, `r`, `g`, `b`, `a`, `ParentName`, `ElementType`(bone/control/null), `SourcePinPath`, `TargetPinPath`, `StructType`, `NodeName`, `PinPath`, `PinDefaultValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_control_rig`, `create_asset_control_rig`
+**Related capabilities**: `GetAssetControlRig`, `CreateAssetControlRig`
 
 ---
 
-### `manage_asset_curve`
+### `ManageAssetCurve`
 
-Edit curve keyframes. CurveTable uses rowName instead of channel.
+Edit curve keyframes. CurveTable uses RowName instead of channel.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`, `channel`, `rowName`, `time`, `value`, `interp` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | Asset package path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`, `Channel`, `RowName`, `Time`, `bValue`, `Interp` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `create_asset_curve`, `get_asset_curve`
+**Related capabilities**: `CreateAssetCurve`, `GetAssetCurve`
 
 ---
 
-### `manage_asset_data_layer`
+### `ManageAssetDataLayer`
 
-Edit DataLayer asset (≥UE5.1, editor): set_type/set_debug_color.
+Edit DataLayer asset (≥UE5.1, editor): SetType/SetDebugColor.
 
 **When to use**: Edit DataLayerAsset type (Runtime/Editor) or debug color (≥UE5.1)
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | DataLayerAsset path |
-| `operations` | `object[]` | ★ | Operation list; each item requires action |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | DataLayerAsset path |
+| `Operations` | `object[]` | ★ | Operation list; each item requires action |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_data_layer`, `create_asset_data_layer`
+**Related capabilities**: `GetAssetDataLayer`, `CreateAssetDataLayer`
 
 ---
 
-### `manage_asset_enum`
+### `ManageAssetEnum`
 
-Edit UserDefinedEnum entries. action: add_entry/remove_entry/set_display_name.
+Edit UserDefinedEnum entries. action: AddEntry/RemoveEntry/SetDisplayName.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Enum asset package path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`, `index`, `displayName` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | Enum asset package path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`, `Index`, `DisplayName` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `create_asset_enum`, `get_asset_enum`
+**Related capabilities**: `CreateAssetEnum`, `GetAssetEnum`
 
 ---
 
-### `manage_asset_foliage_type`
+### `ManageAssetFoliageType`
 
-Batch edit FoliageType. action=set_mesh/set_density/set_property.
+Batch edit FoliageType. Action=SetMesh/SetDensity/SetProperty.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | FoliageType asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_mesh/set_density/set_property), `meshPath`, `density`, `propertyPath`, `value` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | FoliageType asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetMesh/SetDensity/SetProperty), `MeshPath`, `Density`, `PropertyPath`, `bValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_foliage_type`, `create_asset_foliage_type`
+**Related capabilities**: `GetAssetFoliageType`, `CreateAssetFoliageType`
 
 ---
 
-### `manage_asset_font`
+### `ManageAssetFont`
 
-Batch edit Font. action=set_property (ScalingFactor etc.).
+Batch edit Font. Action=SetProperty (ScalingFactor etc.).
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Font asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_property), `propertyPath`, `value` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | Font asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetProperty), `PropertyPath`, `bValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_font`, `create_asset_font`, `reimport_asset`
+**Related capabilities**: `GetAssetFont`, `CreateAssetFont`, `ReimportAsset`
 
 ---
 
-### `manage_asset_gameplay_ability`
+### `ManageAssetGameplayAbility`
 
-Batch edit GA CDO: tags/policy/cost_cooldown. Graph via manage_asset_blueprint.
+Batch edit GA CDO: tags/policy/cost_cooldown. Graph via ManageAssetBlueprint.
 
-**When to use**: CDO semantic fields; AbilityTask/logic graph via manage_asset_blueprint
+**When to use**: CDO semantic fields; AbilityTask/logic graph via ManageAssetBlueprint
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | GameplayAbility Blueprint path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_tags/set_policy/set_cost_cooldown), `tagContainer`(abilityTags/activationOwnedTags/activationRequiredTags/activationBlockedTags/cancelAbilitiesWithTag/blockAbilitiesWithTag), `tags`, `mode`(set/add/remove), `instancingPolicy`(NonInstanced/InstancedPerActor/InstancedPerExecution), `netExecutionPolicy`(LocalPredicted/LocalOnly/ServerInitiated/ServerOnly), `costGE`, `cooldownGE` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | GameplayAbility Blueprint path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetTags/SetPolicy/SetCostCooldown), `TagContainer`(AbilityTags/ActivationOwnedTags/ActivationRequiredTags/ActivationBlockedTags/CancelAbilitiesWithTag/BlockAbilitiesWithTag), `Tags`, `Mode`(set/add/remove), `InstancingPolicy`(NonInstanced/InstancedPerActor/InstancedPerExecution), `NetExecutionPolicy`(LocalPredicted/LocalOnly/ServerInitiated/ServerOnly), `CostGE`, `CooldownGE` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_gameplay_ability`, `save_asset`, `manage_asset_blueprint`
+**Related capabilities**: `GetAssetGameplayAbility`, `SaveAsset`, `ManageAssetBlueprint`
 
 ---
 
-### `manage_asset_gameplay_cue_notify`
+### `ManageAssetGameplayCueNotify`
 
 Batch edit GameplayCueNotify_Static. Actor BP graph via blueprint.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Cue Notify asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_cue_name), `cueName` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | Cue Notify asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetCueName), `CueName` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_gameplay_cue_notify`, `create_asset_gameplay_cue_notify`, `manage_asset_blueprint`
+**Related capabilities**: `GetAssetGameplayCueNotify`, `CreateAssetGameplayCueNotify`, `ManageAssetBlueprint`
 
 ---
 
-### `manage_asset_gameplay_effect`
+### `ManageAssetGameplayEffect`
 
-Batch edit GE CDO: set_policy/set_tags/add/remove/set modifier.
+Batch edit GE CDO: SetPolicy/SetTags/add/remove/set modifier.
 
 **When to use**: Batch edit GE policy/tags/modifiers; auto recompiles Blueprint
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | GameplayEffect Blueprint path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_policy/set_tags/add_modifier/remove_modifier/set_modifier), `durationPolicy`(Instant/Infinite/HasDuration), `duration`, `period`, `tagContainer`(gameplayEffectTags/grantedTags/blockedAbilityTags), `tags`, `mode`(set/add/remove), `attribute`, `modifierOp`(Add/Multiply/Divide/Override), `magnitude`, `index` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | GameplayEffect Blueprint path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetPolicy/SetTags/AddModifier/RemoveModifier/SetModifier), `DurationPolicy`(Instant/Infinite/HasDuration), `Duration`, `Period`, `TagContainer`(GameplayEffectTags/GrantedTags/BlockedAbilityTags), `Tags`, `Mode`(set/add/remove), `Attribute`, `ModifierOp`(Add/Multiply/Divide/Override), `Magnitude`, `Index` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_gameplay_effect`, `save_asset`, `create_asset_gameplay_effect`
+**Related capabilities**: `GetAssetGameplayEffect`, `SaveAsset`, `CreateAssetGameplayEffect`
 
 ---
 
-### `manage_asset_geometry_collection`
+### `ManageAssetGeometryCollection`
 
-Batch edit GeometryCollection. action=set_damage_threshold/set_property.
+Batch edit GeometryCollection. Action=SetDamageThreshold/SetProperty.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | GeometryCollection asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_damage_threshold/set_property), `index`, `value`, `propertyPath` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | GeometryCollection asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetDamageThreshold/SetProperty), `Index`, `bValue`, `PropertyPath` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_geometry_collection`, `create_asset_geometry_collection`
+**Related capabilities**: `GetAssetGeometryCollection`, `CreateAssetGeometryCollection`
 
 ---
 
-### `manage_asset_ik_retargeter`
+### `ManageAssetIKRetargeter`
 
-Edit IKRetargeter: set_source_rig / set_target_rig / set_chain_source.
+Edit IKRetargeter: SetSourceRig / SetTargetRig / SetChainSource.
 
-**When to use**: Edit IKRetargeter bindings; persist with save_asset after changes
+**When to use**: Edit IKRetargeter bindings; persist with SaveAsset after changes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | IKRetargeter asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(set_source_rig/set_target_rig/set_chain_source), `rigPath`, `targetChain`, `sourceChain` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | IKRetargeter asset path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(SetSourceRig/SetTargetRig/SetChainSource), `RigPath`, `TargetChain`, `SourceChain` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_ik_retargeter`, `get_asset_ik_rig`, `create_asset_ik_retargeter`
+**Related capabilities**: `GetAssetIKRetargeter`, `GetAssetIKRig`, `CreateAssetIKRetargeter`
 
 ---
 
-### `manage_asset_ik_rig`
+### `ManageAssetIKRig`
 
 Edit IKRig: preview mesh/solver/chain/goal.
 
-**When to use**: Edit IKRig properties; persist with save_asset after changes
+**When to use**: Edit IKRig properties; persist with SaveAsset after changes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | IKRig asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(set_preview_mesh/set_solver_enabled/add_chain/remove_chain/set_goal), `meshPath`, `solverIndex`, `enabled`, `chainName`, `startBone`, `endBone`, `goalName` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | IKRig asset path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(SetPreviewMesh/SetSolverEnabled/AddChain/RemoveChain/SetGoal), `MeshPath`, `SolverIndex`, `bEnabled`, `ChainName`, `StartBone`, `EndBone`, `GoalName` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_ik_rig`, `create_asset_ik_rig`, `create_asset_ik_retargeter`
+**Related capabilities**: `GetAssetIKRig`, `CreateAssetIKRig`, `CreateAssetIKRetargeter`
 
 ---
 
-### `manage_asset_input_action`
+### `ManageAssetInputAction`
 
-Edit InputAction: set_value_type/add_trigger/remove_trigger/add_modifier/remove_modifier/set_flags.
+Edit InputAction: SetValueType/AddTrigger/RemoveTrigger/AddModifier/RemoveModifier/SetFlags.
 
 **When to use**: Edit InputAction ValueType/Trigger/Modifier/flags
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | InputAction asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(set_value_type/add_trigger/remove_trigger/add_modifier/remove_modifier/set_flags), `valueType`(Boolean/Axis1D/Axis2D/Axis3D), `className`, `consumesInput`, `reserveAllMappings` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | InputAction asset path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(SetValueType/AddTrigger/RemoveTrigger/AddModifier/RemoveModifier/SetFlags), `ValueType`(Boolean/Axis1D/Axis2D/Axis3D), `ClassName`, `bConsumesInput`, `bReserveAllMappings` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_input_action`, `create_asset_input_action`
+**Related capabilities**: `GetAssetInputAction`, `CreateAssetInputAction`
 
 ---
 
-### `manage_asset_input_mapping_context`
+### `ManageAssetInputMappingContext`
 
-Edit IMC: add_mapping/remove_mapping/clear_mappings.
+Edit IMC: AddMapping/RemoveMapping/ClearMappings.
 
 **When to use**: Add or remove Action-Key bindings in IMC
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | InputMappingContext asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(add_mapping/remove_mapping/clear_mappings), `actionPath`, `key` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | InputMappingContext asset path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(AddMapping/RemoveMapping/ClearMappings), `ActionPath`, `Key` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_input_mapping_context`, `create_asset_input_mapping_context`
+**Related capabilities**: `GetAssetInputMappingContext`, `CreateAssetInputMappingContext`
 
 ---
 
-### `manage_asset_level`
+### `ManageAssetLevel`
 
-Batch edit level WorldSettings and Actors. action=spawn/remove/set_property.
+Batch edit level WorldSettings and Actors. Action=spawn/remove/SetProperty.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
-**When to use**: Edit WorldSettings or level Actors; persist with save_asset
+**When to use**: Edit WorldSettings or level Actors; persist with SaveAsset
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Level asset path (e.g. /Game/Maps/MyLevel) |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_property/spawn_actor/remove_actor/set_actor_property), `propertyPath`, `value`, `className`, `assetPath`, `location`, `rotation`, `actorName` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | Level asset path (e.g. /Game/Maps/MyLevel) |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetProperty/SpawnActor/RemoveActor/SetActorProperty), `PropertyPath`, `bValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_level`, `search_asset`
+**Related capabilities**: `GetAssetLevel`, `SearchAsset`
 
 ---
 
-### `manage_asset_level_sequence`
+### `ManageAssetLevelSequence`
 
 Edit LevelSequence: rate/range/bindings/tracks/keys.
 
@@ -1719,45 +1719,45 @@ Edit LevelSequence: rate/range/bindings/tracks/keys.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | LevelSequence asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(set_display_rate/set_playback_range/remove_binding/add_master_track/remove_master_track/add_possessable/add_spawnable/add_track…), `numerator`, `denominator`, `startFrame`, `endFrame`, `bindingGuid`, `possessableName`, `className`, `trackClass`(CameraCut/Audio/CinematicShot/Fade/Event/LevelVisibility/Slomo/Float…), `time`, `keyValue`, `x`, `y`, `z`, `pitch`, `yaw`, `roll` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | LevelSequence asset path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(SetDisplayRate/SetPlaybackRange/RemoveBinding/AddMasterTrack/RemoveMasterTrack/AddPossessable/AddSpawnable/AddTrack…), `Numerator`, `Denominator`, `StartFrame`, `EndFrame`, `BindingGuid`, `PossessableName`, `ClassName`, `TrackClass`(CameraCut/Audio/CinematicShot/Fade/Event/LevelVisibility/Slomo/Float…), `Time`, `KeyValue`, `x`, `y`, `z`, `Pitch`, `Yaw`, `Roll` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_level_sequence`, `create_asset_level_sequence`, `save_asset`
+**Related capabilities**: `GetAssetLevelSequence`, `CreateAssetLevelSequence`, `SaveAsset`
 
 ---
 
-### `manage_asset_media_source`
+### `ManageAssetMediaSource`
 
-Batch edit FileMediaSource. action=set_file_path/set_loop.
+Batch edit FileMediaSource. Action=SetFilePath/SetLoop.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MediaSource asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_file_path/set_loop), `mediaPath`, `loop` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | MediaSource asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetFilePath/SetLoop), `MediaPath`, `bLoop` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_media_source`, `create_asset_media_source`
+**Related capabilities**: `GetAssetMediaSource`, `CreateAssetMediaSource`
 
 ---
 
-### `manage_asset_meta_sound`
+### `ManageAssetMetaSound`
 
 Edit MetaSound Source/Patch graph: IO, nodes, edges (≥UE5.3 Document API).
 
-**When to use**: Edit MetaSound IO/nodes/edges; edges use fromNodeID/fromPin/toNodeID/toPin
+**When to use**: Edit MetaSound IO/nodes/edges; edges use FromNodeId/FromPin/ToNodeId/ToPin
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MetaSound Source or Patch asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(add_input/remove_input/add_output/remove_output/add_node/remove_node/add_edge/remove_edge), `name`, `typeName`, `classID`, `nodeName`, `nodeID`, `fromNodeID`, `fromPin`, `toNodeID`, `toPin` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | MetaSound Source or Patch asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddInput/RemoveInput/AddOutput/RemoveOutput/AddNode/RemoveNode/AddEdge/RemoveEdge), `name`, `TypeName`, `ClassId`, `NodeName`, `NodeId`, `FromNodeId`, `FromPin`, `ToNodeId`, `ToPin` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_meta_sound`, `create_asset_meta_sound`, `create_asset_meta_sound_patch`
+**Related capabilities**: `GetAssetMetaSound`, `CreateAssetMetaSound`, `CreateAssetMetaSoundPatch`
 
 ---
 
-### `manage_asset_movie_pipeline_config`
+### `ManageAssetMoviePipelineConfig`
 
 Batch edit MoviePipeline settings. Does not trigger render.
 
@@ -1765,114 +1765,114 @@ Batch edit MoviePipeline settings. Does not trigger render.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MoviePipeline config asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_output/set_anti_aliasing/add_setting/remove_setting/set_setting_property/set_setting_enabled), `directory`, `width`, `height`, `fileNameFormat`, `spatialSampleCount`, `temporalSampleCount`, `settingClass`(Output/AntiAliasing/HighRes/Camera/GameOverride/Color/Debug), `propertyPath`, `value`, `enabled` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | MoviePipeline config asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetOutput/SetAntiAliasing/AddSetting/RemoveSetting/SetSettingProperty/SetSettingEnabled), `Directory`, `Width`, `Height`, `FileNameFormat`, `SpatialSampleCount`, `TemporalSampleCount`, `SettingClass`(Output/AntiAliasing/HighRes/Camera/GameOverride/Color/Debug), `PropertyPath`, `bValue`, `bEnabled` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_movie_pipeline_config`, `create_asset_movie_pipeline_config`, `control_movie_pipeline`
+**Related capabilities**: `GetAssetMoviePipelineConfig`, `CreateAssetMoviePipelineConfig`, `ControlMoviePipeline`
 
 ---
 
-### `manage_asset_niagara_system`
+### `ManageAssetNiagaraSystem`
 
 Batch edit Niagara. Emitter CRUD/module stack/RI params. Editor-only module ops.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
-**When to use**: Edit emitters/module stack/RI inputs; get_asset_niagara_system to read
-
-| Parameter | Type | Required | Description |
-|------|------|:----:|------|
-| `assetPath` | `string` | ★ | NiagaraSystem asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_property/set_user_parameter/set_emitter_enabled/rename_emitter/add_emitter/remove_emitter/add_module/remove_module…), `propertyPath`, `parameterName`, `emitterName`, `newName`, `enabled`, `emitterPath`, `modulePath`, `moduleName`, `usage`(Spawn/Update/EmitterSpawn/EmitterUpdate), `value` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
-
-**Related capabilities**: `get_asset_niagara_system`, `create_asset_niagara_system`, `search_asset`
-
----
-
-### `manage_asset_paper_flipbook`
-
-Batch edit PaperFlipbook. action=add_key/remove_key/set_frames_per_second.
+**When to use**: Edit emitters/module stack/RI inputs; GetAssetNiagaraSystem to read
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PaperFlipbook asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(add_key/remove_key/set_frames_per_second), `spritePath`, `frameRun`, `keyIndex`, `framesPerSecond` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | NiagaraSystem asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetProperty/SetUserParameter/SetEmitterEnabled/RenameEmitter/AddEmitter/RemoveEmitter/AddModule/RemoveModule…), `PropertyPath`, `ParameterName`, `EmitterName`, `NewName`, `bEnabled`, `EmitterPath`, `ModulePath`, `ModuleName`, `Usage`(Spawn/Update/EmitterSpawn/EmitterUpdate), `bValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_paper_flipbook`, `create_asset_paper_flipbook`
+**Related capabilities**: `GetAssetNiagaraSystem`, `CreateAssetNiagaraSystem`, `SearchAsset`
 
 ---
 
-### `manage_asset_paper_sprite`
+### `ManageAssetPaperFlipbook`
 
-Batch edit PaperSprite. action=set_source/set_pivot.
+Batch edit PaperFlipbook. Action=AddKey/RemoveKey/SetFramesPerSecond.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PaperSprite asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_source/set_pivot), `sourceTexturePath`, `pivotX`, `pivotY` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | PaperFlipbook asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddKey/RemoveKey/SetFramesPerSecond), `SpritePath`, `FrameRun`, `KeyIndex`, `FramesPerSecond` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_paper_sprite`, `create_asset_paper_sprite`
+**Related capabilities**: `GetAssetPaperFlipbook`, `CreateAssetPaperFlipbook`
 
 ---
 
-### `manage_asset_paper_tile_map`
+### `ManageAssetPaperSprite`
+
+Batch edit PaperSprite. Action=SetSource/SetPivot.
+
+| Parameter | Type | Required | Description |
+|------|------|:----:|------|
+| `AssetPath` | `string` | ★ | PaperSprite asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetSource/SetPivot), `SourceTexturePath`, `PivotX`, `PivotY` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
+
+**Related capabilities**: `GetAssetPaperSprite`, `CreateAssetPaperSprite`
+
+---
+
+### `ManageAssetPaperTileMap`
 
 Batch edit PaperTileMap: size/TileSet/layers/cells.
 
-**When to use**: Edit PaperTileMap size/layers/cells; read via get_asset_paper_tile_map
+**When to use**: Edit PaperTileMap size/layers/cells; read via GetAssetPaperTileMap
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PaperTileMap asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_map_size/set_tile_size/set_tileset/add_layer/remove_layer/set_layer_name/set_cell/clear_cell), `mapWidth`, `mapHeight`, `tileWidth`, `tileHeight`, `tileSetPath`, `layerIndex`, `layerName`, `x`, `y`, `tileIndex` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | PaperTileMap asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetMapSize/SetTileSize/SetTileset/AddLayer/RemoveLayer/SetLayerName/SetCell/ClearCell), `MapWidth`, `MapHeight`, `TileWidth`, `TileHeight`, `TileSetPath`, `LayerIndex`, `LayerName`, `x`, `y`, `TileIndex` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_paper_tile_map`, `create_asset_paper_tile_map`, `save_asset`
+**Related capabilities**: `GetAssetPaperTileMap`, `CreateAssetPaperTileMap`, `SaveAsset`
 
 ---
 
-### `manage_asset_pcg_graph`
+### `ManageAssetPCGGraph`
 
-Manage PCG Graph: add_node/remove_node/add_edge/remove_edge (UE 5.4+).
+Manage PCG Graph: AddNode/RemoveNode/AddEdge/RemoveEdge (UE 5.4+).
 
 **When to use**: Add/remove PCG Graph nodes or connect pins
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PCG Graph asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(add_node/remove_node/add_edge/remove_edge), `settingsClass`, `nodeId`, `fromNodeId`, `toNodeId`, `fromPin`, `toPin` |
-| `action` | `string (enum)` | ★ | Action enum: `add_node` / `remove_node` / `add_edge` / `remove_edge` |
-| `settingsClass` | `string` |  | UPCGSettings subclass name (add_node) |
-| `nodeId` | `string` |  | Node id (remove_node) |
-| `fromNodeId` | `string` |  | Edge source node id (add/remove_edge) |
-| `toNodeId` | `string` |  | Edge target node id (add/remove_edge) |
-| `fromPin` | `string` |  | Edge source pin name, default Out |
-| `toPin` | `string` |  | Edge target pin name, default In |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | PCG Graph asset path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(AddNode/RemoveNode/AddEdge/RemoveEdge), `SettingsClass`, `NodeId`, `FromNodeId`, `ToNodeId`, `FromPin`, `ToPin` |
+| `Action` | `string (enum)` | ★ | Action enum: `AddNode` / `RemoveNode` / `AddEdge` / `RemoveEdge` |
+| `SettingsClass` | `string` |  | UPCGSettings subclass name (AddNode) |
+| `NodeId` | `string` |  | Node id (RemoveNode) |
+| `FromNodeId` | `string` |  | Edge source node id (add/RemoveEdge) |
+| `ToNodeId` | `string` |  | Edge target node id (add/RemoveEdge) |
+| `FromPin` | `string` |  | Edge source pin name, default Out |
+| `ToPin` | `string` |  | Edge target pin name, default In |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_pcg_graph`, `create_asset_pcg_graph`
+**Related capabilities**: `GetAssetPCGGraph`, `CreateAssetPCGGraph`
 
 ---
 
-### `manage_asset_physical_material`
+### `ManageAssetPhysicalMaterial`
 
-Set PhysicalMaterial property: friction / restitution / density / surfaceType / raiseMassToPower.
+Set PhysicalMaterial property: friction / restitution / density / SurfaceType / RaiseMassToPower.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PhysicalMaterial asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set), `friction`, `restitution`, `density`, `raiseMassToPower`, `surfaceType` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | PhysicalMaterial asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(set), `Friction`, `Restitution`, `Density`, `RaiseMassToPower`, `SurfaceType` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_physical_material`, `create_asset_physical_material`
+**Related capabilities**: `GetAssetPhysicalMaterial`, `CreateAssetPhysicalMaterial`
 
 ---
 
-### `manage_asset_physics_asset`
+### `ManageAssetPhysicsAsset`
 
 Edit PhysicsAsset shapes and constraints. See operations[].action.
 
@@ -1880,155 +1880,155 @@ Edit PhysicsAsset shapes and constraints. See operations[].action.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PhysicsAsset asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(set_physics_type/add_sphere/add_capsule/add_box/clear_shapes/add_constraint/remove_constraint), `boneName`, `physicsType`(Simulated/Kinematic/Default), `radius`, `halfHeight`, `extentX`, `extentY`, `extentZ`, `bone1`, `bone2`, `jointName` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | PhysicsAsset asset path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(SetPhysicsType/AddSphere/AddCapsule/AddBox/ClearShapes/AddConstraint/RemoveConstraint), `BoneName`, `PhysicsType`(Simulated/Kinematic/Default), `Radius`, `HalfHeight`, `ExtentX`, `ExtentY`, `ExtentZ`, `Bone1`, `Bone2`, `JointName` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_physics_asset`, `get_asset_skeletal_mesh`
+**Related capabilities**: `GetAssetPhysicsAsset`, `GetAssetSkeletalMesh`
 
 ---
 
-### `manage_asset_pose_search`
+### `ManageAssetPoseSearch`
 
-Manage PoseSearchDatabase: set_schema/add_tag/remove_tag (UE 5.4+).
+Manage PoseSearchDatabase: SetSchema/AddTag/RemoveTag (UE 5.4+).
 
 **When to use**: Set PoseSearch Database Schema or modify Tags
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | PoseSearchDatabase asset path |
-| `operations` | `object[]` | ★ | Operation list |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | PoseSearchDatabase asset path |
+| `Operations` | `object[]` | ★ | Operation list |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_pose_search`, `create_asset_pose_search`, `search_asset`
+**Related capabilities**: `GetAssetPoseSearch`, `CreateAssetPoseSearch`, `SearchAsset`
 
 ---
 
-### `manage_asset_render_target`
+### `ManageAssetRenderTarget`
 
-Edit TextureRenderTarget2D: sizeX/sizeY/formatValue/clearColor(r,g,b,a).
+Edit TextureRenderTarget2D: SizeX/SizeY/FormatValue/ClearColor(r,g,b,a).
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | RenderTarget asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set), `sizeX`, `sizeY`, `formatValue`, `clearColorR`, `clearColorG`, `clearColorB`, `clearColorA` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | RenderTarget asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(set), `SizeX`, `SizeY`, `FormatValue`, `ClearColorR`, `ClearColorG`, `ClearColorB`, `ClearColorA` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `create_asset_render_target`, `get_asset_render_target`
+**Related capabilities**: `CreateAssetRenderTarget`, `GetAssetRenderTarget`
 
 ---
 
-### `manage_asset_skeletal_mesh`
+### `ManageAssetSkeletalMesh`
 
-Batch edit SkeletalMesh. Collision via manage_asset_physics_asset.
+Batch edit SkeletalMesh. Collision via ManageAssetPhysicsAsset.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
 **When to use**: Edit SkeletalMesh material/Socket/LOD; physics via PhysicsAsset
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SkeletalMesh asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_material_slot/set_property/add_socket/remove_socket/set_socket/set_lod_screen_size), `slotIndex`, `materialPath`, `propertyPath`, `value`, `socketName`, `boneName`, `locX`, `locY`, `locZ`, `pitch`, `yaw`, `roll`, `scaleX`, `scaleY`, `scaleZ`, `lodIndex`, `screenSize` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | SkeletalMesh asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetMaterialSlot/SetProperty/AddSocket/RemoveSocket/SetSocket/SetLODScreenSize), `SlotIndex`, `MaterialPath`, `PropertyPath`, `bValue`, `SocketName`, `BoneName`, `LocX`, `LocY`, `LocZ`, `Pitch`, `Yaw`, `Roll`, `ScaleX`, `ScaleY`, `ScaleZ`, `LODIndex`, `ScreenSize` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_skeletal_mesh`, `get_asset_skeleton`, `manage_asset_physics_asset`, `save_asset`
+**Related capabilities**: `GetAssetSkeletalMesh`, `GetAssetSkeleton`, `ManageAssetPhysicsAsset`, `SaveAsset`
 
 ---
 
-### `manage_asset_sound_attenuation`
+### `ManageAssetSoundAttenuation`
 
-Set SoundAttenuation: innerRadius/falloffDistance/shapeValue/bAttenuate/bSpatialize.
+Set SoundAttenuation: InnerRadius/FalloffDistance/ShapeValue/bAttenuate/bSpatialize.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundAttenuation asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set), `innerRadius`, `falloffDistance`, `shapeValue`, `bAttenuate`, `bSpatialize`, `dBAtMax` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | SoundAttenuation asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(set), `InnerRadius`, `FalloffDistance`, `ShapeValue`, `bAttenuate`, `bSpatialize`, `DBAtMax` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_sound_attenuation`, `create_asset_sound_attenuation`
+**Related capabilities**: `GetAssetSoundAttenuation`, `CreateAssetSoundAttenuation`
 
 ---
 
-### `manage_asset_sound_class`
+### `ManageAssetSoundClass`
 
-Set SoundClass volume/pitch/lowPassFilter/attenuationScale.
+Set SoundClass volume/pitch/LowPassFilter/AttenuationScale.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundClass asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set), `volume`, `pitch`, `lowPassFilter`, `attenuationScale` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | SoundClass asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(set), `Volume`, `Pitch`, `LowPassFilter`, `AttenuationScale` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_sound_class`, `create_asset_sound_class`
+**Related capabilities**: `GetAssetSoundClass`, `CreateAssetSoundClass`
 
 ---
 
-### `manage_asset_sound_concurrency`
+### `ManageAssetSoundConcurrency`
 
-Set SoundConcurrency: maxCount/resolutionRuleValue/retriggerTime/limitToOwner.
+Set SoundConcurrency: MaxCount/ResolutionRuleValue/RetriggerTime/bLimitToOwner.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundConcurrency asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set), `maxCount`, `resolutionRuleValue`, `retriggerTime`, `limitToOwner` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | SoundConcurrency asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(set), `MaxCount`, `ResolutionRuleValue`, `RetriggerTime`, `bLimitToOwner` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_sound_concurrency`, `create_asset_sound_concurrency`
+**Related capabilities**: `GetAssetSoundConcurrency`, `CreateAssetSoundConcurrency`
 
 ---
 
-### `manage_asset_sound_cue`
+### `ManageAssetSoundCue`
 
-Batch edit SoundCue. action=set_property/add_node/remove_node/connect_nodes.
+Batch edit SoundCue. Action=SetProperty/AddNode/RemoveNode/ConnectNodes.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
-**When to use**: Edit Cue props or node graph; indices match get_asset_sound_cue nodes[]
+**When to use**: Edit Cue props or node graph; indices match GetAssetSoundCue nodes[]
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundCue asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_property/add_node/remove_node/connect_nodes), `propertyPath`, `value`, `nodeClass`, `soundWavePath`, `parentNodeIndex`, `childSlot`, `nodeIndex`, `childIndex` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | SoundCue asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetProperty/AddNode/RemoveNode/ConnectNodes), `PropertyPath`, `bValue`, `NodeClass`, `SoundWavePath`, `ParentNodeIndex`, `ChildSlot`, `NodeIndex`, `ChildIndex` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_sound_cue`, `create_asset_sound_cue`, `get_asset_sound_wave`
+**Related capabilities**: `GetAssetSoundCue`, `CreateAssetSoundCue`, `GetAssetSoundWave`
 
 ---
 
-### `manage_asset_sound_submix`
+### `ManageAssetSoundSubmix`
 
 Set SoundSubmix volume (UE5.1+ uses dB fields; see InputSchema).
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundSubmix asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set), `outputVolume`, `wetLevel`, `dryLevel`, `outputVolumeDB`, `wetLevelDB`, `dryLevelDB` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | SoundSubmix asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(set), `OutputVolume`, `WetLevel`, `DryLevel`, `OutputVolumeDB`, `WetLevelDB`, `DryLevelDB` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_sound_submix`, `create_asset_sound_submix`
+**Related capabilities**: `GetAssetSoundSubmix`, `CreateAssetSoundSubmix`
 
 ---
 
-### `manage_asset_sound_wave`
+### `ManageAssetSoundWave`
 
 Batch edit SoundWave properties. Volume/looping etc.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
-**When to use**: Edit SoundWave volume/loop/attenuation; persist with save_asset
+**When to use**: Edit SoundWave volume/loop/attenuation; persist with SaveAsset
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | SoundWave asset path |
-| `operations` | `object[]` | ★ | Batch property ops (at least one); item: `action`(set_property), `propertyPath`, `value` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | SoundWave asset path |
+| `Operations` | `object[]` | ★ | Batch property ops (at least one); item: `Action`(SetProperty), `PropertyPath`, `bValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_sound_wave`, `get_asset_sound_cue`
+**Related capabilities**: `GetAssetSoundWave`, `GetAssetSoundCue`
 
 ---
 
-### `manage_asset_state_tree`
+### `ManageAssetStateTree`
 
 Edit StateTree: state/task/condition/transition. UE 5.5+.
 
@@ -2036,65 +2036,65 @@ Edit StateTree: state/task/condition/transition. UE 5.5+.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | StateTree asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(add_state/remove_state/rename_state/recompile/add_task/remove_task/add_enter_condition/remove_enter_condition…), `stateName`, `newName`, `parentState`, `stateType`(State/Group/Linked/Subtree), `nodeType`, `targetState`, `index` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | StateTree asset path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(AddState/RemoveState/RenameState/recompile/AddTask/RemoveTask/AddEnterCondition/RemoveEnterCondition…), `StateName`, `NewName`, `ParentState`, `StateType`(State/Group/Linked/Subtree), `NodeType`, `TargetState`, `Index` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_state_tree`, `create_asset_state_tree`, `save_asset`
+**Related capabilities**: `GetAssetStateTree`, `CreateAssetStateTree`, `SaveAsset`
 
 ---
 
-### `manage_asset_static_mesh`
+### `ManageAssetStaticMesh`
 
 Batch edit StaticMesh. Material/collision/Socket/LOD ScreenSize.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
-**When to use**: Edit StaticMesh material/collision/Socket/LOD; persist with save_asset
-
-| Parameter | Type | Required | Description |
-|------|------|:----:|------|
-| `assetPath` | `string` | ★ | StaticMesh asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_material_slot/set_property/set_collision_trace_flag/add_box_collision/add_sphere_collision/clear_simple_collision/add_socket/remove_socket…), `slotIndex`, `materialPath`, `propertyPath`, `value`, `collisionTraceFlag`(UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple), `x`, `y`, `z`, `extentX`, `extentY`, `extentZ`, `radius`, `socketName`, `locX`, `locY`, `locZ`, `pitch`, `yaw`, `roll`, `scaleX`, `scaleY`, `scaleZ`, `lodIndex`, `screenSize` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
-
-**Related capabilities**: `get_asset_static_mesh`, `search_asset`, `save_asset`
-
----
-
-### `manage_asset_string_table`
-
-Batch edit StringTable. action=add_key/remove_key/set_source.
+**When to use**: Edit StaticMesh material/collision/Socket/LOD; persist with SaveAsset
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | StringTable asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(add_key/remove_key/set_source), `key`, `source` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | StaticMesh asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetMaterialSlot/SetProperty/SetCollisionTraceFlag/AddBoxCollision/AddSphereCollision/ClearSimpleCollision/AddSocket/RemoveSocket…), `SlotIndex`, `MaterialPath`, `PropertyPath`, `bValue`, `CollisionTraceFlag`(UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple), `x`, `y`, `z`, `ExtentX`, `ExtentY`, `ExtentZ`, `Radius`, `SocketName`, `LocX`, `LocY`, `LocZ`, `Pitch`, `Yaw`, `Roll`, `ScaleX`, `ScaleY`, `ScaleZ`, `LODIndex`, `ScreenSize` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_string_table`, `create_asset_string_table`
+**Related capabilities**: `GetAssetStaticMesh`, `SearchAsset`, `SaveAsset`
 
 ---
 
-### `manage_asset_texture`
+### `ManageAssetStringTable`
 
-Batch edit Texture properties. Compression/sRGB/LODGroup.
-
-**Prerequisites**: `editor_only`
-
-**When to use**: Edit Texture compression/sRGB/LODGroup; persist with save_asset
+Batch edit StringTable. Action=AddKey/RemoveKey/SetSource.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Texture asset path |
-| `operations` | `object[]` | ★ | Batch property ops (at least one); item: `action`(set_property), `propertyPath`, `value` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | StringTable asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddKey/RemoveKey/SetSource), `Key`, `Source` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_texture`, `search_asset`
+**Related capabilities**: `GetAssetStringTable`, `CreateAssetStringTable`
 
 ---
 
-### `manage_asset_view_model`
+### `ManageAssetTexture`
+
+Batch edit Texture properties. Compression/bSRGB/LODGroup.
+
+**Prerequisites**: `EditorOnly`
+
+**When to use**: Edit Texture compression/bSRGB/LODGroup; persist with SaveAsset
+
+| Parameter | Type | Required | Description |
+|------|------|:----:|------|
+| `AssetPath` | `string` | ★ | Texture asset path |
+| `Operations` | `object[]` | ★ | Batch property ops (at least one); item: `Action`(SetProperty), `PropertyPath`, `bValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
+
+**Related capabilities**: `GetAssetTexture`, `SearchAsset`
+
+---
+
+### `ManageAssetViewModel`
 
 Edit WBP MVVM: add/remove ViewModel and Binding. UE 5.5+.
 
@@ -2102,73 +2102,73 @@ Edit WBP MVVM: add/remove ViewModel and Binding. UE 5.5+.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | WidgetBlueprint path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(add_view_model/remove_view_model/add_binding/remove_binding), `viewModelName`, `viewModelClass`, `bindingIndex` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | WidgetBlueprint path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(AddViewModel/RemoveViewModel/AddBinding/RemoveBinding), `ViewModelName`, `ViewModelClass`, `BindingIndex` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_view_model`, `get_asset_user_widget`, `save_asset`
+**Related capabilities**: `GetAssetViewModel`, `GetAssetUserWidget`, `SaveAsset`
 
 ---
 
-### `reimport_asset`
+### `ReimportAsset`
 
 Reimport asset source file. Refresh modified external resources.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
 **When to use**: Reimport source (e.g. after editing external FBX/texture)
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset path |
+| `AssetPath` | `string` | ★ | Asset path |
 
-**Related capabilities**: `search_asset`, `export_asset`
+**Related capabilities**: `SearchAsset`, `ExportAsset`
 
 ---
 
-### `rename_asset`
+### `RenameAsset`
 
 Move or rename asset. Auto-generates redirectors.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Current asset path |
-| `destAssetPath` | `string` | ★ | Target full asset path |
+| `AssetPath` | `string` | ★ | Current asset path |
+| `DestAssetPath` | `string` | ★ | Target full asset path |
 
-**Related capabilities**: `save_asset`, `delete_asset`
+**Related capabilities**: `SaveAsset`, `DeleteAsset`
 
 ---
 
-### `save_asset`
+### `SaveAsset`
 
 Persist asset package to disk. MarkPackageDirty then save.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Single asset path |
+| `AssetPath` | `string` | ★ | Single asset path |
 
-**Related capabilities**: `rename_asset`, `delete_asset`
+**Related capabilities**: `RenameAsset`, `DeleteAsset`
 
 ---
 
-### `search_asset`
+### `SearchAsset`
 
-Find asset paths. Call first; set assetType+pathFilter. Returns assets + recommendedGet/Manage.
+Find asset paths. Call first; set AssetType+PathFilter. Returns assets + RecommendedGet/Manage.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetType` | `string` |  | Blueprint/Widget/Material/AnimSequence/… or UClass; avoid all on large projects |
-| `pathFilter` | `string` |  | Feature path prefix (avoid bare /Game/ on large projects) |
-| `query` | `string` |  | Token AND match; matches name/path/tags |
-| `nameFilter` | `string` |  | Asset name filter |
-| `offset` | `integer` |  | Pagination offset |
-| `limit` | `integer` |  | Max items per page |
+| `AssetType` | `string` |  | Blueprint/Widget/Material/AnimSequence/… or UClass; avoid all on large projects |
+| `PathFilter` | `string` |  | Feature path prefix (avoid bare /Game/ on large projects) |
+| `Query` | `string` |  | Token AND match; matches name/path/tags |
+| `NameFilter` | `string` |  | Asset name filter |
+| `Offset` | `integer` |  | Pagination offset |
+| `Limit` | `integer` |  | Max items per page |
 
-**Related capabilities**: `get_asset_blueprint`, `get_asset_refs`
+**Related capabilities**: `GetAssetBlueprint`, `GetAssetRefs`
 
 ---
 
-### `unload_asset`
+### `UnloadAsset`
 
 Manually unload loaded packages. Fallback; auto-unload handles memory normally.
 
@@ -2176,405 +2176,405 @@ Manually unload loaded packages. Fallback; auto-unload handles memory normally.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Single asset path |
+| `AssetPath` | `string` | ★ | Single asset path |
 | `bSkipDirty` | `boolean` |  | If true skip dirty packages (default true, recommended) |
 | `bForceGC` | `boolean` |  | Trigger KEEPFLAGS GC after unload (default true) |
 
-**Related capabilities**: `save_asset`, `get_asset_blueprint`
+**Related capabilities**: `SaveAsset`, `GetAssetBlueprint`
 
 ---
 
 ## Blueprint tools
 
-### `compile_blueprint`
+### `CompileBlueprint`
 
-Explicitly compile Blueprint/ABP/WBP. Optional saveToDisk; use after manage.
+Explicitly compile Blueprint/ABP/WBP. Optional bSaveToDisk; use after manage.
 
 **When to use**: Explicit compile when manage omits compile
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Blueprint asset path |
-| `saveToDisk` | `boolean` |  | Save package to disk after compile |
+| `AssetPath` | `string` | ★ | Blueprint asset path |
+| `bSaveToDisk` | `boolean` |  | Save package to disk after compile |
 
-**Related capabilities**: `save_asset`, `manage_asset_blueprint`, `get_asset_blueprint`
+**Related capabilities**: `SaveAsset`, `ManageAssetBlueprint`, `GetAssetBlueprint`
 
 ---
 
-### `create_asset_blueprint`
+### `CreateAssetBlueprint`
 
-Create new BP and compile; parentClass=Interface for BPI. Add vars/nodes via manage.
+Create new BP and compile; ParentClass=Interface for BPI. Add vars/nodes via manage.
 
-**When to use**: Create empty BP or BPI (parentClass=Interface); not for existing BP
+**When to use**: Create empty BP or BPI (ParentClass=Interface); not for existing BP
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New Blueprint package path, e.g. '/Game/Blueprints/BP_NewActor' |
-| `parentClass` | `string` | ★ | Parent class or BP path. Interface for BPI; Actor/Pawn/Character for normal BP |
+| `AssetPath` | `string` | ★ | New Blueprint package path, e.g. '/Game/Blueprints/BP_NewActor' |
+| `ParentClass` | `string` | ★ | Parent class or BP path. Interface for BPI; Actor/Pawn/Character for normal BP |
 
-**Related capabilities**: `manage_asset_blueprint`, `get_asset_blueprint`
+**Related capabilities**: `ManageAssetBlueprint`, `GetAssetBlueprint`
 
 ---
 
-### `get_asset_blueprint`
+### `GetAssetBlueprint`
 
-Read BP from editor. compileStatus/orphaned/execPaths. Must call before answering.
+Read BP from editor. CompileStatus/orphaned/ExecPaths. Must call before answering.
 
 **When to use**: User asks BP vars/graph/functions — must call first; do not grep source
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `variable` / `function` / `component` / `graph` / `graphOverview` / `defaults` / `orphaned` / `execPaths` |
-| `assetPath` | `string` | ★ | Blueprint asset path |
-| `nameFilter` | `string` |  | Item name filter (/regex/ ^prefix suffix$) |
-| `propertyPaths` | `string[]` |  | Exact property name filter for defaults, e.g. [\"bUseBuffClass\",\"Scale\"] |
-| `graphName` | `string` |  | Graph name (graph / execPaths) |
-| `graphType` | `string (enum)` |  | Graph type filter enum: `event` / `function` / `macro` / `animgraph` / `statemachine` / `state` / `transition` / `conduit` / `all` |
-| `offset` | `integer` |  | Pagination offset |
-| `limit` | `integer` |  | Max items per page |
+| `Sections` | `string[]` |  | Sections (multi-select): `variable` / `Function` / `Component` / `graph` / `graphOverview` / `Defaults` / `orphaned` / `ExecPaths` |
+| `AssetPath` | `string` | ★ | Blueprint asset path |
+| `NameFilter` | `string` |  | Item name filter (/regex/ ^prefix suffix$) |
+| `PropertyPaths` | `string[]` |  | Exact property name filter for defaults, e.g. [\"bUseBuffClass\",\"Scale\"] |
+| `GraphName` | `string` |  | Graph name (graph / ExecPaths) |
+| `GraphType` | `string (enum)` |  | Graph type filter enum: `Event` / `Function` / `Macro` / `Animgraph` / `Statemachine` / `State` / `Transition` / `Conduit` / `All` |
+| `Offset` | `integer` |  | Pagination offset |
+| `Limit` | `integer` |  | Max items per page |
 
-**Related capabilities**: `manage_asset_blueprint`, `create_asset_blueprint`
+**Related capabilities**: `ManageAssetBlueprint`, `CreateAssetBlueprint`
 
 ---
 
-### `manage_asset_blueprint`
+### `ManageAssetBlueprint`
 
-Batch edit BP: graphs/vars/funcs/macros/timelines/dispatchers/interfaces/nodes/promote_pin.
+Batch edit BP: graphs/vars/funcs/macros/timelines/dispatchers/interfaces/nodes/PromotePin.
 
-**When to use**: Write ops: add/remove vars, promote_pin, func graphs, interfaces, nodes, wires
+**When to use**: Write ops: add/remove vars, PromotePin, func graphs, interfaces, nodes, wires
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Blueprint asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(add_variable/remove_variable/add_function/remove_function/add_macro/add_timeline/add_dispatcher/add_local_variable…), `graphName`, `variableName`, `variableType`, `defaultValue`, `category`, `isPublic`, `isLocal`, `nodeId`, `nodeClass`, `functionName`, `functionClass`, `interfaceName`, `posX`, `posY`, `comment`, `pinName`, `pinDefaultValue`, `sourceNodeId`, `sourcePinName`, `targetNodeId`, `targetPinName`, `componentClass`, `componentName`, `attachTo`, `propertyPath`, `value` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
-| `compile` | `boolean` |  | Compile blueprint if needed (BP/ABP/WBP only) |
+| `AssetPath` | `string` | ★ | Blueprint asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddVariable/RemoveVariable/AddFunction/RemoveFunction/AddMacro/AddTimeline/AddDispatcher/AddLocalVariable…), `GraphName`, `VariableName`, `VariableType`, `DefaultValue`, `Category`, `bIsPublic`, `bIsLocal`, `NodeId`, `NodeClass`, `FunctionName`, `FunctionClass`, `InterfaceName`, `PosX`, `PosY`, `Comment`, `PinName`, `PinDefaultValue`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `ComponentClass`, `ComponentName`, `AttachTo`, `PropertyPath`, `bValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
+| `bCompile` | `boolean` |  | Compile blueprint if needed (BP/ABP/WBP only) |
 
-**Related capabilities**: `get_asset_blueprint`, `create_asset_blueprint`, `save_asset`
+**Related capabilities**: `GetAssetBlueprint`, `CreateAssetBlueprint`, `SaveAsset`
 
 ---
 
 ## Animation assets
 
-### `create_asset_anim_blueprint`
+### `CreateAssetAnimBlueprint`
 
 Create ABP for skeleton, auto-linked; fill state machines via manage.
 
-**When to use**: Create empty ABP; requires skeletonPath
+**When to use**: Create empty ABP; requires SkeletonPath
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimBlueprint package path |
-| `skeletonPath` | `string` | ★ | Skeleton asset path |
+| `AssetPath` | `string` | ★ | AnimBlueprint package path |
+| `SkeletonPath` | `string` | ★ | Skeleton asset path |
 
-**Related capabilities**: `manage_asset_anim_blueprint`, `get_asset_anim_blueprint`
+**Related capabilities**: `ManageAssetAnimBlueprint`, `GetAssetAnimBlueprint`
 
 ---
 
-### `create_asset_anim_composite`
+### `CreateAssetAnimComposite`
 
 Create AnimComposite asset; add segments via manage.
 
-**When to use**: Create empty AnimComposite; bind skeleton when skeletonPath given
+**When to use**: Create empty AnimComposite; bind skeleton when SkeletonPath given
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimComposite package path |
-| `skeletonPath` | `string` |  | Skeleton asset path (optional) |
+| `AssetPath` | `string` | ★ | AnimComposite package path |
+| `SkeletonPath` | `string` |  | Skeleton asset path (optional) |
 
-**Related capabilities**: `get_asset_anim_composite`, `manage_asset_anim_composite`
+**Related capabilities**: `GetAssetAnimComposite`, `ManageAssetAnimComposite`
 
 ---
 
-### `create_asset_anim_montage`
+### `CreateAssetAnimMontage`
 
 Create Montage for skeleton; add segments via manage.
 
-**When to use**: Create empty Montage; requires skeletonPath
+**When to use**: Create empty Montage; requires SkeletonPath
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Montage package path |
-| `skeletonPath` | `string` | ★ | Skeleton asset path |
+| `AssetPath` | `string` | ★ | Montage package path |
+| `SkeletonPath` | `string` | ★ | Skeleton asset path |
 
-**Related capabilities**: `manage_asset_anim_montage`, `get_asset_anim_montage`
+**Related capabilities**: `ManageAssetAnimMontage`, `GetAssetAnimMontage`
 
 ---
 
-### `create_asset_blend_space`
+### `CreateAssetBlendSpace`
 
 Create BlendSpace (2D) or BlendSpace1D; configure axes/samples via manage.
 
-**When to use**: Create BlendSpace; requires skeletonPath; configure via manage after create
+**When to use**: Create BlendSpace; requires SkeletonPath; configure via manage after create
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset path (package path) |
-| `skeletonPath` | `string` | ★ | Linked skeleton path |
-| `blendSpaceType` | `string (enum)` |  | Type: blend_space (2D, default) or blend_space_1d enum: `blend_space` / `blend_space_1d` |
+| `AssetPath` | `string` | ★ | Asset path (package path) |
+| `SkeletonPath` | `string` | ★ | Linked skeleton path |
+| `BlendSpaceType` | `string (enum)` |  | Type: BlendSpace (2D, default) or BlendSpace1D enum: `BlendSpace` / `BlendSpace1D` |
 
-**Related capabilities**: `get_asset_blend_space`, `manage_asset_blend_space`
+**Related capabilities**: `GetAssetBlendSpace`, `ManageAssetBlendSpace`
 
 ---
 
-### `get_asset_anim_blueprint`
+### `GetAssetAnimBlueprint`
 
-Inspect ABP structure. sections=variables|statemachines|defaults|graphOverview|graph.
+Inspect ABP structure. Sections=variables|statemachines|defaults|graphOverview|graph.
 
 **When to use**: Read ABP variables/state machines/defaults; no writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `variables` / `statemachines` / `defaults` / `graphOverview` / `graph` |
-| `assetPath` | `string` |  | AnimBlueprint asset path |
-| `nameFilter` | `string` |  | Variable/default name filter |
+| `Sections` | `string[]` |  | Sections (multi-select): `Variables` / `statemachines` / `Defaults` / `graphOverview` / `graph` |
+| `AssetPath` | `string` |  | AnimBlueprint asset path |
+| `NameFilter` | `string` |  | Variable/default name filter |
 
-**Related capabilities**: `manage_asset_anim_blueprint`, `create_asset_anim_blueprint`
+**Related capabilities**: `ManageAssetAnimBlueprint`, `CreateAssetAnimBlueprint`
 
 ---
 
-### `get_asset_anim_composite`
+### `GetAssetAnimComposite`
 
-Read AnimComposite track segments (animReference/startPos/duration/playRate).
+Read AnimComposite track segments (AnimReference/StartPos/duration/PlayRate).
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimComposite asset path |
+| `AssetPath` | `string` | ★ | AnimComposite asset path |
 
-**Related capabilities**: `create_asset_anim_composite`, `manage_asset_anim_composite`
+**Related capabilities**: `CreateAssetAnimComposite`, `ManageAssetAnimComposite`
 
 ---
 
-### `get_asset_anim_montage`
+### `GetAssetAnimMontage`
 
 Inspect Montage timeline snapshot. Read-only; no playback.
 
-**When to use**: Read Montage structure; runtime playback via get_runtime_actor_animation
+**When to use**: Read Montage structure; runtime playback via GetRuntimeActorAnimation
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimMontage asset path |
+| `AssetPath` | `string` | ★ | AnimMontage asset path |
 
-**Related capabilities**: `manage_asset_anim_montage`, `create_asset_anim_montage`, `get_runtime_actor_animation`
+**Related capabilities**: `ManageAssetAnimMontage`, `CreateAssetAnimMontage`, `GetRuntimeActorAnimation`
 
 ---
 
-### `get_asset_anim_sequence`
+### `GetAssetAnimSequence`
 
-Inspect AnimSequence snapshot. Writes via manage_asset_anim_sequence.
+Inspect AnimSequence snapshot. Writes via ManageAssetAnimSequence.
 
-**When to use**: Read sequence metadata/notifies/float curves; use manage_asset_anim_sequence for writes
+**When to use**: Read sequence metadata/notifies/float curves; use ManageAssetAnimSequence for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimSequence asset path |
+| `AssetPath` | `string` | ★ | AnimSequence asset path |
 
-**Related capabilities**: `manage_asset_anim_sequence`, `search_asset`, `get_asset_skeleton`, `get_asset_anim_montage`, `get_asset_refs`
+**Related capabilities**: `ManageAssetAnimSequence`, `SearchAsset`, `GetAssetSkeleton`, `GetAssetAnimMontage`, `GetAssetRefs`
 
 ---
 
-### `get_asset_blend_space`
+### `GetAssetBlendSpace`
 
-Read BlendSpace snapshot: axis params + samples. Use manage_asset_blend_space for writes.
+Read BlendSpace snapshot: axis params + samples. Use ManageAssetBlendSpace for writes.
 
-**When to use**: Read BlendSpace axis defs and sample anims; use manage_asset_blend_space for writes
+**When to use**: Read BlendSpace axis defs and sample anims; use ManageAssetBlendSpace for writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | BlendSpace asset path |
+| `AssetPath` | `string` | ★ | BlendSpace asset path |
 
-**Related capabilities**: `manage_asset_blend_space`, `create_asset_blend_space`, `search_asset`
+**Related capabilities**: `ManageAssetBlendSpace`, `CreateAssetBlendSpace`, `SearchAsset`
 
 ---
 
-### `get_asset_skeleton`
+### `GetAssetSkeleton`
 
-Inspect Skeleton snapshot. Writes via manage_asset_skeleton.
+Inspect Skeleton snapshot. Writes via ManageAssetSkeleton.
 
-**When to use**: Read bone hierarchy; use manage_asset_skeleton for Socket writes
+**When to use**: Read bone hierarchy; use ManageAssetSkeleton for Socket writes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Skeleton asset path |
-| `offset` | `integer` |  | Skeleton list pagination offset |
-| `limit` | `integer` |  | Skeleton list page size |
+| `AssetPath` | `string` | ★ | Skeleton asset path |
+| `Offset` | `integer` |  | Skeleton list pagination offset |
+| `Limit` | `integer` |  | Skeleton list page size |
 
-**Related capabilities**: `manage_asset_skeleton`, `search_asset`, `get_asset_anim_blueprint`, `get_asset_skeletal_mesh`, `get_asset_refs`
+**Related capabilities**: `ManageAssetSkeleton`, `SearchAsset`, `GetAssetAnimBlueprint`, `GetAssetSkeletalMesh`, `GetAssetRefs`
 
 ---
 
-### `get_runtime_actor_animation`
+### `GetRuntimeActorAnimation`
 
-Get AnimInstance from running skeletal mesh. sections=state|slots|variables.
+Get AnimInstance from running skeletal mesh. Sections=state|slots|variables.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `state` / `slots` / `variables` |
-| `actorName` | `string` | ★ | Actor name |
-| `nameFilter` | `string` |  | Variable/slot name filter |
+| `Sections` | `string[]` |  | Sections (multi-select): `State` / `Slots` / `Variables` |
+| `ActorName` | `string` | ★ | Actor name |
+| `NameFilter` | `string` |  | Variable/slot name filter |
 
-**Related capabilities**: `interact_runtime_actor_animation`, `get_asset_anim_montage`
+**Related capabilities**: `InteractRuntimeActorAnimation`, `GetAssetAnimMontage`
 
 ---
 
-### `interact_runtime_actor_animation`
+### `InteractRuntimeActorAnimation`
 
-Command runtime animation. play/stop/jump_to_section/set_anim_class/set_anim_variable. No stable Slot API.
+Command runtime animation. play/stop/JumpToSection/SetAnimClass/SetAnimVariable. No stable Slot API.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `action` | `string (enum)` | ★ | Animation command enum: `play_montage` / `stop_montage` / `stop_all` / `set_anim_variable` / `jump_to_section` / `set_anim_class` |
-| `actorName` | `string` | ★ | Actor name |
-| `montagePath` | `string` |  | Montage asset path (play/stop/jump) |
-| `playRate` | `number` |  | Play rate |
-| `startSection` | `string` |  | Section name (play_montage/jump_to_section) |
-| `variableName` | `string` |  | AnimInstance variable name (set_anim_variable) |
-| `value` | `string` |  | New variable value string (set_anim_variable) |
-| `animClassPath` | `string` |  | AnimBlueprint GeneratedClass path (set_anim_class) |
+| `Action` | `string (enum)` | ★ | Animation command enum: `PlayMontage` / `StopMontage` / `StopAll` / `SetAnimVariable` / `JumpToSection` / `SetAnimClass` |
+| `ActorName` | `string` | ★ | Actor name |
+| `MontagePath` | `string` |  | Montage asset path (play/stop/jump) |
+| `PlayRate` | `number` |  | Play rate |
+| `StartSection` | `string` |  | Section name (PlayMontage/JumpToSection) |
+| `VariableName` | `string` |  | AnimInstance variable name (SetAnimVariable) |
+| `bValue` | `string` |  | New variable value string (SetAnimVariable) |
+| `AnimClassPath` | `string` |  | AnimBlueprint GeneratedClass path (SetAnimClass) |
 
-**Related capabilities**: `get_runtime_actor_animation`, `get_asset_anim_montage`
+**Related capabilities**: `GetRuntimeActorAnimation`, `GetAssetAnimMontage`
 
 ---
 
-### `manage_asset_anim_blueprint`
+### `ManageAssetAnimBlueprint`
 
 Batch edit ABP. State machines and AnimGraph nodes; avoid K2.
 
-**When to use**: State machine and AnimGraph node CRUD; do not use manage_asset_blueprint for AnimGraph
+**When to use**: State machine and AnimGraph node CRUD; do not use ManageAssetBlueprint for AnimGraph
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimBlueprint asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(add_state_machine/remove_state_machine/add_state/remove_state/add_transition/remove_transition/add_node/remove_node…), `graphName`, `stateMachineName`, `stateName`, `targetStateName`, `nodeClass`(SequencePlayer/SequenceEvaluator/BlendSpacePlayer/BlendSpace1D/BlendSpaceEvaluator/RandomPlayer/PoseBlendNode/PoseByName…), `nodeId`, `sequencePath`, `slotName`, `boneName`, `sourceNodeId`, `sourcePinName`, `targetNodeId`, `targetPinName`, `posX`, `posY` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
-| `compile` | `boolean` |  | Compile blueprint if needed (BP/ABP/WBP only) |
+| `AssetPath` | `string` | ★ | AnimBlueprint asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddStateMachine/RemoveStateMachine/AddState/RemoveState/AddTransition/RemoveTransition/AddNode/RemoveNode…), `GraphName`, `StateMachineName`, `StateName`, `TargetStateName`, `NodeClass`(SequencePlayer/SequenceEvaluator/BlendSpacePlayer/BlendSpace1D/BlendSpaceEvaluator/RandomPlayer/PoseBlendNode/PoseByName…), `NodeId`, `SequencePath`, `SlotName`, `BoneName`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `PosX`, `PosY` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
+| `bCompile` | `boolean` |  | Compile blueprint if needed (BP/ABP/WBP only) |
 
-**Related capabilities**: `get_asset_anim_blueprint`, `create_asset_anim_blueprint`, `save_asset`
+**Related capabilities**: `GetAssetAnimBlueprint`, `CreateAssetAnimBlueprint`, `SaveAsset`
 
 ---
 
-### `manage_asset_anim_composite`
+### `ManageAssetAnimComposite`
 
-Edit AnimComposite composite track segments. action: add_segment/remove_segment.
+Edit AnimComposite composite track segments. action: AddSegment/RemoveSegment.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimComposite asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(add_segment/remove_segment), `animPath`, `startPos`, `animStartTime`, `animEndTime`, `playRate`, `segmentIndex` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | AnimComposite asset path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(AddSegment/RemoveSegment), `AnimPath`, `StartPos`, `AnimStartTime`, `AnimEndTime`, `PlayRate`, `SegmentIndex` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `create_asset_anim_composite`, `get_asset_anim_composite`
+**Related capabilities**: `CreateAssetAnimComposite`, `GetAssetAnimComposite`
 
 ---
 
-### `manage_asset_anim_montage`
+### `ManageAssetAnimMontage`
 
-Batch edit Montage structure. persist with save_asset.
+Batch edit Montage structure. persist with SaveAsset.
 
 **When to use**: Write ops: add/remove Montage segments/sections/slots
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimMontage asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(add_segment/remove_segment/add_section/remove_section), `animSequencePath`, `slotName`, `startPos`, `animStartTime`, `animEndTime`, `segmentIndex`, `sectionName`, `sectionStartTime`, `nextSectionName` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | AnimMontage asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddSegment/RemoveSegment/AddSection/RemoveSection), `AnimSequencePath`, `SlotName`, `StartPos`, `AnimStartTime`, `AnimEndTime`, `SegmentIndex`, `SectionName`, `SectionStartTime`, `NextSectionName` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_anim_montage`, `create_asset_anim_montage`, `save_asset`
+**Related capabilities**: `GetAssetAnimMontage`, `CreateAssetAnimMontage`, `SaveAsset`
 
 ---
 
-### `manage_asset_anim_sequence`
+### `ManageAssetAnimSequence`
 
 Batch edit AnimSequence: notify/frame rate/root motion/curve keys.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
-**When to use**: Add/remove AnimNotify, frame rate/root motion, float curves; persist with save_asset
+**When to use**: Add/remove AnimNotify, frame rate/root motion, float curves; persist with SaveAsset
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | AnimSequence asset path |
-| `operations` | `object[]` | ★ | Batch edit ops (at least one); item: `action`(add_notify/remove_notify/set_frame_rate/set_root_motion/add_float_curve/set_curve_key/remove_curve), `notifyName`, `notifyClass`, `notifyIndex`, `time`, `duration`, `frameRate`, `rootMotion`, `curveName`, `value` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | AnimSequence asset path |
+| `Operations` | `object[]` | ★ | Batch edit ops (at least one); item: `Action`(AddNotify/RemoveNotify/SetFrameRate/SetRootMotion/AddFloatCurve/SetCurveKey/RemoveCurve), `NotifyName`, `NotifyClass`, `NotifyIndex`, `Time`, `Duration`, `FrameRate`, `RootMotion`, `CurveName`, `bValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_anim_sequence`, `get_asset_anim_montage`
+**Related capabilities**: `GetAssetAnimSequence`, `GetAssetAnimMontage`
 
 ---
 
-### `manage_asset_blend_space`
+### `ManageAssetBlendSpace`
 
-Edit BlendSpace: set_axis / add_sample / remove_sample.
+Edit BlendSpace: SetAxis / AddSample / RemoveSample.
 
-**When to use**: Configure BlendSpace axes or samples; persist with save_asset after changes
+**When to use**: Configure BlendSpace axes or samples; persist with SaveAsset after changes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | BlendSpace asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(set_axis/add_sample/remove_sample), `axisIndex`, `displayName`, `min`, `max`, `gridNum`, `animationPath`, `x`, `y`, `sampleIndex` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | BlendSpace asset path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(SetAxis/AddSample/RemoveSample), `AxisIndex`, `DisplayName`, `Min`, `Max`, `GridNum`, `AnimationPath`, `x`, `y`, `SampleIndex` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_blend_space`, `create_asset_blend_space`
+**Related capabilities**: `GetAssetBlendSpace`, `CreateAssetBlendSpace`
 
 ---
 
-### `manage_asset_skeleton`
+### `ManageAssetSkeleton`
 
-Batch edit Skeleton Socket. action=add_socket|remove_socket|modify_socket.
+Batch edit Skeleton Socket. Action=AddSocket|RemoveSocket|ModifySocket.
 
-**Prerequisites**: `editor_only`
+**Prerequisites**: `EditorOnly`
 
-**When to use**: add/remove Modify Skeleton Socket; persist with save_asset after changes
+**When to use**: add/remove Modify Skeleton Socket; persist with SaveAsset after changes
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Skeleton asset path |
-| `operations` | `object[]` | ★ | Batch socket ops (at least one); item: `action`(add_socket/remove_socket/modify_socket), `socketName`, `boneName`, `location`, `rotation`, `scale` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | Skeleton asset path |
+| `Operations` | `object[]` | ★ | Batch socket ops (at least one); item: `Action`(AddSocket/RemoveSocket/ModifySocket), `SocketName`, `BoneName`, `Location`, `Rotation`, `Scale` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_skeleton`, `get_asset_skeletal_mesh`
+**Related capabilities**: `GetAssetSkeleton`, `GetAssetSkeletalMesh`
 
 ---
 
 ## Material tools
 
-### `create_asset_material`
+### `CreateAssetMaterial`
 
-Create Material or MaterialInstance. MI requires parentMaterial.
+Create Material or MaterialInstance. MI requires ParentMaterial.
 
 **When to use**: Create empty Material or MaterialInstance
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New asset full package path (e.g. /Game/Mats/M1.M1) |
+| `AssetPath` | `string` | ★ | New asset full package path (e.g. /Game/Mats/M1.M1) |
 | `type` | `string (enum)` |  | Asset kind enum: `Material` / `MaterialInstance` |
-| `parentMaterial` | `string` |  | Parent material path (required for MaterialInstance) |
-| `materialDomain` | `string (enum)` |  | Material domain (Material only) enum: `surface` / `deferredDecal` / `lightFunction` / `volume` / `postProcess` / `ui` / `runtimeVirtualTexture` |
+| `ParentMaterial` | `string` |  | Parent material path (required for MaterialInstance) |
+| `MaterialDomain` | `string (enum)` |  | Material domain (Material only) enum: `Surface` / `DeferredDecal` / `LightFunction` / `Volume` / `PostProcess` / `UI` / `RuntimeVirtualTexture` |
 
-**Related capabilities**: `manage_asset_material`, `get_asset_material`
+**Related capabilities**: `ManageAssetMaterial`, `GetAssetMaterial`
 
 ---
 
-### `create_asset_material_function`
+### `CreateAssetMaterialFunction`
 
 Create empty UMaterialFunction. Optional description and bExposeToLibrary.
 
-**When to use**: Create MaterialFunction; add nodes via manage_asset_material
+**When to use**: Create MaterialFunction; add nodes via ManageAssetMaterial
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path (/Game/…/MF_MyFunc) |
+| `AssetPath` | `string` | ★ | Asset package path (/Game/…/MF_MyFunc) |
 | `description` | `string` |  | Function description (optional) |
-| `exposeToLibrary` | `boolean` |  | Show in material function library |
+| `bExposeToLibrary` | `boolean` |  | Show in material function library |
 
-**Related capabilities**: `get_asset_material`, `manage_asset_material`, `create_asset_material`
+**Related capabilities**: `GetAssetMaterial`, `ManageAssetMaterial`, `CreateAssetMaterial`
 
 ---
 
-### `create_asset_material_parameter_collection`
+### `CreateAssetMaterialParameterCollection`
 
 Create empty MaterialParameterCollection; add params via manage.
 
@@ -2582,33 +2582,33 @@ Create empty MaterialParameterCollection; add params via manage.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path (/Game/…/MPC_Global) |
+| `AssetPath` | `string` | ★ | Asset package path (/Game/…/MPC_Global) |
 
-**Related capabilities**: `get_asset_material_parameter_collection`, `manage_asset_material_parameter_collection`
+**Related capabilities**: `GetAssetMaterialParameterCollection`, `ManageAssetMaterialParameterCollection`
 
 ---
 
-### `get_asset_material`
+### `GetAssetMaterial`
 
-Inspect Mat/MI/MF nodes and params. sections=overview|params|graph.
+Inspect Mat/MI/MF nodes and params. Sections=overview|params|graph.
 
 **When to use**: Read node graph/params/wires; no edits
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `overview` / `params` / `graph` |
-| `assetPath` | `string` |  | Material/MI/MaterialFunction asset path |
-| `nameFilter` | `string` |  | Parameter/node name filter |
-| `includePins` | `boolean` |  | Include pin details (graph) |
-| `includeWires` | `boolean` |  | Include connection info (graph) |
-| `offset` | `integer` |  | Pagination offset |
-| `limit` | `integer` |  | Max items per page |
+| `Sections` | `string[]` |  | Sections (multi-select): `overview` / `Params` / `graph` |
+| `AssetPath` | `string` |  | Material/MI/MaterialFunction asset path |
+| `NameFilter` | `string` |  | Parameter/node name filter |
+| `bIncludePins` | `boolean` |  | Include pin details (graph) |
+| `bIncludeWires` | `boolean` |  | Include connection info (graph) |
+| `Offset` | `integer` |  | Pagination offset |
+| `Limit` | `integer` |  | Max items per page |
 
-**Related capabilities**: `manage_asset_material`, `create_asset_material`, `create_asset_material_function`
+**Related capabilities**: `ManageAssetMaterial`, `CreateAssetMaterial`, `CreateAssetMaterialFunction`
 
 ---
 
-### `get_asset_material_parameter_collection`
+### `GetAssetMaterialParameterCollection`
 
 List MPC scalar/vector params and default values.
 
@@ -2616,76 +2616,76 @@ List MPC scalar/vector params and default values.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MPC asset path (/Game/…/MPC_Foo) |
+| `AssetPath` | `string` | ★ | MPC asset path (/Game/…/MPC_Foo) |
 
-**Related capabilities**: `manage_asset_material_parameter_collection`, `get_asset_material`, `manage_asset_material`
+**Related capabilities**: `ManageAssetMaterialParameterCollection`, `GetAssetMaterial`, `ManageAssetMaterial`
 
 ---
 
-### `manage_asset_material`
+### `ManageAssetMaterial`
 
-Batch edit Mat/MI/MF. MF disallows set_param/recompile; do not use targetNodeId=material.
+Batch edit Mat/MI/MF. MF disallows SetParam/recompile; do not use TargetNodeId=material.
 
-**When to use**: Write Mat/MI/MF graph and MI params; MF wires use expression nodeId
+**When to use**: Write Mat/MI/MF graph and MI params; MF wires use expression NodeId
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Material/MI/MaterialFunction asset path (shared) |
-| `operations` | `object[]` | ★ | Batch material ops; item: `action`(set_param/add_node/remove_node/set_node/recompile/connect/disconnect/disconnect_all), `paramName`, `paramType`(scalar/vector/texture), `value`, `expressionClass`, `parameterName`, `defaultValue`, `nodeId`, `posX`, `posY`, `sourceNodeId`, `sourceOutputName`, `targetNodeId`, `targetInputName` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | Material/MI/MaterialFunction asset path (shared) |
+| `Operations` | `object[]` | ★ | Batch material ops; item: `Action`(SetParam/AddNode/RemoveNode/SetNode/recompile/connect/disconnect/DisconnectAll), `ParamName`, `ParamType`(scalar/vector/texture), `bValue`, `ExpressionClass`, `ParameterName`, `DefaultValue`, `NodeId`, `PosX`, `PosY`, `SourceNodeId`, `SourceOutputName`, `TargetNodeId`, `TargetInputName` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_material`, `create_asset_material`, `create_asset_material_function`, `save_asset`
+**Related capabilities**: `GetAssetMaterial`, `CreateAssetMaterial`, `CreateAssetMaterialFunction`, `SaveAsset`
 
 ---
 
-### `manage_asset_material_parameter_collection`
+### `ManageAssetMaterialParameterCollection`
 
-Add/remove/edit MPC scalar/vector params (add_scalar/add_vector/remove/set_default).
+Add/remove/edit MPC scalar/vector params (AddScalar/AddVector/remove/set_default).
 
 **When to use**: Add/remove/edit MPC scalar/vector parameters
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | MPC asset path |
-| `operations` | `object[]` | ★ | Operation list |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | MPC asset path |
+| `Operations` | `object[]` | ★ | Operation list |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_material_parameter_collection`, `manage_asset_material`
+**Related capabilities**: `GetAssetMaterialParameterCollection`, `ManageAssetMaterial`
 
 ---
 
 ## Struct tools
 
-### `create_asset_struct`
+### `CreateAssetStruct`
 
-Create UDS file, auto-compile; add fields via manage_asset_struct_field.
+Create UDS file, auto-compile; add fields via ManageAssetStructField.
 
 **When to use**: Create empty UDS; add fields via manage
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New struct package path |
+| `AssetPath` | `string` | ★ | New struct package path |
 
-**Related capabilities**: `manage_asset_struct_field`, `get_asset_struct`
+**Related capabilities**: `ManageAssetStructField`, `GetAssetStruct`
 
 ---
 
-### `get_asset_struct`
+### `GetAssetStruct`
 
-Inspect UDS field definitions. Optional propertyPaths filter.
+Inspect UDS field definitions. Optional PropertyPaths filter.
 
 **When to use**: Read UDS field definitions; no edits
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | UserDefinedStruct asset path |
-| `propertyPaths` | `string[]` |  | Field name filter (first segment) |
+| `AssetPath` | `string` | ★ | UserDefinedStruct asset path |
+| `PropertyPaths` | `string[]` |  | Field name filter (first segment) |
 
-**Related capabilities**: `manage_asset_struct_field`, `create_asset_struct`
+**Related capabilities**: `ManageAssetStructField`, `CreateAssetStruct`
 
 ---
 
-### `manage_asset_struct_field`
+### `ManageAssetStructField`
 
 Batch edit UDS fields: add/remove/modify; auto-compile after changes.
 
@@ -2693,47 +2693,47 @@ Batch edit UDS fields: add/remove/modify; auto-compile after changes.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | UserDefinedStruct asset path (shared) |
-| `operations` | `object[]` | ★ | Batch field ops; item: `action`(add/remove/set), `fieldName`, `fieldType`, `defaultValue`, `newName`, `newType` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | UserDefinedStruct asset path (shared) |
+| `Operations` | `object[]` | ★ | Batch field ops; item: `Action`(add/remove/set), `FieldName`, `FieldType`, `DefaultValue`, `NewName`, `NewType` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_struct`, `create_asset_struct`, `save_asset`
+**Related capabilities**: `GetAssetStruct`, `CreateAssetStruct`, `SaveAsset`
 
 ---
 
 ## Data assets (DataAsset / DataTable)
 
-### `create_asset_data_asset`
+### `CreateAssetDataAsset`
 
 Create typed DataAsset. Requires subclass; non-abstract.
 
-**When to use**: Create DataAsset; parentClass default PrimaryDataAsset
+**When to use**: Create DataAsset; ParentClass default PrimaryDataAsset
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New DataAsset package path |
-| `parentClass` | `string` |  | Non-abstract parent class name |
+| `AssetPath` | `string` | ★ | New DataAsset package path |
+| `ParentClass` | `string` |  | Non-abstract parent class name |
 
-**Related capabilities**: `manage_asset_data_asset`, `get_asset_data_asset`
+**Related capabilities**: `ManageAssetDataAsset`, `GetAssetDataAsset`
 
 ---
 
-### `create_asset_data_table`
+### `CreateAssetDataTable`
 
-Create DataTable with row struct; fill rows via manage_asset_data_table.
+Create DataTable with row struct; fill rows via ManageAssetDataTable.
 
-**When to use**: Create empty DataTable; requires rowStructName
+**When to use**: Create empty DataTable; requires RowStructName
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New DataTable package path |
-| `rowStructName` | `string` | ★ | Row struct class name (must exist) |
+| `AssetPath` | `string` | ★ | New DataTable package path |
+| `RowStructName` | `string` | ★ | Row struct class name (must exist) |
 
-**Related capabilities**: `manage_asset_data_table`, `get_asset_data_table`
+**Related capabilities**: `ManageAssetDataTable`, `GetAssetDataTable`
 
 ---
 
-### `get_asset_data_asset`
+### `GetAssetDataAsset`
 
 Read DataAsset properties. Includes type/value/inherited; path filter supported.
 
@@ -2741,53 +2741,53 @@ Read DataAsset properties. Includes type/value/inherited; path filter supported.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | DataAsset asset path |
-| `nameFilter` | `string` |  | Property name filter (/regex/ ^prefix suffix$) |
-| `propertyPaths` | `string[]` |  | Exact property name filter (first path segment), e.g. [\"Health\",\"Damage\"] |
-| `offset` | `integer` |  | Pagination offset |
-| `limit` | `integer` |  | Max items per page |
+| `AssetPath` | `string` | ★ | DataAsset asset path |
+| `NameFilter` | `string` |  | Property name filter (/regex/ ^prefix suffix$) |
+| `PropertyPaths` | `string[]` |  | Exact property name filter (first path segment), e.g. [\"Health\",\"Damage\"] |
+| `Offset` | `integer` |  | Pagination offset |
+| `Limit` | `integer` |  | Max items per page |
 
-**Related capabilities**: `manage_asset_data_asset`, `create_asset_data_asset`
+**Related capabilities**: `ManageAssetDataAsset`, `CreateAssetDataAsset`
 
 ---
 
-### `get_asset_data_table`
+### `GetAssetDataTable`
 
-Inspect DataTable rows or schema. mode=schema|rows; optional propertyPaths.
+Inspect DataTable rows or schema. Mode=schema|rows; optional PropertyPaths.
 
 **When to use**: Read DT schema or row values; no edits
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | DataTable asset path |
-| `mode` | `string (enum)` |  | auto: rows if rowNames non-empty else schema; schema ignores rowNames/nameFilter for row export; rows requires rowNames or nameFilter enum: `auto` / `schema` / `rows` |
-| `rowNames` | `string[]` |  | Row name (rows mode or auto with non-empty rowNames); paginated by offset/limit |
-| `nameFilter` | `string` |  | Row name filter (/regex/ ^prefix suffix$); in mode=rows without rowNames, resolves+exports matching rows (paginated) |
-| `propertyPaths` | `string[]` |  | Column/field filter (first segment); schema list and row export |
-| `offset` | `integer` |  | Pagination offset |
-| `limit` | `integer` |  | Max rows per page |
+| `AssetPath` | `string` | ★ | DataTable asset path |
+| `Mode` | `string (enum)` |  | auto: rows if RowNames non-empty else schema; schema ignores RowNames/NameFilter for row export; rows requires RowNames or NameFilter enum: `Auto` / `Schema` / `Rows` |
+| `RowNames` | `string[]` |  | Row name (rows mode or auto with non-empty RowNames); paginated by offset/limit |
+| `NameFilter` | `string` |  | Row name filter (/regex/ ^prefix suffix$); in Mode=rows without RowNames, resolves+exports matching rows (paginated) |
+| `PropertyPaths` | `string[]` |  | Column/field filter (first segment); schema list and row export |
+| `Offset` | `integer` |  | Pagination offset |
+| `Limit` | `integer` |  | Max rows per page |
 
-**Related capabilities**: `manage_asset_data_table`, `create_asset_data_table`
+**Related capabilities**: `ManageAssetDataTable`, `CreateAssetDataTable`
 
 ---
 
-### `manage_asset_data_asset`
+### `ManageAssetDataAsset`
 
-Batch edit DataAsset. set=ImportText validate; reset=CDO.
+Batch edit DataAsset. Set=ImportText validate; Reset=CDO.
 
 **When to use**: Write ops: set or reset DataAsset to CDO defaults
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | DataAsset asset path |
-| `operations` | `object[]` | ★ | Batch property ops (at least one); item: `action`(set/reset), `propertyName`, `value` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | DataAsset asset path |
+| `Operations` | `object[]` | ★ | Batch property ops (at least one); item: `Action`(set/reset), `PropertyName`, `bValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_data_asset`, `create_asset_data_asset`, `save_asset`
+**Related capabilities**: `GetAssetDataAsset`, `CreateAssetDataAsset`, `SaveAsset`
 
 ---
 
-### `manage_asset_data_table`
+### `ManageAssetDataTable`
 
 Batch edit DataTable rows: add/remove/set; ImportText validate.
 
@@ -2795,489 +2795,489 @@ Batch edit DataTable rows: add/remove/set; ImportText validate.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | DataTable asset path (shared) |
-| `operations` | `object[]` | ★ | Batch row ops (at least one); item: `action`(add/remove/set), `rowName`, `fieldName`, `value` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | DataTable asset path (shared) |
+| `Operations` | `object[]` | ★ | Batch row ops (at least one); item: `Action`(add/remove/set), `RowName`, `FieldName`, `bValue` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_data_table`, `create_asset_data_table`, `save_asset`
+**Related capabilities**: `GetAssetDataTable`, `CreateAssetDataTable`, `SaveAsset`
 
 ---
 
 ## Widget blueprint tools
 
-### `create_asset_user_widget`
+### `CreateAssetUserWidget`
 
-Create WBP. parentClass sets UI base; fill widget tree via manage.
+Create WBP. ParentClass sets UI base; fill widget tree via manage.
 
-**When to use**: Create empty WBP; parentClass optional (default UserWidget)
+**When to use**: Create empty WBP; ParentClass optional (default UserWidget)
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | New WidgetBlueprint package path |
-| `parentClass` | `string` |  | Parent class (default UserWidget) |
+| `AssetPath` | `string` | ★ | New WidgetBlueprint package path |
+| `ParentClass` | `string` |  | Parent class (default UserWidget) |
 
-**Related capabilities**: `manage_asset_user_widget`, `get_asset_user_widget`
+**Related capabilities**: `ManageAssetUserWidget`, `GetAssetUserWidget`
 
 ---
 
-### `get_asset_user_widget`
+### `GetAssetUserWidget`
 
 Read WBP tree, animations, graphOverview from editor. Graph details via blueprint cap.
 
-**When to use**: Widget tree/animations here; EventGraph writes via manage_asset_blueprint
+**When to use**: Widget tree/animations here; EventGraph writes via ManageAssetBlueprint
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `widgets` / `animations` / `graphOverview` |
-| `assetPath` | `string` | ★ | Widget Blueprint asset path |
-| `nameFilter` | `string` |  | Widget/animation name substring (optional) |
-| `typeFilter` | `string` |  | Widget class substring (widgets section only) |
-| `offset` | `integer` |  | Widget paginationoffset (default 0) |
-| `limit` | `integer` |  | Max widgets per page 1-500 (default 100) |
+| `Sections` | `string[]` |  | Sections (multi-select): `Widgets` / `Animations` / `graphOverview` |
+| `AssetPath` | `string` | ★ | Widget Blueprint asset path |
+| `NameFilter` | `string` |  | Widget/animation name substring (optional) |
+| `TypeFilter` | `string` |  | Widget class substring (widgets section only) |
+| `Offset` | `integer` |  | Widget paginationoffset (default 0) |
+| `Limit` | `integer` |  | Max widgets per page 1-500 (default 100) |
 
-**Related capabilities**: `manage_asset_user_widget`, `create_asset_user_widget`, `get_asset_blueprint`, `manage_asset_blueprint`
+**Related capabilities**: `ManageAssetUserWidget`, `CreateAssetUserWidget`, `GetAssetBlueprint`, `ManageAssetBlueprint`
 
 ---
 
-### `manage_asset_user_widget`
+### `ManageAssetUserWidget`
 
-Batch edit WBP: widget tree/slots/props and animation tracks; EventGraph via manage_asset_blueprint.
+Batch edit WBP: widget tree/slots/props and animation tracks; EventGraph via ManageAssetBlueprint.
 
-**When to use**: Widget tree/animation tracks use this cap; EventGraph via manage_asset_blueprint
+**When to use**: Widget tree/animation tracks use this cap; EventGraph via ManageAssetBlueprint
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | WidgetBlueprint asset path (shared) |
-| `operations` | `object[]` | ★ | Batch widget ops; item: `action`(add/remove/set_slot/set_property/add_animation/remove_animation/add_track/add_key…), `widgetClass`, `widgetName`, `parentWidget`, `animationName`, `trackName`, `propertyPath`, `time`, `keyValue`, `value`, `anchorMinX`, `anchorMinY`, `anchorMaxX`, `anchorMaxY`, `alignmentX`, `alignmentY`, `offsetLeft`, `offsetTop`, `offsetRight`, `offsetBottom` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
-| `compile` | `boolean` |  | Compile blueprint if needed (BP/ABP/WBP only) |
+| `AssetPath` | `string` | ★ | WidgetBlueprint asset path (shared) |
+| `Operations` | `object[]` | ★ | Batch widget ops; item: `Action`(add/remove/SetSlot/SetProperty/AddAnimation/RemoveAnimation/AddTrack/AddKey…), `WidgetClass`, `WidgetName`, `ParentWidget`, `AnimationName`, `TrackName`, `PropertyPath`, `Time`, `KeyValue`, `bValue`, `AnchorMinX`, `AnchorMinY`, `AnchorMaxX`, `AnchorMaxY`, `AlignmentX`, `AlignmentY`, `OffsetLeft`, `OffsetTop`, `OffsetRight`, `OffsetBottom` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
+| `bCompile` | `boolean` |  | Compile blueprint if needed (BP/ABP/WBP only) |
 
-**Related capabilities**: `get_asset_user_widget`, `create_asset_user_widget`, `save_asset`, `get_asset_blueprint`, `manage_asset_blueprint`
+**Related capabilities**: `GetAssetUserWidget`, `CreateAssetUserWidget`, `SaveAsset`, `GetAssetBlueprint`, `ManageAssetBlueprint`
 
 ---
 
 ## Runtime tools
 
-### `capture_viewport`
+### `CaptureViewport`
 
-Capture Game/PIE viewport or top-level window; optional Actor/UMG crop. No LevelEditor panels or viewAngle.
+Capture Game/PIE viewport or top-level window; optional Actor/UMG crop. No LevelEditor panels or ViewAngle.
 
 **When to use**: Screenshot Game/PIE viewport or the game window for visual debug
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `target` | `string` |  | editor|editor_desktop|viewport|pie|list |
-| `format` | `string (enum)` |  | Image format enum: `png` / `jpg` |
-| `maxSize` | `integer` |  | Max edge pixels (0=native) |
-| `actorName` | `string` |  | Actor name/tag; crop to screen bounds |
-| `widgetName` | `string` |  | runtime UMG Widget; uses Game viewport |
-| `ownerClass` | `string` |  | UserWidget class filter |
-| `padding` | `number` |  | Actor bounds padding ratio |
-| `windowIndex` | `integer` |  | Top-level window index; omit for first/active |
-| `validateOnly` | `boolean` |  | If true skip image; validate target/viewport only |
+| `Target` | `string` |  | editor|EditorDesktop|viewport|pie|list |
+| `Format` | `string (enum)` |  | Image format enum: `png` / `jpg` |
+| `MaxSize` | `integer` |  | Max edge pixels (0=native) |
+| `ActorName` | `string` |  | Actor name/tag; crop to screen bounds |
+| `WidgetName` | `string` |  | runtime UMG Widget; uses Game viewport |
+| `OwnerClass` | `string` |  | UserWidget class filter |
+| `Padding` | `number` |  | Actor bounds padding ratio |
+| `WindowIndex` | `integer` |  | Top-level window index; omit for first/active |
+| `bValidateOnly` | `boolean` |  | If true skip image; validate target/viewport only |
 
-**Related capabilities**: `capture_editor_panel`, `list_runtime_widgets`, `list_runtime_actors`
+**Related capabilities**: `CaptureEditorPanel`, `ListRuntimeWidgets`, `ListRuntimeActors`
 
 ---
 
-### `destroy_runtime_actor`
+### `DestroyRuntimeActor`
 
 Remove runtime Actor from PIE/Game; marks Level modified.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `actorName` | `string` | ★ | Actor name or tag to destroy |
+| `ActorName` | `string` | ★ | Actor name or tag to destroy |
 
-**Related capabilities**: `spawn_runtime_actor`, `list_runtime_actors`
+**Related capabilities**: `SpawnRuntimeActor`, `ListRuntimeActors`
 
 ---
 
-### `destroy_runtime_widget`
+### `DestroyRuntimeWidget`
 
-Remove and destroy runtime UMG panel from viewport. Locate by widgetName.
+Remove and destroy runtime UMG panel from viewport. Locate by WidgetName.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 **When to use**: Remove UMG panel from viewport in PIE
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `widgetName` | `string` | ★ | UserWidget instance name to destroy |
-| `ownerClass` | `string` |  | Owner UserWidget class/name filter (optional) |
+| `WidgetName` | `string` | ★ | UserWidget instance name to destroy |
+| `OwnerClass` | `string` |  | Owner UserWidget class/name filter (optional) |
 
-**Related capabilities**: `spawn_runtime_widget`, `list_runtime_widgets`
+**Related capabilities**: `SpawnRuntimeWidget`, `ListRuntimeWidgets`
 
 ---
 
-### `diff_runtime_actors`
+### `DiffRuntimeActors`
 
-Diff two runtime Actor properties. Max 50; filter by propertyPaths.
+Diff two runtime Actor properties. Max 50; filter by PropertyPaths.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `actorNameA` | `string` | ★ | First Actor name |
-| `actorNameB` | `string` | ★ | Second Actor name |
-| `propertyPaths` | `string[]` |  | Dot-separated paths; omit=all editable properties |
+| `ActorNameA` | `string` | ★ | First Actor name |
+| `ActorNameB` | `string` | ★ | Second Actor name |
+| `PropertyPaths` | `string[]` |  | Dot-separated paths; omit=all editable properties |
 
-**Related capabilities**: `get_runtime_actor_property`, `list_runtime_actors`
+**Related capabilities**: `GetRuntimeActorProperty`, `ListRuntimeActors`
 
 ---
 
-### `exec_command`
+### `ExecCommand`
 
 Run UE console command and capture output. Mirrored to LogConsole.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `command` | `string` | ★ | Console command to execute |
-| `silent` | `boolean` |  | Skip output capture |
-| `reason` | `string` |  | Purpose for Confirm-mode gate. Required in Confirm mode. |
+| `Command` | `string` | ★ | Console command to execute |
+| `bSilent` | `boolean` |  | Skip output capture |
+| `Reason` | `string` |  | Purpose for Confirm-mode gate. Required in Confirm mode. |
 
-**Related capabilities**: `get_output_log`
+**Related capabilities**: `GetOutputLog`
 
 ---
 
-### `get_output_log`
+### `GetOutputLog`
 
-Console buffer. Arm watch, act, collectWatch=true. Or preset=diagnose.
+Console buffer. Arm watch, act, bCollectWatch=true. Or Preset=diagnose.
 
-**When to use**: Arm watch{} (categories/textIncludes/textExcludes/verbosity), act, collectWatch=true.
+**When to use**: Arm watch{} (categories/TextIncludes/TextExcludes/verbosity), act, bCollectWatch=true.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `offset` | `integer` |  | Pagination offset (along order direction) |
-| `limit` | `integer` |  | Max items per page |
-| `order` | `string (enum)` |  | Sort: newest=latest first (diagnostic default), oldest=ascending enum: `newest` / `oldest` |
-| `sinceSequence` | `integer` |  | Return logs with Sequence greater than this (incremental; pass last latestSequence) |
-| `preset` | `string (enum)` |  | Diagnostic preset: diagnose=newest+verbosity≥warning+includeSummary+limit≤50 enum: `none` / `diagnose` |
-| `includeSummary` | `boolean` |  | Attach summaryByCategory/summaryByVerbosity (full filtered set, not this page) |
-| `summaryOnly` | `boolean` |  | Summary only; entries empty (still returns totalCount/latestSequence) |
-| `categoryFilter` | `string` |  | Log category substring (case insensitive) |
-| `verbosity` | `string (enum)` |  | Minimum verbosity level enum: `error` / `warning` / `display` / `log` / `verbose` / `veryverbose` / `all` |
-| `textFilter` | `string` |  | Single text substring filter |
-| `textFilters` | `string[]` |  | Text filter (OR); overrides textFilter |
-| `collectWatch` | `boolean` |  | Return the armed watch buffer |
-| `disarm` | `boolean` |  | Disarm the watch after this call |
-| `watch` | `object` |  | categories, textIncludes, textExcludes, verbosity; empty arms capture-all; fields: `categories`, `textIncludes`, `textExcludes`, `verbosity`(error/warning/display/log/verbose/veryverbose/all) |
+| `Offset` | `integer` |  | Pagination offset (along order direction) |
+| `Limit` | `integer` |  | Max items per page |
+| `Order` | `string (enum)` |  | Sort: Newest=latest first (diagnostic default), Oldest=ascending enum: `Newest` / `Oldest` |
+| `SinceSequence` | `integer` |  | Return logs with Sequence greater than this (incremental; pass last LatestSequence) |
+| `Preset` | `string (enum)` |  | Diagnostic preset: Diagnose=newest+verbosity≥warning+bIncludeSummary+limit≤50 enum: `None` / `Diagnose` |
+| `bIncludeSummary` | `boolean` |  | Attach SummaryByCategory/SummaryByVerbosity (full filtered set, not this page) |
+| `bSummaryOnly` | `boolean` |  | Summary only; entries empty (still returns TotalCount/LatestSequence) |
+| `CategoryFilter` | `string` |  | Log category substring (case insensitive) |
+| `Verbosity` | `string (enum)` |  | Minimum verbosity level enum: `Error` / `Warning` / `Display` / `Log` / `Verbose` / `Veryverbose` / `All` |
+| `TextFilter` | `string` |  | Single text substring filter |
+| `TextFilters` | `string[]` |  | Text filter (OR); overrides TextFilter |
+| `bCollectWatch` | `boolean` |  | Return the armed watch buffer |
+| `bDisarm` | `boolean` |  | Disarm the watch after this call |
+| `Watch` | `object` |  | categories, TextIncludes, TextExcludes, verbosity; empty arms capture-all; fields: `Categories`, `TextIncludes`, `TextExcludes`, `Verbosity`(error/warning/display/log/verbose/veryverbose/all) |
 
-**Related capabilities**: `set_log_capture_filter`, `exec_command`
+**Related capabilities**: `SetLogCaptureFilter`, `ExecCommand`
 
 ---
 
-### `get_runtime_actor_ability_system`
+### `GetRuntimeActorAbilitySystem`
 
-Read Actor ASC snapshot in PIE. sections=abilities|effects|attributes. Writes via interact.
+Read Actor ASC snapshot in PIE. Sections=abilities|effects|attributes. Writes via interact.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
-**When to use**: Read Actor abilities/GE/attributes in PIE; write via interact_runtime_actor_ability_system
+**When to use**: Read Actor abilities/GE/attributes in PIE; write via InteractRuntimeActorAbilitySystem
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `abilities` / `effects` / `attributes` |
-| `actorName` | `string` |  | Actor name (optional; first ASC in World if omitted) |
+| `Sections` | `string[]` |  | Sections (multi-select): `Abilities` / `Effects` / `Attributes` |
+| `ActorName` | `string` |  | Actor name (optional; first ASC in World if omitted) |
 
-**Related capabilities**: `interact_runtime_actor_ability_system`, `get_gameplay_tags`, `get_runtime_actor_property`
+**Related capabilities**: `InteractRuntimeActorAbilitySystem`, `GetGameplayTags`, `GetRuntimeActorProperty`
 
 ---
 
-### `get_runtime_actor_property`
+### `GetRuntimeActorProperty`
 
-Query runtime Actor fields. Supports batch propertyPaths and component tree.
+Query runtime Actor fields. Supports batch PropertyPaths and component tree.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 **When to use**: Read-only fields; no modifications
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `target` | `string (enum)` |  | Dispatch target (auto-inferred) enum: `actor` / `widget` / `asset` |
-| `actorName` | `string` | ★ | Actor name/tag (list_runtime_actors first) |
-| `propertyPaths` | `string[]` |  | Dot-separated paths (batch) |
-| `view` | `string (enum)` |  | Actor tree view enum: `components` / `attach_hierarchy` / `all` |
-| `diagnose` | `string (enum)` |  | Actor diagnostic preset enum: `visibility` / `transform` / `world_transform` / `rotation_chain` / `defaults` |
+| `Target` | `string (enum)` |  | Dispatch target (auto-inferred) enum: `Actor` / `Widget` / `Asset` |
+| `ActorName` | `string` | ★ | Actor name/tag (ListRuntimeActors first) |
+| `PropertyPaths` | `string[]` |  | Dot-separated paths (batch) |
+| `View` | `string (enum)` |  | Actor tree view enum: `Components` / `AttachHierarchy` / `All` |
+| `Diagnose` | `string (enum)` |  | Actor diagnostic preset enum: `Visibility` / `Transform` / `WorldTransform` / `RotationChain` / `Defaults` |
 
-**Related capabilities**: `set_runtime_actor_property`, `list_runtime_actors`
+**Related capabilities**: `SetRuntimeActorProperty`, `ListRuntimeActors`
 
 ---
 
-### `get_runtime_slate_widget`
+### `GetRuntimeSlateWidget`
 
 Inspect native SWidget by hex address (Widget Reflector); includes layout.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 **When to use**: When holding Widget Reflector hex address
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `address` | `string` | ★ | Hex address from Widget Reflector |
+| `Address` | `string` | ★ | Hex address from Widget Reflector |
 
-**Related capabilities**: `list_runtime_widgets`
+**Related capabilities**: `ListRuntimeWidgets`
 
 ---
 
-### `get_runtime_widget_property`
+### `GetRuntimeWidgetProperty`
 
-Read runtime UMG element fields. Locate via widgetName+ownerClass; includes layout without propertyPaths.
+Read runtime UMG element fields. Locate via WidgetName+OwnerClass; includes layout without PropertyPaths.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 **When to use**: Read-only UMG fields; no modifications
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `widgetName` | `string` |  | Runtime Widget name |
-| `ownerClass` | `string` |  | UserWidget filter |
-| `propertyPaths` | `string[]` |  | Dot-separated paths (batch) |
+| `WidgetName` | `string` |  | Runtime Widget name |
+| `OwnerClass` | `string` |  | UserWidget filter |
+| `PropertyPaths` | `string[]` |  | Dot-separated paths (batch) |
 
-**Related capabilities**: `set_runtime_widget_property`, `list_runtime_widgets`
+**Related capabilities**: `SetRuntimeWidgetProperty`, `ListRuntimeWidgets`
 
 ---
 
-### `interact_runtime_actor_ability_system`
+### `InteractRuntimeActorAbilitySystem`
 
-Write runtime ASC. action=activate/cancel/give/clear_ability, apply/remove_effect, set_attribute, cue, loose tags.
+Write runtime ASC. Action=activate/cancel/give/ClearAbility, apply/RemoveEffect, SetAttribute, cue, loose tags.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 **When to use**: Cast/give Ability, apply GE, set Attribute, Cue, loose tags in PIE
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `action` | `string (enum)` | ★ | Write operation enum: `activate_ability` / `cancel_ability` / `apply_effect` / `remove_effect` / `set_attribute` / `give_ability` / `clear_ability` / `execute_cue` / `add_loose_tag` / `remove_loose_tag` |
-| `actorName` | `string` |  | Actor name (optional; first ASC Pawn/Actor if omitted) |
-| `abilityPath` | `string` |  | GameplayAbility asset path |
-| `effectPath` | `string` |  | GameplayEffect asset path (apply/remove) |
-| `attributeName` | `string` |  | Attribute name: AttributeSetName.AttributeName (set_attribute) |
-| `value` | `number` |  | New attribute base value (set_attribute) |
-| `level` | `number` |  | Ability/Effect level (default 1) |
-| `tag` | `string` |  | GameplayTag（execute_cue / loose tag） |
+| `Action` | `string (enum)` | ★ | Write operation enum: `ActivateAbility` / `CancelAbility` / `ApplyEffect` / `RemoveEffect` / `SetAttribute` / `GiveAbility` / `ClearAbility` / `ExecuteCue` / `AddLooseTag` / `RemoveLooseTag` |
+| `ActorName` | `string` |  | Actor name (optional; first ASC Pawn/Actor if omitted) |
+| `AbilityPath` | `string` |  | GameplayAbility asset path |
+| `EffectPath` | `string` |  | GameplayEffect asset path (apply/remove) |
+| `AttributeName` | `string` |  | Attribute name: AttributeSetName.AttributeName (SetAttribute) |
+| `bValue` | `number` |  | New attribute base value (SetAttribute) |
+| `Level` | `number` |  | Ability/Effect level (default 1) |
+| `Tag` | `string` |  | GameplayTag（ExecuteCue / loose tag） |
 
-**Related capabilities**: `get_runtime_actor_ability_system`, `get_gameplay_tags`
+**Related capabilities**: `GetRuntimeActorAbilitySystem`, `GetGameplayTags`
 
 ---
 
-### `interact_runtime_actor_audio`
+### `InteractRuntimeActorAudio`
 
-Play sound at runtime. action=play_sound; optional attach Actor.
+Play sound at runtime. Action=PlaySound; optional attach Actor.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 **When to use**: Play sound in PIE; can attach to Actor
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `action` | `string (enum)` | ★ | Action enum: `play_sound` |
-| `assetPath` | `string` | ★ | SoundCue/SoundWave path |
-| `actorName` | `string` |  | Optional: attach to this Actor |
+| `Action` | `string (enum)` | ★ | Action enum: `PlaySound` |
+| `AssetPath` | `string` | ★ | SoundCue/SoundWave path |
+| `ActorName` | `string` |  | Optional: attach to this Actor |
 
-**Related capabilities**: `get_asset_sound_cue`, `get_asset_sound_wave`
+**Related capabilities**: `GetAssetSoundCue`, `GetAssetSoundWave`
 
 ---
 
-### `interact_runtime_actor_niagara`
+### `InteractRuntimeActorNiagara`
 
-Activate/deactivate runtime Niagara. action=activate|deactivate.
+Activate/deactivate runtime Niagara. Action=activate|deactivate.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 **When to use**: Toggle Niagara in PIE or spawn by asset path
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `action` | `string (enum)` | ★ | Action enum: `activate` / `deactivate` |
-| `actorName` | `string` |  | Actor name |
-| `assetPath` | `string` |  | Optional NiagaraSystem path (spawn on activate) |
+| `Action` | `string (enum)` | ★ | Action enum: `Activate` / `Deactivate` |
+| `ActorName` | `string` |  | Actor name |
+| `AssetPath` | `string` |  | Optional NiagaraSystem path (spawn on activate) |
 
-**Related capabilities**: `get_asset_niagara_system`
+**Related capabilities**: `GetAssetNiagaraSystem`
 
 ---
 
-### `interact_runtime_widget`
+### `InteractRuntimeWidget`
 
-Trigger runtime UMG events. action=click|check|toggle|set|read.
+Trigger runtime UMG events. Action=click|check|toggle|set|read.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `widgetName` | `string` | ★ | Child Widget name |
-| `action` | `string (enum)` | ★ | Interaction action enum: `click` / `check` / `uncheck` / `toggle` / `set` / `read` |
-| `value` | `string` |  | New value when action=set |
-| `ownerClass` | `string` |  | Owner UserWidget class/name filter |
+| `WidgetName` | `string` | ★ | Child Widget name |
+| `Action` | `string (enum)` | ★ | Interaction action enum: `Click` / `Check` / `Uncheck` / `Toggle` / `Set` / `Read` |
+| `bValue` | `string` |  | New value when Action=set |
+| `OwnerClass` | `string` |  | Owner UserWidget class/name filter |
 
-**Related capabilities**: `list_runtime_widgets`, `get_runtime_widget_property`
+**Related capabilities**: `ListRuntimeWidgets`, `GetRuntimeWidgetProperty`
 
 ---
 
-### `list_runtime_actors`
+### `ListRuntimeActors`
 
 List Actors in PIE/Game. Filter by class/tag/name; returns refs not properties.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `classFilter` | `string` |  | Actor class name substring match (optional) |
-| `nameFilter` | `string` |  | Actor name or tag substring match (optional) |
-| `tagFilter` | `string` |  | Only Actors with this tag (optional) |
-| `offset` | `integer` |  | Pagination offset (default 0) |
-| `limit` | `integer` |  | Max count 1-500 (default 100) |
-| `detail` | `string (enum)` |  | Response verbosity: minimal/standard/full enum: `minimal` / `standard` / `full` |
+| `ClassFilter` | `string` |  | Actor class name substring match (optional) |
+| `NameFilter` | `string` |  | Actor name or tag substring match (optional) |
+| `TagFilter` | `string` |  | Only Actors with this tag (optional) |
+| `Offset` | `integer` |  | Pagination offset (default 0) |
+| `Limit` | `integer` |  | Max count 1-500 (default 100) |
+| `Detail` | `string (enum)` |  | Response verbosity: minimal/standard/full enum: `Minimal` / `Standard` / `Full` |
 
-**Related capabilities**: `get_runtime_actor_property`, `diff_runtime_actors`
+**Related capabilities**: `GetRuntimeActorProperty`, `DiffRuntimeActors`
 
 ---
 
-### `list_runtime_widgets`
+### `ListRuntimeWidgets`
 
-List PIE/Game viewport UMG instances. Filter by class/name/displayText.
+List PIE/Game viewport UMG instances. Filter by class/name/DisplayText.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `classFilter` | `string` |  | UserWidget class name filter |
-| `nameFilter` | `string` |  | Child Widget name filter |
-| `textFilter` | `string` |  | Visible display text substring filter |
-| `offset` | `integer` |  | Pagination offset (default 0) |
-| `limit` | `integer` |  | Max count 1-500 (default 100) |
+| `ClassFilter` | `string` |  | UserWidget class name filter |
+| `NameFilter` | `string` |  | Child Widget name filter |
+| `TextFilter` | `string` |  | Visible display text substring filter |
+| `Offset` | `integer` |  | Pagination offset (default 0) |
+| `Limit` | `integer` |  | Max count 1-500 (default 100) |
 
-**Related capabilities**: `get_runtime_widget_property`, `interact_runtime_widget`
+**Related capabilities**: `GetRuntimeWidgetProperty`, `InteractRuntimeWidget`
 
 ---
 
-### `set_log_capture_filter`
+### `SetLogCaptureFilter`
 
-Configure buffered log categories. Empty=all; Warning/Error always captured. Affects get_output_log.
+Configure buffered log categories. Empty=all; Warning/Error always captured. Affects GetOutputLog.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `categories` | `string[]` | ★ |  |
+| `Categories` | `string[]` | ★ |  |
 
-**Related capabilities**: `get_output_log`
+**Related capabilities**: `GetOutputLog`
 
 ---
 
-### `set_runtime_actor_property`
+### `SetRuntimeActorProperty`
 
 Batch modify runtime Actor editable fields. One result per updates[] item.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 **When to use**: Modify runtime Actor live fields
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `target` | `string (enum)` |  | Dispatch target (auto-inferred) enum: `actor` / `widget` / `asset` |
-| `updates` | `object[]` |  | Batch update |
+| `Target` | `string (enum)` |  | Dispatch target (auto-inferred) enum: `Actor` / `Widget` / `Asset` |
+| `Updates` | `object[]` |  | Batch update |
 
-**Related capabilities**: `get_runtime_actor_property`
+**Related capabilities**: `GetRuntimeActorProperty`
 
 ---
 
-### `set_runtime_widget_property`
+### `SetRuntimeWidgetProperty`
 
 Batch modify runtime UMG fields. updates[] has widget name/path/value.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 **When to use**: Modify runtime UMG live fields
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `updates` | `object[]` | ★ | Batch update; item: `propertyPath`, `value`, `widgetName`, `ownerClass` |
+| `Updates` | `object[]` | ★ | Batch update; item: `PropertyPath`, `bValue`, `WidgetName`, `OwnerClass` |
 
-**Related capabilities**: `get_runtime_widget_property`
-
----
-
-### `spawn_runtime_actor`
-
-Spawn Actor in PIE. assetPath or className; optional location/rotation.
-
-**Prerequisites**: `pie`
-
-| Parameter | Type | Required | Description |
-|------|------|:----:|------|
-| `assetPath` | `string` |  | Blueprint path (or className) |
-| `className` | `string` |  | Native class name (or assetPath) |
-| `locationX` | `number` |  | Spawn X |
-| `locationY` | `number` |  | Spawn Y |
-| `locationZ` | `number` |  | Spawn Z |
-| `rotationPitch` | `number` |  | Pitch (degrees) |
-| `rotationYaw` | `number` |  | Yaw (degrees) |
-| `rotationRoll` | `number` |  | Roll (degrees) |
-
-**Related capabilities**: `destroy_runtime_actor`, `list_runtime_actors`
+**Related capabilities**: `GetRuntimeWidgetProperty`
 
 ---
 
-### `spawn_runtime_widget`
+### `SpawnRuntimeActor`
 
-Create and show UMG panel in PIE/Game viewport. Requires assetPath+zOrder.
+Spawn Actor in PIE. AssetPath or ClassName; optional location/rotation.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Widget Blueprint asset path |
-| `zOrder` | `integer` |  | AddToViewport Z-order (default 0) |
+| `AssetPath` | `string` |  | Blueprint path (or ClassName) |
+| `ClassName` | `string` |  | Native class name (or AssetPath) |
+| `LocationX` | `number` |  | Spawn X |
+| `LocationY` | `number` |  | Spawn Y |
+| `LocationZ` | `number` |  | Spawn Z |
+| `RotationPitch` | `number` |  | Pitch (degrees) |
+| `RotationYaw` | `number` |  | Yaw (degrees) |
+| `RotationRoll` | `number` |  | Roll (degrees) |
 
-**Related capabilities**: `list_runtime_widgets`, `interact_runtime_widget`
+**Related capabilities**: `DestroyRuntimeActor`, `ListRuntimeActors`
+
+---
+
+### `SpawnRuntimeWidget`
+
+Create and show UMG panel in PIE/Game viewport. Requires AssetPath+ZOrder.
+
+**Prerequisites**: `PIE`
+
+| Parameter | Type | Required | Description |
+|------|------|:----:|------|
+| `AssetPath` | `string` | ★ | Widget Blueprint asset path |
+| `ZOrder` | `integer` |  | AddToViewport Z-order (default 0) |
+
+**Related capabilities**: `ListRuntimeWidgets`, `InteractRuntimeWidget`
 
 ---
 
 ## AI tools
 
-### `create_asset_behavior_tree`
+### `CreateAssetBehaviorTree`
 
-Create empty BT. Link BB via manage set_blackboard then add nodes.
+Create empty BT. Link BB via manage SetBlackboard then add nodes.
 
 **When to use**: Create empty BT; no nodes, no linked BB
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | BehaviorTree package path |
+| `AssetPath` | `string` | ★ | BehaviorTree package path |
 
-**Related capabilities**: `manage_asset_behavior_tree`, `create_asset_blackboard`
+**Related capabilities**: `ManageAssetBehaviorTree`, `CreateAssetBlackboard`
 
 ---
 
-### `create_asset_blackboard`
+### `CreateAssetBlackboard`
 
-Create keyless BB. Link via manage BT set_blackboard.
+Create keyless BB. Link via manage BT SetBlackboard.
 
-**When to use**: Create empty BB; add keys via manage_asset_blackboard
+**When to use**: Create empty BB; add keys via ManageAssetBlackboard
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | BlackboardData package path, e.g. '/Game/AI/BB_Enemy' |
+| `AssetPath` | `string` | ★ | BlackboardData package path, e.g. '/Game/AI/BB_Enemy' |
 
-**Related capabilities**: `manage_asset_blackboard`, `get_asset_blackboard`, `create_asset_behavior_tree`
+**Related capabilities**: `ManageAssetBlackboard`, `GetAssetBlackboard`, `CreateAssetBehaviorTree`
 
 ---
 
-### `create_asset_eqs`
+### `CreateAssetEQS`
 
 Create empty UEnvQuery. Add Generator/Test via manage.
 
-**When to use**: Create EQS asset; add Generator/Test via manage_asset_eqs
+**When to use**: Create EQS asset; add Generator/Test via ManageAssetEQS
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | Asset package path (/Game/…/EQ_FindCover) |
+| `AssetPath` | `string` | ★ | Asset package path (/Game/…/EQ_FindCover) |
 
-**Related capabilities**: `get_asset_eqs`, `manage_asset_eqs`, `create_asset_behavior_tree`
+**Related capabilities**: `GetAssetEQS`, `ManageAssetEQS`, `CreateAssetBehaviorTree`
 
 ---
 
-### `get_asset_behavior_tree`
+### `GetAssetBehaviorTree`
 
 Inspect BT structure snapshot. Path index and node props; read-only.
 
@@ -3285,28 +3285,28 @@ Inspect BT structure snapshot. Path index and node props; read-only.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` |  | BehaviorTree asset path |
+| `AssetPath` | `string` |  | BehaviorTree asset path |
 
-**Related capabilities**: `manage_asset_behavior_tree`, `create_asset_behavior_tree`, `get_asset_blackboard`
+**Related capabilities**: `ManageAssetBehaviorTree`, `CreateAssetBehaviorTree`, `GetAssetBlackboard`
 
 ---
 
-### `get_asset_blackboard`
+### `GetAssetBlackboard`
 
 Inspect BB key definitions. Name/type snapshot; read-only.
 
-**When to use**: Read BB key list; runtime values via get_runtime_actor_behavior_tree
+**When to use**: Read BB key list; runtime values via GetRuntimeActorBehaviorTree
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` |  | BlackboardData asset path |
-| `nameFilter` | `string` |  | Blackboard key name filter |
+| `AssetPath` | `string` |  | BlackboardData asset path |
+| `NameFilter` | `string` |  | Blackboard key name filter |
 
-**Related capabilities**: `manage_asset_blackboard`, `get_asset_behavior_tree`
+**Related capabilities**: `ManageAssetBlackboard`, `GetAssetBehaviorTree`
 
 ---
 
-### `get_asset_eqs`
+### `GetAssetEQS`
 
 Read EQS Options/Generator/Test overview. UE5+.
 
@@ -3314,100 +3314,100 @@ Read EQS Options/Generator/Test overview. UE5+.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | EnvQuery asset path |
+| `AssetPath` | `string` | ★ | EnvQuery asset path |
 
-**Related capabilities**: `manage_asset_eqs`, `create_asset_eqs`, `get_asset_behavior_tree`
+**Related capabilities**: `ManageAssetEQS`, `CreateAssetEQS`, `GetAssetBehaviorTree`
 
 ---
 
-### `get_runtime_actor_behavior_tree`
+### `GetRuntimeActorBehaviorTree`
 
 Query running AI BT nodes and BB keys. Write BB/restart via interact.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `actorName` | `string` |  | Controller or Pawn name (optional; first AIController if omitted) |
-| `nameFilter` | `string` |  | Blackboard key name filter |
+| `ActorName` | `string` |  | Controller or Pawn name (optional; first AIController if omitted) |
+| `NameFilter` | `string` |  | Blackboard key name filter |
 
-**Related capabilities**: `interact_runtime_actor_behavior_tree`, `get_asset_behavior_tree`
+**Related capabilities**: `InteractRuntimeActorBehaviorTree`, `GetAssetBehaviorTree`
 
 ---
 
-### `interact_runtime_actor_ai`
+### `InteractRuntimeActorAI`
 
-runtime AI Move. action=move_to; requires AIController.
+runtime AI Move. Action=MoveTo; requires AIController.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 **When to use**: Move AIController Pawn to coordinates in PIE
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `action` | `string (enum)` | ★ | Action enum: `move_to` |
-| `actorName` | `string` | ★ | Pawn/Actor name |
+| `Action` | `string (enum)` | ★ | Action enum: `MoveTo` |
+| `ActorName` | `string` | ★ | Pawn/Actor name |
 | `x` | `number` |  | Target X |
 | `y` | `number` |  | Target Y |
 | `z` | `number` |  | Target Z |
 
-**Related capabilities**: `get_runtime_actor_behavior_tree`, `list_runtime_actors`
+**Related capabilities**: `GetRuntimeActorBehaviorTree`, `ListRuntimeActors`
 
 ---
 
-### `interact_runtime_actor_behavior_tree`
+### `InteractRuntimeActorBehaviorTree`
 
-Write runtime BT. action=set_blackboard|restart_tree|stop_tree. Locate by AIController.
+Write runtime BT. Action=SetBlackboard|RestartTree|StopTree. Locate by AIController.
 
-**Prerequisites**: `pie`
+**Prerequisites**: `PIE`
 
 **When to use**: Modify blackboard, restart/stop BT in PIE
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `action` | `string (enum)` | ★ | Write operation enum: `set_blackboard` / `restart_tree` / `stop_tree` |
-| `actorName` | `string` |  | Controller or Pawn name (optional; first AIController if omitted) |
-| `keyName` | `string` |  | Blackboard key name (set_blackboard) |
-| `value` | `string` |  | Key value string (set_blackboard) |
-| `treePath` | `string` |  | BT asset path (restart_tree optional; restarts current if omitted) |
+| `Action` | `string (enum)` | ★ | Write operation enum: `SetBlackboard` / `RestartTree` / `StopTree` |
+| `ActorName` | `string` |  | Controller or Pawn name (optional; first AIController if omitted) |
+| `KeyName` | `string` |  | Blackboard key name (SetBlackboard) |
+| `bValue` | `string` |  | Key value string (SetBlackboard) |
+| `TreePath` | `string` |  | BT asset path (RestartTree optional; restarts current if omitted) |
 
-**Related capabilities**: `get_runtime_actor_behavior_tree`, `get_asset_behavior_tree`
+**Related capabilities**: `GetRuntimeActorBehaviorTree`, `GetAssetBehaviorTree`
 
 ---
 
-### `manage_asset_behavior_tree`
+### `ManageAssetBehaviorTree`
 
-Batch edit BT nodes/decorators/services. replace_node swaps type; sync_graph fixes graph drift.
+Batch edit BT nodes/decorators/services. ReplaceNode swaps type; SyncGraph fixes graph drift.
 
-**When to use**: Write ops: add/remove/replace/move nodes, decorators, services, set props; sync_graph when graph/tree drift
+**When to use**: Write ops: add/remove/replace/move nodes, decorators, services, set props; SyncGraph when graph/tree drift
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | BehaviorTree asset path |
-| `operations` | `object[]` | ★ | Batch ops (at least one); item: `action`(set_root/add_node/remove_node/replace_node/move_node/add_decorator/remove_decorator/add_service…), `nodeClass`, `nodeName`, `parentPath`, `childIndex`, `targetPath`, `targetIndex`, `blackboardPath`, `targetType`(node/decorator/service), `propertyName`, `propertyValue`, `properties` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | BehaviorTree asset path |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetRoot/AddNode/RemoveNode/ReplaceNode/MoveNode/AddDecorator/RemoveDecorator/AddService…), `NodeClass`, `NodeName`, `ParentPath`, `ChildIndex`, `TargetPath`, `TargetIndex`, `BlackboardPath`, `TargetType`(node/decorator/service), `PropertyName`, `PropertyValue`, `properties` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_behavior_tree`, `manage_asset_blackboard`, `save_asset`
+**Related capabilities**: `GetAssetBehaviorTree`, `ManageAssetBlackboard`, `SaveAsset`
 
 ---
 
-### `manage_asset_blackboard`
+### `ManageAssetBlackboard`
 
-Batch edit BB keys: add/remove/rename/set parent; persist with save_asset.
+Batch edit BB keys: add/remove/rename/set parent; persist with SaveAsset.
 
 **When to use**: Write ops: add/remove/rename BB keys, change parent BB
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | BlackboardData or BehaviorTree asset path |
-| `operations` | `object[]` | ★ | Batch key ops; item: `action`(add/remove/rename/set_parent), `keyName`, `keyType`(bool/float/int/string/name/vector/rotator/object…), `newName`, `parentPath` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | BlackboardData or BehaviorTree asset path |
+| `Operations` | `object[]` | ★ | Batch key ops; item: `Action`(add/remove/rename/SetParent), `KeyName`, `KeyType`(bool/float/int/string/name/vector/rotator/object…), `NewName`, `ParentPath` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_blackboard`, `create_asset_blackboard`, `save_asset`
+**Related capabilities**: `GetAssetBlackboard`, `CreateAssetBlackboard`, `SaveAsset`
 
 ---
 
-### `manage_asset_eqs`
+### `ManageAssetEQS`
 
 Edit EQS Option/Generator/Test. UE5+ (4.26 file gated).
 
@@ -3415,10 +3415,10 @@ Edit EQS Option/Generator/Test. UE5+ (4.26 file gated).
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `assetPath` | `string` | ★ | EnvQuery asset path |
-| `operations` | `object[]` | ★ | Operation list; item: `action`(add_option/remove_option/set_generator/add_test/remove_test), `optionIndex`, `generatorClass`, `testClass`, `testIndex` |
-| `saveToDisk` | `boolean` |  | Save the package to disk after success |
+| `AssetPath` | `string` | ★ | EnvQuery asset path |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(AddOption/RemoveOption/SetGenerator/AddTest/RemoveTest), `OptionIndex`, `GeneratorClass`, `TestClass`, `TestIndex` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
-**Related capabilities**: `get_asset_eqs`, `create_asset_eqs`
+**Related capabilities**: `GetAssetEQS`, `CreateAssetEQS`
 
 ---

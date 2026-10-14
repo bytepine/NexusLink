@@ -10,25 +10,25 @@
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetGeometryCollectionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetGeometryCollectionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_geometry_collection");
+	Out.Name = TEXT("CreateAssetGeometryCollection");
 	Out.Description = TEXT("Create empty GeometryCollection. Does not fracture StaticMesh.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("chaos"), TEXT("fracture"), TEXT("destruction") };
-	Out.RelatedCapabilities = { TEXT("get_asset_geometry_collection"), TEXT("manage_asset_geometry_collection") };
+	Out.RelatedCapabilities = { TEXT("GetAssetGeometryCollection"), TEXT("ManageAssetGeometryCollection") };
 }
 
-FCapabilityResult FCreateAssetGeometryCollectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetGeometryCollectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<UGeometryCollection>(AssetPath);
 		if (!Created.Ok())
@@ -41,5 +41,5 @@ FCapabilityResult FCreateAssetGeometryCollectionCapability::Execute(const TShare
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetGeometryCollectionCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetGeometryCollectionCapability)
 #endif

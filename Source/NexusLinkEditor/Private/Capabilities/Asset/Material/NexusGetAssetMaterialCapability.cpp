@@ -22,14 +22,14 @@
 
 // ── 共用 expression graph 序列化（静态公共方法）────────────────────────────────
 
-TSharedPtr<FJsonObject> FGetAssetMaterialCapability::BuildMaterialExpressionGraph(
+TSharedPtr<FJsonObject> FNexusGetAssetMaterialCapability::BuildMaterialExpressionGraph(
 	const TArray<UMaterialExpression*>& Expressions,
 	const FString& NodeFilter, bool bIncludePins, bool bIncludeWires,
 	int32 Offset, int32 Limit)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 
-	// 预先建 nodeId 映射，供连线查找
+	// 预先建 NodeId 映射，供连线查找
 	TMap<UMaterialExpression*, FString> ExprToId;
 	for (UMaterialExpression* E : Expressions) if (E) ExprToId.Add(E, FNexusMaterialUtils::GetExpressionNodeId(E));
 
@@ -49,17 +49,17 @@ TSharedPtr<FJsonObject> FGetAssetMaterialCapability::BuildMaterialExpressionGrap
 	FNexusJsonUtils::ComputeSlice(Total, Offset, Limit, Start, End);
 
 	TArray<TSharedPtr<FJsonValue>> Page;
-	for (int32 fi = Start; fi < End; ++fi)
+	for (int32 ExprIndex = Start; ExprIndex < End; ++ExprIndex)
 	{
-		UMaterialExpression* Expr = Filtered[fi];
+		UMaterialExpression* Expr = Filtered[ExprIndex];
 		TSharedPtr<FJsonObject> Node = MakeShared<FJsonObject>();
-		Node->SetStringField(TEXT("nodeId"),    FNexusMaterialUtils::GetExpressionNodeId(Expr));
-		Node->SetStringField(TEXT("nodeClass"), Expr->GetClass()->GetName());
+		Node->SetStringField(TEXT("NodeId"),    FNexusMaterialUtils::GetExpressionNodeId(Expr));
+		Node->SetStringField(TEXT("NodeClass"), Expr->GetClass()->GetName());
 		const FString Desc = Expr->GetDescription();
-		if (!Desc.IsEmpty()) Node->SetStringField(TEXT("desc"), Desc);
-		Node->SetNumberField(TEXT("posX"), Expr->MaterialExpressionEditorX);
-		Node->SetNumberField(TEXT("posY"), Expr->MaterialExpressionEditorY);
-		if (auto* PE = Cast<UMaterialExpressionParameter>(Expr)) Node->SetStringField(TEXT("parameterName"), PE->ParameterName.ToString());
+		if (!Desc.IsEmpty()) Node->SetStringField(TEXT("Desc"), Desc);
+		Node->SetNumberField(TEXT("PosX"), Expr->MaterialExpressionEditorX);
+		Node->SetNumberField(TEXT("PosY"), Expr->MaterialExpressionEditorY);
+		if (auto* PE = Cast<UMaterialExpressionParameter>(Expr)) Node->SetStringField(TEXT("ParameterName"), PE->ParameterName.ToString());
 
 		if (bIncludePins || bIncludeWires)
 		{
@@ -69,35 +69,35 @@ TSharedPtr<FJsonObject> FGetAssetMaterialCapability::BuildMaterialExpressionGrap
 				FExpressionInput* Input = Expr->GetInput(i);
 				if (!Input) break;
 				TSharedPtr<FJsonObject> Pin = MakeShared<FJsonObject>();
-				Pin->SetStringField(TEXT("pinName"),   Expr->GetInputName(i).ToString());
-				Pin->SetStringField(TEXT("direction"), TEXT("input"));
+				Pin->SetStringField(TEXT("PinName"),   Expr->GetInputName(i).ToString());
+				Pin->SetStringField(TEXT("Direction"), TEXT("input"));
 				if (bIncludeWires && Input->Expression)
 				{
 					const FString* CID = ExprToId.Find(Input->Expression);
-					if (CID) { Pin->SetStringField(TEXT("connectedNodeId"), *CID); Pin->SetNumberField(TEXT("connectedOutputIndex"), Input->OutputIndex); }
+					if (CID) { Pin->SetStringField(TEXT("ConnectedNodeId"), *CID); Pin->SetNumberField(TEXT("ConnectedOutputIndex"), Input->OutputIndex); }
 				}
 				Pins.Add(MakeShared<FJsonValueObject>(Pin));
 			}
 			const TArray<FExpressionOutput>& Outputs = Expr->GetOutputs();
-			for (int32 i = 0; i < Outputs.Num(); ++i)
+			for (int32 OutputIndex = 0; OutputIndex < Outputs.Num(); ++OutputIndex)
 			{
 				TSharedPtr<FJsonObject> Pin = MakeShared<FJsonObject>();
-				Pin->SetStringField(TEXT("pinName"),   Outputs[i].OutputName.IsNone() ? FString::Printf(TEXT("Output_%d"), i) : Outputs[i].OutputName.ToString());
-				Pin->SetStringField(TEXT("direction"), TEXT("output"));
+				Pin->SetStringField(TEXT("PinName"),   Outputs[OutputIndex].OutputName.IsNone() ? FString::Printf(TEXT("Output_%d"), OutputIndex) : Outputs[OutputIndex].OutputName.ToString());
+				Pin->SetStringField(TEXT("Direction"), TEXT("Output"));
 				Pins.Add(MakeShared<FJsonValueObject>(Pin));
 			}
-			// includePins=false 且 includeWires=true 时仍输出 pins，
-			// 否则连线信息（connectedNodeId 等）无处可见。
-			Node->SetArrayField(TEXT("pins"), Pins);
+			// bIncludePins=false 且 bIncludeWires=true 时仍输出 pins，
+			// 否则连线信息（ConnectedNodeId 等）无处可见。
+			Node->SetArrayField(TEXT("Pins"), Pins);
 		}
 
 		Page.Add(MakeShared<FJsonValueObject>(Node));
 	}
 
-	Obj->SetNumberField(TEXT("totalCount"), Total);
-	Obj->SetNumberField(TEXT("offset"),     Start);
-	Obj->SetNumberField(TEXT("count"),      Page.Num());
-	Obj->SetArrayField(TEXT("nodes"),       Page);
+	Obj->SetNumberField(TEXT("TotalCount"), Total);
+	Obj->SetNumberField(TEXT("Offset"),     Start);
+	Obj->SetNumberField(TEXT("Count"),      Page.Num());
+	Obj->SetArrayField(TEXT("Nodes"),       Page);
 	return Obj;
 }
 
@@ -115,67 +115,67 @@ static FNexusMaterialQueryParams ParseMaterialQueryParams(const TSharedPtr<FJson
 {
 	FNexusMaterialQueryParams P;
 	if (!Args.IsValid()) return P;
-	if (Args->HasField(TEXT("nameFilter")))    P.NameFilter    = Args->GetStringField(TEXT("nameFilter"));
-	if (Args->HasField(TEXT("includePins")))   P.bIncludePins  = Args->GetBoolField(TEXT("includePins"));
-	if (Args->HasField(TEXT("includeWires")))  P.bIncludeWires = Args->GetBoolField(TEXT("includeWires"));
-	if (Args->HasField(TEXT("offset")))        P.Offset = FMath::Max(0, static_cast<int32>(Args->GetNumberField(TEXT("offset"))));
-	if (Args->HasField(TEXT("limit")))         P.Limit  = FMath::Clamp(static_cast<int32>(Args->GetNumberField(TEXT("limit"))), 1, 500);
+	if (Args->HasField(TEXT("NameFilter")))    P.NameFilter    = Args->GetStringField(TEXT("NameFilter"));
+	if (Args->HasField(TEXT("bIncludePins")))   P.bIncludePins  = Args->GetBoolField(TEXT("bIncludePins"));
+	if (Args->HasField(TEXT("bIncludeWires")))  P.bIncludeWires = Args->GetBoolField(TEXT("bIncludeWires"));
+	if (Args->HasField(TEXT("Offset")))        P.Offset = FMath::Max(0, static_cast<int32>(Args->GetNumberField(TEXT("Offset"))));
+	if (Args->HasField(TEXT("Limit")))         P.Limit  = FMath::Clamp(static_cast<int32>(Args->GetNumberField(TEXT("Limit"))), 1, 500);
 	return P;
 }
 
 // ── FNexusCapability 基础钩子 ─────────────────────────────────────────────────
 
-void FGetAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_material");
+	Out.Name = TEXT("GetAssetMaterial");
 	Out.SearchAssetTypes = {TEXT("Material"), TEXT("MaterialInstance"), TEXT("MaterialFunction")};
-	Out.Description = TEXT("Inspect Mat/MI/MF nodes and params. sections=overview|params|graph.");
+	Out.Description = TEXT("Inspect Mat/MI/MF nodes and params. Sections=overview|params|graph.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Material };
 	Out.ExtraSearchKeywords = {
-		TEXT("shader"), TEXT("instance"), TEXT("mf"), TEXT("scalar"), TEXT("texture")
+		TEXT("shader"), TEXT("instance"), TEXT("mf"), TEXT("Scalar"), TEXT("Texture")
 	};
-	Out.RelatedCapabilities = { TEXT("manage_asset_material"), TEXT("create_asset_material"), TEXT("create_asset_material_function") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetMaterial"), TEXT("CreateAssetMaterial"), TEXT("CreateAssetMaterialFunction") };
 	Out.WhenToUse = TEXT("Read node graph/params/wires; no edits");
 }
 
-TSharedPtr<FJsonObject> FGetAssetMaterialCapability::BuildCapabilitySchema() const
+TSharedPtr<FJsonObject> FNexusGetAssetMaterialCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("Material/MI/MaterialFunction asset path")))
-		.Prop(TEXT("nameFilter"),    FNexusSchema::Str(TEXT("Parameter/node name filter")))
-		.Prop(TEXT("includePins"),   FNexusSchema::Bool(TEXT("Include pin details (graph)"), true, true))
-		.Prop(TEXT("includeWires"),  FNexusSchema::Bool(TEXT("Include connection info (graph)"), true, true))
-		.Prop(TEXT("offset"),        FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
-		.Prop(TEXT("limit"),         FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
+		.Prop(TEXT("AssetPath"),     FNexusSchema::Str(TEXT("Material/MI/MaterialFunction asset path")))
+		.Prop(TEXT("NameFilter"),    FNexusSchema::Str(TEXT("Parameter/node name filter")))
+		.Prop(TEXT("bIncludePins"),   FNexusSchema::Bool(TEXT("Include pin details (graph)"), true, true))
+		.Prop(TEXT("bIncludeWires"),  FNexusSchema::Bool(TEXT("Include connection info (graph)"), true, true))
+		.Prop(TEXT("Offset"),        FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("Limit"),         FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
 		.Build();
 }
 
 // ── multi-section 钩子 ────────────────────────────────────────────────────────
 
-TArray<FString> FGetAssetMaterialCapability::GetSectionNames() const
+TArray<FString> FNexusGetAssetMaterialCapability::GetSectionNames() const
 {
-	return { TEXT("overview"), TEXT("params"), TEXT("graph") };
+	return { TEXT("overview"), TEXT("Params"), TEXT("graph") };
 }
 
-TArray<FString> FGetAssetMaterialCapability::GetDefaultSectionNames() const
+TArray<FString> FNexusGetAssetMaterialCapability::GetDefaultSectionNames() const
 {
 	return { TEXT("overview") };
 }
 
-bool FGetAssetMaterialCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
+bool FNexusGetAssetMaterialCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
                                                TSharedPtr<FJsonObject>&       OutEntry,
                                                void*&                         OutTargetOpaque,
                                                FString&                       OutError) const
 {
 	FString Path;
-	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
+	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("AssetPath"), Path) || Path.IsEmpty())
 	{
-		OutError = TEXT("Missing assetPath");
+		OutError = TEXT("Missing AssetPath");
 		return false;
 	}
 
-	OutEntry->SetStringField(TEXT("path"), Path);
+	OutEntry->SetStringField(TEXT("Path"), Path);
 
 	UObject* Obj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
 	if (!Obj)
@@ -192,15 +192,15 @@ bool FGetAssetMaterialCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Ar
 
 	// 写公共 locator 字段
 	OutEntry->SetStringField(TEXT("name"), Obj->GetName());
-	if (Obj->IsA(UMaterial::StaticClass()))                  OutEntry->SetStringField(TEXT("assetType"), TEXT("Material"));
-	else if (Obj->IsA(UMaterialInstanceConstant::StaticClass())) OutEntry->SetStringField(TEXT("assetType"), TEXT("MaterialInstance"));
-	else                                            OutEntry->SetStringField(TEXT("assetType"), TEXT("MaterialFunction"));
+	if (Obj->IsA(UMaterial::StaticClass()))                  OutEntry->SetStringField(TEXT("AssetType"), TEXT("Material"));
+	else if (Obj->IsA(UMaterialInstanceConstant::StaticClass())) OutEntry->SetStringField(TEXT("AssetType"), TEXT("MaterialInstance"));
+	else                                            OutEntry->SetStringField(TEXT("AssetType"), TEXT("MaterialFunction"));
 
 	OutTargetOpaque = static_cast<void*>(Obj);
 	return true;
 }
 
-void FGetAssetMaterialCapability::ExecuteSection(const FString&                 SectionName,
+void FNexusGetAssetMaterialCapability::ExecuteSection(const FString&                 SectionName,
                                                  const TSharedPtr<FJsonObject>& Args,
                                                  void*                          TargetOpaque,
                                                  TSharedPtr<FJsonObject>&       InOutDetail,
@@ -219,36 +219,36 @@ void FGetAssetMaterialCapability::ExecuteSection(const FString&                 
 	{
 		if (MF)
 		{
-			InOutDetail->SetNumberField(TEXT("expressionCount"), FNexusMaterialUtils::GetExpressions(MF).Num());
+			InOutDetail->SetNumberField(TEXT("ExpressionCount"), FNexusMaterialUtils::GetExpressions(MF).Num());
 			if (!MF->Description.IsEmpty()) InOutDetail->SetStringField(TEXT("description"), MF->Description);
 		}
 		else if (Mat)
 		{
-			InOutDetail->SetStringField(TEXT("materialDomain"), FNexusMaterialUtils::DomainToString(Mat->MaterialDomain));
-			InOutDetail->SetStringField(TEXT("blendMode"),      FNexusMaterialUtils::BlendModeToString(Mat->BlendMode));
-			if (Mat->IsTwoSided()) InOutDetail->SetBoolField(TEXT("twoSided"), true);
+			InOutDetail->SetStringField(TEXT("MaterialDomain"), FNexusMaterialUtils::DomainToString(Mat->MaterialDomain));
+			InOutDetail->SetStringField(TEXT("BlendMode"),      FNexusMaterialUtils::BlendModeToString(Mat->BlendMode));
+			if (Mat->IsTwoSided()) InOutDetail->SetBoolField(TEXT("bTwoSided"), true);
 			auto& Exprs = FNexusMaterialUtils::GetExpressions(Mat);
-			InOutDetail->SetNumberField(TEXT("expressionCount"), Exprs.Num());
+			InOutDetail->SetNumberField(TEXT("ExpressionCount"), Exprs.Num());
 			int32 PC = 0;
 			for (UMaterialExpression* E : Exprs) if (E && E->IsA(UMaterialExpressionParameter::StaticClass())) ++PC;
-			InOutDetail->SetNumberField(TEXT("parameterCount"), PC);
+			InOutDetail->SetNumberField(TEXT("ParameterCount"), PC);
 		}
 		else if (MI)
 		{
-			InOutDetail->SetStringField(TEXT("parentMaterial"),
+			InOutDetail->SetStringField(TEXT("ParentMaterial"),
 			(MI->Parent && MI->Parent->GetOutermost()) ? MI->Parent->GetOutermost()->GetName() : TEXT("None"));
-			InOutDetail->SetNumberField(TEXT("scalarParameterCount"),  MI->ScalarParameterValues.Num());
-			InOutDetail->SetNumberField(TEXT("vectorParameterCount"),  MI->VectorParameterValues.Num());
-			InOutDetail->SetNumberField(TEXT("textureParameterCount"), MI->TextureParameterValues.Num());
+			InOutDetail->SetNumberField(TEXT("ScalarParameterCount"),  MI->ScalarParameterValues.Num());
+			InOutDetail->SetNumberField(TEXT("VectorParameterCount"),  MI->VectorParameterValues.Num());
+			InOutDetail->SetNumberField(TEXT("TextureParameterCount"), MI->TextureParameterValues.Num());
 		}
 	}
-	else if (SectionName == TEXT("params"))
+	else if (SectionName == TEXT("Params"))
 	{
 		if (MF)
 		{
 			// MaterialFunction 没有参数
-			InOutDetail->SetNumberField(TEXT("totalCount"), 0);
-			InOutDetail->SetArrayField(TEXT("parameters"), TArray<TSharedPtr<FJsonValue>>());
+			InOutDetail->SetNumberField(TEXT("TotalCount"), 0);
+			InOutDetail->SetArrayField(TEXT("Parameters"), TArray<TSharedPtr<FJsonValue>>());
 			return;
 		}
 
@@ -264,27 +264,27 @@ void FGetAssetMaterialCapability::ExecuteSection(const FString&                 
 				const FString PN = PE->ParameterName.ToString();
 				if (!Q.NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(PN, Q.NameFilter)) continue;
 				TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
-				P->SetStringField(TEXT("nodeId"),         FNexusMaterialUtils::GetExpressionNodeId(Expr));
-				P->SetStringField(TEXT("parameterName"),  PN);
+				P->SetStringField(TEXT("NodeId"),         FNexusMaterialUtils::GetExpressionNodeId(Expr));
+				P->SetStringField(TEXT("ParameterName"),  PN);
 				if (auto* Scalar = Cast<UMaterialExpressionScalarParameter>(Expr))
 				{
-					P->SetStringField(TEXT("paramType"),    TEXT("scalar"));
-					P->SetNumberField(TEXT("defaultValue"), Scalar->DefaultValue);
+					P->SetStringField(TEXT("ParamType"),    TEXT("Scalar"));
+					P->SetNumberField(TEXT("DefaultValue"), Scalar->DefaultValue);
 				}
 				else if (auto* Vec = Cast<UMaterialExpressionVectorParameter>(Expr))
 				{
-					P->SetStringField(TEXT("paramType"),    TEXT("vector"));
-					P->SetStringField(TEXT("defaultValue"), FString::Printf(TEXT("%.4f,%.4f,%.4f,%.4f"),
+					P->SetStringField(TEXT("ParamType"),    TEXT("Vector"));
+					P->SetStringField(TEXT("DefaultValue"), FString::Printf(TEXT("%.4f,%.4f,%.4f,%.4f"),
 						Vec->DefaultValue.R, Vec->DefaultValue.G, Vec->DefaultValue.B, Vec->DefaultValue.A));
 				}
 				else if (auto* Tex = Cast<UMaterialExpressionTextureSampleParameter>(Expr))
 				{
-					P->SetStringField(TEXT("paramType"),    TEXT("texture"));
-					P->SetStringField(TEXT("defaultValue"), Tex->Texture ? Tex->Texture->GetPathName() : TEXT("None"));
+					P->SetStringField(TEXT("ParamType"),    TEXT("Texture"));
+					P->SetStringField(TEXT("DefaultValue"), Tex->Texture ? Tex->Texture->GetPathName() : TEXT("None"));
 				}
 				else
 				{
-					P->SetStringField(TEXT("paramType"), TEXT("other"));
+					P->SetStringField(TEXT("ParamType"), TEXT("Other"));
 				}
 				Params.Add(MakeShared<FJsonValueObject>(P));
 			}
@@ -295,29 +295,29 @@ void FGetAssetMaterialCapability::ExecuteSection(const FString&                 
 			{
 				if (!Q.NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(Name, Q.NameFilter)) return;
 				TSharedPtr<FJsonObject> J = MakeShared<FJsonObject>();
-				J->SetStringField(TEXT("paramName"), Name);
-				J->SetStringField(TEXT("paramType"), T);
-				J->SetStringField(TEXT("value"),     Val);
+				J->SetStringField(TEXT("ParamName"), Name);
+				J->SetStringField(TEXT("ParamType"), T);
+				J->SetStringField(TEXT("Value"),     Val);
 				Params.Add(MakeShared<FJsonValueObject>(J));
 			};
-			for (const auto& P : MI->ScalarParameterValues)  AddParam(P.ParameterInfo.Name.ToString(), TEXT("scalar"), FString::SanitizeFloat(P.ParameterValue));
-			for (const auto& P : MI->VectorParameterValues)  AddParam(P.ParameterInfo.Name.ToString(), TEXT("vector"), FString::Printf(TEXT("%.4f,%.4f,%.4f,%.4f"), P.ParameterValue.R, P.ParameterValue.G, P.ParameterValue.B, P.ParameterValue.A));
-			for (const auto& P : MI->TextureParameterValues) AddParam(P.ParameterInfo.Name.ToString(), TEXT("texture"), P.ParameterValue ? P.ParameterValue->GetPathName() : TEXT("None"));
+			for (const auto& P : MI->ScalarParameterValues)  AddParam(P.ParameterInfo.Name.ToString(), TEXT("Scalar"), FString::SanitizeFloat(P.ParameterValue));
+			for (const auto& P : MI->VectorParameterValues)  AddParam(P.ParameterInfo.Name.ToString(), TEXT("Vector"), FString::Printf(TEXT("%.4f,%.4f,%.4f,%.4f"), P.ParameterValue.R, P.ParameterValue.G, P.ParameterValue.B, P.ParameterValue.A));
+			for (const auto& P : MI->TextureParameterValues) AddParam(P.ParameterInfo.Name.ToString(), TEXT("Texture"), P.ParameterValue ? P.ParameterValue->GetPathName() : TEXT("None"));
 		}
 
 		const int32 Total = Params.Num();
 		int32 Start, End; FNexusJsonUtils::ComputeSlice(Total, Q.Offset, Q.Limit, Start, End);
 		TArray<TSharedPtr<FJsonValue>> Page;
-		for (int32 i = Start; i < End; ++i) Page.Add(Params[i]);
-		InOutDetail->SetNumberField(TEXT("totalCount"), Total);
-		InOutDetail->SetNumberField(TEXT("offset"),     Start);
-		InOutDetail->SetArrayField(TEXT("parameters"),  Page);
+		for (int32 ParamIndex = Start; ParamIndex < End; ++ParamIndex) Page.Add(Params[ParamIndex]);
+		InOutDetail->SetNumberField(TEXT("TotalCount"), Total);
+		InOutDetail->SetNumberField(TEXT("Offset"),     Start);
+		InOutDetail->SetArrayField(TEXT("Parameters"),  Page);
 	}
 	else if (SectionName == TEXT("graph"))
 	{
 		if (MI)
 		{
-			OutError = TEXT("section=graph only for Material/MaterialFunction, not MaterialInstance");
+			OutError = TEXT("Section=graph only for Material/MaterialFunction, not MaterialInstance");
 			return;
 		}
 
@@ -343,6 +343,6 @@ void FGetAssetMaterialCapability::ExecuteSection(const FString&                 
 	}
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetMaterialCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetMaterialCapability)
 
 #endif // WITH_EDITOR

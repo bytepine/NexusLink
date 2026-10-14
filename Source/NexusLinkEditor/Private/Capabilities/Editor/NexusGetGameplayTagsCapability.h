@@ -6,11 +6,11 @@
 #include "NexusMultiSectionCapability.h"
 
 /**
- * get_gameplay_tags 工具的唯一 Capability —— 查询 GameplayTag 层级/Actor Tag/资产 Tag。
- * 继承 FNexusMultiSectionCapability，sections=["hierarchy","actor","asset"]。
+ * GetGameplayTags 工具的唯一 Capability —— 查询 GameplayTag 层级/Actor Tag/资产 Tag。
+ * 继承 FNexusMultiSectionCapability，Sections=["Hierarchy","Actor","Asset"]。
  * 默认 section：hierarchy。PrepareEntry 返回 null target；各 section 独立从 args 读参数。
  */
-class FGetGameplayTagsCapability : public FNexusMultiSectionCapability
+class FNexusGetGameplayTagsCapability : public FNexusMultiSectionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

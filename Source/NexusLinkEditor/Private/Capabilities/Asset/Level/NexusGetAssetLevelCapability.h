@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusMultiSectionCapability.h"
 
-/** get_asset_level — 只读检查关卡（UWorld 包）Actor 列表与 WorldSettings 摘要。 */
-class FGetAssetLevelCapability : public FNexusMultiSectionCapability
+/** GetAssetLevel — 只读检查关卡（UWorld 包）Actor 列表与 WorldSettings 摘要。 */
+class FNexusGetAssetLevelCapability : public FNexusMultiSectionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

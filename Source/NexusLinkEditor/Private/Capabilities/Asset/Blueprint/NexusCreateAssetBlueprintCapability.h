@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_blueprint 的 Capability —— 创建一个 Blueprint 资产（自动编译）。*/
-class FCreateAssetBlueprintCapability : public FNexusCapability
+/** CreateAssetBlueprint 的 Capability —— 创建一个 Blueprint 资产（自动编译）。*/
+class FNexusCreateAssetBlueprintCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

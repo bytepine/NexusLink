@@ -24,10 +24,10 @@ static void SetMarginField(TSharedPtr<FJsonObject>& Obj, const TCHAR* Key, const
 static TSharedPtr<FJsonObject> AnchorsToJson(const FAnchors& A)
 {
 	TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
-	O->SetNumberField(TEXT("minX"), A.Minimum.X);
-	O->SetNumberField(TEXT("minY"), A.Minimum.Y);
-	O->SetNumberField(TEXT("maxX"), A.Maximum.X);
-	O->SetNumberField(TEXT("maxY"), A.Maximum.Y);
+	O->SetNumberField(TEXT("MinX"), A.Minimum.X);
+	O->SetNumberField(TEXT("MinY"), A.Minimum.Y);
+	O->SetNumberField(TEXT("MaxX"), A.Maximum.X);
+	O->SetNumberField(TEXT("MaxY"), A.Maximum.Y);
 	return O;
 }
 
@@ -57,24 +57,24 @@ static FString VAlignToString(EVerticalAlignment V)
 
 static void AppendChildSizeFields(const FSlateChildSize& Size, TSharedPtr<FJsonObject>& Layout)
 {
-	Layout->SetNumberField(TEXT("sizeRule"),
+	Layout->SetNumberField(TEXT("SizeRule"),
 			static_cast<double>(static_cast<uint8>(Size.SizeRule.GetValue())));
-	Layout->SetNumberField(TEXT("sizeValue"), Size.Value);
+	Layout->SetNumberField(TEXT("SizeValue"), Size.Value);
 }
 
 static void AppendCanvasSlotFields(UCanvasPanelSlot* Slot, TSharedPtr<FJsonObject>& Layout)
 {
 	const FAnchorData& Data = Slot->GetLayout();
-	Layout->SetObjectField(TEXT("anchors"), AnchorsToJson(Data.Anchors));
-	Layout->SetNumberField(TEXT("alignmentX"), Data.Alignment.X);
-	Layout->SetNumberField(TEXT("alignmentY"), Data.Alignment.Y);
-	SetMarginField(Layout, TEXT("offset"), Data.Offsets);
+	Layout->SetObjectField(TEXT("Anchors"), AnchorsToJson(Data.Anchors));
+	Layout->SetNumberField(TEXT("AlignmentX"), Data.Alignment.X);
+	Layout->SetNumberField(TEXT("AlignmentY"), Data.Alignment.Y);
+	SetMarginField(Layout, TEXT("Offset"), Data.Offsets);
 #if NX_UE_HAS_UMG_SLOT_GETTERS
-	Layout->SetBoolField(TEXT("autoSize"), Slot->GetAutoSize());
-	Layout->SetNumberField(TEXT("zOrder"), Slot->GetZOrder());
+	Layout->SetBoolField(TEXT("bAutoSize"), Slot->GetAutoSize());
+	Layout->SetNumberField(TEXT("ZOrder"), Slot->GetZOrder());
 #else
-	Layout->SetBoolField(TEXT("autoSize"), Slot->bAutoSize);
-	Layout->SetNumberField(TEXT("zOrder"), Slot->ZOrder);
+	Layout->SetBoolField(TEXT("bAutoSize"), Slot->bAutoSize);
+	Layout->SetNumberField(TEXT("ZOrder"), Slot->ZOrder);
 #endif
 }
 
@@ -83,14 +83,14 @@ static void AppendBoxSlotFields(UPanelSlot* Slot, TSharedPtr<FJsonObject>& Layou
 	if (UHorizontalBoxSlot* HS = Cast<UHorizontalBoxSlot>(Slot))
 	{
 #if NX_UE_HAS_UMG_SLOT_GETTERS
-		Layout->SetStringField(TEXT("horizontalAlignment"), HAlignToString(HS->GetHorizontalAlignment()));
-		Layout->SetStringField(TEXT("verticalAlignment"), VAlignToString(HS->GetVerticalAlignment()));
-		SetMarginField(Layout, TEXT("padding"), HS->GetPadding());
+		Layout->SetStringField(TEXT("HorizontalAlignment"), HAlignToString(HS->GetHorizontalAlignment()));
+		Layout->SetStringField(TEXT("VerticalAlignment"), VAlignToString(HS->GetVerticalAlignment()));
+		SetMarginField(Layout, TEXT("Padding"), HS->GetPadding());
 		AppendChildSizeFields(HS->GetSize(), Layout);
 #else
-		Layout->SetStringField(TEXT("horizontalAlignment"), HAlignToString(HS->HorizontalAlignment));
-		Layout->SetStringField(TEXT("verticalAlignment"), VAlignToString(HS->VerticalAlignment));
-		SetMarginField(Layout, TEXT("padding"), HS->Padding);
+		Layout->SetStringField(TEXT("HorizontalAlignment"), HAlignToString(HS->HorizontalAlignment));
+		Layout->SetStringField(TEXT("VerticalAlignment"), VAlignToString(HS->VerticalAlignment));
+		SetMarginField(Layout, TEXT("Padding"), HS->Padding);
 		AppendChildSizeFields(HS->Size, Layout);
 #endif
 		return;
@@ -98,14 +98,14 @@ static void AppendBoxSlotFields(UPanelSlot* Slot, TSharedPtr<FJsonObject>& Layou
 	if (UVerticalBoxSlot* VS = Cast<UVerticalBoxSlot>(Slot))
 	{
 #if NX_UE_HAS_UMG_SLOT_GETTERS
-		Layout->SetStringField(TEXT("horizontalAlignment"), HAlignToString(VS->GetHorizontalAlignment()));
-		Layout->SetStringField(TEXT("verticalAlignment"), VAlignToString(VS->GetVerticalAlignment()));
-		SetMarginField(Layout, TEXT("padding"), VS->GetPadding());
+		Layout->SetStringField(TEXT("HorizontalAlignment"), HAlignToString(VS->GetHorizontalAlignment()));
+		Layout->SetStringField(TEXT("VerticalAlignment"), VAlignToString(VS->GetVerticalAlignment()));
+		SetMarginField(Layout, TEXT("Padding"), VS->GetPadding());
 		AppendChildSizeFields(VS->GetSize(), Layout);
 #else
-		Layout->SetStringField(TEXT("horizontalAlignment"), HAlignToString(VS->HorizontalAlignment));
-		Layout->SetStringField(TEXT("verticalAlignment"), VAlignToString(VS->VerticalAlignment));
-		SetMarginField(Layout, TEXT("padding"), VS->Padding);
+		Layout->SetStringField(TEXT("HorizontalAlignment"), HAlignToString(VS->HorizontalAlignment));
+		Layout->SetStringField(TEXT("VerticalAlignment"), VAlignToString(VS->VerticalAlignment));
+		SetMarginField(Layout, TEXT("Padding"), VS->Padding);
 		AppendChildSizeFields(VS->Size, Layout);
 #endif
 		return;
@@ -113,30 +113,30 @@ static void AppendBoxSlotFields(UPanelSlot* Slot, TSharedPtr<FJsonObject>& Layou
 	if (USizeBoxSlot* SS = Cast<USizeBoxSlot>(Slot))
 	{
 #if NX_UE_HAS_UMG_SLOT_GETTERS
-		Layout->SetStringField(TEXT("horizontalAlignment"), HAlignToString(SS->GetHorizontalAlignment()));
-		Layout->SetStringField(TEXT("verticalAlignment"), VAlignToString(SS->GetVerticalAlignment()));
-		SetMarginField(Layout, TEXT("padding"), SS->GetPadding());
+		Layout->SetStringField(TEXT("HorizontalAlignment"), HAlignToString(SS->GetHorizontalAlignment()));
+		Layout->SetStringField(TEXT("VerticalAlignment"), VAlignToString(SS->GetVerticalAlignment()));
+		SetMarginField(Layout, TEXT("Padding"), SS->GetPadding());
 #else
-		Layout->SetStringField(TEXT("horizontalAlignment"), HAlignToString(SS->HorizontalAlignment));
-		Layout->SetStringField(TEXT("verticalAlignment"), VAlignToString(SS->VerticalAlignment));
-		SetMarginField(Layout, TEXT("padding"), SS->Padding);
+		Layout->SetStringField(TEXT("HorizontalAlignment"), HAlignToString(SS->HorizontalAlignment));
+		Layout->SetStringField(TEXT("VerticalAlignment"), VAlignToString(SS->VerticalAlignment));
+		SetMarginField(Layout, TEXT("Padding"), SS->Padding);
 #endif
 		return;
 	}
 	if (UGridSlot* GS = Cast<UGridSlot>(Slot))
 	{
 #if NX_UE_HAS_UMG_SLOT_GETTERS
-		Layout->SetNumberField(TEXT("row"), GS->GetRow());
-		Layout->SetNumberField(TEXT("column"), GS->GetColumn());
-		Layout->SetStringField(TEXT("horizontalAlignment"), HAlignToString(GS->GetHorizontalAlignment()));
-		Layout->SetStringField(TEXT("verticalAlignment"), VAlignToString(GS->GetVerticalAlignment()));
-		SetMarginField(Layout, TEXT("padding"), GS->GetPadding());
+		Layout->SetNumberField(TEXT("Row"), GS->GetRow());
+		Layout->SetNumberField(TEXT("Column"), GS->GetColumn());
+		Layout->SetStringField(TEXT("HorizontalAlignment"), HAlignToString(GS->GetHorizontalAlignment()));
+		Layout->SetStringField(TEXT("VerticalAlignment"), VAlignToString(GS->GetVerticalAlignment()));
+		SetMarginField(Layout, TEXT("Padding"), GS->GetPadding());
 #else
-		Layout->SetNumberField(TEXT("row"), GS->Row);
-		Layout->SetNumberField(TEXT("column"), GS->Column);
-		Layout->SetStringField(TEXT("horizontalAlignment"), HAlignToString(GS->HorizontalAlignment));
-		Layout->SetStringField(TEXT("verticalAlignment"), VAlignToString(GS->VerticalAlignment));
-		SetMarginField(Layout, TEXT("padding"), GS->Padding);
+		Layout->SetNumberField(TEXT("Row"), GS->Row);
+		Layout->SetNumberField(TEXT("Column"), GS->Column);
+		Layout->SetStringField(TEXT("HorizontalAlignment"), HAlignToString(GS->HorizontalAlignment));
+		Layout->SetStringField(TEXT("VerticalAlignment"), VAlignToString(GS->VerticalAlignment));
+		SetMarginField(Layout, TEXT("Padding"), GS->Padding);
 #endif
 	}
 }
@@ -149,20 +149,20 @@ void FNexusWidgetLayoutUtils::AppendUmgLayoutFields(UWidget* Widget, TSharedPtr<
 	}
 
 	TSharedPtr<FJsonObject> Layout = MakeShared<FJsonObject>();
-	Layout->SetStringField(TEXT("source"), TEXT("umg"));
+	Layout->SetStringField(TEXT("Source"), TEXT("umg"));
 
 	if (UTextBlock* TB = Cast<UTextBlock>(Widget))
 	{
-		Layout->SetBoolField(TEXT("autoWrapText"), TB->GetAutoWrapText());
+		Layout->SetBoolField(TEXT("bAutoWrapText"), TB->GetAutoWrapText());
 	}
 	else if (URichTextBlock* RT = Cast<URichTextBlock>(Widget))
 	{
-		Layout->SetBoolField(TEXT("autoWrapText"), RT->GetAutoWrapText());
+		Layout->SetBoolField(TEXT("bAutoWrapText"), RT->GetAutoWrapText());
 	}
 
 	if (UPanelSlot* PanelSlot = Widget->Slot)
 	{
-		Layout->SetStringField(TEXT("slotClass"), PanelSlot->GetClass()->GetName());
+		Layout->SetStringField(TEXT("SlotClass"), PanelSlot->GetClass()->GetName());
 		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(PanelSlot))
 		{
 			AppendCanvasSlotFields(CanvasSlot, Layout);
@@ -173,7 +173,7 @@ void FNexusWidgetLayoutUtils::AppendUmgLayoutFields(UWidget* Widget, TSharedPtr<
 		}
 	}
 
-	InOutEntry->SetObjectField(TEXT("layout"), Layout);
+	InOutEntry->SetObjectField(TEXT("Layout"), Layout);
 }
 
 bool FNexusWidgetLayoutUtils::ApplyCanvasSlotFields(UWidget* Widget, const TSharedPtr<FJsonObject>& Fields, FString& OutError)
@@ -190,14 +190,14 @@ bool FNexusWidgetLayoutUtils::ApplyCanvasSlotFields(UWidget* Widget, const TShar
 		return false;
 	}
 
-	if (Fields->HasField(TEXT("anchorMinX")) && Fields->HasField(TEXT("anchorMinY"))
-		&& Fields->HasField(TEXT("anchorMaxX")) && Fields->HasField(TEXT("anchorMaxY")))
+	if (Fields->HasField(TEXT("AnchorMinX")) && Fields->HasField(TEXT("AnchorMinY"))
+		&& Fields->HasField(TEXT("AnchorMaxX")) && Fields->HasField(TEXT("AnchorMaxY")))
 	{
 		FAnchors Anchors(
-			static_cast<float>(Fields->GetNumberField(TEXT("anchorMinX"))),
-			static_cast<float>(Fields->GetNumberField(TEXT("anchorMinY"))),
-			static_cast<float>(Fields->GetNumberField(TEXT("anchorMaxX"))),
-			static_cast<float>(Fields->GetNumberField(TEXT("anchorMaxY"))));
+			static_cast<float>(Fields->GetNumberField(TEXT("AnchorMinX"))),
+			static_cast<float>(Fields->GetNumberField(TEXT("AnchorMinY"))),
+			static_cast<float>(Fields->GetNumberField(TEXT("AnchorMaxX"))),
+			static_cast<float>(Fields->GetNumberField(TEXT("AnchorMaxY"))));
 #if NX_UE_HAS_UMG_SLOT_GETTERS
 		Slot->SetAnchors(Anchors);
 #else
@@ -205,11 +205,11 @@ bool FNexusWidgetLayoutUtils::ApplyCanvasSlotFields(UWidget* Widget, const TShar
 #endif
 	}
 
-	if (Fields->HasField(TEXT("alignmentX")) && Fields->HasField(TEXT("alignmentY")))
+	if (Fields->HasField(TEXT("AlignmentX")) && Fields->HasField(TEXT("AlignmentY")))
 	{
 		const FVector2D Align(
-			static_cast<float>(Fields->GetNumberField(TEXT("alignmentX"))),
-			static_cast<float>(Fields->GetNumberField(TEXT("alignmentY"))));
+			static_cast<float>(Fields->GetNumberField(TEXT("AlignmentX"))),
+			static_cast<float>(Fields->GetNumberField(TEXT("AlignmentY"))));
 #if NX_UE_HAS_UMG_SLOT_GETTERS
 		Slot->SetAlignment(Align);
 #else
@@ -217,18 +217,18 @@ bool FNexusWidgetLayoutUtils::ApplyCanvasSlotFields(UWidget* Widget, const TShar
 #endif
 	}
 
-	if (Fields->HasField(TEXT("offsetLeft")) || Fields->HasField(TEXT("offsetTop"))
-		|| Fields->HasField(TEXT("offsetRight")) || Fields->HasField(TEXT("offsetBottom")))
+	if (Fields->HasField(TEXT("OffsetLeft")) || Fields->HasField(TEXT("OffsetTop"))
+		|| Fields->HasField(TEXT("OffsetRight")) || Fields->HasField(TEXT("OffsetBottom")))
 	{
 #if NX_UE_HAS_UMG_SLOT_GETTERS
 		FMargin Offsets = Slot->GetOffsets();
 #else
 		FMargin Offsets = Slot->LayoutData.Offsets;
 #endif
-		if (Fields->HasField(TEXT("offsetLeft")))   Offsets.Left   = static_cast<float>(Fields->GetNumberField(TEXT("offsetLeft")));
-		if (Fields->HasField(TEXT("offsetTop")))    Offsets.Top    = static_cast<float>(Fields->GetNumberField(TEXT("offsetTop")));
-		if (Fields->HasField(TEXT("offsetRight")))  Offsets.Right  = static_cast<float>(Fields->GetNumberField(TEXT("offsetRight")));
-		if (Fields->HasField(TEXT("offsetBottom"))) Offsets.Bottom = static_cast<float>(Fields->GetNumberField(TEXT("offsetBottom")));
+		if (Fields->HasField(TEXT("OffsetLeft")))   Offsets.Left   = static_cast<float>(Fields->GetNumberField(TEXT("OffsetLeft")));
+		if (Fields->HasField(TEXT("OffsetTop")))    Offsets.Top    = static_cast<float>(Fields->GetNumberField(TEXT("OffsetTop")));
+		if (Fields->HasField(TEXT("OffsetRight")))  Offsets.Right  = static_cast<float>(Fields->GetNumberField(TEXT("OffsetRight")));
+		if (Fields->HasField(TEXT("OffsetBottom"))) Offsets.Bottom = static_cast<float>(Fields->GetNumberField(TEXT("OffsetBottom")));
 #if NX_UE_HAS_UMG_SLOT_GETTERS
 		Slot->SetOffsets(Offsets);
 #else
@@ -236,21 +236,21 @@ bool FNexusWidgetLayoutUtils::ApplyCanvasSlotFields(UWidget* Widget, const TShar
 #endif
 	}
 
-	if (Fields->HasField(TEXT("autoSize")))
+	if (Fields->HasField(TEXT("bAutoSize")))
 	{
 #if NX_UE_HAS_UMG_SLOT_GETTERS
-		Slot->SetAutoSize(Fields->GetBoolField(TEXT("autoSize")));
+		Slot->SetAutoSize(Fields->GetBoolField(TEXT("bAutoSize")));
 #else
-		Slot->bAutoSize = Fields->GetBoolField(TEXT("autoSize"));
+		Slot->bAutoSize = Fields->GetBoolField(TEXT("bAutoSize"));
 #endif
 	}
 
-	if (Fields->HasField(TEXT("zOrder")))
+	if (Fields->HasField(TEXT("ZOrder")))
 	{
 #if NX_UE_HAS_UMG_SLOT_GETTERS
-		Slot->SetZOrder(static_cast<int32>(Fields->GetNumberField(TEXT("zOrder"))));
+		Slot->SetZOrder(static_cast<int32>(Fields->GetNumberField(TEXT("ZOrder"))));
 #else
-		Slot->ZOrder = static_cast<int32>(Fields->GetNumberField(TEXT("zOrder")));
+		Slot->ZOrder = static_cast<int32>(Fields->GetNumberField(TEXT("ZOrder")));
 #endif
 	}
 
@@ -270,10 +270,10 @@ bool FNexusWidgetLayoutUtils::ApplyCanvasSlotFields(UWidget* Widget, const TShar
 template<typename SlotType>
 static void AppendSlateBoxPanelSlotFields(const SlotType& S, TSharedPtr<FJsonObject>& SlotObj)
 {
-	SlotObj->SetStringField(TEXT("horizontalAlignment"), HAlignToString(S.GetHorizontalAlignment()));
-	SlotObj->SetStringField(TEXT("verticalAlignment"), VAlignToString(S.GetVerticalAlignment()));
-	SetMarginField(SlotObj, TEXT("padding"), S.GetPadding());
-	SlotObj->SetNumberField(TEXT("sizeValue"), S.GetSizeValue());
+	SlotObj->SetStringField(TEXT("HorizontalAlignment"), HAlignToString(S.GetHorizontalAlignment()));
+	SlotObj->SetStringField(TEXT("VerticalAlignment"), VAlignToString(S.GetVerticalAlignment()));
+	SetMarginField(SlotObj, TEXT("Padding"), S.GetPadding());
+	SlotObj->SetNumberField(TEXT("SizeValue"), S.GetSizeValue());
 }
 
 static void TryAppendSlateParentSlot(const TSharedPtr<SWidget>& Widget, TSharedPtr<FJsonObject>& Layout)
@@ -291,7 +291,7 @@ static void TryAppendSlateParentSlot(const TSharedPtr<SWidget>& Widget, TSharedP
 	}
 
 	TSharedPtr<FJsonObject> SlotObj = MakeShared<FJsonObject>();
-	SlotObj->SetStringField(TEXT("source"), TEXT("slate"));
+	SlotObj->SetStringField(TEXT("Source"), TEXT("slate"));
 
 	const FName ParentType = Parent->GetType();
 	const TSharedRef<SWidget> ChildRef = Widget.ToSharedRef();
@@ -303,26 +303,26 @@ static void TryAppendSlateParentSlot(const TSharedPtr<SWidget>& Widget, TSharedP
 			continue;
 		}
 
-		SlotObj->SetNumberField(TEXT("slotIndex"), i);
+		SlotObj->SetNumberField(TEXT("SlotIndex"), i);
 
 		if (ParentType == FName(TEXT("SHorizontalBox")))
 		{
 			SHorizontalBox* HBox = static_cast<SHorizontalBox*>(const_cast<SWidget*>(Parent.Get()));
-			SlotObj->SetStringField(TEXT("slotType"), TEXT("SHorizontalBox"));
+			SlotObj->SetStringField(TEXT("SlotType"), TEXT("SHorizontalBox"));
 			AppendSlateBoxPanelSlotFields(HBox->GetSlot(i), SlotObj);
 		}
 		else if (ParentType == FName(TEXT("SVerticalBox")))
 		{
 			SVerticalBox* VBox = static_cast<SVerticalBox*>(const_cast<SWidget*>(Parent.Get()));
-			SlotObj->SetStringField(TEXT("slotType"), TEXT("SVerticalBox"));
+			SlotObj->SetStringField(TEXT("SlotType"), TEXT("SVerticalBox"));
 			AppendSlateBoxPanelSlotFields(VBox->GetSlot(i), SlotObj);
 		}
 		break;
 	}
 
-	if (SlotObj->HasField(TEXT("slotType")))
+	if (SlotObj->HasField(TEXT("SlotType")))
 	{
-		Layout->SetObjectField(TEXT("slateSlot"), SlotObj);
+		Layout->SetObjectField(TEXT("SlateSlot"), SlotObj);
 	}
 }
 
@@ -364,18 +364,18 @@ void FNexusWidgetLayoutUtils::AppendSlateLayoutFields(const TSharedPtr<SWidget>&
 	}
 
 	TSharedPtr<FJsonObject> Layout = MakeShared<FJsonObject>();
-	Layout->SetStringField(TEXT("source"), TEXT("slate"));
+	Layout->SetStringField(TEXT("Source"), TEXT("slate"));
 
 	if (Widget->GetType() == FName(TEXT("STextBlock")))
 	{
-		Layout->SetStringField(TEXT("textBlockNote"),
-			TEXT("STextBlock::AutoWrapText requires linked UTextBlock; check umgWidget is populated"));
+		Layout->SetStringField(TEXT("TextBlockNote"),
+			TEXT("STextBlock::AutoWrapText requires linked UTextBlock; check UMGWidget is populated"));
 	}
 
 #if NX_UE_HAS_SLATE_BOX_PANEL_SLOT_GETTERS
 	TryAppendSlateParentSlot(Widget, Layout);
 #endif
-	InOutEntry->SetObjectField(TEXT("layout"), Layout);
+	InOutEntry->SetObjectField(TEXT("Layout"), Layout);
 }
 
 #endif // WITH_EDITOR

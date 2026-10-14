@@ -41,7 +41,7 @@ UWidgetAnimation* FNexusWidgetAnimationUtils::FindAnimation(UWidgetBlueprint* WB
 UWidgetAnimation* FNexusWidgetAnimationUtils::AddAnimation(UWidgetBlueprint* WBP, const FString& Name, FString& OutError)
 {
 	if (!WBP) { OutError = TEXT("Invalid WidgetBlueprint"); return nullptr; }
-	if (Name.IsEmpty()) { OutError = TEXT("animationName is required"); return nullptr; }
+	if (Name.IsEmpty()) { OutError = TEXT("AnimationName is required"); return nullptr; }
 	if (FindAnimation(WBP, Name)) { OutError = FString::Printf(TEXT("Animation already exists: %s"), *Name); return nullptr; }
 
 	UWidgetAnimation* Anim = NewObject<UWidgetAnimation>(WBP, FName(*Name), RF_Transactional);
@@ -244,7 +244,7 @@ bool FNexusWidgetAnimationUtils::AddFloatKey(UWidgetAnimation* Anim, const FStri
 	UMovieScene* Scene = GetAnimScene(Anim);
 	if (!Scene) { OutError = TEXT("Animation has no MovieScene"); return false; }
 	UMovieSceneFloatTrack* FloatTrack = FindFloatTrackByName(Scene, TrackName);
-	if (!FloatTrack) { OutError = TEXT("No Float track; add_track first"); return false; }
+	if (!FloatTrack) { OutError = TEXT("No Float track; AddTrack first"); return false; }
 	return WriteKeyOnFloatTrack(Scene, FloatTrack, TimeSeconds, Value, OutError);
 }
 
@@ -252,7 +252,7 @@ bool FNexusWidgetAnimationUtils::RemoveFloatTrack(UWidgetAnimation* Anim, const 
 {
 	UMovieScene* Scene = GetAnimScene(Anim);
 	if (!Scene) { OutError = TEXT("Animation has no MovieScene"); return false; }
-	if (TrackName.IsEmpty()) { OutError = TEXT("remove_track requires trackName"); return false; }
+	if (TrackName.IsEmpty()) { OutError = TEXT("RemoveTrack requires TrackName"); return false; }
 	UMovieSceneFloatTrack* Track = FindFloatTrackByName(Scene, TrackName);
 	if (!Track) { OutError = FString::Printf(TEXT("Track not found: %s"), *TrackName); return false; }
 	const bool bRemoved = Scene->RemoveTrack(*Track);
@@ -293,11 +293,11 @@ bool FNexusWidgetAnimationUtils::RemoveFloatKey(UWidgetAnimation* Anim, const FS
 	TArray<FFrameNumber> Times;
 	TArray<FKeyHandle> Handles;
 	Channel->GetKeys(TRange<FFrameNumber>::All(), &Times, &Handles);
-	for (int32 i = 0; i < Times.Num(); ++i)
+	for (int32 TimeIndex = 0; TimeIndex < Times.Num(); ++TimeIndex)
 	{
-		if (Times[i] == Frame && Handles.IsValidIndex(i))
+		if (Times[TimeIndex] == Frame && Handles.IsValidIndex(TimeIndex))
 		{
-			const FKeyHandle Handle = Handles[i];
+			const FKeyHandle Handle = Handles[TimeIndex];
 			Channel->DeleteKeys(TArrayView<const FKeyHandle>(&Handle, 1));
 			bRemoved = true;
 			break;
@@ -331,9 +331,9 @@ void FNexusWidgetAnimationUtils::AppendTrackSummaries(UWidgetAnimation* Anim, TA
 	{
 		if (!T) continue;
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-		Obj->SetStringField(TEXT("trackClass"), T->GetClass()->GetName());
-		Obj->SetStringField(TEXT("displayName"), T->GetDisplayName().ToString());
-		Obj->SetNumberField(TEXT("sectionsCount"), T->GetAllSections().Num());
+		Obj->SetStringField(TEXT("TrackClass"), T->GetClass()->GetName());
+		Obj->SetStringField(TEXT("DisplayName"), T->GetDisplayName().ToString());
+		Obj->SetNumberField(TEXT("SectionsCount"), T->GetAllSections().Num());
 		OutTracks.Add(MakeShared<FJsonValueObject>(Obj));
 	}
 }

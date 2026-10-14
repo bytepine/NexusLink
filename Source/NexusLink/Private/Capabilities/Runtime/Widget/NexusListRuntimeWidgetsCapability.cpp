@@ -15,24 +15,24 @@
 #include "Components/PanelWidget.h"
 #include "NexusMcpTool.h"
 
-void FListRuntimeWidgetsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusListRuntimeWidgetsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("list_runtime_widgets");
-	Out.Description = TEXT("List PIE/Game viewport UMG instances. Filter by class/name/displayText.");
+	Out.Name = TEXT("ListRuntimeWidgets");
+	Out.Description = TEXT("List PIE/Game viewport UMG instances. Filter by class/name/DisplayText.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("classFilter"), FNexusSchema::Str(TEXT("UserWidget class name filter")))
-		.Prop(TEXT("nameFilter"),  FNexusSchema::Str(TEXT("Child Widget name filter")))
-		.Prop(TEXT("textFilter"),  FNexusSchema::Str(TEXT("Visible display text substring filter")))
-		.Prop(TEXT("offset"),      FNexusSchema::Int(TEXT("Pagination offset (default 0)")))
-		.Prop(TEXT("limit"),       FNexusSchema::Int(TEXT("Max count 1-500 (default 100)")))
+		.Prop(TEXT("ClassFilter"), FNexusSchema::Str(TEXT("UserWidget class name filter")))
+		.Prop(TEXT("NameFilter"),  FNexusSchema::Str(TEXT("Child Widget name filter")))
+		.Prop(TEXT("TextFilter"),  FNexusSchema::Str(TEXT("Visible display text substring filter")))
+		.Prop(TEXT("Offset"),      FNexusSchema::Int(TEXT("Pagination offset (default 0)")))
+		.Prop(TEXT("Limit"),       FNexusSchema::Int(TEXT("Max count 1-500 (default 100)")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("viewport"), TEXT("hud"), TEXT("screen"), TEXT("enumerate") };
-	Out.RelatedCapabilities = { TEXT("get_runtime_widget_property"), TEXT("interact_runtime_widget") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("Viewport"), TEXT("hud"), TEXT("screen"), TEXT("enumerate") };
+	Out.RelatedCapabilities = { TEXT("GetRuntimeWidgetProperty"), TEXT("InteractRuntimeWidget") };
+	Out.Prerequisites = { TEXT("PIE") };
 }
 
-FCapabilityResult FListRuntimeWidgetsCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusListRuntimeWidgetsCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
@@ -42,11 +42,11 @@ FCapabilityResult FListRuntimeWidgetsCapability::Execute(const TSharedPtr<FJsonO
 
 		if (Arguments.IsValid())
 		{
-			if (Arguments->HasField(TEXT("classFilter"))) ClassFilter = A.Str(TEXT("classFilter"));
-			if (Arguments->HasField(TEXT("nameFilter")))  NameFilter  = A.Str(TEXT("nameFilter"));
-			if (Arguments->HasField(TEXT("textFilter")))  TextFilter  = A.Str(TEXT("textFilter"));
-			if (Arguments->HasField(TEXT("offset")))      Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
-			if (Arguments->HasField(TEXT("limit")))       Limit  = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
+			if (Arguments->HasField(TEXT("ClassFilter"))) ClassFilter = A.Str(TEXT("ClassFilter"));
+			if (Arguments->HasField(TEXT("NameFilter")))  NameFilter  = A.Str(TEXT("NameFilter"));
+			if (Arguments->HasField(TEXT("TextFilter")))  TextFilter  = A.Str(TEXT("TextFilter"));
+			if (Arguments->HasField(TEXT("Offset")))      Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("Offset"))));
+			if (Arguments->HasField(TEXT("Limit")))       Limit  = FMath::Clamp(static_cast<int32>(A.Num(TEXT("Limit"))), 1, 500);
 		}
 
 		struct FEntry { FString OwnerClass; FString Name; FString Class; FString Parent; FString DisplayText; };
@@ -84,29 +84,29 @@ FCapabilityResult FListRuntimeWidgetsCapability::Execute(const TSharedPtr<FJsonO
 		for (int32 i = Start; i < End; ++i)
 		{
 			TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
-			O->SetStringField(TEXT("widgetClass"), All[i].OwnerClass);
+			O->SetStringField(TEXT("WidgetClass"), All[i].OwnerClass);
 			O->SetStringField(TEXT("name"),  All[i].Name);
-			O->SetStringField(TEXT("class"), All[i].Class);
-			if (!All[i].Parent.IsEmpty())      O->SetStringField(TEXT("parent"),      All[i].Parent);
-			if (!All[i].DisplayText.IsEmpty()) O->SetStringField(TEXT("displayText"), All[i].DisplayText);
+			O->SetStringField(TEXT("Class"), All[i].Class);
+			if (!All[i].Parent.IsEmpty())      O->SetStringField(TEXT("Parent"),      All[i].Parent);
+			if (!All[i].DisplayText.IsEmpty()) O->SetStringField(TEXT("DisplayText"), All[i].DisplayText);
 			Page.Add(MakeShared<FJsonValueObject>(O));
 		}
 
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-	Entry->SetNumberField(TEXT("totalCount"), Total);
-	Entry->SetNumberField(TEXT("offset"),     Start);
-	Entry->SetNumberField(TEXT("limit"),      Limit);
-	Entry->SetArrayField(TEXT("widgets"),     Page);
+	Entry->SetNumberField(TEXT("TotalCount"), Total);
+	Entry->SetNumberField(TEXT("Offset"),     Start);
+	Entry->SetNumberField(TEXT("Limit"),      Limit);
+	Entry->SetArrayField(TEXT("Widgets"),     Page);
 		if (!ClassFilter.IsEmpty() && Page.Num() > 0)
 		{
 			FNexusResponseCompactorUtils WidgetCompactor;
-			WidgetCompactor.AddForcedDefaultIfUnanimous(TEXT("widgetClass"), Page);
+			WidgetCompactor.AddForcedDefaultIfUnanimous(TEXT("WidgetClass"), Page);
 			WidgetCompactor.CompactArray(Page);
-			WidgetCompactor.Emit(Entry, TEXT("widgets"));
+			WidgetCompactor.Emit(Entry, TEXT("Widgets"));
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FListRuntimeWidgetsCapability)
+REGISTER_MCP_CAPABILITY(FNexusListRuntimeWidgetsCapability)
 

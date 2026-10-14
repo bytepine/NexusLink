@@ -31,7 +31,7 @@ protected:
 
 	virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) const override final;
 
-	/** 加载 assetPath 对应目标，写 locator 到 Entry；失败时填 OutError 或 Entry.error。 */
+	/** 加载 AssetPath 对应目标，写 locator 到 Entry；失败时填 OutError 或 Entry.error。 */
 	virtual bool PrepareTarget(const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Entry, void*& OutTarget, FString& OutError) const;
 
 	virtual void FinalizeTarget(void* Target) const {}

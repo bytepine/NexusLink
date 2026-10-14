@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** 读取 BehaviorTree 资产结构（根节点树）。工具名 get_asset_behavior_tree。 */
-class FGetAssetBehaviorTreeCapability : public FNexusCapability
+/** 读取 BehaviorTree 资产结构（根节点树）。工具名 GetAssetBehaviorTree。 */
+class FNexusGetAssetBehaviorTreeCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #if WITH_GEOMETRY_COLLECTION
 #include "NexusActionCapability.h"
-class FManageAssetGeometryCollectionCapability : public FNexusActionCapability
+class FNexusManageAssetGeometryCollectionCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

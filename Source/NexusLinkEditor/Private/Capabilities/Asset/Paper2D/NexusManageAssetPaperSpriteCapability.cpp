@@ -11,26 +11,26 @@
 #include "Engine/Texture2D.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetPaperSpriteCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetPaperSpriteCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_paper_sprite");
+	Out.Name = TEXT("ManageAssetPaperSprite");
 	Out.SearchAssetTypes = {TEXT("PaperSprite")};
-	Out.Description = TEXT("Batch edit PaperSprite. action=set_source/set_pivot.");
+	Out.Description = TEXT("Batch edit PaperSprite. Action=SetSource/SetPivot.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("set_source"), TEXT("set_pivot") }))
-		.Prop(TEXT("sourceTexturePath"), FNexusSchema::Str(TEXT("Source Texture2D (set_source)")))
-		.Prop(TEXT("pivotX"), FNexusSchema::Num(TEXT("Pivot X (set_pivot)")))
-		.Prop(TEXT("pivotY"), FNexusSchema::Num(TEXT("Pivot Y (set_pivot)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("SetSource"), TEXT("SetPivot") }))
+		.Prop(TEXT("SourceTexturePath"), FNexusSchema::Str(TEXT("Source Texture2D (SetSource)")))
+		.Prop(TEXT("PivotX"), FNexusSchema::Num(TEXT("Pivot X (SetPivot)")))
+		.Prop(TEXT("PivotY"), FNexusSchema::Num(TEXT("Pivot Y (SetPivot)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperSprite asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("PaperSprite asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("sprite"), TEXT("pivot"), TEXT("source") };
-	Out.RelatedCapabilities = { TEXT("get_asset_paper_sprite"), TEXT("create_asset_paper_sprite") };
+	Out.ExtraSearchKeywords = { TEXT("Sprite"), TEXT("pivot"), TEXT("Source") };
+	Out.RelatedCapabilities = { TEXT("GetAssetPaperSprite"), TEXT("CreateAssetPaperSprite") };
 }
 
 struct FPaperSpriteActionState
@@ -63,26 +63,26 @@ static void HandleSprite_SetSource(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	UPaperSprite* Sprite = SpriteFrom(Ctx);
 	if (!Sprite)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperSprite is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PaperSprite is null"));
 		return;
 	}
 	FString TexPath;
-	if (!Op->TryGetStringField(TEXT("sourceTexturePath"), TexPath) || TexPath.IsEmpty())
+	if (!Op->TryGetStringField(TEXT("SourceTexturePath"), TexPath) || TexPath.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_source requires sourceTexturePath"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetSource requires SourceTexturePath"));
 		return;
 	}
 	UTexture2D* Tex = FNexusAssetUtils::LoadAssetWithFallback<UTexture2D>(TexPath);
 	if (!Tex)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Texture2D not found: %s"), *TexPath));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Texture2D not found: %s"), *TexPath));
 		return;
 	}
 	FSpriteAssetInitParameters Init;
 	Init.SetTextureAndFill(Tex);
 	Sprite->InitializeSprite(Init);
 	MarkSpriteDirty(Ctx);
-	Ctx.Entry->SetStringField(TEXT("sourceTexture"), Tex->GetPathName());
+	Ctx.Entry->SetStringField(TEXT("SourceTexture"), Tex->GetPathName());
 }
 
 static void HandleSprite_SetPivot(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -90,26 +90,26 @@ static void HandleSprite_SetPivot(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	UPaperSprite* Sprite = SpriteFrom(Ctx);
 	if (!Sprite)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperSprite is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PaperSprite is null"));
 		return;
 	}
 	FVector2D Pivot = Sprite->GetPivotPosition();
-	if (Op->HasField(TEXT("pivotX"))) Pivot.X = static_cast<float>(Op->GetNumberField(TEXT("pivotX")));
-	if (Op->HasField(TEXT("pivotY"))) Pivot.Y = static_cast<float>(Op->GetNumberField(TEXT("pivotY")));
+	if (Op->HasField(TEXT("PivotX"))) Pivot.X = static_cast<float>(Op->GetNumberField(TEXT("PivotX")));
+	if (Op->HasField(TEXT("PivotY"))) Pivot.Y = static_cast<float>(Op->GetNumberField(TEXT("PivotY")));
 	Sprite->SetPivotMode(ESpritePivotMode::Custom, Pivot, true);
 	MarkSpriteDirty(Ctx);
-	Ctx.Entry->SetNumberField(TEXT("pivotX"), Pivot.X);
-	Ctx.Entry->SetNumberField(TEXT("pivotY"), Pivot.Y);
+	Ctx.Entry->SetNumberField(TEXT("PivotX"), Pivot.X);
+	Ctx.Entry->SetNumberField(TEXT("PivotY"), Pivot.Y);
 }
 
-bool FManageAssetPaperSpriteCapability::PrepareTarget(
+bool FNexusManageAssetPaperSpriteCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UPaperSprite* Sprite = FNexusAssetUtils::LoadAssetWithFallback<UPaperSprite>(AssetPath);
 	if (!Sprite)
 	{
@@ -122,7 +122,7 @@ bool FManageAssetPaperSpriteCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetPaperSpriteCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetPaperSpriteCapability::FinalizeTarget(void* Target) const
 {
 	FPaperSpriteActionState* State = static_cast<FPaperSpriteActionState*>(Target);
 	if (!State) return;
@@ -133,11 +133,11 @@ void FManageAssetPaperSpriteCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetPaperSpriteCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetPaperSpriteCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_source"), &HandleSprite_SetSource);
-	OutHandlers.Add(TEXT("set_pivot"),  &HandleSprite_SetPivot);
+	OutHandlers.Add(TEXT("SetSource"), &HandleSprite_SetSource);
+	OutHandlers.Add(TEXT("SetPivot"),  &HandleSprite_SetPivot);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetPaperSpriteCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetPaperSpriteCapability)
 #endif

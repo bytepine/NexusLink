@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** rename_asset —— 重命名/移动资产并自动重定向引用。*/
-class FRenameAssetCapability : public FNexusCapability
+/** RenameAsset —— 重命名/移动资产并自动重定向引用。*/
+class FNexusRenameAssetCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -9,28 +9,28 @@
 #include "Animation/AnimSequenceBase.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetAnimCompositeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetAnimCompositeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_anim_composite");
+	Out.Name = TEXT("ManageAssetAnimComposite");
 	Out.SearchAssetTypes = {TEXT("AnimComposite")};
-	Out.Description = TEXT("Edit AnimComposite composite track segments. action: add_segment/remove_segment.");
+	Out.Description = TEXT("Edit AnimComposite composite track segments. action: AddSegment/RemoveSegment.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Required(TEXT("action"),        FNexusSchema::Enum(TEXT("Action"),
-			{ TEXT("add_segment"), TEXT("remove_segment") }))
-		.Prop(TEXT("animPath"),          FNexusSchema::Str(TEXT("AnimSequence path (add_segment)")))
-		.Prop(TEXT("startPos"),          FNexusSchema::Num(TEXT("Segment start time (add_segment; default end)")))
-		.Prop(TEXT("animStartTime"),     FNexusSchema::Num(TEXT("Source anim start (add_segment; default 0)")))
-		.Prop(TEXT("animEndTime"),       FNexusSchema::Num(TEXT("Source anim end (add_segment; 0=full length)")))
-		.Prop(TEXT("playRate"),          FNexusSchema::Num(TEXT("Play rate (add_segment; default 1.0)")))
-		.Prop(TEXT("segmentIndex"),      FNexusSchema::Int(TEXT("Segment index (remove_segment)")))
+		.Required(TEXT("Action"),        FNexusSchema::Enum(TEXT("Action"),
+			{ TEXT("AddSegment"), TEXT("RemoveSegment") }))
+		.Prop(TEXT("AnimPath"),          FNexusSchema::Str(TEXT("AnimSequence path (AddSegment)")))
+		.Prop(TEXT("StartPos"),          FNexusSchema::Num(TEXT("Segment start time (AddSegment; default end)")))
+		.Prop(TEXT("AnimStartTime"),     FNexusSchema::Num(TEXT("Source anim start (AddSegment; default 0)")))
+		.Prop(TEXT("AnimEndTime"),       FNexusSchema::Num(TEXT("Source anim end (AddSegment; 0=full length)")))
+		.Prop(TEXT("PlayRate"),          FNexusSchema::Num(TEXT("Play rate (AddSegment; default 1.0)")))
+		.Prop(TEXT("SegmentIndex"),      FNexusSchema::Int(TEXT("Segment index (RemoveSegment)")))
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"),   FNexusSchema::Str(TEXT("AnimComposite asset path")))
-		.Required(TEXT("operations"),  FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
+		.Required(TEXT("AssetPath"),   FNexusSchema::Str(TEXT("AnimComposite asset path")))
+		.Required(TEXT("Operations"),  FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("composite"), TEXT("segment"), TEXT("add"), TEXT("remove"), TEXT("track") };
-	Out.RelatedCapabilities = { TEXT("create_asset_anim_composite"), TEXT("get_asset_anim_composite") };
+	Out.ExtraSearchKeywords = { TEXT("Composite"), TEXT("segment"), TEXT("Add"), TEXT("Remove"), TEXT("track") };
+	Out.RelatedCapabilities = { TEXT("CreateAssetAnimComposite"), TEXT("GetAssetAnimComposite") };
 }
 
 struct FAnimCompositeActionState
@@ -63,18 +63,18 @@ static void HandleComp_AddSegment(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	UAnimComposite* Composite = CompFrom(Ctx);
 	if (!Composite)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("AnimComposite is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AnimComposite is null"));
 		return;
 	}
-	const FString AnimPath = FNexusArgs(Op).Str(TEXT("animPath"));
+	const FString AnimPath = FNexusArgs(Op).Str(TEXT("AnimPath"));
 	UAnimSequenceBase* AnimRef = AnimPath.IsEmpty()
 		? nullptr
 		: LoadObject<UAnimSequenceBase>(nullptr, *AnimPath);
 
 	float StartPos = 0.f;
-	if (Op->HasField(TEXT("startPos")))
+	if (Op->HasField(TEXT("StartPos")))
 	{
-		StartPos = static_cast<float>(Op->GetNumberField(TEXT("startPos")));
+		StartPos = static_cast<float>(Op->GetNumberField(TEXT("StartPos")));
 	}
 	else
 	{
@@ -93,9 +93,9 @@ static void HandleComp_AddSegment(const TSharedPtr<FJsonObject>& Op, FNexusActio
 
 	FAnimSegment NewSeg;
 	NewSeg.StartPos      = StartPos;
-	NewSeg.AnimStartTime = static_cast<float>(FNexusArgs(Op).Num(TEXT("animStartTime"), 0.f));
-	NewSeg.AnimEndTime   = static_cast<float>(FNexusArgs(Op).Num(TEXT("animEndTime"), 0.f));
-	NewSeg.AnimPlayRate  = static_cast<float>(FNexusArgs(Op).Num(TEXT("playRate"), 1.f));
+	NewSeg.AnimStartTime = static_cast<float>(FNexusArgs(Op).Num(TEXT("AnimStartTime"), 0.f));
+	NewSeg.AnimEndTime   = static_cast<float>(FNexusArgs(Op).Num(TEXT("AnimEndTime"), 0.f));
+	NewSeg.AnimPlayRate  = static_cast<float>(FNexusArgs(Op).Num(TEXT("PlayRate"), 1.f));
 	NewSeg.LoopingCount  = 1;
 
 #if NX_UE_HAS_ANIM_SEGMENT_ACCESSOR
@@ -104,7 +104,7 @@ static void HandleComp_AddSegment(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	NewSeg.AnimReference = AnimRef;
 #endif
 	const int32 NewIdx = Composite->AnimationTrack.AnimSegments.Add(NewSeg);
-	Ctx.Entry->SetNumberField(TEXT("newIndex"), NewIdx);
+	Ctx.Entry->SetNumberField(TEXT("NewIndex"), NewIdx);
 	MarkCompDirty(Ctx);
 }
 
@@ -113,33 +113,33 @@ static void HandleComp_RemoveSegment(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	UAnimComposite* Composite = CompFrom(Ctx);
 	if (!Composite)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("AnimComposite is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AnimComposite is null"));
 		return;
 	}
-	if (!Op->HasField(TEXT("segmentIndex")))
+	if (!Op->HasField(TEXT("SegmentIndex")))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_segment requires segmentIndex"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveSegment requires SegmentIndex"));
 		return;
 	}
-	const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("segmentIndex")));
+	const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("SegmentIndex")));
 	if (!Composite->AnimationTrack.AnimSegments.IsValidIndex(Idx))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"),
-			FString::Printf(TEXT("segmentIndex %d out of bounds"), Idx));
+		Ctx.Entry->SetStringField(TEXT("Error"),
+			FString::Printf(TEXT("SegmentIndex %d out of bounds"), Idx));
 		return;
 	}
 	Composite->AnimationTrack.AnimSegments.RemoveAt(Idx);
 	MarkCompDirty(Ctx);
 }
 
-bool FManageAssetAnimCompositeCapability::PrepareTarget(
+bool FNexusManageAssetAnimCompositeCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UAnimComposite* Composite = LoadObject<UAnimComposite>(nullptr, *AssetPath);
 	if (!Composite)
 	{
@@ -152,7 +152,7 @@ bool FManageAssetAnimCompositeCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetAnimCompositeCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetAnimCompositeCapability::FinalizeTarget(void* Target) const
 {
 	FAnimCompositeActionState* State = static_cast<FAnimCompositeActionState*>(Target);
 	if (!State) return;
@@ -163,10 +163,10 @@ void FManageAssetAnimCompositeCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetAnimCompositeCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetAnimCompositeCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("add_segment"),    &HandleComp_AddSegment);
-	OutHandlers.Add(TEXT("remove_segment"), &HandleComp_RemoveSegment);
+	OutHandlers.Add(TEXT("AddSegment"),    &HandleComp_AddSegment);
+	OutHandlers.Add(TEXT("RemoveSegment"), &HandleComp_RemoveSegment);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetAnimCompositeCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetAnimCompositeCapability)

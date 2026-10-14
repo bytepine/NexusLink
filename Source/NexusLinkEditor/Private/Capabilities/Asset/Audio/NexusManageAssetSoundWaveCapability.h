@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_sound_wave — 编辑 SoundWave 属性（音量/衰减/循环）。*/
-class FManageAssetSoundWaveCapability : public FNexusActionCapability
+/** ManageAssetSoundWave — 编辑 SoundWave 属性（音量/衰减/循环）。*/
+class FNexusManageAssetSoundWaveCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

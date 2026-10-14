@@ -1,7 +1,7 @@
 {
-  "protocolVersion": "2025-06-18",
-  "minProxyVersion": "1.3.3",
-  "initializePrefix": "NexusLink MCP Proxy for Unreal Engine.\n\n## MUST USE MCP (no memory / path guessing / repo grep alone)\nWhen the user message includes any of: UE, Unreal, Blueprint, Asset, Widget, UMG, Material, BehaviorTree, ABP, DataAsset, DataTable, PIE, Actor, GAS, Niagara, StateTree, MVVM, Level, Lua, Montage, Blackboard, Skeleton, Texture — call MCP this turn before answering.\n\n## Connection & first action\n- tools/list already has UE tools (search_capabilities / call_capability or capability names) → call directly; do not list/connect.\n- tools/list only has list_unreal_instances + connect_unreal_instance → list → connect → search_capabilities → call_capability.\n- When connected: unknown capability → search_capabilities first; to read assets → search_asset first (top-level assets; typed recommendedGet/Manage + assets[].path).\n- Do not guess /Game/... paths; if the user names a specific asset and MCP was not called this turn → call MCP first.\n- Connection state follows tools/list (UE tools present = connected); do not repeatedly list/connect because of status hints.",
+  "ProtocolVersion": "2025-06-18",
+  "MinProxyVersion": "1.3.3",
+  "InitializePrefix": "NexusLink MCP Proxy for Unreal Engine.\n\n## MUST USE MCP (no memory / path guessing / repo grep alone)\nWhen the user message includes any of: UE, Unreal, Blueprint, Asset, Widget, UMG, Material, BehaviorTree, ABP, DataAsset, DataTable, PIE, Actor, GAS, Niagara, StateTree, MVVM, Level, Lua, Montage, Blackboard, Skeleton, Texture — call MCP this turn before answering.\n\n## Connection & first action\n- tools/list already has UE tools (SearchCapabilities / CallCapability or capability names) → call directly; do not list/connect.\n- tools/list only has list_unreal_instances + connect_unreal_instance → list → connect → SearchCapabilities → CallCapability.\n- When connected: unknown capability → SearchCapabilities first; to read assets → SearchAsset first (top-level assets; typed RecommendedGet/Manage + assets[].path).\n- Do not guess /Game/... paths; if the user names a specific asset and MCP was not called this turn → call MCP first.\n- Connection state follows tools/list (UE tools present = connected); do not repeatedly list/connect because of status hints.",
   "localToolNames": [
     "list_unreal_instances",
     "connect_unreal_instance"
@@ -9,13 +9,13 @@
   "connectionTools": [
     {
       "name": "list_unreal_instances",
-      "description": "[Stage 1 - Discovery] Probe running UE instances; returns port / projectName / engineVersion / connected.\nTrigger: user mentions UE/Blueprint/Widget/UMG/Material/Asset/BehaviorTree/ABP/DataAsset/PIE/Actor.\nUsage: call with no arguments.\nConstraint: do not repeat when connected=true.",
-      "inputSchema": { "type": "object" }
+      "description": "[Stage 1 - Discovery] Probe running UE instances; returns port / ProjectName / EngineVersion / connected.\nTrigger: user mentions UE/Blueprint/Widget/UMG/Material/Asset/BehaviorTree/ABP/DataAsset/PIE/Actor.\nUsage: call with no arguments.\nConstraint: do not repeat when connected=true.",
+      "InputSchema": { "type": "object" }
     },
     {
       "name": "connect_unreal_instance",
-      "description": "[Stage 2 - Connect] Connect to a UE instance on the given port.\nTrigger: list_unreal_instances returned an unconnected instance.\nPrerequisite: call list_unreal_instances first for the port.\nConstraint: skip when already connected; then UE tools (search_capabilities / call_capability or MultiTool capability names) are available.",
-      "inputSchema": {
+      "description": "[Stage 2 - Connect] Connect to a UE instance on the given port.\nTrigger: list_unreal_instances returned an unconnected instance.\nPrerequisite: call list_unreal_instances first for the port.\nConstraint: skip when already connected; then UE tools (SearchCapabilities / CallCapability or MultiTool capability names) are available.",
+      "InputSchema": {
         "type": "object",
         "properties": {
           "port": {

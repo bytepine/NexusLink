@@ -6,8 +6,8 @@
 #include "NexusCapability.h"
 #include "NexusRuntimeCapability.h"
 
-/** spawn_actor 的 Capability —— 生成单个 Actor（assetPath 或 className）。*/
-class FSpawnRuntimeActorCapability : public FNexusRuntimeCapability
+/** SpawnActor 的 Capability —— 生成单个 Actor（AssetPath 或 ClassName）。*/
+class FNexusSpawnRuntimeActorCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

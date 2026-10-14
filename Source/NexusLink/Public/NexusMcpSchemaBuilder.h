@@ -16,11 +16,11 @@
  * 用法示例：
  * @code
  * Def.InputSchema = FNexusSchema::Object()
- *     .Prop(TEXT("target"),  FNexusSchema::Enum(TEXT("Capture target"), { TEXT("editor"), TEXT("viewport"), TEXT("pie") }, TEXT("editor")))
- *     .Prop(TEXT("format"),  FNexusSchema::Enum(TEXT("Image format"),  { TEXT("png"), TEXT("jpg") }, TEXT("png")))
- *     .Prop(TEXT("maxSize"), FNexusSchema::Int(TEXT("Max pixel dimension"), 1920, 0, 8192))
- *     .Prop(TEXT("silent"),  FNexusSchema::Bool(TEXT("Suppress output"), false))
- *     .Required({ TEXT("target") })
+ *     .Prop(TEXT("Target"),  FNexusSchema::Enum(TEXT("Capture target"), { TEXT("Editor"), TEXT("Viewport"), TEXT("PIE") }, TEXT("Editor")))
+ *     .Prop(TEXT("Format"),  FNexusSchema::Enum(TEXT("Image format"),  { TEXT("png"), TEXT("jpg") }, TEXT("png")))
+ *     .Prop(TEXT("MaxSize"), FNexusSchema::Int(TEXT("Max pixel dimension"), 1920, 0, 8192))
+ *     .Prop(TEXT("bSilent"),  FNexusSchema::Bool(TEXT("Suppress output"), false))
+ *     .Required({ TEXT("Target") })
  *     .Build();
  * @endcode
  *
@@ -148,7 +148,7 @@ struct FNexusSchema
 		return P;
 	}
 
-	/** string[] 枚举数组：array + items.enum，用于 multi-section 的 sections 字段。Values 应已包含 "all"。 */
+	/** string[] 枚举数组：array + items.enum，用于 multi-section 的 sections 字段。Values 应已包含 "All"。 */
 	static TSharedRef<FJsonObject> EnumArr(const TCHAR* Desc, const TArray<FString>& Values)
 	{
 		TSharedRef<FJsonObject> Items = MakeShared<FJsonObject>();

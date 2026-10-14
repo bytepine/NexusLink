@@ -32,7 +32,7 @@ public:
 	static UWidget* FindWidgetByName(UWidgetBlueprint* WBP, const FString& WidgetName);
 
 	/**
-	 * save_asset 安全落盘：解析主资产后调用 FNexusAssetUtils::SaveNewAsset。
+	 * SaveAsset 安全落盘：解析主资产后调用 FNexusAssetUtils::SaveNewAsset。
 	 * Live Coding 开启时改为 MarkPackageDirty，bOutDeferred=true。
 	 * @return 是否已成功写入磁盘
 	 */
@@ -47,7 +47,7 @@ public:
 	/**
 	 * manage 收尾：按需编译（UBlueprint）与可选落盘。由 FNexusEditorServices::ApplyManageFinalize
 	 * 钩子转发调用（真正调用方 FNexusCapability::Run 驻留 Runtime 模块）。
-	 * 编译失败或找不到时写入 compileError/saveError，不视为 FatalError。
+	 * 编译失败或找不到时写入 CompileError/SaveError，不视为 FatalError。
 	 */
 	static void ApplyManageFinalize(
 		const FString& AssetPath,

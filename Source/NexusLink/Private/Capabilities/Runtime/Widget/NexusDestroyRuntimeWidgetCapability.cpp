@@ -9,30 +9,30 @@
 #include "Blueprint/UserWidget.h"
 #include "NexusMcpTool.h"
 
-void FDestroyRuntimeWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusDestroyRuntimeWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("destroy_runtime_widget");
-	Out.Description = TEXT("Remove and destroy runtime UMG panel from viewport. Locate by widgetName.");
+	Out.Name = TEXT("DestroyRuntimeWidget");
+	Out.Description = TEXT("Remove and destroy runtime UMG panel from viewport. Locate by WidgetName.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("widgetName"), FNexusSchema::Str(TEXT("UserWidget instance name to destroy")))
-		.Prop(TEXT("ownerClass"), FNexusSchema::Str(TEXT("Owner UserWidget class/name filter (optional)")))
-		.Required({ TEXT("widgetName") })
+		.Prop(TEXT("WidgetName"), FNexusSchema::Str(TEXT("UserWidget instance name to destroy")))
+		.Prop(TEXT("OwnerClass"), FNexusSchema::Str(TEXT("Owner UserWidget class/name filter (optional)")))
+		.Required({ TEXT("WidgetName") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("viewport"), TEXT("remove"), TEXT("close"), TEXT("dismiss") };
-	Out.RelatedCapabilities = { TEXT("spawn_runtime_widget"), TEXT("list_runtime_widgets") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("Viewport"), TEXT("Remove"), TEXT("close"), TEXT("dismiss") };
+	Out.RelatedCapabilities = { TEXT("SpawnRuntimeWidget"), TEXT("ListRuntimeWidgets") };
+	Out.Prerequisites = { TEXT("PIE") };
 	Out.WhenToUse = TEXT("Remove UMG panel from viewport in PIE");
 }
 
-FCapabilityResult FDestroyRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusDestroyRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString WidgetName = A.Str(TEXT("widgetName"));
+		const FString WidgetName = A.Str(TEXT("WidgetName"));
 		FString OwnerFilter;
-		if (Arguments.IsValid()) Arguments->TryGetStringField(TEXT("ownerClass"), OwnerFilter);
+		if (Arguments.IsValid()) Arguments->TryGetStringField(TEXT("OwnerClass"), OwnerFilter);
 
 		FString WorldError;
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(WorldError);
@@ -53,23 +53,23 @@ FCapabilityResult FDestroyRuntimeWidgetCapability::Execute(const TSharedPtr<FJso
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("widgetName"), WidgetName);
+		Entry->SetStringField(TEXT("WidgetName"), WidgetName);
 
 		if (!FoundWidget)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("UserWidget '%s' not found"), *WidgetName));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("UserWidget '%s' not found"), *WidgetName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 
-		Entry->SetStringField(TEXT("matchedName"),  FoundWidget->GetName());
-		Entry->SetStringField(TEXT("widgetClass"), FoundWidget->GetClass()->GetName());
+		Entry->SetStringField(TEXT("MatchedName"),  FoundWidget->GetName());
+		Entry->SetStringField(TEXT("WidgetClass"), FoundWidget->GetClass()->GetName());
 
 		FoundWidget->RemoveFromParent();
-		Entry->SetBoolField(TEXT("removed"), true);
+		Entry->SetBoolField(TEXT("bRemoved"), true);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FDestroyRuntimeWidgetCapability)
+REGISTER_MCP_CAPABILITY(FNexusDestroyRuntimeWidgetCapability)

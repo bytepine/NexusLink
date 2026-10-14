@@ -9,26 +9,26 @@
 #include "Sound/SoundCue.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_sound_cue");
-	Out.Description = TEXT("Create empty SoundCue. Add nodes via manage_asset_sound_cue.");
+	Out.Name = TEXT("CreateAssetSoundCue");
+	Out.Description = TEXT("Create empty SoundCue. Add nodes via ManageAssetSoundCue.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundCue package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("SoundCue package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("sound"), TEXT("cue"), TEXT("audio"), TEXT("sfx") };
-	Out.RelatedCapabilities = { TEXT("get_asset_sound_cue"), TEXT("manage_asset_sound_cue") };
-	Out.WhenToUse = TEXT("Create SoundCue; aligns with create_asset_sound_class");
+	Out.ExtraSearchKeywords = { TEXT("Sound"), TEXT("cue"), TEXT("audio"), TEXT("sfx") };
+	Out.RelatedCapabilities = { TEXT("GetAssetSoundCue"), TEXT("ManageAssetSoundCue") };
+	Out.WhenToUse = TEXT("Create SoundCue; aligns with CreateAssetSoundClass");
 }
 
-FCapabilityResult FCreateAssetSoundCueCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetSoundCueCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<USoundCue>(AssetPath);
 		if (!Created.Ok())
@@ -41,4 +41,4 @@ FCapabilityResult FCreateAssetSoundCueCapability::Execute(const TSharedPtr<FJson
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetSoundCueCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetSoundCueCapability)

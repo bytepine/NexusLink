@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** get_asset_sound_cue — 只读检查 USoundCue 时长与 SoundNode 一层摘要。 */
-class FGetAssetSoundCueCapability : public FNexusCapability
+/** GetAssetSoundCue — 只读检查 USoundCue 时长与 SoundNode 一层摘要。 */
+class FNexusGetAssetSoundCueCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

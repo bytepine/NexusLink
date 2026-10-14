@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_font：窄 set_property（ScalingFactor 等）。 */
-class FManageAssetFontCapability : public FNexusActionCapability
+/** ManageAssetFont：窄 SetProperty（ScalingFactor 等）。 */
+class FNexusManageAssetFontCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

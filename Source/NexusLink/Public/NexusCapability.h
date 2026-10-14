@@ -21,11 +21,11 @@ struct FCapabilityResult
 	TArray<TSharedPtr<FJsonValue>> Entries;
 	TSharedPtr<FJsonObject>        TopFields;
 	FString                        FatalError;
-	/** 标记 FatalError 源于参数校验（required 字段缺失/类型不符），用于区分 call_arg_invalid 与 call_fatal。 */
+	/** 标记 FatalError 源于参数校验（required 字段缺失/类型不符），用于区分 CallArgInvalid 与 CallFatal。 */
 	bool                           bIsArgInvalid = false;
-	/** 用户在编辑器确认框拒绝（或超时/无 UI）；映射 errorKind=user_denied，不记 call_fatal。 */
+	/** 用户在编辑器确认框拒绝（或超时/无 UI）；映射 ErrorKind=UserDenied，不记 CallFatal。 */
 	bool                           bIsUserDenied = false;
-	/** 为 true 时 call_capability 不 RecordAuto（如 Confirm 模式缺 reason，避免污染 call_arg_invalid）。 */
+	/** 为 true 时 CallCapability 不 RecordAuto（如 Confirm 模式缺 reason，避免污染 CallArgInvalid）。 */
 	bool                           bSkipFeedback = false;
 
 	/** 工厂方法：快速构造一个只含错误的结果。 */
@@ -36,7 +36,7 @@ struct FCapabilityResult
 		return R;
 	}
 
-	/** 工厂方法：参数校验失败（记录为 call_arg_invalid）。 */
+	/** 工厂方法：参数校验失败（记录为 CallArgInvalid）。 */
 	static FCapabilityResult MakeArgInvalid(const FString& Error)
 	{
 		FCapabilityResult R;
@@ -45,7 +45,7 @@ struct FCapabilityResult
 		return R;
 	}
 
-	/** Confirm 模式缺/弱 reason：对 AI 仍是 arg_invalid，但不记反馈。 */
+	/** Confirm 模式缺/弱 reason：对 AI 仍是 ArgInvalid，但不记反馈。 */
 	static FCapabilityResult MakeArgInvalidNoFeedback(const FString& Error)
 	{
 		FCapabilityResult R;
@@ -74,7 +74,7 @@ struct FCapabilityResult
  */
 struct FNexusCapabilityDefinition
 {
-	/** Capability 全局唯一标识符（snake_case；search_capabilities / call_capability 直接按此匹配）。 */
+	/** Capability 全局唯一标识符（snake_case；SearchCapabilities / CallCapability 直接按此匹配）。 */
 	FString Name;
 
 	/**
@@ -96,21 +96,21 @@ struct FNexusCapabilityDefinition
 
 	/**
 	 * 强关联的兄弟 Capability 名称列表。
-	 * search_capabilities 命中本 cap 时附带返回，辅助 AI 不必再次搜索。
-	 * 典型：get_asset_blueprint ↔ manage_asset_blueprint。
+	 * SearchCapabilities 命中本 cap 时附带返回，辅助 AI 不必再次搜索。
+	 * 典型：GetAssetBlueprint ↔ ManageAssetBlueprint。
 	 */
 	TArray<FString> RelatedCapabilities;
 
 	/**
-	 * 前置依赖枚举（"pie" / "python" / "editor_only" / "ds_mode"）。
-	 * search_capabilities 返回时作为 prerequisites 字段透传，提醒 AI 检查运行环境。
+	 * 前置依赖枚举（"PIE" / "python" / "EditorOnly" / "ds_mode"）。
+	 * SearchCapabilities 返回时作为 prerequisites 字段透传，提醒 AI 检查运行环境。
 	 */
 	TArray<FString> Prerequisites;
 
 	/**
 	 * 同类多选时的"该选我"短语（≤40 字符，可选）。
 	 * 仅在同前缀 cap ≥3 且 description 难以区分时填写；其余 cap 留空。
-	 * search_capabilities 命中 3-8 条时随结果返回。
+	 * SearchCapabilities 命中 3-8 条时随结果返回。
 	 */
 	FString WhenToUse;
 
@@ -122,13 +122,13 @@ struct FNexusCapabilityDefinition
 	TArray<FString> ExtraSearchKeywords;
 
 	/**
-	 * search_asset 类型路由声明：本 cap 对应的资产类型标签（与 search_asset 返回的 assetType 对齐）。
-	 * 注册期写入 Registry 索引：`get_asset_*` → recommendedGet，`manage_asset_*` → recommendedManage。
-	 * 新增资产类型 cap 时在此声明即可，无需改 search_asset 中心映射表。
+	 * SearchAsset 类型路由声明：本 cap 对应的资产类型标签（与 SearchAsset 返回的 AssetType 对齐）。
+	 * 注册期写入 Registry 索引：`get_asset_*` → RecommendedGet，`manage_asset_*` → RecommendedManage。
+	 * 新增资产类型 cap 时在此声明即可，无需改 SearchAsset 中心映射表。
 	 */
 	TArray<FString> SearchAssetTypes;
 
-	/** 框架向 InputSchema 注入可选 saveToDisk（manage_asset_* 由 Action 基类 FinalizeDefinition 置位）。 */
+	/** 框架向 InputSchema 注入可选 bSaveToDisk（manage_asset_* 由 Action 基类 FinalizeDefinition 置位）。 */
 	bool bInjectSaveToDisk = false;
 
 	/** 框架向 InputSchema 注入可选 compile（仅 BP/ABP/WBP manage 在 BuildDefinition 置位）。 */
@@ -157,7 +157,7 @@ enum class ENexusCapabilityHostScope : uint8
 
 /**
  * MCP Capability —— 一段可执行的工作单元，通过 REGISTER_MCP_CAPABILITY 自注册到全局表，
- * 由 search_capabilities / call_capability 元工具索引和驱动。
+ * 由 SearchCapabilities / CallCapability 元工具索引和驱动。
  *
  * 子类必须实现的两个纯虚钩子：
  *   - BuildDefinition : 一次性填写所有元数据（Name/Description/InputSchema/Tags/...）
@@ -168,7 +168,7 @@ enum class ENexusCapabilityHostScope : uint8
  *   - Tool 端把该错误归入 capabilityErrors[] 字段，不影响其他 Capability 继续执行
  *
  * 单条失败协议：
- *   - Execute 向 Entries 写入含 "error" 字段的 entry 视为 fail；否则 success
+ *   - Execute 向 Entries 写入含 "Error" 字段的 entry 视为 fail；否则 success
  */
 class NEXUSLINK_API FNexusCapability
 {
@@ -190,7 +190,7 @@ public:
 	/**
 	 * 主入口：包含通用守卫（Args 兜底、required 字段校验、执行计时日志），
 	 * 通过后调用子类 Execute() 并返回 FCapabilityResult。
-	 * call_capability 直接使用返回值，不再通过出参传递。
+	 * CallCapability 直接使用返回值，不再通过出参传递。
 	 *
 	 * required / 类型 / 未知键 / enum 校验只在本函数内执行；Execute 勿再手写
 	 * HasField / 空串必填检查。取值请用 FNexusArgs。
@@ -201,7 +201,7 @@ public:
 
 	/**
 	 * 守卫：若 Args 中缺少 Key 字段，向 OutEntries 写入带 error 的条目并返回 false，
-	 * 调用方直接 return 即可。Locator 为 entry 中的定位字段（如 {"assetPath", "/Game/X"}）。
+	 * 调用方直接 return 即可。Locator 为 entry 中的定位字段（如 {"AssetPath", "/Game/X"}）。
 	 */
 	static bool RequireString(const TSharedPtr<FJsonObject>& Args,
 	                          const TCHAR* Key,
@@ -217,7 +217,7 @@ public:
 	                      const TMap<FString, FString>& Locator,
 	                      const TSharedPtr<FJsonObject>& Detail);
 
-	/** 向 OutEntries 写入一条带 Locator 定位字段的失败条目（含 "error" 字段）。 */
+	/** 向 OutEntries 写入一条带 Locator 定位字段的失败条目（含 "Error" 字段）。 */
 	static void EmitError(TArray<TSharedPtr<FJsonValue>>& OutEntries,
 	                      const TMap<FString, FString>& Locator,
 	                      const FString& Error);
@@ -231,10 +231,10 @@ protected:
 	 */
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const = 0;
 
-	/** BuildDefinition 之后、InjectSchema 之前；默认给 manage_asset_* 打开 saveToDisk。 */
+	/** BuildDefinition 之后、InjectSchema 之前；默认给 manage_asset_* 打开 bSaveToDisk。 */
 	virtual void FinalizeDefinition(FNexusCapabilityDefinition& Def) const
 	{
-		if (Def.Name.StartsWith(TEXT("manage_asset_")))
+		if (Def.Name.StartsWith(TEXT("ManageAsset")))
 		{
 			Def.bInjectSaveToDisk = true;
 		}
@@ -247,7 +247,7 @@ protected:
 	 *
 	 * 失败协议：
 	 *   - 致命错误（无法处理任何 item）→ 填 Result.FatalError，Entries 留空
-	 *   - 单条失败 → Result.Entries 中写含 "error" 字段的 entry，FatalError 留空
+	 *   - 单条失败 → Result.Entries 中写含 "Error" 字段的 entry，FatalError 留空
 	 */
 	virtual FCapabilityResult Execute(const TSharedPtr<FJsonObject>& Arguments) const = 0;
 

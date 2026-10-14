@@ -154,13 +154,13 @@ static FString BuildEnvironmentBlock(
 		TMap<FString, int32> PluginCounts, UeCounts, ModeCounts, PlatCounts;
 		for (const auto& R : *Records)
 		{
-			const FString PV = GetStr(R, TEXT("pluginVersion"));
+			const FString PV = GetStr(R, TEXT("PluginVersion"));
 			if (!PV.IsEmpty()) { int32& V = PluginCounts.FindOrAdd(PV); V++; }
-			const FString UV = GetStr(R, TEXT("ueVersion"));
+			const FString UV = GetStr(R, TEXT("UeVersion"));
 			if (!UV.IsEmpty()) { int32& V = UeCounts.FindOrAdd(UV); V++; }
-			const FString TM = GetStr(R, TEXT("toolsListMode"));
+			const FString TM = GetStr(R, TEXT("ToolsListMode"));
 			if (!TM.IsEmpty()) { int32& V = ModeCounts.FindOrAdd(TM); V++; }
-			const FString PL = GetStr(R, TEXT("platform"));
+			const FString PL = GetStr(R, TEXT("Platform"));
 			if (!PL.IsEmpty()) { int32& V = PlatCounts.FindOrAdd(PL); V++; }
 		}
 		PluginVer    = FormatVersionCounts(PluginCounts, PluginVer);
@@ -184,7 +184,7 @@ static FString BuildEnvironmentBlock(
 		FString EarliestTs, LatestTs;
 		for (const auto& R : *Records)
 		{
-			const FString Ts = GetStr(R, TEXT("ts"));
+			const FString Ts = GetStr(R, TEXT("Ts"));
 			if (Ts.IsEmpty()) continue;
 			if (EarliestTs.IsEmpty() || Ts < EarliestTs) EarliestTs = Ts;
 			if (LatestTs.IsEmpty()   || Ts > LatestTs)   LatestTs   = Ts;
@@ -204,18 +204,18 @@ static FString BuildEnvironmentBlock(
 /** 加权优先级：category → int，值越大越优先作为最小复现代表。 */
 static int32 CategoryWeight(const FString& Cat)
 {
-	if (Cat == TEXT("call_arg_invalid")) return 30;
-	if (Cat == TEXT("call_fatal"))       return 30;
-	if (Cat == TEXT("misuse"))           return 20;
-	if (Cat == TEXT("schema_guess"))     return 20;
-	if (Cat == TEXT("wrong_tool"))       return 20;
-	if (Cat == TEXT("call_unknown"))     return 15;
-	if (Cat == TEXT("proxy_disconnect")) return 15;
-	if (Cat == TEXT("proxy_timeout"))    return 15;
-	if (Cat == TEXT("call_disabled"))    return 10;
-	if (Cat == TEXT("proxy_connect_fail")) return 10;
-	if (Cat == TEXT("redundant_call"))   return  5;
-	if (Cat == TEXT("slow_call"))        return  5;
+	if (Cat == TEXT("CallArgInvalid")) return 30;
+	if (Cat == TEXT("CallFatal"))       return 30;
+	if (Cat == TEXT("Misuse"))           return 20;
+	if (Cat == TEXT("SchemaGuess"))     return 20;
+	if (Cat == TEXT("WrongTool"))       return 20;
+	if (Cat == TEXT("CallUnknown"))     return 15;
+	if (Cat == TEXT("ProxyDisconnect")) return 15;
+	if (Cat == TEXT("ProxyTimeout"))    return 15;
+	if (Cat == TEXT("CallDisabled"))    return 10;
+	if (Cat == TEXT("ProxyConnectFail")) return 10;
+	if (Cat == TEXT("RedundantCall"))   return  5;
+	if (Cat == TEXT("SlowCall"))        return  5;
 	return 1;
 }
 
@@ -234,7 +234,7 @@ static void BuildIssueDraftFromRecords(const TArray<TSharedPtr<FJsonObject>>& Re
 	TMap<FString, int32> CatCount;
 	for (const auto& R : Records)
 	{
-		const FString Cat = GetStr(R, TEXT("category"));
+		const FString Cat = GetStr(R, TEXT("Category"));
 		if (!Cat.IsEmpty())
 		{
 			int32& V = CatCount.FindOrAdd(Cat);
@@ -257,7 +257,7 @@ static void BuildIssueDraftFromRecords(const TArray<TSharedPtr<FJsonObject>>& Re
 	int32 BestWeight = -1;
 	for (const auto& R : Records)
 	{
-		const FString Cat = GetStr(R, TEXT("category"));
+		const FString Cat = GetStr(R, TEXT("Category"));
 		const int32 W = CategoryWeight(Cat);
 		if (W > BestWeight)
 		{
@@ -269,8 +269,8 @@ static void BuildIssueDraftFromRecords(const TArray<TSharedPtr<FJsonObject>>& Re
 	// ── 标题：优先 [NexusLink] <capability>: <规则化错误> ─────────────
 	if (BestRecord.IsValid())
 	{
-		const FString Cap = GetStr(BestRecord, TEXT("capability"));
-		const FString Err = GetStr(BestRecord, TEXT("errorText"));
+		const FString Cap = GetStr(BestRecord, TEXT("Capability"));
+		const FString Err = GetStr(BestRecord, TEXT("ErrorText"));
 		if (!Cap.IsEmpty() && !Err.IsEmpty())
 		{
 			const FString NormErr = FNexusFeedbackInternal::NormalizeForThrottle(Err);
@@ -278,7 +278,7 @@ static void BuildIssueDraftFromRecords(const TArray<TSharedPtr<FJsonObject>>& Re
 		}
 		else if (!Cap.IsEmpty())
 		{
-			const FString Cat = GetStr(BestRecord, TEXT("category"));
+			const FString Cat = GetStr(BestRecord, TEXT("Category"));
 			OutTitle = FString::Printf(TEXT("[NexusLink] %s (%s)"), *Cap, *Cat);
 		}
 	}
@@ -313,16 +313,16 @@ static void BuildIssueDraftFromRecords(const TArray<TSharedPtr<FJsonObject>>& Re
 				OutBody += FString::Printf(TEXT("- **%s**: `%s`\n"), Label, *Snip);
 			}
 		};
-		AppendField(TEXT("时间"),         GetStr(BestRecord, TEXT("ts")));
-		AppendField(TEXT("category"),     GetStr(BestRecord, TEXT("category")));
-		AppendField(TEXT("tool"),         GetStr(BestRecord, TEXT("tool")));
-		AppendField(TEXT("capability"),   GetStr(BestRecord, TEXT("capability")));
-		AppendField(TEXT("errorText"),    GetStr(BestRecord, TEXT("errorText")));
-		AppendField(TEXT("argsDigest"),   GetStr(BestRecord, TEXT("argsDigest")));
-		AppendField(TEXT("attemptedArgs"),GetStr(BestRecord, TEXT("attemptedArgs")));
-		AppendField(TEXT("actualError"),  GetStr(BestRecord, TEXT("actualError")));
-		AppendField(TEXT("expectedField"),GetStr(BestRecord, TEXT("expectedField")));
-		AppendField(TEXT("query"),        GetStr(BestRecord, TEXT("query")));
+		AppendField(TEXT("时间"),         GetStr(BestRecord, TEXT("Ts")));
+		AppendField(TEXT("Category"),     GetStr(BestRecord, TEXT("Category")));
+		AppendField(TEXT("Tool"),         GetStr(BestRecord, TEXT("Tool")));
+		AppendField(TEXT("Capability"),   GetStr(BestRecord, TEXT("Capability")));
+		AppendField(TEXT("ErrorText"),    GetStr(BestRecord, TEXT("ErrorText")));
+		AppendField(TEXT("ArgsDigest"),   GetStr(BestRecord, TEXT("ArgsDigest")));
+		AppendField(TEXT("AttemptedArgs"),GetStr(BestRecord, TEXT("AttemptedArgs")));
+		AppendField(TEXT("ActualError"),  GetStr(BestRecord, TEXT("ActualError")));
+		AppendField(TEXT("ExpectedField"),GetStr(BestRecord, TEXT("ExpectedField")));
+		AppendField(TEXT("Query"),        GetStr(BestRecord, TEXT("Query")));
 		OutBody += TEXT("\n");
 	}
 
@@ -335,13 +335,13 @@ static void BuildIssueDraftFromRecords(const TArray<TSharedPtr<FJsonObject>>& Re
 	}
 	OutBody += TEXT("\n");
 
-	// ── search_zero Top query（仅在 Issue 草稿中展示，Markdown §2 有更详细版本）──
+	// ── SearchZero Top query（仅在 Issue 草稿中展示，Markdown §2 有更详细版本）──
 	{
 		TMap<FString, int32> QueryCount;
 		for (const auto& R : Records)
 		{
-			if (GetStr(R, TEXT("category")) != TEXT("search_zero")) continue;
-			const FString Q = GetStr(R, TEXT("query"));
+			if (GetStr(R, TEXT("Category")) != TEXT("SearchZero")) continue;
+			const FString Q = GetStr(R, TEXT("Query"));
 			if (!Q.IsEmpty()) { int32& V = QueryCount.FindOrAdd(Q); V++; }
 		}
 		if (QueryCount.Num() > 0)
@@ -369,15 +369,15 @@ static void BuildIssueDraftFromRecords(const TArray<TSharedPtr<FJsonObject>>& Re
 		TMap<FString, FString> CapSample;
 		for (const auto& R : Records)
 		{
-			const FString Cat = GetStr(R, TEXT("category"));
+			const FString Cat = GetStr(R, TEXT("Category"));
 			if (!Cat.StartsWith(TEXT("call_"))) continue;
-			const FString Cap    = GetStr(R, TEXT("capability"));
+			const FString Cap    = GetStr(R, TEXT("Capability"));
 			const FString CapKey = Cap.IsEmpty() ? TEXT("(unknown)") : Cap;
 			int32& V = CapTotal.FindOrAdd(CapKey);
 			V++;
 			if (!CapSample.Contains(CapKey))
 			{
-				const FString Err = GetStr(R, TEXT("errorText"));
+				const FString Err = GetStr(R, TEXT("ErrorText"));
 				if (!Err.IsEmpty()) CapSample.Add(CapKey, Err);
 			}
 		}
@@ -419,14 +419,14 @@ static void BuildIssueDraftFromRecords(const TArray<TSharedPtr<FJsonObject>>& Re
 		TArray<FManualEntry> ManualEntries;
 		for (const auto& R : Records)
 		{
-			const FString Cat = GetStr(R, TEXT("category"));
-			if (Cat != TEXT("wrong_tool") && Cat != TEXT("schema_guess") && Cat != TEXT("misuse")) continue;
+			const FString Cat = GetStr(R, TEXT("Category"));
+			if (Cat != TEXT("WrongTool") && Cat != TEXT("SchemaGuess") && Cat != TEXT("Misuse")) continue;
 			FManualEntry E;
 			E.Category      = Cat;
-			E.AttemptedArgs = GetStr(R, TEXT("attemptedArgs"));
-			E.ActualError   = GetStr(R, TEXT("actualError"));
-			E.ExpectedField = GetStr(R, TEXT("expectedField"));
-			E.Note          = GetStr(R, TEXT("note"));
+			E.AttemptedArgs = GetStr(R, TEXT("AttemptedArgs"));
+			E.ActualError   = GetStr(R, TEXT("ActualError"));
+			E.ExpectedField = GetStr(R, TEXT("ExpectedField"));
+			E.Note          = GetStr(R, TEXT("Note"));
 			ManualEntries.Add(E);
 		}
 		if (ManualEntries.Num() > 0)
@@ -440,16 +440,16 @@ static void BuildIssueDraftFromRecords(const TArray<TSharedPtr<FJsonObject>>& Re
 				if (!E.AttemptedArgs.IsEmpty())
 				{
 					const FString V = E.AttemptedArgs.Len() > 150 ? E.AttemptedArgs.Left(150) + TEXT("…") : E.AttemptedArgs;
-					OutBody += FString::Printf(TEXT("- attemptedArgs: `%s`\n"), *V);
+					OutBody += FString::Printf(TEXT("- AttemptedArgs: `%s`\n"), *V);
 				}
 				if (!E.ActualError.IsEmpty())
 				{
 					const FString V = E.ActualError.Len() > 150 ? E.ActualError.Left(150) + TEXT("…") : E.ActualError;
-					OutBody += FString::Printf(TEXT("- actualError: `%s`\n"), *V);
+					OutBody += FString::Printf(TEXT("- ActualError: `%s`\n"), *V);
 				}
 				if (!E.ExpectedField.IsEmpty())
 				{
-					OutBody += FString::Printf(TEXT("- expectedField: `%s`\n"), *E.ExpectedField);
+					OutBody += FString::Printf(TEXT("- ExpectedField: `%s`\n"), *E.ExpectedField);
 				}
 				if (!E.Note.IsEmpty())
 				{
@@ -483,7 +483,7 @@ static FString BuildIssuePrefillUrlInternal(const FString& Title, const FString&
 	const FString BaseUrl = ResolveIssueNewBaseUrl();
 	const FString EncTitle = FGenericPlatformHttp::UrlEncode(Title);
 	const FString EncBody  = FGenericPlatformHttp::UrlEncode(TruncateIssueBodyForUrl(Body));
-	return FString::Printf(TEXT("%s?title=%s&body=%s"), *BaseUrl, *EncTitle, *EncBody);
+	return FString::Printf(TEXT("%s?Title=%s&body=%s"), *BaseUrl, *EncTitle, *EncBody);
 }
 
 /** 在 Markdown 报告末尾追加 Issue 预填段。 */
@@ -526,7 +526,7 @@ static TSharedPtr<FJsonObject> BuildCategorySummary(const TArray<TSharedPtr<FJso
 	TMap<FString, int32> CatCount;
 	for (const auto& R : Records)
 	{
-		const FString Cat = GetStr(R, TEXT("category"));
+		const FString Cat = GetStr(R, TEXT("Category"));
 		int32& V = CatCount.FindOrAdd(Cat);
 		V++;
 	}
@@ -552,7 +552,7 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 	TMap<FString, int32> CatCount;
 	for (const auto& R : Records)
 	{
-		const FString Cat = GetStr(R, TEXT("category"));
+		const FString Cat = GetStr(R, TEXT("Category"));
 		int32& V = CatCount.FindOrAdd(Cat);
 		V++;
 	}
@@ -599,16 +599,16 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 	}
 	Md += TEXT("\n---\n\n");
 
-	// §2 搜索失败 Top 10（search_zero）
+	// §2 搜索失败 Top 10（SearchZero）
 	{
 		TMap<FString, int32> QueryCount;
 		for (const auto& R : Records)
 		{
-			if (GetStr(R, TEXT("category")) != TEXT("search_zero")) continue;
-			const FString Q = GetStr(R, TEXT("query"));
+			if (GetStr(R, TEXT("Category")) != TEXT("SearchZero")) continue;
+			const FString Q = GetStr(R, TEXT("Query"));
 			if (!Q.IsEmpty()) { int32& V = QueryCount.FindOrAdd(Q); V++; }
 		}
-		Md += TEXT("## §2 搜索失败 Top 10（search_zero）\n\n");
+		Md += TEXT("## §2 搜索失败 Top 10（SearchZero）\n\n");
 		if (QueryCount.Num() == 0)
 		{
 			Md += TEXT("_无数据_\n\n");
@@ -630,22 +630,22 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 		Md += TEXT("---\n\n");
 	}
 
-	// §3 搜索过载 Top 10（search_overflow）
+	// §3 搜索过载 Top 10（SearchOverflow）
 	{
 		struct FOverflowStat { int32 Count = 0; int64 TotalMatch = 0; };
 		TMap<FString, FOverflowStat> Stats;
 		for (const auto& R : Records)
 		{
-			if (GetStr(R, TEXT("category")) != TEXT("search_overflow")) continue;
-			const FString Q = GetStr(R, TEXT("query"));
+			if (GetStr(R, TEXT("Category")) != TEXT("SearchOverflow")) continue;
+			const FString Q = GetStr(R, TEXT("Query"));
 			if (Q.IsEmpty()) continue;
 			int32 MC = 0;
-			R->TryGetNumberField(TEXT("matchCount"), MC);
+			R->TryGetNumberField(TEXT("MatchCount"), MC);
 			FOverflowStat& S = Stats.FindOrAdd(Q);
 			S.Count++;
 			S.TotalMatch += MC;
 		}
-		Md += TEXT("## §3 搜索过载 Top 10（search_overflow）\n\n");
+		Md += TEXT("## §3 搜索过载 Top 10（SearchOverflow）\n\n");
 		if (Stats.Num() == 0)
 		{
 			Md += TEXT("_无数据_\n\n");
@@ -674,23 +674,23 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 		// 外层 key: capability；内层 key: 规则化错误前缀
 		TMap<FString, TMap<FString, int32>> CapErrMap;
 		TMap<FString, int32> CapTotal;
-		// 每个 capability 保留最多 3 条去重原始 errorText 样本
+		// 每个 capability 保留最多 3 条去重原始 ErrorText 样本
 		TMap<FString, TArray<FString>> CapRawSamples;
 		for (const auto& R : Records)
 		{
-			const FString Cat = GetStr(R, TEXT("category"));
+			const FString Cat = GetStr(R, TEXT("Category"));
 			if (!Cat.StartsWith(TEXT("call_"))) continue;
-			const FString Cap    = GetStr(R, TEXT("capability"));
+			const FString Cap    = GetStr(R, TEXT("Capability"));
 			const FString CapKey = Cap.IsEmpty() ? TEXT("(unknown)") : Cap;
-			const FString Err    = FNexusFeedbackInternal::NormalizeForThrottle(GetStr(R, TEXT("errorText")));
+			const FString Err    = FNexusFeedbackInternal::NormalizeForThrottle(GetStr(R, TEXT("ErrorText")));
 			TMap<FString, int32>& Inner2 = CapErrMap.FindOrAdd(CapKey);
 			int32& IV = Inner2.FindOrAdd(Err);
 			IV++;
 			int32& TV = CapTotal.FindOrAdd(CapKey);
 			TV++;
 
-			// 收集原始 errorText 样本（去重，最多 3 条）
-			const FString RawErr = GetStr(R, TEXT("errorText"));
+			// 收集原始 ErrorText 样本（去重，最多 3 条）
+			const FString RawErr = GetStr(R, TEXT("ErrorText"));
 			if (!RawErr.IsEmpty())
 			{
 				TArray<FString>& Samples = CapRawSamples.FindOrAdd(CapKey);
@@ -730,7 +730,7 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 					Md += FString::Printf(TEXT("| `%s` | %d |\n"), *ErrLabel, EP.Value);
 				}
 
-				// 原始原因样本（最多 3 条，保留真实 errorText 便于排查）
+				// 原始原因样本（最多 3 条，保留真实 ErrorText 便于排查）
 				if (const TArray<FString>* Samples = CapRawSamples.Find(CP.Key))
 				{
 					Md += TEXT("\n原因样本：\n\n");
@@ -746,17 +746,17 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 		Md += TEXT("---\n\n");
 	}
 
-	// §5 工具选错/用错样本（wrong_tool / schema_guess / misuse）
+	// §5 工具选错/用错样本（WrongTool / SchemaGuess / misuse）
 	{
 		TArray<FString> Notes;
 		for (const auto& R : Records)
 		{
-			const FString Cat = GetStr(R, TEXT("category"));
-			if (Cat != TEXT("wrong_tool") && Cat != TEXT("schema_guess") && Cat != TEXT("misuse")) continue;
-			const FString Note = GetStr(R, TEXT("note"));
+			const FString Cat = GetStr(R, TEXT("Category"));
+			if (Cat != TEXT("WrongTool") && Cat != TEXT("SchemaGuess") && Cat != TEXT("Misuse")) continue;
+			const FString Note = GetStr(R, TEXT("Note"));
 			if (!Note.IsEmpty()) Notes.Add(Note);
 		}
-		Md += TEXT("## §5 工具选错/用错样本（wrong_tool / misuse / schema_guess）\n\n");
+		Md += TEXT("## §5 工具选错/用错样本（WrongTool / misuse / SchemaGuess）\n\n");
 		if (Notes.Num() == 0)
 		{
 			Md += TEXT("_无数据_\n\n");
@@ -780,7 +780,7 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 		TMap<FString, int32> ToolCount;
 		for (const auto& R : Records)
 		{
-			const FString T = GetStr(R, TEXT("tool"));
+			const FString T = GetStr(R, TEXT("Tool"));
 			if (!T.IsEmpty()) { int32& V = ToolCount.FindOrAdd(T); V++; }
 		}
 		Md += TEXT("## §6 按 MCP Tool 统计\n\n");
@@ -803,18 +803,18 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 		Md += TEXT("---\n\n");
 	}
 
-	// §7 慢调用 Top 10（slow_call）：capability × 次数 / 平均耗时 / 最大耗时
+	// §7 慢调用 Top 10（SlowCall）：capability × 次数 / 平均耗时 / 最大耗时
 	{
 		struct FSlowStat { int32 Count = 0; int64 TotalMs = 0; int32 MaxMs = 0; };
 		TMap<FString, FSlowStat> Stats;
 		for (const auto& R : Records)
 		{
-			if (GetStr(R, TEXT("category")) != TEXT("slow_call")) continue;
-			const FString Cap = GetStr(R, TEXT("capability"));
+			if (GetStr(R, TEXT("Category")) != TEXT("SlowCall")) continue;
+			const FString Cap = GetStr(R, TEXT("Capability"));
 			if (Cap.IsEmpty()) continue;
-			const FString Note = GetStr(R, TEXT("note"));
+			const FString Note = GetStr(R, TEXT("Note"));
 			int32 ElapsedMs = 0;
-			if (Note.StartsWith(TEXT("slow_call:")))
+			if (Note.StartsWith(TEXT("SlowCall:")))
 			{
 				// 兼容旧格式（若存在）
 				ElapsedMs = FCString::Atoi(*Note.Mid(10));
@@ -833,7 +833,7 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 			S.TotalMs += ElapsedMs;
 			S.MaxMs = FMath::Max(S.MaxMs, ElapsedMs);
 		}
-		Md += TEXT("## §7 慢调用 Top 10（slow_call）\n\n");
+		Md += TEXT("## §7 慢调用 Top 10（SlowCall）\n\n");
 		if (Stats.Num() == 0)
 		{
 			Md += TEXT("_无数据_\n\n");
@@ -864,13 +864,13 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 	// §8 错误指纹 Top 5（跨 capability 去重聚合）
 	{
 		TMap<FString, int32> FingerprintCount;
-		TMap<FString, FString> FingerprintSample;  // 指纹 → 代表原始 errorText
+		TMap<FString, FString> FingerprintSample;  // 指纹 → 代表原始 ErrorText
 		for (const auto& R : Records)
 		{
-			const FString Cat = GetStr(R, TEXT("category"));
-			if (!Cat.StartsWith(TEXT("call_")) && Cat != TEXT("call_arg_invalid")
-					&& Cat != TEXT("call_fatal")) continue;
-			const FString Err = GetStr(R, TEXT("errorText"));
+			const FString Cat = GetStr(R, TEXT("Category"));
+			if (!Cat.StartsWith(TEXT("call_")) && Cat != TEXT("CallArgInvalid")
+					&& Cat != TEXT("CallFatal")) continue;
+			const FString Err = GetStr(R, TEXT("ErrorText"));
 			if (Err.IsEmpty()) continue;
 			const FString FP = FNexusFeedbackInternal::NormalizeForThrottle(Err);
 			int32& V = FingerprintCount.FindOrAdd(FP);
@@ -909,9 +909,9 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 		TMap<FString, int32> ProxyCatCount;  // key: "<proxy>|<category>"
 		for (const auto& R : Records)
 		{
-			const FString Cat = GetStr(R, TEXT("category"));
+			const FString Cat = GetStr(R, TEXT("Category"));
 			if (!Cat.StartsWith(TEXT("proxy_"))) continue;
-			const FString Proxy = GetStr(R, TEXT("proxy"));
+			const FString Proxy = GetStr(R, TEXT("Proxy"));
 			const FString Key = (Proxy.IsEmpty() ? FString(TEXT("(unknown)")) : Proxy) + TEXT("|") + Cat;
 			int32& V = ProxyCatCount.FindOrAdd(Key);
 			V++;
@@ -1007,7 +1007,7 @@ FString FNexusFeedback::ExportReport()
 			TSharedPtr<FJsonObject> SummaryObj;
 			if (FJsonSerializer::Deserialize(SR, SummaryObj) && SummaryObj.IsValid())
 			{
-				PrevSummary = SummaryObj->GetObjectField(TEXT("categories"));
+				PrevSummary = SummaryObj->GetObjectField(TEXT("Categories"));
 			}
 		}
 	}
@@ -1038,7 +1038,7 @@ FString FNexusFeedback::ExportReport()
 		for (const auto& R : Records)
 		{
 			FString T;
-			R->TryGetStringField(TEXT("tool"), T);
+			R->TryGetStringField(TEXT("Tool"), T);
 			if (!T.IsEmpty()) { int32& V = ToolCount.FindOrAdd(T); V++; }
 		}
 		TSharedPtr<FJsonObject> ToolSummary = MakeShared<FJsonObject>();
@@ -1046,18 +1046,18 @@ FString FNexusFeedback::ExportReport()
 
 		// 写 report_<ts>.json
 		TSharedPtr<FJsonObject> JsonSummary = MakeShared<FJsonObject>();
-		JsonSummary->SetStringField(TEXT("timestamp"),  FNexusFeedbackInternal::DateTimeToIso8601(Now));
-		JsonSummary->SetNumberField(TEXT("totalCount"), Records.Num());
-		JsonSummary->SetObjectField(TEXT("categories"), CatSummary);
-		JsonSummary->SetObjectField(TEXT("tools"),      ToolSummary);
+		JsonSummary->SetStringField(TEXT("Timestamp"),  FNexusFeedbackInternal::DateTimeToIso8601(Now));
+		JsonSummary->SetNumberField(TEXT("TotalCount"), Records.Num());
+		JsonSummary->SetObjectField(TEXT("Categories"), CatSummary);
+		JsonSummary->SetObjectField(TEXT("Tools"),      ToolSummary);
 		const FString JsonSummaryStr = FNexusJsonUtils::SerializeCondensed(JsonSummary);
 		const FString JsonReportFile = Dir / FString::Printf(TEXT("report_%s.json"), *TsTag);
 		FFileHelper::SaveStringToFile(JsonSummaryStr, *JsonReportFile, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 
 		// 覆盖写 last_summary.json（包装在 categories 字段下，便于后续扩展）
 		TSharedPtr<FJsonObject> LastSummaryObj = MakeShared<FJsonObject>();
-		LastSummaryObj->SetStringField(TEXT("timestamp"), FNexusFeedbackInternal::DateTimeToIso8601(Now));
-		LastSummaryObj->SetObjectField(TEXT("categories"), CatSummary);
+		LastSummaryObj->SetStringField(TEXT("Timestamp"), FNexusFeedbackInternal::DateTimeToIso8601(Now));
+		LastSummaryObj->SetObjectField(TEXT("Categories"), CatSummary);
 		const FString LastSummaryStr = FNexusJsonUtils::SerializeCondensed(LastSummaryObj);
 		FFileHelper::SaveStringToFile(LastSummaryStr, *LastSummaryFile, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 	}

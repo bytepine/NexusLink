@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_blackboard 的 Capability — 批量增删/重命名 BlackboardData Key。 */
-class FManageAssetBlackboardCapability : public FNexusActionCapability
+/** ManageAssetBlackboard 的 Capability — 批量增删/重命名 BlackboardData Key。 */
+class FNexusManageAssetBlackboardCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

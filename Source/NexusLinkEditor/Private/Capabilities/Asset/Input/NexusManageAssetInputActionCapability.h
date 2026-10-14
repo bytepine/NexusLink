@@ -7,8 +7,8 @@
 
 #include "NexusActionCapability.h"
 
-/** manage_asset_input_action — 编辑 UInputAction（set_value_type/add_trigger/remove_trigger/add_modifier/remove_modifier/set_flags）。UE5+。 */
-class FManageAssetInputActionCapability : public FNexusActionCapability
+/** ManageAssetInputAction — 编辑 UInputAction（SetValueType/AddTrigger/RemoveTrigger/AddModifier/RemoveModifier/SetFlags）。UE5+。 */
+class FNexusManageAssetInputActionCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

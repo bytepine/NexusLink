@@ -8,27 +8,27 @@
 #include "Sound/SoundAttenuation.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetSoundAttenuationCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetSoundAttenuationCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_sound_attenuation");
+	Out.Name = TEXT("GetAssetSoundAttenuation");
 	Out.SearchAssetTypes = {TEXT("SoundAttenuation")};
-	Out.Description = TEXT("Read SoundAttenuation: shape/innerRadius/falloffDistance/bAttenuate/bSpatialize.");
+	Out.Description = TEXT("Read SoundAttenuation: shape/InnerRadius/FalloffDistance/bAttenuate/bSpatialize.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundAttenuation asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("SoundAttenuation asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("attenuation"), TEXT("sound"), TEXT("distance"), TEXT("radius"), TEXT("shape") };
-	Out.RelatedCapabilities = { TEXT("create_asset_sound_attenuation"), TEXT("manage_asset_sound_attenuation") };
+	Out.ExtraSearchKeywords = { TEXT("attenuation"), TEXT("Sound"), TEXT("distance"), TEXT("Radius"), TEXT("Shape") };
+	Out.RelatedCapabilities = { TEXT("CreateAssetSoundAttenuation"), TEXT("ManageAssetSoundAttenuation") };
 }
 
-FCapabilityResult FGetAssetSoundAttenuationCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetSoundAttenuationCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		USoundAttenuation* SA = LoadObject<USoundAttenuation>(nullptr, *AssetPath);
 		if (!SA)
 		{
@@ -44,16 +44,16 @@ FCapabilityResult FGetAssetSoundAttenuationCapability::Execute(const TSharedPtr<
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),             SA->GetName());
-		Entry->SetStringField(TEXT("path"),             SA->GetPathName());
-		Entry->SetStringField(TEXT("shape"),            ShapeStr);
-		Entry->SetNumberField(TEXT("shapeValue"),       (double)(int32)SA->Attenuation.AttenuationShape.GetValue());
-		Entry->SetNumberField(TEXT("innerRadius"),      SA->Attenuation.AttenuationShapeExtents.X);
-		Entry->SetNumberField(TEXT("falloffDistance"),  SA->Attenuation.FalloffDistance);
+		Entry->SetStringField(TEXT("Path"),             SA->GetPathName());
+		Entry->SetStringField(TEXT("Shape"),            ShapeStr);
+		Entry->SetNumberField(TEXT("ShapeValue"),       (double)(int32)SA->Attenuation.AttenuationShape.GetValue());
+		Entry->SetNumberField(TEXT("InnerRadius"),      SA->Attenuation.AttenuationShapeExtents.X);
+		Entry->SetNumberField(TEXT("FalloffDistance"),  SA->Attenuation.FalloffDistance);
 		Entry->SetBoolField(TEXT("bAttenuate"),         SA->Attenuation.bAttenuate != 0);
 		Entry->SetBoolField(TEXT("bSpatialize"),        SA->Attenuation.bSpatialize != 0);
-		Entry->SetNumberField(TEXT("dBAtMax"),          SA->Attenuation.dBAttenuationAtMax);
+		Entry->SetNumberField(TEXT("DBAtMax"),          SA->Attenuation.dBAttenuationAtMax);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetSoundAttenuationCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetSoundAttenuationCapability)

@@ -14,41 +14,41 @@
 #include "PCGGraph.h"
 #include "PCGNode.h"
 
-void FGetAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name        = TEXT("get_asset_pcg_graph");
+	Out.Name        = TEXT("GetAssetPCGGraph");
 	Out.SearchAssetTypes = {TEXT("PCGGraph")};
-	Out.Description = TEXT("Read PCG Graph node list and pin overview. Use manage_asset_pcg_graph for writes.");
+	Out.Description = TEXT("Read PCG Graph node list and pin overview. Use ManageAssetPCGGraph for writes.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PCG Graph asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("PCG Graph asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("pcg"), TEXT("procedural"), TEXT("generation"), TEXT("node"), TEXT("graph") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_pcg_graph"), TEXT("create_asset_pcg_graph"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("Read PCG Graph node structure; use manage_asset_pcg_graph for writes");
+	Out.ExtraSearchKeywords = { TEXT("pcg"), TEXT("procedural"), TEXT("generation"), TEXT("Node"), TEXT("graph") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetPCGGraph"), TEXT("CreateAssetPCGGraph"), TEXT("SearchAsset") };
+	Out.WhenToUse = TEXT("Read PCG Graph node structure; use ManageAssetPCGGraph for writes");
 }
 
-FCapabilityResult FGetAssetPCGGraphCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetPCGGraphCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		UPCGGraph* Graph = FNexusAssetUtils::LoadAssetWithFallback<UPCGGraph>(AssetPath);
 		if (!Graph)
 		{
 			TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
-			ErrObj->SetStringField(TEXT("path"), AssetPath);
-			ErrObj->SetStringField(TEXT("error"), TEXT("PCG Graph not found"));
+			ErrObj->SetStringField(TEXT("Path"), AssetPath);
+			ErrObj->SetStringField(TEXT("Error"), TEXT("PCG Graph not found"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(ErrObj));
 			return;
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), Graph->GetPathName());
-		Entry->SetStringField(TEXT("assetType"), TEXT("PCGGraph"));
+		Entry->SetStringField(TEXT("Path"), Graph->GetPathName());
+		Entry->SetStringField(TEXT("AssetType"), TEXT("PCGGraph"));
 		Entry->SetStringField(TEXT("name"),      Graph->GetName());
 
 		// 节点列表
@@ -58,11 +58,11 @@ FCapabilityResult FGetAssetPCGGraphCapability::Execute(const TSharedPtr<FJsonObj
 		{
 			if (!Node) continue;
 			TSharedPtr<FJsonObject> NObj = MakeShared<FJsonObject>();
-			NObj->SetStringField(TEXT("id"),    Node->GetName());
-			NObj->SetStringField(TEXT("title"), Node->GetNodeTitle(EPCGNodeTitleType::FullTitle).ToString());
+			NObj->SetStringField(TEXT("Id"),    Node->GetName());
+			NObj->SetStringField(TEXT("Title"), Node->GetNodeTitle(EPCGNodeTitleType::FullTitle).ToString());
 
 			if (const UPCGSettings* Settings = Node->GetSettings())
-				NObj->SetStringField(TEXT("settingsClass"), Settings->GetClass()->GetName());
+				NObj->SetStringField(TEXT("SettingsClass"), Settings->GetClass()->GetName());
 
 			// 输入/输出 pin
 			TArray<FPCGPinProperties> InPins  = Node->InputPinProperties();
@@ -72,18 +72,18 @@ FCapabilityResult FGetAssetPCGGraphCapability::Execute(const TSharedPtr<FJsonObj
 				InArr.Add(MakeShared<FJsonValueString>(P.Label.ToString()));
 			for (const FPCGPinProperties& P : OutPins)
 				OutArr.Add(MakeShared<FJsonValueString>(P.Label.ToString()));
-			NObj->SetArrayField(TEXT("inputPins"),  InArr);
-			NObj->SetArrayField(TEXT("outputPins"), OutArr);
+			NObj->SetArrayField(TEXT("InputPins"),  InArr);
+			NObj->SetArrayField(TEXT("OutputPins"), OutArr);
 
 			NodesArr.Add(MakeShared<FJsonValueObject>(NObj));
 		}
-		Entry->SetArrayField(TEXT("nodes"), NodesArr);
-		Entry->SetNumberField(TEXT("nodeCount"), Nodes.Num());
+		Entry->SetArrayField(TEXT("Nodes"), NodesArr);
+		Entry->SetNumberField(TEXT("NodeCount"), Nodes.Num());
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetPCGGraphCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetPCGGraphCapability)
 
 #endif // WITH_PCG

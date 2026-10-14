@@ -7,8 +7,8 @@
 
 #include "NexusCapability.h"
 
-/** create_asset_gameplay_cue_notify：创建 UGameplayCueNotify_Static。Actor BP 转交 blueprint。 */
-class FCreateAssetGameplayCueNotifyCapability : public FNexusCapability
+/** CreateAssetGameplayCueNotify：创建 UGameplayCueNotify_Static。Actor BP 转交 blueprint。 */
+class FNexusCreateAssetGameplayCueNotifyCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

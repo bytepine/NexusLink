@@ -17,7 +17,7 @@ class UPackage;
  *   - 只登记"加载前未驻留、本次由我引入"的包，绝不触碰用户已打开/已加载的工作集；
  *   - Flush 前逐条重新校验：已被引擎自动回收 → 静默剔除，不当错误；dirty / 编辑器已打开 → 跳过，留待下轮。
  *
- * GameThread-only 单例；随每次 call_capability 调用重置内存基线。
+ * GameThread-only 单例；随每次 CallCapability 调用重置内存基线。
  */
 class NEXUSLINK_API FNexusPackageLedger
 {
@@ -31,10 +31,10 @@ public:
 	/** 剔除已被引擎自动回收的陈旧条目后，返回仍驻留的引入包数量。 */
 	int32 LiveCount();
 
-	/** 重置内存基线与「本次调用禁止自动卸载」标记；每次 call_capability 调用开始时调用。 */
+	/** 重置内存基线与「本次调用禁止自动卸载」标记；每次 CallCapability 调用开始时调用。 */
 	void ResetBaseline();
 
-	/** 本次调用是否整体禁止自动卸载（对应 keepLoaded=true）。 */
+	/** 本次调用是否整体禁止自动卸载（对应 bKeepLoaded=true）。 */
 	void SetSuppressedForThisCall(bool bSuppressed) { bSuppressedForThisCall = bSuppressed; }
 	bool IsSuppressedForThisCall() const { return bSuppressedForThisCall; }
 
@@ -56,7 +56,7 @@ public:
 	FFlushStats Flush(bool bGC);
 
 	/**
-	 * 静态工具：对任意包列表做统一的安全过滤 + 整批卸载。供台账 Flush() 与手动 unload_asset
+	 * 静态工具：对任意包列表做统一的安全过滤 + 整批卸载。供台账 Flush() 与手动 UnloadAsset
 	 * Capability 共用同一套判定逻辑（dirty / 编辑器已打开 / 引擎内建包 一律跳过）。
 	 * @param bSkipDirty  true 时 dirty 包跳过；false 时强制卸载（含未保存修改，慎用）
 	 * @param OutSkipped  非空时回填被跳过的包（TSet，供调用方决定是否保留记账）
@@ -65,12 +65,12 @@ public:
 		TSet<UPackage*>* OutSkipped = nullptr);
 
 	/**
-	 * 便捷入口：若未被 keepLoaded 抑制、且插件「自动卸载」设置开启、且阈值命中，则执行一次 Flush。
+	 * 便捷入口：若未被 bKeepLoaded 抑制、且插件「自动卸载」设置开启、且阈值命中，则执行一次 Flush。
 	 * 供各 Capability 循环内按需调用（读取 UNexusLinkSettings 阈值），无需自行拼装判断逻辑。
 	 */
 	static void MaybeFlush();
 
-	/** 批尾强制清空台账（忽略阈值），仅在未被 keepLoaded 抑制时生效；call_capability 每次调用结束时调用。 */
+	/** 批尾强制清空台账（忽略阈值），仅在未被 bKeepLoaded 抑制时生效；CallCapability 每次调用结束时调用。 */
 	static void FlushRemainingUnlessSuppressed();
 
 private:

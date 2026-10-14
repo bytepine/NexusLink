@@ -12,8 +12,8 @@ from audit_doc_sync import load_caps, main  # noqa: E402
 
 def test_load_caps_from_plugin_source():
     caps = load_caps()
-    assert "search_asset" in caps
-    assert caps["search_asset"]["file"].startswith("Source/")
+    assert "SearchAsset" in caps
+    assert caps["SearchAsset"]["File"].startswith("Source/")
 
 
 def test_report_runs():

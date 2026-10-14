@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** get_asset_struct — UserDefinedStruct 字段列表（name/type/subType/subCategoryObject/defaultValue/guid）；propertyPaths 过滤字段名。 */
-class FGetAssetStructCapability : public FNexusCapability
+/** GetAssetStruct — UserDefinedStruct 字段列表（name/type/SubType/SubCategoryObject/DefaultValue/guid）；PropertyPaths 过滤字段名。 */
+class FNexusGetAssetStructCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -8,27 +8,27 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetPhysicalMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetPhysicalMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_physical_material");
+	Out.Name = TEXT("GetAssetPhysicalMaterial");
 	Out.SearchAssetTypes = {TEXT("PhysicalMaterial")};
 	Out.Description = TEXT("Read PhysicalMaterial: friction/restitution/density/surface type.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PhysicalMaterial asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("PhysicalMaterial asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("physical"), TEXT("material"), TEXT("friction"), TEXT("restitution"), TEXT("surface") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_physical_material"), TEXT("create_asset_physical_material") };
+	Out.ExtraSearchKeywords = { TEXT("physical"), TEXT("Material"), TEXT("Friction"), TEXT("Restitution"), TEXT("Surface") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetPhysicalMaterial"), TEXT("CreateAssetPhysicalMaterial") };
 }
 
-FCapabilityResult FGetAssetPhysicalMaterialCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetPhysicalMaterialCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		UPhysicalMaterial* PM = LoadObject<UPhysicalMaterial>(nullptr, *AssetPath);
 		if (!PM)
 		{
@@ -39,14 +39,14 @@ FCapabilityResult FGetAssetPhysicalMaterialCapability::Execute(const TSharedPtr<
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),             PM->GetName());
-		Entry->SetStringField(TEXT("path"),             PM->GetPathName());
-		Entry->SetNumberField(TEXT("friction"),         PM->Friction);
-		Entry->SetNumberField(TEXT("restitution"),      PM->Restitution);
-		Entry->SetNumberField(TEXT("density"),          PM->Density);
-		Entry->SetNumberField(TEXT("raiseMassToPower"), PM->RaiseMassToPower);
-		Entry->SetNumberField(TEXT("surfaceType"),      (double)(int32)PM->SurfaceType.GetValue());
+		Entry->SetStringField(TEXT("Path"),             PM->GetPathName());
+		Entry->SetNumberField(TEXT("Friction"),         PM->Friction);
+		Entry->SetNumberField(TEXT("Restitution"),      PM->Restitution);
+		Entry->SetNumberField(TEXT("Density"),          PM->Density);
+		Entry->SetNumberField(TEXT("RaiseMassToPower"), PM->RaiseMassToPower);
+		Entry->SetNumberField(TEXT("SurfaceType"),      (double)(int32)PM->SurfaceType.GetValue());
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetPhysicalMaterialCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetPhysicalMaterialCapability)

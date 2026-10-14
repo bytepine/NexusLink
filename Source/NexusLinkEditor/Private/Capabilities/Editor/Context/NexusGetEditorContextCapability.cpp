@@ -9,82 +9,82 @@
 #include "Utils/NexusEditorContextUtils.h"
 #include "NexusMcpTool.h"
 
-void FGetEditorContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetEditorContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_editor_context");
+	Out.Name = TEXT("GetEditorContext");
 	Out.Description = TEXT("Read editor selection, browse path, and current map. editor World != PIE.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.Prerequisites = { TEXT("editor_only") };
+	Out.Prerequisites = { TEXT("EditorOnly") };
 	Out.ExtraSearchKeywords = {
 		TEXT("selection"), TEXT("content browser"), TEXT("picker"), TEXT("focused"),
 		TEXT("current map"), TEXT("open level"), TEXT("loaded map")
 	};
-	Out.RelatedCapabilities = { TEXT("get_editor_info"), TEXT("capture_viewport"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("Read editor selection or current map; use list_runtime_actors in PIE");
+	Out.RelatedCapabilities = { TEXT("GetEditorInfo"), TEXT("CaptureViewport"), TEXT("SearchAsset") };
+	Out.WhenToUse = TEXT("Read editor selection or current map; use ListRuntimeActors in PIE");
 }
 
-TSharedPtr<FJsonObject> FGetEditorContextCapability::BuildCapabilitySchema() const
+TSharedPtr<FJsonObject> FNexusGetEditorContextCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("limit"), FNexusSchema::Int(TEXT("Max list items (selection section)"), 100, 1, 500))
+		.Prop(TEXT("Limit"), FNexusSchema::Int(TEXT("Max list items (selection section)"), 100, 1, 500))
 		.Build();
 }
 
-TArray<FString> FGetEditorContextCapability::GetSectionNames() const
+TArray<FString> FNexusGetEditorContextCapability::GetSectionNames() const
 {
-	return { TEXT("selection_actors"), TEXT("selection_assets"), TEXT("content_browser_path"), TEXT("current_map") };
+	return { TEXT("SelectionActors"), TEXT("SelectionAssets"), TEXT("ContentBrowserPath"), TEXT("CurrentMap") };
 }
 
-TArray<FString> FGetEditorContextCapability::GetDefaultSectionNames() const
+TArray<FString> FNexusGetEditorContextCapability::GetDefaultSectionNames() const
 {
-	return { TEXT("selection_actors"), TEXT("selection_assets"), TEXT("content_browser_path"), TEXT("current_map") };
+	return { TEXT("SelectionActors"), TEXT("SelectionAssets"), TEXT("ContentBrowserPath"), TEXT("CurrentMap") };
 }
 
-void FGetEditorContextCapability::ExecuteSection(const FString&                 SectionName,
+void FNexusGetEditorContextCapability::ExecuteSection(const FString&                 SectionName,
                                                  const TSharedPtr<FJsonObject>& Args,
                                                  void*                          /*TargetOpaque*/,
                                                  TSharedPtr<FJsonObject>&       InOutDetail,
                                                  FString&                       OutError) const
 {
 #if !WITH_EDITOR
-	OutError = TEXT("get_editor_context only available in editor builds");
+	OutError = TEXT("GetEditorContext only available in editor builds");
 	return;
 #endif
 
 	int32 Limit = 100;
-	if (Args.IsValid() && Args->HasField(TEXT("limit")))
+	if (Args.IsValid() && Args->HasField(TEXT("Limit")))
 	{
-		Limit = FMath::Clamp(static_cast<int32>(Args->GetNumberField(TEXT("limit"))), 1, 500);
+		Limit = FMath::Clamp(static_cast<int32>(Args->GetNumberField(TEXT("Limit"))), 1, 500);
 	}
 
-	if (SectionName == TEXT("selection_actors"))
+	if (SectionName == TEXT("SelectionActors"))
 	{
 		TArray<TSharedPtr<FJsonValue>> Actors;
 		int32 Count = 0;
 		FNexusEditorContextUtils::CollectSelectionActors(Actors, Count, Limit);
-		InOutDetail->SetArrayField(TEXT("actors"), Actors);
-		InOutDetail->SetNumberField(TEXT("count"), Actors.Num());
-		InOutDetail->SetBoolField(TEXT("isEditorWorld"), true);
+		InOutDetail->SetArrayField(TEXT("Actors"), Actors);
+		InOutDetail->SetNumberField(TEXT("Count"), Actors.Num());
+		InOutDetail->SetBoolField(TEXT("bIsEditorWorld"), true);
 	}
-	else if (SectionName == TEXT("selection_assets"))
+	else if (SectionName == TEXT("SelectionAssets"))
 	{
 		TArray<TSharedPtr<FJsonValue>> Assets;
 		int32 Count = 0;
 		FNexusEditorContextUtils::CollectSelectionAssets(Assets, Count, Limit);
-		InOutDetail->SetArrayField(TEXT("assets"), Assets);
-		InOutDetail->SetNumberField(TEXT("count"), Assets.Num());
+		InOutDetail->SetArrayField(TEXT("Assets"), Assets);
+		InOutDetail->SetNumberField(TEXT("Count"), Assets.Num());
 	}
-	else if (SectionName == TEXT("content_browser_path"))
+	else if (SectionName == TEXT("ContentBrowserPath"))
 	{
 		FString Path;
 		if (!FNexusEditorContextUtils::CollectContentBrowserPath(Path, OutError))
 		{
 			return;
 		}
-		InOutDetail->SetStringField(TEXT("path"), Path);
+		InOutDetail->SetStringField(TEXT("Path"), Path);
 	}
-	else if (SectionName == TEXT("current_map"))
+	else if (SectionName == TEXT("CurrentMap"))
 	{
 		FString AssetPath;
 		FString MapName;
@@ -92,9 +92,9 @@ void FGetEditorContextCapability::ExecuteSection(const FString&                 
 		{
 			return;
 		}
-		InOutDetail->SetStringField(TEXT("assetPath"), AssetPath);
-		InOutDetail->SetStringField(TEXT("mapName"), MapName);
-		InOutDetail->SetBoolField(TEXT("isEditorWorld"), true);
+		InOutDetail->SetStringField(TEXT("AssetPath"), AssetPath);
+		InOutDetail->SetStringField(TEXT("MapName"), MapName);
+		InOutDetail->SetBoolField(TEXT("bIsEditorWorld"), true);
 	}
 	else
 	{
@@ -102,6 +102,6 @@ void FGetEditorContextCapability::ExecuteSection(const FString&                 
 	}
 }
 
-REGISTER_MCP_CAPABILITY(FGetEditorContextCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetEditorContextCapability)
 
 #endif // WITH_EDITOR

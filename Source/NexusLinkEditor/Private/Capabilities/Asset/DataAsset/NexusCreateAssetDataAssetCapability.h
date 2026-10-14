@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_data_asset 的 Capability — 从父类创建新 DataAsset 资产。*/
-class FCreateAssetDataAssetCapability : public FNexusCapability
+/** CreateAssetDataAsset 的 Capability — 从父类创建新 DataAsset 资产。*/
+class FNexusCreateAssetDataAssetCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

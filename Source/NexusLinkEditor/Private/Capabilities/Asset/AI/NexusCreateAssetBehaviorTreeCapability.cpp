@@ -10,27 +10,27 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_behavior_tree");
-	Out.Description = TEXT("Create empty BT. Link BB via manage set_blackboard then add nodes.");
+	Out.Name = TEXT("CreateAssetBehaviorTree");
+	Out.Description = TEXT("Create empty BT. Link BB via manage SetBlackboard then add nodes.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("BehaviorTree package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("BehaviorTree package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = { TEXT("bt"), TEXT("new"), TEXT("behaviortree"), TEXT("ai"), TEXT("task") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_behavior_tree"), TEXT("create_asset_blackboard") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetBehaviorTree"), TEXT("CreateAssetBlackboard") };
 	Out.WhenToUse = TEXT("Create empty BT; no nodes, no linked BB");
 }
 
-FCapabilityResult FCreateAssetBehaviorTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetBehaviorTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString BTPath = A.Str(TEXT("assetPath"));
+		const FString BTPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<UBehaviorTree>(BTPath);
 		if (!Created.Ok())
@@ -43,4 +43,4 @@ FCapabilityResult FCreateAssetBehaviorTreeCapability::Execute(const TSharedPtr<F
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetBehaviorTreeCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetBehaviorTreeCapability)

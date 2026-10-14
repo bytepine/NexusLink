@@ -10,7 +10,7 @@ class SWidget;
 
 /**
  * UMG / Slate 布局字段导出（AutoWrapText、PanelSlot 锚点等）。
- * 供 get_asset_user_widget、get_runtime_slate_widget、get_runtime_widget_property 共用。
+ * 供 GetAssetUserWidget、GetRuntimeSlateWidget、GetRuntimeWidgetProperty 共用。
  */
 class NEXUSLINK_API FNexusWidgetLayoutUtils
 {

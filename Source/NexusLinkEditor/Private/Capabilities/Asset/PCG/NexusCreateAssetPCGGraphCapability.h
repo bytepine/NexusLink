@@ -7,8 +7,8 @@
 
 #if WITH_PCG
 
-/** create_asset_pcg_graph — 创建 PCG Graph 资产。 */
-class FCreateAssetPCGGraphCapability : public FNexusCapability
+/** CreateAssetPCGGraph — 创建 PCG Graph 资产。 */
+class FNexusCreateAssetPCGGraphCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

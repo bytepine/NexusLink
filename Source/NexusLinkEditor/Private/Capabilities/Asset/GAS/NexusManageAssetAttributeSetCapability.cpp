@@ -16,25 +16,25 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetAttributeSetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetAttributeSetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_attribute_set");
+	Out.Name = TEXT("ManageAssetAttributeSet");
 	Out.SearchAssetTypes = {TEXT("AttributeSet")};
 	Out.Description = TEXT("Batch set/reset AttributeSet CDO FGameplayAttributeData defaults.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),        FNexusSchema::Enum(TEXT("Action"), { TEXT("set"), TEXT("reset") }))
-		.Prop(TEXT("attributeName"), FNexusSchema::Str(TEXT("Property name")))
-		.Prop(TEXT("baseValue"),     FNexusSchema::Num(TEXT("default BaseValue (set)")))
-		.Required({ TEXT("action"), TEXT("attributeName") })
+		.Prop(TEXT("Action"),        FNexusSchema::Enum(TEXT("Action"), { TEXT("Set"), TEXT("Reset") }))
+		.Prop(TEXT("AttributeName"), FNexusSchema::Str(TEXT("Property name")))
+		.Prop(TEXT("BaseValue"),     FNexusSchema::Num(TEXT("default BaseValue (set)")))
+		.Required({ TEXT("Action"), TEXT("AttributeName") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("AttributeSet Blueprint path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("AttributeSet Blueprint path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
-	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("attribute"), TEXT("default"), TEXT("health"), TEXT("stat") };
-	Out.RelatedCapabilities = { TEXT("get_asset_attribute_set"), TEXT("save_asset"), TEXT("create_asset_attribute_set") };
+	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("Attribute"), TEXT("default"), TEXT("health"), TEXT("stat") };
+	Out.RelatedCapabilities = { TEXT("GetAssetAttributeSet"), TEXT("SaveAsset"), TEXT("CreateAssetAttributeSet") };
 	Out.WhenToUse = TEXT("Set AS property defaults; auto recompiles Blueprint");
 }
 
@@ -63,9 +63,9 @@ static FGameplayAttributeData* ResolveASAttr(const TSharedPtr<FJsonObject>& Op, 
 {
 	FAttrSetActionState* S = ASState(Ctx);
 	FString AttrName;
-	if (!Op->TryGetStringField(TEXT("attributeName"), AttrName) || AttrName.IsEmpty())
+	if (!Op->TryGetStringField(TEXT("AttributeName"), AttrName) || AttrName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("missing attributeName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("missing AttributeName"));
 		return nullptr;
 	}
 	FStructProperty* FoundProp = nullptr;
@@ -82,14 +82,14 @@ static FGameplayAttributeData* ResolveASAttr(const TSharedPtr<FJsonObject>& Op, 
 	}
 	if (!FoundProp)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"),
+		Ctx.Entry->SetStringField(TEXT("Error"),
 			FString::Printf(TEXT("FGameplayAttributeData property not found: %s"), *AttrName));
 		return nullptr;
 	}
 	FGameplayAttributeData* AttrData = FoundProp->ContainerPtrToValuePtr<FGameplayAttributeData>(S->CDO);
 	if (!AttrData)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"),
+		Ctx.Entry->SetStringField(TEXT("Error"),
 			FString::Printf(TEXT("cannot access CDO pointer for property %s"), *AttrName));
 		return nullptr;
 	}
@@ -100,12 +100,12 @@ static void HandleAS_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 {
 	FGameplayAttributeData* AttrData = ResolveASAttr(Op, Ctx);
 	if (!AttrData) return;
-	if (!Op->HasField(TEXT("baseValue")))
+	if (!Op->HasField(TEXT("BaseValue")))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set requires baseValue"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("set requires BaseValue"));
 		return;
 	}
-	const float BaseValue = static_cast<float>(Op->GetNumberField(TEXT("baseValue")));
+	const float BaseValue = static_cast<float>(Op->GetNumberField(TEXT("BaseValue")));
 	AttrData->SetBaseValue(BaseValue);
 	AttrData->SetCurrentValue(BaseValue);
 	MarkASApplied(Ctx);
@@ -120,14 +120,14 @@ static void HandleAS_Reset(const TSharedPtr<FJsonObject>& Op, FNexusActionContex
 	MarkASApplied(Ctx);
 }
 
-bool FManageAssetAttributeSetCapability::PrepareTarget(
+bool FNexusManageAssetAttributeSetCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	FString LoadError;
 	UBlueprint* BP = FNexusGasUtils::LoadAttributeSetBlueprint(AssetPath, LoadError);
 	if (!BP) { OutError = LoadError; return false; }
@@ -141,7 +141,7 @@ bool FManageAssetAttributeSetCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetAttributeSetCapability::AfterPrepareTarget(
+void FNexusManageAssetAttributeSetCapability::AfterPrepareTarget(
 	void* Target,
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& OutTop) const
@@ -149,11 +149,11 @@ void FManageAssetAttributeSetCapability::AfterPrepareTarget(
 	if (FAttrSetActionState* State = static_cast<FAttrSetActionState*>(Target))
 	{
 		State->OutTop = OutTop;
-		OutTop->SetStringField(TEXT("path"), FNexusArgs(Args).Str(TEXT("assetPath")));
+		OutTop->SetStringField(TEXT("Path"), FNexusArgs(Args).Str(TEXT("AssetPath")));
 	}
 }
 
-void FManageAssetAttributeSetCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetAttributeSetCapability::FinalizeTarget(void* Target) const
 {
 	FAttrSetActionState* State = static_cast<FAttrSetActionState*>(Target);
 	if (!State) return;
@@ -164,17 +164,17 @@ void FManageAssetAttributeSetCapability::FinalizeTarget(void* Target) const
 	}
 	if (State->OutTop.IsValid())
 	{
-		State->OutTop->SetNumberField(TEXT("appliedOps"), State->Applied);
+		State->OutTop->SetNumberField(TEXT("AppliedOps"), State->Applied);
 	}
 	delete State;
 }
 
-void FManageAssetAttributeSetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetAttributeSetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set"),   &HandleAS_Set);
-	OutHandlers.Add(TEXT("reset"), &HandleAS_Reset);
+	OutHandlers.Add(TEXT("Set"),   &HandleAS_Set);
+	OutHandlers.Add(TEXT("Reset"), &HandleAS_Reset);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetAttributeSetCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetAttributeSetCapability)
 
 #endif // WITH_GAS

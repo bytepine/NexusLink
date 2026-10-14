@@ -7,8 +7,8 @@
 
 #if WITH_PCG
 
-/** get_asset_pcg_graph — 读取 PCG Graph 节点列表及连接概览。 */
-class FGetAssetPCGGraphCapability : public FNexusCapability
+/** GetAssetPCGGraph — 读取 PCG Graph 节点列表及连接概览。 */
+class FNexusGetAssetPCGGraphCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

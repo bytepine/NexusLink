@@ -17,50 +17,50 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetSkeletalMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetSkeletalMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_skeletal_mesh");
+	Out.Name = TEXT("GetAssetSkeletalMesh");
 	Out.SearchAssetTypes = {TEXT("SkeletalMesh")};
-	Out.Description = TEXT("Inspect SkeletalMesh snapshot. Writes via manage_asset_skeletal_mesh.");
+	Out.Description = TEXT("Inspect SkeletalMesh snapshot. Writes via ManageAssetSkeletalMesh.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SkeletalMesh asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("SkeletalMesh asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("skmesh"), TEXT("skeletal"), TEXT("lod"), TEXT("skin"), TEXT("physics") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_skeletal_mesh"), TEXT("search_asset"), TEXT("get_asset_skeleton"), TEXT("get_asset_refs"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("Read skeletal mesh metadata; use manage_asset_skeletal_mesh for writes");
+	Out.RelatedCapabilities = { TEXT("ManageAssetSkeletalMesh"), TEXT("SearchAsset"), TEXT("GetAssetSkeleton"), TEXT("GetAssetRefs"), TEXT("SaveAsset") };
+	Out.WhenToUse = TEXT("Read skeletal mesh metadata; use ManageAssetSkeletalMesh for writes");
 }
 
-FCapabilityResult FGetAssetSkeletalMeshCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetSkeletalMeshCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString Path = A.Str(TEXT("assetPath"));
+		const FString Path = A.Str(TEXT("AssetPath"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), Path);
+		Entry->SetStringField(TEXT("Path"), Path);
 
 		USkeletalMesh* Mesh = FNexusAssetUtils::LoadAssetWithFallback<USkeletalMesh>(Path);
 		if (!Mesh)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("SkeletalMesh not found: %s"), *Path));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("SkeletalMesh not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 
 		Entry->SetStringField(TEXT("name"), Mesh->GetName());
-		Entry->SetStringField(TEXT("assetType"), TEXT("SkeletalMesh"));
+		Entry->SetStringField(TEXT("AssetType"), TEXT("SkeletalMesh"));
 
 		const FBoxSphereBounds Bounds = Mesh->GetBounds();
 		TSharedPtr<FJsonObject> BoundsObj = MakeShared<FJsonObject>();
-		BoundsObj->SetNumberField(TEXT("extentX"), Bounds.BoxExtent.X);
-		BoundsObj->SetNumberField(TEXT("extentY"), Bounds.BoxExtent.Y);
-		BoundsObj->SetNumberField(TEXT("extentZ"), Bounds.BoxExtent.Z);
-		Entry->SetObjectField(TEXT("bounds"), BoundsObj);
+		BoundsObj->SetNumberField(TEXT("ExtentX"), Bounds.BoxExtent.X);
+		BoundsObj->SetNumberField(TEXT("ExtentY"), Bounds.BoxExtent.Y);
+		BoundsObj->SetNumberField(TEXT("ExtentZ"), Bounds.BoxExtent.Z);
+		Entry->SetObjectField(TEXT("Bounds"), BoundsObj);
 
-		Entry->SetNumberField(TEXT("lodCount"), Mesh->GetLODNum());
+		Entry->SetNumberField(TEXT("LODCount"), Mesh->GetLODNum());
 
 #if NX_UE_HAS_SKELETAL_MESH_SKELETON_ACCESSOR
 		if (const USkeleton* Skel = Mesh->GetSkeleton())
@@ -68,28 +68,28 @@ FCapabilityResult FGetAssetSkeletalMeshCapability::Execute(const TSharedPtr<FJso
 		if (USkeleton* Skel = Mesh->Skeleton)
 #endif
 		{
-			Entry->SetStringField(TEXT("skeleton"), Skel->GetPathName());
+			Entry->SetStringField(TEXT("Skeleton"), Skel->GetPathName());
 		}
 
 		TArray<TSharedPtr<FJsonValue>> Slots;
 		const TArray<FSkeletalMaterial>& Materials = FNexusAssetUtils::GetSkeletalMeshMaterials(*Mesh);
-		for (int32 i = 0; i < Materials.Num(); ++i)
+		for (int32 MaterialIndex = 0; MaterialIndex < Materials.Num(); ++MaterialIndex)
 		{
-			const FSkeletalMaterial& SM = Materials[i];
+			const FSkeletalMaterial& SM = Materials[MaterialIndex];
 			TSharedPtr<FJsonObject> SlotObj = MakeShared<FJsonObject>();
-			SlotObj->SetNumberField(TEXT("index"), i);
-			SlotObj->SetStringField(TEXT("slotName"), SM.MaterialSlotName.ToString());
+			SlotObj->SetNumberField(TEXT("Index"), MaterialIndex);
+			SlotObj->SetStringField(TEXT("SlotName"), SM.MaterialSlotName.ToString());
 			if (SM.MaterialInterface)
 			{
-				SlotObj->SetStringField(TEXT("material"), SM.MaterialInterface->GetPathName());
+				SlotObj->SetStringField(TEXT("Material"), SM.MaterialInterface->GetPathName());
 			}
 			Slots.Add(MakeShared<FJsonValueObject>(SlotObj));
 		}
-		Entry->SetArrayField(TEXT("materialSlots"), Slots);
+		Entry->SetArrayField(TEXT("MaterialSlots"), Slots);
 
 		if (UPhysicsAsset* PhysAsset = FNexusAssetUtils::GetSkeletalMeshPhysicsAsset(Mesh))
 		{
-			Entry->SetStringField(TEXT("physicsAsset"), PhysAsset->GetPathName());
+			Entry->SetStringField(TEXT("PhysicsAsset"), PhysAsset->GetPathName());
 		}
 
 		TArray<TSharedPtr<FJsonValue>> SocketArr;
@@ -98,16 +98,16 @@ FCapabilityResult FGetAssetSkeletalMeshCapability::Execute(const TSharedPtr<FJso
 			if (!Socket) continue;
 			TSharedPtr<FJsonObject> S = MakeShared<FJsonObject>();
 			S->SetStringField(TEXT("name"), Socket->SocketName.ToString());
-			S->SetStringField(TEXT("boneName"), Socket->BoneName.ToString());
-			S->SetNumberField(TEXT("locX"), Socket->RelativeLocation.X);
-			S->SetNumberField(TEXT("locY"), Socket->RelativeLocation.Y);
-			S->SetNumberField(TEXT("locZ"), Socket->RelativeLocation.Z);
+			S->SetStringField(TEXT("BoneName"), Socket->BoneName.ToString());
+			S->SetNumberField(TEXT("LocX"), Socket->RelativeLocation.X);
+			S->SetNumberField(TEXT("LocY"), Socket->RelativeLocation.Y);
+			S->SetNumberField(TEXT("LocZ"), Socket->RelativeLocation.Z);
 			SocketArr.Add(MakeShared<FJsonValueObject>(S));
 		}
-		Entry->SetArrayField(TEXT("sockets"), SocketArr);
+		Entry->SetArrayField(TEXT("Sockets"), SocketArr);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetSkeletalMeshCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetSkeletalMeshCapability)

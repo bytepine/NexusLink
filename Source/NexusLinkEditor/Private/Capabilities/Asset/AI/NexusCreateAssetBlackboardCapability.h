@@ -6,7 +6,7 @@
 #include "NexusCapability.h"
 
 /** 独立创建空 BlackboardData 资产（不含 BT 关联；键位后续由编辑器或他工具维护）。 */
-class FCreateAssetBlackboardCapability : public FNexusCapability
+class FNexusCreateAssetBlackboardCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

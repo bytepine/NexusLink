@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_enum：创建 UserDefinedEnum 资产。 */
-class FCreateAssetEnumCapability : public FNexusCapability
+/** CreateAssetEnum：创建 UserDefinedEnum 资产。 */
+class FNexusCreateAssetEnumCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

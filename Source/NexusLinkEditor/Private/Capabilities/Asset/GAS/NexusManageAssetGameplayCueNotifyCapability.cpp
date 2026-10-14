@@ -11,26 +11,26 @@
 #include "GameplayCueNotify_Static.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetGameplayCueNotifyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetGameplayCueNotifyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_gameplay_cue_notify");
+	Out.Name = TEXT("ManageAssetGameplayCueNotify");
 	Out.SearchAssetTypes = {TEXT("GameplayCueNotify_Static")};
 	Out.Description = TEXT("Batch edit GameplayCueNotify_Static. Actor BP graph via blueprint.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("set_cue_name") }))
-		.Prop(TEXT("cueName"), FNexusSchema::Str(TEXT("GameplayCue Tag")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("SetCueName") }))
+		.Prop(TEXT("CueName"), FNexusSchema::Str(TEXT("GameplayCue Tag")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Cue Notify asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Cue Notify asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
-	Out.ExtraSearchKeywords = { TEXT("cue"), TEXT("notify"), TEXT("tag") };
+	Out.ExtraSearchKeywords = { TEXT("cue"), TEXT("notify"), TEXT("Tag") };
 	Out.RelatedCapabilities = {
-		TEXT("get_asset_gameplay_cue_notify"), TEXT("create_asset_gameplay_cue_notify"),
-		TEXT("manage_asset_blueprint")
+		TEXT("GetAssetGameplayCueNotify"), TEXT("CreateAssetGameplayCueNotify"),
+		TEXT("ManageAssetBlueprint")
 	};
 }
 
@@ -49,28 +49,28 @@ static void HandleCue_SetCueName(const TSharedPtr<FJsonObject>& Op, FNexusAction
 {
 	UGameplayCueNotify_Static* Notify = CueState(Ctx)->Notify;
 	FString CueName;
-	if (!Op->TryGetStringField(TEXT("cueName"), CueName) || CueName.IsEmpty())
+	if (!Op->TryGetStringField(TEXT("CueName"), CueName) || CueName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_cue_name requires cueName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetCueName requires CueName"));
 		return;
 	}
 	Notify->GameplayCueName = FName(*CueName);
 	CueState(Ctx)->bDirty = true;
-	Ctx.Entry->SetStringField(TEXT("cueName"), Notify->GameplayCueName.ToString());
+	Ctx.Entry->SetStringField(TEXT("CueName"), Notify->GameplayCueName.ToString());
 }
 
-bool FManageAssetGameplayCueNotifyCapability::PrepareTarget(
+bool FNexusManageAssetGameplayCueNotifyCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UGameplayCueNotify_Static* Notify = FNexusAssetUtils::LoadAssetWithFallback<UGameplayCueNotify_Static>(AssetPath);
 	if (!Notify)
 	{
-		OutError = TEXT("Only supports GameplayCueNotify_Static; use manage_asset_blueprint for Actor BP");
+		OutError = TEXT("Only supports GameplayCueNotify_Static; use ManageAssetBlueprint for Actor BP");
 		return false;
 	}
 	FCueNotifyActionState* State = new FCueNotifyActionState();
@@ -79,7 +79,7 @@ bool FManageAssetGameplayCueNotifyCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetGameplayCueNotifyCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetGameplayCueNotifyCapability::FinalizeTarget(void* Target) const
 {
 	FCueNotifyActionState* State = static_cast<FCueNotifyActionState*>(Target);
 	if (!State) return;
@@ -87,11 +87,11 @@ void FManageAssetGameplayCueNotifyCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetGameplayCueNotifyCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetGameplayCueNotifyCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_cue_name"), &HandleCue_SetCueName);
+	OutHandlers.Add(TEXT("SetCueName"), &HandleCue_SetCueName);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetGameplayCueNotifyCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetGameplayCueNotifyCapability)
 
 #endif

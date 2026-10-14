@@ -19,56 +19,56 @@
 #include "Components/PanelWidget.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_user_widget");
+	Out.Name = TEXT("ManageAssetUserWidget");
 	Out.bInjectCompile = true;
 	Out.SearchAssetTypes = {TEXT("Widget")};
-	Out.Description = TEXT("Batch edit WBP: widget tree/slots/props and animation tracks; EventGraph via manage_asset_blueprint.");
+	Out.Description = TEXT("Batch edit WBP: widget tree/slots/props and animation tracks; EventGraph via ManageAssetBlueprint.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Widget operation"),
-			{ TEXT("add"), TEXT("remove"), TEXT("set_slot"), TEXT("set_property"),
-			  TEXT("add_animation"), TEXT("remove_animation"), TEXT("add_track"), TEXT("add_key"),
-			  TEXT("remove_track"), TEXT("remove_key") }))
-		.Prop(TEXT("widgetClass"),  FNexusSchema::Str(TEXT("Widget class short name (add)")))
-		.Prop(TEXT("widgetName"),   FNexusSchema::Str(TEXT("Widget name; required for remove/set_*/animation track")))
-		.Prop(TEXT("parentWidget"), FNexusSchema::Str(TEXT("Parent panel Widget name (add)")))
-		.Prop(TEXT("animationName"), FNexusSchema::Str(TEXT("Animation name (add/remove_animation/track/key)")))
-		.Prop(TEXT("trackName"),    FNexusSchema::Str(TEXT("Float track display name (add/remove_track/key)")))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Property path (set_property; e.g. RenderOpacity for add_track)")))
-		.Prop(TEXT("time"),         FNexusSchema::Num(TEXT("Keyframe time seconds (add_key/remove_key)")))
-		.Prop(TEXT("keyValue"),     FNexusSchema::Num(TEXT("Float keyframe value (add_key)")))
-		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("Property value (set_property)")))
-		.Prop(TEXT("anchorMinX"),   FNexusSchema::Num(TEXT("Canvas anchor minX (set_slot)")))
-		.Prop(TEXT("anchorMinY"),   FNexusSchema::Num(TEXT("Canvas anchor minY (set_slot)")))
-		.Prop(TEXT("anchorMaxX"),   FNexusSchema::Num(TEXT("Canvas anchor maxX (set_slot)")))
-		.Prop(TEXT("anchorMaxY"),   FNexusSchema::Num(TEXT("Canvas anchor maxY (set_slot)")))
-		.Prop(TEXT("alignmentX"),   FNexusSchema::Num(TEXT("Alignment X (set_slot)")))
-		.Prop(TEXT("alignmentY"),   FNexusSchema::Num(TEXT("Alignment Y (set_slot)")))
-		.Prop(TEXT("offsetLeft"),   FNexusSchema::Num(TEXT("offset Left (set_slot)")))
-		.Prop(TEXT("offsetTop"),    FNexusSchema::Num(TEXT("offset Top (set_slot)")))
-		.Prop(TEXT("offsetRight"),  FNexusSchema::Num(TEXT("offset Right (set_slot)")))
-		.Prop(TEXT("offsetBottom"), FNexusSchema::Num(TEXT("offset Bottom (set_slot)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Widget operation"),
+			{ TEXT("Add"), TEXT("Remove"), TEXT("SetSlot"), TEXT("SetProperty"),
+			  TEXT("AddAnimation"), TEXT("RemoveAnimation"), TEXT("AddTrack"), TEXT("AddKey"),
+			  TEXT("RemoveTrack"), TEXT("RemoveKey") }))
+		.Prop(TEXT("WidgetClass"),  FNexusSchema::Str(TEXT("Widget class short name (add)")))
+		.Prop(TEXT("WidgetName"),   FNexusSchema::Str(TEXT("Widget name; required for remove/set_*/animation track")))
+		.Prop(TEXT("ParentWidget"), FNexusSchema::Str(TEXT("Parent panel Widget name (add)")))
+		.Prop(TEXT("AnimationName"), FNexusSchema::Str(TEXT("Animation name (add/RemoveAnimation/track/key)")))
+		.Prop(TEXT("TrackName"),    FNexusSchema::Str(TEXT("Float track display name (add/RemoveTrack/key)")))
+		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("Property path (SetProperty; e.g. RenderOpacity for AddTrack)")))
+		.Prop(TEXT("Time"),         FNexusSchema::Num(TEXT("Keyframe time seconds (AddKey/RemoveKey)")))
+		.Prop(TEXT("KeyValue"),     FNexusSchema::Num(TEXT("Float keyframe value (AddKey)")))
+		.Prop(TEXT("Value"),        FNexusSchema::Str(TEXT("Property value (SetProperty)")))
+		.Prop(TEXT("AnchorMinX"),   FNexusSchema::Num(TEXT("Canvas anchor MinX (SetSlot)")))
+		.Prop(TEXT("AnchorMinY"),   FNexusSchema::Num(TEXT("Canvas anchor MinY (SetSlot)")))
+		.Prop(TEXT("AnchorMaxX"),   FNexusSchema::Num(TEXT("Canvas anchor MaxX (SetSlot)")))
+		.Prop(TEXT("AnchorMaxY"),   FNexusSchema::Num(TEXT("Canvas anchor MaxY (SetSlot)")))
+		.Prop(TEXT("AlignmentX"),   FNexusSchema::Num(TEXT("Alignment X (SetSlot)")))
+		.Prop(TEXT("AlignmentY"),   FNexusSchema::Num(TEXT("Alignment Y (SetSlot)")))
+		.Prop(TEXT("OffsetLeft"),   FNexusSchema::Num(TEXT("offset Left (SetSlot)")))
+		.Prop(TEXT("OffsetTop"),    FNexusSchema::Num(TEXT("offset Top (SetSlot)")))
+		.Prop(TEXT("OffsetRight"),  FNexusSchema::Num(TEXT("offset Right (SetSlot)")))
+		.Prop(TEXT("OffsetBottom"), FNexusSchema::Num(TEXT("offset Bottom (SetSlot)")))
+		.Required({ TEXT("Action") })
 		.Build();
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("WidgetBlueprint asset path (shared)")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch widget ops"), ItemSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("WidgetBlueprint asset path (shared)")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch widget ops"), ItemSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = {
-		TEXT("wbp"), TEXT("umg"), TEXT("children"), TEXT("ui"), TEXT("slot"), TEXT("animation"), TEXT("key")
+		TEXT("wbp"), TEXT("umg"), TEXT("Children"), TEXT("UI"), TEXT("slot"), TEXT("Animation"), TEXT("Key")
 	};
 	Out.RelatedCapabilities = {
-		TEXT("get_asset_user_widget"), TEXT("create_asset_user_widget"), TEXT("save_asset"),
-		TEXT("get_asset_blueprint"), TEXT("manage_asset_blueprint")
+		TEXT("GetAssetUserWidget"), TEXT("CreateAssetUserWidget"), TEXT("SaveAsset"),
+		TEXT("GetAssetBlueprint"), TEXT("ManageAssetBlueprint")
 	};
-	Out.WhenToUse = TEXT("Widget tree/animation tracks use this cap; EventGraph via manage_asset_blueprint");
+	Out.WhenToUse = TEXT("Widget tree/animation tracks use this cap; EventGraph via ManageAssetBlueprint");
 }
 
 #if WITH_EDITOR
@@ -103,20 +103,20 @@ static void HandleWBP_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
 	if (!WBP)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("WidgetBlueprint is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("WidgetBlueprint is null"));
 		return;
 	}
-	const FString WidgetName = FNexusArgs(Op).Str(TEXT("widgetName"));
+	const FString WidgetName = FNexusArgs(Op).Str(TEXT("WidgetName"));
 	if (WidgetName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("action=remove requires widgetName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Action=remove requires WidgetName"));
 		return;
 	}
-	Ctx.Entry->SetStringField(TEXT("widgetName"), WidgetName);
+	Ctx.Entry->SetStringField(TEXT("WidgetName"), WidgetName);
 	UWidget* Target = WBP->WidgetTree->FindWidget(FName(*WidgetName));
 	if (!Target)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
 		return;
 	}
 	WBP->WidgetTree->Modify();
@@ -136,23 +136,23 @@ static void HandleWBP_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
 	if (!WBP)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("WidgetBlueprint is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("WidgetBlueprint is null"));
 		return;
 	}
 	const FNexusArgs A(Op);
-	const FString WidgetClass = A.Str(TEXT("widgetClass"));
+	const FString WidgetClass = A.Str(TEXT("WidgetClass"));
 	if (WidgetClass.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("action=add requires widgetClass"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Action=add requires WidgetClass"));
 		return;
 	}
-	FString WidgetName = A.Str(TEXT("widgetName"));
-	const FString ParentName = A.Str(TEXT("parentWidget"));
+	FString WidgetName = A.Str(TEXT("WidgetName"));
+	const FString ParentName = A.Str(TEXT("ParentWidget"));
 
 	UClass* NewClass = FNexusAssetUtils::FindClassWithUPrefix(WidgetClass);
 	if (!NewClass || !NewClass->IsChildOf(UWidget::StaticClass()))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget class not found: %s"), *WidgetClass));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Widget class not found: %s"), *WidgetClass));
 		return;
 	}
 	if (WidgetName.IsEmpty())
@@ -163,7 +163,7 @@ static void HandleWBP_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 	UWidget* NewWidget = WBP->WidgetTree->ConstructWidget<UWidget>(NewClass, FName(*WidgetName));
 	if (!NewWidget)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Create Widget failed: %s"), *WidgetClass));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Create Widget failed: %s"), *WidgetClass));
 		return;
 	}
 
@@ -179,7 +179,7 @@ static void HandleWBP_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 #else
 			NewWidget->MarkPendingKill();
 #endif
-			Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Parent panel Widget not found: %s"), *ParentName));
+			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Parent panel Widget not found: %s"), *ParentName));
 			return;
 		}
 		Panel->AddChild(NewWidget);
@@ -191,9 +191,9 @@ static void HandleWBP_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 		AttachedTo = TEXT("(root)");
 	}
 
-	Ctx.Entry->SetStringField(TEXT("widgetName"),  NewWidget->GetName());
-	Ctx.Entry->SetStringField(TEXT("widgetClass"), NewClass->GetName());
-	Ctx.Entry->SetStringField(TEXT("attachedTo"),  AttachedTo);
+	Ctx.Entry->SetStringField(TEXT("WidgetName"),  NewWidget->GetName());
+	Ctx.Entry->SetStringField(TEXT("WidgetClass"), NewClass->GetName());
+	Ctx.Entry->SetStringField(TEXT("AttachedTo"),  AttachedTo);
 	MarkWBPMutated(Ctx);
 }
 
@@ -202,30 +202,30 @@ static void HandleWBP_SetSlot(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
 	if (!WBP)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("WidgetBlueprint is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("WidgetBlueprint is null"));
 		return;
 	}
-	const FString WidgetName = FNexusArgs(Op).Str(TEXT("widgetName"));
+	const FString WidgetName = FNexusArgs(Op).Str(TEXT("WidgetName"));
 	if (WidgetName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("action=set_slot requires widgetName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Action=SetSlot requires WidgetName"));
 		return;
 	}
 	UWidget* Target = WBP->WidgetTree->FindWidget(FName(*WidgetName));
 	if (!Target)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
 		return;
 	}
 	FString SlotErr;
 	if (!FNexusWidgetLayoutUtils::ApplyCanvasSlotFields(Target, Op, SlotErr))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), SlotErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), SlotErr);
 		return;
 	}
 	WBP->WidgetTree->Modify();
 	Target->Modify();
-	Ctx.Entry->SetStringField(TEXT("widgetName"), WidgetName);
+	Ctx.Entry->SetStringField(TEXT("WidgetName"), WidgetName);
 	MarkWBPMutated(Ctx);
 }
 
@@ -234,74 +234,74 @@ static void HandleWBP_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
 	if (!WBP)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("WidgetBlueprint is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("WidgetBlueprint is null"));
 		return;
 	}
 	const FNexusArgs A(Op);
-	const FString WidgetName = A.Str(TEXT("widgetName"));
-	const FString PropPath = A.Str(TEXT("propertyPath"));
-	const FString Value = A.Str(TEXT("value"));
+	const FString WidgetName = A.Str(TEXT("WidgetName"));
+	const FString PropPath = A.Str(TEXT("PropertyPath"));
+	const FString Value = A.Str(TEXT("Value"));
 	if (WidgetName.IsEmpty() || PropPath.IsEmpty() || Value.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires widgetName、propertyPath、value"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires WidgetName、PropertyPath、value"));
 		return;
 	}
 	UWidget* Target = WBP->WidgetTree->FindWidget(FName(*WidgetName));
 	if (!Target)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
 		return;
 	}
 	FString OldVal, ActualVal, PropErr;
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(Target, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), PropErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), PropErr);
 		return;
 	}
 	WBP->WidgetTree->Modify();
 	Target->Modify();
-	Ctx.Entry->SetStringField(TEXT("widgetName"), WidgetName);
-	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
-	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("WidgetName"), WidgetName);
+	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);
 	MarkWBPMutated(Ctx);
 }
 
 static void HandleWBP_AddAnimation(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
-	const FString AnimName = FNexusArgs(Op).Str(TEXT("animationName"));
+	const FString AnimName = FNexusArgs(Op).Str(TEXT("AnimationName"));
 	if (AnimName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_animation requires animationName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddAnimation requires AnimationName"));
 		return;
 	}
 	FString AnimErr;
 	UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::AddAnimation(WBP, AnimName, AnimErr);
 	if (!Anim)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), AnimErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), AnimErr);
 		return;
 	}
-	Ctx.Entry->SetStringField(TEXT("animationName"), Anim->GetName());
+	Ctx.Entry->SetStringField(TEXT("AnimationName"), Anim->GetName());
 	MarkWBPMutated(Ctx);
 }
 
 static void HandleWBP_RemoveAnimation(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
-	const FString AnimName = FNexusArgs(Op).Str(TEXT("animationName"));
+	const FString AnimName = FNexusArgs(Op).Str(TEXT("AnimationName"));
 	if (AnimName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_animation requires animationName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveAnimation requires AnimationName"));
 		return;
 	}
 	FString AnimErr;
 	if (!FNexusWidgetAnimationUtils::RemoveAnimation(WBP, AnimName, AnimErr))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), AnimErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), AnimErr);
 		return;
 	}
-	Ctx.Entry->SetStringField(TEXT("animationName"), AnimName);
+	Ctx.Entry->SetStringField(TEXT("AnimationName"), AnimName);
 	MarkWBPMutated(Ctx);
 }
 
@@ -309,14 +309,14 @@ static void HandleWBP_AddTrack(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 {
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString AnimName = A.Str(TEXT("animationName"));
-	const FString TrackName = A.Str(TEXT("trackName"));
-	const FString WidgetName = A.Str(TEXT("widgetName"));
-	const FString PropPath = A.Str(TEXT("propertyPath"));
+	const FString AnimName = A.Str(TEXT("AnimationName"));
+	const FString TrackName = A.Str(TEXT("TrackName"));
+	const FString WidgetName = A.Str(TEXT("WidgetName"));
+	const FString PropPath = A.Str(TEXT("PropertyPath"));
 	UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
 	if (!Anim)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_track requires existing animationName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddTrack requires existing AnimationName"));
 		return;
 	}
 	FString OutTrack, AnimErr;
@@ -325,13 +325,13 @@ static void HandleWBP_AddTrack(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 		: FNexusWidgetAnimationUtils::AddBoundFloatTrack(Anim, WBP, WidgetName, PropPath, TrackName, OutTrack, AnimErr);
 	if (!bOk)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), AnimErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), AnimErr);
 		return;
 	}
-	Ctx.Entry->SetStringField(TEXT("animationName"), Anim->GetName());
-	Ctx.Entry->SetStringField(TEXT("trackName"), OutTrack);
-	if (!WidgetName.IsEmpty()) Ctx.Entry->SetStringField(TEXT("widgetName"), WidgetName);
-	if (!PropPath.IsEmpty()) Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
+	Ctx.Entry->SetStringField(TEXT("AnimationName"), Anim->GetName());
+	Ctx.Entry->SetStringField(TEXT("TrackName"), OutTrack);
+	if (!WidgetName.IsEmpty()) Ctx.Entry->SetStringField(TEXT("WidgetName"), WidgetName);
+	if (!PropPath.IsEmpty()) Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
 	MarkWBPMutated(Ctx);
 }
 
@@ -339,31 +339,31 @@ static void HandleWBP_AddKey(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 {
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString AnimName = A.Str(TEXT("animationName"));
-	const FString TrackName = A.Str(TEXT("trackName"));
+	const FString AnimName = A.Str(TEXT("AnimationName"));
+	const FString TrackName = A.Str(TEXT("TrackName"));
 	UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
 	if (!Anim)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_key requires existing animationName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddKey requires existing AnimationName"));
 		return;
 	}
-	if (!Op->HasField(TEXT("time")) || !Op->HasField(TEXT("keyValue")))
+	if (!Op->HasField(TEXT("Time")) || !Op->HasField(TEXT("KeyValue")))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_key requires time and keyValue"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddKey requires time and KeyValue"));
 		return;
 	}
-	const float TimeSec = static_cast<float>(A.Num(TEXT("time")));
-	const float KeyVal  = static_cast<float>(A.Num(TEXT("keyValue")));
+	const float TimeSec = static_cast<float>(A.Num(TEXT("Time")));
+	const float KeyVal  = static_cast<float>(A.Num(TEXT("KeyValue")));
 	FString AnimErr;
 	if (!FNexusWidgetAnimationUtils::AddFloatKey(Anim, TrackName, TimeSec, KeyVal, AnimErr))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), AnimErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), AnimErr);
 		return;
 	}
-	Ctx.Entry->SetStringField(TEXT("animationName"), Anim->GetName());
-	if (!TrackName.IsEmpty()) Ctx.Entry->SetStringField(TEXT("trackName"), TrackName);
-	Ctx.Entry->SetNumberField(TEXT("time"), TimeSec);
-	Ctx.Entry->SetNumberField(TEXT("keyValue"), KeyVal);
+	Ctx.Entry->SetStringField(TEXT("AnimationName"), Anim->GetName());
+	if (!TrackName.IsEmpty()) Ctx.Entry->SetStringField(TEXT("TrackName"), TrackName);
+	Ctx.Entry->SetNumberField(TEXT("Time"), TimeSec);
+	Ctx.Entry->SetNumberField(TEXT("KeyValue"), KeyVal);
 	MarkWBPMutated(Ctx);
 }
 
@@ -371,22 +371,22 @@ static void HandleWBP_RemoveTrack(const TSharedPtr<FJsonObject>& Op, FNexusActio
 {
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString AnimName = A.Str(TEXT("animationName"));
-	const FString TrackName = A.Str(TEXT("trackName"));
+	const FString AnimName = A.Str(TEXT("AnimationName"));
+	const FString TrackName = A.Str(TEXT("TrackName"));
 	UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
 	if (!Anim)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_track requires existing animationName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveTrack requires existing AnimationName"));
 		return;
 	}
 	FString AnimErr;
 	if (!FNexusWidgetAnimationUtils::RemoveFloatTrack(Anim, TrackName, AnimErr))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), AnimErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), AnimErr);
 		return;
 	}
-	Ctx.Entry->SetStringField(TEXT("animationName"), Anim->GetName());
-	Ctx.Entry->SetStringField(TEXT("trackName"), TrackName);
+	Ctx.Entry->SetStringField(TEXT("AnimationName"), Anim->GetName());
+	Ctx.Entry->SetStringField(TEXT("TrackName"), TrackName);
 	MarkWBPMutated(Ctx);
 }
 
@@ -394,41 +394,41 @@ static void HandleWBP_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 {
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString AnimName = A.Str(TEXT("animationName"));
-	const FString TrackName = A.Str(TEXT("trackName"));
+	const FString AnimName = A.Str(TEXT("AnimationName"));
+	const FString TrackName = A.Str(TEXT("TrackName"));
 	UWidgetAnimation* Anim = FNexusWidgetAnimationUtils::FindAnimation(WBP, AnimName);
 	if (!Anim)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_key requires existing animationName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveKey requires existing AnimationName"));
 		return;
 	}
-	if (!Op->HasField(TEXT("time")))
+	if (!Op->HasField(TEXT("Time")))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_key requires time"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveKey requires time"));
 		return;
 	}
-	const float TimeSec = static_cast<float>(A.Num(TEXT("time")));
+	const float TimeSec = static_cast<float>(A.Num(TEXT("Time")));
 	FString AnimErr;
 	if (!FNexusWidgetAnimationUtils::RemoveFloatKey(Anim, TrackName, TimeSec, AnimErr))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), AnimErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), AnimErr);
 		return;
 	}
-	Ctx.Entry->SetStringField(TEXT("animationName"), Anim->GetName());
-	Ctx.Entry->SetNumberField(TEXT("time"), TimeSec);
+	Ctx.Entry->SetStringField(TEXT("AnimationName"), Anim->GetName());
+	Ctx.Entry->SetNumberField(TEXT("Time"), TimeSec);
 	MarkWBPMutated(Ctx);
 }
 #endif // WITH_EDITOR
 
-bool FManageAssetUserWidgetCapability::PrepareTarget(
+bool FNexusManageAssetUserWidgetCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
 #if WITH_EDITOR
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UWidgetBlueprint* WBP = FNexusAssetEditorUtils::LoadWidgetBP(AssetPath);
 	if (!WBP)
 	{
@@ -445,12 +445,12 @@ bool FManageAssetUserWidgetCapability::PrepareTarget(
 	OutTarget = State;
 	return true;
 #else
-	OutError = TEXT("manage_asset_user_widget only available in editor builds");
+	OutError = TEXT("ManageAssetUserWidget only available in editor builds");
 	return false;
 #endif
 }
 
-void FManageAssetUserWidgetCapability::AfterPrepareTarget(
+void FNexusManageAssetUserWidgetCapability::AfterPrepareTarget(
 	void* Target,
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& OutTop) const
@@ -468,7 +468,7 @@ void FManageAssetUserWidgetCapability::AfterPrepareTarget(
 #endif
 }
 
-void FManageAssetUserWidgetCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetUserWidgetCapability::FinalizeTarget(void* Target) const
 {
 #if WITH_EDITOR
 	FUserWidgetActionState* State = static_cast<FUserWidgetActionState*>(Target);
@@ -481,7 +481,7 @@ void FManageAssetUserWidgetCapability::FinalizeTarget(void* Target) const
 		State->WBP->MarkPackageDirty();
 		if (State->OutTop.IsValid())
 		{
-			State->OutTop->SetStringField(TEXT("hint"), TEXT("Call save_asset to persist changes"));
+			State->OutTop->SetStringField(TEXT("Hint"), TEXT("Call SaveAsset to persist changes"));
 		}
 	}
 	delete State;
@@ -490,24 +490,24 @@ void FManageAssetUserWidgetCapability::FinalizeTarget(void* Target) const
 #endif
 }
 
-void FManageAssetUserWidgetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetUserWidgetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
 #if WITH_EDITOR
-	OutHandlers.Add(TEXT("remove"),           &HandleWBP_Remove);
-	OutHandlers.Add(TEXT("add"),              &HandleWBP_Add);
-	OutHandlers.Add(TEXT("set_slot"),         &HandleWBP_SetSlot);
-	OutHandlers.Add(TEXT("set_property"),     &HandleWBP_SetProperty);
-	OutHandlers.Add(TEXT("add_animation"),    &HandleWBP_AddAnimation);
-	OutHandlers.Add(TEXT("remove_animation"), &HandleWBP_RemoveAnimation);
-	OutHandlers.Add(TEXT("add_track"),        &HandleWBP_AddTrack);
-	OutHandlers.Add(TEXT("add_key"),          &HandleWBP_AddKey);
-	OutHandlers.Add(TEXT("remove_track"),     &HandleWBP_RemoveTrack);
-	OutHandlers.Add(TEXT("remove_key"),       &HandleWBP_RemoveKey);
+	OutHandlers.Add(TEXT("Remove"),           &HandleWBP_Remove);
+	OutHandlers.Add(TEXT("Add"),              &HandleWBP_Add);
+	OutHandlers.Add(TEXT("SetSlot"),         &HandleWBP_SetSlot);
+	OutHandlers.Add(TEXT("SetProperty"),     &HandleWBP_SetProperty);
+	OutHandlers.Add(TEXT("AddAnimation"),    &HandleWBP_AddAnimation);
+	OutHandlers.Add(TEXT("RemoveAnimation"), &HandleWBP_RemoveAnimation);
+	OutHandlers.Add(TEXT("AddTrack"),        &HandleWBP_AddTrack);
+	OutHandlers.Add(TEXT("AddKey"),          &HandleWBP_AddKey);
+	OutHandlers.Add(TEXT("RemoveTrack"),     &HandleWBP_RemoveTrack);
+	OutHandlers.Add(TEXT("RemoveKey"),       &HandleWBP_RemoveKey);
 #else
 	(void)OutHandlers;
 #endif
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetUserWidgetCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetUserWidgetCapability)
 
 

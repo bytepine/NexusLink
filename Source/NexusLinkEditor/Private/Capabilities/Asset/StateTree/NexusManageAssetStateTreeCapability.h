@@ -7,8 +7,8 @@
 
 #include "NexusActionCapability.h"
 
-/** manage_asset_state_tree — 编辑 StateTree：add_state/remove_state/rename_state/add_task/recompile。UE 5.5+。 */
-class FManageAssetStateTreeCapability : public FNexusActionCapability
+/** ManageAssetStateTree — 编辑 StateTree：AddState/RemoveState/RenameState/AddTask/recompile。UE 5.5+。 */
+class FNexusManageAssetStateTreeCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

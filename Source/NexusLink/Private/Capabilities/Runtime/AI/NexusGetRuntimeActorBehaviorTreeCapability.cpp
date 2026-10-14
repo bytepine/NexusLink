@@ -16,21 +16,21 @@
 #include "EngineUtils.h"
 #include "NexusMcpTool.h"
 
-void FGetRuntimeActorBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetRuntimeActorBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_runtime_actor_behavior_tree");
+	Out.Name = TEXT("GetRuntimeActorBehaviorTree");
 	Out.Description = TEXT("Query running AI BT nodes and BB keys. Write BB/restart via interact.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Controller or Pawn name (optional; first AIController if omitted)")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Blackboard key name filter")))
+		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Controller or Pawn name (optional; first AIController if omitted)")))
+		.Prop(TEXT("NameFilter"), FNexusSchema::Str(TEXT("Blackboard key name filter")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("blackboard"), TEXT("bt"), TEXT("aicontroller"), TEXT("pawn"), TEXT("ai") };
-	Out.RelatedCapabilities = { TEXT("interact_runtime_actor_behavior_tree"), TEXT("get_asset_behavior_tree") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.ExtraSearchKeywords = { TEXT("Blackboard"), TEXT("bt"), TEXT("aicontroller"), TEXT("pawn"), TEXT("ai") };
+	Out.RelatedCapabilities = { TEXT("InteractRuntimeActorBehaviorTree"), TEXT("GetAssetBehaviorTree") };
+	Out.Prerequisites = { TEXT("PIE") };
 }
 
-FCapabilityResult FGetRuntimeActorBehaviorTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetRuntimeActorBehaviorTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	FCapabilityResult R;
 
@@ -42,8 +42,8 @@ FCapabilityResult FGetRuntimeActorBehaviorTreeCapability::Execute(const TSharedP
 	}
 
 	FString ActorName, NameFilter;
-	Arguments->TryGetStringField(TEXT("actorName"), ActorName);
-	Arguments->TryGetStringField(TEXT("nameFilter"), NameFilter);
+	Arguments->TryGetStringField(TEXT("ActorName"), ActorName);
+	Arguments->TryGetStringField(TEXT("NameFilter"), NameFilter);
 
 	AAIController* AICtrl = nullptr;
 	if (ActorName.IsEmpty())
@@ -66,26 +66,26 @@ FCapabilityResult FGetRuntimeActorBehaviorTreeCapability::Execute(const TSharedP
 
 	if (!AICtrl)
 	{
-		EmitError(R.Entries, {{TEXT("actorName"), ActorName}}, TEXT("AIController not found"));
+		EmitError(R.Entries, {{TEXT("ActorName"), ActorName}}, TEXT("AIController not found"));
 		return R;
 	}
 
 	UBehaviorTreeComponent* BTComp = AICtrl->FindComponentByClass<UBehaviorTreeComponent>();
 	if (!BTComp)
 	{
-		EmitError(R.Entries, {{TEXT("actorName"), ActorName}}, TEXT("No BehaviorTreeComponent on AIController"));
+		EmitError(R.Entries, {{TEXT("ActorName"), ActorName}}, TEXT("No BehaviorTreeComponent on AIController"));
 		return R;
 	}
 
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 	if (!ActorName.IsEmpty())
-		Entry->SetStringField(TEXT("actorName"), ActorName);
-	Entry->SetStringField(TEXT("controller"), AICtrl->GetName());
+		Entry->SetStringField(TEXT("ActorName"), ActorName);
+	Entry->SetStringField(TEXT("Controller"), AICtrl->GetName());
 
 	if (const UBehaviorTree* BTAsset = BTComp->GetCurrentTree())
-		Entry->SetStringField(TEXT("behaviorTree"), BTAsset->GetName());
+		Entry->SetStringField(TEXT("BehaviorTree"), BTAsset->GetName());
 	if (const UBTNode* ActiveNode = BTComp->GetActiveNode())
-		Entry->SetStringField(TEXT("activeNode"), ActiveNode->GetNodeName());
+		Entry->SetStringField(TEXT("ActiveNode"), ActiveNode->GetNodeName());
 
 	if (UBlackboardComponent* BBComp = AICtrl->GetBlackboardComponent())
 	{
@@ -101,10 +101,10 @@ FCapabilityResult FGetRuntimeActorBehaviorTreeCapability::Execute(const TSharedP
 				KObj->SetStringField(TEXT("name"), E.EntryName.ToString());
 				if (E.KeyType)
 					KObj->SetStringField(TEXT("type"), E.KeyType->GetClass()->GetName());
-				KObj->SetStringField(TEXT("value"), BBComp->DescribeKeyValue(KeyID, EBlackboardDescription::OnlyValue));
+				KObj->SetStringField(TEXT("Value"), BBComp->DescribeKeyValue(KeyID, EBlackboardDescription::OnlyValue));
 				Keys.Add(MakeShared<FJsonValueObject>(KObj));
 			}
-			Entry->SetArrayField(TEXT("blackboardKeys"), Keys);
+			Entry->SetArrayField(TEXT("BlackboardKeys"), Keys);
 		}
 	}
 
@@ -112,5 +112,5 @@ FCapabilityResult FGetRuntimeActorBehaviorTreeCapability::Execute(const TSharedP
 	return R;
 }
 
-REGISTER_MCP_CAPABILITY(FGetRuntimeActorBehaviorTreeCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetRuntimeActorBehaviorTreeCapability)
 

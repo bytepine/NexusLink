@@ -18,55 +18,55 @@
 #include "BehaviorTree/BTService.h"
 #include "NexusMcpTool.h"
 
-/** 把 ApplyInitialProperties 收集到的失败项写进本条 Entry 的 propertyErrors[] */
+/** 把 ApplyInitialProperties 收集到的失败项写进本条 Entry 的 PropertyErrors[] */
 static void ReportPropertyErrors(const TSharedPtr<FJsonObject>& Entry, const TArray<FString>& Errors)
 {
 	if (!Entry.IsValid() || Errors.Num() == 0) return;
 	TArray<TSharedPtr<FJsonValue>> Arr;
 	for (const FString& E : Errors) Arr.Add(MakeShared<FJsonValueString>(E));
-	Entry->SetArrayField(TEXT("propertyErrors"), Arr);
+	Entry->SetArrayField(TEXT("PropertyErrors"), Arr);
 }
 
 // ─── Execute ─────────────────────────────────────────────────────────────────
 
-void FManageAssetBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_behavior_tree");
+	Out.Name = TEXT("ManageAssetBehaviorTree");
 	Out.SearchAssetTypes = {TEXT("BehaviorTree")};
-	// 详细语义（图同步边界、replace_node vs remove+add）见 docs/tool-reference.md，此处保持 ≤100 字符
-	Out.Description = TEXT("Batch edit BT nodes/decorators/services. replace_node swaps type; sync_graph fixes graph drift.");
+	// 详细语义（图同步边界、ReplaceNode vs remove+add）见 docs/tool-reference.md，此处保持 ≤100 字符
+	Out.Description = TEXT("Batch edit BT nodes/decorators/services. ReplaceNode swaps type; SyncGraph fixes graph drift.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),      FNexusSchema::Enum(TEXT("Operation type"),
-			{ TEXT("set_root"), TEXT("add_node"), TEXT("remove_node"), TEXT("replace_node"), TEXT("move_node"),
-			  TEXT("add_decorator"), TEXT("remove_decorator"),
-			  TEXT("add_service"),   TEXT("remove_service"),
-			  TEXT("set_blackboard"), TEXT("set_property"), TEXT("sync_graph") }))
-		.Prop(TEXT("nodeClass"),   FNexusSchema::Str(TEXT("Node class (set_root/add_node/replace_node/add_decorator/add_service)")))
-		.Prop(TEXT("nodeName"),    FNexusSchema::Str(TEXT("Display name override (optional)")))
-		.Prop(TEXT("parentPath"),  FNexusSchema::Str(TEXT("Child index path from root, e.g. '' or '0.1'")))
-		.Prop(TEXT("childIndex"),  FNexusSchema::Int(TEXT("Child slot index (add_node/move_node/decorator/service)"), TNumericLimits<int64>::Min(), 0))
-		.Prop(TEXT("targetPath"),  FNexusSchema::Str(TEXT("Target node dot path (remove_node/replace_node/move_node/set_property)")))
-		.Prop(TEXT("targetIndex"), FNexusSchema::Int(TEXT("Index in decorators[]/services[] to edit/remove"), TNumericLimits<int64>::Min(), 0))
-		.Prop(TEXT("blackboardPath"), FNexusSchema::Str(TEXT("BlackboardData asset path (set_blackboard)")))
-		.Prop(TEXT("targetType"),  FNexusSchema::Enum(TEXT("Target type for set_property"),
-			{ TEXT("node"), TEXT("decorator"), TEXT("service") }))
-		.Prop(TEXT("propertyName"),  FNexusSchema::Str(TEXT("UPROPERTY name to set (set_property)")))
-		.Prop(TEXT("propertyValue"), FNexusSchema::Str(TEXT("Text value, ImportText format (set_property)")))
-		.Prop(TEXT("properties"),  FNexusSchema::ArrOfObj(TEXT("Initial props for add_node/replace_node [{name,value}]")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"),      FNexusSchema::Enum(TEXT("Operation type"),
+			{ TEXT("SetRoot"), TEXT("AddNode"), TEXT("RemoveNode"), TEXT("ReplaceNode"), TEXT("MoveNode"),
+			  TEXT("AddDecorator"), TEXT("RemoveDecorator"),
+			  TEXT("AddService"),   TEXT("RemoveService"),
+			  TEXT("SetBlackboard"), TEXT("SetProperty"), TEXT("SyncGraph") }))
+		.Prop(TEXT("NodeClass"),   FNexusSchema::Str(TEXT("Node class (SetRoot/AddNode/ReplaceNode/AddDecorator/AddService)")))
+		.Prop(TEXT("NodeName"),    FNexusSchema::Str(TEXT("Display name override (optional)")))
+		.Prop(TEXT("ParentPath"),  FNexusSchema::Str(TEXT("Child index path from root, e.g. '' or '0.1'")))
+		.Prop(TEXT("ChildIndex"),  FNexusSchema::Int(TEXT("Child slot index (AddNode/MoveNode/decorator/service)"), TNumericLimits<int64>::Min(), 0))
+		.Prop(TEXT("TargetPath"),  FNexusSchema::Str(TEXT("Target node dot path (RemoveNode/ReplaceNode/MoveNode/SetProperty)")))
+		.Prop(TEXT("TargetIndex"), FNexusSchema::Int(TEXT("Index in decorators[]/services[] to edit/remove"), TNumericLimits<int64>::Min(), 0))
+		.Prop(TEXT("BlackboardPath"), FNexusSchema::Str(TEXT("BlackboardData asset path (SetBlackboard)")))
+		.Prop(TEXT("TargetType"),  FNexusSchema::Enum(TEXT("Target type for SetProperty"),
+			{ TEXT("Node"), TEXT("Decorator"), TEXT("Service") }))
+		.Prop(TEXT("PropertyName"),  FNexusSchema::Str(TEXT("UPROPERTY name to set (SetProperty)")))
+		.Prop(TEXT("PropertyValue"), FNexusSchema::Str(TEXT("Text value, ImportText format (SetProperty)")))
+		.Prop(TEXT("properties"),  FNexusSchema::ArrOfObj(TEXT("Initial props for AddNode/ReplaceNode [{name,value}]")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("BehaviorTree asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("BehaviorTree asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
-		TEXT("bt"), TEXT("node"), TEXT("decorator"), TEXT("service"), TEXT("blackboard"),
+		TEXT("bt"), TEXT("Node"), TEXT("Decorator"), TEXT("Service"), TEXT("Blackboard"),
 		TEXT("replace"), TEXT("graph"), TEXT("sync")
 	};
-	Out.RelatedCapabilities = { TEXT("get_asset_behavior_tree"), TEXT("manage_asset_blackboard"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("Write ops: add/remove/replace/move nodes, decorators, services, set props; sync_graph when graph/tree drift");
+	Out.RelatedCapabilities = { TEXT("GetAssetBehaviorTree"), TEXT("ManageAssetBlackboard"), TEXT("SaveAsset") };
+	Out.WhenToUse = TEXT("Write ops: add/remove/replace/move nodes, decorators, services, set props; SyncGraph when graph/tree drift");
 }
 
 static void HandleBT_SetRoot(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -74,63 +74,63 @@ static void HandleBT_SetRoot(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 	UBehaviorTree* BT = static_cast<UBehaviorTree*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 		FString NodeClass;
-		if (!Op->TryGetStringField(TEXT("nodeClass"), NodeClass) || NodeClass.IsEmpty())
+		if (!Op->TryGetStringField(TEXT("NodeClass"), NodeClass) || NodeClass.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("set_root requires nodeClass"));
+			Entry->SetStringField(TEXT("Error"), TEXT("SetRoot requires NodeClass"));
 			return;
 		}
 
 		UClass* Class = FNexusAssetUtils::FindClassWithUPrefix(NodeClass);
 		if (!Class || !Class->IsChildOf(UBTCompositeNode::StaticClass()))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("nodeClass '%s' not found or not BTCompositeNode subclass"), *NodeClass));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("NodeClass '%s' not found or not BTCompositeNode subclass"), *NodeClass));
 			return;
 		}
 
 		UBTCompositeNode* NewRoot = NewObject<UBTCompositeNode>(BT, Class);
 		FString NodeName;
-		if (Op->TryGetStringField(TEXT("nodeName"), NodeName) && !NodeName.IsEmpty())
+		if (Op->TryGetStringField(TEXT("NodeName"), NodeName) && !NodeName.IsEmpty())
 		{
 			NewRoot->NodeName = NodeName;
 		}
 		BT->RootNode = NewRoot;
 		BT->MarkPackageDirty();
-		Entry->SetStringField(TEXT("nodeClass"), Class->GetName());
+		Entry->SetStringField(TEXT("NodeClass"), Class->GetName());
 }
 static void HandleBT_AddNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UBehaviorTree* BT = static_cast<UBehaviorTree*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 		FString NodeClass;
-		if (!Op->TryGetStringField(TEXT("nodeClass"), NodeClass) || NodeClass.IsEmpty())
+		if (!Op->TryGetStringField(TEXT("NodeClass"), NodeClass) || NodeClass.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("add_node requires nodeClass"));
+			Entry->SetStringField(TEXT("Error"), TEXT("AddNode requires NodeClass"));
 			return;
 		}
 
 		UClass* Class = FNexusAssetUtils::FindClassWithUPrefix(NodeClass);
 		if (!Class)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("nodeClass '%s' not found"), *NodeClass));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("NodeClass '%s' not found"), *NodeClass));
 			return;
 		}
 		const bool bIsComposite = Class->IsChildOf(UBTCompositeNode::StaticClass());
 		const bool bIsTask      = Class->IsChildOf(UBTTaskNode::StaticClass());
 		if (!bIsComposite && !bIsTask)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("nodeClass '%s' must be BTCompositeNode or BTTaskNode subclass"), *NodeClass));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("NodeClass '%s' must be BTCompositeNode or BTTaskNode subclass"), *NodeClass));
 			return;
 		}
 
 		FString ParentPath;
-		Op->TryGetStringField(TEXT("parentPath"), ParentPath);
+		Op->TryGetStringField(TEXT("ParentPath"), ParentPath);
 		UBTCompositeNode* Parent = FNexusBehaviorTreeEditUtils::FindCompositeByPath(BT, ParentPath);
 		if (!Parent)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("parentPath '%s' is not a composite node or does not exist"), *ParentPath));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("ParentPath '%s' is not a composite node or does not exist"), *ParentPath));
 			return;
 		}
 
@@ -142,7 +142,7 @@ static void HandleBT_AddNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 		{
 			UBTCompositeNode* NewComp = NewObject<UBTCompositeNode>(BT, Class);
 			FString NodeName;
-			if (Op->TryGetStringField(TEXT("nodeName"), NodeName) && !NodeName.IsEmpty())
+			if (Op->TryGetStringField(TEXT("NodeName"), NodeName) && !NodeName.IsEmpty())
 			{
 				NewComp->NodeName = NodeName;
 			}
@@ -153,7 +153,7 @@ static void HandleBT_AddNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 		{
 			UBTTaskNode* NewTask = NewObject<UBTTaskNode>(BT, Class);
 			FString NodeName;
-			if (Op->TryGetStringField(TEXT("nodeName"), NodeName) && !NodeName.IsEmpty())
+			if (Op->TryGetStringField(TEXT("NodeName"), NodeName) && !NodeName.IsEmpty())
 			{
 				NewTask->NodeName = NodeName;
 			}
@@ -161,16 +161,16 @@ static void HandleBT_AddNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 			CreatedNode = NewTask;
 		}
 
-		// 支持在创建节点时直接设置初始属性（避免后续 set_property 因类卸载而崩溃）
+		// 支持在创建节点时直接设置初始属性（避免后续 SetProperty 因类卸载而崩溃）
 		TArray<FString> PropErrors;
 		FNexusBehaviorTreeEditUtils::ApplyInitialProperties(CreatedNode, Op, PropErrors);
 		ReportPropertyErrors(Entry, PropErrors);
 
 		const int32 InsertIdx = [&]() -> int32
 		{
-			if (Op->HasField(TEXT("childIndex")))
+			if (Op->HasField(TEXT("ChildIndex")))
 			{
-				const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("childIndex")));
+				const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("ChildIndex")));
 				return FMath::Clamp(Idx, 0, Parent->Children.Num());
 			}
 			return Parent->Children.Num();
@@ -181,18 +181,18 @@ static void HandleBT_AddNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 		const FString AddedPath = ParentPath.IsEmpty()
 			? FString::FromInt(InsertIdx)
 			: ParentPath + TEXT(".") + FString::FromInt(InsertIdx);
-		Entry->SetStringField(TEXT("nodeClass"), Class->GetName());
-		Entry->SetStringField(TEXT("addedPath"), AddedPath);
-		Entry->SetNumberField(TEXT("childIndex"), static_cast<double>(InsertIdx));
+		Entry->SetStringField(TEXT("NodeClass"), Class->GetName());
+		Entry->SetStringField(TEXT("AddedPath"), AddedPath);
+		Entry->SetNumberField(TEXT("ChildIndex"), static_cast<double>(InsertIdx));
 }
 static void HandleBT_MoveNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UBehaviorTree* BT = static_cast<UBehaviorTree*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 		FString TargetPath;
-		if (!Op->TryGetStringField(TEXT("targetPath"), TargetPath) || TargetPath.IsEmpty())
+		if (!Op->TryGetStringField(TEXT("TargetPath"), TargetPath) || TargetPath.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("move_node requires targetPath"));
+			Entry->SetStringField(TEXT("Error"), TEXT("MoveNode requires TargetPath"));
 			return;
 		}
 
@@ -200,23 +200,23 @@ static void HandleBT_MoveNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 		int32 SrcIdx = INDEX_NONE;
 		if (!FNexusBehaviorTreeEditUtils::FindParentAndIndex(BT, TargetPath, SrcParent, SrcIdx))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid targetPath '%s'"), *TargetPath));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Invalid TargetPath '%s'"), *TargetPath));
 			return;
 		}
 
 		FString NewParentPath;
-		Op->TryGetStringField(TEXT("parentPath"), NewParentPath);
+		Op->TryGetStringField(TEXT("ParentPath"), NewParentPath);
 		if (NewParentPath.StartsWith(TargetPath + TEXT(".")) || NewParentPath == TargetPath)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("Cannot move node into itself or its subtree"));
+			Entry->SetStringField(TEXT("Error"), TEXT("Cannot move node into itself or its subtree"));
 			return;
 		}
 
 		UBTCompositeNode* DstParent = FNexusBehaviorTreeEditUtils::FindCompositeByPath(BT, NewParentPath);
 		if (!DstParent)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("parentPath '%s' is not a composite node or does not exist"), *NewParentPath));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("ParentPath '%s' is not a composite node or does not exist"), *NewParentPath));
 			return;
 		}
 
@@ -225,9 +225,9 @@ static void HandleBT_MoveNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 
 		const int32 InsertIdx = [&]() -> int32
 		{
-			if (Op->HasField(TEXT("childIndex")))
+			if (Op->HasField(TEXT("ChildIndex")))
 			{
-				const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("childIndex")));
+				const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("ChildIndex")));
 				return FMath::Clamp(Idx, 0, DstParent->Children.Num());
 			}
 			return DstParent->Children.Num();
@@ -238,17 +238,17 @@ static void HandleBT_MoveNode(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 		const FString NewPath = NewParentPath.IsEmpty()
 			? FString::FromInt(InsertIdx)
 			: NewParentPath + TEXT(".") + FString::FromInt(InsertIdx);
-		Entry->SetStringField(TEXT("movedPath"), NewPath);
-		Entry->SetNumberField(TEXT("childIndex"), static_cast<double>(InsertIdx));
+		Entry->SetStringField(TEXT("MovedPath"), NewPath);
+		Entry->SetNumberField(TEXT("ChildIndex"), static_cast<double>(InsertIdx));
 }
 static void HandleBT_RemoveNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UBehaviorTree* BT = static_cast<UBehaviorTree*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 		FString TargetPath;
-		if (!Op->TryGetStringField(TEXT("targetPath"), TargetPath) || TargetPath.IsEmpty())
+		if (!Op->TryGetStringField(TEXT("TargetPath"), TargetPath) || TargetPath.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("remove_node requires targetPath; use set_root to replace root"));
+			Entry->SetStringField(TEXT("Error"), TEXT("RemoveNode requires TargetPath; use SetRoot to replace root"));
 			return;
 		}
 
@@ -256,13 +256,13 @@ static void HandleBT_RemoveNode(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 		int32 ChildIdx           = INDEX_NONE;
 		if (!FNexusBehaviorTreeEditUtils::FindParentAndIndex(BT, TargetPath, Parent, ChildIdx))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid targetPath '%s'"), *TargetPath));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Invalid TargetPath '%s'"), *TargetPath));
 			return;
 		}
 
 		Parent->Children.RemoveAt(ChildIdx);
 		BT->MarkPackageDirty();
-		Entry->SetStringField(TEXT("removedPath"), TargetPath);
+		Entry->SetStringField(TEXT("RemovedPath"), TargetPath);
 }
 static void HandleBT_ReplaceNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
@@ -270,31 +270,31 @@ static void HandleBT_ReplaceNode(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 	// 原子操作：就地替换某个已有子节点的类型（decorators/services 保留在同槽位）。
 		FString TargetPath;
-		if (!Op->TryGetStringField(TEXT("targetPath"), TargetPath) || TargetPath.IsEmpty())
+		if (!Op->TryGetStringField(TEXT("TargetPath"), TargetPath) || TargetPath.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("replace_node requires targetPath; use set_root to replace root"));
+			Entry->SetStringField(TEXT("Error"), TEXT("ReplaceNode requires TargetPath; use SetRoot to replace root"));
 			return;
 		}
 
 		FString NodeClass;
-		if (!Op->TryGetStringField(TEXT("nodeClass"), NodeClass) || NodeClass.IsEmpty())
+		if (!Op->TryGetStringField(TEXT("NodeClass"), NodeClass) || NodeClass.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("replace_node requires nodeClass"));
+			Entry->SetStringField(TEXT("Error"), TEXT("ReplaceNode requires NodeClass"));
 			return;
 		}
 
 		UClass* Class = FNexusAssetUtils::FindClassWithUPrefix(NodeClass);
 		if (!Class)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("nodeClass '%s' not found"), *NodeClass));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("NodeClass '%s' not found"), *NodeClass));
 			return;
 		}
 		const bool bIsComposite = Class->IsChildOf(UBTCompositeNode::StaticClass());
 		const bool bIsTask      = Class->IsChildOf(UBTTaskNode::StaticClass());
 		if (!bIsComposite && !bIsTask)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("nodeClass '%s' must be BTCompositeNode or BTTaskNode subclass"), *NodeClass));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("NodeClass '%s' must be BTCompositeNode or BTTaskNode subclass"), *NodeClass));
 			return;
 		}
 
@@ -302,7 +302,7 @@ static void HandleBT_ReplaceNode(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		int32 ChildIdx           = INDEX_NONE;
 		if (!FNexusBehaviorTreeEditUtils::FindParentAndIndex(BT, TargetPath, Parent, ChildIdx))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid targetPath '%s'"), *TargetPath));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Invalid TargetPath '%s'"), *TargetPath));
 			return;
 		}
 
@@ -310,7 +310,7 @@ static void HandleBT_ReplaceNode(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		const bool bOldIsComposite = Slot.ChildComposite != nullptr;
 		if (bOldIsComposite != bIsComposite)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
 				TEXT("Node type mismatch: original is %s, new class is %s; both must be Composite or both Task"),
 				bOldIsComposite ? TEXT("Composite") : TEXT("Task"),
 				bIsComposite ? TEXT("Composite") : TEXT("Task")));
@@ -329,7 +329,7 @@ static void HandleBT_ReplaceNode(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		{
 			UBTCompositeNode* NewComp = NewObject<UBTCompositeNode>(BT, Class);
 			FString NodeName;
-			if (Op->TryGetStringField(TEXT("nodeName"), NodeName) && !NodeName.IsEmpty())
+			if (Op->TryGetStringField(TEXT("NodeName"), NodeName) && !NodeName.IsEmpty())
 			{
 				NewComp->NodeName = NodeName;
 			}
@@ -348,7 +348,7 @@ static void HandleBT_ReplaceNode(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		{
 			UBTTaskNode* NewTask = NewObject<UBTTaskNode>(BT, Class);
 			FString NodeName;
-			if (Op->TryGetStringField(TEXT("nodeName"), NodeName) && !NodeName.IsEmpty())
+			if (Op->TryGetStringField(TEXT("NodeName"), NodeName) && !NodeName.IsEmpty())
 			{
 				NewTask->NodeName = NodeName;
 			}
@@ -363,288 +363,288 @@ static void HandleBT_ReplaceNode(const TSharedPtr<FJsonObject>& Op, FNexusAction
 
 #if WITH_EDITOR
 		const bool bGraphSynced = FNexusBehaviorTreeEditUtils::SyncEdGraphNodeInstance(BT, OldNode, CreatedNode);
-		Entry->SetBoolField(TEXT("graphSynced"), bGraphSynced);
+		Entry->SetBoolField(TEXT("bGraphSynced"), bGraphSynced);
 #endif
 
-		Entry->SetStringField(TEXT("replacedPath"),   TargetPath);
-		Entry->SetStringField(TEXT("oldNodeClass"),   OldNodeClassName);
-		Entry->SetStringField(TEXT("nodeClass"),      Class->GetName());
-		if (MovedChildren > 0) Entry->SetNumberField(TEXT("movedChildren"), MovedChildren);
-		if (MovedServices > 0) Entry->SetNumberField(TEXT("movedServices"), MovedServices);
+		Entry->SetStringField(TEXT("ReplacedPath"),   TargetPath);
+		Entry->SetStringField(TEXT("OldNodeClass"),   OldNodeClassName);
+		Entry->SetStringField(TEXT("NodeClass"),      Class->GetName());
+		if (MovedChildren > 0) Entry->SetNumberField(TEXT("MovedChildren"), MovedChildren);
+		if (MovedServices > 0) Entry->SetNumberField(TEXT("MovedServices"), MovedServices);
 }
 static void HandleBT_AddDecorator(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UBehaviorTree* BT = static_cast<UBehaviorTree*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 		FString NodeClass;
-		if (!Op->TryGetStringField(TEXT("nodeClass"), NodeClass) || NodeClass.IsEmpty())
+		if (!Op->TryGetStringField(TEXT("NodeClass"), NodeClass) || NodeClass.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("add_decorator requires nodeClass"));
+			Entry->SetStringField(TEXT("Error"), TEXT("AddDecorator requires NodeClass"));
 			return;
 		}
 
 		UClass* Class = FNexusAssetUtils::FindClassWithUPrefix(NodeClass);
 		if (!Class || !Class->IsChildOf(UBTDecorator::StaticClass()))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("nodeClass '%s' not found or not BTDecorator subclass"), *NodeClass));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("NodeClass '%s' not found or not BTDecorator subclass"), *NodeClass));
 			return;
 		}
 
 		FString ParentPath;
-		Op->TryGetStringField(TEXT("parentPath"), ParentPath);
+		Op->TryGetStringField(TEXT("ParentPath"), ParentPath);
 		UBTCompositeNode* Parent = FNexusBehaviorTreeEditUtils::FindCompositeByPath(BT, ParentPath);
 		if (!Parent)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("parentPath '%s' is not a composite node or does not exist"), *ParentPath));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("ParentPath '%s' is not a composite node or does not exist"), *ParentPath));
 			return;
 		}
 
 		int32 ChildIdx = 0;
-		if (Op->HasField(TEXT("childIndex")))
+		if (Op->HasField(TEXT("ChildIndex")))
 		{
-			ChildIdx = (int32)Op->GetNumberField(TEXT("childIndex"));
+			ChildIdx = (int32)Op->GetNumberField(TEXT("ChildIndex"));
 		}
 		if (!Parent->Children.IsValidIndex(ChildIdx))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("childIndex %d out of range [0, %d)"), ChildIdx, Parent->Children.Num()));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("ChildIndex %d out of range [0, %d)"), ChildIdx, Parent->Children.Num()));
 			return;
 		}
 
 		UBTDecorator* Dec = NewObject<UBTDecorator>(BT, Class);
 		FString NodeName;
-		if (Op->TryGetStringField(TEXT("nodeName"), NodeName) && !NodeName.IsEmpty())
+		if (Op->TryGetStringField(TEXT("NodeName"), NodeName) && !NodeName.IsEmpty())
 		{
 			Dec->NodeName = NodeName;
 		}
 		const int32 AddedIdx = Parent->Children[ChildIdx].Decorators.Add(Dec);
 		BT->MarkPackageDirty();
 
-		Entry->SetStringField(TEXT("nodeClass"),   Class->GetName());
-		Entry->SetStringField(TEXT("parentPath"),  ParentPath);
-		Entry->SetNumberField(TEXT("childIndex"),  ChildIdx);
-		Entry->SetNumberField(TEXT("addedIndex"),  AddedIdx);
+		Entry->SetStringField(TEXT("NodeClass"),   Class->GetName());
+		Entry->SetStringField(TEXT("ParentPath"),  ParentPath);
+		Entry->SetNumberField(TEXT("ChildIndex"),  ChildIdx);
+		Entry->SetNumberField(TEXT("AddedIndex"),  AddedIdx);
 }
 static void HandleBT_RemoveDecorator(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UBehaviorTree* BT = static_cast<UBehaviorTree*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 		FString ParentPath;
-		Op->TryGetStringField(TEXT("parentPath"), ParentPath);
+		Op->TryGetStringField(TEXT("ParentPath"), ParentPath);
 		UBTCompositeNode* Parent = FNexusBehaviorTreeEditUtils::FindCompositeByPath(BT, ParentPath);
 		if (!Parent)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("parentPath '%s' is not a composite node or does not exist"), *ParentPath));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("ParentPath '%s' is not a composite node or does not exist"), *ParentPath));
 			return;
 		}
 
 		int32 ChildIdx = 0;
-		if (Op->HasField(TEXT("childIndex"))) ChildIdx = (int32)Op->GetNumberField(TEXT("childIndex"));
+		if (Op->HasField(TEXT("ChildIndex"))) ChildIdx = (int32)Op->GetNumberField(TEXT("ChildIndex"));
 		if (!Parent->Children.IsValidIndex(ChildIdx))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("childIndex %d out of range [0, %d)"), ChildIdx, Parent->Children.Num()));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("ChildIndex %d out of range [0, %d)"), ChildIdx, Parent->Children.Num()));
 			return;
 		}
 
 		int32 TargetIdx = 0;
-		if (Op->HasField(TEXT("targetIndex"))) TargetIdx = (int32)Op->GetNumberField(TEXT("targetIndex"));
+		if (Op->HasField(TEXT("TargetIndex"))) TargetIdx = (int32)Op->GetNumberField(TEXT("TargetIndex"));
 		auto& Decs = Parent->Children[ChildIdx].Decorators;
 		if (!Decs.IsValidIndex(TargetIdx))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("targetIndex %d out of range [0, %d)"), TargetIdx, Decs.Num()));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("TargetIndex %d out of range [0, %d)"), TargetIdx, Decs.Num()));
 			return;
 		}
 
 		Decs.RemoveAt(TargetIdx);
 		BT->MarkPackageDirty();
-		Entry->SetStringField(TEXT("parentPath"), ParentPath);
-		Entry->SetNumberField(TEXT("childIndex"), ChildIdx);
-		Entry->SetNumberField(TEXT("removedIndex"), TargetIdx);
+		Entry->SetStringField(TEXT("ParentPath"), ParentPath);
+		Entry->SetNumberField(TEXT("ChildIndex"), ChildIdx);
+		Entry->SetNumberField(TEXT("RemovedIndex"), TargetIdx);
 }
 static void HandleBT_AddService(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UBehaviorTree* BT = static_cast<UBehaviorTree*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 		FString NodeClass;
-		if (!Op->TryGetStringField(TEXT("nodeClass"), NodeClass) || NodeClass.IsEmpty())
+		if (!Op->TryGetStringField(TEXT("NodeClass"), NodeClass) || NodeClass.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("add_service requires nodeClass"));
+			Entry->SetStringField(TEXT("Error"), TEXT("AddService requires NodeClass"));
 			return;
 		}
 
 		UClass* Class = FNexusAssetUtils::FindClassWithUPrefix(NodeClass);
 		if (!Class || !Class->IsChildOf(UBTService::StaticClass()))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("nodeClass '%s' not found or not BTService subclass"), *NodeClass));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("NodeClass '%s' not found or not BTService subclass"), *NodeClass));
 			return;
 		}
 
 		FString ParentPath;
-		Op->TryGetStringField(TEXT("parentPath"), ParentPath);
+		Op->TryGetStringField(TEXT("ParentPath"), ParentPath);
 		UBTCompositeNode* Parent = FNexusBehaviorTreeEditUtils::FindCompositeByPath(BT, ParentPath);
 		if (!Parent)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("parentPath '%s' is not a composite node or does not exist"), *ParentPath));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("ParentPath '%s' is not a composite node or does not exist"), *ParentPath));
 			return;
 		}
 
 		UBTService* Svc = NewObject<UBTService>(BT, Class);
 		FString NodeName;
-		if (Op->TryGetStringField(TEXT("nodeName"), NodeName) && !NodeName.IsEmpty())
+		if (Op->TryGetStringField(TEXT("NodeName"), NodeName) && !NodeName.IsEmpty())
 		{
 			Svc->NodeName = NodeName;
 		}
 		const int32 AddedIdx = Parent->Services.Add(Svc);
 		BT->MarkPackageDirty();
 
-		Entry->SetStringField(TEXT("nodeClass"),  Class->GetName());
-		Entry->SetStringField(TEXT("parentPath"), ParentPath);
-		Entry->SetNumberField(TEXT("addedIndex"), AddedIdx);
+		Entry->SetStringField(TEXT("NodeClass"),  Class->GetName());
+		Entry->SetStringField(TEXT("ParentPath"), ParentPath);
+		Entry->SetNumberField(TEXT("AddedIndex"), AddedIdx);
 }
 static void HandleBT_RemoveService(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UBehaviorTree* BT = static_cast<UBehaviorTree*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 		FString ParentPath;
-		Op->TryGetStringField(TEXT("parentPath"), ParentPath);
+		Op->TryGetStringField(TEXT("ParentPath"), ParentPath);
 		UBTCompositeNode* Parent = FNexusBehaviorTreeEditUtils::FindCompositeByPath(BT, ParentPath);
 		if (!Parent)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("parentPath '%s' is not a composite node or does not exist"), *ParentPath));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("ParentPath '%s' is not a composite node or does not exist"), *ParentPath));
 			return;
 		}
 
 		int32 TargetIdx = 0;
-		if (Op->HasField(TEXT("targetIndex"))) TargetIdx = (int32)Op->GetNumberField(TEXT("targetIndex"));
+		if (Op->HasField(TEXT("TargetIndex"))) TargetIdx = (int32)Op->GetNumberField(TEXT("TargetIndex"));
 		if (!Parent->Services.IsValidIndex(TargetIdx))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("targetIndex %d out of range [0, %d)"), TargetIdx, Parent->Services.Num()));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("TargetIndex %d out of range [0, %d)"), TargetIdx, Parent->Services.Num()));
 			return;
 		}
 
 		Parent->Services.RemoveAt(TargetIdx);
 		BT->MarkPackageDirty();
-		Entry->SetStringField(TEXT("parentPath"),   ParentPath);
-		Entry->SetNumberField(TEXT("removedIndex"), TargetIdx);
+		Entry->SetStringField(TEXT("ParentPath"),   ParentPath);
+		Entry->SetNumberField(TEXT("RemovedIndex"), TargetIdx);
 }
 static void HandleBT_SetBlackboard(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UBehaviorTree* BT = static_cast<UBehaviorTree*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 		FString BBPath;
-		if (!Op->TryGetStringField(TEXT("blackboardPath"), BBPath) || BBPath.IsEmpty())
+		if (!Op->TryGetStringField(TEXT("BlackboardPath"), BBPath) || BBPath.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("set_blackboard requires blackboardPath"));
+			Entry->SetStringField(TEXT("Error"), TEXT("SetBlackboard requires BlackboardPath"));
 			return;
 		}
 
 		UBlackboardData* BBAsset = FNexusAssetUtils::LoadAssetWithFallback<UBlackboardData>(BBPath);
 		if (!BBAsset)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("BlackboardData not found: %s"), *BBPath));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("BlackboardData not found: %s"), *BBPath));
 			return;
 		}
 
 		BT->BlackboardAsset = BBAsset;
 		BT->MarkPackageDirty();
-		Entry->SetStringField(TEXT("blackboardPath"), BBAsset->GetPathName());
+		Entry->SetStringField(TEXT("BlackboardPath"), BBAsset->GetPathName());
 }
 static void HandleBT_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UBehaviorTree* BT = static_cast<UBehaviorTree*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 		FString PropertyName;
-		if (!Op->TryGetStringField(TEXT("propertyName"), PropertyName) || PropertyName.IsEmpty())
+		if (!Op->TryGetStringField(TEXT("PropertyName"), PropertyName) || PropertyName.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyName"));
+			Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyName"));
 			return;
 		}
 
 		FString PropertyValue;
-		if (!Op->TryGetStringField(TEXT("propertyValue"), PropertyValue))
+		if (!Op->TryGetStringField(TEXT("PropertyValue"), PropertyValue))
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyValue"));
+			Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyValue"));
 			return;
 		}
 
 		// 确定目标类型：node / decorator / service
-		FString TargetType = TEXT("node");
-		Op->TryGetStringField(TEXT("targetType"), TargetType);
+		FString TargetType = TEXT("Node");
+		Op->TryGetStringField(TEXT("TargetType"), TargetType);
 
 		UBTNode* TargetNode = nullptr;
 
-		if (TargetType == TEXT("node"))
+		if (TargetType == TEXT("Node"))
 		{
 			FString TargetPath;
-			Op->TryGetStringField(TEXT("targetPath"), TargetPath);
+			Op->TryGetStringField(TEXT("TargetPath"), TargetPath);
 			TargetNode = FNexusBehaviorTreeEditUtils::FindNodeByPath(BT, TargetPath);
 			if (!TargetNode)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Node not found at targetPath '%s'"), *TargetPath));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Node not found at TargetPath '%s'"), *TargetPath));
 				return;
 			}
 		}
-		else if (TargetType == TEXT("decorator"))
+		else if (TargetType == TEXT("Decorator"))
 		{
 			FString ParentPath;
-			Op->TryGetStringField(TEXT("parentPath"), ParentPath);
+			Op->TryGetStringField(TEXT("ParentPath"), ParentPath);
 			UBTCompositeNode* Parent = FNexusBehaviorTreeEditUtils::FindCompositeByPath(BT, ParentPath);
 			if (!Parent)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("parentPath '%s' not found"), *ParentPath));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("ParentPath '%s' not found"), *ParentPath));
 				return;
 			}
 
 			int32 ChildIdx = 0;
-			if (Op->HasField(TEXT("childIndex"))) ChildIdx = (int32)Op->GetNumberField(TEXT("childIndex"));
+			if (Op->HasField(TEXT("ChildIndex"))) ChildIdx = (int32)Op->GetNumberField(TEXT("ChildIndex"));
 			if (!Parent->Children.IsValidIndex(ChildIdx))
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("childIndex %d out of range"), ChildIdx));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("ChildIndex %d out of range"), ChildIdx));
 				return;
 			}
 
 			int32 TargetIdx = 0;
-			if (Op->HasField(TEXT("targetIndex"))) TargetIdx = (int32)Op->GetNumberField(TEXT("targetIndex"));
+			if (Op->HasField(TEXT("TargetIndex"))) TargetIdx = (int32)Op->GetNumberField(TEXT("TargetIndex"));
 			auto& Decs = Parent->Children[ChildIdx].Decorators;
 			if (!Decs.IsValidIndex(TargetIdx))
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("targetIndex %d out of range"), TargetIdx));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("TargetIndex %d out of range"), TargetIdx));
 				return;
 			}
 			TargetNode = Decs[TargetIdx];
 		}
-		else if (TargetType == TEXT("service"))
+		else if (TargetType == TEXT("Service"))
 		{
 			FString ParentPath;
-			Op->TryGetStringField(TEXT("parentPath"), ParentPath);
+			Op->TryGetStringField(TEXT("ParentPath"), ParentPath);
 			UBTCompositeNode* Parent = FNexusBehaviorTreeEditUtils::FindCompositeByPath(BT, ParentPath);
 			if (!Parent)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("parentPath '%s' not found"), *ParentPath));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("ParentPath '%s' not found"), *ParentPath));
 				return;
 			}
 
 			int32 TargetIdx = 0;
-			if (Op->HasField(TEXT("targetIndex"))) TargetIdx = (int32)Op->GetNumberField(TEXT("targetIndex"));
+			if (Op->HasField(TEXT("TargetIndex"))) TargetIdx = (int32)Op->GetNumberField(TEXT("TargetIndex"));
 			if (!Parent->Services.IsValidIndex(TargetIdx))
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("targetIndex %d out of range"), TargetIdx));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("TargetIndex %d out of range"), TargetIdx));
 				return;
 			}
 			TargetNode = Parent->Services[TargetIdx];
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown targetType: '%s'"), *TargetType));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Unknown TargetType: '%s'"), *TargetType));
 			return;
 		}
 
@@ -652,13 +652,13 @@ static void HandleBT_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		UClass* TargetNodeClass = TargetNode->GetClass();
 		if (!TargetNodeClass)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Node '%s' GetClass() returned null (class may be unloaded)"), *TargetNode->GetName()));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Node '%s' GetClass() returned null (class may be unloaded)"), *TargetNode->GetName()));
 			return;
 		}
 		FProperty* Prop = TargetNodeClass->FindPropertyByName(*PropertyName);
 		if (!Prop)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Property '%s' not found on %s"), *TargetNodeClass->GetName(), *PropertyName));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Property '%s' not found on %s"), *TargetNodeClass->GetName(), *PropertyName));
 			return;
 		}
 
@@ -670,14 +670,14 @@ static void HandleBT_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusAction
 #endif
 		if (!bImportOk)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to set '%s' = '%s' (ImportText failed)"), *PropertyName, *PropertyValue));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Failed to set '%s' = '%s' (ImportText failed)"), *PropertyName, *PropertyValue));
 			return;
 		}
 
 		BT->MarkPackageDirty();
-		Entry->SetStringField(TEXT("targetType"),    TargetType);
-		Entry->SetStringField(TEXT("propertyName"),  PropertyName);
-		Entry->SetStringField(TEXT("propertyValue"), PropertyValue);
+		Entry->SetStringField(TEXT("TargetType"),    TargetType);
+		Entry->SetStringField(TEXT("PropertyName"),  PropertyName);
+		Entry->SetStringField(TEXT("PropertyValue"), PropertyValue);
 }
 static void HandleBT_SyncGraph(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
@@ -687,27 +687,27 @@ static void HandleBT_SyncGraph(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 		FString Msg;
 		TArray<FString> Warnings;
 		const bool bOk = FNexusBehaviorTreeEditUtils::RebuildGraphFromRootNode(BT, Msg, Warnings);
-		Entry->SetBoolField(TEXT("graphSynced"), bOk);
-		Entry->SetStringField(TEXT("message"), Msg);
+		Entry->SetBoolField(TEXT("bGraphSynced"), bOk);
+		Entry->SetStringField(TEXT("Message"), Msg);
 		if (Warnings.Num() > 0)
 		{
 			TArray<TSharedPtr<FJsonValue>> WarnArr;
 			for (const FString& W : Warnings) WarnArr.Add(MakeShared<FJsonValueString>(W));
-			Entry->SetArrayField(TEXT("warnings"), WarnArr);
+			Entry->SetArrayField(TEXT("Warnings"), WarnArr);
 		}
 #else
-	Entry->SetStringField(TEXT("error"), TEXT("sync_graph only available in editor builds"));
+	Entry->SetStringField(TEXT("Error"), TEXT("SyncGraph only available in editor builds"));
 #endif
 }
 
-bool FManageAssetBehaviorTreeCapability::PrepareTarget(
+bool FNexusManageAssetBehaviorTreeCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 
 	UBehaviorTree* BT = FNexusAssetUtils::LoadAssetWithFallback<UBehaviorTree>(AssetPath);
 	if (!BT)
@@ -719,7 +719,7 @@ bool FManageAssetBehaviorTreeCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetBehaviorTreeCapability::AfterPrepareTarget(
+void FNexusManageAssetBehaviorTreeCapability::AfterPrepareTarget(
 	void* Target,
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& OutTop) const
@@ -728,32 +728,32 @@ void FManageAssetBehaviorTreeCapability::AfterPrepareTarget(
 	UBehaviorTree* BT = static_cast<UBehaviorTree*>(Target);
 	if (FNexusBehaviorTreeEditUtils::CloseOpenEditorToAvoidGraphOverwrite(BT))
 	{
-		OutTop->SetBoolField(TEXT("editorClosed"), true);
+		OutTop->SetBoolField(TEXT("bEditorClosed"), true);
 	}
 #endif
 }
 
-void FManageAssetBehaviorTreeCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetBehaviorTreeCapability::FinalizeTarget(void* Target) const
 {
 #if WITH_EDITOR
 	FNexusBehaviorTreeEditUtils::NotifyBehaviorTreeAssetChanged(static_cast<UBehaviorTree*>(Target));
 #endif
 }
 
-void FManageAssetBehaviorTreeCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetBehaviorTreeCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_root"), &HandleBT_SetRoot);
-	OutHandlers.Add(TEXT("add_node"), &HandleBT_AddNode);
-	OutHandlers.Add(TEXT("move_node"), &HandleBT_MoveNode);
-	OutHandlers.Add(TEXT("remove_node"), &HandleBT_RemoveNode);
-	OutHandlers.Add(TEXT("replace_node"), &HandleBT_ReplaceNode);
-	OutHandlers.Add(TEXT("add_decorator"), &HandleBT_AddDecorator);
-	OutHandlers.Add(TEXT("remove_decorator"), &HandleBT_RemoveDecorator);
-	OutHandlers.Add(TEXT("add_service"), &HandleBT_AddService);
-	OutHandlers.Add(TEXT("remove_service"), &HandleBT_RemoveService);
-	OutHandlers.Add(TEXT("set_blackboard"), &HandleBT_SetBlackboard);
-	OutHandlers.Add(TEXT("set_property"), &HandleBT_SetProperty);
-	OutHandlers.Add(TEXT("sync_graph"), &HandleBT_SyncGraph);
+	OutHandlers.Add(TEXT("SetRoot"), &HandleBT_SetRoot);
+	OutHandlers.Add(TEXT("AddNode"), &HandleBT_AddNode);
+	OutHandlers.Add(TEXT("MoveNode"), &HandleBT_MoveNode);
+	OutHandlers.Add(TEXT("RemoveNode"), &HandleBT_RemoveNode);
+	OutHandlers.Add(TEXT("ReplaceNode"), &HandleBT_ReplaceNode);
+	OutHandlers.Add(TEXT("AddDecorator"), &HandleBT_AddDecorator);
+	OutHandlers.Add(TEXT("RemoveDecorator"), &HandleBT_RemoveDecorator);
+	OutHandlers.Add(TEXT("AddService"), &HandleBT_AddService);
+	OutHandlers.Add(TEXT("RemoveService"), &HandleBT_RemoveService);
+	OutHandlers.Add(TEXT("SetBlackboard"), &HandleBT_SetBlackboard);
+	OutHandlers.Add(TEXT("SetProperty"), &HandleBT_SetProperty);
+	OutHandlers.Add(TEXT("SyncGraph"), &HandleBT_SyncGraph);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetBehaviorTreeCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetBehaviorTreeCapability)

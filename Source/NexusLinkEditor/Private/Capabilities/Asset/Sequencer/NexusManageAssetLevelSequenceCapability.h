@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_level_sequence — 编辑 LevelSequence：set_display_rate/set_range/add_spawnable/remove_binding/add_master_track/remove_master_track。 */
-class FManageAssetLevelSequenceCapability : public FNexusActionCapability
+/** ManageAssetLevelSequence — 编辑 LevelSequence：SetDisplayRate/set_range/AddSpawnable/RemoveBinding/AddMasterTrack/RemoveMasterTrack。 */
+class FNexusManageAssetLevelSequenceCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

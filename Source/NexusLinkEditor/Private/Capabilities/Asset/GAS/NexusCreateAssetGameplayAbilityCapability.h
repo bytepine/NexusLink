@@ -7,8 +7,8 @@
 
 #include "NexusCapability.h"
 
-/** create_asset_gameplay_ability — 创建 GameplayAbility Blueprint。 */
-class FCreateAssetGameplayAbilityCapability : public FNexusCapability
+/** CreateAssetGameplayAbility — 创建 GameplayAbility Blueprint。 */
+class FNexusCreateAssetGameplayAbilityCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

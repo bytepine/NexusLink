@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #if WITH_PAPER2D
 #include "NexusCapability.h"
-class FGetAssetPaperSpriteCapability : public FNexusCapability
+class FNexusGetAssetPaperSpriteCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

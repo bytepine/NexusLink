@@ -31,7 +31,7 @@ public:
  *
  * 调用方（均驻留 Runtime 模块，Runtime cap 与 Editor cap 共用）：
  *   - FNexusCapability::Run（NexusCapability.cpp）              → ApplyManageFinalize / BeginTransaction
- *   - NexusMcpToolCallCapability（call_capability 元工具）        → BeginTransaction
+ *   - NexusMcpToolCallCapability（CallCapability 元工具）        → BeginTransaction
  *   - FNexusDangerousCapGate::ConfirmOrDeny                     → PromptDangerousCapConfirm
  *   - FNexusPackageLedger::UnloadPackagesSafely                 → FlushPackages
  *   - FNexusLinkModule::TryStartMcpServer / StopMcpServer       → NotifyServerStarted / NotifyServerStopped

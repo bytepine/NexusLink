@@ -7,8 +7,8 @@
 
 #include "NexusCapability.h"
 
-/** get_asset_gameplay_cue_notify：读取 CueName / 类名。 */
-class FGetAssetGameplayCueNotifyCapability : public FNexusCapability
+/** GetAssetGameplayCueNotify：读取 CueName / 类名。 */
+class FNexusGetAssetGameplayCueNotifyCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

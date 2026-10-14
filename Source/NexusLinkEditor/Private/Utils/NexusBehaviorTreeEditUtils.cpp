@@ -109,7 +109,7 @@ void FNexusBehaviorTreeEditUtils::ApplyInitialProperties(UBTNode* Node, const TS
 			OutErrors.Add(TEXT("properties item missing non-empty name; skipped"));
 			continue;
 		}
-		if (!PropObj->TryGetStringField(TEXT("value"), PropValue))
+		if (!PropObj->TryGetStringField(TEXT("Value"), PropValue))
 		{
 			OutErrors.Add(FString::Printf(TEXT("'%s' missing value; skipped"), *PropName));
 			continue;
@@ -233,13 +233,13 @@ bool FNexusBehaviorTreeEditUtils::SyncEdGraphNodeInstance(UBehaviorTree* BT, UBT
 	return false;
 }
 
-// ─── sync_graph：按结构位置整体重建 Graph↔RootNode 对应关系 ───────────────────
+// ─── SyncGraph：按结构位置整体重建 Graph↔RootNode 对应关系 ───────────────────
 //
-// SyncEdGraphNodeInstance（用于 replace_node）靠"本次调用中被替换掉的旧节点对象指针"
+// SyncEdGraphNodeInstance（用于 ReplaceNode）靠"本次调用中被替换掉的旧节点对象指针"
 // 去匹配 Graph 节点，只对"未来的替换"有效：如果 RootNode 在更早的调用/会话中就已经被
 // 改写过（旧对象指针已经丢失，不再挂在 RootNode 树上），就永远匹配不上了。
 //
-// sync_graph 不依赖任何"旧指针"，而是同时按同一套深度优先顺序遍历 RootNode 树和
+// SyncGraph 不依赖任何"旧指针"，而是同时按同一套深度优先顺序遍历 RootNode 树和
 // Graph 树（通过输出 Pin 的连线 + SubNodes 承载 decorator/service），
 // 逐位置强制把 Graph 节点的 NodeInstance 覆盖成 RootNode 树里当前的真实节点对象。
 // 因此无论 RootNode 是何时被改写的，只要两棵树的结构（节点数量/子节点顺序）一致，
@@ -363,7 +363,7 @@ static void SyncNodePairRecursive(UBTNode* RootTreeNode, UEdGraphNode* GraphNode
 	}
 	const TArray<UBTService*>& Svcs = AsComposite->Services;
 	const int32 SvcN = FMath::Min(Svcs.Num(), ServiceGraphNodes.Num());
-	for (int32 i = 0; i < SvcN; ++i) SetGraphNodeInstance(ServiceGraphNodes[i], Svcs[i]);
+		for (int32 ServiceIndex = 0; ServiceIndex < SvcN; ++ServiceIndex) SetGraphNodeInstance(ServiceGraphNodes[ServiceIndex], Svcs[ServiceIndex]);
 	if (Svcs.Num() != ServiceGraphNodes.Num())
 	{
 		Stats.Warnings.Add(FString::Printf(TEXT("%s: services count mismatch (tree=%d, graph=%d); synced first %d only"),
@@ -397,7 +397,7 @@ static void SyncNodePairRecursive(UBTNode* RootTreeNode, UEdGraphNode* GraphNode
 			if (IsDecoratorGraphNode(Sub)) DecoGraphNodes.Add(Sub);
 		}
 		const int32 DecoN = FMath::Min(Child.Decorators.Num(), DecoGraphNodes.Num());
-		for (int32 d = 0; d < DecoN; ++d) SetGraphNodeInstance(DecoGraphNodes[d], Child.Decorators[d]);
+		for (int32 DecoratorIndex = 0; DecoratorIndex < DecoN; ++DecoratorIndex) SetGraphNodeInstance(DecoGraphNodes[DecoratorIndex], Child.Decorators[DecoratorIndex]);
 		if (Child.Decorators.Num() != DecoGraphNodes.Num())
 		{
 			Stats.Warnings.Add(FString::Printf(TEXT("%s child %d: decorators count mismatch (tree=%d, graph=%d); synced first %d only"),

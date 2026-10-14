@@ -43,6 +43,6 @@ public:
 	/** 按时间移除关键帧（空 TrackName 则首条 Float 轨）。 */
 	static bool RemoveFloatKey(UWidgetAnimation* Anim, const FString& TrackName, float TimeSeconds, FString& OutError);
 
-	/** 序列化动画轨摘要到 JSON（trackClass / displayName / sectionsCount）。 */
+	/** 序列化动画轨摘要到 JSON（TrackClass / DisplayName / SectionsCount）。 */
 	static void AppendTrackSummaries(UWidgetAnimation* Anim, TArray<TSharedPtr<class FJsonValue>>& OutTracks);
 };

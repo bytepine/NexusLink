@@ -35,7 +35,7 @@
 #include "KeyParams.h"
 #endif
 
-/** 解析 trackClass → UClass；未知返回 nullptr 并写 OutError。 */
+/** 解析 TrackClass → UClass；未知返回 nullptr 并写 OutError。 */
 static UClass* ResolveLevelSequenceTrackClass(const FString& TrackClass, FString& OutError)
 {
 	if (TrackClass.IsEmpty() || TrackClass.Equals(TEXT("Float"), ESearchCase::IgnoreCase))
@@ -86,7 +86,7 @@ static UClass* ResolveLevelSequenceTrackClass(const FString& TrackClass, FString
 #endif
 
 	OutError = FString::Printf(
-			TEXT("Unknown trackClass: %s (Master: CameraCut/Audio/...; Binding: Float/Transform/...)"),
+			TEXT("Unknown TrackClass: %s (Master: CameraCut/Audio/...; Binding: Float/Transform/...)"),
 			*TrackClass);
 	return nullptr;
 }
@@ -166,35 +166,35 @@ static bool AddKeyToFloatTrack(UMovieScene* Scene, UMovieSceneFloatTrack* FloatT
 }
 #endif
 
-void FManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_level_sequence");
+	Out.Name = TEXT("ManageAssetLevelSequence");
 	Out.SearchAssetTypes = {TEXT("LevelSequence")};
 	Out.Description = TEXT("Edit LevelSequence: rate/range/bindings/tracks/keys.");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Required(TEXT("action"), FNexusSchema::Enum(
+		.Required(TEXT("Action"), FNexusSchema::Enum(
 			TEXT("Operation type"),
 			{
-				TEXT("set_display_rate"),
-				TEXT("set_playback_range"),
-				TEXT("remove_binding"),
-				TEXT("add_master_track"),
-				TEXT("remove_master_track"),
-				TEXT("add_possessable"),
-				TEXT("add_spawnable"),
-				TEXT("add_track"),
-				TEXT("add_float_key"),
-				TEXT("set_transform_key"),
+				TEXT("SetDisplayRate"),
+				TEXT("SetPlaybackRange"),
+				TEXT("RemoveBinding"),
+				TEXT("AddMasterTrack"),
+				TEXT("RemoveMasterTrack"),
+				TEXT("AddPossessable"),
+				TEXT("AddSpawnable"),
+				TEXT("AddTrack"),
+				TEXT("AddFloatKey"),
+				TEXT("SetTransformKey"),
 			}))
-		.Prop(TEXT("numerator"),   FNexusSchema::Int(TEXT("Frame rate numerator (set_display_rate)"), 30))
-		.Prop(TEXT("denominator"), FNexusSchema::Int(TEXT("Frame rate denominator (set_display_rate)"), 1))
-		.Prop(TEXT("startFrame"),  FNexusSchema::Int(TEXT("Start frame (set_playback_range)")))
-		.Prop(TEXT("endFrame"),    FNexusSchema::Int(TEXT("End frame (set_playback_range)")))
-		.Prop(TEXT("bindingGuid"), FNexusSchema::Str(TEXT("Binding GUID (required for add_track/add_float_key/set_transform_key)")))
-		.Prop(TEXT("possessableName"), FNexusSchema::Str(TEXT("Possessable display name")))
-		.Prop(TEXT("className"),   FNexusSchema::Str(TEXT("Possessable/Spawnable class (default Actor)")))
-		.Prop(TEXT("trackClass"),  FNexusSchema::Enum(
+		.Prop(TEXT("Numerator"),   FNexusSchema::Int(TEXT("Frame rate numerator (SetDisplayRate)"), 30))
+		.Prop(TEXT("Denominator"), FNexusSchema::Int(TEXT("Frame rate denominator (SetDisplayRate)"), 1))
+		.Prop(TEXT("StartFrame"),  FNexusSchema::Int(TEXT("Start frame (SetPlaybackRange)")))
+		.Prop(TEXT("EndFrame"),    FNexusSchema::Int(TEXT("End frame (SetPlaybackRange)")))
+		.Prop(TEXT("BindingGuid"), FNexusSchema::Str(TEXT("Binding GUID (required for AddTrack/AddFloatKey/SetTransformKey)")))
+		.Prop(TEXT("PossessableName"), FNexusSchema::Str(TEXT("Possessable display name")))
+		.Prop(TEXT("ClassName"),   FNexusSchema::Str(TEXT("Possessable/Spawnable class (default Actor)")))
+		.Prop(TEXT("TrackClass"),  FNexusSchema::Enum(
 			TEXT("Track type"),
 			{
 				TEXT("CameraCut"), TEXT("Audio"), TEXT("CinematicShot"), TEXT("Fade"),
@@ -203,23 +203,23 @@ void FManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefini
 				TEXT("Visibility"), TEXT("Color"), TEXT("Bool"), TEXT("Integer"),
 				TEXT("Vector"), TEXT("FloatVector"), TEXT("DoubleVector")
 			}))
-		.Prop(TEXT("time"),        FNexusSchema::Num(TEXT("Keyframe time in seconds")))
-		.Prop(TEXT("keyValue"),    FNexusSchema::Num(TEXT("Float keyframe value")))
+		.Prop(TEXT("Time"),        FNexusSchema::Num(TEXT("Keyframe time in seconds")))
+		.Prop(TEXT("KeyValue"),    FNexusSchema::Num(TEXT("Float keyframe value")))
 		.Prop(TEXT("x"), FNexusSchema::Num(TEXT("Transform location X")))
 		.Prop(TEXT("y"), FNexusSchema::Num(TEXT("Transform location Y")))
 		.Prop(TEXT("z"), FNexusSchema::Num(TEXT("Transform location Z")))
-		.Prop(TEXT("pitch"), FNexusSchema::Num(TEXT("Transform rotation Pitch (optional)")))
-		.Prop(TEXT("yaw"), FNexusSchema::Num(TEXT("Transform rotation Yaw (optional)")))
-		.Prop(TEXT("roll"), FNexusSchema::Num(TEXT("Transform rotation Roll (optional)")))
+		.Prop(TEXT("Pitch"), FNexusSchema::Num(TEXT("Transform rotation Pitch (optional)")))
+		.Prop(TEXT("Yaw"), FNexusSchema::Num(TEXT("Transform rotation Yaw (optional)")))
+		.Prop(TEXT("Roll"), FNexusSchema::Num(TEXT("Transform rotation Roll (optional)")))
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"),  FNexusSchema::Str(TEXT("LevelSequence asset path")))
-		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
+		.Required(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("LevelSequence asset path")))
+		.Required(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("sequence"), TEXT("sequencer"), TEXT("cinematic"), TEXT("track"), TEXT("frame"), TEXT("camera") };
-	Out.RelatedCapabilities = { TEXT("get_asset_level_sequence"), TEXT("create_asset_level_sequence"), TEXT("save_asset") };
+	Out.ExtraSearchKeywords = { TEXT("Sequence"), TEXT("sequencer"), TEXT("cinematic"), TEXT("track"), TEXT("frame"), TEXT("camera") };
+	Out.RelatedCapabilities = { TEXT("GetAssetLevelSequence"), TEXT("CreateAssetLevelSequence"), TEXT("SaveAsset") };
 	Out.WhenToUse = TEXT("Edit LevelSequence frame rate/bindings/tracks/keys");
 }
 
@@ -246,26 +246,26 @@ static void MarkLSDirty(FNexusActionContext& Ctx)
 static void HandleLS_SetDisplayRate(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMovieScene* Scene = SceneFrom(Ctx);
-	if (!Scene) { Ctx.Entry->SetStringField(TEXT("error"), TEXT("LevelSequence has no MovieScene data")); return; }
+	if (!Scene) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LevelSequence has no MovieScene data")); return; }
 	int64 Num = 30, Den = 1;
-	Op->TryGetNumberField(TEXT("numerator"),   Num);
-	Op->TryGetNumberField(TEXT("denominator"), Den);
+	Op->TryGetNumberField(TEXT("Numerator"),   Num);
+	Op->TryGetNumberField(TEXT("Denominator"), Den);
 	if (Den <= 0) Den = 1;
 	Scene->SetDisplayRate(FFrameRate(static_cast<int32>(Num), static_cast<int32>(Den)));
-	Ctx.Entry->SetStringField(TEXT("displayRate"), FString::Printf(TEXT("%d/%d"), (int32)Num, (int32)Den));
+	Ctx.Entry->SetStringField(TEXT("DisplayRate"), FString::Printf(TEXT("%d/%d"), (int32)Num, (int32)Den));
 	MarkLSDirty(Ctx);
 }
 
 static void HandleLS_SetPlaybackRange(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMovieScene* Scene = SceneFrom(Ctx);
-	if (!Scene) { Ctx.Entry->SetStringField(TEXT("error"), TEXT("LevelSequence has no MovieScene data")); return; }
+	if (!Scene) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LevelSequence has no MovieScene data")); return; }
 	int64 StartFrame = 0, EndFrame = 0;
-	const bool bHasStart = Op->TryGetNumberField(TEXT("startFrame"), StartFrame);
-	const bool bHasEnd   = Op->TryGetNumberField(TEXT("endFrame"), EndFrame);
+	const bool bHasStart = Op->TryGetNumberField(TEXT("StartFrame"), StartFrame);
+	const bool bHasEnd   = Op->TryGetNumberField(TEXT("EndFrame"), EndFrame);
 	if (!bHasStart && !bHasEnd)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_playback_range requires startFrame or endFrame"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetPlaybackRange requires StartFrame or EndFrame"));
 		return;
 	}
 	TRange<FFrameNumber> Current = Scene->GetPlaybackRange();
@@ -278,17 +278,17 @@ static void HandleLS_SetPlaybackRange(const TSharedPtr<FJsonObject>& Op, FNexusA
 static void HandleLS_RemoveBinding(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMovieScene* Scene = SceneFrom(Ctx);
-	if (!Scene) { Ctx.Entry->SetStringField(TEXT("error"), TEXT("LevelSequence has no MovieScene data")); return; }
-	const FString GuidStr = FNexusArgs(Op).Str(TEXT("bindingGuid"));
+	if (!Scene) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LevelSequence has no MovieScene data")); return; }
+	const FString GuidStr = FNexusArgs(Op).Str(TEXT("BindingGuid"));
 	if (GuidStr.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_binding requires bindingGuid"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveBinding requires BindingGuid"));
 		return;
 	}
 	FGuid Guid;
 	if (!FGuid::Parse(GuidStr, Guid))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid GUID: %s"), *GuidStr));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Invalid GUID: %s"), *GuidStr));
 		return;
 	}
 	if (Scene->RemovePossessable(Guid) || Scene->RemoveSpawnable(Guid))
@@ -297,24 +297,24 @@ static void HandleLS_RemoveBinding(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	}
 	else
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_binding: matching binding not found"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveBinding: matching binding not found"));
 	}
 }
 
 static void HandleLS_AddMasterTrack(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMovieScene* Scene = SceneFrom(Ctx);
-	if (!Scene) { Ctx.Entry->SetStringField(TEXT("error"), TEXT("LevelSequence has no MovieScene data")); return; }
-	const FString TrackClass = FNexusArgs(Op).Str(TEXT("trackClass"));
+	if (!Scene) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LevelSequence has no MovieScene data")); return; }
+	const FString TrackClass = FNexusArgs(Op).Str(TEXT("TrackClass"));
 	if (TrackClass.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_master_track requires trackClass"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddMasterTrack requires TrackClass"));
 		return;
 	}
 	if (!IsMasterTrackClassName(TrackClass))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(
-			TEXT("trackClass '%s' cannot be MasterTrack (supports CameraCut/Audio/…/Slomo)"),
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(
+			TEXT("TrackClass '%s' cannot be MasterTrack (supports CameraCut/Audio/…/Slomo)"),
 			*TrackClass));
 		return;
 	}
@@ -322,7 +322,7 @@ static void HandleLS_AddMasterTrack(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	UClass* Class = ResolveLevelSequenceTrackClass(TrackClass, ResolveErr);
 	if (!Class)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), ResolveErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), ResolveErr);
 		return;
 	}
 #if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
@@ -338,53 +338,53 @@ static void HandleLS_AddMasterTrack(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	}
 	if (bExists)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("%s MasterTrack already exists"), *TrackClass));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("%s MasterTrack already exists"), *TrackClass));
 	}
 	else
 	{
 		UMovieSceneTrack* NewTrack = Scene->AddMasterTrack(Class);
 		if (NewTrack)
 		{
-			Ctx.Entry->SetStringField(TEXT("trackClass"), TrackClass);
-			Ctx.Entry->SetStringField(TEXT("trackType"), NewTrack->GetClass()->GetName());
+			Ctx.Entry->SetStringField(TEXT("TrackClass"), TrackClass);
+			Ctx.Entry->SetStringField(TEXT("TrackType"), NewTrack->GetClass()->GetName());
 			MarkLSDirty(Ctx);
 		}
-		else Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_master_track failed"));
+		else Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddMasterTrack failed"));
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #else
 	UMovieSceneTrack* NewTrack = Scene->AddTrack(Class);
 	if (NewTrack)
 	{
-		Ctx.Entry->SetStringField(TEXT("trackClass"), TrackClass);
-		Ctx.Entry->SetStringField(TEXT("trackType"), NewTrack->GetClass()->GetName());
+		Ctx.Entry->SetStringField(TEXT("TrackClass"), TrackClass);
+		Ctx.Entry->SetStringField(TEXT("TrackType"), NewTrack->GetClass()->GetName());
 		MarkLSDirty(Ctx);
 	}
-	else Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_master_track failed"));
+	else Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddMasterTrack failed"));
 #endif
 }
 
 static void HandleLS_RemoveMasterTrack(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMovieScene* Scene = SceneFrom(Ctx);
-	if (!Scene) { Ctx.Entry->SetStringField(TEXT("error"), TEXT("LevelSequence has no MovieScene data")); return; }
-	const FString TrackClass = FNexusArgs(Op).Str(TEXT("trackClass"));
+	if (!Scene) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LevelSequence has no MovieScene data")); return; }
+	const FString TrackClass = FNexusArgs(Op).Str(TEXT("TrackClass"));
 	if (TrackClass.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_master_track requires trackClass"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveMasterTrack requires TrackClass"));
 		return;
 	}
 	if (!IsMasterTrackClassName(TrackClass))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(
-			TEXT("trackClass '%s' is not a MasterTrack type"), *TrackClass));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(
+			TEXT("TrackClass '%s' is not a MasterTrack type"), *TrackClass));
 		return;
 	}
 	FString ResolveErr;
 	UClass* Class = ResolveLevelSequenceTrackClass(TrackClass, ResolveErr);
 	if (!Class)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), ResolveErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), ResolveErr);
 		return;
 	}
 #if NX_UE_HAS_MOVIE_SCENE_MASTER_TRACKS
@@ -394,10 +394,10 @@ static void HandleLS_RemoveMasterTrack(const TSharedPtr<FJsonObject>& Op, FNexus
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (bOk)
 	{
-		Ctx.Entry->SetStringField(TEXT("trackClass"), TrackClass);
+		Ctx.Entry->SetStringField(TEXT("TrackClass"), TrackClass);
 		MarkLSDirty(Ctx);
 	}
-	else Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_master_track: matching Track not found"));
+	else Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveMasterTrack: matching Track not found"));
 #else
 	UMovieSceneTrack* Found = nullptr;
 	for (UMovieSceneTrack* T : Scene->GetTracks())
@@ -407,10 +407,10 @@ static void HandleLS_RemoveMasterTrack(const TSharedPtr<FJsonObject>& Op, FNexus
 	const bool bOk = Found && Scene->RemoveTrack(*Found);
 	if (bOk)
 	{
-		Ctx.Entry->SetStringField(TEXT("trackClass"), TrackClass);
+		Ctx.Entry->SetStringField(TEXT("TrackClass"), TrackClass);
 		MarkLSDirty(Ctx);
 	}
-	else Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_master_track: matching Track not found"));
+	else Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveMasterTrack: matching Track not found"));
 #endif
 }
 
@@ -430,49 +430,49 @@ static UClass* ResolveActorClass(const FString& ClassName)
 static void HandleLS_AddPossessable(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMovieScene* Scene = SceneFrom(Ctx);
-	if (!Scene) { Ctx.Entry->SetStringField(TEXT("error"), TEXT("LevelSequence has no MovieScene data")); return; }
-	FString PossessName = FNexusArgs(Op).Str(TEXT("possessableName"));
+	if (!Scene) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LevelSequence has no MovieScene data")); return; }
+	FString PossessName = FNexusArgs(Op).Str(TEXT("PossessableName"));
 	if (PossessName.IsEmpty()) PossessName = TEXT("Possessable");
-	const FGuid Guid = Scene->AddPossessable(PossessName, ResolveActorClass(FNexusArgs(Op).Str(TEXT("className"))));
-	Ctx.Entry->SetStringField(TEXT("bindingGuid"), Guid.ToString());
-	Ctx.Entry->SetStringField(TEXT("possessableName"), PossessName);
+	const FGuid Guid = Scene->AddPossessable(PossessName, ResolveActorClass(FNexusArgs(Op).Str(TEXT("ClassName"))));
+	Ctx.Entry->SetStringField(TEXT("BindingGuid"), Guid.ToString());
+	Ctx.Entry->SetStringField(TEXT("PossessableName"), PossessName);
 	MarkLSDirty(Ctx);
 }
 
 static void HandleLS_AddSpawnable(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMovieScene* Scene = SceneFrom(Ctx);
-	if (!Scene) { Ctx.Entry->SetStringField(TEXT("error"), TEXT("LevelSequence has no MovieScene data")); return; }
-	FString SpawnName = FNexusArgs(Op).Str(TEXT("possessableName"));
+	if (!Scene) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LevelSequence has no MovieScene data")); return; }
+	FString SpawnName = FNexusArgs(Op).Str(TEXT("PossessableName"));
 	if (SpawnName.IsEmpty()) SpawnName = TEXT("Spawnable");
-	UClass* Cls = ResolveActorClass(FNexusArgs(Op).Str(TEXT("className")));
+	UClass* Cls = ResolveActorClass(FNexusArgs(Op).Str(TEXT("ClassName")));
 	UObject* Template = NewObject<UObject>(Scene, Cls, NAME_None, RF_Transactional);
 	if (!Template)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to create spawnable template"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Unable to create spawnable template"));
 		return;
 	}
 	const FGuid Guid = Scene->AddSpawnable(SpawnName, *Template);
-	Ctx.Entry->SetStringField(TEXT("bindingGuid"), Guid.ToString());
+	Ctx.Entry->SetStringField(TEXT("BindingGuid"), Guid.ToString());
 	MarkLSDirty(Ctx);
 }
 
 static void HandleLS_AddTrack(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMovieScene* Scene = SceneFrom(Ctx);
-	if (!Scene) { Ctx.Entry->SetStringField(TEXT("error"), TEXT("LevelSequence has no MovieScene data")); return; }
-	const FString GuidStr = FNexusArgs(Op).Str(TEXT("bindingGuid"));
-	const FString TrackClass = FNexusArgs(Op).Str(TEXT("trackClass"));
+	if (!Scene) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LevelSequence has no MovieScene data")); return; }
+	const FString GuidStr = FNexusArgs(Op).Str(TEXT("BindingGuid"));
+	const FString TrackClass = FNexusArgs(Op).Str(TEXT("TrackClass"));
 	FGuid Guid;
 	if (!FGuid::Parse(GuidStr, Guid))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_track requires valid bindingGuid"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddTrack requires valid BindingGuid"));
 		return;
 	}
 	if (!IsBindingTrackClassName(TrackClass))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(
-			TEXT("trackClass '%s' cannot be Binding track (see schema)"),
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(
+			TEXT("TrackClass '%s' cannot be Binding track (see schema)"),
 			*TrackClass));
 		return;
 	}
@@ -480,76 +480,76 @@ static void HandleLS_AddTrack(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	UClass* Class = ResolveLevelSequenceTrackClass(TrackClass, ResolveErr);
 	if (!Class)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), ResolveErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), ResolveErr);
 		return;
 	}
 	UMovieSceneTrack* NewTrack = Scene->AddTrack(Class, Guid);
 	if (!NewTrack)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_track failed"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddTrack failed"));
 		return;
 	}
-	Ctx.Entry->SetStringField(TEXT("bindingGuid"), Guid.ToString());
-	Ctx.Entry->SetStringField(TEXT("trackClass"), TrackClass.IsEmpty() ? TEXT("Float") : TrackClass);
-	Ctx.Entry->SetStringField(TEXT("trackType"), NewTrack->GetClass()->GetName());
+	Ctx.Entry->SetStringField(TEXT("BindingGuid"), Guid.ToString());
+	Ctx.Entry->SetStringField(TEXT("TrackClass"), TrackClass.IsEmpty() ? TEXT("Float") : TrackClass);
+	Ctx.Entry->SetStringField(TEXT("TrackType"), NewTrack->GetClass()->GetName());
 	MarkLSDirty(Ctx);
 }
 
 static void HandleLS_AddFloatKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMovieScene* Scene = SceneFrom(Ctx);
-	if (!Scene) { Ctx.Entry->SetStringField(TEXT("error"), TEXT("LevelSequence has no MovieScene data")); return; }
-	const FString GuidStr = FNexusArgs(Op).Str(TEXT("bindingGuid"));
-	const double TimeSec = FNexusArgs(Op).Num(TEXT("time"));
-	const double KeyVal = FNexusArgs(Op).Num(TEXT("keyValue"));
+	if (!Scene) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LevelSequence has no MovieScene data")); return; }
+	const FString GuidStr = FNexusArgs(Op).Str(TEXT("BindingGuid"));
+	const double TimeSec = FNexusArgs(Op).Num(TEXT("Time"));
+	const double KeyVal = FNexusArgs(Op).Num(TEXT("KeyValue"));
 	FGuid Guid;
 	if (!FGuid::Parse(GuidStr, Guid))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_float_key requires valid bindingGuid"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddFloatKey requires valid BindingGuid"));
 		return;
 	}
 	UMovieSceneFloatTrack* FloatTrack = Cast<UMovieSceneFloatTrack>(
 		Scene->FindTrack(UMovieSceneFloatTrack::StaticClass(), Guid));
 	if (!FloatTrack)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("This Binding has no Float track; add_track first"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("This Binding has no Float track; AddTrack first"));
 		return;
 	}
 #if NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
 	FString KeyErr;
 	if (!AddKeyToFloatTrack(Scene, FloatTrack, TimeSec, static_cast<float>(KeyVal), KeyErr))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), KeyErr);
+		Ctx.Entry->SetStringField(TEXT("Error"), KeyErr);
 		return;
 	}
-	Ctx.Entry->SetStringField(TEXT("bindingGuid"), Guid.ToString());
-	Ctx.Entry->SetNumberField(TEXT("time"), TimeSec);
-	Ctx.Entry->SetNumberField(TEXT("keyValue"), KeyVal);
+	Ctx.Entry->SetStringField(TEXT("BindingGuid"), Guid.ToString());
+	Ctx.Entry->SetNumberField(TEXT("Time"), TimeSec);
+	Ctx.Entry->SetNumberField(TEXT("KeyValue"), KeyVal);
 	MarkLSDirty(Ctx);
 #else
-	Ctx.Entry->SetStringField(TEXT("error"), TEXT("No FloatChannel on this engine; cannot key"));
+	Ctx.Entry->SetStringField(TEXT("Error"), TEXT("No FloatChannel on this engine; cannot key"));
 #endif
 }
 
 static void HandleLS_SetTransformKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMovieScene* Scene = SceneFrom(Ctx);
-	if (!Scene) { Ctx.Entry->SetStringField(TEXT("error"), TEXT("LevelSequence has no MovieScene data")); return; }
-	const FString GuidStr = FNexusArgs(Op).Str(TEXT("bindingGuid"));
-	const double TimeSec = FNexusArgs(Op).Num(TEXT("time"));
+	if (!Scene) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LevelSequence has no MovieScene data")); return; }
+	const FString GuidStr = FNexusArgs(Op).Str(TEXT("BindingGuid"));
+	const double TimeSec = FNexusArgs(Op).Num(TEXT("Time"));
 	const double X = FNexusArgs(Op).Num(TEXT("x"));
 	const double Y = FNexusArgs(Op).Num(TEXT("y"));
 	const double Z = FNexusArgs(Op).Num(TEXT("z"));
-	const bool bHasPitch = Op->HasField(TEXT("pitch"));
-	const bool bHasYaw   = Op->HasField(TEXT("yaw"));
-	const bool bHasRoll  = Op->HasField(TEXT("roll"));
-	const double Pitch = bHasPitch ? FNexusArgs(Op).Num(TEXT("pitch")) : 0.0;
-	const double Yaw   = bHasYaw   ? FNexusArgs(Op).Num(TEXT("yaw"))   : 0.0;
-	const double Roll  = bHasRoll  ? FNexusArgs(Op).Num(TEXT("roll"))  : 0.0;
+	const bool bHasPitch = Op->HasField(TEXT("Pitch"));
+	const bool bHasYaw   = Op->HasField(TEXT("Yaw"));
+	const bool bHasRoll  = Op->HasField(TEXT("Roll"));
+	const double Pitch = bHasPitch ? FNexusArgs(Op).Num(TEXT("Pitch")) : 0.0;
+	const double Yaw   = bHasYaw   ? FNexusArgs(Op).Num(TEXT("Yaw"))   : 0.0;
+	const double Roll  = bHasRoll  ? FNexusArgs(Op).Num(TEXT("Roll"))  : 0.0;
 	FGuid Guid;
 	if (!FGuid::Parse(GuidStr, Guid))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_transform_key requires bindingGuid"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetTransformKey requires BindingGuid"));
 		return;
 	}
 	UMovieScene3DTransformTrack* TTrack = Cast<UMovieScene3DTransformTrack>(
@@ -560,7 +560,7 @@ static void HandleLS_SetTransformKey(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	}
 	if (!TTrack)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to add TransformTrack"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Unable to add TransformTrack"));
 		return;
 	}
 	UMovieScene3DTransformSection* Section = nullptr;
@@ -576,7 +576,7 @@ static void HandleLS_SetTransformKey(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	}
 	if (!Section)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to create TransformSection"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Unable to create TransformSection"));
 		return;
 	}
 #if NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL
@@ -599,30 +599,30 @@ static void HandleLS_SetTransformKey(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	}
 	else if (bHasRoll || bHasPitch || bHasYaw)
 	{
-		Ctx.Entry->SetStringField(TEXT("rotationNote"), TEXT("Rotation channels missing; ignored pitch/yaw/roll"));
+		Ctx.Entry->SetStringField(TEXT("RotationNote"), TEXT("Rotation channels missing; ignored pitch/yaw/roll"));
 	}
 	Ctx.Entry->SetNumberField(TEXT("x"), X);
 	Ctx.Entry->SetNumberField(TEXT("y"), Y);
 	Ctx.Entry->SetNumberField(TEXT("z"), Z);
-	if (bHasPitch) Ctx.Entry->SetNumberField(TEXT("pitch"), Pitch);
-	if (bHasYaw)   Ctx.Entry->SetNumberField(TEXT("yaw"), Yaw);
-	if (bHasRoll)  Ctx.Entry->SetNumberField(TEXT("roll"), Roll);
+	if (bHasPitch) Ctx.Entry->SetNumberField(TEXT("Pitch"), Pitch);
+	if (bHasYaw)   Ctx.Entry->SetNumberField(TEXT("Yaw"), Yaw);
+	if (bHasRoll)  Ctx.Entry->SetNumberField(TEXT("Roll"), Roll);
 	MarkLSDirty(Ctx);
 #else
-	Ctx.Entry->SetStringField(TEXT("error"), TEXT("No FloatChannel; cannot write Transform keys"));
+	Ctx.Entry->SetStringField(TEXT("Error"), TEXT("No FloatChannel; cannot write Transform keys"));
 #endif
 }
 #endif // WITH_EDITOR
 
-bool FManageAssetLevelSequenceCapability::PrepareTarget(
+bool FNexusManageAssetLevelSequenceCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
 #if WITH_EDITOR
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	ULevelSequence* LS = FNexusAssetUtils::LoadAssetWithFallback<ULevelSequence>(AssetPath);
 	if (!LS)
 	{
@@ -637,27 +637,27 @@ bool FManageAssetLevelSequenceCapability::PrepareTarget(
 	OutTarget = LS;
 	return true;
 #else
-	OutError = TEXT("manage_asset_level_sequence only available in Editor builds");
+	OutError = TEXT("ManageAssetLevelSequence only available in Editor builds");
 	return false;
 #endif
 }
 
-void FManageAssetLevelSequenceCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetLevelSequenceCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
 #if WITH_EDITOR
-	OutHandlers.Add(TEXT("set_display_rate"),   &HandleLS_SetDisplayRate);
-	OutHandlers.Add(TEXT("set_playback_range"), &HandleLS_SetPlaybackRange);
-	OutHandlers.Add(TEXT("remove_binding"),     &HandleLS_RemoveBinding);
-	OutHandlers.Add(TEXT("add_master_track"),   &HandleLS_AddMasterTrack);
-	OutHandlers.Add(TEXT("remove_master_track"),&HandleLS_RemoveMasterTrack);
-	OutHandlers.Add(TEXT("add_possessable"),    &HandleLS_AddPossessable);
-	OutHandlers.Add(TEXT("add_spawnable"),      &HandleLS_AddSpawnable);
-	OutHandlers.Add(TEXT("add_track"),          &HandleLS_AddTrack);
-	OutHandlers.Add(TEXT("add_float_key"),      &HandleLS_AddFloatKey);
-	OutHandlers.Add(TEXT("set_transform_key"),  &HandleLS_SetTransformKey);
+	OutHandlers.Add(TEXT("SetDisplayRate"),   &HandleLS_SetDisplayRate);
+	OutHandlers.Add(TEXT("SetPlaybackRange"), &HandleLS_SetPlaybackRange);
+	OutHandlers.Add(TEXT("RemoveBinding"),     &HandleLS_RemoveBinding);
+	OutHandlers.Add(TEXT("AddMasterTrack"),   &HandleLS_AddMasterTrack);
+	OutHandlers.Add(TEXT("RemoveMasterTrack"),&HandleLS_RemoveMasterTrack);
+	OutHandlers.Add(TEXT("AddPossessable"),    &HandleLS_AddPossessable);
+	OutHandlers.Add(TEXT("AddSpawnable"),      &HandleLS_AddSpawnable);
+	OutHandlers.Add(TEXT("AddTrack"),          &HandleLS_AddTrack);
+	OutHandlers.Add(TEXT("AddFloatKey"),      &HandleLS_AddFloatKey);
+	OutHandlers.Add(TEXT("SetTransformKey"),  &HandleLS_SetTransformKey);
 #else
 	(void)OutHandlers;
 #endif
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetLevelSequenceCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetLevelSequenceCapability)

@@ -29,38 +29,38 @@ static UClass* FindClassByShortName(const FString& ClassName)
 
 // ── Capability ────────────────────────────────────────────────────────────────
 
-void FManageAssetInputActionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetInputActionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_input_action");
+	Out.Name = TEXT("ManageAssetInputAction");
 	Out.SearchAssetTypes = {TEXT("InputAction")};
-	Out.Description = TEXT("Edit InputAction: set_value_type/add_trigger/remove_trigger/add_modifier/remove_modifier/set_flags.");
+	Out.Description = TEXT("Edit InputAction: SetValueType/AddTrigger/RemoveTrigger/AddModifier/RemoveModifier/SetFlags.");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Required(TEXT("action"), FNexusSchema::Enum(
+		.Required(TEXT("Action"), FNexusSchema::Enum(
 			TEXT("Operation type"),
 			{
-				TEXT("set_value_type"),
-				TEXT("add_trigger"),
-				TEXT("remove_trigger"),
-				TEXT("add_modifier"),
-				TEXT("remove_modifier"),
-				TEXT("set_flags"),
+				TEXT("SetValueType"),
+				TEXT("AddTrigger"),
+				TEXT("RemoveTrigger"),
+				TEXT("AddModifier"),
+				TEXT("RemoveModifier"),
+				TEXT("SetFlags"),
 			}))
-		.Prop(TEXT("valueType"), FNexusSchema::Enum(
-			TEXT("Required when set_value_type"),
+		.Prop(TEXT("ValueType"), FNexusSchema::Enum(
+			TEXT("Required when SetValueType"),
 			{ TEXT("Boolean"), TEXT("Axis1D"), TEXT("Axis2D"), TEXT("Axis3D") }))
-		.Prop(TEXT("className"), FNexusSchema::Str(TEXT("Trigger/Modifier class short name (e.g. InputTriggerPressed)")))
-		.Prop(TEXT("consumesInput"), FNexusSchema::Bool(TEXT("set_flags: consume input")))
-		.Prop(TEXT("reserveAllMappings"), FNexusSchema::Bool(TEXT("set_flags: keep all mappings")))
+		.Prop(TEXT("ClassName"), FNexusSchema::Str(TEXT("Trigger/Modifier class short name (e.g. InputTriggerPressed)")))
+		.Prop(TEXT("bConsumesInput"), FNexusSchema::Bool(TEXT("SetFlags: consume input")))
+		.Prop(TEXT("bReserveAllMappings"), FNexusSchema::Bool(TEXT("SetFlags: keep all mappings")))
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputAction asset path")))
-		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("InputAction asset path")))
+		.Required(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("action"), TEXT("ia"), TEXT("trigger"), TEXT("modifier"), TEXT("axis") };
-	Out.RelatedCapabilities = { TEXT("get_asset_input_action"), TEXT("create_asset_input_action") };
+	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("Action"), TEXT("ia"), TEXT("Trigger"), TEXT("modifier"), TEXT("axis") };
+	Out.RelatedCapabilities = { TEXT("GetAssetInputAction"), TEXT("CreateAssetInputAction") };
 	Out.WhenToUse = TEXT("Edit InputAction ValueType/Trigger/Modifier/flags");
 }
 
@@ -94,13 +94,13 @@ static void HandleIA_SetValueType(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	UInputAction* IA = IAFrom(Ctx);
 	if (!IA)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputAction is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("InputAction is null"));
 		return;
 	}
 	FString VT;
-	if (!Op->TryGetStringField(TEXT("valueType"), VT))
+	if (!Op->TryGetStringField(TEXT("ValueType"), VT))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_value_type requires valueType"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetValueType requires ValueType"));
 		return;
 	}
 	if (VT == TEXT("Axis1D"))
@@ -119,24 +119,24 @@ static void HandleIA_AddTrigger(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 	UInputAction* IA = IAFrom(Ctx);
 	if (!IA)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputAction is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("InputAction is null"));
 		return;
 	}
 	FString ClassName;
-	if (!Op->TryGetStringField(TEXT("className"), ClassName))
+	if (!Op->TryGetStringField(TEXT("ClassName"), ClassName))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_trigger requires className"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddTrigger requires ClassName"));
 		return;
 	}
 	UClass* TriggerClass = FindClassByShortName(ClassName);
 	if (!TriggerClass || !TriggerClass->IsChildOf(UInputTrigger::StaticClass()))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Trigger class not found: %s"), *ClassName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Trigger class not found: %s"), *ClassName));
 		return;
 	}
 	UInputTrigger* NewTrigger = NewObject<UInputTrigger>(IA, TriggerClass);
 	IA->Triggers.Add(NewTrigger);
-	Ctx.Entry->SetStringField(TEXT("addedTrigger"), TriggerClass->GetName());
+	Ctx.Entry->SetStringField(TEXT("AddedTrigger"), TriggerClass->GetName());
 	MarkIADirty(Ctx);
 }
 
@@ -145,13 +145,13 @@ static void HandleIA_RemoveTrigger(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	UInputAction* IA = IAFrom(Ctx);
 	if (!IA)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputAction is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("InputAction is null"));
 		return;
 	}
 	FString ClassName;
-	if (!Op->TryGetStringField(TEXT("className"), ClassName))
+	if (!Op->TryGetStringField(TEXT("ClassName"), ClassName))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_trigger requires className"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveTrigger requires ClassName"));
 		return;
 	}
 	const int32 Before = IA->Triggers.Num();
@@ -160,7 +160,7 @@ static void HandleIA_RemoveTrigger(const TSharedPtr<FJsonObject>& Op, FNexusActi
 		return T && T->GetClass()->GetName().Equals(ClassName, ESearchCase::IgnoreCase);
 	});
 	const int32 Removed = Before - IA->Triggers.Num();
-	Ctx.Entry->SetNumberField(TEXT("removedCount"), Removed);
+	Ctx.Entry->SetNumberField(TEXT("RemovedCount"), Removed);
 	if (Removed > 0) MarkIADirty(Ctx);
 }
 
@@ -169,24 +169,24 @@ static void HandleIA_AddModifier(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	UInputAction* IA = IAFrom(Ctx);
 	if (!IA)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputAction is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("InputAction is null"));
 		return;
 	}
 	FString ClassName;
-	if (!Op->TryGetStringField(TEXT("className"), ClassName))
+	if (!Op->TryGetStringField(TEXT("ClassName"), ClassName))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_modifier requires className"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddModifier requires ClassName"));
 		return;
 	}
 	UClass* ModClass = FindClassByShortName(ClassName);
 	if (!ModClass || !ModClass->IsChildOf(UInputModifier::StaticClass()))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Modifier class not found: %s"), *ClassName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Modifier class not found: %s"), *ClassName));
 		return;
 	}
 	UInputModifier* NewMod = NewObject<UInputModifier>(IA, ModClass);
 	IA->Modifiers.Add(NewMod);
-	Ctx.Entry->SetStringField(TEXT("addedModifier"), ModClass->GetName());
+	Ctx.Entry->SetStringField(TEXT("AddedModifier"), ModClass->GetName());
 	MarkIADirty(Ctx);
 }
 
@@ -195,13 +195,13 @@ static void HandleIA_RemoveModifier(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	UInputAction* IA = IAFrom(Ctx);
 	if (!IA)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputAction is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("InputAction is null"));
 		return;
 	}
 	FString ClassName;
-	if (!Op->TryGetStringField(TEXT("className"), ClassName))
+	if (!Op->TryGetStringField(TEXT("ClassName"), ClassName))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_modifier requires className"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveModifier requires ClassName"));
 		return;
 	}
 	const int32 Before = IA->Modifiers.Num();
@@ -210,7 +210,7 @@ static void HandleIA_RemoveModifier(const TSharedPtr<FJsonObject>& Op, FNexusAct
 		return M && M->GetClass()->GetName().Equals(ClassName, ESearchCase::IgnoreCase);
 	});
 	const int32 Removed = Before - IA->Modifiers.Num();
-	Ctx.Entry->SetNumberField(TEXT("removedCount"), Removed);
+	Ctx.Entry->SetNumberField(TEXT("RemovedCount"), Removed);
 	if (Removed > 0) MarkIADirty(Ctx);
 }
 
@@ -219,31 +219,31 @@ static void HandleIA_SetFlags(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	UInputAction* IA = IAFrom(Ctx);
 	if (!IA)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputAction is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("InputAction is null"));
 		return;
 	}
 	bool bConsumeVal;
-	if (Op->TryGetBoolField(TEXT("consumesInput"), bConsumeVal))
+	if (Op->TryGetBoolField(TEXT("bConsumesInput"), bConsumeVal))
 	{
 		IA->bConsumeInput = bConsumeVal;
 		MarkIADirty(Ctx);
 	}
 	bool bReserveVal;
-	if (Op->TryGetBoolField(TEXT("reserveAllMappings"), bReserveVal))
+	if (Op->TryGetBoolField(TEXT("bReserveAllMappings"), bReserveVal))
 	{
 		IA->bReserveAllMappings = bReserveVal;
 		MarkIADirty(Ctx);
 	}
 }
 
-bool FManageAssetInputActionCapability::PrepareTarget(
+bool FNexusManageAssetInputActionCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UInputAction* IA = FNexusAssetUtils::LoadAssetWithFallback<UInputAction>(AssetPath);
 	if (!IA)
 	{
@@ -256,7 +256,7 @@ bool FManageAssetInputActionCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetInputActionCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetInputActionCapability::FinalizeTarget(void* Target) const
 {
 	FInputActionState* State = static_cast<FInputActionState*>(Target);
 	if (!State) return;
@@ -267,16 +267,16 @@ void FManageAssetInputActionCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetInputActionCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetInputActionCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_value_type"),  &HandleIA_SetValueType);
-	OutHandlers.Add(TEXT("add_trigger"),     &HandleIA_AddTrigger);
-	OutHandlers.Add(TEXT("remove_trigger"),  &HandleIA_RemoveTrigger);
-	OutHandlers.Add(TEXT("add_modifier"),    &HandleIA_AddModifier);
-	OutHandlers.Add(TEXT("remove_modifier"), &HandleIA_RemoveModifier);
-	OutHandlers.Add(TEXT("set_flags"),       &HandleIA_SetFlags);
+	OutHandlers.Add(TEXT("SetValueType"),  &HandleIA_SetValueType);
+	OutHandlers.Add(TEXT("AddTrigger"),     &HandleIA_AddTrigger);
+	OutHandlers.Add(TEXT("RemoveTrigger"),  &HandleIA_RemoveTrigger);
+	OutHandlers.Add(TEXT("AddModifier"),    &HandleIA_AddModifier);
+	OutHandlers.Add(TEXT("RemoveModifier"), &HandleIA_RemoveModifier);
+	OutHandlers.Add(TEXT("SetFlags"),       &HandleIA_SetFlags);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetInputActionCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetInputActionCapability)
 
 #endif // WITH_ENHANCED_INPUT

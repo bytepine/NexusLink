@@ -8,7 +8,7 @@
 class FJsonObject;
 
 /**
- * 危险 Capability（tag=dangerous）确认门控。
+ * 危险 Capability（Tag=dangerous）确认门控。
  * Confirm 模式在 Execute 前弹出编辑器窗口，仅允许本次调用。
  */
 struct NEXUSLINK_API FNexusDangerousCapGate
@@ -21,7 +21,7 @@ struct NEXUSLINK_API FNexusDangerousCapGate
 	/** Confirm 模式且非会话强制启用。 */
 	static bool NeedsConfirm(const FString& CapName);
 
-	/** 从 arguments 抽出 command / code / scriptPath / mode，供弹窗与 reason 比对。 */
+	/** 从 arguments 抽出 command / code / ScriptPath / mode，供弹窗与 reason 比对。 */
 	static FString ExtractPayload(const TSharedPtr<FJsonObject>& Args);
 
 	/**
@@ -36,7 +36,7 @@ struct NEXUSLINK_API FNexusDangerousCapGate
 	 */
 	static FCapabilityResult ConfirmOrDeny(const FString& CapName, const TSharedPtr<FJsonObject>& Args);
 
-	/** call_capability 单条或批量入口：重置「批内已拒绝」标志。 */
+	/** CallCapability 单条或批量入口：重置「批内已拒绝」标志。 */
 	static void BeginBatch();
 	static void EndBatch();
 

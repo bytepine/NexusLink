@@ -9,7 +9,7 @@ class USoundNode;
 class USoundWave;
 class UClass;
 
-/** SoundCue 节点图编辑辅助（与 get_asset_sound_cue 遍历顺序一致）。 */
+/** SoundCue 节点图编辑辅助（与 GetAssetSoundCue 遍历顺序一致）。 */
 class NEXUSLINKEDITOR_API FNexusSoundCueUtils
 {
 public:
@@ -25,7 +25,7 @@ public:
 	static UClass* ResolveSoundNodeClass(const FString& ClassName, FString& OutError);
 
 	/**
-	 * 新增节点。parentNodeIndex&lt;0 且无 FirstNode 时设为根；否则挂到父节点 childSlot。
+	 * 新增节点。ParentNodeIndex&lt;0 且无 FirstNode 时设为根；否则挂到父节点 ChildSlot。
 	 * @param OutNodeIndex 新节点在 CollectNodesInOrder 中的索引（添加后重算）
 	 */
 	static bool AddNode(USoundCue* Cue, UClass* NodeClass, int32 ParentNodeIndex, int32 ChildSlot,
@@ -34,6 +34,6 @@ public:
 	/** 按节点索引删除（含从父节点断开）。 */
 	static bool RemoveNode(USoundCue* Cue, int32 NodeIndex, FString& OutError);
 
-	/** 将 childIndex 节点连接到 parentIndex 的 childSlot 槽位。 */
+	/** 将 ChildIndex 节点连接到 ParentIndex 的 ChildSlot 槽位。 */
 	static bool ConnectNodes(USoundCue* Cue, int32 ParentIndex, int32 ChildSlot, int32 ChildIndex, FString& OutError);
 };

@@ -31,22 +31,22 @@ static UScriptStruct* FindRowStructByName(const FString& Name)
 	return nullptr;
 }
 
-void FCreateAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_data_table");
-	Out.Description = TEXT("Create DataTable with row struct; fill rows via manage_asset_data_table.");
+	Out.Name = TEXT("CreateAssetDataTable");
+	Out.Description = TEXT("Create DataTable with row struct; fill rows via ManageAssetDataTable.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("New DataTable package path")))
-		.Prop(TEXT("rowStructName"), FNexusSchema::Str(TEXT("Row struct class name (must exist)")))
-		.Required({ TEXT("assetPath"), TEXT("rowStructName") })
+		.Prop(TEXT("AssetPath"),     FNexusSchema::Str(TEXT("New DataTable package path")))
+		.Prop(TEXT("RowStructName"), FNexusSchema::Str(TEXT("Row struct class name (must exist)")))
+		.Required({ TEXT("AssetPath"), TEXT("RowStructName") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("dt"), TEXT("datatable"), TEXT("rowstruct"), TEXT("new"), TEXT("row") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_data_table"), TEXT("get_asset_data_table") };
-	Out.WhenToUse = TEXT("Create empty DataTable; requires rowStructName");
+	Out.ExtraSearchKeywords = { TEXT("dt"), TEXT("datatable"), TEXT("rowstruct"), TEXT("new"), TEXT("Row") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetDataTable"), TEXT("GetAssetDataTable") };
+	Out.WhenToUse = TEXT("Create empty DataTable; requires RowStructName");
 }
 
-FCapabilityResult FCreateAssetDataTableCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetDataTableCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -56,14 +56,14 @@ FCapabilityResult FCreateAssetDataTableCapability::Execute(const TSharedPtr<FJso
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
 
-		const FString AssetPath     = A.Str(TEXT("assetPath"));
-		const FString RowStructName = A.Str(TEXT("rowStructName"));
+		const FString AssetPath     = A.Str(TEXT("AssetPath"));
+		const FString RowStructName = A.Str(TEXT("RowStructName"));
 
 		// 覆盖磁盘上已存在但未加载的包 — CreatePlainAsset 已检查
 		UScriptStruct* RowStruct = FindRowStructByName(RowStructName);
 		if (!RowStruct)
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Row struct not found: %s"), *RowStructName));
+			OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Row struct not found: %s"), *RowStructName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -79,11 +79,11 @@ FCapabilityResult FCreateAssetDataTableCapability::Execute(const TSharedPtr<FJso
 		NewDT->RowStruct = RowStruct;
 		FNexusAssetUtils::NotifyAndSaveCreated(NewDT->GetOutermost(), NewDT, AssetPath);
 
-		OutEntry->SetStringField(TEXT("path"), AssetPath);
+		OutEntry->SetStringField(TEXT("Path"), AssetPath);
 		OutEntry->SetStringField(TEXT("name"), NewDT->GetName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetDataTableCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetDataTableCapability)

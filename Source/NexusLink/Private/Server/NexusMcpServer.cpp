@@ -323,14 +323,14 @@ void FNexusMcpServer::RegisterRoutes()
 			if (!GetRequestHeader(Request, TEXT("Origin")).IsEmpty())
 			{
 				ReplyError(OnComplete, EHttpServerResponseCodes::Denied,
-					TEXT("origin_forbidden"), TEXT("Browser Origin is not allowed"));
+					TEXT("OriginForbidden"), TEXT("Browser Origin is not allowed"));
 				return true;
 			}
 
 			if (Request.Body.Num() > MaxMcpBodyBytes)
 			{
 				ReplyError(OnComplete, EHttpServerResponseCodes::BadRequest,
-					TEXT("payload_too_large"), TEXT("Request body exceeds 1MB"));
+					TEXT("PayloadTooLarge"), TEXT("Request body exceeds 1MB"));
 				return true;
 			}
 
@@ -348,7 +348,7 @@ void FNexusMcpServer::RegisterRoutes()
 			if (JsonBody.IsEmpty())
 			{
 				ReplyError(OnComplete, EHttpServerResponseCodes::BadRequest,
-					TEXT("empty_body"), TEXT("Request body is empty"));
+					TEXT("EmptyBody"), TEXT("Request body is empty"));
 				return true;
 			}
 
@@ -374,7 +374,7 @@ void FNexusMcpServer::RegisterRoutes()
 				if (!Server.IsValid() || !Server->IsRunning())
 				{
 					ReplyError(Complete, EHttpServerResponseCodes::ServerError,
-						TEXT("server_stopped"), TEXT("MCP server is stopping"));
+						TEXT("ServerStopped"), TEXT("MCP server is stopping"));
 					return;
 				}
 
@@ -395,7 +395,7 @@ void FNexusMcpServer::RegisterRoutes()
 				if (!Dispatcher.IsValid())
 				{
 					ReplyError(Complete, EHttpServerResponseCodes::NotFound,
-						TEXT("session_not_found"), TEXT("Invalid or missing Mcp-Session-Id"));
+						TEXT("SessionNotFound"), TEXT("Invalid or missing Mcp-Session-Id"));
 					return;
 				}
 
@@ -426,21 +426,21 @@ void FNexusMcpServer::RegisterRoutes()
 				if (!Server.IsValid() || !Server->IsRunning())
 				{
 					ReplyError(Complete, EHttpServerResponseCodes::ServerError,
-						TEXT("server_stopped"), TEXT("MCP server is stopping"));
+						TEXT("ServerStopped"), TEXT("MCP server is stopping"));
 					return;
 				}
 
 				TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-				Obj->SetStringField(TEXT("server"), TEXT("Nexus-Unreal"));
+				Obj->SetStringField(TEXT("Server"), TEXT("Nexus-Unreal"));
 				Obj->SetStringField(TEXT("version"), GetPluginVersionName());
-				Obj->SetStringField(TEXT("engineVersion"),
+				Obj->SetStringField(TEXT("EngineVersion"),
 					FString::Printf(TEXT("%d.%d"), ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION));
-				Obj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
-				Obj->SetNumberField(TEXT("wsPort"), Server->GetWsPort());
-				Obj->SetStringField(TEXT("netRole"), DetectCurrentNetRole());
-				Obj->SetStringField(TEXT("hostKind"), FNexusHostUtils::GetHostKind());
-				Obj->SetBoolField(TEXT("hasPlayWorld"), FNexusRuntimeUtils::HasPlayWorld());
-				Obj->SetBoolField(TEXT("authRequired"), UNexusLinkSettings::IsMcpAuthRequired());
+				Obj->SetStringField(TEXT("ProjectName"), FApp::GetProjectName());
+				Obj->SetNumberField(TEXT("WsPort"), Server->GetWsPort());
+				Obj->SetStringField(TEXT("NetRole"), DetectCurrentNetRole());
+				Obj->SetStringField(TEXT("HostKind"), FNexusHostUtils::GetHostKind());
+				Obj->SetBoolField(TEXT("bHasPlayWorld"), FNexusRuntimeUtils::HasPlayWorld());
+				Obj->SetBoolField(TEXT("bAuthRequired"), UNexusLinkSettings::IsMcpAuthRequired());
 				ReplyJson(Complete, FNexusJsonUtils::SerializeCondensed(Obj));
 			});
 			return true;
@@ -642,13 +642,13 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 	if (DataSize > MaxMcpBodyBytes)
 	{
 		UE_LOG(LogNexusMcpServer, Warning, TEXT("WebSocket 帧超过 1MB（%d 字节），已丢弃"), DataSize);
-		SendWsText(ClientWebSocket, FNexusMcpDispatcher::MakeJsonRpcError(nullptr, -32600, TEXT("payload_too_large")));
+		SendWsText(ClientWebSocket, FNexusMcpDispatcher::MakeJsonRpcError(nullptr, -32600, TEXT("PayloadTooLarge")));
 		return;
 	}
 
 	FString JsonLine = Utf8BytesToString(static_cast<const uint8*>(Data), DataSize);
 
-	// 勿在 WebSocket 收包回调里同步执行 tools/call：search_asset 等会阻塞 GameThread 数秒～数十秒，
+	// 勿在 WebSocket 收包回调里同步执行 tools/call：SearchAsset 等会阻塞 GameThread 数秒～数十秒，
 	// 同帧内无法继续 TickWebSocket，代理侧长连接易被判定超时/断开。推迟到本帧后续 GameThread 任务执行。
 	// 与 HTTP 路径一致用弱引用：任务跨帧执行，期间服务器可能已被停掉/析构
 	const TWeakPtr<FNexusMcpServer> WeakSelf = AsShared();
@@ -684,7 +684,7 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 			const TSharedPtr<FJsonObject>* ParamsObj = nullptr;
 			if (JsonMsg.IsValid() && JsonMsg->TryGetObjectField(TEXT("params"), ParamsObj) && ParamsObj)
 			{
-				(*ParamsObj)->TryGetStringField(TEXT("token"), Presented);
+				(*ParamsObj)->TryGetStringField(TEXT("Token"), Presented);
 			}
 			// 鉴权关闭时仍接受 auth 并回 ok，兼容误发首帧的中转
 			const FString Extra = UNexusLinkSettings::Get() ? UNexusLinkSettings::Get()->GetExtraMcpAuthTokensText() : FString();
@@ -692,7 +692,7 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 			{
 				Self->AuthenticatedWsClients.Add(ClientWebSocket);
 				TSharedPtr<FJsonObject> Ok = MakeShared<FJsonObject>();
-				Ok->SetBoolField(TEXT("ok"), true);
+				Ok->SetBoolField(TEXT("bOk"), true);
 				SendWsText(ClientWebSocket, FNexusMcpDispatcher::MakeJsonRpcResult(Id, Ok));
 			}
 			else

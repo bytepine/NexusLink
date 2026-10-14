@@ -13,31 +13,31 @@
 #include "Editor.h"
 #endif
 
-void FCreateAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_level");
+	Out.Name = TEXT("CreateAssetLevel");
 	Out.Description = TEXT("Create empty level (UWorld). Editor only.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Level package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Level package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("level"), TEXT("map"), TEXT("world"), TEXT("umap") };
-	Out.RelatedCapabilities = { TEXT("get_asset_level"), TEXT("manage_asset_level") };
-	Out.WhenToUse = TEXT("Create empty map; Actors via manage_asset_level");
-	Out.Prerequisites = { TEXT("editor_only") };
+	Out.ExtraSearchKeywords = { TEXT("Level"), TEXT("map"), TEXT("World"), TEXT("umap") };
+	Out.RelatedCapabilities = { TEXT("GetAssetLevel"), TEXT("ManageAssetLevel") };
+	Out.WhenToUse = TEXT("Create empty map; Actors via ManageAssetLevel");
+	Out.Prerequisites = { TEXT("EditorOnly") };
 }
 
-FCapabilityResult FCreateAssetLevelCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetLevelCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("create_asset_level only available in editor builds");
+		OutError = TEXT("CreateAssetLevel only available in editor builds");
 		return;
 #else
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		if (LoadObject<UWorld>(nullptr, *AssetPath))
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
@@ -53,10 +53,10 @@ FCapabilityResult FCreateAssetLevelCapability::Execute(const TSharedPtr<FJsonObj
 		if (!NewWorld) { FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("WorldFactory Createfailed")); return; }
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewWorld, AssetPath);
 		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(NewWorld);
-		Entry->SetStringField(TEXT("assetType"), TEXT("World"));
+		Entry->SetStringField(TEXT("AssetType"), TEXT("World"));
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 #endif
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetLevelCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetLevelCapability)

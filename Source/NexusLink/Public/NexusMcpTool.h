@@ -8,18 +8,18 @@
 /** 预定义标签常量，避免手写字符串导致拼写不一致。 */
 struct FNexusMcpTags
 {
-	static constexpr const TCHAR* Readonly  = TEXT("readonly");
-	static constexpr const TCHAR* Write     = TEXT("write");
+	static constexpr const TCHAR* Readonly  = TEXT("Readonly");
+	static constexpr const TCHAR* Write     = TEXT("Write");
 	/** 访问级：脚本逃生舱（任意代码/控制台）；不进分类树、不进 search 关键词。 */
-	static constexpr const TCHAR* Dangerous = TEXT("dangerous");
-	static constexpr const TCHAR* Editor    = TEXT("editor");
-	static constexpr const TCHAR* Blueprint = TEXT("blueprint");
-	static constexpr const TCHAR* Material  = TEXT("material");
-	static constexpr const TCHAR* Struct    = TEXT("struct");
-	static constexpr const TCHAR* Data      = TEXT("data");
-	static constexpr const TCHAR* Widget    = TEXT("widget");
-	static constexpr const TCHAR* Runtime   = TEXT("runtime");
-	static constexpr const TCHAR* Gas       = TEXT("gas");
+	static constexpr const TCHAR* Dangerous = TEXT("Dangerous");
+	static constexpr const TCHAR* Editor    = TEXT("Editor");
+	static constexpr const TCHAR* Blueprint = TEXT("Blueprint");
+	static constexpr const TCHAR* Material  = TEXT("Material");
+	static constexpr const TCHAR* Struct    = TEXT("Struct");
+	static constexpr const TCHAR* Data      = TEXT("Data");
+	static constexpr const TCHAR* Widget    = TEXT("Widget");
+	static constexpr const TCHAR* Runtime   = TEXT("Runtime");
+	static constexpr const TCHAR* Gas       = TEXT("GAS");
 };
 
 /**
@@ -53,12 +53,12 @@ struct FNexusMcpToolDefinition
  * MCP 工具执行结果。
  *
  * 成功路径：只填 StructuredContent，Dispatcher 统一把它序列化到 content[0].text
- *           并放到 result.structuredContent。
+ *           并放到 result.StructuredContent。
  * 错误路径：bIsError = true + ErrorText；Dispatcher 把 ErrorText 放到 content[0].text。
  *
  * 极少数需要返回"预格式化文本"的工具可填
  * OutputText；非空时 Dispatcher 用它覆盖默认的 StructuredContent 序列化文本，但
- * structuredContent 字段仍然会一并返回。常规工具**不要**使用 OutputText。
+ * StructuredContent 字段仍然会一并返回。常规工具**不要**使用 OutputText。
  */
 struct FNexusMcpToolResult
 {
@@ -86,7 +86,7 @@ struct FNexusMcpToolResult
  *   2. .cpp 末尾 REGISTER_MCP_TOOL(YourToolClass) 注册
  *
  * Capability 通过 REGISTER_MCP_CAPABILITY 自注册到全局表，
- * 由 search_capabilities / call_capability 元工具索引和驱动，不再绑定到 Tool。
+ * 由 SearchCapabilities / CallCapability 元工具索引和驱动，不再绑定到 Tool。
  *
  * 基类负责：懒加载调用 BuildDefinition 并缓存 FNexusMcpToolDefinition。
  */

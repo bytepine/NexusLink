@@ -41,38 +41,38 @@ static float CalcSlotEndTime(const FSlotAnimationTrack& Track)
 	return End;
 }
 
-void FManageAssetAnimMontageCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetAnimMontageCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_anim_montage");
+	Out.Name = TEXT("ManageAssetAnimMontage");
 	Out.SearchAssetTypes = {TEXT("AnimMontage")};
-	Out.Description = TEXT("Batch edit Montage structure. persist with save_asset.");
+	Out.Description = TEXT("Batch edit Montage structure. persist with SaveAsset.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),           FNexusSchema::Enum(TEXT("Operation type"),
-			{ TEXT("add_segment"), TEXT("remove_segment"), TEXT("add_section"), TEXT("remove_section") }))
-		// add_segment
-		.Prop(TEXT("animSequencePath"), FNexusSchema::Str(TEXT("AnimSequence path (add_segment)")))
-		.Prop(TEXT("slotName"),         FNexusSchema::Str(TEXT("Slot name"), TEXT("DefaultSlot")))
-		.Prop(TEXT("startPos"),         FNexusSchema::Num(TEXT("Montage start position (sec); default append to end")))
-		.Prop(TEXT("animStartTime"),    FNexusSchema::Num(TEXT("Anim start time (sec); default 0")))
-		.Prop(TEXT("animEndTime"),      FNexusSchema::Num(TEXT("Anim end time (sec); default full length")))
-		// remove_segment
-		.Prop(TEXT("segmentIndex"),     FNexusSchema::Int(TEXT("Segment index to remove (remove_segment)"), TNumericLimits<int64>::Min(), 0))
-		// add_section / remove_section
-		.Prop(TEXT("sectionName"),      FNexusSchema::Str(TEXT("Section name (add_section/remove_section)")))
-		.Prop(TEXT("sectionStartTime"), FNexusSchema::Num(TEXT("Section start time in Montage (sec) (add_section)")))
-		.Prop(TEXT("nextSectionName"),  FNexusSchema::Str(TEXT("Loop to next section (add_section, optional)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"),           FNexusSchema::Enum(TEXT("Operation type"),
+			{ TEXT("AddSegment"), TEXT("RemoveSegment"), TEXT("AddSection"), TEXT("RemoveSection") }))
+		// AddSegment
+		.Prop(TEXT("AnimSequencePath"), FNexusSchema::Str(TEXT("AnimSequence path (AddSegment)")))
+		.Prop(TEXT("SlotName"),         FNexusSchema::Str(TEXT("Slot name"), TEXT("DefaultSlot")))
+		.Prop(TEXT("StartPos"),         FNexusSchema::Num(TEXT("Montage start position (sec); default append to end")))
+		.Prop(TEXT("AnimStartTime"),    FNexusSchema::Num(TEXT("Anim start time (sec); default 0")))
+		.Prop(TEXT("AnimEndTime"),      FNexusSchema::Num(TEXT("Anim end time (sec); default full length")))
+		// RemoveSegment
+		.Prop(TEXT("SegmentIndex"),     FNexusSchema::Int(TEXT("Segment index to remove (RemoveSegment)"), TNumericLimits<int64>::Min(), 0))
+		// AddSection / RemoveSection
+		.Prop(TEXT("SectionName"),      FNexusSchema::Str(TEXT("Section name (AddSection/RemoveSection)")))
+		.Prop(TEXT("SectionStartTime"), FNexusSchema::Num(TEXT("Section start time in Montage (sec) (AddSection)")))
+		.Prop(TEXT("NextSectionName"),  FNexusSchema::Str(TEXT("Loop to next section (AddSection, optional)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("AnimMontage asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("AnimMontage asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
-		TEXT("montage"), TEXT("segment"), TEXT("section"), TEXT("slot"), TEXT("timeline")
+		TEXT("Montage"), TEXT("segment"), TEXT("Section"), TEXT("slot"), TEXT("timeline")
 	};
-	Out.RelatedCapabilities = { TEXT("get_asset_anim_montage"), TEXT("create_asset_anim_montage"), TEXT("save_asset") };
+	Out.RelatedCapabilities = { TEXT("GetAssetAnimMontage"), TEXT("CreateAssetAnimMontage"), TEXT("SaveAsset") };
 	Out.WhenToUse = TEXT("Write ops: add/remove Montage segments/sections/slots");
 }
 
@@ -84,7 +84,7 @@ static UAnimMontage* MontageFrom(FNexusActionContext& Ctx)
 static FString SlotNameFromOp(const TSharedPtr<FJsonObject>& Op)
 {
 	FString SlotNameStr = TEXT("DefaultSlot");
-	Op->TryGetStringField(TEXT("slotName"), SlotNameStr);
+	Op->TryGetStringField(TEXT("SlotName"), SlotNameStr);
 	return SlotNameStr;
 }
 
@@ -104,17 +104,17 @@ static void HandleMontage_AddSegment(const TSharedPtr<FJsonObject>& Op, FNexusAc
 {
 	UAnimMontage* Montage = MontageFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString SeqPath = A.Str(TEXT("animSequencePath"));
+	const FString SeqPath = A.Str(TEXT("AnimSequencePath"));
 	if (SeqPath.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_segment requires animSequencePath"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddSegment requires AnimSequencePath"));
 		return;
 	}
 
 	UAnimSequenceBase* AnimSeq = FNexusAssetUtils::LoadAssetWithFallback<UAnimSequenceBase>(SeqPath);
 	if (!AnimSeq)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("AnimSequence not found: %s"), *SeqPath));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("AnimSequence not found: %s"), *SeqPath));
 		return;
 	}
 
@@ -122,14 +122,14 @@ static void HandleMontage_AddSegment(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	const FName SlotName(*SlotNameStr);
 
 	const float FullLen       = AnimSeq->GetPlayLength();
-	const float AnimStartTime = static_cast<float>(A.Num(TEXT("animStartTime"), 0.0f));
-	const float AnimEndTime   = static_cast<float>(A.Num(TEXT("animEndTime"), FullLen));
+	const float AnimStartTime = static_cast<float>(A.Num(TEXT("AnimStartTime"), 0.0f));
+	const float AnimEndTime   = static_cast<float>(A.Num(TEXT("AnimEndTime"), FullLen));
 
 	const int32 SlotIdx = FindOrCreateSlot(Montage, SlotName);
 	FSlotAnimationTrack& Track = Montage->SlotAnimTracks[SlotIdx];
 
-	// 未指定 startPos 时自动追加到 slot 末尾
-	const float StartPos = static_cast<float>(A.Num(TEXT("startPos"), CalcSlotEndTime(Track)));
+	// 未指定 StartPos 时自动追加到 slot 末尾
+	const float StartPos = static_cast<float>(A.Num(TEXT("StartPos"), CalcSlotEndTime(Track)));
 
 	FAnimSegment Segment;
 #if NX_UE_HAS_ANIM_SEGMENT_ACCESSOR
@@ -147,13 +147,13 @@ static void HandleMontage_AddSegment(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	SyncMontageLength(Montage);
 	Montage->MarkPackageDirty();
 
-	Ctx.Entry->SetStringField(TEXT("slotName"),         SlotNameStr);
-	Ctx.Entry->SetStringField(TEXT("animSequencePath"), AnimSeq->GetPathName());
-	Ctx.Entry->SetNumberField(TEXT("startPos"),         StartPos);
-	Ctx.Entry->SetNumberField(TEXT("animStartTime"),    AnimStartTime);
-	Ctx.Entry->SetNumberField(TEXT("animEndTime"),      AnimEndTime);
-	Ctx.Entry->SetNumberField(TEXT("segmentIndex"),     Track.AnimTrack.AnimSegments.Num() - 1);
-	Ctx.Entry->SetNumberField(TEXT("sequenceLength"),   Montage->GetPlayLength());
+	Ctx.Entry->SetStringField(TEXT("SlotName"),         SlotNameStr);
+	Ctx.Entry->SetStringField(TEXT("AnimSequencePath"), AnimSeq->GetPathName());
+	Ctx.Entry->SetNumberField(TEXT("StartPos"),         StartPos);
+	Ctx.Entry->SetNumberField(TEXT("AnimStartTime"),    AnimStartTime);
+	Ctx.Entry->SetNumberField(TEXT("AnimEndTime"),      AnimEndTime);
+	Ctx.Entry->SetNumberField(TEXT("SegmentIndex"),     Track.AnimTrack.AnimSegments.Num() - 1);
+	Ctx.Entry->SetNumberField(TEXT("SequenceLength"),   Montage->GetPlayLength());
 }
 
 static void HandleMontage_RemoveSegment(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -169,39 +169,39 @@ static void HandleMontage_RemoveSegment(const TSharedPtr<FJsonObject>& Op, FNexu
 	}
 	if (SlotIdx == INDEX_NONE)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Slot '%s' not found"), *SlotNameStr));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Slot '%s' not found"), *SlotNameStr));
 		return;
 	}
 
-	if (!Op->HasField(TEXT("segmentIndex")))
+	if (!Op->HasField(TEXT("SegmentIndex")))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_segment requires segmentIndex"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveSegment requires SegmentIndex"));
 		return;
 	}
-	const int32 SegIdx = static_cast<int32>(Op->GetNumberField(TEXT("segmentIndex")));
+	const int32 SegIdx = static_cast<int32>(Op->GetNumberField(TEXT("SegmentIndex")));
 
 	TArray<FAnimSegment>& Segs = Montage->SlotAnimTracks[SlotIdx].AnimTrack.AnimSegments;
 	if (SegIdx < 0 || SegIdx >= Segs.Num())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("segmentIndex %d out of range [0, %d)"), SegIdx, Segs.Num()));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("SegmentIndex %d out of range [0, %d)"), SegIdx, Segs.Num()));
 		return;
 	}
 
 	Segs.RemoveAt(SegIdx);
 	SyncMontageLength(Montage);
 	Montage->MarkPackageDirty();
-	Ctx.Entry->SetStringField(TEXT("slotName"), SlotNameStr);
-	Ctx.Entry->SetNumberField(TEXT("segmentIndex"), SegIdx);
-	Ctx.Entry->SetNumberField(TEXT("sequenceLength"), Montage->GetPlayLength());
+	Ctx.Entry->SetStringField(TEXT("SlotName"), SlotNameStr);
+	Ctx.Entry->SetNumberField(TEXT("SegmentIndex"), SegIdx);
+	Ctx.Entry->SetNumberField(TEXT("SequenceLength"), Montage->GetPlayLength());
 }
 
 static void HandleMontage_AddSection(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UAnimMontage* Montage = MontageFrom(Ctx);
-	const FString SectionName = FNexusArgs(Op).Str(TEXT("sectionName"));
+	const FString SectionName = FNexusArgs(Op).Str(TEXT("SectionName"));
 	if (SectionName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_section requires sectionName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddSection requires SectionName"));
 		return;
 	}
 
@@ -209,15 +209,15 @@ static void HandleMontage_AddSection(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	{
 		if (Sec.SectionName.ToString().Equals(SectionName, ESearchCase::IgnoreCase))
 		{
-			Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Section '%s' already exists"), *SectionName));
+			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Section '%s' already exists"), *SectionName));
 			return;
 		}
 	}
 
 	float SectionStartTime = 0.0f;
-	if (Op->HasField(TEXT("sectionStartTime")))
+	if (Op->HasField(TEXT("SectionStartTime")))
 	{
-		SectionStartTime = static_cast<float>(Op->GetNumberField(TEXT("sectionStartTime")));
+		SectionStartTime = static_cast<float>(Op->GetNumberField(TEXT("SectionStartTime")));
 	}
 
 	FCompositeSection NewSection;
@@ -225,7 +225,7 @@ static void HandleMontage_AddSection(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	// UE4 FCompositeSection 继承自 FAnimLinkableElement，通过 SetTime 写入时间
 	NewSection.SetTime(SectionStartTime);
 
-	const FString NextSectionName = FNexusArgs(Op).Str(TEXT("nextSectionName"));
+	const FString NextSectionName = FNexusArgs(Op).Str(TEXT("NextSectionName"));
 	if (!NextSectionName.IsEmpty())
 	{
 		NewSection.NextSectionName = FName(*NextSectionName);
@@ -238,21 +238,21 @@ static void HandleMontage_AddSection(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	});
 	Montage->MarkPackageDirty();
 
-	Ctx.Entry->SetStringField(TEXT("sectionName"),      SectionName);
-	Ctx.Entry->SetNumberField(TEXT("sectionStartTime"), SectionStartTime);
+	Ctx.Entry->SetStringField(TEXT("SectionName"),      SectionName);
+	Ctx.Entry->SetNumberField(TEXT("SectionStartTime"), SectionStartTime);
 	if (!NextSectionName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("nextSectionName"), NextSectionName);
+		Ctx.Entry->SetStringField(TEXT("NextSectionName"), NextSectionName);
 	}
 }
 
 static void HandleMontage_RemoveSection(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UAnimMontage* Montage = MontageFrom(Ctx);
-	const FString SectionName = FNexusArgs(Op).Str(TEXT("sectionName"));
+	const FString SectionName = FNexusArgs(Op).Str(TEXT("SectionName"));
 	if (SectionName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_section requires sectionName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveSection requires SectionName"));
 		return;
 	}
 
@@ -263,23 +263,23 @@ static void HandleMontage_RemoveSection(const TSharedPtr<FJsonObject>& Op, FNexu
 
 	if (Removed == 0)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Section '%s' not found"), *SectionName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Section '%s' not found"), *SectionName));
 	}
 	else
 	{
 		Montage->MarkPackageDirty();
-		Ctx.Entry->SetStringField(TEXT("sectionName"), SectionName);
+		Ctx.Entry->SetStringField(TEXT("SectionName"), SectionName);
 	}
 }
 
-bool FManageAssetAnimMontageCapability::PrepareTarget(
+bool FNexusManageAssetAnimMontageCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UAnimMontage* Montage = FNexusAssetUtils::LoadAssetWithFallback<UAnimMontage>(AssetPath);
 	if (!Montage)
 	{
@@ -290,12 +290,12 @@ bool FManageAssetAnimMontageCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetAnimMontageCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetAnimMontageCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("add_segment"),    &HandleMontage_AddSegment);
-	OutHandlers.Add(TEXT("remove_segment"), &HandleMontage_RemoveSegment);
-	OutHandlers.Add(TEXT("add_section"),    &HandleMontage_AddSection);
-	OutHandlers.Add(TEXT("remove_section"), &HandleMontage_RemoveSection);
+	OutHandlers.Add(TEXT("AddSegment"),    &HandleMontage_AddSegment);
+	OutHandlers.Add(TEXT("RemoveSegment"), &HandleMontage_RemoveSegment);
+	OutHandlers.Add(TEXT("AddSection"),    &HandleMontage_AddSection);
+	OutHandlers.Add(TEXT("RemoveSection"), &HandleMontage_RemoveSection);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetAnimMontageCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetAnimMontageCapability)

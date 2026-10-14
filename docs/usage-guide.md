@@ -13,7 +13,7 @@
 3. 从 [NexusDesktop Releases](https://github.com/bytepine/NexusDesktop/releases) 下载当前最新正式版：Windows 选 `*-setup.exe`，macOS 选 `.dmg`；不要下载 `*-update.zip`
 4. 启动 NexusDesktop，在托盘勾选 **启用中转服务器**，确认状态行显示当前 UE 项目
 5. 托盘选择 **MCP 客户端配置…**，选 **Streamable HTTP** 和 Cursor / CodeBuddy，将生成的配置粘贴到 AI 客户端
-6. 重启 MCP 会话；默认 SearchMode 下应看到 `search_capabilities`、`call_capability`、`submit_feedback` 3 个元工具
+6. 重启 MCP 会话；默认 SearchMode 下应看到 `SearchCapabilities`、`CallCapability`、`SubmitFeedback` 3 个元工具
 
 > **安全**：Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
 
@@ -33,7 +33,7 @@
 
 - **直连 UE 的 AI 配置须加 Bearer**：从 UE 设置面板复制 **MCP 身份验证 Token**（详见 [§1.1](#11-身份验证)）。经中转且中转在同机时无需配置。
 - **额外身份验证 Token 从「单行逗号分隔」改为逐条列表**：升级后自动拆分；若一条合法 token 都解析不出会保留原值并在日志告警，不会静默清空。
-- **危险 Capability 默认全部禁用**：`exec_command` / `exec_python` 带 `dangerous` 标签。UnLua 的 `eval_runtime_lua` / `dofile_runtime_lua` 在 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)，同样默认禁用。访问模式默认「全部禁用」（树里保留勾选但置灰不可改）；「每次手动确认」沿用勾选，可改；「自定义开启」逐项勾选。或用 `-NexusEnableDangerousCaps` 启动。按名记录，后续版本新增的危险 cap 也会对老配置生效，且不会覆盖你手动启用过的（升级时若已有启用项则迁到自定义开启）。
+- **危险 Capability 默认全部禁用**：`ExecCommand` / `ExecPython` 带 `dangerous` 标签。UnLua 的 `EvalRuntimeLua` / `DofileRuntimeLua` 在 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)，同样默认禁用。访问模式默认「全部禁用」（树里保留勾选但置灰不可改）；「每次手动确认」沿用勾选，可改；「自定义开启」逐项勾选。或用 `-NexusEnableDangerousCaps` 启动。按名记录，后续版本新增的危险 cap 也会对老配置生效，且不会覆盖你手动启用过的（升级时若已有启用项则迁到自定义开启）。
 - **用过 2.0.0-beta 的工程**：beta 曾往 `Engine.ini` 写全局键 `[HTTPServer.Listeners] DefaultBindAddress`。正式版只写本端口的 `ListenerOverrides`，检测到该残留键会在启动日志告警，可手动删除。
 
 ---
@@ -82,7 +82,7 @@ flowchart TB
 
 本机只开一个代理（Desktop `:6700` / Rider `:6800` / VSCode `:6900` 不要同时开）；同时开会重复扫描并各自连同一 UE。
 
-默认只绑 loopback。带 `Origin` 的浏览器请求会被拒绝。`exec_command` / `exec_python` 默认全部禁用（见危险 Capability 访问模式）。
+默认只绑 loopback。带 `Origin` 的浏览器请求会被拒绝。`ExecCommand` / `ExecPython` 默认全部禁用（见危险 Capability 访问模式）。
 
 ### 1.1 身份验证
 
@@ -100,8 +100,8 @@ flowchart TB
 
 | 开关 | 位置 | 默认 | 关闭后 |
 |------|------|------|--------|
-| **MCP 身份验证** | UE 编辑器偏好 | 开 | HTTP/WS 不校验；`/status.authRequired=false`（同旧版插件） |
-| **启用 MCP 身份验证** | Desktop / Rider / VSCode | 开 | AI 连该中转无需 Bearer（同旧版中转）；连 UE 仍看对方 `authRequired` |
+| **MCP 身份验证** | UE 编辑器偏好 | 开 | HTTP/WS 不校验；`/status.bAuthRequired=false`（同旧版插件） |
+| **启用 MCP 身份验证** | Desktop / Rider / VSCode | 开 | AI 连该中转无需 Bearer（同旧版中转）；连 UE 仍看对方 `bAuthRequired` |
 
 两端开关独立：
 
@@ -115,7 +115,7 @@ flowchart TB
 
 - UE / Desktop / Rider 的 **额外身份验证 Token**：设置里逐条添加（VSCode 为 `extraAuthTokens` 数组）；本机 token 始终有效
 - AI `mcp.json` 可写 `"Authorization": "Bearer <tok1>, <tok2>"`，对端命中任一项即可
-- 远程 UE：`host:mcpPort [token...]`，token 可省略并改用额外列表
+- 远程 UE：`host:McpPort [token...]`，token 可省略并改用额外列表
 
 ### 1.2 跨机（显式 IP，不扫网段）
 
@@ -146,7 +146,7 @@ VSCode 远程条目示例（也可从 UE「复制跨机连接」粘贴）：
 "nexusMcp.listenLan": true,
 "nexusMcp.extraAuthTokens": ["<其他机器 token>"],
 "nexusMcp.remoteUnreal": [
-  { "host": "192.168.1.30", "mcpPort": 45000, "authToken": "<UE 本机 token>" }
+  { "host": "192.168.1.30", "McpPort": 45000, "AuthToken": "<UE 本机 token>" }
 ]
 ```
 
@@ -171,9 +171,9 @@ MCP HTTP/WebSocket **默认不启动**。启停统一由三层来源解析，**�
 | 场景 | 启用方式 | 持久化 | 角色是否读 Preferences |
 |---|---|---|---|
 | 编辑器（含 PIE） | Preferences 勾选，或运行时控制台；PIE 内 `NexusLink.Mcp panel` 可开调试面板 | 勾选持久；控制台/面板会话级 | 是 |
-| 编辑器二进制以 `-server` 启动（DS 模式） | 启动参数 `-EnableNexusMcp`；无视口，用 `status` 不用 `panel` | 不持久 | **否**（须显式启动参数，不继承勾选） |
+| 编辑器二进制以 `-server` 启动（DS 模式） | 启动参数 `-EnableNexusMcp`；无视口，用 `Status` 不用 `panel` | 不持久 | **否**（须显式启动参数，不继承勾选） |
 | 编辑器二进制以 `-game` 启动 | 启动参数 `-EnableNexusMcp`，或控制台；有视口时可用 `panel` | 不持久 | **否**（须显式启动参数/控制台，不继承勾选） |
-| Development/DebugGame 独立 Game/DS | 启动参数 `-EnableNexusMcp`，或控制台；Game 包 `~` 后 `panel` 可开调试面板，DS 无视口用 `status` | 不持久 | **否** |
+| Development/DebugGame 独立 Game/DS | 启动参数 `-EnableNexusMcp`，或控制台；Game 包 `~` 后 `panel` 可开调试面板，DS 无视口用 `Status` | 不持久 | **否** |
 | cook / commandlet 进程 | 启动参数 `-EnableNexusMcp` | 不持久 | **否** |
 | Shipping | 不可用（编译期剔除） | — | — |
 
@@ -223,7 +223,7 @@ NexusLink.Mcp panel on|off                    ; 显式打开/关闭
 
 `~` 打开控制台执行 `NexusLink.Mcp panel`（或 `panel on`/`panel off`），挂一层 Slate 视口叠加层，不依赖任何 UMG 资产，Shipping 编译期整体剔除：
 
-- **MCP 信息**：运行态、生效来源、监听地址、身份验证开关；面板内 **开启 / 关闭 / 重启** 按钮与控制台 `on`/`off`/`restart` 走同一套 `FNexusMcpActivation` 会话覆盖
+- **MCP 信息**：运行态、生效来源、监听地址、身份验证开关；面板内 **开启 / 关闭 / 重启** 按钮与控制台 `on`/`off`/`Restart` 走同一套 `FNexusMcpActivation` 会话覆盖
 - **Capability 列表**：按当前宿主可见性过滤（独立包只见 Runtime cap；PIE 编辑器宿主同时见 Editor+Runtime），按源码目录分组折叠，支持名称/描述过滤
 - 每条 cap 前的勾选框是**会话级临时开关**：不写 `DisabledCapabilities`、不 `SaveConfig`，退出进程即失效；「清除本会话覆盖」一键恢复到 Preferences 持久配置状态
 - `Esc` 或点击「关闭」按钮退出；面板打开时临时切到 `FInputModeGameAndUI` 并显示鼠标，关闭后尽量还原
@@ -232,25 +232,25 @@ NexusLink.Mcp panel on|off                    ; 显式打开/关闭
 
 ### 2.4.1 独立 Game / DS MCP debug 清单
 
-Development/DebugGame 独立 Game 只加载 `NexusLink` Runtime 模块，catalog **没有** `control_pie` / `get_editor_context` / `search_asset` 等 Editor cap。现场排查用下面这些（均已在 Runtime 注册）：
+Development/DebugGame 独立 Game 只加载 `NexusLink` Runtime 模块，catalog **没有** `ControlPie` / `GetEditorContext` / `SearchAsset` 等 Editor cap。现场排查用下面这些（均已在 Runtime 注册）：
 
 Dedicated Server 同样可使用 Runtime Capability 调试日志、Actor、动画 / AI / GAS 等运行时内容，但没有视口和 UMG：不能使用 `panel`、视口截图或 Widget 工具，状态检查用 `NexusLink.Mcp status`。
 
 | 意图 | Capability | 说明 |
 |------|------------|------|
-| 读 Output Log | `get_output_log`（`preset=diagnose`） | 环形缓冲本就在 Runtime；独立包可直接 MCP 读。连续相同行合并为 `repeat` |
-| 只看接下来的操作 | `get_output_log` 的 `watch`，操作后再 `collectWatch=true` | 会话旁路缓冲，不写配置；Warning 也要命中筛选 |
-| 收窄采集 | `set_log_capture_filter` | 持久分类白名单，会写配置；Warning/Error 始终写入 |
-| 控制台命令 | `exec_command` | `GEngine->Exec`；**Dangerous**，默认不在 catalog |
-| 视口截图 | `capture_viewport` | `target=pie` 为 Game 视口；`editor`/`editor_desktop` 为顶层窗口。面板 tab 与 `viewAngle` 属编辑器专属，独立包没有 |
-| 定位对象 | `list_runtime_actors` / `list_runtime_widgets` | `classFilter` / `nameFilter` / `tagFilter` |
-| Actor 现场 | `get_runtime_actor_property` | `diagnose=visibility\|transform\|world_transform\|defaults`；改完用 `set_runtime_actor_property` 再 get |
-| 动画 / AI / GAS | `get_runtime_actor_animation` / `_behavior_tree` / `_ability_system` | 写入走对应 `interact_*` |
-| UnLua | 不在本插件 | 安装 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) 后用 `search_capabilities` 找 `get_runtime_lua_*` / `eval_runtime_lua` |
+| 读 Output Log | `GetOutputLog`（`Preset=diagnose`） | 环形缓冲本就在 Runtime；独立包可直接 MCP 读。连续相同行合并为 `Repeat` |
+| 只看接下来的操作 | `GetOutputLog` 的 `Watch`，操作后再 `bCollectWatch=true` | 会话旁路缓冲，不写配置；Warning 也要命中筛选 |
+| 收窄采集 | `SetLogCaptureFilter` | 持久分类白名单，会写配置；Warning/Error 始终写入 |
+| 控制台命令 | `ExecCommand` | `GEngine->Exec`；**Dangerous**，默认不在 catalog |
+| 视口截图 | `CaptureViewport` | `Target=pie` 为 Game 视口；`Editor`/`EditorDesktop` 为顶层窗口。面板 tab 与 `ViewAngle` 属编辑器专属，独立包没有 |
+| 定位对象 | `ListRuntimeActors` / `ListRuntimeWidgets` | `ClassFilter` / `NameFilter` / `TagFilter` |
+| Actor 现场 | `GetRuntimeActorProperty` | `Diagnose=visibility\|transform\|WorldTransform\|defaults`；改完用 `SetRuntimeActorProperty` 再 get |
+| 动画 / AI / GAS | `GetRuntimeActorAnimation` / `_behavior_tree` / `_ability_system` | 写入走对应 `interact_*` |
+| UnLua | 不在本插件 | 安装 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) 后用 `SearchCapabilities` 找 `get_runtime_lua_*` / `EvalRuntimeLua` |
 
-**危险 cap**（`exec_command` / `exec_python`）默认 `DangerousCapAccess=Disabled`，独立包 **Confirm 模式没有编辑器确认窗**，会被 deny。要开闸：面板会话勾选、Preferences **自定义开启**，或启动参数 `-NexusEnableDangerousCaps`。
+**危险 cap**（`ExecCommand` / `ExecPython`）默认 `DangerousCapAccess=Disabled`，独立包 **Confirm 模式没有编辑器确认窗**，会被 deny。要开闸：面板会话勾选、Preferences **自定义开启**，或启动参数 `-NexusEnableDangerousCaps`。
 
-调用链示例：看不见 → `list_runtime_actors` → `get_runtime_actor_property diagnose=visibility|transform`；已有报错 → `get_output_log preset=diagnose`；只看接下来的操作 → `get_output_log` 先传 `watch` 再 `collectWatch=true`；截图 → `capture_viewport target=pie`（可先 `validateOnly=true`）。
+调用链示例：看不见 → `ListRuntimeActors` → `GetRuntimeActorProperty Diagnose=visibility|transform`；已有报错 → `GetOutputLog Preset=diagnose`；只看接下来的操作 → `GetOutputLog` 先传 `Watch` 再 `bCollectWatch=true`；截图 → `CaptureViewport Target=pie`（可先 `bValidateOnly=true`）。
 
 ### 2.5 端口
 
@@ -274,15 +274,15 @@ Dedicated Server 同样可使用 Runtime Capability 调试日志、Actor、动�
 | Capabilities | 按目录折叠，可按组或单条启用/禁用 |
 | 启用反馈采集 | 总开关；取消后 auto/manual 都丢弃 |
 | Feedback Issue 仓库 | GitHub `owner/repo`，供「创建 GitHub Issue」预填 |
-| 搜索过载阈值 / 最大搜索结果数 | 控制 `search_overflow` 与返回条数上限 |
-| 慢调用阈值 (ms) | 超过则记 `slow_call`（含最终报错的调用），同时驱动传输层慢调用告警日志 |
+| 搜索过载阈值 / 最大搜索结果数 | 控制 `SearchOverflow` 与返回条数上限 |
+| 慢调用阈值 (ms) | 超过则记 `SlowCall`（含最终报错的调用），同时驱动传输层慢调用告警日志 |
 | 响应默认值压缩 | JSON 响应抽取重复字段到 `*_defaults`（缺省即默认） |
 | 自动卸载读取引入的包 | 批量只读达阈值后整批卸载（默认开） |
 | 卸载阈值（包数量） / 内存高水位（MB） | 默认 16 包 / 1024 MB |
 
-控制台行按钮：**打开目录** / **导出 Markdown** / **创建 GitHub Issue**。批量读取后若需保留包，对 `call_capability` 传 `keepLoaded=true`；立即释放用 `unload_asset`。
+控制台行按钮：**打开目录** / **导出 Markdown** / **创建 GitHub Issue**。批量读取后若需保留包，对 `CallCapability` 传 `bKeepLoaded=true`；立即释放用 `UnloadAsset`。
 
-自动埋点与 `submit_feedback` 的 schema 见 [`tool-reference.zh.md`](./tool-reference.zh.md#submit_feedback)。
+自动埋点与 `SubmitFeedback` 的 schema 见 [`tool-reference.zh.md`](./tool-reference.zh.md#SubmitFeedback)。
 
 ### 2.7 直连 UE
 
@@ -321,19 +321,19 @@ Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可�
 
 ### 2.8 工具模型（SearchMode）
 
-- **元工具（3 个）**：`search_capabilities`、`call_capability`、`submit_feedback`。不要把元工具名当作 `capability` 传入。
+- **元工具（3 个）**：`SearchCapabilities`、`CallCapability`、`SubmitFeedback`。不要把元工具名当作 `Capability` 传入。
 - **Capability**：原子工作单元，随宿主插件/引擎版本裁剪。完整清单见 [`tool-reference.zh.md`](./tool-reference.zh.md)。
-- **SearchMode**（默认）：`tools/list` 仅 3 个元工具；先 `search_capabilities` 再 `call_capability`。日常与长会话推荐。
+- **SearchMode**（默认）：`tools/list` 仅 3 个元工具；先 `SearchCapabilities` 再 `CallCapability`。日常与长会话推荐。
 - **MultiTool**：各已启用 Capability 为独立 Tool；仅当客户端必须一次枚举全 Tool 时使用。对比见 [architecture §暴露模式](./architecture.md#暴露模式toolslistmode)。
 
-读资产：`search_asset`（`assetType` + `pathFilter`）→ 用返回的 `assets[].path` 与 `recommendedGet` / `recommendedManage`。参数约定与 Breaking 键以 [`InitializeInstructions.SearchMode.md`](../Resources/InitializeInstructions.SearchMode.md) 与 [`CapabilitySpec.md`](../Resources/CapabilitySpec.md) 为准。
+读资产：`SearchAsset`（`AssetType` + `PathFilter`）→ 用返回的 `assets[].path` 与 `RecommendedGet` / `RecommendedManage`。参数约定与 Breaking 键以 [`InitializeInstructions.SearchMode.md`](../Resources/InitializeInstructions.SearchMode.md) 与 [`CapabilitySpec.md`](../Resources/CapabilitySpec.md) 为准。
 
 ### 2.9 挂载 AIRules
 
 插件 [`AIRules.mdc`](../Resources/AIRules.mdc) **不**经 MCP 注入，需复制到游戏项目 IDE Rules，与握手 Instructions 互补。
 
 1. 复制 `Resources/AIRules.mdc` → 游戏项目 `.cursor/rules/nexuslink-workflow.mdc`
-2. 编辑副本的项目定制节：填写默认 `pathFilter` 前缀
+2. 编辑副本的项目定制节：填写默认 `PathFilter` 前缀
 3. 插件升级后 diff 插件内 `AIRules.mdc`，将通用段合并进项目副本
 
 勿在 AIRules 中重复 Capability 路由表（以 `InitializeInstructions.SearchMode.md` 为准）。
@@ -399,9 +399,9 @@ Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可�
 
 `tools/call` 全程同步执行，UE 端没有请求级超时；代理里（Desktop/Rider/VSCode）统一 120s 超时且**不重试**，同一长连接上的请求还会串行排队——一个慢调用会连带堵住同会话后续请求。
 
-- 优先避免触发慢调用：`search_asset` 不要用 `assetType=all` 配 `pathFilter=/Game/` 之类的宽搜（已有的 arg-invalid 校验只挡最坏情形）；蓝图批量编译/存盘、`capture_viewport` 等本身耗时随场景规模增长
+- 优先避免触发慢调用：`SearchAsset` 不要用 `AssetType=all` 配 `PathFilter=/Game/` 之类的宽搜（已有的 arg-invalid 校验只挡最坏情形）；蓝图批量编译/存盘、`CaptureViewport` 等本身耗时随场景规模增长
 - 直连 `:45000` 没有代理的 120s 限制，但编辑器仍会同帧掉帧到调用结束
-- 排查数据来源：UE 输出日志按 `LogNexusMcpDispatcher` 过滤 Warning（超过慢调用阈值会打印耗时）；反馈报告（[§2.6](#26-设置面板与反馈)）的 `slow_call`（含最终报错的慢调用）与代理里 `proxy_timeout` 两个 category
+- 排查数据来源：UE 输出日志按 `LogNexusMcpDispatcher` 过滤 Warning（超过慢调用阈值会打印耗时）；反馈报告（[§2.6](#26-设置面板与反馈)）的 `SlowCall`（含最终报错的慢调用）与代理里 `ProxyTimeout` 两个 category
 
 ### 多个 AI 客户端同时使用
 
@@ -415,11 +415,11 @@ UE 与各客户端均支持 per-session 隔离（`Mcp-Session-Id`）。可同时
 
 PIE 或 Development 独立包按 `~` 打开控制台，执行 `NexusLink.Mcp panel`。面板上半是运行信息与开启/关闭/重启，下半可按会话临时勾选 Capability（不写 Preferences）。Dedicated Server 无视口，改用 `NexusLink.Mcp status`。Shipping 编译期剔除 MCP，无此命令。详见 [§2.4](#24-游戏内调试面板pie--独立包)。
 
-### 独立包搜不到 `get_output_log` / `capture_viewport` / `exec_command`
+### 独立包搜不到 `GetOutputLog` / `CaptureViewport` / `ExecCommand`
 
-这四个已迁到 Runtime，Development 独立包 catalog 里应能搜到（`exec_command` 除外：它带 `dangerous`，默认 Disabled）。不要按旧文档去 Editor 分类找。截图用 `target=pie` 或 `editor`/`editor_desktop`。
+这四个已迁到 Runtime，Development 独立包 catalog 里应能搜到（`ExecCommand` 除外：它带 `dangerous`，默认 Disabled）。不要按旧文档去 Editor 分类找。截图用 `Target=pie` 或 `Editor`/`EditorDesktop`。
 
-LevelEditor 面板 tab（`content_browser` / `details` / `output_log` …）与按 `viewAngle` 环绕拍 Actor 改由 **`capture_editor_panel`** 提供，仅编辑器可见，独立包搜不到属预期。`capture_editor_panel target=list` 可列出面板名、Tab ID 与当前是否打开；未登记的 Tab ID 也能直接传。
+LevelEditor 面板 tab（`ContentBrowser` / `details` / `OutputLog` …）与按 `ViewAngle` 环绕拍 Actor 改由 **`CaptureEditorPanel`** 提供，仅编辑器可见，独立包搜不到属预期。`CaptureEditorPanel Target=list` 可列出面板名、Tab ID 与当前是否打开；未登记的 Tab ID 也能直接传。
 
 ### 走代理时编辑器正在编译 / 重启
 
@@ -427,35 +427,35 @@ LevelEditor 面板 tab（`content_browser` / `details` / `output_log` …）与�
 
 ### 代理弹出写操作确认
 
-Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性调用弹确认（`writeGate=destructive`）。可改为 `off` 或 `all`。Pause 会让后续远端调用在代理排队。
+Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性调用弹确认（`writeGate=destructive`）。可改为 `off` 或 `All`。Pause 会让后续远端调用在代理排队。
 
 ### 修改了属性但 UE 中没有生效 / 磁盘未变化
 
-`set_*_property` 改的是内存；须 `save_asset` 或 manage 传 `saveToDisk=true`。BP/ABP/WBP 可再传 `compile=true`。
+`set_*_property` 改的是内存；须 `SaveAsset` 或 manage 传 `bSaveToDisk=true`。BP/ABP/WBP 可再传 `bCompile=true`。
 
 ### MCP 搜不到 GAS / Niagara 等能力
 
 这些 Capability 在编译期按磁盘 `.uplugin` 探测（`WITH_GAS` 等），**不会**在插件浏览器里给 NexusLink 加依赖。自定义引擎若不在工程兄弟目录 `Engine/`，旧版会 miss；当前版本用 UBT 正在编译的引擎目录自动找 `Engine/Plugins`。确认：重编后 `Intermediate/.../Definitions.NexusLink.h` 中对应 `WITH_*` 为 `1`，并重启编辑器。真实工程 `.uproject` 对该插件显式 `Enabled: false` 仍会关掉；`build_test` Editor/`BuildPlugin` 按该引擎磁盘探测编进可选 cap（与宿主一致），Game 目标不编。环境变量 `WITH_GAS=1` / `=0` 可强制开/关。
 
-### `exec_python` 报 Python plugin module not loaded
+### `ExecPython` 报 Python plugin module not loaded
 
-`exec_python`（编译时才包含 `WITH_NEXUS_PYTHON`）还需要工程**启用** Python Editor Script Plugin：**Edit → Plugins → Scripting → Python Editor Script Plugin** 勾选后重启。该 cap 与 `exec_command` 一样**默认禁用**，须把访问模式改为「每次手动确认」或「自定义开启」并勾选对应 cap，或用 `-NexusEnableDangerousCaps` 启动。Confirm 模式还须传 `reason`，由编辑器弹窗批准本次请求。跨版本写 Python 前先用只读 `get_python_api`（默认开）核对当前引擎的 `unreal.*` 签名，不要凭记忆套 5.x API。
+`ExecPython`（编译时才包含 `WITH_NEXUS_PYTHON`）还需要工程**启用** Python Editor Script Plugin：**Edit → Plugins → Scripting → Python Editor Script Plugin** 勾选后重启。该 cap 与 `ExecCommand` 一样**默认禁用**，须把访问模式改为「每次手动确认」或「自定义开启」并勾选对应 cap，或用 `-NexusEnableDangerousCaps` 启动。Confirm 模式还须传 `Reason`，由编辑器弹窗批准本次请求。跨版本写 Python 前先用只读 `GetPythonApi`（默认开）核对当前引擎的 `unreal.*` 签名，不要凭记忆套 5.x API。
 
 UE 5.6+ 还会区分「已配置未启用」与「已启用未初始化」两种中间态，报错文案会直接说明该去 Project Settings 打开还是等编辑器启动完再重试。
 
-### `exec_python` 三种 mode 的差别
+### `ExecPython` 三种 mode 的差别
 
 | mode | 传什么 | 作用域 |
 |---|---|---|
-| `exec`（默认） | `code`：多语句字面脚本 | 始终是 console 全局字典，**变量与 import 会在多次调用间保留** |
-| `eval` | `code`：单个表达式，结果回 `result` | 同上，可读到 `exec` 留下的变量 |
-| `file` | `scriptPath`：相对 `Content/Python/` 的 `.py` | 默认隔离；`persistent=true` 才并入 console 字典 |
+| `Exec`（默认） | `Code`：多语句字面脚本 | 始终是 console 全局字典，**变量与 import 会在多次调用间保留** |
+| `Eval` | `Code`：单个表达式，结果回 `Result` | 同上，可读到 `Exec` 留下的变量 |
+| `File` | `ScriptPath`：相对 `Content/Python/` 的 `.py` | 默认隔离；`bPersistent=true` 才并入 console 字典 |
 
-`file` 模式的路径在 C++ 里校验：必须相对、不含 `..`、以 `.py` 结尾且真实存在，否则直接 `arg_invalid`——UE 原生的 `ExecuteFile` 靠「首 token 是不是 `.py`」自动分流，路径写错会被当字面代码执行，报出与真实原因无关的 `NameError`。
+`File` 模式的路径在 C++ 里校验：必须相对、不含 `..`、以 `.py` 结尾且真实存在，否则直接 `ArgInvalid`——UE 原生的 `ExecuteFile` 靠「首 token 是不是 `.py`」自动分流，路径写错会被当字面代码执行，报出与真实原因无关的 `NameError`。
 
-### `exec_python` 的 Undo 语义与 `undoRecorded`
+### `ExecPython` 的 Undo 语义与 `bUndoRecorded`
 
-`exec_python` 和其它写 cap 一样被 `FNexusEditorTransaction` 包了一笔事务，但 **UE 事务只记录调用过 `Modify()` 的对象**，而 Python 的两条写路径行为不同：
+`ExecPython` 和其它写 cap 一样被 `FNexusEditorTransaction` 包了一笔事务，但 **UE 事务只记录调用过 `Modify()` 的对象**，而 Python 的两条写路径行为不同：
 
 | 写法 | 底层 NotifyMode | 触发 `Modify()` | 可 Undo |
 |---|---|---|---|
@@ -466,10 +466,10 @@ UE 5.6+ 还会区分「已配置未启用」与「已启用未初始化」两种
 
 **要能撤销就用 `set_editor_property`**。混用两种写法最危险：Ctrl+Z 回滚一部分、留下另一部分，资产落进一个从未存在过的中间态。
 
-返回的 `undoRecorded` 是执行前后事务记录数的差值：`true` 表示本次确实产生了可回滚记录，`false` 表示 Ctrl+Z 撤不掉这次改动。注意它只说明「有没有」，不保证「全部」——脚本里一半走 `set_editor_property`、一半直接赋值时它同样是 `true`。若同一对象在本批 `calls[]` 中已被别的 cap 记录过，`Modify()` 不会新增记录，此时会偏保守地报 `false`。
+返回的 `bUndoRecorded` 是执行前后事务记录数的差值：`true` 表示本次确实产生了可回滚记录，`false` 表示 Ctrl+Z 撤不掉这次改动。注意它只说明「有没有」，不保证「全部」——脚本里一半走 `set_editor_property`、一半直接赋值时它同样是 `true`。若同一对象在本批 `calls[]` 中已被别的 cap 记录过，`Modify()` 不会新增记录，此时会偏保守地报 `false`。
 
 还有三类改动无论怎么写都撤不了：
 
-- **包级操作**：`create_asset` / `delete_asset` / `rename_asset` / `save_asset` 不在事务范围内。脚本「建资产 + 改属性」后撤销，只回滚属性，资产还在。
-- **脚本自己开事务**：Python 自带 `unreal.ScopedEditorTransaction`。它在我们已开的事务里属于嵌套，而 UE 的 `UTransBuffer::Cancel` 不支持部分取消（日志原话是 *Canceling transaction partially is unsupported. Canceling %s entirely.*）——脚本里一句 `tx.cancel()` 会取消整笔，`calls[]` 批量下会连带取消同批其它 cap 的写入。**不要在 `exec_python` 里 cancel 事务**。
+- **包级操作**：`create_asset` / `DeleteAsset` / `RenameAsset` / `SaveAsset` 不在事务范围内。脚本「建资产 + 改属性」后撤销，只回滚属性，资产还在。
+- **脚本自己开事务**：Python 自带 `unreal.ScopedEditorTransaction`。它在我们已开的事务里属于嵌套，而 UE 的 `UTransBuffer::Cancel` 不支持部分取消（日志原话是 *Canceling transaction partially is unsupported. Canceling %s entirely.*）——脚本里一句 `tx.cancel()` 会取消整笔，`calls[]` 批量下会连带取消同批其它 cap 的写入。**不要在 `ExecPython` 里 cancel 事务**。
 - **撑爆 undo 缓冲区**：上限来自 `GEditorPerProjectIni` 的 `[Undo] UndoBufferSize`，默认仅 16 MB，超出后会从头逐笔丢弃历史。循环 `Modify()` 上万个对象会把用户之前的手工操作历史一起挤掉；这类批量改写请拆批或改用声明式 cap。

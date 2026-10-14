@@ -17,7 +17,7 @@ static TSharedPtr<FJsonObject> HandleDataTable(UDataTable* DT, const FString& Na
 	TSharedPtr<FJsonObject> Info = MakeShared<FJsonObject>();
 	if (DT->GetRowStruct())
 	{
-		Info->SetStringField(TEXT("rowStruct"), DT->GetRowStruct()->GetName());
+		Info->SetStringField(TEXT("RowStruct"), DT->GetRowStruct()->GetName());
 		TArray<TSharedPtr<FJsonValue>> Cols;
 		for (TFieldIterator<FProperty> It(DT->GetRowStruct()); It; ++It)
 		{
@@ -28,7 +28,7 @@ static TSharedPtr<FJsonObject> HandleDataTable(UDataTable* DT, const FString& Na
 			C->SetStringField(TEXT("type"), It->GetCPPType());
 			Cols.Add(MakeShared<FJsonValueObject>(C));
 		}
-		Info->SetArrayField(TEXT("columns"), Cols);
+		Info->SetArrayField(TEXT("Columns"), Cols);
 	}
 	TArray<FName> RowNames = DT->GetRowNames();
 	TArray<FString> Filtered;
@@ -42,51 +42,51 @@ static TSharedPtr<FJsonObject> HandleDataTable(UDataTable* DT, const FString& Na
 	int32 Start, End;
 	FNexusJsonUtils::ComputeSlice(Total, Offset, Limit, Start, End);
 	TArray<TSharedPtr<FJsonValue>> Page;
-	for (int32 i = Start; i < End; ++i) Page.Add(MakeShared<FJsonValueString>(Filtered[i]));
-	Info->SetNumberField(TEXT("totalRowCount"), Total);
-	Info->SetNumberField(TEXT("offset"), Start);
-	Info->SetNumberField(TEXT("limit"),  Limit);
-	Info->SetArrayField(TEXT("rowNames"), Page);
+	for (int32 RowIndex = Start; RowIndex < End; ++RowIndex) Page.Add(MakeShared<FJsonValueString>(Filtered[RowIndex]));
+	Info->SetNumberField(TEXT("TotalRowCount"), Total);
+	Info->SetNumberField(TEXT("Offset"), Start);
+	Info->SetNumberField(TEXT("Limit"),  Limit);
+	Info->SetArrayField(TEXT("RowNames"), Page);
 	return Info;
 }
 
-void FGetAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_data_table");
+	Out.Name = TEXT("GetAssetDataTable");
 	Out.SearchAssetTypes = {TEXT("DataTable")};
-	Out.Description = TEXT("Inspect DataTable rows or schema. mode=schema|rows; optional propertyPaths.");
+	Out.Description = TEXT("Inspect DataTable rows or schema. Mode=schema|rows; optional PropertyPaths.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataTable asset path")))
-		.Prop(TEXT("mode"),       FNexusSchema::Enum(TEXT("auto: rows if rowNames non-empty else schema; schema ignores rowNames/nameFilter for row export; rows requires rowNames or nameFilter"),
-			{ TEXT("auto"), TEXT("schema"), TEXT("rows") }, TEXT("auto")))
-		.Prop(TEXT("rowNames"),   FNexusSchema::StrArr(TEXT("Row name (rows mode or auto with non-empty rowNames); paginated by offset/limit")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Row name filter (/regex/ ^prefix suffix$); in mode=rows without rowNames, resolves+exports matching rows (paginated)")))
-		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Column/field filter (first segment); schema list and row export")))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max rows per page"), 100, 1, 500))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("DataTable asset path")))
+		.Prop(TEXT("Mode"),       FNexusSchema::Enum(TEXT("auto: rows if RowNames non-empty else schema; schema ignores RowNames/NameFilter for row export; rows requires RowNames or NameFilter"),
+			{ TEXT("Auto"), TEXT("Schema"), TEXT("Rows") }, TEXT("Auto")))
+		.Prop(TEXT("RowNames"),   FNexusSchema::StrArr(TEXT("Row name (rows mode or auto with non-empty RowNames); paginated by offset/limit")))
+		.Prop(TEXT("NameFilter"), FNexusSchema::Str(TEXT("Row name filter (/regex/ ^prefix suffix$); in Mode=rows without RowNames, resolves+exports matching rows (paginated)")))
+		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("Column/field filter (first segment); schema list and row export")))
+		.Prop(TEXT("Offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("Limit"),      FNexusSchema::Int(TEXT("Max rows per page"), 100, 1, 500))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("dt"), TEXT("schema"), TEXT("rowstruct"), TEXT("columns"), TEXT("rows") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_data_table"), TEXT("create_asset_data_table") };
+	Out.ExtraSearchKeywords = { TEXT("dt"), TEXT("Schema"), TEXT("rowstruct"), TEXT("Columns"), TEXT("Rows") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetDataTable"), TEXT("CreateAssetDataTable") };
 	Out.WhenToUse = TEXT("Read DT schema or row values; no edits");
 }
 
-FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString Path = A.Str(TEXT("assetPath"));
+		const FString Path = A.Str(TEXT("AssetPath"));
 
 		UDataTable* DT = FNexusAssetUtils::LoadAssetWithFallback<UDataTable>(Path);
 		if (!DT) { OutError = FString::Printf(TEXT("DataTable not found: %s"), *Path); return; }
 
 		TArray<FString> PropertyPaths;
 		const TArray<TSharedPtr<FJsonValue>>* PPArr = nullptr;
-		if (Arguments->TryGetArrayField(TEXT("propertyPaths"), PPArr) && PPArr)
+		if (Arguments->TryGetArrayField(TEXT("PropertyPaths"), PPArr) && PPArr)
 		{
 			for (const TSharedPtr<FJsonValue>& V : *PPArr)
 			{
@@ -95,12 +95,12 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 			}
 		}
 
-		FString Mode = TEXT("auto");
-		if (Arguments->HasField(TEXT("mode"))) Mode = A.Str(TEXT("mode")).ToLower();
+		FString Mode = TEXT("Auto");
+		if (Arguments->HasField(TEXT("Mode"))) Mode = A.Str(TEXT("Mode")).ToLower();
 
 		TArray<FString> RowNames;
 		const TArray<TSharedPtr<FJsonValue>>* RowNamesArr = nullptr;
-		if (Arguments->TryGetArrayField(TEXT("rowNames"), RowNamesArr) && RowNamesArr)
+		if (Arguments->TryGetArrayField(TEXT("RowNames"), RowNamesArr) && RowNamesArr)
 		{
 			for (const TSharedPtr<FJsonValue>& V : *RowNamesArr)
 			{
@@ -111,34 +111,34 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 		const bool bRowNamesNonEmpty = RowNames.Num() > 0;
 
 		FString NameFilter;
-		if (Arguments->HasField(TEXT("nameFilter"))) NameFilter = A.Str(TEXT("nameFilter"));
+		if (Arguments->HasField(TEXT("NameFilter"))) NameFilter = A.Str(TEXT("NameFilter"));
 		const bool bNameFilterNonEmpty = !NameFilter.IsEmpty();
 
 		int32 Offset = 0;
 		int32 Limit  = 100;
-		if (Arguments->HasField(TEXT("offset"))) Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
-		if (Arguments->HasField(TEXT("limit")))  Limit  = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
+		if (Arguments->HasField(TEXT("Offset"))) Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("Offset"))));
+		if (Arguments->HasField(TEXT("Limit")))  Limit  = FMath::Clamp(static_cast<int32>(A.Num(TEXT("Limit"))), 1, 500);
 
 		bool bUseRowMode = false;
-		if (Mode == TEXT("rows"))
+		if (Mode == TEXT("Rows"))
 		{
-			// rowNames 或 nameFilter 任一非空即可；nameFilter 单独出现时按过滤条件解出行名
+			// RowNames 或 NameFilter 任一非空即可；NameFilter 单独出现时按过滤条件解出行名
 			if (!bRowNamesNonEmpty && !bNameFilterNonEmpty)
 			{
-				OutError = TEXT("mode=rows requires rowNames or nameFilter");
+				OutError = TEXT("Mode=rows requires RowNames or NameFilter");
 				return;
 			}
 			bUseRowMode = true;
 		}
-		else if (Mode == TEXT("schema")) { bUseRowMode = false; }
-		else if (Mode == TEXT("auto") || Mode.IsEmpty())
+		else if (Mode == TEXT("Schema")) { bUseRowMode = false; }
+		else if (Mode == TEXT("Auto") || Mode.IsEmpty())
 		{
-			// auto 语义不变：仅显式 rowNames 非空才导出整行值；单独 nameFilter 仍走下方 schema 分页行名（更省 token）
+			// auto 语义不变：仅显式 RowNames 非空才导出整行值；单独 NameFilter 仍走下方 schema 分页行名（更省 token）
 			bUseRowMode = bRowNamesNonEmpty;
 		}
 		else { OutError = FString::Printf(TEXT("Invalid mode '%s' (auto|schema|rows)"), *Mode); return; }
 
-		// ── Row data mode：rows / auto 且 rowNames 非空 ───────────────────────────
+		// ── Row data mode：rows / auto 且 RowNames 非空 ───────────────────────────
 		if (bUseRowMode)
 		{
 			const UScriptStruct* RowStruct = DT->GetRowStruct();
@@ -154,24 +154,24 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 				}
 			}
 
-			// 两条路径统一分页（默认 100 / 上限 500），避免超大 rowNames/nameFilter 命中一次性导出全表值
+			// 两条路径统一分页（默认 100 / 上限 500），避免超大 RowNames/NameFilter 命中一次性导出全表值
 			const int32 TotalTargets = TargetRowNames.Num();
 			int32 Start, End;
 			FNexusJsonUtils::ComputeSlice(TotalTargets, Offset, Limit, Start, End);
-			OutTop->SetNumberField(TEXT("totalRowCount"), TotalTargets);
-			OutTop->SetNumberField(TEXT("offset"), Start);
-			OutTop->SetNumberField(TEXT("limit"),  Limit);
+			OutTop->SetNumberField(TEXT("TotalRowCount"), TotalTargets);
+			OutTop->SetNumberField(TEXT("Offset"), Start);
+			OutTop->SetNumberField(TEXT("Limit"),  Limit);
 
 			for (int32 i = Start; i < End; ++i)
 			{
 				const FString& RowName = TargetRowNames[i];
 				TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-				Entry->SetStringField(TEXT("rowName"), RowName);
+				Entry->SetStringField(TEXT("RowName"), RowName);
 
 				const uint8* RowData = DT->FindRowUnchecked(FName(*RowName));
 				if (!RowData)
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Row '%s' does not exist"), *RowName));
+					Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Row '%s' does not exist"), *RowName));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					continue;
 				}
@@ -190,10 +190,10 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 					TSharedPtr<FJsonObject> Field = MakeShared<FJsonObject>();
 					Field->SetStringField(TEXT("name"), PropName);
 					Field->SetStringField(TEXT("type"), Prop->GetCPPType());
-					if (!ValueStr.IsEmpty()) Field->SetStringField(TEXT("value"), ValueStr);
+					if (!ValueStr.IsEmpty()) Field->SetStringField(TEXT("Value"), ValueStr);
 					Fields.Add(MakeShared<FJsonValueObject>(Field));
 				}
-				Entry->SetArrayField(TEXT("fields"), Fields);
+				Entry->SetArrayField(TEXT("Fields"), Fields);
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			}
 			return;
@@ -209,5 +209,5 @@ FCapabilityResult FGetAssetDataTableCapability::Execute(const TSharedPtr<FJsonOb
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetDataTableCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetDataTableCapability)
 

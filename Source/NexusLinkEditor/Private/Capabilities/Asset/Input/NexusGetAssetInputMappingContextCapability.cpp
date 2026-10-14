@@ -13,28 +13,28 @@
 #include "InputMappingContext.h"
 #include "EnhancedActionKeyMapping.h"
 
-void FGetAssetInputMappingContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetInputMappingContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_input_mapping_context");
+	Out.Name = TEXT("GetAssetInputMappingContext");
 	Out.SearchAssetTypes = {TEXT("InputMappingContext")};
 	Out.Description = TEXT("List all IMC Action-Key bindings and Trigger/Modifier counts. UE5+.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputMappingContext asset path")))
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("InputMappingContext asset path")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("mapping"), TEXT("imc"), TEXT("keybind"), TEXT("context"), TEXT("key"), TEXT("action") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_input_mapping_context"), TEXT("create_asset_input_mapping_context"), TEXT("get_asset_input_action") };
+	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("mapping"), TEXT("imc"), TEXT("keybind"), TEXT("context"), TEXT("Key"), TEXT("Action") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetInputMappingContext"), TEXT("CreateAssetInputMappingContext"), TEXT("GetAssetInputAction") };
 	Out.WhenToUse = TEXT("Read all IMC Action-Key bindings");
 }
 
-FCapabilityResult FGetAssetInputMappingContextCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetInputMappingContextCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		UInputMappingContext* IMC = FNexusAssetUtils::LoadAssetWithFallback<UInputMappingContext>(AssetPath);
 		if (!IMC)
@@ -43,10 +43,10 @@ FCapabilityResult FGetAssetInputMappingContextCapability::Execute(const TSharedP
 			return;
 		}
 
-		OutEntry->SetStringField(TEXT("assetType"), TEXT("InputMappingContext"));
+		OutEntry->SetStringField(TEXT("AssetType"), TEXT("InputMappingContext"));
 		OutEntry->SetStringField(TEXT("name"),      IMC->GetName());
-		OutEntry->SetStringField(TEXT("path"),      FNexusAssetUtils::PackagePathOf(IMC));
-		OutEntry->SetNumberField(TEXT("mappingsCount"), IMC->GetMappings().Num());
+		OutEntry->SetStringField(TEXT("Path"),      FNexusAssetUtils::PackagePathOf(IMC));
+		OutEntry->SetNumberField(TEXT("MappingsCount"), IMC->GetMappings().Num());
 
 		TArray<TSharedPtr<FJsonValue>> MappingArr;
 		for (const FEnhancedActionKeyMapping& M : IMC->GetMappings())
@@ -56,20 +56,20 @@ FCapabilityResult FGetAssetInputMappingContextCapability::Execute(const TSharedP
 			const UInputAction* Action = M.Action;
 			if (Action)
 			{
-				MObj->SetStringField(TEXT("action"), FNexusAssetUtils::PackagePathOf(Action));
-				MObj->SetStringField(TEXT("actionName"), Action->GetName());
+				MObj->SetStringField(TEXT("Action"), FNexusAssetUtils::PackagePathOf(Action));
+				MObj->SetStringField(TEXT("ActionName"), Action->GetName());
 			}
-			MObj->SetStringField(TEXT("key"), M.Key.ToString());
-			MObj->SetNumberField(TEXT("triggersCount"), M.Triggers.Num());
-			MObj->SetNumberField(TEXT("modifiersCount"), M.Modifiers.Num());
+			MObj->SetStringField(TEXT("Key"), M.Key.ToString());
+			MObj->SetNumberField(TEXT("TriggersCount"), M.Triggers.Num());
+			MObj->SetNumberField(TEXT("ModifiersCount"), M.Modifiers.Num());
 			MappingArr.Add(MakeShared<FJsonValueObject>(MObj));
 		}
-		OutEntry->SetArrayField(TEXT("mappings"), MappingArr);
+		OutEntry->SetArrayField(TEXT("Mappings"), MappingArr);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetInputMappingContextCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetInputMappingContextCapability)
 
 #endif // WITH_ENHANCED_INPUT

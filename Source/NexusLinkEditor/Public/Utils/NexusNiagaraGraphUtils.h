@@ -35,7 +35,7 @@ public:
 
 	/**
 	 * 写模块 RapidIteration 输入（Constants.<Emitter>.<Module>.<Input>）。
-	 * parameterName 为短名（如 SpawnRate），不是 Constants.* 全路径。
+	 * ParameterName 为短名（如 SpawnRate），不是 Constants.* 全路径。
 	 */
 	static bool SetModuleParameter(UNiagaraSystem* System, const FString& EmitterName,
 		const FString& ModuleName, const FString& ParameterName, const FString& Usage,

@@ -15,30 +15,30 @@
 #include "StateTreeEditorData.h"
 #endif
 
-void FCreateAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_state_tree");
+	Out.Name = TEXT("CreateAssetStateTree");
 	Out.Description = TEXT("Create empty StateTree. UE 5.5+.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write };
-	Out.ExtraSearchKeywords = { TEXT("statetree"), TEXT("state"), TEXT("ai") };
-	Out.RelatedCapabilities = { TEXT("get_asset_state_tree"), TEXT("manage_asset_state_tree") };
-	Out.WhenToUse = TEXT("Create StateTree; structure via manage_asset_state_tree");
+	Out.ExtraSearchKeywords = { TEXT("statetree"), TEXT("State"), TEXT("ai") };
+	Out.RelatedCapabilities = { TEXT("GetAssetStateTree"), TEXT("ManageAssetStateTree") };
+	Out.WhenToUse = TEXT("Create StateTree; structure via ManageAssetStateTree");
 }
 
-FCapabilityResult FCreateAssetStateTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetStateTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("create_asset_state_tree only available in editor builds");
+		OutError = TEXT("CreateAssetStateTree only available in editor builds");
 		return;
 #else
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<UStateTree>(AssetPath, RF_Public | RF_Standalone, false);
 		if (!Created.Ok())
@@ -60,6 +60,6 @@ FCapabilityResult FCreateAssetStateTreeCapability::Execute(const TSharedPtr<FJso
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetStateTreeCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetStateTreeCapability)
 
 #endif

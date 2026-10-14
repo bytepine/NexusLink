@@ -7,8 +7,8 @@
 
 #if WITH_METASOUND
 
-/** create_asset_meta_sound — 创建 MetaSound Source 资产。 */
-class FCreateAssetMetaSoundCapability : public FNexusCapability
+/** CreateAssetMetaSound — 创建 MetaSound Source 资产。 */
+class FNexusCreateAssetMetaSoundCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

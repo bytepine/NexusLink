@@ -7,8 +7,8 @@
 
 #include "NexusCapability.h"
 
-/** get_asset_input_mapping_context — 列举 IMC 全部 Action-Key 绑定（UE5+）。 */
-class FGetAssetInputMappingContextCapability : public FNexusCapability
+/** GetAssetInputMappingContext — 列举 IMC 全部 Action-Key 绑定（UE5+）。 */
+class FNexusGetAssetInputMappingContextCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

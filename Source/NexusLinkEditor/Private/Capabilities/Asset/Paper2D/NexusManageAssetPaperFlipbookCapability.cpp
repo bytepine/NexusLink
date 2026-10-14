@@ -10,28 +10,28 @@
 #include "PaperSprite.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetPaperFlipbookCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetPaperFlipbookCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_paper_flipbook");
+	Out.Name = TEXT("ManageAssetPaperFlipbook");
 	Out.SearchAssetTypes = {TEXT("PaperFlipbook")};
-	Out.Description = TEXT("Batch edit PaperFlipbook. action=add_key/remove_key/set_frames_per_second.");
+	Out.Description = TEXT("Batch edit PaperFlipbook. Action=AddKey/RemoveKey/SetFramesPerSecond.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
-			{ TEXT("add_key"), TEXT("remove_key"), TEXT("set_frames_per_second") }))
-		.Prop(TEXT("spritePath"), FNexusSchema::Str(TEXT("PaperSprite path (add_key)")))
-		.Prop(TEXT("frameRun"), FNexusSchema::Int(TEXT("Duration in frames (add_key)"), 1))
-		.Prop(TEXT("keyIndex"), FNexusSchema::Int(TEXT("Keyframe index (remove_key)")))
-		.Prop(TEXT("framesPerSecond"), FNexusSchema::Num(TEXT("Frame rate (set_frames_per_second)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"),
+			{ TEXT("AddKey"), TEXT("RemoveKey"), TEXT("SetFramesPerSecond") }))
+		.Prop(TEXT("SpritePath"), FNexusSchema::Str(TEXT("PaperSprite path (AddKey)")))
+		.Prop(TEXT("FrameRun"), FNexusSchema::Int(TEXT("Duration in frames (AddKey)"), 1))
+		.Prop(TEXT("KeyIndex"), FNexusSchema::Int(TEXT("Keyframe index (RemoveKey)")))
+		.Prop(TEXT("FramesPerSecond"), FNexusSchema::Num(TEXT("Frame rate (SetFramesPerSecond)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("PaperFlipbook asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("PaperFlipbook asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("flipbook"), TEXT("fps"), TEXT("frame") };
-	Out.RelatedCapabilities = { TEXT("get_asset_paper_flipbook"), TEXT("create_asset_paper_flipbook") };
+	Out.RelatedCapabilities = { TEXT("GetAssetPaperFlipbook"), TEXT("CreateAssetPaperFlipbook") };
 }
 
 struct FFlipbookActionState
@@ -64,13 +64,13 @@ static void HandleFlip_AddKey(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	UPaperFlipbook* Book = FlipFrom(Ctx);
 	if (!Book)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperFlipbook is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PaperFlipbook is null"));
 		return;
 	}
 	FPaperFlipbookKeyFrame Kf;
-	Kf.FrameRun = Op->HasField(TEXT("frameRun")) ? static_cast<int32>(Op->GetNumberField(TEXT("frameRun"))) : 1;
+	Kf.FrameRun = Op->HasField(TEXT("FrameRun")) ? static_cast<int32>(Op->GetNumberField(TEXT("FrameRun"))) : 1;
 	FString SpritePath;
-	if (Op->TryGetStringField(TEXT("spritePath"), SpritePath) && !SpritePath.IsEmpty())
+	if (Op->TryGetStringField(TEXT("SpritePath"), SpritePath) && !SpritePath.IsEmpty())
 	{
 		Kf.Sprite = FNexusAssetUtils::LoadAssetWithFallback<UPaperSprite>(SpritePath);
 	}
@@ -79,7 +79,7 @@ static void HandleFlip_AddKey(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 		Mut.KeyFrames.Add(Kf);
 	}
 	MarkFlipDirty(Ctx);
-	Ctx.Entry->SetNumberField(TEXT("keyCount"), Book->GetNumKeyFrames());
+	Ctx.Entry->SetNumberField(TEXT("KeyCount"), Book->GetNumKeyFrames());
 }
 
 static void HandleFlip_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -87,18 +87,18 @@ static void HandleFlip_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	UPaperFlipbook* Book = FlipFrom(Ctx);
 	if (!Book)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperFlipbook is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PaperFlipbook is null"));
 		return;
 	}
-	if (!Op->HasField(TEXT("keyIndex")))
+	if (!Op->HasField(TEXT("KeyIndex")))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_key requires keyIndex"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveKey requires KeyIndex"));
 		return;
 	}
-	const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("keyIndex")));
+	const int32 Idx = static_cast<int32>(Op->GetNumberField(TEXT("KeyIndex")));
 	if (!Book->IsValidKeyFrameIndex(Idx))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("keyIndex out of bounds"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("KeyIndex out of bounds"));
 		return;
 	}
 	{
@@ -106,7 +106,7 @@ static void HandleFlip_RemoveKey(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		Mut.KeyFrames.RemoveAt(Idx);
 	}
 	MarkFlipDirty(Ctx);
-	Ctx.Entry->SetNumberField(TEXT("keyCount"), Book->GetNumKeyFrames());
+	Ctx.Entry->SetNumberField(TEXT("KeyCount"), Book->GetNumKeyFrames());
 }
 
 static void HandleFlip_SetFPS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -114,30 +114,30 @@ static void HandleFlip_SetFPS(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	UPaperFlipbook* Book = FlipFrom(Ctx);
 	if (!Book)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("PaperFlipbook is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PaperFlipbook is null"));
 		return;
 	}
-	if (!Op->HasField(TEXT("framesPerSecond")))
+	if (!Op->HasField(TEXT("FramesPerSecond")))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_frames_per_second requires framesPerSecond"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetFramesPerSecond requires FramesPerSecond"));
 		return;
 	}
 	{
 		FScopedFlipbookMutator Mut(Book);
-		Mut.FramesPerSecond = static_cast<float>(Op->GetNumberField(TEXT("framesPerSecond")));
+		Mut.FramesPerSecond = static_cast<float>(Op->GetNumberField(TEXT("FramesPerSecond")));
 	}
 	MarkFlipDirty(Ctx);
-	Ctx.Entry->SetNumberField(TEXT("framesPerSecond"), Book->GetFramesPerSecond());
+	Ctx.Entry->SetNumberField(TEXT("FramesPerSecond"), Book->GetFramesPerSecond());
 }
 
-bool FManageAssetPaperFlipbookCapability::PrepareTarget(
+bool FNexusManageAssetPaperFlipbookCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UPaperFlipbook* Book = FNexusAssetUtils::LoadAssetWithFallback<UPaperFlipbook>(AssetPath);
 	if (!Book)
 	{
@@ -150,7 +150,7 @@ bool FManageAssetPaperFlipbookCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetPaperFlipbookCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetPaperFlipbookCapability::FinalizeTarget(void* Target) const
 {
 	FFlipbookActionState* State = static_cast<FFlipbookActionState*>(Target);
 	if (!State) return;
@@ -161,12 +161,12 @@ void FManageAssetPaperFlipbookCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetPaperFlipbookCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetPaperFlipbookCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("add_key"),              &HandleFlip_AddKey);
-	OutHandlers.Add(TEXT("remove_key"),           &HandleFlip_RemoveKey);
-	OutHandlers.Add(TEXT("set_frames_per_second"), &HandleFlip_SetFPS);
+	OutHandlers.Add(TEXT("AddKey"),              &HandleFlip_AddKey);
+	OutHandlers.Add(TEXT("RemoveKey"),           &HandleFlip_RemoveKey);
+	OutHandlers.Add(TEXT("SetFramesPerSecond"), &HandleFlip_SetFPS);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetPaperFlipbookCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetPaperFlipbookCapability)
 #endif

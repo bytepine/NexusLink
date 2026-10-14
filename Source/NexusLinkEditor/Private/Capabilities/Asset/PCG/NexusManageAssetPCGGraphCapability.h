@@ -7,8 +7,8 @@
 
 #if WITH_PCG
 
-/** manage_asset_pcg_graph — 管理 PCG Graph：add_node/remove_node/add_edge。 */
-class FManageAssetPCGGraphCapability : public FNexusActionCapability
+/** ManageAssetPCGGraph — 管理 PCG Graph：AddNode/RemoveNode/AddEdge。 */
+class FNexusManageAssetPCGGraphCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

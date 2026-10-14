@@ -3,8 +3,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_sound_concurrency：创建 USoundConcurrency 资产。 */
-class FCreateAssetSoundConcurrencyCapability : public FNexusCapability
+/** CreateAssetSoundConcurrency：创建 USoundConcurrency 资产。 */
+class FNexusCreateAssetSoundConcurrencyCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

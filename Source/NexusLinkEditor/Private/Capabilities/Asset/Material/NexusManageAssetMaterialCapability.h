@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_material 的 Capability — 批量材质编辑（set_param/add_node/remove_node/set_node/recompile/connect/disconnect/disconnect_all）。 */
-class FManageAssetMaterialCapability : public FNexusActionCapability
+/** ManageAssetMaterial 的 Capability — 批量材质编辑（SetParam/AddNode/RemoveNode/SetNode/recompile/connect/disconnect/DisconnectAll）。 */
+class FNexusManageAssetMaterialCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

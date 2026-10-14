@@ -2,7 +2,7 @@
 
 #pragma once
 
-// Utils 层：Editor（search_capabilities / tools/list）
+// Utils 层：Editor（SearchCapabilities / tools/list）
 #include "CoreMinimal.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
@@ -11,7 +11,7 @@ class UNexusLinkSettings;
 struct FNexusCapabilityDefinition;
 
 /**
- * search_capabilities 与 tools/list 的评分/目录/Related 过滤辅助。
+ * SearchCapabilities 与 tools/list 的评分/目录/Related 过滤辅助。
  * 封装 Token 评分、Capability 相关度排名、Schema 参数提取、目录构建等无状态算法。
  */
 class FNexusCapabilityIndexUtils final
@@ -56,6 +56,6 @@ public:
 		const UNexusLinkSettings* Settings,
 		int32 MaxCount = 0);
 
-	/** 构建按 tag 分组的 Capability 目录（query="" 时使用；条目仅 name / 可选 whenToUse）。 */
+	/** 构建按 tag 分组的 Capability 目录（Query="" 时使用；条目仅 name / 可选 WhenToUse）。 */
 	static TSharedPtr<FJsonObject> BuildDirectory(const UNexusLinkSettings* Settings);
 };

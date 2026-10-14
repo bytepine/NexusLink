@@ -65,7 +65,7 @@ public:
 	/** 在 AnimGraph 中生成节点并 AllocateDefaultPins。 */
 	static class UEdGraphNode* SpawnAnimGraphNode(UEdGraph* Graph, UClass* NodeClass, int32 PosX, int32 PosY, FString& OutError);
 
-	/** 写 IK / LookAt / ModifyBone 的骨骼名（boneName）。 */
+	/** 写 IK / LookAt / ModifyBone 的骨骼名（BoneName）。 */
 	static void ApplyBoneName(class UEdGraphNode* Node, const FString& BoneName);
 
 	/** 连接两节点引脚（按引脚名，忽略方向前缀差异）。 */

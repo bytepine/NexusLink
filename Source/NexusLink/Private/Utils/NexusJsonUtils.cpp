@@ -41,11 +41,11 @@ bool FNexusJsonUtils::HasSectionAll(const TSharedPtr<FJsonObject>& Obj)
 {
 	if (!Obj.IsValid()) return false;
 	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
-	if (!Obj->TryGetArrayField(TEXT("sections"), Arr) || !Arr) return false;
+	if (!Obj->TryGetArrayField(TEXT("Sections"), Arr) || !Arr) return false;
 	for (const TSharedPtr<FJsonValue>& V : *Arr)
 	{
 		FString S;
-		if (V.IsValid() && V->TryGetString(S) && S.Equals(TEXT("all"), ESearchCase::IgnoreCase))
+		if (V.IsValid() && V->TryGetString(S) && S.Equals(TEXT("All"), ESearchCase::IgnoreCase))
 			return true;
 	}
 	return false;
@@ -55,7 +55,7 @@ bool FNexusJsonUtils::HasSubSection(const TSharedPtr<FJsonObject>& Obj)
 {
 	if (!Obj.IsValid()) return false;
 	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
-	if (!Obj->TryGetArrayField(TEXT("sections"), Arr) || !Arr || Arr->Num() == 0) return false;
+	if (!Obj->TryGetArrayField(TEXT("Sections"), Arr) || !Arr || Arr->Num() == 0) return false;
 	return !HasSectionAll(Obj);
 }
 
@@ -67,9 +67,9 @@ void FNexusJsonUtils::ParseOffsetLimit(const TSharedPtr<FJsonObject>& Obj,
 	OutLimit  = DefaultLimit;
 	if (!Obj.IsValid()) return;
 	double Num = 0.0;
-	if (Obj->TryGetNumberField(TEXT("offset"), Num))
+	if (Obj->TryGetNumberField(TEXT("Offset"), Num))
 		OutOffset = FMath::Max(0, static_cast<int32>(Num));
-	if (Obj->TryGetNumberField(TEXT("limit"), Num))
+	if (Obj->TryGetNumberField(TEXT("Limit"), Num))
 		OutLimit = FMath::Clamp(static_cast<int32>(Num), 1, MaxLimit);
 }
 
@@ -86,7 +86,7 @@ TArray<TSharedPtr<FJsonValue>> FNexusJsonUtils::ExtractOperations(const TSharedP
 	if (!Args.IsValid()) return Result;
 
 	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
-	if (Args->TryGetArrayField(TEXT("operations"), Arr) && Arr)
+	if (Args->TryGetArrayField(TEXT("Operations"), Arr) && Arr)
 	{
 		return *Arr;
 	}

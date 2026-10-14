@@ -31,7 +31,7 @@ private:
 
 /**
  * 统一字符串匹配工具。
- * 供所有 MCP Tool 的过滤参数共用（nameFilter/textFilter/classFilter 等）。
+ * 供所有 MCP Tool 的过滤参数共用（NameFilter/TextFilter/ClassFilter 等）。
  *
  * 匹配规则：
  * - 以 "/" 开头和结尾视为正则表达式，如 "/^BP_.+Actor$/"

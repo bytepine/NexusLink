@@ -14,27 +14,27 @@
 #include "Engine/Blueprint.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetAttributeSetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetAttributeSetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_attribute_set");
+	Out.Name = TEXT("GetAssetAttributeSet");
 	Out.SearchAssetTypes = {TEXT("AttributeSet")};
 	Out.Description = TEXT("Read all FGameplayAttributeData defaults in AttributeSet BP; read-only.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("AttributeSet Blueprint path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("AttributeSet Blueprint path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Gas };
-	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("attribute"), TEXT("health"), TEXT("mana"), TEXT("stamina") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_attribute_set"), TEXT("create_asset_attribute_set") };
+	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("Attribute"), TEXT("health"), TEXT("mana"), TEXT("stamina") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetAttributeSet"), TEXT("CreateAssetAttributeSet") };
 	Out.WhenToUse = TEXT("Read AttributeSet default property values; no writes");
 }
 
-FCapabilityResult FGetAssetAttributeSetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetAttributeSetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		FString LoadError;
 		UBlueprint* BP = FNexusGasUtils::LoadAttributeSetBlueprint(AssetPath, LoadError);
@@ -45,15 +45,15 @@ FCapabilityResult FGetAssetAttributeSetCapability::Execute(const TSharedPtr<FJso
 		TArray<TSharedPtr<FJsonValue>> Attrs = FNexusGasUtils::SerializeGameplayAttributes(BP->GeneratedClass, CDO);
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		OutEntry->SetStringField(TEXT("path"), AssetPath);
+		OutEntry->SetStringField(TEXT("Path"), AssetPath);
 		OutEntry->SetStringField(TEXT("name"),      BP->GetName());
-		if (BP->ParentClass) OutEntry->SetStringField(TEXT("parentClass"), BP->ParentClass->GetName());
-		OutEntry->SetArrayField(TEXT("attributes"),  Attrs);
-		OutEntry->SetNumberField(TEXT("count"),      Attrs.Num());
+		if (BP->ParentClass) OutEntry->SetStringField(TEXT("ParentClass"), BP->ParentClass->GetName());
+		OutEntry->SetArrayField(TEXT("Attributes"),  Attrs);
+		OutEntry->SetNumberField(TEXT("Count"),      Attrs.Num());
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetAttributeSetCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetAttributeSetCapability)
 
 #endif // WITH_GAS

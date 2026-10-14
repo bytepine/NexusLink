@@ -43,7 +43,7 @@ public:
 
 	/**
 	 * 将 tags[] + mode 应用到 FGameplayTagContainer。
-	 * mode: "set"（替换全部）/ "add"（追加）/ "remove"（移除）。
+	 * mode: "Set"（替换全部）/ "Add"（追加）/ "Remove"（移除）。
 	 * 返回 false 并填 OutError 表示输入无效。
 	 */
 	static bool ApplyTagContainer(
@@ -56,13 +56,13 @@ public:
 
 	/**
 	 * 将 UGameplayEffect CDO 的 Modifiers 数组序列化为 JSON 数组。
-	 * 每项含 attribute / modifierOp / magnitudeType / magnitude（标量值或 "curve"）。
+	 * 每项含 attribute / ModifierOp / MagnitudeType / magnitude（标量值或 "curve"）。
 	 */
 	static TArray<TSharedPtr<FJsonValue>> SerializeGEModifiers(const UGameplayEffect* GE);
 
 	/**
 	 * 对 GE CDO 的 Modifiers 执行单次操作。
-	 * action: "add_modifier" / "remove_modifier" / "set_modifier"（按 index）。
+	 * action: "AddModifier" / "RemoveModifier" / "SetModifier"（按 index）。
 	 * 返回 false 并填 OutError 表示操作无效。
 	 */
 	static bool ApplyGEModifierOp(
@@ -75,7 +75,7 @@ public:
 
 	/**
 	 * 将 AttributeSet CDO 的全部 FGameplayAttributeData 属性序列化为 JSON 数组。
-	 * 每项含 name / baseValue / currentValue。
+	 * 每项含 name / BaseValue / CurrentValue。
 	 */
 	static TArray<TSharedPtr<FJsonValue>> SerializeGameplayAttributes(
 		UClass* AttributeSetClass, UObject* CDO);

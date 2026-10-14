@@ -44,11 +44,11 @@ void FNexusEditorContextUtils::CollectSelectionActors(
 
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 		Obj->SetStringField(TEXT("name"), Actor->GetName());
-		Obj->SetStringField(TEXT("label"), Actor->GetActorLabel());
-		Obj->SetStringField(TEXT("class"), Actor->GetClass()->GetName());
+		Obj->SetStringField(TEXT("Label"), Actor->GetActorLabel());
+		Obj->SetStringField(TEXT("Class"), Actor->GetClass()->GetName());
 		if (EditorWorld && Actor->GetWorld() == EditorWorld)
 		{
-			Obj->SetStringField(TEXT("level"), EditorWorld->GetName());
+			Obj->SetStringField(TEXT("Level"), EditorWorld->GetName());
 		}
 		OutActors.Add(MakeShared<FJsonValueObject>(Obj));
 		++OutCount;
@@ -83,15 +83,15 @@ void FNexusEditorContextUtils::CollectSelectionAssets(
 
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 #if NX_UE_HAS_ASSET_SOFT_OBJECT_PATH
-		Obj->SetStringField(TEXT("path"), Asset.GetSoftObjectPath().ToString());
+		Obj->SetStringField(TEXT("Path"), Asset.GetSoftObjectPath().ToString());
 #else
-		Obj->SetStringField(TEXT("path"), Asset.ObjectPath.ToString());
+		Obj->SetStringField(TEXT("Path"), Asset.ObjectPath.ToString());
 #endif
-		Obj->SetStringField(TEXT("packageName"), Asset.PackageName.ToString());
+		Obj->SetStringField(TEXT("PackageName"), Asset.PackageName.ToString());
 #if NX_UE_HAS_CLASS_PATHS
-		Obj->SetStringField(TEXT("assetClass"), Asset.AssetClassPath.GetAssetName().ToString());
+		Obj->SetStringField(TEXT("AssetClass"), Asset.AssetClassPath.GetAssetName().ToString());
 #else
-		Obj->SetStringField(TEXT("assetClass"), Asset.AssetClass.ToString());
+		Obj->SetStringField(TEXT("AssetClass"), Asset.AssetClass.ToString());
 #endif
 		OutAssets.Add(MakeShared<FJsonValueObject>(Obj));
 		++OutCount;

@@ -11,19 +11,19 @@
 #include "Exporters/Exporter.h"
 #include "NexusMcpTool.h"
 
-void FExportAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusExportAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("export_asset");
+	Out.Name = TEXT("ExportAsset");
 	Out.Description = TEXT("Export asset to disk file. Uses UE ExportToFile.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Asset path")))
-		.Prop(TEXT("outputPath"), FNexusSchema::Str(TEXT("Export file path (ext included; empty auto-exports to Saved/Exported/)")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Asset path")))
+		.Prop(TEXT("OutputPath"), FNexusSchema::Str(TEXT("Export file path (ext included; empty auto-exports to Saved/Exported/)")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("export"), TEXT("save"), TEXT("file"), TEXT("disk") };
-	Out.RelatedCapabilities = { TEXT("search_asset"), TEXT("duplicate_asset") };
-	Out.Prerequisites = { TEXT("editor_only") };
+	Out.ExtraSearchKeywords = { TEXT("export"), TEXT("save"), TEXT("File"), TEXT("disk") };
+	Out.RelatedCapabilities = { TEXT("SearchAsset"), TEXT("DuplicateAsset") };
+	Out.Prerequisites = { TEXT("EditorOnly") };
 	Out.WhenToUse = TEXT("Export asset to external file (FBX/OBJ/PNG)");
 }
 
@@ -50,28 +50,28 @@ static UExporter* FindExporterForAsset(UObject* Asset)
 	return nullptr;
 }
 
-FCapabilityResult FExportAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusExportAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		if (!FNexusCapability::RequireString(Arguments, TEXT("AssetPath"), AssetPath, OutEntries, {})) return;
 
 		UObject* Asset = FNexusAssetUtils::LoadAssetWithFallback<UObject>(AssetPath);
 		if (!Asset)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("Path"), AssetPath}},
 				FString::Printf(TEXT("Asset not found: %s"), *AssetPath));
 			return;
 		}
 
 		FString OutputPath;
-		if (Arguments.IsValid()) Arguments->TryGetStringField(TEXT("outputPath"), OutputPath);
+		if (Arguments.IsValid()) Arguments->TryGetStringField(TEXT("OutputPath"), OutputPath);
 
 		UExporter* Exporter = FindExporterForAsset(Asset);
 		if (!Exporter)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("Path"), AssetPath}},
 				TEXT("No applicable exporter found"));
 			return;
 		}
@@ -99,16 +99,16 @@ FCapabilityResult FExportAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		const bool bSuccess = (ExportResult != 0);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), AssetPath);
-		Entry->SetStringField(TEXT("assetClass"), Asset->GetClass()->GetName());
-		Entry->SetStringField(TEXT("outputPath"), OutputPath);
-		Entry->SetStringField(TEXT("exporter"), Exporter->GetClass()->GetName());
-		if (!bSuccess) Entry->SetStringField(TEXT("error"), TEXT("Exportfailed"));
+		Entry->SetStringField(TEXT("Path"), AssetPath);
+		Entry->SetStringField(TEXT("AssetClass"), Asset->GetClass()->GetName());
+		Entry->SetStringField(TEXT("OutputPath"), OutputPath);
+		Entry->SetStringField(TEXT("Exporter"), Exporter->GetClass()->GetName());
+		if (!bSuccess) Entry->SetStringField(TEXT("Error"), TEXT("Exportfailed"));
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FExportAssetCapability)
+REGISTER_MCP_CAPABILITY(FNexusExportAssetCapability)
 
 #endif // WITH_EDITOR

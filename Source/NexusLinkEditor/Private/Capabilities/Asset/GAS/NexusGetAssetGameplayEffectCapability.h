@@ -8,10 +8,10 @@
 #include "NexusMultiSectionCapability.h"
 
 /**
- * get_asset_gameplay_effect — 读取 GE Blueprint。
+ * GetAssetGameplayEffect — 读取 GE Blueprint。
  * sections: policy / modifiers / tags / cues。
  */
-class FGetAssetGameplayEffectCapability : public FNexusMultiSectionCapability
+class FNexusGetAssetGameplayEffectCapability : public FNexusMultiSectionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

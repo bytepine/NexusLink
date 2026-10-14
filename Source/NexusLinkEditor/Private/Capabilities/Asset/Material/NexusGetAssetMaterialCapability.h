@@ -10,11 +10,11 @@
 class UMaterialExpression;
 
 /**
- * get_asset 的 Material / MaterialInstanceConstant / MaterialFunction 子能力。
- * 继承 FNexusMultiSectionCapability，sections=["overview","params","graph"]。
- * 默认 section：overview。单目标 assetPath；跨目标用 call_capability.calls[]。
+ * GetAsset 的 Material / MaterialInstanceConstant / MaterialFunction 子能力。
+ * 继承 FNexusMultiSectionCapability，Sections=["overview","Params","graph"]。
+ * 默认 section：overview。单目标 AssetPath；跨目标用 CallCapability.calls[]。
  */
-class FGetAssetMaterialCapability : public FNexusMultiSectionCapability
+class FNexusGetAssetMaterialCapability : public FNexusMultiSectionCapability
 {
 public:
 	/** Material / MaterialFunction 共用的 expression graph 序列化。 */

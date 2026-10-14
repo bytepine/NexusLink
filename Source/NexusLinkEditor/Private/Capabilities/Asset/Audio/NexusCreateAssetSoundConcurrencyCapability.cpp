@@ -9,28 +9,28 @@
 #include "Sound/SoundConcurrency.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetSoundConcurrencyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetSoundConcurrencyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_sound_concurrency");
+	Out.Name = TEXT("CreateAssetSoundConcurrency");
 	Out.Description = TEXT("Create SoundConcurrency asset (max concurrent instances).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundConcurrency package path")))
-		.Prop(TEXT("maxCount"),  FNexusSchema::Int(TEXT("Max concurrent instances (default 16)"), 16, 1))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("SoundConcurrency package path")))
+		.Prop(TEXT("MaxCount"),  FNexusSchema::Int(TEXT("Max concurrent instances (default 16)"), 16, 1))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("concurrency"), TEXT("sound"), TEXT("limit"), TEXT("audio") };
-	Out.RelatedCapabilities = { TEXT("get_asset_sound_concurrency"), TEXT("manage_asset_sound_concurrency") };
+	Out.ExtraSearchKeywords = { TEXT("concurrency"), TEXT("Sound"), TEXT("Limit"), TEXT("audio") };
+	Out.RelatedCapabilities = { TEXT("GetAssetSoundConcurrency"), TEXT("ManageAssetSoundConcurrency") };
 	Out.WhenToUse = TEXT("Create sound concurrency limit asset");
 }
 
-FCapabilityResult FCreateAssetSoundConcurrencyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetSoundConcurrencyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<USoundConcurrency>(AssetPath, RF_Public | RF_Standalone, false);
@@ -45,15 +45,15 @@ FCapabilityResult FCreateAssetSoundConcurrencyCapability::Execute(const TSharedP
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
 			return;
 		}
-		if (Arguments->HasField(TEXT("maxCount")))
-			SC->Concurrency.MaxCount = FMath::Max(1, (int32)A.Num(TEXT("maxCount")));
+		if (Arguments->HasField(TEXT("MaxCount")))
+			SC->Concurrency.MaxCount = FMath::Max(1, (int32)A.Num(TEXT("MaxCount")));
 
 		FNexusAssetUtils::NotifyAndSaveCreated(SC->GetOutermost(), SC, AssetPath);
 
 		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(SC);
-		Entry->SetNumberField(TEXT("maxCount"), SC->Concurrency.MaxCount);
+		Entry->SetNumberField(TEXT("MaxCount"), SC->Concurrency.MaxCount);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetSoundConcurrencyCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetSoundConcurrencyCapability)

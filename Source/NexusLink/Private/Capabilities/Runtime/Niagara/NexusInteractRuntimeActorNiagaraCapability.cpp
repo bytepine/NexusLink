@@ -15,37 +15,37 @@
 #include "GameFramework/Actor.h"
 #include "NexusMcpTool.h"
 
-void FInteractRuntimeActorNiagaraCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusInteractRuntimeActorNiagaraCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("interact_runtime_actor_niagara");
-	Out.Description = TEXT("Activate/deactivate runtime Niagara. action=activate|deactivate.");
+	Out.Name = TEXT("InteractRuntimeActorNiagara");
+	Out.Description = TEXT("Activate/deactivate runtime Niagara. Action=activate|deactivate.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("activate"), TEXT("deactivate") }))
-		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Actor name")))
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Optional NiagaraSystem path (spawn on activate)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("Activate"), TEXT("Deactivate") }))
+		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Actor name")))
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Optional NiagaraSystem path (spawn on activate)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("niagara"), TEXT("vfx"), TEXT("particle") };
-	Out.RelatedCapabilities = { TEXT("get_asset_niagara_system") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.RelatedCapabilities = { TEXT("GetAssetNiagaraSystem") };
+	Out.Prerequisites = { TEXT("PIE") };
 	Out.WhenToUse = TEXT("Toggle Niagara in PIE or spawn by asset path");
 }
 
-FCapabilityResult FInteractRuntimeActorNiagaraCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusInteractRuntimeActorNiagaraCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString Action = A.Str(TEXT("action"));
+		const FString Action = A.Str(TEXT("Action"));
 		FString ActorName, AssetPath;
-		ActorName = FNexusArgs(Arguments).Str(TEXT("actorName"), ActorName);
-		AssetPath = FNexusArgs(Arguments).Str(TEXT("assetPath"), AssetPath);
+		ActorName = FNexusArgs(Arguments).Str(TEXT("ActorName"), ActorName);
+		AssetPath = FNexusArgs(Arguments).Str(TEXT("AssetPath"), AssetPath);
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("action"), Action);
+		Entry->SetStringField(TEXT("Action"), Action);
 
 		AActor* Actor = nullptr;
 		if (!ActorName.IsEmpty())
@@ -53,20 +53,20 @@ FCapabilityResult FInteractRuntimeActorNiagaraCapability::Execute(const TSharedP
 			Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
 			if (!Actor)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
 		}
 
-		if (Action.Equals(TEXT("activate"), ESearchCase::IgnoreCase))
+		if (Action.Equals(TEXT("Activate"), ESearchCase::IgnoreCase))
 		{
 			if (!AssetPath.IsEmpty())
 			{
 				UNiagaraSystem* Sys = LoadObject<UNiagaraSystem>(nullptr, *AssetPath);
 				if (!Sys)
 				{
-					Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("NiagaraSystem not found: %s"), *AssetPath));
+					Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("NiagaraSystem not found: %s"), *AssetPath));
 					OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 					return;
 				}
@@ -76,11 +76,11 @@ FCapabilityResult FInteractRuntimeActorNiagaraCapability::Execute(const TSharedP
 					: UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, Sys, FVector::ZeroVector);
 				if (!Comp)
 				{
-					Entry->SetStringField(TEXT("error"), TEXT("SpawnSystem failed"));
+					Entry->SetStringField(TEXT("Error"), TEXT("SpawnSystem failed"));
 				}
 				else
 				{
-					Entry->SetBoolField(TEXT("activated"), true);
+					Entry->SetBoolField(TEXT("bActivated"), true);
 				}
 			}
 			else if (Actor)
@@ -91,19 +91,19 @@ FCapabilityResult FInteractRuntimeActorNiagaraCapability::Execute(const TSharedP
 				{
 					if (C) C->Activate(true);
 				}
-				Entry->SetNumberField(TEXT("componentCount"), Comps.Num());
-				Entry->SetBoolField(TEXT("activated"), true);
+				Entry->SetNumberField(TEXT("ComponentCount"), Comps.Num());
+				Entry->SetBoolField(TEXT("bActivated"), true);
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("activate requires actorName or assetPath"));
+				Entry->SetStringField(TEXT("Error"), TEXT("activate requires ActorName or AssetPath"));
 			}
 		}
-		else if (Action.Equals(TEXT("deactivate"), ESearchCase::IgnoreCase))
+		else if (Action.Equals(TEXT("Deactivate"), ESearchCase::IgnoreCase))
 		{
 			if (!Actor)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("deactivate requires actorName"));
+				Entry->SetStringField(TEXT("Error"), TEXT("deactivate requires ActorName"));
 			}
 			else
 			{
@@ -113,17 +113,17 @@ FCapabilityResult FInteractRuntimeActorNiagaraCapability::Execute(const TSharedP
 				{
 					if (C) C->Deactivate();
 				}
-				Entry->SetBoolField(TEXT("deactivated"), true);
+				Entry->SetBoolField(TEXT("bDeactivated"), true);
 			}
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("Only supports activate/deactivate"));
+			Entry->SetStringField(TEXT("Error"), TEXT("Only supports activate/deactivate"));
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FInteractRuntimeActorNiagaraCapability)
+REGISTER_MCP_CAPABILITY(FNexusInteractRuntimeActorNiagaraCapability)
 
 #endif

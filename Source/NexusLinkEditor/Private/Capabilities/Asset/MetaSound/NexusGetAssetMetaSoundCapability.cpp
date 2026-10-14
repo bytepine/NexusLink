@@ -20,27 +20,27 @@
 #include "Metasound.h"
 #endif
 
-void FGetAssetMetaSoundCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetMetaSoundCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name        = TEXT("get_asset_meta_sound");
+	Out.Name        = TEXT("GetAssetMetaSound");
 	Out.SearchAssetTypes = {TEXT("MetaSoundSource"), TEXT("MetaSoundPatch")};
-	Out.Description = TEXT("Read MetaSound Source/Patch: inputs/outputs/node summary (Patch >=5.1). Use manage_asset_meta_sound for writes.");
+	Out.Description = TEXT("Read MetaSound Source/Patch: inputs/outputs/node summary (Patch >=5.1). Use ManageAssetMetaSound for writes.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MetaSound Source or Patch asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("MetaSound Source or Patch asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("metasound"), TEXT("audio"), TEXT("sound"), TEXT("frontend"), TEXT("document"), TEXT("patch") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_meta_sound"), TEXT("create_asset_meta_sound"), TEXT("create_asset_meta_sound_patch"), TEXT("search_asset") };
-	Out.WhenToUse = TEXT("Read MetaSound Source/Patch inputs/outputs/nodes; use manage_asset_meta_sound for writes");
+	Out.ExtraSearchKeywords = { TEXT("metasound"), TEXT("audio"), TEXT("Sound"), TEXT("frontend"), TEXT("document"), TEXT("patch") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetMetaSound"), TEXT("CreateAssetMetaSound"), TEXT("CreateAssetMetaSoundPatch"), TEXT("SearchAsset") };
+	Out.WhenToUse = TEXT("Read MetaSound Source/Patch inputs/outputs/nodes; use ManageAssetMetaSound for writes");
 }
 
-FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		// 优先尝试 MetaSoundSource，若失败再尝试 MetaSoundPatch（≥5.1）
 		UObject* SoundAsset = nullptr;
@@ -57,15 +57,15 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 		if (!SoundAsset)
 		{
 			TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
-			ErrObj->SetStringField(TEXT("path"), AssetPath);
-			ErrObj->SetStringField(TEXT("error"), TEXT("MetaSound Source / Patch not found"));
+			ErrObj->SetStringField(TEXT("Path"), AssetPath);
+			ErrObj->SetStringField(TEXT("Error"), TEXT("MetaSound Source / Patch not found"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(ErrObj));
 			return;
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), SoundAsset->GetPathName());
-		Entry->SetStringField(TEXT("assetType"), ActualType);
+		Entry->SetStringField(TEXT("Path"), SoundAsset->GetPathName());
+		Entry->SetStringField(TEXT("AssetType"), ActualType);
 		Entry->SetStringField(TEXT("name"),      SoundAsset->GetName());
 
 #if NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT
@@ -91,10 +91,10 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 			{
 				TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 				Obj->SetStringField(TEXT("name"),     Input.Name.ToString());
-				Obj->SetStringField(TEXT("typeName"), Input.TypeName.ToString());
+				Obj->SetStringField(TEXT("TypeName"), Input.TypeName.ToString());
 				InputsArr.Add(MakeShared<FJsonValueObject>(Obj));
 			}
-			Entry->SetArrayField(TEXT("inputs"), InputsArr);
+			Entry->SetArrayField(TEXT("Inputs"), InputsArr);
 
 			// outputs
 			TArray<TSharedPtr<FJsonValue>> OutputsArr;
@@ -102,10 +102,10 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 			{
 				TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 				Obj->SetStringField(TEXT("name"),     Output.Name.ToString());
-				Obj->SetStringField(TEXT("typeName"), Output.TypeName.ToString());
+				Obj->SetStringField(TEXT("TypeName"), Output.TypeName.ToString());
 				OutputsArr.Add(MakeShared<FJsonValueObject>(Obj));
 			}
-			Entry->SetArrayField(TEXT("outputs"), OutputsArr);
+			Entry->SetArrayField(TEXT("Outputs"), OutputsArr);
 
 		// 图节点与连线：遍历所有分页图
 		TArray<TSharedPtr<FJsonValue>> NodesArr;
@@ -115,24 +115,24 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 			for (const FMetasoundFrontendNode& Node : Graph.Nodes)
 			{
 				TSharedPtr<FJsonObject> NObj = MakeShared<FJsonObject>();
-				NObj->SetStringField(TEXT("id"),   Node.GetID().ToString());
+				NObj->SetStringField(TEXT("Id"),   Node.GetID().ToString());
 				NObj->SetStringField(TEXT("name"), Node.Name.ToString());
-				// 输入/输出引脚名（用于 add_edge 的 fromPin/toPin）
+				// 输入/输出引脚名（用于 AddEdge 的 FromPin/ToPin）
 				TArray<TSharedPtr<FJsonValue>> InPins, OutPins;
 				for (const FMetasoundFrontendVertex& V : Node.Interface.Inputs)
 					InPins.Add(MakeShared<FJsonValueString>(V.Name.ToString()));
 				for (const FMetasoundFrontendVertex& V : Node.Interface.Outputs)
 					OutPins.Add(MakeShared<FJsonValueString>(V.Name.ToString()));
-				NObj->SetArrayField(TEXT("inputPins"),  InPins);
-				NObj->SetArrayField(TEXT("outputPins"), OutPins);
+				NObj->SetArrayField(TEXT("InputPins"),  InPins);
+				NObj->SetArrayField(TEXT("OutputPins"), OutPins);
 				NodesArr.Add(MakeShared<FJsonValueObject>(NObj));
 			}
 			// 边（连线）
 			for (const FMetasoundFrontendEdge& Edge : Graph.Edges)
 			{
 				TSharedPtr<FJsonObject> EObj = MakeShared<FJsonObject>();
-				EObj->SetStringField(TEXT("fromNodeID"), Edge.FromNodeID.ToString());
-				EObj->SetStringField(TEXT("toNodeID"), Edge.ToNodeID.ToString());
+				EObj->SetStringField(TEXT("FromNodeId"), Edge.FromNodeID.ToString());
+				EObj->SetStringField(TEXT("ToNodeId"), Edge.ToNodeID.ToString());
 				FName FromPin, ToPin;
 				for (const FMetasoundFrontendNode& N : Graph.Nodes)
 				{
@@ -151,8 +151,8 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 						}
 					}
 				}
-				EObj->SetStringField(TEXT("fromPin"), FromPin.ToString());
-				EObj->SetStringField(TEXT("toPin"), ToPin.ToString());
+				EObj->SetStringField(TEXT("FromPin"), FromPin.ToString());
+				EObj->SetStringField(TEXT("ToPin"), ToPin.ToString());
 				EdgesArr.Add(MakeShared<FJsonValueObject>(EObj));
 			}
 		};
@@ -162,8 +162,8 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 		// 5.3/5.4 无分页图，RootGraph 直接持有唯一 Graph
 		CollectGraph(Doc.RootGraph.Graph);
 #endif
-		Entry->SetArrayField(TEXT("nodes"), NodesArr);
-		Entry->SetArrayField(TEXT("edges"), EdgesArr);
+		Entry->SetArrayField(TEXT("Nodes"), NodesArr);
+		Entry->SetArrayField(TEXT("Edges"), EdgesArr);
 
 			// 接口版本
 			TArray<TSharedPtr<FJsonValue>> IfaceVersions;
@@ -171,7 +171,7 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 			{
 				IfaceVersions.Add(MakeShared<FJsonValueString>(Ver.Name.ToString()));
 			}
-			Entry->SetArrayField(TEXT("interfaces"), IfaceVersions);
+			Entry->SetArrayField(TEXT("Interfaces"), IfaceVersions);
 		}
 #endif // NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT
 
@@ -179,6 +179,6 @@ FCapabilityResult FGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJsonOb
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetMetaSoundCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetMetaSoundCapability)
 
 #endif // WITH_METASOUND

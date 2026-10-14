@@ -10,27 +10,27 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetBlackboardCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetBlackboardCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_blackboard");
-	Out.Description = TEXT("Create keyless BB. Link via manage BT set_blackboard.");
+	Out.Name = TEXT("CreateAssetBlackboard");
+	Out.Description = TEXT("Create keyless BB. Link via manage BT SetBlackboard.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("BlackboardData package path, e.g. '/Game/AI/BB_Enemy'")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("BlackboardData package path, e.g. '/Game/AI/BB_Enemy'")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
-	Out.ExtraSearchKeywords = { TEXT("bb"), TEXT("new"), TEXT("ai"), TEXT("blackboard"), TEXT("keys") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_blackboard"), TEXT("get_asset_blackboard"), TEXT("create_asset_behavior_tree") };
-	Out.WhenToUse = TEXT("Create empty BB; add keys via manage_asset_blackboard");
+	Out.ExtraSearchKeywords = { TEXT("bb"), TEXT("new"), TEXT("ai"), TEXT("Blackboard"), TEXT("Keys") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetBlackboard"), TEXT("GetAssetBlackboard"), TEXT("CreateAssetBehaviorTree") };
+	Out.WhenToUse = TEXT("Create empty BB; add keys via ManageAssetBlackboard");
 }
 
-FCapabilityResult FCreateAssetBlackboardCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetBlackboardCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<UBlackboardData>(AssetPath);
 		if (!Created.Ok())
@@ -43,4 +43,4 @@ FCapabilityResult FCreateAssetBlackboardCapability::Execute(const TSharedPtr<FJs
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetBlackboardCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetBlackboardCapability)

@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_curve：创建 CurveFloat / CurveVector / CurveLinearColor / CurveTable 资产。 */
-class FCreateAssetCurveCapability : public FNexusCapability
+/** CreateAssetCurve：创建 CurveFloat / CurveVector / CurveLinearColor / CurveTable 资产。 */
+class FNexusCreateAssetCurveCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

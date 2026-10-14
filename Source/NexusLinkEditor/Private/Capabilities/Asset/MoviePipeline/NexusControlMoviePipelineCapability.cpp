@@ -24,25 +24,25 @@ using FNexusMoviePipelineConfig = UMoviePipelineMasterConfig;
 #include "Editor.h"
 #include "NexusMcpTool.h"
 
-void FControlMoviePipelineCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusControlMoviePipelineCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("control_movie_pipeline");
+	Out.Name = TEXT("ControlMoviePipeline");
 	Out.Description = TEXT("Control MRQ queue. enqueue/status/cancel. Does not wait for render. UE5+.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Queue operation"),
-			{ TEXT("enqueue"), TEXT("status"), TEXT("cancel") }))
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("MoviePipeline config path (enqueue)")))
-		.Prop(TEXT("sequencePath"), FNexusSchema::Str(TEXT("LevelSequence path (enqueue)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Queue operation"),
+			{ TEXT("Enqueue"), TEXT("Status"), TEXT("Cancel") }))
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("MoviePipeline config path (enqueue)")))
+		.Prop(TEXT("SequencePath"), FNexusSchema::Str(TEXT("LevelSequence path (enqueue)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("mrq"), TEXT("render"), TEXT("queue"), TEXT("enqueue") };
+	Out.ExtraSearchKeywords = { TEXT("mrq"), TEXT("render"), TEXT("queue"), TEXT("Enqueue") };
 	Out.RelatedCapabilities = {
-		TEXT("get_asset_movie_pipeline_config"),
-		TEXT("manage_asset_movie_pipeline_config"),
-		TEXT("create_asset_movie_pipeline_config")
+		TEXT("GetAssetMoviePipelineConfig"),
+		TEXT("ManageAssetMoviePipelineConfig"),
+		TEXT("CreateAssetMoviePipelineConfig")
 	};
-	Out.WhenToUse = TEXT("Enqueue MRQ from config+sequence; disk settings via manage_asset_movie_pipeline_config");
+	Out.WhenToUse = TEXT("Enqueue MRQ from config+sequence; disk settings via ManageAssetMoviePipelineConfig");
 }
 
 static UMoviePipelineQueueSubsystem* GetMovieQueueSubsystem(FString& OutError)
@@ -60,61 +60,61 @@ static UMoviePipelineQueueSubsystem* GetMovieQueueSubsystem(FString& OutError)
 	return Sub;
 }
 
-FCapabilityResult FControlMoviePipelineCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusControlMoviePipelineCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString Action = A.Str(TEXT("action"));
+		const FString Action = A.Str(TEXT("Action"));
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
 		FString SubErr;
 		UMoviePipelineQueueSubsystem* Sub = GetMovieQueueSubsystem(SubErr);
 		if (!Sub)
 		{
-			OutEntry->SetStringField(TEXT("error"), SubErr);
+			OutEntry->SetStringField(TEXT("Error"), SubErr);
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
 
-		if (Action.Equals(TEXT("status"), ESearchCase::IgnoreCase))
+		if (Action.Equals(TEXT("Status"), ESearchCase::IgnoreCase))
 		{
-			OutEntry->SetStringField(TEXT("action"), TEXT("status"));
-			OutEntry->SetBoolField(TEXT("isRendering"), Sub->IsRendering());
+			OutEntry->SetStringField(TEXT("Action"), TEXT("Status"));
+			OutEntry->SetBoolField(TEXT("bIsRendering"), Sub->IsRendering());
 			UMoviePipelineQueue* Queue = Sub->GetQueue();
 			const int32 JobCount = Queue ? Queue->GetJobs().Num() : 0;
-			OutEntry->SetNumberField(TEXT("jobCount"), JobCount);
+			OutEntry->SetNumberField(TEXT("JobCount"), JobCount);
 			if (UMoviePipelineExecutorBase* Ex = Sub->GetActiveExecutor())
 			{
-				OutEntry->SetStringField(TEXT("executor"), Ex->GetClass()->GetName());
+				OutEntry->SetStringField(TEXT("Executor"), Ex->GetClass()->GetName());
 			}
 		}
-		else if (Action.Equals(TEXT("cancel"), ESearchCase::IgnoreCase))
+		else if (Action.Equals(TEXT("Cancel"), ESearchCase::IgnoreCase))
 		{
 			UMoviePipelineExecutorBase* Ex = Sub->GetActiveExecutor();
 			if (!Ex || !Sub->IsRendering())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("No active MoviePipeline render"));
+				OutEntry->SetStringField(TEXT("Error"), TEXT("No active MoviePipeline render"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
 			Ex->CancelAllJobs();
-			OutEntry->SetStringField(TEXT("action"), TEXT("cancel"));
-			OutEntry->SetStringField(TEXT("note"), TEXT("Cancel requested."));
+			OutEntry->SetStringField(TEXT("Action"), TEXT("Cancel"));
+			OutEntry->SetStringField(TEXT("Note"), TEXT("Cancel requested."));
 		}
-		else if (Action.Equals(TEXT("enqueue"), ESearchCase::IgnoreCase))
+		else if (Action.Equals(TEXT("Enqueue"), ESearchCase::IgnoreCase))
 		{
-			const FString AssetPath = A.Str(TEXT("assetPath"));
-			const FString SequencePath = A.Str(TEXT("sequencePath"));
+			const FString AssetPath = A.Str(TEXT("AssetPath"));
+			const FString SequencePath = A.Str(TEXT("SequencePath"));
 			if (AssetPath.IsEmpty() || SequencePath.IsEmpty())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("enqueue requires assetPath and sequencePath"));
+				OutEntry->SetStringField(TEXT("Error"), TEXT("enqueue requires AssetPath and SequencePath"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
 			if (Sub->IsRendering())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("MoviePipeline already rendering; cancel first"));
+				OutEntry->SetStringField(TEXT("Error"), TEXT("MoviePipeline already rendering; cancel first"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -122,7 +122,7 @@ FCapabilityResult FControlMoviePipelineCapability::Execute(const TSharedPtr<FJso
 			FNexusMoviePipelineConfig* Cfg = FNexusAssetUtils::LoadAssetWithFallback<FNexusMoviePipelineConfig>(AssetPath);
 			if (!Cfg)
 			{
-				OutEntry->SetStringField(TEXT("error"),
+				OutEntry->SetStringField(TEXT("Error"),
 					FString::Printf(TEXT("MoviePipeline config not found: %s"), *AssetPath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
@@ -130,7 +130,7 @@ FCapabilityResult FControlMoviePipelineCapability::Execute(const TSharedPtr<FJso
 			ULevelSequence* Sequence = FNexusAssetUtils::LoadAssetWithFallback<ULevelSequence>(SequencePath);
 			if (!Sequence)
 			{
-				OutEntry->SetStringField(TEXT("error"),
+				OutEntry->SetStringField(TEXT("Error"),
 					FString::Printf(TEXT("LevelSequence not found: %s"), *SequencePath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
@@ -139,7 +139,7 @@ FCapabilityResult FControlMoviePipelineCapability::Execute(const TSharedPtr<FJso
 			UMoviePipelineQueue* Queue = Sub->GetQueue();
 			if (!Queue)
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("MoviePipeline queue unavailable"));
+				OutEntry->SetStringField(TEXT("Error"), TEXT("MoviePipeline queue unavailable"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -147,7 +147,7 @@ FCapabilityResult FControlMoviePipelineCapability::Execute(const TSharedPtr<FJso
 			UMoviePipelineExecutorJob* Job = Queue->AllocateNewJob(UMoviePipelineExecutorJob::StaticClass());
 			if (!Job)
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("Failed to allocate MoviePipeline job"));
+				OutEntry->SetStringField(TEXT("Error"), TEXT("Failed to allocate MoviePipeline job"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -161,13 +161,13 @@ FCapabilityResult FControlMoviePipelineCapability::Execute(const TSharedPtr<FJso
 			}
 
 			Sub->RenderQueueWithExecutor(UMoviePipelinePIEExecutor::StaticClass());
-			OutEntry->SetStringField(TEXT("action"), TEXT("enqueue"));
-			OutEntry->SetStringField(TEXT("jobId"), JobId);
-			OutEntry->SetStringField(TEXT("note"), TEXT("Queued; render is asynchronous."));
+			OutEntry->SetStringField(TEXT("Action"), TEXT("Enqueue"));
+			OutEntry->SetStringField(TEXT("JobId"), JobId);
+			OutEntry->SetStringField(TEXT("Note"), TEXT("Queued; render is asynchronous."));
 		}
 		else
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(
+			OutEntry->SetStringField(TEXT("Error"), FString::Printf(
 				TEXT("Unknown action: %s; supported: enqueue / status / cancel"), *Action));
 		}
 
@@ -175,5 +175,5 @@ FCapabilityResult FControlMoviePipelineCapability::Execute(const TSharedPtr<FJso
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FControlMoviePipelineCapability)
+REGISTER_MCP_CAPABILITY(FNexusControlMoviePipelineCapability)
 #endif

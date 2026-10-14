@@ -7,29 +7,29 @@
 #include "Sound/SoundAttenuation.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetSoundAttenuationCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetSoundAttenuationCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_sound_attenuation");
+	Out.Name = TEXT("ManageAssetSoundAttenuation");
 	Out.SearchAssetTypes = {TEXT("SoundAttenuation")};
-	Out.Description = TEXT("Set SoundAttenuation: innerRadius/falloffDistance/shapeValue/bAttenuate/bSpatialize.");
+	Out.Description = TEXT("Set SoundAttenuation: InnerRadius/FalloffDistance/ShapeValue/bAttenuate/bSpatialize.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),          FNexusSchema::Enum(TEXT("Action"), { TEXT("set") }))
-		.Prop(TEXT("innerRadius"),     FNexusSchema::Num(TEXT("Inner radius (sphere = Sphere Radius, cm)")))
-		.Prop(TEXT("falloffDistance"), FNexusSchema::Num(TEXT("Falloff distance (cm)")))
-		.Prop(TEXT("shapeValue"),      FNexusSchema::Int(TEXT("Shape enum: 0=Sphere,1=Capsule,2=Box,3=Cone")))
+		.Prop(TEXT("Action"),          FNexusSchema::Enum(TEXT("Action"), { TEXT("Set") }))
+		.Prop(TEXT("InnerRadius"),     FNexusSchema::Num(TEXT("Inner radius (sphere = Sphere Radius, cm)")))
+		.Prop(TEXT("FalloffDistance"), FNexusSchema::Num(TEXT("Falloff distance (cm)")))
+		.Prop(TEXT("ShapeValue"),      FNexusSchema::Int(TEXT("Shape enum: 0=Sphere,1=Capsule,2=Box,3=Cone")))
 		.Prop(TEXT("bAttenuate"),      FNexusSchema::Bool(TEXT("Enable distance attenuation")))
 		.Prop(TEXT("bSpatialize"),     FNexusSchema::Bool(TEXT("Enable spatialization")))
-		.Prop(TEXT("dBAtMax"),         FNexusSchema::Num(TEXT("Max attenuation (dB, Natural Sound)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("DBAtMax"),         FNexusSchema::Num(TEXT("Max attenuation (dB, Natural Sound)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundAttenuation asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("SoundAttenuation asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("attenuation"), TEXT("sound"), TEXT("radius"), TEXT("distance"), TEXT("shape") };
-	Out.RelatedCapabilities = { TEXT("get_asset_sound_attenuation"), TEXT("create_asset_sound_attenuation") };
+	Out.ExtraSearchKeywords = { TEXT("attenuation"), TEXT("Sound"), TEXT("Radius"), TEXT("distance"), TEXT("Shape") };
+	Out.RelatedCapabilities = { TEXT("GetAssetSoundAttenuation"), TEXT("CreateAssetSoundAttenuation") };
 }
 
 struct FAttenActionState
@@ -46,32 +46,32 @@ static FAttenActionState* AttenState(FNexusActionContext& Ctx)
 static void HandleAtten_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	USoundAttenuation* SA = AttenState(Ctx)->SA;
-	if (Op->HasField(TEXT("innerRadius")))
-		SA->Attenuation.AttenuationShapeExtents.X = static_cast<float>(Op->GetNumberField(TEXT("innerRadius")));
-	if (Op->HasField(TEXT("falloffDistance")))
-		SA->Attenuation.FalloffDistance = static_cast<float>(Op->GetNumberField(TEXT("falloffDistance")));
-	if (Op->HasField(TEXT("shapeValue")))
-		SA->Attenuation.AttenuationShape = EAttenuationShape::Type(static_cast<int32>(Op->GetNumberField(TEXT("shapeValue"))));
+	if (Op->HasField(TEXT("InnerRadius")))
+		SA->Attenuation.AttenuationShapeExtents.X = static_cast<float>(Op->GetNumberField(TEXT("InnerRadius")));
+	if (Op->HasField(TEXT("FalloffDistance")))
+		SA->Attenuation.FalloffDistance = static_cast<float>(Op->GetNumberField(TEXT("FalloffDistance")));
+	if (Op->HasField(TEXT("ShapeValue")))
+		SA->Attenuation.AttenuationShape = EAttenuationShape::Type(static_cast<int32>(Op->GetNumberField(TEXT("ShapeValue"))));
 	if (Op->HasField(TEXT("bAttenuate")))
 		SA->Attenuation.bAttenuate = Op->GetBoolField(TEXT("bAttenuate")) ? 1 : 0;
 	if (Op->HasField(TEXT("bSpatialize")))
 		SA->Attenuation.bSpatialize = Op->GetBoolField(TEXT("bSpatialize")) ? 1 : 0;
-	if (Op->HasField(TEXT("dBAtMax")))
-		SA->Attenuation.dBAttenuationAtMax = static_cast<float>(Op->GetNumberField(TEXT("dBAtMax")));
+	if (Op->HasField(TEXT("DBAtMax")))
+		SA->Attenuation.dBAttenuationAtMax = static_cast<float>(Op->GetNumberField(TEXT("DBAtMax")));
 	AttenState(Ctx)->bDirty = true;
 	Ctx.Entry->SetStringField(TEXT("name"),            SA->GetName());
-	Ctx.Entry->SetNumberField(TEXT("innerRadius"),     SA->Attenuation.AttenuationShapeExtents.X);
-	Ctx.Entry->SetNumberField(TEXT("falloffDistance"), SA->Attenuation.FalloffDistance);
+	Ctx.Entry->SetNumberField(TEXT("InnerRadius"),     SA->Attenuation.AttenuationShapeExtents.X);
+	Ctx.Entry->SetNumberField(TEXT("FalloffDistance"), SA->Attenuation.FalloffDistance);
 }
 
-bool FManageAssetSoundAttenuationCapability::PrepareTarget(
+bool FNexusManageAssetSoundAttenuationCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	USoundAttenuation* SA = LoadObject<USoundAttenuation>(nullptr, *AssetPath);
 	if (!SA)
 	{
@@ -84,7 +84,7 @@ bool FManageAssetSoundAttenuationCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetSoundAttenuationCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetSoundAttenuationCapability::FinalizeTarget(void* Target) const
 {
 	FAttenActionState* State = static_cast<FAttenActionState*>(Target);
 	if (!State) return;
@@ -92,9 +92,9 @@ void FManageAssetSoundAttenuationCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetSoundAttenuationCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetSoundAttenuationCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set"), &HandleAtten_Set);
+	OutHandlers.Add(TEXT("Set"), &HandleAtten_Set);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetSoundAttenuationCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetSoundAttenuationCapability)

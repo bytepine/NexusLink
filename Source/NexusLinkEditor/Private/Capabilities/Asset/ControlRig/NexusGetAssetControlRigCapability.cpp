@@ -32,43 +32,43 @@ static FString RigElementName(const FRigBaseElement* Elem)
 #endif
 }
 
-void FGetAssetControlRigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetControlRigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_control_rig");
+	Out.Name = TEXT("GetAssetControlRig");
 	Out.SearchAssetTypes = {TEXT("ControlRig"), TEXT("ControlRigBlueprint")};
-	Out.Description = TEXT("Read ControlRig BP hierarchy (bones/controls/Null) and RigVM graph. Use manage_asset_control_rig for writes.");
+	Out.Description = TEXT("Read ControlRig BP hierarchy (bones/controls/Null) and RigVM graph. Use ManageAssetControlRig for writes.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("ControlRig Blueprint asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("ControlRig Blueprint asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("controlrig"), TEXT("rig"), TEXT("bone"), TEXT("control"), TEXT("hierarchy"), TEXT("rigvm"), TEXT("node"), TEXT("link"), TEXT("wire") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_control_rig"), TEXT("create_asset_control_rig"), TEXT("get_asset_skeleton") };
-	Out.WhenToUse = TEXT("Read ControlRig hierarchy and RigVM nodes/wires; use manage_asset_control_rig for writes");
+	Out.ExtraSearchKeywords = { TEXT("controlrig"), TEXT("rig"), TEXT("Bone"), TEXT("Control"), TEXT("Hierarchy"), TEXT("rigvm"), TEXT("Node"), TEXT("link"), TEXT("wire") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetControlRig"), TEXT("CreateAssetControlRig"), TEXT("GetAssetSkeleton") };
+	Out.WhenToUse = TEXT("Read ControlRig hierarchy and RigVM nodes/wires; use ManageAssetControlRig for writes");
 }
 
-FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		if (!FNexusCapability::RequireString(Arguments, TEXT("AssetPath"), AssetPath, OutEntries, {})) return;
 
 		UControlRigBlueprint* CRBp = FNexusAssetUtils::LoadAssetWithFallback<UControlRigBlueprint>(AssetPath);
 		if (!CRBp)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("Path"), AssetPath}},
 				FString::Printf(TEXT("ControlRig Blueprint not found: %s"), *AssetPath));
 			return;
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), AssetPath);
+		Entry->SetStringField(TEXT("Path"), AssetPath);
 		Entry->SetStringField(TEXT("name"),      CRBp->GetName());
-		Entry->SetStringField(TEXT("assetType"), TEXT("ControlRigBlueprint"));
+		Entry->SetStringField(TEXT("AssetType"), TEXT("ControlRigBlueprint"));
 
 		if (USkeletalMesh* PreviewMesh = CRBp->GetPreviewMesh())
-			Entry->SetStringField(TEXT("previewMesh"), PreviewMesh->GetPathName());
+			Entry->SetStringField(TEXT("PreviewMesh"), PreviewMesh->GetPathName());
 
 #if NX_UE_HAS_CONTROL_RIG_BLUEPRINT_GET_HIERARCHY
 		const URigHierarchy* Hier = CRBp->GetHierarchy();
@@ -86,7 +86,7 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 			BObj->SetStringField(TEXT("name"), RigElementName(Bone));
 			BonesArr.Add(MakeShared<FJsonValueObject>(BObj));
 		}
-		Entry->SetArrayField(TEXT("bones"), BonesArr);
+		Entry->SetArrayField(TEXT("Bones"), BonesArr);
 
 		// 控件
 		TArray<TSharedPtr<FJsonValue>> CtrlsArr;
@@ -95,10 +95,10 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 			if (!Ctrl) continue;
 			TSharedPtr<FJsonObject> CObj = MakeShared<FJsonObject>();
 			CObj->SetStringField(TEXT("name"), RigElementName(Ctrl));
-			CObj->SetNumberField(TEXT("controlType"), static_cast<int32>(Ctrl->Settings.ControlType));
+			CObj->SetNumberField(TEXT("ControlType"), static_cast<int32>(Ctrl->Settings.ControlType));
 			CtrlsArr.Add(MakeShared<FJsonValueObject>(CObj));
 		}
-		Entry->SetArrayField(TEXT("controls"), CtrlsArr);
+		Entry->SetArrayField(TEXT("Controls"), CtrlsArr);
 
 		// Null
 		TArray<TSharedPtr<FJsonValue>> NullsArr;
@@ -109,9 +109,9 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 			NObj->SetStringField(TEXT("name"), RigElementName(Null));
 			NullsArr.Add(MakeShared<FJsonValueObject>(NObj));
 		}
-		Entry->SetArrayField(TEXT("nulls"), NullsArr);
+		Entry->SetArrayField(TEXT("Nulls"), NullsArr);
 
-		Entry->SetNumberField(TEXT("totalElements"), Hier->Num());
+		Entry->SetNumberField(TEXT("TotalElements"), Hier->Num());
 
 		// RigVM 图：节点（含引脚）与连线概览
 		URigVMGraph* VmModel = CRBp->GetDefaultModel();
@@ -122,8 +122,8 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 			{
 				if (!Node) continue;
 				TSharedPtr<FJsonObject> NObj = MakeShared<FJsonObject>();
-				NObj->SetStringField(TEXT("path"),  Node->GetNodePath());
-				NObj->SetStringField(TEXT("title"), Node->GetNodeTitle());
+				NObj->SetStringField(TEXT("Path"),  Node->GetNodePath());
+				NObj->SetStringField(TEXT("Title"), Node->GetNodeTitle());
 
 				TArray<TSharedPtr<FJsonValue>> InPins, OutPins;
 				for (URigVMPin* Pin : Node->GetPins())
@@ -135,11 +135,11 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 					else
 						InPins.Add(MakeShared<FJsonValueString>(Pin->GetPinPath()));
 				}
-				NObj->SetArrayField(TEXT("inputPins"),  InPins);
-				NObj->SetArrayField(TEXT("outputPins"), OutPins);
+				NObj->SetArrayField(TEXT("InputPins"),  InPins);
+				NObj->SetArrayField(TEXT("OutputPins"), OutPins);
 				VmNodesArr.Add(MakeShared<FJsonValueObject>(NObj));
 			}
-			Entry->SetArrayField(TEXT("rigVmNodes"), VmNodesArr);
+			Entry->SetArrayField(TEXT("RigVmNodes"), VmNodesArr);
 
 			TArray<TSharedPtr<FJsonValue>> LinksArr;
 			for (URigVMLink* Link : VmModel->GetLinks())
@@ -149,17 +149,17 @@ FCapabilityResult FGetAssetControlRigCapability::Execute(const TSharedPtr<FJsonO
 				URigVMPin* DstPin = Link->GetTargetPin();
 				if (!SrcPin || !DstPin) continue;
 				TSharedPtr<FJsonObject> LObj = MakeShared<FJsonObject>();
-				LObj->SetStringField(TEXT("from"), SrcPin->GetPinPath());
-				LObj->SetStringField(TEXT("to"),   DstPin->GetPinPath());
+				LObj->SetStringField(TEXT("From"), SrcPin->GetPinPath());
+				LObj->SetStringField(TEXT("To"),   DstPin->GetPinPath());
 				LinksArr.Add(MakeShared<FJsonValueObject>(LObj));
 			}
-			Entry->SetArrayField(TEXT("rigVmLinks"), LinksArr);
+			Entry->SetArrayField(TEXT("RigVmLinks"), LinksArr);
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetControlRigCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetControlRigCapability)
 
 #endif // WITH_CONTROL_RIG

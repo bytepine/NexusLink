@@ -61,28 +61,28 @@ static TArray<TSharedPtr<FJsonValue>> BuildClassNameArray(const TArray<TObjectPt
 
 // ── Capability ────────────────────────────────────────────────────────────────
 
-void FGetAssetInputActionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetInputActionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_input_action");
+	Out.Name = TEXT("GetAssetInputAction");
 	Out.SearchAssetTypes = {TEXT("InputAction")};
 	Out.Description = TEXT("Read InputAction config: ValueType/Trigger/Modifier/flags. UE5+.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputAction asset path")))
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("InputAction asset path")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("action"), TEXT("ia"), TEXT("enhanced"), TEXT("trigger"), TEXT("modifier"), TEXT("axis") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_input_action"), TEXT("create_asset_input_action"), TEXT("get_asset_input_mapping_context") };
+	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("Action"), TEXT("ia"), TEXT("enhanced"), TEXT("Trigger"), TEXT("modifier"), TEXT("axis") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetInputAction"), TEXT("CreateAssetInputAction"), TEXT("GetAssetInputMappingContext") };
 	Out.WhenToUse = TEXT("Read InputAction ValueType, Trigger/Modifier class lists, flags");
 }
 
-FCapabilityResult FGetAssetInputActionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetInputActionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		UInputAction* IA = FNexusAssetUtils::LoadAssetWithFallback<UInputAction>(AssetPath);
 		if (!IA)
@@ -91,31 +91,31 @@ FCapabilityResult FGetAssetInputActionCapability::Execute(const TSharedPtr<FJson
 			return;
 		}
 
-		OutEntry->SetStringField(TEXT("assetType"),  TEXT("InputAction"));
+		OutEntry->SetStringField(TEXT("AssetType"),  TEXT("InputAction"));
 		OutEntry->SetStringField(TEXT("name"),       IA->GetName());
-		OutEntry->SetStringField(TEXT("path"),       FNexusAssetUtils::PackagePathOf(IA));
-		OutEntry->SetStringField(TEXT("valueType"),  InputActionValueTypeToStr(IA->ValueType));
-		OutEntry->SetBoolField(TEXT("consumesInput"),    IA->bConsumeInput);
-		OutEntry->SetBoolField(TEXT("reserveAllMappings"), IA->bReserveAllMappings);
+		OutEntry->SetStringField(TEXT("Path"),       FNexusAssetUtils::PackagePathOf(IA));
+		OutEntry->SetStringField(TEXT("ValueType"),  InputActionValueTypeToStr(IA->ValueType));
+		OutEntry->SetBoolField(TEXT("bConsumesInput"),    IA->bConsumeInput);
+		OutEntry->SetBoolField(TEXT("bReserveAllMappings"), IA->bReserveAllMappings);
 
 		// Triggers
-		OutEntry->SetNumberField(TEXT("triggersCount"), IA->Triggers.Num());
+		OutEntry->SetNumberField(TEXT("TriggersCount"), IA->Triggers.Num());
 		if (IA->Triggers.Num() > 0)
 		{
-			OutEntry->SetArrayField(TEXT("triggers"), BuildClassNameArray(IA->Triggers));
+			OutEntry->SetArrayField(TEXT("Triggers"), BuildClassNameArray(IA->Triggers));
 		}
 
 		// Modifiers
-		OutEntry->SetNumberField(TEXT("modifiersCount"), IA->Modifiers.Num());
+		OutEntry->SetNumberField(TEXT("ModifiersCount"), IA->Modifiers.Num());
 		if (IA->Modifiers.Num() > 0)
 		{
-			OutEntry->SetArrayField(TEXT("modifiers"), BuildClassNameArray(IA->Modifiers));
+			OutEntry->SetArrayField(TEXT("Modifiers"), BuildClassNameArray(IA->Modifiers));
 		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetInputActionCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetInputActionCapability)
 
 #endif // WITH_ENHANCED_INPUT

@@ -25,7 +25,7 @@ ZH_JSON = PLUGIN / "scripts/tool_reference_zh.json"
 RE_NAME = re.compile(r'Out\.Name\s*=\s*TEXT\("([^"]+)"\)')
 RE_DESC = re.compile(r'Out\.Description\s*=\s*TEXT\("([^"]+)"\)')
 RE_TOOL_HEAD = re.compile(r"^### `([^`]+)`", re.M)
-META = {"search_capabilities", "call_capability", "submit_feedback"}
+META = {"SearchCapabilities", "CallCapability", "SubmitFeedback"}
 
 CAP_DIR_PREFIXES = (
     "Source/NexusLink/Private/Capabilities",
@@ -98,7 +98,7 @@ def main() -> int:
     section("中文 Description 无对应代码", sorted(zh - code_names - META))
     section("英文/中文 tool-reference 标题不一致", sorted(tool_ref.symmetric_difference(tool_ref_zh)))
 
-    gas = sorted(n for n in code_names if "gameplay" in n or "attribute_set" in n)
+    gas = sorted(n for n in code_names if "gameplay" in n or "AttributeSet" in n)
     section("GAS 相关 Capability（WITH_GAS）", gas, caps)
 
     by_dir: dict[str, list[str]] = {}

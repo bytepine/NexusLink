@@ -30,8 +30,8 @@ static void AppendScalarVectorTextureParamSummaries(UMaterialInstanceConstant* M
 	for (const FMaterialParameterInfo& I : Infos)
 	{
 		TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
-		P->SetStringField(TEXT("paramName"), I.Name.ToString());
-		P->SetStringField(TEXT("paramType"), TEXT("scalar"));
+		P->SetStringField(TEXT("ParamName"), I.Name.ToString());
+		P->SetStringField(TEXT("ParamType"), TEXT("Scalar"));
 		OutInheritedParams.Add(MakeShared<FJsonValueObject>(P));
 	}
 	Infos.Reset();
@@ -40,8 +40,8 @@ static void AppendScalarVectorTextureParamSummaries(UMaterialInstanceConstant* M
 	for (const FMaterialParameterInfo& I : Infos)
 	{
 		TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
-		P->SetStringField(TEXT("paramName"), I.Name.ToString());
-		P->SetStringField(TEXT("paramType"), TEXT("vector"));
+		P->SetStringField(TEXT("ParamName"), I.Name.ToString());
+		P->SetStringField(TEXT("ParamType"), TEXT("Vector"));
 		OutInheritedParams.Add(MakeShared<FJsonValueObject>(P));
 	}
 	Infos.Reset();
@@ -50,56 +50,56 @@ static void AppendScalarVectorTextureParamSummaries(UMaterialInstanceConstant* M
 	for (const FMaterialParameterInfo& I : Infos)
 	{
 		TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
-		P->SetStringField(TEXT("paramName"), I.Name.ToString());
-		P->SetStringField(TEXT("paramType"), TEXT("texture"));
+		P->SetStringField(TEXT("ParamName"), I.Name.ToString());
+		P->SetStringField(TEXT("ParamType"), TEXT("Texture"));
 		OutInheritedParams.Add(MakeShared<FJsonValueObject>(P));
 	}
 }
 
-void FCreateAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_material");
-	Out.Description = TEXT("Create Material or MaterialInstance. MI requires parentMaterial.");
+	Out.Name = TEXT("CreateAssetMaterial");
+	Out.Description = TEXT("Create Material or MaterialInstance. MI requires ParentMaterial.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("New asset full package path (e.g. /Game/Mats/M1.M1)")))
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("New asset full package path (e.g. /Game/Mats/M1.M1)")))
 		.Prop(TEXT("type"), FNexusSchema::Enum(TEXT("Asset kind"), { TEXT("Material"), TEXT("MaterialInstance") }, TEXT("Material")))
-		.Prop(TEXT("parentMaterial"), FNexusSchema::Str(TEXT("Parent material path (required for MaterialInstance)")))
-		.Prop(TEXT("materialDomain"), FNexusSchema::Enum(TEXT("Material domain (Material only)"),
+		.Prop(TEXT("ParentMaterial"), FNexusSchema::Str(TEXT("Parent material path (required for MaterialInstance)")))
+		.Prop(TEXT("MaterialDomain"), FNexusSchema::Enum(TEXT("Material domain (Material only)"),
 			{
-				TEXT("surface"), TEXT("deferredDecal"), TEXT("lightFunction"), TEXT("volume"), TEXT("postProcess"), TEXT("ui"),
-				TEXT("runtimeVirtualTexture")
+				TEXT("Surface"), TEXT("DeferredDecal"), TEXT("LightFunction"), TEXT("Volume"), TEXT("PostProcess"), TEXT("UI"),
+				TEXT("RuntimeVirtualTexture")
 			},
-			TEXT("surface")))
-		.Required({ TEXT("assetPath") })
+			TEXT("Surface")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Material };
 	Out.ExtraSearchKeywords = { TEXT("new"), TEXT("instance"), TEXT("mi"), TEXT("shader"), TEXT("render") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_material"), TEXT("get_asset_material") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetMaterial"), TEXT("GetAssetMaterial") };
 	Out.WhenToUse = TEXT("Create empty Material or MaterialInstance");
 }
 
-FCapabilityResult FCreateAssetMaterialCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetMaterialCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("create_asset_material only available in editor builds");
+		OutError = TEXT("CreateAssetMaterial only available in editor builds");
 		return;
 #else
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		if (FPackageName::DoesPackageExist(AssetPath))
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Asset package already exists: %s"), *AssetPath));
+			OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Asset package already exists: %s"), *AssetPath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
 		FText PackageNameError;
 		if (!FPackageName::IsValidLongPackageName(AssetPath, false, &PackageNameError))
 		{
-			OutEntry->SetStringField(TEXT("error"),
+			OutEntry->SetStringField(TEXT("Error"),
 				FString::Printf(TEXT("Invalid package path '%s': %s"), *AssetPath, *PackageNameError.ToString()));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
@@ -110,14 +110,14 @@ FCapabilityResult FCreateAssetMaterialCapability::Execute(const TSharedPtr<FJson
 		{
 			Type = A.Str(TEXT("type"));
 		}
-		else if (Arguments->HasField(TEXT("parentMaterial")))
+		else if (Arguments->HasField(TEXT("ParentMaterial")))
 		{
 			Type = TEXT("MaterialInstance");
 		}
 		const FString TypeLower = Type.TrimStartAndEnd().ToLower();
-		if (TypeLower != TEXT("material") && TypeLower != TEXT("materialinstance"))
+		if (TypeLower != TEXT("Material") && TypeLower != TEXT("materialinstance"))
 		{
-			OutEntry->SetStringField(TEXT("error"),
+			OutEntry->SetStringField(TEXT("Error"),
 				FString::Printf(TEXT("Invalid type '%s' (Material|MaterialInstance)"), *Type));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
@@ -127,25 +127,25 @@ FCapabilityResult FCreateAssetMaterialCapability::Execute(const TSharedPtr<FJson
 		IAssetTools& AssetTools   = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
 		if (TypeLower == TEXT("materialinstance"))
 		{
-			if (!Arguments->HasField(TEXT("parentMaterial")))
+			if (!Arguments->HasField(TEXT("ParentMaterial")))
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("Create MaterialInstance missing required parentMaterial."));
+				OutEntry->SetStringField(TEXT("Error"), TEXT("Create MaterialInstance missing required ParentMaterial."));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
-			const FString ParentPath = A.Str(TEXT("parentMaterial"));
+			const FString ParentPath = A.Str(TEXT("ParentMaterial"));
 			UObject* ParentObj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(ParentPath);
 			if (!ParentObj)
 			{
-				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Parent material not found: %s"), *ParentPath));
+				OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Parent material not found: %s"), *ParentPath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
 			UMaterialInterface* ParentMat = Cast<UMaterialInterface>(ParentObj);
 			if (!ParentMat)
 			{
-				OutEntry->SetStringField(TEXT("error"),
-					FString::Printf(TEXT("parentMaterial is not a MaterialInterface: %s (%s)"), *ParentPath, *ParentObj->GetClass()->GetName()));
+				OutEntry->SetStringField(TEXT("Error"),
+					FString::Printf(TEXT("ParentMaterial is not a MaterialInterface: %s (%s)"), *ParentPath, *ParentObj->GetClass()->GetName()));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -154,34 +154,34 @@ FCapabilityResult FCreateAssetMaterialCapability::Execute(const TSharedPtr<FJson
 			UObject* NewAsset = AssetTools.CreateAsset(AssetName, PackagePath, UMaterialInstanceConstant::StaticClass(), Factory);
 			if (!NewAsset)
 			{
-				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("In %s Create MaterialInstance failed"), *AssetPath));
+				OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("In %s Create MaterialInstance failed"), *AssetPath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
 			UMaterialInstanceConstant* MI = Cast<UMaterialInstanceConstant>(NewAsset);
 			OutEntry->SetStringField(TEXT("type"), TEXT("MaterialInstance"));
 			OutEntry->SetStringField(TEXT("name"), MI->GetName());
-			OutEntry->SetStringField(TEXT("path"), FNexusAssetUtils::PackagePathOf(MI));
-			OutEntry->SetStringField(TEXT("parentMaterial"), FNexusAssetUtils::PackagePathOf(ParentMat));
+			OutEntry->SetStringField(TEXT("Path"), FNexusAssetUtils::PackagePathOf(MI));
+			OutEntry->SetStringField(TEXT("ParentMaterial"), FNexusAssetUtils::PackagePathOf(ParentMat));
 			TArray<TSharedPtr<FJsonValue>> InheritedParams;
 			AppendScalarVectorTextureParamSummaries(MI, InheritedParams);
-			OutEntry->SetArrayField(TEXT("inheritedParameters"), InheritedParams);
+			OutEntry->SetArrayField(TEXT("InheritedParameters"), InheritedParams);
 		}
 		else
 		{
 			// 先校验 domain，避免 CreateAsset 成功后因非法字符串留下半成品资产
 			EMaterialDomain DomainToApply = EMaterialDomain::MD_Surface;
 			bool bApplyDomain = false;
-			FString DomainEcho = TEXT("surface");
-			if (Arguments->HasField(TEXT("materialDomain")))
+			FString DomainEcho = TEXT("Surface");
+			if (Arguments->HasField(TEXT("MaterialDomain")))
 			{
-				const FString DomainStr = A.Str(TEXT("materialDomain"));
+				const FString DomainStr = A.Str(TEXT("MaterialDomain"));
 				if (!DomainStr.TrimStartAndEnd().IsEmpty())
 				{
 					FString DomErr;
 					if (!FNexusMaterialUtils::TryParseMaterialDomain(DomainStr, DomainToApply, DomErr))
 					{
-						OutEntry->SetStringField(TEXT("error"), DomErr);
+						OutEntry->SetStringField(TEXT("Error"), DomErr);
 						OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 						return;
 					}
@@ -193,7 +193,7 @@ FCapabilityResult FCreateAssetMaterialCapability::Execute(const TSharedPtr<FJson
 			UObject* NewAsset = AssetTools.CreateAsset(AssetName, PackagePath, UMaterial::StaticClass(), Factory);
 			if (!NewAsset)
 			{
-				OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("In %s Create Material failed"), *AssetPath));
+				OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("In %s Create Material failed"), *AssetPath));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
@@ -205,12 +205,12 @@ FCapabilityResult FCreateAssetMaterialCapability::Execute(const TSharedPtr<FJson
 			}
 			OutEntry->SetStringField(TEXT("type"), TEXT("Material"));
 			OutEntry->SetStringField(TEXT("name"), Mat->GetName());
-			OutEntry->SetStringField(TEXT("path"), FNexusAssetUtils::PackagePathOf(Mat));
-			OutEntry->SetStringField(TEXT("materialDomain"), DomainEcho);
+			OutEntry->SetStringField(TEXT("Path"), FNexusAssetUtils::PackagePathOf(Mat));
+			OutEntry->SetStringField(TEXT("MaterialDomain"), DomainEcho);
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 #endif
 	});
 }
-REGISTER_MCP_CAPABILITY(FCreateAssetMaterialCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetMaterialCapability)
 

@@ -24,13 +24,13 @@ const TMap<FString, FString>& FNexusEditorCaptureUtils::GetPanelTabMapping()
 	static TMap<FString, FString> M;
 	if (M.Num() == 0)
 	{
-		M.Add(TEXT("viewport"),        TEXT("LevelEditorViewport"));
-		M.Add(TEXT("content_browser"), TEXT("ContentBrowserTab1"));
-		M.Add(TEXT("scene_outliner"),  TEXT("LevelEditorSceneOutliner"));
+		M.Add(TEXT("Viewport"),        TEXT("LevelEditorViewport"));
+		M.Add(TEXT("ContentBrowser"), TEXT("ContentBrowserTab1"));
+		M.Add(TEXT("SceneOutliner"),  TEXT("LevelEditorSceneOutliner"));
 		M.Add(TEXT("details"),         TEXT("LevelEditorSelectionDetails"));
-		M.Add(TEXT("output_log"),      TEXT("OutputLog"));
+		M.Add(TEXT("OutputLog"),      TEXT("OutputLog"));
 		M.Add(TEXT("modes"),           TEXT("LevelEditorToolBox"));
-		M.Add(TEXT("world_settings"),  TEXT("WorldSettingsTab"));
+		M.Add(TEXT("WorldSettings"),  TEXT("WorldSettingsTab"));
 	}
 	return M;
 }
@@ -79,11 +79,11 @@ FVector FNexusEditorCaptureUtils::GetViewDirection(AActor* Actor, const FString&
 	FVector Forward = FRotationMatrix(ActorRot).GetUnitAxis(EAxis::X);
 	FVector Right   = FRotationMatrix(ActorRot).GetUnitAxis(EAxis::Y);
 
-	if (ViewAngle == TEXT("back"))   return -Forward;
-	if (ViewAngle == TEXT("left"))   return -Right;
-	if (ViewAngle == TEXT("right"))  return  Right;
-	if (ViewAngle == TEXT("top"))    return  FVector::UpVector;
-	if (ViewAngle == TEXT("bottom")) return -FVector::UpVector;
+	if (ViewAngle == TEXT("Back"))   return -Forward;
+	if (ViewAngle == TEXT("Left"))   return -Right;
+	if (ViewAngle == TEXT("Right"))  return  Right;
+	if (ViewAngle == TEXT("Top"))    return  FVector::UpVector;
+	if (ViewAngle == TEXT("Bottom")) return -FVector::UpVector;
 	return Forward;
 }
 
@@ -237,7 +237,7 @@ bool FNexusEditorCaptureUtils::CaptureActorFromAngle(AActor* Actor, const FStrin
 	}
 
 	bool bOk = false;
-	TSharedPtr<SDockTab> VPTab = FindPanelTab(TEXT("viewport"));
+	TSharedPtr<SDockTab> VPTab = FindPanelTab(TEXT("Viewport"));
 	if (VPTab.IsValid())
 	{
 		TSharedPtr<SWidget> VPContent = VPTab->GetContent();

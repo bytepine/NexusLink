@@ -7,8 +7,8 @@
 
 #if WITH_CONTROL_RIG
 
-/** manage_asset_control_rig — 重命名元素 / 设置控件 Shape/Color 等属性。 */
-class FManageAssetControlRigCapability : public FNexusActionCapability
+/** ManageAssetControlRig — 重命名元素 / 设置控件 Shape/Color 等属性。 */
+class FNexusManageAssetControlRigCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

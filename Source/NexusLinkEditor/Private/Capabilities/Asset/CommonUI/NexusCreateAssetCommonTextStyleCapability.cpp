@@ -11,28 +11,28 @@
 #include "CommonTextBlock.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetCommonTextStyleCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetCommonTextStyleCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_common_text_style");
+	Out.Name = TEXT("CreateAssetCommonTextStyle");
 	Out.Description = TEXT("Create CommonTextStyle. WBP widget tree still uses user_widget.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = { TEXT("commonui"), TEXT("text"), TEXT("style") };
 	Out.RelatedCapabilities = {
-		TEXT("get_asset_common_text_style"), TEXT("manage_asset_common_text_style"),
-		TEXT("create_asset_common_button_style")
+		TEXT("GetAssetCommonTextStyle"), TEXT("ManageAssetCommonTextStyle"),
+		TEXT("CreateAssetCommonButtonStyle")
 	};
 }
 
-FCapabilityResult FCreateAssetCommonTextStyleCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetCommonTextStyleCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		// UCommonTextStyle 是 UCLASS(Abstract, Blueprintable)：只能建 Blueprint 子类，
 		// 直接 NewObject 会在 StaticAllocateObject 触发抽象类 ensure。
 		const FNexusAssetEditorUtils::FAssetCreateOutcome Created =
@@ -48,5 +48,5 @@ FCapabilityResult FCreateAssetCommonTextStyleCapability::Execute(const TSharedPt
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetCommonTextStyleCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetCommonTextStyleCapability)
 #endif

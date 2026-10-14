@@ -8,7 +8,7 @@
 class UWidgetBlueprint;
 
 /** manage_asset_widget 的 Capability — 批量增删 WidgetBlueprint 控件（widgets[]）。*/
-class FManageAssetUserWidgetCapability : public FNexusActionCapability
+class FNexusManageAssetUserWidgetCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

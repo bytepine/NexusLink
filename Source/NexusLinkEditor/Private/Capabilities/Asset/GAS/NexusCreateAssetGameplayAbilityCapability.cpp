@@ -18,28 +18,28 @@
 #include "NexusMcpTool.h"
 #include "Utils/NexusVersionCompat.h"
 
-void FCreateAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_gameplay_ability");
+	Out.Name = TEXT("CreateAssetGameplayAbility");
 	Out.Description = TEXT("Create GameplayAbility BP; policy/tags via manage_ga, graph via manage_bp.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("New GA Blueprint package path, e.g. '/Game/GAS/GA_Jump'")))
-		.Prop(TEXT("parentClass"), FNexusSchema::Str(TEXT("Parent class (default GameplayAbility)")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"),   FNexusSchema::Str(TEXT("New GA Blueprint package path, e.g. '/Game/GAS/GA_Jump'")))
+		.Prop(TEXT("ParentClass"), FNexusSchema::Str(TEXT("Parent class (default GameplayAbility)")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
 	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("ability"), TEXT("gameplay"), TEXT("ga"), TEXT("skill"), TEXT("new") };
-	Out.RelatedCapabilities = { TEXT("get_asset_gameplay_ability"), TEXT("manage_asset_gameplay_ability"), TEXT("manage_asset_blueprint") };
-	Out.WhenToUse = TEXT("Create empty GA BP; graph edits via manage_asset_blueprint");
+	Out.RelatedCapabilities = { TEXT("GetAssetGameplayAbility"), TEXT("ManageAssetGameplayAbility"), TEXT("ManageAssetBlueprint") };
+	Out.WhenToUse = TEXT("Create empty GA BP; graph edits via ManageAssetBlueprint");
 }
 
-FCapabilityResult FCreateAssetGameplayAbilityCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetGameplayAbilityCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
-		const FString ParentClassName = A.Str(TEXT("parentClass"), TEXT("GameplayAbility"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
+		const FString ParentClassName = A.Str(TEXT("ParentClass"), TEXT("GameplayAbility"));
 		const FNexusAssetEditorUtils::FAssetCreateOutcome Created = FNexusAssetEditorUtils::CreateBlueprintAsset(
 			AssetPath, ParentClassName, UGameplayAbility::StaticClass());
 		if (!Created.Ok())
@@ -50,15 +50,15 @@ FCapabilityResult FCreateAssetGameplayAbilityCapability::Execute(const TSharedPt
 		UBlueprint* NewBP = Cast<UBlueprint>(Created.Asset);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 		OutEntry->SetStringField(TEXT("name"), NewBP->GetName());
-		OutEntry->SetStringField(TEXT("path"), AssetPath);
+		OutEntry->SetStringField(TEXT("Path"), AssetPath);
 		if (NewBP->ParentClass)
 		{
-			OutEntry->SetStringField(TEXT("parentClass"), NewBP->ParentClass->GetName());
+			OutEntry->SetStringField(TEXT("ParentClass"), NewBP->ParentClass->GetName());
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetGameplayAbilityCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetGameplayAbilityCapability)
 
 #endif // WITH_GAS

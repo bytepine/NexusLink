@@ -12,31 +12,31 @@
 #include "NexusMcpTool.h"
 #include "InputAction.h"
 
-void FCreateAssetInputActionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetInputActionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_input_action");
-	Out.Description = TEXT("Create empty InputAction; add Trigger/Modifier via manage after valueType.");
+	Out.Name = TEXT("CreateAssetInputAction");
+	Out.Description = TEXT("Create empty InputAction; add Trigger/Modifier via manage after ValueType.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path (/Game/…/IA_Jump)")))
-		.Prop(TEXT("valueType"), FNexusSchema::Enum(
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path (/Game/…/IA_Jump)")))
+		.Prop(TEXT("ValueType"), FNexusSchema::Enum(
 			TEXT("Value type"),
 			{ TEXT("Boolean"), TEXT("Axis1D"), TEXT("Axis2D"), TEXT("Axis3D") },
 			TEXT("Boolean")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("action"), TEXT("ia"), TEXT("enhanced"), TEXT("trigger"), TEXT("axis") };
-	Out.RelatedCapabilities = { TEXT("get_asset_input_action"), TEXT("manage_asset_input_action"), TEXT("create_asset_input_mapping_context") };
+	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("Action"), TEXT("ia"), TEXT("enhanced"), TEXT("Trigger"), TEXT("axis") };
+	Out.RelatedCapabilities = { TEXT("GetAssetInputAction"), TEXT("ManageAssetInputAction"), TEXT("CreateAssetInputMappingContext") };
 	Out.WhenToUse = TEXT("Create InputAction; configure Trigger/Modifier via manage");
 }
 
-FCapabilityResult FCreateAssetInputActionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetInputActionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<UInputAction>(AssetPath, RF_Public | RF_Standalone, false);
 		if (!Created.Ok())
@@ -48,7 +48,7 @@ FCapabilityResult FCreateAssetInputActionCapability::Execute(const TSharedPtr<FJ
 
 		// 设置 ValueType
 		FString ValueTypeStr;
-		if (Arguments->TryGetStringField(TEXT("valueType"), ValueTypeStr))
+		if (Arguments->TryGetStringField(TEXT("ValueType"), ValueTypeStr))
 		{
 			if (ValueTypeStr == TEXT("Axis1D"))
 				IA->ValueType = EInputActionValueType::Axis1D;
@@ -63,11 +63,11 @@ FCapabilityResult FCreateAssetInputActionCapability::Execute(const TSharedPtr<FJ
 		FNexusAssetUtils::NotifyAndSaveCreated(IA->GetOutermost(), IA, AssetPath);
 
 		OutEntry->SetStringField(TEXT("name"), IA->GetName());
-		OutEntry->SetStringField(TEXT("path"), FNexusAssetUtils::PackagePathOf(IA));
+		OutEntry->SetStringField(TEXT("Path"), FNexusAssetUtils::PackagePathOf(IA));
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetInputActionCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetInputActionCapability)
 
 #endif // WITH_ENHANCED_INPUT

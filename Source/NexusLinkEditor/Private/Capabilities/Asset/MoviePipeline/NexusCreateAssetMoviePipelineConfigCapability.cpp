@@ -17,28 +17,28 @@ using FNexusMoviePipelineConfig = UMoviePipelineMasterConfig;
 #endif
 #include "NexusMcpTool.h"
 
-void FCreateAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetMoviePipelineConfigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_movie_pipeline_config");
+	Out.Name = TEXT("CreateAssetMoviePipelineConfig");
 	Out.Description = TEXT("Create empty MoviePipeline config. Does not trigger render.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("mrq"), TEXT("render"), TEXT("movie"), TEXT("pipeline") };
 	Out.RelatedCapabilities = {
-		TEXT("get_asset_movie_pipeline_config"), TEXT("manage_asset_movie_pipeline_config"),
-		TEXT("control_movie_pipeline")
+		TEXT("GetAssetMoviePipelineConfig"), TEXT("ManageAssetMoviePipelineConfig"),
+		TEXT("ControlMoviePipeline")
 	};
 }
 
-FCapabilityResult FCreateAssetMoviePipelineConfigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetMoviePipelineConfigCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset(AssetPath, FNexusMoviePipelineConfig::StaticClass());
 		if (!Created.Ok())
@@ -51,5 +51,5 @@ FCapabilityResult FCreateAssetMoviePipelineConfigCapability::Execute(const TShar
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetMoviePipelineConfigCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetMoviePipelineConfigCapability)
 #endif

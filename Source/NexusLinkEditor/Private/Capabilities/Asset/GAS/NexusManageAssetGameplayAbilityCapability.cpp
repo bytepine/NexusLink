@@ -18,37 +18,37 @@
 
 // ── Capability 定义 ──────────────────────────────────────────────────────────
 
-void FManageAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_gameplay_ability");
+	Out.Name = TEXT("ManageAssetGameplayAbility");
 	Out.SearchAssetTypes = {TEXT("GameplayAbility")};
-	Out.Description = TEXT("Batch edit GA CDO: tags/policy/cost_cooldown. Graph via manage_asset_blueprint.");
+	Out.Description = TEXT("Batch edit GA CDO: tags/policy/cost_cooldown. Graph via ManageAssetBlueprint.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),        FNexusSchema::Enum(TEXT("Operation type"), { TEXT("set_tags"), TEXT("set_policy"), TEXT("set_cost_cooldown") }))
-		.Prop(TEXT("tagContainer"),  FNexusSchema::Enum(TEXT("Tag container name"),
-			{ TEXT("abilityTags"), TEXT("activationOwnedTags"), TEXT("activationRequiredTags"),
-			  TEXT("activationBlockedTags"), TEXT("cancelAbilitiesWithTag"), TEXT("blockAbilitiesWithTag") }))
-		.Prop(TEXT("tags"),          FNexusSchema::StrArr(TEXT("Tag string array")))
-		.Prop(TEXT("mode"),          FNexusSchema::Enum(TEXT("set/add/remove"), { TEXT("set"), TEXT("add"), TEXT("remove") }))
-		.Prop(TEXT("instancingPolicy"),   FNexusSchema::Enum(TEXT("Instancing policy"),
+		.Prop(TEXT("Action"),        FNexusSchema::Enum(TEXT("Operation type"), { TEXT("SetTags"), TEXT("SetPolicy"), TEXT("SetCostCooldown") }))
+		.Prop(TEXT("TagContainer"),  FNexusSchema::Enum(TEXT("Tag container name"),
+			{ TEXT("AbilityTags"), TEXT("ActivationOwnedTags"), TEXT("ActivationRequiredTags"),
+			  TEXT("ActivationBlockedTags"), TEXT("CancelAbilitiesWithTag"), TEXT("BlockAbilitiesWithTag") }))
+		.Prop(TEXT("Tags"),          FNexusSchema::StrArr(TEXT("Tag string array")))
+		.Prop(TEXT("Mode"),          FNexusSchema::Enum(TEXT("set/add/remove"), { TEXT("Set"), TEXT("Add"), TEXT("Remove") }))
+		.Prop(TEXT("InstancingPolicy"),   FNexusSchema::Enum(TEXT("Instancing policy"),
 			{ TEXT("NonInstanced"), TEXT("InstancedPerActor"), TEXT("InstancedPerExecution") }))
-		.Prop(TEXT("netExecutionPolicy"), FNexusSchema::Enum(TEXT("Net execution policy"),
+		.Prop(TEXT("NetExecutionPolicy"), FNexusSchema::Enum(TEXT("Net execution policy"),
 			{ TEXT("LocalPredicted"), TEXT("LocalOnly"), TEXT("ServerInitiated"), TEXT("ServerOnly") }))
-		.Prop(TEXT("costGE"),        FNexusSchema::Str(TEXT("Cost GE asset path (empty string clears)")))
-		.Prop(TEXT("cooldownGE"),    FNexusSchema::Str(TEXT("Cooldown GE asset path (empty string clears)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("CostGE"),        FNexusSchema::Str(TEXT("Cost GE asset path (empty string clears)")))
+		.Prop(TEXT("CooldownGE"),    FNexusSchema::Str(TEXT("Cooldown GE asset path (empty string clears)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("GameplayAbility Blueprint path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("GameplayAbility Blueprint path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
-	// 补复数 "tags"：ScoreToken 的 prefix/substring 匹配都要求关键词长度 >= 查询 token 长度，
-	// 单数 "tag" 匹配不到查询 token "tags"（如 query="gameplay tags"）
-	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("ability"), TEXT("gameplay"), TEXT("ga"), TEXT("tag"), TEXT("tags"), TEXT("policy"), TEXT("cost") };
-	Out.RelatedCapabilities = { TEXT("get_asset_gameplay_ability"), TEXT("save_asset"), TEXT("manage_asset_blueprint") };
-	Out.WhenToUse = TEXT("CDO semantic fields; AbilityTask/logic graph via manage_asset_blueprint");
+	// 补复数 "Tags"：ScoreToken 的 prefix/substring 匹配都要求关键词长度 >= 查询 token 长度，
+	// 单数 "Tag" 匹配不到查询 token "Tags"（如 Query="gameplay tags"）
+	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("ability"), TEXT("gameplay"), TEXT("ga"), TEXT("Tag"), TEXT("Tags"), TEXT("policy"), TEXT("cost") };
+	Out.RelatedCapabilities = { TEXT("GetAssetGameplayAbility"), TEXT("SaveAsset"), TEXT("ManageAssetBlueprint") };
+	Out.WhenToUse = TEXT("CDO semantic fields; AbilityTask/logic graph via ManageAssetBlueprint");
 }
 
 struct FGAActionState
@@ -75,39 +75,39 @@ static void HandleGA_SetTags(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 {
 	UObject* CDO = GAState(Ctx)->CDO;
 	const FNexusArgs A(Op);
-	const FString ContainerName = A.Str(TEXT("tagContainer"));
+	const FString ContainerName = A.Str(TEXT("TagContainer"));
 	if (ContainerName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_tags requires tagContainer"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetTags requires TagContainer"));
 		return;
 	}
-	FString Mode = A.Str(TEXT("mode"));
-	if (Mode.IsEmpty()) Mode = TEXT("set");
+	FString Mode = A.Str(TEXT("Mode"));
+	if (Mode.IsEmpty()) Mode = TEXT("Set");
 
 	static const TMap<FString, FString> ContainerPropMap = {
-		{ TEXT("abilityTags"),            TEXT("AbilityTags")           },
-		{ TEXT("activationOwnedTags"),    TEXT("ActivationOwnedTags")   },
-		{ TEXT("activationRequiredTags"), TEXT("ActivationRequiredTags")},
-		{ TEXT("activationBlockedTags"),  TEXT("ActivationBlockedTags") },
-		{ TEXT("cancelAbilitiesWithTag"), TEXT("CancelAbilitiesWithTag")},
-		{ TEXT("blockAbilitiesWithTag"),  TEXT("BlockAbilitiesWithTag") },
+		{ TEXT("AbilityTags"),            TEXT("AbilityTags")           },
+		{ TEXT("ActivationOwnedTags"),    TEXT("ActivationOwnedTags")   },
+		{ TEXT("ActivationRequiredTags"), TEXT("ActivationRequiredTags")},
+		{ TEXT("ActivationBlockedTags"),  TEXT("ActivationBlockedTags") },
+		{ TEXT("CancelAbilitiesWithTag"), TEXT("CancelAbilitiesWithTag")},
+		{ TEXT("BlockAbilitiesWithTag"),  TEXT("BlockAbilitiesWithTag") },
 	};
 	const FString* PropName = ContainerPropMap.Find(ContainerName);
 	if (!PropName)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown tagContainer: %s"), *ContainerName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Unknown TagContainer: %s"), *ContainerName));
 		return;
 	}
 	FGameplayTagContainer* Container = NxGasPropPtr<FGameplayTagContainer>(CDO, **PropName);
 	if (!Container)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unable to access property: %s"), **PropName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Unable to access property: %s"), **PropName));
 		return;
 	}
 	FString TagError;
-	if (!FNexusGasUtils::ApplyTagContainer(*Container, A.StrArr(TEXT("tags")), Mode, TagError))
+	if (!FNexusGasUtils::ApplyTagContainer(*Container, A.StrArr(TEXT("Tags")), Mode, TagError))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TagError);
+		Ctx.Entry->SetStringField(TEXT("Error"), TagError);
 		return;
 	}
 	MarkGADirty(Ctx);
@@ -117,7 +117,7 @@ static void HandleGA_SetPolicy(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 {
 	UObject* CDO = GAState(Ctx)->CDO;
 	FString InstPolicyStr, NetPolicyStr;
-	if (Op->TryGetStringField(TEXT("instancingPolicy"), InstPolicyStr) && !InstPolicyStr.IsEmpty())
+	if (Op->TryGetStringField(TEXT("InstancingPolicy"), InstPolicyStr) && !InstPolicyStr.IsEmpty())
 	{
 		uint8 V = 0;
 		bool bParsed = true;
@@ -129,13 +129,13 @@ static void HandleGA_SetPolicy(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (!bParsed)
 		{
-			Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid instancingPolicy: %s"), *InstPolicyStr));
+			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Invalid InstancingPolicy: %s"), *InstPolicyStr));
 			return;
 		}
 		NxGasSetEnumByte(CDO, TEXT("InstancingPolicy"), V);
 		MarkGADirty(Ctx);
 	}
-	if (Op->TryGetStringField(TEXT("netExecutionPolicy"), NetPolicyStr) && !NetPolicyStr.IsEmpty())
+	if (Op->TryGetStringField(TEXT("NetExecutionPolicy"), NetPolicyStr) && !NetPolicyStr.IsEmpty())
 	{
 		uint8 V = 0;
 		if      (NetPolicyStr == TEXT("LocalPredicted"))  V = (uint8)EGameplayAbilityNetExecutionPolicy::LocalPredicted;
@@ -144,7 +144,7 @@ static void HandleGA_SetPolicy(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 		else if (NetPolicyStr == TEXT("ServerOnly"))      V = (uint8)EGameplayAbilityNetExecutionPolicy::ServerOnly;
 		else
 		{
-			Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Invalid netExecutionPolicy: %s"), *NetPolicyStr));
+			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Invalid NetExecutionPolicy: %s"), *NetPolicyStr));
 			return;
 		}
 		NxGasSetEnumByte(CDO, TEXT("NetExecutionPolicy"), V);
@@ -156,7 +156,7 @@ static void HandleGA_SetCostCooldown(const TSharedPtr<FJsonObject>& Op, FNexusAc
 {
 	UObject* CDO = GAState(Ctx)->CDO;
 	FString CostPath, CooldownPath;
-	if (Op->TryGetStringField(TEXT("costGE"), CostPath))
+	if (Op->TryGetStringField(TEXT("CostGE"), CostPath))
 	{
 		if (CostPath.IsEmpty())
 		{
@@ -167,14 +167,14 @@ static void HandleGA_SetCostCooldown(const TSharedPtr<FJsonObject>& Op, FNexusAc
 			UBlueprint* CostBP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(CostPath);
 			if (!CostBP || !CostBP->GeneratedClass || !CostBP->GeneratedClass->IsChildOf(UGameplayEffect::StaticClass()))
 			{
-				Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("costGE is not a valid GameplayEffect Blueprint: %s"), *CostPath));
+				Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("CostGE is not a valid GameplayEffect Blueprint: %s"), *CostPath));
 				return;
 			}
 			NxGasSetClassProp(CDO, TEXT("CostGameplayEffectClass"), CostBP->GeneratedClass);
 		}
 		MarkGADirty(Ctx);
 	}
-	if (Op->TryGetStringField(TEXT("cooldownGE"), CooldownPath))
+	if (Op->TryGetStringField(TEXT("CooldownGE"), CooldownPath))
 	{
 		if (CooldownPath.IsEmpty())
 		{
@@ -185,7 +185,7 @@ static void HandleGA_SetCostCooldown(const TSharedPtr<FJsonObject>& Op, FNexusAc
 			UBlueprint* CDBP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(CooldownPath);
 			if (!CDBP || !CDBP->GeneratedClass || !CDBP->GeneratedClass->IsChildOf(UGameplayEffect::StaticClass()))
 			{
-				Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("cooldownGE is not a valid GameplayEffect Blueprint: %s"), *CooldownPath));
+				Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("CooldownGE is not a valid GameplayEffect Blueprint: %s"), *CooldownPath));
 				return;
 			}
 			NxGasSetClassProp(CDO, TEXT("CooldownGameplayEffectClass"), CDBP->GeneratedClass);
@@ -194,14 +194,14 @@ static void HandleGA_SetCostCooldown(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	}
 }
 
-bool FManageAssetGameplayAbilityCapability::PrepareTarget(
+bool FNexusManageAssetGameplayAbilityCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	FString LoadError;
 	UBlueprint* BP = FNexusGasUtils::LoadGameplayAbilityBlueprint(AssetPath, LoadError);
 	if (!BP) { OutError = LoadError; return false; }
@@ -215,16 +215,16 @@ bool FManageAssetGameplayAbilityCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetGameplayAbilityCapability::AfterPrepareTarget(
+void FNexusManageAssetGameplayAbilityCapability::AfterPrepareTarget(
 	void* Target,
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& OutTop) const
 {
 	(void)Target;
-	OutTop->SetStringField(TEXT("path"), FNexusArgs(Args).Str(TEXT("assetPath")));
+	OutTop->SetStringField(TEXT("Path"), FNexusArgs(Args).Str(TEXT("AssetPath")));
 }
 
-void FManageAssetGameplayAbilityCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetGameplayAbilityCapability::FinalizeTarget(void* Target) const
 {
 	FGAActionState* State = static_cast<FGAActionState*>(Target);
 	if (!State) return;
@@ -236,13 +236,13 @@ void FManageAssetGameplayAbilityCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetGameplayAbilityCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetGameplayAbilityCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_tags"),          &HandleGA_SetTags);
-	OutHandlers.Add(TEXT("set_policy"),        &HandleGA_SetPolicy);
-	OutHandlers.Add(TEXT("set_cost_cooldown"), &HandleGA_SetCostCooldown);
+	OutHandlers.Add(TEXT("SetTags"),          &HandleGA_SetTags);
+	OutHandlers.Add(TEXT("SetPolicy"),        &HandleGA_SetPolicy);
+	OutHandlers.Add(TEXT("SetCostCooldown"), &HandleGA_SetCostCooldown);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetGameplayAbilityCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetGameplayAbilityCapability)
 
 #endif // WITH_GAS

@@ -10,26 +10,26 @@
 #include "MovieScene.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_level_sequence");
+	Out.Name = TEXT("CreateAssetLevelSequence");
 	Out.Description = TEXT("Create empty LevelSequence and initialize MovieScene.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("sequence"), TEXT("sequencer"), TEXT("cinematic"), TEXT("levelsequence") };
-	Out.RelatedCapabilities = { TEXT("get_asset_level_sequence"), TEXT("manage_asset_level_sequence") };
+	Out.ExtraSearchKeywords = { TEXT("Sequence"), TEXT("sequencer"), TEXT("cinematic"), TEXT("levelsequence") };
+	Out.RelatedCapabilities = { TEXT("GetAssetLevelSequence"), TEXT("ManageAssetLevelSequence") };
 	Out.WhenToUse = TEXT("Create LevelSequence; add bindings/tracks/keys via manage");
 }
 
-FCapabilityResult FCreateAssetLevelSequenceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetLevelSequenceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<ULevelSequence>(AssetPath, RF_Public | RF_Standalone, false);
 		if (!Created.Ok())
@@ -48,9 +48,9 @@ FCapabilityResult FCreateAssetLevelSequenceCapability::Execute(const TSharedPtr<
 		FNexusAssetUtils::NotifyAndSaveCreated(LS->GetOutermost(), LS, AssetPath);
 
 		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(LS);
-		Entry->SetStringField(TEXT("assetType"), TEXT("LevelSequence"));
+		Entry->SetStringField(TEXT("AssetType"), TEXT("LevelSequence"));
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetLevelSequenceCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetLevelSequenceCapability)

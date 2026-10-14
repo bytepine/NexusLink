@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_anim_sequence — 编辑 AnimSequence（AnimNotify/帧率/根运动）。*/
-class FManageAssetAnimSequenceCapability : public FNexusActionCapability
+/** ManageAssetAnimSequence — 编辑 AnimSequence（AnimNotify/帧率/根运动）。*/
+class FNexusManageAssetAnimSequenceCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

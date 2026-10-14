@@ -32,50 +32,50 @@ static UAnimInstance* FindAnimInstanceForCap(AActor* Actor)
 
 // ── FNexusCapability 基础钩子 ─────────────────────────────────────────────────
 
-void FGetRuntimeActorAnimationCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetRuntimeActorAnimationCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_runtime_actor_animation");
-	Out.Description = TEXT("Get AnimInstance from running skeletal mesh. sections=state|slots|variables.");
+	Out.Name = TEXT("GetRuntimeActorAnimation");
+	Out.Description = TEXT("Get AnimInstance from running skeletal mesh. Sections=state|slots|variables.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("anim"), TEXT("montage"), TEXT("state"), TEXT("skeletal"), TEXT("animinstance") };
-	Out.RelatedCapabilities = { TEXT("interact_runtime_actor_animation"), TEXT("get_asset_anim_montage") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.ExtraSearchKeywords = { TEXT("anim"), TEXT("Montage"), TEXT("State"), TEXT("skeletal"), TEXT("animinstance") };
+	Out.RelatedCapabilities = { TEXT("InteractRuntimeActorAnimation"), TEXT("GetAssetAnimMontage") };
+	Out.Prerequisites = { TEXT("PIE") };
 }
 
-TSharedPtr<FJsonObject> FGetRuntimeActorAnimationCapability::BuildCapabilitySchema() const
+TSharedPtr<FJsonObject> FNexusGetRuntimeActorAnimationCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Required(TEXT("actorName"), FNexusSchema::Str(TEXT("Actor name")))
-		.Prop(TEXT("nameFilter"),  FNexusSchema::Str(TEXT("Variable/slot name filter")))
+		.Required(TEXT("ActorName"), FNexusSchema::Str(TEXT("Actor name")))
+		.Prop(TEXT("NameFilter"),  FNexusSchema::Str(TEXT("Variable/slot name filter")))
 		.Build();
 }
 
 // ── multi-section 钩子 ────────────────────────────────────────────────────────
 
-TArray<FString> FGetRuntimeActorAnimationCapability::GetSectionNames() const
+TArray<FString> FNexusGetRuntimeActorAnimationCapability::GetSectionNames() const
 {
-	return { TEXT("state"), TEXT("slots"), TEXT("variables") };
+	return { TEXT("State"), TEXT("Slots"), TEXT("Variables") };
 }
 
-TArray<FString> FGetRuntimeActorAnimationCapability::GetDefaultSectionNames() const
+TArray<FString> FNexusGetRuntimeActorAnimationCapability::GetDefaultSectionNames() const
 {
-	return { TEXT("state") };
+	return { TEXT("State") };
 }
 
-bool FGetRuntimeActorAnimationCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
+bool FNexusGetRuntimeActorAnimationCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
                                                 TSharedPtr<FJsonObject>&       OutEntry,
                                                 void*&                         OutTargetOpaque,
                                                 FString&                       OutError) const
 {
 	FString ActorName;
-	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty())
+	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("ActorName"), ActorName) || ActorName.IsEmpty())
 	{
-		OutError = TEXT("Missing actorName");
+		OutError = TEXT("Missing ActorName");
 		return false;
 	}
 
-	OutEntry->SetStringField(TEXT("actorName"), ActorName);
+	OutEntry->SetStringField(TEXT("ActorName"), ActorName);
 
 	UWorld* World = FNexusRuntimeUtils::GetActiveWorld();
 	if (!World)
@@ -98,14 +98,14 @@ bool FGetRuntimeActorAnimationCapability::PrepareEntry(const TSharedPtr<FJsonObj
 		return false;
 	}
 
-	OutEntry->SetStringField(TEXT("resolvedName"), Actor->GetName());
-	OutEntry->SetStringField(TEXT("animClass"),    AnimInst->GetClass()->GetName());
+	OutEntry->SetStringField(TEXT("ResolvedName"), Actor->GetName());
+	OutEntry->SetStringField(TEXT("AnimClass"),    AnimInst->GetClass()->GetName());
 
 	OutTargetOpaque = static_cast<void*>(AnimInst);
 	return true;
 }
 
-void FGetRuntimeActorAnimationCapability::ExecuteSection(const FString&                 SectionName,
+void FNexusGetRuntimeActorAnimationCapability::ExecuteSection(const FString&                 SectionName,
                                                   const TSharedPtr<FJsonObject>& Args,
                                                   void*                          TargetOpaque,
                                                   TSharedPtr<FJsonObject>&       InOutDetail,
@@ -115,19 +115,19 @@ void FGetRuntimeActorAnimationCapability::ExecuteSection(const FString&         
 	if (!AnimInst) { OutError = TEXT("Invalid AnimInstance target"); return; }
 
 	FString NameFilter;
-	if (Args.IsValid()) Args->TryGetStringField(TEXT("nameFilter"), NameFilter);
+	if (Args.IsValid()) Args->TryGetStringField(TEXT("NameFilter"), NameFilter);
 
-	if (SectionName == TEXT("state"))
+	if (SectionName == TEXT("State"))
 	{
 		UAnimMontage* ActiveMontage = AnimInst->GetCurrentActiveMontage();
 		if (ActiveMontage)
 		{
 			TSharedPtr<FJsonObject> MontageObj = MakeShared<FJsonObject>();
 			MontageObj->SetStringField(TEXT("name"),      ActiveMontage->GetName());
-			MontageObj->SetNumberField(TEXT("position"),  AnimInst->Montage_GetPosition(ActiveMontage));
-			MontageObj->SetNumberField(TEXT("playRate"),  AnimInst->Montage_GetPlayRate(ActiveMontage));
-			MontageObj->SetBoolField(TEXT("isPlaying"),   AnimInst->Montage_IsPlaying(ActiveMontage));
-			InOutDetail->SetObjectField(TEXT("activeMontage"), MontageObj);
+			MontageObj->SetNumberField(TEXT("Position"),  AnimInst->Montage_GetPosition(ActiveMontage));
+			MontageObj->SetNumberField(TEXT("PlayRate"),  AnimInst->Montage_GetPlayRate(ActiveMontage));
+			MontageObj->SetBoolField(TEXT("bIsPlaying"),   AnimInst->Montage_IsPlaying(ActiveMontage));
+			InOutDetail->SetObjectField(TEXT("ActiveMontage"), MontageObj);
 		}
 
 		UAnimBlueprintGeneratedClass* AnimBPClass = Cast<UAnimBlueprintGeneratedClass>(AnimInst->GetClass());
@@ -151,19 +151,19 @@ void FGetRuntimeActorAnimationCapability::ExecuteSection(const FString&         
 					const int32 CurrentStateIdx = SMInstance->GetCurrentState();
 					if (BakedSM.States.IsValidIndex(CurrentStateIdx))
 					{
-						SMObj->SetStringField(TEXT("currentState"), BakedSM.States[CurrentStateIdx].StateName.ToString());
+						SMObj->SetStringField(TEXT("CurrentState"), BakedSM.States[CurrentStateIdx].StateName.ToString());
 					}
 				}
-				SMObj->SetNumberField(TEXT("stateCount"), BakedSM.States.Num());
+				SMObj->SetNumberField(TEXT("StateCount"), BakedSM.States.Num());
 				StateMachines.Add(MakeShared<FJsonValueObject>(SMObj));
 			}
 			if (StateMachines.Num() > 0)
 			{
-				InOutDetail->SetArrayField(TEXT("stateMachines"), StateMachines);
+				InOutDetail->SetArrayField(TEXT("StateMachines"), StateMachines);
 			}
 		}
 	}
-	else if (SectionName == TEXT("slots"))
+	else if (SectionName == TEXT("Slots"))
 	{
 		TArray<TSharedPtr<FJsonValue>> Slots;
 		for (int32 i = 0; i < AnimInst->MontageInstances.Num() && i < 50; ++i)
@@ -175,16 +175,16 @@ void FGetRuntimeActorAnimationCapability::ExecuteSection(const FString&         
 			if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(SlotName, NameFilter)) continue;
 
 			TSharedPtr<FJsonObject> SlotObj = MakeShared<FJsonObject>();
-			SlotObj->SetStringField(TEXT("montage"),   MI->Montage->GetName());
-			SlotObj->SetBoolField(TEXT("isPlaying"),   MI->IsPlaying());
-			SlotObj->SetNumberField(TEXT("position"),  MI->GetPosition());
-			SlotObj->SetNumberField(TEXT("weight"),    MI->GetWeight());
+			SlotObj->SetStringField(TEXT("Montage"),   MI->Montage->GetName());
+			SlotObj->SetBoolField(TEXT("bIsPlaying"),   MI->IsPlaying());
+			SlotObj->SetNumberField(TEXT("Position"),  MI->GetPosition());
+			SlotObj->SetNumberField(TEXT("Weight"),    MI->GetWeight());
 			Slots.Add(MakeShared<FJsonValueObject>(SlotObj));
 		}
-		InOutDetail->SetArrayField(TEXT("slots"), Slots);
-		InOutDetail->SetNumberField(TEXT("count"), Slots.Num());
+		InOutDetail->SetArrayField(TEXT("Slots"), Slots);
+		InOutDetail->SetNumberField(TEXT("Count"), Slots.Num());
 	}
-	else if (SectionName == TEXT("variables"))
+	else if (SectionName == TEXT("Variables"))
 	{
 		TArray<TSharedPtr<FJsonValue>> Vars;
 		for (TFieldIterator<FProperty> It(AnimInst->GetClass()); It; ++It)
@@ -206,12 +206,12 @@ void FGetRuntimeActorAnimationCapability::ExecuteSection(const FString&         
 #else
 			It->ExportTextItem(Value, Ptr, nullptr, nullptr, PPF_None);
 #endif
-			VarObj->SetStringField(TEXT("value"), Value);
+			VarObj->SetStringField(TEXT("Value"), Value);
 
 			Vars.Add(MakeShared<FJsonValueObject>(VarObj));
 			if (Vars.Num() >= 200) break;
 		}
-		InOutDetail->SetArrayField(TEXT("variables"), Vars);
+		InOutDetail->SetArrayField(TEXT("Variables"), Vars);
 	}
 	else
 	{
@@ -219,5 +219,5 @@ void FGetRuntimeActorAnimationCapability::ExecuteSection(const FString&         
 	}
 }
 
-REGISTER_MCP_CAPABILITY(FGetRuntimeActorAnimationCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetRuntimeActorAnimationCapability)
 

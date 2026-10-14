@@ -5,8 +5,8 @@
 #if WITH_STATETREE
 #include "NexusCapability.h"
 
-/** create_asset_state_tree：创建空白 StateTree（UE 5.5+）。 */
-class FCreateAssetStateTreeCapability : public FNexusCapability
+/** CreateAssetStateTree：创建空白 StateTree（UE 5.5+）。 */
+class FNexusCreateAssetStateTreeCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

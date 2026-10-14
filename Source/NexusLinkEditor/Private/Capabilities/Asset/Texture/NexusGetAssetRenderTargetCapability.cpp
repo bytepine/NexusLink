@@ -8,27 +8,27 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetRenderTargetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetRenderTargetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_render_target");
+	Out.Name = TEXT("GetAssetRenderTarget");
 	Out.SearchAssetTypes = {TEXT("TextureRenderTarget2D")};
 	Out.Description = TEXT("Read TextureRenderTarget2D: size/format/clear color/generate Mips.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("RenderTarget asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("RenderTarget asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("render"), TEXT("target"), TEXT("texture"), TEXT("rt"), TEXT("size"), TEXT("format") };
-	Out.RelatedCapabilities = { TEXT("create_asset_render_target"), TEXT("manage_asset_render_target") };
+	Out.ExtraSearchKeywords = { TEXT("render"), TEXT("Target"), TEXT("Texture"), TEXT("rt"), TEXT("size"), TEXT("Format") };
+	Out.RelatedCapabilities = { TEXT("CreateAssetRenderTarget"), TEXT("ManageAssetRenderTarget") };
 }
 
-FCapabilityResult FGetAssetRenderTargetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetRenderTargetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		UTextureRenderTarget2D* RT = LoadObject<UTextureRenderTarget2D>(nullptr, *AssetPath);
 		if (!RT)
 		{
@@ -45,11 +45,11 @@ FCapabilityResult FGetAssetRenderTargetCapability::Execute(const TSharedPtr<FJso
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),         RT->GetName());
-		Entry->SetStringField(TEXT("path"),         RT->GetPathName());
-		Entry->SetNumberField(TEXT("sizeX"),        RT->SizeX);
-		Entry->SetNumberField(TEXT("sizeY"),        RT->SizeY);
-		Entry->SetStringField(TEXT("format"),       FormatStr);
-		Entry->SetNumberField(TEXT("formatValue"),  (double)(int32)RT->RenderTargetFormat);
+		Entry->SetStringField(TEXT("Path"),         RT->GetPathName());
+		Entry->SetNumberField(TEXT("SizeX"),        RT->SizeX);
+		Entry->SetNumberField(TEXT("SizeY"),        RT->SizeY);
+		Entry->SetStringField(TEXT("Format"),       FormatStr);
+		Entry->SetNumberField(TEXT("FormatValue"),  (double)(int32)RT->RenderTargetFormat);
 		Entry->SetBoolField(TEXT("bHDR"),           RT->bHDR_DEPRECATED || (int32)RT->RenderTargetFormat >= (int32)ETextureRenderTargetFormat::RTF_R16f);
 
 		// ClearColor
@@ -58,10 +58,10 @@ FCapabilityResult FGetAssetRenderTargetCapability::Execute(const TSharedPtr<FJso
 		ClearColorObj->SetNumberField(TEXT("g"), RT->ClearColor.G);
 		ClearColorObj->SetNumberField(TEXT("b"), RT->ClearColor.B);
 		ClearColorObj->SetNumberField(TEXT("a"), RT->ClearColor.A);
-		Entry->SetObjectField(TEXT("clearColor"), ClearColorObj);
+		Entry->SetObjectField(TEXT("ClearColor"), ClearColorObj);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetRenderTargetCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetRenderTargetCapability)

@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_string_table：创建 UStringTable。 */
-class FCreateAssetStringTableCapability : public FNexusCapability
+/** CreateAssetStringTable：创建 UStringTable。 */
+class FNexusCreateAssetStringTableCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

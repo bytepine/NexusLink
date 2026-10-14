@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_enum：增删枚举项，设置显示名。 */
-class FManageAssetEnumCapability : public FNexusActionCapability
+/** ManageAssetEnum：增删枚举项，设置显示名。 */
+class FNexusManageAssetEnumCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

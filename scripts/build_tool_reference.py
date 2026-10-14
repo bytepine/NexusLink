@@ -12,7 +12,7 @@ build_tool_reference.py — 从 Capabilities / 元工具源码生成 docs/tool-r
   py scripts/build_tool_reference.py [--live URL]
 
   --repo-root  可选；含 NexusLink.uplugin 的目录（默认从脚本位置自动探测）
-  --live URL   （可选）对运行中的 UE MCP 端点调 search_capabilities 补全 schema
+  --live URL   （可选）对运行中的 UE MCP 端点调 SearchCapabilities 补全 schema
                示例：--live http://127.0.0.1:45000/stream
 
 输出（同一趟同时写出，禁止只改其中一份）：
@@ -61,9 +61,9 @@ CATEGORY_ORDER: list[str] = _DOC_CAT["category_order"]
 
 DOC_DESCRIPTIONS: dict[str, str] = {
     # Meta
-    "call_capability": "Execute a capability (after search_asset / get_asset_*). On failure check errorKind: unknown/disabled/unavailable/arg_invalid/user_denied; do not retry disabled or user_denied. Confirm-mode dangerous caps need reason. Legacy names (e.g. create_blackboard) map to canonical names. Batch calls[] and single form are mutually exclusive.",
-    "search_capabilities": "**Primary entry** — call before any blueprint/Widget/material/asset question. Prefer `capabilityName=<exact>`; `query` uses 1-2 word AND match. Failures: `errorKind` `not_found` / `disabled` / `disabled_only` (see `disabledCapabilities[]`); `query=get_asset` zero-hit hints route to `get_asset_<type>`. ≤2 matches return full `parameters[]`.",
-    "submit_feedback":    "Report capability/tool friction. Trigger: retry ≥2 with no progress, no suitable capability, schema guessing, or forced serial calls ≥3. `category`: `wrong_tool` / `misuse` / `schema_guess` / `search_zero` / `search_overflow` / `other`. Prefer structured fields (`attemptedArgs`, `actualError`, `expectedField`) over long `note`.",
+    "CallCapability": "Execute a capability (after SearchAsset / get_asset_*). On failure check ErrorKind: unknown/disabled/unavailable/ArgInvalid/UserDenied; do not retry disabled or UserDenied. Confirm-mode dangerous caps need reason. Legacy names (e.g. create_blackboard) map to canonical names. Batch calls[] and single form are mutually exclusive.",
+    "SearchCapabilities": "**Primary entry** — call before any blueprint/Widget/material/asset question. Prefer `CapabilityName=<exact>`; `query` uses 1-2 word AND match. Failures: `ErrorKind` `NotFound` / `disabled` / `DisabledOnly` (see `DisabledCapabilities[]`); `query=GetAsset` zero-hit hints route to `get_asset_<type>`. ≤2 matches return full `parameters[]`.",
+    "SubmitFeedback":    "Report capability/tool friction. Trigger: retry ≥2 with no progress, no suitable capability, schema guessing, or forced serial calls ≥3. `category`: `WrongTool` / `misuse` / `SchemaGuess` / `SearchZero` / `SearchOverflow` / `other`. Prefer structured fields (`AttemptedArgs`, `ActualError`, `ExpectedField`) over long `note`.",
 }
 
 # ── Regex 模式 ─────────────────────────────────────────────────────────────────
@@ -144,39 +144,39 @@ def _extract_enum_values_after_desc(call_body: str) -> list[str]:
 
 # 参数说明兜底（C++ 未写描述或解析失败时）
 COMMON_PARAM_DESCRIPTIONS: dict[str, str] = {
-    "assetPath":       "Asset package path (from `search_asset`, format `/Game/...`)",
-    "destAssetPath":   "Full destination asset path (package + asset name)",
+    "AssetPath":       "Asset package path (from `SearchAsset`, format `/Game/...`)",
+    "DestAssetPath":   "Full destination asset path (package + asset name)",
     "sections":        "Query sections (multi-select); see each cap's section list",
-    "propertyPaths":   "Reflection property paths (dotted, e.g. `Health` / `Mesh.RelativeLocation`)",
-    "propertyPath":    "Single reflection property path (inside operations/updates entries)",
-    "actorName":       "Runtime actor name (PIE world `GetName()`)",
-    "widgetName":      "Runtime widget name",
-    "ownerClass":      "Owner UserWidget class filter",
-    "classFilter":     "Class name filter (substring/wildcard, optional)",
-    "nameFilter":      "Name or tag filter (optional)",
-    "tagFilter":       "Actor tag exact match (optional)",
-    "pathFilter":      "Content path prefix (e.g. `/Game/Feature/`)",
-    "assetType":       "Asset type (e.g. Blueprint, Widget, World); no bare `all` full scan",
+    "PropertyPaths":   "Reflection property paths (dotted, e.g. `Health` / `Mesh.RelativeLocation`)",
+    "PropertyPath":    "Single reflection property path (inside operations/updates entries)",
+    "ActorName":       "Runtime actor name (PIE world `GetName()`)",
+    "WidgetName":      "Runtime widget name",
+    "OwnerClass":      "Owner UserWidget class filter",
+    "ClassFilter":     "Class name filter (substring/wildcard, optional)",
+    "NameFilter":      "Name or tag filter (optional)",
+    "TagFilter":       "Actor tag exact match (optional)",
+    "PathFilter":      "Content path prefix (e.g. `/Game/Feature/`)",
+    "AssetType":       "Asset type (e.g. Blueprint, Widget, World); no bare `all` full scan",
     "query":           "Search keywords (1–2 words, AND match)",
     "offset":          "Pagination offset (from 0)",
     "limit":           "Max items per page",
-    "watch":           "categories, textIncludes, textExcludes, verbosity; empty arms capture-all",
-    "collectWatch":    "Return the armed watch buffer",
+    "watch":           "categories, TextIncludes, TextExcludes, verbosity; empty arms capture-all",
+    "bCollectWatch":    "Return the armed watch buffer",
     "disarm":          "Disarm the watch after this call",
     "capability":      "Exact capability name",
-    "capabilityName":  "Exact capability name (`search_capabilities` shortcut)",
+    "CapabilityName":  "Exact capability name (`SearchCapabilities` shortcut)",
     "arguments":       "JSON object for the capability (nested; do not flatten to top level)",
     "calls":           "Batch call list: `[{capability, arguments}, ...]`",
     "operations":      "Batch operations: `[{action, ...}, ...]`",
-    "updates":         "Batch property updates: `[{propertyPath, value, ...}, ...]`",
+    "updates":         "Batch property updates: `[{PropertyPath, value, ...}, ...]`",
     "action":          "Operation name (see per-cap enum docs)",
     "mode":            "Mode (see per-cap enum docs)",
     "direction":       "Dependency direction: `dependencies` / `referencers`",
     "category":        "Feedback or log category",
     "note":            "Additional notes (optional)",
-    "scriptPath":      "File path relative to Content/Python/ (exec_python file mode)",
-    "className":       "Native UClass name",
-    "keepLoaded":      "When true, do not auto-unload packages introduced by this call",
+    "ScriptPath":      "File path relative to Content/Python/ (ExecPython file mode)",
+    "ClassName":       "Native UClass name",
+    "bKeepLoaded":      "When true, do not auto-unload packages introduced by this call",
 }
 
 
@@ -384,15 +384,15 @@ def load_manage_compile_caps() -> frozenset[str]:
 
 
 def inject_manage_finalize_params(cap: dict[str, Any]) -> None:
-    """与 FNexusCapability::GetDefinition 框架注入对齐：全 manage 加 saveToDisk；BP/ABP/WBP 加 compile。"""
+    """与 FNexusCapability::GetDefinition 框架注入对齐：全 manage 加 bSaveToDisk；BP/ABP/WBP 加 compile。"""
     name = cap.get("name") or ""
     if not name.startswith("manage_asset_"):
         return
     params: list[dict[str, Any]] = cap.setdefault("params", [])
     existing = {p.get("name") for p in params}
-    if "saveToDisk" not in existing:
+    if "bSaveToDisk" not in existing:
         params.append({
-            "name":        "saveToDisk",
+            "name":        "bSaveToDisk",
             "type":        "boolean",
             "description": "Save the package to disk after success",
         })
@@ -609,7 +609,7 @@ def load_live_schema(url: str, cap_name: str) -> list[dict] | None:
             json={
                 "jsonrpc": "2.0", "id": 1, "method": "initialize",
                 "params": {
-                    "protocolVersion": "2025-06-18",
+                    "ProtocolVersion": "2025-06-18",
                     "clientInfo": {"name": "build_tool_reference", "version": "1.0"},
                     "capabilities": {},
                 },
@@ -620,14 +620,14 @@ def load_live_schema(url: str, cap_name: str) -> list[dict] | None:
         session_id = r.headers.get("Mcp-Session-Id", "")
         headers = {"Mcp-Session-Id": session_id} if session_id else {}
 
-        # search_capabilities
+        # SearchCapabilities
         r2 = httpx.post(
             url, headers=headers,
             json={
                 "jsonrpc": "2.0", "id": 2, "method": "tools/call",
                 "params": {
-                    "name": "search_capabilities",
-                    "arguments": {"capabilityName": cap_name},
+                    "name": "SearchCapabilities",
+                    "arguments": {"CapabilityName": cap_name},
                 },
             },
             timeout=15,
@@ -729,7 +729,7 @@ def main() -> None:
             cap_count += 1
 
     # ── 解析元工具 ─────────────────────────────────────────────────────────────
-    META_ORDER = ["search_capabilities", "call_capability", "submit_feedback"]
+    META_ORDER = ["SearchCapabilities", "CallCapability", "SubmitFeedback"]
     meta_tools: dict[str, dict] = {}
     if tools_dir.exists():
         for cpp_file in tools_dir.glob("*.cpp"):

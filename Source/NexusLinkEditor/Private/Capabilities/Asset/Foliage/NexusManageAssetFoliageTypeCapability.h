@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_foliage_type：set_mesh / set_density / set_property。不刷关卡内植被。 */
-class FManageAssetFoliageTypeCapability : public FNexusActionCapability
+/** ManageAssetFoliageType：SetMesh / SetDensity / SetProperty。不刷关卡内植被。 */
+class FNexusManageAssetFoliageTypeCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

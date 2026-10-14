@@ -9,28 +9,28 @@
 #include "NexusMcpTool.h"
 #include "Materials/MaterialParameterCollection.h"
 
-void FGetAssetMaterialParameterCollectionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetMaterialParameterCollectionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_material_parameter_collection");
+	Out.Name = TEXT("GetAssetMaterialParameterCollection");
 	Out.SearchAssetTypes = {TEXT("MaterialParameterCollection")};
 	Out.Description = TEXT("List MPC scalar/vector params and default values.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("MPC asset path (/Game/…/MPC_Foo)")))
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("MPC asset path (/Game/…/MPC_Foo)")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Material };
-	Out.ExtraSearchKeywords = { TEXT("mpc"), TEXT("parameter"), TEXT("collection"), TEXT("material"), TEXT("global"), TEXT("scalar"), TEXT("vector") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_material_parameter_collection"), TEXT("get_asset_material"), TEXT("manage_asset_material") };
+	Out.ExtraSearchKeywords = { TEXT("mpc"), TEXT("parameter"), TEXT("collection"), TEXT("Material"), TEXT("global"), TEXT("Scalar"), TEXT("Vector") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetMaterialParameterCollection"), TEXT("GetAssetMaterial"), TEXT("ManageAssetMaterial") };
 	Out.WhenToUse = TEXT("Read all MPC scalar/vector param names and defaults");
 }
 
-FCapabilityResult FGetAssetMaterialParameterCollectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetMaterialParameterCollectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		UMaterialParameterCollection* MPC = FNexusAssetUtils::LoadAssetWithFallback<UMaterialParameterCollection>(AssetPath);
 		if (!MPC)
@@ -39,11 +39,11 @@ FCapabilityResult FGetAssetMaterialParameterCollectionCapability::Execute(const 
 			return;
 		}
 
-		OutEntry->SetStringField(TEXT("assetType"), TEXT("MaterialParameterCollection"));
+		OutEntry->SetStringField(TEXT("AssetType"), TEXT("MaterialParameterCollection"));
 		OutEntry->SetStringField(TEXT("name"),      MPC->GetName());
-		OutEntry->SetStringField(TEXT("path"),      FNexusAssetUtils::PackagePathOf(MPC));
-		OutEntry->SetNumberField(TEXT("scalarParametersCount"), MPC->ScalarParameters.Num());
-		OutEntry->SetNumberField(TEXT("vectorParametersCount"), MPC->VectorParameters.Num());
+		OutEntry->SetStringField(TEXT("Path"),      FNexusAssetUtils::PackagePathOf(MPC));
+		OutEntry->SetNumberField(TEXT("ScalarParametersCount"), MPC->ScalarParameters.Num());
+		OutEntry->SetNumberField(TEXT("VectorParametersCount"), MPC->VectorParameters.Num());
 
 		// 标量参数
 		TArray<TSharedPtr<FJsonValue>> ScalarArr;
@@ -51,10 +51,10 @@ FCapabilityResult FGetAssetMaterialParameterCollectionCapability::Execute(const 
 		{
 			TSharedPtr<FJsonObject> PObj = MakeShared<FJsonObject>();
 			PObj->SetStringField(TEXT("name"),         P.ParameterName.ToString());
-			PObj->SetNumberField(TEXT("defaultValue"), P.DefaultValue);
+			PObj->SetNumberField(TEXT("DefaultValue"), P.DefaultValue);
 			ScalarArr.Add(MakeShared<FJsonValueObject>(PObj));
 		}
-		OutEntry->SetArrayField(TEXT("scalarParameters"), ScalarArr);
+		OutEntry->SetArrayField(TEXT("ScalarParameters"), ScalarArr);
 
 		// 向量参数
 		TArray<TSharedPtr<FJsonValue>> VectorArr;
@@ -67,13 +67,13 @@ FCapabilityResult FGetAssetMaterialParameterCollectionCapability::Execute(const 
 			ColorObj->SetNumberField(TEXT("g"), P.DefaultValue.G);
 			ColorObj->SetNumberField(TEXT("b"), P.DefaultValue.B);
 			ColorObj->SetNumberField(TEXT("a"), P.DefaultValue.A);
-			PObj->SetObjectField(TEXT("defaultValue"), ColorObj);
+			PObj->SetObjectField(TEXT("DefaultValue"), ColorObj);
 			VectorArr.Add(MakeShared<FJsonValueObject>(PObj));
 		}
-		OutEntry->SetArrayField(TEXT("vectorParameters"), VectorArr);
+		OutEntry->SetArrayField(TEXT("VectorParameters"), VectorArr);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetMaterialParameterCollectionCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetMaterialParameterCollectionCapability)

@@ -13,10 +13,10 @@ bool FNexusEditorTransaction::ShouldTransact(const FString& CapName, const TArra
 	{
 		return false;
 	}
-	if (CapName == TEXT("save_asset") || CapName == TEXT("compile_blueprint")
-		|| CapName == TEXT("unload_asset") || CapName == TEXT("control_pie")
-		|| CapName == TEXT("exec_command") || CapName == TEXT("capture_viewport")
-		|| CapName == TEXT("control_movie_pipeline"))
+	if (CapName == TEXT("SaveAsset") || CapName == TEXT("CompileBlueprint")
+		|| CapName == TEXT("UnloadAsset") || CapName == TEXT("ControlPie")
+		|| CapName == TEXT("ExecCommand") || CapName == TEXT("CaptureViewport")
+		|| CapName == TEXT("ControlMoviePipeline"))
 	{
 		return false;
 	}

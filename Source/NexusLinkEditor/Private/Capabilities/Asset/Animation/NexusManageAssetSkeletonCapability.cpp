@@ -9,31 +9,31 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetSkeletonCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetSkeletonCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_skeleton");
+	Out.Name = TEXT("ManageAssetSkeleton");
 	Out.SearchAssetTypes = {TEXT("Skeleton")};
-	Out.Description = TEXT("Batch edit Skeleton Socket. action=add_socket|remove_socket|modify_socket.");
+	Out.Description = TEXT("Batch edit Skeleton Socket. Action=AddSocket|RemoveSocket|ModifySocket.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Socket operation"),
-			{ TEXT("add_socket"), TEXT("remove_socket"), TEXT("modify_socket") }))
-		.Prop(TEXT("socketName"),   FNexusSchema::Str(TEXT("Socket name")))
-		.Prop(TEXT("boneName"),     FNexusSchema::Str(TEXT("Attach bone name (add/modify)")))
-		.Prop(TEXT("location"),     FNexusSchema::Str(TEXT("Position X,Y,Z (add/modify)")))
-		.Prop(TEXT("rotation"),     FNexusSchema::Str(TEXT("Rotation P,Y,R (add/modify)")))
-		.Prop(TEXT("scale"),        FNexusSchema::Str(TEXT("Scale X,Y,Z (add/modify)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Socket operation"),
+			{ TEXT("AddSocket"), TEXT("RemoveSocket"), TEXT("ModifySocket") }))
+		.Prop(TEXT("SocketName"),   FNexusSchema::Str(TEXT("Socket name")))
+		.Prop(TEXT("BoneName"),     FNexusSchema::Str(TEXT("Attach bone name (add/modify)")))
+		.Prop(TEXT("Location"),     FNexusSchema::Str(TEXT("Position X,Y,Z (add/modify)")))
+		.Prop(TEXT("Rotation"),     FNexusSchema::Str(TEXT("Rotation P,Y,R (add/modify)")))
+		.Prop(TEXT("Scale"),        FNexusSchema::Str(TEXT("Scale X,Y,Z (add/modify)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Skeleton asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch socket ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Skeleton asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch socket ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("socket"), TEXT("bone"), TEXT("rig"), TEXT("attach") };
-	Out.RelatedCapabilities = { TEXT("get_asset_skeleton"), TEXT("get_asset_skeletal_mesh") };
-	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("add/remove Modify Skeleton Socket; persist with save_asset after changes");
+	Out.ExtraSearchKeywords = { TEXT("socket"), TEXT("Bone"), TEXT("rig"), TEXT("attach") };
+	Out.RelatedCapabilities = { TEXT("GetAssetSkeleton"), TEXT("GetAssetSkeletalMesh") };
+	Out.Prerequisites = { TEXT("EditorOnly") };
+	Out.WhenToUse = TEXT("add/remove Modify Skeleton Socket; persist with SaveAsset after changes");
 }
 
 /** 解析 "X,Y,Z" 字符串为 FVector */
@@ -92,26 +92,26 @@ static void HandleSkel_AddSocket(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	USkeleton* Skeleton = SkelFrom(Ctx);
 	if (!Skeleton)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Skeleton is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Skeleton is null"));
 		return;
 	}
 	const FNexusArgs A(Op);
-	const FString SocketName = A.Str(TEXT("socketName"));
+	const FString SocketName = A.Str(TEXT("SocketName"));
 	if (SocketName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_socket requires socketName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddSocket requires SocketName"));
 		return;
 	}
 	if (FindSkeletonSocket(Skeleton, FName(*SocketName)))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket already exists: %s"), *SocketName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Socket already exists: %s"), *SocketName));
 		return;
 	}
 
-	const FString BoneName = A.Str(TEXT("boneName"));
-	const FString LocStr = A.Str(TEXT("location"));
-	const FString RotStr = A.Str(TEXT("rotation"));
-	const FString ScaleStr = A.Str(TEXT("scale"));
+	const FString BoneName = A.Str(TEXT("BoneName"));
+	const FString LocStr = A.Str(TEXT("Location"));
+	const FString RotStr = A.Str(TEXT("Rotation"));
+	const FString ScaleStr = A.Str(TEXT("Scale"));
 
 	USkeletalMeshSocket* NewSocket = NewObject<USkeletalMeshSocket>(Skeleton);
 	NewSocket->SocketName = FName(*SocketName);
@@ -125,8 +125,8 @@ static void HandleSkel_AddSocket(const TSharedPtr<FJsonObject>& Op, FNexusAction
 
 	Skeleton->Sockets.Add(NewSocket);
 	MarkSkelDirty(Ctx);
-	Ctx.Entry->SetStringField(TEXT("socketName"), SocketName);
-	Ctx.Entry->SetStringField(TEXT("boneName"), NewSocket->BoneName.ToString());
+	Ctx.Entry->SetStringField(TEXT("SocketName"), SocketName);
+	Ctx.Entry->SetStringField(TEXT("BoneName"), NewSocket->BoneName.ToString());
 }
 
 static void HandleSkel_RemoveSocket(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -134,13 +134,13 @@ static void HandleSkel_RemoveSocket(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	USkeleton* Skeleton = SkelFrom(Ctx);
 	if (!Skeleton)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Skeleton is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Skeleton is null"));
 		return;
 	}
-	const FString SocketName = FNexusArgs(Op).Str(TEXT("socketName"));
+	const FString SocketName = FNexusArgs(Op).Str(TEXT("SocketName"));
 	if (SocketName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_socket requires socketName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveSocket requires SocketName"));
 		return;
 	}
 	const FName TargetName(*SocketName);
@@ -156,12 +156,12 @@ static void HandleSkel_RemoveSocket(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	}
 	if (!bFound)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket not found: %s"), *SocketName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Socket not found: %s"), *SocketName));
 		return;
 	}
 	MarkSkelDirty(Ctx);
-	Ctx.Entry->SetStringField(TEXT("socketName"), SocketName);
-	Ctx.Entry->SetBoolField(TEXT("removed"), true);
+	Ctx.Entry->SetStringField(TEXT("SocketName"), SocketName);
+	Ctx.Entry->SetBoolField(TEXT("bRemoved"), true);
 }
 
 static void HandleSkel_ModifySocket(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -169,41 +169,41 @@ static void HandleSkel_ModifySocket(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	USkeleton* Skeleton = SkelFrom(Ctx);
 	if (!Skeleton)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Skeleton is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Skeleton is null"));
 		return;
 	}
 	const FNexusArgs A(Op);
-	const FString SocketName = A.Str(TEXT("socketName"));
+	const FString SocketName = A.Str(TEXT("SocketName"));
 	if (SocketName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("modify_socket requires socketName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("ModifySocket requires SocketName"));
 		return;
 	}
 	USkeletalMeshSocket* TargetSocket = FindSkeletonSocket(Skeleton, FName(*SocketName));
 	if (!TargetSocket)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Socket not found: %s"), *SocketName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Socket not found: %s"), *SocketName));
 		return;
 	}
-	const FString BoneName = A.Str(TEXT("boneName"));
+	const FString BoneName = A.Str(TEXT("BoneName"));
 	if (!BoneName.IsEmpty()) TargetSocket->BoneName = FName(*BoneName);
-	FVector Loc; if (ParseVec3(A.Str(TEXT("location")), Loc)) TargetSocket->RelativeLocation = Loc;
-	FRotator Rot; if (NxParseRotatorStr(A.Str(TEXT("rotation")), Rot)) TargetSocket->RelativeRotation = Rot;
-	FVector Scale; if (ParseVec3(A.Str(TEXT("scale")), Scale)) TargetSocket->RelativeScale = Scale;
+	FVector Loc; if (ParseVec3(A.Str(TEXT("Location")), Loc)) TargetSocket->RelativeLocation = Loc;
+	FRotator Rot; if (NxParseRotatorStr(A.Str(TEXT("Rotation")), Rot)) TargetSocket->RelativeRotation = Rot;
+	FVector Scale; if (ParseVec3(A.Str(TEXT("Scale")), Scale)) TargetSocket->RelativeScale = Scale;
 	MarkSkelDirty(Ctx);
-	Ctx.Entry->SetStringField(TEXT("socketName"), SocketName);
-	Ctx.Entry->SetStringField(TEXT("boneName"), TargetSocket->BoneName.ToString());
-	Ctx.Entry->SetBoolField(TEXT("modified"), true);
+	Ctx.Entry->SetStringField(TEXT("SocketName"), SocketName);
+	Ctx.Entry->SetStringField(TEXT("BoneName"), TargetSocket->BoneName.ToString());
+	Ctx.Entry->SetBoolField(TEXT("bModified"), true);
 }
 
-bool FManageAssetSkeletonCapability::PrepareTarget(
+bool FNexusManageAssetSkeletonCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	USkeleton* Skeleton = FNexusAssetUtils::LoadAssetWithFallback<USkeleton>(AssetPath);
 	if (!Skeleton)
 	{
@@ -216,7 +216,7 @@ bool FManageAssetSkeletonCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetSkeletonCapability::AfterPrepareTarget(
+void FNexusManageAssetSkeletonCapability::AfterPrepareTarget(
 	void* Target,
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& OutTop) const
@@ -228,7 +228,7 @@ void FManageAssetSkeletonCapability::AfterPrepareTarget(
 	}
 }
 
-void FManageAssetSkeletonCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetSkeletonCapability::FinalizeTarget(void* Target) const
 {
 	FSkeletonActionState* State = static_cast<FSkeletonActionState*>(Target);
 	if (!State) return;
@@ -237,17 +237,17 @@ void FManageAssetSkeletonCapability::FinalizeTarget(void* Target) const
 		State->Skeleton->MarkPackageDirty();
 		if (State->OutTop.IsValid())
 		{
-			State->OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
+			State->OutTop->SetStringField(TEXT("Note"), TEXT("Modified; persist with SaveAsset"));
 		}
 	}
 	delete State;
 }
 
-void FManageAssetSkeletonCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetSkeletonCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("add_socket"),    &HandleSkel_AddSocket);
-	OutHandlers.Add(TEXT("remove_socket"), &HandleSkel_RemoveSocket);
-	OutHandlers.Add(TEXT("modify_socket"), &HandleSkel_ModifySocket);
+	OutHandlers.Add(TEXT("AddSocket"),    &HandleSkel_AddSocket);
+	OutHandlers.Add(TEXT("RemoveSocket"), &HandleSkel_RemoveSocket);
+	OutHandlers.Add(TEXT("ModifySocket"), &HandleSkel_ModifySocket);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetSkeletonCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetSkeletonCapability)

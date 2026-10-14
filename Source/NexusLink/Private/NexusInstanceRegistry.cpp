@@ -65,12 +65,12 @@ void FNexusInstanceRegistry::Register(int32 McpPort, int32 WsPort, const FString
 	CleanupStaleFiles();
 
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-	Obj->SetNumberField(TEXT("pid"), FPlatformProcess::GetCurrentProcessId());
-	Obj->SetNumberField(TEXT("mcpPort"), McpPort);
-	Obj->SetNumberField(TEXT("wsPort"), WsPort);
-	Obj->SetStringField(TEXT("projectName"), ProjectName);
-	Obj->SetStringField(TEXT("engineVersion"), EngineVersion);
-	Obj->SetStringField(TEXT("authToken"), AuthToken);
+	Obj->SetNumberField(TEXT("Pid"), FPlatformProcess::GetCurrentProcessId());
+	Obj->SetNumberField(TEXT("McpPort"), McpPort);
+	Obj->SetNumberField(TEXT("WsPort"), WsPort);
+	Obj->SetStringField(TEXT("ProjectName"), ProjectName);
+	Obj->SetStringField(TEXT("EngineVersion"), EngineVersion);
+	Obj->SetStringField(TEXT("AuthToken"), AuthToken);
 
 	FString Json;
 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Json);
@@ -129,13 +129,13 @@ TArray<int32> FNexusInstanceRegistry::GetClaimedPorts()
 		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Content);
 		if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid()) continue;
 
-		if (Json->HasField(TEXT("mcpPort")))
+		if (Json->HasField(TEXT("McpPort")))
 		{
-			Result.AddUnique(static_cast<int32>(Json->GetNumberField(TEXT("mcpPort"))));
+			Result.AddUnique(static_cast<int32>(Json->GetNumberField(TEXT("McpPort"))));
 		}
-		if (Json->HasField(TEXT("wsPort")))
+		if (Json->HasField(TEXT("WsPort")))
 		{
-			Result.AddUnique(static_cast<int32>(Json->GetNumberField(TEXT("wsPort"))));
+			Result.AddUnique(static_cast<int32>(Json->GetNumberField(TEXT("WsPort"))));
 		}
 	}
 

@@ -381,14 +381,14 @@ TArray<FNexusLogEntry> FNexusLogCapture::Query(
 
 	TArray<int32> ValidIndices;
 	ValidIndices.Reserve(Snapshot.Num());
-	for (int32 i = 0; i < Snapshot.Num(); ++i)
+	for (int32 SnapshotIndex = 0; SnapshotIndex < Snapshot.Num(); ++SnapshotIndex)
 	{
-		const FNexusLogEntry& E = Snapshot[i];
+		const FNexusLogEntry& E = Snapshot[SnapshotIndex];
 		if (SinceSequence >= 0 && E.Sequence <= SinceSequence)
 			continue;
 		if (!MatchesFilters(E, CompiledCategory, VerbosityFilter, CompiledText))
 			continue;
-		ValidIndices.Add(i);
+		ValidIndices.Add(SnapshotIndex);
 	}
 
 	OutTotalCount = ValidIndices.Num();

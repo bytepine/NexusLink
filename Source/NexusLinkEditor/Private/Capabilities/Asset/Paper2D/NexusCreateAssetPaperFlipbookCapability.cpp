@@ -10,25 +10,25 @@
 #include "PaperFlipbook.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetPaperFlipbookCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetPaperFlipbookCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_paper_flipbook");
+	Out.Name = TEXT("CreateAssetPaperFlipbook");
 	Out.Description = TEXT("Create PaperFlipbook. Add frames via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("flipbook"), TEXT("2d"), TEXT("sprite") };
-	Out.RelatedCapabilities = { TEXT("get_asset_paper_flipbook"), TEXT("manage_asset_paper_flipbook") };
+	Out.ExtraSearchKeywords = { TEXT("flipbook"), TEXT("2d"), TEXT("Sprite") };
+	Out.RelatedCapabilities = { TEXT("GetAssetPaperFlipbook"), TEXT("ManageAssetPaperFlipbook") };
 }
 
-FCapabilityResult FCreateAssetPaperFlipbookCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetPaperFlipbookCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<UPaperFlipbook>(AssetPath);
 		if (!Created.Ok())
@@ -41,5 +41,5 @@ FCapabilityResult FCreateAssetPaperFlipbookCapability::Execute(const TSharedPtr<
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetPaperFlipbookCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetPaperFlipbookCapability)
 #endif

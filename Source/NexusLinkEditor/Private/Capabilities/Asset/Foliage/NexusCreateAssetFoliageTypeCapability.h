@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_foliage_type：创建 UFoliageType_InstancedStaticMesh。 */
-class FCreateAssetFoliageTypeCapability : public FNexusCapability
+/** CreateAssetFoliageType：创建 UFoliageType_InstancedStaticMesh。 */
+class FNexusCreateAssetFoliageTypeCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

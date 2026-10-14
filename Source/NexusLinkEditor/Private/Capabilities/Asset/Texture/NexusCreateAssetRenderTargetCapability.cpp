@@ -9,31 +9,31 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetRenderTargetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetRenderTargetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_render_target");
+	Out.Name = TEXT("CreateAssetRenderTarget");
 	Out.Description = TEXT("Create TextureRenderTarget2D; edit size/format via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Prop(TEXT("sizeX"),     FNexusSchema::Int(TEXT("Width (default 256)"), 256, 1))
-		.Prop(TEXT("sizeY"),     FNexusSchema::Int(TEXT("Height (default 256)"), 256, 1))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("SizeX"),     FNexusSchema::Int(TEXT("Width (default 256)"), 256, 1))
+		.Prop(TEXT("SizeY"),     FNexusSchema::Int(TEXT("Height (default 256)"), 256, 1))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("render"), TEXT("target"), TEXT("texture"), TEXT("rt"), TEXT("offscreen") };
-	Out.RelatedCapabilities = { TEXT("get_asset_render_target"), TEXT("manage_asset_render_target") };
+	Out.ExtraSearchKeywords = { TEXT("render"), TEXT("Target"), TEXT("Texture"), TEXT("rt"), TEXT("offscreen") };
+	Out.RelatedCapabilities = { TEXT("GetAssetRenderTarget"), TEXT("ManageAssetRenderTarget") };
 	Out.WhenToUse = TEXT("Create render target texture asset");
 }
 
-FCapabilityResult FCreateAssetRenderTargetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetRenderTargetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
-		const int32 SizeX = static_cast<int32>(A.Num(TEXT("sizeX"), 256));
-		const int32 SizeY = static_cast<int32>(A.Num(TEXT("sizeY"), 256));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
+		const int32 SizeX = static_cast<int32>(A.Num(TEXT("SizeX"), 256));
+		const int32 SizeY = static_cast<int32>(A.Num(TEXT("SizeY"), 256));
 
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<UTextureRenderTarget2D>(AssetPath, RF_Public | RF_Standalone, false);
@@ -57,10 +57,10 @@ FCapabilityResult FCreateAssetRenderTargetCapability::Execute(const TSharedPtr<F
 		FNexusAssetUtils::NotifyAndSaveCreated(RT->GetOutermost(), RT, AssetPath);
 
 		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(RT);
-		Entry->SetNumberField(TEXT("sizeX"),   RT->SizeX);
-		Entry->SetNumberField(TEXT("sizeY"),   RT->SizeY);
+		Entry->SetNumberField(TEXT("SizeX"),   RT->SizeX);
+		Entry->SetNumberField(TEXT("SizeY"),   RT->SizeY);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetRenderTargetCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetRenderTargetCapability)

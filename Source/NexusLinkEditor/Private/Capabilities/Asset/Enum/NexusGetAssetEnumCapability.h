@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** get_asset_enum：读取 UserDefinedEnum 的枚举项列表。 */
-class FGetAssetEnumCapability : public FNexusCapability
+/** GetAssetEnum：读取 UserDefinedEnum 的枚举项列表。 */
+class FNexusGetAssetEnumCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -7,27 +7,27 @@
 #include "Sound/SoundClass.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetSoundClassCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetSoundClassCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_sound_class");
+	Out.Name = TEXT("ManageAssetSoundClass");
 	Out.SearchAssetTypes = {TEXT("SoundClass")};
-	Out.Description = TEXT("Set SoundClass volume/pitch/lowPassFilter/attenuationScale.");
+	Out.Description = TEXT("Set SoundClass volume/pitch/LowPassFilter/AttenuationScale.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),           FNexusSchema::Enum(TEXT("Action"), { TEXT("set") }))
-		.Prop(TEXT("volume"),           FNexusSchema::Num(TEXT("Volume multiplier [0,∞)")))
-		.Prop(TEXT("pitch"),            FNexusSchema::Num(TEXT("Pitch multiplier [0,∞)")))
-		.Prop(TEXT("lowPassFilter"),    FNexusSchema::Num(TEXT("Low-pass cutoff (Hz)")))
-		.Prop(TEXT("attenuationScale"), FNexusSchema::Num(TEXT("Attenuation distance scale")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"),           FNexusSchema::Enum(TEXT("Action"), { TEXT("Set") }))
+		.Prop(TEXT("Volume"),           FNexusSchema::Num(TEXT("Volume multiplier [0,∞)")))
+		.Prop(TEXT("Pitch"),            FNexusSchema::Num(TEXT("Pitch multiplier [0,∞)")))
+		.Prop(TEXT("LowPassFilter"),    FNexusSchema::Num(TEXT("Low-pass cutoff (Hz)")))
+		.Prop(TEXT("AttenuationScale"), FNexusSchema::Num(TEXT("Attenuation distance scale")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundClass asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("SoundClass asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("sound"), TEXT("class"), TEXT("volume"), TEXT("pitch"), TEXT("filter") };
-	Out.RelatedCapabilities = { TEXT("get_asset_sound_class"), TEXT("create_asset_sound_class") };
+	Out.ExtraSearchKeywords = { TEXT("Sound"), TEXT("Class"), TEXT("Volume"), TEXT("Pitch"), TEXT("filter") };
+	Out.RelatedCapabilities = { TEXT("GetAssetSoundClass"), TEXT("CreateAssetSoundClass") };
 }
 
 struct FSoundClassActionState
@@ -44,25 +44,25 @@ static FSoundClassActionState* SClassState(FNexusActionContext& Ctx)
 static void HandleSClass_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	USoundClass* SC = SClassState(Ctx)->SC;
-	if (Op->HasField(TEXT("volume")))           SC->Properties.Volume                   = static_cast<float>(Op->GetNumberField(TEXT("volume")));
-	if (Op->HasField(TEXT("pitch")))            SC->Properties.Pitch                    = static_cast<float>(Op->GetNumberField(TEXT("pitch")));
-	if (Op->HasField(TEXT("lowPassFilter")))    SC->Properties.LowPassFilterFrequency   = static_cast<float>(Op->GetNumberField(TEXT("lowPassFilter")));
-	if (Op->HasField(TEXT("attenuationScale"))) SC->Properties.AttenuationDistanceScale = static_cast<float>(Op->GetNumberField(TEXT("attenuationScale")));
+	if (Op->HasField(TEXT("Volume")))           SC->Properties.Volume                   = static_cast<float>(Op->GetNumberField(TEXT("Volume")));
+	if (Op->HasField(TEXT("Pitch")))            SC->Properties.Pitch                    = static_cast<float>(Op->GetNumberField(TEXT("Pitch")));
+	if (Op->HasField(TEXT("LowPassFilter")))    SC->Properties.LowPassFilterFrequency   = static_cast<float>(Op->GetNumberField(TEXT("LowPassFilter")));
+	if (Op->HasField(TEXT("AttenuationScale"))) SC->Properties.AttenuationDistanceScale = static_cast<float>(Op->GetNumberField(TEXT("AttenuationScale")));
 	SClassState(Ctx)->bDirty = true;
 	Ctx.Entry->SetStringField(TEXT("name"),          SC->GetName());
-	Ctx.Entry->SetNumberField(TEXT("volume"),        SC->Properties.Volume);
-	Ctx.Entry->SetNumberField(TEXT("pitch"),         SC->Properties.Pitch);
-	Ctx.Entry->SetNumberField(TEXT("lowPassFilter"), SC->Properties.LowPassFilterFrequency);
+	Ctx.Entry->SetNumberField(TEXT("Volume"),        SC->Properties.Volume);
+	Ctx.Entry->SetNumberField(TEXT("Pitch"),         SC->Properties.Pitch);
+	Ctx.Entry->SetNumberField(TEXT("LowPassFilter"), SC->Properties.LowPassFilterFrequency);
 }
 
-bool FManageAssetSoundClassCapability::PrepareTarget(
+bool FNexusManageAssetSoundClassCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	USoundClass* SC = LoadObject<USoundClass>(nullptr, *AssetPath);
 	if (!SC)
 	{
@@ -75,7 +75,7 @@ bool FManageAssetSoundClassCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetSoundClassCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetSoundClassCapability::FinalizeTarget(void* Target) const
 {
 	FSoundClassActionState* State = static_cast<FSoundClassActionState*>(Target);
 	if (!State) return;
@@ -83,9 +83,9 @@ void FManageAssetSoundClassCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetSoundClassCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetSoundClassCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set"), &HandleSClass_Set);
+	OutHandlers.Add(TEXT("Set"), &HandleSClass_Set);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetSoundClassCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetSoundClassCapability)

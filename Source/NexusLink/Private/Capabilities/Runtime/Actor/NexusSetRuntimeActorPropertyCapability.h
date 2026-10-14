@@ -9,12 +9,12 @@
 class UWorld;
 
 /**
- * set_property 工具的 Actor 分支 Capability。
+ * SetProperty 工具的 Actor 分支 Capability。
  *
- * 命中条件：target=="actor" 或（无 target 且无顶层 assetPath 时）首条 update 有 actorName。
+ * 命中条件：Target=="Actor" 或（无 target 且无顶层 AssetPath 时）首条 update 有 ActorName。
  * Execute 展开 updates[] 数组，每项独立写入。
  */
-class FSetRuntimeActorPropertyCapability : public FNexusRuntimeCapability
+class FNexusSetRuntimeActorPropertyCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -30,13 +30,13 @@ UWorld* FNexusEditorLevelUtils::LoadLevelWorldForRead(const FString& AssetPath, 
 {
 	bOutIsEditorWorld = false;
 #if !WITH_EDITOR
-	OutError = TEXT("get_asset_level only available in editor mode");
+	OutError = TEXT("GetAssetLevel only available in editor mode");
 	return nullptr;
 #else
 	const FString PackagePath = NormalizeLevelPackagePath(AssetPath);
 	if (PackagePath.IsEmpty())
 	{
-		OutError = TEXT("assetPath is empty");
+		OutError = TEXT("AssetPath is empty");
 		return nullptr;
 	}
 
@@ -100,7 +100,7 @@ bool FNexusEditorLevelUtils::SpawnActorInLevelWorld(UWorld* World, UClass* Class
 	const FRotator& Rotation, AActor*& OutActor, FString& OutError)
 {
 #if !WITH_EDITOR
-	OutError = TEXT("spawn_actor only available in editor mode");
+	OutError = TEXT("SpawnActor only available in editor mode");
 	return false;
 #else
 	OutActor = nullptr;
@@ -125,7 +125,7 @@ bool FNexusEditorLevelUtils::SpawnActorInLevelWorld(UWorld* World, UClass* Class
 bool FNexusEditorLevelUtils::RemoveLevelActor(UWorld* World, AActor* Actor, FString& OutError)
 {
 #if !WITH_EDITOR
-	OutError = TEXT("remove_actor only available in editor mode");
+	OutError = TEXT("RemoveActor only available in editor mode");
 	return false;
 #else
 	if (!World || !Actor)
@@ -159,16 +159,16 @@ void FNexusEditorLevelUtils::AppendLevelActorsSection(UWorld* World, const TShar
 	int32 Limit = 100;
 	if (Args.IsValid())
 	{
-		Args->TryGetStringField(TEXT("classFilter"), ClassFilter);
-		Args->TryGetStringField(TEXT("nameFilter"), NameFilter);
-		Args->TryGetStringField(TEXT("tagFilter"), TagFilter);
-		if (Args->HasField(TEXT("offset")))
+		Args->TryGetStringField(TEXT("ClassFilter"), ClassFilter);
+		Args->TryGetStringField(TEXT("NameFilter"), NameFilter);
+		Args->TryGetStringField(TEXT("TagFilter"), TagFilter);
+		if (Args->HasField(TEXT("Offset")))
 		{
-			Offset = FMath::Max(0, static_cast<int32>(Args->GetNumberField(TEXT("offset"))));
+			Offset = FMath::Max(0, static_cast<int32>(Args->GetNumberField(TEXT("Offset"))));
 		}
-		if (Args->HasField(TEXT("limit")))
+		if (Args->HasField(TEXT("Limit")))
 		{
-			Limit = FMath::Clamp(static_cast<int32>(Args->GetNumberField(TEXT("limit"))), 1, 500);
+			Limit = FMath::Clamp(static_cast<int32>(Args->GetNumberField(TEXT("Limit"))), 1, 500);
 		}
 	}
 
@@ -232,17 +232,17 @@ void FNexusEditorLevelUtils::AppendLevelActorsSection(UWorld* World, const TShar
 		O->SetStringField(TEXT("name"), All[i].Name);
 		if (!All[i].Label.IsEmpty())
 		{
-			O->SetStringField(TEXT("label"), All[i].Label);
+			O->SetStringField(TEXT("Label"), All[i].Label);
 		}
-		O->SetStringField(TEXT("class"), All[i].Class);
-		O->SetStringField(TEXT("location"), All[i].Location);
+		O->SetStringField(TEXT("Class"), All[i].Class);
+		O->SetStringField(TEXT("Location"), All[i].Location);
 		Page.Add(MakeShared<FJsonValueObject>(O));
 	}
 
-	Entry->SetNumberField(TEXT("actorTotalCount"), Total);
-	Entry->SetNumberField(TEXT("offset"), Start);
-	Entry->SetNumberField(TEXT("limit"), Limit);
-	Entry->SetArrayField(TEXT("actors"), Page);
+	Entry->SetNumberField(TEXT("ActorTotalCount"), Total);
+	Entry->SetNumberField(TEXT("Offset"), Start);
+	Entry->SetNumberField(TEXT("Limit"), Limit);
+	Entry->SetArrayField(TEXT("Actors"), Page);
 #endif
 }
 
@@ -260,14 +260,14 @@ void FNexusEditorLevelUtils::AppendLevelSettingsSection(UWorld* World, TSharedPt
 	AWorldSettings* WS = World->GetWorldSettings();
 	if (WS)
 	{
-		SettingsObj->SetNumberField(TEXT("gravityZ"), WS->GetGravityZ());
+		SettingsObj->SetNumberField(TEXT("GravityZ"), WS->GetGravityZ());
 		if (WS->DefaultGameMode)
 		{
-			SettingsObj->SetStringField(TEXT("defaultGameMode"), WS->DefaultGameMode->GetPathName());
+			SettingsObj->SetStringField(TEXT("DefaultGameMode"), WS->DefaultGameMode->GetPathName());
 		}
-		SettingsObj->SetNumberField(TEXT("killZ"), WS->KillZ);
-		SettingsObj->SetBoolField(TEXT("enableWorldBoundsChecks"), WS->bEnableWorldBoundsChecks);
+		SettingsObj->SetNumberField(TEXT("KillZ"), WS->KillZ);
+		SettingsObj->SetBoolField(TEXT("bEnableWorldBoundsChecks"), WS->bEnableWorldBoundsChecks);
 	}
-	Entry->SetObjectField(TEXT("settings"), SettingsObj);
+	Entry->SetObjectField(TEXT("Settings"), SettingsObj);
 #endif
 }

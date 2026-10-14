@@ -9,45 +9,45 @@
 #include "Sound/SoundWave.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetSoundWaveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetSoundWaveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_sound_wave");
+	Out.Name = TEXT("GetAssetSoundWave");
 	Out.SearchAssetTypes = {TEXT("SoundWave")};
-	Out.Description = TEXT("Inspect SoundWave snapshot. Writes via manage_asset_sound_wave.");
+	Out.Description = TEXT("Inspect SoundWave snapshot. Writes via ManageAssetSoundWave.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundWave asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("SoundWave asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("sound"), TEXT("wave"), TEXT("sfx"), TEXT("duration") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_sound_wave"), TEXT("search_asset"), TEXT("get_asset_sound_cue"), TEXT("get_asset_refs") };
-	Out.WhenToUse = TEXT("Read wave metadata; use manage_asset_sound_wave for writes");
+	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("Sound"), TEXT("wave"), TEXT("sfx"), TEXT("Duration") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetSoundWave"), TEXT("SearchAsset"), TEXT("GetAssetSoundCue"), TEXT("GetAssetRefs") };
+	Out.WhenToUse = TEXT("Read wave metadata; use ManageAssetSoundWave for writes");
 }
 
-FCapabilityResult FGetAssetSoundWaveCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetSoundWaveCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString Path = A.Str(TEXT("assetPath"));
+		const FString Path = A.Str(TEXT("AssetPath"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), Path);
+		Entry->SetStringField(TEXT("Path"), Path);
 
 		USoundWave* Wave = FNexusAssetUtils::LoadAssetWithFallback<USoundWave>(Path);
 		if (!Wave)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("SoundWave not found: %s"), *Path));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("SoundWave not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 
 		Entry->SetStringField(TEXT("name"), Wave->GetName());
-		Entry->SetStringField(TEXT("assetType"), TEXT("SoundWave"));
-		Entry->SetNumberField(TEXT("duration"), Wave->GetDuration());
-		Entry->SetNumberField(TEXT("sampleRate"), Wave->GetSampleRateForCurrentPlatform());
-		Entry->SetNumberField(TEXT("numChannels"), Wave->NumChannels);
-		Entry->SetNumberField(TEXT("totalSamples"), static_cast<double>(Wave->TotalSamples));
+		Entry->SetStringField(TEXT("AssetType"), TEXT("SoundWave"));
+		Entry->SetNumberField(TEXT("Duration"), Wave->GetDuration());
+		Entry->SetNumberField(TEXT("SampleRate"), Wave->GetSampleRateForCurrentPlatform());
+		Entry->SetNumberField(TEXT("NumChannels"), Wave->NumChannels);
+		Entry->SetNumberField(TEXT("TotalSamples"), static_cast<double>(Wave->TotalSamples));
 		Entry->SetBoolField(TEXT("bStreaming"), Wave->bStreaming);
 		Entry->SetBoolField(TEXT("bLooping"), Wave->bLooping);
 
@@ -55,4 +55,4 @@ FCapabilityResult FGetAssetSoundWaveCapability::Execute(const TSharedPtr<FJsonOb
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetSoundWaveCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetSoundWaveCapability)

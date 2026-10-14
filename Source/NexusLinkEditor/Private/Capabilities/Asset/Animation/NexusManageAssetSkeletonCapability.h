@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_skeleton — 编辑 Skeleton 的 Socket（增删改）。*/
-class FManageAssetSkeletonCapability : public FNexusActionCapability
+/** ManageAssetSkeleton — 编辑 Skeleton 的 Socket（增删改）。*/
+class FNexusManageAssetSkeletonCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

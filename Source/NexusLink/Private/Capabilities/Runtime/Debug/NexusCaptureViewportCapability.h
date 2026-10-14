@@ -6,8 +6,8 @@
 #include "NexusCapability.h"
 #include "NexusRuntimeCapability.h"
 
-/** capture_viewport —— 截图 Game/PIE 视口或顶层窗口；Actor/UMG 可二次裁切。*/
-class FCaptureViewportCapability : public FNexusRuntimeCapability
+/** CaptureViewport —— 截图 Game/PIE 视口或顶层窗口；Actor/UMG 可二次裁切。*/
+class FNexusCaptureViewportCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

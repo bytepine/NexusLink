@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #if WITH_COMMON_UI
 #include "NexusCapability.h"
-class FGetAssetCommonButtonStyleCapability : public FNexusCapability
+class FNexusGetAssetCommonButtonStyleCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

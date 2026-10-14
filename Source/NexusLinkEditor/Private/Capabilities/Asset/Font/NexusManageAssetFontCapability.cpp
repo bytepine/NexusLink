@@ -9,25 +9,25 @@
 #include "Engine/Font.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetFontCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetFontCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_font");
+	Out.Name = TEXT("ManageAssetFont");
 	Out.SearchAssetTypes = {TEXT("Font")};
-	Out.Description = TEXT("Batch edit Font. action=set_property (ScalingFactor etc.).");
+	Out.Description = TEXT("Batch edit Font. Action=SetProperty (ScalingFactor etc.).");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("set_property") }))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("propertypath (e.g. ScalingFactor)")))
-		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("New property value string")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("SetProperty") }))
+		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("propertypath (e.g. ScalingFactor)")))
+		.Prop(TEXT("Value"), FNexusSchema::Str(TEXT("New property value string")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Font asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Font asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("typeface"), TEXT("scale"), TEXT("ttf") };
-	Out.RelatedCapabilities = { TEXT("get_asset_font"), TEXT("create_asset_font"), TEXT("reimport_asset") };
+	Out.ExtraSearchKeywords = { TEXT("typeface"), TEXT("Scale"), TEXT("ttf") };
+	Out.RelatedCapabilities = { TEXT("GetAssetFont"), TEXT("CreateAssetFont"), TEXT("ReimportAsset") };
 }
 
 struct FFontActionState
@@ -45,33 +45,33 @@ static void HandleFont_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActi
 {
 	UFont* Font = FontState(Ctx)->Font;
 	FString PropPath, Value;
-	Op->TryGetStringField(TEXT("propertyPath"), PropPath);
-	Op->TryGetStringField(TEXT("value"), Value);
+	Op->TryGetStringField(TEXT("PropertyPath"), PropPath);
+	Op->TryGetStringField(TEXT("Value"), Value);
 	if (PropPath.IsEmpty() || Value.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyPath and value"));
 		return;
 	}
 	FString OldVal, ActualVal, Err;
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(Font, { PropPath }, 0, Value, OldVal, ActualVal, Err))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), Err);
+		Ctx.Entry->SetStringField(TEXT("Error"), Err);
 		return;
 	}
 	FontState(Ctx)->bDirty = true;
-	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
-	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
-	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);
 }
 
-bool FManageAssetFontCapability::PrepareTarget(
+bool FNexusManageAssetFontCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UFont* Font = FNexusAssetUtils::LoadAssetWithFallback<UFont>(AssetPath);
 	if (!Font)
 	{
@@ -84,7 +84,7 @@ bool FManageAssetFontCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetFontCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetFontCapability::FinalizeTarget(void* Target) const
 {
 	FFontActionState* State = static_cast<FFontActionState*>(Target);
 	if (!State) return;
@@ -92,9 +92,9 @@ void FManageAssetFontCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetFontCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetFontCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_property"), &HandleFont_SetProperty);
+	OutHandlers.Add(TEXT("SetProperty"), &HandleFont_SetProperty);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetFontCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetFontCapability)

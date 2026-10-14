@@ -7,8 +7,8 @@
 
 #if WITH_IK_RIG
 
-/** manage_asset_ik_retargeter — 设置源/目标 IKRig、更新 Chain Mapping。 */
-class FManageAssetIKRetargeterCapability : public FNexusActionCapability
+/** ManageAssetIKRetargeter — 设置源/目标 IKRig、更新 Chain Mapping。 */
+class FNexusManageAssetIKRetargeterCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -8,10 +8,10 @@
 #include "NexusMultiSectionCapability.h"
 
 /**
- * get_asset_gameplay_ability — 读取 GA Blueprint。
+ * GetAssetGameplayAbility — 读取 GA Blueprint。
  * sections: metadata / tags / costs / graphOverview。
  */
-class FGetAssetGameplayAbilityCapability : public FNexusMultiSectionCapability
+class FNexusGetAssetGameplayAbilityCapability : public FNexusMultiSectionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -78,7 +78,7 @@ TArray<TSharedPtr<FJsonValue>> FNexusPropertyReportUtils::BuildEditablePropsPage
 		{
 			FString Val;
 			FNexusPropertyUtils::ExportText(Prop, Val, ValuePtr);
-			if (!Val.IsEmpty()) Entry->SetStringField(TEXT("value"), Val);
+			if (!Val.IsEmpty()) Entry->SetStringField(TEXT("Value"), Val);
 
 			// opt-in：递归展开 instanced/EditInline 子对象属性
 			if (SubobjectDepth > 0)
@@ -107,7 +107,7 @@ TArray<TSharedPtr<FJsonValue>> FNexusPropertyReportUtils::BuildEditablePropsPage
 								SubobjectMaxCount);
 							if (SubProps.Num() > 0)
 							{
-								Entry->SetArrayField(TEXT("subProperties"), SubProps);
+								Entry->SetArrayField(TEXT("SubProperties"), SubProps);
 							}
 						}
 					}
@@ -123,7 +123,7 @@ TArray<TSharedPtr<FJsonValue>> FNexusPropertyReportUtils::BuildEditablePropsPage
 			{
 				bInherited = (OwnerCls != LeafClass);
 			}
-			Entry->SetBoolField(TEXT("inherited"), bInherited);
+			Entry->SetBoolField(TEXT("bInherited"), bInherited);
 		}
 
 		All.Add(Entry);

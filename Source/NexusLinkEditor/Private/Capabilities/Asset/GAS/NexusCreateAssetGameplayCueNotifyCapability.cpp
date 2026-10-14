@@ -12,37 +12,37 @@
 #include "GameplayCueNotify_Static.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetGameplayCueNotifyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetGameplayCueNotifyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_gameplay_cue_notify");
-	Out.Description = TEXT("Create GameplayCueNotify_Static. Use create_asset_blueprint for kind=actor.");
+	Out.Name = TEXT("CreateAssetGameplayCueNotify");
+	Out.Description = TEXT("Create GameplayCueNotify_Static. Use CreateAssetBlueprint for Kind=actor.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Prop(TEXT("kind"), FNexusSchema::Enum(TEXT("Kind"), { TEXT("static"), TEXT("actor") }, TEXT("static")))
-		.Prop(TEXT("cueName"), FNexusSchema::Str(TEXT("GameplayCue Tag (optional)")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("Kind"), FNexusSchema::Enum(TEXT("Kind"), { TEXT("Static"), TEXT("Actor") }, TEXT("Static")))
+		.Prop(TEXT("CueName"), FNexusSchema::Str(TEXT("GameplayCue Tag (optional)")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
 	Out.ExtraSearchKeywords = { TEXT("cue"), TEXT("notify"), TEXT("gc"), TEXT("fx") };
 	Out.RelatedCapabilities = {
-		TEXT("get_asset_gameplay_cue_notify"), TEXT("manage_asset_gameplay_cue_notify"),
-		TEXT("create_asset_blueprint")
+		TEXT("GetAssetGameplayCueNotify"), TEXT("ManageAssetGameplayCueNotify"),
+		TEXT("CreateAssetBlueprint")
 	};
-	Out.WhenToUse = TEXT("Create Static Cue Notify; Actor BP via create_asset_blueprint");
+	Out.WhenToUse = TEXT("Create Static Cue Notify; Actor BP via CreateAssetBlueprint");
 }
 
-FCapabilityResult FCreateAssetGameplayCueNotifyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetGameplayCueNotifyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
-		FString Kind = TEXT("static");
-		if (Arguments->HasField(TEXT("kind"))) Kind = A.Str(TEXT("kind")).ToLower();
-		if (Kind == TEXT("actor"))
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
+		FString Kind = TEXT("Static");
+		if (Arguments->HasField(TEXT("Kind"))) Kind = A.Str(TEXT("Kind")).ToLower();
+		if (Kind == TEXT("Actor"))
 		{
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries,
-				TEXT("For kind=actor use create_asset_blueprint(parentClass=GameplayCueNotify_Actor)"));
+				TEXT("For Kind=actor use CreateAssetBlueprint(ParentClass=GameplayCueNotify_Actor)"));
 			return;
 		}
 
@@ -56,7 +56,7 @@ FCapabilityResult FCreateAssetGameplayCueNotifyCapability::Execute(const TShared
 		UGameplayCueNotify_Static* Notify = Cast<UGameplayCueNotify_Static>(Created.Asset);
 
 		FString CueName;
-		if (Arguments->TryGetStringField(TEXT("cueName"), CueName) && !CueName.IsEmpty())
+		if (Arguments->TryGetStringField(TEXT("CueName"), CueName) && !CueName.IsEmpty())
 		{
 			Notify->GameplayCueName = FName(*CueName);
 		}
@@ -65,6 +65,6 @@ FCapabilityResult FCreateAssetGameplayCueNotifyCapability::Execute(const TShared
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetGameplayCueNotifyCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetGameplayCueNotifyCapability)
 
 #endif

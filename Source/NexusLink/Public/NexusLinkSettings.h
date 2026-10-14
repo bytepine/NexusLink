@@ -14,7 +14,7 @@ enum class ENexusContentMode : uint8
 {
 	/** content[0].text（完整 JSON 字符串），兼容所有客户端。 */
 	Content,
-	/** structuredContent（原生 JSON 对象），需客户端支持（如 Claude Desktop），省去文本序列化开销。 */
+	/** StructuredContent（原生 JSON 对象），需客户端支持（如 Claude Desktop），省去文本序列化开销。 */
 	StructuredContent,
 };
 
@@ -24,14 +24,14 @@ enum class ENexusContentMode : uint8
 UENUM()
 enum class ENexusToolsListMode : uint8
 {
-	/** 搜索工具模式（默认）：暴露 search_capabilities + call_capability + submit_feedback，AI 先搜索再调用。 */
+	/** 搜索工具模式（默认）：暴露 SearchCapabilities + CallCapability + SubmitFeedback，AI 先搜索再调用。 */
 	SearchMode,
 	/** 多 Tool 模式：每个已启用 Capability 作为独立 MCP Tool 暴露，AI 可直接调用。 */
 	MultiTool,
 };
 
 /**
- * 危险 Capability（tag=dangerous）的访问模式。
+ * 危险 Capability（Tag=dangerous）的访问模式。
  */
 UENUM()
 enum class ENexusDangerousCapAccess : uint8
@@ -83,11 +83,11 @@ public:
 
 	/**
 	 * 是否要求 MCP HTTP Bearer 与 WebSocket 首帧 auth。
-	 * 默认开启。关闭后与旧版 NexusLink 相同：不校验 token，/status.authRequired=false。
+	 * 默认开启。关闭后与旧版 NexusLink 相同：不校验 token，/status.bAuthRequired=false。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "服务器",
 		meta = (DisplayName = "MCP 身份验证",
-			ToolTip = "默认开。关闭后 HTTP/WS 不校验 token，行为与旧版 NexusLink 相同；中转按 /status.authRequired 决定是否对 UE 做 WS 身份验证"))
+			ToolTip = "默认开。关闭后 HTTP/WS 不校验 token，行为与旧版 NexusLink 相同；中转按 /status.bAuthRequired 决定是否对 UE 做 WS 身份验证"))
 	bool bRequireMcpAuth = true;
 
 	/**
@@ -156,7 +156,7 @@ public:
 	bool bShowPort = true;
 
 	/**
-	 * 是否启用 MCP 响应默认值压缩（list_actors / search_asset / get_asset / diff_actors 等）。
+	 * 是否启用 MCP 响应默认值压缩（list_actors / SearchAsset / GetAsset / diff_actors 等）。
 	 * 开启后：数组条目里主流值字段抽到顶部 <prefix>_defaults，条目内等值字段随之省略；
 	 * 关闭后：工具返回原始完整条目，便于排查 AI 解析异常或做字节级对比。
 	 */
@@ -168,7 +168,7 @@ public:
 	/**
 	 * 响应输出格式（下拉选择）。
 	 *   - Content（默认）：仅输出 content[0].text（完整 JSON 字符串），兼容所有客户端。
-	 *   - StructuredContent：仅输出 structuredContent（原生 JSON 对象），需客户端支持。
+	 *   - StructuredContent：仅输出 StructuredContent（原生 JSON 对象），需客户端支持。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "服务器",
 		meta = (DisplayName = "响应输出格式",
@@ -177,7 +177,7 @@ public:
 
 	/**
 	 * MCP 工具列表暴露模式。
-	 *   - SearchMode（默认）：暴露 search_capabilities + call_capability + submit_feedback，AI 先搜索再调用。
+	 *   - SearchMode（默认）：暴露 SearchCapabilities + CallCapability + SubmitFeedback，AI 先搜索再调用。
 	 *   - MultiTool：将每个已启用 Capability 作为独立 MCP Tool 暴露，AI 可直接调用。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "服务器",
@@ -203,7 +203,7 @@ public:
 	// ── 内存管理 ───────────────────────────────────────────────────────────────
 
 	/**
-	 * 批量读取资产（如 get_asset_blueprint 批量调用）时，是否自动整批卸载 NexusLink 本次调用
+	 * 批量读取资产（如 GetAssetBlueprint 批量调用）时，是否自动整批卸载 NexusLink 本次调用
 	 * 引入的包（读取前不在内存、由本次加载带入的包），避免内存持续增长。
 	 * 只影响本次调用引入的包；用户已打开/已加载的资产不受影响。
 	 */
@@ -236,7 +236,7 @@ public:
 
 	/**
 	 * 是否启用 Capability 使用反馈记录。
-	 * 开启后：search_capabilities / call_capability 的失败事件及 AI 手动上报均写入
+	 * 开启后：SearchCapabilities / CallCapability 的失败事件及 AI 手动上报均写入
 	 * .nexus-feedback/feedback.jsonl；关闭后所有埋点立即 return，不落盘任何数据。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "AI 反馈",
@@ -245,41 +245,41 @@ public:
 	bool bEnableFeedback = true;
 
 	/**
-	 * search_capabilities 结果数超过此阈值时记录 search_overflow 反馈事件。
+	 * SearchCapabilities 结果数超过此阈值时记录 SearchOverflow 反馈事件。
 	 * 较低的阈值能更灵敏地发现"搜索词过于宽泛"的问题；
 	 * 提高阈值则只在命中极多时才触发（减少噪音）。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "AI 反馈",
 		meta = (DisplayName = "搜索过载阈值",
-			ToolTip = "search_capabilities 结果数超过此值时触发 search_overflow 记录",
+			ToolTip = "SearchCapabilities 结果数超过此值时触发 SearchOverflow 记录",
 			ClampMin = "2", ClampMax = "50"))
 	int32 SearchOverflowThreshold = 5;
 
 	/**
-	 * search_capabilities 单次最多返回的结果条数（兜底截断）。
+	 * SearchCapabilities 单次最多返回的结果条数（兜底截断）。
 	 * 即使评分逻辑命中多条，也最多返回此数量（按 score 降序取前 N）。
 	 * 设为 0 表示不限制。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "AI 反馈",
 		meta = (DisplayName = "搜索结果数上限",
-			ToolTip = "search_capabilities 最多返回条数，0 = 不限制",
+			ToolTip = "SearchCapabilities 最多返回条数，0 = 不限制",
 			ClampMin = "0", ClampMax = "50"))
 	int32 MaxSearchResults = 8;
 
 	/**
-	 * Capability 执行时间超过此阈值时记录 slow_call 反馈事件（毫秒）。
-	 * 默认 1500ms；设为 0 可临时关闭 slow_call 采集。
+	 * Capability 执行时间超过此阈值时记录 SlowCall 反馈事件（毫秒）。
+	 * 默认 1500ms；设为 0 可临时关闭 SlowCall 采集。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "AI 反馈",
 		meta = (DisplayName = "慢调用阈值（毫秒）",
-			ToolTip = "Capability 执行耗时超过此值时触发 slow_call 记录，0 = 关闭",
+			ToolTip = "Capability 执行耗时超过此值时触发 SlowCall 记录，0 = 关闭",
 			ClampMin = "0", ClampMax = "30000"))
 	int32 SlowCallThresholdMs = 1500;
 
 	/**
-	 * redundant_call 检测窗口（秒）。
-	 * 同一 capability + identity 在此窗口内已做过 sections=["all"] 调用后，
-	 * 再发子 section 即触发 redundant_call 记录。
+	 * RedundantCall 检测窗口（秒）。
+	 * 同一 capability + identity 在此窗口内已做过 Sections=["All"] 调用后，
+	 * 再发子 section 即触发 RedundantCall 记录。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "AI 反馈",
 		meta = (DisplayName = "冗余调用检测窗口（秒）",
@@ -317,7 +317,7 @@ public:
 	bool bCheckUpdateOnStartup = true;
 
 	/**
-	 * 危险 Capability 访问模式（带 dangerous 标签的 cap，如 exec_command / exec_python）。
+	 * 危险 Capability 访问模式（带 dangerous 标签的 cap，如 ExecCommand / ExecPython）。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "危险 Capability",
 		meta = (DisplayName = "访问模式",

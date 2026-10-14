@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_anim_composite：增删 AnimComposite 合成轨道中的动画片段。 */
-class FManageAssetAnimCompositeCapability : public FNexusActionCapability
+/** ManageAssetAnimComposite：增删 AnimComposite 合成轨道中的动画片段。 */
+class FNexusManageAssetAnimCompositeCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

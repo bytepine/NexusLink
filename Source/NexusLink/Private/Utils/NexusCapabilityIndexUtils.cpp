@@ -269,24 +269,24 @@ void FNexusCapabilityIndexUtils::AttachMetaHints(TSharedPtr<FJsonObject>& Entry,
 		TArray<TSharedPtr<FJsonValue>> Arr;
 		for (const FString& R : Related)
 			Arr.Add(MakeShared<FJsonValueString>(R));
-		Entry->SetArrayField(TEXT("relatedCapabilities"), Arr);
+		Entry->SetArrayField(TEXT("RelatedCapabilities"), Arr);
 	}
 	if (Def.Prerequisites.Num() > 0)
 	{
 		TArray<TSharedPtr<FJsonValue>> Arr;
 		for (const FString& P : Def.Prerequisites)
 			Arr.Add(MakeShared<FJsonValueString>(P));
-		Entry->SetArrayField(TEXT("prerequisites"), Arr);
+		Entry->SetArrayField(TEXT("Prerequisites"), Arr);
 	}
 	if (!Def.WhenToUse.IsEmpty())
 	{
-		Entry->SetStringField(TEXT("whenToUse"), Def.WhenToUse);
+		Entry->SetStringField(TEXT("WhenToUse"), Def.WhenToUse);
 	}
 	if (Def.HasTag(FNexusMcpTags::Dangerous)
 		&& FNexusDangerousCapGate::NeedsConfirm(Def.Name))
 	{
-		Entry->SetBoolField(TEXT("confirmationRequired"), true);
-		Entry->SetStringField(TEXT("hint"),
+		Entry->SetBoolField(TEXT("bConfirmationRequired"), true);
+		Entry->SetStringField(TEXT("Hint"),
 			TEXT("Dangerous capability: pass reason (purpose, expected effect, why no safer cap). The editor will prompt the user to allow or deny THIS call."));
 	}
 }
@@ -308,10 +308,10 @@ TSharedPtr<FJsonObject> FNexusCapabilityIndexUtils::BuildDirectory(const UNexusL
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Record.Def.Name);
-		// 目录模式只返 name（+可选 whenToUse），详情靠 capabilityName 取 Schema
+		// 目录模式只返 name（+可选 WhenToUse），详情靠 CapabilityName 取 Schema
 		if (!Record.Def.WhenToUse.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("whenToUse"), Record.Def.WhenToUse);
+			Entry->SetStringField(TEXT("WhenToUse"), Record.Def.WhenToUse);
 		}
 
 		FString GroupTag;
@@ -351,6 +351,6 @@ TSharedPtr<FJsonObject> FNexusCapabilityIndexUtils::BuildDirectory(const UNexusL
 			Dir->SetArrayField(KV.Key, KV.Value);
 	}
 	if (Ungrouped.Num() > 0)
-		Dir->SetArrayField(TEXT("other"), Ungrouped);
+		Dir->SetArrayField(TEXT("Other"), Ungrouped);
 	return Dir;
 }

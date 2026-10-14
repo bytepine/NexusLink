@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_media_source：创建 UFileMediaSource。 */
-class FCreateAssetMediaSourceCapability : public FNexusCapability
+/** CreateAssetMediaSource：创建 UFileMediaSource。 */
+class FNexusCreateAssetMediaSourceCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

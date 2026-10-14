@@ -10,26 +10,26 @@
 #include "Sound/SoundSubmix.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetSoundSubmixCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetSoundSubmixCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_sound_submix");
+	Out.Name = TEXT("CreateAssetSoundSubmix");
 	Out.Description = TEXT("Create SoundSubmix asset (mix bus node).");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundSubmix package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("SoundSubmix package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("submix"), TEXT("sound"), TEXT("audio"), TEXT("mix") };
-	Out.RelatedCapabilities = { TEXT("get_asset_sound_submix"), TEXT("manage_asset_sound_submix") };
-	Out.WhenToUse = TEXT("Create SoundSubmix from scratch; volume via manage_asset_sound_submix");
+	Out.ExtraSearchKeywords = { TEXT("submix"), TEXT("Sound"), TEXT("audio"), TEXT("mix") };
+	Out.RelatedCapabilities = { TEXT("GetAssetSoundSubmix"), TEXT("ManageAssetSoundSubmix") };
+	Out.WhenToUse = TEXT("Create SoundSubmix from scratch; volume via ManageAssetSoundSubmix");
 }
 
-FCapabilityResult FCreateAssetSoundSubmixCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetSoundSubmixCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<USoundSubmix>(AssetPath);
 		if (!Created.Ok())
@@ -42,4 +42,4 @@ FCapabilityResult FCreateAssetSoundSubmixCapability::Execute(const TSharedPtr<FJ
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetSoundSubmixCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetSoundSubmixCapability)

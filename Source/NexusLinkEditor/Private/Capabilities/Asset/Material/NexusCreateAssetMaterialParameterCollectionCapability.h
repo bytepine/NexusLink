@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_material_parameter_collection — 创建空白 UMaterialParameterCollection。 */
-class FCreateAssetMaterialParameterCollectionCapability : public FNexusCapability
+/** CreateAssetMaterialParameterCollection — 创建空白 UMaterialParameterCollection。 */
+class FNexusCreateAssetMaterialParameterCollectionCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

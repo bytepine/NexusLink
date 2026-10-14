@@ -7,8 +7,8 @@
 #include "NexusRuntimeCapability.h"
 #include "GameFramework/Actor.h"
 
-/** destroy_actor 的 Capability —— 销毁单个 Actor（actorName）。*/
-class FDestroyRuntimeActorCapability : public FNexusRuntimeCapability
+/** destroy_actor 的 Capability —— 销毁单个 Actor（ActorName）。*/
+class FNexusDestroyRuntimeActorCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

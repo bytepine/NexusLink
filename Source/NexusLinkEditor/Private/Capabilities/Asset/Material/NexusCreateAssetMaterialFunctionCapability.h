@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_material_function — 创建空白 UMaterialFunction 资产。 */
-class FCreateAssetMaterialFunctionCapability : public FNexusCapability
+/** CreateAssetMaterialFunction — 创建空白 UMaterialFunction 资产。 */
+class FNexusCreateAssetMaterialFunctionCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

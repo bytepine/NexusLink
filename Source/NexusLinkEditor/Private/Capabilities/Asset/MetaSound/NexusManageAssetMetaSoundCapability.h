@@ -7,8 +7,8 @@
 
 #if WITH_METASOUND
 
-/** manage_asset_meta_sound — 编辑 MetaSound Source/Patch：IO / 节点 / 边。 */
-class FManageAssetMetaSoundCapability : public FNexusActionCapability
+/** ManageAssetMetaSound — 编辑 MetaSound Source/Patch：IO / 节点 / 边。 */
+class FNexusManageAssetMetaSoundCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

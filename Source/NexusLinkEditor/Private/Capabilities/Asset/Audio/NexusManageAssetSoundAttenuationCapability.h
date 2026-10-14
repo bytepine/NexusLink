@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_sound_attenuation：设置 SoundAttenuation 属性。 */
-class FManageAssetSoundAttenuationCapability : public FNexusActionCapability
+/** ManageAssetSoundAttenuation：设置 SoundAttenuation 属性。 */
+class FNexusManageAssetSoundAttenuationCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

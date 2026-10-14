@@ -7,8 +7,8 @@
 
 #if WITH_CONTROL_RIG
 
-/** create_asset_control_rig — 创建空白 ControlRig Blueprint。 */
-class FCreateAssetControlRigCapability : public FNexusCapability
+/** CreateAssetControlRig — 创建空白 ControlRig Blueprint。 */
+class FNexusCreateAssetControlRigCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

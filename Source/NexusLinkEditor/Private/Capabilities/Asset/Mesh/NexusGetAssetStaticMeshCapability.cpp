@@ -12,77 +12,77 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_static_mesh");
+	Out.Name = TEXT("GetAssetStaticMesh");
 	Out.SearchAssetTypes = {TEXT("StaticMesh")};
-	Out.Description = TEXT("Inspect StaticMesh snapshot. Writes via manage_asset_static_mesh.");
+	Out.Description = TEXT("Inspect StaticMesh snapshot. Writes via ManageAssetStaticMesh.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("StaticMesh asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("StaticMesh asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("mesh"), TEXT("lod"), TEXT("collision"), TEXT("material"), TEXT("slot") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_static_mesh"), TEXT("search_asset"), TEXT("get_asset_refs"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("Read mesh metadata; use manage_asset_static_mesh for writes");
+	Out.ExtraSearchKeywords = { TEXT("mesh"), TEXT("lod"), TEXT("Collision"), TEXT("Material"), TEXT("slot") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetStaticMesh"), TEXT("SearchAsset"), TEXT("GetAssetRefs"), TEXT("SaveAsset") };
+	Out.WhenToUse = TEXT("Read mesh metadata; use ManageAssetStaticMesh for writes");
 }
 
-FCapabilityResult FGetAssetStaticMeshCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetStaticMeshCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString Path = A.Str(TEXT("assetPath"));
+		const FString Path = A.Str(TEXT("AssetPath"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), Path);
+		Entry->SetStringField(TEXT("Path"), Path);
 
 		UStaticMesh* Mesh = FNexusAssetUtils::LoadAssetWithFallback<UStaticMesh>(Path);
 		if (!Mesh)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("StaticMesh not found: %s"), *Path));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("StaticMesh not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 
 		Entry->SetStringField(TEXT("name"), Mesh->GetName());
-		Entry->SetStringField(TEXT("assetType"), TEXT("StaticMesh"));
+		Entry->SetStringField(TEXT("AssetType"), TEXT("StaticMesh"));
 
 		const FBoxSphereBounds Bounds = Mesh->GetBounds();
 		TSharedPtr<FJsonObject> BoundsObj = MakeShared<FJsonObject>();
-		BoundsObj->SetNumberField(TEXT("extentX"), Bounds.BoxExtent.X);
-		BoundsObj->SetNumberField(TEXT("extentY"), Bounds.BoxExtent.Y);
-		BoundsObj->SetNumberField(TEXT("extentZ"), Bounds.BoxExtent.Z);
-		Entry->SetObjectField(TEXT("bounds"), BoundsObj);
+		BoundsObj->SetNumberField(TEXT("ExtentX"), Bounds.BoxExtent.X);
+		BoundsObj->SetNumberField(TEXT("ExtentY"), Bounds.BoxExtent.Y);
+		BoundsObj->SetNumberField(TEXT("ExtentZ"), Bounds.BoxExtent.Z);
+		Entry->SetObjectField(TEXT("Bounds"), BoundsObj);
 
-		Entry->SetNumberField(TEXT("lodCount"), Mesh->GetNumLODs());
+		Entry->SetNumberField(TEXT("LODCount"), Mesh->GetNumLODs());
 
 		TArray<TSharedPtr<FJsonValue>> Slots;
 		const TArray<FStaticMaterial>& Materials = FNexusAssetUtils::GetStaticMeshMaterials(*Mesh);
-		for (int32 i = 0; i < Materials.Num(); ++i)
+		for (int32 MaterialIndex = 0; MaterialIndex < Materials.Num(); ++MaterialIndex)
 		{
-			const FStaticMaterial& SM = Materials[i];
+			const FStaticMaterial& SM = Materials[MaterialIndex];
 			TSharedPtr<FJsonObject> SlotObj = MakeShared<FJsonObject>();
-			SlotObj->SetNumberField(TEXT("index"), i);
-			SlotObj->SetStringField(TEXT("slotName"), SM.MaterialSlotName.ToString());
+			SlotObj->SetNumberField(TEXT("Index"), MaterialIndex);
+			SlotObj->SetStringField(TEXT("SlotName"), SM.MaterialSlotName.ToString());
 			if (SM.MaterialInterface)
 			{
-				SlotObj->SetStringField(TEXT("material"), SM.MaterialInterface->GetPathName());
+				SlotObj->SetStringField(TEXT("Material"), SM.MaterialInterface->GetPathName());
 			}
 			Slots.Add(MakeShared<FJsonValueObject>(SlotObj));
 		}
-		Entry->SetArrayField(TEXT("materialSlots"), Slots);
+		Entry->SetArrayField(TEXT("MaterialSlots"), Slots);
 
 		UBodySetup* BodySetup = FNexusAssetUtils::GetStaticMeshBodySetup(Mesh);
 		if (BodySetup)
 		{
 			TSharedPtr<FJsonObject> ColObj = MakeShared<FJsonObject>();
-			ColObj->SetNumberField(TEXT("collisionTraceFlag"),
+			ColObj->SetNumberField(TEXT("CollisionTraceFlag"),
 				static_cast<double>(static_cast<int32>(BodySetup->CollisionTraceFlag)));
-			ColObj->SetNumberField(TEXT("convexElemCount"), BodySetup->AggGeom.ConvexElems.Num());
-			ColObj->SetNumberField(TEXT("boxElemCount"), BodySetup->AggGeom.BoxElems.Num());
-			ColObj->SetNumberField(TEXT("sphereElemCount"), BodySetup->AggGeom.SphereElems.Num());
-			Entry->SetObjectField(TEXT("collision"), ColObj);
+			ColObj->SetNumberField(TEXT("ConvexElemCount"), BodySetup->AggGeom.ConvexElems.Num());
+			ColObj->SetNumberField(TEXT("BoxElemCount"), BodySetup->AggGeom.BoxElems.Num());
+			ColObj->SetNumberField(TEXT("SphereElemCount"), BodySetup->AggGeom.SphereElems.Num());
+			Entry->SetObjectField(TEXT("Collision"), ColObj);
 		}
 
 		TArray<TSharedPtr<FJsonValue>> SocketArr;
@@ -91,15 +91,15 @@ FCapabilityResult FGetAssetStaticMeshCapability::Execute(const TSharedPtr<FJsonO
 			if (!Socket) continue;
 			TSharedPtr<FJsonObject> S = MakeShared<FJsonObject>();
 			S->SetStringField(TEXT("name"), Socket->SocketName.ToString());
-			S->SetNumberField(TEXT("locX"), Socket->RelativeLocation.X);
-			S->SetNumberField(TEXT("locY"), Socket->RelativeLocation.Y);
-			S->SetNumberField(TEXT("locZ"), Socket->RelativeLocation.Z);
+			S->SetNumberField(TEXT("LocX"), Socket->RelativeLocation.X);
+			S->SetNumberField(TEXT("LocY"), Socket->RelativeLocation.Y);
+			S->SetNumberField(TEXT("LocZ"), Socket->RelativeLocation.Z);
 			SocketArr.Add(MakeShared<FJsonValueObject>(S));
 		}
-		Entry->SetArrayField(TEXT("sockets"), SocketArr);
+		Entry->SetArrayField(TEXT("Sockets"), SocketArr);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetStaticMeshCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetStaticMeshCapability)

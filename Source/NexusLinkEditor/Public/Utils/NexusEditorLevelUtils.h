@@ -35,9 +35,9 @@ public:
 	/** 从关卡移除 Actor。 */
 	static bool RemoveLevelActor(UWorld* World, AActor* Actor, FString& OutError);
 
-	/** sections=actors：分页 Actor 列表写入 Entry。 */
+	/** Sections=actors：分页 Actor 列表写入 Entry。 */
 	static void AppendLevelActorsSection(UWorld* World, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Entry);
 
-	/** sections=settings：WorldSettings 白名单字段写入 Entry。 */
+	/** Sections=settings：WorldSettings 白名单字段写入 Entry。 */
 	static void AppendLevelSettingsSection(UWorld* World, TSharedPtr<FJsonObject>& Entry);
 };

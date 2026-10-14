@@ -8,27 +8,27 @@
 #include "Sound/SoundClass.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetSoundClassCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetSoundClassCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_sound_class");
+	Out.Name = TEXT("GetAssetSoundClass");
 	Out.SearchAssetTypes = {TEXT("SoundClass")};
-	Out.Description = TEXT("Read SoundClass: volume/pitch/lowPassFilter/parentClass/childClasses.");
+	Out.Description = TEXT("Read SoundClass: volume/pitch/LowPassFilter/ParentClass/ChildClasses.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundClass asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("SoundClass asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("sound"), TEXT("class"), TEXT("volume"), TEXT("pitch"), TEXT("hierarchy") };
-	Out.RelatedCapabilities = { TEXT("create_asset_sound_class"), TEXT("manage_asset_sound_class") };
+	Out.ExtraSearchKeywords = { TEXT("Sound"), TEXT("Class"), TEXT("Volume"), TEXT("Pitch"), TEXT("Hierarchy") };
+	Out.RelatedCapabilities = { TEXT("CreateAssetSoundClass"), TEXT("ManageAssetSoundClass") };
 }
 
-FCapabilityResult FGetAssetSoundClassCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetSoundClassCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		USoundClass* SC = LoadObject<USoundClass>(nullptr, *AssetPath);
 		if (!SC)
 		{
@@ -39,15 +39,15 @@ FCapabilityResult FGetAssetSoundClassCapability::Execute(const TSharedPtr<FJsonO
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),                SC->GetName());
-		Entry->SetStringField(TEXT("path"),                SC->GetPathName());
-		Entry->SetNumberField(TEXT("volume"),              SC->Properties.Volume);
-		Entry->SetNumberField(TEXT("pitch"),               SC->Properties.Pitch);
-		Entry->SetNumberField(TEXT("lowPassFilter"),       SC->Properties.LowPassFilterFrequency);
-		Entry->SetNumberField(TEXT("attenuationScale"),    SC->Properties.AttenuationDistanceScale);
-		Entry->SetNumberField(TEXT("childClassCount"),     SC->ChildClasses.Num());
+		Entry->SetStringField(TEXT("Path"),                SC->GetPathName());
+		Entry->SetNumberField(TEXT("Volume"),              SC->Properties.Volume);
+		Entry->SetNumberField(TEXT("Pitch"),               SC->Properties.Pitch);
+		Entry->SetNumberField(TEXT("LowPassFilter"),       SC->Properties.LowPassFilterFrequency);
+		Entry->SetNumberField(TEXT("AttenuationScale"),    SC->Properties.AttenuationDistanceScale);
+		Entry->SetNumberField(TEXT("ChildClassCount"),     SC->ChildClasses.Num());
 
 		if (SC->ParentClass)
-			Entry->SetStringField(TEXT("parentClass"), SC->ParentClass->GetPathName());
+			Entry->SetStringField(TEXT("ParentClass"), SC->ParentClass->GetPathName());
 
 		TArray<TSharedPtr<FJsonValue>> ChildArr;
 		for (USoundClass* Child : SC->ChildClasses)
@@ -55,10 +55,10 @@ FCapabilityResult FGetAssetSoundClassCapability::Execute(const TSharedPtr<FJsonO
 			if (Child)
 				ChildArr.Add(MakeShared<FJsonValueString>(Child->GetPathName()));
 		}
-		Entry->SetArrayField(TEXT("childClasses"), ChildArr);
+		Entry->SetArrayField(TEXT("ChildClasses"), ChildArr);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetSoundClassCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetSoundClassCapability)

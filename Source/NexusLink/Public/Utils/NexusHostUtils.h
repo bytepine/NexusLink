@@ -21,7 +21,7 @@ struct NEXUSLINK_API FNexusHostUtils
 
 	/**
 	 * 进程级宿主种类：Editor / Game / DedicatedServer。
-	 * 与 netRole 正交，不随 PIE 开停变化；供 /status 与代理选实例。
+	 * 与 NetRole 正交，不随 PIE 开停变化；供 /status 与代理选实例。
 	 */
 	static FString GetHostKind();
 

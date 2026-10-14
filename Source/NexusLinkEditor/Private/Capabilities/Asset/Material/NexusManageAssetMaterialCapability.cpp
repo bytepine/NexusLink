@@ -28,42 +28,42 @@
 
 static void DoSetParam(UMaterialInstanceConstant* MI, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Out)
 {
-	if (!MI) { Out->SetStringField(TEXT("error"), TEXT("set_param requires a MaterialInstance asset")); return; }
-	const FString PN = Args->HasField(TEXT("paramName")) ? Args->GetStringField(TEXT("paramName")) : TEXT("");
-	const FString PT = Args->HasField(TEXT("paramType")) ? Args->GetStringField(TEXT("paramType")).ToLower() : TEXT("");
-	const FString V  = Args->HasField(TEXT("value"))     ? Args->GetStringField(TEXT("value"))     : TEXT("");
-	if (PN.IsEmpty() || PT.IsEmpty()) { Out->SetStringField(TEXT("error"), TEXT("set_param requires paramName, paramType and value")); return; }
+	if (!MI) { Out->SetStringField(TEXT("Error"), TEXT("SetParam requires a MaterialInstance asset")); return; }
+	const FString PN = Args->HasField(TEXT("ParamName")) ? Args->GetStringField(TEXT("ParamName")) : TEXT("");
+	const FString PT = Args->HasField(TEXT("ParamType")) ? Args->GetStringField(TEXT("ParamType")).ToLower() : TEXT("");
+	const FString V  = Args->HasField(TEXT("Value"))     ? Args->GetStringField(TEXT("Value"))     : TEXT("");
+	if (PN.IsEmpty() || PT.IsEmpty()) { Out->SetStringField(TEXT("Error"), TEXT("SetParam requires ParamName, ParamType and value")); return; }
 
-	if (PT == TEXT("scalar"))
+	if (PT == TEXT("Scalar"))
 	{
 		float F = FCString::Atof(*V);
 		MI->SetScalarParameterValueEditorOnly(FMaterialParameterInfo(*PN), F);
-		Out->SetStringField(TEXT("paramName"), PN);
-		Out->SetStringField(TEXT("paramType"), TEXT("scalar"));
-		Out->SetNumberField(TEXT("value"), F);
+		Out->SetStringField(TEXT("ParamName"), PN);
+		Out->SetStringField(TEXT("ParamType"), TEXT("Scalar"));
+		Out->SetNumberField(TEXT("Value"), F);
 	}
-	else if (PT == TEXT("vector"))
+	else if (PT == TEXT("Vector"))
 	{
 		FLinearColor C(FLinearColor::Black);
 		TArray<FString> P; V.ParseIntoArray(P, TEXT(","));
-		if (P.Num() < 3) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("vector value needs 'R,G,B' or 'R,G,B,A', got: %s"), *V)); return; }
+		if (P.Num() < 3) { Out->SetStringField(TEXT("Error"), FString::Printf(TEXT("vector value needs 'R,G,B' or 'R,G,B,A', got: %s"), *V)); return; }
 		C.R = FCString::Atof(*P[0]); C.G = FCString::Atof(*P[1]);
 		C.B = FCString::Atof(*P[2]); C.A = P.Num() >= 4 ? FCString::Atof(*P[3]) : 1.0f;
 		MI->SetVectorParameterValueEditorOnly(FMaterialParameterInfo(*PN), C);
-		Out->SetStringField(TEXT("paramName"), PN);
-		Out->SetStringField(TEXT("paramType"), TEXT("vector"));
-		Out->SetStringField(TEXT("value"), FString::Printf(TEXT("%.4f,%.4f,%.4f,%.4f"), C.R, C.G, C.B, C.A));
+		Out->SetStringField(TEXT("ParamName"), PN);
+		Out->SetStringField(TEXT("ParamType"), TEXT("Vector"));
+		Out->SetStringField(TEXT("Value"), FString::Printf(TEXT("%.4f,%.4f,%.4f,%.4f"), C.R, C.G, C.B, C.A));
 	}
-	else if (PT == TEXT("texture"))
+	else if (PT == TEXT("Texture"))
 	{
 		UTexture* Tex = LoadObject<UTexture>(nullptr, *V);
-		if (!Tex) { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("Texture not found: %s"), *V)); return; }
+		if (!Tex) { Out->SetStringField(TEXT("Error"), FString::Printf(TEXT("Texture not found: %s"), *V)); return; }
 		MI->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(*PN), Tex);
-		Out->SetStringField(TEXT("paramName"), PN);
-		Out->SetStringField(TEXT("paramType"), TEXT("texture"));
-		Out->SetStringField(TEXT("value"), Tex->GetOutermost()->GetName());
+		Out->SetStringField(TEXT("ParamName"), PN);
+		Out->SetStringField(TEXT("ParamType"), TEXT("Texture"));
+		Out->SetStringField(TEXT("Value"), Tex->GetOutermost()->GetName());
 	}
-	else { Out->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown paramType: %s"), *PT)); return; }
+	else { Out->SetStringField(TEXT("Error"), FString::Printf(TEXT("Unknown ParamType: %s"), *PT)); return; }
 	MI->PostEditChange();
 	MI->MarkPackageDirty();
 }
@@ -78,7 +78,7 @@ static void HandleMaterialRecompile(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	UMaterial* Mat = Cast<UMaterial>(MaterialTargetFromContext(Ctx));
 	if (!Mat)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("recompile only for UMaterial; MaterialFunction need not recompile"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("recompile only for UMaterial; MaterialFunction need not recompile"));
 		return;
 	}
 	UMaterialEditingLibrary::RecompileMaterial(Mat);
@@ -94,7 +94,7 @@ static void HandleMaterialAddNode(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	UObject* Obj = MaterialTargetFromContext(Ctx);
 	if (UMaterial* Mat = Cast<UMaterial>(Obj)) { FNexusMaterialGraphOps::DoAddNode(Mat, Op, Ctx.Entry); }
 	else if (UMaterialFunction* MF = Cast<UMaterialFunction>(Obj)) { FNexusMaterialGraphOps::DoAddNodeInFunction(MF, Op, Ctx.Entry); }
-	else { Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_node requires a UMaterial or UMaterialFunction")); }
+	else { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddNode requires a UMaterial or UMaterialFunction")); }
 }
 
 static void HandleMaterialRemoveNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -102,7 +102,7 @@ static void HandleMaterialRemoveNode(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	UObject* Obj = MaterialTargetFromContext(Ctx);
 	if (UMaterial* Mat = Cast<UMaterial>(Obj)) { FNexusMaterialGraphOps::DoRemoveNode(Mat, Op, Ctx.Entry); }
 	else if (UMaterialFunction* MF = Cast<UMaterialFunction>(Obj)) { FNexusMaterialGraphOps::DoRemoveNodeInFunction(MF, Op, Ctx.Entry); }
-	else { Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_node requires a UMaterial or UMaterialFunction")); }
+	else { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveNode requires a UMaterial or UMaterialFunction")); }
 }
 
 static void HandleMaterialSetNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -110,7 +110,7 @@ static void HandleMaterialSetNode(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	UObject* Obj = MaterialTargetFromContext(Ctx);
 	if (UMaterial* Mat = Cast<UMaterial>(Obj)) { FNexusMaterialGraphOps::DoSetNode(Mat, Op, Ctx.Entry); }
 	else if (UMaterialFunction* MF = Cast<UMaterialFunction>(Obj)) { FNexusMaterialGraphOps::DoSetNodeInFunction(MF, Op, Ctx.Entry); }
-	else { Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_node requires a UMaterial or UMaterialFunction")); }
+	else { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetNode requires a UMaterial or UMaterialFunction")); }
 }
 
 static void HandleMaterialConnect(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -118,7 +118,7 @@ static void HandleMaterialConnect(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	UObject* Obj = MaterialTargetFromContext(Ctx);
 	if (UMaterial* Mat = Cast<UMaterial>(Obj)) { FNexusMaterialGraphOps::DoConnect(Mat, Op, Ctx.Entry); }
 	else if (UMaterialFunction* MF = Cast<UMaterialFunction>(Obj)) { FNexusMaterialGraphOps::DoConnectInFunction(MF, Op, Ctx.Entry); }
-	else { Ctx.Entry->SetStringField(TEXT("error"), TEXT("connect requires a UMaterial or UMaterialFunction")); }
+	else { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("connect requires a UMaterial or UMaterialFunction")); }
 }
 
 static void HandleMaterialDisconnect(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -126,7 +126,7 @@ static void HandleMaterialDisconnect(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	UObject* Obj = MaterialTargetFromContext(Ctx);
 	if (UMaterial* Mat = Cast<UMaterial>(Obj)) { FNexusMaterialGraphOps::DoDisconnect(Mat, Op, Ctx.Entry); }
 	else if (UMaterialFunction* MF = Cast<UMaterialFunction>(Obj)) { FNexusMaterialGraphOps::DoDisconnectInFunction(MF, Op, Ctx.Entry); }
-	else { Ctx.Entry->SetStringField(TEXT("error"), TEXT("disconnect requires a UMaterial or UMaterialFunction")); }
+	else { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("disconnect requires a UMaterial or UMaterialFunction")); }
 }
 
 static void HandleMaterialDisconnectAll(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -134,29 +134,29 @@ static void HandleMaterialDisconnectAll(const TSharedPtr<FJsonObject>& Op, FNexu
 	UObject* Obj = MaterialTargetFromContext(Ctx);
 	if (UMaterial* Mat = Cast<UMaterial>(Obj)) { FNexusMaterialGraphOps::DoDisconnectAll(Mat, Op, Ctx.Entry); }
 	else if (UMaterialFunction* MF = Cast<UMaterialFunction>(Obj)) { FNexusMaterialGraphOps::DoDisconnectAllInFunction(MF, Op, Ctx.Entry); }
-	else { Ctx.Entry->SetStringField(TEXT("error"), TEXT("disconnect_all requires a UMaterial or UMaterialFunction")); }
+	else { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DisconnectAll requires a UMaterial or UMaterialFunction")); }
 }
 
-void FManageAssetMaterialCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetMaterialCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("recompile"),       &HandleMaterialRecompile);
-	OutHandlers.Add(TEXT("set_param"),       &HandleMaterialSetParam);
-	OutHandlers.Add(TEXT("add_node"),        &HandleMaterialAddNode);
-	OutHandlers.Add(TEXT("remove_node"),     &HandleMaterialRemoveNode);
-	OutHandlers.Add(TEXT("set_node"),        &HandleMaterialSetNode);
-	OutHandlers.Add(TEXT("connect"),         &HandleMaterialConnect);
-	OutHandlers.Add(TEXT("disconnect"),      &HandleMaterialDisconnect);
-	OutHandlers.Add(TEXT("disconnect_all"),  &HandleMaterialDisconnectAll);
+	OutHandlers.Add(TEXT("Recompile"),       &HandleMaterialRecompile);
+	OutHandlers.Add(TEXT("SetParam"),       &HandleMaterialSetParam);
+	OutHandlers.Add(TEXT("AddNode"),        &HandleMaterialAddNode);
+	OutHandlers.Add(TEXT("RemoveNode"),     &HandleMaterialRemoveNode);
+	OutHandlers.Add(TEXT("SetNode"),        &HandleMaterialSetNode);
+	OutHandlers.Add(TEXT("Connect"),         &HandleMaterialConnect);
+	OutHandlers.Add(TEXT("Disconnect"),      &HandleMaterialDisconnect);
+	OutHandlers.Add(TEXT("DisconnectAll"),  &HandleMaterialDisconnectAll);
 }
 
-bool FManageAssetMaterialCapability::PrepareTarget(
+bool FNexusManageAssetMaterialCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 
 	UObject* Obj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(AssetPath);
 	if (!Obj)
@@ -168,45 +168,45 @@ bool FManageAssetMaterialCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_material");
+	Out.Name = TEXT("ManageAssetMaterial");
 	Out.SearchAssetTypes = {TEXT("Material"), TEXT("MaterialInstance"), TEXT("MaterialFunction")};
-	Out.Description = TEXT("Batch edit Mat/MI/MF. MF disallows set_param/recompile; do not use targetNodeId=material.");
+	Out.Description = TEXT("Batch edit Mat/MI/MF. MF disallows SetParam/recompile; do not use TargetNodeId=material.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),           FNexusSchema::Enum(TEXT("Edit operation"), { TEXT("set_param"), TEXT("add_node"), TEXT("remove_node"), TEXT("set_node"), TEXT("recompile"), TEXT("connect"), TEXT("disconnect"), TEXT("disconnect_all") }))
-		.Prop(TEXT("paramName"),        FNexusSchema::Str(TEXT("Parameter name (set_param)")))
-		.Prop(TEXT("paramType"),        FNexusSchema::Enum(TEXT("Parameter type"), { TEXT("scalar"), TEXT("vector"), TEXT("texture") }))
-		.Prop(TEXT("value"),            FNexusSchema::Str(TEXT("float / R,G,B,A / texture path")))
-		.Prop(TEXT("expressionClass"),  FNexusSchema::Str(TEXT("Expression class short name (add_node)")))
-		.Prop(TEXT("parameterName"),    FNexusSchema::Str(TEXT("Parameter/TextureSampleParam name")))
-		.Prop(TEXT("defaultValue"),     FNexusSchema::Str(TEXT("float / R,G,B,A / texture path")))
-		.Prop(TEXT("nodeId"),           FNexusSchema::Str(TEXT("Expression node id (remove/set)")))
-		.Prop(TEXT("posX"),             FNexusSchema::Num(TEXT("Node X position")))
-		.Prop(TEXT("posY"),             FNexusSchema::Num(TEXT("Node Y position")))
-		.Prop(TEXT("sourceNodeId"),     FNexusSchema::Str(TEXT("Source node id (connect/disconnect_all)")))
-		.Prop(TEXT("sourceOutputName"), FNexusSchema::Str(TEXT("Source output pin name (default first)")))
-		.Prop(TEXT("targetNodeId"),     FNexusSchema::Str(TEXT("Target node id or Material (connect/disconnect)")))
-		.Prop(TEXT("targetInputName"),  FNexusSchema::Str(TEXT("Target input pin or material property name")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"),           FNexusSchema::Enum(TEXT("Edit operation"), { TEXT("SetParam"), TEXT("AddNode"), TEXT("RemoveNode"), TEXT("SetNode"), TEXT("Recompile"), TEXT("Connect"), TEXT("Disconnect"), TEXT("DisconnectAll") }))
+		.Prop(TEXT("ParamName"),        FNexusSchema::Str(TEXT("Parameter name (SetParam)")))
+		.Prop(TEXT("ParamType"),        FNexusSchema::Enum(TEXT("Parameter type"), { TEXT("Scalar"), TEXT("Vector"), TEXT("Texture") }))
+		.Prop(TEXT("Value"),            FNexusSchema::Str(TEXT("float / R,G,B,A / texture path")))
+		.Prop(TEXT("ExpressionClass"),  FNexusSchema::Str(TEXT("Expression class short name (AddNode)")))
+		.Prop(TEXT("ParameterName"),    FNexusSchema::Str(TEXT("Parameter/TextureSampleParam name")))
+		.Prop(TEXT("DefaultValue"),     FNexusSchema::Str(TEXT("float / R,G,B,A / texture path")))
+		.Prop(TEXT("NodeId"),           FNexusSchema::Str(TEXT("Expression node id (remove/set)")))
+		.Prop(TEXT("PosX"),             FNexusSchema::Num(TEXT("Node X position")))
+		.Prop(TEXT("PosY"),             FNexusSchema::Num(TEXT("Node Y position")))
+		.Prop(TEXT("SourceNodeId"),     FNexusSchema::Str(TEXT("Source node id (connect/DisconnectAll)")))
+		.Prop(TEXT("SourceOutputName"), FNexusSchema::Str(TEXT("Source output pin name (default first)")))
+		.Prop(TEXT("TargetNodeId"),     FNexusSchema::Str(TEXT("Target node id or Material (connect/disconnect)")))
+		.Prop(TEXT("TargetInputName"),  FNexusSchema::Str(TEXT("Target input pin or material property name")))
+		.Required({ TEXT("Action") })
 		.Build();
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Material/MI/MaterialFunction asset path (shared)")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch material ops"), ItemSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Material/MI/MaterialFunction asset path (shared)")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch material ops"), ItemSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Material };
 	Out.ExtraSearchKeywords = {
-		TEXT("node"), TEXT("parameter"), TEXT("wire"), TEXT("pin"), TEXT("recompile")
+		TEXT("Node"), TEXT("parameter"), TEXT("wire"), TEXT("pin"), TEXT("Recompile")
 	};
-	Out.RelatedCapabilities = { TEXT("get_asset_material"), TEXT("create_asset_material"), TEXT("create_asset_material_function"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("Write Mat/MI/MF graph and MI params; MF wires use expression nodeId");
+	Out.RelatedCapabilities = { TEXT("GetAssetMaterial"), TEXT("CreateAssetMaterial"), TEXT("CreateAssetMaterialFunction"), TEXT("SaveAsset") };
+	Out.WhenToUse = TEXT("Write Mat/MI/MF graph and MI params; MF wires use expression NodeId");
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetMaterialCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetMaterialCapability)
 
 #endif // WITH_EDITOR

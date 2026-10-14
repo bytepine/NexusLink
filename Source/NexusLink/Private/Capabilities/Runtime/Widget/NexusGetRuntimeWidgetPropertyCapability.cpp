@@ -14,75 +14,75 @@
 // ??????? runtime widget ?????��????Path ?????? children??
 static void ReadRuntimeWidgetPropertyImpl(UWidget* Widget, const FString& PropertyPath, TSharedPtr<FJsonObject>& OutEntry)
 {
-	OutEntry->SetStringField(TEXT("widgetName"),  Widget->GetName());
-	OutEntry->SetStringField(TEXT("widgetClass"), Widget->GetClass()->GetName());
+	OutEntry->SetStringField(TEXT("WidgetName"),  Widget->GetName());
+	OutEntry->SetStringField(TEXT("WidgetClass"), Widget->GetClass()->GetName());
 
 	if (PropertyPath.IsEmpty())
 	{
 		TArray<TSharedPtr<FJsonValue>> Children;
 		FNexusPropertyUtils::CollectEditableProperties(Widget, Children);
-		OutEntry->SetArrayField(TEXT("children"), Children);
+		OutEntry->SetArrayField(TEXT("Children"), Children);
 		FNexusWidgetLayoutUtils::AppendUmgLayoutFields(Widget, OutEntry);
 		return;
 	}
 
-	OutEntry->SetStringField(TEXT("propertyPath"), PropertyPath);
+	OutEntry->SetStringField(TEXT("PropertyPath"), PropertyPath);
 
 	TArray<FString> Segs;
 	PropertyPath.ParseIntoArray(Segs, TEXT("."), true);
 	if (Segs.Num() == 0)
 	{
-		OutEntry->SetStringField(TEXT("error"), TEXT("propertyPath is empty"));
+		OutEntry->SetStringField(TEXT("Error"), TEXT("PropertyPath is empty"));
 		return;
 	}
 	TArray<FString> Remaining;
-	for (int32 i = 1; i < Segs.Num(); ++i) Remaining.Add(Segs[i]);
+	for (int32 SegmentIndex = 1; SegmentIndex < Segs.Num(); ++SegmentIndex) Remaining.Add(Segs[SegmentIndex]);
 
 	FString Error;
 	if (!FNexusPropertyUtils::ResolvePropertyRead(Widget, Segs[0], Remaining, OutEntry, Error))
 	{
-		OutEntry->SetStringField(TEXT("error"), Error);
+		OutEntry->SetStringField(TEXT("Error"), Error);
 	}
 }
 
-void FGetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_runtime_widget_property");
-	Out.Description = TEXT("Read runtime UMG element fields. Locate via widgetName+ownerClass; includes layout without propertyPaths.");
+	Out.Name = TEXT("GetRuntimeWidgetProperty");
+	Out.Description = TEXT("Read runtime UMG element fields. Locate via WidgetName+OwnerClass; includes layout without PropertyPaths.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("widgetName"),    FNexusSchema::Str(TEXT("Runtime Widget name")))
-		.Prop(TEXT("ownerClass"),    FNexusSchema::Str(TEXT("UserWidget filter")))
-		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Dot-separated paths (batch)")))
+		.Prop(TEXT("WidgetName"),    FNexusSchema::Str(TEXT("Runtime Widget name")))
+		.Prop(TEXT("OwnerClass"),    FNexusSchema::Str(TEXT("UserWidget filter")))
+		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("Dot-separated paths (batch)")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("field"), TEXT("brush"), TEXT("slot"), TEXT("value") };
-	Out.RelatedCapabilities = { TEXT("set_runtime_widget_property"), TEXT("list_runtime_widgets") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("field"), TEXT("brush"), TEXT("slot"), TEXT("Value") };
+	Out.RelatedCapabilities = { TEXT("SetRuntimeWidgetProperty"), TEXT("ListRuntimeWidgets") };
+	Out.Prerequisites = { TEXT("PIE") };
 	Out.WhenToUse = TEXT("Read-only UMG fields; no modifications");
 }
 
-FCapabilityResult FGetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString WN = A.Str(TEXT("widgetName"));
+		const FString WN = A.Str(TEXT("WidgetName"));
 
 		FString OwnerClass;
-		OwnerClass = FNexusArgs(Arguments).Str(TEXT("ownerClass"), OwnerClass);
+		OwnerClass = FNexusArgs(Arguments).Str(TEXT("OwnerClass"), OwnerClass);
 
-		// 仅接受 propertyPaths[]；缺省则展开 children + layout
+		// 仅接受 PropertyPaths[]；缺省则展开 children + layout
 		TArray<FString> PropertyPaths;
-		FNexusPropertyUtils::ReadStringArray(Arguments, TEXT("propertyPaths"), PropertyPaths);
+		FNexusPropertyUtils::ReadStringArray(Arguments, TEXT("PropertyPaths"), PropertyPaths);
 
 		UWidget* Widget = FNexusRuntimeUtils::FindRuntimeWidget(OwnerClass, WN);
 		if (!Widget)
 		{
 			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-			OutEntry->SetStringField(TEXT("widgetName"), WN);
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Runtime Widget '%s' not found"), *WN));
+			OutEntry->SetStringField(TEXT("WidgetName"), WN);
+			OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Runtime Widget '%s' not found"), *WN));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -106,4 +106,4 @@ FCapabilityResult FGetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetRuntimeWidgetPropertyCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetRuntimeWidgetPropertyCapability)

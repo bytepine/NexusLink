@@ -110,15 +110,15 @@ static bool PassesAssetTypeFilter(const FString& AssetType, const FString& Asset
 static TSharedPtr<FJsonObject> RefItemToJson(const FNexusAssetRefItem& Item, bool bIncludeDepth)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-	Obj->SetStringField(TEXT("path"), Item.Path);
+	Obj->SetStringField(TEXT("Path"), Item.Path);
 	if (!Item.Name.IsEmpty())
 		Obj->SetStringField(TEXT("name"), Item.Name);
 	if (!Item.AssetType.IsEmpty())
-		Obj->SetStringField(TEXT("assetType"), Item.AssetType);
+		Obj->SetStringField(TEXT("AssetType"), Item.AssetType);
 	if (!Item.ParentClass.IsEmpty())
-		Obj->SetStringField(TEXT("parentClass"), Item.ParentClass);
+		Obj->SetStringField(TEXT("ParentClass"), Item.ParentClass);
 	if (bIncludeDepth)
-		Obj->SetNumberField(TEXT("depth"), Item.Depth);
+		Obj->SetNumberField(TEXT("Depth"), Item.Depth);
 	return Obj;
 }
 
@@ -369,8 +369,8 @@ static void EmitPagedRefs(
 	for (int32 i = Start; i < End; ++i)
 		Page.Add(MakeShared<FJsonValueObject>(RefItemToJson(Filtered[i], bIncludeDepth)));
 
-	OutEntry->SetNumberField(TEXT("totalCount"), Total);
-	OutEntry->SetArrayField(TEXT("refs"), Page);
+	OutEntry->SetNumberField(TEXT("TotalCount"), Total);
+	OutEntry->SetArrayField(TEXT("Refs"), Page);
 }
 
 static void QueryOneAssetRefsImpl(
@@ -386,8 +386,8 @@ static void QueryOneAssetRefsImpl(
 {
 
 	const FString PackageName = ToPackageName(AssetPath);
-	OutEntry->SetStringField(TEXT("assetPath"), PackageName);
-	OutEntry->SetStringField(TEXT("direction"), Direction);
+	OutEntry->SetStringField(TEXT("AssetPath"), PackageName);
+	OutEntry->SetStringField(TEXT("Direction"), Direction);
 
 	FAssetData TargetAsset;
 	FString TargetAssetName;
@@ -396,13 +396,13 @@ static void QueryOneAssetRefsImpl(
 	{
 		TargetAssetName = TargetAsset.AssetName.ToString();
 		TargetAssetType = GetAssetTypeString(TargetAsset);
-		OutEntry->SetStringField(TEXT("assetType"), TargetAssetType);
+		OutEntry->SetStringField(TEXT("AssetType"), TargetAssetType);
 		FString OwnParent;
 		TargetAsset.GetTagValue(TEXT("ParentClass"), OwnParent);
 		if (OwnParent.IsEmpty())
 			TargetAsset.GetTagValue(TEXT("Parent"), OwnParent);
 		if (!OwnParent.IsEmpty())
-			OutEntry->SetStringField(TEXT("parentClass"), OwnParent);
+			OutEntry->SetStringField(TEXT("ParentClass"), OwnParent);
 	}
 	else
 	{
@@ -412,11 +412,11 @@ static void QueryOneAssetRefsImpl(
 	TArray<FNexusAssetRefItem> Items;
 	bool bIncludeDepth = false;
 
-	if (Direction == TEXT("referencers") || Direction == TEXT("dependencies"))
+	if (Direction == TEXT("Referencers") || Direction == TEXT("Dependencies"))
 	{
-		GatherPackageRefs(Registry, PackageName, Direction == TEXT("referencers"), bRecursive, Items);
+		GatherPackageRefs(Registry, PackageName, Direction == TEXT("Referencers"), bRecursive, Items);
 	}
-	else if (Direction == TEXT("children"))
+	else if (Direction == TEXT("Children"))
 	{
 		bIncludeDepth = true;
 		if (bRecursive)
@@ -424,17 +424,17 @@ static void QueryOneAssetRefsImpl(
 		else
 			GatherDirectChildren(Registry, PackageName, TargetAssetName, TargetAssetType, Items);
 	}
-	else if (Direction == TEXT("descendants"))
+	else if (Direction == TEXT("Descendants"))
 	{
 		bIncludeDepth = true;
 		GatherDescendants(Registry, PackageName, TargetAssetName, TargetAssetType, Items);
 	}
-	else if (Direction == TEXT("parent"))
+	else if (Direction == TEXT("Parent"))
 	{
 		bIncludeDepth = true;
 		GatherAncestors(Registry, PackageName, /*bDirectOnly=*/true, Items);
 	}
-	else if (Direction == TEXT("ancestors"))
+	else if (Direction == TEXT("Ancestors"))
 	{
 		bIncludeDepth = true;
 		GatherAncestors(Registry, PackageName, /*bDirectOnly=*/false, Items);
@@ -443,47 +443,47 @@ static void QueryOneAssetRefsImpl(
 	EmitPagedRefs(Items, NameFilter, AssetTypeFilter, Offset, Limit, bIncludeDepth, OutEntry);
 }
 
-void FGetAssetRefsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetRefsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_refs");
+	Out.Name = TEXT("GetAssetRefs");
 	Out.Description = TEXT("Query deps/refs/inheritance. direction includes children|ancestors; filter by type.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Asset path to query")))
-		.Prop(TEXT("direction"),  FNexusSchema::Enum(
-			TEXT("dependencies=deps; referencers=referencers; children=direct subclasses; descendants=all descendants; parent=direct parent; ancestors=parent chain"),
-			{ TEXT("dependencies"), TEXT("referencers"), TEXT("children"), TEXT("descendants"), TEXT("parent"), TEXT("ancestors") }))
-		.Prop(TEXT("recursive"),  FNexusSchema::Bool(TEXT("Recursive package deps/refs; children equivalent to descendants"), false))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Path or name substring filter")))
-		.Prop(TEXT("assetTypeFilter"), FNexusSchema::Str(TEXT("Filter by assetType substring, e.g. Blueprint/MaterialInstance")))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Asset path to query")))
+		.Prop(TEXT("Direction"),  FNexusSchema::Enum(
+			TEXT("Dependencies=deps; Referencers=referencers; Children=direct subclasses; Descendants=all descendants; Parent=direct parent; Ancestors=parent chain"),
+			{ TEXT("Dependencies"), TEXT("Referencers"), TEXT("Children"), TEXT("Descendants"), TEXT("Parent"), TEXT("Ancestors") }))
+		.Prop(TEXT("bRecursive"),  FNexusSchema::Bool(TEXT("Recursive package deps/refs; children equivalent to descendants"), false))
+		.Prop(TEXT("NameFilter"), FNexusSchema::Str(TEXT("Path or name substring filter")))
+		.Prop(TEXT("AssetTypeFilter"), FNexusSchema::Str(TEXT("Filter by AssetType substring, e.g. Blueprint/MaterialInstance")))
+		.Prop(TEXT("Offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("Limit"),      FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = {
-		TEXT("references"), TEXT("deps"), TEXT("usage"), TEXT("links"), TEXT("callers"),
-		TEXT("inheritance"), TEXT("subclass"), TEXT("parent"), TEXT("children"), TEXT("descendants"),
+		TEXT("references"), TEXT("deps"), TEXT("Usage"), TEXT("links"), TEXT("callers"),
+		TEXT("inheritance"), TEXT("subclass"), TEXT("Parent"), TEXT("Children"), TEXT("Descendants"),
 		TEXT("ref"), TEXT("reference"), TEXT("referencer"), TEXT("dependency"),
 		TEXT("get refs"), TEXT("get ref")
 	};
-	Out.RelatedCapabilities = { TEXT("search_asset"), TEXT("get_asset_blueprint") };
+	Out.RelatedCapabilities = { TEXT("SearchAsset"), TEXT("GetAssetBlueprint") };
 	Out.WhenToUse = TEXT("Query refs/deps or Blueprint subclass/parent chain");
 }
 
-FCapabilityResult FGetAssetRefsCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetRefsCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
-		FString Direction = TEXT("dependencies");
-		Direction = FNexusArgs(Arguments).Str(TEXT("direction"), Direction);
+		FString Direction = TEXT("Dependencies");
+		Direction = FNexusArgs(Arguments).Str(TEXT("Direction"), Direction);
 		Direction = Direction.ToLower();
 		const bool bValidDirection =
-			Direction == TEXT("dependencies") || Direction == TEXT("referencers")
-			|| Direction == TEXT("children") || Direction == TEXT("descendants")
-			|| Direction == TEXT("parent") || Direction == TEXT("ancestors");
+			Direction == TEXT("Dependencies") || Direction == TEXT("Referencers")
+			|| Direction == TEXT("Children") || Direction == TEXT("Descendants")
+			|| Direction == TEXT("Parent") || Direction == TEXT("Ancestors");
 		if (!bValidDirection)
 		{
 			OutError = FString::Printf(
@@ -492,17 +492,17 @@ FCapabilityResult FGetAssetRefsCapability::Execute(const TSharedPtr<FJsonObject>
 			return;
 		}
 
-		const bool bRecursive = Arguments->HasField(TEXT("recursive")) && A.Bool(TEXT("recursive"));
+		const bool bRecursive = Arguments->HasField(TEXT("bRecursive")) && A.Bool(TEXT("bRecursive"));
 		FString NameFilter;
-		NameFilter = FNexusArgs(Arguments).Str(TEXT("nameFilter"), NameFilter);
+		NameFilter = FNexusArgs(Arguments).Str(TEXT("NameFilter"), NameFilter);
 		FString AssetTypeFilter;
-		AssetTypeFilter = FNexusArgs(Arguments).Str(TEXT("assetTypeFilter"), AssetTypeFilter);
+		AssetTypeFilter = FNexusArgs(Arguments).Str(TEXT("AssetTypeFilter"), AssetTypeFilter);
 
 		int32 Offset = 0, Limit = 100;
-		if (Arguments->HasField(TEXT("offset")))
-			Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
-		if (Arguments->HasField(TEXT("limit")))
-			Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 500);
+		if (Arguments->HasField(TEXT("Offset")))
+			Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("Offset"))));
+		if (Arguments->HasField(TEXT("Limit")))
+			Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("Limit"))), 1, 500);
 
 		IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
@@ -512,4 +512,4 @@ FCapabilityResult FGetAssetRefsCapability::Execute(const TSharedPtr<FJsonObject>
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetRefsCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetRefsCapability)

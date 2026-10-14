@@ -26,14 +26,14 @@ public:
 	static TArray<FString> GetStringArray(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Key);
 
 	/**
-	 * sections 数组中是否含 "all"（大小写不敏感）。
-	 * 供 redundant_call 去重逻辑及 MultiSectionCapability 路由判断复用。
+	 * sections 数组中是否含 "All"（大小写不敏感）。
+	 * 供 RedundantCall 去重逻辑及 MultiSectionCapability 路由判断复用。
 	 */
 	static bool HasSectionAll(const TSharedPtr<FJsonObject>& Obj);
 
 	/**
-	 * sections 数组是否非空且不含 "all"（即调用方指定了具体子 section）。
-	 * 含 "all" 的混合数组（如 ["all","graph"]）视为 all，不算子段（与 MultiSection 展开语义一致）。
+	 * sections 数组是否非空且不含 "All"（即调用方指定了具体子 section）。
+	 * 含 "All" 的混合数组（如 ["All","graph"]）视为 all，不算子段（与 MultiSection 展开语义一致）。
 	 */
 	static bool HasSubSection(const TSharedPtr<FJsonObject>& Obj);
 
@@ -55,7 +55,7 @@ public:
 
 	/**
 	 * 统一提取 manage_* 类 Capability 的批量操作数组。
-	 * 仅接受 `operations[]`；不认 `ops`、不把顶层 `action` 合成单元素数组（见 CapabilitySpec §8.11）。
+	 * 仅接受 `operations[]`；不认 `ops`、不把顶层 `Action` 合成单元素数组（见 CapabilitySpec §8.11）。
 	 */
 	static TArray<TSharedPtr<FJsonValue>> ExtractOperations(const TSharedPtr<FJsonObject>& Args);
 

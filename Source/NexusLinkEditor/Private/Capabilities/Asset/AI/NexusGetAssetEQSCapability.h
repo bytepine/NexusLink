@@ -8,8 +8,8 @@
 
 #include "NexusCapability.h"
 
-/** get_asset_eqs — 读取 UEnvQuery 的 Option/Generator/Test 概览（UE5+）。 */
-class FGetAssetEQSCapability : public FNexusCapability
+/** GetAssetEQS — 读取 UEnvQuery 的 Option/Generator/Test 概览（UE5+）。 */
+class FNexusGetAssetEQSCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

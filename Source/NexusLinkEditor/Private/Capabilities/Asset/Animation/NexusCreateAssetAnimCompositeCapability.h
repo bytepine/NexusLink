@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_anim_composite：创建 AnimComposite 资产。 */
-class FCreateAssetAnimCompositeCapability : public FNexusCapability
+/** CreateAssetAnimComposite：创建 AnimComposite 资产。 */
+class FNexusCreateAssetAnimCompositeCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

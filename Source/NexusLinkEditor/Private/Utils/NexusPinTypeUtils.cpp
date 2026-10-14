@@ -15,9 +15,9 @@ bool FNexusPinTypeUtils::ParsePinType(const FString& TypeStr, FEdGraphPinType& O
 	else if (T == TEXT("string"))    OutPinType.PinCategory = UEdGraphSchema_K2::PC_String;
 	else if (T == TEXT("name"))      OutPinType.PinCategory = UEdGraphSchema_K2::PC_Name;
 	else if (T == TEXT("text"))      OutPinType.PinCategory = UEdGraphSchema_K2::PC_Text;
-	else if (T == TEXT("vector"))    { OutPinType.PinCategory = UEdGraphSchema_K2::PC_Struct; OutPinType.PinSubCategoryObject = TBaseStructure<FVector>::Get();    }
-	else if (T == TEXT("rotator"))   { OutPinType.PinCategory = UEdGraphSchema_K2::PC_Struct; OutPinType.PinSubCategoryObject = TBaseStructure<FRotator>::Get();   }
-	else if (T == TEXT("transform")) { OutPinType.PinCategory = UEdGraphSchema_K2::PC_Struct; OutPinType.PinSubCategoryObject = TBaseStructure<FTransform>::Get(); }
+	else if (T == TEXT("Vector"))    { OutPinType.PinCategory = UEdGraphSchema_K2::PC_Struct; OutPinType.PinSubCategoryObject = TBaseStructure<FVector>::Get();    }
+	else if (T == TEXT("Rotator"))   { OutPinType.PinCategory = UEdGraphSchema_K2::PC_Struct; OutPinType.PinSubCategoryObject = TBaseStructure<FRotator>::Get();   }
+	else if (T == TEXT("Transform")) { OutPinType.PinCategory = UEdGraphSchema_K2::PC_Struct; OutPinType.PinSubCategoryObject = TBaseStructure<FTransform>::Get(); }
 	else
 	{
 		UClass* Cls = FNexusAssetUtils::FindClassWithUPrefix(TypeStr);

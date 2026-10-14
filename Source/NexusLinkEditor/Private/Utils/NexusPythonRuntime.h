@@ -11,7 +11,7 @@ class IPythonScriptPlugin;
 
 /**
  * Python Script Plugin 可用性门面。
- * exec_python / get_python_api 共用，统一把「插件没加载 / 编译期无 Python /
+ * ExecPython / GetPythonApi 共用，统一把「插件没加载 / 编译期无 Python /
  * 已配置未启用 / 已启用未初始化」四种状态翻译成可执行的排查提示。
  */
 class FNexusPythonRuntime

@@ -11,7 +11,7 @@
 
 /**
  * FCapabilityResult → FNexusMcpToolResult 适配工具。
- * 供 call_capability（单条模式）和 MultiTool 模式的 Dispatcher 共用。
+ * 供 CallCapability（单条模式）和 MultiTool 模式的 Dispatcher 共用。
  */
 struct FNexusCapResultAdapter final
 {
@@ -81,19 +81,19 @@ struct FNexusCapResultAdapter final
 					return Top;
 				}
 			}
-			Top->SetArrayField(TEXT("results"), CapResult.Entries);
+			Top->SetArrayField(TEXT("Results"), CapResult.Entries);
 		}
 		else if (CapResult.Entries.Num() > 1)
 		{
-			Top->SetArrayField(TEXT("results"), CapResult.Entries);
+			Top->SetArrayField(TEXT("Results"), CapResult.Entries);
 		}
 
 		return Top;
 	}
 
 	/**
-	 * 省略与入参相同的身份回显：get_/manage_ 且 Args 含单个 assetPath 时，
-	 * 若响应 path（或遗留 assetPath）与入参等价则删除（调用方已知）。
+	 * 省略与入参相同的身份回显：get_/manage_ 且 Args 含单个 AssetPath 时，
+	 * 若响应 path（或遗留 AssetPath）与入参等价则删除（调用方已知）。
 	 * create_/search_/save_ 等不剥离。
 	 */
 	static inline void StripRedundantPathEcho(
@@ -111,7 +111,7 @@ struct FNexusCapResultAdapter final
 		}
 
 		FString Requested;
-		if (!Args->TryGetStringField(TEXT("assetPath"), Requested) || Requested.IsEmpty())
+		if (!Args->TryGetStringField(TEXT("AssetPath"), Requested) || Requested.IsEmpty())
 		{
 			return;
 		}
@@ -123,13 +123,13 @@ struct FNexusCapResultAdapter final
 				return;
 			}
 			FString Echoed;
-			if (Obj->TryGetStringField(TEXT("path"), Echoed)
-				|| Obj->TryGetStringField(TEXT("assetPath"), Echoed))
+			if (Obj->TryGetStringField(TEXT("Path"), Echoed)
+				|| Obj->TryGetStringField(TEXT("AssetPath"), Echoed))
 			{
 				if (AssetPathsEquivalent(Echoed, Requested))
 				{
-					Obj->RemoveField(TEXT("path"));
-					Obj->RemoveField(TEXT("assetPath"));
+					Obj->RemoveField(TEXT("Path"));
+					Obj->RemoveField(TEXT("AssetPath"));
 				}
 			}
 		};
@@ -137,7 +137,7 @@ struct FNexusCapResultAdapter final
 		StripObj(Content);
 
 		const TArray<TSharedPtr<FJsonValue>>* Results = nullptr;
-		if (Content->TryGetArrayField(TEXT("results"), Results) && Results)
+		if (Content->TryGetArrayField(TEXT("Results"), Results) && Results)
 		{
 			for (const TSharedPtr<FJsonValue>& V : *Results)
 			{
@@ -170,10 +170,10 @@ struct FNexusCapResultAdapter final
 			if (CapResult.bIsUserDenied)
 			{
 				TSharedPtr<FJsonObject> Err = MakeShared<FJsonObject>();
-				Err->SetStringField(TEXT("errorKind"), TEXT("user_denied"));
-				Err->SetStringField(TEXT("error"), CapResult.FatalError);
-				Err->SetStringField(TEXT("capability"), CapName);
-				Err->SetStringField(TEXT("hint"), TEXT("Do not retry; user denied this request."));
+				Err->SetStringField(TEXT("ErrorKind"), TEXT("UserDenied"));
+				Err->SetStringField(TEXT("Error"), CapResult.FatalError);
+				Err->SetStringField(TEXT("Capability"), CapName);
+				Err->SetStringField(TEXT("Hint"), TEXT("Do not retry; user denied this request."));
 				Result.StructuredContent = Err;
 				Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
 				return Result;
@@ -181,10 +181,10 @@ struct FNexusCapResultAdapter final
 			if (CapResult.bIsArgInvalid && CapResult.bSkipFeedback)
 			{
 				TSharedPtr<FJsonObject> Err = MakeShared<FJsonObject>();
-				Err->SetStringField(TEXT("errorKind"), TEXT("arg_invalid"));
-				Err->SetStringField(TEXT("error"), CapResult.FatalError);
-				Err->SetStringField(TEXT("capability"), CapName);
-				Err->SetStringField(TEXT("hint"),
+				Err->SetStringField(TEXT("ErrorKind"), TEXT("ArgInvalid"));
+				Err->SetStringField(TEXT("Error"), CapResult.FatalError);
+				Err->SetStringField(TEXT("Capability"), CapName);
+				Err->SetStringField(TEXT("Hint"),
 					TEXT("Pass reason (purpose, expected effect, why no safer dedicated capability) and retry once."));
 				Result.StructuredContent = Err;
 				Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);

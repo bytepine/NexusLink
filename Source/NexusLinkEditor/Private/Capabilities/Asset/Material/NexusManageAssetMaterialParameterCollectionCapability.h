@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_material_parameter_collection — 增删改 MPC 的标量/向量参数。 */
-class FManageAssetMaterialParameterCollectionCapability : public FNexusActionCapability
+/** ManageAssetMaterialParameterCollection — 增删改 MPC 的标量/向量参数。 */
+class FNexusManageAssetMaterialParameterCollectionCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

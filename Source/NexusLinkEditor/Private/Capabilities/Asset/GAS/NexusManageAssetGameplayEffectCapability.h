@@ -7,8 +7,8 @@
 
 #include "NexusActionCapability.h"
 
-/** manage_asset_gameplay_effect — 批量修改 GE 策略/Tag/Modifier。 */
-class FManageAssetGameplayEffectCapability : public FNexusActionCapability
+/** ManageAssetGameplayEffect — 批量修改 GE 策略/Tag/Modifier。 */
+class FNexusManageAssetGameplayEffectCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

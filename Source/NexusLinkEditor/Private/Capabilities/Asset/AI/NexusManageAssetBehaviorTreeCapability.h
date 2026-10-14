@@ -6,9 +6,9 @@
 #include "NexusActionCapability.h"
 
 /**
- * manage_asset_behavior_tree 的 Capability — 管理 BehaviorTree 资产的节点树。
+ * ManageAssetBehaviorTree 的 Capability — 管理 BehaviorTree 资产的节点树。
  */
-class FManageAssetBehaviorTreeCapability : public FNexusActionCapability
+class FNexusManageAssetBehaviorTreeCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

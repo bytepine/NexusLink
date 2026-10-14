@@ -30,7 +30,7 @@ FString FNexusMaterialUtils::BlendModeToString(EBlendMode M)
 bool FNexusMaterialUtils::TryParseMaterialDomain(const FString& InStr, EMaterialDomain& OutDomain, FString& OutErr)
 {
 	const FString L = InStr.TrimStartAndEnd().ToLower();
-	if (L.IsEmpty() || L == TEXT("surface"))
+	if (L.IsEmpty() || L == TEXT("Surface"))
 	{
 		OutDomain = EMaterialDomain::MD_Surface;
 		return true;
@@ -45,7 +45,7 @@ bool FNexusMaterialUtils::TryParseMaterialDomain(const FString& InStr, EMaterial
 		OutDomain = EMaterialDomain::MD_LightFunction;
 		return true;
 	}
-	if (L == TEXT("volume"))
+	if (L == TEXT("Volume"))
 	{
 		OutDomain = EMaterialDomain::MD_Volume;
 		return true;
@@ -55,7 +55,7 @@ bool FNexusMaterialUtils::TryParseMaterialDomain(const FString& InStr, EMaterial
 		OutDomain = EMaterialDomain::MD_PostProcess;
 		return true;
 	}
-	if (L == TEXT("ui"))
+	if (L == TEXT("UI"))
 	{
 		OutDomain = EMaterialDomain::MD_UI;
 		return true;
@@ -66,7 +66,7 @@ bool FNexusMaterialUtils::TryParseMaterialDomain(const FString& InStr, EMaterial
 		return true;
 	}
 	OutErr = FString::Printf(
-		TEXT("Unknown materialDomain '%s' (surface|deferredDecal|lightFunction|volume|postProcess|ui|runtimeVirtualTexture)"),
+		TEXT("Unknown MaterialDomain '%s' (surface|DeferredDecal|LightFunction|volume|PostProcess|ui|RuntimeVirtualTexture)"),
 		*InStr);
 	return false;
 }

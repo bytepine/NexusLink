@@ -14,17 +14,17 @@
 #include "Editor.h"
 #endif
 
-void FGetEditorInfoCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetEditorInfoCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_editor_info");
+	Out.Name = TEXT("GetEditorInfo");
 	Out.Description = TEXT("Return UE version, project, platform, build config. No params.");
 	Out.InputSchema = FNexusSchema::Object().Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("status"), TEXT("environment"), TEXT("engine"), TEXT("version"), TEXT("project") };
-	Out.RelatedCapabilities = { TEXT("get_output_log") };
+	Out.ExtraSearchKeywords = { TEXT("Status"), TEXT("environment"), TEXT("engine"), TEXT("Version"), TEXT("project") };
+	Out.RelatedCapabilities = { TEXT("GetOutputLog") };
 }
 
-FCapabilityResult FGetEditorInfoCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetEditorInfoCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -32,46 +32,46 @@ FCapabilityResult FGetEditorInfoCapability::Execute(const TSharedPtr<FJsonObject
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		OutEntry->SetStringField(TEXT("engineVersion"), FString::Printf(TEXT("%d.%d.%d"),
+		OutEntry->SetStringField(TEXT("EngineVersion"), FString::Printf(TEXT("%d.%d.%d"),
 			ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION, ENGINE_PATCH_VERSION));
-		OutEntry->SetStringField(TEXT("projectName"), FApp::GetProjectName());
+		OutEntry->SetStringField(TEXT("ProjectName"), FApp::GetProjectName());
 
 	#if PLATFORM_WINDOWS
-		OutEntry->SetStringField(TEXT("platform"), TEXT("Windows"));
+		OutEntry->SetStringField(TEXT("Platform"), TEXT("Windows"));
 	#elif PLATFORM_MAC
-		OutEntry->SetStringField(TEXT("platform"), TEXT("Mac"));
+		OutEntry->SetStringField(TEXT("Platform"), TEXT("Mac"));
 	#elif PLATFORM_LINUX
-		OutEntry->SetStringField(TEXT("platform"), TEXT("Linux"));
+		OutEntry->SetStringField(TEXT("Platform"), TEXT("Linux"));
 	#else
-		OutEntry->SetStringField(TEXT("platform"), TEXT("Unknown"));
+		OutEntry->SetStringField(TEXT("Platform"), TEXT("Unknown"));
 	#endif
 
 	#if UE_BUILD_SHIPPING
-		OutEntry->SetStringField(TEXT("buildConfig"), TEXT("Shipping"));
+		OutEntry->SetStringField(TEXT("BuildConfig"), TEXT("Shipping"));
 	#elif UE_BUILD_DEVELOPMENT
-		OutEntry->SetStringField(TEXT("buildConfig"), TEXT("Development"));
+		OutEntry->SetStringField(TEXT("BuildConfig"), TEXT("Development"));
 	#elif UE_BUILD_DEBUG
-		OutEntry->SetStringField(TEXT("buildConfig"), TEXT("Debug"));
+		OutEntry->SetStringField(TEXT("BuildConfig"), TEXT("Debug"));
 	#else
-		OutEntry->SetStringField(TEXT("buildConfig"), TEXT("Unknown"));
+		OutEntry->SetStringField(TEXT("BuildConfig"), TEXT("Unknown"));
 	#endif
 
 	#if WITH_EDITOR
-		OutEntry->SetBoolField(TEXT("isEditor"), true);
+		OutEntry->SetBoolField(TEXT("bIsEditor"), true);
 		if (GEditor)
 		{
-			OutEntry->SetBoolField(TEXT("isPIERunning"), GEditor->IsPlayingSessionInEditor());
+			OutEntry->SetBoolField(TEXT("bIsPIERunning"), GEditor->IsPlayingSessionInEditor());
 		}
 	#else
-		OutEntry->SetBoolField(TEXT("isEditor"), false);
+		OutEntry->SetBoolField(TEXT("bIsEditor"), false);
 	#endif
-		OutEntry->SetBoolField(TEXT("hasPlayWorld"), FNexusRuntimeUtils::HasPlayWorld());
+		OutEntry->SetBoolField(TEXT("bHasPlayWorld"), FNexusRuntimeUtils::HasPlayWorld());
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetEditorInfoCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetEditorInfoCapability)
 
 #endif // WITH_EDITOR

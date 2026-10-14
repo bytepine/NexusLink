@@ -16,35 +16,35 @@
 #include "Animation/Skeleton.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_anim_blueprint");
+	Out.Name = TEXT("CreateAssetAnimBlueprint");
 	Out.Description = TEXT("Create ABP for skeleton, auto-linked; fill state machines via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),    FNexusSchema::Str(TEXT("AnimBlueprint package path")))
-		.Prop(TEXT("skeletonPath"), FNexusSchema::Str(TEXT("Skeleton asset path")))
-		.Required({ TEXT("assetPath"), TEXT("skeletonPath") })
+		.Prop(TEXT("AssetPath"),    FNexusSchema::Str(TEXT("AnimBlueprint package path")))
+		.Prop(TEXT("SkeletonPath"), FNexusSchema::Str(TEXT("Skeleton asset path")))
+		.Required({ TEXT("AssetPath"), TEXT("SkeletonPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
-	Out.ExtraSearchKeywords = { TEXT("abp"), TEXT("new"), TEXT("skeleton"), TEXT("animblueprint"), TEXT("rig") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_anim_blueprint"), TEXT("get_asset_anim_blueprint") };
-	Out.WhenToUse = TEXT("Create empty ABP; requires skeletonPath");
+	Out.ExtraSearchKeywords = { TEXT("abp"), TEXT("new"), TEXT("Skeleton"), TEXT("animblueprint"), TEXT("rig") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetAnimBlueprint"), TEXT("GetAssetAnimBlueprint") };
+	Out.WhenToUse = TEXT("Create empty ABP; requires SkeletonPath");
 }
 
-FCapabilityResult FCreateAssetAnimBlueprintCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetAnimBlueprintCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath    = A.Str(TEXT("assetPath"));
-		const FString SkeletonPath = A.Str(TEXT("skeletonPath"));
+		const FString AssetPath    = A.Str(TEXT("AssetPath"));
+		const FString SkeletonPath = A.Str(TEXT("SkeletonPath"));
 
 		USkeleton* Skeleton = LoadObject<USkeleton>(nullptr, *SkeletonPath);
 		if (!Skeleton)
 		{
 			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to load Skeleton: %s"), *SkeletonPath));
+			OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Failed to load Skeleton: %s"), *SkeletonPath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -64,11 +64,11 @@ FCapabilityResult FCreateAssetAnimBlueprintCapability::Execute(const TSharedPtr<
 		FNexusAssetEditorUtils::NotifyCompileAndSave(AnimBP->GetOutermost(), AnimBP, AssetPath);
 
 		TSharedPtr<FJsonObject> OutEntry = FNexusCapabilityResultBuilder::MakeCreatedEntry(AnimBP);
-		OutEntry->SetStringField(TEXT("skeleton"), Skeleton->GetPathName());
+		OutEntry->SetStringField(TEXT("Skeleton"), Skeleton->GetPathName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetAnimBlueprintCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetAnimBlueprintCapability)
 
 #endif // WITH_EDITOR

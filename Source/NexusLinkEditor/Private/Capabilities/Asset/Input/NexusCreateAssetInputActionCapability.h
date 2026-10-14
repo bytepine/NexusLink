@@ -7,8 +7,8 @@
 
 #include "NexusCapability.h"
 
-/** create_asset_input_action — 创建空白 UInputAction（Enhanced Input，UE5+）。 */
-class FCreateAssetInputActionCapability : public FNexusCapability
+/** CreateAssetInputAction — 创建空白 UInputAction（Enhanced Input，UE5+）。 */
+class FNexusCreateAssetInputActionCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

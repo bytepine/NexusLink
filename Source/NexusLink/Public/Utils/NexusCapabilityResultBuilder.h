@@ -21,7 +21,7 @@ class UObject;
  *   return _R;
  *
  * 以及 P5 单行 entry 错误助手：
- *   OutEntry->SetStringField(TEXT("error"), ...);
+ *   OutEntry->SetStringField(TEXT("Error"), ...);
  *   OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
  */
 class NEXUSLINK_API FNexusCapabilityResultBuilder final
@@ -46,12 +46,12 @@ public:
 
 	/**
 	 * 向 OutEntries 追加一个只含 error 字段的 entry（P5 单行助手）。
-	 * 等价于：OutEntry->SetStringField("error", Msg); OutEntries.Add(...)。
+	 * 等价于：OutEntry->SetStringField("Error", Msg); OutEntries.Add(...)。
 	 */
 	/** 向 OutEntries 追加一个只含 error 字段的 entry（P5 单行助手）。 */
 	static void AddEntryError(TArray<TSharedPtr<FJsonValue>>& OutEntries, const FString& Msg);
 
-	/** 目标资产不存在：entry 带 assetPath locator + error。 */
+	/** 目标资产不存在：entry 带 AssetPath locator + error。 */
 	static void AddAssetNotFound(TArray<TSharedPtr<FJsonValue>>& OutEntries, const FString& AssetPath);
 
 	/** 环境不可用（较少用于 entry；多数环境问题应 fatal）。 */
@@ -63,7 +63,7 @@ public:
 
 	/**
 	 * 构造只含 name/path 的创建结果 entry（create_asset_* 尾巴助手）。
-	 * 调用方可继续 SetStringField 追加字段（如 skeleton/parentClass）后自行 AddEntry。
+	 * 调用方可继续 SetStringField 追加字段（如 skeleton/ParentClass）后自行 AddEntry。
 	 * Obj 为 nullptr 时返回带 error 字段的 entry。
 	 */
 	static TSharedPtr<FJsonObject> MakeCreatedEntry(const UObject* Obj);

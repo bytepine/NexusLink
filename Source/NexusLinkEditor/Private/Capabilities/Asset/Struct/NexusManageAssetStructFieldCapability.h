@@ -7,8 +7,8 @@
 
 class UUserDefinedStruct;
 
-/** manage_asset_struct_field 的 Capability — 批量增删/修改 UserDefinedStruct 字段（fields[]）。*/
-class FManageAssetStructFieldCapability : public FNexusActionCapability
+/** ManageAssetStructField 的 Capability — 批量增删/修改 UserDefinedStruct 字段（fields[]）。*/
+class FNexusManageAssetStructFieldCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

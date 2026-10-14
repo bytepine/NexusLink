@@ -7,8 +7,8 @@
 
 class UBlueprint;
 
-/** manage_asset_blueprint 的 Capability —— 增删/修改蓝图变量、图节点及连线。 */
-class FManageAssetBlueprintCapability : public FNexusActionCapability
+/** ManageAssetBlueprint 的 Capability —— 增删/修改蓝图变量、图节点及连线。 */
+class FNexusManageAssetBlueprintCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -7,8 +7,8 @@
 
 #include "NexusCapability.h"
 
-/** create_asset_attribute_set — 创建 AttributeSet Blueprint。 */
-class FCreateAssetAttributeSetCapability : public FNexusCapability
+/** CreateAssetAttributeSet — 创建 AttributeSet Blueprint。 */
+class FNexusCreateAssetAttributeSetCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

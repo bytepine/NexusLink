@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** get_editor_info 工具的唯一 Capability —— 返回 UE 版本、项目、平台、构建配置。*/
-class FGetEditorInfoCapability : public FNexusCapability
+/** GetEditorInfo 工具的唯一 Capability —— 返回 UE 版本、项目、平台、构建配置。*/
+class FNexusGetEditorInfoCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -8,8 +8,8 @@
 
 #include "NexusActionCapability.h"
 
-/** manage_asset_eqs — 编辑 EQS：add_option/remove_option/set_generator/add_test/remove_test（UE5+）。 */
-class FManageAssetEQSCapability : public FNexusActionCapability
+/** ManageAssetEQS — 编辑 EQS：AddOption/RemoveOption/SetGenerator/AddTest/RemoveTest（UE5+）。 */
+class FNexusManageAssetEQSCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

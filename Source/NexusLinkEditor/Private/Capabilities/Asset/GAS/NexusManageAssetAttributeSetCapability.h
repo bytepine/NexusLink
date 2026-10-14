@@ -7,8 +7,8 @@
 
 #include "NexusActionCapability.h"
 
-/** manage_asset_attribute_set — 批量设置/重置 AttributeSet CDO 属性默认值。 */
-class FManageAssetAttributeSetCapability : public FNexusActionCapability
+/** ManageAssetAttributeSet — 批量设置/重置 AttributeSet CDO 属性默认值。 */
+class FNexusManageAssetAttributeSetCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

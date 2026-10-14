@@ -161,36 +161,36 @@ static void SetFloatCurveName(FFloatCurve& FC, const FName& InName)
 #endif
 }
 
-void FManageAssetAnimSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetAnimSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_anim_sequence");
+	Out.Name = TEXT("ManageAssetAnimSequence");
 	Out.SearchAssetTypes = {TEXT("AnimSequence")};
 	Out.Description = TEXT("Batch edit AnimSequence: notify/frame rate/root motion/curve keys.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Edit operation"),
-			{ TEXT("add_notify"), TEXT("remove_notify"), TEXT("set_frame_rate"), TEXT("set_root_motion"),
-			  TEXT("add_float_curve"), TEXT("set_curve_key"), TEXT("remove_curve") }))
-		.Prop(TEXT("notifyName"),   FNexusSchema::Str(TEXT("Notify name (add/remove)")))
-		.Prop(TEXT("notifyClass"),  FNexusSchema::Str(TEXT("Notify class path (add; default AnimNotify)")))
-		.Prop(TEXT("notifyIndex"),  FNexusSchema::Int(TEXT("Notify index (remove)")))
-		.Prop(TEXT("time"),         FNexusSchema::Num(TEXT("Trigger time sec (add_notify) or key time sec (set_curve_key)")))
-		.Prop(TEXT("duration"),     FNexusSchema::Num(TEXT("Duration sec (State Notify > 0)")))
-		.Prop(TEXT("frameRate"),    FNexusSchema::Num(TEXT("New frame rate (set_frame_rate)")))
-		.Prop(TEXT("rootMotion"),   FNexusSchema::Str(TEXT("Root motion mode enum")))
-		.Prop(TEXT("curveName"),    FNexusSchema::Str(TEXT("Curve name (add_float_curve/set_curve_key/remove_curve)")))
-		.Prop(TEXT("value"),        FNexusSchema::Num(TEXT("Keyframe value (set_curve_key)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Edit operation"),
+			{ TEXT("AddNotify"), TEXT("RemoveNotify"), TEXT("SetFrameRate"), TEXT("SetRootMotion"),
+			  TEXT("AddFloatCurve"), TEXT("SetCurveKey"), TEXT("RemoveCurve") }))
+		.Prop(TEXT("NotifyName"),   FNexusSchema::Str(TEXT("Notify name (add/remove)")))
+		.Prop(TEXT("NotifyClass"),  FNexusSchema::Str(TEXT("Notify class path (add; default AnimNotify)")))
+		.Prop(TEXT("NotifyIndex"),  FNexusSchema::Int(TEXT("Notify index (remove)")))
+		.Prop(TEXT("Time"),         FNexusSchema::Num(TEXT("Trigger time sec (AddNotify) or key time sec (SetCurveKey)")))
+		.Prop(TEXT("Duration"),     FNexusSchema::Num(TEXT("Duration sec (State Notify > 0)")))
+		.Prop(TEXT("FrameRate"),    FNexusSchema::Num(TEXT("New frame rate (SetFrameRate)")))
+		.Prop(TEXT("RootMotion"),   FNexusSchema::Str(TEXT("Root motion mode enum")))
+		.Prop(TEXT("CurveName"),    FNexusSchema::Str(TEXT("Curve name (AddFloatCurve/SetCurveKey/RemoveCurve)")))
+		.Prop(TEXT("Value"),        FNexusSchema::Num(TEXT("Keyframe value (SetCurveKey)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("AnimSequence asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch edit ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("AnimSequence asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch edit ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("notify"), TEXT("event"), TEXT("frame"), TEXT("fps"), TEXT("root motion"), TEXT("curve"), TEXT("keyframe") };
-	Out.RelatedCapabilities = { TEXT("get_asset_anim_sequence"), TEXT("get_asset_anim_montage") };
-	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("Add/remove AnimNotify, frame rate/root motion, float curves; persist with save_asset");
+	Out.ExtraSearchKeywords = { TEXT("notify"), TEXT("Event"), TEXT("frame"), TEXT("fps"), TEXT("root motion"), TEXT("curve"), TEXT("keyframe") };
+	Out.RelatedCapabilities = { TEXT("GetAssetAnimSequence"), TEXT("GetAssetAnimMontage") };
+	Out.Prerequisites = { TEXT("EditorOnly") };
+	Out.WhenToUse = TEXT("Add/remove AnimNotify, frame rate/root motion, float curves; persist with SaveAsset");
 }
 
 static UAnimSequence* SeqFrom(FNexusActionContext& Ctx)
@@ -202,13 +202,13 @@ static void HandleAnimSeq_AddNotify(const TSharedPtr<FJsonObject>& Op, FNexusAct
 {
 	UAnimSequence* Seq = SeqFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString NotifyName = A.Str(TEXT("notifyName"));
-	const FString NotifyClass = A.Str(TEXT("notifyClass"));
-	const double Time = A.Num(TEXT("time"));
-	const double Duration = A.Num(TEXT("duration"));
+	const FString NotifyName = A.Str(TEXT("NotifyName"));
+	const FString NotifyClass = A.Str(TEXT("NotifyClass"));
+	const double Time = A.Num(TEXT("Time"));
+	const double Duration = A.Num(TEXT("Duration"));
 	if (NotifyName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_notify requires notifyName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddNotify requires NotifyName"));
 		return;
 	}
 
@@ -224,7 +224,7 @@ static void HandleAnimSeq_AddNotify(const TSharedPtr<FJsonObject>& Op, FNexusAct
 		}
 		if (!StateClass || !StateClass->IsChildOf(UAnimNotifyState::StaticClass()))
 		{
-			Ctx.Entry->SetStringField(TEXT("error"), TEXT("State Notify requires notifyClass derived from AnimNotifyState"));
+			Ctx.Entry->SetStringField(TEXT("Error"), TEXT("State Notify requires NotifyClass derived from AnimNotifyState"));
 			return;
 		}
 		const int32 NewIndex = Seq->Notifies.Add(FAnimNotifyEvent());
@@ -258,24 +258,24 @@ static void HandleAnimSeq_AddNotify(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	}
 
 	Seq->MarkPackageDirty();
-	Ctx.Entry->SetStringField(TEXT("notifyName"), NotifyName);
-	Ctx.Entry->SetNumberField(TEXT("time"), TriggerTime);
-	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+	Ctx.Entry->SetStringField(TEXT("NotifyName"), NotifyName);
+	Ctx.Entry->SetNumberField(TEXT("Time"), TriggerTime);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
 }
 
 static void HandleAnimSeq_RemoveNotify(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UAnimSequence* Seq = SeqFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString NotifyName = A.Str(TEXT("notifyName"));
+	const FString NotifyName = A.Str(TEXT("NotifyName"));
 	int32 NotifyIndex = -1;
-	if (Op->HasField(TEXT("notifyIndex")))
+	if (Op->HasField(TEXT("NotifyIndex")))
 	{
-		NotifyIndex = static_cast<int32>(A.Num(TEXT("notifyIndex"), -1.0));
+		NotifyIndex = static_cast<int32>(A.Num(TEXT("NotifyIndex"), -1.0));
 	}
 	if (NotifyIndex < 0 && NotifyName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_notify requires notifyIndex or notifyName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveNotify requires NotifyIndex or NotifyName"));
 		return;
 	}
 
@@ -295,61 +295,61 @@ static void HandleAnimSeq_RemoveNotify(const TSharedPtr<FJsonObject>& Op, FNexus
 
 	if (!Seq->Notifies.IsValidIndex(TargetIndex))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Invalid notify index/name"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Invalid notify index/name"));
 		return;
 	}
 
 	Seq->Notifies.RemoveAt(TargetIndex);
 	Seq->MarkPackageDirty();
-	Ctx.Entry->SetNumberField(TEXT("removedIndex"), TargetIndex);
-	Ctx.Entry->SetBoolField(TEXT("removed"), true);
-	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+	Ctx.Entry->SetNumberField(TEXT("RemovedIndex"), TargetIndex);
+	Ctx.Entry->SetBoolField(TEXT("bRemoved"), true);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
 }
 
 static void HandleAnimSeq_SetFrameRate(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UAnimSequence* Seq = SeqFrom(Ctx);
-	const double FrameRate = FNexusArgs(Op).Num(TEXT("frameRate"));
+	const double FrameRate = FNexusArgs(Op).Num(TEXT("FrameRate"));
 	if (FrameRate <= 0)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_frame_rate requires frameRate > 0"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetFrameRate requires FrameRate > 0"));
 		return;
 	}
 	if (!SetAnimSequenceFrameRate(Seq, static_cast<float>(FrameRate)))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Frame rate set failed (cross-version API unsupported)"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Frame rate set failed (cross-version API unsupported)"));
 		return;
 	}
-	Ctx.Entry->SetNumberField(TEXT("frameRate"), FrameRate);
-	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+	Ctx.Entry->SetNumberField(TEXT("FrameRate"), FrameRate);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
 }
 
 static void HandleAnimSeq_SetRootMotion(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UAnimSequence* Seq = SeqFrom(Ctx);
-	const FString RootMotion = FNexusArgs(Op).Str(TEXT("rootMotion"));
+	const FString RootMotion = FNexusArgs(Op).Str(TEXT("RootMotion"));
 	if (RootMotion.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_root_motion requires rootMotion mode name"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetRootMotion requires RootMotion mode name"));
 		return;
 	}
 	FString ModeName;
 	if (!SetAnimSequenceRootMotion(Seq, RootMotion, ModeName))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Root motion mode set failed"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Root motion mode set failed"));
 		return;
 	}
-	Ctx.Entry->SetStringField(TEXT("rootMotion"), ModeName);
-	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+	Ctx.Entry->SetStringField(TEXT("RootMotion"), ModeName);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
 }
 
 static void HandleAnimSeq_AddFloatCurve(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UAnimSequence* Seq = SeqFrom(Ctx);
-	const FString CurveName = FNexusArgs(Op).Str(TEXT("curveName"));
+	const FString CurveName = FNexusArgs(Op).Str(TEXT("CurveName"));
 	if (CurveName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_float_curve requires curveName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddFloatCurve requires CurveName"));
 		return;
 	}
 #if NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL && WITH_EDITOR
@@ -357,13 +357,13 @@ static void HandleAnimSeq_AddFloatCurve(const TSharedPtr<FJsonObject>& Op, FNexu
 	const FAnimationCurveIdentifier CurveId(FName(*CurveName), ERawCurveTrackTypes::RCT_Float);
 	Controller.AddCurve(CurveId);
 	Seq->MarkPackageDirty();
-	Ctx.Entry->SetStringField(TEXT("curveName"), CurveName);
-	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+	Ctx.Entry->SetStringField(TEXT("CurveName"), CurveName);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
 #else
 	FRawCurveTracks* Curves = GetRawCurveDataPtr(Seq);
 	if (!Curves)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Reflection failed to get RawCurveData"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Reflection failed to get RawCurveData"));
 		return;
 	}
 	const FName CN(*CurveName);
@@ -372,7 +372,7 @@ static void HandleAnimSeq_AddFloatCurve(const TSharedPtr<FJsonObject>& Op, FNexu
 		if (GetFloatCurveName(FC) == CN) { bAlreadyExists = true; break; }
 	if (bAlreadyExists)
 	{
-		Ctx.Entry->SetStringField(TEXT("note"), FString::Printf(TEXT("Curve already exists: %s"), *CurveName));
+		Ctx.Entry->SetStringField(TEXT("Note"), FString::Printf(TEXT("Curve already exists: %s"), *CurveName));
 	}
 	else
 	{
@@ -380,8 +380,8 @@ static void HandleAnimSeq_AddFloatCurve(const TSharedPtr<FJsonObject>& Op, FNexu
 		SetFloatCurveName(NewCurve, CN);
 		Curves->FloatCurves.Add(NewCurve);
 		Seq->MarkPackageDirty();
-		Ctx.Entry->SetStringField(TEXT("curveName"), CurveName);
-		Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+		Ctx.Entry->SetStringField(TEXT("CurveName"), CurveName);
+		Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
 	}
 #endif
 }
@@ -390,12 +390,12 @@ static void HandleAnimSeq_SetCurveKey(const TSharedPtr<FJsonObject>& Op, FNexusA
 {
 	UAnimSequence* Seq = SeqFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString CurveName = A.Str(TEXT("curveName"));
-	const double Time = A.Num(TEXT("time"));
-	const double KeyValue = A.Num(TEXT("value"));
+	const FString CurveName = A.Str(TEXT("CurveName"));
+	const double Time = A.Num(TEXT("Time"));
+	const double KeyValue = A.Num(TEXT("Value"));
 	if (CurveName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_curve_key requires curveName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetCurveKey requires CurveName"));
 		return;
 	}
 #if NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL && WITH_EDITOR
@@ -403,15 +403,15 @@ static void HandleAnimSeq_SetCurveKey(const TSharedPtr<FJsonObject>& Op, FNexusA
 	const FAnimationCurveIdentifier CurveId(FName(*CurveName), ERawCurveTrackTypes::RCT_Float);
 	Controller.SetCurveKey(CurveId, FRichCurveKey(static_cast<float>(Time), static_cast<float>(KeyValue)));
 	Seq->MarkPackageDirty();
-	Ctx.Entry->SetStringField(TEXT("curveName"), CurveName);
-	Ctx.Entry->SetNumberField(TEXT("time"),      Time);
-	Ctx.Entry->SetNumberField(TEXT("value"),     KeyValue);
-	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+	Ctx.Entry->SetStringField(TEXT("CurveName"), CurveName);
+	Ctx.Entry->SetNumberField(TEXT("Time"),      Time);
+	Ctx.Entry->SetNumberField(TEXT("Value"),     KeyValue);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
 #else
 	FRawCurveTracks* Curves = GetRawCurveDataPtr(Seq);
 	if (!Curves)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Reflection failed to get RawCurveData"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Reflection failed to get RawCurveData"));
 		return;
 	}
 	const FName CN(*CurveName);
@@ -420,26 +420,26 @@ static void HandleAnimSeq_SetCurveKey(const TSharedPtr<FJsonObject>& Op, FNexusA
 		if (GetFloatCurveName(C) == CN) { FC = &C; break; }
 	if (!FC)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"),
-			FString::Printf(TEXT("Curve not found: %s; use add_float_curve first"), *CurveName));
+		Ctx.Entry->SetStringField(TEXT("Error"),
+			FString::Printf(TEXT("Curve not found: %s; use AddFloatCurve first"), *CurveName));
 		return;
 	}
 	FC->FloatCurve.AddKey(static_cast<float>(Time), static_cast<float>(KeyValue));
 	Seq->MarkPackageDirty();
-	Ctx.Entry->SetStringField(TEXT("curveName"), CurveName);
-	Ctx.Entry->SetNumberField(TEXT("time"),      Time);
-	Ctx.Entry->SetNumberField(TEXT("value"),     KeyValue);
-	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+	Ctx.Entry->SetStringField(TEXT("CurveName"), CurveName);
+	Ctx.Entry->SetNumberField(TEXT("Time"),      Time);
+	Ctx.Entry->SetNumberField(TEXT("Value"),     KeyValue);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
 #endif
 }
 
 static void HandleAnimSeq_RemoveCurve(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UAnimSequence* Seq = SeqFrom(Ctx);
-	const FString CurveName = FNexusArgs(Op).Str(TEXT("curveName"));
+	const FString CurveName = FNexusArgs(Op).Str(TEXT("CurveName"));
 	if (CurveName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_curve requires curveName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveCurve requires CurveName"));
 		return;
 	}
 #if NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL && WITH_EDITOR
@@ -447,14 +447,14 @@ static void HandleAnimSeq_RemoveCurve(const TSharedPtr<FJsonObject>& Op, FNexusA
 	const FAnimationCurveIdentifier CurveId(FName(*CurveName), ERawCurveTrackTypes::RCT_Float);
 	Controller.RemoveCurve(CurveId);
 	Seq->MarkPackageDirty();
-	Ctx.Entry->SetStringField(TEXT("curveName"), CurveName);
-	Ctx.Entry->SetBoolField(TEXT("removed"), true);
-	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+	Ctx.Entry->SetStringField(TEXT("CurveName"), CurveName);
+	Ctx.Entry->SetBoolField(TEXT("bRemoved"), true);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
 #else
 	FRawCurveTracks* Curves = GetRawCurveDataPtr(Seq);
 	if (!Curves)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Reflection failed to get RawCurveData"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Reflection failed to get RawCurveData"));
 		return;
 	}
 	const FName CN(*CurveName);
@@ -463,26 +463,26 @@ static void HandleAnimSeq_RemoveCurve(const TSharedPtr<FJsonObject>& Op, FNexusA
 		if (GetFloatCurveName(Curves->FloatCurves[i]) == CN) { RemoveIdx = i; break; }
 	if (RemoveIdx == INDEX_NONE)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"),
+		Ctx.Entry->SetStringField(TEXT("Error"),
 			FString::Printf(TEXT("Curve not found: %s"), *CurveName));
 		return;
 	}
 	Curves->FloatCurves.RemoveAt(RemoveIdx);
 	Seq->MarkPackageDirty();
-	Ctx.Entry->SetStringField(TEXT("curveName"), CurveName);
-	Ctx.Entry->SetBoolField(TEXT("removed"), true);
-	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+	Ctx.Entry->SetStringField(TEXT("CurveName"), CurveName);
+	Ctx.Entry->SetBoolField(TEXT("bRemoved"), true);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
 #endif
 }
 
-bool FManageAssetAnimSequenceCapability::PrepareTarget(
+bool FNexusManageAssetAnimSequenceCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UAnimSequence* Seq = FNexusAssetUtils::LoadAssetWithFallback<UAnimSequence>(AssetPath);
 	if (!Seq)
 	{
@@ -493,15 +493,15 @@ bool FManageAssetAnimSequenceCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetAnimSequenceCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetAnimSequenceCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("add_notify"),      &HandleAnimSeq_AddNotify);
-	OutHandlers.Add(TEXT("remove_notify"),   &HandleAnimSeq_RemoveNotify);
-	OutHandlers.Add(TEXT("set_frame_rate"),  &HandleAnimSeq_SetFrameRate);
-	OutHandlers.Add(TEXT("set_root_motion"), &HandleAnimSeq_SetRootMotion);
-	OutHandlers.Add(TEXT("add_float_curve"), &HandleAnimSeq_AddFloatCurve);
-	OutHandlers.Add(TEXT("set_curve_key"),   &HandleAnimSeq_SetCurveKey);
-	OutHandlers.Add(TEXT("remove_curve"),    &HandleAnimSeq_RemoveCurve);
+	OutHandlers.Add(TEXT("AddNotify"),      &HandleAnimSeq_AddNotify);
+	OutHandlers.Add(TEXT("RemoveNotify"),   &HandleAnimSeq_RemoveNotify);
+	OutHandlers.Add(TEXT("SetFrameRate"),  &HandleAnimSeq_SetFrameRate);
+	OutHandlers.Add(TEXT("SetRootMotion"), &HandleAnimSeq_SetRootMotion);
+	OutHandlers.Add(TEXT("AddFloatCurve"), &HandleAnimSeq_AddFloatCurve);
+	OutHandlers.Add(TEXT("SetCurveKey"),   &HandleAnimSeq_SetCurveKey);
+	OutHandlers.Add(TEXT("RemoveCurve"),    &HandleAnimSeq_RemoveCurve);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetAnimSequenceCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetAnimSequenceCapability)

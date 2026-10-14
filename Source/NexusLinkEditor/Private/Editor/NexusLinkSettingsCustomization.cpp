@@ -39,22 +39,22 @@ struct FNexusCapSettingsUiLayout
 	static FString SegmentToRowLabel(const FString& Seg)
 	{
 		const FString L = Seg.ToLower();
-		if (L == TEXT("asset")) return TEXT("资产");
+		if (L == TEXT("Asset")) return TEXT("资产");
 		if (L == TEXT("ai")) return TEXT("AI");
-		if (L == TEXT("animation")) return TEXT("动画");
+		if (L == TEXT("Animation")) return TEXT("动画");
 		if (L == TEXT("audio")) return TEXT("音频");
 		if (L == TEXT("blueprint")) return TEXT("蓝图");
 		if (L == TEXT("context")) return TEXT("上下文");
 		if (L == TEXT("curve")) return TEXT("曲线");
 		if (L == TEXT("dataasset")) return TEXT("数据资产");
-		if (L == TEXT("editor")) return TEXT("编辑器");
+		if (L == TEXT("Editor")) return TEXT("编辑器");
 		if (L == TEXT("enum")) return TEXT("枚举");
 		if (L == TEXT("foliage")) return TEXT("植被");
 		if (L == TEXT("font")) return TEXT("字体");
 		if (L == TEXT("input")) return TEXT("输入");
-		if (L == TEXT("level")) return TEXT("关卡");
+		if (L == TEXT("Level")) return TEXT("关卡");
 		if (L == TEXT("localization")) return TEXT("本地化");
-		if (L == TEXT("material")) return TEXT("材质");
+		if (L == TEXT("Material")) return TEXT("材质");
 		if (L == TEXT("media")) return TEXT("媒体");
 		if (L == TEXT("mesh")) return TEXT("网格");
 		if (L == TEXT("moviepipeline")) return TEXT("电影渲染");
@@ -71,12 +71,12 @@ struct FNexusCapSettingsUiLayout
 		if (L == TEXT("sequencer")) return TEXT("序列");
 		if (L == TEXT("statetree")) return TEXT("状态树");
 		if (L == TEXT("worldpartition")) return TEXT("世界分区");
-		if (L == TEXT("runtime")) return TEXT("运行时");
-		if (L == TEXT("actor")) return TEXT("场景对象");
+		if (L == TEXT("Runtime")) return TEXT("运行时");
+		if (L == TEXT("Actor")) return TEXT("场景对象");
 		if (L == TEXT("struct")) return TEXT("结构体");
-		if (L == TEXT("texture")) return TEXT("贴图");
-		if (L == TEXT("tools")) return TEXT("元工具");
-		if (L == TEXT("umg") || L == TEXT("widget")) return TEXT("控件");
+		if (L == TEXT("Texture")) return TEXT("贴图");
+		if (L == TEXT("Tools")) return TEXT("元工具");
+		if (L == TEXT("umg") || L == TEXT("Widget")) return TEXT("控件");
 		return Seg;
 	}
 
@@ -273,11 +273,11 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 							return FReply::Handled();
 						}
 						FString Host = FNexusLanHost::Loopback;
-						for (int32 i = 0; i < LanComboLabels.Num(); ++i)
+						for (int32 LanComboLabelIndex = 0; LanComboLabelIndex < LanComboLabels.Num(); ++LanComboLabelIndex)
 						{
-							if (LanComboLabels[i] == SelectedLanLabel)
+							if (LanComboLabels[LanComboLabelIndex] == SelectedLanLabel)
 							{
-								Host = LanComboAddresses[i];
+								Host = LanComboAddresses[LanComboLabelIndex];
 								break;
 							}
 						}
@@ -309,7 +309,7 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 							TEXT("%s:%d %s\n\n")
 							TEXT("# 3) VSCode settings.json\n")
 							TEXT("\"nexusMcp.remoteUnreal\": [\n")
-							TEXT("  { \"host\": \"%s\", \"mcpPort\": %d, \"authToken\": \"%s\" }\n")
+							TEXT("  { \"host\": \"%s\", \"McpPort\": %d, \"AuthToken\": \"%s\" }\n")
 							TEXT("]"),
 							*Note, *Host, Port,
 							*Host, Port, *Headers,
@@ -514,7 +514,7 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 				if (FNexusFeedback::GetRecordCount() == 0)
 				{
 					FMessageDialog::Open(EAppMsgType::Ok,
-						LOCTEXT("FbExportEmpty", "暂无反馈数据，请先使用 search_capabilities / call_capability 等工具触发记录。"));
+						LOCTEXT("FbExportEmpty", "暂无反馈数据，请先使用 SearchCapabilities / CallCapability 等工具触发记录。"));
 					return FReply::Handled();
 				}
 				const FString ReportPath = FNexusFeedback::ExportReport();
@@ -538,7 +538,7 @@ void FNexusLinkSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 				if (FNexusFeedback::GetRecordCount() == 0)
 				{
 					FMessageDialog::Open(EAppMsgType::Ok,
-						LOCTEXT("FbIssueEmpty", "暂无反馈数据，请先使用 search_capabilities / call_capability 等工具触发记录。"));
+						LOCTEXT("FbIssueEmpty", "暂无反馈数据，请先使用 SearchCapabilities / CallCapability 等工具触发记录。"));
 					return FReply::Handled();
 				}
 				if (!FNexusFeedback::OpenIssuePrefillInBrowser())
@@ -868,9 +868,9 @@ TUniquePtr<FNexusLinkSettingsCustomization::FCapGroupNode> FNexusLinkSettingsCus
 
 		FCapGroupNode* Cur = Root.Get();
 		FString Accum;
-		for (int32 i = 0; i < Segs.Num(); ++i)
+		for (int32 SegsIndex = 0; SegsIndex < Segs.Num(); ++SegsIndex)
 		{
-			Accum = Accum.IsEmpty() ? Segs[i] : (Accum + TEXT("/") + Segs[i]);
+			Accum = Accum.IsEmpty() ? Segs[SegsIndex] : (Accum + TEXT("/") + Segs[SegsIndex]);
 
 			FCapGroupNode* Next = nullptr;
 			for (auto& Ch : Cur->Children)

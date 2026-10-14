@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_string_table：增删改 StringTable 源字符串。 */
-class FManageAssetStringTableCapability : public FNexusActionCapability
+/** ManageAssetStringTable：增删改 StringTable 源字符串。 */
+class FNexusManageAssetStringTableCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

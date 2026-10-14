@@ -23,9 +23,9 @@ TSharedPtr<FJsonObject> FNexusMultiSectionCapability::BuildSchemaWithSections() 
 		return Schema;
 	}
 
-	// 枚举值：已有 section 名 + "all"
+	// 枚举值：已有 section 名 + "All"
 	TArray<FString> EnumValues = AllSections;
-	EnumValues.AddUnique(TEXT("all"));
+	EnumValues.AddUnique(TEXT("All"));
 
 	// description：说明默认列表
 	const TArray<FString> DefaultSections = GetDefaultSectionNames();
@@ -40,12 +40,12 @@ TSharedPtr<FJsonObject> FNexusMultiSectionCapability::BuildSchemaWithSections() 
 	const TSharedPtr<FJsonObject>* ConstPtr = nullptr;
 	if (Schema->TryGetObjectField(TEXT("properties"), ConstPtr) && ConstPtr)
 	{
-		(*ConstPtr)->SetObjectField(TEXT("sections"), SectionsSchema);
+		(*ConstPtr)->SetObjectField(TEXT("Sections"), SectionsSchema);
 	}
 	else
 	{
 		TSharedPtr<FJsonObject> Props = MakeShared<FJsonObject>();
-		Props->SetObjectField(TEXT("sections"), SectionsSchema);
+		Props->SetObjectField(TEXT("Sections"), SectionsSchema);
 		Schema->SetObjectField(TEXT("properties"), Props);
 	}
 
@@ -73,7 +73,7 @@ FCapabilityResult FNexusMultiSectionCapability::RunMultiSection(const TSharedPtr
 	{
 		TArray<FString> Requested;
 		const TArray<TSharedPtr<FJsonValue>>* SectionsArr = nullptr;
-		if (EntryArgs->TryGetArrayField(TEXT("sections"), SectionsArr) && SectionsArr && SectionsArr->Num() > 0)
+		if (EntryArgs->TryGetArrayField(TEXT("Sections"), SectionsArr) && SectionsArr && SectionsArr->Num() > 0)
 		{
 			for (const TSharedPtr<FJsonValue>& V : *SectionsArr)
 			{
@@ -89,7 +89,7 @@ FCapabilityResult FNexusMultiSectionCapability::RunMultiSection(const TSharedPtr
 		{
 			return GetDefaultSectionNames();
 		}
-		if (Requested.Contains(TEXT("all")))
+		if (Requested.Contains(TEXT("All")))
 		{
 			return AllSections;
 		}
@@ -114,7 +114,7 @@ FCapabilityResult FNexusMultiSectionCapability::RunMultiSection(const TSharedPtr
 		{
 			if (!PrepareError.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("error"), PrepareError);
+				Entry->SetStringField(TEXT("Error"), PrepareError);
 			}
 			Result.Entries.Add(MakeShared<FJsonValueObject>(Entry));
 			continue;
@@ -132,8 +132,8 @@ FCapabilityResult FNexusMultiSectionCapability::RunMultiSection(const TSharedPtr
 			if (!AllSections.Contains(SectionName))
 			{
 				TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
-				ErrObj->SetStringField(TEXT("section"), SectionName);
-				ErrObj->SetStringField(TEXT("error"), FString::Printf(
+				ErrObj->SetStringField(TEXT("Section"), SectionName);
+				ErrObj->SetStringField(TEXT("Error"), FString::Printf(
 					TEXT("Unknown section '%s' (supported: %s)"), *SectionName, *FString::Join(AllSections, TEXT(", "))));
 				SectionErrors.Add(MakeShared<FJsonValueObject>(ErrObj));
 				continue;
@@ -145,8 +145,8 @@ FCapabilityResult FNexusMultiSectionCapability::RunMultiSection(const TSharedPtr
 			if (!SecError.IsEmpty())
 			{
 				TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
-				ErrObj->SetStringField(TEXT("section"), SectionName);
-				ErrObj->SetStringField(TEXT("error"), SecError);
+				ErrObj->SetStringField(TEXT("Section"), SectionName);
+				ErrObj->SetStringField(TEXT("Error"), SecError);
 				SectionErrors.Add(MakeShared<FJsonValueObject>(ErrObj));
 			}
 			else
@@ -155,14 +155,14 @@ FCapabilityResult FNexusMultiSectionCapability::RunMultiSection(const TSharedPtr
 			}
 		}
 
-		// 写覆盖列表：仅部分失败 / 有 sectionErrors 时回显（全成功则省略，省 token）
+		// 写覆盖列表：仅部分失败 / 有 SectionErrors 时回显（全成功则省略，省 token）
 		if (SectionErrors.Num() > 0 || CoveredArr.Num() != SectionList.Num())
 		{
-			Entry->SetArrayField(TEXT("sections"), CoveredArr);
+			Entry->SetArrayField(TEXT("Sections"), CoveredArr);
 		}
 		if (SectionErrors.Num() > 0)
 		{
-			Entry->SetArrayField(TEXT("sectionErrors"), SectionErrors);
+			Entry->SetArrayField(TEXT("SectionErrors"), SectionErrors);
 		}
 
 		Result.Entries.Add(MakeShared<FJsonValueObject>(Entry));

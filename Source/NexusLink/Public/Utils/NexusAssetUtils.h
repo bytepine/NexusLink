@@ -23,14 +23,14 @@ class UBodySetup;
 class UPhysicsAsset;
 
 /**
- * 资产侧共用工具：get_asset 输出 JSON（propertyPaths / minimal）、UObject 路径加载、类名解析、Widget BP 辅助。
+ * 资产侧共用工具：GetAsset 输出 JSON（PropertyPaths / minimal）、UObject 路径加载、类名解析、Widget BP 辅助。
  * 属性反射请使用 `FNexusPropertyUtils`。
  */
 class NEXUSLINK_API FNexusAssetUtils
 {
 public:
 	/**
-	 * propertyPaths 过滤：空数组放行；否则按首段名 case-insensitive 匹配 PropName。
+	 * PropertyPaths 过滤：空数组放行；否则按首段名 case-insensitive 匹配 PropName。
 	 * Blueprint defaults/variable 过滤共用。
 	 */
 	static bool MatchesPropertyPathsFilter(const TArray<FString>& Paths, const FString& PropName)
@@ -54,10 +54,10 @@ public:
 		return false;
 	}
 
-	/** detail=minimal 时只保留 assetType/name/path 三字段写入 OutEntry；各 cap 的 Execute 末尾按需调用。 */
+	/** Detail=minimal 时只保留 AssetType/name/path 三字段写入 OutEntry；各 cap 的 Execute 末尾按需调用。 */
 	static void ApplyDetailMinimal(const TSharedPtr<FJsonObject>& Full, TSharedPtr<FJsonObject>& OutEntry)
 	{
-		static const TArray<FString> IdKeys = { TEXT("assetType"), TEXT("name"), TEXT("path") };
+		static const TArray<FString> IdKeys = { TEXT("AssetType"), TEXT("name"), TEXT("Path") };
 		for (const FString& Key : IdKeys)
 		{
 			TSharedPtr<FJsonValue> V = Full->TryGetField(Key);
@@ -161,7 +161,7 @@ public:
 	// FNexusEditorServices::ApplyManageFinalize 钩子转发（见 NexusEditorServices.h）。
 
 	/**
-	 * 从 UObject 的外部包取包路径字符串（常用于写入 JSON 的 "path" 字段）。
+	 * 从 UObject 的外部包取包路径字符串（常用于写入 JSON 的 "Path" 字段）。
 	 * 等价于 Obj->GetOutermost()->GetName()；Obj 为 nullptr 时返回空字符串。
 	 */
 	static FString PackagePathOf(const UObject* Obj);
@@ -172,10 +172,10 @@ public:
 	/** 向 Entry 写入 AnimSequence 时长/帧数/帧率/loop（跨版本分支集中于此）。Seq 为 nullptr 时不写入。 */
 	static void AppendAnimSequenceMetadataFields(const UAnimSequence* Seq, TSharedPtr<FJsonObject>& Entry);
 
-	/** 向 Entry 写入 AnimSequence Notifies 列表（index/name/time/duration/notifyClass）。 */
+	/** 向 Entry 写入 AnimSequence Notifies 列表（index/name/time/duration/NotifyClass）。 */
 	static void AppendAnimSequenceNotifyFields(const UAnimSequence* Seq, TSharedPtr<FJsonObject>& Entry);
 
-	/** 向 Entry 写入 AnimSequence 浮点曲线列表（name/keyCount/keys[{time,value}]；跨版本 RawCurveData / DataModel）。 */
+	/** 向 Entry 写入 AnimSequence 浮点曲线列表（name/KeyCount/keys[{time,value}]；跨版本 RawCurveData / DataModel）。 */
 	static void AppendAnimSequenceCurveFields(const UAnimSequence* Seq, TSharedPtr<FJsonObject>& Entry);
 
 	/** StaticMesh 材质槽列表（跨版本：GetStaticMaterials / StaticMaterials）。 */
@@ -243,8 +243,8 @@ public:
 	// FNexusAssetEditorUtils::NotifyCompileAndSave。
 
 	/**
-	 * 写入 blueprintType（normal/interface/…）与 implementedInterfaces[]（空数组也写出）。
-	 * create/get_asset_blueprint 共用，供 BPI 与 Implement 接口回显。
+	 * 写入 BlueprintType（normal/interface/…）与 ImplementedInterfaces[]（空数组也写出）。
+	 * create/GetAssetBlueprint 共用，供 BPI 与 Implement 接口回显。
 	 */
 	static void AppendBlueprintMetaFields(const class UBlueprint* BP, TSharedPtr<FJsonObject>& OutEntry);
 };

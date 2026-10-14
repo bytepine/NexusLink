@@ -226,7 +226,7 @@ bool FNexusRuntimeUtils::ResolveActorPropertyPath(
 {
 	TArray<FString> Segs;
 	PropertyPath.ParseIntoArray(Segs, TEXT("."), true);
-	if (Segs.Num() == 0) { OutError = TEXT("propertyPath is empty"); return false; }
+	if (Segs.Num() == 0) { OutError = TEXT("PropertyPath is empty"); return false; }
 
 	UObject* Target = Actor;
 	int32 StartSeg = 0;
@@ -243,7 +243,7 @@ bool FNexusRuntimeUtils::ResolveActorPropertyPath(
 				OutResult->SetStringField(TEXT("type"), Comp->GetClass()->GetName());
 				TArray<TSharedPtr<FJsonValue>> Children;
 				FNexusPropertyUtils::CollectEditableProperties(Comp, Children);
-				OutResult->SetArrayField(TEXT("children"), Children);
+				OutResult->SetArrayField(TEXT("Children"), Children);
 				return true;
 			}
 			Target = Comp;
@@ -253,6 +253,6 @@ bool FNexusRuntimeUtils::ResolveActorPropertyPath(
 	}
 
 	TArray<FString> Remaining;
-	for (int32 i = StartSeg + 1; i < Segs.Num(); ++i) Remaining.Add(Segs[i]);
+	for (int32 SegmentIndex = StartSeg + 1; SegmentIndex < Segs.Num(); ++SegmentIndex) Remaining.Add(Segs[SegmentIndex]);
 	return FNexusPropertyUtils::ResolvePropertyRead(Target, Segs[StartSeg], Remaining, OutResult, OutError);
 }

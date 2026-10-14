@@ -3,8 +3,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_sound_attenuation：创建 USoundAttenuation 资产。 */
-class FCreateAssetSoundAttenuationCapability : public FNexusCapability
+/** CreateAssetSoundAttenuation：创建 USoundAttenuation 资产。 */
+class FNexusCreateAssetSoundAttenuationCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

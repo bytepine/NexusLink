@@ -134,39 +134,39 @@ static FString BuildJsonLine(const FString& Kind, const FString& Category,
                               const FNexusFeedback::FFields& Fields)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-	Obj->SetStringField(TEXT("ts"),       FNexusFeedbackInternal::DateTimeToIso8601(FDateTime::UtcNow()));
-	Obj->SetStringField(TEXT("kind"),     Kind);
-	Obj->SetStringField(TEXT("category"), Category);
+	Obj->SetStringField(TEXT("Ts"),       FNexusFeedbackInternal::DateTimeToIso8601(FDateTime::UtcNow()));
+	Obj->SetStringField(TEXT("Kind"),     Kind);
+	Obj->SetStringField(TEXT("Category"), Category);
 
 	// 落盘时写入环境指纹，归档后仍可追溯当时版本（不依赖导出时进程）
-	Obj->SetStringField(TEXT("pluginVersion"), FNexusFeedbackInternal::GetLivePluginVersion());
-	Obj->SetStringField(TEXT("ueVersion"),     FNexusFeedbackInternal::GetLiveUeVersion());
-	Obj->SetStringField(TEXT("toolsListMode"), FNexusFeedbackInternal::GetLiveToolsListMode());
-	Obj->SetStringField(TEXT("platform"),
+	Obj->SetStringField(TEXT("PluginVersion"), FNexusFeedbackInternal::GetLivePluginVersion());
+	Obj->SetStringField(TEXT("UeVersion"),     FNexusFeedbackInternal::GetLiveUeVersion());
+	Obj->SetStringField(TEXT("ToolsListMode"), FNexusFeedbackInternal::GetLiveToolsListMode());
+	Obj->SetStringField(TEXT("Platform"),
 		FString(ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName())));
 
 	if (!Fields.Tool.IsEmpty())
-		Obj->SetStringField(TEXT("tool"), Fields.Tool);
+		Obj->SetStringField(TEXT("Tool"), Fields.Tool);
 	if (!Fields.Capability.IsEmpty())
-		Obj->SetStringField(TEXT("capability"), Fields.Capability);
+		Obj->SetStringField(TEXT("Capability"), Fields.Capability);
 	if (!Fields.Query.IsEmpty())
-		Obj->SetStringField(TEXT("query"), Fields.Query);
+		Obj->SetStringField(TEXT("Query"), Fields.Query);
 	if (Fields.MatchCount > 0)
-		Obj->SetNumberField(TEXT("matchCount"), Fields.MatchCount);
+		Obj->SetNumberField(TEXT("MatchCount"), Fields.MatchCount);
 	if (!Fields.ArgsDigest.IsEmpty())
-		Obj->SetStringField(TEXT("argsDigest"), Fields.ArgsDigest);
+		Obj->SetStringField(TEXT("ArgsDigest"), Fields.ArgsDigest);
 	if (!Fields.ErrorText.IsEmpty())
-		Obj->SetStringField(TEXT("errorText"), Fields.ErrorText.Left(120));
+		Obj->SetStringField(TEXT("ErrorText"), Fields.ErrorText.Left(120));
 	if (!Fields.Note.IsEmpty())
-		Obj->SetStringField(TEXT("note"), Fields.Note);
+		Obj->SetStringField(TEXT("Note"), Fields.Note);
 	if (!Fields.Proxy.IsEmpty())
-		Obj->SetStringField(TEXT("proxy"), Fields.Proxy);
+		Obj->SetStringField(TEXT("Proxy"), Fields.Proxy);
 	if (!Fields.AttemptedArgs.IsEmpty())
-		Obj->SetStringField(TEXT("attemptedArgs"), Fields.AttemptedArgs.Left(200));
+		Obj->SetStringField(TEXT("AttemptedArgs"), Fields.AttemptedArgs.Left(200));
 	if (!Fields.ActualError.IsEmpty())
-		Obj->SetStringField(TEXT("actualError"), Fields.ActualError.Left(200));
+		Obj->SetStringField(TEXT("ActualError"), Fields.ActualError.Left(200));
 	if (!Fields.ExpectedField.IsEmpty())
-		Obj->SetStringField(TEXT("expectedField"), Fields.ExpectedField);
+		Obj->SetStringField(TEXT("ExpectedField"), Fields.ExpectedField);
 
 	return FNexusJsonUtils::SerializeCondensed(Obj);
 }
@@ -212,7 +212,7 @@ void FNexusFeedback::RecordAuto(const FString& Category, const FFields& Fields)
 		GThrottleMap.Add(Key, Now);
 	}
 
-	AppendLine(BuildJsonLine(TEXT("auto"), Category, Fields));
+	AppendLine(BuildJsonLine(TEXT("Auto"), Category, Fields));
 }
 
 void FNexusFeedback::RecordManual(const FString& Category, const FFields& Fields)
@@ -266,10 +266,10 @@ FString FNexusFeedback::BuildRedactedArgsSnapshot(const TSharedPtr<FJsonObject>&
 	{
 		const FString Lower = Key.ToLower();
 		return Lower.Contains(TEXT("password"))
-			|| Lower.Contains(TEXT("token"))
+			|| Lower.Contains(TEXT("Token"))
 			|| Lower.Contains(TEXT("secret"))
 			|| Lower.Contains(TEXT("apikey"))
-			|| Lower.Contains(TEXT("api_key"));
+			|| Lower.Contains(TEXT("APIKey"));
 	};
 
 	TSharedPtr<FJsonObject> Redacted = MakeShared<FJsonObject>();

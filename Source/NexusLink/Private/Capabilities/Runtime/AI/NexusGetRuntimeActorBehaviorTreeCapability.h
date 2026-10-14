@@ -7,7 +7,7 @@
 #include "NexusRuntimeCapability.h"
 
 /** 读取指定 AIController（或首个）上 BehaviorTree + Blackboard 运行时状态。Capability 名：actor_behavior_tree。 */
-class FGetRuntimeActorBehaviorTreeCapability : public FNexusRuntimeCapability
+class FNexusGetRuntimeActorBehaviorTreeCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

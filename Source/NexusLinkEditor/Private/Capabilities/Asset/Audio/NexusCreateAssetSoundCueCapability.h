@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_sound_cue：创建空白 USoundCue。 */
-class FCreateAssetSoundCueCapability : public FNexusCapability
+/** CreateAssetSoundCue：创建空白 USoundCue。 */
+class FNexusCreateAssetSoundCueCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

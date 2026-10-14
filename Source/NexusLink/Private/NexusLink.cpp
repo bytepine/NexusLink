@@ -400,7 +400,7 @@ void FNexusLinkModule::HandleMcpCommand(const TArray<FString>& Args, UWorld* Wor
 	UE_LOG(LogNexusLink, Warning, TEXT("Shipping 配置不带 MCP 服务器（编译期剔除）"));
 #else
 	// 无参数 / status：只报告当前状态，不改变任何覆盖
-	if (Args.Num() < 1 || Args[0].Equals(TEXT("status"), ESearchCase::IgnoreCase))
+	if (Args.Num() < 1 || Args[0].Equals(TEXT("Status"), ESearchCase::IgnoreCase))
 	{
 		ENexusMcpSource Source;
 		FString Reason;
@@ -449,7 +449,7 @@ void FNexusLinkModule::HandleMcpCommand(const TArray<FString>& Args, UWorld* Wor
 		return;
 	}
 
-	if (Verb.Equals(TEXT("restart"), ESearchCase::IgnoreCase))
+	if (Verb.Equals(TEXT("Restart"), ESearchCase::IgnoreCase))
 	{
 		int32 McpPortOverride = 0;
 		int32 WsPortOverride  = 0;

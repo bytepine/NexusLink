@@ -9,7 +9,7 @@ void FNexusCapabilityResultBuilder::AddEntryError(TArray<TSharedPtr<FJsonValue>>
                                                    const FString& Msg)
 {
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-	Entry->SetStringField(TEXT("error"), Msg);
+	Entry->SetStringField(TEXT("Error"), Msg);
 	OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 }
 
@@ -17,8 +17,8 @@ void FNexusCapabilityResultBuilder::AddAssetNotFound(TArray<TSharedPtr<FJsonValu
                                                       const FString& AssetPath)
 {
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-	Entry->SetStringField(TEXT("assetPath"), AssetPath);
-	Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Asset not found: %s"), *AssetPath));
+	Entry->SetStringField(TEXT("AssetPath"), AssetPath);
+	Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Asset not found: %s"), *AssetPath));
 	OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 }
 
@@ -26,7 +26,7 @@ void FNexusCapabilityResultBuilder::AddEnvUnavailable(TArray<TSharedPtr<FJsonVal
                                                        const FString& Reason)
 {
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-	Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Environment unavailable: %s"), *Reason));
+	Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Environment unavailable: %s"), *Reason));
 	OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 }
 
@@ -42,11 +42,11 @@ TSharedPtr<FJsonObject> FNexusCapabilityResultBuilder::MakeCreatedEntry(const UO
 	TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 	if (!Obj)
 	{
-		Entry->SetStringField(TEXT("error"), TEXT("Create failed"));
+		Entry->SetStringField(TEXT("Error"), TEXT("Create failed"));
 		return Entry;
 	}
 	Entry->SetStringField(TEXT("name"), Obj->GetName());
-	Entry->SetStringField(TEXT("path"), Obj->GetPathName());
+	Entry->SetStringField(TEXT("Path"), Obj->GetPathName());
 	return Entry;
 }
 

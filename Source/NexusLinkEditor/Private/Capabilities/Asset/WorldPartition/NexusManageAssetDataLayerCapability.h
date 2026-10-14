@@ -7,8 +7,8 @@
 #if NX_UE_HAS_DATA_LAYER_ASSET
 #include "NexusActionCapability.h"
 
-/** manage_asset_data_layer：修改 UDataLayerAsset 属性（≥UE5.1，WITH_EDITOR）。 */
-class FManageAssetDataLayerCapability : public FNexusActionCapability
+/** ManageAssetDataLayer：修改 UDataLayerAsset 属性（≥UE5.1，WITH_EDITOR）。 */
+class FNexusManageAssetDataLayerCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;
@@ -21,7 +21,7 @@ protected:
 #include "NexusCapability.h"
 
 /** DataLayerAsset 需 UE5.1+；本引擎走 stub。 */
-class FManageAssetDataLayerCapability : public FNexusCapability
+class FNexusManageAssetDataLayerCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -61,7 +61,7 @@ UEdGraphPin* FNexusBlueprintGraphUtils::FindBPPin(UEdGraphNode* Node, const FStr
 	// 不区分大小写匹配 PinName
 	for (UEdGraphPin* P : Node->Pins)
 		if (P && P->PinName.ToString().ToLower() == PinLower) return P;
-	// 匹配 PinFriendlyName（get_asset_blueprint 会暴露，AI 常误用显示名）
+	// 匹配 PinFriendlyName（GetAssetBlueprint 会暴露，AI 常误用显示名）
 	for (UEdGraphPin* P : Node->Pins)
 	{
 		if (!P) continue;
@@ -93,7 +93,7 @@ FString FNexusBlueprintGraphUtils::PinDirectionToString(EEdGraphPinDirection Dir
 	switch (Dir)
 	{
 	case EGPD_Input:  return TEXT("input");
-	case EGPD_Output: return TEXT("output");
+	case EGPD_Output: return TEXT("Output");
 	default:          return TEXT("unknown");
 	}
 }
@@ -101,21 +101,21 @@ FString FNexusBlueprintGraphUtils::PinDirectionToString(EEdGraphPinDirection Dir
 TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::SerializeBPPin(const UEdGraphPin* Pin)
 {
 	TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
-	P->SetStringField(TEXT("pinName"),     Pin->PinName.ToString());
-	P->SetStringField(TEXT("direction"),   PinDirectionToString(Pin->Direction));
-	P->SetStringField(TEXT("pinCategory"), Pin->PinType.PinCategory.ToString());
+	P->SetStringField(TEXT("PinName"),     Pin->PinName.ToString());
+	P->SetStringField(TEXT("Direction"),   PinDirectionToString(Pin->Direction));
+	P->SetStringField(TEXT("PinCategory"), Pin->PinType.PinCategory.ToString());
 	const FString FN = Pin->PinFriendlyName.ToString();
-	if (!FN.IsEmpty() && FN != Pin->PinName.ToString()) P->SetStringField(TEXT("pinFriendlyName"), FN);
-	if (!Pin->PinType.PinSubCategory.IsNone()) P->SetStringField(TEXT("pinSubCategory"), Pin->PinType.PinSubCategory.ToString());
-	if (Pin->PinType.PinSubCategoryObject.IsValid()) P->SetStringField(TEXT("pinSubCategoryObject"), Pin->PinType.PinSubCategoryObject->GetName());
-	if (Pin->PinType.IsArray())         P->SetStringField(TEXT("containerType"), TEXT("array"));
-	else if (Pin->PinType.IsMap())      P->SetStringField(TEXT("containerType"), TEXT("map"));
-	else if (Pin->PinType.IsSet())      P->SetStringField(TEXT("containerType"), TEXT("set"));
-	else                               P->SetStringField(TEXT("containerType"), TEXT("none"));
-	P->SetBoolField(TEXT("isReference"), Pin->PinType.bIsReference);
-	P->SetBoolField(TEXT("isConst"),     Pin->PinType.bIsConst);
-	if (!Pin->DefaultValue.IsEmpty()) P->SetStringField(TEXT("defaultValue"), Pin->DefaultValue);
-	if (Pin->DefaultObject) P->SetStringField(TEXT("defaultObject"), Pin->DefaultObject->GetPathName());
+	if (!FN.IsEmpty() && FN != Pin->PinName.ToString()) P->SetStringField(TEXT("PinFriendlyName"), FN);
+	if (!Pin->PinType.PinSubCategory.IsNone()) P->SetStringField(TEXT("PinSubCategory"), Pin->PinType.PinSubCategory.ToString());
+	if (Pin->PinType.PinSubCategoryObject.IsValid()) P->SetStringField(TEXT("PinSubCategoryObject"), Pin->PinType.PinSubCategoryObject->GetName());
+	if (Pin->PinType.IsArray())         P->SetStringField(TEXT("ContainerType"), TEXT("array"));
+	else if (Pin->PinType.IsMap())      P->SetStringField(TEXT("ContainerType"), TEXT("map"));
+	else if (Pin->PinType.IsSet())      P->SetStringField(TEXT("ContainerType"), TEXT("Set"));
+	else                               P->SetStringField(TEXT("ContainerType"), TEXT("None"));
+	P->SetBoolField(TEXT("bIsReference"), Pin->PinType.bIsReference);
+	P->SetBoolField(TEXT("bIsConst"),     Pin->PinType.bIsConst);
+	if (!Pin->DefaultValue.IsEmpty()) P->SetStringField(TEXT("DefaultValue"), Pin->DefaultValue);
+	if (Pin->DefaultObject) P->SetStringField(TEXT("DefaultObject"), Pin->DefaultObject->GetPathName());
 	P->SetBoolField(TEXT("bOrphan"), Pin->bOrphanedPin);
 	if (Pin->LinkedTo.Num() > 0)
 	{
@@ -124,12 +124,12 @@ TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::SerializeBPPin(const UEdGraph
 		{
 			if (!LP || !LP->GetOwningNode()) continue;
 			TSharedPtr<FJsonObject> L = MakeShared<FJsonObject>();
-			L->SetStringField(TEXT("nodeId"),  LP->GetOwningNode()->NodeGuid.ToString());
-			L->SetStringField(TEXT("pinId"),   LP->PinId.ToString());
-			L->SetStringField(TEXT("pinName"), LP->PinName.ToString());
+			L->SetStringField(TEXT("NodeId"),  LP->GetOwningNode()->NodeGuid.ToString());
+			L->SetStringField(TEXT("PinId"),   LP->PinId.ToString());
+			L->SetStringField(TEXT("PinName"), LP->PinName.ToString());
 			Links.Add(MakeShared<FJsonValueObject>(L));
 		}
-		P->SetArrayField(TEXT("linkedTo"), Links);
+		P->SetArrayField(TEXT("LinkedTo"), Links);
 	}
 	return P;
 }
@@ -137,15 +137,15 @@ TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::SerializeBPPin(const UEdGraph
 TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::SerializeBPNode(const UEdGraphNode* Node)
 {
 	TSharedPtr<FJsonObject> N = MakeShared<FJsonObject>();
-	N->SetStringField(TEXT("nodeId"),    Node->NodeGuid.ToString());
-	N->SetStringField(TEXT("nodeClass"), Node->GetClass()->GetName());
-	N->SetStringField(TEXT("nodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
-	if (!Node->NodeComment.IsEmpty()) N->SetStringField(TEXT("comment"), Node->NodeComment);
+	N->SetStringField(TEXT("NodeId"),    Node->NodeGuid.ToString());
+	N->SetStringField(TEXT("NodeClass"), Node->GetClass()->GetName());
+	N->SetStringField(TEXT("NodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+	if (!Node->NodeComment.IsEmpty()) N->SetStringField(TEXT("Comment"), Node->NodeComment);
 	N->SetBoolField(TEXT("bIsNodeEnabled"), Node->IsNodeEnabled());
 	TArray<TSharedPtr<FJsonValue>> Pins;
 	for (const UEdGraphPin* Pin : Node->Pins)
 		if (Pin) Pins.Add(MakeShared<FJsonValueObject>(SerializeBPPin(Pin)));
-	N->SetArrayField(TEXT("pins"), Pins);
+	N->SetArrayField(TEXT("Pins"), Pins);
 	return N;
 }
 
@@ -153,14 +153,14 @@ FString FNexusBlueprintGraphUtils::GetBPGraphType(const UEdGraph* Graph)
 {
 	if (!Graph) return TEXT("unknown");
 	const FString CN = Graph->GetClass()->GetName();
-	if (CN.Contains(TEXT("AnimationStateMachineGraph"))) return TEXT("statemachine");
-	if (CN.Contains(TEXT("AnimStateTransitionGraph")))   return TEXT("transition");
-	if (CN.Contains(TEXT("AnimStateGraph")))             return TEXT("state");
-	if (CN.Contains(TEXT("AnimationConduitGraph")))      return TEXT("conduit");
-	if (CN.Contains(TEXT("AnimationGraph")))             return TEXT("animgraph");
-	if (CN.Contains(TEXT("EventGraph")) || Graph->GetName() == TEXT("EventGraph")) return TEXT("event");
-	if (CN.Contains(TEXT("MacroGraph")))                 return TEXT("macro");
-	return TEXT("function");
+	if (CN.Contains(TEXT("AnimationStateMachineGraph"))) return TEXT("Statemachine");
+	if (CN.Contains(TEXT("AnimStateTransitionGraph")))   return TEXT("Transition");
+	if (CN.Contains(TEXT("AnimStateGraph")))             return TEXT("State");
+	if (CN.Contains(TEXT("AnimationConduitGraph")))      return TEXT("Conduit");
+	if (CN.Contains(TEXT("AnimationGraph")))             return TEXT("Animgraph");
+	if (CN.Contains(TEXT("EventGraph")) || Graph->GetName() == TEXT("EventGraph")) return TEXT("Event");
+	if (CN.Contains(TEXT("MacroGraph")))                 return TEXT("Macro");
+	return TEXT("Function");
 }
 
 FString FNexusBlueprintGraphUtils::GetBPParentGraphName(const UEdGraph* Graph)
@@ -175,18 +175,18 @@ FString FNexusBlueprintGraphUtils::GetBPParentGraphName(const UEdGraph* Graph)
 TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::BuildBPGraphSummary(const UEdGraph* Graph)
 {
 	TSharedPtr<FJsonObject> GObj = MakeShared<FJsonObject>();
-	GObj->SetStringField(TEXT("graphName"), Graph->GetName());
-	GObj->SetStringField(TEXT("graphType"), GetBPGraphType(Graph));
+	GObj->SetStringField(TEXT("GraphName"), Graph->GetName());
+	GObj->SetStringField(TEXT("GraphType"), GetBPGraphType(Graph));
 	int32 En = 0, Dis = 0;
 	for (const UEdGraphNode* Node : Graph->Nodes)
 	{
 		if (!Node) continue;
 		if (Node->IsNodeEnabled()) ++En; else ++Dis;
 	}
-	GObj->SetNumberField(TEXT("enabledNodeCount"),  En);
-	GObj->SetNumberField(TEXT("disabledNodeCount"), Dis);
+	GObj->SetNumberField(TEXT("EnabledNodeCount"),  En);
+	GObj->SetNumberField(TEXT("DisabledNodeCount"), Dis);
 	const FString Parent = GetBPParentGraphName(Graph);
-	if (!Parent.IsEmpty()) GObj->SetStringField(TEXT("parentGraph"), Parent);
+	if (!Parent.IsEmpty()) GObj->SetStringField(TEXT("ParentGraph"), Parent);
 	return GObj;
 }
 
@@ -206,8 +206,8 @@ void FNexusBlueprintGraphUtils::CollectOrphanedPins(UBlueprint* BP, TArray<TShar
 			{
 				if (!Pin || !Pin->bOrphanedPin) continue;
 				TSharedPtr<FJsonObject> E = MakeShared<FJsonObject>();
-				E->SetStringField(TEXT("nodeId"), Node->NodeGuid.ToString());
-				E->SetStringField(TEXT("pinName"), Pin->PinName.ToString());
+				E->SetStringField(TEXT("NodeId"), Node->NodeGuid.ToString());
+				E->SetStringField(TEXT("PinName"), Pin->PinName.ToString());
 				OutPins.Add(E);
 				if (OutPins.Num() >= MaxCount) return;
 			}
@@ -237,8 +237,8 @@ void FNexusBlueprintGraphUtils::CollectExecPaths(UEdGraph* Graph, TArray<TShared
 		{
 			Visited.Add(Cur);
 			TSharedPtr<FJsonObject> N = MakeShared<FJsonObject>();
-			N->SetStringField(TEXT("nodeId"), Cur->NodeGuid.ToString());
-			N->SetStringField(TEXT("nodeTitle"), Cur->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+			N->SetStringField(TEXT("NodeId"), Cur->NodeGuid.ToString());
+			N->SetStringField(TEXT("NodeTitle"), Cur->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
 			NodesArr.Add(MakeShared<FJsonValueObject>(N));
 
 			UEdGraphNode* Next = nullptr;
@@ -255,13 +255,13 @@ void FNexusBlueprintGraphUtils::CollectExecPaths(UEdGraph* Graph, TArray<TShared
 		}
 
 		TSharedPtr<FJsonObject> PathObj = MakeShared<FJsonObject>();
-		PathObj->SetStringField(TEXT("start"), Start->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
-		PathObj->SetArrayField(TEXT("nodes"), NodesArr);
+		PathObj->SetStringField(TEXT("Start"), Start->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+		PathObj->SetArrayField(TEXT("Nodes"), NodesArr);
 		OutPaths.Add(PathObj);
 	}
 }
 
-// ── 写侧：add_node 各分支共用的节点创建 + 放置 ─────────────────────────────────
+// ── 写侧：AddNode 各分支共用的节点创建 + 放置 ─────────────────────────────────
 
 void FNexusBlueprintGraphUtils::PlaceNewNode(UEdGraph* Graph, UEdGraphNode* Node, int32 PosX, int32 PosY)
 {

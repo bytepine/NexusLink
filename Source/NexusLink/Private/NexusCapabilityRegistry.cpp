@@ -41,8 +41,8 @@ static TArray<FString> BuildKeywords(const FNexusCapabilityDefinition& Def,
 {
 	// 功能分类标签集合（从 Tags 中提取）：只留 editor——其余分类标签
 	// （blueprint/material/struct/data/widget/runtime）与 cap 名 token 高度重合，
-	// 注入索引会让单个宽泛分类词（如 "blueprint"）AND 命中整类 cap 引发 search_overflow；
-	// editor 不与任何 cap 名 token 重合（control_pie/exec_command/capture_viewport 等），保留
+	// 注入索引会让单个宽泛分类词（如 "blueprint"）AND 命中整类 cap 引发 SearchOverflow；
+	// editor 不与任何 cap 名 token 重合（ControlPie/ExecCommand/CaptureViewport 等），保留
 	static const TArray<FString> CategoryTags = {
 		FNexusMcpTags::Editor,
 	};
@@ -94,43 +94,56 @@ static TArray<FString> BuildKeywords(const FNexusCapabilityDefinition& Def,
 	return Result;
 }
 
-// ── §6 命名：首段动词须在标准词表内 ───────────────────────────────────────────
+// ── §6 命名：PascalCase 工具名必须以标准动词开头 ─────────────────────────────
 static const TSet<FString>& GetAllowedCapabilityVerbs()
 {
 	static TSet<FString> Verbs;
 	if (Verbs.Num() == 0)
 	{
+		// 长词在前，避免 Get 吃掉更具体的前缀；HotReload 不是 Hot + Reload。
 		const TCHAR* Allowed[] = {
-			TEXT("search"), TEXT("list"), TEXT("get"), TEXT("set"), TEXT("manage"),
-			TEXT("create"), TEXT("delete"), TEXT("rename"), TEXT("duplicate"), TEXT("save"),
-			TEXT("unload"),
-			TEXT("spawn"), TEXT("destroy"), TEXT("diff"), TEXT("interact"), TEXT("control"),
-			TEXT("exec"), TEXT("eval"), TEXT("dofile"), TEXT("gc"), TEXT("hotreload"), TEXT("capture"),
-			TEXT("compile"), TEXT("export"), TEXT("reimport"),
+			TEXT("HotReload"), TEXT("Duplicate"), TEXT("Reimport"), TEXT("Interact"),
+			TEXT("Destroy"), TEXT("Capture"), TEXT("Compile"), TEXT("Control"),
+			TEXT("Manage"), TEXT("Create"), TEXT("Delete"), TEXT("Rename"),
+			TEXT("Search"), TEXT("Unload"), TEXT("Export"), TEXT("Submit"),
+			TEXT("Spawn"), TEXT("Dofile"), TEXT("Diff"), TEXT("List"),
+			TEXT("Save"), TEXT("Call"), TEXT("Exec"), TEXT("Eval"),
+			TEXT("Get"), TEXT("Set"), TEXT("Gc"),
 		};
-		for (const TCHAR* V : Allowed)
+		for (const TCHAR* Verb : Allowed)
 		{
-			Verbs.Add(V);
+			Verbs.Add(Verb);
 		}
 	}
 	return Verbs;
 }
 
+static FString MatchCapabilityVerb(const FString& Name)
+{
+	const TSet<FString>& Verbs = GetAllowedCapabilityVerbs();
+	FString Best;
+	for (const FString& Verb : Verbs)
+	{
+		if (Name.StartsWith(Verb) && Verb.Len() > Best.Len())
+		{
+			Best = Verb;
+		}
+	}
+	return Best;
+}
+
 static void ValidateCapabilityName(const FNexusCapabilityDefinition& Def)
 {
-	const int32 UnderscoreIdx = Def.Name.Find(TEXT("_"));
-	const FString Verb = UnderscoreIdx == INDEX_NONE
-		? Def.Name
-		: Def.Name.Left(UnderscoreIdx);
+	const FString Verb = MatchCapabilityVerb(Def.Name);
 
-	ensureMsgf(GetAllowedCapabilityVerbs().Contains(Verb),
-		TEXT("[NexusCap] '%s' first token '%s' is not an allowed capability verb (see CapabilitySpec §6)"),
-		*Def.Name, *Verb);
+	ensureMsgf(!Verb.IsEmpty(),
+		TEXT("[NexusCap] '%s' does not start with an allowed capability verb (see CapabilitySpec §6)"),
+		*Def.Name);
 
 	static const TSet<FString> ForbiddenNames = {
-		TEXT("manage_animation"),
-		TEXT("set_runtime_actor_animation"),
-		TEXT("get_asset_generic"),
+		TEXT("ManageAnimation"),
+		TEXT("SetRuntimeActorAnimation"),
+		TEXT("GetAssetGeneric"),
 	};
 	ensureMsgf(!ForbiddenNames.Contains(Def.Name),
 		TEXT("[NexusCap] forbidden legacy name '%s' (see CapabilitySpec §6.5)"),
@@ -219,12 +232,12 @@ void FNexusCapabilityRegistry::IndexSearchAssetTypes(const FNexusCapabilityDefin
 		return;
 	}
 
-	const bool bIsGet = Def.Name.StartsWith(TEXT("get_asset_"));
-	const bool bIsManage = Def.Name.StartsWith(TEXT("manage_asset_"));
+	const bool bIsGet = Def.Name.StartsWith(TEXT("GetAsset"));
+	const bool bIsManage = Def.Name.StartsWith(TEXT("ManageAsset"));
 	if (!bIsGet && !bIsManage)
 	{
 		ensureMsgf(false,
-			TEXT("[NexusCap] '%s' declares SearchAssetTypes but name is not get_asset_*/manage_asset_*"),
+			TEXT("[NexusCap] '%s' declares SearchAssetTypes but name is not GetAsset*/ManageAsset*"),
 			*Def.Name);
 		return;
 	}
@@ -236,7 +249,7 @@ void FNexusCapabilityRegistry::IndexSearchAssetTypes(const FNexusCapabilityDefin
 			continue;
 		}
 		FNexusSearchAssetRoute& Route = SearchAssetRouteIndex.FindOrAdd(AssetType.ToLower());
-		// 先注册者优先，避免 get_asset_view_model 等次要 cap 覆盖主读工具
+		// 先注册者优先，避免 GetAssetViewModel 等次要 cap 覆盖主读工具
 		if (bIsGet && Route.RecommendedGet.IsEmpty())
 		{
 			Route.RecommendedGet = Def.Name;
@@ -270,7 +283,7 @@ bool FNexusCapabilityRegistry::CollectOperationActions(const FString& CapName, T
 		return false;
 	}
 	const TSharedPtr<FJsonObject>* Ops = nullptr;
-	if (!(*Props)->TryGetObjectField(TEXT("operations"), Ops) || !Ops)
+	if (!(*Props)->TryGetObjectField(TEXT("Operations"), Ops) || !Ops)
 	{
 		return false;
 	}
@@ -285,7 +298,7 @@ bool FNexusCapabilityRegistry::CollectOperationActions(const FString& CapName, T
 		return false;
 	}
 	const TSharedPtr<FJsonObject>* ActionObj = nullptr;
-	if (!(*ItemProps)->TryGetObjectField(TEXT("action"), ActionObj) || !ActionObj)
+	if (!(*ItemProps)->TryGetObjectField(TEXT("Action"), ActionObj) || !ActionObj)
 	{
 		return false;
 	}

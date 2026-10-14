@@ -5,8 +5,8 @@
 #include "NexusCapability.h"
 #include "NexusRuntimeCapability.h"
 
-/** interact_runtime_actor_audio：PIE 播放 SoundCue/SoundWave。 */
-class FInteractRuntimeActorAudioCapability : public FNexusRuntimeCapability
+/** InteractRuntimeActorAudio：PIE 播放 SoundCue/SoundWave。 */
+class FNexusInteractRuntimeActorAudioCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

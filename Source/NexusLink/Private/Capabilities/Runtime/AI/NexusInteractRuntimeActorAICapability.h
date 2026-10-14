@@ -5,8 +5,8 @@
 #include "NexusCapability.h"
 #include "NexusRuntimeCapability.h"
 
-/** interact_runtime_actor_ai：PIE 中 AIController MoveTo。 */
-class FInteractRuntimeActorAICapability : public FNexusRuntimeCapability
+/** InteractRuntimeActorAI：PIE 中 AIController MoveTo。 */
+class FNexusInteractRuntimeActorAICapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

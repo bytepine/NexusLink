@@ -147,7 +147,7 @@ bool FNexusAssetEditorUtils::SaveDirtyPackage(UPackage* Package, const FString& 
 	IFileManager::Get().MakeDirectory(*FPaths::GetPath(PackageFileName), true);
 
 	UObject* Asset = ResolvePackageAsset(Package, AssetPathHint);
-	// 显式 save_asset：对象级 Dirty 未必反映到 Package->IsDirty()，统一先标脏再落盘
+	// 显式 SaveAsset：对象级 Dirty 未必反映到 Package->IsDirty()，统一先标脏再落盘
 	Package->MarkPackageDirty();
 	if (Asset)
 	{
@@ -180,7 +180,7 @@ void FNexusAssetEditorUtils::ApplyManageFinalize(
 	}
 
 #if !WITH_EDITOR
-	OutTop->SetStringField(TEXT("finalizeError"), TEXT("manage finalize only available in editor mode"));
+	OutTop->SetStringField(TEXT("FinalizeError"), TEXT("manage finalize only available in editor mode"));
 	return;
 #else
 	FString PackagePath = AssetPath;
@@ -195,16 +195,16 @@ void FNexusAssetEditorUtils::ApplyManageFinalize(
 		UBlueprint* BP = FNexusAssetUtils::LoadAssetTracked<UBlueprint>(AssetPath);
 		if (!BP)
 		{
-			OutTop->SetBoolField(TEXT("compiled"), false);
-			OutTop->SetStringField(TEXT("compileError"),
+			OutTop->SetBoolField(TEXT("bCompiled"), false);
+			OutTop->SetStringField(TEXT("CompileError"),
 				FString::Printf(TEXT("Blueprint not found: %s"), *AssetPath));
 		}
 		else
 		{
 			FKismetEditorUtilities::CompileBlueprint(BP);
-			OutTop->SetBoolField(TEXT("compiled"), true);
-			OutTop->SetBoolField(TEXT("hasCompilerErrors"), BP->Status == BS_Error);
-			OutTop->SetStringField(TEXT("status"),
+			OutTop->SetBoolField(TEXT("bCompiled"), true);
+			OutTop->SetBoolField(TEXT("bHasCompilerErrors"), BP->Status == BS_Error);
+			OutTop->SetStringField(TEXT("Status"),
 				FString::Printf(TEXT("%d"), static_cast<int32>(BP->Status)));
 		}
 	}
@@ -218,8 +218,8 @@ void FNexusAssetEditorUtils::ApplyManageFinalize(
 		}
 		if (!Pkg)
 		{
-			OutTop->SetBoolField(TEXT("saved"), false);
-			OutTop->SetStringField(TEXT("saveError"),
+			OutTop->SetBoolField(TEXT("bSaved"), false);
+			OutTop->SetStringField(TEXT("SaveError"),
 				FString::Printf(TEXT("Package not found: %s"), *PackagePath));
 		}
 		else
@@ -229,18 +229,18 @@ void FNexusAssetEditorUtils::ApplyManageFinalize(
 			const bool bOk = SaveDirtyPackage(Pkg, PackagePath, AssetPath, bDeferred, Note);
 			if (bDeferred)
 			{
-				OutTop->SetBoolField(TEXT("deferred"), true);
+				OutTop->SetBoolField(TEXT("bDeferred"), true);
 				if (!Note.IsEmpty())
 				{
-					OutTop->SetStringField(TEXT("note"), Note);
+					OutTop->SetStringField(TEXT("Note"), Note);
 				}
 			}
 			else
 			{
-				OutTop->SetBoolField(TEXT("saved"), bOk);
+				OutTop->SetBoolField(TEXT("bSaved"), bOk);
 				if (!bOk)
 				{
-					OutTop->SetStringField(TEXT("saveError"),
+					OutTop->SetStringField(TEXT("SaveError"),
 						Note.IsEmpty()
 							? FString::Printf(TEXT("SavePackage failed: %s"), *PackagePath)
 							: Note);
@@ -281,7 +281,7 @@ FNexusAssetEditorUtils::FAssetCreateOutcome FNexusAssetEditorUtils::CreateBluepr
 #else
 	if (AssetPath.IsEmpty())
 	{
-		Out.Error = TEXT("assetPath is empty");
+		Out.Error = TEXT("AssetPath is empty");
 		return Out;
 	}
 	if (FPackageName::DoesPackageExist(AssetPath))

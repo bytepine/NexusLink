@@ -7,8 +7,8 @@
 
 #include "NexusActionCapability.h"
 
-/** manage_asset_gameplay_ability — 修改 GA 策略/Tag/CostCooldown。 */
-class FManageAssetGameplayAbilityCapability : public FNexusActionCapability
+/** ManageAssetGameplayAbility — 修改 GA 策略/Tag/CostCooldown。 */
+class FNexusManageAssetGameplayAbilityCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

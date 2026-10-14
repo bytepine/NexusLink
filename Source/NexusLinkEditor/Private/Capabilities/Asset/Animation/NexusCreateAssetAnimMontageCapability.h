@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_anim_montage 工具的唯一 Capability —— 创建 AnimMontage 资产。*/
-class FCreateAssetAnimMontageCapability : public FNexusCapability
+/** CreateAssetAnimMontage 工具的唯一 Capability —— 创建 AnimMontage 资产。*/
+class FNexusCreateAssetAnimMontageCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

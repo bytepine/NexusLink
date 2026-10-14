@@ -19,12 +19,12 @@
 // Preset ?????��?? AI ???? diagnose / view ???????????
 static bool IsDiagnosePreset(const FString& V)
 {
-	return V == TEXT("visibility") || V == TEXT("transform") || V == TEXT("world_transform")
-		|| V == TEXT("rotation_chain") || V == TEXT("defaults");
+	return V == TEXT("Visibility") || V == TEXT("Transform") || V == TEXT("WorldTransform")
+		|| V == TEXT("RotationChain") || V == TEXT("Defaults");
 }
 static bool IsViewPreset(const FString& V)
 {
-	return V == TEXT("components") || V == TEXT("attach_hierarchy") || V == TEXT("all");
+	return V == TEXT("Components") || V == TEXT("AttachHierarchy") || V == TEXT("All");
 }
 
 static void WriteActorComponentsSection(AActor* Actor, TSharedPtr<FJsonObject>& Detail)
@@ -48,7 +48,7 @@ static void WriteActorComponentsSection(AActor* Actor, TSharedPtr<FJsonObject>& 
 		CompArr.Add(MakeShared<FJsonValueObject>(C));
 	}
 
-	Detail->SetArrayField(TEXT("components"), CompArr);
+	Detail->SetArrayField(TEXT("Components"), CompArr);
 }
 
 static void WriteActorAttachHierarchySection(AActor* Actor, TSharedPtr<FJsonObject>& Detail)
@@ -66,24 +66,24 @@ static void WriteActorAttachHierarchySection(AActor* Actor, TSharedPtr<FJsonObje
 		H->SetStringField(TEXT("type"), Scene->GetClass()->GetName());
 		if (USceneComponent* Parent = Scene->GetAttachParent())
 		{
-			H->SetStringField(TEXT("attachParent"), Parent->GetName());
-			H->SetStringField(TEXT("attachSocket"), Scene->GetAttachSocketName().ToString());
+			H->SetStringField(TEXT("AttachParent"), Parent->GetName());
+			H->SetStringField(TEXT("AttachSocket"), Scene->GetAttachSocketName().ToString());
 		}
 
 		const FVector& Loc = Scene->GetRelativeLocation();
 		const FRotator& Rot = Scene->GetRelativeRotation();
-		H->SetStringField(TEXT("relativeLocation"),
+		H->SetStringField(TEXT("RelativeLocation"),
 			FString::Printf(TEXT("X=%.2f Y=%.2f Z=%.2f"), Loc.X, Loc.Y, Loc.Z));
-		H->SetStringField(TEXT("relativeRotation"),
+		H->SetStringField(TEXT("RelativeRotation"),
 			FString::Printf(TEXT("P=%.2f Y=%.2f R=%.2f"), Rot.Pitch, Rot.Yaw, Rot.Roll));
 
 		HierArr.Add(MakeShared<FJsonValueObject>(H));
 	}
 
-	Detail->SetArrayField(TEXT("hierarchy"), HierArr);
+	Detail->SetArrayField(TEXT("Hierarchy"), HierArr);
 }
 
-// ????????????��???????��?? Detail->"results" ???�
+// ????????????��???????��?? Detail->"Results" ???�
 static void ResolveBatchActorProperties(
 	AActor* Actor,
 	const TArray<FString>& Paths,
@@ -93,7 +93,7 @@ static void ResolveBatchActorProperties(
 	for (const FString& Path : Paths)
 	{
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("propertyPath"), Path);
+		Entry->SetStringField(TEXT("PropertyPath"), Path);
 
 		TSharedPtr<FJsonObject> PropResult = MakeShared<FJsonObject>();
 		FString Error;
@@ -106,36 +106,36 @@ static void ResolveBatchActorProperties(
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("error"), Error);
+			Entry->SetStringField(TEXT("Error"), Error);
 		}
 		Results.Add(MakeShared<FJsonValueObject>(Entry));
 	}
-	Detail->SetArrayField(TEXT("results"), Results);
+	Detail->SetArrayField(TEXT("Results"), Results);
 }
 
-// 分发：diagnose / view / propertyPaths[]；否则展开可编辑属性与组件列表
+// 分发：diagnose / view / PropertyPaths[]；否则展开可编辑属性与组件列表
 static bool ReadActorPropertyDispatch(
 	AActor* Actor,
 	const TSharedPtr<FJsonObject>& Arguments,
 	TSharedPtr<FJsonObject>& Detail,
 	FString& Error)
 {
-	Detail->SetStringField(TEXT("actorName"),  Actor->GetName());
-	Detail->SetStringField(TEXT("actorClass"), Actor->GetClass()->GetName());
+	Detail->SetStringField(TEXT("ActorName"),  Actor->GetName());
+	Detail->SetStringField(TEXT("ActorClass"), Actor->GetClass()->GetName());
 
 	const FNexusArgs A(Arguments);
 
 	// ?? A????????
-	if (Arguments->HasField(TEXT("diagnose")))
+	if (Arguments->HasField(TEXT("Diagnose")))
 	{
-		FString Diagnose = A.Str(TEXT("diagnose")).ToLower();
-		Detail->SetStringField(TEXT("diagnose"), Diagnose);
+		FString Diagnose = A.Str(TEXT("Diagnose")).ToLower();
+		Detail->SetStringField(TEXT("Diagnose"), Diagnose);
 
 		TArray<FString> Paths;
 		TArray<UActorComponent*> AllComponents;
 		Actor->GetComponents(AllComponents);
 
-		if (Diagnose == TEXT("visibility"))
+		if (Diagnose == TEXT("Visibility"))
 		{
 			Paths.Add(TEXT("bHidden"));
 			for (UActorComponent* Comp : AllComponents)
@@ -150,7 +150,7 @@ static bool ReadActorPropertyDispatch(
 				Paths.Add(Root->GetName() + TEXT(".RelativeScale3D"));
 			}
 		}
-		else if (Diagnose == TEXT("transform"))
+		else if (Diagnose == TEXT("Transform"))
 		{
 			if (USceneComponent* Root = Actor->GetRootComponent())
 			{
@@ -160,7 +160,7 @@ static bool ReadActorPropertyDispatch(
 				Paths.Add(RN + TEXT(".RelativeScale3D"));
 			}
 		}
-		else if (Diagnose == TEXT("world_transform"))
+		else if (Diagnose == TEXT("WorldTransform"))
 		{
 			TArray<TSharedPtr<FJsonValue>> Results;
 			for (UActorComponent* Comp : AllComponents)
@@ -170,26 +170,26 @@ static bool ReadActorPropertyDispatch(
 
 				const FTransform WT = Scene->GetComponentTransform();
 				TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-				Entry->SetStringField(TEXT("component"), Scene->GetName());
+				Entry->SetStringField(TEXT("Component"), Scene->GetName());
 
 				const FVector& Loc = WT.GetLocation();
-				Entry->SetStringField(TEXT("worldLocation"),
+				Entry->SetStringField(TEXT("WorldLocation"),
 					FString::Printf(TEXT("X=%.4f Y=%.4f Z=%.4f"), Loc.X, Loc.Y, Loc.Z));
 
 				const FRotator Rot = WT.Rotator();
-				Entry->SetStringField(TEXT("worldRotation"),
+				Entry->SetStringField(TEXT("WorldRotation"),
 					FString::Printf(TEXT("P=%.4f Y=%.4f R=%.4f"), Rot.Pitch, Rot.Yaw, Rot.Roll));
 
 				const FVector& Scl = WT.GetScale3D();
-				Entry->SetStringField(TEXT("worldScale"),
+				Entry->SetStringField(TEXT("WorldScale"),
 					FString::Printf(TEXT("X=%.4f Y=%.4f Z=%.4f"), Scl.X, Scl.Y, Scl.Z));
 
 				Results.Add(MakeShared<FJsonValueObject>(Entry));
 			}
-			Detail->SetArrayField(TEXT("results"), Results);
+			Detail->SetArrayField(TEXT("Results"), Results);
 			return true;
 		}
-		else if (Diagnose == TEXT("rotation_chain"))
+		else if (Diagnose == TEXT("RotationChain"))
 		{
 			TArray<TSharedPtr<FJsonValue>> Results;
 			for (UActorComponent* Comp : AllComponents)
@@ -198,27 +198,27 @@ static bool ReadActorPropertyDispatch(
 				if (!Scene) continue;
 
 				TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-				Entry->SetStringField(TEXT("component"), Scene->GetName());
+				Entry->SetStringField(TEXT("Component"), Scene->GetName());
 				if (Scene->IsUsingAbsoluteRotation())
 					Entry->SetBoolField(TEXT("bAbsoluteRotation"), true);
 
 				const FRotator& Rel = Scene->GetRelativeRotation();
-				Entry->SetStringField(TEXT("relativeRotation"),
+				Entry->SetStringField(TEXT("RelativeRotation"),
 					FString::Printf(TEXT("P=%.4f Y=%.4f R=%.4f"), Rel.Pitch, Rel.Yaw, Rel.Roll));
 
 				const FRotator World = Scene->GetComponentRotation();
-				Entry->SetStringField(TEXT("worldRotation"),
+				Entry->SetStringField(TEXT("WorldRotation"),
 					FString::Printf(TEXT("P=%.4f Y=%.4f R=%.4f"), World.Pitch, World.Yaw, World.Roll));
 
 				if (USceneComponent* Parent = Scene->GetAttachParent())
-					Entry->SetStringField(TEXT("attachParent"), Parent->GetName());
+					Entry->SetStringField(TEXT("AttachParent"), Parent->GetName());
 
 				Results.Add(MakeShared<FJsonValueObject>(Entry));
 			}
-			Detail->SetArrayField(TEXT("results"), Results);
+			Detail->SetArrayField(TEXT("Results"), Results);
 			return true;
 		}
-		else if (Diagnose == TEXT("defaults"))
+		else if (Diagnose == TEXT("Defaults"))
 		{
 			UObject* CDO = Actor->GetClass()->GetDefaultObject();
 			TArray<TSharedPtr<FJsonValue>> Diffs;
@@ -234,9 +234,9 @@ static bool ReadActorPropertyDispatch(
 				if (RuntimeVal != DefaultVal)
 				{
 					TSharedPtr<FJsonObject> D = MakeShared<FJsonObject>();
-					D->SetStringField(TEXT("path"), It->GetName());
+					D->SetStringField(TEXT("Path"), It->GetName());
 					D->SetStringField(TEXT("default"), DefaultVal);
-					D->SetStringField(TEXT("runtime"), RuntimeVal);
+					D->SetStringField(TEXT("Runtime"), RuntimeVal);
 					Diffs.Add(MakeShared<FJsonValueObject>(D));
 				}
 			}
@@ -256,9 +256,9 @@ static bool ReadActorPropertyDispatch(
 					if (RuntimeVal != DefaultVal)
 					{
 						TSharedPtr<FJsonObject> D = MakeShared<FJsonObject>();
-						D->SetStringField(TEXT("path"), Comp->GetName() + TEXT(".") + It->GetName());
+						D->SetStringField(TEXT("Path"), Comp->GetName() + TEXT(".") + It->GetName());
 						D->SetStringField(TEXT("default"), DefaultVal);
-						D->SetStringField(TEXT("runtime"), RuntimeVal);
+						D->SetStringField(TEXT("Runtime"), RuntimeVal);
 						Diffs.Add(MakeShared<FJsonValueObject>(D));
 						if (Diffs.Num() >= 100) break;
 					}
@@ -266,16 +266,16 @@ static bool ReadActorPropertyDispatch(
 				if (Diffs.Num() >= 100) break;
 			}
 
-		Detail->SetArrayField(TEXT("diffs"), Diffs);
-		if (Diffs.Num() >= 100) Detail->SetBoolField(TEXT("truncated"), true);
+		Detail->SetArrayField(TEXT("Diffs"), Diffs);
+		if (Diffs.Num() >= 100) Detail->SetBoolField(TEXT("bTruncated"), true);
 			return true;
 		}
 		else
 		{
-			Error = FString::Printf(TEXT("Unknown diagnose preset: '%s' (supports: visibility/transform/world_transform/rotation_chain/defaults)"), *Diagnose);
+			Error = FString::Printf(TEXT("Unknown diagnose preset: '%s' (supports: visibility/transform/WorldTransform/RotationChain/defaults)"), *Diagnose);
 		if (IsViewPreset(Diagnose))
 		{
-			Error += FString::Printf(TEXT("(Did you mean view='%s'?)"), *Diagnose);
+			Error += FString::Printf(TEXT("(Did you mean View='%s'?)"), *Diagnose);
 		}
 			return false;
 		}
@@ -285,41 +285,41 @@ static bool ReadActorPropertyDispatch(
 	}
 
 	// ?? B??????????
-	if (Arguments->HasField(TEXT("view")))
+	if (Arguments->HasField(TEXT("View")))
 	{
-		FString View = A.Str(TEXT("view")).ToLower();
-		if (View == TEXT("components"))
+		FString View = A.Str(TEXT("View")).ToLower();
+		if (View == TEXT("Components"))
 		{
 			WriteActorComponentsSection(Actor, Detail);
 			return true;
 		}
-		if (View == TEXT("attach_hierarchy"))
+		if (View == TEXT("AttachHierarchy"))
 		{
 			WriteActorAttachHierarchySection(Actor, Detail);
 			return true;
 		}
-		if (View == TEXT("all"))
+		if (View == TEXT("All"))
 		{
 			WriteActorComponentsSection(Actor, Detail);
 			WriteActorAttachHierarchySection(Actor, Detail);
 			TArray<TSharedPtr<FJsonValue>> Covered;
-			Covered.Add(MakeShared<FJsonValueString>(TEXT("components")));
-			Covered.Add(MakeShared<FJsonValueString>(TEXT("attach_hierarchy")));
-			Detail->SetArrayField(TEXT("views"), Covered);
+			Covered.Add(MakeShared<FJsonValueString>(TEXT("Components")));
+			Covered.Add(MakeShared<FJsonValueString>(TEXT("AttachHierarchy")));
+			Detail->SetArrayField(TEXT("Views"), Covered);
 			return true;
 		}
-		Error = FString::Printf(TEXT("Unknown view: '%s' (supports: components/attach_hierarchy/all)"), *View);
+		Error = FString::Printf(TEXT("Unknown view: '%s' (supports: components/AttachHierarchy/all)"), *View);
 		if (IsDiagnosePreset(View))
 		{
-			Error += FString::Printf(TEXT("(Did you mean diagnose='%s'?)"), *View);
+			Error += FString::Printf(TEXT("(Did you mean Diagnose='%s'?)"), *View);
 		}
 		return false;
 	}
 
-	// 分支 C：仅 propertyPaths[]；缺省则展开可编辑属性与组件列表
-	if (Arguments->HasField(TEXT("propertyPaths")))
+	// 分支 C：仅 PropertyPaths[]；缺省则展开可编辑属性与组件列表
+	if (Arguments->HasField(TEXT("PropertyPaths")))
 	{
-		const TArray<TSharedPtr<FJsonValue>>& PathsArr = Arguments->GetArrayField(TEXT("propertyPaths"));
+		const TArray<TSharedPtr<FJsonValue>>& PathsArr = Arguments->GetArrayField(TEXT("PropertyPaths"));
 		TArray<FString> Paths;
 		for (const TSharedPtr<FJsonValue>& V : PathsArr) { Paths.Add(V->AsString()); }
 		if (Paths.Num() > 0)
@@ -341,10 +341,10 @@ static bool ReadActorPropertyDispatch(
 			TSharedPtr<FJsonObject> C = MakeShared<FJsonObject>();
 			C->SetStringField(TEXT("name"), Comp->GetName());
 			C->SetStringField(TEXT("type"), Comp->GetClass()->GetName());
-			C->SetStringField(TEXT("kind"), TEXT("component"));
+			C->SetStringField(TEXT("Kind"), TEXT("Component"));
 			Children.Add(MakeShared<FJsonValueObject>(C));
 		}
-		Detail->SetArrayField(TEXT("children"), Children);
+		Detail->SetArrayField(TEXT("Children"), Children);
 		return true;
 	}
 }
@@ -353,31 +353,31 @@ static bool ReadActorPropertyDispatch(
 // Capability ???
 // ?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?a
 
-void FGetRuntimeActorPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetRuntimeActorPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_runtime_actor_property");
-	Out.Description = TEXT("Query runtime Actor fields. Supports batch propertyPaths and component tree.");
+	Out.Name = TEXT("GetRuntimeActorProperty");
+	Out.Description = TEXT("Query runtime Actor fields. Supports batch PropertyPaths and component tree.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("target"),        FNexusSchema::Enum(TEXT("Dispatch target (auto-inferred)"),
-		                                                 { TEXT("actor"), TEXT("widget"), TEXT("asset") }))
-		.Prop(TEXT("actorName"),     FNexusSchema::Str(TEXT("Actor name/tag (list_runtime_actors first)")))
-		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Dot-separated paths (batch)")))
-		.Prop(TEXT("view"),          FNexusSchema::Enum(TEXT("Actor tree view"),
-		                                                 { TEXT("components"), TEXT("attach_hierarchy"), TEXT("all") }))
-		.Prop(TEXT("diagnose"),      FNexusSchema::Enum(TEXT("Actor diagnostic preset"),
-		                                                 { TEXT("visibility"), TEXT("transform"),
-		                                                   TEXT("world_transform"), TEXT("rotation_chain"),
-		                                                   TEXT("defaults") }))
-		.Required({ TEXT("actorName") })
+		.Prop(TEXT("Target"),        FNexusSchema::Enum(TEXT("Dispatch target (auto-inferred)"),
+		                                                 { TEXT("Actor"), TEXT("Widget"), TEXT("Asset") }))
+		.Prop(TEXT("ActorName"),     FNexusSchema::Str(TEXT("Actor name/tag (ListRuntimeActors first)")))
+		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("Dot-separated paths (batch)")))
+		.Prop(TEXT("View"),          FNexusSchema::Enum(TEXT("Actor tree view"),
+		                                                 { TEXT("Components"), TEXT("AttachHierarchy"), TEXT("All") }))
+		.Prop(TEXT("Diagnose"),      FNexusSchema::Enum(TEXT("Actor diagnostic preset"),
+		                                                 { TEXT("Visibility"), TEXT("Transform"),
+		                                                   TEXT("WorldTransform"), TEXT("RotationChain"),
+		                                                   TEXT("Defaults") }))
+		.Required({ TEXT("ActorName") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("components"), TEXT("hierarchy"), TEXT("field"), TEXT("transform"), TEXT("character") };
-	Out.RelatedCapabilities = { TEXT("set_runtime_actor_property"), TEXT("list_runtime_actors") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.ExtraSearchKeywords = { TEXT("Components"), TEXT("Hierarchy"), TEXT("field"), TEXT("Transform"), TEXT("character") };
+	Out.RelatedCapabilities = { TEXT("SetRuntimeActorProperty"), TEXT("ListRuntimeActors") };
+	Out.Prerequisites = { TEXT("PIE") };
 	Out.WhenToUse = TEXT("Read-only fields; no modifications");
 }
 
-FCapabilityResult FGetRuntimeActorPropertyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetRuntimeActorPropertyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -386,14 +386,14 @@ FCapabilityResult FGetRuntimeActorPropertyCapability::Execute(const TSharedPtr<F
 
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
-		const FString Name = A.Str(TEXT("actorName"));
+		const FString Name = A.Str(TEXT("ActorName"));
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 		AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, Name);
 		if (!Actor)
 		{
-			OutEntry->SetStringField(TEXT("actorName"), Name);
-			OutEntry->SetStringField(TEXT("error"), TEXT("Actor not found"));
+			OutEntry->SetStringField(TEXT("ActorName"), Name);
+			OutEntry->SetStringField(TEXT("Error"), TEXT("Actor not found"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -401,11 +401,11 @@ FCapabilityResult FGetRuntimeActorPropertyCapability::Execute(const TSharedPtr<F
 		FString Err;
 		if (!ReadActorPropertyDispatch(Actor, Arguments, OutEntry, Err))
 		{
-			OutEntry->SetStringField(TEXT("error"), Err);
+			OutEntry->SetStringField(TEXT("Error"), Err);
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetRuntimeActorPropertyCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetRuntimeActorPropertyCapability)

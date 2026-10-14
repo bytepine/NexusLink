@@ -14,28 +14,28 @@
 #include "Engine/Blueprint.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetAttributeSetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetAttributeSetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_attribute_set");
+	Out.Name = TEXT("CreateAssetAttributeSet");
 	Out.Description = TEXT("Create AttributeSet BP; defaults via manage_as, vars via manage_bp.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("New AS Blueprint package path, e.g. '/Game/GAS/AS_Hero'")))
-		.Prop(TEXT("parentClass"), FNexusSchema::Str(TEXT("Parent class (default AttributeSet)")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"),   FNexusSchema::Str(TEXT("New AS Blueprint package path, e.g. '/Game/GAS/AS_Hero'")))
+		.Prop(TEXT("ParentClass"), FNexusSchema::Str(TEXT("Parent class (default AttributeSet)")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
-	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("attribute"), TEXT("attributeset"), TEXT("stats"), TEXT("health") };
-	Out.RelatedCapabilities = { TEXT("get_asset_attribute_set"), TEXT("manage_asset_attribute_set"), TEXT("manage_asset_blueprint") };
-	Out.WhenToUse = TEXT("Create empty AttributeSet BP; add vars via manage_asset_blueprint");
+	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("Attribute"), TEXT("attributeset"), TEXT("stats"), TEXT("health") };
+	Out.RelatedCapabilities = { TEXT("GetAssetAttributeSet"), TEXT("ManageAssetAttributeSet"), TEXT("ManageAssetBlueprint") };
+	Out.WhenToUse = TEXT("Create empty AttributeSet BP; add vars via ManageAssetBlueprint");
 }
 
-FCapabilityResult FCreateAssetAttributeSetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetAttributeSetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
-		const FString ParentClassName = A.Str(TEXT("parentClass"), TEXT("AttributeSet"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
+		const FString ParentClassName = A.Str(TEXT("ParentClass"), TEXT("AttributeSet"));
 		const FNexusAssetEditorUtils::FAssetCreateOutcome Created = FNexusAssetEditorUtils::CreateBlueprintAsset(
 			AssetPath, ParentClassName, UAttributeSet::StaticClass());
 		if (!Created.Ok())
@@ -46,15 +46,15 @@ FCapabilityResult FCreateAssetAttributeSetCapability::Execute(const TSharedPtr<F
 		UBlueprint* NewBP = Cast<UBlueprint>(Created.Asset);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 		OutEntry->SetStringField(TEXT("name"),      NewBP->GetName());
-		OutEntry->SetStringField(TEXT("path"),      AssetPath);
+		OutEntry->SetStringField(TEXT("Path"),      AssetPath);
 		if (NewBP->ParentClass)
 		{
-			OutEntry->SetStringField(TEXT("parentClass"), NewBP->ParentClass->GetName());
+			OutEntry->SetStringField(TEXT("ParentClass"), NewBP->ParentClass->GetName());
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetAttributeSetCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetAttributeSetCapability)
 
 #endif // WITH_GAS

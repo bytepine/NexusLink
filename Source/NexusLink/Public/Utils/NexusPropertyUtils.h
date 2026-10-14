@@ -18,8 +18,8 @@ class NEXUSLINK_API FNexusPropertyUtils
 public:
 	/**
 	 * 从 UObject 上按路径段（A.B.C）递归解析属性，用于读取。
-	 * - 叶子属性：填充 name/type/value/isLeaf=true
-	 * - 结构体属性：填充 name/type/children[]/isLeaf=false
+	 * - 叶子属性：填充 name/type/value/bIsLeaf=true
+	 * - 结构体属性：填充 name/type/children[]/bIsLeaf=false
 	 */
 	static bool ResolvePropertyRead(
 		UObject* Obj,
@@ -65,7 +65,7 @@ public:
 
 	/**
 	 * ImportText，传入 Owner 供容器/对象引用解析；返回是否解析成功（失败时缓冲区通常未完整消费）。
-	 * 与 BehaviorTree set_property 等处对 ImportText 返回值的用法一致。
+	 * 与 BehaviorTree SetProperty 等处对 ImportText 返回值的用法一致。
 	 */
 	static bool ImportTextFromString(const FProperty* Prop, const FString& Value, void* Data, UObject* Owner)
 	{
@@ -95,16 +95,16 @@ public:
 	{
 		if (!Args.IsValid()) { return nullptr; }
 		const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
-		if (!Args->TryGetArrayField(TEXT("updates"), Arr) || !Arr || Arr->Num() == 0) { return nullptr; }
+		if (!Args->TryGetArrayField(TEXT("Updates"), Arr) || !Arr || Arr->Num() == 0) { return nullptr; }
 		const TSharedPtr<FJsonValue>& First = (*Arr)[0];
 		if (!First.IsValid() || First->Type != EJson::Object) { return nullptr; }
 		return First->AsObject();
 	}
 
 	/**
-	 * 定位属性、写入新值，同时回显 oldValue 与实际写入后的 actualValue。
+	 * 定位属性、写入新值，同时回显 OldValue 与实际写入后的 actualValue。
 	 * 封装 ResolvePropertyWrite + ExportText + ImportText + ExportText 的公共链路，
-	 * 供 set_runtime_actor_property / set_runtime_widget_property 等共用，消除重复 8 行样板。
+	 * 供 SetRuntimeActorProperty / SetRuntimeWidgetProperty 等共用，消除重复 8 行样板。
 	 *
 	 * @param Target       属性所在 UObject
 	 * @param PathSegs     路径段数组（已切分，含完整路径）

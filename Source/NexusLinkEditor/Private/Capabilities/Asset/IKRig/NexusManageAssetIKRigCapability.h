@@ -7,8 +7,8 @@
 
 #if WITH_IK_RIG
 
-/** manage_asset_ik_rig — 编辑 IKRig：设置预览网格 / 切换 Solver 启用状态。 */
-class FManageAssetIKRigCapability : public FNexusActionCapability
+/** ManageAssetIKRig — 编辑 IKRig：设置预览网格 / 切换 Solver 启用状态。 */
+class FNexusManageAssetIKRigCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

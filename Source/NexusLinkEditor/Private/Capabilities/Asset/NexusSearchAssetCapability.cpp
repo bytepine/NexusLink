@@ -78,7 +78,7 @@
 #endif
 #include "NexusMcpTool.h"
 
-/** query 空白分词 AND：每个 token 须在 name/path/assetType/parentClass/rowStruct/parentMaterial 中至少一处命中。 */
+/** query 空白分词 AND：每个 token 须在 name/path/AssetType/ParentClass/RowStruct/ParentMaterial 中至少一处命中。 */
 static bool NexusAssetEntryMatchesQuery(
 	const FString& Name,
 	const FString& Path,
@@ -108,16 +108,16 @@ static bool NexusAssetEntryMatchesQuery(
 	return true;
 }
 
-/** 将 AI 常见复数/缩写归一为内置 assetType shortcut（输入须已 ToLower）。 */
+/** 将 AI 常见复数/缩写归一为内置 AssetType shortcut（输入须已 ToLower）。 */
 static FString NormalizeAssetTypeShortcut(const FString& TypeLower)
 {
 	if (TypeLower == TEXT("blueprints"))
 	{
 		return TEXT("blueprint");
 	}
-	if (TypeLower == TEXT("widgets"))
+	if (TypeLower == TEXT("Widgets"))
 	{
-		return TEXT("widget");
+		return TEXT("Widget");
 	}
 #if WITH_GAS
 	if (TypeLower == TEXT("ga"))
@@ -130,20 +130,20 @@ static FString NormalizeAssetTypeShortcut(const FString& TypeLower)
 	}
 #endif
 #if WITH_STATETREE
-	if (TypeLower == TEXT("st") || TypeLower == TEXT("state_tree"))
+	if (TypeLower == TEXT("st") || TypeLower == TEXT("StateTree"))
 	{
 		return TEXT("statetree");
 	}
 #endif
 	if (TypeLower == TEXT("viewmodel") || TypeLower == TEXT("mvvm"))
 	{
-		return TEXT("widget");
+		return TEXT("Widget");
 	}
 	return TypeLower;
 }
 
 /**
- * search_asset 同构类型分支的表项：Aliases 命中（或 assetType=all）即按 Class 查 AssetRegistry，
+ * SearchAsset 同构类型分支的表项：Aliases 命中（或 AssetType=all）即按 Class 查 AssetRegistry，
  * 写入 OutType。仅覆盖「class 加 path filter 到 AddEntry」这一形状；blueprint（排除 WidgetBlueprint）、
  * blendspace（按子类分派输出类型）、GAS 三项（按 ParentClass tag 过滤蓝图）等雪花分支保留为 Execute() 内显式代码。
  */
@@ -164,21 +164,21 @@ static const TArray<FNexusSearchTypeEntry>& GetSearchTypeTableEarly()
 	{
 		TArray<FNexusSearchTypeEntry> T;
 #if WITH_EDITOR
-		T.Add({ TEXT("Widget"), UWidgetBlueprint::StaticClass(), false, { TEXT("widget") } });
+		T.Add({ TEXT("Widget"), UWidgetBlueprint::StaticClass(), false, { TEXT("Widget") } });
 #endif
 		T.Add({ TEXT("Struct"), UUserDefinedStruct::StaticClass(), false, { TEXT("struct") } });
 		T.Add({ TEXT("DataTable"), UDataTable::StaticClass(), true, { TEXT("datatable") } });
 		T.Add({ TEXT("DataAsset"), UDataAsset::StaticClass(), true, { TEXT("dataasset") } });
-		T.Add({ TEXT("Material"), UMaterial::StaticClass(), false, { TEXT("material") } });
+		T.Add({ TEXT("Material"), UMaterial::StaticClass(), false, { TEXT("Material") } });
 		T.Add({ TEXT("MaterialInstance"), UMaterialInstanceConstant::StaticClass(), true, { TEXT("materialinstance") } });
-		T.Add({ TEXT("AnimMontage"), UAnimMontage::StaticClass(), true, { TEXT("animmontage"), TEXT("anim_montage") } });
-		T.Add({ TEXT("AnimBlueprint"), UAnimBlueprint::StaticClass(), true, { TEXT("animblueprint"), TEXT("anim_blueprint") } });
-		T.Add({ TEXT("BehaviorTree"), UBehaviorTree::StaticClass(), true, { TEXT("behaviortree"), TEXT("behavior_tree") } });
-		T.Add({ TEXT("Blackboard"), UBlackboardData::StaticClass(), true, { TEXT("blackboard") } });
-		T.Add({ TEXT("Texture2D"), UTexture2D::StaticClass(), true, { TEXT("texture2d"), TEXT("texture") } });
-		T.Add({ TEXT("StaticMesh"), UStaticMesh::StaticClass(), true, { TEXT("staticmesh"), TEXT("static_mesh") } });
-		T.Add({ TEXT("SkeletalMesh"), USkeletalMesh::StaticClass(), true, { TEXT("skeletalmesh"), TEXT("skeletal_mesh") } });
-		T.Add({ TEXT("AnimSequence"), UAnimSequence::StaticClass(), true, { TEXT("animsequence"), TEXT("anim_sequence") } });
+		T.Add({ TEXT("AnimMontage"), UAnimMontage::StaticClass(), true, { TEXT("animmontage"), TEXT("AnimMontage") } });
+		T.Add({ TEXT("AnimBlueprint"), UAnimBlueprint::StaticClass(), true, { TEXT("animblueprint"), TEXT("AnimBlueprint") } });
+		T.Add({ TEXT("BehaviorTree"), UBehaviorTree::StaticClass(), true, { TEXT("behaviortree"), TEXT("BehaviorTree") } });
+		T.Add({ TEXT("Blackboard"), UBlackboardData::StaticClass(), true, { TEXT("Blackboard") } });
+		T.Add({ TEXT("Texture2D"), UTexture2D::StaticClass(), true, { TEXT("texture2d"), TEXT("Texture") } });
+		T.Add({ TEXT("StaticMesh"), UStaticMesh::StaticClass(), true, { TEXT("staticmesh"), TEXT("StaticMesh") } });
+		T.Add({ TEXT("SkeletalMesh"), USkeletalMesh::StaticClass(), true, { TEXT("skeletalmesh"), TEXT("SkeletalMesh") } });
+		T.Add({ TEXT("AnimSequence"), UAnimSequence::StaticClass(), true, { TEXT("animsequence"), TEXT("AnimSequence") } });
 		return T;
 	}();
 	return Table;
@@ -189,40 +189,40 @@ static const TArray<FNexusSearchTypeEntry>& GetSearchTypeTableMid()
 	static const TArray<FNexusSearchTypeEntry> Table = []
 	{
 		TArray<FNexusSearchTypeEntry> T;
-		T.Add({ TEXT("Skeleton"), USkeleton::StaticClass(), true, { TEXT("skeleton") } });
-		T.Add({ TEXT("SoundWave"), USoundWave::StaticClass(), true, { TEXT("soundwave"), TEXT("sound_wave") } });
-		T.Add({ TEXT("SoundCue"), USoundCue::StaticClass(), true, { TEXT("soundcue"), TEXT("sound_cue") } });
-		T.Add({ TEXT("CurveFloat"), UCurveFloat::StaticClass(), true, { TEXT("curvefloat"), TEXT("curve_float"), TEXT("curve") } });
-		T.Add({ TEXT("CurveVector"), UCurveVector::StaticClass(), true, { TEXT("curvevector"), TEXT("curve_vector") } });
-		T.Add({ TEXT("CurveLinearColor"), UCurveLinearColor::StaticClass(), true, { TEXT("curvelinearcolor"), TEXT("curve_linear_color") } });
-		T.Add({ TEXT("CurveTable"), UCurveTable::StaticClass(), true, { TEXT("curvetable"), TEXT("curve_table") } });
-		T.Add({ TEXT("UserDefinedEnum"), UUserDefinedEnum::StaticClass(), true, { TEXT("userdefinedenum"), TEXT("enum"), TEXT("user_defined_enum") } });
-		T.Add({ TEXT("AnimComposite"), UAnimComposite::StaticClass(), true, { TEXT("animcomposite"), TEXT("anim_composite") } });
-		T.Add({ TEXT("PhysicalMaterial"), UPhysicalMaterial::StaticClass(), true, { TEXT("physicalmaterial"), TEXT("physical_material") } });
-		T.Add({ TEXT("TextureRenderTarget2D"), UTextureRenderTarget2D::StaticClass(), true, { TEXT("rendertarget"), TEXT("render_target"), TEXT("texturerendertarget2d") } });
-		T.Add({ TEXT("SoundClass"), USoundClass::StaticClass(), true, { TEXT("soundclass"), TEXT("sound_class") } });
-		T.Add({ TEXT("SoundAttenuation"), USoundAttenuation::StaticClass(), true, { TEXT("soundattenuation"), TEXT("sound_attenuation") } });
-		T.Add({ TEXT("SoundConcurrency"), USoundConcurrency::StaticClass(), true, { TEXT("soundconcurrency"), TEXT("sound_concurrency") } });
-		T.Add({ TEXT("SoundSubmix"), USoundSubmix::StaticClass(), true, { TEXT("soundsubmix"), TEXT("sound_submix") } });
-		T.Add({ TEXT("World"), UWorld::StaticClass(), true, { TEXT("world"), TEXT("level"), TEXT("map") } });
+		T.Add({ TEXT("Skeleton"), USkeleton::StaticClass(), true, { TEXT("Skeleton") } });
+		T.Add({ TEXT("SoundWave"), USoundWave::StaticClass(), true, { TEXT("soundwave"), TEXT("SoundWave") } });
+		T.Add({ TEXT("SoundCue"), USoundCue::StaticClass(), true, { TEXT("soundcue"), TEXT("SoundCue") } });
+		T.Add({ TEXT("CurveFloat"), UCurveFloat::StaticClass(), true, { TEXT("curvefloat"), TEXT("CurveFloat"), TEXT("curve") } });
+		T.Add({ TEXT("CurveVector"), UCurveVector::StaticClass(), true, { TEXT("curvevector"), TEXT("CurveVector") } });
+		T.Add({ TEXT("CurveLinearColor"), UCurveLinearColor::StaticClass(), true, { TEXT("curvelinearcolor"), TEXT("CurveLinearColor") } });
+		T.Add({ TEXT("CurveTable"), UCurveTable::StaticClass(), true, { TEXT("curvetable"), TEXT("CurveTable") } });
+		T.Add({ TEXT("UserDefinedEnum"), UUserDefinedEnum::StaticClass(), true, { TEXT("userdefinedenum"), TEXT("enum"), TEXT("UserDefinedEnum") } });
+		T.Add({ TEXT("AnimComposite"), UAnimComposite::StaticClass(), true, { TEXT("animcomposite"), TEXT("AnimComposite") } });
+		T.Add({ TEXT("PhysicalMaterial"), UPhysicalMaterial::StaticClass(), true, { TEXT("physicalmaterial"), TEXT("PhysicalMaterial") } });
+		T.Add({ TEXT("TextureRenderTarget2D"), UTextureRenderTarget2D::StaticClass(), true, { TEXT("rendertarget"), TEXT("RenderTarget"), TEXT("texturerendertarget2d") } });
+		T.Add({ TEXT("SoundClass"), USoundClass::StaticClass(), true, { TEXT("soundclass"), TEXT("SoundClass") } });
+		T.Add({ TEXT("SoundAttenuation"), USoundAttenuation::StaticClass(), true, { TEXT("soundattenuation"), TEXT("SoundAttenuation") } });
+		T.Add({ TEXT("SoundConcurrency"), USoundConcurrency::StaticClass(), true, { TEXT("soundconcurrency"), TEXT("SoundConcurrency") } });
+		T.Add({ TEXT("SoundSubmix"), USoundSubmix::StaticClass(), true, { TEXT("soundsubmix"), TEXT("SoundSubmix") } });
+		T.Add({ TEXT("World"), UWorld::StaticClass(), true, { TEXT("World"), TEXT("Level"), TEXT("map") } });
 #if WITH_NIAGARA
-		T.Add({ TEXT("NiagaraSystem"), UNiagaraSystem::StaticClass(), true, { TEXT("niagarasystem"), TEXT("niagara_system") } });
+		T.Add({ TEXT("NiagaraSystem"), UNiagaraSystem::StaticClass(), true, { TEXT("niagarasystem"), TEXT("NiagaraSystem") } });
 #endif
 #if WITH_STATETREE
-		T.Add({ TEXT("StateTree"), UStateTree::StaticClass(), true, { TEXT("statetree"), TEXT("state_tree") } });
+		T.Add({ TEXT("StateTree"), UStateTree::StaticClass(), true, { TEXT("statetree"), TEXT("StateTree") } });
 #endif
 #if WITH_METASOUND
-		T.Add({ TEXT("MetaSoundSource"), UMetaSoundSource::StaticClass(), true, { TEXT("metasoundsource"), TEXT("meta_sound_source"), TEXT("metasound") } });
+		T.Add({ TEXT("MetaSoundSource"), UMetaSoundSource::StaticClass(), true, { TEXT("metasoundsource"), TEXT("MetaSoundSource"), TEXT("metasound") } });
 #if NX_UE_HAS_METASOUND_PATCH
-		T.Add({ TEXT("MetaSoundPatch"), UMetaSoundPatch::StaticClass(), true, { TEXT("metasoundpatch"), TEXT("meta_sound_patch") } });
+		T.Add({ TEXT("MetaSoundPatch"), UMetaSoundPatch::StaticClass(), true, { TEXT("metasoundpatch"), TEXT("MetaSoundPatch") } });
 #endif
 #endif
 #if WITH_PCG
-		T.Add({ TEXT("PCGGraph"), UPCGGraph::StaticClass(), true, { TEXT("pcggraph"), TEXT("pcg_graph"), TEXT("pcg") } });
+		T.Add({ TEXT("PCGGraph"), UPCGGraph::StaticClass(), true, { TEXT("pcggraph"), TEXT("PCGGraph"), TEXT("pcg") } });
 #endif
 #if WITH_POSE_SEARCH
-		T.Add({ TEXT("PoseSearchDatabase"), UPoseSearchDatabase::StaticClass(), true, { TEXT("posesearchdatabase"), TEXT("pose_search_database"), TEXT("posesearch") } });
-		T.Add({ TEXT("PoseSearchSchema"), UPoseSearchSchema::StaticClass(), true, { TEXT("posesearchschema"), TEXT("pose_search_schema") } });
+		T.Add({ TEXT("PoseSearchDatabase"), UPoseSearchDatabase::StaticClass(), true, { TEXT("posesearchdatabase"), TEXT("PoseSearchDatabase"), TEXT("posesearch") } });
+		T.Add({ TEXT("PoseSearchSchema"), UPoseSearchSchema::StaticClass(), true, { TEXT("posesearchschema"), TEXT("PoseSearchSchema") } });
 #endif
 		return T;
 	}();
@@ -235,7 +235,7 @@ static const TArray<FNexusSearchTypeEntry>& GetSearchTypeTableLate()
 	{
 		TArray<FNexusSearchTypeEntry> T;
 #if NX_UE_HAS_DATA_LAYER_ASSET
-		T.Add({ TEXT("DataLayerAsset"), UDataLayerAsset::StaticClass(), true, { TEXT("datalayerasset"), TEXT("data_layer_asset"), TEXT("datalayer") } });
+		T.Add({ TEXT("DataLayerAsset"), UDataLayerAsset::StaticClass(), true, { TEXT("datalayerasset"), TEXT("DataLayerAsset"), TEXT("datalayer") } });
 #endif
 		return T;
 	}();
@@ -246,11 +246,11 @@ static const TArray<FNexusSearchTypeEntry>& GetSearchTypeTableLate()
 static bool IsKnownSearchAssetType(const FString& TypeLower)
 {
 	if (TypeLower == TEXT("blueprint")) return true;
-	if (TypeLower == TEXT("blendspace") || TypeLower == TEXT("blend_space")) return true;
+	if (TypeLower == TEXT("blendspace") || TypeLower == TEXT("BlendSpace")) return true;
 #if WITH_GAS
-	if (TypeLower == TEXT("gameplayability") || TypeLower == TEXT("gameplay_ability")) return true;
-	if (TypeLower == TEXT("gameplayeffect") || TypeLower == TEXT("gameplay_effect")) return true;
-	if (TypeLower == TEXT("attributeset") || TypeLower == TEXT("attribute_set")) return true;
+	if (TypeLower == TEXT("gameplayability") || TypeLower == TEXT("GameplayAbility")) return true;
+	if (TypeLower == TEXT("gameplayeffect") || TypeLower == TEXT("GameplayEffect")) return true;
+	if (TypeLower == TEXT("attributeset") || TypeLower == TEXT("AttributeSet")) return true;
 #endif
 	for (const TArray<FNexusSearchTypeEntry>* Table : { &GetSearchTypeTableEarly(), &GetSearchTypeTableMid(), &GetSearchTypeTableLate() })
 	{
@@ -262,26 +262,26 @@ static bool IsKnownSearchAssetType(const FString& TypeLower)
 	return false;
 }
 
-void FSearchAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusSearchAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("search_asset");
-	Out.Description = TEXT("Find asset paths. Call first; set assetType+pathFilter. Returns assets + recommendedGet/Manage.");
+	Out.Name = TEXT("SearchAsset");
+	Out.Description = TEXT("Find asset paths. Call first; set AssetType+PathFilter. Returns assets + RecommendedGet/Manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetType"),  FNexusSchema::Str(TEXT("Blueprint/Widget/Material/AnimSequence/… or UClass; avoid all on large projects"), TEXT("Blueprint")))
-		.Prop(TEXT("pathFilter"), FNexusSchema::Str(TEXT("Feature path prefix (avoid bare /Game/ on large projects)"), TEXT("/Game/Feature/")))
-		.Prop(TEXT("query"),      FNexusSchema::Str(TEXT("Token AND match; matches name/path/tags"), TEXT("")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Asset name filter")))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
+		.Prop(TEXT("AssetType"),  FNexusSchema::Str(TEXT("Blueprint/Widget/Material/AnimSequence/… or UClass; avoid all on large projects"), TEXT("Blueprint")))
+		.Prop(TEXT("PathFilter"), FNexusSchema::Str(TEXT("Feature path prefix (avoid bare /Game/ on large projects)"), TEXT("/Game/Feature/")))
+		.Prop(TEXT("Query"),      FNexusSchema::Str(TEXT("Token AND match; matches name/path/tags"), TEXT("")))
+		.Prop(TEXT("NameFilter"), FNexusSchema::Str(TEXT("Asset name filter")))
+		.Prop(TEXT("Offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("Limit"),      FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("content"), TEXT("browse"), TEXT("registry"), TEXT("scan"), TEXT("filter") };
-	Out.RelatedCapabilities = { TEXT("get_asset_blueprint"), TEXT("get_asset_refs") };
+	Out.ExtraSearchKeywords = { TEXT("Content"), TEXT("browse"), TEXT("registry"), TEXT("scan"), TEXT("filter") };
+	Out.RelatedCapabilities = { TEXT("GetAssetBlueprint"), TEXT("GetAssetRefs") };
 }
 
-FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
-	FString AssetType  = TEXT("all");
+	FString AssetType  = TEXT("All");
 	FString PathFilter = TEXT("/Game/");
 	FString NameFilter;
 	FString Query;
@@ -289,10 +289,10 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 	if (Arguments.IsValid())
 	{
 		const FNexusArgs CapArgs(Arguments);
-		if (Arguments->HasField(TEXT("assetType")))  AssetType  = CapArgs.Str(TEXT("assetType"));
-		if (Arguments->HasField(TEXT("pathFilter"))) PathFilter = CapArgs.Str(TEXT("pathFilter"));
-		if (Arguments->HasField(TEXT("nameFilter"))) NameFilter = CapArgs.Str(TEXT("nameFilter"));
-		if (Arguments->HasField(TEXT("query")))      Query      = CapArgs.Str(TEXT("query"));
+		if (Arguments->HasField(TEXT("AssetType")))  AssetType  = CapArgs.Str(TEXT("AssetType"));
+		if (Arguments->HasField(TEXT("PathFilter"))) PathFilter = CapArgs.Str(TEXT("PathFilter"));
+		if (Arguments->HasField(TEXT("NameFilter"))) NameFilter = CapArgs.Str(TEXT("NameFilter"));
+		if (Arguments->HasField(TEXT("Query")))      Query      = CapArgs.Str(TEXT("Query"));
 	}
 
 	AssetType.TrimStartAndEndInline();
@@ -301,7 +301,7 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 	Query.TrimStartAndEndInline();
 
 	const FString TypeLower = NormalizeAssetTypeShortcut(AssetType.ToLower());
-	const bool bIsAllType = TypeLower.IsEmpty() || TypeLower == TEXT("all");
+	const bool bIsAllType = TypeLower.IsEmpty() || TypeLower == TEXT("All");
 	const bool bBroadPath = PathFilter.IsEmpty()
 		|| PathFilter == TEXT("/Game")
 		|| PathFilter == TEXT("/Game/");
@@ -310,7 +310,7 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 	if (bIsAllType && bBroadPath && bNoTextFilter)
 	{
 		return FCapabilityResult::MakeArgInvalid(
-			TEXT("Overly broad search: assetType=all with pathFilter=/Game/ scans the entire project. Specify assetType (Widget/Blueprint/...) and a feature-level pathFilter (e.g. /Game/Feature/MyModule/), or add nameFilter/query."));
+			TEXT("Overly broad search: AssetType=all with PathFilter=/Game/ scans the entire project. Specify AssetType (Widget/Blueprint/...) and a feature-level PathFilter (e.g. /Game/Feature/MyModule/), or add NameFilter/query."));
 	}
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -323,8 +323,8 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 
 		if (Arguments.IsValid())
 		{
-			if (Arguments->HasField(TEXT("offset"))) Offset = FMath::Max(0, static_cast<int32>(CapArgs.Num(TEXT("offset"))));
-			if (Arguments->HasField(TEXT("limit")))  Limit  = FMath::Clamp(static_cast<int32>(CapArgs.Num(TEXT("limit"))), 1, 500);
+			if (Arguments->HasField(TEXT("Offset"))) Offset = FMath::Max(0, static_cast<int32>(CapArgs.Num(TEXT("Offset"))));
+			if (Arguments->HasField(TEXT("Limit")))  Limit  = FMath::Clamp(static_cast<int32>(CapArgs.Num(TEXT("Limit"))), 1, 500);
 		}
 
 		IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
@@ -348,9 +348,9 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			AllEntries.Add(E);
 		};
 
-		const bool bIsAll = (TypeLower == TEXT("all"));
+		const bool bIsAll = (TypeLower == TEXT("All"));
 
-		/** 表驱动分支执行：命中 Aliases（或 assetType=all）时按 Entry.Class 查 AssetRegistry 写入 AddEntry。 */
+		/** 表驱动分支执行：命中 Aliases（或 AssetType=all）时按 Entry.Class 查 AssetRegistry 写入 AddEntry。 */
 		auto RunTypeEntry = [&](const FNexusSearchTypeEntry& Entry)
 		{
 			if (!Entry.Class) return;
@@ -399,7 +399,7 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			RunTypeEntry(Entry);
 		}
 
-		if (bIsAll || TypeLower == TEXT("blendspace") || TypeLower == TEXT("blend_space"))
+		if (bIsAll || TypeLower == TEXT("blendspace") || TypeLower == TEXT("BlendSpace"))
 		{
 			FARFilter Filter;
 			NEXUS_FILTER_ADD_CLASS(Filter, UBlendSpace::StaticClass());
@@ -410,8 +410,8 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			Registry.GetAssets(Filter, Assets);
 			for (const FAssetData& A : Assets)
 			{
-				const bool b1D = A.GetClass() && A.GetClass()->IsChildOf(UBlendSpace1D::StaticClass());
-				AddEntry(A, b1D ? TEXT("BlendSpace1D") : TEXT("BlendSpace"));
+				const bool bIsBlendSpace1D = A.GetClass() && A.GetClass()->IsChildOf(UBlendSpace1D::StaticClass());
+				AddEntry(A, bIsBlendSpace1D ? TEXT("BlendSpace1D") : TEXT("BlendSpace"));
 			}
 		}
 
@@ -434,15 +434,15 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			}
 		};
 
-		if (bIsAll || TypeLower == TEXT("gameplayability") || TypeLower == TEXT("gameplay_ability"))
+		if (bIsAll || TypeLower == TEXT("gameplayability") || TypeLower == TEXT("GameplayAbility"))
 		{
 			AddGasBlueprintEntries(TEXT("GameplayAbility"), TEXT("GameplayAbility"));
 		}
-		if (bIsAll || TypeLower == TEXT("gameplayeffect") || TypeLower == TEXT("gameplay_effect"))
+		if (bIsAll || TypeLower == TEXT("gameplayeffect") || TypeLower == TEXT("GameplayEffect"))
 		{
 			AddGasBlueprintEntries(TEXT("GameplayEffect"), TEXT("GameplayEffect"));
 		}
-		if (bIsAll || TypeLower == TEXT("attributeset") || TypeLower == TEXT("attribute_set"))
+		if (bIsAll || TypeLower == TEXT("attributeset") || TypeLower == TEXT("AttributeSet"))
 		{
 			AddGasBlueprintEntries(TEXT("AttributeSet"), TEXT("AttributeSet"));
 		}
@@ -475,7 +475,7 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		else
 		{
 			OutError = FString::Printf(
-				TEXT("Unknown assetType '%s'. Use a UClass name (e.g. AnimSequence, SkeletalMesh) or a shortcut (Blueprint/Widget/Struct/DataTable/DataAsset/Material/MaterialInstance/AnimMontage/AnimBlueprint/BehaviorTree/Blackboard/AnimSequence/SkeletalMesh/Skeleton/Texture2D/StaticMesh/GameplayAbility/…/all)."),
+				TEXT("Unknown AssetType '%s'. Use a UClass name (e.g. AnimSequence, SkeletalMesh) or a shortcut (Blueprint/Widget/Struct/DataTable/DataAsset/Material/MaterialInstance/AnimMontage/AnimBlueprint/BehaviorTree/Blackboard/AnimSequence/SkeletalMesh/Skeleton/Texture2D/StaticMesh/GameplayAbility/…/all)."),
 				*AssetType);
 			return;
 		}
@@ -502,7 +502,7 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		const int32 Total = AllEntries.Num();
 		int32 Start, End; FNexusJsonUtils::ComputeSlice(Total, Offset, Limit, Start, End);
 
-		// 指定具体 assetType（非 all）时，整页 recommended* 相同 → 提到顶层，避免逐条重复
+		// 指定具体 AssetType（非 all）时，整页 recommended* 相同 → 提到顶层，避免逐条重复
 		const bool bHoistRecommended = !bIsAll && Start < End;
 		FString PageRecommendedGet, PageRecommendedManage;
 		if (bHoistRecommended)
@@ -517,46 +517,46 @@ FCapabilityResult FSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 			const FEntry& E = AllEntries[i];
 			TSharedPtr<FJsonObject> EntryObj = MakeShared<FJsonObject>();
 			EntryObj->SetStringField(TEXT("name"),      E.Name);
-			EntryObj->SetStringField(TEXT("path"),      E.Path);
-			EntryObj->SetStringField(TEXT("assetType"), E.Type);
+			EntryObj->SetStringField(TEXT("Path"),      E.Path);
+			EntryObj->SetStringField(TEXT("AssetType"), E.Type);
 			if (!bHoistRecommended)
 			{
-				// assetType=all / 混合页：逐条保留推荐，避免顶层单一值误导
+				// AssetType=all / 混合页：逐条保留推荐，避免顶层单一值误导
 				FString RecommendedGet, RecommendedManage;
 				FNexusCapabilityRegistry::Get().ResolveSearchAssetRoute(E.Type, RecommendedGet, RecommendedManage);
 				if (!RecommendedGet.IsEmpty())
 				{
-					EntryObj->SetStringField(TEXT("recommendedGet"), RecommendedGet);
+					EntryObj->SetStringField(TEXT("RecommendedGet"), RecommendedGet);
 				}
 				if (!RecommendedManage.IsEmpty())
 				{
-					EntryObj->SetStringField(TEXT("recommendedManage"), RecommendedManage);
+					EntryObj->SetStringField(TEXT("RecommendedManage"), RecommendedManage);
 				}
 			}
-			if (!E.ParentClass.IsEmpty())    EntryObj->SetStringField(TEXT("parentClass"),    E.ParentClass);
-			if (!E.RowStruct.IsEmpty())      EntryObj->SetStringField(TEXT("rowStruct"),      E.RowStruct);
-			if (!E.ParentMaterial.IsEmpty()) EntryObj->SetStringField(TEXT("parentMaterial"), E.ParentMaterial);
+			if (!E.ParentClass.IsEmpty())    EntryObj->SetStringField(TEXT("ParentClass"),    E.ParentClass);
+			if (!E.RowStruct.IsEmpty())      EntryObj->SetStringField(TEXT("RowStruct"),      E.RowStruct);
+			if (!E.ParentMaterial.IsEmpty()) EntryObj->SetStringField(TEXT("ParentMaterial"), E.ParentMaterial);
 			PageArray.Add(MakeShared<FJsonValueObject>(EntryObj));
 		}
 
 		// 分页与 assets 放顶层（与旧版顶层 assets 兼容；避免 results[{assets}] 双层信封）
-		OutTop->SetNumberField(TEXT("totalCount"), Total);
-		OutTop->SetNumberField(TEXT("offset"),     Start);
-		OutTop->SetNumberField(TEXT("limit"),      Limit);
+		OutTop->SetNumberField(TEXT("TotalCount"), Total);
+		OutTop->SetNumberField(TEXT("Offset"),     Start);
+		OutTop->SetNumberField(TEXT("Limit"),      Limit);
 		if (bHoistRecommended)
 		{
 			if (!PageRecommendedGet.IsEmpty())
 			{
-				OutTop->SetStringField(TEXT("recommendedGet"), PageRecommendedGet);
+				OutTop->SetStringField(TEXT("RecommendedGet"), PageRecommendedGet);
 			}
 			if (!PageRecommendedManage.IsEmpty())
 			{
-				OutTop->SetStringField(TEXT("recommendedManage"), PageRecommendedManage);
+				OutTop->SetStringField(TEXT("RecommendedManage"), PageRecommendedManage);
 			}
 		}
-		OutTop->SetArrayField(TEXT("assets"), PageArray);
+		OutTop->SetArrayField(TEXT("Assets"), PageArray);
 	
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FSearchAssetCapability)
+REGISTER_MCP_CAPABILITY(FNexusSearchAssetCapability)

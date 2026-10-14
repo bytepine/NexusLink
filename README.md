@@ -18,7 +18,7 @@
 4. 从 [NexusDesktop Releases](https://github.com/bytepine/NexusDesktop/releases) 下载当前最新正式版：Windows 选 `*-setup.exe`，macOS 选 `.dmg`；`*-update.zip` 不是安装包
 5. 启动 NexusDesktop，在托盘勾选 **启用中转服务器**（默认 `:6700`），确认状态行显示当前 UE 项目
 6. 托盘选择 **MCP 客户端配置…**，选 **Streamable HTTP** 和 Cursor / CodeBuddy，将生成的配置粘贴到 AI 客户端
-7. 重启 MCP 会话；默认 SearchMode 下应看到 `search_capabilities`、`call_capability`、`submit_feedback` 3 个元工具
+7. 重启 MCP 会话；默认 SearchMode 下应看到 `SearchCapabilities`、`CallCapability`、`SubmitFeedback` 3 个元工具
 
 > **安全**：MCP 身份验证默认开启。Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中；分享截图前必须打码。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
 
@@ -38,7 +38,7 @@ NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。本机只开一个代理�
 ## 运行时 / Dedicated Server 调试
 
 - 编辑器和 PIE 可使用 Preferences 开关；Development / DebugGame 的独立 Game、`-game` / `-server` 子进程及 commandlet 不读取该开关，启动时显式追加 `-EnableNexusMcp`
-- 若默认端口已被其他 UE 进程占用，服务会自动换成下一个端口；在 NexusDesktop 中选择对应实例。多开时按 `/status.hostKind` 区分 Editor / Game / DedicatedServer（不随 PIE 变）；当前编辑器关卡用 `get_editor_context` 的 `current_map`
+- 若默认端口已被其他 UE 进程占用，服务会自动换成下一个端口；在 NexusDesktop 中选择对应实例。多开时按 `/status.HostKind` 区分 Editor / Game / DedicatedServer（不随 PIE 变）；当前编辑器关卡用 `GetEditorContext` 的 `CurrentMap`
 
 - PIE / 独立 Game 可用 `NexusLink.Mcp panel` 查看状态并临时开关 Capability；Dedicated Server 无视口，使用 `NexusLink.Mcp status`
 - Runtime Capability 可调试日志、Actor 属性、动画、行为树、GAS、Widget 等；Dedicated Server 没有视口和 UMG
@@ -48,7 +48,7 @@ GAS / Niagara 等 Capability 按宿主项目插件探测，NexusLink **不**在 
 
 ## 可选插件 Capability：[NexusLinkExt](https://github.com/bytepine/NexusLinkExt)
 
-UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) 后，它们注册进同一套 MCP，用 `search_capabilities` 发现。示例工程 [NexusUnreal](https://github.com/bytepine/NexusUnreal) 以子模块挂在 `Plugins/NexusLinkExt`。Ext 单独发版（tag `nexus-linkext-v*`，产物 `nexus-mcp-ext-<ver>.zip`）。当前 Ext 提供 UnLua 运行时调试和蓝图绑定；其中 `eval_runtime_lua` / `dofile_runtime_lua` 与下面的脚本逃生舱一样默认禁用。
+UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) 后，它们注册进同一套 MCP，用 `SearchCapabilities` 发现。示例工程 [NexusUnreal](https://github.com/bytepine/NexusUnreal) 以子模块挂在 `Plugins/NexusLinkExt`。Ext 单独发版（tag `nexus-linkext-v*`，产物 `nexus-mcp-ext-<ver>.zip`）。当前 Ext 提供 UnLua 运行时调试和蓝图绑定；其中 `EvalRuntimeLua` / `DofileRuntimeLua` 与下面的脚本逃生舱一样默认禁用。
 
 ## 示例工程
 
@@ -56,31 +56,31 @@ UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](http
 
 ## 能力范围
 
-默认 **SearchMode**：`tools/list` 仅 3 个元工具（`search_capabilities` / `call_capability` / `submit_feedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara，以及 PIE / 独立 Game / Dedicated Server 运行时调试。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
+默认 **SearchMode**：`tools/list` 仅 3 个元工具（`SearchCapabilities` / `CallCapability` / `SubmitFeedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara，以及 PIE / 独立 Game / Dedicated Server 运行时调试。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
 
 ## 危险 Capability（默认全部禁用）
 
-本插件里的脚本逃生舱是 `exec_command` 与 `exec_python`，带 `dangerous` 标签。**Editor Preferences → Plugins → NexusLink → 危险 Capability → 访问模式**：
+本插件里的脚本逃生舱是 `ExecCommand` 与 `ExecPython`，带 `dangerous` 标签。**Editor Preferences → Plugins → NexusLink → 危险 Capability → 访问模式**：
 
 | 模式 | 行为 |
 |---|---|
 | **全部禁用**（默认） | search 报 `disabled`，调用失败。树里保留勾选记录，置灰不可改 |
-| **每次手动确认** | 沿用勾选记录，可改。勾选的可被 search/调用，每次执行前编辑器弹窗。AI 须传 `reason`（目的、预期效果、为何没有更安全的专用 cap）。允许仅针对**本次**；拒绝返回 `errorKind=user_denied`（不要重试）。超时（默认 90s）自动拒绝。全屏 PIE 下请先退出沉浸模式 |
+| **每次手动确认** | 沿用勾选记录，可改。勾选的可被 search/调用，每次执行前编辑器弹窗。AI 须传 `Reason`（目的、预期效果、为何没有更安全的专用 cap）。允许仅针对**本次**；拒绝返回 `ErrorKind=UserDenied`（不要重试）。超时（默认 90s）自动拒绝。全屏 PIE 下请先退出沉浸模式 |
 | **自定义开启** | 在 Capability 树逐项勾选；勾上则始终允许、不弹窗 |
 
 启动加 `-NexusEnableDangerousCaps` 仍会话级视为当前已注册的危险 Capability 全部始终允许（不写盘），覆盖访问模式。手动勾选过的不会被后续升级覆盖；升级时若已有任一危险 cap 启用则迁到「自定义开启」。
 
 | Capability | 做什么 | 附加前提 |
 |---|---|---|
-| `exec_command` | 执行 UE 控制台命令并捕获输出 | — |
-| `exec_python` | 编辑器内执行 Python（`exec` / `file` / `eval`），回 stdout 与 traceback | 宿主启用 Python Editor Script Plugin |
+| `ExecCommand` | 执行 UE 控制台命令并捕获输出 | — |
+| `ExecPython` | 编辑器内执行 Python（`Exec` / `File` / `Eval`），回 stdout 与 traceback | 宿主启用 Python Editor Script Plugin |
 
-> 只读探测走 **`get_python_api`**：它同样需要 Python Editor Script Plugin，但只做 `inspect`，参数经白名单校验后嵌入固定脚本，不接受用户代码，因此**默认开启**。想知道某个 `unreal.*` API 在本引擎版本上存不存在，用它，不必为此打开 `exec_python`。
+> 只读探测走 **`GetPythonApi`**：它同样需要 Python Editor Script Plugin，但只做 `inspect`，参数经白名单校验后嵌入固定脚本，不接受用户代码，因此**默认开启**。想知道某个 `unreal.*` API 在本引擎版本上存不存在，用它，不必为此打开 `ExecPython`。
 
 ### 为什么默认关
 
 - **等价于进程内任意代码执行**：Python 可 `import os`、读写任意文件、起子进程。一旦开启，身份验证就成了唯一防线，按 Capability 的启用/禁用粒度全部失效。
-- **写路径的安全网只剩半张**：其余 Capability 的写操作统一包 `FNexusEditorTransaction`（可 Undo，`calls[]` 批量失败整体回滚）。`exec_python` 同样开了事务，但 UE 只记录调用过 `Modify()` 的对象：Python 里最自然的 `obj.foo = x` 走 `NotifyMode::Never`，**不进事务**；只有 `obj.set_editor_property(...)` 与显式 `obj.modify()` 会。脚本混用两种写法时 Ctrl+Z 只回滚一半，资产会落进一个从未存在过的中间态。返回里的 `undoRecorded` 如实回报本次是否产生了可回滚记录。此外 `create_asset` / `delete_asset` / `save_asset` 等包级操作本来就不在事务范围内。
+- **写路径的安全网只剩半张**：其余 Capability 的写操作统一包 `FNexusEditorTransaction`（可 Undo，`calls[]` 批量失败整体回滚）。`ExecPython` 同样开了事务，但 UE 只记录调用过 `Modify()` 的对象：Python 里最自然的 `obj.foo = x` 走 `NotifyMode::Never`，**不进事务**；只有 `obj.set_editor_property(...)` 与显式 `obj.modify()` 会。脚本混用两种写法时 Ctrl+Z 只回滚一半，资产会落进一个从未存在过的中间态。返回里的 `bUndoRecorded` 如实回报本次是否产生了可回滚记录。此外 `create_asset` / `DeleteAsset` / `SaveAsset` 等包级操作本来就不在事务范围内。
 - **容易崩编辑器**：模型现写的脚本很容易碰到错误线程、失效对象或 GC，崩溃后也难归因。
 
 ### 与默认开启的 Capability 的取舍
@@ -88,7 +88,7 @@ UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](http
 | 维度 | 声明式 Capability（默认开） | 脚本逃生舱（默认关） |
 |---|---|---|
 | 覆盖面 | 覆盖已实现的域，没做的做不了 | 引擎暴露多少就能做多少，长尾全覆盖 |
-| 参数 | JSON Schema 校验，错参立即 `arg_invalid` | 自由文本，错误要等运行期 traceback |
+| 参数 | JSON Schema 校验，错参立即 `ArgInvalid` | 自由文本，错误要等运行期 traceback |
 | 返回 | 结构化 + `*_defaults` 压缩，token 可控 | 非结构化 stdout，容易打爆响应体 |
 | 可撤销 | 统一事务包裹 | 仅 `set_editor_property` / `modify()` 路径可撤；直接赋值与包级操作不可，易半回滚 |
 | 控制流 | `calls[]` 只能批量，无条件与循环 | 任意分支循环，一次往返做完 |
@@ -96,7 +96,7 @@ UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](http
 
 ### 什么时候才用
 
-先 `search_capabilities` 找专用 cap。只有三种情况值得开逃生舱：目标能力确实**没有**对应 Capability（顺手 `submit_feedback` 提一条）；需要一段带条件或循环的批处理；排查某个 cap 自身的 bug。用完建议关回去。
+先 `SearchCapabilities` 找专用 cap。只有三种情况值得开逃生舱：目标能力确实**没有**对应 Capability（顺手 `SubmitFeedback` 提一条）；需要一段带条件或循环的批处理；排查某个 cap 自身的 bug。用完建议关回去。
 
 ## 文档
 

@@ -21,8 +21,8 @@ class TranslateParamTextTests(unittest.TestCase):
         self.assertEqual(translate_param_text(src), src)
 
     def test_identifier_not_split(self) -> None:
-        out = translate_param_text("assetPath of the package")
-        self.assertIn("assetPath", out)
+        out = translate_param_text("AssetPath of the package")
+        self.assertIn("AssetPath", out)
 
     def test_keep_path(self) -> None:
         out = translate_param_text("Feature path prefix (avoid bare /Game/ on large projects)")
@@ -47,19 +47,19 @@ class ParamDescTests(unittest.TestCase):
         )
 
     def test_exact_overlay_wins_over_name_fallback(self) -> None:
-        """同名参数在不同 cap 里语义可能完全不同（scriptPath 在 Lua 指 Content/Script/，
+        """同名参数在不同 cap 里语义可能完全不同（ScriptPath 在 Lua 指 Content/Script/，
         在 Python 指 Content/Python/），精确命中不得被按名兜底覆盖。"""
         en = "Python file path relative to Content/Python/; required in file mode"
         locale = self._locale({en: "相对 Content/Python/ 的 .py 路径；file 模式必填"},
-                              {"scriptPath": self.LUA_ZH})
-        out = locale.param_desc("scriptPath", en, {})
+                              {"ScriptPath": self.LUA_ZH})
+        out = locale.param_desc("ScriptPath", en, {})
         self.assertIn("Content/Python/", out)
         self.assertNotIn("Lua", out)
 
     def test_name_fallback_still_applies_without_exact(self) -> None:
         """没有精确译文且启发式译不动时，仍要回落到按名兜底。"""
-        locale = self._locale({}, {"scriptPath": self.LUA_ZH})
-        out = locale.param_desc("scriptPath", "Arbitrary opaque payload blob", {})
+        locale = self._locale({}, {"ScriptPath": self.LUA_ZH})
+        out = locale.param_desc("ScriptPath", "Arbitrary opaque payload blob", {})
         self.assertEqual(out, self.LUA_ZH)
 
 

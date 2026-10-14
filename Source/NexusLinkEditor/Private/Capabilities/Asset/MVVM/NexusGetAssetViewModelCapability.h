@@ -7,8 +7,8 @@
 
 #include "NexusCapability.h"
 
-/** get_asset_view_model — 只读检查 Widget 蓝图上挂载的 MVVM ViewModel 与 Binding。UE 5.5+。 */
-class FGetAssetViewModelCapability : public FNexusCapability
+/** GetAssetViewModel — 只读检查 Widget 蓝图上挂载的 MVVM ViewModel 与 Binding。UE 5.5+。 */
+class FNexusGetAssetViewModelCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

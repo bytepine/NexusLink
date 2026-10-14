@@ -8,8 +8,8 @@
 
 #include "NexusCapability.h"
 
-/** create_asset_eqs — 创建空白 UEnvQuery（Environmental Query System，UE5+）。 */
-class FCreateAssetEQSCapability : public FNexusCapability
+/** CreateAssetEQS — 创建空白 UEnvQuery（Environmental Query System，UE5+）。 */
+class FNexusCreateAssetEQSCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

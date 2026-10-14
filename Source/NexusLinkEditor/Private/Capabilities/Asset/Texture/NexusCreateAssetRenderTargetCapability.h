@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** create_asset_render_target：创建 TextureRenderTarget2D 资产。 */
-class FCreateAssetRenderTargetCapability : public FNexusCapability
+/** CreateAssetRenderTarget：创建 TextureRenderTarget2D 资产。 */
+class FNexusCreateAssetRenderTargetCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -13,53 +13,53 @@
 #include "Components/AudioComponent.h"
 #include "NexusMcpTool.h"
 
-void FInteractRuntimeActorAudioCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusInteractRuntimeActorAudioCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("interact_runtime_actor_audio");
-	Out.Description = TEXT("Play sound at runtime. action=play_sound; optional attach Actor.");
+	Out.Name = TEXT("InteractRuntimeActorAudio");
+	Out.Description = TEXT("Play sound at runtime. Action=PlaySound; optional attach Actor.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("play_sound") }))
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundCue/SoundWave path")))
-		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Optional: attach to this Actor")))
-		.Required({ TEXT("action"), TEXT("assetPath") })
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("PlaySound") }))
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("SoundCue/SoundWave path")))
+		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Optional: attach to this Actor")))
+		.Required({ TEXT("Action"), TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("sound"), TEXT("audio"), TEXT("play"), TEXT("sfx") };
-	Out.RelatedCapabilities = { TEXT("get_asset_sound_cue"), TEXT("get_asset_sound_wave") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.ExtraSearchKeywords = { TEXT("Sound"), TEXT("audio"), TEXT("play"), TEXT("sfx") };
+	Out.RelatedCapabilities = { TEXT("GetAssetSoundCue"), TEXT("GetAssetSoundWave") };
+	Out.Prerequisites = { TEXT("PIE") };
 	Out.WhenToUse = TEXT("Play sound in PIE; can attach to Actor");
 }
 
-FCapabilityResult FInteractRuntimeActorAudioCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusInteractRuntimeActorAudioCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString Action = A.Str(TEXT("action"));
+		const FString Action = A.Str(TEXT("Action"));
 		FString AssetPath, ActorName;
-		AssetPath = FNexusArgs(Arguments).Str(TEXT("assetPath"), AssetPath);
-		ActorName = FNexusArgs(Arguments).Str(TEXT("actorName"), ActorName);
+		AssetPath = FNexusArgs(Arguments).Str(TEXT("AssetPath"), AssetPath);
+		ActorName = FNexusArgs(Arguments).Str(TEXT("ActorName"), ActorName);
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("action"), Action);
-		if (!Action.Equals(TEXT("play_sound"), ESearchCase::IgnoreCase))
+		Entry->SetStringField(TEXT("Action"), Action);
+		if (!Action.Equals(TEXT("PlaySound"), ESearchCase::IgnoreCase))
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("Only supports play_sound"));
+			Entry->SetStringField(TEXT("Error"), TEXT("Only supports PlaySound"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 		if (AssetPath.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("play_sound requires assetPath"));
+			Entry->SetStringField(TEXT("Error"), TEXT("PlaySound requires AssetPath"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 		USoundBase* Sound = LoadObject<USoundBase>(nullptr, *AssetPath);
 		if (!Sound)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Audio asset not found: %s"), *AssetPath));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Audio asset not found: %s"), *AssetPath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -68,21 +68,21 @@ FCapabilityResult FInteractRuntimeActorAudioCapability::Execute(const TSharedPtr
 			AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
 			if (!Actor)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
 			UGameplayStatics::SpawnSoundAttached(Sound, Actor->GetRootComponent());
-			Entry->SetStringField(TEXT("actorName"), Actor->GetName());
+			Entry->SetStringField(TEXT("ActorName"), Actor->GetName());
 		}
 		else
 		{
 			UGameplayStatics::PlaySound2D(World, Sound);
 		}
-		Entry->SetStringField(TEXT("sound"), Sound->GetName());
-		Entry->SetBoolField(TEXT("played"), true);
+		Entry->SetStringField(TEXT("Sound"), Sound->GetName());
+		Entry->SetBoolField(TEXT("bPlayed"), true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FInteractRuntimeActorAudioCapability)
+REGISTER_MCP_CAPABILITY(FNexusInteractRuntimeActorAudioCapability)

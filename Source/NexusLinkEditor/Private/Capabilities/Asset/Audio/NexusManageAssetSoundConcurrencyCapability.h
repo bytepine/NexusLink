@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_sound_concurrency：设置 SoundConcurrency 属性。 */
-class FManageAssetSoundConcurrencyCapability : public FNexusActionCapability
+/** ManageAssetSoundConcurrency：设置 SoundConcurrency 属性。 */
+class FNexusManageAssetSoundConcurrencyCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -7,8 +7,8 @@
 
 #if WITH_IK_RIG
 
-/** create_asset_ik_rig — 创建空白 IKRig 资产。 */
-class FCreateAssetIKRigCapability : public FNexusCapability
+/** CreateAssetIKRig — 创建空白 IKRig 资产。 */
+class FNexusCreateAssetIKRigCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

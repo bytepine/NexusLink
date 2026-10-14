@@ -27,7 +27,7 @@ struct FNexusCapabilityLookup final
 	};
 };
 
-/** 按名解析（大小写不敏感）；与 call_capability 一致区分不存在 vs 设置禁用 vs 宿主不可用。 */
+/** 按名解析（大小写不敏感）；与 CallCapability 一致区分不存在 vs 设置禁用 vs 宿主不可用。 */
 static FNexusCapabilityLookup::EStatus ResolveCapabilityByName(
 		const FString& Name, const UNexusLinkSettings* Settings, const FCapRecord*& OutRecord)
 {
@@ -56,9 +56,9 @@ static void EmitCapabilityDetailFromRecord(const FCapRecord& Record, TSharedPtr<
 	TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
 	O->SetStringField(TEXT("name"),        Record.Def.Name);
 	O->SetStringField(TEXT("description"), Record.Def.Description);
-	O->SetArrayField(TEXT("parameters"),   FNexusCapabilityIndexUtils::ExtractParameters(Record.Def.InputSchema));
+	O->SetArrayField(TEXT("Parameters"),   FNexusCapabilityIndexUtils::ExtractParameters(Record.Def.InputSchema));
 	FNexusCapabilityIndexUtils::AttachMetaHints(O, Record.Def);
-	Output->SetObjectField(TEXT("capability"), O);
+	Output->SetObjectField(TEXT("Capability"), O);
 }
 
 static void EmitCapabilityLookupError(FNexusCapabilityLookup::EStatus Status, const FString& RequestedName,
@@ -66,29 +66,29 @@ static void EmitCapabilityLookupError(FNexusCapabilityLookup::EStatus Status, co
 {
 	if (Status == FNexusCapabilityLookup::EStatus::NotFound)
 	{
-		Output->SetStringField(TEXT("errorKind"), TEXT("not_found"));
-		Output->SetStringField(TEXT("error"),
+		Output->SetStringField(TEXT("ErrorKind"), TEXT("NotFound"));
+		Output->SetStringField(TEXT("Error"),
 				FString::Printf(TEXT("Capability '%s' does not exist."), *RequestedName));
 		return;
 	}
 	check(Record);
 	if (Status == FNexusCapabilityLookup::EStatus::Unavailable)
 	{
-		Output->SetStringField(TEXT("errorKind"), TEXT("unavailable"));
-		Output->SetStringField(TEXT("capabilityName"), Record->Def.Name);
-		Output->SetStringField(TEXT("error"),
+		Output->SetStringField(TEXT("ErrorKind"), TEXT("unavailable"));
+		Output->SetStringField(TEXT("CapabilityName"), Record->Def.Name);
+		Output->SetStringField(TEXT("Error"),
 				FString::Printf(
 					TEXT("Capability '%s' is unavailable on the current host (Dedicated Server / Game exposes runtime capabilities only)."),
 					*Record->Def.Name));
 		return;
 	}
-	Output->SetStringField(TEXT("errorKind"), TEXT("disabled"));
-	Output->SetStringField(TEXT("capabilityName"), Record->Def.Name);
-	Output->SetStringField(TEXT("error"),
+	Output->SetStringField(TEXT("ErrorKind"), TEXT("disabled"));
+	Output->SetStringField(TEXT("CapabilityName"), Record->Def.Name);
+	Output->SetStringField(TEXT("Error"),
 			FString::Printf(TEXT("Capability '%s' is disabled in settings."), *Record->Def.Name));
 		if (Record->Def.HasTag(FNexusMcpTags::Dangerous))
 		{
-			Output->SetStringField(TEXT("hint"),
+			Output->SetStringField(TEXT("Hint"),
 				TEXT("Set Editor Preferences → NexusLink → Dangerous Capability access to Confirm or Custom."));
 		}
 }
@@ -127,10 +127,10 @@ static void AppendDisabledCapabilityMatches(const TArray<FString>& Tokens, bool 
 		TSharedPtr<FJsonObject> E = MakeShared<FJsonObject>();
 		E->SetStringField(TEXT("name"),        Record.Def.Name);
 		E->SetStringField(TEXT("description"), Record.Def.Description);
-		E->SetNumberField(TEXT("score"),       Score);
+		E->SetNumberField(TEXT("Score"),       Score);
 		if (bRelaxed)
 		{
-			E->SetNumberField(TEXT("matchedTokens"), Matched);
+			E->SetNumberField(TEXT("MatchedTokens"), Matched);
 		}
 		Scored.Add({ Score, E });
 	}
@@ -152,25 +152,25 @@ static bool IsOverBroadCapabilityQuery(const FString& TokenLower, TArray<FString
 	if (TokenLower == TEXT("blueprint"))
 	{
 		OutSuggested = {
-			TEXT("blueprint graph"), TEXT("blueprint variable"), TEXT("get_asset_blueprint")
+			TEXT("blueprint graph"), TEXT("blueprint variable"), TEXT("GetAssetBlueprint")
 		};
 		return true;
 	}
-	if (TokenLower == TEXT("asset"))
+	if (TokenLower == TEXT("Asset"))
 	{
 		OutSuggested = {
 			TEXT("search asset"), TEXT("get asset"), TEXT("manage asset")
 		};
 		return true;
 	}
-	if (TokenLower == TEXT("runtime"))
+	if (TokenLower == TEXT("Runtime"))
 	{
 		OutSuggested = {
 			TEXT("runtime actor"), TEXT("runtime widget"), TEXT("runtime niagara")
 		};
 		return true;
 	}
-	if (TokenLower == TEXT("animation"))
+	if (TokenLower == TEXT("Animation"))
 	{
 		OutSuggested = {
 			TEXT("runtime animation"), TEXT("anim montage"), TEXT("anim blueprint")
@@ -184,8 +184,8 @@ static bool TryGatedPluginHint(const FString& QueryLower, FString& OutHint)
 {
 	struct FGate { const TCHAR* Needle; const TCHAR* Hint; };
 	static const FGate Gates[] = {
-		{ TEXT("niagara"),    TEXT("Niagara capabilities require the Niagara plugin; not registered on this host—do not retry. Use query=\"\" to list the local catalog.") },
-		{ TEXT("gameplay"),   TEXT("GAS capabilities require GameplayAbilities; not registered on this host—do not retry. Use get_gameplay_tags for tag queries.") },
+		{ TEXT("niagara"),    TEXT("Niagara capabilities require the Niagara plugin; not registered on this host—do not retry. Use Query=\"\" to list the local catalog.") },
+		{ TEXT("gameplay"),   TEXT("GAS capabilities require GameplayAbilities; not registered on this host—do not retry. Use GetGameplayTags for tag queries.") },
 		{ TEXT("statetree"),  TEXT("StateTree requires UE 5.5+ and the plugin; not registered on this host—do not retry.") },
 		{ TEXT("state tree"), TEXT("StateTree requires UE 5.5+ and the plugin; not registered on this host—do not retry.") },
 		{ TEXT("mvvm"),       TEXT("MVVM / ViewModel requires UE 5.5+; not registered on this host—do not retry.") },
@@ -215,7 +215,7 @@ static bool TryIntentHint(const FString& QueryLower, FString& OutHint)
 		|| QueryLower.Contains(TEXT("class reflection"))
 		|| QueryLower.Contains(TEXT("native enum")))
 	{
-		OutHint = TEXT("Native C++ UENUM / class reflection is out of scope. Use get_asset_enum for UserDefinedEnum assets.");
+		OutHint = TEXT("Native C++ UENUM / class reflection is out of scope. Use GetAssetEnum for UserDefinedEnum assets.");
 		return true;
 	}
 	return false;
@@ -228,13 +228,13 @@ static void EmitSuggestedQueries(TSharedPtr<FJsonObject>& Output, const TArray<F
 	{
 		Arr.Add(MakeShared<FJsonValueString>(Q));
 	}
-	Output->SetArrayField(TEXT("suggestedQueries"), Arr);
+	Output->SetArrayField(TEXT("SuggestedQueries"), Arr);
 }
 
 void FNexusMcpToolSearchCapabilities::BuildDefinition(FNexusMcpToolDefinition& Out) const
 {
-	Out.Name        = TEXT("search_capabilities");
-	Out.Description = TEXT("[Stage 3 - Discover] Find available capabilities—the first step for any UE operation.\nTrigger: user mentions UE/Blueprint/Widget/UMG/Material/Asset/BehaviorTree/ABP/DataAsset/GAS/Niagara/Level/PIE/Actor; call after instance discovery (read-only, no connect required).\nUsage: known name → capabilityName=<exact>; unknown → query=<narrow 1-2 words, e.g. blueprint variable>. Do not use blueprint/asset/runtime/animation alone. <=2 matches return full parameters[].\nConstraints: on failure check errorKind (not_found/disabled/unavailable/query_too_broad); _feedbackHint requires immediate submit_feedback.");
+	Out.Name        = TEXT("SearchCapabilities");
+	Out.Description = TEXT("[Stage 3 - Discover] Find available capabilities—the first step for any UE operation.\nTrigger: user mentions UE/Blueprint/Widget/UMG/Material/Asset/BehaviorTree/ABP/DataAsset/GAS/Niagara/Level/PIE/Actor; call after instance discovery (read-only, no connect required).\nUsage: known name → CapabilityName=<exact>; unknown → Query=<narrow 1-2 words, e.g. blueprint variable>. Do not use blueprint/asset/runtime/animation alone. <=2 matches return full parameters[].\nConstraints: on failure check ErrorKind (NotFound/disabled/unavailable/QueryTooBroad); FeedbackHint requires immediate SubmitFeedback.");
 
 	TSharedPtr<FJsonObject> Schema = MakeShared<FJsonObject>();
 	Schema->SetStringField(TEXT("type"), TEXT("object"));
@@ -242,20 +242,20 @@ void FNexusMcpToolSearchCapabilities::BuildDefinition(FNexusMcpToolDefinition& O
 	TSharedPtr<FJsonObject> QueryProp = MakeShared<FJsonObject>();
 	QueryProp->SetStringField(TEXT("type"), TEXT("string"));
 	QueryProp->SetStringField(TEXT("description"),
-		TEXT("Narrow keywords (e.g. blueprint variable). Do not use blueprint/asset/runtime/animation alone; use capabilityName for exact names."));
+		TEXT("Narrow keywords (e.g. blueprint variable). Do not use blueprint/asset/runtime/animation alone; use CapabilityName for exact names."));
 
 	TSharedPtr<FJsonObject> NameProp = MakeShared<FJsonObject>();
 	NameProp->SetStringField(TEXT("type"), TEXT("string"));
 	NameProp->SetStringField(TEXT("description"),
-		TEXT("Exact capability name (e.g. get_asset_blueprint). Returns full parameter list when provided."));
+		TEXT("Exact capability name (e.g. GetAssetBlueprint). Returns full parameter list when provided."));
 
 	TSharedPtr<FJsonObject> Props = MakeShared<FJsonObject>();
-	Props->SetObjectField(TEXT("query"),          QueryProp);
-	Props->SetObjectField(TEXT("capabilityName"), NameProp);
+	Props->SetObjectField(TEXT("Query"),          QueryProp);
+	Props->SetObjectField(TEXT("CapabilityName"), NameProp);
 	Schema->SetObjectField(TEXT("properties"), Props);
 
 	TArray<TSharedPtr<FJsonValue>> Required;
-	Required.Add(MakeShared<FJsonValueString>(TEXT("query")));
+	Required.Add(MakeShared<FJsonValueString>(TEXT("Query")));
 	Schema->SetArrayField(TEXT("required"), Required);
 
 	Out.InputSchema = Schema;
@@ -274,15 +274,15 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 
 	if (!Settings)
 	{
-		Output->SetStringField(TEXT("errorKind"), TEXT("internal"));
-		Output->SetStringField(TEXT("error"), TEXT("NexusLink settings unavailable (engine may be shutting down)."));
+		Output->SetStringField(TEXT("ErrorKind"), TEXT("internal"));
+		Output->SetStringField(TEXT("Error"), TEXT("NexusLink settings unavailable (engine may be shutting down)."));
 		Result.StructuredContent = Output;
 		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 		return Result;
 	}
 
-	// ── capabilityName 精确查询：直接返回完整参数列表 ──────────────────────────
-	const FString CapabilityName = Parsed.Str(TEXT("capabilityName"));
+	// ── CapabilityName 精确查询：直接返回完整参数列表 ──────────────────────────
+	const FString CapabilityName = Parsed.Str(TEXT("CapabilityName"));
 	if (!CapabilityName.IsEmpty())
 	{
 		const FCapRecord* Record = nullptr;
@@ -300,20 +300,20 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		return Result;
 	}
 
-	// ── query="" 目录模式：返回所有 cap 按 tag 分组 ────────────────────────────
-	const FString QueryRaw = Parsed.Str(TEXT("query"));
+	// ── Query="" 目录模式：返回所有 cap 按 tag 分组 ────────────────────────────
+	const FString QueryRaw = Parsed.Str(TEXT("Query"));
 
 	if (QueryRaw.TrimStartAndEnd().IsEmpty())
 	{
-		Output->SetStringField(TEXT("hint"),
-			TEXT("Capability catalog (names only). Use capabilityName=<name> for description and parameter schema."));
-		Output->SetObjectField(TEXT("directory"), FNexusCapabilityIndexUtils::BuildDirectory(Settings));
+		Output->SetStringField(TEXT("Hint"),
+			TEXT("Capability catalog (names only). Use CapabilityName=<name> for description and parameter schema."));
+		Output->SetObjectField(TEXT("Directory"), FNexusCapabilityIndexUtils::BuildDirectory(Settings));
 		Result.StructuredContent = Output;
 		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 		return Result;
 	}
 
-	// ── query 精确 cap 名短路（等同 capabilityName）────────────────────────────
+	// ── query 精确 cap 名短路（等同 CapabilityName）────────────────────────────
 	const FString QueryTrimmed = QueryRaw.TrimStartAndEnd();
 	{
 		const FCapRecord* Record = nullptr;
@@ -321,7 +321,7 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		if (Status == FNexusCapabilityLookup::EStatus::Enabled)
 		{
 			EmitCapabilityDetailFromRecord(*Record, Output);
-			Output->SetStringField(TEXT("hint"),
+			Output->SetStringField(TEXT("Hint"),
 				TEXT("Exact capability name match; full parameter schema returned."));
 			Result.StructuredContent = Output;
 			Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
@@ -343,21 +343,21 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		TArray<FString> Suggested;
 		if (GateTokens.Num() == 1 && IsOverBroadCapabilityQuery(GateTokens[0], Suggested))
 		{
-			Output->SetStringField(TEXT("errorKind"), TEXT("query_too_broad"));
-			Output->SetNumberField(TEXT("totalCount"), 0);
-			Output->SetArrayField(TEXT("capabilities"), TArray<TSharedPtr<FJsonValue>>());
-			Output->SetStringField(TEXT("hint"), FString::Printf(
-				TEXT("query=\"%s\" is too broad (matches entire categories). Use a narrow term from suggestedQueries, or capabilityName=<exact name>."),
+			Output->SetStringField(TEXT("ErrorKind"), TEXT("QueryTooBroad"));
+			Output->SetNumberField(TEXT("TotalCount"), 0);
+			Output->SetArrayField(TEXT("Capabilities"), TArray<TSharedPtr<FJsonValue>>());
+			Output->SetStringField(TEXT("Hint"), FString::Printf(
+				TEXT("Query=\"%s\" is too broad (matches entire categories). Use a narrow term from SuggestedQueries, or CapabilityName=<exact name>."),
 				*GateTokens[0]));
 			EmitSuggestedQueries(Output, Suggested);
-			Output->SetStringField(TEXT("_feedbackHint"),
-				TEXT("submit_feedback(category=\"search_overflow\")"));
+			Output->SetStringField(TEXT("FeedbackHint"),
+				TEXT("SubmitFeedback(Category=\"SearchOverflow\")"));
 			FNexusFeedback::FFields F;
-			F.Tool       = TEXT("search_capabilities");
+			F.Tool       = TEXT("SearchCapabilities");
 			F.Query      = QueryRaw;
 			F.MatchCount = 0;
-			F.Note       = TEXT("query_too_broad");
-			FNexusFeedback::RecordAuto(TEXT("search_overflow"), F);
+			F.Note       = TEXT("QueryTooBroad");
+			FNexusFeedback::RecordAuto(TEXT("SearchOverflow"), F);
 			Result.StructuredContent = Output;
 			Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 			return Result;
@@ -387,8 +387,8 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		TSharedPtr<FJsonObject> E = MakeShared<FJsonObject>();
 		E->SetStringField(TEXT("name"),        Record.Def.Name);
 		E->SetStringField(TEXT("description"), Record.Def.Description);
-		E->SetNumberField(TEXT("score"),       Score);
-		E->SetField(TEXT("_schema"),
+		E->SetNumberField(TEXT("Score"),       Score);
+		E->SetField(TEXT("Schema"),
 			MakeShared<FJsonValueObject>(Record.Def.InputSchema.IsValid() ? Record.Def.InputSchema : MakeShared<FJsonObject>()));
 		Scored.Add({ Score, Tokens.Num(), E, &Record.Def });
 	}
@@ -407,9 +407,9 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 			TSharedPtr<FJsonObject> E = MakeShared<FJsonObject>();
 			E->SetStringField(TEXT("name"),        Record.Def.Name);
 			E->SetStringField(TEXT("description"), Record.Def.Description);
-			E->SetNumberField(TEXT("score"),       Score);
-			E->SetNumberField(TEXT("matchedTokens"), Matched);
-			E->SetField(TEXT("_schema"),
+			E->SetNumberField(TEXT("Score"),       Score);
+			E->SetNumberField(TEXT("MatchedTokens"), Matched);
+			E->SetField(TEXT("Schema"),
 				MakeShared<FJsonValueObject>(Record.Def.InputSchema.IsValid() ? Record.Def.InputSchema : MakeShared<FJsonObject>()));
 			Scored.Add({ Score, Matched, E, &Record.Def });
 		}
@@ -442,15 +442,15 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		if (bFull)
 		{
 			const TSharedPtr<FJsonObject>* SchemaObj = nullptr;
-			if (S.Entry->TryGetObjectField(TEXT("_schema"), SchemaObj) && SchemaObj)
-				S.Entry->SetArrayField(TEXT("parameters"), FNexusCapabilityIndexUtils::ExtractParameters(*SchemaObj));
+			if (S.Entry->TryGetObjectField(TEXT("Schema"), SchemaObj) && SchemaObj)
+				S.Entry->SetArrayField(TEXT("Parameters"), FNexusCapabilityIndexUtils::ExtractParameters(*SchemaObj));
 		}
 		else
 		{
 			if (S.Def)
 			{
 				if (!S.Def->WhenToUse.IsEmpty())
-					S.Entry->SetStringField(TEXT("whenToUse"), S.Def->WhenToUse);
+					S.Entry->SetStringField(TEXT("WhenToUse"), S.Def->WhenToUse);
 				// 多命中：related 去重（已在本页结果中的名不重复列），最多 3 条
 				if (S.Def->RelatedCapabilities.Num() > 0)
 				{
@@ -471,22 +471,22 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 					}
 					if (Arr.Num() > 0)
 					{
-						S.Entry->SetArrayField(TEXT("relatedCapabilities"), Arr);
+						S.Entry->SetArrayField(TEXT("RelatedCapabilities"), Arr);
 					}
 				}
 			}
 		}
 		if (bFull && S.Def) FNexusCapabilityIndexUtils::AttachMetaHints(S.Entry, *S.Def);
-		S.Entry->RemoveField(TEXT("_schema"));
+		S.Entry->RemoveField(TEXT("Schema"));
 		CapArr.Add(MakeShared<FJsonValueObject>(S.Entry));
 	}
 
-	Output->SetNumberField(TEXT("totalCount"),  TotalBeforeTrunc);
-	Output->SetArrayField(TEXT("capabilities"), CapArr);
+	Output->SetNumberField(TEXT("TotalCount"),  TotalBeforeTrunc);
+	Output->SetArrayField(TEXT("Capabilities"), CapArr);
 	if (bRelaxedMatch)
-		Output->SetBoolField(TEXT("relaxedMatch"), true);
+		Output->SetBoolField(TEXT("bRelaxedMatch"), true);
 	if (TotalBeforeTrunc > CapArr.Num())
-		Output->SetBoolField(TEXT("truncated"), true);
+		Output->SetBoolField(TEXT("bTruncated"), true);
 
 	if (CapArr.Num() == 0 && Tokens.Num() > 0)
 	{
@@ -494,17 +494,17 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		AppendDisabledCapabilityMatches(Tokens, bRelaxedMatch, Settings, DisabledArr);
 		if (DisabledArr.Num() > 0)
 		{
-			Output->SetStringField(TEXT("errorKind"), TEXT("disabled_only"));
-			Output->SetStringField(TEXT("hint"),
-				TEXT("No enabled matches; names below exist but are disabled in NexusLink settings. For dangerous caps set access mode to Confirm or Custom in Editor Preferences, or query=\"\" for the enabled catalog."));
-			Output->SetArrayField(TEXT("disabledCapabilities"), DisabledArr);
+			Output->SetStringField(TEXT("ErrorKind"), TEXT("DisabledOnly"));
+			Output->SetStringField(TEXT("Hint"),
+				TEXT("No enabled matches; names below exist but are disabled in NexusLink settings. For dangerous caps set access mode to Confirm or Custom in Editor Preferences, or Query=\"\" for the enabled catalog."));
+			Output->SetArrayField(TEXT("DisabledCapabilities"), DisabledArr);
 		}
 		else
 		{
-			FString Hint = TEXT("No matching capability. Try query=\"\" for the full catalog, or capabilityName=<exact name>.");
-			if (QueryRaw.Equals(TEXT("get_asset"), ESearchCase::IgnoreCase))
+			FString Hint = TEXT("No matching capability. Try Query=\"\" for the full catalog, or CapabilityName=<exact name>.");
+			if (QueryRaw.Equals(TEXT("GetAsset"), ESearchCase::IgnoreCase))
 			{
-				Hint = TEXT("No get_asset aggregate tool; use get_asset_<type> (e.g. get_asset_blueprint) or search_asset for paths.");
+				Hint = TEXT("No GetAsset aggregate tool; use get_asset_<type> (e.g. GetAssetBlueprint) or SearchAsset for paths.");
 			}
 			else
 			{
@@ -519,20 +519,20 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 				}
 				else if (!FNexusHostUtils::IsFullEditorCapabilityHost())
 				{
-					Hint = TEXT("No matching capability on this Game/DS host (runtime caps only). Use query=\"\" for the local catalog; connect to an Editor instance (list_unreal_instances hostKind=Editor) for asset tools.");
+					Hint = TEXT("No matching capability on this Game/DS host (runtime caps only). Use Query=\"\" for the local catalog; connect to an Editor instance (list_unreal_instances HostKind=Editor) for asset tools.");
 				}
 			}
-			Output->SetStringField(TEXT("errorKind"), TEXT("not_found"));
-			Output->SetStringField(TEXT("hint"), Hint);
-			Output->SetStringField(TEXT("_feedbackHint"),
-				TEXT("submit_feedback(category=\"search_zero\")"));
+			Output->SetStringField(TEXT("ErrorKind"), TEXT("NotFound"));
+			Output->SetStringField(TEXT("Hint"), Hint);
+			Output->SetStringField(TEXT("FeedbackHint"),
+				TEXT("SubmitFeedback(Category=\"SearchZero\")"));
 		}
 
 		static const TArray<FString> FallbackCaps = {
-			TEXT("search_asset"),
-			TEXT("get_asset_blueprint"),
-			TEXT("get_asset_gameplay_ability"),
-			TEXT("get_runtime_actor_property"),
+			TEXT("SearchAsset"),
+			TEXT("GetAssetBlueprint"),
+			TEXT("GetAssetGameplayAbility"),
+			TEXT("GetRuntimeActorProperty"),
 		};
 		TArray<TSharedPtr<FJsonValue>> TopArr;
 		for (const FString& FbName : FallbackCaps)
@@ -548,27 +548,27 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 			}
 		}
 		if (TopArr.Num() > 0)
-			Output->SetArrayField(TEXT("routingHints"), TopArr);
+			Output->SetArrayField(TEXT("RoutingHints"), TopArr);
 
 		FNexusFeedback::FFields F;
-		F.Tool  = TEXT("search_capabilities");
+		F.Tool  = TEXT("SearchCapabilities");
 		F.Query = QueryRaw;
-		FNexusFeedback::RecordAuto(TEXT("search_zero"), F);
+		FNexusFeedback::RecordAuto(TEXT("SearchZero"), F);
 	}
 	else if (bRelaxedMatch)
 	{
-		Output->SetStringField(TEXT("hint"),
-			TEXT("Strict AND found no match; showing partial-match top results (relaxedMatch). Narrow query or pass capabilityName=<exact name>."));
-		Output->SetStringField(TEXT("_feedbackHint"),
-			TEXT("submit_feedback(category=\"search_zero\")"));
+		Output->SetStringField(TEXT("Hint"),
+			TEXT("Strict AND found no match; showing partial-match top results (bRelaxedMatch). Narrow query or pass CapabilityName=<exact name>."));
+		Output->SetStringField(TEXT("FeedbackHint"),
+			TEXT("SubmitFeedback(Category=\"SearchZero\")"));
 	}
 	else if (!bFull)
 	{
 		const bool bWasTruncated = TotalBeforeTrunc > CapArr.Num();
 		if (bWasTruncated)
 		{
-			Output->SetStringField(TEXT("hint"), FString::Printf(
-				TEXT("Too many results (%d total, showing first %d). Narrow query to 1-2 precise words, or pass capabilityName=<exact name>."),
+			Output->SetStringField(TEXT("Hint"), FString::Printf(
+				TEXT("Too many results (%d total, showing first %d). Narrow query to 1-2 precise words, or pass CapabilityName=<exact name>."),
 				TotalBeforeTrunc, CapArr.Num()));
 
 			// 只在真被截断（结果超出 MaxSearchResults 未能全部返回）时才算 overflow；
@@ -576,18 +576,18 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 			if (TotalBeforeTrunc > Settings->SearchOverflowThreshold)
 			{
 				FNexusFeedback::FFields F;
-				F.Tool       = TEXT("search_capabilities");
+				F.Tool       = TEXT("SearchCapabilities");
 				F.Query      = QueryRaw;
 				F.MatchCount = TotalBeforeTrunc;
-				FNexusFeedback::RecordAuto(TEXT("search_overflow"), F);
-				Output->SetStringField(TEXT("_feedbackHint"),
-					TEXT("submit_feedback(category=\"search_overflow\")"));
+				FNexusFeedback::RecordAuto(TEXT("SearchOverflow"), F);
+				Output->SetStringField(TEXT("FeedbackHint"),
+					TEXT("SubmitFeedback(Category=\"SearchOverflow\")"));
 			}
 		}
 		else
 		{
-			Output->SetStringField(TEXT("hint"),
-				TEXT("Multiple capabilities matched. Check whenToUse/relatedCapabilities, or pass capabilityName=<exact name> for full parameters."));
+			Output->SetStringField(TEXT("Hint"),
+				TEXT("Multiple capabilities matched. Check WhenToUse/RelatedCapabilities, or pass CapabilityName=<exact name> for full parameters."));
 		}
 	}
 
@@ -595,7 +595,7 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		FString IntentHint;
 		if (TryIntentHint(QueryTrimmed.ToLower(), IntentHint))
 		{
-			Output->SetStringField(TEXT("hint"), IntentHint);
+			Output->SetStringField(TEXT("Hint"), IntentHint);
 		}
 	}
 

@@ -16,28 +16,28 @@
 #endif
 #include "NexusMcpTool.h"
 
-void FCreateAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetNiagaraSystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_niagara_system");
-	Out.Description = TEXT("Create empty NiagaraSystem. Module stack via manage add_emitter/add_module.");
+	Out.Name = TEXT("CreateAssetNiagaraSystem");
+	Out.Description = TEXT("Create empty NiagaraSystem. Module stack via manage AddEmitter/AddModule.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("niagara"), TEXT("vfx"), TEXT("particle") };
-	Out.RelatedCapabilities = { TEXT("get_asset_niagara_system"), TEXT("manage_asset_niagara_system") };
+	Out.RelatedCapabilities = { TEXT("GetAssetNiagaraSystem"), TEXT("ManageAssetNiagaraSystem") };
 	Out.WhenToUse = TEXT("Create Niagara system; emitters/modules via manage");
 }
 
-FCapabilityResult FCreateAssetNiagaraSystemCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetNiagaraSystemCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 #if !WITH_EDITOR
-		OutError = TEXT("create_asset_niagara_system only available in editor builds");
+		OutError = TEXT("CreateAssetNiagaraSystem only available in editor builds");
 		return;
 #else
 		if (FNexusAssetUtils::PackageExists(AssetPath))
@@ -95,6 +95,6 @@ FCapabilityResult FCreateAssetNiagaraSystemCapability::Execute(const TSharedPtr<
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetNiagaraSystemCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetNiagaraSystemCapability)
 
 #endif

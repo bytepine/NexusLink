@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_blend_space — 编辑 BlendSpace 轴参数与样本。 */
-class FManageAssetBlendSpaceCapability : public FNexusActionCapability
+/** ManageAssetBlendSpace — 编辑 BlendSpace 轴参数与样本。 */
+class FNexusManageAssetBlendSpaceCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

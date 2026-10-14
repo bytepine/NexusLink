@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_media_source：set_file_path / set_loop。 */
-class FManageAssetMediaSourceCapability : public FNexusActionCapability
+/** ManageAssetMediaSource：SetFilePath / SetLoop。 */
+class FNexusManageAssetMediaSourceCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

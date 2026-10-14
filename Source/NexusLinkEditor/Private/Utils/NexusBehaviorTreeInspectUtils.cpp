@@ -9,7 +9,7 @@
 #include "BehaviorTree/BTTaskNode.h"
 
 /** 将 UObject 可编辑 UPROPERTY 序列化为 JSON 数组（不分页，带上限）。
- *  SubobjectDepth=2：递归展开 Task/Decorator 内层 instanced 子对象属性至 subProperties。*/
+ *  SubobjectDepth=2：递归展开 Task/Decorator 内层 instanced 子对象属性至 SubProperties。*/
 static TArray<TSharedPtr<FJsonValue>> BuildEditableProps(const UObject* Obj, int32 MaxCount = 64)
 {
 	TArray<TSharedPtr<FJsonValue>> Result;
@@ -33,7 +33,7 @@ static TArray<TSharedPtr<FJsonValue>> BuildEditableProps(const UObject* Obj, int
 	return Result;
 }
 
-/** 由父路径与槽位下标拼出节点点分路径（与 manage_asset_behavior_tree 一致）。 */
+/** 由父路径与槽位下标拼出节点点分路径（与 ManageAssetBehaviorTree 一致）。 */
 static FString BuildChildPath(const FString& ParentPath, int32 ChildIndex)
 {
 	return ParentPath.IsEmpty()
@@ -57,10 +57,10 @@ TSharedPtr<FJsonObject> FNexusBehaviorTreeInspectUtils::BuildBTNodeInfoRec(const
 
 	TSharedPtr<FJsonObject> NodeObj = MakeShared<FJsonObject>();
 	NodeObj->SetStringField(TEXT("name"), Node->GetNodeName());
-	NodeObj->SetStringField(TEXT("class"), Node->GetClass()->GetName());
-	NodeObj->SetStringField(TEXT("path"), Path);
-	// 先序 DFS：进入本节点时分配序号，与 manage_asset_behavior_tree 的路径定位互补
-	NodeObj->SetNumberField(TEXT("flatIndex"), FlatCounter++);
+	NodeObj->SetStringField(TEXT("Class"), Node->GetClass()->GetName());
+	NodeObj->SetStringField(TEXT("Path"), Path);
+	// 先序 DFS：进入本节点时分配序号，与 ManageAssetBehaviorTree 的路径定位互补
+	NodeObj->SetNumberField(TEXT("FlatIndex"), FlatCounter++);
 
 	TArray<TSharedPtr<FJsonValue>> NodeProps = BuildEditableProps(Node);
 	if (NodeProps.Num() > 0)
@@ -71,18 +71,18 @@ TSharedPtr<FJsonObject> FNexusBehaviorTreeInspectUtils::BuildBTNodeInfoRec(const
 	if (const UBTCompositeNode* Composite = Cast<UBTCompositeNode>(Node))
 	{
 		TArray<TSharedPtr<FJsonValue>> Services;
-		for (int32 si = 0; si < Composite->Services.Num() && si < 32; ++si)
+		for (int32 ServiceIndex = 0; ServiceIndex < Composite->Services.Num() && ServiceIndex < 32; ++ServiceIndex)
 		{
-			const UBTService* Svc = Composite->Services[si];
+			const UBTService* Svc = Composite->Services[ServiceIndex];
 			if (!Svc)
 			{
 				continue;
 			}
 			TSharedPtr<FJsonObject> S = MakeShared<FJsonObject>();
-			S->SetNumberField(TEXT("index"), si);
-			S->SetStringField(TEXT("class"), Svc->GetClass()->GetName());
+			S->SetNumberField(TEXT("Index"), ServiceIndex);
+			S->SetStringField(TEXT("Class"), Svc->GetClass()->GetName());
 			S->SetStringField(TEXT("name"), Svc->GetNodeName());
-			S->SetStringField(TEXT("parentPath"), Path);
+			S->SetStringField(TEXT("ParentPath"), Path);
 			TArray<TSharedPtr<FJsonValue>> SvcProps = BuildEditableProps(Svc);
 			if (SvcProps.Num() > 0)
 			{
@@ -92,42 +92,42 @@ TSharedPtr<FJsonObject> FNexusBehaviorTreeInspectUtils::BuildBTNodeInfoRec(const
 		}
 		if (Services.Num() > 0)
 		{
-			NodeObj->SetArrayField(TEXT("services"), Services);
+			NodeObj->SetArrayField(TEXT("Services"), Services);
 		}
 
 		TArray<TSharedPtr<FJsonValue>> Children;
-		for (int32 i = 0; i < Composite->Children.Num() && i < 64; ++i)
+		for (int32 ChildIndex = 0; ChildIndex < Composite->Children.Num() && ChildIndex < 64; ++ChildIndex)
 		{
-			const UBTNode* Child = Composite->Children[i].ChildComposite
-				? static_cast<const UBTNode*>(Composite->Children[i].ChildComposite)
-				: static_cast<const UBTNode*>(Composite->Children[i].ChildTask);
+			const UBTNode* Child = Composite->Children[ChildIndex].ChildComposite
+				? static_cast<const UBTNode*>(Composite->Children[ChildIndex].ChildComposite)
+				: static_cast<const UBTNode*>(Composite->Children[ChildIndex].ChildTask);
 			if (!Child)
 			{
 				continue;
 			}
 
-			const FString ChildPath = BuildChildPath(Path, i);
+			const FString ChildPath = BuildChildPath(Path, ChildIndex);
 			// 递归时传入计数器引用，保证全树先序连续
 			TSharedPtr<FJsonObject> ChildObj = BuildBTNodeInfoRec(Child, ChildPath, FlatCounter);
 			if (!ChildObj.IsValid())
 			{
 				continue;
 			}
-			ChildObj->SetNumberField(TEXT("childIndex"), i);
+			ChildObj->SetNumberField(TEXT("ChildIndex"), ChildIndex);
 
 			TArray<TSharedPtr<FJsonValue>> Decorators;
-			for (int32 di = 0; di < Composite->Children[i].Decorators.Num() && di < 32; ++di)
+			for (int32 DecoratorIndex = 0; DecoratorIndex < Composite->Children[ChildIndex].Decorators.Num() && DecoratorIndex < 32; ++DecoratorIndex)
 			{
-				const UBTDecorator* Dec = Composite->Children[i].Decorators[di];
+				const UBTDecorator* Dec = Composite->Children[ChildIndex].Decorators[DecoratorIndex];
 				if (!Dec)
 				{
 					continue;
 				}
 				TSharedPtr<FJsonObject> D = MakeShared<FJsonObject>();
-				D->SetNumberField(TEXT("index"), di);
-				D->SetNumberField(TEXT("childIndex"), i);
-				D->SetStringField(TEXT("parentPath"), Path);
-				D->SetStringField(TEXT("class"), Dec->GetClass()->GetName());
+				D->SetNumberField(TEXT("Index"), DecoratorIndex);
+				D->SetNumberField(TEXT("ChildIndex"), ChildIndex);
+				D->SetStringField(TEXT("ParentPath"), Path);
+				D->SetStringField(TEXT("Class"), Dec->GetClass()->GetName());
 				D->SetStringField(TEXT("name"), Dec->GetNodeName());
 				TArray<TSharedPtr<FJsonValue>> DecProps = BuildEditableProps(Dec);
 				if (DecProps.Num() > 0)
@@ -138,15 +138,15 @@ TSharedPtr<FJsonObject> FNexusBehaviorTreeInspectUtils::BuildBTNodeInfoRec(const
 			}
 			if (Decorators.Num() > 0)
 			{
-				ChildObj->SetArrayField(TEXT("decorators"), Decorators);
+				ChildObj->SetArrayField(TEXT("Decorators"), Decorators);
 			}
 			Children.Add(MakeShared<FJsonValueObject>(ChildObj));
 		}
 		if (Children.Num() > 0)
 		{
-			NodeObj->SetArrayField(TEXT("children"), Children);
+			NodeObj->SetArrayField(TEXT("Children"), Children);
 		}
-		NodeObj->SetStringField(TEXT("composite"), TEXT("true"));
+		NodeObj->SetStringField(TEXT("Composite"), TEXT("true"));
 	}
 	return NodeObj;
 }

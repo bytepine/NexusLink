@@ -219,7 +219,7 @@ static bool ResolveStructRead(
 		// 自动导出结构体的序列化值（FVector/FRotator 等常见结构直接可读）
 		FString ValueStr;
 		FNexusPropertyUtils::ExportText(Prop, ValueStr, ValuePtr);
-		if (!ValueStr.IsEmpty()) { OutResult->SetStringField(TEXT("value"), ValueStr); }
+		if (!ValueStr.IsEmpty()) { OutResult->SetStringField(TEXT("Value"), ValueStr); }
 
 		TArray<TSharedPtr<FJsonValue>> Children;
 		for (TFieldIterator<FProperty> It(StructProp->Struct); It; ++It)
@@ -229,7 +229,7 @@ static bool ResolveStructRead(
 			C->SetStringField(TEXT("type"), It->GetCPPType());
 			Children.Add(MakeShared<FJsonValueObject>(C));
 		}
-		OutResult->SetArrayField(TEXT("children"), Children);
+		OutResult->SetArrayField(TEXT("Children"), Children);
 		return true;
 	}
 
@@ -238,13 +238,13 @@ static bool ResolveStructRead(
 	FNexusPropertyUtils::ExportText(Prop, ValueStr, ValuePtr);
 	OutResult->SetStringField(TEXT("name"), PropName);
 	OutResult->SetStringField(TEXT("type"), Prop->GetCPPType());
-	if (!ValueStr.IsEmpty()) { OutResult->SetStringField(TEXT("value"), ValueStr); }
-	OutResult->SetBoolField(TEXT("isLeaf"), true);
+	if (!ValueStr.IsEmpty()) { OutResult->SetStringField(TEXT("Value"), ValueStr); }
+	OutResult->SetBoolField(TEXT("bIsLeaf"), true);
 	return true;
 }
 
 // --- UFunction() 语义 ---
-// 支持 propertyPath 尾段写成 "Foo()"：调用 BlueprintPure / Const 且无入参的 UFUNCTION，
+// 支持 PropertyPath 尾段写成 "Foo()"：调用 BlueprintPure / Const 且无入参的 UFUNCTION，
 // 返回值作为叶子输出。写（ResolvePropertyWrite）侧不支持（函数无意义"写入"）。
 static bool InvokeZeroArgUFunction(
 	UObject* Obj,
@@ -302,14 +302,14 @@ static bool InvokeZeroArgUFunction(
 	Obj->ProcessEvent(Fn, Buffer);
 
 	OutResult->SetStringField(TEXT("name"), DisplayName);
-	OutResult->SetBoolField(TEXT("isLeaf"), true);
-	OutResult->SetBoolField(TEXT("isFunction"), true);
+	OutResult->SetBoolField(TEXT("bIsLeaf"), true);
+	OutResult->SetBoolField(TEXT("bIsFunction"), true);
 	if (ReturnProp)
 	{
 		FString ValueStr;
 		FNexusPropertyUtils::ExportText(ReturnProp, ValueStr, ReturnProp->ContainerPtrToValuePtr<void>(Buffer));
 		OutResult->SetStringField(TEXT("type"), ReturnProp->GetCPPType());
-		if (!ValueStr.IsEmpty()) { OutResult->SetStringField(TEXT("value"), ValueStr); }
+		if (!ValueStr.IsEmpty()) { OutResult->SetStringField(TEXT("Value"), ValueStr); }
 	}
 	else
 	{
@@ -338,7 +338,7 @@ bool FNexusPropertyUtils::ResolvePropertyRead(
 		return false;
 	}
 
-	// UFunction 调用语法：propertyPath 段以 "()" 结尾
+	// UFunction 调用语法：PropertyPath 段以 "()" 结尾
 	if (PropName.EndsWith(TEXT("()")))
 	{
 		const FString FnName = PropName.LeftChop(2);
@@ -410,7 +410,7 @@ bool FNexusPropertyUtils::ResolvePropertyRead(
 
 		FString ValueStr;
 		FNexusPropertyUtils::ExportText(Prop, ValueStr, ValuePtr);
-		if (!ValueStr.IsEmpty()) { OutResult->SetStringField(TEXT("value"), ValueStr); }
+		if (!ValueStr.IsEmpty()) { OutResult->SetStringField(TEXT("Value"), ValueStr); }
 
 		TArray<TSharedPtr<FJsonValue>> Children;
 		for (TFieldIterator<FProperty> It(StructProp->Struct); It; ++It)
@@ -420,7 +420,7 @@ bool FNexusPropertyUtils::ResolvePropertyRead(
 			C->SetStringField(TEXT("type"), It->GetCPPType());
 			Children.Add(MakeShared<FJsonValueObject>(C));
 		}
-		OutResult->SetArrayField(TEXT("children"), Children);
+		OutResult->SetArrayField(TEXT("Children"), Children);
 		return true;
 	}
 
@@ -429,8 +429,8 @@ bool FNexusPropertyUtils::ResolvePropertyRead(
 	FNexusPropertyUtils::ExportText(Prop, ValueStr, ValuePtr);
 	OutResult->SetStringField(TEXT("name"), PropName);
 	OutResult->SetStringField(TEXT("type"), Prop->GetCPPType());
-	if (!ValueStr.IsEmpty()) { OutResult->SetStringField(TEXT("value"), ValueStr); }
-	OutResult->SetBoolField(TEXT("isLeaf"), true);
+	if (!ValueStr.IsEmpty()) { OutResult->SetStringField(TEXT("Value"), ValueStr); }
+	OutResult->SetBoolField(TEXT("bIsLeaf"), true);
 	return true;
 }
 

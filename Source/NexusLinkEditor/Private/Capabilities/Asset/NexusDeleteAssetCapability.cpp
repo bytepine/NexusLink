@@ -13,20 +13,20 @@
 #include "Utils/NexusPropertyUtils.h"
 #include "NexusMcpTool.h"
 
-void FDeleteAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusDeleteAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("delete_asset");
+	Out.Name = TEXT("DeleteAsset");
 	Out.Description = TEXT("Delete single asset package. Best-effort redirector cleanup; irreversible.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset path, e.g. '/Game/BP/BP_MyActor'")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset path, e.g. '/Game/BP/BP_MyActor'")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("trash"), TEXT("remove"), TEXT("package"), TEXT("uasset"), TEXT("cleanup") };
-	Out.RelatedCapabilities = { TEXT("save_asset"), TEXT("rename_asset") };
+	Out.ExtraSearchKeywords = { TEXT("trash"), TEXT("Remove"), TEXT("package"), TEXT("uasset"), TEXT("cleanup") };
+	Out.RelatedCapabilities = { TEXT("SaveAsset"), TEXT("RenameAsset") };
 }
 
-FCapabilityResult FDeleteAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusDeleteAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -34,7 +34,7 @@ FCapabilityResult FDeleteAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		const FNexusArgs A(Arguments);
 
 
-		const FString DeletePath = A.Str(TEXT("assetPath"));
+		const FString DeletePath = A.Str(TEXT("AssetPath"));
 
 		IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
@@ -63,8 +63,8 @@ FCapabilityResult FDeleteAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		if (Assets.Num() == 0)
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetBoolField(TEXT("success"), false);
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Asset not found: %s"), *PackagePath));
+			Entry->SetBoolField(TEXT("bSuccess"), false);
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Asset not found: %s"), *PackagePath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -126,8 +126,8 @@ FCapabilityResult FDeleteAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 		}
 		else
 		{
-			Entry->SetBoolField(TEXT("success"), false);
-			Entry->SetStringField(TEXT("error"),
+			Entry->SetBoolField(TEXT("bSuccess"), false);
+			Entry->SetStringField(TEXT("Error"),
 				FString::Printf(TEXT("%s (delete failed, may be referenced)"), *PackagePath));
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
@@ -135,6 +135,6 @@ FCapabilityResult FDeleteAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FDeleteAssetCapability)
+REGISTER_MCP_CAPABILITY(FNexusDeleteAssetCapability)
 
 #endif // WITH_EDITOR

@@ -38,11 +38,11 @@ static FNexusBPQueryParams ParseBPQueryParams(const TSharedPtr<FJsonObject>& Arg
 {
 	FNexusBPQueryParams P;
 	if (!Args.IsValid()) return P;
-	P.NameFilter  = FNexusJsonUtils::GetStringSafe(Args, TEXT("nameFilter"));
-	P.GraphName   = FNexusJsonUtils::GetStringSafe(Args, TEXT("graphName"));
-	P.GraphType   = FNexusJsonUtils::GetStringSafe(Args, TEXT("graphType")).ToLower();
+	P.NameFilter  = FNexusJsonUtils::GetStringSafe(Args, TEXT("NameFilter"));
+	P.GraphName   = FNexusJsonUtils::GetStringSafe(Args, TEXT("GraphName"));
+	P.GraphType   = FNexusJsonUtils::GetStringSafe(Args, TEXT("GraphType")).ToLower();
 	FNexusJsonUtils::ParseOffsetLimit(Args, P.Offset, P.Limit);
-	P.PropertyPaths = FNexusJsonUtils::GetStringArray(Args, TEXT("propertyPaths"));
+	P.PropertyPaths = FNexusJsonUtils::GetStringArray(Args, TEXT("PropertyPaths"));
 	return P;
 }
 
@@ -53,19 +53,19 @@ static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FNexusBPQuery
 	TArray<UEdGraph*> AllGraphs;
 	FNexusBlueprintGraphUtils::CollectAllGraphs(BP, AllGraphs);
 
-	const FString GType = Q.GraphType.IsEmpty() ? TEXT("all") : Q.GraphType;
-	if (GType != TEXT("all"))
+	const FString GType = Q.GraphType.IsEmpty() ? TEXT("All") : Q.GraphType;
+	if (GType != TEXT("All"))
 		AllGraphs = AllGraphs.FilterByPredicate([&](const UEdGraph* G){ return FNexusBlueprintGraphUtils::GetBPGraphType(G) == GType; });
 
 	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
-	Root->SetStringField(TEXT("assetType"), TEXT("Blueprint"));
+	Root->SetStringField(TEXT("AssetType"), TEXT("Blueprint"));
 	Root->SetStringField(TEXT("name"), BP->GetName());
 
 	if (Q.GraphName.IsEmpty())
 	{
 		TArray<TSharedPtr<FJsonValue>> List;
 		for (const UEdGraph* G : AllGraphs) List.Add(MakeShared<FJsonValueObject>(FNexusBlueprintGraphUtils::BuildBPGraphSummary(G)));
-		Root->SetArrayField(TEXT("graphs"), List);
+		Root->SetArrayField(TEXT("Graphs"), List);
 		return Root;
 	}
 
@@ -75,14 +75,14 @@ static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FNexusBPQuery
 	{
 		TArray<FString> Avail;
 		for (const UEdGraph* G : AllGraphs) Avail.Add(G->GetName());
-		Root->SetStringField(TEXT("error"), FString::Printf(TEXT("Graph '%s' not found. Available: %s"), *Q.GraphName, *FString::Join(Avail, TEXT(", "))));
+		Root->SetStringField(TEXT("Error"), FString::Printf(TEXT("Graph '%s' not found. Available: %s"), *Q.GraphName, *FString::Join(Avail, TEXT(", "))));
 		return Root;
 	}
 
-	Root->SetStringField(TEXT("graphName"), Target->GetName());
-	Root->SetStringField(TEXT("graphType"), FNexusBlueprintGraphUtils::GetBPGraphType(Target));
+	Root->SetStringField(TEXT("GraphName"), Target->GetName());
+	Root->SetStringField(TEXT("GraphType"), FNexusBlueprintGraphUtils::GetBPGraphType(Target));
 	const FString ParentName = FNexusBlueprintGraphUtils::GetBPParentGraphName(Target);
-	if (!ParentName.IsEmpty()) Root->SetStringField(TEXT("parentGraph"), ParentName);
+	if (!ParentName.IsEmpty()) Root->SetStringField(TEXT("ParentGraph"), ParentName);
 
 	TArray<UEdGraphNode*> Filtered;
 	for (UEdGraphNode* Node : Target->Nodes)
@@ -97,13 +97,13 @@ static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FNexusBPQuery
 	}
 
 	const int32 Total = Filtered.Num(); int32 Start, End; FNexusJsonUtils::ComputeSlice(Total, Q.Offset, Q.Limit, Start, End);
-	Root->SetNumberField(TEXT("totalNodeCount"), Total);
-	Root->SetNumberField(TEXT("offset"), Start);
-	Root->SetNumberField(TEXT("limit"),  Q.Limit);
+	Root->SetNumberField(TEXT("TotalNodeCount"), Total);
+	Root->SetNumberField(TEXT("Offset"), Start);
+	Root->SetNumberField(TEXT("Limit"),  Q.Limit);
 	TArray<TSharedPtr<FJsonValue>> NodesArr;
 	for (int32 i = Start; i < End; ++i)
 		NodesArr.Add(MakeShared<FJsonValueObject>(FNexusBlueprintGraphUtils::SerializeBPNode(Filtered[i])));
-	Root->SetArrayField(TEXT("nodes"), NodesArr);
+	Root->SetArrayField(TEXT("Nodes"), NodesArr);
 	return Root;
 }
 #endif // WITH_EDITOR
@@ -111,12 +111,12 @@ static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FNexusBPQuery
 static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FNexusBPQueryParams& Q)
 {
 	TSharedPtr<FJsonObject> Info = MakeShared<FJsonObject>();
-	Info->SetStringField(TEXT("assetType"), TEXT("Blueprint"));
+	Info->SetStringField(TEXT("AssetType"), TEXT("Blueprint"));
 	Info->SetStringField(TEXT("name"), BP->GetName());
-	if (BP->ParentClass) Info->SetStringField(TEXT("parentClass"), BP->ParentClass->GetName());
+	if (BP->ParentClass) Info->SetStringField(TEXT("ParentClass"), BP->ParentClass->GetName());
 
 	UObject* CDO = BP->GeneratedClass ? BP->GeneratedClass->GetDefaultObject(false) : nullptr;
-	if (!CDO) { Info->SetStringField(TEXT("error"), TEXT("Blueprint has no compiled CDO; compile first")); return Info; }
+	if (!CDO) { Info->SetStringField(TEXT("Error"), TEXT("Blueprint has no compiled CDO; compile first")); return Info; }
 
 	// BP 自有变量集合，用于 inherited 标记的反向判断
 	TSet<FString> BPVarNames;
@@ -138,17 +138,17 @@ static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FNexusBPQu
 		if (!Entry.IsValid()) continue;
 		FString PropName;
 		Entry->TryGetStringField(TEXT("name"), PropName);
-		Entry->SetStringField(TEXT("path"), PropName);
+		Entry->SetStringField(TEXT("Path"), PropName);
 		Entry->RemoveField(TEXT("name"));
 		// 用 NewVariables 白名单覆盖 inherited；始终写出以便压缩抽取
-		Entry->SetBoolField(TEXT("inherited"), !BPVarNames.Contains(PropName));
+		Entry->SetBoolField(TEXT("bInherited"), !BPVarNames.Contains(PropName));
 	}
 
 	const int32 Start = FMath::Min(Q.Offset, Total);
-	Info->SetNumberField(TEXT("totalCount"), Total);
-	Info->SetNumberField(TEXT("offset"), Start);
-	Info->SetNumberField(TEXT("limit"),  Q.Limit);
-	Info->SetArrayField(TEXT("defaults"), Page);
+	Info->SetNumberField(TEXT("TotalCount"), Total);
+	Info->SetNumberField(TEXT("Offset"), Start);
+	Info->SetNumberField(TEXT("Limit"),  Q.Limit);
+	Info->SetArrayField(TEXT("Defaults"), Page);
 	return Info;
 }
 
@@ -159,23 +159,23 @@ struct FNexusBPComponentEntry
 	FString ComponentClass;
 	bool    bIsSceneComponent = false;
 	FString AttachParent;
-	FString Source; // "owned" | "inherited" | "native"
+	FString Source; // "owned" | "bInherited" | "native"
 	FString OwnerBlueprint; // 仅 inherited：来源父蓝图名
 };
 
 static TSharedPtr<FJsonObject> SerializeComponentEntry(const FNexusBPComponentEntry& E)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-	Obj->SetStringField(TEXT("variableName"), E.VariableName);
+	Obj->SetStringField(TEXT("VariableName"), E.VariableName);
 	if (!E.ComponentClass.IsEmpty())
 	{
-		Obj->SetStringField(TEXT("componentClass"), E.ComponentClass);
-		Obj->SetBoolField(TEXT("isSceneComponent"), E.bIsSceneComponent);
+		Obj->SetStringField(TEXT("ComponentClass"), E.ComponentClass);
+		Obj->SetBoolField(TEXT("bIsSceneComponent"), E.bIsSceneComponent);
 	}
-	if (!E.AttachParent.IsEmpty()) Obj->SetStringField(TEXT("attachParent"), E.AttachParent);
-	Obj->SetStringField(TEXT("source"), E.Source);
-	Obj->SetBoolField(TEXT("inherited"), E.Source != TEXT("owned"));
-	if (!E.OwnerBlueprint.IsEmpty()) Obj->SetStringField(TEXT("ownerBlueprint"), E.OwnerBlueprint);
+	if (!E.AttachParent.IsEmpty()) Obj->SetStringField(TEXT("AttachParent"), E.AttachParent);
+	Obj->SetStringField(TEXT("Source"), E.Source);
+	Obj->SetBoolField(TEXT("bInherited"), E.Source != TEXT("owned"));
+	if (!E.OwnerBlueprint.IsEmpty()) Obj->SetStringField(TEXT("OwnerBlueprint"), E.OwnerBlueprint);
 	return Obj;
 }
 
@@ -223,7 +223,7 @@ static void CollectInheritedSCSEntries(UClass* ParentClass, TSet<FString>& UsedN
 			}
 			if (!Node->ParentComponentOrVariableName.IsNone())
 				E.AttachParent = Node->ParentComponentOrVariableName.ToString();
-			E.Source = TEXT("inherited");
+			E.Source = TEXT("bInherited");
 			E.OwnerBlueprint = ParentBP->GetName();
 			Out.Add(E);
 			UsedNames.Add(VarName);
@@ -265,7 +265,7 @@ static void CollectNativeEntries(UClass* ParentClass, TSet<FString>& UsedNames, 
 	}
 }
 
-// 由 attachParent 字段将扁平条目重建为层级树（跨 owned/inherited/native 三类来源）
+// 由 AttachParent 字段将扁平条目重建为层级树（跨 owned/inherited/native 三类来源）
 static TArray<TSharedPtr<FJsonValue>> BuildComponentHierarchy(const TArray<FNexusBPComponentEntry>& Entries)
 {
 	TMap<FString, TSharedPtr<FJsonObject>> NodeMap;
@@ -277,17 +277,17 @@ static TArray<TSharedPtr<FJsonValue>> BuildComponentHierarchy(const TArray<FNexu
 	}
 
 	TArray<TSharedPtr<FJsonValue>> Roots;
-	for (int32 i = 0; i < Order.Num(); ++i)
+	for (int32 OrderIndex = 0; OrderIndex < Order.Num(); ++OrderIndex)
 	{
-		const FNexusBPComponentEntry& E = Entries[i];
+		const FNexusBPComponentEntry& E = Entries[OrderIndex];
 		TSharedPtr<FJsonObject> Obj = NodeMap[E.VariableName];
 		if (!E.AttachParent.IsEmpty() && NodeMap.Contains(E.AttachParent))
 		{
 			TSharedPtr<FJsonObject> ParentObj = NodeMap[E.AttachParent];
-			TArray<TSharedPtr<FJsonValue>> Children = ParentObj->HasField(TEXT("children"))
-				? ParentObj->GetArrayField(TEXT("children")) : TArray<TSharedPtr<FJsonValue>>();
+			TArray<TSharedPtr<FJsonValue>> Children = ParentObj->HasField(TEXT("Children"))
+				? ParentObj->GetArrayField(TEXT("Children")) : TArray<TSharedPtr<FJsonValue>>();
 			Children.Add(MakeShared<FJsonValueObject>(Obj));
-			ParentObj->SetArrayField(TEXT("children"), Children);
+			ParentObj->SetArrayField(TEXT("Children"), Children);
 		}
 		else
 		{
@@ -304,9 +304,9 @@ static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FNexusBP
 	if (!BP->SimpleConstructionScript)
 	{
 		// 非 Actor 蓝图无 SCS；仍可能有父链继承/原生组件（例如 GameplayAbility 等特殊 BP 极少见，此处按无组件处理）
-		Info->SetStringField(TEXT("note"), TEXT("Blueprint has no SimpleConstructionScript (not an Actor Blueprint)"));
-		Info->SetArrayField(TEXT("components"), TArray<TSharedPtr<FJsonValue>>());
-		Info->SetArrayField(TEXT("hierarchy"), TArray<TSharedPtr<FJsonValue>>());
+		Info->SetStringField(TEXT("Note"), TEXT("Blueprint has no SimpleConstructionScript (not an Actor Blueprint)"));
+		Info->SetArrayField(TEXT("Components"), TArray<TSharedPtr<FJsonValue>>());
+		Info->SetArrayField(TEXT("Hierarchy"), TArray<TSharedPtr<FJsonValue>>());
 		return Info;
 	}
 
@@ -319,7 +319,7 @@ static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FNexusBP
 #endif
 	if (BP->ParentClass) CollectNativeEntries(BP->ParentClass, UsedNames, AllEntries);
 
-	// nameFilter 过滤（对变量名 / 组件类名）
+	// NameFilter 过滤（对变量名 / 组件类名）
 	TArray<FNexusBPComponentEntry> Filtered;
 	for (const FNexusBPComponentEntry& E : AllEntries)
 	{
@@ -332,18 +332,18 @@ static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FNexusBP
 	const int32 Total = Filtered.Num();
 	int32 Start, End;
 	FNexusJsonUtils::ComputeSlice(Total, Q.Offset, Q.Limit, Start, End);
-	Info->SetNumberField(TEXT("totalCount"), Total);
-	Info->SetNumberField(TEXT("offset"), Start);
-	Info->SetNumberField(TEXT("limit"),  Q.Limit);
+	Info->SetNumberField(TEXT("TotalCount"), Total);
+	Info->SetNumberField(TEXT("Offset"), Start);
+	Info->SetNumberField(TEXT("Limit"),  Q.Limit);
 
-	// 扁平列表（支持 nameFilter + 分页），每条标注 source（owned/inherited/native）
+	// 扁平列表（支持 NameFilter + 分页），每条标注 source（owned/inherited/native）
 	TArray<TSharedPtr<FJsonValue>> FlatList;
 	for (int32 i = Start; i < End; ++i)
 		FlatList.Add(MakeShared<FJsonValueObject>(SerializeComponentEntry(Filtered[i])));
-	Info->SetArrayField(TEXT("components"), FlatList);
+	Info->SetArrayField(TEXT("Components"), FlatList);
 
-	// 层级树：始终基于合并后的全量条目构建（不受 nameFilter/分页影响）
-	Info->SetArrayField(TEXT("hierarchy"), BuildComponentHierarchy(AllEntries));
+	// 层级树：始终基于合并后的全量条目构建（不受 NameFilter/分页影响）
+	Info->SetArrayField(TEXT("Hierarchy"), BuildComponentHierarchy(AllEntries));
 
 	return Info;
 }
@@ -352,59 +352,59 @@ struct FNexusBPEntryLocal { FString Name; FString Kind; FString Type; FString Su
 
 // ── FNexusCapability 基础钩子 ──────────────────────────────────────────────────
 
-void FGetAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_blueprint");
+	Out.Name = TEXT("GetAssetBlueprint");
 	Out.SearchAssetTypes = {TEXT("Blueprint")};
-	Out.Description = TEXT("Read BP from editor. compileStatus/orphaned/execPaths. Must call before answering.");
+	Out.Description = TEXT("Read BP from editor. CompileStatus/orphaned/ExecPaths. Must call before answering.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
-		TEXT("blueprint"), TEXT("variable"), TEXT("function"), TEXT("graph"), TEXT("read"),
-		TEXT("interface"), TEXT("bpi"), TEXT("compile"), TEXT("orphan"), TEXT("exec")
+		TEXT("blueprint"), TEXT("variable"), TEXT("Function"), TEXT("graph"), TEXT("Read"),
+		TEXT("interface"), TEXT("bpi"), TEXT("bCompile"), TEXT("orphan"), TEXT("Exec")
 	};
-	Out.RelatedCapabilities = { TEXT("manage_asset_blueprint"), TEXT("create_asset_blueprint") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetBlueprint"), TEXT("CreateAssetBlueprint") };
 	Out.WhenToUse = TEXT("User asks BP vars/graph/functions — must call first; do not grep source");
 }
 
-TSharedPtr<FJsonObject> FGetAssetBlueprintCapability::BuildCapabilitySchema() const
+TSharedPtr<FJsonObject> FNexusGetAssetBlueprintCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
-		.Prop(TEXT("nameFilter"),     FNexusSchema::Str(TEXT("Item name filter (/regex/ ^prefix suffix$)")))
-		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Exact property name filter for defaults, e.g. [\"bUseBuffClass\",\"Scale\"]")))
-		.Prop(TEXT("graphName"),     FNexusSchema::Str(TEXT("Graph name (graph / execPaths)")))
-		.Prop(TEXT("graphType"),  FNexusSchema::Enum(TEXT("Graph type filter"),
-			{ TEXT("event"), TEXT("function"), TEXT("macro"), TEXT("animgraph"),
-			  TEXT("statemachine"), TEXT("state"), TEXT("transition"), TEXT("conduit"), TEXT("all") }))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
+		.Prop(TEXT("NameFilter"),     FNexusSchema::Str(TEXT("Item name filter (/regex/ ^prefix suffix$)")))
+		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("Exact property name filter for defaults, e.g. [\"bUseBuffClass\",\"Scale\"]")))
+		.Prop(TEXT("GraphName"),     FNexusSchema::Str(TEXT("Graph name (graph / ExecPaths)")))
+		.Prop(TEXT("GraphType"),  FNexusSchema::Enum(TEXT("Graph type filter"),
+			{ TEXT("Event"), TEXT("Function"), TEXT("Macro"), TEXT("Animgraph"),
+			  TEXT("Statemachine"), TEXT("State"), TEXT("Transition"), TEXT("Conduit"), TEXT("All") }))
+		.Prop(TEXT("Offset"),     FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("Limit"),      FNexusSchema::Int(TEXT("Max items per page"), 100, 1, 500))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 }
 
 // ── multi-section 钩子 ─────────────────────────────────────────────────────────
 
-TArray<FString> FGetAssetBlueprintCapability::GetSectionNames() const
+TArray<FString> FNexusGetAssetBlueprintCapability::GetSectionNames() const
 {
-	return { TEXT("variable"), TEXT("function"), TEXT("component"), TEXT("graph"), TEXT("graphOverview"), TEXT("defaults"), TEXT("orphaned"), TEXT("execPaths") };
+	return { TEXT("variable"), TEXT("Function"), TEXT("Component"), TEXT("graph"), TEXT("graphOverview"), TEXT("Defaults"), TEXT("orphaned"), TEXT("ExecPaths") };
 }
 
-TArray<FString> FGetAssetBlueprintCapability::GetDefaultSectionNames() const
+TArray<FString> FNexusGetAssetBlueprintCapability::GetDefaultSectionNames() const
 {
 	// 旧版未传 section 时的行为：返回 variable + function
-	return { TEXT("variable"), TEXT("function") };
+	return { TEXT("variable"), TEXT("Function") };
 }
 
-bool FGetAssetBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
+bool FNexusGetAssetBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
                                                 TSharedPtr<FJsonObject>&       OutEntry,
                                                 void*&                         OutTargetOpaque,
                                                 FString&                       OutError) const
 {
 	FString Path;
-	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
+	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("AssetPath"), Path) || Path.IsEmpty())
 	{
-		OutError = TEXT("Missing assetPath");
+		OutError = TEXT("Missing AssetPath");
 		return false;
 	}
 
@@ -423,7 +423,7 @@ bool FGetAssetBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject>& A
 	}
 
 	OutEntry->SetStringField(TEXT("name"), BP->GetName());
-	if (BP->ParentClass) { OutEntry->SetStringField(TEXT("parentClass"), BP->ParentClass->GetName()); }
+	if (BP->ParentClass) { OutEntry->SetStringField(TEXT("ParentClass"), BP->ParentClass->GetName()); }
 	FNexusAssetUtils::AppendBlueprintMetaFields(BP, OutEntry);
 
 #if WITH_EDITORONLY_DATA
@@ -439,19 +439,19 @@ bool FGetAssetBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject>& A
 		case BS_UpToDateWithWarnings: StatusName = TEXT("UpToDateWithWarnings"); break;
 		default: break;
 		}
-		OutEntry->SetStringField(TEXT("compileStatus"), StatusName);
-		OutEntry->SetBoolField(TEXT("hasCompilerErrors"), BP->Status == BS_Error);
+		OutEntry->SetStringField(TEXT("CompileStatus"), StatusName);
+		OutEntry->SetBoolField(TEXT("bHasCompilerErrors"), BP->Status == BS_Error);
 	}
 #else
-	OutEntry->SetStringField(TEXT("compileStatus"), TEXT("Unknown"));
-	OutEntry->SetBoolField(TEXT("hasCompilerErrors"), false);
+	OutEntry->SetStringField(TEXT("CompileStatus"), TEXT("Unknown"));
+	OutEntry->SetBoolField(TEXT("bHasCompilerErrors"), false);
 #endif
 
 	OutTargetOpaque = static_cast<void*>(BP);
 	return true;
 }
 
-void FGetAssetBlueprintCapability::ExecuteSection(const FString&                 SectionName,
+void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&                 SectionName,
                                                   const TSharedPtr<FJsonObject>& Args,
                                                   void*                          TargetOpaque,
                                                   TSharedPtr<FJsonObject>&       InOutDetail,
@@ -469,11 +469,11 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 	if (SectionName == TEXT("graphOverview"))
 	{
 #if WITH_EDITOR
-		// 只返回所有 Graph 的摘要列表，不展开节点，适合 section=all 场景
+		// 只返回所有 Graph 的摘要列表，不展开节点，适合 Section=all 场景
 		FNexusBPQueryParams OvQ; OvQ.GraphType = Q.GraphType;
 		TSharedPtr<FJsonObject> GraphResult = HandleBPGraph(BP, OvQ);
 		for (const auto& Pair : GraphResult->Values)
-			if (Pair.Key != TEXT("assetType") && Pair.Key != TEXT("name"))
+			if (Pair.Key != TEXT("AssetType") && Pair.Key != TEXT("name"))
 				InOutDetail->SetField(Pair.Key, Pair.Value);
 #else
 		OutError = TEXT("graphOverview only available in editor builds");
@@ -484,20 +484,20 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 #if WITH_EDITOR
 		TSharedPtr<FJsonObject> GraphResult = HandleBPGraph(BP, Q);
 		for (const auto& Pair : GraphResult->Values)
-			if (Pair.Key != TEXT("assetType") && Pair.Key != TEXT("name"))
+			if (Pair.Key != TEXT("AssetType") && Pair.Key != TEXT("name"))
 				InOutDetail->SetField(Pair.Key, Pair.Value);
 #else
 		OutError = TEXT("graph only available in editor builds");
 #endif
 	}
-	else if (SectionName == TEXT("defaults"))
+	else if (SectionName == TEXT("Defaults"))
 	{
 		TSharedPtr<FJsonObject> DefResult = HandleBPDefaults(BP, Q);
 		for (const auto& Pair : DefResult->Values)
-			if (Pair.Key != TEXT("assetType") && Pair.Key != TEXT("name") && Pair.Key != TEXT("parentClass"))
+			if (Pair.Key != TEXT("AssetType") && Pair.Key != TEXT("name") && Pair.Key != TEXT("ParentClass"))
 				InOutDetail->SetField(Pair.Key, Pair.Value);
 	}
-	else if (SectionName == TEXT("component"))
+	else if (SectionName == TEXT("Component"))
 	{
 		TSharedPtr<FJsonObject> CompResult = HandleBPComponents(BP, Q);
 		for (const auto& Pair : CompResult->Values)
@@ -513,13 +513,13 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 		{
 			Arr.Add(MakeShared<FJsonValueObject>(P));
 		}
-		InOutDetail->SetNumberField(TEXT("orphanedCount"), Arr.Num());
-		InOutDetail->SetArrayField(TEXT("orphanedPins"), Arr);
+		InOutDetail->SetNumberField(TEXT("OrphanedCount"), Arr.Num());
+		InOutDetail->SetArrayField(TEXT("OrphanedPins"), Arr);
 #else
 		OutError = TEXT("orphaned only available in editor builds");
 #endif
 	}
-	else if (SectionName == TEXT("execPaths"))
+	else if (SectionName == TEXT("ExecPaths"))
 	{
 #if WITH_EDITOR
 		const bool bAll = FNexusJsonUtils::HasSectionAll(Args);
@@ -527,12 +527,12 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 		{
 			if (bAll)
 			{
-				InOutDetail->SetStringField(TEXT("note"),
-					TEXT("execPaths skipped: graphName required when sections=all"));
+				InOutDetail->SetStringField(TEXT("Note"),
+					TEXT("ExecPaths skipped: GraphName required when Sections=all"));
 			}
 			else
 			{
-				OutError = TEXT("execPaths requires graphName");
+				OutError = TEXT("ExecPaths requires GraphName");
 			}
 			return;
 		}
@@ -549,13 +549,13 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 		{
 			Arr.Add(MakeShared<FJsonValueObject>(P));
 		}
-		InOutDetail->SetStringField(TEXT("graphName"), Target->GetName());
-		InOutDetail->SetArrayField(TEXT("execPaths"), Arr);
+		InOutDetail->SetStringField(TEXT("GraphName"), Target->GetName());
+		InOutDetail->SetArrayField(TEXT("ExecPaths"), Arr);
 #else
-		OutError = TEXT("execPaths only available in editor builds");
+		OutError = TEXT("ExecPaths only available in editor builds");
 #endif
 	}
-	else if (SectionName == TEXT("variable") || SectionName == TEXT("function"))
+	else if (SectionName == TEXT("variable") || SectionName == TEXT("Function"))
 	{
 #if WITH_EDITOR
 		// variable / function 共享同一套 entry 列表，构建时按 SectionName 过滤
@@ -579,7 +579,7 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 			for (UEdGraph* Graph : BP->FunctionGraphs)
 			{
 				if (!Graph) continue;
-				FNexusBPEntryLocal E; E.Name = Graph->GetName(); E.Kind = TEXT("function");
+				FNexusBPEntryLocal E; E.Name = Graph->GetName(); E.Kind = TEXT("Function");
 				All.Add(E);
 			}
 		}
@@ -598,14 +598,14 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 			const FNexusBPEntryLocal& E = All[i];
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			Obj->SetStringField(TEXT("name"), E.Name);
-			Obj->SetStringField(TEXT("kind"), E.Kind);
+			Obj->SetStringField(TEXT("Kind"), E.Kind);
 			if (!E.Type.IsEmpty())          { Obj->SetStringField(TEXT("type"),          E.Type); }
-			if (!E.SubType.IsEmpty())       { Obj->SetStringField(TEXT("subType"),       E.SubType); }
-			if (!E.SubTypeObject.IsEmpty()) { Obj->SetStringField(TEXT("subTypeObject"), E.SubTypeObject); }
-			if (!E.Category.IsEmpty())      { Obj->SetStringField(TEXT("category"),      E.Category); }
-			if (E.Kind == TEXT("variable") && E.bIsPublic) { Obj->SetBoolField(TEXT("isPublic"), true); }
+			if (!E.SubType.IsEmpty())       { Obj->SetStringField(TEXT("SubType"),       E.SubType); }
+			if (!E.SubTypeObject.IsEmpty()) { Obj->SetStringField(TEXT("SubTypeObject"), E.SubTypeObject); }
+			if (!E.Category.IsEmpty())      { Obj->SetStringField(TEXT("Category"),      E.Category); }
+			if (E.Kind == TEXT("variable") && E.bIsPublic) { Obj->SetBoolField(TEXT("bIsPublic"), true); }
 			// 函数节：从 GeneratedClass 提取签名
-			if (E.Kind == TEXT("function") && BP->GeneratedClass)
+			if (E.Kind == TEXT("Function") && BP->GeneratedClass)
 			{
 				UFunction* Func = BP->GeneratedClass->FindFunctionByName(*E.Name);
 				if (Func)
@@ -622,15 +622,15 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 						else
 							Inputs.Add(MakeShared<FJsonValueObject>(PObj));
 					}
-					if (Inputs.Num()  > 0) Obj->SetArrayField(TEXT("inputs"),  Inputs);
-					if (Outputs.Num() > 0) Obj->SetArrayField(TEXT("outputs"), Outputs);
+					if (Inputs.Num()  > 0) Obj->SetArrayField(TEXT("Inputs"),  Inputs);
+					if (Outputs.Num() > 0) Obj->SetArrayField(TEXT("Outputs"), Outputs);
 				}
 			}
 			Page.Add(MakeShared<FJsonValueObject>(Obj));
 		}
 
 		// 每个 section 写独立的列表键，避免 variable 和 function 合并时覆盖
-		const FString ListKey = (SectionName == TEXT("variable")) ? TEXT("variables") : TEXT("functions");
+		const FString ListKey = (SectionName == TEXT("variable")) ? TEXT("Variables") : TEXT("functions");
 		InOutDetail->SetNumberField(FString::Printf(TEXT("%sTotalCount"), *SectionName), Total);
 		InOutDetail->SetArrayField(ListKey, Page);
 #else
@@ -643,7 +643,7 @@ void FGetAssetBlueprintCapability::ExecuteSection(const FString&                
 	}
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetBlueprintCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetBlueprintCapability)
 
 
 

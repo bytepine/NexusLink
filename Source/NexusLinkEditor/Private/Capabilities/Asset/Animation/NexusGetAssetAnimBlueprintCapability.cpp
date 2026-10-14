@@ -20,53 +20,53 @@
 
 // ── FNexusCapability 基础钩子 ─────────────────────────────────────────────────
 
-void FGetAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_anim_blueprint");
+	Out.Name = TEXT("GetAssetAnimBlueprint");
 	Out.SearchAssetTypes = {TEXT("AnimBlueprint")};
-	Out.Description = TEXT("Inspect ABP structure. sections=variables|statemachines|defaults|graphOverview|graph.");
+	Out.Description = TEXT("Inspect ABP structure. Sections=variables|statemachines|defaults|graphOverview|graph.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
-		TEXT("abp"), TEXT("statemachine"), TEXT("variables"), TEXT("defaults"), TEXT("cdo")
+		TEXT("abp"), TEXT("Statemachine"), TEXT("Variables"), TEXT("Defaults"), TEXT("cdo")
 	};
-	Out.RelatedCapabilities = { TEXT("manage_asset_anim_blueprint"), TEXT("create_asset_anim_blueprint") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetAnimBlueprint"), TEXT("CreateAssetAnimBlueprint") };
 	Out.WhenToUse = TEXT("Read ABP variables/state machines/defaults; no writes");
 }
 
-TSharedPtr<FJsonObject> FGetAssetAnimBlueprintCapability::BuildCapabilitySchema() const
+TSharedPtr<FJsonObject> FNexusGetAssetAnimBlueprintCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("AnimBlueprint asset path")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Variable/default name filter")))
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("AnimBlueprint asset path")))
+		.Prop(TEXT("NameFilter"), FNexusSchema::Str(TEXT("Variable/default name filter")))
 		.Build();
 }
 
 // ── multi-section 钩子 ────────────────────────────────────────────────────────
 
-TArray<FString> FGetAssetAnimBlueprintCapability::GetSectionNames() const
+TArray<FString> FNexusGetAssetAnimBlueprintCapability::GetSectionNames() const
 {
-	return { TEXT("variables"), TEXT("statemachines"), TEXT("defaults"), TEXT("graphOverview"), TEXT("graph") };
+	return { TEXT("Variables"), TEXT("statemachines"), TEXT("Defaults"), TEXT("graphOverview"), TEXT("graph") };
 }
 
-TArray<FString> FGetAssetAnimBlueprintCapability::GetDefaultSectionNames() const
+TArray<FString> FNexusGetAssetAnimBlueprintCapability::GetDefaultSectionNames() const
 {
-	return { TEXT("variables"), TEXT("statemachines") };
+	return { TEXT("Variables"), TEXT("statemachines") };
 }
 
-bool FGetAssetAnimBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
+bool FNexusGetAssetAnimBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
                                                     TSharedPtr<FJsonObject>&       OutEntry,
                                                     void*&                         OutTargetOpaque,
                                                     FString&                       OutError) const
 {
 	FString Path;
-	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
+	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("AssetPath"), Path) || Path.IsEmpty())
 	{
-		OutError = TEXT("Missing assetPath");
+		OutError = TEXT("Missing AssetPath");
 		return false;
 	}
 
-	OutEntry->SetStringField(TEXT("path"), Path);
+	OutEntry->SetStringField(TEXT("Path"), Path);
 
 	UAnimBlueprint* AnimBP = FNexusAssetUtils::LoadAssetWithFallback<UAnimBlueprint>(Path);
 	if (!AnimBP)
@@ -78,18 +78,18 @@ bool FGetAssetAnimBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObject
 	OutEntry->SetStringField(TEXT("name"), AnimBP->GetName());
 	if (AnimBP->TargetSkeleton)
 	{
-		OutEntry->SetStringField(TEXT("skeleton"), AnimBP->TargetSkeleton->GetPathName());
+		OutEntry->SetStringField(TEXT("Skeleton"), AnimBP->TargetSkeleton->GetPathName());
 	}
 	if (AnimBP->ParentClass)
 	{
-		OutEntry->SetStringField(TEXT("parentClass"), AnimBP->ParentClass->GetName());
+		OutEntry->SetStringField(TEXT("ParentClass"), AnimBP->ParentClass->GetName());
 	}
 
 	OutTargetOpaque = static_cast<void*>(AnimBP);
 	return true;
 }
 
-void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&                 SectionName,
+void FNexusGetAssetAnimBlueprintCapability::ExecuteSection(const FString&                 SectionName,
                                                       const TSharedPtr<FJsonObject>& Args,
                                                       void*                          TargetOpaque,
                                                       TSharedPtr<FJsonObject>&       InOutDetail,
@@ -99,9 +99,9 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 	if (!AnimBP) { OutError = TEXT("Invalid AnimBlueprint target"); return; }
 
 	FString NameFilter;
-	if (Args.IsValid()) Args->TryGetStringField(TEXT("nameFilter"), NameFilter);
+	if (Args.IsValid()) Args->TryGetStringField(TEXT("NameFilter"), NameFilter);
 
-	if (SectionName == TEXT("variables"))
+	if (SectionName == TEXT("Variables"))
 	{
 #if WITH_EDITOR
 		TArray<TSharedPtr<FJsonValue>> Variables;
@@ -115,15 +115,15 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 			VarObj->SetStringField(TEXT("type"), Var.VarType.PinCategory.ToString());
 			if (!Var.VarType.PinSubCategory.IsNone())
 			{
-				VarObj->SetStringField(TEXT("subType"), Var.VarType.PinSubCategory.ToString());
+				VarObj->SetStringField(TEXT("SubType"), Var.VarType.PinSubCategory.ToString());
 			}
 			if (!Var.Category.IsEmpty())
 			{
-				VarObj->SetStringField(TEXT("category"), Var.Category.ToString());
+				VarObj->SetStringField(TEXT("Category"), Var.Category.ToString());
 			}
 			Variables.Add(MakeShared<FJsonValueObject>(VarObj));
 		}
-		InOutDetail->SetArrayField(TEXT("variables"), Variables);
+		InOutDetail->SetArrayField(TEXT("Variables"), Variables);
 #else
 		OutError = TEXT("variables only available in editor builds");
 #endif
@@ -149,12 +149,12 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 				}
 				if (States.Num() > 0)
 				{
-					SMObj->SetArrayField(TEXT("states"), States);
+					SMObj->SetArrayField(TEXT("States"), States);
 				}
 				StateMachines.Add(MakeShared<FJsonValueObject>(SMObj));
 			}
 		}
-		InOutDetail->SetArrayField(TEXT("stateMachines"), StateMachines);
+		InOutDetail->SetArrayField(TEXT("StateMachines"), StateMachines);
 	}
 #if WITH_EDITOR
 	else if (SectionName == TEXT("graphOverview"))
@@ -175,12 +175,12 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 				List.Add(MakeShared<FJsonValueObject>(FNexusBlueprintGraphUtils::BuildBPGraphSummary(G)));
 			}
 		}
-		InOutDetail->SetArrayField(TEXT("graphs"), List);
+		InOutDetail->SetArrayField(TEXT("Graphs"), List);
 	}
 	else if (SectionName == TEXT("graph"))
 	{
 		FString GraphName;
-		if (Args.IsValid()) Args->TryGetStringField(TEXT("graphName"), GraphName);
+		if (Args.IsValid()) Args->TryGetStringField(TEXT("GraphName"), GraphName);
 		UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphName);
 		if (!AnimGraph)
 		{
@@ -192,23 +192,23 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 		{
 			if (!Node) continue;
 			TSharedPtr<FJsonObject> NObj = MakeShared<FJsonObject>();
-			NObj->SetStringField(TEXT("nodeId"), Node->NodeGuid.ToString());
-			NObj->SetStringField(TEXT("nodeClass"), Node->GetClass()->GetName());
-			NObj->SetStringField(TEXT("title"), Node->GetNodeTitle(ENodeTitleType::ListView).ToString());
+			NObj->SetStringField(TEXT("NodeId"), Node->NodeGuid.ToString());
+			NObj->SetStringField(TEXT("NodeClass"), Node->GetClass()->GetName());
+			NObj->SetStringField(TEXT("Title"), Node->GetNodeTitle(ENodeTitleType::ListView).ToString());
 			TArray<TSharedPtr<FJsonValue>> PinsArr;
 			for (UEdGraphPin* Pin : Node->Pins)
 			{
 				if (!Pin) continue;
 				TSharedPtr<FJsonObject> PObj = MakeShared<FJsonObject>();
 				PObj->SetStringField(TEXT("name"), Pin->PinName.ToString());
-				PObj->SetStringField(TEXT("direction"), Pin->Direction == EGPD_Input ? TEXT("input") : TEXT("output"));
+				PObj->SetStringField(TEXT("Direction"), Pin->Direction == EGPD_Input ? TEXT("input") : TEXT("Output"));
 				PinsArr.Add(MakeShared<FJsonValueObject>(PObj));
 			}
-			NObj->SetArrayField(TEXT("pins"), PinsArr);
+			NObj->SetArrayField(TEXT("Pins"), PinsArr);
 			NodesArr.Add(MakeShared<FJsonValueObject>(NObj));
 		}
-		InOutDetail->SetStringField(TEXT("graphName"), AnimGraph->GetName());
-		InOutDetail->SetArrayField(TEXT("nodes"), NodesArr);
+		InOutDetail->SetStringField(TEXT("GraphName"), AnimGraph->GetName());
+		InOutDetail->SetArrayField(TEXT("Nodes"), NodesArr);
 	}
 #else
 	else if (SectionName == TEXT("graphOverview"))
@@ -220,7 +220,7 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 		OutError = TEXT("graph only available in editor builds");
 	}
 #endif
-	else if (SectionName == TEXT("defaults"))
+	else if (SectionName == TEXT("Defaults"))
 	{
 		TArray<TSharedPtr<FJsonValue>> Defaults;
 		UObject* CDO = AnimBP->GeneratedClass ? AnimBP->GeneratedClass->GetDefaultObject(false) : nullptr;
@@ -237,11 +237,11 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 				DObj->SetStringField(TEXT("type"), Prop->GetCPPType());
 				FString Val;
 				FNexusPropertyUtils::ExportText(Prop, Val, Prop->ContainerPtrToValuePtr<void>(CDO));
-				if (!Val.IsEmpty()) DObj->SetStringField(TEXT("value"), Val);
+				if (!Val.IsEmpty()) DObj->SetStringField(TEXT("Value"), Val);
 				Defaults.Add(MakeShared<FJsonValueObject>(DObj));
 			}
 		}
-		InOutDetail->SetArrayField(TEXT("defaults"), Defaults);
+		InOutDetail->SetArrayField(TEXT("Defaults"), Defaults);
 	}
 	else
 	{
@@ -249,4 +249,4 @@ void FGetAssetAnimBlueprintCapability::ExecuteSection(const FString&            
 	}
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetAnimBlueprintCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetAnimBlueprintCapability)

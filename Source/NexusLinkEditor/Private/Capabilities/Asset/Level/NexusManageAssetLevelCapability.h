@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_level — 编辑关卡 WorldSettings 属性。*/
-class FManageAssetLevelCapability : public FNexusActionCapability
+/** ManageAssetLevel — 编辑关卡 WorldSettings 属性。*/
+class FNexusManageAssetLevelCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

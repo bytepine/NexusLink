@@ -9,13 +9,13 @@
  * Multi-section Capability 基类。
  *
  * 继承此类即获得以下框架能力（无需子类手动实现）：
- *   - sections: string[] 入参（枚举 + "all"）自动注入 schema
+ *   - sections: string[] 入参（枚举 + "All"）自动注入 schema
  *   - 未传 / 空 → GetDefaultSectionNames() 兜底
- *   - "all" → GetSectionNames() 全集
- *   - ExpandPerEntry() 预留钩子（默认不展开；跨目标请用 call_capability.calls[]）
+ *   - "All" → GetSectionNames() 全集
+ *   - ExpandPerEntry() 预留钩子（默认不展开；跨目标请用 CallCapability.calls[]）
  *   - PrepareEntry() locator 写入 + Target 获取
- *   - ExecuteSection() 逐 section 执行，错误写入 entry.sectionErrors[]
- *   - entry.sections = 实际覆盖列表
+ *   - ExecuteSection() 逐 section 执行，错误写入 entry.SectionErrors[]
+ *   - entry.Sections = 实际覆盖列表
  *
  * 子类必须实现：
  *   BuildDefinition（填写 Name/Description/Tags/ExtraSearchKeywords 等，
@@ -48,20 +48,20 @@ protected:
 
 	// ── Multi-section 钩子 ───────────────────────────────────────────────────────
 
-	/** 全部支持的 section 名（snake_case）。决定 sections 字段 enum 范围 + "all" 展开值。 */
+	/** 全部支持的 section 名（snake_case）。决定 sections 字段 enum 范围 + "All" 展开值。 */
 	virtual TArray<FString> GetSectionNames() const = 0;
 
 	/**
 	 * 未传 sections / 空数组时使用的默认 section 列表。
 	 * 默认返回 GetSectionNames() 全集（即不传 = 全部）。
-	 * 子类可 override 为常用子集（如 {"variable", "function"}）。
+	 * 子类可 override 为常用子集（如 {"variable", "Function"}）。
 	 */
 	virtual TArray<FString> GetDefaultSectionNames() const { return GetSectionNames(); }
 
 	/**
-	 * 解析入参，写 locator 字段（assetPath/actorName/...）并输出不透明 Target 指针。
+	 * 解析入参，写 locator 字段（AssetPath/ActorName/...）并输出不透明 Target 指针。
 	 * 失败时填 OutError + 返回 false；该 entry 跳过所有 section，仅输出 error 字段。
-	 * 无需 target 的 cap 可不 override（默认返回 true，target = nullptr）。
+	 * 无需 target 的 cap 可不 override（默认返回 true，Target = nullptr）。
 	 */
 	virtual bool PrepareEntry(const TSharedPtr<FJsonObject>& Args,
 	                          TSharedPtr<FJsonObject>&       OutEntry,
@@ -70,7 +70,7 @@ protected:
 
 	/**
 	 * 执行单个 section，把字段平铺写入 InOutDetail。
-	 * OutError 非空 → 该 section 错误追加到 entry.sectionErrors[]，不中断其他 section。
+	 * OutError 非空 → 该 section 错误追加到 entry.SectionErrors[]，不中断其他 section。
 	 */
 	virtual void ExecuteSection(const FString&                 SectionName,
 	                            const TSharedPtr<FJsonObject>& Args,
@@ -80,7 +80,7 @@ protected:
 
 	/**
 	 * 多 entry 展开钩子（默认返回空 = 单 entry）。
-	 * Capability 只收单目标（assetPath/actorName/widgetName）；跨目标请用 call_capability.calls[]，
+	 * Capability 只收单目标（AssetPath/ActorName/WidgetName）；跨目标请用 CallCapability.calls[]，
 	 * 不要在此展开 assetPaths/actorNames 等批量定位键。
 	 */
 	virtual TArray<TSharedPtr<FJsonObject>> ExpandPerEntry(const TSharedPtr<FJsonObject>& Args) const { return {}; }
@@ -89,7 +89,7 @@ protected:
 	 * 是否在每个 entry 处理完后检查内存高水位阈值、按需整批卸载本次调用引入的包
 	 * （FNexusPackageLedger，见 NexusPackageLedger.h）。
 	 * 默认：只读 Capability（带 FNexusMcpTags::Readonly 标签）为 true；写类 Capability 为 false
-	 * （写操作可能故意留 dirty 待后续 save_asset，不应被自动卸载打断）。
+	 * （写操作可能故意留 dirty 待后续 SaveAsset，不应被自动卸载打断）。
 	 * 子类通常无需 override：PrepareEntry/ExecuteSection 内改用 FNexusAssetUtils::LoadAssetTracked 加载即可接入本机制。
 	 */
 	virtual bool ShouldAutoUnloadIntrospected() const;

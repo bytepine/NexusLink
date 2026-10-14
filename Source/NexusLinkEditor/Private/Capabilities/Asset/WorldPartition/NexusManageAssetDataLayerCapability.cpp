@@ -12,19 +12,19 @@
 #include "NexusMcpTool.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 
-void FManageAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name        = TEXT("manage_asset_data_layer");
+	Out.Name        = TEXT("ManageAssetDataLayer");
 	Out.SearchAssetTypes = {TEXT("DataLayerAsset")};
-	Out.Description = TEXT("Edit DataLayer asset (≥UE5.1, editor): set_type/set_debug_color.");
+	Out.Description = TEXT("Edit DataLayer asset (≥UE5.1, editor): SetType/SetDebugColor.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataLayerAsset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrOfObj(TEXT("Operation list; each item requires action")))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("DataLayerAsset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrOfObj(TEXT("Operation list; each item requires action")))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("datalayer"), TEXT("data layer"), TEXT("world partition"), TEXT("streaming"), TEXT("color"), TEXT("type") };
-	Out.RelatedCapabilities = { TEXT("get_asset_data_layer"), TEXT("create_asset_data_layer") };
+	Out.ExtraSearchKeywords = { TEXT("datalayer"), TEXT("data layer"), TEXT("world partition"), TEXT("streaming"), TEXT("Color"), TEXT("type") };
+	Out.RelatedCapabilities = { TEXT("GetAssetDataLayer"), TEXT("CreateAssetDataLayer") };
 	Out.WhenToUse = TEXT("Edit DataLayerAsset type (Runtime/Editor) or debug color (≥UE5.1)");
 }
 
@@ -59,7 +59,7 @@ static void HandleDL_SetType(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 	UDataLayerAsset* DLA = DLFrom(Ctx);
 	if (!DLA)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataLayerAsset is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DataLayerAsset is null"));
 		return;
 	}
 	FString TypeStr;
@@ -77,24 +77,24 @@ static void HandleDL_SetDebugColor(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	UDataLayerAsset* DLA = DLFrom(Ctx);
 	if (!DLA)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataLayerAsset is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DataLayerAsset is null"));
 		return;
 	}
 	FString ColorStr;
-	Op->TryGetStringField(TEXT("color"), ColorStr);
+	Op->TryGetStringField(TEXT("Color"), ColorStr);
 	if (ColorStr.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_debug_color requires color field (#RRGGBB)"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetDebugColor requires color field (#RRGGBB)"));
 		return;
 	}
 	const FColor Color = FColor::FromHex(ColorStr);
 	DLA->SetDebugColor(Color);
-	Ctx.Entry->SetStringField(TEXT("color"), Color.ToHex());
+	Ctx.Entry->SetStringField(TEXT("Color"), Color.ToHex());
 	MarkDLDirty(Ctx);
 }
 #endif // WITH_EDITOR
 
-bool FManageAssetDataLayerCapability::PrepareTarget(
+bool FNexusManageAssetDataLayerCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
@@ -104,11 +104,11 @@ bool FManageAssetDataLayerCapability::PrepareTarget(
 	(void)Args;
 	(void)Entry;
 	(void)OutTarget;
-	OutError = TEXT("manage_asset_data_layer requires editor");
+	OutError = TEXT("ManageAssetDataLayer requires editor");
 	return false;
 #else
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UDataLayerAsset* DLA = FNexusAssetUtils::LoadAssetWithFallback<UDataLayerAsset>(AssetPath);
 	if (!DLA)
 	{
@@ -122,7 +122,7 @@ bool FManageAssetDataLayerCapability::PrepareTarget(
 #endif
 }
 
-void FManageAssetDataLayerCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetDataLayerCapability::FinalizeTarget(void* Target) const
 {
 #if WITH_EDITOR
 	FDataLayerActionState* State = static_cast<FDataLayerActionState*>(Target);
@@ -137,17 +137,17 @@ void FManageAssetDataLayerCapability::FinalizeTarget(void* Target) const
 #endif
 }
 
-void FManageAssetDataLayerCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetDataLayerCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
 #if WITH_EDITOR
-	OutHandlers.Add(TEXT("set_type"),        &HandleDL_SetType);
-	OutHandlers.Add(TEXT("set_debug_color"), &HandleDL_SetDebugColor);
+	OutHandlers.Add(TEXT("SetType"),        &HandleDL_SetType);
+	OutHandlers.Add(TEXT("SetDebugColor"), &HandleDL_SetDebugColor);
 #else
 	(void)OutHandlers;
 #endif
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetDataLayerCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetDataLayerCapability)
 
 #else // NX_UE_HAS_DATA_LAYER_ASSET
 
@@ -157,22 +157,22 @@ REGISTER_MCP_CAPABILITY(FManageAssetDataLayerCapability)
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name        = TEXT("manage_asset_data_layer");
+	Out.Name        = TEXT("ManageAssetDataLayer");
 	Out.Description = TEXT("(DataLayerAsset requires UE5.1+ on this engine)");
 	Out.InputSchema = FNexusSchema::Object().Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 }
 
-FCapabilityResult FManageAssetDataLayerCapability::Execute(const TSharedPtr<FJsonObject>&) const
+FCapabilityResult FNexusManageAssetDataLayerCapability::Execute(const TSharedPtr<FJsonObject>&) const
 {
 	return FNexusCapabilityResultBuilder::Build([](auto& OutEntries, auto&, auto& OutError)
 	{
-		OutError = TEXT("manage_asset_data_layer requires UE5.1+");
+		OutError = TEXT("ManageAssetDataLayer requires UE5.1+");
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetDataLayerCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetDataLayerCapability)
 
 #endif // NX_UE_HAS_DATA_LAYER_ASSET

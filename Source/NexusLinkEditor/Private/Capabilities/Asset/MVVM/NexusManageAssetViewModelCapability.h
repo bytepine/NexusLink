@@ -5,8 +5,8 @@
 #if WITH_MVVM
 #include "NexusActionCapability.h"
 
-/** manage_asset_view_model：WBP MVVM ViewModel/Binding 增删。UE 5.5+。 */
-class FManageAssetViewModelCapability : public FNexusActionCapability
+/** ManageAssetViewModel：WBP MVVM ViewModel/Binding 增删。UE 5.5+。 */
+class FNexusManageAssetViewModelCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

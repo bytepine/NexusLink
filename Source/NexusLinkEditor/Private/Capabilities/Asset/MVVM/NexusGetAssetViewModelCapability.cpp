@@ -78,31 +78,31 @@ static FString PropertyPathToString(const FMVVMBlueprintPropertyPath& Path)
 
 // ── Capability ────────────────────────────────────────────────────────────────
 
-void FGetAssetViewModelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetViewModelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_view_model");
+	Out.Name = TEXT("GetAssetViewModel");
 	Out.Description = TEXT("Inspect WBP MVVM ViewModels and Bindings. Read-only. UE 5.5+.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Widget Blueprint asset path (/Game/…/WBP_Foo)")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Widget Blueprint asset path (/Game/…/WBP_Foo)")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = {
-		TEXT("mvvm"), TEXT("viewmodel"), TEXT("view_model"), TEXT("binding"), TEXT("bindings"),
-		TEXT("fieldnotify"), TEXT("umvm"), TEXT("ue5_mvvm")
+		TEXT("mvvm"), TEXT("viewmodel"), TEXT("ViewModel"), TEXT("binding"), TEXT("Bindings"),
+		TEXT("fieldnotify"), TEXT("umvm"), TEXT("UE5MVVM")
 	};
-	Out.RelatedCapabilities = { TEXT("get_asset_user_widget"), TEXT("manage_asset_user_widget"), TEXT("search_asset"), TEXT("get_asset_blueprint"), TEXT("manage_asset_view_model") };
+	Out.RelatedCapabilities = { TEXT("GetAssetUserWidget"), TEXT("ManageAssetUserWidget"), TEXT("SearchAsset"), TEXT("GetAssetBlueprint"), TEXT("ManageAssetViewModel") };
 	Out.WhenToUse = TEXT("Read MVVM ViewModels and bindings on Widget BP (source<->target/direction/conversion)");
 }
 
-FCapabilityResult FGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 #if WITH_EDITOR
 		UWidgetBlueprint* WBP = FNexusAssetEditorUtils::LoadWidgetBP(AssetPath);
@@ -112,9 +112,9 @@ FCapabilityResult FGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonOb
 			return;
 		}
 
-		OutEntry->SetStringField(TEXT("assetType"), TEXT("WidgetBlueprint"));
+		OutEntry->SetStringField(TEXT("AssetType"), TEXT("WidgetBlueprint"));
 		OutEntry->SetStringField(TEXT("name"), WBP->GetName());
-		OutEntry->SetStringField(TEXT("path"), FNexusAssetUtils::PackagePathOf(WBP));
+		OutEntry->SetStringField(TEXT("Path"), FNexusAssetUtils::PackagePathOf(WBP));
 
 		// 从 WBP 扩展中取 MVVM 视图对象
 		UMVVMWidgetBlueprintExtension_View* MvvmExt =
@@ -122,7 +122,7 @@ FCapabilityResult FGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonOb
 
 		if (!MvvmExt)
 		{
-			OutEntry->SetStringField(TEXT("note"), TEXT("Widget Blueprint has no MVVM (missing MVVMWidgetBlueprintExtension_View)"));
+			OutEntry->SetStringField(TEXT("Note"), TEXT("Widget Blueprint has no MVVM (missing MVVMWidgetBlueprintExtension_View)"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -130,7 +130,7 @@ FCapabilityResult FGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonOb
 		const UMVVMBlueprintView* View = MvvmExt->GetBlueprintView();
 		if (!View)
 		{
-			OutEntry->SetStringField(TEXT("note"), TEXT("MVVM extension exists but BlueprintView is empty"));
+			OutEntry->SetStringField(TEXT("Note"), TEXT("MVVM extension exists but BlueprintView is empty"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -141,17 +141,17 @@ FCapabilityResult FGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonOb
 		{
 			TSharedPtr<FJsonObject> VmObj = MakeShared<FJsonObject>();
 			VmObj->SetStringField(TEXT("name"), Ctx.ViewModelName.ToString());
-			VmObj->SetStringField(TEXT("creationType"), CreationTypeToStr(Ctx.CreationType));
+			VmObj->SetStringField(TEXT("CreationType"), CreationTypeToStr(Ctx.CreationType));
 			if (Ctx.NotifyFieldValueClass)
 			{
-				VmObj->SetStringField(TEXT("class"), Ctx.NotifyFieldValueClass->GetName());
+				VmObj->SetStringField(TEXT("Class"), Ctx.NotifyFieldValueClass->GetName());
 			}
-			VmObj->SetBoolField(TEXT("optional"), Ctx.bOptional);
-			VmObj->SetBoolField(TEXT("hasPublicSetter"), Ctx.bCreateSetterFunction);
+			VmObj->SetBoolField(TEXT("bOptional"), Ctx.bOptional);
+			VmObj->SetBoolField(TEXT("bHasPublicSetter"), Ctx.bCreateSetterFunction);
 			VmArray.Add(MakeShared<FJsonValueObject>(VmObj));
 		}
-		OutEntry->SetNumberField(TEXT("viewModelsCount"), VmArray.Num());
-		OutEntry->SetArrayField(TEXT("viewModels"), VmArray);
+		OutEntry->SetNumberField(TEXT("ViewModelsCount"), VmArray.Num());
+		OutEntry->SetArrayField(TEXT("ViewModels"), VmArray);
 
 		// ── Bindings 列表 ──────────────────────────────────────────────────────
 		TArray<TSharedPtr<FJsonValue>> BindArr;
@@ -163,16 +163,16 @@ FCapabilityResult FGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonOb
 				continue;
 			}
 			TSharedPtr<FJsonObject> BObj = MakeShared<FJsonObject>();
-			BObj->SetStringField(TEXT("id"), B->BindingId.ToString());
-			BObj->SetStringField(TEXT("sourcePath"), PropertyPathToString(B->SourcePath));
-			BObj->SetStringField(TEXT("destinationPath"), PropertyPathToString(B->DestinationPath));
-			BObj->SetStringField(TEXT("bindingType"), BindingModeToStr(B->BindingType));
-			BObj->SetBoolField(TEXT("enabled"), B->bEnabled);
-			BObj->SetBoolField(TEXT("compile"), B->bCompile);
+			BObj->SetStringField(TEXT("Id"), B->BindingId.ToString());
+			BObj->SetStringField(TEXT("SourcePath"), PropertyPathToString(B->SourcePath));
+			BObj->SetStringField(TEXT("DestinationPath"), PropertyPathToString(B->DestinationPath));
+			BObj->SetStringField(TEXT("BindingType"), BindingModeToStr(B->BindingType));
+			BObj->SetBoolField(TEXT("bEnabled"), B->bEnabled);
+			BObj->SetBoolField(TEXT("bCompile"), B->bCompile);
 			BindArr.Add(MakeShared<FJsonValueObject>(BObj));
 		}
-		OutEntry->SetNumberField(TEXT("bindingsCount"), BindArr.Num());
-		OutEntry->SetArrayField(TEXT("bindings"), BindArr);
+		OutEntry->SetNumberField(TEXT("BindingsCount"), BindArr.Num());
+		OutEntry->SetArrayField(TEXT("Bindings"), BindArr);
 
 #if NX_UE_HAS_MVVM_EVENTS_CONDITIONS
 		// UE 5.5+：Events 与 Conditions
@@ -194,22 +194,22 @@ FCapabilityResult FGetAssetViewModelCapability::Execute(const TSharedPtr<FJsonOb
 		}
 		if (EventCount > 0)
 		{
-			OutEntry->SetNumberField(TEXT("eventsCount"), EventCount);
+			OutEntry->SetNumberField(TEXT("EventsCount"), EventCount);
 		}
 		if (ConditionCount > 0)
 		{
-			OutEntry->SetNumberField(TEXT("conditionsCount"), ConditionCount);
+			OutEntry->SetNumberField(TEXT("ConditionsCount"), ConditionCount);
 		}
 #endif // NX_UE_HAS_MVVM_EVENTS_CONDITIONS
 
 #else
-		OutEntry->SetStringField(TEXT("note"), TEXT("MVVM data only available in WITH_EDITOR builds"));
+		OutEntry->SetStringField(TEXT("Note"), TEXT("MVVM data only available in WITH_EDITOR builds"));
 #endif // WITH_EDITOR
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetViewModelCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetViewModelCapability)
 
 #endif // WITH_MVVM

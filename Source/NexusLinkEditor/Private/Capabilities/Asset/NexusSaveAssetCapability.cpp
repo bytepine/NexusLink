@@ -14,20 +14,20 @@
 #include "UObject/UObjectGlobals.h"
 #endif
 
-void FSaveAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusSaveAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("save_asset");
+	Out.Name = TEXT("SaveAsset");
 	Out.Description = TEXT("Persist asset package to disk. MarkPackageDirty then save.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Single asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Single asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("persist"), TEXT("commit"), TEXT("flush"), TEXT("package"), TEXT("disk") };
-	Out.RelatedCapabilities = { TEXT("rename_asset"), TEXT("delete_asset") };
+	Out.RelatedCapabilities = { TEXT("RenameAsset"), TEXT("DeleteAsset") };
 }
 
-FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -35,10 +35,10 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 		const FNexusArgs A(Arguments);
 
 	#if !WITH_EDITOR
-		OutError = TEXT("save_asset only available in editor mode");
+		OutError = TEXT("SaveAsset only available in editor mode");
 		return;
 	#else
-		const FString OrigPath = A.Str(TEXT("assetPath"));
+		const FString OrigPath = A.Str(TEXT("AssetPath"));
 
 		int32 SavedCount = 0;
 		int32 FailedCount = 0;
@@ -52,15 +52,15 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), OrigPath);
+		Entry->SetStringField(TEXT("Path"), OrigPath);
 
 		UPackage* Pkg = FindPackage(nullptr, *PackagePath);
 		if (!Pkg) Pkg = LoadPackage(nullptr, *PackagePath, LOAD_None);
 		if (!Pkg)
 		{
 			++FailedCount;
-			Entry->SetBoolField(TEXT("success"), false);
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Package not found: %s"), *PackagePath));
+			Entry->SetBoolField(TEXT("bSuccess"), false);
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Package not found: %s"), *PackagePath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 		}
 		else
@@ -72,10 +72,10 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 			if (bDeferred)
 			{
 				++DeferredCount;
-				Entry->SetBoolField(TEXT("deferred"), true);
+				Entry->SetBoolField(TEXT("bDeferred"), true);
 				if (!Note.IsEmpty())
 				{
-					Entry->SetStringField(TEXT("note"), Note);
+					Entry->SetStringField(TEXT("Note"), Note);
 				}
 			}
 			else if (bOk)
@@ -85,25 +85,25 @@ FCapabilityResult FSaveAssetCapability::Execute(const TSharedPtr<FJsonObject>& A
 			else
 			{
 				++FailedCount;
-				Entry->SetBoolField(TEXT("success"), false);
+				Entry->SetBoolField(TEXT("bSuccess"), false);
 				const FString ErrorText = Note.IsEmpty()
 					? FString::Printf(TEXT("SavePackage failed: %s"), *PackagePath)
 					: FString::Printf(TEXT("%s（%s）"), *PackagePath, *Note);
-				Entry->SetStringField(TEXT("error"), ErrorText);
+				Entry->SetStringField(TEXT("Error"), ErrorText);
 			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 		}
 
-		OutTop->SetNumberField(TEXT("saved"), SavedCount);
-		OutTop->SetNumberField(TEXT("skipped"), 0);
-		OutTop->SetNumberField(TEXT("failed"), FailedCount);
+		OutTop->SetNumberField(TEXT("bSaved"), SavedCount);
+		OutTop->SetNumberField(TEXT("Skipped"), 0);
+		OutTop->SetNumberField(TEXT("Failed"), FailedCount);
 		if (DeferredCount > 0)
 		{
-			OutTop->SetNumberField(TEXT("deferred"), DeferredCount);
+			OutTop->SetNumberField(TEXT("bDeferred"), DeferredCount);
 		}
 	#endif
 	
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FSaveAssetCapability)
+REGISTER_MCP_CAPABILITY(FNexusSaveAssetCapability)

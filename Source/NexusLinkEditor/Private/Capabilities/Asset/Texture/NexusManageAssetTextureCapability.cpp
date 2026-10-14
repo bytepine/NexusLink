@@ -9,27 +9,27 @@
 #include "Engine/Texture2D.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetTextureCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetTextureCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_texture");
+	Out.Name = TEXT("ManageAssetTexture");
 	Out.SearchAssetTypes = {TEXT("Texture2D")};
-	Out.Description = TEXT("Batch edit Texture properties. Compression/sRGB/LODGroup.");
+	Out.Description = TEXT("Batch edit Texture properties. Compression/bSRGB/LODGroup.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Action"), { TEXT("set_property") }))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("propertypath (e.g. CompressionSettings/sRGB/LODGroup)")))
-		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("New property value string")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Action"), { TEXT("SetProperty") }))
+		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("propertypath (e.g. CompressionSettings/bSRGB/LODGroup)")))
+		.Prop(TEXT("Value"),        FNexusSchema::Str(TEXT("New property value string")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Texture asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch property ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Texture asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch property ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("texture"), TEXT("image"), TEXT("compression"), TEXT("srgb"), TEXT("lod") };
-	Out.RelatedCapabilities = { TEXT("get_asset_texture"), TEXT("search_asset") };
-	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("Edit Texture compression/sRGB/LODGroup; persist with save_asset");
+	Out.ExtraSearchKeywords = { TEXT("Texture"), TEXT("image"), TEXT("compression"), TEXT("srgb"), TEXT("lod") };
+	Out.RelatedCapabilities = { TEXT("GetAssetTexture"), TEXT("SearchAsset") };
+	Out.Prerequisites = { TEXT("EditorOnly") };
+	Out.WhenToUse = TEXT("Edit Texture compression/bSRGB/LODGroup; persist with SaveAsset");
 }
 
 struct FTextureActionState
@@ -47,35 +47,35 @@ static void HandleTex_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActio
 {
 	UTexture* Texture = TexState(Ctx)->Texture;
 	FString PropPath, Value;
-	Op->TryGetStringField(TEXT("propertyPath"), PropPath);
-	Op->TryGetStringField(TEXT("value"), Value);
+	Op->TryGetStringField(TEXT("PropertyPath"), PropPath);
+	Op->TryGetStringField(TEXT("Value"), Value);
 	if (PropPath.IsEmpty() || Value.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyPath and value"));
 		return;
 	}
 	FString OldVal, ActualVal, Err;
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(Texture, { PropPath }, 0, Value, OldVal, ActualVal, Err))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), Err);
+		Ctx.Entry->SetStringField(TEXT("Error"), Err);
 		return;
 	}
 	TexState(Ctx)->bDirty = true;
 	// UpdateMips 仅 UE5+ 可用；UE4 通过编辑器重新导入刷新
-	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
-	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
-	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
-	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset; compression changes need reimport"));
+	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset; compression changes need reimport"));
 }
 
-bool FManageAssetTextureCapability::PrepareTarget(
+bool FNexusManageAssetTextureCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UTexture* Texture = FNexusAssetUtils::LoadAssetWithFallback<UTexture>(AssetPath);
 	if (!Texture)
 	{
@@ -88,7 +88,7 @@ bool FManageAssetTextureCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetTextureCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetTextureCapability::FinalizeTarget(void* Target) const
 {
 	FTextureActionState* State = static_cast<FTextureActionState*>(Target);
 	if (!State) return;
@@ -96,9 +96,9 @@ void FManageAssetTextureCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetTextureCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetTextureCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_property"), &HandleTex_SetProperty);
+	OutHandlers.Add(TEXT("SetProperty"), &HandleTex_SetProperty);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetTextureCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetTextureCapability)

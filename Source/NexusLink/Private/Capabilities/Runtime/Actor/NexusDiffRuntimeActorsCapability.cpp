@@ -25,16 +25,16 @@ static FNexusActorComparePairResult ComparePairCap(AActor* ActorA, AActor* Actor
 	auto AddDiff = [&R](const FString& Path, const FString& Type, const FString& ValA, const FString& ValB)
 	{
 		TSharedPtr<FJsonObject> Diff = MakeShared<FJsonObject>();
-		Diff->SetStringField(TEXT("path"), Path);
+		Diff->SetStringField(TEXT("Path"), Path);
 		if (!Type.IsEmpty()) { Diff->SetStringField(TEXT("type"), Type); }
-		Diff->SetStringField(TEXT("valueA"), ValA);
-		Diff->SetStringField(TEXT("valueB"), ValB);
+		Diff->SetStringField(TEXT("ValueA"), ValA);
+		Diff->SetStringField(TEXT("ValueB"), ValB);
 		R.Diffs.Add(MakeShared<FJsonValueObject>(Diff));
 	};
 
-	if (Arguments->HasField(TEXT("propertyPaths")))
+	if (Arguments->HasField(TEXT("PropertyPaths")))
 	{
-		const TArray<TSharedPtr<FJsonValue>>& PathsArr = Arguments->GetArrayField(TEXT("propertyPaths"));
+		const TArray<TSharedPtr<FJsonValue>>& PathsArr = Arguments->GetArrayField(TEXT("PropertyPaths"));
 		for (const TSharedPtr<FJsonValue>& PathVal : PathsArr)
 		{
 			if (R.Diffs.Num() >= MaxDiffs) { R.bTruncated = true; break; }
@@ -50,15 +50,15 @@ static FNexusActorComparePairResult ComparePairCap(AActor* ActorA, AActor* Actor
 			FString ValueA, ValueB;
 			if (bOkA)
 			{
-				ValueA = ResA->HasField(TEXT("value"))
-					? ResA->GetStringField(TEXT("value"))
+				ValueA = ResA->HasField(TEXT("Value"))
+					? ResA->GetStringField(TEXT("Value"))
 					: FNexusJsonUtils::SerializeCondensed(ResA);
 			}
 			else { ValueA = FString::Printf(TEXT("[error] %s"), *ErrorA); }
 			if (bOkB)
 			{
-				ValueB = ResB->HasField(TEXT("value"))
-					? ResB->GetStringField(TEXT("value"))
+				ValueB = ResB->HasField(TEXT("Value"))
+					? ResB->GetStringField(TEXT("Value"))
 					: FNexusJsonUtils::SerializeCondensed(ResB);
 			}
 			else { ValueB = FString::Printf(TEXT("[error] %s"), *ErrorB); }
@@ -106,7 +106,7 @@ static FNexusActorComparePairResult ComparePairCap(AActor* ActorA, AActor* Actor
 		UActorComponent** CompBPtr = CompMapB.Find(CompName);
 		if (!CompBPtr)
 		{
-			AddDiff(CompName, TEXT("component"), TEXT("exists"), TEXT("missing"));
+			AddDiff(CompName, TEXT("Component"), TEXT("exists"), TEXT("missing"));
 			continue;
 		}
 		CompMapB.Remove(CompName);
@@ -134,7 +134,7 @@ static FNexusActorComparePairResult ComparePairCap(AActor* ActorA, AActor* Actor
 	for (const auto& Pair : CompMapB)
 	{
 		if (R.Diffs.Num() >= MaxDiffs) { R.bTruncated = true; break; }
-		AddDiff(Pair.Key, TEXT("component"), TEXT("missing"), TEXT("exists"));
+		AddDiff(Pair.Key, TEXT("Component"), TEXT("missing"), TEXT("exists"));
 	}
 
 	return R;
@@ -144,27 +144,27 @@ static TSharedPtr<FJsonObject> MakeActorInfoCap(AActor* Actor)
 {
 	TSharedPtr<FJsonObject> Info = MakeShared<FJsonObject>();
 	Info->SetStringField(TEXT("name"), Actor->GetName());
-	Info->SetStringField(TEXT("class"), Actor->GetClass()->GetName());
+	Info->SetStringField(TEXT("Class"), Actor->GetClass()->GetName());
 	return Info;
 }
 
-void FDiffRuntimeActorsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusDiffRuntimeActorsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("diff_runtime_actors");
-	Out.Description = TEXT("Diff two runtime Actor properties. Max 50; filter by propertyPaths.");
+	Out.Name = TEXT("DiffRuntimeActors");
+	Out.Description = TEXT("Diff two runtime Actor properties. Max 50; filter by PropertyPaths.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("actorNameA"),    FNexusSchema::Str(TEXT("First Actor name")))
-		.Prop(TEXT("actorNameB"),    FNexusSchema::Str(TEXT("Second Actor name")))
-		.Prop(TEXT("propertyPaths"), FNexusSchema::StrArr(TEXT("Dot-separated paths; omit=all editable properties")))
-		.Required({ TEXT("actorNameA"), TEXT("actorNameB") })
+		.Prop(TEXT("ActorNameA"),    FNexusSchema::Str(TEXT("First Actor name")))
+		.Prop(TEXT("ActorNameB"),    FNexusSchema::Str(TEXT("Second Actor name")))
+		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("Dot-separated paths; omit=all editable properties")))
+		.Required({ TEXT("ActorNameA"), TEXT("ActorNameB") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("compare"), TEXT("difference"), TEXT("contrast"), TEXT("equal"), TEXT("mismatch") };
-	Out.RelatedCapabilities = { TEXT("get_runtime_actor_property"), TEXT("list_runtime_actors") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.RelatedCapabilities = { TEXT("GetRuntimeActorProperty"), TEXT("ListRuntimeActors") };
+	Out.Prerequisites = { TEXT("PIE") };
 }
 
-FCapabilityResult FDiffRuntimeActorsCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusDiffRuntimeActorsCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -175,10 +175,10 @@ FCapabilityResult FDiffRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 		if (!World) return;
 
 		FString NameA, NameB;
-		if (!Arguments->TryGetStringField(TEXT("actorNameA"), NameA) ||
-		    !Arguments->TryGetStringField(TEXT("actorNameB"), NameB))
+		if (!Arguments->TryGetStringField(TEXT("ActorNameA"), NameA) ||
+		    !Arguments->TryGetStringField(TEXT("ActorNameB"), NameB))
 		{
-			OutError = TEXT("actorNameA and actorNameB required");
+			OutError = TEXT("ActorNameA and ActorNameB required");
 			return;
 		}
 
@@ -187,7 +187,7 @@ FCapabilityResult FDiffRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 		AActor* ActorA = FNexusRuntimeUtils::FindActorByName(World, NameA);
 		if (!ActorA)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("Actor specified by actorNameA not found"));
+			Entry->SetStringField(TEXT("Error"), TEXT("Actor specified by ActorNameA not found"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -195,20 +195,20 @@ FCapabilityResult FDiffRuntimeActorsCapability::Execute(const TSharedPtr<FJsonOb
 		AActor* ActorB = FNexusRuntimeUtils::FindActorByName(World, NameB);
 		if (!ActorB)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("Actor specified by actorNameB not found"));
+			Entry->SetStringField(TEXT("Error"), TEXT("Actor specified by ActorNameB not found"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 
-		Entry->SetObjectField(TEXT("actorA"), MakeActorInfoCap(ActorA));
-		Entry->SetObjectField(TEXT("actorB"), MakeActorInfoCap(ActorB));
+		Entry->SetObjectField(TEXT("ActorA"), MakeActorInfoCap(ActorA));
+		Entry->SetObjectField(TEXT("ActorB"), MakeActorInfoCap(ActorB));
 
 		FNexusActorComparePairResult Pair = ComparePairCap(ActorA, ActorB, Arguments.ToSharedRef());
-	Entry->SetArrayField(TEXT("diffs"), Pair.Diffs);
-	if (Pair.bTruncated) { Entry->SetBoolField(TEXT("truncated"), true); }
+	Entry->SetArrayField(TEXT("Diffs"), Pair.Diffs);
+	if (Pair.bTruncated) { Entry->SetBoolField(TEXT("bTruncated"), true); }
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FDiffRuntimeActorsCapability)
+REGISTER_MCP_CAPABILITY(FNexusDiffRuntimeActorsCapability)

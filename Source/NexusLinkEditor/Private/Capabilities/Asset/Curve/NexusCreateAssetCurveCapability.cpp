@@ -12,42 +12,42 @@
 #include "Engine/CurveTable.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetCurveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetCurveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_curve");
+	Out.Name = TEXT("CreateAssetCurve");
 	Out.Description = TEXT("Create curve asset: CurveFloat/CurveVector/CurveLinearColor/CurveTable.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Prop(TEXT("curveType"), FNexusSchema::Str(TEXT("float (default)/ vector / linear_color / curve_table"), TEXT("float")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("CurveType"), FNexusSchema::Str(TEXT("float (default)/ vector / LinearColor / CurveTable"), TEXT("float")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("curve"), TEXT("float"), TEXT("timeline"), TEXT("gradient"), TEXT("table") };
-	Out.RelatedCapabilities = { TEXT("get_asset_curve"), TEXT("manage_asset_curve") };
+	Out.RelatedCapabilities = { TEXT("GetAssetCurve"), TEXT("ManageAssetCurve") };
 	Out.WhenToUse = TEXT("Create empty curve asset; write keys via manage");
 }
 
-FCapabilityResult FCreateAssetCurveCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetCurveCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		FString CurveType = TEXT("float");
-		if (Arguments->HasField(TEXT("curveType")))
-			CurveType = A.Str(TEXT("curveType")).ToLower();
+		if (Arguments->HasField(TEXT("CurveType")))
+			CurveType = A.Str(TEXT("CurveType")).ToLower();
 
 		UClass* CurveClass = UCurveFloat::StaticClass();
-		if (CurveType == TEXT("vector"))
+		if (CurveType == TEXT("Vector"))
 		{
 			CurveClass = UCurveVector::StaticClass();
 		}
-		else if (CurveType == TEXT("linear_color") || CurveType == TEXT("linearcolor"))
+		else if (CurveType == TEXT("LinearColor") || CurveType == TEXT("linearcolor"))
 		{
 			CurveClass = UCurveLinearColor::StaticClass();
 		}
-		else if (CurveType == TEXT("curve_table") || CurveType == TEXT("curvetable"))
+		else if (CurveType == TEXT("CurveTable") || CurveType == TEXT("curvetable"))
 		{
 			CurveClass = UCurveTable::StaticClass();
 		}
@@ -62,9 +62,9 @@ FCapabilityResult FCreateAssetCurveCapability::Execute(const TSharedPtr<FJsonObj
 		UObject* NewAsset = Created.Asset;
 
 		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(NewAsset);
-		Entry->SetStringField(TEXT("curveType"), CurveType);
+		Entry->SetStringField(TEXT("CurveType"), CurveType);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetCurveCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetCurveCapability)

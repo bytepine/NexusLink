@@ -25,32 +25,32 @@ static TArray<FBlendSample>* GetSampleDataPtr(UBlendSpace* BS)
 	return Prop->ContainerPtrToValuePtr<TArray<FBlendSample>>(BS);
 }
 
-void FManageAssetBlendSpaceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetBlendSpaceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_blend_space");
+	Out.Name = TEXT("ManageAssetBlendSpace");
 	Out.SearchAssetTypes = {TEXT("BlendSpace"), TEXT("BlendSpace1D")};
-	Out.Description = TEXT("Edit BlendSpace: set_axis / add_sample / remove_sample.");
+	Out.Description = TEXT("Edit BlendSpace: SetAxis / AddSample / RemoveSample.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
-			{ TEXT("set_axis"), TEXT("add_sample"), TEXT("remove_sample") }))
-		.Prop(TEXT("axisIndex"),       FNexusSchema::Int(TEXT("Axis index: 0=horizontal, 1=vertical (set_axis)")))
-		.Prop(TEXT("displayName"),     FNexusSchema::Str(TEXT("Axis display name (set_axis)")))
-		.Prop(TEXT("min"),             FNexusSchema::Num(TEXT("Axis minimum (set_axis)")))
-		.Prop(TEXT("max"),             FNexusSchema::Num(TEXT("Axis maximum (set_axis)")))
-		.Prop(TEXT("gridNum"),         FNexusSchema::Int(TEXT("Axis grid divisions (set_axis)")))
-		.Prop(TEXT("animationPath"),   FNexusSchema::Str(TEXT("AnimSequence path (add_sample)")))
-		.Prop(TEXT("x"),               FNexusSchema::Num(TEXT("Horizontal axis coordinate (add/remove_sample)")))
-		.Prop(TEXT("y"),               FNexusSchema::Num(TEXT("Vertical axis coordinate (add/remove_sample, 2D)")))
-		.Prop(TEXT("sampleIndex"),     FNexusSchema::Int(TEXT("Sample index (remove_sample)")))
+		.Required(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"),
+			{ TEXT("SetAxis"), TEXT("AddSample"), TEXT("RemoveSample") }))
+		.Prop(TEXT("AxisIndex"),       FNexusSchema::Int(TEXT("Axis index: 0=horizontal, 1=vertical (SetAxis)")))
+		.Prop(TEXT("DisplayName"),     FNexusSchema::Str(TEXT("Axis display name (SetAxis)")))
+		.Prop(TEXT("Min"),             FNexusSchema::Num(TEXT("Axis minimum (SetAxis)")))
+		.Prop(TEXT("Max"),             FNexusSchema::Num(TEXT("Axis maximum (SetAxis)")))
+		.Prop(TEXT("GridNum"),         FNexusSchema::Int(TEXT("Axis grid divisions (SetAxis)")))
+		.Prop(TEXT("AnimationPath"),   FNexusSchema::Str(TEXT("AnimSequence path (AddSample)")))
+		.Prop(TEXT("x"),               FNexusSchema::Num(TEXT("Horizontal axis coordinate (add/RemoveSample)")))
+		.Prop(TEXT("y"),               FNexusSchema::Num(TEXT("Vertical axis coordinate (add/RemoveSample, 2D)")))
+		.Prop(TEXT("SampleIndex"),     FNexusSchema::Int(TEXT("Sample index (RemoveSample)")))
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"),   FNexusSchema::Str(TEXT("BlendSpace asset path")))
-		.Required(TEXT("operations"),  FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
+		.Required(TEXT("AssetPath"),   FNexusSchema::Str(TEXT("BlendSpace asset path")))
+		.Required(TEXT("Operations"),  FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("blend"), TEXT("axis"), TEXT("sample"), TEXT("locomotion") };
-	Out.RelatedCapabilities = { TEXT("get_asset_blend_space"), TEXT("create_asset_blend_space") };
-	Out.WhenToUse = TEXT("Configure BlendSpace axes or samples; persist with save_asset after changes");
+	Out.RelatedCapabilities = { TEXT("GetAssetBlendSpace"), TEXT("CreateAssetBlendSpace") };
+	Out.WhenToUse = TEXT("Configure BlendSpace axes or samples; persist with SaveAsset after changes");
 }
 
 struct FBlendSpaceActionState
@@ -84,15 +84,15 @@ static void HandleBS_SetAxis(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 	UBlendSpace* BS = BSFrom(Ctx);
 	if (!BS)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("BlendSpace is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("BlendSpace is null"));
 		return;
 	}
 	int32 AxisIdx = 0;
-	if (Op->HasField(TEXT("axisIndex")))
-		AxisIdx = static_cast<int32>(Op->GetNumberField(TEXT("axisIndex")));
+	if (Op->HasField(TEXT("AxisIndex")))
+		AxisIdx = static_cast<int32>(Op->GetNumberField(TEXT("AxisIndex")));
 	if (AxisIdx < 0 || AxisIdx > 2)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("axisIndex range 0-2"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AxisIndex range 0-2"));
 		return;
 	}
 	FBlendParameter* Param = nullptr;
@@ -106,40 +106,40 @@ static void HandleBS_SetAxis(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 	}
 	if (!Param)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Reflection failed to get BlendParameters"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Reflection failed to get BlendParameters"));
 		return;
 	}
 	FString Name;
-	if (Op->TryGetStringField(TEXT("displayName"), Name)) Param->DisplayName = Name;
+	if (Op->TryGetStringField(TEXT("DisplayName"), Name)) Param->DisplayName = Name;
 	double V = 0.0;
-	if (Op->TryGetNumberField(TEXT("min"), V)) Param->Min = static_cast<float>(V);
-	if (Op->TryGetNumberField(TEXT("max"), V)) Param->Max = static_cast<float>(V);
+	if (Op->TryGetNumberField(TEXT("Min"), V)) Param->Min = static_cast<float>(V);
+	if (Op->TryGetNumberField(TEXT("Max"), V)) Param->Max = static_cast<float>(V);
 	double Grid = 0.0;
-	if (Op->TryGetNumberField(TEXT("gridNum"), Grid)) Param->GridNum = static_cast<int32>(Grid);
+	if (Op->TryGetNumberField(TEXT("GridNum"), Grid)) Param->GridNum = static_cast<int32>(Grid);
 	MarkBSDirty(Ctx);
-	Ctx.Entry->SetNumberField(TEXT("axisIndex"), AxisIdx);
+	Ctx.Entry->SetNumberField(TEXT("AxisIndex"), AxisIdx);
 }
 
 static void HandleBS_AddSample(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UBlendSpace* BS = BSFrom(Ctx);
 	FString AnimPath;
-	if (!Op->TryGetStringField(TEXT("animationPath"), AnimPath) || AnimPath.IsEmpty())
+	if (!Op->TryGetStringField(TEXT("AnimationPath"), AnimPath) || AnimPath.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_sample requires animationPath"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddSample requires AnimationPath"));
 		return;
 	}
 	UAnimSequence* Anim = FNexusAssetUtils::LoadAssetWithFallback<UAnimSequence>(AnimPath);
 	if (!Anim)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"),
+		Ctx.Entry->SetStringField(TEXT("Error"),
 			FString::Printf(TEXT("AnimSequence not found: %s"), *AnimPath));
 		return;
 	}
 	TArray<FBlendSample>* SampleData = GetSampleDataPtr(BS);
 	if (!SampleData)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to get SampleData (reflection failed)"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Unable to get SampleData (reflection failed)"));
 		return;
 	}
 	double X = 0.0, Y = 0.0;
@@ -153,8 +153,8 @@ static void HandleBS_AddSample(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 #endif
 	const int32 NewIdx = SampleData->Add(NewSample);
 	MarkBSDirty(Ctx);
-	Ctx.Entry->SetNumberField(TEXT("sampleIndex"), NewIdx);
-	Ctx.Entry->SetStringField(TEXT("animation"),   AnimPath);
+	Ctx.Entry->SetNumberField(TEXT("SampleIndex"), NewIdx);
+	Ctx.Entry->SetStringField(TEXT("Animation"),   AnimPath);
 }
 
 static void HandleBS_RemoveSample(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -163,12 +163,12 @@ static void HandleBS_RemoveSample(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	TArray<FBlendSample>* SampleData = GetSampleDataPtr(BS);
 	if (!SampleData)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Unable to get SampleData (reflection failed)"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Unable to get SampleData (reflection failed)"));
 		return;
 	}
 	int32 SampleIdx = -1;
-	if (Op->HasField(TEXT("sampleIndex")))
-		SampleIdx = static_cast<int32>(Op->GetNumberField(TEXT("sampleIndex")));
+	if (Op->HasField(TEXT("SampleIndex")))
+		SampleIdx = static_cast<int32>(Op->GetNumberField(TEXT("SampleIndex")));
 	else
 	{
 		double X = 0.0, Y = 0.0;
@@ -186,23 +186,23 @@ static void HandleBS_RemoveSample(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	}
 	if (!SampleData->IsValidIndex(SampleIdx))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Invalid sample index or no matching sample"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Invalid sample index or no matching sample"));
 		return;
 	}
 	SampleData->RemoveAt(SampleIdx);
 	MarkBSDirty(Ctx);
-	Ctx.Entry->SetNumberField(TEXT("removedIndex"), SampleIdx);
-	Ctx.Entry->SetBoolField(TEXT("removed"),        true);
+	Ctx.Entry->SetNumberField(TEXT("RemovedIndex"), SampleIdx);
+	Ctx.Entry->SetBoolField(TEXT("bRemoved"),        true);
 }
 
-bool FManageAssetBlendSpaceCapability::PrepareTarget(
+bool FNexusManageAssetBlendSpaceCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UBlendSpace* BS = FNexusAssetUtils::LoadAssetWithFallback<UBlendSpace>(AssetPath);
 	if (!BS)
 	{
@@ -215,7 +215,7 @@ bool FManageAssetBlendSpaceCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetBlendSpaceCapability::AfterPrepareTarget(
+void FNexusManageAssetBlendSpaceCapability::AfterPrepareTarget(
 	void* Target,
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& OutTop) const
@@ -227,7 +227,7 @@ void FManageAssetBlendSpaceCapability::AfterPrepareTarget(
 	}
 }
 
-void FManageAssetBlendSpaceCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetBlendSpaceCapability::FinalizeTarget(void* Target) const
 {
 	FBlendSpaceActionState* State = static_cast<FBlendSpaceActionState*>(Target);
 	if (!State) return;
@@ -236,17 +236,17 @@ void FManageAssetBlendSpaceCapability::FinalizeTarget(void* Target) const
 		State->BS->MarkPackageDirty();
 		if (State->OutTop.IsValid())
 		{
-			State->OutTop->SetStringField(TEXT("note"), TEXT("Modified; persist with save_asset"));
+			State->OutTop->SetStringField(TEXT("Note"), TEXT("Modified; persist with SaveAsset"));
 		}
 	}
 	delete State;
 }
 
-void FManageAssetBlendSpaceCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetBlendSpaceCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_axis"),      &HandleBS_SetAxis);
-	OutHandlers.Add(TEXT("add_sample"),    &HandleBS_AddSample);
-	OutHandlers.Add(TEXT("remove_sample"), &HandleBS_RemoveSample);
+	OutHandlers.Add(TEXT("SetAxis"),      &HandleBS_SetAxis);
+	OutHandlers.Add(TEXT("AddSample"),    &HandleBS_AddSample);
+	OutHandlers.Add(TEXT("RemoveSample"), &HandleBS_RemoveSample);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetBlendSpaceCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetBlendSpaceCapability)

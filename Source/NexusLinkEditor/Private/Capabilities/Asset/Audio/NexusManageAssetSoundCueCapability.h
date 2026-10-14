@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_sound_cue — 编辑 SoundCue 属性（音量/音高/并发）。*/
-class FManageAssetSoundCueCapability : public FNexusActionCapability
+/** ManageAssetSoundCue — 编辑 SoundCue 属性（音量/音高/并发）。*/
+class FNexusManageAssetSoundCueCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

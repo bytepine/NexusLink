@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_texture — 编辑 Texture 属性（压缩/sRGB/LODGroup）。*/
-class FManageAssetTextureCapability : public FNexusActionCapability
+/** ManageAssetTexture — 编辑 Texture 属性（压缩/bSRGB/LODGroup）。*/
+class FNexusManageAssetTextureCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

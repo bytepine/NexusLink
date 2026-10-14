@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_physical_material：设置 PhysicalMaterial 的摩擦/弹性/密度/表面类型。 */
-class FManageAssetPhysicalMaterialCapability : public FNexusActionCapability
+/** ManageAssetPhysicalMaterial：设置 PhysicalMaterial 的摩擦/弹性/密度/表面类型。 */
+class FNexusManageAssetPhysicalMaterialCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

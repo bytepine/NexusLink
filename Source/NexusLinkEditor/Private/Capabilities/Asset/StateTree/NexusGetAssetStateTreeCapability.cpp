@@ -43,15 +43,15 @@ static TArray<TSharedPtr<FJsonValue>> BuildEditorNodeArray(const TArray<FStateTr
 		// Node.Node 是 FInstancedStruct，取 ScriptStruct 获取类型名
 		if (const UScriptStruct* NodeStruct = EdNode.Node.GetScriptStruct())
 		{
-			NodeObj->SetStringField(TEXT("nodeType"), NodeStruct->GetName());
+			NodeObj->SetStringField(TEXT("NodeType"), NodeStruct->GetName());
 		}
 		// Node.Instance 是实例数据的 FInstancedStruct
 		if (const UScriptStruct* InstStruct = EdNode.Instance.GetScriptStruct())
 		{
-			NodeObj->SetStringField(TEXT("instanceType"), InstStruct->GetName());
+			NodeObj->SetStringField(TEXT("InstanceType"), InstStruct->GetName());
 		}
 		// 节点名（FStateTreeEditorNode 本身没有名字字段，由 UScriptStruct 提供）
-		NodeObj->SetStringField(TEXT("id"), EdNode.ID.ToString());
+		NodeObj->SetStringField(TEXT("Id"), EdNode.ID.ToString());
 		Result.Add(MakeShared<FJsonValueObject>(NodeObj));
 	}
 	return Result;
@@ -69,20 +69,20 @@ static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, int3
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 	Obj->SetStringField(TEXT("name"), State->Name.ToString());
 	Obj->SetStringField(TEXT("type"), StateTypeToStr(State->Type));
-	Obj->SetStringField(TEXT("id"), State->ID.ToString());
+	Obj->SetStringField(TEXT("Id"), State->ID.ToString());
 
 	// 进入条件节点数量
 	if (State->EnterConditions.Num() > 0)
 	{
-		Obj->SetNumberField(TEXT("enterConditionsCount"), State->EnterConditions.Num());
-		Obj->SetArrayField(TEXT("enterConditions"), BuildEditorNodeArray(State->EnterConditions));
+		Obj->SetNumberField(TEXT("EnterConditionsCount"), State->EnterConditions.Num());
+		Obj->SetArrayField(TEXT("EnterConditions"), BuildEditorNodeArray(State->EnterConditions));
 	}
 
 	// 任务节点
 	if (State->Tasks.Num() > 0)
 	{
-		Obj->SetNumberField(TEXT("tasksCount"), State->Tasks.Num());
-		Obj->SetArrayField(TEXT("tasks"), BuildEditorNodeArray(State->Tasks));
+		Obj->SetNumberField(TEXT("TasksCount"), State->Tasks.Num());
+		Obj->SetArrayField(TEXT("Tasks"), BuildEditorNodeArray(State->Tasks));
 	}
 
 	// 迁移摘要（迁移数量 + 触发器 + 目标名）
@@ -93,16 +93,16 @@ static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, int3
 		{
 			TSharedPtr<FJsonObject> TObj = MakeShared<FJsonObject>();
 			// 目标状态名：若 State 指针有效取名字，否则记录类型
-			TObj->SetStringField(TEXT("trigger"), UEnum::GetValueAsString(T.Trigger));
+			TObj->SetStringField(TEXT("Trigger"), UEnum::GetValueAsString(T.Trigger));
 #if WITH_EDITORONLY_DATA
 			if (T.State.ID.IsValid())
 			{
-				TObj->SetStringField(TEXT("target"), T.State.Name.ToString());
+				TObj->SetStringField(TEXT("Target"), T.State.Name.ToString());
 			}
 #endif
 			TransArr.Add(MakeShared<FJsonValueObject>(TObj));
 		}
-		Obj->SetArrayField(TEXT("transitions"), TransArr);
+		Obj->SetArrayField(TEXT("Transitions"), TransArr);
 	}
 
 	// 子状态（递归）
@@ -117,7 +117,7 @@ static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, int3
 				ChildArr.Add(MakeShared<FJsonValueObject>(ChildObj));
 			}
 		}
-		Obj->SetArrayField(TEXT("children"), ChildArr);
+		Obj->SetArrayField(TEXT("Children"), ChildArr);
 	}
 
 	return Obj;
@@ -126,29 +126,29 @@ static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, int3
 
 // ── Capability ────────────────────────────────────────────────────────────────
 
-void FGetAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_state_tree");
+	Out.Name = TEXT("GetAssetStateTree");
 	Out.SearchAssetTypes = {TEXT("StateTree")};
 	Out.Description = TEXT("Inspect StateTree structure. Read-only. UE 5.5+.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("StateTree asset path (/Game/…/ST_Foo)")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("StateTree asset path (/Game/…/ST_Foo)")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly };
-	Out.ExtraSearchKeywords = { TEXT("statetree"), TEXT("state_tree"), TEXT("st"), TEXT("states"), TEXT("tasks"), TEXT("transitions"), TEXT("evaluators") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_state_tree"), TEXT("search_asset"), TEXT("get_asset_behavior_tree"), TEXT("get_asset_refs"), TEXT("save_asset") };
+	Out.ExtraSearchKeywords = { TEXT("statetree"), TEXT("StateTree"), TEXT("st"), TEXT("States"), TEXT("Tasks"), TEXT("Transitions"), TEXT("Evaluators") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetStateTree"), TEXT("SearchAsset"), TEXT("GetAssetBehaviorTree"), TEXT("GetAssetRefs"), TEXT("SaveAsset") };
 	Out.WhenToUse = TEXT("Read StateTree structure: Schema/States/Evaluators/transitions/conditions/params");
 }
 
-FCapabilityResult FGetAssetStateTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetStateTreeCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		UStateTree* ST = FNexusAssetUtils::LoadAssetWithFallback<UStateTree>(AssetPath);
 		if (!ST)
@@ -157,15 +157,15 @@ FCapabilityResult FGetAssetStateTreeCapability::Execute(const TSharedPtr<FJsonOb
 			return;
 		}
 
-		OutEntry->SetStringField(TEXT("assetType"), TEXT("StateTree"));
+		OutEntry->SetStringField(TEXT("AssetType"), TEXT("StateTree"));
 		OutEntry->SetStringField(TEXT("name"), ST->GetName());
-		OutEntry->SetStringField(TEXT("path"), FNexusAssetUtils::PackagePathOf(ST));
-		OutEntry->SetBoolField(TEXT("isReadyToRun"), ST->IsReadyToRun());
+		OutEntry->SetStringField(TEXT("Path"), FNexusAssetUtils::PackagePathOf(ST));
+		OutEntry->SetBoolField(TEXT("bIsReadyToRun"), ST->IsReadyToRun());
 
 		// Schema 信息
 		if (const UStateTreeSchema* Schema = ST->GetSchema())
 		{
-			OutEntry->SetStringField(TEXT("schema"), Schema->GetClass()->GetName());
+			OutEntry->SetStringField(TEXT("Schema"), Schema->GetClass()->GetName());
 		}
 
 #if WITH_EDITOR
@@ -175,16 +175,16 @@ FCapabilityResult FGetAssetStateTreeCapability::Execute(const TSharedPtr<FJsonOb
 			// 全局 Evaluators
 			if (EdData->Evaluators.Num() > 0)
 			{
-				OutEntry->SetNumberField(TEXT("evaluatorsCount"), EdData->Evaluators.Num());
-				OutEntry->SetArrayField(TEXT("evaluators"), BuildEditorNodeArray(EdData->Evaluators));
+				OutEntry->SetNumberField(TEXT("EvaluatorsCount"), EdData->Evaluators.Num());
+				OutEntry->SetArrayField(TEXT("Evaluators"), BuildEditorNodeArray(EdData->Evaluators));
 			}
 
 #if NX_UE_HAS_STATETREE_GLOBAL_TASKS
 			// UE 5.5+ GlobalTasks
 			if (EdData->GlobalTasks.Num() > 0)
 			{
-				OutEntry->SetNumberField(TEXT("globalTasksCount"), EdData->GlobalTasks.Num());
-				OutEntry->SetArrayField(TEXT("globalTasks"), BuildEditorNodeArray(EdData->GlobalTasks));
+				OutEntry->SetNumberField(TEXT("GlobalTasksCount"), EdData->GlobalTasks.Num());
+				OutEntry->SetArrayField(TEXT("GlobalTasks"), BuildEditorNodeArray(EdData->GlobalTasks));
 			}
 #endif
 
@@ -197,7 +197,7 @@ FCapabilityResult FGetAssetStateTreeCapability::Execute(const TSharedPtr<FJsonOb
 				{
 					++PropCount;
 				}
-				OutEntry->SetNumberField(TEXT("parametersCount"), PropCount);
+				OutEntry->SetNumberField(TEXT("ParametersCount"), PropCount);
 			}
 
 			// SubTrees（根状态树递归）
@@ -210,16 +210,16 @@ FCapabilityResult FGetAssetStateTreeCapability::Execute(const TSharedPtr<FJsonOb
 					SubTreeArr.Add(MakeShared<FJsonValueObject>(SubObj));
 				}
 			}
-			OutEntry->SetArrayField(TEXT("subTrees"), SubTreeArr);
+			OutEntry->SetArrayField(TEXT("SubTrees"), SubTreeArr);
 		}
 #else
-		OutEntry->SetStringField(TEXT("note"), TEXT("Editor data only available in WITH_EDITOR builds"));
+		OutEntry->SetStringField(TEXT("Note"), TEXT("Editor data only available in WITH_EDITOR builds"));
 #endif // WITH_EDITOR
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetStateTreeCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetStateTreeCapability)
 
 #endif // WITH_STATETREE

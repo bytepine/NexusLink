@@ -8,8 +8,8 @@
 
 #include "NexusCapability.h"
 
-/** exec_python —— 在编辑器内执行 Python 脚本，结构化返回 stdout / traceback。*/
-class FExecPythonCapability : public FNexusCapability
+/** ExecPython —— 在编辑器内执行 Python 脚本，结构化返回 stdout / traceback。*/
+class FNexusExecPythonCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

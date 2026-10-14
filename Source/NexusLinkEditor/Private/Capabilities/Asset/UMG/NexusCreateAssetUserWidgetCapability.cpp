@@ -18,29 +18,29 @@
 #include "Blueprint/UserWidget.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_user_widget");
-	Out.Description = TEXT("Create WBP. parentClass sets UI base; fill widget tree via manage.");
+	Out.Name = TEXT("CreateAssetUserWidget");
+	Out.Description = TEXT("Create WBP. ParentClass sets UI base; fill widget tree via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("New WidgetBlueprint package path")))
-		.Prop(TEXT("parentClass"), FNexusSchema::Str(TEXT("Parent class (default UserWidget)")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"),   FNexusSchema::Str(TEXT("New WidgetBlueprint package path")))
+		.Prop(TEXT("ParentClass"), FNexusSchema::Str(TEXT("Parent class (default UserWidget)")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Widget };
-	Out.ExtraSearchKeywords = { TEXT("wbp"), TEXT("umg"), TEXT("new"), TEXT("ui"), TEXT("panel") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_user_widget"), TEXT("get_asset_user_widget") };
-	Out.WhenToUse = TEXT("Create empty WBP; parentClass optional (default UserWidget)");
+	Out.ExtraSearchKeywords = { TEXT("wbp"), TEXT("umg"), TEXT("new"), TEXT("UI"), TEXT("panel") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetUserWidget"), TEXT("GetAssetUserWidget") };
+	Out.WhenToUse = TEXT("Create empty WBP; ParentClass optional (default UserWidget)");
 }
 
-FCapabilityResult FCreateAssetUserWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetUserWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 #if WITH_EDITOR
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
-		const FString ParentClassName = A.Str(TEXT("parentClass"), TEXT("UserWidget"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
+		const FString ParentClassName = A.Str(TEXT("ParentClass"), TEXT("UserWidget"));
 		const FNexusAssetEditorUtils::FAssetCreateOutcome Created = FNexusAssetEditorUtils::CreateBlueprintAsset(
 			AssetPath, ParentClassName, UUserWidget::StaticClass(), UWidgetBlueprint::StaticClass());
 		if (!Created.Ok())
@@ -50,10 +50,10 @@ FCapabilityResult FCreateAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 		}
 		UBlueprint* NewBP = Cast<UBlueprint>(Created.Asset);
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), NewBP->GetOutermost()->GetName());
+		Entry->SetStringField(TEXT("Path"), NewBP->GetOutermost()->GetName());
 		if (NewBP->ParentClass)
 		{
-			Entry->SetStringField(TEXT("parentClass"), NewBP->ParentClass->GetName());
+			Entry->SetStringField(TEXT("ParentClass"), NewBP->ParentClass->GetName());
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	
@@ -61,9 +61,9 @@ FCapabilityResult FCreateAssetUserWidgetCapability::Execute(const TSharedPtr<FJs
 #else
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		OutError = TEXT("create_asset_user_widget only available in editor builds");
+		OutError = TEXT("CreateAssetUserWidget only available in editor builds");
 	});
 #endif
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetUserWidgetCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetUserWidgetCapability)

@@ -62,12 +62,15 @@ FORBIDDEN_ALWAYS = frozenset(
         "ops",
         "blueprintPath",
         "classPath",
-        "filePath",
+        "FilePath",
     }
 )
 
 # manage 顶层禁止作为操作容器的领域数组键
-MANAGE_TOP_CONTAINERS = frozenset({"fields", "rows", "keys", "widgets"})
+MANAGE_TOP_CONTAINERS = frozenset({
+    "fields", "rows", "keys", "widgets",
+    "Fields", "Rows", "Keys", "Widgets",
+})
 
 
 @dataclass
@@ -106,9 +109,9 @@ def extract_top_level_schema_text(text: str) -> str:
                 return chain
         chain = extract_object_chain_after(region, 0)
         if chain:
-            # 若首个 Object 是 item 块（无 assetPath/operations 等顶层键），尝试后续 Object
+            # 若首个 Object 是 item 块（无 AssetPath/operations 等顶层键），尝试后续 Object
             props = _parse_schema_prop_names_depth0(chain)
-            if not props.intersection({"assetPath", "operations", "updates", "actorName", "widgetName"}):
+            if not props.intersection({"AssetPath", "Operations", "Updates", "ActorName", "WidgetName"}):
                 # 从第一个 Object 结束之后再找
                 key = "FNexusSchema::Object()"
                 idx = region.find(key)
@@ -216,39 +219,39 @@ def audit_cap(cap: CapScan) -> list[Violation]:
             where.append("Execute")
         add("forbidden_param", f"禁止旧键 `{key}`（{'+'.join(where)}）→ 见 CapabilitySpec §8.12")
 
-    if "packagePath" in combined and "assetName" in combined:
+    if "PackagePath" in combined and "assetName" in combined:
         add(
             "packagePath_assetName",
-            "禁止 packagePath+assetName 组合；统一 `assetPath`",
+            "禁止 PackagePath+assetName 组合；统一 `AssetPath`",
         )
-    elif "packagePath" in combined:
-        add("packagePath", "禁止 packagePath；统一 `assetPath`")
+    elif "PackagePath" in combined:
+        add("PackagePath", "禁止 PackagePath；统一 `AssetPath`")
 
-    # get 侧单数 propertyPath（顶层 Schema / Arguments）
-    if name.startswith("get_") and "propertyPath" in combined:
+    # get 侧单数 PropertyPath（顶层 Schema / Arguments）
+    if name.startswith("Get") and "PropertyPath" in combined:
         add(
             "get_singular_propertyPath",
-            "get 侧禁止单数 `propertyPath`；只用 `propertyPaths[]`",
+            "get 侧禁止单数 `PropertyPath`；只用 `PropertyPaths[]`",
         )
 
-    # manage：必须 operations；禁止顶层领域容器与顶层 action
-    if name.startswith("manage_"):
-        if "operations" not in props:
-            add("manage_operations", "manage_* Schema 必须暴露 `operations[]`")
+    # Manage：必须 Operations；禁止顶层领域容器与顶层 Action
+    if name.startswith("Manage"):
+        if "Operations" not in props:
+            add("manage_operations", "Manage* Schema 必须暴露 `Operations[]`")
         for key in sorted(MANAGE_TOP_CONTAINERS & props):
             add(
                 "manage_top_container",
-                f"禁止顶层 `{key}` 作为 manage 操作容器；改用 `operations[]`",
+                f"禁止顶层 `{key}` 作为 Manage 操作容器；改用 `Operations[]`",
             )
-        if "action" in props:
+        if "Action" in props or "action" in props:
             add(
                 "manage_top_action",
-                "禁止 manage 顶层裸 `action`；操作项放在 `operations[].action`",
+                "禁止 Manage 顶层裸 `Action`；操作项放在 `Operations[].Action`",
             )
 
-    # set_*_property：必须 updates
-    if re.match(r"set_.*_property$", name) and "updates" not in props:
-        add("set_updates", "set_*_property Schema 必须暴露 `updates[]`")
+    # Set*Property：必须 Updates
+    if re.match(r"Set\w*Property$", name) and "Updates" not in props:
+        add("set_updates", "Set*Property Schema 必须暴露 `Updates[]`")
 
     return errs
 

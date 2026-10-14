@@ -36,7 +36,7 @@ graph TB
     CapRegistry --> Caps
 ```
 
-四端端口与开关层数见 [usage-guide §1](./usage-guide.md)。Capability 清单以 `search_capabilities` / [tool-reference.zh.md](./tool-reference.zh.md) 为准，勿在本文手写总数。
+四端端口与开关层数见 [usage-guide §1](./usage-guide.md)。Capability 清单以 `SearchCapabilities` / [tool-reference.zh.md](./tool-reference.zh.md) 为准，勿在本文手写总数。
 ## MCP 服务器生命周期
 
 启停由 `FNexusMcpActivation`（`NexusMcpActivation.h/.cpp`）统一解析，是唯一的「期望状态」判定入口，优先级为 **控制台会话覆盖 > 启动参数 `-EnableNexusMcp` > `UNexusLinkSettings::bEnableMcpServer`（仅可信角色）> 默认关闭**；端口与 LAN 绑定走同一优先级（`ResolveListenConfig()`）。「可信角色」= `GIsEditor && !IsRunningCommandlet()`：编辑器二进制以 `-game`/`-server` 启动的子进程、cook/commandlet 进程不读 Preferences，必须显式给启动参数或控制台，避免继承勾选各自抢起一份 MCP。控制台命令 **`NexusLink.Mcp on|off|status|restart|panel`** 会话级生效，不写盘（`panel` 见下「游戏内调试面板」）；`off` 用三态覆盖稳定压制，不会被后续任意 Preferences 改动重新拉起。`FNexusLinkModule::ApplyDesiredMcpState()` 是唯一调用 `TryStartMcpServer`/`StopMcpServer` 的应用点（启动时、Preferences 勾选变化、控制台命令均经它），并把结果回写 `UNexusLinkSettings::McpRuntimeStatus`（Transient 只读，供面板展示实际状态与来源，避免只看勾选框误判）。cooked Game/DS 额外支持 **`-NexusMcpPort=`** / **`-NexusWsPort=`** / **`-NexusAllowLan`** 覆盖默认端口与 LAN 绑定。插件拆两个模块：`NexusLink`（**`Type: Runtime`**，可进 cooked Game/DS）承载 Server / Dispatcher / Registry / 3 个元工具 / Runtime cap；`NexusLinkEditor`（**`Type: Editor`**，仅编辑器二进制加载）承载 Editor cap 与设置面板 / 状态栏 UI。`REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 由 **`NEXUSLINK_WITH_SERVER`**（`!UE_BUILD_SHIPPING`）门控——Shipping 编译期整体剔除服务器与注册表。平台门控双写 `PlatformAllowList`（UE5）+ `WhitelistPlatforms`（UE4.2x）。设置面板 / 状态栏仅编辑器模块加载时注册；MCP 监听在 Development/DebugGame 的独立 Game/DS 与 editor-hosted `-server` 均可启动。未启用时不创建 `FNexusMcpServer`。
@@ -52,7 +52,7 @@ graph TB
 | 网络层 | `FNexusMcpServer` | HTTP + WebSocket 服务器，管理连接与会话隔离（受 `bEnableMcpServer` / `-EnableNexusMcp` 控制） |
 | 协议层 | `FNexusMcpDispatcher` | JSON-RPC 2.0 解析、MCP 握手状态机、路由分发 |
 | 注册层 | `FNexusMcpToolRegistry` / `FNexusCapabilityRegistry` | 全局单例注册表，O(1) 按名查找 |
-| 工具层 | `FNexusMcpTool` | 3 个元工具：`search_capabilities` / `call_capability` / `submit_feedback` |
+| 工具层 | `FNexusMcpTool` | 3 个元工具：`SearchCapabilities` / `CallCapability` / `SubmitFeedback` |
 | 能力层 | `FNexusCapability` | 原子工作单元（插件门控 cap 按宿主裁剪），按域分类 |
 
 ---
@@ -111,18 +111,18 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     participant AI as AI Client
-    participant Tool as search_capabilities
+    participant Tool as SearchCapabilities
     participant Reg as CapabilityRegistry
-    participant Call as call_capability
+    participant Call as CallCapability
     participant Cap as Capability
 
-    AI->>Tool: tools/call search_capabilities {query:"material"}
+    AI->>Tool: tools/call SearchCapabilities {query:"Material"}
     Tool->>Reg: 模糊搜索（标签+关键词+描述）
     Reg-->>Tool: 匹配的 Capability 列表
     Tool-->>AI: 返回候选能力及 Schema
 
-    AI->>Call: tools/call call_capability {capability:"create_asset_material", arguments:{...}}
-    Call->>Reg: FindRecordByName("create_asset_material")
+    AI->>Call: tools/call CallCapability {capability:"CreateAssetMaterial", arguments:{...}}
+    Call->>Reg: FindRecordByName("CreateAssetMaterial")
     Reg-->>Call: Capability 实例
     Call->>Cap: Run(args)
     Cap-->>Call: FCapabilityResult
@@ -139,8 +139,8 @@ NexusLink 支持两种 `tools/list` 暴露模式，可在 Editor Preferences →
 
 | 模式 | tools/list 内容 | initialize.instructions | 适用场景 |
 |------|----------------|-------------------------|---------|
-| **SearchMode**（默认） | 3 个元工具 | `InitializeInstructions.SearchMode.md`（精简路由 / 硬规则） | AI 通过 `search_capabilities` 按需发现，降低每轮 tools/list token |
-| **MultiTool** | `submit_feedback` + 全部已启用 Capability（各作独立 MCP Tool） | `InitializeInstructions.MultiTool.md`（精简全局约束） | 需要客户端一次性枚举全部能力的场景 |
+| **SearchMode**（默认） | 3 个元工具 | `InitializeInstructions.SearchMode.md`（精简路由 / 硬规则） | AI 通过 `SearchCapabilities` 按需发现，降低每轮 tools/list token |
+| **MultiTool** | `SubmitFeedback` + 全部已启用 Capability（各作独立 MCP Tool） | `InitializeInstructions.MultiTool.md`（精简全局约束） | 需要客户端一次性枚举全部能力的场景 |
 
 已启用的扩展插件通过 `FNexusInstructionRegistry` 注册同名片段，握手时按名称接在正文后。未注册则不拼。
 
@@ -148,11 +148,11 @@ MCP 客户端通常把 `tools/list` + `initialize.instructions` **每模型轮�
 
 | 分量 | SearchMode | MultiTool | 差额 |
 |---|---|---|---|
-| tools/list | 3 tools · ~0.3k tok | 全部已启用 cap + `submit_feedback` · ~21.5k tok | **+21.2k** |
+| tools/list | 3 tools · ~0.3k tok | 全部已启用 cap + `SubmitFeedback` · ~21.5k tok | **+21.2k** |
 | initialize.instructions | ~1.1k | ~0.7k | −0.4k |
 | **每轮固定合计** | **~1.4k** | **~21.9k** | **~15.6× / +20.5k** |
 
-- SearchMode：小 tools/list + 精简路由；按需 `search_capabilities` 换取单份 schema（「发现税」一次性）。
+- SearchMode：小 tools/list + 精简路由；按需 `SearchCapabilities` 换取单份 schema（「发现税」一次性）。
 - MultiTool：instructions 略短，但把全部 Capability schema 每轮塞进 prompt（「全量 schema 税」每轮都付）。
 - 典型任务累计（省略相同 call 返回）：已知 1×search+1×call 约 **4.6×**；中等 2×search+3×call 约 **5.5×**；重会话 4×search+8×call 约 **6.1×**。即便零次 search、只靠路由直调，固定税仍恒约 **15.6×**。
 
@@ -192,7 +192,7 @@ sequenceDiagram
     S-->>C: 200
 ```
 
-每个 HTTP 会话通过 `Mcp-Session-Id` 隔离，支持多 AI 客户端并发。并发会话数达设置里的上限（默认 16，0=不限制）时，`GetOrCreateDispatcher` 驱逐最久未活动（`LastActivityAt`）的会话，保证新客户端总能握手成功；被驱逐会话再来请求会按已有的 404 `session_not_found` 处理。
+每个 HTTP 会话通过 `Mcp-Session-Id` 隔离，支持多 AI 客户端并发。并发会话数达设置里的上限（默认 16，0=不限制）时，`GetOrCreateDispatcher` 驱逐最久未活动（`LastActivityAt`）的会话，保证新客户端总能握手成功；被驱逐会话再来请求会按已有的 404 `SessionNotFound` 处理。
 
 HTTP 收包线程只拷贝请求体与 header，然后 `AsyncTask` 回切 GameThread 再碰 `HttpSessions` / `Dispatch` / `DetectCurrentNetRole`，并用推迟的 `OnComplete` 回写响应（不再 `FEvent::Wait` 阻塞收包线程）。`GET /status` 同样回切 GameThread，避免非 GT 读 `GEngine->GetWorldContexts()`。
 
@@ -204,7 +204,7 @@ HTTP `/stream` 是无状态 request-response，没有 SSE/chunked 等推送通�
 
 代理里（Desktop/Rider/VSCode）对 `tools/call` 统一 120s 超时且超时不重试；同一长连接上的请求还会串行排队，一个慢调用会连带堵塞同会话的后续请求。
 
-可观测点：传输层耗时超过 `SlowCallThresholdMs`（§2.6）时，`NexusMcpDispatcher.cpp` 的 `LogToolCallDuration` 会打 Warning 级日志（覆盖压缩/TTL注入/序列化的端到端耗时）；capability 层的 `slow_call` feedback category 同阈值触发，现在也覆盖「慢且最终报错」的调用（Note 标 `(error)`）。代理里超时另有 `proxy_timeout` category。
+可观测点：传输层耗时超过 `SlowCallThresholdMs`（§2.6）时，`NexusMcpDispatcher.cpp` 的 `LogToolCallDuration` 会打 Warning 级日志（覆盖压缩/TTL注入/序列化的端到端耗时）；capability 层的 `SlowCall` feedback category 同阈值触发，现在也覆盖「慢且最终报错」的调用（Note 标 `(error)`）。代理里超时另有 `ProxyTimeout` category。
 
 ### WebSocket 代理通道（Desktop / Rider / VSCode）
 
@@ -233,10 +233,10 @@ WebSocket 通道共享单一 `WsDispatcher`，无状态握手开销。NexusDeskt
 
 ## 服务器框架要点
 
-- **写路径 Undo**：`FNexusEditorTransaction` 包单次 `Run` 的内存 Execute；`call_capability.calls[]`（≥2）外层一笔，`failureCount>0` 时 `Apply` 再 `Cancel`（`saveToDisk` / `compile` 在事务外）
+- **写路径 Undo**：`FNexusEditorTransaction` 包单次 `Run` 的内存 Execute；`CallCapability.calls[]`（≥2）外层一笔，`FailureCount>0` 时 `Apply` 再 `Cancel`（`bSaveToDisk` / `bCompile` 在事务外）
 - **MCP Streamable HTTP**（`POST /stream`）+ `GET /status` 无状态探测；per-session（`Mcp-Session-Id`）
 - **WebSocket**（默认 55000 起）：`nexus/instructions`、`nexus/proxy_config`
-- **按 Capability 启用/禁用**、响应 `*_defaults` 压缩、内存高水位批量驱逐（`FNexusPackageLedger`）、`search_asset` 的 `recommendedGet` / `recommendedManage`
+- **按 Capability 启用/禁用**、响应 `*_defaults` 压缩、内存高水位批量驱逐（`FNexusPackageLedger`）、`SearchAsset` 的 `RecommendedGet` / `RecommendedManage`
 - 设置面板与反馈闭环见 [usage-guide §2.6](./usage-guide.md#26-设置面板与反馈)
 
 ---

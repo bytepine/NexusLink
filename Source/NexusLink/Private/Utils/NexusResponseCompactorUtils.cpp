@@ -84,11 +84,11 @@ static const TSet<FString>& GetBuiltinAutoDiscoverExclusions()
 	static const TSet<FString> Singleton = []() {
 		TSet<FString> S;
 		S.Reserve(16);
-		S.Add(TEXT("name"));      S.Add(TEXT("path"));    S.Add(TEXT("assetPath")); S.Add(TEXT("nodeId"));
-		S.Add(TEXT("tag"));       S.Add(TEXT("message")); S.Add(TEXT("timestamp")); S.Add(TEXT("time"));
-		S.Add(TEXT("sequence"));  S.Add(TEXT("frame"));
-		S.Add(TEXT("id"));        S.Add(TEXT("label"));   S.Add(TEXT("title"));     S.Add(TEXT("text"));
-		S.Add(TEXT("error"));
+		S.Add(TEXT("name"));      S.Add(TEXT("Path"));    S.Add(TEXT("AssetPath")); S.Add(TEXT("NodeId"));
+		S.Add(TEXT("Tag"));       S.Add(TEXT("Message")); S.Add(TEXT("Timestamp")); S.Add(TEXT("Time"));
+		S.Add(TEXT("Sequence"));  S.Add(TEXT("frame"));
+		S.Add(TEXT("Id"));        S.Add(TEXT("Label"));   S.Add(TEXT("Title"));     S.Add(TEXT("text"));
+		S.Add(TEXT("Error"));
 		return S;
 	}();
 	return Singleton;
@@ -190,7 +190,7 @@ void FNexusResponseCompactorUtils::TryCompactField(const FString& Field, TArray<
 		}
 		const TSharedPtr<FJsonObject> Obj = Item->AsObject();
 		const TSharedPtr<FJsonValue> ItemVal = FindField(Obj, Field);
-		// 缺字段的条目合并时会被 defaults 填上主流值；inherited / isConst 等
+		// 缺字段的条目合并时会被 defaults 填上主流值；inherited / bIsConst 等
 		// 「仅非默认才写出」的稀疏字段会因此被污染。必须全员持有才抽取。
 		if (!IsScalarValue(ItemVal))
 		{
@@ -393,7 +393,7 @@ void FNexusResponseCompactorUtils::Emit(const TSharedPtr<FJsonObject>& Parent, c
 	}
 
 	const FString DefaultsKey = Prefix.IsEmpty()
-		? FString(TEXT("defaults"))
+		? FString(TEXT("Defaults"))
 		: Prefix + TEXT("_defaults");
 
 	Parent->SetObjectField(DefaultsKey, Defaults);
@@ -408,7 +408,7 @@ static bool ShouldSkipAutoCompactField(const FString& FieldName)
 		return true;
 	}
 	// content 是 MCP 响应外层的特殊数组（type/text/image 等），不做压缩
-	if (FieldName.Equals(TEXT("content")))
+	if (FieldName.Equals(TEXT("Content")))
 	{
 		return true;
 	}

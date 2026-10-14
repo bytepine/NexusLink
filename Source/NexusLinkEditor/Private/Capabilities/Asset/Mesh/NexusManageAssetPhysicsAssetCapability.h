@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusActionCapability.h"
 
-/** manage_asset_physics_asset — 编辑 PhysicsAsset：set_body_physics_type/add_sphere/add_capsule/add_box/remove_body_shapes/add_constraint/remove_constraint。 */
-class FManageAssetPhysicsAssetCapability : public FNexusActionCapability
+/** ManageAssetPhysicsAsset — 编辑 PhysicsAsset：set_body_physics_type/AddSphere/AddCapsule/AddBox/remove_body_shapes/AddConstraint/RemoveConstraint。 */
+class FNexusManageAssetPhysicsAssetCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

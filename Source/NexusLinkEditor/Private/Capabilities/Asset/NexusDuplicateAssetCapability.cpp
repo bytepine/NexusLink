@@ -12,33 +12,33 @@
 #include "IAssetTools.h"
 #include "NexusMcpTool.h"
 
-void FDuplicateAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusDuplicateAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("duplicate_asset");
+	Out.Name = TEXT("DuplicateAsset");
 	Out.Description = TEXT("Copy editor asset to new path. Source unchanged.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),     FNexusSchema::Str(TEXT("Source asset path")))
-		.Prop(TEXT("destAssetPath"), FNexusSchema::Str(TEXT("Target full asset path (package + name)")))
-		.Required({ TEXT("assetPath"), TEXT("destAssetPath") })
+		.Prop(TEXT("AssetPath"),     FNexusSchema::Str(TEXT("Source asset path")))
+		.Prop(TEXT("DestAssetPath"), FNexusSchema::Str(TEXT("Target full asset path (package + name)")))
+		.Required({ TEXT("AssetPath"), TEXT("DestAssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("copy"), TEXT("clone"), TEXT("duplicate"), TEXT("blueprint"), TEXT("bp") };
-	Out.RelatedCapabilities = { TEXT("rename_asset"), TEXT("delete_asset") };
+	Out.RelatedCapabilities = { TEXT("RenameAsset"), TEXT("DeleteAsset") };
 }
 
-FCapabilityResult FDuplicateAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusDuplicateAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString SrcPath = A.Str(TEXT("assetPath"));
-		const FString DestAssetPath = A.Str(TEXT("destAssetPath"));
+		const FString SrcPath = A.Str(TEXT("AssetPath"));
+		const FString DestAssetPath = A.Str(TEXT("DestAssetPath"));
 
 		FText PathErrText;
 		if (!FPackageName::IsValidLongPackageName(DestAssetPath, false, &PathErrText))
 		{
-			OutError = FString::Printf(TEXT("Invalid destAssetPath: %s"), *PathErrText.ToString());
+			OutError = FString::Printf(TEXT("Invalid DestAssetPath: %s"), *PathErrText.ToString());
 			return;
 		}
 
@@ -69,18 +69,18 @@ FCapabilityResult FDuplicateAssetCapability::Execute(const TSharedPtr<FJsonObjec
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		if (!NewAsset)
 		{
-			Entry->SetBoolField(TEXT("success"), false);
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Copyfailed: %s -> %s"), *SrcPath, *DestAssetPath));
+			Entry->SetBoolField(TEXT("bSuccess"), false);
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Copyfailed: %s -> %s"), *SrcPath, *DestAssetPath));
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("sourcePath"), SrcPath);
-			Entry->SetStringField(TEXT("destAssetPath"), DestAssetPath);
+			Entry->SetStringField(TEXT("SourcePath"), SrcPath);
+			Entry->SetStringField(TEXT("DestAssetPath"), DestAssetPath);
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FDuplicateAssetCapability)
+REGISTER_MCP_CAPABILITY(FNexusDuplicateAssetCapability)
 
 #endif // WITH_EDITOR

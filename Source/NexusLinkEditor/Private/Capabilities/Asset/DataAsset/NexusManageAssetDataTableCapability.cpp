@@ -24,37 +24,37 @@ static bool JsonValueToImportString(const TSharedPtr<FJsonValue>& V, FString& Ou
 	}
 }
 
-void FManageAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_data_table");
+	Out.Name = TEXT("ManageAssetDataTable");
 	Out.SearchAssetTypes = {TEXT("DataTable")};
 	Out.Description = TEXT("Batch edit DataTable rows: add/remove/set; ImportText validate.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> FieldsSchema = MakeShared<FJsonObject>();
 		FieldsSchema->SetStringField(TEXT("type"), TEXT("object"));
-		FieldsSchema->SetStringField(TEXT("description"), TEXT("{fieldName: value} for add; value may be string/number/bool/null"));
+		FieldsSchema->SetStringField(TEXT("description"), TEXT("{FieldName: value} for add; value may be string/number/bool/null"));
 
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),    FNexusSchema::Enum(TEXT("Row operation"), { TEXT("add"), TEXT("remove"), TEXT("set") }, TEXT("add")))
-		.Prop(TEXT("rowName"),   FNexusSchema::Str(TEXT("Row name")))
-		.Prop(TEXT("fieldName"), FNexusSchema::Str(TEXT("Field name (set only)")))
-		.Prop(TEXT("value"),     FNexusSchema::Str(TEXT("New value string (set only)")))
-		.Required({ TEXT("action"), TEXT("rowName") })
+		.Prop(TEXT("Action"),    FNexusSchema::Enum(TEXT("Row operation"), { TEXT("Add"), TEXT("Remove"), TEXT("Set") }, TEXT("Add")))
+		.Prop(TEXT("RowName"),   FNexusSchema::Str(TEXT("Row name")))
+		.Prop(TEXT("FieldName"), FNexusSchema::Str(TEXT("Field name (set only)")))
+		.Prop(TEXT("Value"),     FNexusSchema::Str(TEXT("New value string (set only)")))
+		.Required({ TEXT("Action"), TEXT("RowName") })
 		.Build();
-		ItemSchema->GetObjectField(TEXT("properties"))->SetObjectField(TEXT("fields"), FieldsSchema);
+		ItemSchema->GetObjectField(TEXT("properties"))->SetObjectField(TEXT("Fields"), FieldsSchema);
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataTable asset path (shared)")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch row ops (at least one)"), ItemSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("DataTable asset path (shared)")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch row ops (at least one)"), ItemSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = {
-		TEXT("row"), TEXT("dt"), TEXT("datatable"), TEXT("field"), TEXT("value")
+		TEXT("Row"), TEXT("dt"), TEXT("datatable"), TEXT("field"), TEXT("Value")
 	};
-	Out.RelatedCapabilities = { TEXT("get_asset_data_table"), TEXT("create_asset_data_table"), TEXT("save_asset") };
+	Out.RelatedCapabilities = { TEXT("GetAssetDataTable"), TEXT("CreateAssetDataTable"), TEXT("SaveAsset") };
 	Out.WhenToUse = TEXT("Write ops: add/remove/set DT row values");
 }
 
@@ -85,11 +85,11 @@ static void MarkDTDirty(FNexusActionContext& Ctx)
 
 static bool RequireRowName(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, FString& OutRowName)
 {
-	OutRowName = FNexusArgs(Op).Str(TEXT("rowName"));
-	Ctx.Entry->SetStringField(TEXT("rowName"), OutRowName);
+	OutRowName = FNexusArgs(Op).Str(TEXT("RowName"));
+	Ctx.Entry->SetStringField(TEXT("RowName"), OutRowName);
 	if (OutRowName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("action and rowName is required"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("action and RowName is required"));
 		return false;
 	}
 	return true;
@@ -100,7 +100,7 @@ static void HandleDT_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	UDataTable* DT = DTFrom(Ctx);
 	if (!DT)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataTable is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DataTable is null"));
 		return;
 	}
 	FString RowName;
@@ -110,12 +110,12 @@ static void HandleDT_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	const UScriptStruct* RowStruct = DT->GetRowStruct();
 	if (DT->FindRowUnchecked(RowKey))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Row already exists"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Row already exists"));
 		return;
 	}
 	if (!RowStruct)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataTable has no row struct"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DataTable has no row struct"));
 		return;
 	}
 
@@ -123,9 +123,9 @@ static void HandleDT_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	RowStruct->InitializeStruct(RowData);
 	bool bAddOk = true;
 
-	if (Op->HasField(TEXT("fields")))
+	if (Op->HasField(TEXT("Fields")))
 	{
-		const TSharedPtr<FJsonObject>& Fields = Op->GetObjectField(TEXT("fields"));
+		const TSharedPtr<FJsonObject>& Fields = Op->GetObjectField(TEXT("Fields"));
 		for (auto& KV : Fields->Values)
 		{
 			FProperty* Prop = RowStruct->FindPropertyByName(FName(*KV.Key));
@@ -134,7 +134,7 @@ static void HandleDT_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 			FString ValStr;
 			if (!JsonValueToImportString(KV.Value, ValStr))
 			{
-				Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(
+				Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(
 					TEXT("Field '%s' unsupported JSON type (use string/number/bool/null)"), *KV.Key));
 				bAddOk = false;
 				break;
@@ -143,7 +143,7 @@ static void HandleDT_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 			void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(RowData);
 			if (!FNexusPropertyUtils::ImportTextFromString(Prop, ValStr, ValuePtr, DT))
 			{
-				Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("ImportText failed for field '%s'"), *KV.Key));
+				Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("ImportText failed for field '%s'"), *KV.Key));
 				bAddOk = false;
 				break;
 			}
@@ -163,7 +163,7 @@ static void HandleDT_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionConte
 	UDataTable* DT = DTFrom(Ctx);
 	if (!DT)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataTable is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DataTable is null"));
 		return;
 	}
 	FString RowName;
@@ -172,7 +172,7 @@ static void HandleDT_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionConte
 	const FName RowKey(*RowName);
 	if (!DT->FindRowUnchecked(RowKey))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Row does not exist"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Row does not exist"));
 		return;
 	}
 	DT->RemoveRow(RowKey);
@@ -184,7 +184,7 @@ static void HandleDT_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	UDataTable* DT = DTFrom(Ctx);
 	if (!DT)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataTable is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DataTable is null"));
 		return;
 	}
 	FString RowName;
@@ -193,29 +193,29 @@ static void HandleDT_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	const UScriptStruct* RowStruct = DT->GetRowStruct();
 	if (!RowStruct)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataTable has no row struct"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DataTable has no row struct"));
 		return;
 	}
 
-	const FString FieldName = Op->HasField(TEXT("fieldName")) ? Op->GetStringField(TEXT("fieldName")) : TEXT("");
-	const FString NewValue  = Op->HasField(TEXT("value"))     ? Op->GetStringField(TEXT("value"))     : TEXT("");
-	Ctx.Entry->SetStringField(TEXT("fieldName"), FieldName);
+	const FString FieldName = Op->HasField(TEXT("FieldName")) ? Op->GetStringField(TEXT("FieldName")) : TEXT("");
+	const FString NewValue  = Op->HasField(TEXT("Value"))     ? Op->GetStringField(TEXT("Value"))     : TEXT("");
+	Ctx.Entry->SetStringField(TEXT("FieldName"), FieldName);
 	if (FieldName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set action requires fieldName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("set action requires FieldName"));
 		return;
 	}
 
 	uint8* RowData = const_cast<uint8*>(DT->FindRowUnchecked(FName(*RowName)));
 	if (!RowData)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Row '%s' does not exist"), *RowName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Row '%s' does not exist"), *RowName));
 		return;
 	}
 	FProperty* Prop = RowStruct->FindPropertyByName(*FieldName);
 	if (!Prop)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(
 			TEXT("Field '%s' does not exist in row struct %s"), *FieldName, *RowStruct->GetName()));
 		return;
 	}
@@ -225,26 +225,26 @@ static void HandleDT_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	FNexusPropertyUtils::ExportText(Prop, OldValue, ValuePtr);
 	if (!FNexusPropertyUtils::ImportTextFromString(Prop, NewValue, ValuePtr, DT))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(
 			TEXT("ImportText failed for field '%s'"), *FieldName));
 		FNexusPropertyUtils::ImportTextFromString(Prop, OldValue, ValuePtr, DT);
 		return;
 	}
 	FString ActualValue;
 	FNexusPropertyUtils::ExportText(Prop, ActualValue, ValuePtr);
-	if (!OldValue.IsEmpty())    Ctx.Entry->SetStringField(TEXT("oldValue"), OldValue);
-	if (!ActualValue.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualValue);
+	if (!OldValue.IsEmpty())    Ctx.Entry->SetStringField(TEXT("OldValue"), OldValue);
+	if (!ActualValue.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualValue);
 	MarkDTDirty(Ctx);
 }
 
-bool FManageAssetDataTableCapability::PrepareTarget(
+bool FNexusManageAssetDataTableCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UDataTable* DT = FNexusAssetUtils::LoadAssetWithFallback<UDataTable>(AssetPath);
 	if (!DT)
 	{
@@ -257,7 +257,7 @@ bool FManageAssetDataTableCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetDataTableCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetDataTableCapability::FinalizeTarget(void* Target) const
 {
 	FDataTableActionState* State = static_cast<FDataTableActionState*>(Target);
 	if (!State) return;
@@ -268,11 +268,11 @@ void FManageAssetDataTableCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetDataTableCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetDataTableCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("add"),    &HandleDT_Add);
-	OutHandlers.Add(TEXT("remove"), &HandleDT_Remove);
-	OutHandlers.Add(TEXT("set"),    &HandleDT_Set);
+	OutHandlers.Add(TEXT("Add"),    &HandleDT_Add);
+	OutHandlers.Add(TEXT("Remove"), &HandleDT_Remove);
+	OutHandlers.Add(TEXT("Set"),    &HandleDT_Set);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetDataTableCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetDataTableCapability)

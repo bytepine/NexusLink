@@ -10,28 +10,28 @@
 #include "Engine/StaticMesh.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetFoliageTypeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetFoliageTypeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_foliage_type");
+	Out.Name = TEXT("ManageAssetFoliageType");
 	Out.SearchAssetTypes = {TEXT("FoliageType")};
-	Out.Description = TEXT("Batch edit FoliageType. action=set_mesh/set_density/set_property.");
+	Out.Description = TEXT("Batch edit FoliageType. Action=SetMesh/SetDensity/SetProperty.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
-			{ TEXT("set_mesh"), TEXT("set_density"), TEXT("set_property") }))
-		.Prop(TEXT("meshPath"), FNexusSchema::Str(TEXT("StaticMesh path (set_mesh)")))
-		.Prop(TEXT("density"), FNexusSchema::Num(TEXT("Density (set_density)")))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Property path (set_property)")))
-		.Prop(TEXT("value"), FNexusSchema::Str(TEXT("New property value (set_property)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"),
+			{ TEXT("SetMesh"), TEXT("SetDensity"), TEXT("SetProperty") }))
+		.Prop(TEXT("MeshPath"), FNexusSchema::Str(TEXT("StaticMesh path (SetMesh)")))
+		.Prop(TEXT("Density"), FNexusSchema::Num(TEXT("Density (SetDensity)")))
+		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("Property path (SetProperty)")))
+		.Prop(TEXT("Value"), FNexusSchema::Str(TEXT("New property value (SetProperty)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("FoliageType asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("FoliageType asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("foliage"), TEXT("mesh"), TEXT("density"), TEXT("vegetation") };
-	Out.RelatedCapabilities = { TEXT("get_asset_foliage_type"), TEXT("create_asset_foliage_type") };
+	Out.ExtraSearchKeywords = { TEXT("foliage"), TEXT("mesh"), TEXT("Density"), TEXT("vegetation") };
+	Out.RelatedCapabilities = { TEXT("GetAssetFoliageType"), TEXT("CreateAssetFoliageType") };
 }
 
 struct FFoliageActionState
@@ -64,24 +64,24 @@ static void HandleFol_SetMesh(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	UFoliageType_InstancedStaticMesh* ISM = Cast<UFoliageType_InstancedStaticMesh>(FolFrom(Ctx));
 	if (!ISM)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Only InstancedStaticMesh supports set_mesh"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Only InstancedStaticMesh supports SetMesh"));
 		return;
 	}
-	const FString MeshPath = FNexusArgs(Op).Str(TEXT("meshPath"));
+	const FString MeshPath = FNexusArgs(Op).Str(TEXT("MeshPath"));
 	if (MeshPath.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_mesh requires meshPath"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetMesh requires MeshPath"));
 		return;
 	}
 	UStaticMesh* Mesh = FNexusAssetUtils::LoadAssetWithFallback<UStaticMesh>(MeshPath);
 	if (!Mesh)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("StaticMesh not found: %s"), *MeshPath));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("StaticMesh not found: %s"), *MeshPath));
 		return;
 	}
 	ISM->Mesh = Mesh;
 	MarkFolDirty(Ctx);
-	Ctx.Entry->SetStringField(TEXT("meshPath"), Mesh->GetPathName());
+	Ctx.Entry->SetStringField(TEXT("MeshPath"), Mesh->GetPathName());
 }
 
 static void HandleFol_SetDensity(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -89,50 +89,50 @@ static void HandleFol_SetDensity(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	UFoliageType* Type = FolFrom(Ctx);
 	if (!Type)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("FoliageType is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("FoliageType is null"));
 		return;
 	}
-	if (!Op->HasField(TEXT("density")))
+	if (!Op->HasField(TEXT("Density")))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_density requires density"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetDensity requires density"));
 		return;
 	}
-	Type->Density = static_cast<float>(Op->GetNumberField(TEXT("density")));
+	Type->Density = static_cast<float>(Op->GetNumberField(TEXT("Density")));
 	MarkFolDirty(Ctx);
-	Ctx.Entry->SetNumberField(TEXT("density"), Type->Density);
+	Ctx.Entry->SetNumberField(TEXT("Density"), Type->Density);
 }
 
 static void HandleFol_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UFoliageType* Type = FolFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString PropPath = A.Str(TEXT("propertyPath"));
-	const FString Value = A.Str(TEXT("value"));
+	const FString PropPath = A.Str(TEXT("PropertyPath"));
+	const FString Value = A.Str(TEXT("Value"));
 	if (PropPath.IsEmpty() || Value.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyPath and value"));
 		return;
 	}
 	FString OldVal, ActualVal, Err;
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(Type, { PropPath }, 0, Value, OldVal, ActualVal, Err))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), Err);
+		Ctx.Entry->SetStringField(TEXT("Error"), Err);
 		return;
 	}
 	MarkFolDirty(Ctx);
-	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
-	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
-	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);
 }
 
-bool FManageAssetFoliageTypeCapability::PrepareTarget(
+bool FNexusManageAssetFoliageTypeCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UFoliageType* Type = FNexusAssetUtils::LoadAssetWithFallback<UFoliageType>(AssetPath);
 	if (!Type)
 	{
@@ -145,7 +145,7 @@ bool FManageAssetFoliageTypeCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetFoliageTypeCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetFoliageTypeCapability::FinalizeTarget(void* Target) const
 {
 	FFoliageActionState* State = static_cast<FFoliageActionState*>(Target);
 	if (!State) return;
@@ -156,11 +156,11 @@ void FManageAssetFoliageTypeCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetFoliageTypeCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetFoliageTypeCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_mesh"),     &HandleFol_SetMesh);
-	OutHandlers.Add(TEXT("set_density"),  &HandleFol_SetDensity);
-	OutHandlers.Add(TEXT("set_property"), &HandleFol_SetProperty);
+	OutHandlers.Add(TEXT("SetMesh"),     &HandleFol_SetMesh);
+	OutHandlers.Add(TEXT("SetDensity"),  &HandleFol_SetDensity);
+	OutHandlers.Add(TEXT("SetProperty"), &HandleFol_SetProperty);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetFoliageTypeCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetFoliageTypeCapability)

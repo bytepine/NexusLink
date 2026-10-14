@@ -45,11 +45,11 @@ struct FNexusArgs
 	{
 		const FString S = Str(Key);
 		if (S.IsEmpty()) return Default;
-		for (int32 i = 0; i < ValidNames.Num(); ++i)
+		for (int32 ValidNameIndex = 0; ValidNameIndex < ValidNames.Num(); ++ValidNameIndex)
 		{
-			if (ValidNames[i].Equals(S, ESearchCase::IgnoreCase))
+			if (ValidNames[ValidNameIndex].Equals(S, ESearchCase::IgnoreCase))
 			{
-				return i;
+				return ValidNameIndex;
 			}
 		}
 		return Default;

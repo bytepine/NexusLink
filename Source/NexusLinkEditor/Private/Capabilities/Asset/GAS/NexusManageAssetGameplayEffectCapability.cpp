@@ -27,37 +27,37 @@ static FGameplayTagContainer* GetGE_InheritedTagAddedMut(UObject* CDO, const TCH
 
 // ── Capability 定义 ──────────────────────────────────────────────────────────
 
-void FManageAssetGameplayEffectCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetGameplayEffectCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_gameplay_effect");
+	Out.Name = TEXT("ManageAssetGameplayEffect");
 	Out.SearchAssetTypes = {TEXT("GameplayEffect")};
-	Out.Description = TEXT("Batch edit GE CDO: set_policy/set_tags/add/remove/set modifier.");
+	Out.Description = TEXT("Batch edit GE CDO: SetPolicy/SetTags/add/remove/set modifier.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),         FNexusSchema::Enum(TEXT("Operation type"),
-			{ TEXT("set_policy"), TEXT("set_tags"), TEXT("add_modifier"), TEXT("remove_modifier"), TEXT("set_modifier") }))
-		.Prop(TEXT("durationPolicy"), FNexusSchema::Enum(TEXT("Duration policy (set_policy)"),
+		.Prop(TEXT("Action"),         FNexusSchema::Enum(TEXT("Operation type"),
+			{ TEXT("SetPolicy"), TEXT("SetTags"), TEXT("AddModifier"), TEXT("RemoveModifier"), TEXT("SetModifier") }))
+		.Prop(TEXT("DurationPolicy"), FNexusSchema::Enum(TEXT("Duration policy (SetPolicy)"),
 			{ TEXT("Instant"), TEXT("Infinite"), TEXT("HasDuration") }))
-		.Prop(TEXT("duration"),       FNexusSchema::Num(TEXT("Duration (set_policy)")))
-		.Prop(TEXT("period"),         FNexusSchema::Num(TEXT("Period (set_policy)")))
-		.Prop(TEXT("tagContainer"),   FNexusSchema::Enum(TEXT("Tag container (set_tags)"),
-			{ TEXT("gameplayEffectTags"), TEXT("grantedTags"), TEXT("blockedAbilityTags") }))
-		.Prop(TEXT("tags"),           FNexusSchema::StrArr(TEXT("Tag string array (set_tags)")))
-		.Prop(TEXT("mode"),           FNexusSchema::Enum(TEXT("set/add/remove"), { TEXT("set"), TEXT("add"), TEXT("remove") }))
-		.Prop(TEXT("attribute"),      FNexusSchema::Str(TEXT("Attribute name (add_modifier)")))
-		.Prop(TEXT("modifierOp"),     FNexusSchema::Enum(TEXT("Modifier operation (add_modifier)"),
+		.Prop(TEXT("Duration"),       FNexusSchema::Num(TEXT("Duration (SetPolicy)")))
+		.Prop(TEXT("Period"),         FNexusSchema::Num(TEXT("Period (SetPolicy)")))
+		.Prop(TEXT("TagContainer"),   FNexusSchema::Enum(TEXT("Tag container (SetTags)"),
+			{ TEXT("GameplayEffectTags"), TEXT("GrantedTags"), TEXT("BlockedAbilityTags") }))
+		.Prop(TEXT("Tags"),           FNexusSchema::StrArr(TEXT("Tag string array (SetTags)")))
+		.Prop(TEXT("Mode"),           FNexusSchema::Enum(TEXT("set/add/remove"), { TEXT("Set"), TEXT("Add"), TEXT("Remove") }))
+		.Prop(TEXT("Attribute"),      FNexusSchema::Str(TEXT("Attribute name (AddModifier)")))
+		.Prop(TEXT("ModifierOp"),     FNexusSchema::Enum(TEXT("Modifier operation (AddModifier)"),
 			{ TEXT("Add"), TEXT("Multiply"), TEXT("Divide"), TEXT("Override") }))
-		.Prop(TEXT("magnitude"),      FNexusSchema::Num(TEXT("Magnitude (add_modifier/set_modifier)")))
-		.Prop(TEXT("index"),          FNexusSchema::Num(TEXT("Modifier index (remove_modifier/set_modifier)")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Magnitude"),      FNexusSchema::Num(TEXT("Magnitude (AddModifier/SetModifier)")))
+		.Prop(TEXT("Index"),          FNexusSchema::Num(TEXT("Modifier index (RemoveModifier/SetModifier)")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("GameplayEffect Blueprint path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("GameplayEffect Blueprint path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Gas };
-	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("effect"), TEXT("modifier"), TEXT("duration"), TEXT("tag") };
-	Out.RelatedCapabilities = { TEXT("get_asset_gameplay_effect"), TEXT("save_asset"), TEXT("create_asset_gameplay_effect") };
+	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("effect"), TEXT("modifier"), TEXT("Duration"), TEXT("Tag") };
+	Out.RelatedCapabilities = { TEXT("GetAssetGameplayEffect"), TEXT("SaveAsset"), TEXT("CreateAssetGameplayEffect") };
 	Out.WhenToUse = TEXT("Batch edit GE policy/tags/modifiers; auto recompiles Blueprint");
 }
 
@@ -87,7 +87,7 @@ static void HandleGE_SetPolicy(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 {
 	UObject* CDO = GEState(Ctx)->CDO;
 	FString PolicyStr;
-	if (Op->TryGetStringField(TEXT("durationPolicy"), PolicyStr) && !PolicyStr.IsEmpty())
+	if (Op->TryGetStringField(TEXT("DurationPolicy"), PolicyStr) && !PolicyStr.IsEmpty())
 	{
 		uint8 V = 0;
 		if      (PolicyStr == TEXT("Instant"))     V = (uint8)EGameplayEffectDurationType::Instant;
@@ -95,20 +95,20 @@ static void HandleGE_SetPolicy(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 		else if (PolicyStr == TEXT("HasDuration")) V = (uint8)EGameplayEffectDurationType::HasDuration;
 		else
 		{
-			Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("invalid durationPolicy: %s"), *PolicyStr));
+			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("invalid DurationPolicy: %s"), *PolicyStr));
 			return;
 		}
 		NxGasSetEnumByte(CDO, TEXT("DurationPolicy"), V);
 	}
-	if (Op->HasField(TEXT("duration")))
+	if (Op->HasField(TEXT("Duration")))
 	{
-		const float DurVal = static_cast<float>(Op->GetNumberField(TEXT("duration")));
+		const float DurVal = static_cast<float>(Op->GetNumberField(TEXT("Duration")));
 		if (FGameplayEffectModifierMagnitude* M = NxGasPropPtr<FGameplayEffectModifierMagnitude>(CDO, TEXT("DurationMagnitude")))
 			*M = FGameplayEffectModifierMagnitude(FScalableFloat(DurVal));
 	}
-	if (Op->HasField(TEXT("period")))
+	if (Op->HasField(TEXT("Period")))
 	{
-		const float PeriodVal = static_cast<float>(Op->GetNumberField(TEXT("period")));
+		const float PeriodVal = static_cast<float>(Op->GetNumberField(TEXT("Period")));
 		if (FScalableFloat* S = NxGasPropPtr<FScalableFloat>(CDO, TEXT("Period")))
 			S->Value = PeriodVal;
 	}
@@ -119,36 +119,36 @@ static void HandleGE_SetTags(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 {
 	UObject* CDO = GEState(Ctx)->CDO;
 	const FNexusArgs A(Op);
-	const FString ContainerName = A.Str(TEXT("tagContainer"));
+	const FString ContainerName = A.Str(TEXT("TagContainer"));
 	if (ContainerName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_tags requires tagContainer"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetTags requires TagContainer"));
 		return;
 	}
-	FString Mode = A.Str(TEXT("mode"));
-	if (Mode.IsEmpty()) Mode = TEXT("set");
+	FString Mode = A.Str(TEXT("Mode"));
+	if (Mode.IsEmpty()) Mode = TEXT("Set");
 
 	static const TMap<FString, FString> ContainerMap = {
-		{ TEXT("gameplayEffectTags"), TEXT("InheritableGameplayEffectTags")          },
-		{ TEXT("grantedTags"),        TEXT("InheritableOwnedTagsContainer")          },
-		{ TEXT("blockedAbilityTags"), TEXT("InheritableBlockedAbilityTagsContainer") },
+		{ TEXT("GameplayEffectTags"), TEXT("InheritableGameplayEffectTags")          },
+		{ TEXT("GrantedTags"),        TEXT("InheritableOwnedTagsContainer")          },
+		{ TEXT("BlockedAbilityTags"), TEXT("InheritableBlockedAbilityTagsContainer") },
 	};
 	const FString* PropName = ContainerMap.Find(ContainerName);
 	if (!PropName)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("unknown tagContainer: %s"), *ContainerName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("unknown TagContainer: %s"), *ContainerName));
 		return;
 	}
 	FGameplayTagContainer* Container = GetGE_InheritedTagAddedMut(CDO, **PropName);
 	if (!Container)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("property missing or unsupported on this UE version: %s"), **PropName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("property missing or unsupported on this UE version: %s"), **PropName));
 		return;
 	}
 	FString TagError;
-	if (!FNexusGasUtils::ApplyTagContainer(*Container, A.StrArr(TEXT("tags")), Mode, TagError))
+	if (!FNexusGasUtils::ApplyTagContainer(*Container, A.StrArr(TEXT("Tags")), Mode, TagError))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TagError);
+		Ctx.Entry->SetStringField(TEXT("Error"), TagError);
 		return;
 	}
 	MarkGEApplied(Ctx);
@@ -160,20 +160,20 @@ static void HandleGE_ModifierOp(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 	FString ModError;
 	if (!FNexusGasUtils::ApplyGEModifierOp(GECDO, Ctx.Action, Op, ModError))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), ModError);
+		Ctx.Entry->SetStringField(TEXT("Error"), ModError);
 		return;
 	}
 	MarkGEApplied(Ctx);
 }
 
-bool FManageAssetGameplayEffectCapability::PrepareTarget(
+bool FNexusManageAssetGameplayEffectCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	FString LoadError;
 	UBlueprint* BP = FNexusGasUtils::LoadGameplayEffectBlueprint(AssetPath, LoadError);
 	if (!BP) { OutError = LoadError; return false; }
@@ -189,7 +189,7 @@ bool FManageAssetGameplayEffectCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetGameplayEffectCapability::AfterPrepareTarget(
+void FNexusManageAssetGameplayEffectCapability::AfterPrepareTarget(
 	void* Target,
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& OutTop) const
@@ -197,11 +197,11 @@ void FManageAssetGameplayEffectCapability::AfterPrepareTarget(
 	if (FGEActionState* State = static_cast<FGEActionState*>(Target))
 	{
 		State->OutTop = OutTop;
-		OutTop->SetStringField(TEXT("path"), FNexusArgs(Args).Str(TEXT("assetPath")));
+		OutTop->SetStringField(TEXT("Path"), FNexusArgs(Args).Str(TEXT("AssetPath")));
 	}
 }
 
-void FManageAssetGameplayEffectCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetGameplayEffectCapability::FinalizeTarget(void* Target) const
 {
 	FGEActionState* State = static_cast<FGEActionState*>(Target);
 	if (!State) return;
@@ -212,20 +212,20 @@ void FManageAssetGameplayEffectCapability::FinalizeTarget(void* Target) const
 	}
 	if (State->OutTop.IsValid())
 	{
-		State->OutTop->SetNumberField(TEXT("appliedOps"), State->Applied);
+		State->OutTop->SetNumberField(TEXT("AppliedOps"), State->Applied);
 	}
 	delete State;
 }
 
-void FManageAssetGameplayEffectCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetGameplayEffectCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_policy"),      &HandleGE_SetPolicy);
-	OutHandlers.Add(TEXT("set_tags"),        &HandleGE_SetTags);
-	OutHandlers.Add(TEXT("add_modifier"),    &HandleGE_ModifierOp);
-	OutHandlers.Add(TEXT("remove_modifier"), &HandleGE_ModifierOp);
-	OutHandlers.Add(TEXT("set_modifier"),    &HandleGE_ModifierOp);
+	OutHandlers.Add(TEXT("SetPolicy"),      &HandleGE_SetPolicy);
+	OutHandlers.Add(TEXT("SetTags"),        &HandleGE_SetTags);
+	OutHandlers.Add(TEXT("AddModifier"),    &HandleGE_ModifierOp);
+	OutHandlers.Add(TEXT("RemoveModifier"), &HandleGE_ModifierOp);
+	OutHandlers.Add(TEXT("SetModifier"),    &HandleGE_ModifierOp);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetGameplayEffectCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetGameplayEffectCapability)
 
 #endif // WITH_GAS

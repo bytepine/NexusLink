@@ -7,7 +7,7 @@
 #include "NexusRuntimeCapability.h"
 
 /** list_actors 的 Capability —— 带过滤和分页列举当前 World 中的 Actor。*/
-class FListRuntimeActorsCapability : public FNexusRuntimeCapability
+class FNexusListRuntimeActorsCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

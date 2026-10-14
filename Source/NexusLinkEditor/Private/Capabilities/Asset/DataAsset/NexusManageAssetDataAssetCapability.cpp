@@ -9,31 +9,31 @@
 #include "Engine/DataAsset.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetDataAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetDataAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_data_asset");
+	Out.Name = TEXT("ManageAssetDataAsset");
 	Out.SearchAssetTypes = {TEXT("DataAsset")};
-	Out.Description = TEXT("Batch edit DataAsset. set=ImportText validate; reset=CDO.");
+	Out.Description = TEXT("Batch edit DataAsset. Set=ImportText validate; Reset=CDO.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Property operation"), { TEXT("set"), TEXT("reset") }, TEXT("set")))
-		.Prop(TEXT("propertyName"), FNexusSchema::Str(TEXT("Editable property name")))
-		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("New value string (set only)")))
-		.Required({ TEXT("propertyName") })
+		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Property operation"), { TEXT("Set"), TEXT("Reset") }, TEXT("Set")))
+		.Prop(TEXT("PropertyName"), FNexusSchema::Str(TEXT("Editable property name")))
+		.Prop(TEXT("Value"),        FNexusSchema::Str(TEXT("New value string (set only)")))
+		.Required({ TEXT("PropertyName") })
 		.Build();
 
 		return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("DataAsset asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch property ops (at least one)"), ItemSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("DataAsset asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch property ops (at least one)"), ItemSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = {
-		TEXT("property"), TEXT("dataasset"), TEXT("value"), TEXT("field"), TEXT("cdo")
+		TEXT("Property"), TEXT("dataasset"), TEXT("Value"), TEXT("field"), TEXT("cdo")
 	};
-	Out.RelatedCapabilities = { TEXT("get_asset_data_asset"), TEXT("create_asset_data_asset"), TEXT("save_asset") };
+	Out.RelatedCapabilities = { TEXT("GetAssetDataAsset"), TEXT("CreateAssetDataAsset"), TEXT("SaveAsset") };
 	Out.WhenToUse = TEXT("Write ops: set or reset DataAsset to CDO defaults");
 }
 
@@ -64,23 +64,23 @@ static void MarkDADirty(FNexusActionContext& Ctx)
 
 static FProperty* ResolveDAProp(UDataAsset* DA, const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	const FString PropertyName = FNexusArgs(Op).Str(TEXT("propertyName"));
-	Ctx.Entry->SetStringField(TEXT("propertyName"), PropertyName);
+	const FString PropertyName = FNexusArgs(Op).Str(TEXT("PropertyName"));
+	Ctx.Entry->SetStringField(TEXT("PropertyName"), PropertyName);
 	if (PropertyName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("propertyName is required"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PropertyName is required"));
 		return nullptr;
 	}
 	FProperty* Prop = DA->GetClass()->FindPropertyByName(*PropertyName);
 	if (!Prop)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Property '%s' not found on class %s"),
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Property '%s' not found on class %s"),
 			*PropertyName, *DA->GetClass()->GetName()));
 		return nullptr;
 	}
 	if (!Prop->HasAnyPropertyFlags(CPF_Edit))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Property '%s' is not editable"), *PropertyName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Property '%s' is not editable"), *PropertyName));
 		return nullptr;
 	}
 	return Prop;
@@ -91,7 +91,7 @@ static void HandleDA_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	UDataAsset* DA = DAFrom(Ctx);
 	if (!DA)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataAsset is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DataAsset is null"));
 		return;
 	}
 	FProperty* Prop = ResolveDAProp(DA, Op, Ctx);
@@ -99,16 +99,16 @@ static void HandleDA_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(DA);
 	FString OldValue;
 	FNexusPropertyUtils::ExportText(Prop, OldValue, ValuePtr);
-	const FString NewValue = Op->HasField(TEXT("value")) ? Op->GetStringField(TEXT("value")) : TEXT("");
+	const FString NewValue = Op->HasField(TEXT("Value")) ? Op->GetStringField(TEXT("Value")) : TEXT("");
 	if (!FNexusPropertyUtils::ImportTextFromString(Prop, NewValue, ValuePtr, DA))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("ImportText failed: '%s'"), *Prop->GetName()));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("ImportText failed: '%s'"), *Prop->GetName()));
 		return;
 	}
 	FString ActualValue;
 	FNexusPropertyUtils::ExportText(Prop, ActualValue, ValuePtr);
-	if (!OldValue.IsEmpty())    Ctx.Entry->SetStringField(TEXT("oldValue"), OldValue);
-	if (!ActualValue.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualValue);
+	if (!OldValue.IsEmpty())    Ctx.Entry->SetStringField(TEXT("OldValue"), OldValue);
+	if (!ActualValue.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualValue);
 	MarkDADirty(Ctx);
 }
 
@@ -117,7 +117,7 @@ static void HandleDA_Reset(const TSharedPtr<FJsonObject>& Op, FNexusActionContex
 	UDataAsset* DA = DAFrom(Ctx);
 	if (!DA)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("DataAsset is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DataAsset is null"));
 		return;
 	}
 	FProperty* Prop = ResolveDAProp(DA, Op, Ctx);
@@ -131,19 +131,19 @@ static void HandleDA_Reset(const TSharedPtr<FJsonObject>& Op, FNexusActionContex
 	Prop->CopyCompleteValue(ValuePtr, SrcPtr);
 	FString ResetValue;
 	FNexusPropertyUtils::ExportText(Prop, ResetValue, ValuePtr);
-	if (!OldValue.IsEmpty())   Ctx.Entry->SetStringField(TEXT("oldValue"),   OldValue);
-	if (!ResetValue.IsEmpty()) Ctx.Entry->SetStringField(TEXT("resetValue"), ResetValue);
+	if (!OldValue.IsEmpty())   Ctx.Entry->SetStringField(TEXT("OldValue"),   OldValue);
+	if (!ResetValue.IsEmpty()) Ctx.Entry->SetStringField(TEXT("ResetValue"), ResetValue);
 	MarkDADirty(Ctx);
 }
 
-bool FManageAssetDataAssetCapability::PrepareTarget(
+bool FNexusManageAssetDataAssetCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UObject* Obj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(AssetPath);
 	if (!Obj) { OutError = FString::Printf(TEXT("Asset not found: %s"), *AssetPath); return false; }
 	UDataAsset* DA = Cast<UDataAsset>(Obj);
@@ -154,7 +154,7 @@ bool FManageAssetDataAssetCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetDataAssetCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetDataAssetCapability::FinalizeTarget(void* Target) const
 {
 	FDataAssetActionState* State = static_cast<FDataAssetActionState*>(Target);
 	if (!State) return;
@@ -165,10 +165,10 @@ void FManageAssetDataAssetCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetDataAssetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetDataAssetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set"),   &HandleDA_Set);
-	OutHandlers.Add(TEXT("reset"), &HandleDA_Reset);
+	OutHandlers.Add(TEXT("Set"),   &HandleDA_Set);
+	OutHandlers.Add(TEXT("Reset"), &HandleDA_Reset);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetDataAssetCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetDataAssetCapability)

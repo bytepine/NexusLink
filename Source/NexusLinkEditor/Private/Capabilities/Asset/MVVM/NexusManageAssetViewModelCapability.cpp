@@ -19,25 +19,25 @@
 #include "MVVMBlueprintViewModelContext.h"
 #endif
 
-void FManageAssetViewModelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetViewModelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_view_model");
+	Out.Name = TEXT("ManageAssetViewModel");
 	Out.SearchAssetTypes = {TEXT("Widget")};
 	Out.Description = TEXT("Edit WBP MVVM: add/remove ViewModel and Binding. UE 5.5+.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Required(TEXT("action"), FNexusSchema::Enum(TEXT("Action"),
-			{ TEXT("add_view_model"), TEXT("remove_view_model"), TEXT("add_binding"), TEXT("remove_binding") }))
-		.Prop(TEXT("viewModelName"), FNexusSchema::Str(TEXT("ViewModel name")))
-		.Prop(TEXT("viewModelClass"), FNexusSchema::Str(TEXT("ViewModel UClass name (add_view_model)")))
-		.Prop(TEXT("bindingIndex"), FNexusSchema::Int(TEXT("Binding index (remove_binding)")))
+		.Required(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"),
+			{ TEXT("AddViewModel"), TEXT("RemoveViewModel"), TEXT("AddBinding"), TEXT("RemoveBinding") }))
+		.Prop(TEXT("ViewModelName"), FNexusSchema::Str(TEXT("ViewModel name")))
+		.Prop(TEXT("ViewModelClass"), FNexusSchema::Str(TEXT("ViewModel UClass name (AddViewModel)")))
+		.Prop(TEXT("BindingIndex"), FNexusSchema::Int(TEXT("Binding index (RemoveBinding)")))
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("WidgetBlueprint path")))
-		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("WidgetBlueprint path")))
+		.Required(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = { TEXT("mvvm"), TEXT("viewmodel"), TEXT("binding") };
-	Out.RelatedCapabilities = { TEXT("get_asset_view_model"), TEXT("get_asset_user_widget"), TEXT("save_asset") };
+	Out.RelatedCapabilities = { TEXT("GetAssetViewModel"), TEXT("GetAssetUserWidget"), TEXT("SaveAsset") };
 	Out.WhenToUse = TEXT("For WBP add/remove MVVM ViewModel/Binding");
 }
 
@@ -67,31 +67,31 @@ static void HandleVM_AddViewModel(const TSharedPtr<FJsonObject>& Op, FNexusActio
 {
 	UMVVMBlueprintView* View = VMState(Ctx)->View;
 	const FNexusArgs A(Op);
-	const FString VmName = A.Str(TEXT("viewModelName"));
-	const FString VmClassName = A.Str(TEXT("viewModelClass"));
+	const FString VmName = A.Str(TEXT("ViewModelName"));
+	const FString VmClassName = A.Str(TEXT("ViewModelClass"));
 	if (VmName.IsEmpty() || VmClassName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_view_model requires viewModelName and viewModelClass"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddViewModel requires ViewModelName and ViewModelClass"));
 		return;
 	}
 	UClass* VmClass = FNexusAssetUtils::FindClassWithUPrefix(VmClassName);
 	if (!VmClass)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("ViewModel class not found: %s"), *VmClassName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("ViewModel class not found: %s"), *VmClassName));
 		return;
 	}
 	FMVVMBlueprintViewModelContext VmCtx;
 	VmCtx.ViewModelName = FName(*VmName);
 	VmCtx.NotifyFieldValueClass = VmClass;
 	View->AddViewModel(VmCtx);
-	Ctx.Entry->SetStringField(TEXT("viewModelName"), VmName);
+	Ctx.Entry->SetStringField(TEXT("ViewModelName"), VmName);
 	MarkVMDirty(Ctx);
 }
 
 static void HandleVM_RemoveViewModel(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UMVVMBlueprintView* View = VMState(Ctx)->View;
-	const FString VmName = FNexusArgs(Op).Str(TEXT("viewModelName"));
+	const FString VmName = FNexusArgs(Op).Str(TEXT("ViewModelName"));
 	bool bRemoved = false;
 	for (const FMVVMBlueprintViewModelContext& VmCtx : View->GetViewModels())
 	{
@@ -102,7 +102,7 @@ static void HandleVM_RemoveViewModel(const TSharedPtr<FJsonObject>& Op, FNexusAc
 			break;
 		}
 	}
-	if (!bRemoved) Ctx.Entry->SetStringField(TEXT("error"), TEXT("ViewModel not found"));
+	if (!bRemoved) Ctx.Entry->SetStringField(TEXT("Error"), TEXT("ViewModel not found"));
 	else MarkVMDirty(Ctx);
 }
 
@@ -111,7 +111,7 @@ static void HandleVM_AddBinding(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 	(void)Op;
 	UMVVMBlueprintView* View = VMState(Ctx)->View;
 	View->AddDefaultBinding();
-	Ctx.Entry->SetNumberField(TEXT("bindingsCount"), View->GetNumBindings());
+	Ctx.Entry->SetNumberField(TEXT("BindingsCount"), View->GetNumBindings());
 	MarkVMDirty(Ctx);
 }
 
@@ -119,10 +119,10 @@ static void HandleVM_RemoveBinding(const TSharedPtr<FJsonObject>& Op, FNexusActi
 {
 	UMVVMBlueprintView* View = VMState(Ctx)->View;
 	int32 Idx = 0;
-	if (Op->HasField(TEXT("bindingIndex"))) Idx = static_cast<int32>(Op->GetNumberField(TEXT("bindingIndex")));
+	if (Op->HasField(TEXT("BindingIndex"))) Idx = static_cast<int32>(Op->GetNumberField(TEXT("BindingIndex")));
 	if (Idx < 0 || Idx >= View->GetNumBindings())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("bindingIndex out of bounds"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("BindingIndex out of bounds"));
 		return;
 	}
 	View->RemoveBindingAt(Idx);
@@ -130,18 +130,18 @@ static void HandleVM_RemoveBinding(const TSharedPtr<FJsonObject>& Op, FNexusActi
 }
 #endif
 
-bool FManageAssetViewModelCapability::PrepareTarget(
+bool FNexusManageAssetViewModelCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
 #if !WITH_EDITOR
-	OutError = TEXT("manage_asset_view_model only available in editor builds");
+	OutError = TEXT("ManageAssetViewModel only available in editor builds");
 	return false;
 #else
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UWidgetBlueprint* WBP = FNexusAssetEditorUtils::LoadWidgetBP(AssetPath);
 	if (!WBP)
 	{
@@ -166,7 +166,7 @@ bool FManageAssetViewModelCapability::PrepareTarget(
 #endif
 }
 
-void FManageAssetViewModelCapability::AfterPrepareTarget(
+void FNexusManageAssetViewModelCapability::AfterPrepareTarget(
 	void* Target,
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& OutTop) const
@@ -183,7 +183,7 @@ void FManageAssetViewModelCapability::AfterPrepareTarget(
 #endif
 }
 
-void FManageAssetViewModelCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetViewModelCapability::FinalizeTarget(void* Target) const
 {
 #if WITH_EDITOR
 	FViewModelActionState* State = static_cast<FViewModelActionState*>(Target);
@@ -193,7 +193,7 @@ void FManageAssetViewModelCapability::FinalizeTarget(void* Target) const
 		State->WBP->MarkPackageDirty();
 		if (State->OutTop.IsValid())
 		{
-			State->OutTop->SetStringField(TEXT("hint"), TEXT("Call save_asset to persist changes"));
+			State->OutTop->SetStringField(TEXT("Hint"), TEXT("Call SaveAsset to persist changes"));
 		}
 	}
 	delete State;
@@ -202,16 +202,16 @@ void FManageAssetViewModelCapability::FinalizeTarget(void* Target) const
 #endif
 }
 
-void FManageAssetViewModelCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetViewModelCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
 #if WITH_EDITOR
-	OutHandlers.Add(TEXT("add_view_model"),    &HandleVM_AddViewModel);
-	OutHandlers.Add(TEXT("remove_view_model"), &HandleVM_RemoveViewModel);
-	OutHandlers.Add(TEXT("add_binding"),       &HandleVM_AddBinding);
-	OutHandlers.Add(TEXT("remove_binding"),    &HandleVM_RemoveBinding);
+	OutHandlers.Add(TEXT("AddViewModel"),    &HandleVM_AddViewModel);
+	OutHandlers.Add(TEXT("RemoveViewModel"), &HandleVM_RemoveViewModel);
+	OutHandlers.Add(TEXT("AddBinding"),       &HandleVM_AddBinding);
+	OutHandlers.Add(TEXT("RemoveBinding"),    &HandleVM_RemoveBinding);
 #endif
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetViewModelCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetViewModelCapability)
 
 #endif

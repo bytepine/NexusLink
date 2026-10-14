@@ -345,10 +345,10 @@ bool FNexusCaptureUtils::SaveAndBuildEntry(TArray<FColor>& Pixels, int32 W, int3
 	}
 	CleanupOldCaptures(OutputDir);
 
-	OutEntry->SetStringField(TEXT("filePath"), FilePath);
-	OutEntry->SetStringField(TEXT("format"), Format);
-	OutEntry->SetNumberField(TEXT("width"), FinalW);
-	OutEntry->SetNumberField(TEXT("height"), FinalH);
+	OutEntry->SetStringField(TEXT("FilePath"), FilePath);
+	OutEntry->SetStringField(TEXT("Format"), Format);
+	OutEntry->SetNumberField(TEXT("Width"), FinalW);
+	OutEntry->SetNumberField(TEXT("Height"), FinalH);
 	if (ExtraFields.IsValid())
 	{
 		for (const auto& Pair : ExtraFields->Values)

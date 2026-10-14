@@ -19,28 +19,28 @@
 #include "NexusMcpTool.h"
 #endif
 
-void FControlPieCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusControlPieCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("control_pie");
-	Out.Description = TEXT("Start/stop/pause/step PIE. action=start|stop|status|pause|resume|step.");
+	Out.Name = TEXT("ControlPie");
+	Out.Description = TEXT("Start/stop/pause/step PIE. Action=start|stop|status|pause|resume|step.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("PIE operation"), { TEXT("start"), TEXT("stop"), TEXT("status"), TEXT("pause"), TEXT("resume"), TEXT("step") }))
-		.Prop(TEXT("mode"),   FNexusSchema::Enum(TEXT("Play mode (start only)"), { TEXT("viewport"), TEXT("simulate") }, TEXT("viewport")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("PIE operation"), { TEXT("Start"), TEXT("Stop"), TEXT("Status"), TEXT("Pause"), TEXT("Resume"), TEXT("Step") }))
+		.Prop(TEXT("Mode"),   FNexusSchema::Enum(TEXT("Play mode (start only)"), { TEXT("Viewport"), TEXT("Simulate") }, TEXT("Viewport")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("play"), TEXT("pause"), TEXT("simulate"), TEXT("game"), TEXT("preview") };
-	Out.RelatedCapabilities = { TEXT("exec_command") };
+	Out.ExtraSearchKeywords = { TEXT("play"), TEXT("Pause"), TEXT("Simulate"), TEXT("game"), TEXT("preview") };
+	Out.RelatedCapabilities = { TEXT("ExecCommand") };
 }
 
-FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusControlPieCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString Action = A.Str(TEXT("action"));
+		const FString Action = A.Str(TEXT("Action"));
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
@@ -51,15 +51,15 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 			return;
 		}
 
-		if (Action.Equals(TEXT("status"), ESearchCase::IgnoreCase))
+		if (Action.Equals(TEXT("Status"), ESearchCase::IgnoreCase))
 		{
 			const bool bRunning      = GEditor->IsPlayingSessionInEditor();
 			const bool bSimulating   = GEditor->IsSimulatingInEditor();
 			const bool bHasPlayWorld = FNexusRuntimeUtils::HasPlayWorld();
-			OutEntry->SetBoolField(TEXT("isPIERunning"), bRunning);
-			OutEntry->SetBoolField(TEXT("hasPlayWorld"), bHasPlayWorld);
-			if (bSimulating) OutEntry->SetBoolField(TEXT("isPIESimulating"), true);
-			FString State = TEXT("stopped");
+			OutEntry->SetBoolField(TEXT("bIsPIERunning"), bRunning);
+			OutEntry->SetBoolField(TEXT("bHasPlayWorld"), bHasPlayWorld);
+			if (bSimulating) OutEntry->SetBoolField(TEXT("bIsPIESimulating"), true);
+			FString State = TEXT("bStopped");
 			if (bRunning)
 			{
 				if (!bHasPlayWorld)
@@ -72,31 +72,31 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 				}
 				else
 				{
-					State = TEXT("playing");
+					State = TEXT("bPlaying");
 				}
 			}
-			OutEntry->SetStringField(TEXT("state"), State);
+			OutEntry->SetStringField(TEXT("State"), State);
 			if (bRunning && !bHasPlayWorld)
 			{
-				OutEntry->SetStringField(TEXT("hint"),
-					TEXT("PIE session started but play World is not ready; wait for hasPlayWorld before list_runtime_*"));
+				OutEntry->SetStringField(TEXT("Hint"),
+					TEXT("PIE session started but play World is not ready; wait for bHasPlayWorld before list_runtime_*"));
 			}
 		}
-		else if (Action.Equals(TEXT("start"), ESearchCase::IgnoreCase))
+		else if (Action.Equals(TEXT("Start"), ESearchCase::IgnoreCase))
 		{
 			if (GEditor->IsPlayingSessionInEditor())
 			{
-				OutEntry->SetBoolField(TEXT("success"), false);
-				OutEntry->SetStringField(TEXT("error"), TEXT("PIE already running; stop first"));
+				OutEntry->SetBoolField(TEXT("bSuccess"), false);
+				OutEntry->SetStringField(TEXT("Error"), TEXT("PIE already running; stop first"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
 
-			FString Mode = TEXT("viewport");
-			Mode = FNexusArgs(Arguments).Str(TEXT("mode"), Mode);
+			FString Mode = TEXT("Viewport");
+			Mode = FNexusArgs(Arguments).Str(TEXT("Mode"), Mode);
 
 			ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
-			const bool bSimulate = Mode.Equals(TEXT("simulate"), ESearchCase::IgnoreCase);
+			const bool bSimulate = Mode.Equals(TEXT("Simulate"), ESearchCase::IgnoreCase);
 			PlaySettings->LastExecutedPlayModeType = bSimulate ? PlayMode_Simulate : PlayMode_InViewPort;
 			PlaySettings->SetPlayNetMode(PIE_Standalone);
 			PlaySettings->PostEditChange();
@@ -118,35 +118,35 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 			}
 			GEditor->RequestPlaySession(Params);
 
-			OutEntry->SetStringField(TEXT("action"), TEXT("start"));
-			OutEntry->SetStringField(TEXT("mode"), Mode.ToLower());
-			OutEntry->SetStringField(TEXT("note"), TEXT("PIE start requested; begins next frame."));
+			OutEntry->SetStringField(TEXT("Action"), TEXT("Start"));
+			OutEntry->SetStringField(TEXT("Mode"), Mode.ToLower());
+			OutEntry->SetStringField(TEXT("Note"), TEXT("PIE start requested; begins next frame."));
 		}
-		else if (Action.Equals(TEXT("stop"), ESearchCase::IgnoreCase))
+		else if (Action.Equals(TEXT("Stop"), ESearchCase::IgnoreCase))
 		{
 			if (!GEditor->IsPlayingSessionInEditor())
 			{
-				OutEntry->SetBoolField(TEXT("success"), false);
-				OutEntry->SetStringField(TEXT("error"), TEXT("No running PIE session"));
+				OutEntry->SetBoolField(TEXT("bSuccess"), false);
+				OutEntry->SetStringField(TEXT("Error"), TEXT("No running PIE session"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
 			GEditor->RequestEndPlayMap();
-			OutEntry->SetStringField(TEXT("action"), TEXT("stop"));
-			OutEntry->SetStringField(TEXT("note"), TEXT("PIE stop requested."));
+			OutEntry->SetStringField(TEXT("Action"), TEXT("Stop"));
+			OutEntry->SetStringField(TEXT("Note"), TEXT("PIE stop requested."));
 		}
-		else if (Action.Equals(TEXT("pause"), ESearchCase::IgnoreCase)
-			|| Action.Equals(TEXT("resume"), ESearchCase::IgnoreCase)
-			|| Action.Equals(TEXT("step"), ESearchCase::IgnoreCase))
+		else if (Action.Equals(TEXT("Pause"), ESearchCase::IgnoreCase)
+			|| Action.Equals(TEXT("Resume"), ESearchCase::IgnoreCase)
+			|| Action.Equals(TEXT("Step"), ESearchCase::IgnoreCase))
 		{
 			if (!GEditor->IsPlayingSessionInEditor())
 			{
-				OutEntry->SetBoolField(TEXT("success"), false);
-				OutEntry->SetStringField(TEXT("error"), TEXT("No running PIE session"));
+				OutEntry->SetBoolField(TEXT("bSuccess"), false);
+				OutEntry->SetStringField(TEXT("Error"), TEXT("No running PIE session"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
-			if (Action.Equals(TEXT("pause"), ESearchCase::IgnoreCase))
+			if (Action.Equals(TEXT("Pause"), ESearchCase::IgnoreCase))
 			{
 #if NX_UE_HAS_SET_PIE_WORLDS_PAUSED
 				GEditor->SetPIEWorldsPaused(true);
@@ -156,9 +156,9 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 					PlayWorld->bDebugPauseExecution = true;
 				}
 #endif
-				OutEntry->SetStringField(TEXT("state"), TEXT("paused"));
+				OutEntry->SetStringField(TEXT("State"), TEXT("paused"));
 			}
-			else if (Action.Equals(TEXT("resume"), ESearchCase::IgnoreCase))
+			else if (Action.Equals(TEXT("Resume"), ESearchCase::IgnoreCase))
 			{
 #if NX_UE_HAS_SET_PIE_WORLDS_PAUSED
 				GEditor->SetPIEWorldsPaused(false);
@@ -168,7 +168,7 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 					PlayWorld->bDebugPauseExecution = false;
 				}
 #endif
-				OutEntry->SetStringField(TEXT("state"), TEXT("playing"));
+				OutEntry->SetStringField(TEXT("State"), TEXT("bPlaying"));
 			}
 			else
 			{
@@ -179,20 +179,20 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 				{
 					PlayWorld->bDebugPauseExecution = true;
 				}
-				OutEntry->SetStringField(TEXT("state"), TEXT("step"));
-				OutEntry->SetStringField(TEXT("note"), TEXT("Step requested (pause next frame)"));
+				OutEntry->SetStringField(TEXT("State"), TEXT("Step"));
+				OutEntry->SetStringField(TEXT("Note"), TEXT("Step requested (pause next frame)"));
 			}
-			OutEntry->SetStringField(TEXT("action"), Action.ToLower());
+			OutEntry->SetStringField(TEXT("Action"), Action.ToLower());
 		}
 		else
 		{
-			OutEntry->SetBoolField(TEXT("success"), false);
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(
+			OutEntry->SetBoolField(TEXT("bSuccess"), false);
+			OutEntry->SetStringField(TEXT("Error"), FString::Printf(
 				TEXT("Unknown action: %s; supported: start / stop / status / pause / resume / step"), *Action));
 		}
 	#else
-		OutEntry->SetBoolField(TEXT("success"), false);
-		OutEntry->SetStringField(TEXT("error"), TEXT("control_pie only available in editor mode"));
+		OutEntry->SetBoolField(TEXT("bSuccess"), false);
+		OutEntry->SetStringField(TEXT("Error"), TEXT("ControlPie only available in editor mode"));
 	#endif
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
@@ -200,6 +200,6 @@ FCapabilityResult FControlPieCapability::Execute(const TSharedPtr<FJsonObject>& 
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FControlPieCapability)
+REGISTER_MCP_CAPABILITY(FNexusControlPieCapability)
 
 #endif // WITH_EDITOR

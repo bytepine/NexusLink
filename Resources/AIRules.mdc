@@ -7,7 +7,7 @@ alwaysApply: false
 
 > **Division of labor with MCP handshake instructions**
 > - **InitializeInstructions** (UE handshake): capability routing table, meta-tool constraints, read/write naming.
-> - **This Rule** (IDE-side): enforce discover tools → find paths → read/write; forbid guessing cap names/paths; fill project-level `pathFilter` prefixes.
+> - **This Rule** (IDE-side): enforce discover tools → find paths → read/write; forbid guessing cap names/paths; fill project-level `PathFilter` prefixes.
 >
 > Source: `Plugins/NexusLink/Resources/AIRules.mdc` — diff generic sections into your project copy after plugin upgrades.
 
@@ -15,38 +15,38 @@ alwaysApply: false
 
 ## 1. Four-step flow (required)
 
-For UE assets / PIE / blueprints / Widget / material / behavior tree / GAS, **call MCP this turn first**, then answer. UnLua is [NexusLinkExt](https://github.com/bytepine/NexusLinkExt): discover those caps with `search_capabilities` when that plugin is loaded.
+For UE assets / PIE / blueprints / Widget / material / behavior tree / GAS, **call MCP this turn first**, then answer. UnLua is [NexusLinkExt](https://github.com/bytepine/NexusLinkExt): discover those caps with `SearchCapabilities` when that plugin is loaded.
 
 | Step | Tool | Notes |
 |---|---|---|
-| 1 Discover capability | `search_capabilities` | Skip when cap name is known; otherwise `query` with 1–2 **narrow** words (e.g. `blueprint variable`, `runtime actor`, `behavior tree`); **no** business feature names, asset names, or over-broad single tokens (see §2) |
-| 2 Discover asset paths | `search_asset` | Requires `assetType` + functional `pathFilter`; top-level `assets`; typed search adds top-level `recommendedGet`/`recommendedManage` — prefer those in step 3 |
-| 3 Read/write | `get_asset_*` / `manage_asset_*` / `list_runtime_*` etc. | `assetPath` **only** from `assets[].path`; prefer `recommendedGet`/`recommendedManage`; when lists include `<k>_defaults`, missing fields equal that value (`{**defaults,**entry}`) |
-| 4 Persist | `save_asset` or manage `saveToDisk=true` | Required after disk asset edits; BP/ABP/WBP may also pass `compile=true` |
+| 1 Discover capability | `SearchCapabilities` | Skip when cap name is known; otherwise `Query` with 1–2 **narrow** words (e.g. `blueprint variable`, `runtime actor`, `behavior tree`); **no** business feature names, asset names, or over-broad single tokens (see §2) |
+| 2 Discover asset paths | `SearchAsset` | Requires `AssetType` + functional `PathFilter`; top-level `Assets`; typed search adds top-level `RecommendedGet`/`RecommendedManage` — prefer those in step 3 |
+| 3 Read/write | `get_asset_*` / `manage_asset_*` / `list_runtime_*` etc. | `AssetPath` **only** from `assets[].path`; prefer `RecommendedGet`/`RecommendedManage`; when lists include `<k>_defaults`, missing fields equal that value (`{**defaults,**entry}`) |
+| 4 Persist | `SaveAsset` or manage `bSaveToDisk=true` | Required after disk asset edits; BP/ABP/WBP may also pass `bCompile=true` |
 
-**Meta-tools** `search_capabilities`, `call_capability`, `submit_feedback` must use **MCP `tools/call` directly** — not `call_capability(capability="search_capabilities", …)`.
+**Meta-tools** `SearchCapabilities`, `CallCapability`, `SubmitFeedback` must use **MCP `tools/call` directly** — not `CallCapability(Capability="SearchCapabilities", …)`.
 
 ---
 
 ## 2. Prohibitions
 
-- ❌ Invent a `get_asset` aggregate tool (correct: `get_asset_<type>`, e.g. `get_asset_blueprint`)
-- ❌ Search `search_capabilities` with business terms (`ChestPVE`, `Dice`, `Attack`, etc.)
-- ❌ Over-broad single-token `search_capabilities` queries: `blueprint` / `asset` / `runtime` / `animation` (causes `search_overflow`; add action or subdomain, e.g. `blueprint variable`, `runtime actor`)
-- ❌ Guess `/Game/...` paths; no `assetType=all` + bare `/Game/` without filters
-- ❌ Call `get_asset_*` without `search_asset` first (missing `assetPath`)
-- ❌ `get_runtime_actor_*` / `set_runtime_actor_*` without `actorName` (call `list_runtime_actors` first; wait for `hasPlayWorld`)
-- ❌ `exec_command` without a non-empty `command`
-- ❌ Call dangerous caps (`exec_command` / `exec_python`, plus any `dangerous` cap from [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)) in Confirm mode without `reason` (purpose, expected effect, why no safer dedicated cap)
-- ❌ Retry after `errorKind=user_denied` (user rejected this request)
+- ❌ Invent a `GetAsset` aggregate tool (correct: `GetAsset*`, e.g. `GetAssetBlueprint`)
+- ❌ Search `SearchCapabilities` with business terms (`ChestPVE`, `Dice`, `Attack`, etc.)
+- ❌ Over-broad single-token `SearchCapabilities` queries: `blueprint` / `Asset` / `Runtime` / `Animation` (causes `SearchOverflow`; add action or subdomain, e.g. `blueprint variable`, `runtime actor`)
+- ❌ Guess `/Game/...` paths; no `AssetType=all` + bare `/Game/` without filters
+- ❌ Call `GetAsset*` without `SearchAsset` first (missing `AssetPath`)
+- ❌ `GetRuntimeActor*` / `SetRuntimeActor*` without `ActorName` (call `ListRuntimeActors` first; wait for `bHasPlayWorld`)
+- ❌ `ExecCommand` without a non-empty `Command`
+- ❌ Call dangerous caps (`ExecCommand` / `ExecPython`, plus any `Dangerous` cap from [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)) in Confirm mode without `Reason` (purpose, expected effect, why no safer dedicated cap)
+- ❌ Retry after `ErrorKind=UserDenied` (user rejected this request)
 - ❌ Call NexusLinkExt Lua caps without PIE / UnLua ready
-- ❌ Guess `unreal.*` Python APIs — they differ per engine version; probe with `get_python_api` before `exec_python`
-- ❌ Assume `exec_python` writes are undoable — plain `obj.foo = x` is not recorded; use `obj.set_editor_property(...)` (or explicit `obj.modify()`) and check the returned `undoRecorded`
-- ❌ Ignore `_feedbackHint` — call `submit_feedback`
-- ❌ Expect `success:true` on write success (no `error` means success; only explicit `success:false` is failure)
-- ❌ Pass `assetPaths` / `actorNames` / `widgetNames` to capabilities (cross-target via `call_capability.calls[]`)
-- ❌ manage top-level `fields`/`rows`/`keys`/`widgets`/`ops` or bare `action` synthesis (use `operations[]`)
-- ❌ Legacy keys: `blueprintPath`/`newPath`/`ownerWidget`/`filePath`/`classPath` (see §3)
+- ❌ Guess `unreal.*` Python APIs — they differ per engine version; probe with `GetPythonApi` before `ExecPython`
+- ❌ Assume `ExecPython` writes are undoable — plain `obj.foo = x` is not recorded; use `obj.set_editor_property(...)` (or explicit `obj.modify()`) and check the returned `bUndoRecorded`
+- ❌ Ignore `FeedbackHint` — call `SubmitFeedback`
+- ❌ Expect `success:true` on write success (no `Error` means success; only explicit `success:false` is failure)
+- ❌ Pass `assetPaths` / `actorNames` / `widgetNames` to capabilities (cross-target via `CallCapability.calls[]`)
+- ❌ manage top-level `Fields`/`Rows`/`Keys`/`Widgets`/`ops` or bare `Action` synthesis (use `Operations[]`)
+- ❌ Legacy keys: `blueprintPath`/`newPath`/`ownerWidget`/`FilePath`/`classPath` (see §3)
 
 ---
 
@@ -54,14 +54,14 @@ For UE assets / PIE / blueprints / Widget / material / behavior tree / GAS, **ca
 
 | Canonical key / shape | Notes |
 |---|---|
-| Single target `assetPath` / `actorName` / `widgetName` | One target per capability call |
-| `call_capability.calls[]` | Cross-target batch (SearchMode) |
+| Single target `AssetPath` / `ActorName` / `WidgetName` | One target per capability call |
+| `CallCapability.calls[]` | Cross-target batch (SearchMode) |
 | manage → `operations[{action,…}]` | Sole operation container |
-| get → `propertyPaths[]`; set_* → `updates[{propertyPath,value,…}]` | read plural; write singular inside entries |
-| `destAssetPath` / `scriptPath` / `ownerClass` | replace `newPath` / `filePath` / `ownerWidget` |
-| spawn `assetPath` + `className` | replace `blueprintPath` / `classPath` |
+| get → `PropertyPaths[]`; set_* → `updates[{PropertyPath,value,…}]` | read plural; write singular inside entries |
+| `DestAssetPath` / `ScriptPath` / `OwnerClass` | replace `newPath` / `FilePath` / `ownerWidget` |
+| spawn `AssetPath` + `ClassName` | replace `blueprintPath` / `classPath` |
 
-Legacy keys → `arg_invalid`.
+Legacy keys → `ArgInvalid`.
 
 ---
 
@@ -69,17 +69,17 @@ Legacy keys → `arg_invalid`.
 
 | User intent | Flow |
 |----------|------|
-| Blueprint variables/graph | `search_asset(Blueprint, …)` → top-level `recommendedGet` (usually `get_asset_blueprint`) + `assets[].path`; if cap unknown, `search_capabilities(query="blueprint variable")` |
-| Create/edit blueprint interface | `create_asset_blueprint(parentClass=Interface)` → `manage_asset_blueprint` `add_function` / `add_interface` |
-| Behavior tree / decorators | `search_asset(BehaviorTree, …)` → top-level `recommendedGet` (usually `get_asset_behavior_tree`) |
-| GA config | `search_asset(GameplayAbility, …)` → top-level `recommendedGet` (skip if GAS not enabled locally) |
-| Current editor map / open level | `get_editor_context(sections=["current_map"])` — not `get_asset_level` (needs a known path) and not `list_runtime_actors` |
-| PIE actor properties | After `hasPlayWorld`, `list_runtime_actors` → `get_runtime_actor_property(actorName=…, propertyPaths=…)` |
-| PIE blackboard / active node | `get_runtime_actor_behavior_tree` (needs PIE + `actorName`) |
-| Console command | `exec_command(command="…")` (`command` required, non-empty; Confirm mode also needs `reason`) |
-| Screenshot | `capture_viewport` for Game/PIE viewport or full window; `capture_editor_panel` for LevelEditor panel tabs and Actor `viewAngle` shots (Editor only) |
-| Editor automation via Python | `get_python_api(target="unreal", query="…")` to confirm the API exists on this engine → `exec_python`; both need Python Editor Script Plugin, and `exec_python` is disabled by default |
-| Errors / crashes / PIE / packaged Game logs | Errors: `get_output_log(preset="diagnose")`. Logs from the next action: `get_output_log(watch={categories,textIncludes,textExcludes,verbosity})` then `collectWatch=true` (side buffer; consecutive duplicates collapse to `repeat`). `set_log_capture_filter` is the persistent category whitelist (Warning/Error always captured) |
+| Blueprint variables/graph | `SearchAsset(Blueprint, …)` → top-level `RecommendedGet` (usually `GetAssetBlueprint`) + `assets[].path`; if cap unknown, `SearchCapabilities(Query="blueprint variable")` |
+| Create/edit blueprint interface | `CreateAssetBlueprint(ParentClass=Interface)` → `ManageAssetBlueprint` `AddFunction` / `AddInterface` |
+| Behavior tree / decorators | `SearchAsset(BehaviorTree, …)` → top-level `RecommendedGet` (usually `GetAssetBehaviorTree`) |
+| GA config | `SearchAsset(GameplayAbility, …)` → top-level `RecommendedGet` (skip if GAS not enabled locally) |
+| Current editor map / open level | `GetEditorContext(Sections=["CurrentMap"])` — not `GetAssetLevel` (needs a known path) and not `ListRuntimeActors` |
+| PIE actor properties | After `bHasPlayWorld`, `ListRuntimeActors` → `GetRuntimeActorProperty(ActorName=…, PropertyPaths=…)` |
+| PIE blackboard / active node | `GetRuntimeActorBehaviorTree` (needs PIE + `ActorName`) |
+| Console command | `ExecCommand(Command="…")` (`Command` required, non-empty; Confirm mode also needs `Reason`) |
+| Screenshot | `CaptureViewport` for Game/PIE viewport or full window; `CaptureEditorPanel` for LevelEditor panel tabs and Actor `ViewAngle` shots (Editor only) |
+| Editor automation via Python | `GetPythonApi(Target="unreal", Query="…")` to confirm the API exists on this engine → `ExecPython`; both need Python Editor Script Plugin, and `ExecPython` is disabled by default |
+| Errors / crashes / PIE / packaged Game logs | Errors: `GetOutputLog(Preset="Diagnose")`. Logs from the next action: `GetOutputLog(Watch={categories,TextIncludes,TextExcludes,verbosity})` then `bCollectWatch=true` (side buffer; consecutive duplicates collapse to `Repeat`). `SetLogCaptureFilter` is the persistent category whitelist (Warning/Error always captured) |
 | Game design docs | Project **knowledge-base MCP** if available — not NexusLink asset search |
 
 ---
@@ -90,7 +90,7 @@ Legacy keys → `arg_invalid`.
 
 | Item | Value |
 |----|------|
-| Default `pathFilter` prefix | `<!-- e.g. /Game/YourFeature/ -->` |
+| Default `PathFilter` prefix | `<!-- e.g. /Game/YourFeature/ -->` |
 | Module/directory map (optional) | `<!-- e.g. ChestPVE → /Game/Features/ChestPVE/ -->` |
 | Custom capability names (optional) | `<!-- delete row if none -->` |
 | Knowledge-base MCP name (optional) | `<!-- e.g. search_knowledge → design docs; NexusLink → UE assets -->` |

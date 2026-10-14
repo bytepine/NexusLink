@@ -94,15 +94,15 @@ bool FNexusGasUtils::ApplyTagContainer(
 		NewTags.AddTag(Tag);
 	}
 
-	if (Mode == TEXT("set"))
+	if (Mode == TEXT("Set"))
 	{
 		Container = NewTags;
 	}
-	else if (Mode == TEXT("add"))
+	else if (Mode == TEXT("Add"))
 	{
 		Container.AppendTags(NewTags);
 	}
-	else if (Mode == TEXT("remove"))
+	else if (Mode == TEXT("Remove"))
 	{
 		Container.RemoveTags(NewTags);
 	}
@@ -139,17 +139,17 @@ TArray<TSharedPtr<FJsonValue>> FNexusGasUtils::SerializeGEModifiers(const UGamep
 	{
 		const FGameplayModifierInfo& Mod = (*Mods)[i];
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-		Obj->SetNumberField(TEXT("index"), i);
-		Obj->SetStringField(TEXT("attribute"), Mod.Attribute.IsValid() ? Mod.Attribute.GetName() : TEXT(""));
+		Obj->SetNumberField(TEXT("Index"), i);
+		Obj->SetStringField(TEXT("Attribute"), Mod.Attribute.IsValid() ? Mod.Attribute.GetName() : TEXT(""));
 
 		// ModifierOp 枚举 → 字符串
 		switch (Mod.ModifierOp)
 		{
-			case EGameplayModOp::Additive:    Obj->SetStringField(TEXT("modifierOp"), TEXT("Add"));       break;
-			case EGameplayModOp::Multiplicitive: Obj->SetStringField(TEXT("modifierOp"), TEXT("Multiply")); break;
-			case EGameplayModOp::Division:    Obj->SetStringField(TEXT("modifierOp"), TEXT("Divide"));    break;
-			case EGameplayModOp::Override:    Obj->SetStringField(TEXT("modifierOp"), TEXT("Override"));  break;
-			default:                          Obj->SetStringField(TEXT("modifierOp"), TEXT("Unknown"));   break;
+			case EGameplayModOp::Additive:    Obj->SetStringField(TEXT("ModifierOp"), TEXT("Add"));       break;
+			case EGameplayModOp::Multiplicitive: Obj->SetStringField(TEXT("ModifierOp"), TEXT("Multiply")); break;
+			case EGameplayModOp::Division:    Obj->SetStringField(TEXT("ModifierOp"), TEXT("Divide"));    break;
+			case EGameplayModOp::Override:    Obj->SetStringField(TEXT("ModifierOp"), TEXT("Override"));  break;
+			default:                          Obj->SetStringField(TEXT("ModifierOp"), TEXT("Unknown"));   break;
 		}
 
 		// Magnitude：只读出标量（ScalableFloat）；Curve 型输出类型说明
@@ -161,21 +161,21 @@ TArray<TSharedPtr<FJsonValue>> FNexusGasUtils::SerializeGEModifiers(const UGamep
 			{
 				float Val = 0.f;
 				Mag.GetStaticMagnitudeIfPossible(1.f, Val);
-				Obj->SetStringField(TEXT("magnitudeType"), TEXT("ScalableFloat"));
-				Obj->SetNumberField(TEXT("magnitude"), Val);
+				Obj->SetStringField(TEXT("MagnitudeType"), TEXT("ScalableFloat"));
+				Obj->SetNumberField(TEXT("Magnitude"), Val);
 				break;
 			}
 			case EGameplayEffectMagnitudeCalculation::AttributeBased:
-				Obj->SetStringField(TEXT("magnitudeType"), TEXT("AttributeBased"));
+				Obj->SetStringField(TEXT("MagnitudeType"), TEXT("AttributeBased"));
 				break;
 			case EGameplayEffectMagnitudeCalculation::CustomCalculationClass:
-				Obj->SetStringField(TEXT("magnitudeType"), TEXT("CustomCalculationClass"));
+				Obj->SetStringField(TEXT("MagnitudeType"), TEXT("CustomCalculationClass"));
 				break;
 			case EGameplayEffectMagnitudeCalculation::SetByCaller:
-				Obj->SetStringField(TEXT("magnitudeType"), TEXT("SetByCaller"));
+				Obj->SetStringField(TEXT("MagnitudeType"), TEXT("SetByCaller"));
 				break;
 			default:
-				Obj->SetStringField(TEXT("magnitudeType"), TEXT("Unknown"));
+				Obj->SetStringField(TEXT("MagnitudeType"), TEXT("Unknown"));
 				break;
 		}
 
@@ -192,16 +192,16 @@ bool FNexusGasUtils::ApplyGEModifierOp(
 {
 	if (!GE || !OpArgs.IsValid()) { OutError = TEXT("Invalid GE or operation args"); return false; }
 
-	if (Action == TEXT("add_modifier"))
+	if (Action == TEXT("AddModifier"))
 	{
 		FString AttrName, OpStr;
 		float Magnitude = 0.f;
-		if (!OpArgs->TryGetStringField(TEXT("attribute"), AttrName) || AttrName.IsEmpty())
-		{ OutError = TEXT("add_modifier requires attribute"); return false; }
-		if (!OpArgs->TryGetStringField(TEXT("modifierOp"), OpStr) || OpStr.IsEmpty())
-		{ OutError = TEXT("add_modifier requires modifierOp（Add/Multiply/Divide/Override）"); return false; }
-		if (OpArgs->HasField(TEXT("magnitude")))
-			Magnitude = (float)OpArgs->GetNumberField(TEXT("magnitude"));
+		if (!OpArgs->TryGetStringField(TEXT("Attribute"), AttrName) || AttrName.IsEmpty())
+		{ OutError = TEXT("AddModifier requires attribute"); return false; }
+		if (!OpArgs->TryGetStringField(TEXT("ModifierOp"), OpStr) || OpStr.IsEmpty())
+		{ OutError = TEXT("AddModifier requires ModifierOp（Add/Multiply/Divide/Override）"); return false; }
+		if (OpArgs->HasField(TEXT("Magnitude")))
+			Magnitude = (float)OpArgs->GetNumberField(TEXT("Magnitude"));
 
 		// 查找 Attribute（不传 flags，默认包含父类属性，兼容 UE4/UE5）
 		FGameplayAttribute Attr;
@@ -254,34 +254,34 @@ bool FNexusGasUtils::ApplyGEModifierOp(
 		return true;
 	}
 
-	if (Action == TEXT("remove_modifier"))
+	if (Action == TEXT("RemoveModifier"))
 	{
 		TArray<FGameplayModifierInfo>* Mods = GetGEModifiersPtr(GE);
 		if (!Mods) { OutError = TEXT("Unable to access GE Modifiers array"); return false; }
 
 		int32 Index = -1;
-		if (!OpArgs->HasField(TEXT("index"))) { OutError = TEXT("remove_modifier requires index"); return false; }
-		Index = FMath::RoundToInt((float)OpArgs->GetNumberField(TEXT("index")));
+		if (!OpArgs->HasField(TEXT("Index"))) { OutError = TEXT("RemoveModifier requires index"); return false; }
+		Index = FMath::RoundToInt((float)OpArgs->GetNumberField(TEXT("Index")));
 		if (!Mods->IsValidIndex(Index))
 		{ OutError = FString::Printf(TEXT("Modifier index %d out of range [0, %d)"), Index, Mods->Num()); return false; }
 		Mods->RemoveAt(Index);
 		return true;
 	}
 
-	if (Action == TEXT("set_modifier"))
+	if (Action == TEXT("SetModifier"))
 	{
 		TArray<FGameplayModifierInfo>* Mods = GetGEModifiersPtr(GE);
 		if (!Mods) { OutError = TEXT("Unable to access GE Modifiers array"); return false; }
 
 		int32 Index = -1;
-		if (!OpArgs->HasField(TEXT("index"))) { OutError = TEXT("set_modifier requires index"); return false; }
-		Index = FMath::RoundToInt((float)OpArgs->GetNumberField(TEXT("index")));
+		if (!OpArgs->HasField(TEXT("Index"))) { OutError = TEXT("SetModifier requires index"); return false; }
+		Index = FMath::RoundToInt((float)OpArgs->GetNumberField(TEXT("Index")));
 		if (!Mods->IsValidIndex(Index))
 		{ OutError = FString::Printf(TEXT("Modifier index %d out of range [0, %d)"), Index, Mods->Num()); return false; }
 
-		if (OpArgs->HasField(TEXT("magnitude")))
+		if (OpArgs->HasField(TEXT("Magnitude")))
 		{
-			float Magnitude = (float)OpArgs->GetNumberField(TEXT("magnitude"));
+			float Magnitude = (float)OpArgs->GetNumberField(TEXT("Magnitude"));
 			FScalableFloat SF(Magnitude);
 			(*Mods)[Index].ModifierMagnitude = FGameplayEffectModifierMagnitude(SF);
 		}
@@ -316,8 +316,8 @@ TArray<TSharedPtr<FJsonValue>> FNexusGasUtils::SerializeGameplayAttributes(
 
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 		Obj->SetStringField(TEXT("name"),         Prop->GetName());
-		Obj->SetNumberField(TEXT("baseValue"),     AttrData->GetBaseValue());
-		Obj->SetNumberField(TEXT("currentValue"),  AttrData->GetCurrentValue());
+		Obj->SetNumberField(TEXT("BaseValue"),     AttrData->GetBaseValue());
+		Obj->SetNumberField(TEXT("CurrentValue"),  AttrData->GetCurrentValue());
 		Out.Add(MakeShared<FJsonValueObject>(Obj));
 	}
 	return Out;

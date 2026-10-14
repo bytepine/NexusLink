@@ -12,50 +12,50 @@
 #include "Sound/SoundNodeWavePlayer.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetSoundCueCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_sound_cue");
+	Out.Name = TEXT("GetAssetSoundCue");
 	Out.SearchAssetTypes = {TEXT("SoundCue")};
-	Out.Description = TEXT("Inspect SoundCue snapshot. Writes via manage_asset_sound_cue.");
+	Out.Description = TEXT("Inspect SoundCue snapshot. Writes via ManageAssetSoundCue.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundCue asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("SoundCue asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("cue"), TEXT("sound"), TEXT("node"), TEXT("sfx") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_sound_cue"), TEXT("create_asset_sound_cue"), TEXT("search_asset"), TEXT("get_asset_sound_wave"), TEXT("get_asset_refs") };
-	Out.WhenToUse = TEXT("Read Cue node tree; root props via manage_asset_sound_cue");
+	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("cue"), TEXT("Sound"), TEXT("Node"), TEXT("sfx") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetSoundCue"), TEXT("CreateAssetSoundCue"), TEXT("SearchAsset"), TEXT("GetAssetSoundWave"), TEXT("GetAssetRefs") };
+	Out.WhenToUse = TEXT("Read Cue node tree; root props via ManageAssetSoundCue");
 }
 
-FCapabilityResult FGetAssetSoundCueCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetSoundCueCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString Path = A.Str(TEXT("assetPath"));
+		const FString Path = A.Str(TEXT("AssetPath"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), Path);
+		Entry->SetStringField(TEXT("Path"), Path);
 
 		USoundCue* Cue = FNexusAssetUtils::LoadAssetWithFallback<USoundCue>(Path);
 		if (!Cue)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("SoundCue not found: %s"), *Path));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("SoundCue not found: %s"), *Path));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 
 		Entry->SetStringField(TEXT("name"), Cue->GetName());
-		Entry->SetStringField(TEXT("assetType"), TEXT("SoundCue"));
-		Entry->SetNumberField(TEXT("duration"), Cue->GetDuration());
-		Entry->SetNumberField(TEXT("maxDistance"), Cue->MaxDistance);
+		Entry->SetStringField(TEXT("AssetType"), TEXT("SoundCue"));
+		Entry->SetNumberField(TEXT("Duration"), Cue->GetDuration());
+		Entry->SetNumberField(TEXT("MaxDistance"), Cue->MaxDistance);
 
 		TArray<USoundNode*> Nodes;
 		if (Cue->FirstNode)
 		{
 			Cue->RecursiveFindAllNodes(Cue->FirstNode, Nodes);
 		}
-		Entry->SetNumberField(TEXT("nodeCount"), Nodes.Num());
+		Entry->SetNumberField(TEXT("NodeCount"), Nodes.Num());
 
 		TArray<TSharedPtr<FJsonValue>> NodeArr;
 		const int32 MaxNodes = FMath::Min(Nodes.Num(), 48);
@@ -64,23 +64,23 @@ FCapabilityResult FGetAssetSoundCueCapability::Execute(const TSharedPtr<FJsonObj
 			USoundNode* Node = Nodes[i];
 			if (!Node) continue;
 			TSharedPtr<FJsonObject> NodeObj = MakeShared<FJsonObject>();
-			NodeObj->SetNumberField(TEXT("index"), static_cast<double>(i));
-			NodeObj->SetStringField(TEXT("nodeType"), Node->GetClass()->GetName());
+			NodeObj->SetNumberField(TEXT("Index"), static_cast<double>(i));
+			NodeObj->SetStringField(TEXT("NodeType"), Node->GetClass()->GetName());
 			if (USoundNodeWavePlayer* Player = Cast<USoundNodeWavePlayer>(Node))
 			{
 #if NX_UE_HAS_SOUND_NODE_WAVE_ACCESSOR
 				if (USoundWave* Wave = Player->GetSoundWave())
 				{
-					NodeObj->SetStringField(TEXT("soundWave"), Wave->GetPathName());
+					NodeObj->SetStringField(TEXT("SoundWave"), Wave->GetPathName());
 				}
 #endif
 			}
 			NodeArr.Add(MakeShared<FJsonValueObject>(NodeObj));
 		}
-		Entry->SetArrayField(TEXT("nodes"), NodeArr);
+		Entry->SetArrayField(TEXT("Nodes"), NodeArr);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetSoundCueCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetSoundCueCapability)

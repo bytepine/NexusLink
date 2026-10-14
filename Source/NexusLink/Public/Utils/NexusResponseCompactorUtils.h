@@ -22,17 +22,17 @@
  * 1) **自动模式（推荐，默认路径）**：不需要工具侧任何声明。
  *    `NexusMcpDispatcher` 在每次工具执行后自动对 `StructuredContent` 调用
  *    `AutoCompactRecursive`，递归遍历所有嵌套对象 / 数组并对"对象数组"字段启用
- *    `SetAutoDiscover(true)` 尝试抽取；满足三阈值则在同级写入 `<fieldName>_defaults`，
+ *    `SetAutoDiscover(true)` 尝试抽取；满足三阈值则在同级写入 `<FieldName>_defaults`，
  *    否则条目保持原样。三阈值（`MinCount=2` / `MinMatchRatio=0.7` / `MinNetSaveBytes=20`）
  *    兜底避免小响应上产生负收益。
  *
- * 2) **手动模式（定制化场景）**：需要强制默认（`ForcedDefault`，如 `get_output_log`
+ * 2) **手动模式（定制化场景）**：需要强制默认（`ForcedDefault`，如 `GetOutputLog`
  *    的 verbosity 下限、或 `AddForcedDefaultIfUnanimous` 抽本页实际值），
  *    或需要在统计阈值之外强制抽取特定字段时使用。
  *    典型用法：
  *      FNexusResponseCompactor C;
- *      C.AddForcedDefault(TEXT("assetType"), TEXT("Blueprint"));
- *      C.AddCandidate(TEXT("kind"));
+ *      C.AddForcedDefault(TEXT("AssetType"), TEXT("Blueprint"));
+ *      C.AddCandidate(TEXT("Kind"));
  *      C.CompactArray(PageArray);
  *      C.Emit(ResultObj, TEXT("properties"));   // 写入 properties_defaults
  *    手动写入 `<prefix>_defaults` 后，自动模式**合并**新发现的字段，不覆盖已有键
@@ -54,14 +54,14 @@ public:
 	/** 声明一个需要运行时统计的候选字段。 */
 	void AddCandidate(const FString& FieldName);
 
-	/** 入参驱动的强制默认（例如 assetType 回显）。 */
+	/** 入参驱动的强制默认（例如 AssetType 回显）。 */
 	void AddForcedDefault(const FString& FieldName, const TSharedPtr<FJsonValue>& Value);
 	void AddForcedDefault(const FString& FieldName, const FString& StringValue);
 	void AddForcedDefault(const FString& FieldName, bool bBoolValue);
 
 	/**
 	 * 若 Items 里全部 object 的 Field 为同一标量，则 ForcedDefault 该实际值（N=1 也生效）。
-	 * 用于子串过滤：禁止把 filter 原文当 defaults（categoryFilter="Log" ≠ category="LogTemp"）。
+	 * 用于子串过滤：禁止把 filter 原文当 defaults（CategoryFilter="Log" ≠ Category="LogTemp"）。
 	 * 有条目缺失该字段、类型非标量、或值不一致时为 no-op。
 	 */
 	void AddForcedDefaultIfUnanimous(const FString& FieldName, const TArray<TSharedPtr<FJsonValue>>& Items);
@@ -69,7 +69,7 @@ public:
 	/**
 	 * 开启自动扫描模式：CompactArray 除处理显式 Candidates 外，还会自动扫描条目里
 	 * 所有其他标量字段并尝试统计抽取，同样受三阈值约束。
-	 * 内置排除集已含 name/path/assetPath/nodeId/tag/message/timestamp/time/sequence/frame/id/label/title/text/error；
+	 * 内置排除集已含 name/path/AssetPath/NodeId/tag/message/timestamp/time/sequence/frame/id/label/title/text/error；
 	 * AdditionalExclusions 可追加业务特有的身份字段。
 	 */
 	void SetAutoDiscover(bool bEnable, TArray<FString> AdditionalExclusions = {});
@@ -82,7 +82,7 @@ public:
 
 	/**
 	 * 将 defaults 写入 Parent：<Prefix>_defaults : {字段名 -> 主流值}
-	 * 仅当 HasDefaults() 为 true 时写入；Prefix 例如 "properties" / "assets" / "actors"。
+	 * 仅当 HasDefaults() 为 true 时写入；Prefix 例如 "properties" / "Assets" / "Actors"。
 	 */
 	void Emit(const TSharedPtr<FJsonObject>& Parent, const FString& Prefix) const;
 
@@ -90,7 +90,7 @@ public:
 
 	/**
 	 * 自动压缩整棵响应树：对 Parent 内每个"对象数组"字段 K
-	 * （K 不是 `_defaults` / `content` 等已知语义冲突名）启用自动扫描尝试抽取，
+	 * （K 不是 `_defaults` / `Content` 等已知语义冲突名）启用自动扫描尝试抽取，
 	 * 命中阈值则写入 `<K>_defaults`。同级已有 `<K>_defaults` 时合并新键、不覆盖已有键。
 	 * 然后递归进入每个 object 字段与 array 元素里的 object。
 	 *

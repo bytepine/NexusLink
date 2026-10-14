@@ -37,15 +37,15 @@ static void CapCollectTagChildren(
 		if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(TagStr, NameFilter)) continue;
 
 		TSharedPtr<FJsonObject> TagObj = MakeShared<FJsonObject>();
-		TagObj->SetStringField(TEXT("tag"),       TagStr);
-		TagObj->SetStringField(TEXT("shortName"), Child->GetSimpleTagName().ToString());
+		TagObj->SetStringField(TEXT("Tag"),       TagStr);
+		TagObj->SetStringField(TEXT("ShortName"), Child->GetSimpleTagName().ToString());
 
 		TArray<TSharedPtr<FJsonValue>> ChildArr;
 		int32 SubCount = Count;
 		CapCollectTagChildren(Child, NameFilter, ChildArr, SubCount, Limit, Depth + 1);
 		Count = SubCount;
 
-		if (ChildArr.Num() > 0) TagObj->SetArrayField(TEXT("children"), ChildArr);
+		if (ChildArr.Num() > 0) TagObj->SetArrayField(TEXT("Children"), ChildArr);
 		OutArray.Add(MakeShared<FJsonValueObject>(TagObj));
 		++Count;
 	}
@@ -53,44 +53,44 @@ static void CapCollectTagChildren(
 
 // ── FNexusCapability 基础钩子 ─────────────────────────────────────────────────
 
-void FGetGameplayTagsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetGameplayTagsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_gameplay_tags");
+	Out.Name = TEXT("GetGameplayTags");
 	Out.Description = TEXT("Query Tag tree/Actor/asset/referencers. sections includes referencers.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	// "query" 不是本 cap 的参数（易误导 Agent 照抄传参），去掉；name 已含 token "tags"
-	// （get_gameplay_tags 拆词），补单数 tag / 缩写 gtag 覆盖更多口语查询
-	Out.ExtraSearchKeywords = { TEXT("hierarchy"), TEXT("container"), TEXT("gas"), TEXT("actor"), TEXT("tag"), TEXT("gtag") };
-	Out.RelatedCapabilities = { TEXT("get_runtime_actor_property") };
+	// "Query" 不是本 cap 的参数（易误导 Agent 照抄传参），去掉；name 已含 token "Tags"
+	// （GetGameplayTags 拆词），补单数 tag / 缩写 gtag 覆盖更多口语查询
+	Out.ExtraSearchKeywords = { TEXT("Hierarchy"), TEXT("container"), TEXT("gas"), TEXT("Actor"), TEXT("Tag"), TEXT("gtag") };
+	Out.RelatedCapabilities = { TEXT("GetRuntimeActorProperty") };
 }
 
-TSharedPtr<FJsonObject> FGetGameplayTagsCapability::BuildCapabilitySchema() const
+TSharedPtr<FJsonObject> FNexusGetGameplayTagsCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("parentTag"),  FNexusSchema::Str(TEXT("Root tag for subtree")))
-		.Prop(TEXT("actorName"),  FNexusSchema::Str(TEXT("Runtime Actor name (actor section)")))
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Asset path (asset section)")))
-		.Prop(TEXT("tag"),         FNexusSchema::Str(TEXT("referencers section: GameplayTag full name")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Tag name filter")))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("referencers section pagination offset"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max count"), 200, 1, 2000))
+		.Prop(TEXT("ParentTag"),  FNexusSchema::Str(TEXT("Root tag for subtree")))
+		.Prop(TEXT("ActorName"),  FNexusSchema::Str(TEXT("Runtime Actor name (actor section)")))
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Asset path (asset section)")))
+		.Prop(TEXT("Tag"),         FNexusSchema::Str(TEXT("referencers section: GameplayTag full name")))
+		.Prop(TEXT("NameFilter"), FNexusSchema::Str(TEXT("Tag name filter")))
+		.Prop(TEXT("Offset"),     FNexusSchema::Int(TEXT("referencers section pagination offset"), 0, 0))
+		.Prop(TEXT("Limit"),      FNexusSchema::Int(TEXT("Max count"), 200, 1, 2000))
 		.Build();
 }
 
 // ── multi-section 钩子 ────────────────────────────────────────────────────────
 
-TArray<FString> FGetGameplayTagsCapability::GetSectionNames() const
+TArray<FString> FNexusGetGameplayTagsCapability::GetSectionNames() const
 {
-	return { TEXT("hierarchy"), TEXT("actor"), TEXT("asset"), TEXT("referencers") };
+	return { TEXT("Hierarchy"), TEXT("Actor"), TEXT("Asset"), TEXT("Referencers") };
 }
 
-TArray<FString> FGetGameplayTagsCapability::GetDefaultSectionNames() const
+TArray<FString> FNexusGetGameplayTagsCapability::GetDefaultSectionNames() const
 {
-	return { TEXT("hierarchy") };
+	return { TEXT("Hierarchy") };
 }
 
-void FGetGameplayTagsCapability::ExecuteSection(const FString&                 SectionName,
+void FNexusGetGameplayTagsCapability::ExecuteSection(const FString&                 SectionName,
                                                 const TSharedPtr<FJsonObject>& Args,
                                                 void*                          /*TargetOpaque*/,
                                                 TSharedPtr<FJsonObject>&       InOutDetail,
@@ -102,20 +102,20 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 	int32   Limit = 200;
 	if (Args.IsValid())
 	{
-		Args->TryGetStringField(TEXT("nameFilter"), NameFilter);
-		Args->TryGetStringField(TEXT("tag"), TagName);
-		if (Args->HasField(TEXT("offset")))
-			Offset = FMath::Max(0, static_cast<int32>(Args->GetNumberField(TEXT("offset"))));
-		if (Args->HasField(TEXT("limit")))
-			Limit = FMath::Clamp(static_cast<int32>(Args->GetNumberField(TEXT("limit"))), 1, 2000);
+		Args->TryGetStringField(TEXT("NameFilter"), NameFilter);
+		Args->TryGetStringField(TEXT("Tag"), TagName);
+		if (Args->HasField(TEXT("Offset")))
+			Offset = FMath::Max(0, static_cast<int32>(Args->GetNumberField(TEXT("Offset"))));
+		if (Args->HasField(TEXT("Limit")))
+			Limit = FMath::Clamp(static_cast<int32>(Args->GetNumberField(TEXT("Limit"))), 1, 2000);
 	}
 
-	if (SectionName == TEXT("hierarchy"))
+	if (SectionName == TEXT("Hierarchy"))
 	{
 		UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
 
 		FString ParentTagStr;
-		if (Args.IsValid()) Args->TryGetStringField(TEXT("parentTag"), ParentTagStr);
+		if (Args.IsValid()) Args->TryGetStringField(TEXT("ParentTag"), ParentTagStr);
 
 		TSharedPtr<FGameplayTagNode> StartNode;
 		if (ParentTagStr.IsEmpty())
@@ -150,21 +150,21 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 				const FString TagStr = Tag.ToString();
 				if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(TagStr, NameFilter)) continue;
 				TSharedPtr<FJsonObject> TagObj = MakeShared<FJsonObject>();
-				TagObj->SetStringField(TEXT("tag"), TagStr);
+				TagObj->SetStringField(TEXT("Tag"), TagStr);
 				Tags.Add(MakeShared<FJsonValueObject>(TagObj));
 				++Count;
 			}
 		}
 
-		InOutDetail->SetArrayField(TEXT("tags"), Tags);
-		InOutDetail->SetNumberField(TEXT("count"), Tags.Num());
+		InOutDetail->SetArrayField(TEXT("Tags"), Tags);
+		InOutDetail->SetNumberField(TEXT("Count"), Tags.Num());
 	}
-	else if (SectionName == TEXT("actor"))
+	else if (SectionName == TEXT("Actor"))
 	{
 		FString ActorName;
-		if (!Args.IsValid() || !Args->TryGetStringField(TEXT("actorName"), ActorName) || ActorName.IsEmpty())
+		if (!Args.IsValid() || !Args->TryGetStringField(TEXT("ActorName"), ActorName) || ActorName.IsEmpty())
 		{
-			OutError = TEXT("actor section requires actorName");
+			OutError = TEXT("actor section requires ActorName");
 			return;
 		}
 
@@ -179,7 +179,7 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 		AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
 		if (!Actor) { OutError = FString::Printf(TEXT("Actor not found: %s"), *ActorName); return; }
 
-		InOutDetail->SetStringField(TEXT("actorName"), Actor->GetName());
+		InOutDetail->SetStringField(TEXT("ActorName"), Actor->GetName());
 
 		TArray<TSharedPtr<FJsonValue>> Tags;
 
@@ -200,8 +200,8 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 						const FString TagStr = Tag.ToString();
 						if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(TagStr, NameFilter)) continue;
 						TSharedPtr<FJsonObject> TagObj = MakeShared<FJsonObject>();
-						TagObj->SetStringField(TEXT("tag"), TagStr);
-						TagObj->SetStringField(TEXT("source"), Prefix.IsEmpty()
+						TagObj->SetStringField(TEXT("Tag"), TagStr);
+						TagObj->SetStringField(TEXT("Source"), Prefix.IsEmpty()
 							? It->GetName() : (Prefix + TEXT(".") + It->GetName()));
 						Tags.Add(MakeShared<FJsonValueObject>(TagObj));
 					}
@@ -213,8 +213,8 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 					const FString TagStr = Tag->ToString();
 					if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(TagStr, NameFilter)) continue;
 					TSharedPtr<FJsonObject> TagObj = MakeShared<FJsonObject>();
-					TagObj->SetStringField(TEXT("tag"), TagStr);
-					TagObj->SetStringField(TEXT("source"), Prefix.IsEmpty()
+					TagObj->SetStringField(TEXT("Tag"), TagStr);
+					TagObj->SetStringField(TEXT("Source"), Prefix.IsEmpty()
 						? It->GetName() : (Prefix + TEXT(".") + It->GetName()));
 					Tags.Add(MakeShared<FJsonValueObject>(TagObj));
 				}
@@ -227,10 +227,10 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 		for (UActorComponent* Comp : Components)
 			if (Comp) ScanObject(Comp, Comp->GetName());
 
-		InOutDetail->SetArrayField(TEXT("tags"), Tags);
-		InOutDetail->SetNumberField(TEXT("count"), Tags.Num());
+		InOutDetail->SetArrayField(TEXT("Tags"), Tags);
+		InOutDetail->SetNumberField(TEXT("Count"), Tags.Num());
 	}
-	else if (SectionName == TEXT("referencers"))
+	else if (SectionName == TEXT("Referencers"))
 	{
 		if (TagName.IsEmpty())
 		{
@@ -253,21 +253,21 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 		for (int32 i = Start; i < End; ++i)
 		{
 			TSharedPtr<FJsonObject> Item = MakeShared<FJsonObject>();
-			Item->SetStringField(TEXT("path"), AllPaths[i]);
+			Item->SetStringField(TEXT("Path"), AllPaths[i]);
 			Page.Add(MakeShared<FJsonValueObject>(Item));
 		}
 
-		InOutDetail->SetStringField(TEXT("tag"), TagName);
-		InOutDetail->SetNumberField(TEXT("totalCount"), Total);
-		InOutDetail->SetNumberField(TEXT("offset"), Offset);
-		InOutDetail->SetArrayField(TEXT("referencers"), Page);
+		InOutDetail->SetStringField(TEXT("Tag"), TagName);
+		InOutDetail->SetNumberField(TEXT("TotalCount"), Total);
+		InOutDetail->SetNumberField(TEXT("Offset"), Offset);
+		InOutDetail->SetArrayField(TEXT("Referencers"), Page);
 	}
-	else if (SectionName == TEXT("asset"))
+	else if (SectionName == TEXT("Asset"))
 	{
 		FString AssetPath;
-		if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
+		if (!Args.IsValid() || !Args->TryGetStringField(TEXT("AssetPath"), AssetPath) || AssetPath.IsEmpty())
 		{
-			OutError = TEXT("asset section requires assetPath");
+			OutError = TEXT("asset section requires AssetPath");
 			return;
 		}
 
@@ -278,8 +278,8 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 			return;
 		}
 
-		InOutDetail->SetStringField(TEXT("path"),  AssetPath);
-		InOutDetail->SetStringField(TEXT("assetClass"), Asset->GetClass()->GetName());
+		InOutDetail->SetStringField(TEXT("Path"),  AssetPath);
+		InOutDetail->SetStringField(TEXT("AssetClass"), Asset->GetClass()->GetName());
 
 		TArray<TSharedPtr<FJsonValue>> Tags;
 		for (TFieldIterator<FProperty> It(Asset->GetClass()); It; ++It)
@@ -297,8 +297,8 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 					const FString TagStr = Tag.ToString();
 					if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(TagStr, NameFilter)) continue;
 					TSharedPtr<FJsonObject> TagObj = MakeShared<FJsonObject>();
-					TagObj->SetStringField(TEXT("tag"),      TagStr);
-					TagObj->SetStringField(TEXT("property"), It->GetName());
+					TagObj->SetStringField(TEXT("Tag"),      TagStr);
+					TagObj->SetStringField(TEXT("Property"), It->GetName());
 					Tags.Add(MakeShared<FJsonValueObject>(TagObj));
 				}
 			}
@@ -309,13 +309,13 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 				const FString TagStr = Tag->ToString();
 				if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(TagStr, NameFilter)) continue;
 				TSharedPtr<FJsonObject> TagObj = MakeShared<FJsonObject>();
-				TagObj->SetStringField(TEXT("tag"),      TagStr);
-				TagObj->SetStringField(TEXT("property"), It->GetName());
+				TagObj->SetStringField(TEXT("Tag"),      TagStr);
+				TagObj->SetStringField(TEXT("Property"), It->GetName());
 				Tags.Add(MakeShared<FJsonValueObject>(TagObj));
 			}
 		}
-		InOutDetail->SetArrayField(TEXT("tags"),  Tags);
-		InOutDetail->SetNumberField(TEXT("count"), Tags.Num());
+		InOutDetail->SetArrayField(TEXT("Tags"),  Tags);
+		InOutDetail->SetNumberField(TEXT("Count"), Tags.Num());
 	}
 	else
 	{
@@ -323,6 +323,6 @@ void FGetGameplayTagsCapability::ExecuteSection(const FString&                 S
 	}
 }
 
-REGISTER_MCP_CAPABILITY(FGetGameplayTagsCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetGameplayTagsCapability)
 
 #endif // WITH_EDITOR

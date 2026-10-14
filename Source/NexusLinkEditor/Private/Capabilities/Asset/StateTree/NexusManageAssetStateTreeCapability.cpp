@@ -19,38 +19,38 @@
 
 // ── StateTree 编辑仅在编辑器可用 ─────────────────────────────────────────────
 
-void FManageAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetStateTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_state_tree");
+	Out.Name = TEXT("ManageAssetStateTree");
 	Out.SearchAssetTypes = {TEXT("StateTree")};
 	Out.Description = TEXT("Edit StateTree: state/task/condition/transition. UE 5.5+.");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Required(TEXT("action"), FNexusSchema::Enum(
+		.Required(TEXT("Action"), FNexusSchema::Enum(
 			TEXT("Operation type"),
-			{ TEXT("add_state"), TEXT("remove_state"), TEXT("rename_state"), TEXT("recompile"),
-			  TEXT("add_task"), TEXT("remove_task"),
-			  TEXT("add_enter_condition"), TEXT("remove_enter_condition"),
-			  TEXT("add_transition"), TEXT("remove_transition") }))
-		.Prop(TEXT("stateName"),    FNexusSchema::Str(TEXT("Target State name")))
-		.Prop(TEXT("newName"),      FNexusSchema::Str(TEXT("rename_state: new name")))
-		.Prop(TEXT("parentState"),  FNexusSchema::Str(TEXT("add_state: parent State name (empty=top SubTree)")))
-		.Prop(TEXT("stateType"),    FNexusSchema::Enum(
-			TEXT("add_state: state type"),
+			{ TEXT("AddState"), TEXT("RemoveState"), TEXT("RenameState"), TEXT("Recompile"),
+			  TEXT("AddTask"), TEXT("RemoveTask"),
+			  TEXT("AddEnterCondition"), TEXT("RemoveEnterCondition"),
+			  TEXT("AddTransition"), TEXT("RemoveTransition") }))
+		.Prop(TEXT("StateName"),    FNexusSchema::Str(TEXT("Target State name")))
+		.Prop(TEXT("NewName"),      FNexusSchema::Str(TEXT("RenameState: new name")))
+		.Prop(TEXT("ParentState"),  FNexusSchema::Str(TEXT("AddState: parent State name (empty=top SubTree)")))
+		.Prop(TEXT("StateType"),    FNexusSchema::Enum(
+			TEXT("AddState: state type"),
 			{ TEXT("State"), TEXT("Group"), TEXT("Linked"), TEXT("Subtree") },
 			TEXT("State")))
-		.Prop(TEXT("nodeType"),     FNexusSchema::Str(TEXT("Task/Condition UScriptStruct short name")))
-		.Prop(TEXT("targetState"),  FNexusSchema::Str(TEXT("add_transition target State")))
-		.Prop(TEXT("index"),        FNexusSchema::Int(TEXT("remove_task/condition/transition index")))
+		.Prop(TEXT("NodeType"),     FNexusSchema::Str(TEXT("Task/Condition UScriptStruct short name")))
+		.Prop(TEXT("TargetState"),  FNexusSchema::Str(TEXT("AddTransition target State")))
+		.Prop(TEXT("Index"),        FNexusSchema::Int(TEXT("RemoveTask/condition/transition index")))
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"),  FNexusSchema::Str(TEXT("StateTree asset path")))
-		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
+		.Required(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("StateTree asset path")))
+		.Required(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write };
-	Out.ExtraSearchKeywords = { TEXT("statetree"), TEXT("state"), TEXT("st"), TEXT("task"), TEXT("transition"), TEXT("npc"), TEXT("ai") };
-	Out.RelatedCapabilities = { TEXT("get_asset_state_tree"), TEXT("create_asset_state_tree"), TEXT("save_asset") };
+	Out.ExtraSearchKeywords = { TEXT("statetree"), TEXT("State"), TEXT("st"), TEXT("task"), TEXT("Transition"), TEXT("npc"), TEXT("ai") };
+	Out.RelatedCapabilities = { TEXT("GetAssetStateTree"), TEXT("CreateAssetStateTree"), TEXT("SaveAsset") };
 	Out.WhenToUse = TEXT("Add/remove/edit StateTree State/Task/Condition/Transition");
 }
 
@@ -116,18 +116,18 @@ static void HandleST_AddState(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	UStateTreeEditorData* EdData = EdFrom(Ctx);
 	if (!EdData)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("StateTreeEditorData is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("StateTreeEditorData is null"));
 		return;
 	}
 	const FNexusArgs A(Op);
-	const FString StateName = A.Str(TEXT("stateName"));
+	const FString StateName = A.Str(TEXT("StateName"));
 	if (StateName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_state requires stateName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddState requires StateName"));
 		return;
 	}
 	EStateTreeStateType StateType = EStateTreeStateType::State;
-	const FString TypeStr = A.Str(TEXT("stateType"));
+	const FString TypeStr = A.Str(TEXT("StateType"));
 	if (TypeStr == TEXT("Group"))       StateType = EStateTreeStateType::Group;
 	else if (TypeStr == TEXT("Linked"))  StateType = EStateTreeStateType::Linked;
 	else if (TypeStr == TEXT("Subtree")) StateType = EStateTreeStateType::Subtree;
@@ -136,13 +136,13 @@ static void HandleST_AddState(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	NewState->Name = *StateName;
 	NewState->Type = StateType;
 
-	const FString ParentName = A.Str(TEXT("parentState"));
+	const FString ParentName = A.Str(TEXT("ParentState"));
 	if (!ParentName.IsEmpty())
 	{
 		UStateTreeState* ParentState = FindStateByName(EdData, ParentName);
 		if (!ParentState)
 		{
-			Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Parent State not found: %s"), *ParentName));
+			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Parent State not found: %s"), *ParentName));
 			return;
 		}
 		NewState->Rename(nullptr, ParentState);
@@ -153,7 +153,7 @@ static void HandleST_AddState(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 		NewState->Rename(nullptr, EdData);
 		EdData->SubTrees.Add(NewState);
 	}
-	Ctx.Entry->SetStringField(TEXT("addedState"), StateName);
+	Ctx.Entry->SetStringField(TEXT("AddedState"), StateName);
 	MarkSTDirty(Ctx);
 }
 
@@ -162,19 +162,19 @@ static void HandleST_RemoveState(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	UStateTreeEditorData* EdData = EdFrom(Ctx);
 	if (!EdData)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("StateTreeEditorData is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("StateTreeEditorData is null"));
 		return;
 	}
-	const FString StateName = FNexusArgs(Op).Str(TEXT("stateName"));
+	const FString StateName = FNexusArgs(Op).Str(TEXT("StateName"));
 	if (StateName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_state requires stateName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveState requires StateName"));
 		return;
 	}
 	UStateTreeState* Target = FindStateByName(EdData, StateName);
 	if (!Target)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("State not found: %s"), *StateName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State not found: %s"), *StateName));
 		return;
 	}
 	bool bRemoved = false;
@@ -204,24 +204,24 @@ static void HandleST_RemoveState(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		}
 	}
 	if (bRemoved) MarkSTDirty(Ctx);
-	else Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_state failed"));
+	else Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveState failed"));
 }
 
 static void HandleST_RenameState(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UStateTreeEditorData* EdData = EdFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString StateName = A.Str(TEXT("stateName"));
-	const FString NewName = A.Str(TEXT("newName"));
+	const FString StateName = A.Str(TEXT("StateName"));
+	const FString NewName = A.Str(TEXT("NewName"));
 	if (StateName.IsEmpty() || NewName.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("rename_state requires stateName and newName"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RenameState requires StateName and NewName"));
 		return;
 	}
 	UStateTreeState* Target = FindStateByName(EdData, StateName);
 	if (!Target)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("State not found: %s"), *StateName));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State not found: %s"), *StateName));
 		return;
 	}
 	Target->Name = *NewName;
@@ -232,25 +232,25 @@ static void HandleST_Recompile(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 {
 	(void)Op;
 	MarkSTDirty(Ctx);
-	Ctx.Entry->SetStringField(TEXT("note"), TEXT("Marked dirty; reopen editor or save_asset to recompile"));
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("Marked dirty; reopen editor or SaveAsset to recompile"));
 }
 
 static void AddStateTreeEditorNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, bool bTask)
 {
 	UStateTreeEditorData* EdData = EdFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString StateName = A.Str(TEXT("stateName"));
-	const FString NodeType = A.Str(TEXT("nodeType"));
+	const FString StateName = A.Str(TEXT("StateName"));
+	const FString NodeType = A.Str(TEXT("NodeType"));
 	UStateTreeState* Target = FindStateByName(EdData, StateName);
 	if (!Target || NodeType.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("stateName and nodeType required"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("StateName and NodeType required"));
 		return;
 	}
 	UScriptStruct* Struct = FindStateTreeNodeStruct(NodeType);
 	if (!Struct)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("struct not found: %s"), *NodeType));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("struct not found: %s"), *NodeType));
 		return;
 	}
 	FStateTreeEditorNode NewNode;
@@ -259,14 +259,14 @@ static void AddStateTreeEditorNode(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	if (bTask)
 	{
 		Target->Tasks.Add(NewNode);
-		Ctx.Entry->SetNumberField(TEXT("tasksCount"), Target->Tasks.Num());
+		Ctx.Entry->SetNumberField(TEXT("TasksCount"), Target->Tasks.Num());
 	}
 	else
 	{
 		Target->EnterConditions.Add(NewNode);
-		Ctx.Entry->SetNumberField(TEXT("enterConditionsCount"), Target->EnterConditions.Num());
+		Ctx.Entry->SetNumberField(TEXT("EnterConditionsCount"), Target->EnterConditions.Num());
 	}
-	Ctx.Entry->SetStringField(TEXT("nodeType"), Struct->GetName());
+	Ctx.Entry->SetStringField(TEXT("NodeType"), Struct->GetName());
 	MarkSTDirty(Ctx);
 }
 
@@ -284,18 +284,18 @@ static void RemoveStateTreeIndexed(const TSharedPtr<FJsonObject>& Op, FNexusActi
 {
 	UStateTreeEditorData* EdData = EdFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString StateName = A.Str(TEXT("stateName"));
-	const int32 Idx = Op->HasField(TEXT("index")) ? static_cast<int32>(A.Num(TEXT("index"))) : 0;
+	const FString StateName = A.Str(TEXT("StateName"));
+	const int32 Idx = Op->HasField(TEXT("Index")) ? static_cast<int32>(A.Num(TEXT("Index"))) : 0;
 	UStateTreeState* Target = FindStateByName(EdData, StateName);
 	if (!Target)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("Valid stateName required"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Valid StateName required"));
 		return;
 	}
 	TArray<FStateTreeEditorNode>& Arr = bTask ? Target->Tasks : Target->EnterConditions;
 	if (!Arr.IsValidIndex(Idx))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("index out of bounds"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("index out of bounds"));
 		return;
 	}
 	Arr.RemoveAt(Idx);
@@ -316,20 +316,20 @@ static void HandleST_AddTransition(const TSharedPtr<FJsonObject>& Op, FNexusActi
 {
 	UStateTreeEditorData* EdData = EdFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString StateName = A.Str(TEXT("stateName"));
-	const FString TargetName = A.Str(TEXT("targetState"));
+	const FString StateName = A.Str(TEXT("StateName"));
+	const FString TargetName = A.Str(TEXT("TargetState"));
 	UStateTreeState* Source = FindStateByName(EdData, StateName);
 	UStateTreeState* Dest = FindStateByName(EdData, TargetName);
 	if (!Source || !Dest)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_transition requires valid stateName and targetState"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddTransition requires valid StateName and TargetState"));
 		return;
 	}
 	FStateTreeTransition Trans;
 	Trans.Trigger = EStateTreeTransitionTrigger::OnStateCompleted;
 	Trans.State.ID = Dest->ID;
 	Source->Transitions.Add(Trans);
-	Ctx.Entry->SetStringField(TEXT("targetState"), TargetName);
+	Ctx.Entry->SetStringField(TEXT("TargetState"), TargetName);
 	MarkSTDirty(Ctx);
 }
 
@@ -337,12 +337,12 @@ static void HandleST_RemoveTransition(const TSharedPtr<FJsonObject>& Op, FNexusA
 {
 	UStateTreeEditorData* EdData = EdFrom(Ctx);
 	const FNexusArgs A(Op);
-	const FString StateName = A.Str(TEXT("stateName"));
-	const int32 Idx = Op->HasField(TEXT("index")) ? static_cast<int32>(A.Num(TEXT("index"))) : 0;
+	const FString StateName = A.Str(TEXT("StateName"));
+	const int32 Idx = Op->HasField(TEXT("Index")) ? static_cast<int32>(A.Num(TEXT("Index"))) : 0;
 	UStateTreeState* Source = FindStateByName(EdData, StateName);
 	if (!Source || !Source->Transitions.IsValidIndex(Idx))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_transition requires valid stateName and index"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveTransition requires valid StateName and index"));
 		return;
 	}
 	Source->Transitions.RemoveAt(Idx);
@@ -350,15 +350,15 @@ static void HandleST_RemoveTransition(const TSharedPtr<FJsonObject>& Op, FNexusA
 }
 #endif // WITH_EDITOR
 
-bool FManageAssetStateTreeCapability::PrepareTarget(
+bool FNexusManageAssetStateTreeCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
 #if WITH_EDITOR
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UStateTree* ST = FNexusAssetUtils::LoadAssetWithFallback<UStateTree>(AssetPath);
 	if (!ST)
 	{
@@ -373,29 +373,29 @@ bool FManageAssetStateTreeCapability::PrepareTarget(
 	OutTarget = ST;
 	return true;
 #else
-	OutError = TEXT("manage_asset_state_tree only available in editor builds");
+	OutError = TEXT("ManageAssetStateTree only available in editor builds");
 	return false;
 #endif
 }
 
-void FManageAssetStateTreeCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetStateTreeCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
 #if WITH_EDITOR
-	OutHandlers.Add(TEXT("add_state"),              &HandleST_AddState);
-	OutHandlers.Add(TEXT("remove_state"),           &HandleST_RemoveState);
-	OutHandlers.Add(TEXT("rename_state"),           &HandleST_RenameState);
-	OutHandlers.Add(TEXT("recompile"),              &HandleST_Recompile);
-	OutHandlers.Add(TEXT("add_task"),               &HandleST_AddTask);
-	OutHandlers.Add(TEXT("remove_task"),            &HandleST_RemoveTask);
-	OutHandlers.Add(TEXT("add_enter_condition"),    &HandleST_AddEnterCondition);
-	OutHandlers.Add(TEXT("remove_enter_condition"), &HandleST_RemoveEnterCondition);
-	OutHandlers.Add(TEXT("add_transition"),         &HandleST_AddTransition);
-	OutHandlers.Add(TEXT("remove_transition"),      &HandleST_RemoveTransition);
+	OutHandlers.Add(TEXT("AddState"),              &HandleST_AddState);
+	OutHandlers.Add(TEXT("RemoveState"),           &HandleST_RemoveState);
+	OutHandlers.Add(TEXT("RenameState"),           &HandleST_RenameState);
+	OutHandlers.Add(TEXT("Recompile"),              &HandleST_Recompile);
+	OutHandlers.Add(TEXT("AddTask"),               &HandleST_AddTask);
+	OutHandlers.Add(TEXT("RemoveTask"),            &HandleST_RemoveTask);
+	OutHandlers.Add(TEXT("AddEnterCondition"),    &HandleST_AddEnterCondition);
+	OutHandlers.Add(TEXT("RemoveEnterCondition"), &HandleST_RemoveEnterCondition);
+	OutHandlers.Add(TEXT("AddTransition"),         &HandleST_AddTransition);
+	OutHandlers.Add(TEXT("RemoveTransition"),      &HandleST_RemoveTransition);
 #else
 	(void)OutHandlers;
 #endif
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetStateTreeCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetStateTreeCapability)
 
 #endif // WITH_STATETREE

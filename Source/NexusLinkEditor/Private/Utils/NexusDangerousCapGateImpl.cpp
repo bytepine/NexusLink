@@ -72,7 +72,7 @@ namespace
 			TEXT("Capability：%s\n风险：脚本逃生舱，等价于进程内任意代码/控制台执行；事务可能半回滚，也可能导致编辑器崩溃。\n\nAI 声称的理由（不可验证）：\n%s\n\n将执行：\n%s\n\n全屏 PIE 下若看不到本窗口，请先退出沉浸模式。\n允许 = 仅本次；拒绝 = 不执行。超时将自动拒绝。"),
 			*CapName,
 			*TruncateForUi(Reason, GReasonDialogMax),
-			*TruncateForUi(Payload.IsEmpty() ? TEXT("（无 command/code/scriptPath）") : Payload, GPayloadDialogMax));
+			*TruncateForUi(Payload.IsEmpty() ? TEXT("（无 command/code/ScriptPath）") : Payload, GPayloadDialogMax));
 
 		TSharedRef<SWindow> Win = SNew(SWindow)
 			.Title(NSLOCTEXT("NexusLink", "DangerCapTitle", "NexusLink — 允许执行危险 Capability？"))

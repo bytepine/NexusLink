@@ -15,35 +15,35 @@
 #endif
 #include "Misc/PackageName.h"
 
-void FCreateAssetMaterialParameterCollectionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetMaterialParameterCollectionCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_material_parameter_collection");
+	Out.Name = TEXT("CreateAssetMaterialParameterCollection");
 	Out.Description = TEXT("Create empty MaterialParameterCollection; add params via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path (/Game/…/MPC_Global)")))
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path (/Game/…/MPC_Global)")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Material };
-	Out.ExtraSearchKeywords = { TEXT("mpc"), TEXT("parameter"), TEXT("collection"), TEXT("global"), TEXT("material"), TEXT("shader") };
-	Out.RelatedCapabilities = { TEXT("get_asset_material_parameter_collection"), TEXT("manage_asset_material_parameter_collection") };
+	Out.ExtraSearchKeywords = { TEXT("mpc"), TEXT("parameter"), TEXT("collection"), TEXT("global"), TEXT("Material"), TEXT("shader") };
+	Out.RelatedCapabilities = { TEXT("GetAssetMaterialParameterCollection"), TEXT("ManageAssetMaterialParameterCollection") };
 	Out.WhenToUse = TEXT("Create MPC; add scalar/vector params via manage");
 }
 
-FCapabilityResult FCreateAssetMaterialParameterCollectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetMaterialParameterCollectionCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("create_asset_material_parameter_collection only available in editor builds");
+		OutError = TEXT("CreateAssetMaterialParameterCollection only available in editor builds");
 		return;
 #else
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		if (FPackageName::DoesPackageExist(AssetPath))
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("MaterialParameterCollection already exists: %s"), *AssetPath));
+			OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("MaterialParameterCollection already exists: %s"), *AssetPath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -61,12 +61,12 @@ FCapabilityResult FCreateAssetMaterialParameterCollectionCapability::Execute(con
 		}
 
 		UMaterialParameterCollection* MPC = Cast<UMaterialParameterCollection>(NewAsset);
-		OutEntry->SetStringField(TEXT("assetType"), TEXT("MaterialParameterCollection"));
+		OutEntry->SetStringField(TEXT("AssetType"), TEXT("MaterialParameterCollection"));
 		OutEntry->SetStringField(TEXT("name"),    MPC->GetName());
-		OutEntry->SetStringField(TEXT("path"),    FNexusAssetUtils::PackagePathOf(MPC));
+		OutEntry->SetStringField(TEXT("Path"),    FNexusAssetUtils::PackagePathOf(MPC));
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 #endif
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetMaterialParameterCollectionCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetMaterialParameterCollectionCapability)

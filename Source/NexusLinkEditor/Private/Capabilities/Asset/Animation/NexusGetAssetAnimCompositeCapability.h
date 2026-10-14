@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** get_asset_anim_composite：读取 AnimComposite 的合成轨道与片段。 */
-class FGetAssetAnimCompositeCapability : public FNexusCapability
+/** GetAssetAnimComposite：读取 AnimComposite 的合成轨道与片段。 */
+class FNexusGetAssetAnimCompositeCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

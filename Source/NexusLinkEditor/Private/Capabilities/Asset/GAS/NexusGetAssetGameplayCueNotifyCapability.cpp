@@ -14,34 +14,34 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetGameplayCueNotifyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetGameplayCueNotifyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_gameplay_cue_notify");
+	Out.Name = TEXT("GetAssetGameplayCueNotify");
 	Out.SearchAssetTypes = {TEXT("GameplayCueNotify_Static")};
 	Out.Description = TEXT("Read GameplayCueNotify: CueName/class name/is Blueprint.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Cue Notify asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Cue Notify asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Gas };
 	Out.ExtraSearchKeywords = { TEXT("cue"), TEXT("notify"), TEXT("gc") };
 	Out.RelatedCapabilities = {
-		TEXT("manage_asset_gameplay_cue_notify"), TEXT("create_asset_gameplay_cue_notify"),
-		TEXT("manage_asset_blueprint")
+		TEXT("ManageAssetGameplayCueNotify"), TEXT("CreateAssetGameplayCueNotify"),
+		TEXT("ManageAssetBlueprint")
 	};
 }
 
-FCapabilityResult FGetAssetGameplayCueNotifyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetGameplayCueNotifyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		FString AssetPath;
-		if (!FNexusCapability::RequireString(Arguments, TEXT("assetPath"), AssetPath, OutEntries, {})) return;
+		if (!FNexusCapability::RequireString(Arguments, TEXT("AssetPath"), AssetPath, OutEntries, {})) return;
 
 		UObject* Loaded = FNexusAssetUtils::LoadAssetWithFallback<UObject>(AssetPath);
 		if (!Loaded)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}},
+			FNexusCapability::EmitError(OutEntries, {{TEXT("Path"), AssetPath}},
 				FString::Printf(TEXT("Load failed: %s"), *AssetPath));
 			return;
 		}
@@ -74,20 +74,20 @@ FCapabilityResult FGetAssetGameplayCueNotifyCapability::Execute(const TSharedPtr
 		}
 		else
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), AssetPath}}, TEXT("Not a GameplayCueNotify"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("Path"), AssetPath}}, TEXT("Not a GameplayCueNotify"));
 			return;
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"), Loaded->GetName());
-		Entry->SetStringField(TEXT("path"), Loaded->GetPathName());
-		Entry->SetStringField(TEXT("className"), ClassName);
-		Entry->SetBoolField(TEXT("isBlueprint"), bIsBlueprint);
-		Entry->SetStringField(TEXT("cueName"), CueName.ToString());
+		Entry->SetStringField(TEXT("Path"), Loaded->GetPathName());
+		Entry->SetStringField(TEXT("ClassName"), ClassName);
+		Entry->SetBoolField(TEXT("bIsBlueprint"), bIsBlueprint);
+		Entry->SetStringField(TEXT("CueName"), CueName.ToString());
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetGameplayCueNotifyCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetGameplayCueNotifyCapability)
 
 #endif

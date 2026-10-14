@@ -65,7 +65,7 @@ UAnimStateNode* FNexusAnimGraphUtils::FindStateByName(UAnimationStateMachineGrap
 		UAnimStateNode* State = Cast<UAnimStateNode>(Node);
 		if (!State) continue;
 
-		// 优先匹配 BoundGraph 名（创建时通过 graphName 命名），再回退 NodeName
+		// 优先匹配 BoundGraph 名（创建时通过 GraphName 命名），再回退 NodeName
 		if (State->BoundGraph && State->BoundGraph->GetName() == StateName)
 		{
 			return State;

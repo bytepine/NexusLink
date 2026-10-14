@@ -9,27 +9,27 @@
 #include "Sound/SoundWave.h"
 #include "NexusMcpTool.h"
 
-void FManageAssetSoundWaveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetSoundWaveCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_sound_wave");
+	Out.Name = TEXT("ManageAssetSoundWave");
 	Out.SearchAssetTypes = {TEXT("SoundWave")};
 	Out.Description = TEXT("Batch edit SoundWave properties. Volume/looping etc.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),       FNexusSchema::Enum(TEXT("Action"), { TEXT("set_property") }))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("propertypath (e.g. Volume/Looping)")))
-		.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("New property value string")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Action"), { TEXT("SetProperty") }))
+		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("propertypath (e.g. Volume/Looping)")))
+		.Prop(TEXT("Value"),        FNexusSchema::Str(TEXT("New property value string")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("SoundWave asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch property ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("SoundWave asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch property ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("wave"), TEXT("volume"), TEXT("loop"), TEXT("sound") };
-	Out.RelatedCapabilities = { TEXT("get_asset_sound_wave"), TEXT("get_asset_sound_cue") };
-	Out.Prerequisites = { TEXT("editor_only") };
-	Out.WhenToUse = TEXT("Edit SoundWave volume/loop/attenuation; persist with save_asset");
+	Out.ExtraSearchKeywords = { TEXT("audio"), TEXT("wave"), TEXT("Volume"), TEXT("bLoop"), TEXT("Sound") };
+	Out.RelatedCapabilities = { TEXT("GetAssetSoundWave"), TEXT("GetAssetSoundCue") };
+	Out.Prerequisites = { TEXT("EditorOnly") };
+	Out.WhenToUse = TEXT("Edit SoundWave volume/loop/attenuation; persist with SaveAsset");
 }
 
 struct FSoundWaveActionState
@@ -47,34 +47,34 @@ static void HandleSW_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusAction
 {
 	USoundWave* Wave = SWState(Ctx)->Wave;
 	FString PropPath, Value;
-	Op->TryGetStringField(TEXT("propertyPath"), PropPath);
-	Op->TryGetStringField(TEXT("value"), Value);
+	Op->TryGetStringField(TEXT("PropertyPath"), PropPath);
+	Op->TryGetStringField(TEXT("Value"), Value);
 	if (PropPath.IsEmpty() || Value.IsEmpty())
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("set_property requires propertyPath and value"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyPath and value"));
 		return;
 	}
 	FString OldVal, ActualVal, Err;
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(Wave, { PropPath }, 0, Value, OldVal, ActualVal, Err))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), Err);
+		Ctx.Entry->SetStringField(TEXT("Error"), Err);
 		return;
 	}
 	SWState(Ctx)->bDirty = true;
-	Ctx.Entry->SetStringField(TEXT("propertyPath"), PropPath);
-	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("oldValue"), OldVal);
-	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("newValue"), ActualVal);
-	Ctx.Entry->SetStringField(TEXT("note"), TEXT("persist with save_asset"));
+	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
+	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
 }
 
-bool FManageAssetSoundWaveCapability::PrepareTarget(
+bool FNexusManageAssetSoundWaveCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	USoundWave* Wave = FNexusAssetUtils::LoadAssetWithFallback<USoundWave>(AssetPath);
 	if (!Wave)
 	{
@@ -87,7 +87,7 @@ bool FManageAssetSoundWaveCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetSoundWaveCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetSoundWaveCapability::FinalizeTarget(void* Target) const
 {
 	FSoundWaveActionState* State = static_cast<FSoundWaveActionState*>(Target);
 	if (!State) return;
@@ -95,9 +95,9 @@ void FManageAssetSoundWaveCapability::FinalizeTarget(void* Target) const
 	delete State;
 }
 
-void FManageAssetSoundWaveCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetSoundWaveCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("set_property"), &HandleSW_SetProperty);
+	OutHandlers.Add(TEXT("SetProperty"), &HandleSW_SetProperty);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetSoundWaveCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetSoundWaveCapability)

@@ -16,27 +16,27 @@
 #include "InputModifiers.h"
 #include "InputTriggers.h"
 
-void FManageAssetInputMappingContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetInputMappingContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_input_mapping_context");
+	Out.Name = TEXT("ManageAssetInputMappingContext");
 	Out.SearchAssetTypes = {TEXT("InputMappingContext")};
-	Out.Description = TEXT("Edit IMC: add_mapping/remove_mapping/clear_mappings.");
+	Out.Description = TEXT("Edit IMC: AddMapping/RemoveMapping/ClearMappings.");
 
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Required(TEXT("action"), FNexusSchema::Enum(
+		.Required(TEXT("Action"), FNexusSchema::Enum(
 			TEXT("Operation type"),
-			{ TEXT("add_mapping"), TEXT("remove_mapping"), TEXT("clear_mappings") }))
-		.Prop(TEXT("actionPath"), FNexusSchema::Str(TEXT("add/remove_mapping：InputAction asset path")))
-		.Prop(TEXT("key"),        FNexusSchema::Str(TEXT("add/remove_mapping: key name (W/S/Gamepad_LeftX)")))
+			{ TEXT("AddMapping"), TEXT("RemoveMapping"), TEXT("ClearMappings") }))
+		.Prop(TEXT("ActionPath"), FNexusSchema::Str(TEXT("add/RemoveMapping：InputAction asset path")))
+		.Prop(TEXT("Key"),        FNexusSchema::Str(TEXT("add/RemoveMapping: key name (W/S/Gamepad_LeftX)")))
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("InputMappingContext asset path")))
-		.Required(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("InputMappingContext asset path")))
+		.Required(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Operation list"), OpSchema.ToSharedRef()))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("mapping"), TEXT("imc"), TEXT("keybind"), TEXT("key"), TEXT("action") };
-	Out.RelatedCapabilities = { TEXT("get_asset_input_mapping_context"), TEXT("create_asset_input_mapping_context") };
+	Out.ExtraSearchKeywords = { TEXT("input"), TEXT("mapping"), TEXT("imc"), TEXT("keybind"), TEXT("Key"), TEXT("Action") };
+	Out.RelatedCapabilities = { TEXT("GetAssetInputMappingContext"), TEXT("CreateAssetInputMappingContext") };
 	Out.WhenToUse = TEXT("Add or remove Action-Key bindings in IMC");
 }
 
@@ -70,23 +70,23 @@ static void HandleIMC_AddMapping(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	UInputMappingContext* IMC = IMCFrom(Ctx);
 	if (!IMC)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputMappingContext is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("InputMappingContext is null"));
 		return;
 	}
 	FString ActionPath, KeyName;
-	if (!Op->TryGetStringField(TEXT("actionPath"), ActionPath) || !Op->TryGetStringField(TEXT("key"), KeyName))
+	if (!Op->TryGetStringField(TEXT("ActionPath"), ActionPath) || !Op->TryGetStringField(TEXT("Key"), KeyName))
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("add_mapping requires actionPath and key"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddMapping requires ActionPath and key"));
 		return;
 	}
 	UInputAction* IA = FNexusAssetUtils::LoadAssetWithFallback<UInputAction>(ActionPath);
 	if (!IA)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("InputAction not found: %s"), *ActionPath));
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("InputAction not found: %s"), *ActionPath));
 		return;
 	}
 	IMC->MapKey(IA, FKey(*KeyName));
-	Ctx.Entry->SetStringField(TEXT("addedKey"), KeyName);
+	Ctx.Entry->SetStringField(TEXT("AddedKey"), KeyName);
 	MarkIMCDirty(Ctx);
 }
 
@@ -95,15 +95,15 @@ static void HandleIMC_RemoveMapping(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	UInputMappingContext* IMC = IMCFrom(Ctx);
 	if (!IMC)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputMappingContext is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("InputMappingContext is null"));
 		return;
 	}
 	FString ActionPath, KeyName;
-	const bool bHasAction = Op->TryGetStringField(TEXT("actionPath"), ActionPath);
-	const bool bHasKey    = Op->TryGetStringField(TEXT("key"), KeyName);
+	const bool bHasAction = Op->TryGetStringField(TEXT("ActionPath"), ActionPath);
+	const bool bHasKey    = Op->TryGetStringField(TEXT("Key"), KeyName);
 	if (!bHasAction && !bHasKey)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("remove_mapping requires actionPath or key (at least one)"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveMapping requires ActionPath or key (at least one)"));
 		return;
 	}
 	UInputAction* FilterIA = bHasAction
@@ -138,7 +138,7 @@ static void HandleIMC_RemoveMapping(const TSharedPtr<FJsonObject>& Op, FNexusAct
 		}
 	}
 	const int32 Removed = Before - IMC->GetMappings().Num();
-	Ctx.Entry->SetNumberField(TEXT("removedCount"), Removed);
+	Ctx.Entry->SetNumberField(TEXT("RemovedCount"), Removed);
 	if (Removed > 0) MarkIMCDirty(Ctx);
 }
 
@@ -148,23 +148,23 @@ static void HandleIMC_ClearMappings(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	UInputMappingContext* IMC = IMCFrom(Ctx);
 	if (!IMC)
 	{
-		Ctx.Entry->SetStringField(TEXT("error"), TEXT("InputMappingContext is null"));
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("InputMappingContext is null"));
 		return;
 	}
 	const int32 Count = IMC->GetMappings().Num();
 	IMC->UnmapAll();
-	Ctx.Entry->SetNumberField(TEXT("clearedCount"), Count);
+	Ctx.Entry->SetNumberField(TEXT("ClearedCount"), Count);
 	MarkIMCDirty(Ctx);
 }
 
-bool FManageAssetInputMappingContextCapability::PrepareTarget(
+bool FNexusManageAssetInputMappingContextCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UInputMappingContext* IMC = FNexusAssetUtils::LoadAssetWithFallback<UInputMappingContext>(AssetPath);
 	if (!IMC)
 	{
@@ -177,7 +177,7 @@ bool FManageAssetInputMappingContextCapability::PrepareTarget(
 	return true;
 }
 
-void FManageAssetInputMappingContextCapability::FinalizeTarget(void* Target) const
+void FNexusManageAssetInputMappingContextCapability::FinalizeTarget(void* Target) const
 {
 	FIMCActionState* State = static_cast<FIMCActionState*>(Target);
 	if (!State) return;
@@ -188,13 +188,13 @@ void FManageAssetInputMappingContextCapability::FinalizeTarget(void* Target) con
 	delete State;
 }
 
-void FManageAssetInputMappingContextCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetInputMappingContextCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("add_mapping"),    &HandleIMC_AddMapping);
-	OutHandlers.Add(TEXT("remove_mapping"), &HandleIMC_RemoveMapping);
-	OutHandlers.Add(TEXT("clear_mappings"), &HandleIMC_ClearMappings);
+	OutHandlers.Add(TEXT("AddMapping"),    &HandleIMC_AddMapping);
+	OutHandlers.Add(TEXT("RemoveMapping"), &HandleIMC_RemoveMapping);
+	OutHandlers.Add(TEXT("ClearMappings"), &HandleIMC_ClearMappings);
 }
 
-REGISTER_MCP_CAPABILITY(FManageAssetInputMappingContextCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetInputMappingContextCapability)
 
 #endif // WITH_ENHANCED_INPUT

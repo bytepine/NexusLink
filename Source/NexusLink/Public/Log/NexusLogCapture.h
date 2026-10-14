@@ -136,18 +136,18 @@ public:
 
 	/**
 	 * 手动写入一条日志（不经 GLog 管道）。
-	 * 用于 exec_command 等场景：控制台输出默认不进 GLog，需镜像到缓冲区供 get_output_log 查询。
+	 * 用于 ExecCommand 等场景：控制台输出默认不进 GLog，需镜像到缓冲区供 GetOutputLog 查询。
 	 * 不受分类白名单限制。
 	 */
 	void AppendEntry(const FString& Category, ELogVerbosity::Type Verbosity, const FString& Message);
 
 	/**
 	 * 下一条 Sequence（上次写入的 Sequence + 1，连续合并也递增）。
-	 * exec_command 用它做 CollectSince 游标。
+	 * ExecCommand 用它做 CollectSince 游标。
 	 */
 	int32 GetTotalWritten() const;
 
-	/** 装上会话 watch 并清空旁路缓冲。返回值是此时主缓冲的 latestSequence。 */
+	/** 装上会话 watch 并清空旁路缓冲。返回值是此时主缓冲的 LatestSequence。 */
 	int32 ArmWatch(const FNexusLogWatchSpec& Spec);
 
 	/** 卸下 watch 并丢掉旁路缓冲。 */

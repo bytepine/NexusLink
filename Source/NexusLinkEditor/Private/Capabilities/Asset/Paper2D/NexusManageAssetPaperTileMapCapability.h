@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #if WITH_PAPER2D
 #include "NexusActionCapability.h"
-/** manage_asset_paper_tile_map — 编辑尺寸 / TileSet / 图层 / 格子。 */
-class FManageAssetPaperTileMapCapability : public FNexusActionCapability
+/** ManageAssetPaperTileMap — 编辑尺寸 / TileSet / 图层 / 格子。 */
+class FNexusManageAssetPaperTileMapCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

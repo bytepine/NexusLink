@@ -13,32 +13,32 @@
 #include "MovieSceneSection.h"
 #include "MovieSceneTrack.h"
 
-void FGetAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_level_sequence");
+	Out.Name = TEXT("GetAssetLevelSequence");
 	Out.SearchAssetTypes = {TEXT("LevelSequence")};
 	Out.Description = TEXT("Read LevelSequence duration/frame rate, Bindings and Track type overview.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("LevelSequence asset path")))
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("LevelSequence asset path")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("sequence"), TEXT("sequencer"), TEXT("cinematic"), TEXT("track"), TEXT("animation"), TEXT("cut"), TEXT("shot") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_level_sequence"), TEXT("create_asset_level_sequence"), TEXT("search_asset"), TEXT("save_asset") };
+	Out.ExtraSearchKeywords = { TEXT("Sequence"), TEXT("sequencer"), TEXT("cinematic"), TEXT("track"), TEXT("Animation"), TEXT("cut"), TEXT("shot") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetLevelSequence"), TEXT("CreateAssetLevelSequence"), TEXT("SearchAsset"), TEXT("SaveAsset") };
 	Out.WhenToUse = TEXT("Read LevelSequence Binding/Track list, duration, frame rate");
 }
 
-FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("get_asset_level_sequence only available in Editor builds");
+		OutError = TEXT("GetAssetLevelSequence only available in Editor builds");
 		return;
 #else
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		ULevelSequence* LS = FNexusAssetUtils::LoadAssetWithFallback<ULevelSequence>(AssetPath);
 		if (!LS)
@@ -54,16 +54,16 @@ FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJs
 			return;
 		}
 
-		OutEntry->SetStringField(TEXT("assetType"), TEXT("LevelSequence"));
+		OutEntry->SetStringField(TEXT("AssetType"), TEXT("LevelSequence"));
 		OutEntry->SetStringField(TEXT("name"),      LS->GetName());
-		OutEntry->SetStringField(TEXT("path"),      FNexusAssetUtils::PackagePathOf(LS));
+		OutEntry->SetStringField(TEXT("Path"),      FNexusAssetUtils::PackagePathOf(LS));
 
 		// 帧率
 		const FFrameRate TickResolution  = Scene->GetTickResolution();
 		const FFrameRate DisplayRate     = Scene->GetDisplayRate();
-		OutEntry->SetStringField(TEXT("tickResolution"),
+		OutEntry->SetStringField(TEXT("TickResolution"),
 			FString::Printf(TEXT("%d/%d"), TickResolution.Numerator, TickResolution.Denominator));
-		OutEntry->SetStringField(TEXT("displayRate"),
+		OutEntry->SetStringField(TEXT("DisplayRate"),
 			FString::Printf(TEXT("%d/%d"), DisplayRate.Numerator, DisplayRate.Denominator));
 
 		// 时长（秒，由 PlaybackRange 推算）
@@ -73,12 +73,12 @@ FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJs
 			double DurationFrames = static_cast<double>(
 				(PlaybackRange.GetUpperBoundValue() - PlaybackRange.GetLowerBoundValue()).Value);
 			double DurationSecs = DurationFrames / static_cast<double>(TickResolution.AsDecimal());
-			OutEntry->SetNumberField(TEXT("durationSeconds"), DurationSecs);
+			OutEntry->SetNumberField(TEXT("DurationSeconds"), DurationSecs);
 		}
 
 		// Bindings（Possessable + Spawnable）
 		int32 BindingsCount = Scene->GetPossessableCount() + Scene->GetSpawnableCount();
-		OutEntry->SetNumberField(TEXT("bindingsCount"), BindingsCount);
+		OutEntry->SetNumberField(TEXT("BindingsCount"), BindingsCount);
 
 		TArray<TSharedPtr<FJsonValue>> BindingsArr;
 
@@ -90,8 +90,8 @@ FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJs
 			TSharedPtr<FJsonObject> BObj = MakeShared<FJsonObject>();
 			BObj->SetStringField(TEXT("type"),  TEXT("Possessable"));
 			BObj->SetStringField(TEXT("name"),  Poss.GetName());
-			BObj->SetStringField(TEXT("guid"),  Poss.GetGuid().ToString());
-			BObj->SetStringField(TEXT("class"), Poss.GetPossessedObjectClass() ? Poss.GetPossessedObjectClass()->GetName() : TEXT(""));
+			BObj->SetStringField(TEXT("Guid"),  Poss.GetGuid().ToString());
+			BObj->SetStringField(TEXT("Class"), Poss.GetPossessedObjectClass() ? Poss.GetPossessedObjectClass()->GetName() : TEXT(""));
 			GuidToInfo.Add(Poss.GetGuid(), BObj);
 		}
 		for (int32 i = 0; i < Scene->GetSpawnableCount(); ++i)
@@ -100,7 +100,7 @@ FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJs
 			TSharedPtr<FJsonObject> BObj = MakeShared<FJsonObject>();
 			BObj->SetStringField(TEXT("type"), TEXT("Spawnable"));
 			BObj->SetStringField(TEXT("name"), Spawn.GetName());
-			BObj->SetStringField(TEXT("guid"), Spawn.GetGuid().ToString());
+			BObj->SetStringField(TEXT("Guid"), Spawn.GetGuid().ToString());
 			GuidToInfo.Add(Spawn.GetGuid(), BObj);
 		}
 
@@ -116,24 +116,24 @@ FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJs
 				if (Track)
 				{
 					TSharedPtr<FJsonObject> TObj = MakeShared<FJsonObject>();
-					TObj->SetStringField(TEXT("trackClass"),  Track->GetClass()->GetName());
-					TObj->SetStringField(TEXT("displayName"), Track->GetDisplayName().ToString());
-					TObj->SetNumberField(TEXT("sectionsCount"), Track->GetAllSections().Num());
+					TObj->SetStringField(TEXT("TrackClass"),  Track->GetClass()->GetName());
+					TObj->SetStringField(TEXT("DisplayName"), Track->GetDisplayName().ToString());
+					TObj->SetNumberField(TEXT("SectionsCount"), Track->GetAllSections().Num());
 					TrackArr.Add(MakeShared<FJsonValueObject>(TObj));
 				}
 			}
-			(*BObjPtr)->SetArrayField(TEXT("tracks"), TrackArr);
+			(*BObjPtr)->SetArrayField(TEXT("Tracks"), TrackArr);
 		}
 
 		for (auto& KV : GuidToInfo)
 		{
-			if (!KV.Value->HasField(TEXT("tracks")))
+			if (!KV.Value->HasField(TEXT("Tracks")))
 			{
-				KV.Value->SetArrayField(TEXT("tracks"), TArray<TSharedPtr<FJsonValue>>());
+				KV.Value->SetArrayField(TEXT("Tracks"), TArray<TSharedPtr<FJsonValue>>());
 			}
 			BindingsArr.Add(MakeShared<FJsonValueObject>(KV.Value));
 		}
-		OutEntry->SetArrayField(TEXT("bindings"), BindingsArr);
+		OutEntry->SetArrayField(TEXT("Bindings"), BindingsArr);
 
 		// 全局 Track（Camera Cut、Audio 等无 Binding；5.2 前为 MasterTracks）
 		TArray<TSharedPtr<FJsonValue>> MasterTrackArr;
@@ -144,8 +144,8 @@ FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJs
 			if (MasterTrack)
 			{
 				TSharedPtr<FJsonObject> TObj = MakeShared<FJsonObject>();
-				TObj->SetStringField(TEXT("trackClass"),  MasterTrack->GetClass()->GetName());
-				TObj->SetStringField(TEXT("displayName"), MasterTrack->GetDisplayName().ToString());
+				TObj->SetStringField(TEXT("TrackClass"),  MasterTrack->GetClass()->GetName());
+				TObj->SetStringField(TEXT("DisplayName"), MasterTrack->GetDisplayName().ToString());
 				MasterTrackArr.Add(MakeShared<FJsonValueObject>(TObj));
 			}
 		}
@@ -156,17 +156,17 @@ FCapabilityResult FGetAssetLevelSequenceCapability::Execute(const TSharedPtr<FJs
 			if (MasterTrack)
 			{
 				TSharedPtr<FJsonObject> TObj = MakeShared<FJsonObject>();
-				TObj->SetStringField(TEXT("trackClass"),  MasterTrack->GetClass()->GetName());
-				TObj->SetStringField(TEXT("displayName"), MasterTrack->GetDisplayName().ToString());
+				TObj->SetStringField(TEXT("TrackClass"),  MasterTrack->GetClass()->GetName());
+				TObj->SetStringField(TEXT("DisplayName"), MasterTrack->GetDisplayName().ToString());
 				MasterTrackArr.Add(MakeShared<FJsonValueObject>(TObj));
 			}
 		}
 #endif
-		OutEntry->SetArrayField(TEXT("masterTracks"), MasterTrackArr);
+		OutEntry->SetArrayField(TEXT("MasterTracks"), MasterTrackArr);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 #endif // WITH_EDITOR
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetLevelSequenceCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetLevelSequenceCapability)

@@ -7,6 +7,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **破坏性**：Capability 工具 id、入参、出参、动作名和标签改为 PascalCase。布尔字段加 `b` 前缀（`saveToDisk` → `bSaveToDisk`）。不再接受旧的 snake_case / camelCase 名字。MCP 信封（`jsonrpc`、`method`、`params`、`isError`、`structuredContent`）不变。
+- 私有 Capability 类名与文件名对齐：`FNexus` + 文件名（去掉扩展名）。例如 `FNexusDestroyRuntimeActorCapability`。
+
 ## [2.2.0] - 2026-10-13
 
 ### Added

@@ -683,7 +683,7 @@ void FNexusNiagaraGraphUtils::CollectModules(const FNiagaraEmitterHandle& Handle
 		const FString ModName = Fn.IsEmpty() ? Call->GetName() : Fn;
 		M->SetStringField(TEXT("name"), ModName);
 		const ENiagaraScriptUsage Usage = InferModuleUsage(Call);
-		M->SetStringField(TEXT("usage"), UsageToString(Usage));
+		M->SetStringField(TEXT("Usage"), UsageToString(Usage));
 
 		TArray<TSharedPtr<FJsonValue>> Inputs;
 		if (UNiagaraScript* Script = ScriptForUsage(Handle, Usage))
@@ -697,11 +697,11 @@ void FNexusNiagaraGraphUtils::CollectModules(const FNiagaraEmitterHandle& Handle
 				In->SetStringField(TEXT("type"), Var.GetType().GetName());
 				const uint8* Bytes = Script->RapidIterationParameters.GetParameterData(Var);
 				const FString Val = FormatNiagaraBytes(Var.GetType(), Bytes);
-				if (!Val.IsEmpty()) In->SetStringField(TEXT("value"), Val);
+				if (!Val.IsEmpty()) In->SetStringField(TEXT("Value"), Val);
 				Inputs.Add(MakeShared<FJsonValueObject>(In));
 			}
 		}
-		M->SetArrayField(TEXT("inputs"), Inputs);
+		M->SetArrayField(TEXT("Inputs"), Inputs);
 		OutModules.Add(M);
 	}
 }

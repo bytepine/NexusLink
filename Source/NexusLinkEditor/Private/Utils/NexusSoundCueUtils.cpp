@@ -29,7 +29,7 @@ UClass* FNexusSoundCueUtils::ResolveSoundNodeClass(const FString& ClassName, FSt
 	UClass* Class = FNexusAssetUtils::FindClassWithUPrefix(ClassName);
 	if (!Class || !Class->IsChildOf(USoundNode::StaticClass()))
 	{
-		OutError = FString::Printf(TEXT("nodeClass '%s' not found or not SoundNode subclass"), *ClassName);
+		OutError = FString::Printf(TEXT("NodeClass '%s' not found or not SoundNode subclass"), *ClassName);
 		return nullptr;
 	}
 	return Class;
@@ -112,7 +112,7 @@ bool FNexusSoundCueUtils::AddNode(USoundCue* Cue, UClass* NodeClass, int32 Paren
 	}
 	else if (ParentNodeIndex < 0)
 	{
-		OutError = TEXT("add_node requires parentNodeIndex when root already exists");
+		OutError = TEXT("AddNode requires ParentNodeIndex when root already exists");
 		return false;
 	}
 	else
@@ -120,7 +120,7 @@ bool FNexusSoundCueUtils::AddNode(USoundCue* Cue, UClass* NodeClass, int32 Paren
 		USoundNode* Parent = FindNodeByIndex(Cue, ParentNodeIndex);
 		if (!Parent)
 		{
-			OutError = FString::Printf(TEXT("Invalid parentNodeIndex %d"), ParentNodeIndex);
+			OutError = FString::Printf(TEXT("Invalid ParentNodeIndex %d"), ParentNodeIndex);
 			return false;
 		}
 		if (ChildSlot < 0) ChildSlot = 0;
@@ -143,7 +143,7 @@ bool FNexusSoundCueUtils::RemoveNode(USoundCue* Cue, int32 NodeIndex, FString& O
 	USoundNode* Node = FindNodeByIndex(Cue, NodeIndex);
 	if (!Cue || !Node)
 	{
-		OutError = FString::Printf(TEXT("Invalid nodeIndex %d"), NodeIndex);
+		OutError = FString::Printf(TEXT("Invalid NodeIndex %d"), NodeIndex);
 		return false;
 	}
 
@@ -167,7 +167,7 @@ bool FNexusSoundCueUtils::ConnectNodes(USoundCue* Cue, int32 ParentIndex, int32 
 	USoundNode* Child = FindNodeByIndex(Cue, ChildIndex);
 	if (!Child)
 	{
-		OutError = FString::Printf(TEXT("Invalid childIndex %d"), ChildIndex);
+		OutError = FString::Printf(TEXT("Invalid ChildIndex %d"), ChildIndex);
 		return false;
 	}
 
@@ -182,7 +182,7 @@ bool FNexusSoundCueUtils::ConnectNodes(USoundCue* Cue, int32 ParentIndex, int32 
 		USoundNode* Parent = FindNodeByIndex(Cue, ParentIndex);
 		if (!Parent)
 		{
-			OutError = FString::Printf(TEXT("Invalid parentNodeIndex %d"), ParentIndex);
+			OutError = FString::Printf(TEXT("Invalid ParentNodeIndex %d"), ParentIndex);
 			return false;
 		}
 		if (ChildSlot < 0) ChildSlot = 0;

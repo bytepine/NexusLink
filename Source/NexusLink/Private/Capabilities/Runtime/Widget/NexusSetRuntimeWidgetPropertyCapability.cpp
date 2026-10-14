@@ -16,65 +16,65 @@ static void WriteRuntimeWidgetPropertyImpl(
 	const FString& NewValue,
 	TSharedPtr<FJsonObject>& OutEntry)
 {
-	OutEntry->SetStringField(TEXT("widgetName"),   WidgetName);
-	OutEntry->SetStringField(TEXT("propertyPath"), PropertyPath);
-	if (!OwnerClass.IsEmpty()) { OutEntry->SetStringField(TEXT("ownerClass"), OwnerClass); }
+	OutEntry->SetStringField(TEXT("WidgetName"),   WidgetName);
+	OutEntry->SetStringField(TEXT("PropertyPath"), PropertyPath);
+	if (!OwnerClass.IsEmpty()) { OutEntry->SetStringField(TEXT("OwnerClass"), OwnerClass); }
 
-	if (WidgetName.IsEmpty())   { OutEntry->SetStringField(TEXT("error"), TEXT("Missing widgetName")); return; }
-	if (PropertyPath.IsEmpty()) { OutEntry->SetStringField(TEXT("error"), TEXT("Missing propertyPath")); return; }
+	if (WidgetName.IsEmpty())   { OutEntry->SetStringField(TEXT("Error"), TEXT("Missing WidgetName")); return; }
+	if (PropertyPath.IsEmpty()) { OutEntry->SetStringField(TEXT("Error"), TEXT("Missing PropertyPath")); return; }
 
 	UWidget* Widget = FNexusRuntimeUtils::FindRuntimeWidget(OwnerClass, WidgetName);
-	if (!Widget) { OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("Runtime Widget '%s' not found"), *WidgetName)); return; }
+	if (!Widget) { OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Runtime Widget '%s' not found"), *WidgetName)); return; }
 
 	TArray<FString> Segs;
 	PropertyPath.ParseIntoArray(Segs, TEXT("."), true);
-	if (Segs.Num() == 0) { OutEntry->SetStringField(TEXT("error"), TEXT("propertyPath is empty")); return; }
+	if (Segs.Num() == 0) { OutEntry->SetStringField(TEXT("Error"), TEXT("PropertyPath is empty")); return; }
 
 	FString OldVal, ActualVal, Error;
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(Widget, Segs, 0, NewValue, OldVal, ActualVal, Error))
 	{
-		OutEntry->SetStringField(TEXT("error"), Error);
+		OutEntry->SetStringField(TEXT("Error"), Error);
 		return;
 	}
-	OutEntry->SetStringField(TEXT("resolvedWidget"), Widget->GetName());
-	if (!OldVal.IsEmpty())    OutEntry->SetStringField(TEXT("oldValue"),    OldVal);
-	if (!ActualVal.IsEmpty()) OutEntry->SetStringField(TEXT("newValue"), ActualVal);
+	OutEntry->SetStringField(TEXT("ResolvedWidget"), Widget->GetName());
+	if (!OldVal.IsEmpty())    OutEntry->SetStringField(TEXT("OldValue"),    OldVal);
+	if (!ActualVal.IsEmpty()) OutEntry->SetStringField(TEXT("NewValue"), ActualVal);
 }
 
-void FSetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusSetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("set_runtime_widget_property");
+	Out.Name = TEXT("SetRuntimeWidgetProperty");
 	Out.Description = TEXT("Batch modify runtime UMG fields. updates[] has widget name/path/value.");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
-			.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("Dot-separated path")))
-			.Prop(TEXT("value"),        FNexusSchema::Str(TEXT("New value string")))
-			.Prop(TEXT("widgetName"),   FNexusSchema::Str(TEXT("Widget name")))
-			.Prop(TEXT("ownerClass"),   FNexusSchema::Str(TEXT("UserWidget filter")))
-			.Required({ TEXT("propertyPath"), TEXT("value") })
+			.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("Dot-separated path")))
+			.Prop(TEXT("Value"),        FNexusSchema::Str(TEXT("New value string")))
+			.Prop(TEXT("WidgetName"),   FNexusSchema::Str(TEXT("Widget name")))
+			.Prop(TEXT("OwnerClass"),   FNexusSchema::Str(TEXT("UserWidget filter")))
+			.Required({ TEXT("PropertyPath"), TEXT("Value") })
 			.Build();
 
 		return FNexusSchema::Object()
-			.Prop(TEXT("updates"), FNexusSchema::ArrayOf(TEXT("Batch update"), ItemSchema.ToSharedRef()))
-			.Required({ TEXT("updates") })
+			.Prop(TEXT("Updates"), FNexusSchema::ArrayOf(TEXT("Batch update"), ItemSchema.ToSharedRef()))
+			.Required({ TEXT("Updates") })
 			.Build();
 	}();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("field"), TEXT("brush"), TEXT("value"), TEXT("mutate") };
-	Out.RelatedCapabilities = { TEXT("get_runtime_widget_property") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("field"), TEXT("brush"), TEXT("Value"), TEXT("mutate") };
+	Out.RelatedCapabilities = { TEXT("GetRuntimeWidgetProperty") };
+	Out.Prerequisites = { TEXT("PIE") };
 	Out.WhenToUse = TEXT("Modify runtime UMG live fields");
 }
 
-FCapabilityResult FSetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusSetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 
 		const TArray<TSharedPtr<FJsonValue>>* UpdatesArr = nullptr;
-		if (!Arguments->TryGetArrayField(TEXT("updates"), UpdatesArr) || !UpdatesArr)
+		if (!Arguments->TryGetArrayField(TEXT("Updates"), UpdatesArr) || !UpdatesArr)
 		{
 			OutError = TEXT("Missing updates");
 			return;
@@ -87,20 +87,20 @@ FCapabilityResult FSetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<
 
 			if (!Item.IsValid())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("Invalid update item"));
+				OutEntry->SetStringField(TEXT("Error"), TEXT("Invalid update item"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
 
 			FString PropertyPath, NewValue, WidgetName, OwnerClass;
-			Item->TryGetStringField(TEXT("propertyPath"), PropertyPath);
-			Item->TryGetStringField(TEXT("value"),        NewValue);
-			Item->TryGetStringField(TEXT("widgetName"),   WidgetName);
-			Item->TryGetStringField(TEXT("ownerClass"),   OwnerClass);
+			Item->TryGetStringField(TEXT("PropertyPath"), PropertyPath);
+			Item->TryGetStringField(TEXT("Value"),        NewValue);
+			Item->TryGetStringField(TEXT("WidgetName"),   WidgetName);
+			Item->TryGetStringField(TEXT("OwnerClass"),   OwnerClass);
 
 			if (PropertyPath.IsEmpty())
 			{
-				OutEntry->SetStringField(TEXT("error"), TEXT("Each update requires propertyPath"));
+				OutEntry->SetStringField(TEXT("Error"), TEXT("Each update requires PropertyPath"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
@@ -112,4 +112,4 @@ FCapabilityResult FSetRuntimeWidgetPropertyCapability::Execute(const TSharedPtr<
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FSetRuntimeWidgetPropertyCapability)
+REGISTER_MCP_CAPABILITY(FNexusSetRuntimeWidgetPropertyCapability)

@@ -10,22 +10,22 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetDataAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetDataAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_data_asset");
+	Out.Name = TEXT("CreateAssetDataAsset");
 	Out.Description = TEXT("Create typed DataAsset. Requires subclass; non-abstract.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("New DataAsset package path")))
-		.Prop(TEXT("parentClass"), FNexusSchema::Str(TEXT("Non-abstract parent class name"), TEXT("PrimaryDataAsset")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"),   FNexusSchema::Str(TEXT("New DataAsset package path")))
+		.Prop(TEXT("ParentClass"), FNexusSchema::Str(TEXT("Non-abstract parent class name"), TEXT("PrimaryDataAsset")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("dataasset"), TEXT("primarydataasset"), TEXT("config"), TEXT("new") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_data_asset"), TEXT("get_asset_data_asset") };
-	Out.WhenToUse = TEXT("Create DataAsset; parentClass default PrimaryDataAsset");
+	Out.RelatedCapabilities = { TEXT("ManageAssetDataAsset"), TEXT("GetAssetDataAsset") };
+	Out.WhenToUse = TEXT("Create DataAsset; ParentClass default PrimaryDataAsset");
 }
 
-FCapabilityResult FCreateAssetDataAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetDataAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -35,24 +35,24 @@ FCapabilityResult FCreateAssetDataAssetCapability::Execute(const TSharedPtr<FJso
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		FString ParentClassName = TEXT("PrimaryDataAsset");
-		if (Arguments->HasField(TEXT("parentClass")))
+		if (Arguments->HasField(TEXT("ParentClass")))
 		{
-			ParentClassName = A.Str(TEXT("parentClass"));
+			ParentClassName = A.Str(TEXT("ParentClass"));
 		}
 
 		UClass* ParentClass = FNexusAssetUtils::FindClassWithUPrefix(ParentClassName);
 		if (!ParentClass || !ParentClass->IsChildOf(UDataAsset::StaticClass()))
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(TEXT("DataAsset subclass not found: %s"), *ParentClassName));
+			OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("DataAsset subclass not found: %s"), *ParentClassName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
 		if (ParentClass->HasAnyClassFlags(CLASS_Abstract))
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("Class %s is abstract; use non-abstract UDataAsset subclass as parentClass."),
+			OutEntry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("Class %s is abstract; use non-abstract UDataAsset subclass as ParentClass."),
 				*ParentClassName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
@@ -68,11 +68,11 @@ FCapabilityResult FCreateAssetDataAssetCapability::Execute(const TSharedPtr<FJso
 		UDataAsset* NewDA = Cast<UDataAsset>(Created.Asset);
 
 		OutEntry->SetStringField(TEXT("name"), NewDA->GetName());
-		OutEntry->SetStringField(TEXT("path"), NewDA->GetOutermost()->GetName());
-		OutEntry->SetStringField(TEXT("parentClass"), ParentClass->GetName());
+		OutEntry->SetStringField(TEXT("Path"), NewDA->GetOutermost()->GetName());
+		OutEntry->SetStringField(TEXT("ParentClass"), ParentClass->GetName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetDataAssetCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetDataAssetCapability)

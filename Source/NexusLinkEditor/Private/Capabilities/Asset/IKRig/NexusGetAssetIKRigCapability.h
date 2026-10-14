@@ -7,8 +7,8 @@
 
 #if WITH_IK_RIG
 
-/** get_asset_ik_rig — 读取 IKRig 资产：预览骨架/Solvers/BoneChains。 */
-class FGetAssetIKRigCapability : public FNexusCapability
+/** GetAssetIKRig — 读取 IKRig 资产：预览骨架/Solvers/BoneChains。 */
+class FNexusGetAssetIKRigCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

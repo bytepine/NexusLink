@@ -10,10 +10,10 @@
 #include "NexusRuntimeCapability.h"
 
 /**
- * interact_runtime_actor_ability_system — PIE 运行时对 Actor ASC 执行写操作。
- * action=activate_ability|cancel_ability|apply_effect|remove_effect|set_attribute。
+ * InteractRuntimeActorAbilitySystem — PIE 运行时对 Actor ASC 执行写操作。
+ * Action=ActivateAbility|CancelAbility|ApplyEffect|RemoveEffect|SetAttribute。
  */
-class FInteractRuntimeActorAbilitySystemCapability : public FNexusRuntimeCapability
+class FNexusInteractRuntimeActorAbilitySystemCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

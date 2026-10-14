@@ -8,27 +8,27 @@
 #include "Sound/SoundConcurrency.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetSoundConcurrencyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetSoundConcurrencyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_sound_concurrency");
+	Out.Name = TEXT("GetAssetSoundConcurrency");
 	Out.SearchAssetTypes = {TEXT("SoundConcurrency")};
-	Out.Description = TEXT("Read SoundConcurrency: maxCount/resolutionRule/retriggerTime.");
+	Out.Description = TEXT("Read SoundConcurrency: MaxCount/ResolutionRule/RetriggerTime.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("SoundConcurrency asset path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("SoundConcurrency asset path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("concurrency"), TEXT("maxcount"), TEXT("audio"), TEXT("limit") };
-	Out.RelatedCapabilities = { TEXT("create_asset_sound_concurrency"), TEXT("manage_asset_sound_concurrency") };
+	Out.ExtraSearchKeywords = { TEXT("concurrency"), TEXT("maxcount"), TEXT("audio"), TEXT("Limit") };
+	Out.RelatedCapabilities = { TEXT("CreateAssetSoundConcurrency"), TEXT("ManageAssetSoundConcurrency") };
 }
 
-FCapabilityResult FGetAssetSoundConcurrencyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetSoundConcurrencyCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		USoundConcurrency* SC = LoadObject<USoundConcurrency>(nullptr, *AssetPath);
 		if (!SC)
 		{
@@ -44,14 +44,14 @@ FCapabilityResult FGetAssetSoundConcurrencyCapability::Execute(const TSharedPtr<
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("name"),            SC->GetName());
-		Entry->SetStringField(TEXT("path"),            SC->GetPathName());
-		Entry->SetNumberField(TEXT("maxCount"),        SC->Concurrency.MaxCount);
-		Entry->SetStringField(TEXT("resolutionRule"),  RuleStr);
-		Entry->SetNumberField(TEXT("resolutionRuleValue"), (double)(int32)SC->Concurrency.ResolutionRule);
-		Entry->SetBoolField(TEXT("limitToOwner"),      SC->Concurrency.bLimitToOwner != 0);
-		Entry->SetNumberField(TEXT("retriggerTime"),   SC->Concurrency.RetriggerTime);
+		Entry->SetStringField(TEXT("Path"),            SC->GetPathName());
+		Entry->SetNumberField(TEXT("MaxCount"),        SC->Concurrency.MaxCount);
+		Entry->SetStringField(TEXT("ResolutionRule"),  RuleStr);
+		Entry->SetNumberField(TEXT("ResolutionRuleValue"), (double)(int32)SC->Concurrency.ResolutionRule);
+		Entry->SetBoolField(TEXT("bLimitToOwner"),      SC->Concurrency.bLimitToOwner != 0);
+		Entry->SetNumberField(TEXT("RetriggerTime"),   SC->Concurrency.RetriggerTime);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetSoundConcurrencyCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetSoundConcurrencyCapability)

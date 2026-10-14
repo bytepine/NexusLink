@@ -28,7 +28,7 @@ struct FCapRecord
 	{}
 };
 
-/** search_asset 按 assetType 解析出的推荐读/写 Capability。 */
+/** SearchAsset 按 AssetType 解析出的推荐读/写 Capability。 */
 struct FNexusSearchAssetRoute
 {
 	FString RecommendedGet;
@@ -39,7 +39,7 @@ struct FNexusSearchAssetRoute
  * Capability 全局注册表 —— 全局单例。
  *
  * Capability 与 Tool 完全解耦：cap .cpp 末尾用 REGISTER_MCP_CAPABILITY 自注册到此表，
- * 由 search_capabilities / call_capability 元工具消费。
+ * 由 SearchCapabilities / CallCapability 元工具消费。
  * cap 名（record.Def.Name）在全局必须唯一；重名将在 Register 时触发 ensureMsgf 警告。
  */
 class NEXUSLINK_API FNexusCapabilityRegistry
@@ -60,12 +60,12 @@ public:
 	 */
 	static FString MakeSettingsGroupPath(const TCHAR* SourceFile);
 
-	/** 按注册顺序返回全部 record；search_capabilities 在此基础上做禁用/可见性过滤。 */
+	/** 按注册顺序返回全部 record；SearchCapabilities 在此基础上做禁用/可见性过滤。 */
 	const TArray<FCapRecord>& GetAllRecords() const { return Records; }
 
 	/**
 	 * 按 cap 名（大小写不敏感）O(1) 查找 record；未找到返回 nullptr。
-	 * call_capability 用此代替线性扫描。
+	 * CallCapability 用此代替线性扫描。
 	 */
 	const FCapRecord* FindRecordByName(const FString& CapabilityName) const;
 
@@ -73,7 +73,7 @@ public:
 	static bool CollectOperationActions(const FString& CapName, TArray<FString>& OutActions);
 
 	/**
-	 * 按 search_asset 返回的 assetType 解析推荐 get/manage Capability。
+	 * 按 SearchAsset 返回的 AssetType 解析推荐 get/manage Capability。
 	 * 索引来自各 cap BuildDefinition 声明的 SearchAssetTypes；无声明时 Out* 为空。
 	 */
 	void ResolveSearchAssetRoute(
@@ -92,7 +92,7 @@ private:
 
 	TArray<FCapRecord>   Records;
 	TMap<FString, int32> NameIndex; // key 为 lower(Name) → Records 下标
-	TMap<FString, FNexusSearchAssetRoute> SearchAssetRouteIndex; // key 为 lower(assetType)
+	TMap<FString, FNexusSearchAssetRoute> SearchAssetRouteIndex; // key 为 lower(AssetType)
 };
 
 /**

@@ -15,28 +15,28 @@
 #include "EnvironmentQuery/EnvQueryGenerator.h"
 #include "EnvironmentQuery/EnvQueryTest.h"
 
-void FGetAssetEQSCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetEQSCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_eqs");
+	Out.Name = TEXT("GetAssetEQS");
 	Out.SearchAssetTypes = {TEXT("EnvQuery")};
 	Out.Description = TEXT("Read EQS Options/Generator/Test overview. UE5+.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("assetPath"), FNexusSchema::Str(TEXT("EnvQuery asset path")))
+		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("EnvQuery asset path")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Blueprint };
-	Out.ExtraSearchKeywords = { TEXT("eqs"), TEXT("query"), TEXT("environment"), TEXT("generator"), TEXT("test"), TEXT("ai") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_eqs"), TEXT("create_asset_eqs"), TEXT("get_asset_behavior_tree") };
+	Out.ExtraSearchKeywords = { TEXT("eqs"), TEXT("Query"), TEXT("environment"), TEXT("generator"), TEXT("test"), TEXT("ai") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetEQS"), TEXT("CreateAssetEQS"), TEXT("GetAssetBehaviorTree") };
 	Out.WhenToUse = TEXT("Read EQS Option/Generator/Test list and test class names");
 }
 
-FCapabilityResult FGetAssetEQSCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetAssetEQSCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		UEnvQuery* EQ = FNexusAssetUtils::LoadAssetWithFallback<UEnvQuery>(AssetPath);
 		if (!EQ)
@@ -45,13 +45,13 @@ FCapabilityResult FGetAssetEQSCapability::Execute(const TSharedPtr<FJsonObject>&
 			return;
 		}
 
-		OutEntry->SetStringField(TEXT("assetType"), TEXT("EnvQuery"));
+		OutEntry->SetStringField(TEXT("AssetType"), TEXT("EnvQuery"));
 		OutEntry->SetStringField(TEXT("name"),      EQ->GetName());
-		OutEntry->SetStringField(TEXT("path"),      FNexusAssetUtils::PackagePathOf(EQ));
+		OutEntry->SetStringField(TEXT("Path"),      FNexusAssetUtils::PackagePathOf(EQ));
 
 		TArray<UEnvQueryOption*>* OptionsPtr = GetEnvQueryOptionsPtr(EQ);
 		const int32 OptionsNum = OptionsPtr ? OptionsPtr->Num() : 0;
-		OutEntry->SetNumberField(TEXT("optionsCount"), OptionsNum);
+		OutEntry->SetNumberField(TEXT("OptionsCount"), OptionsNum);
 
 		TArray<TSharedPtr<FJsonValue>> OptionsArr;
 		for (int32 i = 0; i < OptionsNum; ++i)
@@ -60,11 +60,11 @@ FCapabilityResult FGetAssetEQSCapability::Execute(const TSharedPtr<FJsonObject>&
 			if (!Opt) continue;
 
 			TSharedPtr<FJsonObject> OObj = MakeShared<FJsonObject>();
-			OObj->SetNumberField(TEXT("index"), i);
+			OObj->SetNumberField(TEXT("Index"), i);
 
 			if (Opt->Generator)
 			{
-				OObj->SetStringField(TEXT("generatorClass"), Opt->Generator->GetClass()->GetName());
+				OObj->SetStringField(TEXT("GeneratorClass"), Opt->Generator->GetClass()->GetName());
 			}
 
 			TArray<TSharedPtr<FJsonValue>> TestArr;
@@ -73,21 +73,21 @@ FCapabilityResult FGetAssetEQSCapability::Execute(const TSharedPtr<FJsonObject>&
 				if (Test)
 				{
 					TSharedPtr<FJsonObject> TObj = MakeShared<FJsonObject>();
-					TObj->SetStringField(TEXT("testClass"),   Test->GetClass()->GetName());
-					TObj->SetStringField(TEXT("testPurpose"), UEnum::GetDisplayValueAsText(Test->TestPurpose).ToString());
+					TObj->SetStringField(TEXT("TestClass"),   Test->GetClass()->GetName());
+					TObj->SetStringField(TEXT("TestPurpose"), UEnum::GetDisplayValueAsText(Test->TestPurpose).ToString());
 					TestArr.Add(MakeShared<FJsonValueObject>(TObj));
 				}
 			}
-			OObj->SetNumberField(TEXT("testsCount"), TestArr.Num());
-			OObj->SetArrayField(TEXT("tests"), TestArr);
+			OObj->SetNumberField(TEXT("TestsCount"), TestArr.Num());
+			OObj->SetArrayField(TEXT("Tests"), TestArr);
 			OptionsArr.Add(MakeShared<FJsonValueObject>(OObj));
 		}
-		OutEntry->SetArrayField(TEXT("options"), OptionsArr);
+		OutEntry->SetArrayField(TEXT("Options"), OptionsArr);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetEQSCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetEQSCapability)
 
 #endif // NX_UE_HAS_EQS

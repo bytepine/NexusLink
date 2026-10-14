@@ -12,35 +12,35 @@
 #include "Framework/Application/SlateApplication.h"
 #include "NexusMcpTool.h"
 
-void FCaptureViewportCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCaptureViewportCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("capture_viewport");
-	Out.Description = TEXT("Capture Game/PIE viewport or top-level window; optional Actor/UMG crop. No LevelEditor panels or viewAngle.");
+	Out.Name = TEXT("CaptureViewport");
+	Out.Description = TEXT("Capture Game/PIE viewport or top-level window; optional Actor/UMG crop. No LevelEditor panels or ViewAngle.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("target"),      FNexusSchema::Str(TEXT("editor|editor_desktop|viewport|pie|list"), TEXT("editor")))
-		.Prop(TEXT("format"),      FNexusSchema::Enum(TEXT("Image format"), { TEXT("png"), TEXT("jpg") }, TEXT("png")))
-		.Prop(TEXT("maxSize"),     FNexusSchema::Int(TEXT("Max edge pixels (0=native)"), 1920, 0))
-		.Prop(TEXT("actorName"),   FNexusSchema::Str(TEXT("Actor name/tag; crop to screen bounds")))
-		.Prop(TEXT("widgetName"),  FNexusSchema::Str(TEXT("runtime UMG Widget; uses Game viewport")))
-		.Prop(TEXT("ownerClass"),  FNexusSchema::Str(TEXT("UserWidget class filter")))
-		.Prop(TEXT("padding"),     FNexusSchema::Num(TEXT("Actor bounds padding ratio"), 0.1))
-		.Prop(TEXT("windowIndex"), FNexusSchema::Int(TEXT("Top-level window index; omit for first/active")))
-		.Prop(TEXT("validateOnly"), FNexusSchema::Bool(TEXT("If true skip image; validate target/viewport only"), false))
+		.Prop(TEXT("Target"),      FNexusSchema::Str(TEXT("editor|EditorDesktop|viewport|pie|list"), TEXT("Editor")))
+		.Prop(TEXT("Format"),      FNexusSchema::Enum(TEXT("Image format"), { TEXT("png"), TEXT("jpg") }, TEXT("png")))
+		.Prop(TEXT("MaxSize"),     FNexusSchema::Int(TEXT("Max edge pixels (0=native)"), 1920, 0))
+		.Prop(TEXT("ActorName"),   FNexusSchema::Str(TEXT("Actor name/tag; crop to screen bounds")))
+		.Prop(TEXT("WidgetName"),  FNexusSchema::Str(TEXT("runtime UMG Widget; uses Game viewport")))
+		.Prop(TEXT("OwnerClass"),  FNexusSchema::Str(TEXT("UserWidget class filter")))
+		.Prop(TEXT("Padding"),     FNexusSchema::Num(TEXT("Actor bounds padding ratio"), 0.1))
+		.Prop(TEXT("WindowIndex"), FNexusSchema::Int(TEXT("Top-level window index; omit for first/active")))
+		.Prop(TEXT("bValidateOnly"), FNexusSchema::Bool(TEXT("If true skip image; validate target/viewport only"), false))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("screenshot"), TEXT("image"), TEXT("screen"), TEXT("snap"), TEXT("photo") };
-	Out.RelatedCapabilities = { TEXT("capture_editor_panel"), TEXT("list_runtime_widgets"), TEXT("list_runtime_actors") };
+	Out.RelatedCapabilities = { TEXT("CaptureEditorPanel"), TEXT("ListRuntimeWidgets"), TEXT("ListRuntimeActors") };
 	Out.WhenToUse = TEXT("Screenshot Game/PIE viewport or the game window for visual debug");
 }
 
-FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCaptureViewportCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
-		FString Target     = TEXT("editor");
+		FString Target     = TEXT("Editor");
 		FString Format     = TEXT("png");
 		int32   MaxSize    = 1920;
 		int32   WindowIndex = -1;
@@ -54,50 +54,50 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 		if (Arguments.IsValid())
 		{
 			FString TmpStr;
-			if (Arguments->TryGetStringField(TEXT("target"),     TmpStr)) Target    = TmpStr.ToLower();
-			if (Arguments->TryGetStringField(TEXT("format"),     TmpStr)) Format    = TmpStr.ToLower();
-			if (Arguments->TryGetStringField(TEXT("actorName"),  TmpStr)) ActorName = TmpStr;
-			if (Arguments->TryGetStringField(TEXT("viewAngle"),  TmpStr)) ViewAngle = TmpStr.ToLower();
-			if (Arguments->TryGetStringField(TEXT("widgetName"), TmpStr)) WidgetName = TmpStr;
-			if (Arguments->TryGetStringField(TEXT("ownerClass"), TmpStr)) OwnerClass = TmpStr;
-			if (Arguments->HasField(TEXT("maxSize")))     MaxSize     = (int32)A.Num(TEXT("maxSize"));
-			if (Arguments->HasField(TEXT("windowIndex"))) WindowIndex = (int32)A.Num(TEXT("windowIndex"));
-			if (Arguments->HasField(TEXT("padding")))     PaddingRatio = (float)A.Num(TEXT("padding"));
-			if (Arguments->HasField(TEXT("validateOnly"))) bValidateOnly = A.Bool(TEXT("validateOnly"));
+			if (Arguments->TryGetStringField(TEXT("Target"),     TmpStr)) Target    = TmpStr.ToLower();
+			if (Arguments->TryGetStringField(TEXT("Format"),     TmpStr)) Format    = TmpStr.ToLower();
+			if (Arguments->TryGetStringField(TEXT("ActorName"),  TmpStr)) ActorName = TmpStr;
+			if (Arguments->TryGetStringField(TEXT("ViewAngle"),  TmpStr)) ViewAngle = TmpStr.ToLower();
+			if (Arguments->TryGetStringField(TEXT("WidgetName"), TmpStr)) WidgetName = TmpStr;
+			if (Arguments->TryGetStringField(TEXT("OwnerClass"), TmpStr)) OwnerClass = TmpStr;
+			if (Arguments->HasField(TEXT("MaxSize")))     MaxSize     = (int32)A.Num(TEXT("MaxSize"));
+			if (Arguments->HasField(TEXT("WindowIndex"))) WindowIndex = (int32)A.Num(TEXT("WindowIndex"));
+			if (Arguments->HasField(TEXT("Padding")))     PaddingRatio = (float)A.Num(TEXT("Padding"));
+			if (Arguments->HasField(TEXT("bValidateOnly"))) bValidateOnly = A.Bool(TEXT("bValidateOnly"));
 		}
 		if (Format != TEXT("png") && Format != TEXT("jpg")) Format = TEXT("png");
 
 		const bool bHasGameViewport = GEngine && GEngine->GameViewport
 			&& (GEngine->GameViewport->Viewport || GEngine->GameViewport->GetGameViewport());
-		if (Target == TEXT("viewport") && bHasGameViewport)
+		if (Target == TEXT("Viewport") && bHasGameViewport)
 		{
-			Target = TEXT("pie");
+			Target = TEXT("PIE");
 		}
 
 		if (bValidateOnly)
 		{
-			OutEntry->SetBoolField(TEXT("validateOnly"), true);
-			OutEntry->SetStringField(TEXT("target"), Target);
+			OutEntry->SetBoolField(TEXT("bValidateOnly"), true);
+			OutEntry->SetStringField(TEXT("Target"), Target);
 			if (Target == TEXT("list"))
 			{
-				OutEntry->SetStringField(TEXT("note"), TEXT("list mode needs no screenshot"));
+				OutEntry->SetStringField(TEXT("Note"), TEXT("list mode needs no screenshot"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
-			if (Target == TEXT("pie") || Target == TEXT("viewport"))
+			if (Target == TEXT("PIE") || Target == TEXT("Viewport"))
 			{
 				const bool bOk = bHasGameViewport;
-				OutEntry->SetBoolField(TEXT("success"), bOk);
-				if (!bOk) OutEntry->SetStringField(TEXT("error"), TEXT("Game/PIE viewport unavailable"));
+				OutEntry->SetBoolField(TEXT("bSuccess"), bOk);
+				if (!bOk) OutEntry->SetStringField(TEXT("Error"), TEXT("Game/PIE viewport unavailable"));
 			}
 			else
 			{
-				const bool bOk = (Target == TEXT("editor") || Target == TEXT("editor_desktop"))
+				const bool bOk = (Target == TEXT("Editor") || Target == TEXT("EditorDesktop"))
 					&& (FNexusCaptureUtils::GetSortedTopLevelWindows().Num() > 0 || bHasGameViewport);
-				OutEntry->SetBoolField(TEXT("success"), bOk);
+				OutEntry->SetBoolField(TEXT("bSuccess"), bOk);
 				if (!bOk)
 				{
-					OutEntry->SetStringField(TEXT("error"),
+					OutEntry->SetStringField(TEXT("Error"),
 						FString::Printf(TEXT("No capturable window/viewport for target '%s'"), *Target));
 				}
 			}
@@ -105,16 +105,16 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			return;
 		}
 
-		if (!ActorName.IsEmpty() && (Target == TEXT("editor") || Target == TEXT("editor_desktop")))
-			Target = bHasGameViewport ? TEXT("pie") : Target;
+		if (!ActorName.IsEmpty() && (Target == TEXT("Editor") || Target == TEXT("EditorDesktop")))
+			Target = bHasGameViewport ? TEXT("PIE") : Target;
 		if (!WidgetName.IsEmpty())
-			Target = TEXT("pie");
+			Target = TEXT("PIE");
 
 		if (!ActorName.IsEmpty() && !ViewAngle.IsEmpty())
 		{
-			OutEntry->SetBoolField(TEXT("success"), false);
-			OutEntry->SetStringField(TEXT("error"),
-				TEXT("viewAngle requires LevelEditor camera and is not available at Runtime; omit viewAngle and crop the current Game/PIE view"));
+			OutEntry->SetBoolField(TEXT("bSuccess"), false);
+			OutEntry->SetStringField(TEXT("Error"),
+				TEXT("ViewAngle requires LevelEditor camera and is not available at Runtime; omit ViewAngle and crop the current Game/PIE view"));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -122,33 +122,33 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 		if (Target == TEXT("list"))
 		{
 			TArray<TSharedPtr<FJsonValue>> Arr;
-			const TCHAR* Builtins[] = { TEXT("editor"), TEXT("editor_desktop"), TEXT("viewport"), TEXT("pie") };
+			const TCHAR* Builtins[] = { TEXT("Editor"), TEXT("EditorDesktop"), TEXT("Viewport"), TEXT("PIE") };
 			for (const TCHAR* T : Builtins)
 			{
 				TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
 				P->SetStringField(TEXT("name"), T);
-				P->SetStringField(TEXT("tabId"), TEXT("-"));
-				P->SetBoolField(TEXT("open"),
-					(FCString::Stricmp(T, TEXT("pie")) == 0 || FCString::Stricmp(T, TEXT("viewport")) == 0)
+				P->SetStringField(TEXT("TabId"), TEXT("-"));
+				P->SetBoolField(TEXT("bOpen"),
+					(FCString::Stricmp(T, TEXT("PIE")) == 0 || FCString::Stricmp(T, TEXT("Viewport")) == 0)
 						? bHasGameViewport
 						: true);
 				Arr.Add(MakeShared<FJsonValueObject>(P));
 			}
-			OutEntry->SetArrayField(TEXT("panels"), Arr);
+			OutEntry->SetArrayField(TEXT("Panels"), Arr);
 
 			TArray<TSharedPtr<FJsonValue>> WinArr;
 			TArray<FNexusCaptureUtils::FWindowInfo> SortedWindows = FNexusCaptureUtils::GetSortedTopLevelWindows();
-			for (int32 i = 0; i < SortedWindows.Num(); ++i)
+			for (int32 SortedWindowIndex = 0; SortedWindowIndex < SortedWindows.Num(); ++SortedWindowIndex)
 			{
-				const FNexusCaptureUtils::FWindowInfo& WI = SortedWindows[i];
+				const FNexusCaptureUtils::FWindowInfo& WI = SortedWindows[SortedWindowIndex];
 				TSharedPtr<FJsonObject> W = MakeShared<FJsonObject>();
-				W->SetNumberField(TEXT("index"), i);
-				W->SetStringField(TEXT("title"), WI.Title);
-				W->SetNumberField(TEXT("width"), WI.Size.X);
-				W->SetNumberField(TEXT("height"), WI.Size.Y);
+				W->SetNumberField(TEXT("Index"), SortedWindowIndex);
+				W->SetStringField(TEXT("Title"), WI.Title);
+				W->SetNumberField(TEXT("Width"), WI.Size.X);
+				W->SetNumberField(TEXT("Height"), WI.Size.Y);
 				WinArr.Add(MakeShared<FJsonValueObject>(W));
 			}
-			OutEntry->SetArrayField(TEXT("windows"), WinArr);
+			OutEntry->SetArrayField(TEXT("Windows"), WinArr);
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
@@ -158,11 +158,11 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 
 		auto SetError = [&](const FString& Msg)
 		{
-			OutEntry->SetBoolField(TEXT("success"), false);
-			OutEntry->SetStringField(TEXT("error"), Msg);
+			OutEntry->SetBoolField(TEXT("bSuccess"), false);
+			OutEntry->SetStringField(TEXT("Error"), Msg);
 		};
 
-		if (Target == TEXT("pie") || Target == TEXT("viewport"))
+		if (Target == TEXT("PIE") || Target == TEXT("Viewport"))
 		{
 			if (!FNexusCaptureUtils::CaptureGameViewportPixels(CapturedPixels, CapturedW, CapturedH))
 			{
@@ -170,9 +170,9 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				return;
 			}
-			Target = TEXT("pie");
+			Target = TEXT("PIE");
 		}
-		else if (Target == TEXT("editor") || Target == TEXT("editor_desktop"))
+		else if (Target == TEXT("Editor") || Target == TEXT("EditorDesktop"))
 		{
 			TArray<FNexusCaptureUtils::FWindowInfo> SortedWindows = FNexusCaptureUtils::GetSortedTopLevelWindows();
 			TSharedPtr<SWindow> TargetWindow;
@@ -184,7 +184,7 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 				else
 				{
 					SetError(FString::Printf(
-						TEXT("windowIndex %d out of range; %d visible windows available (0-%d). "
+						TEXT("WindowIndex %d out of range; %d visible windows available (0-%d). "
 						     "Note: minimized windows cannot be captured; restore the window and retry."),
 						WindowIndex, SortedWindows.Num(), FMath::Max(0, SortedWindows.Num() - 1)));
 					OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
@@ -204,7 +204,7 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			{
 				if (FNexusCaptureUtils::CaptureGameViewportPixels(CapturedPixels, CapturedW, CapturedH))
 				{
-					Target = TEXT("pie");
+					Target = TEXT("PIE");
 				}
 				else
 				{
@@ -221,13 +221,13 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 					OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 					return;
 				}
-				Target = TEXT("pie");
+				Target = TEXT("PIE");
 			}
 		}
 		else
 		{
 			SetError(FString::Printf(
-				TEXT("Panel '%s' not found; Runtime capture supports editor|editor_desktop|viewport|pie|list (no LevelEditor tabs)"),
+				TEXT("Panel '%s' not found; Runtime capture supports editor|EditorDesktop|viewport|pie|list (no LevelEditor tabs)"),
 				*Target));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
@@ -289,16 +289,16 @@ FCapabilityResult FCaptureViewportCapability::Execute(const TSharedPtr<FJsonObje
 			Suffix = FString::Printf(TEXT("%s_%s"), *Target, *WidgetName);
 
 		TSharedPtr<FJsonObject> Extra = MakeShared<FJsonObject>();
-		Extra->SetStringField(TEXT("target"), Target);
+		Extra->SetStringField(TEXT("Target"), Target);
 
 		FString SaveErr;
 		if (!FNexusCaptureUtils::SaveAndBuildEntry(*FinalPixels, FinalW, FinalH, MaxSize, Format, Suffix, Extra, OutEntry, SaveErr))
 		{
-			OutEntry->SetBoolField(TEXT("success"), false);
-			OutEntry->SetStringField(TEXT("error"), SaveErr);
+			OutEntry->SetBoolField(TEXT("bSuccess"), false);
+			OutEntry->SetStringField(TEXT("Error"), SaveErr);
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCaptureViewportCapability)
+REGISTER_MCP_CAPABILITY(FNexusCaptureViewportCapability)

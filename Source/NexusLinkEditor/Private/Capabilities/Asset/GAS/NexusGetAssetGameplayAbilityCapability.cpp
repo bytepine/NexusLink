@@ -42,59 +42,59 @@ static FString GA_NetExecPolicyToStr(uint8 V)
 
 // ── Capability 元数据 ─────────────────────────────────────────────────────────
 
-void FGetAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetGameplayAbilityCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_gameplay_ability");
+	Out.Name = TEXT("GetAssetGameplayAbility");
 	Out.SearchAssetTypes = {TEXT("GameplayAbility")};
-	Out.Description = TEXT("Read GA Blueprint. sections=metadata|tags|costs|graphOverview; read-only.");
+	Out.Description = TEXT("Read GA Blueprint. Sections=metadata|tags|costs|graphOverview; read-only.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Gas };
-	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("ability"), TEXT("gameplay"), TEXT("ga"), TEXT("tag"), TEXT("policy") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_gameplay_ability"), TEXT("manage_asset_blueprint"), TEXT("create_asset_gameplay_ability") };
-	Out.WhenToUse = TEXT("Read GA policy/Tag/Cost; graph reads via get_asset_blueprint");
+	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("ability"), TEXT("gameplay"), TEXT("ga"), TEXT("Tag"), TEXT("policy") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetGameplayAbility"), TEXT("ManageAssetBlueprint"), TEXT("CreateAssetGameplayAbility") };
+	Out.WhenToUse = TEXT("Read GA policy/Tag/Cost; graph reads via GetAssetBlueprint");
 }
 
-TSharedPtr<FJsonObject> FGetAssetGameplayAbilityCapability::BuildCapabilitySchema() const
+TSharedPtr<FJsonObject> FNexusGetAssetGameplayAbilityCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("GameplayAbility Blueprint path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("GameplayAbility Blueprint path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 }
 
-TArray<FString> FGetAssetGameplayAbilityCapability::GetSectionNames() const
+TArray<FString> FNexusGetAssetGameplayAbilityCapability::GetSectionNames() const
 {
-	return { TEXT("metadata"), TEXT("tags"), TEXT("costs"), TEXT("graphOverview") };
+	return { TEXT("metadata"), TEXT("Tags"), TEXT("costs"), TEXT("graphOverview") };
 }
 
-TArray<FString> FGetAssetGameplayAbilityCapability::GetDefaultSectionNames() const
+TArray<FString> FNexusGetAssetGameplayAbilityCapability::GetDefaultSectionNames() const
 {
-	return { TEXT("metadata"), TEXT("tags"), TEXT("costs") };
+	return { TEXT("metadata"), TEXT("Tags"), TEXT("costs") };
 }
 
-bool FGetAssetGameplayAbilityCapability::PrepareEntry(
+bool FNexusGetAssetGameplayAbilityCapability::PrepareEntry(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>&       OutEntry,
 	void*&                         OutTargetOpaque,
 	FString&                       OutError) const
 {
 	FString Path;
-	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), Path) || Path.IsEmpty())
-	{ OutError = TEXT("Missing assetPath"); return false; }
+	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("AssetPath"), Path) || Path.IsEmpty())
+	{ OutError = TEXT("Missing AssetPath"); return false; }
 
 	FString LoadError;
 	UBlueprint* BP = FNexusGasUtils::LoadGameplayAbilityBlueprint(Path, LoadError);
 	if (!BP) { OutError = LoadError; return false; }
 
-	OutEntry->SetStringField(TEXT("path"), Path);
+	OutEntry->SetStringField(TEXT("Path"), Path);
 	OutEntry->SetStringField(TEXT("name"),      BP->GetName());
-	if (BP->ParentClass) OutEntry->SetStringField(TEXT("parentClass"), BP->ParentClass->GetName());
+	if (BP->ParentClass) OutEntry->SetStringField(TEXT("ParentClass"), BP->ParentClass->GetName());
 
 	OutTargetOpaque = static_cast<void*>(BP);
 	return true;
 }
 
-void FGetAssetGameplayAbilityCapability::ExecuteSection(
+void FNexusGetAssetGameplayAbilityCapability::ExecuteSection(
 	const FString&                 SectionName,
 	const TSharedPtr<FJsonObject>& Args,
 	void*                          TargetOpaque,
@@ -109,33 +109,33 @@ void FGetAssetGameplayAbilityCapability::ExecuteSection(
 
 	if (SectionName == TEXT("metadata"))
 	{
-		InOutDetail->SetStringField(TEXT("instancingPolicy"),   GA_InstancingPolicyToStr(NxGasGetEnumByte(CDO, TEXT("InstancingPolicy"))));
-		InOutDetail->SetStringField(TEXT("netExecutionPolicy"), GA_NetExecPolicyToStr(NxGasGetEnumByte(CDO, TEXT("NetExecutionPolicy"))));
+		InOutDetail->SetStringField(TEXT("InstancingPolicy"),   GA_InstancingPolicyToStr(NxGasGetEnumByte(CDO, TEXT("InstancingPolicy"))));
+		InOutDetail->SetStringField(TEXT("NetExecutionPolicy"), GA_NetExecPolicyToStr(NxGasGetEnumByte(CDO, TEXT("NetExecutionPolicy"))));
 		// bReplicateInputDirectly 是 bitfield，FBoolProperty 专用读法
 		FBoolProperty* BoolProp = FindFProperty<FBoolProperty>(CDO->GetClass(), TEXT("bReplicateInputDirectly"));
 		if (BoolProp)
 			InOutDetail->SetBoolField(TEXT("bReplicateInputDirectly"), BoolProp->GetPropertyValue_InContainer(CDO));
 	}
-	else if (SectionName == TEXT("tags"))
+	else if (SectionName == TEXT("Tags"))
 	{
 		auto TagArr = [&](const TCHAR* Prop) -> TArray<TSharedPtr<FJsonValue>>
 		{
 			const FGameplayTagContainer* Tags = NxGasPropPtr<FGameplayTagContainer>(CDO, Prop);
 			return Tags ? FNexusGasUtils::SerializeTagContainer(*Tags) : TArray<TSharedPtr<FJsonValue>>{};
 		};
-		InOutDetail->SetArrayField(TEXT("abilityTags"),           TagArr(TEXT("AbilityTags")));
-		InOutDetail->SetArrayField(TEXT("activationOwnedTags"),   TagArr(TEXT("ActivationOwnedTags")));
-		InOutDetail->SetArrayField(TEXT("activationRequiredTags"),TagArr(TEXT("ActivationRequiredTags")));
-		InOutDetail->SetArrayField(TEXT("activationBlockedTags"), TagArr(TEXT("ActivationBlockedTags")));
-		InOutDetail->SetArrayField(TEXT("cancelAbilitiesWithTag"),TagArr(TEXT("CancelAbilitiesWithTag")));
-		InOutDetail->SetArrayField(TEXT("blockAbilitiesWithTag"), TagArr(TEXT("BlockAbilitiesWithTag")));
+		InOutDetail->SetArrayField(TEXT("AbilityTags"),           TagArr(TEXT("AbilityTags")));
+		InOutDetail->SetArrayField(TEXT("ActivationOwnedTags"),   TagArr(TEXT("ActivationOwnedTags")));
+		InOutDetail->SetArrayField(TEXT("ActivationRequiredTags"),TagArr(TEXT("ActivationRequiredTags")));
+		InOutDetail->SetArrayField(TEXT("ActivationBlockedTags"), TagArr(TEXT("ActivationBlockedTags")));
+		InOutDetail->SetArrayField(TEXT("CancelAbilitiesWithTag"),TagArr(TEXT("CancelAbilitiesWithTag")));
+		InOutDetail->SetArrayField(TEXT("BlockAbilitiesWithTag"), TagArr(TEXT("BlockAbilitiesWithTag")));
 	}
 	else if (SectionName == TEXT("costs"))
 	{
 		UClass* CostClass     = NxGasGetClassProp(CDO, TEXT("CostGameplayEffectClass"));
 		UClass* CooldownClass = NxGasGetClassProp(CDO, TEXT("CooldownGameplayEffectClass"));
-		if (CostClass)     InOutDetail->SetStringField(TEXT("costGE"),     CostClass->GetPathName());
-		if (CooldownClass) InOutDetail->SetStringField(TEXT("cooldownGE"), CooldownClass->GetPathName());
+		if (CostClass)     InOutDetail->SetStringField(TEXT("CostGE"),     CostClass->GetPathName());
+		if (CooldownClass) InOutDetail->SetStringField(TEXT("CooldownGE"), CooldownClass->GetPathName());
 	}
 	else if (SectionName == TEXT("graphOverview"))
 	{
@@ -149,10 +149,10 @@ void FGetAssetGameplayAbilityCapability::ExecuteSection(
 			GObj->SetStringField(TEXT("type"), FNexusBlueprintGraphUtils::GetBPGraphType(G));
 			Graphs.Add(MakeShared<FJsonValueObject>(GObj));
 		}
-		InOutDetail->SetArrayField(TEXT("graphs"), Graphs);
+		InOutDetail->SetArrayField(TEXT("Graphs"), Graphs);
 	}
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetGameplayAbilityCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetGameplayAbilityCapability)
 
 #endif // WITH_GAS

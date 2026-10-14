@@ -4,8 +4,8 @@
 #if WITH_POSE_SEARCH
 #include "NexusCapability.h"
 
-/** create_asset_pose_search：创建 PoseSearchDatabase 或 PoseSearchSchema。 */
-class FCreateAssetPoseSearchCapability : public FNexusCapability
+/** CreateAssetPoseSearch：创建 PoseSearchDatabase 或 PoseSearchSchema。 */
+class FNexusCreateAssetPoseSearchCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

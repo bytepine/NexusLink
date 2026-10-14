@@ -6,8 +6,8 @@
 #include "NexusCapability.h"
 #include "NexusRuntimeCapability.h"
 
-/** diff_actors 的 Capability —— 对比两个 Actor 属性差异（对模式：actorNameA/B）。*/
-class FDiffRuntimeActorsCapability : public FNexusRuntimeCapability
+/** diff_actors 的 Capability —— 对比两个 Actor 属性差异（对模式：ActorNameA/B）。*/
+class FNexusDiffRuntimeActorsCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

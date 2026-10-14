@@ -34,7 +34,7 @@ static TSharedPtr<SWidget> FindSlateWidgetByAddress(UPTRINT TargetAddress)
 #endif
 		if (reinterpret_cast<UPTRINT>(&Current.Get()) == TargetAddress) return Current;
 		FChildren* Children = Current->GetChildren();
-		for (int32 i = 0; i < Children->Num(); ++i) Stack.Add(Children->GetChildAt(i));
+		for (int32 ChildIndex = 0; ChildIndex < Children->Num(); ++ChildIndex) Stack.Add(Children->GetChildAt(ChildIndex));
 	}
 	return nullptr;
 }
@@ -48,22 +48,22 @@ static FString VisibilityToString(EVisibility Vis)
 	return TEXT("Visible");
 }
 
-void FGetRuntimeSlateWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetRuntimeSlateWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_runtime_slate_widget");
+	Out.Name = TEXT("GetRuntimeSlateWidget");
 	Out.Description = TEXT("Inspect native SWidget by hex address (Widget Reflector); includes layout.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("address"), FNexusSchema::Str(TEXT("Hex address from Widget Reflector")))
-		.Required({ TEXT("address") })
+		.Prop(TEXT("Address"), FNexusSchema::Str(TEXT("Hex address from Widget Reflector")))
+		.Required({ TEXT("Address") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Widget, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("reflector"), TEXT("native"), TEXT("swidget"), TEXT("address"), TEXT("layout") };
-	Out.RelatedCapabilities = { TEXT("list_runtime_widgets") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.ExtraSearchKeywords = { TEXT("reflector"), TEXT("native"), TEXT("swidget"), TEXT("Address"), TEXT("Layout") };
+	Out.RelatedCapabilities = { TEXT("ListRuntimeWidgets") };
+	Out.Prerequisites = { TEXT("PIE") };
 	Out.WhenToUse = TEXT("When holding Widget Reflector hex address");
 }
 
-FCapabilityResult FGetRuntimeSlateWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusGetRuntimeSlateWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -73,7 +73,7 @@ FCapabilityResult FGetRuntimeSlateWidgetCapability::Execute(const TSharedPtr<FJs
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 
 
-		FString AddressStr = A.Str(TEXT("address")).TrimStartAndEnd();
+		FString AddressStr = A.Str(TEXT("Address")).TrimStartAndEnd();
 		if (AddressStr.StartsWith(TEXT("0x")) || AddressStr.StartsWith(TEXT("0X")))
 			AddressStr = AddressStr.Mid(2);
 		UPTRINT CachedAddress = static_cast<UPTRINT>(FCString::Strtoui64(*AddressStr, nullptr, 16));
@@ -86,33 +86,33 @@ FCapabilityResult FGetRuntimeSlateWidgetCapability::Execute(const TSharedPtr<FJs
 		TSharedPtr<SWidget> Widget = FindSlateWidgetByAddress(CachedAddress);
 		if (!Widget.IsValid())
 		{
-			OutEntry->SetStringField(TEXT("error"), FString::Printf(
+			OutEntry->SetStringField(TEXT("Error"), FString::Printf(
 				TEXT("No Slate widget matches address 0x%llX in visible window trees"),
 				static_cast<uint64>(CachedAddress)));
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 			return;
 		}
 
-		OutEntry->SetStringField(TEXT("address"), FString::Printf(TEXT("0x%llX"), static_cast<uint64>(CachedAddress)));
+		OutEntry->SetStringField(TEXT("Address"), FString::Printf(TEXT("0x%llX"), static_cast<uint64>(CachedAddress)));
 		OutEntry->SetStringField(TEXT("type"), WidgetTypeToString(Widget->GetType()));
 
 		const FString Location = Widget->GetReadableLocation();
-		if (!Location.IsEmpty()) OutEntry->SetStringField(TEXT("readableLocation"), Location);
+		if (!Location.IsEmpty()) OutEntry->SetStringField(TEXT("ReadableLocation"), Location);
 
 		const EVisibility Vis = Widget->GetVisibility();
-		if (Vis != EVisibility::Visible) OutEntry->SetStringField(TEXT("visibility"), VisibilityToString(Vis));
-		if (!Widget->IsEnabled()) OutEntry->SetBoolField(TEXT("isEnabled"), false);
+		if (Vis != EVisibility::Visible) OutEntry->SetStringField(TEXT("Visibility"), VisibilityToString(Vis));
+		if (!Widget->IsEnabled()) OutEntry->SetBoolField(TEXT("bIsEnabled"), false);
 
 		const FVector2D DesiredSize = Widget->GetDesiredSize();
 		if (DesiredSize.X > 0.f || DesiredSize.Y > 0.f)
-			OutEntry->SetStringField(TEXT("desiredSize"),
+			OutEntry->SetStringField(TEXT("DesiredSize"),
 				FString::Printf(TEXT("%.1f x %.1f"), DesiredSize.X, DesiredSize.Y));
 
 		FChildren* Children = Widget->GetChildren();
 		const int32 NumChildren = Children ? Children->Num() : 0;
 		if (NumChildren > 0)
 		{
-			OutEntry->SetNumberField(TEXT("numChildren"), NumChildren);
+			OutEntry->SetNumberField(TEXT("NumChildren"), NumChildren);
 			TArray<TSharedPtr<FJsonValue>> ChildArr;
 			const int32 Cap = FMath::Min(NumChildren, 10);
 			for (int32 i = 0; i < Cap; ++i)
@@ -120,18 +120,18 @@ FCapabilityResult FGetRuntimeSlateWidgetCapability::Execute(const TSharedPtr<FJs
 				TSharedRef<SWidget> Child = Children->GetChildAt(i);
 				TSharedPtr<FJsonObject> ChildObj = MakeShared<FJsonObject>();
 				ChildObj->SetStringField(TEXT("type"), WidgetTypeToString(Child->GetType()));
-				ChildObj->SetStringField(TEXT("address"), FString::Printf(TEXT("0x%llX"),
+				ChildObj->SetStringField(TEXT("Address"), FString::Printf(TEXT("0x%llX"),
 					static_cast<uint64>(reinterpret_cast<UPTRINT>(&Child.Get()))));
 				ChildArr.Add(MakeShared<FJsonValueObject>(ChildObj));
 			}
-			OutEntry->SetArrayField(TEXT("children"), ChildArr);
+			OutEntry->SetArrayField(TEXT("Children"), ChildArr);
 		}
 
 		const FName Tag = Widget->GetTag();
-		if (Tag != NAME_None) OutEntry->SetStringField(TEXT("tag"), Tag.ToString());
+		if (Tag != NAME_None) OutEntry->SetStringField(TEXT("Tag"), Tag.ToString());
 
 		const float Opacity = Widget->GetRenderOpacity();
-		if (!FMath::IsNearlyEqual(Opacity, 1.0f)) OutEntry->SetNumberField(TEXT("renderOpacity"), Opacity);
+		if (!FMath::IsNearlyEqual(Opacity, 1.0f)) OutEntry->SetNumberField(TEXT("RenderOpacity"), Opacity);
 
 		for (TObjectIterator<UWidget> It; It; ++It)
 		{
@@ -142,11 +142,11 @@ FCapabilityResult FGetRuntimeSlateWidgetCapability::Execute(const TSharedPtr<FJs
 
 			TSharedPtr<FJsonObject> UmgObj = MakeShared<FJsonObject>();
 			UmgObj->SetStringField(TEXT("name"),  UW->GetName());
-			UmgObj->SetStringField(TEXT("class"), UW->GetClass()->GetName());
+			UmgObj->SetStringField(TEXT("Class"), UW->GetClass()->GetName());
 			if (UWidgetTree* WT = Cast<UWidgetTree>(UW->GetOuter()))
 				if (UUserWidget* Owner = Cast<UUserWidget>(WT->GetOuter()))
-					UmgObj->SetStringField(TEXT("ownerWidgetClass"), Owner->GetClass()->GetName());
-			OutEntry->SetObjectField(TEXT("umgWidget"), UmgObj);
+					UmgObj->SetStringField(TEXT("OwnerWidgetClass"), Owner->GetClass()->GetName());
+			OutEntry->SetObjectField(TEXT("UMGWidget"), UmgObj);
 #if WITH_EDITOR
 			FNexusWidgetLayoutUtils::AppendSlateLayoutFields(Widget, OutEntry);
 #else
@@ -156,7 +156,7 @@ FCapabilityResult FGetRuntimeSlateWidgetCapability::Execute(const TSharedPtr<FJs
 		}
 
 #if WITH_EDITOR
-		if (!OutEntry->HasField(TEXT("layout")))
+		if (!OutEntry->HasField(TEXT("Layout")))
 		{
 			FNexusWidgetLayoutUtils::AppendSlateLayoutFields(Widget, OutEntry);
 		}
@@ -167,4 +167,4 @@ FCapabilityResult FGetRuntimeSlateWidgetCapability::Execute(const TSharedPtr<FJs
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FGetRuntimeSlateWidgetCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetRuntimeSlateWidgetCapability)

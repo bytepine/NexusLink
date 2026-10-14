@@ -9,27 +9,27 @@
 #include "FileMediaSource.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetMediaSourceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetMediaSourceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_media_source");
-	Out.Description = TEXT("Create FileMediaSource. Optional mediaPath. Playback via interact_runtime_actor.");
+	Out.Name = TEXT("CreateAssetMediaSource");
+	Out.Description = TEXT("Create FileMediaSource. Optional MediaPath. Playback via interact_runtime_actor.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Prop(TEXT("mediaPath"), FNexusSchema::Str(TEXT("Media file path (optional)")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("MediaPath"), FNexusSchema::Str(TEXT("Media file path (optional)")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("video"), TEXT("movie"), TEXT("mp4"), TEXT("media") };
-	Out.RelatedCapabilities = { TEXT("get_asset_media_source"), TEXT("manage_asset_media_source") };
+	Out.RelatedCapabilities = { TEXT("GetAssetMediaSource"), TEXT("ManageAssetMediaSource") };
 	Out.WhenToUse = TEXT("Create FileMediaSource; does not handle playback");
 }
 
-FCapabilityResult FCreateAssetMediaSourceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetMediaSourceCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<UFileMediaSource>(AssetPath, RF_Public | RF_Standalone, false);
 		if (!Created.Ok())
@@ -44,7 +44,7 @@ FCapabilityResult FCreateAssetMediaSourceCapability::Execute(const TSharedPtr<FJ
 			return;
 		}
 		FString FilePath;
-		if (Arguments->TryGetStringField(TEXT("mediaPath"), FilePath) && !FilePath.IsEmpty())
+		if (Arguments->TryGetStringField(TEXT("MediaPath"), FilePath) && !FilePath.IsEmpty())
 		{
 			Source->SetFilePath(FilePath);
 		}
@@ -53,4 +53,4 @@ FCapabilityResult FCreateAssetMediaSourceCapability::Execute(const TSharedPtr<FJ
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetMediaSourceCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetMediaSourceCapability)

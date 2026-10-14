@@ -56,7 +56,7 @@ static FString GetNexusLinkUpluginVersionName()
 /**
  * 统一记录 tools/call 端到端耗时（含响应压缩/TTL注入/序列化，即 EmitToolResult 返回之后）。
  * 超过 SlowCallThresholdMs 升为 Warning，便于反馈关闭时仍能从日志捞慢调用；不写 feedback——
- * call_capability 与 MultiTool 直调 cap 均已在 FNexusCapability::Run 记 slow_call，这里再记会双计。
+ * CallCapability 与 MultiTool 直调 cap 均已在 FNexusCapability::Run 记 SlowCall，这里再记会双计。
  */
 static void LogToolCallDuration(const FString& ToolName, bool bIsError, double DurationMs, int32 ResponseBytes)
 {
@@ -218,8 +218,8 @@ FString FNexusMcpDispatcher::MakeJsonRpcError(const TSharedPtr<FJsonValue>& Id, 
 	}
 
 	TSharedPtr<FJsonObject> Error = MakeShared<FJsonObject>();
-	Error->SetNumberField(TEXT("code"), Code);
-	Error->SetStringField(TEXT("message"), Message);
+	Error->SetNumberField(TEXT("Code"), Code);
+	Error->SetStringField(TEXT("Message"), Message);
 	Response->SetObjectField(TEXT("error"), Error);
 	return FNexusJsonUtils::SerializeCondensed(Response);
 }
@@ -295,7 +295,7 @@ void FNexusMcpDispatcher::HandleInitialize(const TSharedPtr<FJsonValue>& Id, con
 	ProtocolVersion = SupportedProtocolVersion;
 
 	TSharedPtr<FJsonObject> ToolsCap = MakeShared<FJsonObject>();
-	ToolsCap->SetBoolField(TEXT("listChanged"), true);
+	ToolsCap->SetBoolField(TEXT("bListChanged"), true);
 
 	TSharedPtr<FJsonObject> Capabilities = MakeShared<FJsonObject>();
 	Capabilities->SetObjectField(TEXT("tools"), ToolsCap);
@@ -306,9 +306,9 @@ void FNexusMcpDispatcher::HandleInitialize(const TSharedPtr<FJsonValue>& Id, con
 
 	TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
 	Result->SetStringField(TEXT("protocolVersion"), ProtocolVersion);
-	Result->SetObjectField(TEXT("capabilities"), Capabilities);
+	Result->SetObjectField(TEXT("Capabilities"), Capabilities);
 	Result->SetObjectField(TEXT("serverInfo"), ServerInfoObj);
-	Result->SetStringField(TEXT("instructions"), BuildInitializeInstructions());
+	Result->SetStringField(TEXT("Instructions"), BuildInitializeInstructions());
 
 	State = ENexusMcpSessionState::WaitingForInitialized;
 	SendResult(Id, Result);
@@ -340,28 +340,28 @@ static TSharedPtr<FJsonObject> ToolDefToJson(const FNexusMcpToolDefinition& Def)
 
 	if (Def.InputSchema.IsValid())
 	{
-		ToolObj->SetObjectField(TEXT("inputSchema"), Def.InputSchema);
+		ToolObj->SetObjectField(TEXT("InputSchema"), Def.InputSchema);
 	}
 	else
 	{
 		TSharedPtr<FJsonObject> EmptySchema = MakeShared<FJsonObject>();
 		EmptySchema->SetStringField(TEXT("type"), TEXT("object"));
-		ToolObj->SetObjectField(TEXT("inputSchema"), EmptySchema);
+		ToolObj->SetObjectField(TEXT("InputSchema"), EmptySchema);
 	}
 
-	// MCP 规范 annotations：根据 Tags 映射 readOnlyHint
+	// MCP 规范 annotations：根据 Tags 映射 bReadOnlyHint
 	TSharedPtr<FJsonObject> Annotations = MakeShared<FJsonObject>();
 	if (Def.HasTag(FNexusMcpTags::Readonly))
 	{
-		Annotations->SetBoolField(TEXT("readOnlyHint"), true);
+		Annotations->SetBoolField(TEXT("bReadOnlyHint"), true);
 	}
 	if (Def.HasTag(FNexusMcpTags::Write))
 	{
-		Annotations->SetBoolField(TEXT("readOnlyHint"), false);
+		Annotations->SetBoolField(TEXT("bReadOnlyHint"), false);
 	}
 	if (Annotations->Values.Num() > 0)
 	{
-		ToolObj->SetObjectField(TEXT("annotations"), Annotations);
+		ToolObj->SetObjectField(TEXT("Annotations"), Annotations);
 	}
 	return ToolObj;
 }
@@ -380,7 +380,7 @@ void FNexusMcpDispatcher::HandleToolsList(const TSharedPtr<FJsonValue>& Id, cons
 		}
 		else
 		{
-		// MultiTool 模式：每个已启用 Capability 作为独立 Tool 暴露；保留 submit_feedback
+		// MultiTool 模式：每个已启用 Capability 作为独立 Tool 暴露；保留 SubmitFeedback
 		const TArray<FCapRecord>& AllRecords = FNexusCapabilityRegistry::Get().GetAllRecords();
 		ToolsArray.Reserve(AllRecords.Num());
 		for (const FCapRecord& Record : AllRecords)
@@ -394,8 +394,8 @@ void FNexusMcpDispatcher::HandleToolsList(const TSharedPtr<FJsonValue>& Id, cons
 				continue;
 			}
 
-			// MultiTool 模式下 AI 无法调用 search_capabilities 补充元信息，
-			// 将 prerequisites / relatedCapabilities 拼入 description 末尾。
+			// MultiTool 模式下 AI 无法调用 SearchCapabilities 补充元信息，
+			// 将 prerequisites / RelatedCapabilities 拼入 description 末尾。
 			FString Desc = Record.Def.Description;
 			if (Record.Def.Prerequisites.Num() > 0)
 			{
@@ -418,11 +418,11 @@ void FNexusMcpDispatcher::HandleToolsList(const TSharedPtr<FJsonValue>& Id, cons
 			ToolDef.Tags        = Record.Def.Tags;
 			ToolsArray.Add(MakeShared<FJsonValueObject>(ToolDefToJson(ToolDef)));
 		}
-		// 保留 submit_feedback（AI 反馈元工具不应因模式而消失）
+		// 保留 SubmitFeedback（AI 反馈元工具不应因模式而消失）
 		const TArray<FNexusMcpToolDefinition>& AllDefs = FNexusMcpToolRegistry::Get().GetAllDefinitions();
 		for (const FNexusMcpToolDefinition& Def : AllDefs)
 		{
-			if (Def.Name == TEXT("submit_feedback"))
+			if (Def.Name == TEXT("SubmitFeedback"))
 			{
 				ToolsArray.Add(MakeShared<FJsonValueObject>(ToolDefToJson(Def)));
 				break;
@@ -506,8 +506,8 @@ int32 FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, cons
 
 /**
  * 向成功响应注入 TTL 元数据：
- *   _snapshotAt  — 所有成功响应均注入，供 AI 判断数据新鲜度。
- *   _ttl_seconds — 仅易过期 Capability 注入，key 为 capability 名。
+ *   SnapshotAt  — 所有成功响应均注入，供 AI 判断数据新鲜度。
+ *   TtlSeconds — 仅易过期 Capability 注入，key 为 capability 名。
  * @param CapabilityName 实际 capability 名（非 MCP tool 名）。
  */
 static void InjectTtlMetadata(FNexusMcpToolResult& ToolResult, const FString& CapabilityName)
@@ -517,20 +517,20 @@ static void InjectTtlMetadata(FNexusMcpToolResult& ToolResult, const FString& Ca
 		return;
 	}
 
-	ToolResult.StructuredContent->SetStringField(TEXT("_snapshotAt"),
+	ToolResult.StructuredContent->SetStringField(TEXT("SnapshotAt"),
 		FDateTime::UtcNow().ToIso8601());
 
 	static const TMap<FString, int32> CapTtlMap = {
-		{ TEXT("get_output_log"),                  30 },
-		{ TEXT("list_runtime_actors"),             60 },
-		{ TEXT("list_runtime_widgets"),            60 },
-		{ TEXT("get_runtime_actor_property"),      60 },
-		{ TEXT("get_runtime_actor_animation"),     60 },
-		{ TEXT("get_runtime_actor_behavior_tree"), 60 },
+		{ TEXT("GetOutputLog"),                  30 },
+		{ TEXT("ListRuntimeActors"),             60 },
+		{ TEXT("ListRuntimeWidgets"),            60 },
+		{ TEXT("GetRuntimeActorProperty"),      60 },
+		{ TEXT("GetRuntimeActorAnimation"),     60 },
+		{ TEXT("GetRuntimeActorBehaviorTree"), 60 },
 	};
 	if (const int32* Ttl = CapTtlMap.Find(CapabilityName))
 	{
-		ToolResult.StructuredContent->SetNumberField(TEXT("_ttl_seconds"), *Ttl);
+		ToolResult.StructuredContent->SetNumberField(TEXT("TtlSeconds"), *Ttl);
 	}
 }
 
@@ -555,7 +555,7 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 		Arguments = MakeShared<FJsonObject>();
 	}
 
-	// 先在 ToolRegistry 中查找（SearchMode 的元工具 + submit_feedback 始终可用）
+	// 先在 ToolRegistry 中查找（SearchMode 的元工具 + SubmitFeedback 始终可用）
 	const bool bHasTool = FNexusMcpToolRegistry::Get().HasTool(ToolName);
 
 	// MultiTool 模式下：ToolRegistry 未命中时 fallback 到 CapabilityRegistry
@@ -572,7 +572,7 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 				F.Tool       = ToolName;
 				F.Capability = ToolName;
 				F.ErrorText  = FString::Printf(TEXT("Tool not found: %s"), *ToolName);
-				FNexusFeedback::RecordAuto(TEXT("call_unknown"), F);
+				FNexusFeedback::RecordAuto(TEXT("CallUnknown"), F);
 
 				SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("Tool not found: %s"), *ToolName));
 				return;
@@ -583,7 +583,7 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 				F.Tool       = ToolName;
 				F.Capability = Record->Def.Name;
 				F.ErrorText  = TEXT("Unavailable on current host (runtime only)");
-				FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
+				FNexusFeedback::RecordAuto(TEXT("CallDisabled"), F);
 
 				SendError(Id, JsonRpcMethodNotFound, FString::Printf(
 					TEXT("Capability '%s' is unavailable on current host (runtime only)."), *Record->Def.Name));
@@ -595,7 +595,7 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 				F.Tool       = ToolName;
 				F.Capability = Record->Def.Name;
 				F.ErrorText  = TEXT("Disabled in settings");
-				FNexusFeedback::RecordAuto(TEXT("call_disabled"), F);
+				FNexusFeedback::RecordAuto(TEXT("CallDisabled"), F);
 
 				FString DisabledMsg = FString::Printf(TEXT("Capability '%s' is disabled in settings."), *Record->Def.Name);
 				if (Record->Def.HasTag(FNexusMcpTags::Dangerous))
@@ -626,19 +626,19 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 			return;
 		}
 
-		// SearchMode 下 tools/list 只暴露 3 个元工具 + submit_feedback；此处未命中最常见的原因是
-		// AI 把 capability 名当作独立 MCP 工具直接 tools/call，而不是走 call_capability(capability=...)。
+		// SearchMode 下 tools/list 只暴露 3 个元工具 + SubmitFeedback；此处未命中最常见的原因是
+		// AI 把 capability 名当作独立 MCP 工具直接 tools/call，而不是走 CallCapability(Capability=...)。
 		// 若该名字恰好能在 CapabilityRegistry 命中，判定为「误把 capability 当 tool 调用」，附带提示；
-		// 否则视为拼错/幻觉的普通未知工具名，两者均计入 call_unknown 便于报告聚合定位。
+		// 否则视为拼错/幻觉的普通未知工具名，两者均计入 CallUnknown 便于报告聚合定位。
 		{
 			FNexusFeedback::FFields F;
 			F.Tool       = ToolName;
 			F.Capability = ToolName;
 			const bool bLooksLikeCapability = FNexusCapabilityRegistry::Get().FindRecordByName(ToolName) != nullptr;
 			F.ErrorText = bLooksLikeCapability
-				? FString::Printf(TEXT("Tool not found: %s (use call_capability(capability=\"%s\") instead)"), *ToolName, *ToolName)
+				? FString::Printf(TEXT("Tool not found: %s (use CallCapability(Capability=\"%s\") instead)"), *ToolName, *ToolName)
 				: FString::Printf(TEXT("Tool not found: %s"), *ToolName);
-			FNexusFeedback::RecordAuto(TEXT("call_unknown"), F);
+			FNexusFeedback::RecordAuto(TEXT("CallUnknown"), F);
 		}
 
 		SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("Tool not found: %s"), *ToolName));
@@ -662,19 +662,19 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 		FNexusResponseCompactorUtils::AutoCompactRecursive(ToolResult.StructuredContent);
 	}
 
-	// P6 TTL 元数据：SearchMode 下 ToolName 是 MCP tool 名（"call_capability" 等），
-	// 需从 Arguments.capability 取实际 capability 名；其余 tool（submit_feedback 等）
+	// P6 TTL 元数据：SearchMode 下 ToolName 是 MCP tool 名（"CallCapability" 等），
+	// 需从 Arguments.capability 取实际 capability 名；其余 tool（SubmitFeedback 等）
 	// 不在 TTL 表中，lookup miss 无副作用。
 	{
 		FString EffectiveCapName = ToolName;
-		if (ToolName == TEXT("call_capability"))
+		if (ToolName == TEXT("CallCapability"))
 		{
-			Arguments->TryGetStringField(TEXT("capability"), EffectiveCapName);
+			Arguments->TryGetStringField(TEXT("Capability"), EffectiveCapName);
 		}
 		InjectTtlMetadata(ToolResult, EffectiveCapName);
 	}
 
-	// 统一序列化并发送（与 MultiTool 路径共用 EmitToolResult，避免重复维护 content/structuredContent 分支）
+	// 统一序列化并发送（与 MultiTool 路径共用 EmitToolResult，避免重复维护 content/StructuredContent 分支）
 	const int32 ResponseBytes = EmitToolResult(Id, ToolResult);
 	const double TotalDurationMs = (FPlatformTime::Seconds() - ExecStartSec) * 1000.0;
 	LogToolCallDuration(ToolName, ToolResult.bIsError, TotalDurationMs, ResponseBytes);
@@ -683,30 +683,30 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 void FNexusMcpDispatcher::HandleProxyFeedback(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Params)
 {
 	FString Category;
-	if (!Params.IsValid() || !Params->TryGetStringField(TEXT("category"), Category) || Category.IsEmpty())
+	if (!Params.IsValid() || !Params->TryGetStringField(TEXT("Category"), Category) || Category.IsEmpty())
 	{
 		SendError(Id, JsonRpcInvalidParams, TEXT("Missing required field: category"));
 		return;
 	}
 
 	FNexusFeedback::FFields Fields;
-	Params->TryGetStringField(TEXT("tool"), Fields.Tool);
-	Params->TryGetStringField(TEXT("proxy"), Fields.Proxy);
-	Params->TryGetStringField(TEXT("note"), Fields.Note);
+	Params->TryGetStringField(TEXT("Tool"), Fields.Tool);
+	Params->TryGetStringField(TEXT("Proxy"), Fields.Proxy);
+	Params->TryGetStringField(TEXT("Note"), Fields.Note);
 	FString ErrorText;
-	if (Params->TryGetStringField(TEXT("errorText"), ErrorText) ||
-		Params->TryGetStringField(TEXT("actualError"), ErrorText))
+	if (Params->TryGetStringField(TEXT("ErrorText"), ErrorText) ||
+		Params->TryGetStringField(TEXT("ActualError"), ErrorText))
 	{
 		Fields.ErrorText = ErrorText;
 	}
-	Params->TryGetStringField(TEXT("attemptedArgs"), Fields.AttemptedArgs);
+	Params->TryGetStringField(TEXT("AttemptedArgs"), Fields.AttemptedArgs);
 
 	// 代理层事件走既有 30 秒节流，与其它 auto 类别一致；bEnableFeedback=false 时静默跳过。
 	FNexusFeedback::RecordAuto(Category, Fields);
 
 	TSharedPtr<FJsonObject> Out = MakeShared<FJsonObject>();
-	Out->SetBoolField(TEXT("ok"), true);
-	Out->SetStringField(TEXT("recorded"), FDateTime::UtcNow().ToIso8601());
+	Out->SetBoolField(TEXT("bOk"), true);
+	Out->SetStringField(TEXT("Recorded"), FDateTime::UtcNow().ToIso8601());
 	SendResult(Id, Out);
 }
 
@@ -750,16 +750,16 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 	{
 		HandleToolsCall(Id, Params);
 	}
-	else if (Method == TEXT("status"))
+	else if (Method == TEXT("Status"))
 	{
 		// 返回编辑器状态信息（与 GET /status 相同内容，供 WebSocket 通道使用）
 		TSharedPtr<FJsonObject> StatusObj = MakeShared<FJsonObject>();
-		StatusObj->SetStringField(TEXT("server"), TEXT("Nexus-Unreal"));
+		StatusObj->SetStringField(TEXT("Server"), TEXT("Nexus-Unreal"));
 		StatusObj->SetStringField(TEXT("version"), GetNexusLinkUpluginVersionName());
-		StatusObj->SetStringField(TEXT("engineVersion"), FString::Printf(TEXT("%d.%d"),
+		StatusObj->SetStringField(TEXT("EngineVersion"), FString::Printf(TEXT("%d.%d"),
 			ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION));
-		StatusObj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
-		StatusObj->SetBoolField(TEXT("authRequired"), UNexusLinkSettings::IsMcpAuthRequired());
+		StatusObj->SetStringField(TEXT("ProjectName"), FApp::GetProjectName());
+		StatusObj->SetBoolField(TEXT("bAuthRequired"), UNexusLinkSettings::IsMcpAuthRequired());
 		SendResult(Id, StatusObj);
 	}
 	else if (Method == TEXT("nexus/instructions"))
@@ -767,7 +767,7 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 		// 返回握手说明（本插件正文 + 已注册的扩展片段）。
 		// 不复用 MCP initialize：避免污染握手语义和状态机。
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-		Obj->SetStringField(TEXT("instructions"), BuildInitializeInstructions());
+		Obj->SetStringField(TEXT("Instructions"), BuildInitializeInstructions());
 		SendResult(Id, Obj);
 	}
 	else if (Method == TEXT("nexus/proxy_config"))

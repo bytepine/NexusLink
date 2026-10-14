@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #if WITH_MOVIE_RENDER_PIPELINE
 #include "NexusActionCapability.h"
-class FManageAssetMoviePipelineConfigCapability : public FNexusActionCapability
+class FNexusManageAssetMoviePipelineConfigCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

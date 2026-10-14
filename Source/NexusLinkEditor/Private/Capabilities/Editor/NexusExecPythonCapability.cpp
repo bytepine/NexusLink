@@ -52,51 +52,51 @@ static FString JoinPythonLogOutput(const TArray<FPythonLogOutputEntry>& LogOutpu
 	return Combined;
 }
 
-void FExecPythonCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusExecPythonCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("exec_python");
-	Out.Description = TEXT("Run editor Python. exec/file/eval; stdout and traceback. Probe with get_python_api first.");
+	Out.Name = TEXT("ExecPython");
+	Out.Description = TEXT("Run editor Python. exec/file/eval; stdout and traceback. Probe with GetPythonApi first.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("code"), FNexusSchema::Str(TEXT("Python source; required in exec/eval modes")))
-		.Prop(TEXT("scriptPath"), FNexusSchema::Str(TEXT("Python file path relative to Content/Python/; required in file mode")))
-		.Prop(TEXT("mode"), FNexusSchema::Enum(TEXT("Run source, run a .py file, or evaluate expression"),
-			{ TEXT("exec"), TEXT("file"), TEXT("eval") }, TEXT("exec")))
-		.Prop(TEXT("persistent"), FNexusSchema::Bool(TEXT("file mode: share console globals instead of isolated scope"), true, false))
-		.Prop(TEXT("unattended"), FNexusSchema::Bool(TEXT("Suppress modal dialogs while running"), true, true))
-		.Prop(TEXT("reason"), FNexusSchema::Str(TEXT("Purpose for the editor confirm dialog. Required in Confirm mode.")))
+		.Prop(TEXT("Code"), FNexusSchema::Str(TEXT("Python source; required in exec/eval modes")))
+		.Prop(TEXT("ScriptPath"), FNexusSchema::Str(TEXT("Python file path relative to Content/Python/; required in file mode")))
+		.Prop(TEXT("Mode"), FNexusSchema::Enum(TEXT("Run source, run a .py file, or evaluate expression"),
+			{ TEXT("Exec"), TEXT("File"), TEXT("Eval") }, TEXT("Exec")))
+		.Prop(TEXT("bPersistent"), FNexusSchema::Bool(TEXT("file mode: share console globals instead of isolated scope"), true, false))
+		.Prop(TEXT("bUnattended"), FNexusSchema::Bool(TEXT("Suppress modal dialogs while running"), true, true))
+		.Prop(TEXT("Reason"), FNexusSchema::Str(TEXT("Purpose for the editor confirm dialog. Required in Confirm mode.")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor, FNexusMcpTags::Dangerous };
 	Out.ExtraSearchKeywords = { TEXT("py"), TEXT("script"), TEXT("snippet"), TEXT("automation"), TEXT("scripting"), TEXT("execute python") };
-	Out.RelatedCapabilities = { TEXT("get_python_api"), TEXT("exec_command"), TEXT("get_output_log") };
+	Out.RelatedCapabilities = { TEXT("GetPythonApi"), TEXT("ExecCommand"), TEXT("GetOutputLog") };
 	Out.Prerequisites = { TEXT("python") };
 }
 
-FCapabilityResult FExecPythonCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusExecPythonCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	const FNexusArgs A(Arguments);
-	static const TArray<FString> ModeNames = { TEXT("exec"), TEXT("file"), TEXT("eval") };
-	const int32 ModeIdx = A.EnumInt(TEXT("mode"), ModeNames, 0);
+	static const TArray<FString> ModeNames = { TEXT("Exec"), TEXT("File"), TEXT("Eval") };
+	const int32 ModeIdx = A.EnumInt(TEXT("Mode"), ModeNames, 0);
 	const bool bFileMode = ModeIdx == 1;
 
-	// file 模式走独立 scriptPath：UE 的 ExecuteFile 靠「首 token 是否 .py」自动分流，
+	// file 模式走独立 ScriptPath：UE 的 ExecuteFile 靠「首 token 是否 .py」自动分流，
 	// 路径写错会被当字面代码执行并报出无关的 NameError，故在此显式校验
 	FString Command;
 	FString AbsPath;
 	if (bFileMode)
 	{
-		const FString ScriptPath = A.Str(TEXT("scriptPath"));
+		const FString ScriptPath = A.Str(TEXT("ScriptPath"));
 		if (ScriptPath.IsEmpty())
 		{
-			return FCapabilityResult::MakeArgInvalid(TEXT("file mode requires scriptPath"));
+			return FCapabilityResult::MakeArgInvalid(TEXT("file mode requires ScriptPath"));
 		}
 		if (!FPaths::IsRelative(ScriptPath) || ScriptPath.Contains(TEXT("..")))
 		{
 			return FCapabilityResult::MakeArgInvalid(
-				TEXT("scriptPath must be relative to Content/Python/ and must not contain '..'"));
+				TEXT("ScriptPath must be relative to Content/Python/ and must not contain '..'"));
 		}
 		if (FPaths::GetExtension(ScriptPath) != TEXT("py"))
 		{
-			return FCapabilityResult::MakeArgInvalid(TEXT("scriptPath must end with .py"));
+			return FCapabilityResult::MakeArgInvalid(TEXT("ScriptPath must end with .py"));
 		}
 
 		FString Root = FPaths::ConvertRelativePathToFull(
@@ -108,7 +108,7 @@ FCapabilityResult FExecPythonCapability::Execute(const TSharedPtr<FJsonObject>& 
 
 		if (!FPaths::IsUnderDirectory(AbsPath, Root))
 		{
-			return FCapabilityResult::MakeFatal(TEXT("scriptPath escapes Content/Python/"));
+			return FCapabilityResult::MakeFatal(TEXT("ScriptPath escapes Content/Python/"));
 		}
 		if (!FPaths::FileExists(AbsPath))
 		{
@@ -119,7 +119,7 @@ FCapabilityResult FExecPythonCapability::Execute(const TSharedPtr<FJsonObject>& 
 	}
 	else
 	{
-		Command = A.Str(TEXT("code"));
+		Command = A.Str(TEXT("Code"));
 		if (Command.IsEmpty())
 		{
 			return FCapabilityResult::MakeArgInvalid(TEXT("exec/eval mode requires code"));
@@ -142,11 +142,11 @@ FCapabilityResult FExecPythonCapability::Execute(const TSharedPtr<FJsonObject>& 
 			: EPythonCommandExecutionMode::ExecuteFile;
 		// FileExecutionScope 只在跑 .py 文件时生效：Private 每次拷一份全局字典做隔离，
 		// Public 复用 console 全局字典（字面代码走 RunString，本来就是 console 字典）
-		if (bFileMode && A.Bool(TEXT("persistent"), false))
+		if (bFileMode && A.Bool(TEXT("bPersistent"), false))
 		{
 			Cmd.FileExecutionScope = EPythonFileExecutionScope::Public;
 		}
-		if (A.Bool(TEXT("unattended"), true))
+		if (A.Bool(TEXT("bUnattended"), true))
 		{
 			Cmd.Flags |= EPythonCommandFlags::Unattended;
 		}
@@ -160,19 +160,19 @@ FCapabilityResult FExecPythonCapability::Execute(const TSharedPtr<FJsonObject>& 
 		const bool bExecuted = Python->ExecPythonCommandEx(Cmd);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("mode"), ModeNames[ModeIdx]);
-		Entry->SetBoolField(TEXT("executed"), bExecuted);
-		Entry->SetBoolField(TEXT("undoRecorded"),
+		Entry->SetStringField(TEXT("Mode"), ModeNames[ModeIdx]);
+		Entry->SetBoolField(TEXT("bExecuted"), bExecuted);
+		Entry->SetBoolField(TEXT("bUndoRecorded"),
 			FNexusEditorTransaction::GetActiveRecordCount() > RecordsBefore);
 		if (bFileMode)
 		{
-			Entry->SetStringField(TEXT("scriptPath"), AbsPath);
+			Entry->SetStringField(TEXT("ScriptPath"), AbsPath);
 		}
 
 		const FString Output = JoinPythonLogOutput(Cmd.LogOutput);
 		if (!Output.IsEmpty())
 		{
-			Entry->SetStringField(TEXT("output"), Output);
+			Entry->SetStringField(TEXT("Output"), Output);
 		}
 
 		if (bExecuted)
@@ -180,12 +180,12 @@ FCapabilityResult FExecPythonCapability::Execute(const TSharedPtr<FJsonObject>& 
 			// CommandResult 仅 EvaluateStatement 有意义，其余模式为 "None"
 			if (ModeIdx == 2 && !Cmd.CommandResult.IsEmpty())
 			{
-				Entry->SetStringField(TEXT("result"), Cmd.CommandResult);
+				Entry->SetStringField(TEXT("Result"), Cmd.CommandResult);
 			}
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("error"),
+			Entry->SetStringField(TEXT("Error"),
 				Cmd.CommandResult.IsEmpty() ? TEXT("Python execution failed") : Cmd.CommandResult);
 		}
 
@@ -193,6 +193,6 @@ FCapabilityResult FExecPythonCapability::Execute(const TSharedPtr<FJsonObject>& 
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FExecPythonCapability)
+REGISTER_MCP_CAPABILITY(FNexusExecPythonCapability)
 
 #endif // WITH_NEXUS_PYTHON

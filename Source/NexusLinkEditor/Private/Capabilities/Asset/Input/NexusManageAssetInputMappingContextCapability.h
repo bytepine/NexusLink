@@ -7,8 +7,8 @@
 
 #include "NexusActionCapability.h"
 
-/** manage_asset_input_mapping_context — 添加/移除/修改 IMC 的 Action-Key 绑定（UE5+）。 */
-class FManageAssetInputMappingContextCapability : public FNexusActionCapability
+/** ManageAssetInputMappingContext — 添加/移除/修改 IMC 的 Action-Key 绑定（UE5+）。 */
+class FNexusManageAssetInputMappingContextCapability : public FNexusActionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

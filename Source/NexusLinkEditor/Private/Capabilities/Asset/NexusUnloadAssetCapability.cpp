@@ -10,38 +10,38 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
-void FUnloadAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusUnloadAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("unload_asset");
+	Out.Name = TEXT("UnloadAsset");
 	Out.Description = TEXT("Manually unload loaded packages. Fallback; auto-unload handles memory normally.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Single asset path")))
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Single asset path")))
 		.Prop(TEXT("bSkipDirty"), FNexusSchema::Bool(TEXT("If true skip dirty packages (default true, recommended)"), true, true))
 		.Prop(TEXT("bForceGC"),   FNexusSchema::Bool(TEXT("Trigger KEEPFLAGS GC after unload (default true)"), true, true))
-		.Required({ TEXT("assetPath") })
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("unload"), TEXT("memory"), TEXT("gc"), TEXT("package"), TEXT("release") };
-	Out.RelatedCapabilities = { TEXT("save_asset"), TEXT("get_asset_blueprint") };
+	Out.RelatedCapabilities = { TEXT("SaveAsset"), TEXT("GetAssetBlueprint") };
 	Out.WhenToUse = TEXT("Call manually when memory stays high after batch reads");
 }
 
-FCapabilityResult FUnloadAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusUnloadAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("unload_asset only available in editor mode");
+		OutError = TEXT("UnloadAsset only available in editor mode");
 		return;
 #else
 		bool bSkipDirty = true;
 		bool bForceGC = true;
-		const FString Path = A.Str(TEXT("assetPath"));
+		const FString Path = A.Str(TEXT("AssetPath"));
 		Arguments->TryGetBoolField(TEXT("bSkipDirty"), bSkipDirty);
 		Arguments->TryGetBoolField(TEXT("bForceGC"), bForceGC);
 
-		// 解析路径对应的已驻留包（未加载过的路径无需处理，直接视为 alreadyUnloaded）
+		// 解析路径对应的已驻留包（未加载过的路径无需处理，直接视为 AlreadyUnloaded）
 		FString PackageName = Path;
 		int32 DotIdx;
 		if (PackageName.FindChar(TEXT('.'), DotIdx))
@@ -61,32 +61,32 @@ FCapabilityResult FUnloadAssetCapability::Execute(const TSharedPtr<FJsonObject>&
 
 		int32 UnloadedCount = 0, SkippedCount = 0, AlreadyUnloadedCount = 0;
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), Path);
+		Entry->SetStringField(TEXT("Path"), Path);
 
 		if (!Pkg)
 		{
-			Entry->SetStringField(TEXT("status"), TEXT("alreadyUnloaded"));
+			Entry->SetStringField(TEXT("Status"), TEXT("AlreadyUnloaded"));
 			++AlreadyUnloadedCount;
 		}
 		else if (Skipped.Contains(Pkg))
 		{
-			Entry->SetStringField(TEXT("status"), TEXT("skipped"));
-			Entry->SetStringField(TEXT("reason"), TEXT("Dirty, editor-open, or engine package; not unloaded"));
+			Entry->SetStringField(TEXT("Status"), TEXT("Skipped"));
+			Entry->SetStringField(TEXT("Reason"), TEXT("Dirty, editor-open, or engine package; not unloaded"));
 			++SkippedCount;
 		}
 		else
 		{
-			Entry->SetStringField(TEXT("status"), TEXT("unloaded"));
+			Entry->SetStringField(TEXT("Status"), TEXT("Unloaded"));
 			++UnloadedCount;
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 
-		OutTop->SetNumberField(TEXT("unloaded"), UnloadedCount);
-		OutTop->SetNumberField(TEXT("skipped"), SkippedCount);
-		OutTop->SetNumberField(TEXT("alreadyUnloaded"), AlreadyUnloadedCount);
+		OutTop->SetNumberField(TEXT("Unloaded"), UnloadedCount);
+		OutTop->SetNumberField(TEXT("Skipped"), SkippedCount);
+		OutTop->SetNumberField(TEXT("AlreadyUnloaded"), AlreadyUnloadedCount);
 		(void)Stats;
 #endif
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FUnloadAssetCapability)
+REGISTER_MCP_CAPABILITY(FNexusUnloadAssetCapability)

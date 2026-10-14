@@ -6,45 +6,45 @@ NexusLink MCP: Unreal Editor + runtime control (**MultiTool mode**). Registered 
 
 `tools/list` exposes **all enabled capabilities** as separate MCP tools (name = capability name).
 
-- **Direct** `tools/call` — **do not** wrap with `call_capability(capability=...)`.
-- This mode has **no** `search_capabilities`; rely on each tool's `description` / `inputSchema` (includes `[see: ...]`).
-- Meta-tool: `submit_feedback`.
+- **Direct** `tools/call` — **do not** wrap with `CallCapability(Capability=...)`.
+- This mode has **no** `SearchCapabilities`; rely on each tool's `description` / `InputSchema` (includes `[see: ...]`).
+- Meta-tool: `SubmitFeedback`.
 
 ## First action (required)
 
-When connected to UE: **call MCP first** before answering blueprint/Widget/material/asset questions. Flow: `search_asset` (top-level `assets`; typed `recommendedGet` at top) → then read/write.
+When connected to UE: **call MCP first** before answering blueprint/Widget/material/asset questions. Flow: `SearchAsset` (top-level `Assets`; typed `RecommendedGet` at top) → then read/write.
 
 ## Naming & read/write (same as SearchMode)
 
-- **Set** — only `*_property` (e.g. `set_runtime_actor_property`).
-- **Interact** — `action` commands (`interact_runtime_widget`, `interact_runtime_actor_animation`).
+- **Set** — only `*_property` (e.g. `SetRuntimeActorProperty`).
+- **Interact** — `Action` commands (`InteractRuntimeWidget`, `InteractRuntimeActorAnimation`).
 - **Manage** — only `*_asset_*` structural edits.
-- **Forbidden**: `manage_animation`, `set_runtime_actor_animation`.
+- **Forbidden**: `ManageAnimation`, `SetRuntimeActorAnimation`.
 
 ## Decision rules
 
-1. **Read vs write**: read-only `get/list/search`; `manage/set/create/delete` write assets/properties; **`interact_*` writes runtime commands**. Write success has no `success:true`; no `error` means success.
+1. **Read vs write**: read-only `get/list/search`; `manage/set/create/delete` write assets/properties; **`interact_*` writes runtime commands**. Write success has no `success:true`; no `Error` means success.
 2. **Asset vs runtime**: `*_asset_*` = editor disk; `*_runtime_*` needs PIE.
-3. **Single target**: each tool only `assetPath`/`actorName`/`widgetName`; cross-target = multiple `tools/call` (no `call_capability.calls[]` in this mode). Within one target use `sections`/`propertyPaths`/`operations`/`updates`. **search_asset must be narrowed**; prefer returned `recommendedGet` / `recommendedManage` (typed at top) + `assets[].path`. Lists with `<k>_defaults`: missing fields equal that value (`merged={**defaults,**entry}`).
-4. **Texture/mesh/animation/audio/VFX/level asset get/manage pairs** (fallback without `recommended*`): read `get_asset_texture` / `manage_asset_texture`; `get_asset_static_mesh` / `manage_asset_static_mesh`; `get_asset_skeletal_mesh` / `manage_asset_skeletal_mesh`; `get_asset_anim_sequence` / `manage_asset_anim_sequence`; `get_asset_skeleton` / `manage_asset_skeleton`; `get_asset_sound_wave` / `manage_asset_sound_wave`; `get_asset_sound_cue` / `manage_asset_sound_cue`; `get_asset_level` / `manage_asset_level` (`editor_only`); `get_asset_level_sequence` / `manage_asset_level_sequence` / `create_asset_level_sequence`; `get_asset_physical_material` / `manage_asset_physical_material` / `create_asset_physical_material`; `get_asset_string_table` / `manage_asset_string_table` / `create_asset_string_table`; `get_asset_font` / `manage_asset_font` (TTF via `reimport_asset`); `get_asset_foliage_type` / `manage_asset_foliage_type` / `create_asset_foliage_type`; `get_asset_media_source` / `manage_asset_media_source` / `create_asset_media_source`. Gated caps (Niagara / GAS / StateTree / MVVM / IK / PCG / ControlRig / Paper2D / GeometryCollection / CommonUI / MoviePipeline / Python `get_python_api` / `exec_python`) follow `tools/list`; skip if absent. PIE actors: `list_runtime_actors`; PIE animation read `get_runtime_actor_animation`, write `interact_runtime_actor_animation`; audio/Niagara/AI via `interact_runtime_actor_audio` / `_niagara` / `_ai`.
-5. **GAS PIE** (needs GameplayAbilities; skip if absent from `tools/list`): read-only `get_runtime_actor_ability_system`; activate/apply/give/cue/loose tags via `interact_runtime_actor_ability_system`.
-6. **Editor / Game capture**: `get_editor_context` (selection, Content Browser path, `current_map` for the open editor level); `search_console_variables`; `capture_viewport` captures Game/PIE viewport (`target=pie`) or the top-level window (`editor` / `editor_desktop`); LevelEditor panel tabs and Actor `viewAngle` shots need `capture_editor_panel` (Editor only, `target='list'` enumerates panels). Tag referencers via `get_gameplay_tags` (`referencers` + `tag`). Logs: `get_output_log` (`watch` then `collectWatch=true` for the next action; `preset=diagnose` for errors) / `set_log_capture_filter` (available in Editor and standalone Game). Wait for `hasPlayWorld` before `list_runtime_*`.
+3. **Single target**: each tool only `AssetPath`/`ActorName`/`WidgetName`; cross-Target = multiple `tools/call` (no `CallCapability.calls[]` in this mode). Within one target use `Sections`/`PropertyPaths`/`Operations`/`Updates`. **SearchAsset must be narrowed**; prefer returned `RecommendedGet` / `RecommendedManage` (typed at top) + `assets[].path`. Lists with `<k>_defaults`: missing fields equal that value (`merged={**defaults,**entry}`).
+4. **Texture/mesh/animation/audio/VFX/level asset get/manage pairs** (fallback without `recommended*`): read `GetAssetTexture` / `ManageAssetTexture`; `GetAssetStaticMesh` / `ManageAssetStaticMesh`; `GetAssetSkeletalMesh` / `ManageAssetSkeletalMesh`; `GetAssetAnimSequence` / `ManageAssetAnimSequence`; `GetAssetSkeleton` / `ManageAssetSkeleton`; `GetAssetSoundWave` / `ManageAssetSoundWave`; `GetAssetSoundCue` / `ManageAssetSoundCue`; `GetAssetLevel` / `ManageAssetLevel` (`EditorOnly`); `GetAssetLevelSequence` / `ManageAssetLevelSequence` / `CreateAssetLevelSequence`; `GetAssetPhysicalMaterial` / `ManageAssetPhysicalMaterial` / `CreateAssetPhysicalMaterial`; `GetAssetStringTable` / `ManageAssetStringTable` / `CreateAssetStringTable`; `GetAssetFont` / `ManageAssetFont` (TTF via `ReimportAsset`); `GetAssetFoliageType` / `ManageAssetFoliageType` / `CreateAssetFoliageType`; `GetAssetMediaSource` / `ManageAssetMediaSource` / `CreateAssetMediaSource`. Gated caps (Niagara / GAS / StateTree / MVVM / IK / PCG / ControlRig / Paper2D / GeometryCollection / CommonUI / MoviePipeline / Python `GetPythonApi` / `ExecPython`) follow `tools/list`; skip if absent. PIE actors: `ListRuntimeActors`; PIE animation read `GetRuntimeActorAnimation`, write `InteractRuntimeActorAnimation`; audio/Niagara/AI via `InteractRuntimeActorAudio` / `_niagara` / `_ai`.
+5. **GAS PIE** (needs GameplayAbilities; skip if absent from `tools/list`): read-only `GetRuntimeActorAbilitySystem`; activate/apply/give/cue/loose tags via `InteractRuntimeActorAbilitySystem`.
+6. **Editor / Game capture**: `GetEditorContext` (selection, Content Browser path, `CurrentMap` for the open editor level); `SearchConsoleVariables`; `CaptureViewport` captures Game/PIE viewport (`Target=pie`) or the top-level window (`Editor` / `EditorDesktop`); LevelEditor panel tabs and Actor `ViewAngle` shots need `CaptureEditorPanel` (Editor only, `Target='list'` enumerates panels). Tag referencers via `GetGameplayTags` (`Referencers` + `Tag`). Logs: `GetOutputLog` (`Watch` then `bCollectWatch=true` for the next action; `Preset=diagnose` for errors) / `SetLogCaptureFilter` (available in Editor and standalone Game). Wait for `bHasPlayWorld` before `list_runtime_*`.
 
 ## Parameter contract (Breaking)
 
-Same as SearchMode: no `assetPaths`/`actorNames`/`widgetNames`; manage only `operations[]`; get only `propertyPaths[]`; `newPath`→`destAssetPath`, `blueprintPath`→`assetPath`, `ownerWidget`→`ownerClass`, `filePath`→`scriptPath`, `classPath`→`className`. Legacy keys → `arg_invalid`.
+Same as SearchMode: no `assetPaths`/`actorNames`/`widgetNames`; manage only `operations[]`; get only `PropertyPaths[]`; `newPath`→`DestAssetPath`, `blueprintPath`→`AssetPath`, `ownerWidget`→`OwnerClass`, `FilePath`→`ScriptPath`, `classPath`→`ClassName`. Legacy keys → `ArgInvalid`.
 
 ## Blueprint / GAS
 
-Same as SearchMode: `get_asset_blueprint` before graph edits; GAS graphs via `manage_asset_blueprint`; behavior trees save with `saveToDisk` or `save_asset` (`replace_node` for type changes, `sync_graph` for graph drift). manage optional `saveToDisk`; BP/ABP/WBP may pass `compile`.
+Same as SearchMode: `GetAssetBlueprint` before graph edits; GAS graphs via `ManageAssetBlueprint`; behavior trees save with `bSaveToDisk` or `SaveAsset` (`ReplaceNode` for type changes, `SyncGraph` for graph drift). manage optional `bSaveToDisk`; BP/ABP/WBP may pass `bCompile`.
 
 ## Hard rules
 
-- Arguments must match `inputSchema`; required strings must be non-empty.
-- **`get_runtime_actor_property` requires non-empty `actorName`** — call `list_runtime_actors` first.
-- **`exec_command` requires non-empty `command`**. Dangerous caps in Confirm mode require `reason`; `user_denied` → do not retry.
-- Unsure whether an `unreal.*` API exists on this engine version: call `get_python_api` first; do not guess UE5 APIs on UE4 (or vice versa).
-- `exec_python` writes are only undoable via `obj.set_editor_property(...)` or an explicit `obj.modify()`; plain `obj.foo = x` is **not** recorded. Check the returned `undoRecorded` — `false` means Ctrl+Z will not roll this back.
-- Before `get/manage_asset_*`, call `search_asset`; prefer returned `recommendedGet` / `recommendedManage`.
-- After `sections=["all"]`, no sub-section calls for 30s.
-- `submit_feedback` triggers same as SearchMode; **`_feedbackHint` is mandatory**.
+- Arguments must match `InputSchema`; required strings must be non-empty.
+- **`GetRuntimeActorProperty` requires non-empty `ActorName`** — call `ListRuntimeActors` first.
+- **`ExecCommand` requires non-empty `Command`**. Dangerous caps in Confirm mode require `Reason`; `UserDenied` → do not retry.
+- Unsure whether an `unreal.*` API exists on this engine version: call `GetPythonApi` first; do not guess UE5 APIs on UE4 (or vice versa).
+- `ExecPython` writes are only undoable via `obj.set_editor_property(...)` or an explicit `obj.modify()`; plain `obj.foo = x` is **not** recorded. Check the returned `bUndoRecorded` — `false` means Ctrl+Z will not roll this back.
+- Before `get/manage_asset_*`, call `SearchAsset`; prefer returned `RecommendedGet` / `RecommendedManage`.
+- After `Sections=["All"]`, no sub-section calls for 30s.
+- `SubmitFeedback` triggers same as SearchMode; **`FeedbackHint` is mandatory**.

@@ -42,11 +42,11 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 	UBlueprint* BP = static_cast<UBlueprint*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 	const FString& Action = Ctx.Action;
-	// ── Graph / Wire actions: require graphName ───────────────────────────────
-	const FString GraphName = FNexusArgs(Op).Str(TEXT("graphName"));
+	// ── Graph / Wire actions: require GraphName ───────────────────────────────
+	const FString GraphName = FNexusArgs(Op).Str(TEXT("GraphName"));
 	if (GraphName.IsEmpty())
 	{
-		Entry->SetStringField(TEXT("error"), TEXT("Node/wire ops need graphName. Hint: get_asset_blueprint(sections=[\"graphOverview\"]) first."));
+		Entry->SetStringField(TEXT("Error"), TEXT("Node/wire ops need GraphName. Hint: GetAssetBlueprint(Sections=[\"graphOverview\"]) first."));
 	return;
 	}
 
@@ -66,58 +66,58 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 			GraphNames.SetNum(MaxList);
 			GraphNames.Add(FString::Printf(TEXT("...+%d more"), AllGraphs.Num() - MaxList));
 		}
-		Entry->SetStringField(TEXT("error"), FString::Printf(
-			TEXT("Graph '%s' not found. graphName is graph object name, not function. Available: %s"),
+		Entry->SetStringField(TEXT("Error"), FString::Printf(
+			TEXT("Graph '%s' not found. GraphName is graph object name, not function. Available: %s"),
 			*GraphName, *FString::Join(GraphNames, TEXT(", "))));
 	return;
 	}
 
-	Entry->SetStringField(TEXT("graphName"), GraphName);
+	Entry->SetStringField(TEXT("GraphName"), GraphName);
 	BP->Modify();
 	Graph->Modify();
 
 	// ── Node actions ──────────────────────────────────────────────────────────
-	if (Action == TEXT("add_node"))
+	if (Action == TEXT("AddNode"))
 	{
-		const FString NodeClass = FNexusArgs(Op).Str(TEXT("nodeClass"));
-		if (NodeClass.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_node requires nodeClass"));
+		const FString NodeClass = FNexusArgs(Op).Str(TEXT("NodeClass"));
+		if (NodeClass.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("AddNode requires NodeClass"));
 	return; }
-		const int32 PosX = Op->HasField(TEXT("posX")) ? static_cast<int32>(Op->GetNumberField(TEXT("posX"))) : 0;
-		const int32 PosY = Op->HasField(TEXT("posY")) ? static_cast<int32>(Op->GetNumberField(TEXT("posY"))) : 0;
+		const int32 PosX = Op->HasField(TEXT("PosX")) ? static_cast<int32>(Op->GetNumberField(TEXT("PosX"))) : 0;
+		const int32 PosY = Op->HasField(TEXT("PosY")) ? static_cast<int32>(Op->GetNumberField(TEXT("PosY"))) : 0;
 
 		UEdGraphNode* NewNode = nullptr;
 
 		if (NodeClass == TEXT("K2Node_CallFunction"))
 		{
-			const FString FuncName = FNexusArgs(Op).Str(TEXT("functionName"));
-			if (FuncName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("K2Node_CallFunction requires functionName"));
+			const FString FuncName = FNexusArgs(Op).Str(TEXT("FunctionName"));
+			if (FuncName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("K2Node_CallFunction requires FunctionName"));
 	return; }
 			FString FuncClassName;
-			Op->TryGetStringField(TEXT("functionClass"), FuncClassName);
+			Op->TryGetStringField(TEXT("FunctionClass"), FuncClassName);
 
 			UFunction* Func = FNexusBlueprintGraphUtils::ResolveGraphFunction(FuncName, FuncClassName);
-			if (!Func) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Function '%s' not found (tried 'K2_%s')"), *FuncName, *FuncName));
+			if (!Func) { Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Function '%s' not found (tried 'K2_%s')"), *FuncName, *FuncName));
 	return; }
 
 			NewNode = FNexusBlueprintGraphUtils::MakeCallFunctionNode(Graph, Func, PosX, PosY);
 		}
 		else if (NodeClass == TEXT("K2Node_Event"))
 		{
-			// functionName：ReceiveBeginPlay / BeginPlay；functionClass 默认 Actor
-			FString EventName = FNexusArgs(Op).Str(TEXT("functionName"));
-			if (EventName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("K2Node_Event requires functionName (e.g. ReceiveBeginPlay)"));
+			// FunctionName：ReceiveBeginPlay / BeginPlay；FunctionClass 默认 Actor
+			FString EventName = FNexusArgs(Op).Str(TEXT("FunctionName"));
+			if (EventName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("K2Node_Event requires FunctionName (e.g. ReceiveBeginPlay)"));
 	return; }
 			if (EventName == TEXT("BeginPlay")) EventName = TEXT("ReceiveBeginPlay");
 			FString EventClassName = TEXT("Actor");
-			Op->TryGetStringField(TEXT("functionClass"), EventClassName);
+			Op->TryGetStringField(TEXT("FunctionClass"), EventClassName);
 			UClass* EventClass = FNexusAssetUtils::FindClassWithUPrefix(EventClassName);
 			if (!EventClass) EventClass = AActor::StaticClass();
 			NewNode = FNexusBlueprintGraphUtils::MakeEventNode(BP, Graph, EventName, EventClass, PosX, PosY);
 		}
 		else if (NodeClass == TEXT("K2Node_VariableGet") || NodeClass == TEXT("K2Node_VariableSet"))
 		{
-			const FString VarName = FNexusArgs(Op).Str(TEXT("variableName"));
-			if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("%s requires variableName"), *NodeClass));
+			const FString VarName = FNexusArgs(Op).Str(TEXT("VariableName"));
+			if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("%s requires VariableName"), *NodeClass));
 	return; }
 
 			NewNode = FNexusBlueprintGraphUtils::MakeVariableNode(Graph, VarName, NodeClass == TEXT("K2Node_VariableSet"), PosX, PosY);
@@ -126,28 +126,28 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 		{
 			UClass* NodeUClass = FNexusAssetUtils::FindClassWithUPrefix(NodeClass);
 			if (!NodeUClass || !NodeUClass->IsChildOf(UEdGraphNode::StaticClass()))
-			{ Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Node class '%s' not found"), *NodeClass));
+			{ Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Node class '%s' not found"), *NodeClass));
 	return; }
 			NewNode = FNexusBlueprintGraphUtils::MakeGenericNode(Graph, NodeUClass, PosX, PosY);
 		}
 
-	Entry->SetStringField(TEXT("nodeId"),    NewNode->NodeGuid.ToString());
-	Entry->SetStringField(TEXT("nodeClass"), NewNode->GetClass()->GetName());
-	Entry->SetStringField(TEXT("nodeTitle"), NewNode->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+	Entry->SetStringField(TEXT("NodeId"),    NewNode->NodeGuid.ToString());
+	Entry->SetStringField(TEXT("NodeClass"), NewNode->GetClass()->GetName());
+	Entry->SetStringField(TEXT("NodeTitle"), NewNode->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
 	FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 	FKismetEditorUtilities::CompileBlueprint(BP);
 	return;
 	}
 
-	if (Action == TEXT("remove_node"))
+	if (Action == TEXT("RemoveNode"))
 	{
-		const FString NodeIdStr = FNexusArgs(Op).Str(TEXT("nodeId"));
-		if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("remove_node requires nodeId"));
+		const FString NodeIdStr = FNexusArgs(Op).Str(TEXT("NodeId"));
+		if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("RemoveNode requires NodeId"));
 	return; }
 		UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
-		if (!Node) { Entry->SetStringField(TEXT("error"), TEXT("Node not found"));
+		if (!Node) { Entry->SetStringField(TEXT("Error"), TEXT("Node not found"));
 	return; }
-		Entry->SetStringField(TEXT("nodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+		Entry->SetStringField(TEXT("NodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
 		Node->Modify();
 		Graph->GetSchema()->BreakNodeLinks(*Node);
 		Graph->RemoveNode(Node);
@@ -155,69 +155,69 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 	return;
 	}
 
-	if (Action == TEXT("set_node"))
+	if (Action == TEXT("SetNode"))
 	{
-		const FString NodeIdStr = FNexusArgs(Op).Str(TEXT("nodeId"));
-		if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set_node requires nodeId"));
+		const FString NodeIdStr = FNexusArgs(Op).Str(TEXT("NodeId"));
+		if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("SetNode requires NodeId"));
 	return; }
 		UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
-		if (!Node) { Entry->SetStringField(TEXT("error"), TEXT("Node not found"));
+		if (!Node) { Entry->SetStringField(TEXT("Error"), TEXT("Node not found"));
 	return; }
 
 		Node->Modify();
-		if (Op->HasField(TEXT("posX")))    Node->NodePosX = static_cast<int32>(Op->GetNumberField(TEXT("posX")));
-		if (Op->HasField(TEXT("posY")))    Node->NodePosY = static_cast<int32>(Op->GetNumberField(TEXT("posY")));
-		if (Op->HasField(TEXT("comment"))) Node->NodeComment = Op->GetStringField(TEXT("comment"));
+		if (Op->HasField(TEXT("PosX")))    Node->NodePosX = static_cast<int32>(Op->GetNumberField(TEXT("PosX")));
+		if (Op->HasField(TEXT("PosY")))    Node->NodePosY = static_cast<int32>(Op->GetNumberField(TEXT("PosY")));
+		if (Op->HasField(TEXT("Comment"))) Node->NodeComment = Op->GetStringField(TEXT("Comment"));
 
-		if (Op->HasField(TEXT("pinName")) && Op->HasField(TEXT("pinDefaultValue")))
+		if (Op->HasField(TEXT("PinName")) && Op->HasField(TEXT("PinDefaultValue")))
 		{
-			const FString PinName = Op->GetStringField(TEXT("pinName"));
-			const FString PinVal  = Op->GetStringField(TEXT("pinDefaultValue"));
+			const FString PinName = Op->GetStringField(TEXT("PinName"));
+			const FString PinVal  = Op->GetStringField(TEXT("PinDefaultValue"));
 			bool bFound = false;
 			for (UEdGraphPin* Pin : Node->Pins)
 			{ if (Pin && Pin->PinName.ToString() == PinName) { Pin->DefaultValue = PinVal; bFound = true; break; } }
-			if (!bFound) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Pin '%s' not found"), *PinName));
+			if (!bFound) { Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Pin '%s' not found"), *PinName));
 	return; }
 		}
 
-	Entry->SetStringField(TEXT("nodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+	Entry->SetStringField(TEXT("NodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
 	FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 	return;
 	}
 
 	// ── Promote pin → variable（对齐编辑器 DoPromoteToVariable）──────────────
-	if (Action == TEXT("promote_pin"))
+	if (Action == TEXT("PromotePin"))
 	{
 		FString NodeIdStr, PinNameStr;
-		Op->TryGetStringField(TEXT("nodeId"), NodeIdStr);
-		Op->TryGetStringField(TEXT("pinName"), PinNameStr);
-		if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("promote_pin requires nodeId"));
+		Op->TryGetStringField(TEXT("NodeId"), NodeIdStr);
+		Op->TryGetStringField(TEXT("PinName"), PinNameStr);
+		if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("PromotePin requires NodeId"));
 	return; }
-		if (PinNameStr.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("promote_pin requires pinName"));
+		if (PinNameStr.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("PromotePin requires PinName"));
 	return; }
 
 		UEdGraphNode* PinNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
-		if (!PinNode) { Entry->SetStringField(TEXT("error"), TEXT("Node not found"));
+		if (!PinNode) { Entry->SetStringField(TEXT("Error"), TEXT("Node not found"));
 	return; }
 		UEdGraphPin* TargetPin = FNexusBlueprintGraphUtils::FindBPPin(PinNode, PinNameStr);
 		if (!TargetPin)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("Pin '%s' not found. Available pinName: %s"),
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("Pin '%s' not found. Available PinName: %s"),
 				*PinNameStr, *FNexusBlueprintGraphUtils::FormatBPPinNameHint(PinNode)));
 	return;
 		}
 		if (TargetPin->bOrphanedPin)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("Cannot promote orphaned pin"));
+			Entry->SetStringField(TEXT("Error"), TEXT("Cannot promote orphaned pin"));
 	return;
 		}
 
 		bool bIsLocal = false;
-		if (Op->HasField(TEXT("isLocal"))) bIsLocal = Op->GetBoolField(TEXT("isLocal"));
+		if (Op->HasField(TEXT("bIsLocal"))) bIsLocal = Op->GetBoolField(TEXT("bIsLocal"));
 		if (bIsLocal && !FBlueprintEditorUtils::DoesSupportLocalVariables(Graph))
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("Local vars unsupported on this graph (function graphs only with isLocal=true)"));
+			Entry->SetStringField(TEXT("Error"), TEXT("Local vars unsupported on this graph (function graphs only with bIsLocal=true)"));
 	return;
 		}
 
@@ -225,12 +225,12 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 		// 与编辑器一致：exec 不可提升；其余交给 Schema（双参 API 在各 UE 版本可用）
 		if (TargetPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("exec pin cannot be promoted to variable"));
+			Entry->SetStringField(TEXT("Error"), TEXT("exec pin cannot be promoted to variable"));
 	return;
 		}
 		if (!K2Schema->CanPromotePinToVariable(*TargetPin, !bIsLocal))
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("This pin cannot be promoted to variable"));
+			Entry->SetStringField(TEXT("Error"), TEXT("This pin cannot be promoted to variable"));
 	return;
 		}
 
@@ -240,7 +240,7 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 			FKismetEditorUtilities::CompileBlueprint(BP);
 			if (!BP->SkeletonGeneratedClass)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("Blueprint has no SkeletonGeneratedClass; cannot promote_pin"));
+				Entry->SetStringField(TEXT("Error"), TEXT("Blueprint has no SkeletonGeneratedClass; cannot PromotePin"));
 	return;
 			}
 		}
@@ -253,7 +253,7 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 		const FString PinDefault = TargetPin->GetDefaultAsString();
 
 		FString RequestedName;
-		Op->TryGetStringField(TEXT("variableName"), RequestedName);
+		Op->TryGetStringField(TEXT("VariableName"), RequestedName);
 		const FString BaseName = !RequestedName.IsEmpty()
 			? RequestedName
 			: (bIsLocal ? TEXT("NewLocalVar") : TEXT("NewVar"));
@@ -270,14 +270,14 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 			FunctionGraph = FBlueprintEditorUtils::GetTopLevelGraph(Graph);
 			if (!FunctionGraph)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("Unable to resolve function graph for local variable"));
+				Entry->SetStringField(TEXT("Error"), TEXT("Unable to resolve function graph for local variable"));
 	return;
 			}
 			bWasSuccessful = FBlueprintEditorUtils::AddLocalVariable(BP, FunctionGraph, VarName, NewPinType, PinDefault);
 		}
 		if (!bWasSuccessful)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to create variable: %s"), *VarName.ToString()));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Failed to create variable: %s"), *VarName.ToString()));
 	return;
 		}
 
@@ -290,7 +290,7 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 		}
 		if (!TargetPin || !PinNode)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("Target pin lost after creating variable (node may have rebuilt)"));
+			Entry->SetStringField(TEXT("Error"), TEXT("Target pin lost after creating variable (node may have rebuilt)"));
 	return;
 		}
 
@@ -323,8 +323,8 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 			? static_cast<float>(PinNode->NodePosX - 200)
 			: static_cast<float>(PinNode->NodePosX + 400);
 		NewNodePos.Y = static_cast<float>(PinNode->NodePosY);
-		if (Op->HasField(TEXT("posX"))) NewNodePos.X = static_cast<float>(Op->GetNumberField(TEXT("posX")));
-		if (Op->HasField(TEXT("posY"))) NewNodePos.Y = static_cast<float>(Op->GetNumberField(TEXT("posY")));
+		if (Op->HasField(TEXT("PosX"))) NewNodePos.X = static_cast<float>(Op->GetNumberField(TEXT("PosX")));
+		if (Op->HasField(TEXT("PosY"))) NewNodePos.Y = static_cast<float>(Op->GetNumberField(TEXT("PosY")));
 
 #if NX_UE_HAS_EDGRAPH_PERFORM_ACTION_VECTOR2F
 		UEdGraphNode* Spawned = NodeInfo.PerformAction(
@@ -336,22 +336,22 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 #endif
 		if (!Spawned)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("Create Get/Set nodefailed"));
+			Entry->SetStringField(TEXT("Error"), TEXT("Create Get/Set nodefailed"));
 	return;
 		}
 
-		Entry->SetStringField(TEXT("variableName"), VarName.ToString());
-		Entry->SetStringField(TEXT("pinName"), SavedPinName.ToString());
-		Entry->SetStringField(TEXT("nodeId"), Spawned->NodeGuid.ToString());
-		Entry->SetStringField(TEXT("nodeClass"), Spawned->GetClass()->GetName());
-		Entry->SetBoolField(TEXT("isLocal"), bIsLocal);
+		Entry->SetStringField(TEXT("VariableName"), VarName.ToString());
+		Entry->SetStringField(TEXT("PinName"), SavedPinName.ToString());
+		Entry->SetStringField(TEXT("NodeId"), Spawned->NodeGuid.ToString());
+		Entry->SetStringField(TEXT("NodeClass"), Spawned->GetClass()->GetName());
+		Entry->SetBoolField(TEXT("bIsLocal"), bIsLocal);
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 		FKismetEditorUtilities::CompileBlueprint(BP);
 	return;
 	}
 #else
 	(void)Op; (void)Ctx;
-	Ctx.Entry->SetStringField(TEXT("error"), TEXT("manage_asset_blueprint only available in editor builds"));
+	Ctx.Entry->SetStringField(TEXT("Error"), TEXT("ManageAssetBlueprint only available in editor builds"));
 #endif
 }
 
@@ -362,60 +362,60 @@ void FNexusBlueprintGraphOps::HandleWire(const TSharedPtr<FJsonObject>& Op, FNex
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 	const FString& Action = Ctx.Action;
 
-	const FString GraphName = FNexusArgs(Op).Str(TEXT("graphName"));
+	const FString GraphName = FNexusArgs(Op).Str(TEXT("GraphName"));
 	if (GraphName.IsEmpty())
 	{
-		Entry->SetStringField(TEXT("error"), TEXT("Node/wire ops need graphName. Hint: get_asset_blueprint(sections=[\"graphOverview\"]) first."));
+		Entry->SetStringField(TEXT("Error"), TEXT("Node/wire ops need GraphName. Hint: GetAssetBlueprint(Sections=[\"graphOverview\"]) first."));
 		return;
 	}
 	UEdGraph* Graph = FNexusBlueprintGraphUtils::FindBPGraph(BP, GraphName);
 	if (!Graph)
 	{
-		Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Graph '%s' not found"), *GraphName));
+		Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Graph '%s' not found"), *GraphName));
 		return;
 	}
-	Entry->SetStringField(TEXT("graphName"), GraphName);
+	Entry->SetStringField(TEXT("GraphName"), GraphName);
 	BP->Modify();
 	Graph->Modify();
 
-	const FString SrcNodeId  = FNexusArgs(Op).Str(TEXT("sourceNodeId"));
-	const FString SrcPinName = FNexusArgs(Op).Str(TEXT("sourcePinName"));
+	const FString SrcNodeId  = FNexusArgs(Op).Str(TEXT("SourceNodeId"));
+	const FString SrcPinName = FNexusArgs(Op).Str(TEXT("SourcePinName"));
 	if (SrcNodeId.IsEmpty() || SrcPinName.IsEmpty())
-	{ Entry->SetStringField(TEXT("error"), TEXT("Wire ops require sourceNodeId and sourcePinName"));
+	{ Entry->SetStringField(TEXT("Error"), TEXT("Wire ops require SourceNodeId and SourcePinName"));
 	return; }
 
 	UEdGraphNode* SrcNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, SrcNodeId);
-	if (!SrcNode) { Entry->SetStringField(TEXT("error"), TEXT("Source node not found"));
+	if (!SrcNode) { Entry->SetStringField(TEXT("Error"), TEXT("Source node not found"));
 	return;}
 	UEdGraphPin* SrcPin = FNexusBlueprintGraphUtils::FindBPPin(SrcNode, SrcPinName);
 	if (!SrcPin)
 	{
-		Entry->SetStringField(TEXT("error"), FString::Printf(
-			TEXT("Source pin '%s' not found. Available pinName: %s"),
+		Entry->SetStringField(TEXT("Error"), FString::Printf(
+			TEXT("Source pin '%s' not found. Available PinName: %s"),
 			*SrcPinName, *FNexusBlueprintGraphUtils::FormatBPPinNameHint(SrcNode)));
 	return;
 	}
 
-	Entry->SetStringField(TEXT("sourceNodeId"),  SrcNodeId);
-	Entry->SetStringField(TEXT("sourcePinName"), SrcPinName);
+	Entry->SetStringField(TEXT("SourceNodeId"),  SrcNodeId);
+	Entry->SetStringField(TEXT("SourcePinName"), SrcPinName);
 
 	const UEdGraphSchema* Schema = Graph->GetSchema();
 
-	if (Action == TEXT("connect"))
+	if (Action == TEXT("Connect"))
 	{
-		const FString DstNodeId  = FNexusArgs(Op).Str(TEXT("targetNodeId"));
-		const FString DstPinName = FNexusArgs(Op).Str(TEXT("targetPinName"));
+		const FString DstNodeId  = FNexusArgs(Op).Str(TEXT("TargetNodeId"));
+		const FString DstPinName = FNexusArgs(Op).Str(TEXT("TargetPinName"));
 		if (DstNodeId.IsEmpty() || DstPinName.IsEmpty())
-		{ Entry->SetStringField(TEXT("error"), TEXT("connect requires targetNodeId and targetPinName"));
+		{ Entry->SetStringField(TEXT("Error"), TEXT("connect requires TargetNodeId and TargetPinName"));
 	return;}
 		UEdGraphNode* DstNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, DstNodeId);
-		if (!DstNode) { Entry->SetStringField(TEXT("error"), TEXT("Target node not found"));
+		if (!DstNode) { Entry->SetStringField(TEXT("Error"), TEXT("Target node not found"));
 	return;}
 		UEdGraphPin* DstPin = FNexusBlueprintGraphUtils::FindBPPin(DstNode, DstPinName);
 		if (!DstPin)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("Target pin '%s' not found. Available pinName: %s"),
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("Target pin '%s' not found. Available PinName: %s"),
 				*DstPinName, *FNexusBlueprintGraphUtils::FormatBPPinNameHint(DstNode)));
 	return;
 		}
@@ -425,52 +425,52 @@ void FNexusBlueprintGraphOps::HandleWire(const TSharedPtr<FJsonObject>& Op, FNex
 
 		const FPinConnectionResponse Resp = Schema->CanCreateConnection(SrcPin, DstPin);
 		if (Resp.Response == CONNECT_RESPONSE_DISALLOW)
-		{ Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Cannot connect: %s"), *Resp.Message.ToString()));
+		{ Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Cannot connect: %s"), *Resp.Message.ToString()));
 	return;}
 
 		if (!Schema->TryCreateConnection(SrcPin, DstPin))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
 				TEXT("TryCreateConnection failed (src %s.%s -> dst %s.%s). Use then->execute for exec; match data pin types"),
 				*SrcNodeId, *SrcPin->PinName.ToString(), *DstNodeId, *DstPin->PinName.ToString()));
 	return;
 		}
-		Entry->SetStringField(TEXT("targetNodeId"),  DstNodeId);
-		Entry->SetStringField(TEXT("targetPinName"), DstPin->PinName.ToString());
-		Entry->SetStringField(TEXT("sourcePinName"), SrcPin->PinName.ToString());
+		Entry->SetStringField(TEXT("TargetNodeId"),  DstNodeId);
+		Entry->SetStringField(TEXT("TargetPinName"), DstPin->PinName.ToString());
+		Entry->SetStringField(TEXT("SourcePinName"), SrcPin->PinName.ToString());
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 	return;
 	}
 
-	if (Action == TEXT("disconnect"))
+	if (Action == TEXT("Disconnect"))
 	{
-		const FString DstNodeId  = FNexusArgs(Op).Str(TEXT("targetNodeId"));
-		const FString DstPinName = FNexusArgs(Op).Str(TEXT("targetPinName"));
+		const FString DstNodeId  = FNexusArgs(Op).Str(TEXT("TargetNodeId"));
+		const FString DstPinName = FNexusArgs(Op).Str(TEXT("TargetPinName"));
 		if (DstNodeId.IsEmpty() || DstPinName.IsEmpty())
-		{ Entry->SetStringField(TEXT("error"), TEXT("disconnect requires targetNodeId and targetPinName"));
+		{ Entry->SetStringField(TEXT("Error"), TEXT("disconnect requires TargetNodeId and TargetPinName"));
 	return;}
 		UEdGraphNode* DstNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, DstNodeId);
-		if (!DstNode) { Entry->SetStringField(TEXT("error"), TEXT("Target node not found"));
+		if (!DstNode) { Entry->SetStringField(TEXT("Error"), TEXT("Target node not found"));
 	return;}
 		UEdGraphPin* DstPin = FNexusBlueprintGraphUtils::FindBPPin(DstNode, DstPinName);
-		if (!DstPin) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Target pin '%s' not found"), *DstPinName));
+		if (!DstPin) { Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Target pin '%s' not found"), *DstPinName));
 	return;}
 		Schema->BreakSinglePinLink(SrcPin, DstPin);
-		Entry->SetStringField(TEXT("targetPinName"), DstPinName);
+		Entry->SetStringField(TEXT("TargetPinName"), DstPinName);
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 	return;
 	}
 
-	if (Action == TEXT("disconnect_all"))
+	if (Action == TEXT("DisconnectAll"))
 	{
 		const int32 LinkCount = SrcPin->LinkedTo.Num();
 		Schema->BreakPinLinks(*SrcPin, true);
-		Entry->SetNumberField(TEXT("disconnectedCount"), LinkCount);
+		Entry->SetNumberField(TEXT("DisconnectedCount"), LinkCount);
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 	return;
 	}
 #else
 	(void)Op; (void)Ctx;
-	Ctx.Entry->SetStringField(TEXT("error"), TEXT("manage_asset_blueprint only available in editor builds"));
+	Ctx.Entry->SetStringField(TEXT("Error"), TEXT("ManageAssetBlueprint only available in editor builds"));
 #endif
 }

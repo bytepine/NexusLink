@@ -18,21 +18,21 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetStructCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetStructCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_struct");
-	Out.Description = TEXT("Create UDS file, auto-compile; add fields via manage_asset_struct_field.");
+	Out.Name = TEXT("CreateAssetStruct");
+	Out.Description = TEXT("Create UDS file, auto-compile; add fields via ManageAssetStructField.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("New struct package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("New struct package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Struct };
-	Out.ExtraSearchKeywords = { TEXT("uds"), TEXT("fields"), TEXT("schema"), TEXT("record"), TEXT("new") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_struct_field"), TEXT("get_asset_struct") };
+	Out.ExtraSearchKeywords = { TEXT("uds"), TEXT("Fields"), TEXT("Schema"), TEXT("record"), TEXT("new") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetStructField"), TEXT("GetAssetStruct") };
 	Out.WhenToUse = TEXT("Create empty UDS; add fields via manage");
 }
 
-FCapabilityResult FCreateAssetStructCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetStructCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -42,18 +42,18 @@ FCapabilityResult FCreateAssetStructCapability::Execute(const TSharedPtr<FJsonOb
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FString AssetName = FPaths::GetBaseFilename(AssetPath);
 
 		if (LoadObject<UUserDefinedStruct>(nullptr, *AssetPath))
-		{ Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Struct already exists: %s"), *AssetPath)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		{ Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Struct already exists: %s"), *AssetPath)); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 
 		UPackage* Package = CreatePackage(*AssetPath);
-		if (!Package) { Entry->SetStringField(TEXT("error"), TEXT("Failed to create package")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		if (!Package) { Entry->SetStringField(TEXT("Error"), TEXT("Failed to create package")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 
 		UUserDefinedStruct* NewStruct = FStructureEditorUtils::CreateUserDefinedStruct(
 			Package, FName(*AssetName), RF_Public | RF_Standalone);
-		if (!NewStruct) { Entry->SetStringField(TEXT("error"), TEXT("Struct Createfailed")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		if (!NewStruct) { Entry->SetStringField(TEXT("Error"), TEXT("Struct Createfailed")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewStruct, AssetPath);
 
@@ -61,6 +61,6 @@ FCapabilityResult FCreateAssetStructCapability::Execute(const TSharedPtr<FJsonOb
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetStructCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetStructCapability)
 
 #endif // WITH_EDITOR

@@ -7,10 +7,10 @@
 
 /**
  * get_actor_animation —— 查询单个 Actor 上 AnimInstance 的运行时状态/插槽/变量。
- * 继承 FNexusMultiSectionCapability，sections=["state","slots","variables"]。
- * 默认 section：state。单目标 actorName；跨目标用 call_capability.calls[]。
+ * 继承 FNexusMultiSectionCapability，Sections=["State","Slots","Variables"]。
+ * 默认 section：state。单目标 ActorName；跨目标用 CallCapability.calls[]。
  */
-class FGetRuntimeActorAnimationCapability : public FNexusRuntimeMultiSectionCapability
+class FNexusGetRuntimeActorAnimationCapability : public FNexusRuntimeMultiSectionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -12,26 +12,26 @@
 #include "Engine/Texture2D.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetPaperSpriteCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetPaperSpriteCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_paper_sprite");
-	Out.Description = TEXT("Create PaperSprite. optional sourceTexturePath.");
+	Out.Name = TEXT("CreateAssetPaperSprite");
+	Out.Description = TEXT("Create PaperSprite. optional SourceTexturePath.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Prop(TEXT("sourceTexturePath"), FNexusSchema::Str(TEXT("Source Texture2D path (optional)")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("SourceTexturePath"), FNexusSchema::Str(TEXT("Source Texture2D path (optional)")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("sprite"), TEXT("2d"), TEXT("paper") };
-	Out.RelatedCapabilities = { TEXT("get_asset_paper_sprite"), TEXT("manage_asset_paper_sprite") };
+	Out.ExtraSearchKeywords = { TEXT("Sprite"), TEXT("2d"), TEXT("paper") };
+	Out.RelatedCapabilities = { TEXT("GetAssetPaperSprite"), TEXT("ManageAssetPaperSprite") };
 }
 
-FCapabilityResult FCreateAssetPaperSpriteCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetPaperSpriteCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<UPaperSprite>(AssetPath, RF_Public | RF_Standalone, false);
 		if (!Created.Ok())
@@ -46,7 +46,7 @@ FCapabilityResult FCreateAssetPaperSpriteCapability::Execute(const TSharedPtr<FJ
 			return;
 		}
 		FString TexPath;
-		if (Arguments->TryGetStringField(TEXT("sourceTexturePath"), TexPath) && !TexPath.IsEmpty())
+		if (Arguments->TryGetStringField(TEXT("SourceTexturePath"), TexPath) && !TexPath.IsEmpty())
 		{
 			if (UTexture2D* Tex = FNexusAssetUtils::LoadAssetWithFallback<UTexture2D>(TexPath))
 			{
@@ -60,5 +60,5 @@ FCapabilityResult FCreateAssetPaperSpriteCapability::Execute(const TSharedPtr<FJ
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetPaperSpriteCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetPaperSpriteCapability)
 #endif

@@ -9,28 +9,28 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetPhysicalMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetPhysicalMaterialCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_physical_material");
+	Out.Name = TEXT("CreateAssetPhysicalMaterial");
 	Out.Description = TEXT("Create PhysicalMaterial. optional friction/restitution.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Asset package path")))
-		.Prop(TEXT("friction"), FNexusSchema::Num(TEXT("Friction")))
-		.Prop(TEXT("restitution"), FNexusSchema::Num(TEXT("Restitution")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path")))
+		.Prop(TEXT("Friction"), FNexusSchema::Num(TEXT("Friction")))
+		.Prop(TEXT("Restitution"), FNexusSchema::Num(TEXT("Restitution")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("physical"), TEXT("material"), TEXT("friction"), TEXT("physics") };
-	Out.RelatedCapabilities = { TEXT("get_asset_physical_material"), TEXT("manage_asset_physical_material") };
+	Out.ExtraSearchKeywords = { TEXT("physical"), TEXT("Material"), TEXT("Friction"), TEXT("physics") };
+	Out.RelatedCapabilities = { TEXT("GetAssetPhysicalMaterial"), TEXT("ManageAssetPhysicalMaterial") };
 	Out.WhenToUse = TEXT("Create PhysicalMaterial; edit friction/restitution via manage");
 }
 
-FCapabilityResult FCreateAssetPhysicalMaterialCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetPhysicalMaterialCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 		const FNexusAssetUtils::FAssetCreateOutcome Created =
 			FNexusAssetUtils::CreatePlainAsset<UPhysicalMaterial>(AssetPath, RF_Public | RF_Standalone, false);
 		if (!Created.Ok())
@@ -44,11 +44,11 @@ FCapabilityResult FCreateAssetPhysicalMaterialCapability::Execute(const TSharedP
 			FNexusCapabilityResultBuilder::AddEntryError(OutEntries, TEXT("Create failed"));
 			return;
 		}
-		if (Arguments->HasField(TEXT("friction"))) PM->Friction = static_cast<float>(A.Num(TEXT("friction")));
-		if (Arguments->HasField(TEXT("restitution"))) PM->Restitution = static_cast<float>(A.Num(TEXT("restitution")));
+		if (Arguments->HasField(TEXT("Friction"))) PM->Friction = static_cast<float>(A.Num(TEXT("Friction")));
+		if (Arguments->HasField(TEXT("Restitution"))) PM->Restitution = static_cast<float>(A.Num(TEXT("Restitution")));
 		FNexusAssetUtils::NotifyAndSaveCreated(PM->GetOutermost(), PM, AssetPath);
 		FNexusCapabilityResultBuilder::AddCreatedEntry(OutEntries, PM);
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetPhysicalMaterialCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetPhysicalMaterialCapability)

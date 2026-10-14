@@ -12,32 +12,32 @@
 #include "NexusMcpTool.h"
 #include "PCGGraph.h"
 
-void FCreateAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name        = TEXT("create_asset_pcg_graph");
+	Out.Name        = TEXT("CreateAssetPCGGraph");
 	Out.Description = TEXT("Create PCG Graph asset.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("New PCG Graph full path, e.g. /Game/PCG/PCG_NewGraph")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("New PCG Graph full path, e.g. /Game/PCG/PCG_NewGraph")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("pcg"), TEXT("procedural"), TEXT("generation"), TEXT("graph") };
-	Out.RelatedCapabilities = { TEXT("get_asset_pcg_graph"), TEXT("manage_asset_pcg_graph"), TEXT("search_asset") };
+	Out.RelatedCapabilities = { TEXT("GetAssetPCGGraph"), TEXT("ManageAssetPCGGraph"), TEXT("SearchAsset") };
 	Out.WhenToUse = TEXT("Create new PCG Graph asset (UE 5.4+)");
 }
 
-FCapabilityResult FCreateAssetPCGGraphCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetPCGGraphCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		const FString FullPath = A.Str(TEXT("assetPath"));
+		const FString FullPath = A.Str(TEXT("AssetPath"));
 
 		if (UPCGGraph* Existing = FNexusAssetUtils::LoadAssetWithFallback<UPCGGraph>(FullPath))
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), Existing->GetPathName());
-			Entry->SetBoolField(TEXT("alreadyExists"), true);
+			Entry->SetStringField(TEXT("Path"), Existing->GetPathName());
+			Entry->SetBoolField(TEXT("bAlreadyExists"), true);
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -46,19 +46,19 @@ FCapabilityResult FCreateAssetPCGGraphCapability::Execute(const TSharedPtr<FJson
 			FNexusAssetUtils::CreatePlainAsset<UPCGGraph>(FullPath);
 		if (!Created.Ok())
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("path"), FullPath}}, Created.Error);
+			FNexusCapability::EmitError(OutEntries, {{TEXT("Path"), FullPath}}, Created.Error);
 			return;
 		}
 		UPCGGraph* Graph = Cast<UPCGGraph>(Created.Asset);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("path"), Graph->GetPathName());
-		Entry->SetStringField(TEXT("assetType"), TEXT("PCGGraph"));
-		Entry->SetBoolField(TEXT("created"), true);
+		Entry->SetStringField(TEXT("Path"), Graph->GetPathName());
+		Entry->SetStringField(TEXT("AssetType"), TEXT("PCGGraph"));
+		Entry->SetBoolField(TEXT("bCreated"), true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetPCGGraphCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetPCGGraphCapability)
 
 #endif // WITH_PCG

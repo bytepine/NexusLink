@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** reimport_asset — 重新导入资产源文件。*/
-class FReimportAssetCapability : public FNexusCapability
+/** ReimportAsset — 重新导入资产源文件。*/
+class FNexusReimportAssetCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "NexusMultiSectionCapability.h"
 
-/** get_editor_context：编辑器选中 Actor/资产与 Content Browser 路径（只读）。 */
-class FGetEditorContextCapability : public FNexusMultiSectionCapability
+/** GetEditorContext：编辑器选中 Actor/资产与 Content Browser 路径（只读）。 */
+class FNexusGetEditorContextCapability : public FNexusMultiSectionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

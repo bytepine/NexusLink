@@ -19,22 +19,22 @@
 #include "GameFramework/Actor.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_blueprint");
-	Out.Description = TEXT("Create new BP and compile; parentClass=Interface for BPI. Add vars/nodes via manage.");
+	Out.Name = TEXT("CreateAssetBlueprint");
+	Out.Description = TEXT("Create new BP and compile; ParentClass=Interface for BPI. Add vars/nodes via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),   FNexusSchema::Str(TEXT("New Blueprint package path, e.g. '/Game/Blueprints/BP_NewActor'")))
-		.Prop(TEXT("parentClass"), FNexusSchema::Str(TEXT("Parent class or BP path. Interface for BPI; Actor/Pawn/Character for normal BP")))
-		.Required({ TEXT("assetPath"), TEXT("parentClass") })
+		.Prop(TEXT("AssetPath"),   FNexusSchema::Str(TEXT("New Blueprint package path, e.g. '/Game/Blueprints/BP_NewActor'")))
+		.Prop(TEXT("ParentClass"), FNexusSchema::Str(TEXT("Parent class or BP path. Interface for BPI; Actor/Pawn/Character for normal BP")))
+		.Required({ TEXT("AssetPath"), TEXT("ParentClass") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
-	Out.ExtraSearchKeywords = { TEXT("bp"), TEXT("new"), TEXT("subclass"), TEXT("derive"), TEXT("parent"), TEXT("interface"), TEXT("bpi") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_blueprint"), TEXT("get_asset_blueprint") };
-	Out.WhenToUse = TEXT("Create empty BP or BPI (parentClass=Interface); not for existing BP");
+	Out.ExtraSearchKeywords = { TEXT("bp"), TEXT("new"), TEXT("subclass"), TEXT("derive"), TEXT("Parent"), TEXT("interface"), TEXT("bpi") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetBlueprint"), TEXT("GetAssetBlueprint") };
+	Out.WhenToUse = TEXT("Create empty BP or BPI (ParentClass=Interface); not for existing BP");
 }
 
-FCapabilityResult FCreateAssetBlueprintCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetBlueprintCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 #if WITH_EDITOR
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -42,8 +42,8 @@ FCapabilityResult FCreateAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 		const FNexusArgs A(Arguments);
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		const FString AssetPath = A.Str(TEXT("assetPath"));
-		const FString ParentClassName = A.Str(TEXT("parentClass"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
+		const FString ParentClassName = A.Str(TEXT("ParentClass"));
 		const FNexusAssetEditorUtils::FAssetCreateOutcome Created = FNexusAssetEditorUtils::CreateBlueprintAsset(
 			AssetPath, ParentClassName, UObject::StaticClass(), nullptr, nullptr, /*bCompileAndSave=*/false);
 		if (!Created.Ok())
@@ -91,13 +91,13 @@ FCapabilityResult FCreateAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 
 		FNexusAssetEditorUtils::NotifyCompileAndSave(NewBlueprint->GetOutermost(), NewBlueprint, AssetPath);
 
-		OutEntry->SetStringField(TEXT("path"),    AssetPath);
+		OutEntry->SetStringField(TEXT("Path"),    AssetPath);
 		OutEntry->SetStringField(TEXT("name"),    NewBlueprint->GetName());
 		FNexusAssetUtils::AppendBlueprintMetaFields(NewBlueprint, OutEntry);
-		OutEntry->SetNumberField(TEXT("beginPlayEnsured"), BeginPlayEnsured);
+		OutEntry->SetNumberField(TEXT("BeginPlayEnsured"), BeginPlayEnsured);
 		if (NewBlueprint->UbergraphPages.Num() > 0)
 		{
-			OutEntry->SetNumberField(TEXT("eventGraphNodeCount"), NewBlueprint->UbergraphPages[0]->Nodes.Num());
+			OutEntry->SetNumberField(TEXT("EventGraphNodeCount"), NewBlueprint->UbergraphPages[0]->Nodes.Num());
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
@@ -105,9 +105,9 @@ FCapabilityResult FCreateAssetBlueprintCapability::Execute(const TSharedPtr<FJso
 #else
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
-		OutError = TEXT("create_asset_blueprint only available in editor builds");
+		OutError = TEXT("CreateAssetBlueprint only available in editor builds");
 	});
 #endif
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetBlueprintCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetBlueprintCapability)

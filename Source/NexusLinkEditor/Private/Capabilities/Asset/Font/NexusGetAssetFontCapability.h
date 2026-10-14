@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** get_asset_font：读取 UFont 元数据。TTF 导入走 reimport_asset。 */
-class FGetAssetFontCapability : public FNexusCapability
+/** GetAssetFont：读取 UFont 元数据。TTF 导入走 ReimportAsset。 */
+class FNexusGetAssetFontCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

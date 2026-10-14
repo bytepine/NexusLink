@@ -6,11 +6,11 @@
 #include "NexusMultiSectionCapability.h"
 
 /**
- * get_asset_anim_blueprint 的 Capability — 读取 AnimBlueprint 资产的变量列表、状态机结构和 Defaults。
- * 继承 FNexusMultiSectionCapability，sections=["variables","statemachines","defaults"]。
+ * GetAssetAnimBlueprint 的 Capability — 读取 AnimBlueprint 资产的变量列表、状态机结构和 Defaults。
+ * 继承 FNexusMultiSectionCapability，Sections=["Variables","statemachines","Defaults"]。
  * 默认 section 列表：variables + statemachines。
  */
-class FGetAssetAnimBlueprintCapability : public FNexusMultiSectionCapability
+class FNexusGetAssetAnimBlueprintCapability : public FNexusMultiSectionCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

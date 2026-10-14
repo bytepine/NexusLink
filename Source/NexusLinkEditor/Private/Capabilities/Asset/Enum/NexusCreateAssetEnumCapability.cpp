@@ -14,31 +14,31 @@
 #include "Kismet2/EnumEditorUtils.h"
 #endif
 
-void FCreateAssetEnumCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetEnumCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_enum");
+	Out.Name = TEXT("CreateAssetEnum");
 	Out.Description = TEXT("Create UserDefinedEnum asset; add/remove entries via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Enum asset package path")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Enum asset package path")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("enum"), TEXT("enumeration"), TEXT("blueprint"), TEXT("user"), TEXT("defined") };
-	Out.RelatedCapabilities = { TEXT("get_asset_enum"), TEXT("manage_asset_enum") };
+	Out.RelatedCapabilities = { TEXT("GetAssetEnum"), TEXT("ManageAssetEnum") };
 	Out.WhenToUse = TEXT("Create new Blueprint enum asset");
 }
 
-FCapabilityResult FCreateAssetEnumCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetEnumCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 #if !WITH_EDITOR
-		OutError = TEXT("create_asset_enum only available in Editor builds");
+		OutError = TEXT("CreateAssetEnum only available in Editor builds");
 		return;
 #else
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
 		if (LoadObject<UUserDefinedEnum>(nullptr, *AssetPath))
 		{
@@ -64,10 +64,10 @@ FCapabilityResult FCreateAssetEnumCapability::Execute(const TSharedPtr<FJsonObje
 		FNexusAssetUtils::NotifyAndSaveCreated(Package, NewEnum, AssetPath);
 
 		TSharedPtr<FJsonObject> Entry = FNexusCapabilityResultBuilder::MakeCreatedEntry(NewEnum);
-		Entry->SetNumberField(TEXT("entryCount"),   NewEnum->NumEnums() - 1); // 减去内部 _MAX
+		Entry->SetNumberField(TEXT("EntryCount"),   NewEnum->NumEnums() - 1); // 减去内部 _MAX
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 #endif // WITH_EDITOR
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetEnumCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetEnumCapability)

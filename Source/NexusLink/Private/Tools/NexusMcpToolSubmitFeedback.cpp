@@ -12,32 +12,32 @@
 
 void FNexusMcpToolSubmitFeedback::BuildDefinition(FNexusMcpToolDefinition& Out) const
 {
-	Out.Name        = TEXT("submit_feedback");
-	Out.Description = TEXT("Report tool/capability friction. Trigger: retry >=2 with no progress, no suitable capability, schema guessing, or forced serial calls >=3. category: wrong_tool|misuse|schema_guess|search_zero|search_overflow|other. Prefer attemptedArgs/actualError/expectedField over long note.");
+	Out.Name        = TEXT("SubmitFeedback");
+	Out.Description = TEXT("Report tool/capability friction. Trigger: retry >=2 with no progress, no suitable capability, schema guessing, or forced serial calls >=3. category: WrongTool|misuse|SchemaGuess|SearchZero|SearchOverflow|other. Prefer AttemptedArgs/ActualError/ExpectedField over long note.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Required(TEXT("category"),
+		.Required(TEXT("Category"),
 			FNexusSchema::Enum(TEXT("Feedback category"),
 				{
-					TEXT("wrong_tool"),
-					TEXT("misuse"),
-					TEXT("schema_guess"),
-					TEXT("search_zero"),
-					TEXT("search_overflow"),
-					TEXT("other"),
+					TEXT("WrongTool"),
+					TEXT("Misuse"),
+					TEXT("SchemaGuess"),
+					TEXT("SearchZero"),
+					TEXT("SearchOverflow"),
+					TEXT("Other"),
 				}))
-		.Prop(TEXT("note"),
+		.Prop(TEXT("Note"),
 			FNexusSchema::Str(TEXT("Free-text problem description (recommended)")))
-		.Prop(TEXT("tool"),
+		.Prop(TEXT("Tool"),
 			FNexusSchema::Str(TEXT("MCP tool name involved")))
-		.Prop(TEXT("capability"),
+		.Prop(TEXT("Capability"),
 			FNexusSchema::Str(TEXT("Capability name involved")))
-		.Prop(TEXT("query"),
-			FNexusSchema::Str(TEXT("search_capabilities query that caused the issue")))
-		.Prop(TEXT("attemptedArgs"),
+		.Prop(TEXT("Query"),
+			FNexusSchema::Str(TEXT("SearchCapabilities query that caused the issue")))
+		.Prop(TEXT("AttemptedArgs"),
 			FNexusSchema::Str(TEXT("Summary of arguments that triggered the issue")))
-		.Prop(TEXT("actualError"),
+		.Prop(TEXT("ActualError"),
 			FNexusSchema::Str(TEXT("Snippet of the actual error received")))
-		.Prop(TEXT("expectedField"),
+		.Prop(TEXT("ExpectedField"),
 			FNexusSchema::Str(TEXT("Missing, ambiguous, or guessed field name")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -48,7 +48,7 @@ FNexusMcpToolResult FNexusMcpToolSubmitFeedback::Execute(const TSharedPtr<FJsonO
 	FNexusMcpToolResult Result;
 	const FNexusArgs Parsed(Arguments.IsValid() ? Arguments : MakeShared<FJsonObject>());
 
-	const FString Category = Parsed.Str(TEXT("category"));
+	const FString Category = Parsed.Str(TEXT("Category"));
 	if (Category.IsEmpty())
 	{
 		Result.bIsError = true;
@@ -57,21 +57,21 @@ FNexusMcpToolResult FNexusMcpToolSubmitFeedback::Execute(const TSharedPtr<FJsonO
 	}
 
 	FNexusFeedback::FFields Fields;
-	Fields.Tool          = Parsed.Str(TEXT("tool"));
-	Fields.Capability    = Parsed.Str(TEXT("capability"));
-	Fields.Query         = Parsed.Str(TEXT("query"));
-	Fields.Note          = Parsed.Str(TEXT("note"));
-	Fields.AttemptedArgs = Parsed.Str(TEXT("attemptedArgs"));
-	Fields.ActualError   = Parsed.Str(TEXT("actualError"));
-	Fields.ExpectedField = Parsed.Str(TEXT("expectedField"));
+	Fields.Tool          = Parsed.Str(TEXT("Tool"));
+	Fields.Capability    = Parsed.Str(TEXT("Capability"));
+	Fields.Query         = Parsed.Str(TEXT("Query"));
+	Fields.Note          = Parsed.Str(TEXT("Note"));
+	Fields.AttemptedArgs = Parsed.Str(TEXT("AttemptedArgs"));
+	Fields.ActualError   = Parsed.Str(TEXT("ActualError"));
+	Fields.ExpectedField = Parsed.Str(TEXT("ExpectedField"));
 
 	FNexusFeedback::RecordManual(Category, Fields);
 
 	// 返回确认信息
 	TSharedPtr<FJsonObject> Out = MakeShared<FJsonObject>();
-	Out->SetBoolField(TEXT("ok"),       true);
-	Out->SetStringField(TEXT("recorded"), FDateTime::UtcNow().ToIso8601());
-	Out->SetStringField(TEXT("category"), Category);
+	Out->SetBoolField(TEXT("bOk"),       true);
+	Out->SetStringField(TEXT("Recorded"), FDateTime::UtcNow().ToIso8601());
+	Out->SetStringField(TEXT("Category"), Category);
 
 	Result.StructuredContent = Out;
 	Result.OutputText = FNexusJsonUtils::SerializeCondensed(Out);

@@ -31,23 +31,26 @@ RE_RELATED = re.compile(r"Out\.RelatedCapabilities\s*=\s*\{([^}]+)\}")
 RE_TEXT = re.compile(r'TEXT\("([^"]+)"\)')
 RE_AT_LEAST_IN_CAP = re.compile(r"NX_UE_AT_LEAST\s*\(")
 
-ALLOWED_FIRST_VERBS = frozenset({
-    "search", "list", "get", "set", "manage", "create", "delete", "rename",
-    "duplicate", "save", "unload", "spawn", "destroy", "diff", "interact",
-    "control", "exec", "eval", "dofile", "gc", "hotreload", "capture",
-    "compile", "export", "reimport",
-})
+ALLOWED_FIRST_VERBS = (
+    "HotReload", "Duplicate", "Reimport", "Interact",
+    "Destroy", "Capture", "Compile", "Control",
+    "Manage", "Create", "Delete", "Rename",
+    "Search", "Unload", "Export", "Submit",
+    "Spawn", "Dofile", "Diff", "List",
+    "Save", "Call", "Exec", "Eval",
+    "Get", "Set", "Gc",
+)
 
 FORBIDDEN_NAMES = frozenset({
-    "manage_animation",
-    "set_runtime_actor_animation",
-    "get_asset_generic",
+    "ManageAnimation",
+    "SetRuntimeActorAnimation",
+    "GetAssetGeneric",
 })
 
 META_TOOLS = frozenset({
-    "search_capabilities",
-    "call_capability",
-    "submit_feedback",
+    "SearchCapabilities",
+    "CallCapability",
+    "SubmitFeedback",
 })
 
 # 计划缺口：允许存在且无 interact 兄弟（仅登记，不 fail）
@@ -83,8 +86,11 @@ def _scan_nexuslink_sources_for_raw_at_least() -> list[tuple[Path, int]]:
 
 
 def _first_verb(name: str) -> str:
-    idx = name.find("_")
-    return name if idx < 0 else name[:idx]
+    best = ""
+    for verb in ALLOWED_FIRST_VERBS:
+        if name.startswith(verb) and len(verb) > len(best):
+            best = verb
+    return best
 
 
 def _rel(path: Path) -> str:
@@ -115,9 +121,9 @@ def main() -> int:
             errors.append(f"forbidden capability name '{name}' in {_rel(path)}")
 
         verb = _first_verb(name)
-        if verb not in ALLOWED_FIRST_VERBS:
+        if not verb:
             errors.append(
-                f"unknown first verb '{verb}' in '{name}' ({_rel(path)})"
+                f"unknown first verb in '{name}' ({_rel(path)})"
             )
 
         rm = RE_RELATED.search(text)

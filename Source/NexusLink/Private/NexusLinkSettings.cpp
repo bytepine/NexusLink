@@ -29,13 +29,13 @@ UNexusLinkSettings* UNexusLinkSettings::Get()
 FString UNexusLinkSettings::GetExtraMcpAuthTokensText() const
 {
 	FString Out;
-	for (int32 i = 0; i < ExtraMcpAuthTokens.Num(); ++i)
+	for (int32 ExtraMcpAuthTokenIndex = 0; ExtraMcpAuthTokenIndex < ExtraMcpAuthTokens.Num(); ++ExtraMcpAuthTokenIndex)
 	{
-		if (i > 0)
+		if (ExtraMcpAuthTokenIndex > 0)
 		{
 			Out += TEXT("\n");
 		}
-		Out += ExtraMcpAuthTokens[i];
+		Out += ExtraMcpAuthTokens[ExtraMcpAuthTokenIndex];
 	}
 	return Out;
 }
@@ -196,11 +196,11 @@ void UNexusLinkSettings::EnsureDangerousCapsDefaultOff()
 {
 	const TArray<FString> DangerousNames = CollectDangerousCapabilityNames();
 
-	// 旧版本只有一个总开关，迁移时把当时已有的 exec_command 视为已处理，
+	// 旧版本只有一个总开关，迁移时把当时已有的 ExecCommand 视为已处理，
 	// 否则用户手动启用过的 cap 会在本次升级被重新关掉
 	if (bDangerousCapsDefaultOffApplied && DangerousCapsDefaultOffApplied.Num() == 0)
 	{
-		DangerousCapsDefaultOffApplied.Add(TEXT("exec_command"));
+		DangerousCapsDefaultOffApplied.Add(TEXT("ExecCommand"));
 	}
 
 	bool bChanged = false;

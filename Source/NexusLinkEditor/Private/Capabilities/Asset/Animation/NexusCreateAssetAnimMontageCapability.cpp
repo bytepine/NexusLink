@@ -11,29 +11,29 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "NexusMcpTool.h"
 
-void FCreateAssetAnimMontageCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusCreateAssetAnimMontageCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_anim_montage");
+	Out.Name = TEXT("CreateAssetAnimMontage");
 	Out.Description = TEXT("Create Montage for skeleton; add segments via manage.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),    FNexusSchema::Str(TEXT("Montage package path")))
-		.Prop(TEXT("skeletonPath"), FNexusSchema::Str(TEXT("Skeleton asset path")))
-		.Required({ TEXT("assetPath"), TEXT("skeletonPath") })
+		.Prop(TEXT("AssetPath"),    FNexusSchema::Str(TEXT("Montage package path")))
+		.Prop(TEXT("SkeletonPath"), FNexusSchema::Str(TEXT("Skeleton asset path")))
+		.Required({ TEXT("AssetPath"), TEXT("SkeletonPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Data };
-	Out.ExtraSearchKeywords = { TEXT("montage"), TEXT("new"), TEXT("skeleton"), TEXT("sequence"), TEXT("rig") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_anim_montage"), TEXT("get_asset_anim_montage") };
-	Out.WhenToUse = TEXT("Create empty Montage; requires skeletonPath");
+	Out.ExtraSearchKeywords = { TEXT("Montage"), TEXT("new"), TEXT("Skeleton"), TEXT("Sequence"), TEXT("rig") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetAnimMontage"), TEXT("GetAssetAnimMontage") };
+	Out.WhenToUse = TEXT("Create empty Montage; requires SkeletonPath");
 }
 
-FCapabilityResult FCreateAssetAnimMontageCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusCreateAssetAnimMontageCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString AssetPath    = A.Str(TEXT("assetPath"));
-		const FString SkeletonPath = A.Str(TEXT("skeletonPath"));
+		const FString AssetPath    = A.Str(TEXT("AssetPath"));
+		const FString SkeletonPath = A.Str(TEXT("SkeletonPath"));
 
 		USkeleton* Skeleton = LoadObject<USkeleton>(nullptr, *SkeletonPath);
 		if (!Skeleton)
@@ -59,9 +59,9 @@ FCapabilityResult FCreateAssetAnimMontageCapability::Execute(const TSharedPtr<FJ
 		FNexusAssetUtils::NotifyAndSaveCreated(Montage->GetOutermost(), Montage, AssetPath);
 
 		TSharedPtr<FJsonObject> OutEntry = FNexusCapabilityResultBuilder::MakeCreatedEntry(Montage);
-		OutEntry->SetStringField(TEXT("skeleton"), Skeleton->GetPathName());
+		OutEntry->SetStringField(TEXT("Skeleton"), Skeleton->GetPathName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FCreateAssetAnimMontageCapability)
+REGISTER_MCP_CAPABILITY(FNexusCreateAssetAnimMontageCapability)

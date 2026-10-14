@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "NexusCapability.h"
 
-/** get_asset_foliage_type：读取 mesh / density / radius。 */
-class FGetAssetFoliageTypeCapability : public FNexusCapability
+/** GetAssetFoliageType：读取 mesh / density / radius。 */
+class FNexusGetAssetFoliageTypeCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

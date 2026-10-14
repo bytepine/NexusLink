@@ -7,51 +7,51 @@
 #include "Engine/World.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_level");
+	Out.Name = TEXT("GetAssetLevel");
 	Out.SearchAssetTypes = {TEXT("World")};
-	Out.Description = TEXT("Inspect level snapshot. Writes via manage_asset_level.");
+	Out.Description = TEXT("Inspect level snapshot. Writes via ManageAssetLevel.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
-	Out.Prerequisites = { TEXT("editor_only") };
-	Out.ExtraSearchKeywords = { TEXT("level"), TEXT("map"), TEXT("umap"), TEXT("world"), TEXT("actor") };
-	Out.RelatedCapabilities = { TEXT("manage_asset_level"), TEXT("create_asset_level"), TEXT("search_asset"), TEXT("list_runtime_actors"), TEXT("get_asset_refs") };
-	Out.WhenToUse = TEXT("Read on-disk level; WorldSettings via manage_asset_level");
+	Out.Prerequisites = { TEXT("EditorOnly") };
+	Out.ExtraSearchKeywords = { TEXT("Level"), TEXT("map"), TEXT("umap"), TEXT("World"), TEXT("Actor") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetLevel"), TEXT("CreateAssetLevel"), TEXT("SearchAsset"), TEXT("ListRuntimeActors"), TEXT("GetAssetRefs") };
+	Out.WhenToUse = TEXT("Read on-disk level; WorldSettings via ManageAssetLevel");
 }
 
-TSharedPtr<FJsonObject> FGetAssetLevelCapability::BuildCapabilitySchema() const
+TSharedPtr<FJsonObject> FNexusGetAssetLevelCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Level asset path (/Game/.../*.umap package path)")))
-		.Prop(TEXT("classFilter"), FNexusSchema::Str(TEXT("Actor class name filter (optional)")))
-		.Prop(TEXT("nameFilter"),  FNexusSchema::Str(TEXT("Actor name/tag filter (optional)")))
-		.Prop(TEXT("tagFilter"),   FNexusSchema::Str(TEXT("Actor Tag exact match (optional)")))
-		.Prop(TEXT("offset"),      FNexusSchema::Int(TEXT("actors section pagination offset"), 0, 0))
-		.Prop(TEXT("limit"),       FNexusSchema::Int(TEXT("actors section page size"), 100, 1, 500))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Level asset path (/Game/.../*.umap package path)")))
+		.Prop(TEXT("ClassFilter"), FNexusSchema::Str(TEXT("Actor class name filter (optional)")))
+		.Prop(TEXT("NameFilter"),  FNexusSchema::Str(TEXT("Actor name/tag filter (optional)")))
+		.Prop(TEXT("TagFilter"),   FNexusSchema::Str(TEXT("Actor Tag exact match (optional)")))
+		.Prop(TEXT("Offset"),      FNexusSchema::Int(TEXT("actors section pagination offset"), 0, 0))
+		.Prop(TEXT("Limit"),       FNexusSchema::Int(TEXT("actors section page size"), 100, 1, 500))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 }
 
-TArray<FString> FGetAssetLevelCapability::GetSectionNames() const
+TArray<FString> FNexusGetAssetLevelCapability::GetSectionNames() const
 {
-	return { TEXT("actors"), TEXT("settings") };
+	return { TEXT("Actors"), TEXT("Settings") };
 }
 
-TArray<FString> FGetAssetLevelCapability::GetDefaultSectionNames() const
+TArray<FString> FNexusGetAssetLevelCapability::GetDefaultSectionNames() const
 {
-	return { TEXT("actors"), TEXT("settings") };
+	return { TEXT("Actors"), TEXT("Settings") };
 }
 
-bool FGetAssetLevelCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
+bool FNexusGetAssetLevelCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
                                             TSharedPtr<FJsonObject>&       OutEntry,
                                             void*&                         OutTargetOpaque,
                                             FString&                       OutError) const
 {
 	FString AssetPath;
-	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
+	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("AssetPath"), AssetPath) || AssetPath.IsEmpty())
 	{
-		OutError = TEXT("assetPath is required");
+		OutError = TEXT("AssetPath is required");
 		return false;
 	}
 
@@ -62,16 +62,16 @@ bool FGetAssetLevelCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
 		return false;
 	}
 
-	OutEntry->SetStringField(TEXT("path"), AssetPath);
-	OutEntry->SetStringField(TEXT("packagePath"), FNexusEditorLevelUtils::NormalizeLevelPackagePath(AssetPath));
-	OutEntry->SetStringField(TEXT("worldName"), World->GetName());
-	OutEntry->SetBoolField(TEXT("isEditorWorld"), bEditorWorld);
+	OutEntry->SetStringField(TEXT("Path"), AssetPath);
+	OutEntry->SetStringField(TEXT("PackagePath"), FNexusEditorLevelUtils::NormalizeLevelPackagePath(AssetPath));
+	OutEntry->SetStringField(TEXT("WorldName"), World->GetName());
+	OutEntry->SetBoolField(TEXT("bIsEditorWorld"), bEditorWorld);
 
 	OutTargetOpaque = static_cast<void*>(World);
 	return true;
 }
 
-void FGetAssetLevelCapability::ExecuteSection(const FString&                 SectionName,
+void FNexusGetAssetLevelCapability::ExecuteSection(const FString&                 SectionName,
                                               const TSharedPtr<FJsonObject>& Args,
                                               void*                          TargetOpaque,
                                               TSharedPtr<FJsonObject>&       InOutDetail,
@@ -84,11 +84,11 @@ void FGetAssetLevelCapability::ExecuteSection(const FString&                 Sec
 		return;
 	}
 
-	if (SectionName == TEXT("actors"))
+	if (SectionName == TEXT("Actors"))
 	{
 		FNexusEditorLevelUtils::AppendLevelActorsSection(World, Args, InOutDetail);
 	}
-	else if (SectionName == TEXT("settings"))
+	else if (SectionName == TEXT("Settings"))
 	{
 		FNexusEditorLevelUtils::AppendLevelSettingsSection(World, InOutDetail);
 	}
@@ -98,4 +98,4 @@ void FGetAssetLevelCapability::ExecuteSection(const FString&                 Sec
 	}
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetLevelCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetLevelCapability)

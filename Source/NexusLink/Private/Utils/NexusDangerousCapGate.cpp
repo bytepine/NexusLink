@@ -96,10 +96,10 @@ FString FNexusDangerousCapGate::ExtractPayload(const TSharedPtr<FJsonObject>& Ar
 			Out += FString::Printf(TEXT("%s: %s"), Key, *V);
 		}
 	};
-	AppendField(TEXT("mode"));
-	AppendField(TEXT("command"));
-	AppendField(TEXT("code"));
-	AppendField(TEXT("scriptPath"));
+	AppendField(TEXT("Mode"));
+	AppendField(TEXT("Command"));
+	AppendField(TEXT("Code"));
+	AppendField(TEXT("ScriptPath"));
 	return Out;
 }
 
@@ -109,7 +109,7 @@ bool FNexusDangerousCapGate::ValidateReason(const FString& Reason, const FString
 	if (ReasonN.Len() < GReasonMinLen)
 	{
 		OutError = FString::Printf(
-			TEXT("Missing or too short 'reason' (need ≥%d chars after trim). Describe the purpose, expected effect, and why no safer dedicated capability exists."),
+			TEXT("Missing or too short 'Reason' (need ≥%d chars after trim). Describe the purpose, expected effect, and why no safer dedicated capability exists."),
 			GReasonMinLen);
 		return false;
 	}
@@ -119,13 +119,13 @@ bool FNexusDangerousCapGate::ValidateReason(const FString& Reason, const FString
 		FString StrippedPayload = PayloadN;
 		StrippedPayload.ReplaceInline(TEXT("command: "), TEXT(""));
 		StrippedPayload.ReplaceInline(TEXT("code: "), TEXT(""));
-		StrippedPayload.ReplaceInline(TEXT("scriptPath: "), TEXT(""));
+		StrippedPayload.ReplaceInline(TEXT("ScriptPath: "), TEXT(""));
 		StrippedPayload.ReplaceInline(TEXT("mode: "), TEXT(""));
 		if (ReasonN.Equals(PayloadN, ESearchCase::IgnoreCase)
 			|| ReasonN.Equals(StrippedPayload, ESearchCase::IgnoreCase)
 			|| (PayloadN.Contains(ReasonN) && ReasonN.Len() + 8 <= PayloadN.Len()))
 		{
-			OutError = TEXT("'reason' must not simply repeat the payload. Explain purpose, expected effect, and why no safer dedicated capability exists.");
+			OutError = TEXT("'Reason' must not simply repeat the payload. Explain purpose, expected effect, and why no safer dedicated capability exists.");
 			return false;
 		}
 	}
@@ -150,7 +150,7 @@ FCapabilityResult FNexusDangerousCapGate::ConfirmOrDeny(const FString& CapName, 
 	FString Reason;
 	if (Args.IsValid())
 	{
-		Args->TryGetStringField(TEXT("reason"), Reason);
+		Args->TryGetStringField(TEXT("Reason"), Reason);
 	}
 	FString ReasonErr;
 	if (!ValidateReason(Reason, Payload, ReasonErr))
@@ -170,7 +170,7 @@ FCapabilityResult FNexusDangerousCapGate::ConfirmOrDeny(const FString& CapName, 
 	}
 
 	// 实际 Slate 模态框由 NexusLinkEditor 通过 FNexusEditorServices::PromptDangerousCapConfirm 钩子安装；
-	// 未安装钩子（如纯 Runtime 模块加载、钩子尚未装好）时该 TFunction 默认实现直接回 user_denied。
+	// 未安装钩子（如纯 Runtime 模块加载、钩子尚未装好）时该 TFunction 默认实现直接回 UserDenied。
 	FCapabilityResult Result = FNexusEditorServices::PromptDangerousCapConfirm(CapName, NormalizeWs(Reason), Payload);
 	Audit(CapName, Result.FatalError.IsEmpty() ? TEXT("allowed") : TEXT("denied"),
 		Result.FatalError.IsEmpty() ? TEXT("this request") : Result.FatalError);

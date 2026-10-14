@@ -20,55 +20,55 @@
 #include "Components/Widget.h"
 #include "NexusMcpTool.h"
 
-void FGetAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusGetAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_user_widget");
+	Out.Name = TEXT("GetAssetUserWidget");
 	Out.SearchAssetTypes = {TEXT("Widget")};
 	Out.Description = TEXT("Read WBP tree, animations, graphOverview from editor. Graph details via blueprint cap.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = {
-		TEXT("wbp"), TEXT("umg"), TEXT("hierarchy"), TEXT("children"), TEXT("layout"),
-		TEXT("animation"), TEXT("animate"), TEXT("transition"), TEXT("graph")
+		TEXT("wbp"), TEXT("umg"), TEXT("Hierarchy"), TEXT("Children"), TEXT("Layout"),
+		TEXT("Animation"), TEXT("animate"), TEXT("Transition"), TEXT("graph")
 	};
 	Out.RelatedCapabilities = {
-		TEXT("manage_asset_user_widget"), TEXT("create_asset_user_widget"),
-		TEXT("get_asset_blueprint"), TEXT("manage_asset_blueprint")
+		TEXT("ManageAssetUserWidget"), TEXT("CreateAssetUserWidget"),
+		TEXT("GetAssetBlueprint"), TEXT("ManageAssetBlueprint")
 	};
-	Out.WhenToUse = TEXT("Widget tree/animations here; EventGraph writes via manage_asset_blueprint");
+	Out.WhenToUse = TEXT("Widget tree/animations here; EventGraph writes via ManageAssetBlueprint");
 }
 
-TSharedPtr<FJsonObject> FGetAssetUserWidgetCapability::BuildCapabilitySchema() const
+TSharedPtr<FJsonObject> FNexusGetAssetUserWidgetCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Widget Blueprint asset path")))
-		.Prop(TEXT("nameFilter"), FNexusSchema::Str(TEXT("Widget/animation name substring (optional)")))
-		.Prop(TEXT("typeFilter"), FNexusSchema::Str(TEXT("Widget class substring (widgets section only)")))
-		.Prop(TEXT("offset"),     FNexusSchema::Int(TEXT("Widget paginationoffset (default 0)"), 0, 0))
-		.Prop(TEXT("limit"),      FNexusSchema::Int(TEXT("Max widgets per page 1-500 (default 100)"), 100, 1, 500))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Widget Blueprint asset path")))
+		.Prop(TEXT("NameFilter"), FNexusSchema::Str(TEXT("Widget/animation name substring (optional)")))
+		.Prop(TEXT("TypeFilter"), FNexusSchema::Str(TEXT("Widget class substring (widgets section only)")))
+		.Prop(TEXT("Offset"),     FNexusSchema::Int(TEXT("Widget paginationoffset (default 0)"), 0, 0))
+		.Prop(TEXT("Limit"),      FNexusSchema::Int(TEXT("Max widgets per page 1-500 (default 100)"), 100, 1, 500))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 }
 
-TArray<FString> FGetAssetUserWidgetCapability::GetSectionNames() const
+TArray<FString> FNexusGetAssetUserWidgetCapability::GetSectionNames() const
 {
-	return { TEXT("widgets"), TEXT("animations"), TEXT("graphOverview") };
+	return { TEXT("Widgets"), TEXT("Animations"), TEXT("graphOverview") };
 }
 
-TArray<FString> FGetAssetUserWidgetCapability::GetDefaultSectionNames() const
+TArray<FString> FNexusGetAssetUserWidgetCapability::GetDefaultSectionNames() const
 {
-	return { TEXT("widgets") };
+	return { TEXT("Widgets") };
 }
 
-bool FGetAssetUserWidgetCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
+bool FNexusGetAssetUserWidgetCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
                                                  TSharedPtr<FJsonObject>&       OutEntry,
                                                  void*&                         OutTargetOpaque,
                                                  FString&                       OutError) const
 {
 	FString AssetPath;
-	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("assetPath"), AssetPath) || AssetPath.IsEmpty())
+	if (!Args.IsValid() || !Args->TryGetStringField(TEXT("AssetPath"), AssetPath) || AssetPath.IsEmpty())
 	{
-		OutError = TEXT("assetPath is required");
+		OutError = TEXT("AssetPath is required");
 		return false;
 	}
 
@@ -82,17 +82,17 @@ bool FGetAssetUserWidgetCapability::PrepareEntry(const TSharedPtr<FJsonObject>& 
 
 	const FString PkgPath = WBP->GetOutermost()->GetName();
 	// 身份字段统一为 path；与入参等价时由适配层 StripRedundantPathEcho 省略回显
-	OutEntry->SetStringField(TEXT("path"), PkgPath);
+	OutEntry->SetStringField(TEXT("Path"), PkgPath);
 
 	OutTargetOpaque = static_cast<void*>(WBP);
 	return true;
 #else
-	OutError = TEXT("get_asset_user_widget only available in editor builds");
+	OutError = TEXT("GetAssetUserWidget only available in editor builds");
 	return false;
 #endif
 }
 
-void FGetAssetUserWidgetCapability::ExecuteSection(const FString&                 SectionName,
+void FNexusGetAssetUserWidgetCapability::ExecuteSection(const FString&                 SectionName,
                                                    const TSharedPtr<FJsonObject>& Args,
                                                    void*                          TargetOpaque,
                                                    TSharedPtr<FJsonObject>&       InOutDetail,
@@ -110,13 +110,13 @@ void FGetAssetUserWidgetCapability::ExecuteSection(const FString&               
 	int32 Offset = 0, Limit = 100;
 	if (Args.IsValid())
 	{
-		Args->TryGetStringField(TEXT("nameFilter"), NameFilter);
-		Args->TryGetStringField(TEXT("typeFilter"), TypeFilter);
-		if (Args->HasField(TEXT("offset"))) Offset = FMath::Max(0, static_cast<int32>(Args->GetNumberField(TEXT("offset"))));
-		if (Args->HasField(TEXT("limit")))  Limit  = FMath::Clamp(static_cast<int32>(Args->GetNumberField(TEXT("limit"))), 1, 500);
+		Args->TryGetStringField(TEXT("NameFilter"), NameFilter);
+		Args->TryGetStringField(TEXT("TypeFilter"), TypeFilter);
+		if (Args->HasField(TEXT("Offset"))) Offset = FMath::Max(0, static_cast<int32>(Args->GetNumberField(TEXT("Offset"))));
+		if (Args->HasField(TEXT("Limit")))  Limit  = FMath::Clamp(static_cast<int32>(Args->GetNumberField(TEXT("Limit"))), 1, 500);
 	}
 
-	if (SectionName == TEXT("widgets"))
+	if (SectionName == TEXT("Widgets"))
 	{
 		if (!WBP->WidgetTree)
 		{
@@ -152,8 +152,8 @@ void FGetAssetUserWidgetCapability::ExecuteSection(const FString&               
 		{
 			TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
 			O->SetStringField(TEXT("name"),  All[i].Name);
-			O->SetStringField(TEXT("class"), All[i].Class);
-			if (!All[i].Parent.IsEmpty()) O->SetStringField(TEXT("parent"), All[i].Parent);
+			O->SetStringField(TEXT("Class"), All[i].Class);
+			if (!All[i].Parent.IsEmpty()) O->SetStringField(TEXT("Parent"), All[i].Parent);
 			if (UWidget* W = WBP->WidgetTree->FindWidget(FName(*All[i].Name)))
 			{
 				FNexusWidgetLayoutUtils::AppendUmgLayoutFields(W, O);
@@ -161,14 +161,14 @@ void FGetAssetUserWidgetCapability::ExecuteSection(const FString&               
 			Page.Add(MakeShared<FJsonValueObject>(O));
 		}
 
-		InOutDetail->SetNumberField(TEXT("totalCount"), Total);
-		InOutDetail->SetNumberField(TEXT("offset"),     Start);
-		InOutDetail->SetNumberField(TEXT("limit"),      Limit);
-		InOutDetail->SetArrayField(TEXT("widgets"),     Page);
+		InOutDetail->SetNumberField(TEXT("TotalCount"), Total);
+		InOutDetail->SetNumberField(TEXT("Offset"),     Start);
+		InOutDetail->SetNumberField(TEXT("Limit"),      Limit);
+		InOutDetail->SetArrayField(TEXT("Widgets"),     Page);
 		return;
 	}
 
-	if (SectionName == TEXT("animations"))
+	if (SectionName == TEXT("Animations"))
 	{
 		TArray<TSharedPtr<FJsonValue>> AnimPage;
 		for (int32 i = 0; i < WBP->Animations.Num(); ++i)
@@ -193,14 +193,14 @@ void FGetAssetUserWidgetCapability::ExecuteSection(const FString&               
 			AnimObj->SetStringField(TEXT("name"), ObjName);
 			if (!DisplayLabel.IsEmpty() && DisplayLabel != ObjName)
 			{
-				AnimObj->SetStringField(TEXT("displayLabel"), DisplayLabel);
+				AnimObj->SetStringField(TEXT("DisplayLabel"), DisplayLabel);
 			}
 
 			const float StartTime = Anim->GetStartTime();
 			const float EndTime   = Anim->GetEndTime();
-			AnimObj->SetNumberField(TEXT("startTime"), StartTime);
-			AnimObj->SetNumberField(TEXT("endTime"),   EndTime);
-			AnimObj->SetNumberField(TEXT("duration"),  FMath::Max(0.f, EndTime - StartTime));
+			AnimObj->SetNumberField(TEXT("StartTime"), StartTime);
+			AnimObj->SetNumberField(TEXT("EndTime"),   EndTime);
+			AnimObj->SetNumberField(TEXT("Duration"),  FMath::Max(0.f, EndTime - StartTime));
 
 			TArray<TSharedPtr<FJsonValue>> Bindings;
 			for (const FWidgetAnimationBinding& Binding : Anim->GetBindings())
@@ -208,35 +208,35 @@ void FGetAssetUserWidgetCapability::ExecuteSection(const FString&               
 				TSharedPtr<FJsonObject> BindObj = MakeShared<FJsonObject>();
 				if (!Binding.WidgetName.IsNone())
 				{
-					BindObj->SetStringField(TEXT("widgetName"), Binding.WidgetName.ToString());
+					BindObj->SetStringField(TEXT("WidgetName"), Binding.WidgetName.ToString());
 				}
 				if (!Binding.SlotWidgetName.IsNone())
 				{
-					BindObj->SetStringField(TEXT("slotWidgetName"), Binding.SlotWidgetName.ToString());
+					BindObj->SetStringField(TEXT("SlotWidgetName"), Binding.SlotWidgetName.ToString());
 				}
 				if (Binding.bIsRootWidget)
 				{
-					BindObj->SetBoolField(TEXT("isRootWidget"), true);
+					BindObj->SetBoolField(TEXT("bIsRootWidget"), true);
 				}
 				Bindings.Add(MakeShared<FJsonValueObject>(BindObj));
 			}
 			if (Bindings.Num() > 0)
 			{
-				AnimObj->SetArrayField(TEXT("bindings"), Bindings);
+				AnimObj->SetArrayField(TEXT("Bindings"), Bindings);
 			}
 
 			TArray<TSharedPtr<FJsonValue>> Tracks;
 			FNexusWidgetAnimationUtils::AppendTrackSummaries(Anim, Tracks);
 			if (Tracks.Num() > 0)
 			{
-				AnimObj->SetArrayField(TEXT("tracks"), Tracks);
+				AnimObj->SetArrayField(TEXT("Tracks"), Tracks);
 			}
 
 			AnimPage.Add(MakeShared<FJsonValueObject>(AnimObj));
 		}
 
-		InOutDetail->SetNumberField(TEXT("animationCount"), AnimPage.Num());
-		InOutDetail->SetArrayField(TEXT("animations"), AnimPage);
+		InOutDetail->SetNumberField(TEXT("AnimationCount"), AnimPage.Num());
+		InOutDetail->SetArrayField(TEXT("Animations"), AnimPage);
 		return;
 	}
 
@@ -258,15 +258,15 @@ void FGetAssetUserWidgetCapability::ExecuteSection(const FString&               
 				List.Add(MakeShared<FJsonValueObject>(FNexusBlueprintGraphUtils::BuildBPGraphSummary(G)));
 			}
 		}
-		InOutDetail->SetArrayField(TEXT("graphs"), List);
-		InOutDetail->SetStringField(TEXT("hint"), TEXT("Graph details via get_asset_blueprint; EventGraph writes via manage_asset_blueprint"));
+		InOutDetail->SetArrayField(TEXT("Graphs"), List);
+		InOutDetail->SetStringField(TEXT("Hint"), TEXT("Graph details via GetAssetBlueprint; EventGraph writes via ManageAssetBlueprint"));
 		return;
 	}
 
 	OutError = FString::Printf(TEXT("Unsupported section '%s'"), *SectionName);
 #else
-	OutError = TEXT("get_asset_user_widget only available in editor builds");
+	OutError = TEXT("GetAssetUserWidget only available in editor builds");
 #endif
 }
 
-REGISTER_MCP_CAPABILITY(FGetAssetUserWidgetCapability)
+REGISTER_MCP_CAPABILITY(FNexusGetAssetUserWidgetCapability)

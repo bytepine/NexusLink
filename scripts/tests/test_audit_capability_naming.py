@@ -17,13 +17,14 @@ from audit_capability_naming import (  # noqa: E402
 
 
 def test_first_verb():
-    assert _first_verb("get_asset_blueprint") == "get"
-    assert _first_verb("search") == "search"
-    assert _first_verb("manage_asset_level") == "manage"
+    assert _first_verb("GetAssetBlueprint") == "Get"
+    assert _first_verb("SearchAsset") == "Search"
+    assert _first_verb("ManageAssetLevel") == "Manage"
+    assert _first_verb("HotReloadRuntimeLua") == "HotReload"
 
 
 def test_allowed_verbs_cover_common_prefixes():
-    for verb in ("get", "manage", "create", "search", "spawn"):
+    for verb in ("Get", "Manage", "Create", "Search", "Spawn"):
         assert verb in ALLOWED_FIRST_VERBS
 
 

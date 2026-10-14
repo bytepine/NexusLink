@@ -6,8 +6,8 @@
 #include "NexusCapability.h"
 #include "NexusRuntimeCapability.h"
 
-/** list_runtime_widgets 的 Capability —— 列举 PIE/Game 中活跃的 UserWidget 实例。*/
-class FListRuntimeWidgetsCapability : public FNexusRuntimeCapability
+/** ListRuntimeWidgets 的 Capability —— 列举 PIE/Game 中活跃的 UserWidget 实例。*/
+class FNexusListRuntimeWidgetsCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

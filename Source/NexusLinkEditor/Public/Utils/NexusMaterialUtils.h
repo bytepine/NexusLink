@@ -13,7 +13,7 @@
 #include "Materials/MaterialExpressionParameter.h"
 
 /**
- * 材质 / MaterialFunction 表达式侧共用工具（跨 UE 版本取表达式列表、按 nodeId 定位、路径加载）。
+ * 材质 / MaterialFunction 表达式侧共用工具（跨 UE 版本取表达式列表、按 NodeId 定位、路径加载）。
  */
 class NEXUSLINKEDITOR_API FNexusMaterialUtils
 {
@@ -30,8 +30,8 @@ public:
 	static FString BlendModeToString(EBlendMode M);
 
 	/**
-	 * 解析 materialDomain 字符串为 EMaterialDomain 枚举。
-	 * 支持：surface / deferredDecal(decal) / lightFunction / volume / postProcess / ui / runtimeVirtualTexture(rvt)。
+	 * 解析 MaterialDomain 字符串为 EMaterialDomain 枚举。
+	 * 支持：surface / DeferredDecal(decal) / LightFunction / volume / PostProcess / ui / RuntimeVirtualTexture(rvt)。
 	 * 失败时 OutErr 非空，返回 false。
 	 */
 	static bool TryParseMaterialDomain(const FString& InStr, EMaterialDomain& OutDomain, FString& OutErr);
@@ -75,13 +75,13 @@ public:
 	}
 #endif
 
-	/** 为材质表达式生成稳定的 nodeId（使用 UObject::GetName()）。 */
+	/** 为材质表达式生成稳定的 NodeId（使用 UObject::GetName()）。 */
 	static FString GetExpressionNodeId(UMaterialExpression* Expr)
 	{
 		return Expr ? Expr->GetName() : TEXT("");
 	}
 
-	/** 在表达式列表中按 nodeId 查找表达式。 */
+	/** 在表达式列表中按 NodeId 查找表达式。 */
 	static UMaterialExpression* FindExpressionByNodeId(UMaterial* Mat, const FString& NodeId)
 	{
 		for (UMaterialExpression* Expr : GetExpressions(Mat))
@@ -94,7 +94,7 @@ public:
 		return nullptr;
 	}
 
-	/** 在 MaterialFunction 表达式列表中按 nodeId 查找表达式。 */
+	/** 在 MaterialFunction 表达式列表中按 NodeId 查找表达式。 */
 	static UMaterialExpression* FindExpressionByNodeId(UMaterialFunction* MF, const FString& NodeId)
 	{
 		for (UMaterialExpression* Expr : GetExpressions(MF))

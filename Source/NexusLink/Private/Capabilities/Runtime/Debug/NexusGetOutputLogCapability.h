@@ -6,8 +6,8 @@
 #include "NexusCapability.h"
 #include "NexusRuntimeCapability.h"
 
-/** get_output_log —— 分页查询 Output Log 环形缓冲（Editor / PIE / 独立 Game 通用）。*/
-class FGetOutputLogCapability : public FNexusRuntimeCapability
+/** GetOutputLog —— 分页查询 Output Log 环形缓冲（Editor / PIE / 独立 Game 通用）。*/
+class FNexusGetOutputLogCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

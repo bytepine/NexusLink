@@ -13,22 +13,22 @@
 #include "HAL/IConsoleManager.h"
 #include "NexusMcpTool.h"
 
-void FSearchConsoleVariablesCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusSearchConsoleVariablesCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("search_console_variables");
+	Out.Name = TEXT("SearchConsoleVariables");
 	Out.Description = TEXT("Search console variable names. Substring match; read-only.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("query"),  FNexusSchema::Str(TEXT("Variable name substring (required)")))
-		.Prop(TEXT("offset"), FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
-		.Prop(TEXT("limit"),  FNexusSchema::Int(TEXT("Max items per page"), 50, 1, 200))
-		.Required({ TEXT("query") })
+		.Prop(TEXT("Query"),  FNexusSchema::Str(TEXT("Variable name substring (required)")))
+		.Prop(TEXT("Offset"), FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
+		.Prop(TEXT("Limit"),  FNexusSchema::Int(TEXT("Max items per page"), 50, 1, 200))
+		.Required({ TEXT("Query") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("cvar"), TEXT("console"), TEXT("variable"), TEXT("r."), TEXT("t.") };
-	Out.RelatedCapabilities = { TEXT("exec_command") };
+	Out.RelatedCapabilities = { TEXT("ExecCommand") };
 }
 
-FCapabilityResult FSearchConsoleVariablesCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusSearchConsoleVariablesCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
@@ -36,15 +36,15 @@ FCapabilityResult FSearchConsoleVariablesCapability::Execute(const TSharedPtr<FJ
 		int32 Offset = 0;
 		int32 Limit  = 50;
 
-		const FString Query = A.Str(TEXT("query"));
+		const FString Query = A.Str(TEXT("Query"));
 
-		if (Arguments->HasField(TEXT("offset")))
+		if (Arguments->HasField(TEXT("Offset")))
 		{
-			Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("offset"))));
+			Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("Offset"))));
 		}
-		if (Arguments->HasField(TEXT("limit")))
+		if (Arguments->HasField(TEXT("Limit")))
 		{
-			Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("limit"))), 1, 200);
+			Limit = FMath::Clamp(static_cast<int32>(A.Num(TEXT("Limit"))), 1, 200);
 		}
 
 		TArray<TSharedPtr<FJsonValue>> AllMatches;
@@ -68,12 +68,12 @@ FCapabilityResult FSearchConsoleVariablesCapability::Execute(const TSharedPtr<FJ
 
 				if (IConsoleVariable* CVar = Obj->AsVariable())
 				{
-					Item->SetStringField(TEXT("kind"), TEXT("variable"));
-					Item->SetStringField(TEXT("value"), CVar->GetString());
+					Item->SetStringField(TEXT("Kind"), TEXT("variable"));
+					Item->SetStringField(TEXT("Value"), CVar->GetString());
 				}
 				else
 				{
-					Item->SetStringField(TEXT("kind"), TEXT("command"));
+					Item->SetStringField(TEXT("Kind"), TEXT("Command"));
 				}
 
 				AllMatches.Add(MakeShared<FJsonValueObject>(Item));
@@ -99,15 +99,15 @@ FCapabilityResult FSearchConsoleVariablesCapability::Execute(const TSharedPtr<FJ
 		}
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		OutEntry->SetStringField(TEXT("query"), Query);
-		OutEntry->SetNumberField(TEXT("totalCount"), Total);
-		OutEntry->SetNumberField(TEXT("offset"), Offset);
-		OutEntry->SetNumberField(TEXT("limit"), Limit);
-		OutEntry->SetArrayField(TEXT("variables"), Page);
+		OutEntry->SetStringField(TEXT("Query"), Query);
+		OutEntry->SetNumberField(TEXT("TotalCount"), Total);
+		OutEntry->SetNumberField(TEXT("Offset"), Offset);
+		OutEntry->SetNumberField(TEXT("Limit"), Limit);
+		OutEntry->SetArrayField(TEXT("Variables"), Page);
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FSearchConsoleVariablesCapability)
+REGISTER_MCP_CAPABILITY(FNexusSearchConsoleVariablesCapability)
 
 #endif // WITH_EDITOR

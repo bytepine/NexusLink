@@ -16,7 +16,7 @@
 
  * 权威表：Resources/legacy_capability_names.json（生成 Private/Utils/NexusCapabilityLegacyNames.generated.inl）。
 
- * call_capability 在查找注册表前自动解析别名。
+ * CallCapability 在查找注册表前自动解析别名。
 
  */
 

@@ -7,8 +7,8 @@
 
 #include "NexusCapability.h"
 
-/** get_asset_input_action — 读取 UInputAction 的 ValueType / Trigger / Modifier 配置（UE5+）。 */
-class FGetAssetInputActionCapability : public FNexusCapability
+/** GetAssetInputAction — 读取 UInputAction 的 ValueType / Trigger / Modifier 配置（UE5+）。 */
+class FNexusGetAssetInputActionCapability : public FNexusCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;

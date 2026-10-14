@@ -15,8 +15,8 @@ bool FNexusActionCapability::PrepareTarget(
 	void*& OutTarget,
 	FString& OutError) const
 {
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 	OutTarget = nullptr;
 	OutError.Reset();
 	return true;
@@ -45,7 +45,7 @@ FCapabilityResult FNexusActionCapability::Execute(const TSharedPtr<FJsonObject>&
 			{
 				OutError = PrepareError;
 			}
-			else if (PrepEntry->HasField(TEXT("error")))
+			else if (PrepEntry->HasField(TEXT("Error")))
 			{
 				OutEntries.Add(MakeShared<FJsonValueObject>(PrepEntry));
 			}
@@ -54,7 +54,7 @@ FCapabilityResult FNexusActionCapability::Execute(const TSharedPtr<FJsonObject>&
 
 		AfterPrepareTarget(Target, Arguments, OutTop);
 
-		const FString AssetPath = FNexusArgs(Arguments).Str(TEXT("assetPath"));
+		const FString AssetPath = FNexusArgs(Arguments).Str(TEXT("AssetPath"));
 
 		for (const TSharedPtr<FJsonValue>& OpVal : Ops)
 		{
@@ -62,30 +62,40 @@ FCapabilityResult FNexusActionCapability::Execute(const TSharedPtr<FJsonObject>&
 			if (!OpVal.IsValid() || !OpVal->TryGetObject(OpObjPtr) || !OpObjPtr)
 			{
 				TSharedPtr<FJsonObject> BadEntry = MakeShared<FJsonObject>();
-				BadEntry->SetStringField(TEXT("path"), AssetPath);
-				BadEntry->SetStringField(TEXT("error"), TEXT("Invalid operation (expected object)"));
+				BadEntry->SetStringField(TEXT("Path"), AssetPath);
+				BadEntry->SetStringField(TEXT("Error"), TEXT("Invalid operation (expected object)"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(BadEntry));
 				continue;
 			}
 			const TSharedPtr<FJsonObject>& Op = *OpObjPtr;
 
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-			Entry->SetStringField(TEXT("path"), AssetPath);
+			Entry->SetStringField(TEXT("Path"), AssetPath);
 
-			const FString Action = FNexusArgs(Op).Str(TEXT("action")).ToLower();
-			Entry->SetStringField(TEXT("action"), Action);
-
-			if (Action.IsEmpty())
+			const FString RequestedAction = FNexusArgs(Op).Str(TEXT("Action"));
+			const FNexusActionHandler* Handler = nullptr;
+			FString Action;
+			for (const TPair<FString, FNexusActionHandler>& Pair : Handlers)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("Missing action"));
+				if (Pair.Key.Equals(RequestedAction, ESearchCase::IgnoreCase))
+				{
+					Action = Pair.Key;
+					Handler = &Pair.Value;
+					break;
+				}
+			}
+			Entry->SetStringField(TEXT("Action"), Action.IsEmpty() ? RequestedAction : Action);
+
+			if (RequestedAction.IsEmpty())
+			{
+				Entry->SetStringField(TEXT("Error"), TEXT("Missing action"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}
 
-			const FNexusActionHandler* Handler = Handlers.Find(Action);
 			if (!Handler)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown action: %s"), *Action));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Unknown action: %s"), *RequestedAction));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				continue;
 			}

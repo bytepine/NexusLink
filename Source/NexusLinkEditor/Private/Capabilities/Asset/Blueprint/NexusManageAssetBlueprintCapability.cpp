@@ -68,63 +68,63 @@ static bool BlueprintAlreadyImplements(const UBlueprint* BP, const UClass* Iface
 #endif
 
 
-void FManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_blueprint");
+	Out.Name = TEXT("ManageAssetBlueprint");
 	Out.bInjectCompile = true;
 	Out.SearchAssetTypes = {TEXT("Blueprint")};
-	Out.Description = TEXT("Batch edit BP: graphs/vars/funcs/macros/timelines/dispatchers/interfaces/nodes/promote_pin.");
+	Out.Description = TEXT("Batch edit BP: graphs/vars/funcs/macros/timelines/dispatchers/interfaces/nodes/PromotePin.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"),          FNexusSchema::Enum(TEXT("Operation type"), {
-			TEXT("add_variable"), TEXT("remove_variable"),
-			TEXT("add_function"), TEXT("remove_function"),
-			TEXT("add_macro"), TEXT("add_timeline"), TEXT("add_dispatcher"), TEXT("add_local_variable"),
-			TEXT("add_interface"), TEXT("remove_interface"),
-			TEXT("add_node"), TEXT("remove_node"), TEXT("set_node"), TEXT("promote_pin"),
-			TEXT("connect"), TEXT("disconnect"), TEXT("disconnect_all"),
-			TEXT("add_component"), TEXT("remove_component"), TEXT("set_component_property"), TEXT("set_defaults")
+		.Prop(TEXT("Action"),          FNexusSchema::Enum(TEXT("Operation type"), {
+			TEXT("AddVariable"), TEXT("RemoveVariable"),
+			TEXT("AddFunction"), TEXT("RemoveFunction"),
+			TEXT("AddMacro"), TEXT("AddTimeline"), TEXT("AddDispatcher"), TEXT("AddLocalVariable"),
+			TEXT("AddInterface"), TEXT("RemoveInterface"),
+			TEXT("AddNode"), TEXT("RemoveNode"), TEXT("SetNode"), TEXT("PromotePin"),
+			TEXT("Connect"), TEXT("Disconnect"), TEXT("DisconnectAll"),
+			TEXT("AddComponent"), TEXT("RemoveComponent"), TEXT("SetComponentProperty"), TEXT("SetDefaults")
 		}))
-		.Prop(TEXT("graphName"),       FNexusSchema::Str(TEXT("Graph name (nodes/wires/promote_pin)")))
-		.Prop(TEXT("variableName"),    FNexusSchema::Str(TEXT("Variable name (add_variable/promote_pin; auto if omitted)")))
-		.Prop(TEXT("variableType"),    FNexusSchema::Str(TEXT("Basic or object type (add_variable)")))
-		.Prop(TEXT("defaultValue"),    FNexusSchema::Str(TEXT("Default value (add_variable)")))
-		.Prop(TEXT("category"),        FNexusSchema::Str(TEXT("Editor category (add_variable)")))
-		.Prop(TEXT("isPublic"),        FNexusSchema::Bool(TEXT("Instance editable (add_variable)"), true, false))
-		.Prop(TEXT("isLocal"),         FNexusSchema::Bool(TEXT("promote_pin: local var (default member var)"), true, false))
-		.Prop(TEXT("nodeId"),          FNexusSchema::Str(TEXT("node GUID (remove/set_node/promote_pin)")))
-		.Prop(TEXT("nodeClass"),       FNexusSchema::Str(TEXT("K2Node class (add_node)")))
-		.Prop(TEXT("functionName"),    FNexusSchema::Str(TEXT("Function name (add_function/CallFunction)")))
-		.Prop(TEXT("functionClass"),   FNexusSchema::Str(TEXT("CallFunction: owner class")))
-		.Prop(TEXT("interfaceName"),   FNexusSchema::Str(TEXT("Interface class or BPI path (add/remove_interface)")))
-		.Prop(TEXT("posX"),            FNexusSchema::Num(TEXT("Node X position")))
-		.Prop(TEXT("posY"),            FNexusSchema::Num(TEXT("Node Y position")))
-		.Prop(TEXT("comment"),         FNexusSchema::Str(TEXT("Node comment (set_node)")))
-		.Prop(TEXT("pinName"),         FNexusSchema::Str(TEXT("Pin name (set_node/promote_pin)")))
-		.Prop(TEXT("pinDefaultValue"), FNexusSchema::Str(TEXT("New pin default value")))
-		.Prop(TEXT("sourceNodeId"),    FNexusSchema::Str(TEXT("Source node GUID (wire ops)")))
-		.Prop(TEXT("sourcePinName"),   FNexusSchema::Str(TEXT("Source pin name")))
-		.Prop(TEXT("targetNodeId"),    FNexusSchema::Str(TEXT("Target node GUID (connect/disconnect)")))
-		.Prop(TEXT("targetPinName"),   FNexusSchema::Str(TEXT("Target pin name")))
-		.Prop(TEXT("componentClass"),  FNexusSchema::Str(TEXT("Component class (add_component), e.g. StaticMeshComponent")))
-		.Prop(TEXT("componentName"),   FNexusSchema::Str(TEXT("SCS variable name (add/remove/set_component_property)")))
-		.Prop(TEXT("attachTo"),        FNexusSchema::Str(TEXT("Parent component var (add_component); default scene root if omitted")))
-		.Prop(TEXT("propertyPath"),    FNexusSchema::Str(TEXT("Property path, dot notation e.g. RelativeLocation.X")))
-		.Prop(TEXT("value"),           FNexusSchema::Str(TEXT("String value e.g. (X=100,Y=0,Z=50) or true")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("GraphName"),       FNexusSchema::Str(TEXT("Graph name (nodes/wires/PromotePin)")))
+		.Prop(TEXT("VariableName"),    FNexusSchema::Str(TEXT("Variable name (AddVariable/PromotePin; auto if omitted)")))
+		.Prop(TEXT("VariableType"),    FNexusSchema::Str(TEXT("Basic or object type (AddVariable)")))
+		.Prop(TEXT("DefaultValue"),    FNexusSchema::Str(TEXT("Default value (AddVariable)")))
+		.Prop(TEXT("Category"),        FNexusSchema::Str(TEXT("Editor category (AddVariable)")))
+		.Prop(TEXT("bIsPublic"),        FNexusSchema::Bool(TEXT("Instance editable (AddVariable)"), true, false))
+		.Prop(TEXT("bIsLocal"),         FNexusSchema::Bool(TEXT("PromotePin: local var (default member var)"), true, false))
+		.Prop(TEXT("NodeId"),          FNexusSchema::Str(TEXT("node GUID (remove/SetNode/PromotePin)")))
+		.Prop(TEXT("NodeClass"),       FNexusSchema::Str(TEXT("K2Node class (AddNode)")))
+		.Prop(TEXT("FunctionName"),    FNexusSchema::Str(TEXT("Function name (AddFunction/CallFunction)")))
+		.Prop(TEXT("FunctionClass"),   FNexusSchema::Str(TEXT("CallFunction: owner class")))
+		.Prop(TEXT("InterfaceName"),   FNexusSchema::Str(TEXT("Interface class or BPI path (add/RemoveInterface)")))
+		.Prop(TEXT("PosX"),            FNexusSchema::Num(TEXT("Node X position")))
+		.Prop(TEXT("PosY"),            FNexusSchema::Num(TEXT("Node Y position")))
+		.Prop(TEXT("Comment"),         FNexusSchema::Str(TEXT("Node comment (SetNode)")))
+		.Prop(TEXT("PinName"),         FNexusSchema::Str(TEXT("Pin name (SetNode/PromotePin)")))
+		.Prop(TEXT("PinDefaultValue"), FNexusSchema::Str(TEXT("New pin default value")))
+		.Prop(TEXT("SourceNodeId"),    FNexusSchema::Str(TEXT("Source node GUID (wire ops)")))
+		.Prop(TEXT("SourcePinName"),   FNexusSchema::Str(TEXT("Source pin name")))
+		.Prop(TEXT("TargetNodeId"),    FNexusSchema::Str(TEXT("Target node GUID (connect/disconnect)")))
+		.Prop(TEXT("TargetPinName"),   FNexusSchema::Str(TEXT("Target pin name")))
+		.Prop(TEXT("ComponentClass"),  FNexusSchema::Str(TEXT("Component class (AddComponent), e.g. StaticMeshComponent")))
+		.Prop(TEXT("ComponentName"),   FNexusSchema::Str(TEXT("SCS variable name (add/remove/SetComponentProperty)")))
+		.Prop(TEXT("AttachTo"),        FNexusSchema::Str(TEXT("Parent component var (AddComponent); default scene root if omitted")))
+		.Prop(TEXT("PropertyPath"),    FNexusSchema::Str(TEXT("Property path, dot notation e.g. RelativeLocation.X")))
+		.Prop(TEXT("Value"),           FNexusSchema::Str(TEXT("String value e.g. (X=100,Y=0,Z=50) or true")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
-		TEXT("variable"), TEXT("node"), TEXT("component"), TEXT("wire"), TEXT("connect"),
-		TEXT("disconnect"), TEXT("link"), TEXT("scs"), TEXT("function"), TEXT("interface"), TEXT("bpi"),
+		TEXT("variable"), TEXT("Node"), TEXT("Component"), TEXT("wire"), TEXT("Connect"),
+		TEXT("Disconnect"), TEXT("link"), TEXT("scs"), TEXT("Function"), TEXT("interface"), TEXT("bpi"),
 		TEXT("promote"), TEXT("pin")
 	};
-	Out.RelatedCapabilities = { TEXT("get_asset_blueprint"), TEXT("create_asset_blueprint"), TEXT("save_asset") };
-	Out.WhenToUse = TEXT("Write ops: add/remove vars, promote_pin, func graphs, interfaces, nodes, wires");
+	Out.RelatedCapabilities = { TEXT("GetAssetBlueprint"), TEXT("CreateAssetBlueprint"), TEXT("SaveAsset") };
+	Out.WhenToUse = TEXT("Write ops: add/remove vars, PromotePin, func graphs, interfaces, nodes, wires");
 }
 
 static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -133,56 +133,56 @@ static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	UBlueprint* BP = static_cast<UBlueprint*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 	const FString& Action = Ctx.Action;
-	if (Action == TEXT("add_variable") || Action == TEXT("remove_variable"))
+	if (Action == TEXT("AddVariable") || Action == TEXT("RemoveVariable"))
 	{
-		const FString VarName = FNexusArgs(Op).Str(TEXT("variableName"));
-		if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("variableName is required"));
+		const FString VarName = FNexusArgs(Op).Str(TEXT("VariableName"));
+		if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("VariableName is required"));
 	return; }
-		Entry->SetStringField(TEXT("variableName"), VarName);
+		Entry->SetStringField(TEXT("VariableName"), VarName);
 
-		if (Action == TEXT("remove_variable"))
+		if (Action == TEXT("RemoveVariable"))
 		{
 			const FName VarFName(*VarName);
 			bool bFound = false;
 			for (const FBPVariableDescription& Var : BP->NewVariables)
 			{ if (Var.VarName == VarFName) { bFound = true; break; } }
-			if (!bFound) { Entry->SetStringField(TEXT("error"), TEXT("Variable not found (or inherited)"));
+			if (!bFound) { Entry->SetStringField(TEXT("Error"), TEXT("Variable not found (or inherited)"));
 	return; }
 			FBlueprintEditorUtils::RemoveMemberVariable(BP, VarFName);
 		}
 		else
 		{
-			const FString VarTypeRaw = FNexusArgs(Op).Str(TEXT("variableType"));
-			if (VarTypeRaw.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_variable requires variableType"));
+			const FString VarTypeRaw = FNexusArgs(Op).Str(TEXT("VariableType"));
+			if (VarTypeRaw.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("AddVariable requires VariableType"));
 	return; }
 
 			bool bVarExists = false;
 			for (const FBPVariableDescription& Var : BP->NewVariables)
 			{ if (Var.VarName.ToString() == VarName) { bVarExists = true; break; } }
-			if (bVarExists) { Entry->SetStringField(TEXT("error"), TEXT("Variable already exists"));
+			if (bVarExists) { Entry->SetStringField(TEXT("Error"), TEXT("Variable already exists"));
 	return; }
 
 			FEdGraphPinType PinType;
 			FString TypeErr;
-			if (!FNexusPinTypeUtils::ParsePinType(VarTypeRaw, PinType, TypeErr)) { Entry->SetStringField(TEXT("error"), TypeErr);
+			if (!FNexusPinTypeUtils::ParsePinType(VarTypeRaw, PinType, TypeErr)) { Entry->SetStringField(TEXT("Error"), TypeErr);
 	return; }
 
 			BP->SetFlags(RF_Transactional);
 			FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType);
 
-			if (Op->HasField(TEXT("defaultValue")))
+			if (Op->HasField(TEXT("DefaultValue")))
 			{
-				const FString DefaultVal = Op->GetStringField(TEXT("defaultValue"));
+				const FString DefaultVal = Op->GetStringField(TEXT("DefaultValue"));
 				for (FBPVariableDescription& Var : BP->NewVariables)
 				{ if (Var.VarName.ToString() == VarName) { Var.DefaultValue = DefaultVal; break; } }
 			}
-			if (Op->HasField(TEXT("category")))
+			if (Op->HasField(TEXT("Category")))
 			{
 				FBlueprintEditorUtils::SetBlueprintVariableCategory(BP, FName(*VarName), nullptr,
-					FText::FromString(Op->GetStringField(TEXT("category"))));
+					FText::FromString(Op->GetStringField(TEXT("Category"))));
 			}
 			bool bIsPublic = false;
-			if (Op->HasField(TEXT("isPublic"))) bIsPublic = Op->GetBoolField(TEXT("isPublic"));
+			if (Op->HasField(TEXT("bIsPublic"))) bIsPublic = Op->GetBoolField(TEXT("bIsPublic"));
 			for (FBPVariableDescription& Var : BP->NewVariables)
 			{
 				if (Var.VarName.ToString() != VarName) continue;
@@ -199,11 +199,11 @@ static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 					Var.PropertyFlags &= ~(CPF_Edit | CPF_ExposeOnSpawn);
 				break;
 			}
-			Entry->SetStringField(TEXT("variableType"), VarTypeRaw.ToLower());
+			Entry->SetStringField(TEXT("VariableType"), VarTypeRaw.ToLower());
 		}
 
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-		// 全量 Compile 会 CollectGarbage，冲掉进行中的 Undo 快照；compile=true 走 ApplyIfRequested（事务外）
+		// 全量 Compile 会 CollectGarbage，冲掉进行中的 Undo 快照；bCompile=true 走 ApplyIfRequested（事务外）
 		if (!FNexusEditorTransaction::IsTransactionActive())
 		{
 			FKismetEditorUtilities::CompileBlueprint(BP);
@@ -212,7 +212,7 @@ static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	}
 #else
 	(void)Op; (void)Ctx;
-	Ctx.Entry->SetStringField(TEXT("error"), TEXT("manage_asset_blueprint only available in editor builds"));
+	Ctx.Entry->SetStringField(TEXT("Error"), TEXT("ManageAssetBlueprint only available in editor builds"));
 #endif
 }
 
@@ -222,26 +222,26 @@ static void HandleBP_FunctionGraph(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	UBlueprint* BP = static_cast<UBlueprint*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 	const FString& Action = Ctx.Action;
-	if (Action == TEXT("add_function") || Action == TEXT("remove_function"))
+	if (Action == TEXT("AddFunction") || Action == TEXT("RemoveFunction"))
 	{
-		const FString FuncName = FNexusArgs(Op).Str(TEXT("functionName"));
-		if (FuncName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("functionName is required"));
+		const FString FuncName = FNexusArgs(Op).Str(TEXT("FunctionName"));
+		if (FuncName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("FunctionName is required"));
 	return; }
-		Entry->SetStringField(TEXT("functionName"), FuncName);
+		Entry->SetStringField(TEXT("FunctionName"), FuncName);
 
-		if (Action == TEXT("add_function"))
+		if (Action == TEXT("AddFunction"))
 		{
 			bool bExists = false;
 			for (UEdGraph* G : BP->FunctionGraphs)
 			{
 				if (G && G->GetName() == FuncName) { bExists = true; break; }
 			}
-			if (bExists) { Entry->SetStringField(TEXT("error"), TEXT("Function graph already exists"));
+			if (bExists) { Entry->SetStringField(TEXT("Error"), TEXT("Function graph already exists"));
 	return; }
 
 			UEdGraph* NewGraph = FBlueprintEditorUtils::CreateNewGraph(
 				BP, FName(*FuncName), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
-			if (!NewGraph) { Entry->SetStringField(TEXT("error"), TEXT("Failed to create function graph"));
+			if (!NewGraph) { Entry->SetStringField(TEXT("Error"), TEXT("Failed to create function graph"));
 	return; }
 			FBlueprintEditorUtils::AddFunctionGraph<UClass>(BP, NewGraph, /*bIsUserCreated=*/true, /*SignatureFromClass=*/nullptr);
 		}
@@ -258,7 +258,7 @@ static void HandleBP_FunctionGraph(const TSharedPtr<FJsonObject>& Op, FNexusActi
 			}
 			if (bFromInterface)
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("Use remove_interface for interface funcs; cannot delete graph alone"));
+				Entry->SetStringField(TEXT("Error"), TEXT("Use RemoveInterface for interface funcs; cannot delete graph alone"));
 	return;
 			}
 
@@ -267,7 +267,7 @@ static void HandleBP_FunctionGraph(const TSharedPtr<FJsonObject>& Op, FNexusActi
 			{
 				if (G && G->GetName() == FuncName) { Found = G; break; }
 			}
-			if (!Found) { Entry->SetStringField(TEXT("error"), TEXT("Function graph not found"));
+			if (!Found) { Entry->SetStringField(TEXT("Error"), TEXT("Function graph not found"));
 	return; }
 			FBlueprintEditorUtils::RemoveGraph(BP, Found, EGraphRemoveFlags::Recompile);
 		}
@@ -277,59 +277,59 @@ static void HandleBP_FunctionGraph(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	return;
 	}
 
-	if (Action == TEXT("add_macro") || Action == TEXT("add_timeline") || Action == TEXT("add_dispatcher") || Action == TEXT("add_local_variable"))
+	if (Action == TEXT("AddMacro") || Action == TEXT("AddTimeline") || Action == TEXT("AddDispatcher") || Action == TEXT("AddLocalVariable"))
 	{
-		if (Action == TEXT("add_macro"))
+		if (Action == TEXT("AddMacro"))
 		{
-			const FString MacroName = FNexusArgs(Op).Str(TEXT("functionName"));
-			if (MacroName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_macro requires functionName"));
+			const FString MacroName = FNexusArgs(Op).Str(TEXT("FunctionName"));
+			if (MacroName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("AddMacro requires FunctionName"));
 	return; }
 			UEdGraph* NewGraph = FBlueprintEditorUtils::CreateNewGraph(BP, FName(*MacroName), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
-			if (!NewGraph) { Entry->SetStringField(TEXT("error"), TEXT("Failed to create macro graph"));
+			if (!NewGraph) { Entry->SetStringField(TEXT("Error"), TEXT("Failed to create macro graph"));
 	return; }
 			FBlueprintEditorUtils::AddMacroGraph(BP, NewGraph, true, nullptr);
-			Entry->SetStringField(TEXT("functionName"), MacroName);
+			Entry->SetStringField(TEXT("FunctionName"), MacroName);
 		}
-		else if (Action == TEXT("add_timeline"))
+		else if (Action == TEXT("AddTimeline"))
 		{
-			const FString TlName = FNexusArgs(Op).Str(TEXT("functionName"));
-			if (TlName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_timeline requires functionName"));
+			const FString TlName = FNexusArgs(Op).Str(TEXT("FunctionName"));
+			if (TlName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("AddTimeline requires FunctionName"));
 	return; }
 			UTimelineTemplate* Tl = FBlueprintEditorUtils::AddNewTimeline(BP, FName(*TlName));
-			if (!Tl) { Entry->SetStringField(TEXT("error"), TEXT("Create Timeline failed"));
+			if (!Tl) { Entry->SetStringField(TEXT("Error"), TEXT("Create Timeline failed"));
 	return; }
-			Entry->SetStringField(TEXT("functionName"), TlName);
+			Entry->SetStringField(TEXT("FunctionName"), TlName);
 		}
-		else if (Action == TEXT("add_dispatcher"))
+		else if (Action == TEXT("AddDispatcher"))
 		{
-			const FString VarName = FNexusArgs(Op).Str(TEXT("variableName"));
-			if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_dispatcher requires variableName"));
+			const FString VarName = FNexusArgs(Op).Str(TEXT("VariableName"));
+			if (VarName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("AddDispatcher requires VariableName"));
 	return; }
 			FEdGraphPinType PinType;
 			PinType.PinCategory = UEdGraphSchema_K2::PC_MCDelegate;
 			FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType);
-			Entry->SetStringField(TEXT("variableName"), VarName);
+			Entry->SetStringField(TEXT("VariableName"), VarName);
 		}
 		else
 		{
-			const FString FuncName = FNexusArgs(Op).Str(TEXT("functionName"));
-			const FString VarName = FNexusArgs(Op).Str(TEXT("variableName"));
-			const FString VarTypeRaw = Op->HasField(TEXT("variableType")) ? Op->GetStringField(TEXT("variableType")) : TEXT("bool");
-			if (FuncName.IsEmpty() || VarName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_local_variable requires functionName and variableName"));
+			const FString FuncName = FNexusArgs(Op).Str(TEXT("FunctionName"));
+			const FString VarName = FNexusArgs(Op).Str(TEXT("VariableName"));
+			const FString VarTypeRaw = Op->HasField(TEXT("VariableType")) ? Op->GetStringField(TEXT("VariableType")) : TEXT("bool");
+			if (FuncName.IsEmpty() || VarName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("AddLocalVariable requires FunctionName and VariableName"));
 	return; }
 			UEdGraph* FuncGraph = nullptr;
 			for (UEdGraph* G : BP->FunctionGraphs)
 			{
 				if (G && G->GetName() == FuncName) { FuncGraph = G; break; }
 			}
-			if (!FuncGraph) { Entry->SetStringField(TEXT("error"), TEXT("Function graph not found"));
+			if (!FuncGraph) { Entry->SetStringField(TEXT("Error"), TEXT("Function graph not found"));
 	return; }
 			FEdGraphPinType PinType;
 			FString TypeErr;
-			if (!FNexusPinTypeUtils::ParsePinType(VarTypeRaw, PinType, TypeErr)) { Entry->SetStringField(TEXT("error"), TypeErr);
+			if (!FNexusPinTypeUtils::ParsePinType(VarTypeRaw, PinType, TypeErr)) { Entry->SetStringField(TEXT("Error"), TypeErr);
 	return; }
 			FBlueprintEditorUtils::AddLocalVariable(BP, FuncGraph, FName(*VarName), PinType);
-			Entry->SetStringField(TEXT("variableName"), VarName);
+			Entry->SetStringField(TEXT("VariableName"), VarName);
 		}
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 		FKismetEditorUtilities::CompileBlueprint(BP);
@@ -337,7 +337,7 @@ static void HandleBP_FunctionGraph(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	}
 #else
 	(void)Op; (void)Ctx;
-	Ctx.Entry->SetStringField(TEXT("error"), TEXT("manage_asset_blueprint only available in editor builds"));
+	Ctx.Entry->SetStringField(TEXT("Error"), TEXT("ManageAssetBlueprint only available in editor builds"));
 #endif
 }
 
@@ -347,38 +347,38 @@ static void HandleBP_Interface(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 	UBlueprint* BP = static_cast<UBlueprint*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 	const FString& Action = Ctx.Action;
-	if (Action == TEXT("add_interface") || Action == TEXT("remove_interface"))
+	if (Action == TEXT("AddInterface") || Action == TEXT("RemoveInterface"))
 	{
-		const FString IfaceName = FNexusArgs(Op).Str(TEXT("interfaceName"));
-		if (IfaceName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("interfaceName required (BPI path or interface class)"));
+		const FString IfaceName = FNexusArgs(Op).Str(TEXT("InterfaceName"));
+		if (IfaceName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("InterfaceName required (BPI path or interface class)"));
 	return; }
-		Entry->SetStringField(TEXT("interfaceName"), IfaceName);
+		Entry->SetStringField(TEXT("InterfaceName"), IfaceName);
 
 		if (BP->BlueprintType == BPTYPE_Interface)
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("Use create parentClass for interface BPs; cannot add_interface"));
+			Entry->SetStringField(TEXT("Error"), TEXT("Use create ParentClass for interface BPs; cannot AddInterface"));
 	return;
 		}
 
 		UClass* IfaceClass = ResolveInterfaceClass(IfaceName);
 		if (!IfaceClass)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
 				TEXT("Interface not found or not Interface: %s (BPI path or GeneratedClass)"), *IfaceName));
 	return;
 		}
 		if (IfaceClass->GetName() == TEXT("Interface"))
 		{
-			Entry->SetStringField(TEXT("error"), TEXT("Cannot implement native UInterface; pass BPI asset"));
+			Entry->SetStringField(TEXT("Error"), TEXT("Cannot implement native UInterface; pass BPI asset"));
 	return;
 		}
-		Entry->SetStringField(TEXT("interfaceClass"), IfaceClass->GetName());
+		Entry->SetStringField(TEXT("InterfaceClass"), IfaceClass->GetName());
 
-		if (Action == TEXT("add_interface"))
+		if (Action == TEXT("AddInterface"))
 		{
 			if (BlueprintAlreadyImplements(BP, IfaceClass))
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("Interface already implemented"));
+				Entry->SetStringField(TEXT("Error"), TEXT("Interface already implemented"));
 	return;
 			}
 #if NX_UE_HAS_BP_INTERFACE_ASSET_PATH
@@ -388,7 +388,7 @@ static void HandleBP_Interface(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 #endif
 			if (!BlueprintAlreadyImplements(BP, IfaceClass))
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("ImplementNewInterface failed (requires compiled interface BP)"));
+				Entry->SetStringField(TEXT("Error"), TEXT("ImplementNewInterface failed (requires compiled interface BP)"));
 	return;
 			}
 		}
@@ -396,7 +396,7 @@ static void HandleBP_Interface(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 		{
 			if (!BlueprintAlreadyImplements(BP, IfaceClass))
 			{
-				Entry->SetStringField(TEXT("error"), TEXT("Interface not implemented"));
+				Entry->SetStringField(TEXT("Error"), TEXT("Interface not implemented"));
 	return;
 			}
 #if NX_UE_HAS_BP_INTERFACE_ASSET_PATH
@@ -412,7 +412,7 @@ static void HandleBP_Interface(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 	}
 #else
 	(void)Op; (void)Ctx;
-	Ctx.Entry->SetStringField(TEXT("error"), TEXT("manage_asset_blueprint only available in editor builds"));
+	Ctx.Entry->SetStringField(TEXT("Error"), TEXT("ManageAssetBlueprint only available in editor builds"));
 #endif
 }
 
@@ -423,20 +423,20 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 	const FString& Action = Ctx.Action;
 
-	// set_defaults 写 CDO（ImportText），与 SCS 组件树无关；不受下方 Actor 限制，
+	// SetDefaults 写 CDO（ImportText），与 SCS 组件树无关；不受下方 Actor 限制，
 	// 任意 Blueprint（含 GameplayAbility/UI/BPI）均可写自身 CDO 属性
-	if (Action == TEXT("set_defaults"))
+	if (Action == TEXT("SetDefaults"))
 	{
 		FString PropPath, Value;
-		Op->TryGetStringField(TEXT("propertyPath"), PropPath);
-		Op->TryGetStringField(TEXT("value"),        Value);
-		if (PropPath.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("set_defaults requires propertyPath"));
+		Op->TryGetStringField(TEXT("PropertyPath"), PropPath);
+		Op->TryGetStringField(TEXT("Value"),        Value);
+		if (PropPath.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("SetDefaults requires PropertyPath"));
 	return; }
-		if (!BP->GeneratedClass) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint has no generated class"));
+		if (!BP->GeneratedClass) { Entry->SetStringField(TEXT("Error"), TEXT("Blueprint has no generated class"));
 	return; }
 
 		UObject* CDO = BP->GeneratedClass->GetDefaultObject();
-		if (!CDO) { Entry->SetStringField(TEXT("error"), TEXT("Failed to get CDO"));
+		if (!CDO) { Entry->SetStringField(TEXT("Error"), TEXT("Failed to get CDO"));
 	return; }
 
 		TArray<FString> Segments;
@@ -445,68 +445,68 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 		FProperty* Prop   = nullptr;
 		void*      ValPtr = nullptr;
 		FString    PropErr;
-		if (!FNexusPropertyUtils::ResolvePropertyWrite(CDO, Segments, 0, Prop, ValPtr, PropErr)) { Entry->SetStringField(TEXT("error"), PropErr);
+		if (!FNexusPropertyUtils::ResolvePropertyWrite(CDO, Segments, 0, Prop, ValPtr, PropErr)) { Entry->SetStringField(TEXT("Error"), PropErr);
 	return; }
 		if (!FNexusPropertyUtils::ImportTextFromString(Prop, Value, ValPtr, CDO))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to set '%s' = '%s'"), *PropPath, *Value));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Failed to set '%s' = '%s'"), *PropPath, *Value));
 	return;
 		}
 
-		Entry->SetStringField(TEXT("propertyPath"), PropPath);
+		Entry->SetStringField(TEXT("PropertyPath"), PropPath);
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 		FKismetEditorUtilities::CompileBlueprint(BP);
 	return;
 	}
 
-	if (Action == TEXT("add_component") || Action == TEXT("remove_component") ||
-	    Action == TEXT("set_component_property"))
+	if (Action == TEXT("AddComponent") || Action == TEXT("RemoveComponent") ||
+	    Action == TEXT("SetComponentProperty"))
 	{
 		if (!BP->ParentClass || !BP->ParentClass->IsChildOf(AActor::StaticClass()))
 		{
 			const FString ParentName = BP->ParentClass ? BP->ParentClass->GetName() : TEXT("(none)");
-			Entry->SetStringField(TEXT("error"), FString::Printf(
-				TEXT("Blueprint parent is not Actor subclass: %s (parent=%s). add_component/remove_component/set_component_property need Actor BP; use add_variable/add_function/add_node for GA/UI/BPI, or manage_asset_gameplay_ability for GAS semantic fields."),
+			Entry->SetStringField(TEXT("Error"), FString::Printf(
+				TEXT("Blueprint parent is not Actor subclass: %s (Parent=%s). AddComponent/RemoveComponent/SetComponentProperty need Actor BP; use AddVariable/AddFunction/AddNode for GA/UI/BPI, or ManageAssetGameplayAbility for GAS semantic fields."),
 				*Ctx.AssetPath, *ParentName));
 	return;
 		}
 
-		if (Action == TEXT("add_component"))
+		if (Action == TEXT("AddComponent"))
 		{
 			FString ComponentClassName, ComponentName;
-			Op->TryGetStringField(TEXT("componentClass"), ComponentClassName);
-			Op->TryGetStringField(TEXT("componentName"),  ComponentName);
-			if (ComponentClassName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("add_component requires componentClass"));
+			Op->TryGetStringField(TEXT("ComponentClass"), ComponentClassName);
+			Op->TryGetStringField(TEXT("ComponentName"),  ComponentName);
+			if (ComponentClassName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("AddComponent requires ComponentClass"));
 	return; }
-			if (ComponentName.IsEmpty())      { Entry->SetStringField(TEXT("error"), TEXT("add_component requires componentName"));
+			if (ComponentName.IsEmpty())      { Entry->SetStringField(TEXT("Error"), TEXT("AddComponent requires ComponentName"));
 	return; }
 
 			USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
-			if (!SCS) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint has no SimpleConstructionScript"));
+			if (!SCS) { Entry->SetStringField(TEXT("Error"), TEXT("Blueprint has no SimpleConstructionScript"));
 	return; }
 
 			UClass* CompClass = FNexusAssetUtils::FindClassWithUPrefix(ComponentClassName);
 			if (!CompClass || !CompClass->IsChildOf(UActorComponent::StaticClass()))
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Component class not found or not ActorComponent: %s"), *ComponentClassName));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Component class not found or not ActorComponent: %s"), *ComponentClassName));
 	return;
 			}
 			if (SCS->FindSCSNode(*ComponentName))
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Component '%s' already exists"), *ComponentName));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Component '%s' already exists"), *ComponentName));
 	return;
 			}
 
 			USCS_Node* NewNode = SCS->CreateNode(CompClass, *ComponentName);
-			if (!NewNode) { Entry->SetStringField(TEXT("error"), TEXT("Create SCS nodefailed"));
+			if (!NewNode) { Entry->SetStringField(TEXT("Error"), TEXT("Create SCS nodefailed"));
 	return; }
 
 			FString AttachTo;
-			Op->TryGetStringField(TEXT("attachTo"), AttachTo);
+			Op->TryGetStringField(TEXT("AttachTo"), AttachTo);
 			if (!AttachTo.IsEmpty())
 			{
 				USCS_Node* ParentNode = SCS->FindSCSNode(*AttachTo);
-				if (!ParentNode) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("attachTo component '%s' not found"), *AttachTo));
+				if (!ParentNode) { Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("AttachTo component '%s' not found"), *AttachTo));
 	return; }
 				ParentNode->AddChildNode(NewNode);
 			}
@@ -517,54 +517,54 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 				else             SCS->AddNode(NewNode);
 			}
 
-			Entry->SetStringField(TEXT("componentName"),  ComponentName);
-			Entry->SetStringField(TEXT("componentClass"), CompClass->GetName());
+			Entry->SetStringField(TEXT("ComponentName"),  ComponentName);
+			Entry->SetStringField(TEXT("ComponentClass"), CompClass->GetName());
 			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 			FKismetEditorUtilities::CompileBlueprint(BP);
 	return;
 		}
 
-		if (Action == TEXT("remove_component"))
+		if (Action == TEXT("RemoveComponent"))
 		{
 			USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
-			if (!SCS) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint has no SimpleConstructionScript"));
+			if (!SCS) { Entry->SetStringField(TEXT("Error"), TEXT("Blueprint has no SimpleConstructionScript"));
 	return; }
 
 			FString ComponentName;
-			Op->TryGetStringField(TEXT("componentName"), ComponentName);
-			if (ComponentName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("remove_component requires componentName"));
+			Op->TryGetStringField(TEXT("ComponentName"), ComponentName);
+			if (ComponentName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("RemoveComponent requires ComponentName"));
 	return; }
 
 			USCS_Node* Node = SCS->FindSCSNode(*ComponentName);
-			if (!Node) { Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Component '%s' not found"), *ComponentName));
+			if (!Node) { Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Component '%s' not found"), *ComponentName));
 	return; }
 
-			Entry->SetStringField(TEXT("componentName"), ComponentName);
+			Entry->SetStringField(TEXT("ComponentName"), ComponentName);
 			SCS->RemoveNodeAndPromoteChildren(Node);
 			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 			FKismetEditorUtilities::CompileBlueprint(BP);
 	return;
 		}
 
-		if (Action == TEXT("set_component_property"))
+		if (Action == TEXT("SetComponentProperty"))
 		{
 			USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
-			if (!SCS) { Entry->SetStringField(TEXT("error"), TEXT("Blueprint has no SimpleConstructionScript"));
+			if (!SCS) { Entry->SetStringField(TEXT("Error"), TEXT("Blueprint has no SimpleConstructionScript"));
 	return; }
 
 			FString ComponentName, PropPath, Value;
-			Op->TryGetStringField(TEXT("componentName"), ComponentName);
-			Op->TryGetStringField(TEXT("propertyPath"),  PropPath);
-			Op->TryGetStringField(TEXT("value"),         Value);
-			if (ComponentName.IsEmpty()) { Entry->SetStringField(TEXT("error"), TEXT("Missing componentName"));
+			Op->TryGetStringField(TEXT("ComponentName"), ComponentName);
+			Op->TryGetStringField(TEXT("PropertyPath"),  PropPath);
+			Op->TryGetStringField(TEXT("Value"),         Value);
+			if (ComponentName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("Missing ComponentName"));
 	return; }
-			if (PropPath.IsEmpty())      { Entry->SetStringField(TEXT("error"), TEXT("Missing propertyPath"));
+			if (PropPath.IsEmpty())      { Entry->SetStringField(TEXT("Error"), TEXT("Missing PropertyPath"));
 	return; }
 
 			USCS_Node* SCSNode = SCS->FindSCSNode(*ComponentName);
 			if (!SCSNode || !SCSNode->ComponentTemplate)
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Component '%s' not found"), *ComponentName));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Component '%s' not found"), *ComponentName));
 	return;
 			}
 
@@ -575,17 +575,17 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 			FProperty* Prop   = nullptr;
 			void*      ValPtr = nullptr;
 			FString    PropErr;
-			if (!FNexusPropertyUtils::ResolvePropertyWrite(Template, Segments, 0, Prop, ValPtr, PropErr)) { Entry->SetStringField(TEXT("error"), PropErr);
+			if (!FNexusPropertyUtils::ResolvePropertyWrite(Template, Segments, 0, Prop, ValPtr, PropErr)) { Entry->SetStringField(TEXT("Error"), PropErr);
 	return; }
 			if (!FNexusPropertyUtils::ImportTextFromString(Prop, Value, ValPtr, Template))
 			{
-				Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to set '%s' = '%s'"), *PropPath, *Value));
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Failed to set '%s' = '%s'"), *PropPath, *Value));
 	return;
 			}
 
 			Template->MarkPackageDirty();
-			Entry->SetStringField(TEXT("componentName"), ComponentName);
-			Entry->SetStringField(TEXT("propertyPath"),  PropPath);
+			Entry->SetStringField(TEXT("ComponentName"), ComponentName);
+			Entry->SetStringField(TEXT("PropertyPath"),  PropPath);
 			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 			FKismetEditorUtilities::CompileBlueprint(BP);
 	return;
@@ -593,60 +593,60 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	}
 #else
 	(void)Op; (void)Ctx;
-	Ctx.Entry->SetStringField(TEXT("error"), TEXT("manage_asset_blueprint only available in editor builds"));
+	Ctx.Entry->SetStringField(TEXT("Error"), TEXT("ManageAssetBlueprint only available in editor builds"));
 #endif
 }
 
 
-bool FManageAssetBlueprintCapability::PrepareTarget(
+bool FNexusManageAssetBlueprintCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
 	void*& OutTarget,
 	FString& OutError) const
 {
 #if WITH_EDITOR
-	const FString AssetPath = FNexusArgs(Args).Str(TEXT("assetPath"));
-	Entry->SetStringField(TEXT("path"), AssetPath);
+	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
+	Entry->SetStringField(TEXT("Path"), AssetPath);
 
 	UBlueprint* BP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(AssetPath);
 	if (!BP)
 	{
-		Entry->SetStringField(TEXT("path"), AssetPath);
-		Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Blueprint not found: %s"), *AssetPath));
+		Entry->SetStringField(TEXT("Path"), AssetPath);
+		Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Blueprint not found: %s"), *AssetPath));
 		return false;
 	}
 	OutTarget = BP;
 	return true;
 #else
-	OutError = TEXT("manage_asset_blueprint only available in editor builds");
+	OutError = TEXT("ManageAssetBlueprint only available in editor builds");
 	return false;
 #endif
 }
 
-void FManageAssetBlueprintCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
+void FNexusManageAssetBlueprintCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("add_variable"), &HandleBP_Variable);
-	OutHandlers.Add(TEXT("remove_variable"), &HandleBP_Variable);
-	OutHandlers.Add(TEXT("add_function"), &HandleBP_FunctionGraph);
-	OutHandlers.Add(TEXT("remove_function"), &HandleBP_FunctionGraph);
-	OutHandlers.Add(TEXT("add_macro"), &HandleBP_FunctionGraph);
-	OutHandlers.Add(TEXT("add_timeline"), &HandleBP_FunctionGraph);
-	OutHandlers.Add(TEXT("add_dispatcher"), &HandleBP_FunctionGraph);
-	OutHandlers.Add(TEXT("add_local_variable"), &HandleBP_FunctionGraph);
-	OutHandlers.Add(TEXT("add_interface"), &HandleBP_Interface);
-	OutHandlers.Add(TEXT("remove_interface"), &HandleBP_Interface);
-	OutHandlers.Add(TEXT("add_component"), &HandleBP_SCS);
-	OutHandlers.Add(TEXT("remove_component"), &HandleBP_SCS);
-	OutHandlers.Add(TEXT("set_component_property"), &HandleBP_SCS);
-	OutHandlers.Add(TEXT("set_defaults"), &HandleBP_SCS);
-	OutHandlers.Add(TEXT("add_node"), &FNexusBlueprintGraphOps::HandleGraphNode);
-	OutHandlers.Add(TEXT("remove_node"), &FNexusBlueprintGraphOps::HandleGraphNode);
-	OutHandlers.Add(TEXT("set_node"), &FNexusBlueprintGraphOps::HandleGraphNode);
-	OutHandlers.Add(TEXT("promote_pin"), &FNexusBlueprintGraphOps::HandleGraphNode);
-	OutHandlers.Add(TEXT("connect"), &FNexusBlueprintGraphOps::HandleWire);
-	OutHandlers.Add(TEXT("disconnect"), &FNexusBlueprintGraphOps::HandleWire);
-	OutHandlers.Add(TEXT("disconnect_all"), &FNexusBlueprintGraphOps::HandleWire);
+	OutHandlers.Add(TEXT("AddVariable"), &HandleBP_Variable);
+	OutHandlers.Add(TEXT("RemoveVariable"), &HandleBP_Variable);
+	OutHandlers.Add(TEXT("AddFunction"), &HandleBP_FunctionGraph);
+	OutHandlers.Add(TEXT("RemoveFunction"), &HandleBP_FunctionGraph);
+	OutHandlers.Add(TEXT("AddMacro"), &HandleBP_FunctionGraph);
+	OutHandlers.Add(TEXT("AddTimeline"), &HandleBP_FunctionGraph);
+	OutHandlers.Add(TEXT("AddDispatcher"), &HandleBP_FunctionGraph);
+	OutHandlers.Add(TEXT("AddLocalVariable"), &HandleBP_FunctionGraph);
+	OutHandlers.Add(TEXT("AddInterface"), &HandleBP_Interface);
+	OutHandlers.Add(TEXT("RemoveInterface"), &HandleBP_Interface);
+	OutHandlers.Add(TEXT("AddComponent"), &HandleBP_SCS);
+	OutHandlers.Add(TEXT("RemoveComponent"), &HandleBP_SCS);
+	OutHandlers.Add(TEXT("SetComponentProperty"), &HandleBP_SCS);
+	OutHandlers.Add(TEXT("SetDefaults"), &HandleBP_SCS);
+	OutHandlers.Add(TEXT("AddNode"), &FNexusBlueprintGraphOps::HandleGraphNode);
+	OutHandlers.Add(TEXT("RemoveNode"), &FNexusBlueprintGraphOps::HandleGraphNode);
+	OutHandlers.Add(TEXT("SetNode"), &FNexusBlueprintGraphOps::HandleGraphNode);
+	OutHandlers.Add(TEXT("PromotePin"), &FNexusBlueprintGraphOps::HandleGraphNode);
+	OutHandlers.Add(TEXT("Connect"), &FNexusBlueprintGraphOps::HandleWire);
+	OutHandlers.Add(TEXT("Disconnect"), &FNexusBlueprintGraphOps::HandleWire);
+	OutHandlers.Add(TEXT("DisconnectAll"), &FNexusBlueprintGraphOps::HandleWire);
 }
 
 
-REGISTER_MCP_CAPABILITY(FManageAssetBlueprintCapability)
+REGISTER_MCP_CAPABILITY(FNexusManageAssetBlueprintCapability)

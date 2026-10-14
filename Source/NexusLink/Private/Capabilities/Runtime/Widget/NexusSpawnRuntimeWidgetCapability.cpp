@@ -19,45 +19,45 @@
 #include "Engine/Blueprint.h"
 #endif
 
-void FSpawnRuntimeWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusSpawnRuntimeWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("spawn_runtime_widget");
-	Out.Description = TEXT("Create and show UMG panel in PIE/Game viewport. Requires assetPath+zOrder.");
+	Out.Name = TEXT("SpawnRuntimeWidget");
+	Out.Description = TEXT("Create and show UMG panel in PIE/Game viewport. Requires AssetPath+ZOrder.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("Widget Blueprint asset path")))
-		.Prop(TEXT("zOrder"),    FNexusSchema::Int(TEXT("AddToViewport Z-order (default 0)")))
-		.Required({ TEXT("assetPath") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Widget Blueprint asset path")))
+		.Prop(TEXT("ZOrder"),    FNexusSchema::Int(TEXT("AddToViewport Z-order (default 0)")))
+		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("viewport"), TEXT("hud"), TEXT("create"), TEXT("mount") };
-	Out.RelatedCapabilities = { TEXT("list_runtime_widgets"), TEXT("interact_runtime_widget") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("Viewport"), TEXT("hud"), TEXT("create"), TEXT("mount") };
+	Out.RelatedCapabilities = { TEXT("ListRuntimeWidgets"), TEXT("InteractRuntimeWidget") };
+	Out.Prerequisites = { TEXT("PIE") };
 }
 
-FCapabilityResult FSpawnRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusSpawnRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 
-		const FString AssetPath = A.Str(TEXT("assetPath"));
+		const FString AssetPath = A.Str(TEXT("AssetPath"));
 
-		const int32 ZOrder = Arguments->HasField(TEXT("zOrder"))
-			? static_cast<int32>(A.Num(TEXT("zOrder"))) : 0;
+		const int32 ZOrder = Arguments->HasField(TEXT("ZOrder"))
+			? static_cast<int32>(A.Num(TEXT("ZOrder"))) : 0;
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		FString WorldError;
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(WorldError);
 		if (!World)
 		{
-			Entry->SetStringField(TEXT("error"), WorldError);
+			Entry->SetStringField(TEXT("Error"), WorldError);
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 
 		APlayerController* PC = World->GetFirstPlayerController();
-		if (!PC) { Entry->SetStringField(TEXT("error"), TEXT("PlayerController not found")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		if (!PC) { Entry->SetStringField(TEXT("Error"), TEXT("PlayerController not found")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 
 		UClass* WidgetClass = nullptr;
 #if WITH_EDITOR
@@ -76,22 +76,22 @@ FCapabilityResult FSpawnRuntimeWidgetCapability::Execute(const TSharedPtr<FJsonO
 
 		if (!WidgetClass || !WidgetClass->IsChildOf(UUserWidget::StaticClass()))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("UserWidget class not found: %s"), *AssetPath));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("UserWidget class not found: %s"), *AssetPath));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 
 		UUserWidget* Widget = CreateWidget<UUserWidget>(PC, WidgetClass);
-		if (!Widget) { Entry->SetStringField(TEXT("error"), TEXT("CreateWidget failed")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+		if (!Widget) { Entry->SetStringField(TEXT("Error"), TEXT("CreateWidget failed")); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 		Widget->AddToViewport(ZOrder);
 
-		Entry->SetStringField(TEXT("widgetName"),  Widget->GetName());
-		Entry->SetStringField(TEXT("widgetClass"), WidgetClass->GetName());
-		Entry->SetNumberField(TEXT("zOrder"),      ZOrder);
-		Entry->SetStringField(TEXT("note"), TEXT("Use list_runtime_widgets to enumerate; interact_runtime_widget to operate"));
+		Entry->SetStringField(TEXT("WidgetName"),  Widget->GetName());
+		Entry->SetStringField(TEXT("WidgetClass"), WidgetClass->GetName());
+		Entry->SetNumberField(TEXT("ZOrder"),      ZOrder);
+		Entry->SetStringField(TEXT("Note"), TEXT("Use ListRuntimeWidgets to enumerate; InteractRuntimeWidget to operate"));
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FSpawnRuntimeWidgetCapability)
+REGISTER_MCP_CAPABILITY(FNexusSpawnRuntimeWidgetCapability)

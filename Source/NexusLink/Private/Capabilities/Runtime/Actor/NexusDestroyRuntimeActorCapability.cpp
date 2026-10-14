@@ -12,21 +12,21 @@
 #include "Engine/Level.h"
 #include "NexusMcpTool.h"
 
-void FDestroyRuntimeActorCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
+void FNexusDestroyRuntimeActorCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("destroy_runtime_actor");
+	Out.Name = TEXT("DestroyRuntimeActor");
 	Out.Description = TEXT("Remove runtime Actor from PIE/Game; marks Level modified.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Actor name or tag to destroy")))
-		.Required({ TEXT("actorName") })
+		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Actor name or tag to destroy")))
+		.Required({ TEXT("ActorName") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("kill"), TEXT("despawn"), TEXT("remove"), TEXT("drop"), TEXT("delete") };
-	Out.RelatedCapabilities = { TEXT("spawn_runtime_actor"), TEXT("list_runtime_actors") };
-	Out.Prerequisites = { TEXT("pie") };
+	Out.ExtraSearchKeywords = { TEXT("kill"), TEXT("despawn"), TEXT("Remove"), TEXT("drop"), TEXT("delete") };
+	Out.RelatedCapabilities = { TEXT("SpawnRuntimeActor"), TEXT("ListRuntimeActors") };
+	Out.Prerequisites = { TEXT("PIE") };
 }
 
-FCapabilityResult FDestroyRuntimeActorCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
+FCapabilityResult FNexusDestroyRuntimeActorCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
@@ -36,15 +36,15 @@ FCapabilityResult FDestroyRuntimeActorCapability::Execute(const TSharedPtr<FJson
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
 
-		const FString ActorName = A.Str(TEXT("actorName"));
+		const FString ActorName = A.Str(TEXT("ActorName"));
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("actorName"), ActorName);
+		Entry->SetStringField(TEXT("ActorName"), ActorName);
 
 		AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
 		if (!IsValid(Actor))
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
@@ -62,16 +62,16 @@ FCapabilityResult FDestroyRuntimeActorCapability::Execute(const TSharedPtr<FJson
 
 		if (!bDestroyed)
 		{
-			Entry->SetStringField(TEXT("error"), FString::Printf(TEXT("Destroy failed: %s"), *Name));
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Destroy failed: %s"), *Name));
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 
 		Entry->SetStringField(TEXT("name"),  Name);
-		Entry->SetStringField(TEXT("class"), Class);
+		Entry->SetStringField(TEXT("Class"), Class);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	
 	});
 }
 
-REGISTER_MCP_CAPABILITY(FDestroyRuntimeActorCapability)
+REGISTER_MCP_CAPABILITY(FNexusDestroyRuntimeActorCapability)

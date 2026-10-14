@@ -20,22 +20,22 @@ from audit_capability_params import (  # noqa: E402
 FIXTURE_GOOD = r'''
 void FGoodCap::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_demo");
+	Out.Name = TEXT("ManageAssetDemo");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
-		.Prop(TEXT("action"), FNexusSchema::Enum(TEXT("操作"), { TEXT("set") }))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("写路径")))
-		.Required({ TEXT("action") })
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("操作"), { TEXT("Set") }))
+		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("写路径")))
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("资产路径")))
-		.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量"), OpSchema.ToSharedRef()))
-		.Required({ TEXT("assetPath"), TEXT("operations") })
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("资产路径")))
+		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("批量"), OpSchema.ToSharedRef()))
+		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 }
 FCapabilityResult FGoodCap::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	FString AssetPath;
-	RequireString(Arguments, TEXT("assetPath"), AssetPath, R.Entries);
+	RequireString(Arguments, TEXT("AssetPath"), AssetPath, R.Entries);
 	return {};
 }
 '''
@@ -43,10 +43,10 @@ FCapabilityResult FGoodCap::Execute(const TSharedPtr<FJsonObject>& Arguments) co
 FIXTURE_BAD_MULTI = r'''
 void FBad::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("get_asset_demo");
+	Out.Name = TEXT("GetAssetDemo");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("assetPaths"), FNexusSchema::StrArr(TEXT("批量路径")))
-		.Prop(TEXT("propertyPath"), FNexusSchema::Str(TEXT("单数路径")))
+		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("单数路径")))
 		.Build();
 }
 '''
@@ -54,11 +54,11 @@ void FBad::BuildDefinition(FNexusCapabilityDefinition& Out) const
 FIXTURE_BAD_MANAGE_OPS = r'''
 void FBadManage::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_demo");
+	Out.Name = TEXT("ManageAssetDemo");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("路径")))
-		.Prop(TEXT("keys"), FNexusSchema::ArrOfObj(TEXT("旧容器")))
-		.Prop(TEXT("action"), FNexusSchema::Str(TEXT("顶层 action")))
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("路径")))
+		.Prop(TEXT("Keys"), FNexusSchema::ArrOfObj(TEXT("旧容器")))
+		.Prop(TEXT("Action"), FNexusSchema::Str(TEXT("顶层 action")))
 		.Build();
 }
 '''
@@ -66,9 +66,9 @@ void FBadManage::BuildDefinition(FNexusCapabilityDefinition& Out) const
 FIXTURE_BAD_RENAME = r'''
 void FBadRename::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("rename_asset");
+	Out.Name = TEXT("RenameAsset");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("源")))
+		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("源")))
 		.Prop(TEXT("newPath"), FNexusSchema::Str(TEXT("旧目标")))
 		.Build();
 }
@@ -77,9 +77,9 @@ void FBadRename::BuildDefinition(FNexusCapabilityDefinition& Out) const
 FIXTURE_BAD_SET = r'''
 void FBadSet::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("set_runtime_actor_property");
+	Out.Name = TEXT("SetRuntimeActorProperty");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("actorName"), FNexusSchema::Str(TEXT("Actor")))
+		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Actor")))
 		.Build();
 }
 '''
@@ -87,9 +87,9 @@ void FBadSet::BuildDefinition(FNexusCapabilityDefinition& Out) const
 FIXTURE_BAD_PKG = r'''
 void FBadCreate::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("create_asset_demo");
+	Out.Name = TEXT("CreateAssetDemo");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("packagePath"), FNexusSchema::Str(TEXT("包")))
+		.Prop(TEXT("PackagePath"), FNexusSchema::Str(TEXT("包")))
 		.Prop(TEXT("assetName"), FNexusSchema::Str(TEXT("名")))
 		.Build();
 }
@@ -98,7 +98,7 @@ void FBadCreate::BuildDefinition(FNexusCapabilityDefinition& Out) const
 FIXTURE_SPAWN_OLD = r'''
 void FBadSpawn::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("spawn_runtime_actor");
+	Out.Name = TEXT("SpawnRuntimeActor");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("blueprintPath"), FNexusSchema::Str(TEXT("旧蓝图")))
 		.Prop(TEXT("classPath"), FNexusSchema::Str(TEXT("旧类路径")))
@@ -118,7 +118,7 @@ def test_good_manage_passes():
 
 
 def test_nested_propertyPath_in_ops_ok():
-    """manage operations item 内的 propertyPath 不应触发 get_singular 规则。"""
+    """manage operations item 内的 PropertyPath 不应触发 get_singular 规则。"""
     assert "get_singular_propertyPath" not in _rules(FIXTURE_GOOD)
     assert "forbidden_param" not in _rules(FIXTURE_GOOD)
 
@@ -160,8 +160,8 @@ def test_audit_tree_fixture_dir(tmp_path: Path):
     good.write_text(FIXTURE_GOOD, encoding="utf-8")
     bad.write_text(FIXTURE_BAD_MULTI, encoding="utf-8")
     errs = audit_tree(tmp_path)
-    assert any(e.cap == "get_asset_demo" for e in errs)
-    assert not any(e.cap == "manage_asset_demo" for e in errs)
+    assert any(e.cap == "GetAssetDemo" for e in errs)
+    assert not any(e.cap == "ManageAssetDemo" for e in errs)
 
 
 def test_ownerWidget_execute_read(tmp_path: Path):
@@ -170,9 +170,9 @@ def test_ownerWidget_execute_read(tmp_path: Path):
         '''
 void FCap::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("interact_runtime_widget");
+	Out.Name = TEXT("InteractRuntimeWidget");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("widgetName"), FNexusSchema::Str(TEXT("控件")))
+		.Prop(TEXT("WidgetName"), FNexusSchema::Str(TEXT("控件")))
 		.Build();
 }
 FCapabilityResult FCap::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -195,18 +195,18 @@ def test_lambda_inputschema_uses_return_object(tmp_path: Path):
         r'''
 void FCap::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
-	Out.Name = TEXT("manage_asset_blackboard");
+	Out.Name = TEXT("ManageAssetBlackboard");
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
-			.Prop(TEXT("action"), FNexusSchema::Str(TEXT("操作")))
-			.Prop(TEXT("keyName"), FNexusSchema::Str(TEXT("键")))
-			.Required({ TEXT("action") })
+			.Prop(TEXT("Action"), FNexusSchema::Str(TEXT("操作")))
+			.Prop(TEXT("KeyName"), FNexusSchema::Str(TEXT("键")))
+			.Required({ TEXT("Action") })
 			.Build();
 		return FNexusSchema::Object()
-			.Prop(TEXT("assetPath"), FNexusSchema::Str(TEXT("路径")))
-			.Prop(TEXT("operations"), FNexusSchema::ArrayOf(TEXT("批量"), ItemSchema.ToSharedRef()))
-			.Required({ TEXT("assetPath"), TEXT("operations") })
+			.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("路径")))
+			.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("批量"), ItemSchema.ToSharedRef()))
+			.Required({ TEXT("AssetPath"), TEXT("Operations") })
 			.Build();
 	}();
 }

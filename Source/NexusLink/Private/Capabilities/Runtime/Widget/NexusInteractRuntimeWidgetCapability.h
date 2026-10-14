@@ -7,7 +7,7 @@
 #include "NexusRuntimeCapability.h"
 
 /** interact_widget 的 Capability —— 操作单个运行时 UMG 控件。*/
-class FInteractRuntimeWidgetCapability : public FNexusRuntimeCapability
+class FNexusInteractRuntimeWidgetCapability : public FNexusRuntimeCapability
 {
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;
