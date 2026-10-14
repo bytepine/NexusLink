@@ -56,7 +56,7 @@ def test_patch_uplugin_sets_version_and_engine(tmp_path):
         encoding="utf-8",
     )
     patch_uplugin(str(uplugin), "1.17.0", engine_version="5.8")
-    Data = json.loads(uplugin.read_text(encoding="utf-8"))
+    data = json.loads(uplugin.read_text(encoding="utf-8"))
     assert data["VersionName"] == "1.17.0"
     assert data["EngineVersion"] == "5.8"
     assert [m.get("Name") for m in data["Modules"]] == ["NexusLink"]

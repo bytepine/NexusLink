@@ -58,8 +58,8 @@ def test_zh_doc_uses_chinese_chrome():
 
 
 def test_zh_overlay_json_valid():
-    Path = os.path.join(REPO_ROOT, "scripts", "tool_reference_zh.json")
-    Data = json.loads(open(path, encoding="utf-8").read())
+    path = os.path.join(REPO_ROOT, "scripts", "tool_reference_zh.json")
+    data = json.loads(open(path, encoding="utf-8").read())
     assert isinstance(data["descriptions"], dict)
     assert isinstance(data["when_to_use"], dict)
     assert isinstance(data["param_text"], dict)

@@ -13,34 +13,34 @@ def _load(rel: str) -> dict:
 
 
 def test_uplugin_valid_json():
-    Data = _load("NexusLink.uplugin")
+    data = _load("NexusLink.uplugin")
     assert isinstance(data, dict)
 
 
 def test_uplugin_required_fields():
-    Data = _load("NexusLink.uplugin")
+    data = _load("NexusLink.uplugin")
     for field in ("FileVersion", "FriendlyName", "Modules"):
         assert field in data, f"NexusLink.uplugin missing field: {field}"
 
 
 def test_uplugin_modules_not_empty():
-    Data = _load("NexusLink.uplugin")
+    data = _load("NexusLink.uplugin")
     assert len(data["Modules"]) > 0
 
 
 def test_proxyconfig_valid_json():
-    Data = _load("Resources/ProxyConfig.json")
+    data = _load("Resources/ProxyConfig.json")
     assert isinstance(data, dict)
 
 
 def test_changelog_has_unreleased():
-    Path = os.path.join(REPO_ROOT, "CHANGELOG.md")
+    path = os.path.join(REPO_ROOT, "CHANGELOG.md")
     text = open(path, encoding="utf-8").read()
     assert "## [Unreleased]" in text, "CHANGELOG.md missing [Unreleased] section"
 
 
 def test_version_is_semver():
     import re
-    Path = os.path.join(REPO_ROOT, "VERSION")
+    path = os.path.join(REPO_ROOT, "VERSION")
     v = open(path, encoding="utf-8").read().strip()
     assert re.fullmatch(r"\d+\.\d+\.\d+(\S*)?", v), f"Invalid VERSION: {v}"
