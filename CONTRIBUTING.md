@@ -27,6 +27,7 @@
 py scripts/audit_capability_params.py
 py scripts/audit_capability_naming.py
 py scripts/audit_doc_sync.py   # 报告：代码 vs tool-reference / 中文 overlay
+py scripts/audit_cpp_naming.py  # 报告：类型前缀/文件名、布尔 b、k 前缀、协议 PascalCase
 ```
 
 ## 测试

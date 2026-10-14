@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/audit_cpp_naming.py`：报告类型前缀与文件名、布尔 `b` 前缀、`k` 常量前缀、协议字段 PascalCase（默认不失败）
+
 ### Changed
 
 - **破坏性**：Capability 工具 id、入参、出参、动作名和标签改为 PascalCase。布尔字段加 `b` 前缀（`saveToDisk` → `bSaveToDisk`）。不再接受旧的 snake_case / camelCase 名字。MCP 信封（`jsonrpc`、`method`、`params`、`isError`、`structuredContent`）不变。
