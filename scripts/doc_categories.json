@@ -5,6 +5,7 @@
     "Blueprint": "Blueprint tools",
     "DataAsset": "Data assets (DataAsset / DataTable)",
     "Editor": "Editor tools",
+    "Trace": "Editor tools",
     "Lua": "Lua runtime tools",
     "Material": "Material tools",
     "Runtime": "Runtime tools",

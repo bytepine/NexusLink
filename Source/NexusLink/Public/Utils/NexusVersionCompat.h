@@ -227,3 +227,5 @@
 // UE 5.6+ IPythonScriptPlugin 新增 IsPythonConfigured()/IsPythonInitialized()，可区分
 // 「已配置未启用」与「已启用未初始化」；5.5 及更早只有 IsPythonAvailable()
 #define NX_UE_HAS_PYTHON_INIT_STATE_QUERY  NX_UE_AT_LEAST(5, 6)
+// UE 5.6+ TraceServices 聚合参数为 FCreateAggregationParams（5.3–5.5 拼写为 FCreateAggreationParams）
+#define NX_UE_HAS_TRACE_READ  NX_UE_AT_LEAST(5, 6)

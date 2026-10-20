@@ -56,7 +56,7 @@ UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](http
 
 ## 能力范围
 
-默认 **SearchMode**：`tools/list` 仅 3 个元工具（`SearchCapabilities` / `CallCapability` / `SubmitFeedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara，以及 PIE / 独立 Game / Dedicated Server 运行时调试。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
+默认 **SearchMode**：`tools/list` 仅 3 个元工具（`SearchCapabilities` / `CallCapability` / `SubmitFeedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara，以及 PIE / 独立 Game / Dedicated Server 运行时调试。UE 5.6+ 编辑器还可只读已停录的 Unreal Insights `.utrace`（`ListTraces` / `GetTrace`）。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
 
 ## 危险 Capability（默认全部禁用）
 

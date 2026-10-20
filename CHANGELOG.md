@@ -10,6 +10,7 @@
 ### Added
 
 - `scripts/audit_cpp_naming.py`：报告类型前缀与文件名、布尔 `b` 前缀、`k` 常量前缀、协议字段 PascalCase（默认不失败）
+- UE 5.6+ 编辑器只读 Unreal Insights：`ListTraces` 列出 `Saved/Profiling` 与本机 Trace Store；`GetTrace` 读已停录的 `.utrace`（帧统计、卡顿帧、CPU 计时、Bookmark）。分析未完成时 `bAnalysisComplete=false`，再调一次。不尾随正在写入的文件
 
 ### Changed
 

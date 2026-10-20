@@ -39,6 +39,13 @@ public class NexusLinkEditor : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 			PrivateDependencyModuleNames.Add("LiveCoding");
 
+		// 只读 .utrace。TraceServices 是引擎 Developer 模块，只链进 Editor，不进 Runtime/Game。
+		if (NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 6))
+		{
+			PrivateDependencyModuleNames.Add("TraceServices");
+			PrivateDependencyModuleNames.Add("TraceAnalysis");
+		}
+
 		string ProjectRoot = NexusLinkOptionalPlugins.FindProjectRoot(ModuleDirectory);
 		var SearchDirs = NexusLinkOptionalPlugins.CollectPluginSearchDirs(ProjectRoot, this);
 

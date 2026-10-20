@@ -252,6 +252,16 @@ Dedicated Server 同样可使用 Runtime Capability 调试日志、Actor、动�
 
 调用链示例：看不见 → `ListRuntimeActors` → `GetRuntimeActorProperty Diagnose=visibility|transform`；已有报错 → `GetOutputLog Preset=diagnose`；只看接下来的操作 → `GetOutputLog` 先传 `Watch` 再 `bCollectWatch=true`；截图 → `CaptureViewport Target=pie`（可先 `bValidateOnly=true`）。
 
+### 2.4.2 读取 Unreal Insights（编辑器，UE 5.6+）
+
+独立 Game / DS 没有这两个 Capability。只读已经 `Trace.Stop` 的 `.utrace`，不跟着正在写的文件增长。录制示例：`Trace.File <path> cpu,frame,bookmark`，结束后 `Trace.Stop`。
+
+| 意图 | Capability | 说明 |
+|------|------------|------|
+| 找最近的 trace | `ListTraces` | `Saved/Profiling` 与本机 Trace Store。不打开文件。`Path` 交给 `GetTrace` 的 `TracePath` |
+| 看卡顿 | `GetTrace` 的 `Summary` + `Frames` | 帧数、平均、P95、最慢若干帧。没有 `frame` 通道会报错 |
+| 看那一帧的 CPU | 用卡顿帧的 `StartTime` / `EndTime` 再调 `Timers` + `Bookmarks` | 未给时间窗时，`Timers` 用最慢的一帧 Game 帧。分析还在跑时 `bAnalysisComplete=false`，再调一次 |
+
 ### 2.5 端口
 
 - 默认 MCP HTTP `45000`，WebSocket `55000`；可用 `-NexusMcpPort=` / `-NexusWsPort=` 或控制台 `Port=` / `WsPort=` 指定起始端口
