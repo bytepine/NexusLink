@@ -27,9 +27,9 @@ Desktop / Rider / VSCode 夹在 AI 客户端与 UE WebSocket 之间。本文是�
 | `degraded` | `"unavailable"` | UE 不可达，返回上次读快照 |
 | `snapshotAt` | ISO-8601 UTC | 快照时间（优先 UE `SnapshotAt`） |
 | `offloaded` | `true` | 正文已写入本地文件 |
-| `Path` | string | 保存到磁盘的绝对路径 |
+| `path` | string | 保存到磁盘的绝对路径 |
 | `bytes` | number | 保存到磁盘的字节数 |
-| `Note` | string | 给 Agent 的短提示（固定英文，避免打穿 Prompt Cache 的 initialize；此处是 call 结果） |
+| `note` | string | 给 Agent 的短提示（固定英文，避免打穿 Prompt Cache 的 initialize；此处是 call 结果） |
 
 `degraded` 时 **禁止** 循环调用 `list_unreal_instances`。`Note` 示例：
 
@@ -56,9 +56,13 @@ UE `GET /status` 在 `NetRole` 之外增加：
 
 ## 3. TTL 缓存键
 
-对 `CallCapability`：`Capability` + 内层 `Arguments`（去掉 `targetPort`）。  
+三端会话策略统一使用当前 PascalCase 契约：`CallCapability` / `Capability` / `Arguments` / `Calls`、`Operations[].Action`、`Sections` 和响应 `SnapshotAt` / `TtlSeconds`。MCP 信封与顶层代理路由字段 `targetHost` / `targetPort` 保持原样。
+
+**实例作用域：** 每条缓存先按最终 UE host/port 隔离；显式目标与当前长连接指向同一地址时共享该作用域。`localhost` / `::1` 归一为 `127.0.0.1`；目标端口只接受 1024–65535 的整数。断线保留最近成功连接的作用域；切换实例时禁止复用其他实例的缓存，重连后按实际目标重新计算。调用等待期间发生切换的响应不得污染新实例缓存。
+
+对 `CallCapability`：实例作用域 + `Capability` + 内层 `Arguments`；仅顶层 `targetHost` / `targetPort` 属于代理路由字段，能力参数内的同名字段仍参与键。
 MultiTool：工具名即 capability。  
-`calls[]` 批处理：**不缓存**。
+`Calls[]` 批处理：**不缓存**。
 
 **精确命中：** 同一 capability + 规范化 JSON 参数（含 `Sections`）且未过期 → `cache: "hit"`，不转发。
 
@@ -72,7 +76,7 @@ TTL：
 - 其余 `get_*` / `list_*` 默认 **30s**
 - 写 cap **不缓存**
 
-进程内最多 **64** 条 LRU。成功写操作按 identity 失效对应读缓存。
+进程内最多 **64** 条 LRU。成功写操作仅在同一实例作用域内按 identity 失效对应读缓存。
 
 ---
 
@@ -96,7 +100,7 @@ TTL：
 |----|------|
 | `off` | 不确认 |
 | `destructive`（默认） | `DeleteAsset` / `RenameAsset`；`ControlPie` 且 `Action` 为 stop/end/quit；`manage_*` 且某 `operations[].action` 含 delete/remove/destroy |
-| `All` | 一切写 cap（非 `get_`/`list_`/`search_`/`SubmitFeedback`） |
+| `all` | 一切写 cap（非 `Get*`/`List*`/`Search*`/`SubmitFeedback`） |
 
 确认结果：`allow` / `deny` / `always`（当前 MCP 会话对该 capability 不再问；新 `initialize` 再问）。  
 `deny` → JSON-RPC 错误 `ErrorKind: proxy_denied`。  
@@ -116,4 +120,4 @@ TTL：
 
 ## 7. 大包保存到磁盘
 
-`content[0].text` 超过 **48000** 字符时写入系统临时目录 `nexus-mcp-offload/`，结果 JSON 改为摘要 + `_proxy.offloaded` / `Path` / `bytes`。Agent 可用 Read 工具打开该路径。
+`content[0].text` 超过 **48000** 字符时写入系统临时目录 `nexus-mcp-offload/`，结果 JSON 改为摘要 + `_proxy.offloaded` / `path` / `bytes`。Agent 可用 Read 工具打开该路径。
