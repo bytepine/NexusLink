@@ -233,7 +233,9 @@ WebSocket 通道共享单一 `WsDispatcher`，无状态握手开销。NexusDeskt
 
 ## 服务器框架要点
 
-- **写路径 Undo**：`FNexusEditorTransaction` 包单次 `Run` 的内存 Execute；`CallCapability.calls[]`（≥2）外层一笔，`FailureCount>0` 时 `Apply` 再 `Cancel`（`bSaveToDisk` / `bCompile` 在事务外）
+- **写路径 Undo**：`FNexusEditorTransaction` 包单次 `Run` 的内存 Execute；`CallCapability.Calls[]`（≥2）外层一笔。业务条目 / section / 自动编译错误均计入失败，尝试 `Apply` 再 `Cancel`，并跳过自动保存；所有业务操作通过后才自动编译，全部编译通过后提交内存事务，再执行 `bSaveToDisk`。保存失败明确返回错误，不宣称磁盘原子性；显式包级操作及运行时副作用不回滚。单次 manage 部分失败仍保留成功操作。
+- **错误结果**：`FCapabilityResult::HasErrors()` 统一聚合业务与收尾错误；SearchMode / MultiTool 都返回 `isError=true`，同时保留结构化详情。读取到资产自身的 `bHasCompilerErrors` 状态不等于读取失败。
+- **重复读取提示**：`RedundantCall` 只统计成功的 All 读取，子 section 请求仍返回当前数据；写入后清除历史提示，不用进程级记录阻断其他会话。
 - **MCP Streamable HTTP**（`POST /stream`）+ `GET /status` 无状态探测；per-session（`Mcp-Session-Id`）
 - **WebSocket**（默认 55000 起）：`nexus/instructions`、`nexus/proxy_config`
 - **按 Capability 启用/禁用**、响应 `*_defaults` 压缩、内存高水位批量驱逐（`FNexusPackageLedger`）、`SearchAsset` 的 `RecommendedGet` / `RecommendedManage`

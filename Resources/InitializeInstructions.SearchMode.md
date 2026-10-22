@@ -58,12 +58,12 @@ Forbidden: `ManageAnimation`, `SetRuntimeActorAnimation`.
 
 ## Hard rules
 
-- Write success does **not** return `success:true`; no `Error` means success; `interact_*` changes runtime command state (not PropertyPaths).
+- Write success has no `success:true`. Check MCP `isError` and structured operation/section/compile/save errors; partial single-call edits may remain. Failed batches expose `bRolledBack` / `UndoNote`; do not blindly retry the whole batch. `interact_*` changes runtime command state (not PropertyPaths).
 - `*_asset_*` = disk (Editor host); `*_runtime_*` needs PIE/Game (`bHasPlayWorld`); Game/DS host (`HostKind` ≠ Editor) has no `get_asset_*`.
 - `SearchAsset`: no `AssetType=all` + bare `/Game/`; then use `recommended*` + `Path`.
 - `SearchCapabilities`: infer name from patterns above and pass `CapabilityName` (full `parameters[]` once); otherwise narrow 1–2 word `Query` (e.g. `blueprint variable`); `Query=""` is name-only catalog; **do not** use `blueprint` / `Asset` / `Runtime` / `Animation` alone (`QueryTooBroad`). On failure check `ErrorKind` / `SuggestedQueries`; `NotFound` with unregistered hint → do not retry same domain; on `CallCapability` `disabled` or `UserDenied` do not retry.
 - `GetRuntimeActorProperty` requires non-empty `ActorName` (call `ListRuntimeActors` first, after `ControlPie`/`GetEditorInfo` `bHasPlayWorld=true`); `ExecCommand` requires non-empty `Command`. Caps tagged `dangerous` (`ExecCommand` / `ExecPython`, and any later plugin that sets the same tag) in Confirm mode require `Reason` (purpose, expected effect, why no safer dedicated cap); `bConfirmationRequired: true` on search details. Do not retry `UserDenied`.
 - Unsure whether an `unreal.*` API exists on this engine version: call `GetPythonApi` first; do not guess UE5 APIs on UE4 (or vice versa).
 - `ExecPython` writes are only undoable when they go through `obj.set_editor_property(...)` or an explicit `obj.modify()`; plain `obj.foo = x` is **not** recorded. Prefer the former, and check the returned `bUndoRecorded` — `false` means Ctrl+Z will not roll this back.
-- After `Sections=["All"]`, no sub-section calls for 30s (`RedundantCall`).
+- Reuse an existing `Sections=["All"]` response when still current. Re-read after writes or runtime changes; `RedundantCall` is advisory and fresh data is still returned.
 - Retry ≥2 / no suitable cap / schema guessing / serial ≥3 → `SubmitFeedback`; **`FeedbackHint` is mandatory**.

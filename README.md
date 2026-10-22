@@ -80,7 +80,7 @@ UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](http
 ### 为什么默认关
 
 - **等价于进程内任意代码执行**：Python 可 `import os`、读写任意文件、起子进程。一旦开启，身份验证就成了唯一防线，按 Capability 的启用/禁用粒度全部失效。
-- **写路径的安全网只剩半张**：其余 Capability 的写操作统一包 `FNexusEditorTransaction`（可 Undo，`calls[]` 批量失败整体回滚）。`ExecPython` 同样开了事务，但 UE 只记录调用过 `Modify()` 的对象：Python 里最自然的 `obj.foo = x` 走 `NotifyMode::Never`，**不进事务**；只有 `obj.set_editor_property(...)` 与显式 `obj.modify()` 会。脚本混用两种写法时 Ctrl+Z 只回滚一半，资产会落进一个从未存在过的中间态。返回里的 `bUndoRecorded` 如实回报本次是否产生了可回滚记录。此外 `create_asset` / `DeleteAsset` / `SaveAsset` 等包级操作本来就不在事务范围内。
+- **写路径的安全网只剩半张**：其余 Capability 的写操作统一包 `FNexusEditorTransaction`（可 Undo；`Calls[]` 业务或自动编译失败会回滚已记录的内存修改，自动保存延迟到整批检查通过之后）。保存阶段不是磁盘原子事务，具体边界见返回的 `bRolledBack` / `UndoNote`。`ExecPython` 同样开了事务，但 UE 只记录调用过 `Modify()` 的对象：Python 里最自然的 `obj.foo = x` 走 `NotifyMode::Never`，**不进事务**；只有 `obj.set_editor_property(...)` 与显式 `obj.modify()` 会。脚本混用两种写法时 Ctrl+Z 只回滚一半，资产会落进一个从未存在过的中间态。返回里的 `bUndoRecorded` 如实回报本次是否产生了可回滚记录。此外 `create_asset` / `DeleteAsset` / `SaveAsset` 等包级操作本来就不在事务范围内。
 - **容易崩编辑器**：模型现写的脚本很容易碰到错误线程、失效对象或 GC，崩溃后也难归因。
 
 ### 与默认开启的 Capability 的取舍

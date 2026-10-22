@@ -1,5 +1,6 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
+#include "Capabilities/Asset/Blueprint/NexusManageAssetBlueprintGraph.h"
 #include "Capabilities/Asset/Blueprint/NexusManageAssetBlueprintCapability.h"
 #include "NexusActionCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
@@ -34,7 +35,6 @@
 #include "UObject/UObjectIterator.h"
 #include "NexusMcpTool.h"
 
-#include "Capabilities/Asset/Blueprint/NexusManageAssetBlueprintGraph.h"
 
 void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {

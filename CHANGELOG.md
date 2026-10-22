@@ -17,6 +17,14 @@
 - **破坏性**：Capability 工具 id、入参、出参、动作名和标签改为 PascalCase。布尔字段加 `b` 前缀（`saveToDisk` → `bSaveToDisk`）。不再接受旧的 snake_case / camelCase 名字。MCP 信封（`jsonrpc`、`method`、`params`、`isError`、`structuredContent`）不变。
 - 私有 Capability 类名与文件名对齐：`FNexus` + 文件名（去掉扩展名）。例如 `FNexusDestroyRuntimeActorCapability`。
 - docs(proxy): 三端会话约定明确 PascalCase、按最终 UE host/port 隔离缓存及快照、非法显式端口在缓存与确认之前返回 `-32602`、切换实例时的缓存边界。
+- 参数审计优先检查当前源码，无法抽取时才使用导出的 Schema，避免旧清单掩盖非法参数或污染合成文本测试。
+
+### Fixed
+
+- 恢复 MCP / JSON-RPC 标准字段的大小写，标准客户端可正确解析握手、工具 Schema、annotations 与错误响应；Capability 业务字段仍用 PascalCase。
+- SearchMode / MultiTool 统一聚合条目、section、编译和保存错误，错误响应保留结构化详情；`Calls[]` 业务或自动编译失败时尝试回滚内存并跳过自动保存，保存延迟到整批检查通过后执行，明确报告磁盘与运行时副作用的回滚边界。
+- `ManageAssetDataTable` 接受非空 `Fields` 动态字典，校验未知字段，`null` 保留默认值；写入记录 Undo，临时行在成功及失败路径均正确析构。
+- `RedundantCall` 不再拦截读取，提示与当前数据同时返回；只统计成功读取，写入后清除历史记录。
 
 ## [2.2.0] - 2026-10-13
 

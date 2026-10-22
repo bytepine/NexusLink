@@ -258,7 +258,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 - 布尔字段以 `b` 开头，下一个字母大写：`bSaveToDisk`、`bCompile`、`bEnabled`。
 - C++：私有 Capability 类名为 `FNexus{PascalCase}Capability`，文件 `Nexus{PascalCase}Capability.{h,cpp}`（去掉 `F` 后与文件名一致）。
 - 词序：`{Verb}{Scope}{Target}{Aspect?}`；`Scope` 为 `Asset` 或 `Runtime` 时必须出现在名中；Editor / 通用例外见 §6.4。
-- JSON Schema 关键字（`type`、`properties`、`required`、`enum`）和 MCP 信封（`jsonrpc`、`method`、`params`、`isError`、`structuredContent`）保持协议原样，不套这套 PascalCase。
+- JSON Schema 关键字（`type`、`properties`、`required`、`enum`）和 MCP / JSON-RPC 标准字段保持协议原样，不套这套 PascalCase。包括 `capabilities`、`instructions`、`listChanged`、`inputSchema`、`annotations`、`readOnlyHint`、`code`、`message`，以及 `jsonrpc`、`method`、`params`、`isError`、`structuredContent`。
 
 ### 6.2 Asset 盘（编辑器资产）
 
@@ -444,7 +444,7 @@ public:
 | Capability 返回壳 / entry 错误 | `FNexusCapabilityResultBuilder::AddEntry(...)` / `AddEntryError(...)`；适配层 `AssembleStructuredContent`：`Entries.Num()==1` 提升到顶层，`Num()>1` 写 `results[]`；响应身份字段统一 `Path`，`get_`/`manage_` 可 `StripRedundantPathEcho` |
 | 取运行时 World 并做错误兜底 | `FNexusRuntimeUtils::RequirePlayWorld(OutError)` |
 | 新建资产 finalize（MarkDirty + AssetCreated + Save） | `FNexusAssetUtils::NotifyAndSaveCreated(...)` / `NotifyCompileAndSave(...)` |
-| manage 收尾（可选 compile / bSaveToDisk） | `FNexusAssetUtils::ApplyManageFinalize(...)`（由 `FNexusCapability::Run` 统一调用，禁止各 manage Execute 自写） |
+| manage 收尾（可选 compile / bSaveToDisk） | `FNexusCapability::Run` / `Finalize` 经 `FNexusEditorServices::ApplyManageFinalize(...)` 统一调用，禁止各 manage Execute 自写 |
 
 ### 8.9 Capability 实现样板约束
 
@@ -478,10 +478,12 @@ public:
 | Execute 读入 | 带 `operations[]` 的 `manage_*` 由 `FNexusActionCapability` 基类 `Execute` 调用 `ExtractOperations`（禁止子类再写循环壳）；**仅**读 `operations[]`；不回退 `ops`、不把顶层 `Action`+其余字段合成单元素数组；非 object 元素写入对应 `entries[].error`（`Invalid operation (expected object)`），不静默跳过 |
 | Schema 严格性 | `FNexusSchema::Object()` 默认 `additionalProperties: false`；`AnyObject()` 显式 `true`（动态字段）；`AnyScalar()` 为 `type: [string,number,boolean,null]`。`FNexusCapability::Run` 在 `Execute` 之前按 InputSchema **递归严格校验**（未知键 / type（string 或数组） / required / required 空串 / enum / array items / 嵌套 object）；失败一律 `FCapabilityResult::MakeArgInvalid` |
 | 结果信封 | 禁止「一条 Entry + 内嵌 `results[]`」的双层包裹；每个 op 必须对应一条独立 `OutEntries.Add(...)`，交由适配层 `AssembleStructuredContent` 统一提升/包装 |
-| `bSuccess` 字段 | 成功不写 `bSuccess`（无 `Error` 即成功）；失败写 `Error`，允许保留 `success:false` 辅助阅读；禁止写「成功恒为 true」或条件判断结果恒为 true 的 `bSuccess` |
+| `bSuccess` 字段 | 成功不写 `bSuccess`；失败写 Error 或明确的编译/保存错误，统一由 HasErrors 聚合到 MCP `isError`。禁止写「成功恒为 true」或条件判断结果恒为 true 的 `bSuccess` |
 | create 入参 | **只**暴露 / 消费 `AssetPath`；删除 `PackagePath`+`assetName` 双字段路径 |
 | create 响应 | 成功条目必须含 `Path` 字段 |
-| manage 收尾 | 框架按定义标志注入：`bInjectSaveToDisk`（Action 基类对 `manage_asset_*` 置位）→ 可选 `bSaveToDisk`；`bInjectCompile`（仅 BP/ABP/WBP manage 的 BuildDefinition）→ 可选 `bCompile`。UDS 仍自动编译。Material 用 `Recompile` op。独立 `SaveAsset` / `CompileBlueprint` 仍可用 |
+| manage 收尾 | 框架按定义标志注入：`bInjectSaveToDisk`（Action 基类对 `manage_asset_*` 置位）→ 可选 `bSaveToDisk`；`bInjectCompile`（仅 BP/ABP/WBP manage 的 BuildDefinition）→ 可选 `bCompile`。单次 `Run` 默认自动收尾；`Calls[]`（≥2）内部使用 `Run(args, false)` 延迟收尾，全部业务操作通过后调用 `Finalize` 编译，全部编译通过后提交内存事务并保存。UDS 自动编译、Material 的 `Recompile` op、显式 `SaveAsset` / `CompileBlueprint` 不延迟 |
+| 失败聚合 | `FCapabilityResult::HasErrors()` 检查 FatalError、顶层及 Entries 的 Error / CompileError / SaveError / FinalizeError 和非空 SectionErrors；不递归检查业务数据。SearchMode / MultiTool 均返回 `isError=true` 并保留结构化详情；部分失败的单次 manage 保留成功操作 |
+| 批量回滚边界 | 业务或自动编译失败计入 FailureCount，尝试回滚已记录的内存修改并跳过自动保存；`bRolledBack` / UndoNote 报告实际边界。保存阶段失败也返回 `isError=true`，已提交内存和磁盘不宣称整体回滚。包级操作、运行时副作用不受编辑器事务保护 |
 | Execute 卫生 | 非 MultiSection 的 cap 优先 `FNexusCapabilityResultBuilder::Build`；资产定位统一 `RequireString` + `EmitError`（或对应 Fatal/`MakeArgInvalid`）；禁止裸 `SetStringField("Error")` 作为唯一失败路径 |
 | 有意保留 | 单目标内：`Sections` / `PropertyPaths` / `Operations` / `Updates`；领域数组经 `Operations` 承载（勿再把 `Fields`/`Rows`/`Keys`/`Widgets` 当顶层操作容器）；runtime `interact_*` / `ControlPie` / `ControlMoviePipeline` 的顶层 `Action`（命令式语义，非批量操作列表）；元工具 `calls[]` |
 

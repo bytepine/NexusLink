@@ -145,6 +145,13 @@ def test_set_property_requires_updates():
     assert "set_updates" in _rules(FIXTURE_BAD_SET)
 
 
+def test_catalog_does_not_override_current_source(monkeypatch):
+    monkeypatch.setattr("audit_capability_params.load_capability_schemas", lambda: {
+        "SetRuntimeActorProperty": {"properties": {"ActorName": {}, "Updates": {}}},
+    })
+    assert "set_updates" in _rules(FIXTURE_BAD_SET)
+
+
 def test_packagePath_assetName():
     assert "packagePath_assetName" in _rules(FIXTURE_BAD_PKG)
 

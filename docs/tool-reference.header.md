@@ -17,6 +17,8 @@ This document lists all MCP tools and capabilities exposed by NexusLink with det
 > - `CallCapability` also uses `UserDenied` when the editor user rejects a dangerous cap (do not retry)
 
 > **General conventions**
+> - MCP / JSON-RPC standard keys retain their standard spelling (`capabilities`, `instructions`, `inputSchema`, `annotations`, `code`, `message`); PascalCase applies to capability payloads.
+> - Operation, section, compile and save errors return `isError=true` with structured details. `Calls[]` (2+ items) checks all operations and automatic compiles before automatic saves; inspect `bRolledBack` / `UndoNote`. Disk writes and explicit package/runtime side effects are not atomic or reverted. A single manage call retains successful operations after partial failure.
 > - All `AssetPath` values are UE content paths, e.g. `/Game/Blueprints/BP_Player`
 > - Property paths (`PropertyPath`) support `A.B.C` dot drill-down + container indices `[i]` / `["Key"]`:
 >     - Arrays: `Items[0]`, `Matrix[0][1]`

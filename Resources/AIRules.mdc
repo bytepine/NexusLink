@@ -43,7 +43,7 @@ For UE assets / PIE / blueprints / Widget / material / behavior tree / GAS, **ca
 - ❌ Guess `unreal.*` Python APIs — they differ per engine version; probe with `GetPythonApi` before `ExecPython`
 - ❌ Assume `ExecPython` writes are undoable — plain `obj.foo = x` is not recorded; use `obj.set_editor_property(...)` (or explicit `obj.modify()`) and check the returned `bUndoRecorded`
 - ❌ Ignore `FeedbackHint` — call `SubmitFeedback`
-- ❌ Expect `success:true` on write success (no `Error` means success; only explicit `success:false` is failure)
+- ❌ Expect `success:true` on write success (check MCP `isError` and structured operation/section/compile/save errors; partial edits may remain; inspect `bRolledBack` / `UndoNote` before retrying a failed batch)
 - ❌ Pass `assetPaths` / `actorNames` / `widgetNames` to capabilities (cross-target via `CallCapability.calls[]`)
 - ❌ manage top-level `Fields`/`Rows`/`Keys`/`Widgets`/`ops` or bare `Action` synthesis (use `Operations[]`)
 - ❌ Legacy keys: `blueprintPath`/`newPath`/`ownerWidget`/`FilePath`/`classPath` (see §3)

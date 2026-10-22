@@ -1,5 +1,6 @@
 ﻿// Copyright byteyang. All Rights Reserved.
 
+#include "Capabilities/Asset/Material/NexusManageAssetMaterialGraph.h"
 #include "Capabilities/Asset/Material/NexusManageAssetMaterialCapability.h"
 
 #if WITH_EDITOR
@@ -24,7 +25,6 @@
 #include "MaterialEditingLibrary.h"
 #include "NexusMcpTool.h"
 
-#include "Capabilities/Asset/Material/NexusManageAssetMaterialGraph.h"
 
 bool FNexusMaterialGraphOps::TrySetExprParamName(UMaterialExpression* Expr, const FName& Name)
 {

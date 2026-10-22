@@ -443,6 +443,8 @@ Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性�
 
 `set_*_property` 改的是内存；须 `SaveAsset` 或 manage 传 `bSaveToDisk=true`。BP/ABP/WBP 可再传 `bCompile=true`。
 
+`CallCapability.Calls[]`（≥2）把自动编译和保存延迟到全部业务操作完成后；任一操作或自动编译失败会尝试回滚记录过的内存修改，并跳过自动保存。条目错误、section 错误、编译/保存错误均会返回 `isError=true`，详情保留在 `structuredContent`。`bRolledBack` / `UndoNote` 说明是否执行了内存回滚；保存阶段不保证磁盘原子性，显式 `SaveAsset` / 创建 / 删除 / 重命名以及运行时副作用也不在该回滚范围内。单次 manage 的部分成功操作仍保留，不要把整条请求盲目重试。
+
 ### MCP 搜不到 GAS / Niagara 等能力
 
 这些 Capability 在编译期按磁盘 `.uplugin` 探测（`WITH_GAS` 等），**不会**在插件浏览器里给 NexusLink 加依赖。自定义引擎若不在工程兄弟目录 `Engine/`，旧版会 miss；当前版本用 UBT 正在编译的引擎目录自动找 `Engine/Plugins`。确认：重编后 `Intermediate/.../Definitions.NexusLink.h` 中对应 `WITH_*` 为 `1`，并重启编辑器。真实工程 `.uproject` 对该插件显式 `Enabled: false` 仍会关掉；`build_test` Editor/`BuildPlugin` 按该引擎磁盘探测编进可选 cap（与宿主一致），Game 目标不编。环境变量 `WITH_GAS=1` / `=0` 可强制开/关。

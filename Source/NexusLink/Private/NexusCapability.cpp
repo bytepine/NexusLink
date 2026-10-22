@@ -14,6 +14,28 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusCapability, Log, All);
 
+static bool ResultObjectHasErrors(const TSharedPtr<FJsonObject>& Object)
+{
+	if (!Object.IsValid()) return false;
+	for (const TCHAR* Key : { TEXT("Error"), TEXT("CompileError"), TEXT("SaveError"), TEXT("FinalizeError") })
+	{
+		FString Error;
+		if (Object->TryGetStringField(Key, Error) && !Error.IsEmpty()) return true;
+	}
+	const TArray<TSharedPtr<FJsonValue>>* SectionErrors = nullptr;
+	return Object->TryGetArrayField(TEXT("SectionErrors"), SectionErrors) && SectionErrors && SectionErrors->Num() > 0;
+}
+
+bool FCapabilityResult::HasErrors() const
+{
+	if (!FatalError.IsEmpty() || ResultObjectHasErrors(TopFields)) return true;
+	for (const auto& Entry : Entries)
+	{
+		if (Entry.IsValid() && Entry->Type == EJson::Object && ResultObjectHasErrors(Entry->AsObject())) return true;
+	}
+	return false;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // InputSchema 严格校验（Run 在 required 之后、Execute 之前调用）
 // ─────────────────────────────────────────────────────────────────────────────
@@ -469,7 +491,12 @@ const FNexusCapabilityDefinition& FNexusCapability::GetDefinition() const
 	return CachedDef;
 }
 
-FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments) const
+void FNexusCapability::Finalize(const TSharedPtr<FJsonObject>& Arguments, FCapabilityResult& Result) const
+{
+	ApplyIfRequested(GetDefinition().Name, Arguments, Result);
+}
+
+FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments, bool bFinalize) const
 {
 	// Args 兜底：防止子类 Execute 收到空指针
 	const TSharedPtr<FJsonObject> Args = Arguments.IsValid()
@@ -505,7 +532,7 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 	// 单 cap 故意提交：部分失败仍保留已成功的改动（能做多少做多少）。
 	// 跨目标回滚由 CallCapability 批处理在 FailureCount>0 时 CancelAndRevert。
 	Tx.Reset();
-	ApplyIfRequested(Def.Name, Args, Result);
+	if (bFinalize) Finalize(Args, Result);
 	const double ElapsedMs = (FPlatformTime::Seconds() - StartTime) * 1000.0;
 
 	UE_LOG(LogNexusCapability, Verbose,

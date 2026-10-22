@@ -198,6 +198,8 @@ struct FNexusCapResultAdapter final
 		StripRedundantPathEcho(Top, Args, CapName);
 		Result.StructuredContent = Top;
 		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Top);
+		Result.bIsError = CapResult.HasErrors();
+		if (Result.bIsError) Result.ErrorText = Result.OutputText;
 		return Result;
 	}
 };

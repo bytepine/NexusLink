@@ -47,7 +47,7 @@ ALLOW_KEYS = frozenset({
 MCP_WIRE_KEYS = frozenset({
     "protocolVersion", "capabilities", "tools", "listChanged",
     "serverInfo", "name", "version", "instructions",
-    "description", "inputSchema",
+    "description", "inputSchema", "annotations", "readOnlyHint", "code", "message",
 })
 # 不是动作名的枚举取值（图片格式等）。
 ALLOW_ENUM_VALUES = frozenset({"png", "jpg", "jpeg"})

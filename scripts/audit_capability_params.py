@@ -186,13 +186,13 @@ def scan_capability_text(text: str, path: Path | None = None) -> CapScan | None:
     if not m:
         return None
     name = m.group(1)
-    catalog = load_capability_schemas() or {}
-    dumped = catalog.get(name)
-    if isinstance(dumped, dict) and dumped.get("properties"):
-        top_props = schema_top_prop_names(dumped)
-    else:
-        schema = extract_top_level_schema_text(text)
-        top_props = parse_schema_prop_names(schema)
+    # 当前源码优先，避免旧 Schema dump 掩盖新引入的非法参数或污染合成文本测试。
+    schema = extract_top_level_schema_text(text)
+    top_props = parse_schema_prop_names(schema)
+    if not top_props:
+        dumped = (load_capability_schemas() or {}).get(name)
+        if isinstance(dumped, dict):
+            top_props = schema_top_prop_names(dumped)
     return CapScan(
         path=path or Path("<memory>"),
         name=name,

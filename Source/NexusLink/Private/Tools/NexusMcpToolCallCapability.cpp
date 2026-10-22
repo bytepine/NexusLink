@@ -143,7 +143,7 @@ struct FNexusCallCore final
 	enum class EStatus : uint8
 	{
 		Ok,
-		RedundantWarn,
+		Failed,
 		Unknown,
 		Disabled,
 		Unavailable,
@@ -161,14 +161,14 @@ struct FNexusCallCore final
 		TSharedPtr<FJsonObject>   TopOrWarn;
 		TSharedPtr<FJsonObject>   ArgInvalidErr;
 		FString                   FatalMessage;
+		FCapabilityResult         CapResult;
 	};
 };
 
 /**
- * 单条 capability 执行核心：查找、启用检查、redundant LRU、Run。
- * 成功时 TopOrWarn 为 capability 顶层 JSON；redundant 时为 warning 对象。
+ * 单条 capability 执行核心：查找、启用检查、Run 与非阻断的重复读取提示。
  */
-static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const TSharedPtr<FJsonObject>& Inner)
+static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const TSharedPtr<FJsonObject>& Inner, bool bFinalize = true)
 {
 	FNexusCallCore::FResult R;
 	R.RequestedCapName = CapName.TrimStartAndEnd();
@@ -216,13 +216,24 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 		return R;
 	}
 
-	// RedundantCall 检测
+	R.CapResult = Record->Instance->Run(Inner, bFinalize);
+	const FCapabilityResult& CapResult = R.CapResult;
+	// 写入可能部分成功，报错也要使之前的读取提示失效。
+	if (Record->Def.HasTag(FNexusMcpTags::Write))
+	{
+		FScopeLock Lock(&GCallCapabilityRedundantMutex);
+		GCallCapabilityRedundantMap.Empty();
+	}
+
+	// 仅成功读取参与统计；提示不能替代当前数据，也不假定别的客户端持有旧响应。
+	bool bRecentAllRead = false;
+	if (!CapResult.HasErrors())
 	{
 		const UNexusLinkSettings* Settings2 = UNexusLinkSettings::Get();
 		const int32 WindowSec = Settings2 ? Settings2->RedundantCallWindowSec : 30;
-		if (WindowSec > 0)
+		const FString Identity = ExtractIdentityKey(Inner);
+		if (WindowSec > 0 && !Identity.IsEmpty())
 		{
-			const FString Identity   = ExtractIdentityKey(Inner);
 			const FString LruKey     = Record->Def.Name + TEXT("|") + Identity;
 			const bool bIsSubSection = FNexusJsonUtils::HasSubSection(Inner);
 			const bool bIsAll        = FNexusJsonUtils::HasSectionAll(Inner);
@@ -240,15 +251,7 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 					F.Note       = FString::Printf(TEXT("Sub-section call within %.0fs of Sections=[\"all\"] for identity '%s'"), AgeSec, *Identity);
 					FNexusFeedback::RecordAuto(TEXT("RedundantCall"), F);
 
-					TSharedPtr<FJsonObject> Warn = MakeShared<FJsonObject>();
-					Warn->SetStringField(TEXT("Warning"), TEXT("RedundantCall"));
-					Warn->SetStringField(TEXT("Hint"), FString::Printf(
-							TEXT("Skipped: Sections=[\"all\"] was called for '%s' %.0f s ago. Reuse that response; do not call sub-sections again."),
-							*Identity, AgeSec));
-					Warn->SetBoolField(TEXT("bRedundant"), true);
-					R.Status      = FNexusCallCore::EStatus::RedundantWarn;
-					R.TopOrWarn   = Warn;
-					return R;
+					bRecentAllRead = true;
 				}
 			}
 			if (bIsAll || bIsSubSection)
@@ -259,8 +262,6 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 			}
 		}
 	}
-
-	FCapabilityResult CapResult = Record->Instance->Run(Inner);
 
 	if (!CapResult.FatalError.IsEmpty())
 	{
@@ -317,8 +318,15 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 		return R;
 	}
 
-	R.Status    = FNexusCallCore::EStatus::Ok;
+	R.Status    = CapResult.HasErrors() ? FNexusCallCore::EStatus::Failed : FNexusCallCore::EStatus::Ok;
 	R.TopOrWarn = FNexusCapResultAdapter::AssembleStructuredContent(CapResult);
+	if (bRecentAllRead)
+	{
+		R.TopOrWarn->SetStringField(TEXT("Warning"), TEXT("RedundantCall"));
+		R.TopOrWarn->SetStringField(TEXT("Hint"), TEXT("A recent All read was detected; fresh data is returned for this request."));
+	}
+	// 后续批量收尾直接更新同一份 Data，避免序列化前丢掉编译/保存结果。
+	R.CapResult.TopFields = R.TopOrWarn;
 	FNexusCapResultAdapter::StripRedundantPathEcho(R.TopOrWarn, Inner, Record->Def.Name);
 	return R;
 }
@@ -402,8 +410,16 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 		}
 
 		TArray<TSharedPtr<FJsonValue>> BatchResults;
+		struct FPendingFinalize
+		{
+			FNexusCallCore::FResult Core;
+			TSharedPtr<FJsonObject> Arguments;
+			TSharedPtr<FJsonObject> Item;
+		};
+		TArray<FPendingFinalize> PendingFinalizes;
 		int32 SuccessCount = 0;
 		int32 FailureCount = 0;
+		const bool bDeferFinalize = CallsArr->Num() >= 2;
 
 		TUniquePtr<INexusTransactionHandle> BatchTx;
 		if (CallsArr->Num() >= 2)
@@ -439,17 +455,23 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			Item->SetStringField(TEXT("Capability"), CapName);
 			const TSharedPtr<FJsonObject> Inner = MergeNestedArguments(*CallObj);
 
-			const FNexusCallCore::FResult Core = RunCapabilityCore(CapName, Inner);
+			const FNexusCallCore::FResult Core = RunCapabilityCore(CapName, Inner, !bDeferFinalize);
 
 			switch (Core.Status)
 			{
 			case FNexusCallCore::EStatus::Ok:
 				Item->SetObjectField(TEXT("Data"), Core.TopOrWarn);
 				++SuccessCount;
+				if (bDeferFinalize && Core.Record->Def.Name.StartsWith(TEXT("ManageAsset")))
+				{
+					PendingFinalizes.Add({ Core, Inner, Item });
+				}
 				break;
-			case FNexusCallCore::EStatus::RedundantWarn:
+			case FNexusCallCore::EStatus::Failed:
 				Item->SetObjectField(TEXT("Data"), Core.TopOrWarn);
-				++SuccessCount;
+				Item->SetStringField(TEXT("Error"), TEXT("Capability reported operation or finalize errors; see Data."));
+				Item->SetStringField(TEXT("ErrorKind"), TEXT("ExecutionFailed"));
+				++FailureCount;
 				break;
 	case FNexusCallCore::EStatus::Unknown:
 		Item->SetStringField(TEXT("Error"), FormatUnknownCapabilityError(Core.RequestedCapName, Core.CapName));
@@ -533,7 +555,27 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			BatchResults.Add(MakeShared<FJsonValueObject>(Item));
 		}
 
+		// 两阶段收尾：业务失败不编译，任一编译失败不落盘。显式 Save/Delete 等包级副作用不在事务内。
+		auto FinalizePending = [&](bool bSavePhase)
+		{
+			for (FPendingFinalize& Pending : PendingFinalizes)
+			{
+				TSharedPtr<FJsonObject> FinalizeArgs = MakeShared<FJsonObject>(*Pending.Arguments);
+				FinalizeArgs->SetBoolField(bSavePhase ? TEXT("bCompile") : TEXT("bSaveToDisk"), false);
+				Pending.Core.Record->Instance->Finalize(FinalizeArgs, Pending.Core.CapResult);
+				if (Pending.Core.CapResult.HasErrors())
+				{
+					Pending.Item->SetStringField(TEXT("Error"), TEXT("Capability finalization failed; see Data."));
+					Pending.Item->SetStringField(TEXT("ErrorKind"), TEXT("ExecutionFailed"));
+					--SuccessCount;
+					++FailureCount;
+				}
+			}
+		};
+		if (FailureCount == 0) FinalizePending(false);
+
 		bool bRevertedBatch = false;
+		const bool bMemoryPhaseFailed = FailureCount > 0;
 		if (BatchTx.IsValid())
 		{
 			if (FailureCount > 0)
@@ -543,6 +585,8 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			}
 			BatchTx.Reset();
 		}
+		// 保存不参与内存事务；失败必须明确报告，不能宣称磁盘已整体回滚。
+		if (FailureCount == 0) FinalizePending(true);
 
 		TSharedPtr<FJsonObject> Top = MakeShared<FJsonObject>();
 		Top->SetArrayField(TEXT("Results"), BatchResults);
@@ -550,15 +594,21 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 		Top->SetNumberField(TEXT("FailureCount"), FailureCount);
 		if (FailureCount > 0)
 		{
+			Top->SetBoolField(TEXT("bRolledBack"), bRevertedBatch);
 			Top->SetStringField(TEXT("UndoNote"),
-				bRevertedBatch
-					? TEXT("Batch memory edits rolled back (bSaveToDisk/compile stay outside the transaction).")
-					: TEXT("Batch had failures; memory rollback skipped (no outstanding editor transaction).")
+				!bDeferFinalize
+					? TEXT("Single-item call failed; successful memory edits and package/runtime side effects are retained.")
+					: bRevertedBatch
+					? TEXT("Transactional memory edits rolled back; automatic saves skipped. Explicit package/runtime side effects are not reverted.")
+					: bMemoryPhaseFailed
+						? TEXT("Batch failed; automatic saves skipped. No outstanding editor transaction to revert.")
+						: TEXT("Save phase failed after memory edits committed; disk writes are not atomic and were not rolled back.")
 			);
 		}
 		Result.StructuredContent = Top;
 		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Top);
-		Result.bIsError = (FailureCount == BatchResults.Num() && BatchResults.Num() > 0);
+		Result.bIsError = FailureCount > 0;
+		if (Result.bIsError) Result.ErrorText = Result.OutputText;
 		return Result;
 	}
 
@@ -576,6 +626,11 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 
 	switch (Core.Status)
 	{
+	case FNexusCallCore::EStatus::Failed:
+		Result.bIsError = true;
+		Result.StructuredContent = Core.TopOrWarn;
+		Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Core.TopOrWarn);
+		return Result;
 	case FNexusCallCore::EStatus::Unknown:
 		{
 			Result.bIsError = true;
@@ -621,10 +676,6 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			Result.StructuredContent = Err;
 			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
 		}
-		return Result;
-	case FNexusCallCore::EStatus::RedundantWarn:
-		Result.StructuredContent = Core.TopOrWarn;
-		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Core.TopOrWarn);
 		return Result;
 	case FNexusCallCore::EStatus::ArgInvalid:
 		{

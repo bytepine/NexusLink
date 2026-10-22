@@ -202,11 +202,16 @@ void FNexusAssetEditorUtils::ApplyManageFinalize(
 		else
 		{
 			FKismetEditorUtilities::CompileBlueprint(BP);
-			OutTop->SetBoolField(TEXT("bCompiled"), true);
+			OutTop->SetBoolField(TEXT("bCompiled"), BP->Status != BS_Error);
 			OutTop->SetBoolField(TEXT("bHasCompilerErrors"), BP->Status == BS_Error);
+			if (BP->Status == BS_Error)
+			{
+				OutTop->SetStringField(TEXT("CompileError"), TEXT("Blueprint compilation failed; package was not saved."));
+			}
 			OutTop->SetStringField(TEXT("Status"),
 				FString::Printf(TEXT("%d"), static_cast<int32>(BP->Status)));
 		}
+		if (OutTop->HasField(TEXT("CompileError"))) return;
 	}
 
 	if (bSaveToDisk)

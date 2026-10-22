@@ -79,6 +79,15 @@ FCapabilityResult FNexusCompileBlueprintCapability::Execute(const TSharedPtr<FJs
 		const bool bHasCompilerErrors = (BP->Status == BS_Error);
 		Entry->SetStringField(TEXT("Status"), BlueprintStatusToString(BP));
 		Entry->SetBoolField(TEXT("bHasCompilerErrors"), bHasCompilerErrors);
+		if (bHasCompilerErrors)
+		{
+			Entry->SetStringField(TEXT("CompileError"), TEXT("Blueprint compilation failed."));
+		}
+		bool bSaved = true;
+		if (Entry->TryGetBoolField(TEXT("bSaved"), bSaved) && !bSaved)
+		{
+			Entry->SetStringField(TEXT("SaveError"), TEXT("Blueprint package was not saved."));
+		}
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 

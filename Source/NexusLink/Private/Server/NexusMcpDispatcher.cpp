@@ -218,8 +218,8 @@ FString FNexusMcpDispatcher::MakeJsonRpcError(const TSharedPtr<FJsonValue>& Id, 
 	}
 
 	TSharedPtr<FJsonObject> Error = MakeShared<FJsonObject>();
-	Error->SetNumberField(TEXT("Code"), Code);
-	Error->SetStringField(TEXT("Message"), Message);
+	Error->SetNumberField(TEXT("code"), Code);
+	Error->SetStringField(TEXT("message"), Message);
 	Response->SetObjectField(TEXT("error"), Error);
 	return FNexusJsonUtils::SerializeCondensed(Response);
 }
@@ -295,7 +295,7 @@ void FNexusMcpDispatcher::HandleInitialize(const TSharedPtr<FJsonValue>& Id, con
 	ProtocolVersion = SupportedProtocolVersion;
 
 	TSharedPtr<FJsonObject> ToolsCap = MakeShared<FJsonObject>();
-	ToolsCap->SetBoolField(TEXT("bListChanged"), true);
+	ToolsCap->SetBoolField(TEXT("listChanged"), true);
 
 	TSharedPtr<FJsonObject> Capabilities = MakeShared<FJsonObject>();
 	Capabilities->SetObjectField(TEXT("tools"), ToolsCap);
@@ -306,9 +306,9 @@ void FNexusMcpDispatcher::HandleInitialize(const TSharedPtr<FJsonValue>& Id, con
 
 	TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
 	Result->SetStringField(TEXT("protocolVersion"), ProtocolVersion);
-	Result->SetObjectField(TEXT("Capabilities"), Capabilities);
+	Result->SetObjectField(TEXT("capabilities"), Capabilities);
 	Result->SetObjectField(TEXT("serverInfo"), ServerInfoObj);
-	Result->SetStringField(TEXT("Instructions"), BuildInitializeInstructions());
+	Result->SetStringField(TEXT("instructions"), BuildInitializeInstructions());
 
 	State = ENexusMcpSessionState::WaitingForInitialized;
 	SendResult(Id, Result);
@@ -340,28 +340,28 @@ static TSharedPtr<FJsonObject> ToolDefToJson(const FNexusMcpToolDefinition& Def)
 
 	if (Def.InputSchema.IsValid())
 	{
-		ToolObj->SetObjectField(TEXT("InputSchema"), Def.InputSchema);
+		ToolObj->SetObjectField(TEXT("inputSchema"), Def.InputSchema);
 	}
 	else
 	{
 		TSharedPtr<FJsonObject> EmptySchema = MakeShared<FJsonObject>();
 		EmptySchema->SetStringField(TEXT("type"), TEXT("object"));
-		ToolObj->SetObjectField(TEXT("InputSchema"), EmptySchema);
+		ToolObj->SetObjectField(TEXT("inputSchema"), EmptySchema);
 	}
 
-	// MCP 规范 annotations：根据 Tags 映射 bReadOnlyHint
+	// MCP 标准字段保持原样，仅业务参数使用 PascalCase。
 	TSharedPtr<FJsonObject> Annotations = MakeShared<FJsonObject>();
 	if (Def.HasTag(FNexusMcpTags::Readonly))
 	{
-		Annotations->SetBoolField(TEXT("bReadOnlyHint"), true);
+		Annotations->SetBoolField(TEXT("readOnlyHint"), true);
 	}
 	if (Def.HasTag(FNexusMcpTags::Write))
 	{
-		Annotations->SetBoolField(TEXT("bReadOnlyHint"), false);
+		Annotations->SetBoolField(TEXT("readOnlyHint"), false);
 	}
 	if (Annotations->Values.Num() > 0)
 	{
-		ToolObj->SetObjectField(TEXT("Annotations"), Annotations);
+		ToolObj->SetObjectField(TEXT("annotations"), Annotations);
 	}
 	return ToolObj;
 }
@@ -476,6 +476,11 @@ int32 FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, cons
 		TextContent->SetStringField(TEXT("text"), ToolResult.ErrorText);
 		ContentArray.Add(MakeShared<FJsonValueObject>(TextContent));
 		Result->SetArrayField(TEXT("content"), ContentArray);
+		// 错误同样保留结构化详情，供客户端判断部分失败与回滚边界。
+		if (ToolResult.StructuredContent.IsValid())
+		{
+			Result->SetObjectField(TEXT("structuredContent"), ToolResult.StructuredContent);
+		}
 	}
 	else if (ToolResult.StructuredContent.IsValid() && UNexusLinkSettings::Get()->ContentMode == ENexusContentMode::StructuredContent)
 	{

@@ -17,6 +17,8 @@
 > - `CallCapability` 另有 `UserDenied`：编辑器用户拒绝危险 cap（不要重试）
 
 > **通用约定**
+> - MCP / JSON-RPC 标准键保留协议拼写（`capabilities`、`instructions`、`inputSchema`、`annotations`、`code`、`message`）；PascalCase 用于 Capability 业务数据。
+> - 操作、section、编译或保存错误返回 `isError=true` 并保留结构化详情。`Calls[]`（≥2 项）全部业务操作及自动编译通过后才自动保存，检查 `bRolledBack` / `UndoNote`；磁盘写入、显式包级操作及运行时副作用不保证原子性，也不整体回滚。单次 manage 部分失败仍保留成功操作。
 > - 所有 `AssetPath` 均为 UE 内容路径，例如 `/Game/Blueprints/BP_Player`
 > - 属性路径（`PropertyPath`）支持 `A.B.C` 点分下钻 + 容器下标 `[i]` / `["Key"]`：
 >     - 数组：`Items[0]`、`Matrix[0][1]`

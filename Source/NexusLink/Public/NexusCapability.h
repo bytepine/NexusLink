@@ -28,6 +28,9 @@ struct FCapabilityResult
 	/** 为 true 时 CallCapability 不 RecordAuto（如 Confirm 模式缺 reason，避免污染 CallArgInvalid）。 */
 	bool                           bSkipFeedback = false;
 
+	/** 聚合业务条目、section 与编译/保存收尾错误；不递归检查业务数据里的同名属性。 */
+	NEXUSLINK_API bool HasErrors() const;
+
 	/** 工厂方法：快速构造一个只含错误的结果。 */
 	static FCapabilityResult MakeFatal(const FString& Error)
 	{
@@ -195,7 +198,10 @@ public:
 	 * required / 类型 / 未知键 / enum 校验只在本函数内执行；Execute 勿再手写
 	 * HasField / 空串必填检查。取值请用 FNexusArgs。
 	 */
-	FCapabilityResult Run(const TSharedPtr<FJsonObject>& Arguments) const;
+	FCapabilityResult Run(const TSharedPtr<FJsonObject>& Arguments, bool bFinalize = true) const;
+
+	/** 批处理延迟收尾：全部内存操作通过后再编译，全部编译通过后再保存。 */
+	void Finalize(const TSharedPtr<FJsonObject>& Arguments, FCapabilityResult& Result) const;
 
 	// ── 子类样板 helper（protected static，opt-in，新 cap 推荐使用）──────────
 
