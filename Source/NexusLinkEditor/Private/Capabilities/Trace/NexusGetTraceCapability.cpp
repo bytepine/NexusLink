@@ -14,6 +14,7 @@
 #include "TraceServices/Model/Diagnostics.h"
 #include "TraceServices/Model/Frames.h"
 #include "TraceServices/Model/TimingProfiler.h"
+#include "Utils/NexusEditorTraceUtils.h"
 
 static int32 ReadLimit(const TSharedPtr<FJsonObject>& Args, const TCHAR* Key, int32 DefaultValue, int32 MinValue, int32 MaxValue)
 {
@@ -77,10 +78,7 @@ static void WriteSummary(const TraceServices::IAnalysisSession& Session, TShared
 	bool bHasCpuTiming = false;
 	if (const TraceServices::ITimingProfilerProvider* Timing = TraceServices::ReadTimingProfilerProvider(Session))
 	{
-		Timing->ReadTimers([&bHasCpuTiming](const TraceServices::ITimingProfilerTimerReader& Reader)
-		{
-			bHasCpuTiming = Reader.GetTimerCount() > 0;
-		});
+		bHasCpuTiming = FNexusEditorTraceUtils::HasCpuTiming(*Timing);
 	}
 	Detail->SetBoolField(TEXT("bHasCpuTiming"), bHasCpuTiming);
 

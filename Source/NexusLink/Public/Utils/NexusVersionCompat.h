@@ -229,3 +229,5 @@
 #define NX_UE_HAS_PYTHON_INIT_STATE_QUERY  NX_UE_AT_LEAST(5, 6)
 // UE 5.6+ TraceServices 聚合参数为 FCreateAggregationParams（5.3–5.5 拼写为 FCreateAggreationParams）
 #define NX_UE_HAS_TRACE_READ  NX_UE_AT_LEAST(5, 6)
+#define NX_UE_HAS_TRACE_TIMER_READER  NX_UE_AT_LEAST(5, 8) // ReadTimers 回调改为 GetTimerReader
+#define NX_UE_HAS_TRACE_STORE_CREATE  NX_UE_AT_LEAST(5, 8) // Store Connect 裸指针改为 Create 智能指针

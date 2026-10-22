@@ -14,6 +14,7 @@
 #include "TraceServices/ITraceServicesModule.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/ModuleService.h"
+#include "Utils/NexusEditorTraceUtils.h"
 
 struct FNexusTraceListItem
 {
@@ -21,27 +22,6 @@ struct FNexusTraceListItem
 	int64 Size = 0;
 	int64 UnixTime = 0;
 	int32 TraceId = INDEX_NONE;
-};
-
-struct FNexusTraceStoreClient
-{
-	UE::Trace::FStoreClient* Client = nullptr;
-
-	explicit FNexusTraceStoreClient(const TCHAR* Host)
-	{
-		Client = UE::Trace::FStoreClient::Connect(Host);
-	}
-
-	~FNexusTraceStoreClient()
-	{
-		if (Client)
-		{
-			delete Client;
-		}
-	}
-
-	FNexusTraceStoreClient(const FNexusTraceStoreClient&) = delete;
-	FNexusTraceStoreClient& operator=(const FNexusTraceStoreClient&) = delete;
 };
 
 struct FNexusTraceSessionSlot
@@ -230,20 +210,20 @@ bool FNexusTraceSessionCache::ResolveTracePath(const TSharedPtr<FJsonObject>& Ar
 		return false;
 	}
 
-	FNexusTraceStoreClient Store(TEXT("127.0.0.1"));
-	if (Store.Client == nullptr)
+	TUniquePtr<UE::Trace::FStoreClient> Store = FNexusEditorTraceUtils::CreateStoreClient(TEXT("127.0.0.1"));
+	if (Store == nullptr)
 	{
 		OutError = TEXT("Trace Store is not running, and TracePath was not given");
 		return false;
 	}
 	const uint32 TraceId = static_cast<uint32>(TraceIdNumber);
-	const UE::Trace::FStoreClient::FTraceInfo* Info = Store.Client->GetTraceInfoById(TraceId);
+	const UE::Trace::FStoreClient::FTraceInfo* Info = Store->GetTraceInfoById(TraceId);
 	if (Info == nullptr)
 	{
 		OutError = FString::Printf(TEXT("Trace id %u was not found in the local Trace Store"), TraceId);
 		return false;
 	}
-	const FString StorePath = StoreTracePath(*Store.Client, *Info);
+	const FString StorePath = StoreTracePath(*Store, *Info);
 	if (StorePath.IsEmpty())
 	{
 		OutError = FString::Printf(TEXT("Trace id %u has no file path"), TraceId);
@@ -265,18 +245,18 @@ void FNexusTraceSessionCache::CollectRecentTraces(int32 Limit, TArray<TSharedPtr
 		AddTraceItem(Items, Seen, FPaths::ProfilingDir() / FileName, INDEX_NONE);
 	}
 
-	FNexusTraceStoreClient Store(TEXT("127.0.0.1"));
-	if (Store.Client != nullptr)
+	TUniquePtr<UE::Trace::FStoreClient> Store = FNexusEditorTraceUtils::CreateStoreClient(TEXT("127.0.0.1"));
+	if (Store != nullptr)
 	{
-		const uint32 Count = Store.Client->GetTraceCount();
+		const uint32 Count = Store->GetTraceCount();
 		for (uint32 Index = 0; Index < Count; ++Index)
 		{
-			const UE::Trace::FStoreClient::FTraceInfo* Info = Store.Client->GetTraceInfo(Index);
+			const UE::Trace::FStoreClient::FTraceInfo* Info = Store->GetTraceInfo(Index);
 			if (Info == nullptr)
 			{
 				continue;
 			}
-			AddTraceItem(Items, Seen, StoreTracePath(*Store.Client, *Info), static_cast<int32>(Info->GetId()));
+			AddTraceItem(Items, Seen, StoreTracePath(*Store, *Info), static_cast<int32>(Info->GetId()));
 		}
 	}
 
