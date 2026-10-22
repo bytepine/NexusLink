@@ -58,7 +58,7 @@ UE `GET /status` 在 `NetRole` 之外增加：
 
 三端会话策略统一使用当前 PascalCase 契约：`CallCapability` / `Capability` / `Arguments` / `Calls`、`Operations[].Action`、`Sections` 和响应 `SnapshotAt` / `TtlSeconds`。MCP 信封与顶层代理路由字段 `targetHost` / `targetPort` 保持原样。
 
-**实例作用域：** 每条缓存先按最终 UE host/port 隔离；显式目标与当前长连接指向同一地址时共享该作用域。`localhost` / `::1` 归一为 `127.0.0.1`；目标端口只接受 1024–65535 的整数。断线保留最近成功连接的作用域；切换实例时禁止复用其他实例的缓存，重连后按实际目标重新计算。调用等待期间发生切换的响应不得污染新实例缓存。
+**实例作用域：** 每条缓存先按最终 UE host/port 隔离；显式目标与当前长连接指向同一地址时共享该作用域。`localhost` / `::1` 归一为 `127.0.0.1`；目标端口只接受 1024–65535 的整数。显式提供非法 `targetPort` 时，三端在查缓存、暂停排队与写入确认之前返回 JSON-RPC `-32602`，不会回落到当前实例。断线保留最近成功连接的作用域；切换实例时禁止复用其他实例的缓存，重连后按实际目标重新计算。调用等待期间发生切换的响应不得污染新实例缓存。
 
 对 `CallCapability`：实例作用域 + `Capability` + 内层 `Arguments`；仅顶层 `targetHost` / `targetPort` 属于代理路由字段，能力参数内的同名字段仍参与键。
 MultiTool：工具名即 capability。  
