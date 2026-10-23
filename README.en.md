@@ -56,7 +56,7 @@ Public sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) (ThirdPerso
 
 ## Coverage
 
-Default **SearchMode**: `tools/list` exposes 3 meta-tools (`SearchCapabilities` / `CallCapability` / `SubmitFeedback`); Capabilities are discovered on demand. Coverage includes editor, Blueprint, animation, material, audio, AI / EQS, GAS, UMG, Niagara, and PIE / standalone Game / Dedicated Server runtime debugging. On UE 5.6+ the editor can also read a stopped Unreal Insights `.utrace` (`ListTraces` / `GetTrace`). Full parameters: [docs/tool-reference.md](docs/tool-reference.md) ([简体中文](docs/tool-reference.zh.md)). SearchMode vs MultiTool: [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode).
+Default **SearchMode**: `tools/list` exposes 3 meta-tools (`SearchCapabilities` / `CallCapability` / `SubmitFeedback`); Capabilities are discovered on demand. Coverage includes editor, Blueprint, animation, material, audio, AI / EQS, GAS, UMG, Niagara, and PIE / standalone Game / Dedicated Server runtime debugging. On UE 4.26+ the editor can also read a stopped Unreal Insights `.utrace` (`ListTraces` / `GetTrace`). Full parameters: [docs/tool-reference.md](docs/tool-reference.md) ([简体中文](docs/tool-reference.zh.md)). SearchMode vs MultiTool: [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode).
 
 ## Dangerous Capabilities (all disabled by default)
 

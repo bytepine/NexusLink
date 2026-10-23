@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [2.3.0-beta.1] - 2026-10-23
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Added
 
 - `scripts/audit_cpp_naming.py`：报告类型前缀与文件名、布尔 `b` 前缀、`k` 常量前缀、协议字段 PascalCase（默认不失败）
