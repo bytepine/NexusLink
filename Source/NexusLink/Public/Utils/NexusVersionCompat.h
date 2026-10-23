@@ -227,7 +227,16 @@
 // UE 5.6+ IPythonScriptPlugin 新增 IsPythonConfigured()/IsPythonInitialized()，可区分
 // 「已配置未启用」与「已启用未初始化」；5.5 及更早只有 IsPythonAvailable()
 #define NX_UE_HAS_PYTHON_INIT_STATE_QUERY  NX_UE_AT_LEAST(5, 6)
-// UE 5.6+ TraceServices 聚合参数为 FCreateAggregationParams（5.3–5.5 拼写为 FCreateAggreationParams）
-#define NX_UE_HAS_TRACE_READ  NX_UE_AT_LEAST(5, 6)
+// UE 4.26+ 只读 Trace；UE5 将 Trace 分析类型移入 TraceServices / UE::Trace
+#define NX_UE_HAS_TRACE_READ  NX_UE_AT_LEAST(4, 26)
+#define NX_UE_HAS_TRACE_SERVICES_NAMESPACE  NX_UE_AT_LEAST(5, 0) // Trace → TraceServices / UE::Trace
+#define NX_UE_HAS_TRACE_UTF8_VIEW  NX_UE_AT_LEAST(5, 1) // FAnsiStringView → FUtf8StringView
+#define NX_UE_HAS_TRACE_STORE_DIRECTORY  NX_UE_AT_LEAST(5, 0) // Store 不提供路径 → GetStoreDir
+#define NX_UE_HAS_TRACE_STORE_URI  NX_UE_AT_LEAST(5, 3) // Store 目录 + 名称 → GetUri
+#define NX_UE_HAS_TRACE_PROJECT_NAME  NX_UE_AT_LEAST(5, 3) // SessionInfo 新增 ProjectName
+#define NX_UE_HAS_TRACE_BUILD_VERSION  NX_UE_AT_LEAST(5, 0) // SessionInfo 新增 BuildVersion
+#define NX_UE_HAS_TRACE_AGGREGATION_STRUCT  NX_UE_AT_LEAST(5, 3) // 多参数 → FCreateAggreationParams
+#define NX_UE_HAS_TRACE_AGGREGATION_PARAMS  NX_UE_AT_LEAST(5, 6) // FCreateAggreationParams → FCreateAggregationParams
+#define NX_UE_HAS_TRACE_AUXILIARY_START  NX_UE_AT_LEAST(5, 0) // 启动参数录制 → FTraceAuxiliary::Start/Stop
 #define NX_UE_HAS_TRACE_TIMER_READER  NX_UE_AT_LEAST(5, 8) // ReadTimers 回调改为 GetTimerReader
 #define NX_UE_HAS_TRACE_STORE_CREATE  NX_UE_AT_LEAST(5, 8) // Store Connect 裸指针改为 Create 智能指针

@@ -64,45 +64,25 @@ static bool ReadTimeWindow(const TSharedPtr<FJsonObject>& Args, double& OutStart
 	return true;
 }
 
-static void WriteSummary(const TraceServices::IAnalysisSession& Session, TSharedPtr<FJsonObject>& Detail)
+static void WriteSummary(const FNexusTraceAnalysisSession& Session, TSharedPtr<FJsonObject>& Detail)
 {
 	Detail->SetBoolField(TEXT("bAnalysisComplete"), Session.IsAnalysisComplete());
 
-	TraceServices::FAnalysisSessionReadScope ReadScope(Session);
+	FNexusTraceReadScope ReadScope(Session);
 	Detail->SetNumberField(TEXT("DurationSeconds"), Session.GetDurationSeconds());
 
-	const TraceServices::IFrameProvider& Frames = TraceServices::ReadFrameProvider(Session);
+	const FNexusTraceFrameProvider& Frames = FNexusEditorTraceUtils::ReadFrames(Session);
 	Detail->SetNumberField(TEXT("GameFrameCount"), static_cast<double>(Frames.GetFrameCount(TraceFrameType_Game)));
 	Detail->SetNumberField(TEXT("RenderFrameCount"), static_cast<double>(Frames.GetFrameCount(TraceFrameType_Rendering)));
 
 	bool bHasCpuTiming = false;
-	if (const TraceServices::ITimingProfilerProvider* Timing = TraceServices::ReadTimingProfilerProvider(Session))
+	if (const FNexusTraceTimingProvider* Timing = FNexusEditorTraceUtils::ReadTiming(Session))
 	{
 		bHasCpuTiming = FNexusEditorTraceUtils::HasCpuTiming(*Timing);
 	}
 	Detail->SetBoolField(TEXT("bHasCpuTiming"), bHasCpuTiming);
 
-	const TraceServices::IDiagnosticsProvider* Diagnostics = TraceServices::ReadDiagnosticsProvider(Session);
-	if (Diagnostics != nullptr && Diagnostics->IsSessionInfoAvailable())
-	{
-		const TraceServices::FSessionInfo& Info = Diagnostics->GetSessionInfo();
-		if (!Info.Platform.IsEmpty())
-		{
-			Detail->SetStringField(TEXT("Platform"), Info.Platform);
-		}
-		if (!Info.AppName.IsEmpty())
-		{
-			Detail->SetStringField(TEXT("AppName"), Info.AppName);
-		}
-		if (!Info.ProjectName.IsEmpty())
-		{
-			Detail->SetStringField(TEXT("ProjectName"), Info.ProjectName);
-		}
-		if (!Info.BuildVersion.IsEmpty())
-		{
-			Detail->SetStringField(TEXT("BuildVersion"), Info.BuildVersion);
-		}
-	}
+	FNexusEditorTraceUtils::WriteSessionInfo(Session, *Detail);
 }
 
 struct FNexusTraceFrameSample
@@ -112,10 +92,10 @@ struct FNexusTraceFrameSample
 	double DurationSeconds = 0.0;
 };
 
-static void WriteFrames(const TraceServices::IAnalysisSession& Session, ETraceFrameType FrameType, int32 HitchLimit, TSharedPtr<FJsonObject>& Detail, FString& OutError)
+static void WriteFrames(const FNexusTraceAnalysisSession& Session, ETraceFrameType FrameType, int32 HitchLimit, TSharedPtr<FJsonObject>& Detail, FString& OutError)
 {
-	TraceServices::FAnalysisSessionReadScope ReadScope(Session);
-	const TraceServices::IFrameProvider& Frames = TraceServices::ReadFrameProvider(Session);
+	FNexusTraceReadScope ReadScope(Session);
+	const FNexusTraceFrameProvider& Frames = FNexusEditorTraceUtils::ReadFrames(Session);
 	const uint64 FrameCount64 = Frames.GetFrameCount(FrameType);
 	if (FrameCount64 == 0)
 	{
@@ -134,10 +114,10 @@ static void WriteFrames(const TraceServices::IAnalysisSession& Session, ETraceFr
 	Durations.Reserve(FrameCount);
 	double TotalSeconds = 0.0;
 
-	Frames.EnumerateFrames(FrameType, 0, FrameCount64, [&](const TraceServices::FFrame& Frame)
+	Frames.EnumerateFrames(FrameType, 0, FrameCount64, [&](const FNexusTraceFrame& Frame)
 	{
 		const double Duration = Frame.EndTime - Frame.StartTime;
-		if (Duration < 0.0)
+		if (!FMath::IsFinite(Duration) || Duration < 0.0)
 		{
 			return;
 		}
@@ -190,15 +170,17 @@ static void WriteFrames(const TraceServices::IAnalysisSession& Session, ETraceFr
 	Detail->SetArrayField(TEXT("Hitches"), HitchValues);
 }
 
-static bool FindWorstGameFrame(const TraceServices::IAnalysisSession& Session, double& OutStart, double& OutEnd)
+static bool FindWorstGameFrame(const FNexusTraceAnalysisSession& Session, double& OutStart, double& OutEnd)
 {
-	const TraceServices::IFrameProvider& Frames = TraceServices::ReadFrameProvider(Session);
+	const FNexusTraceFrameProvider& Frames = FNexusEditorTraceUtils::ReadFrames(Session);
 	const uint64 FrameCount = Frames.GetFrameCount(TraceFrameType_Game);
 	bool bFound = false;
 	double WorstDuration = -1.0;
-	Frames.EnumerateFrames(TraceFrameType_Game, 0, FrameCount, [&](const TraceServices::FFrame& Frame)
+	Frames.EnumerateFrames(TraceFrameType_Game, 0, FrameCount, [&](const FNexusTraceFrame& Frame)
 	{
 		const double Duration = Frame.EndTime - Frame.StartTime;
+		// 尚未闭合的帧 EndTime 为 infinity，不能用来选默认分析窗口。
+		if (!FMath::IsFinite(Duration) || Duration < 0.0) return;
 		if (Duration > WorstDuration)
 		{
 			WorstDuration = Duration;
@@ -224,7 +206,7 @@ struct FNexusTraceTimerRow
 	double MaxExclusiveSeconds = 0.0;
 };
 
-static void WriteTimers(const TraceServices::IAnalysisSession& Session, const TSharedPtr<FJsonObject>& Args, int32 TimerLimit, TSharedPtr<FJsonObject>& Detail, FString& OutError)
+static void WriteTimers(const FNexusTraceAnalysisSession& Session, const TSharedPtr<FJsonObject>& Args, int32 TimerLimit, TSharedPtr<FJsonObject>& Detail, FString& OutError)
 {
 	double WindowStart = 0.0;
 	double WindowEnd = 0.0;
@@ -234,7 +216,7 @@ static void WriteTimers(const TraceServices::IAnalysisSession& Session, const TS
 		return;
 	}
 
-	TraceServices::FAnalysisSessionReadScope ReadScope(Session);
+	FNexusTraceReadScope ReadScope(Session);
 	if (!bHasWindow)
 	{
 		if (!FindWorstGameFrame(Session, WindowStart, WindowEnd))
@@ -244,20 +226,14 @@ static void WriteTimers(const TraceServices::IAnalysisSession& Session, const TS
 		}
 	}
 
-	const TraceServices::ITimingProfilerProvider* Timing = TraceServices::ReadTimingProfilerProvider(Session);
+	const FNexusTraceTimingProvider* Timing = FNexusEditorTraceUtils::ReadTiming(Session);
 	if (Timing == nullptr)
 	{
 		OutError = TEXT("No CPU timing in this trace. Record with the cpu channel.");
 		return;
 	}
 
-	TraceServices::FCreateAggregationParams Params;
-	Params.IntervalStart = WindowStart;
-	Params.IntervalEnd = WindowEnd;
-	Params.CpuThreadFilter = [](uint32) { return true; };
-	Params.SortBy = TraceServices::FCreateAggregationParams::ESortBy::DontSort;
-
-	TraceServices::ITable<TraceServices::FTimingProfilerAggregatedStats>* Table = Timing->CreateAggregation(Params);
+	FNexusTraceStatsTable* Table = FNexusEditorTraceUtils::CreateCpuAggregation(*Timing, WindowStart, WindowEnd);
 	if (Table == nullptr)
 	{
 		OutError = TEXT("No CPU timing in this trace. Record with the cpu channel.");
@@ -266,10 +242,10 @@ static void WriteTimers(const TraceServices::IAnalysisSession& Session, const TS
 
 	TArray<FNexusTraceTimerRow> Rows;
 	{
-		TUniquePtr<TraceServices::ITableReader<TraceServices::FTimingProfilerAggregatedStats>> Reader(Table->CreateReader());
+		TUniquePtr<FNexusTraceStatsReader> Reader(Table->CreateReader());
 		while (Reader.IsValid() && Reader->IsValid())
 		{
-			const TraceServices::FTimingProfilerAggregatedStats* Stats = Reader->GetCurrentRow();
+			const FNexusTraceAggregatedStats* Stats = Reader->GetCurrentRow();
 			if (Stats != nullptr && Stats->Timer != nullptr && Stats->Timer->Name != nullptr && Stats->InstanceCount > 0)
 			{
 				FNexusTraceTimerRow& Row = Rows.AddDefaulted_GetRef();
@@ -317,7 +293,7 @@ static void WriteTimers(const TraceServices::IAnalysisSession& Session, const TS
 	Detail->SetArrayField(TEXT("Timers"), TimerValues);
 }
 
-static void WriteBookmarks(const TraceServices::IAnalysisSession& Session, const TSharedPtr<FJsonObject>& Args, int32 BookmarkLimit, TSharedPtr<FJsonObject>& Detail, FString& OutError)
+static void WriteBookmarks(const FNexusTraceAnalysisSession& Session, const TSharedPtr<FJsonObject>& Args, int32 BookmarkLimit, TSharedPtr<FJsonObject>& Detail, FString& OutError)
 {
 	double WindowStart = 0.0;
 	double WindowEnd = 0.0;
@@ -327,17 +303,17 @@ static void WriteBookmarks(const TraceServices::IAnalysisSession& Session, const
 		return;
 	}
 
-	TraceServices::FAnalysisSessionReadScope ReadScope(Session);
+	FNexusTraceReadScope ReadScope(Session);
 	if (!bHasWindow)
 	{
 		WindowStart = 0.0;
 		WindowEnd = FMath::Max(Session.GetDurationSeconds(), 1.0e12);
 	}
 
-	const TraceServices::IBookmarkProvider& Bookmarks = TraceServices::ReadBookmarkProvider(Session);
+	const FNexusTraceBookmarkProvider& Bookmarks = FNexusEditorTraceUtils::ReadBookmarks(Session);
 	TArray<TSharedPtr<FJsonValue>> BookmarkValues;
 	int32 Kept = 0;
-	Bookmarks.EnumerateBookmarks(WindowStart, WindowEnd, [&](const TraceServices::FBookmark& Bookmark)
+	Bookmarks.EnumerateBookmarks(WindowStart, WindowEnd, [&](const FNexusTraceBookmark& Bookmark)
 	{
 		if (Kept >= BookmarkLimit)
 		{
@@ -394,12 +370,7 @@ bool FNexusGetTraceCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
                                             FString&                       OutError) const
 {
 	FString TracePath;
-	if (!FNexusTraceSessionCache::ResolveTracePath(Args, TracePath, OutError))
-	{
-		return false;
-	}
-
-	const TSharedPtr<const TraceServices::IAnalysisSession> Session = FNexusTraceSessionCache::Open(TracePath, OutError);
+	const TSharedPtr<const FNexusTraceAnalysisSession> Session = FNexusTraceSessionCache::Open(Args, TracePath, OutError);
 	if (!Session.IsValid())
 	{
 		OutEntry->SetStringField(TEXT("TracePath"), TracePath);
@@ -408,7 +379,7 @@ bool FNexusGetTraceCapability::PrepareEntry(const TSharedPtr<FJsonObject>& Args,
 
 	OutEntry->SetStringField(TEXT("TracePath"), TracePath);
 	OutEntry->SetBoolField(TEXT("bAnalysisComplete"), Session->IsAnalysisComplete());
-	OutTargetOpaque = const_cast<TraceServices::IAnalysisSession*>(Session.Get());
+	OutTargetOpaque = const_cast<FNexusTraceAnalysisSession*>(Session.Get());
 	return true;
 }
 
@@ -418,7 +389,7 @@ void FNexusGetTraceCapability::ExecuteSection(const FString&                 Sec
                                               TSharedPtr<FJsonObject>&       InOutDetail,
                                               FString&                       OutError) const
 {
-	const TraceServices::IAnalysisSession* Session = static_cast<const TraceServices::IAnalysisSession*>(TargetOpaque);
+	const FNexusTraceAnalysisSession* Session = static_cast<const FNexusTraceAnalysisSession*>(TargetOpaque);
 	if (Session == nullptr)
 	{
 		OutError = TEXT("Trace session is missing");

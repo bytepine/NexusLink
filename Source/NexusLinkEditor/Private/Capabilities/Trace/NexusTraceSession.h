@@ -9,24 +9,17 @@
 
 #if NX_UE_HAS_TRACE_READ
 
-class FJsonValue;
+#include "Utils/NexusEditorTraceUtils.h"
 
-namespace TraceServices
+/** 进程内只保留一份 Trace 分析会话。打开文件或 Store 流，列出最近记录。 */
+struct NEXUSLINKEDITOR_API FNexusTraceSessionCache
 {
-class IAnalysisSession;
-}
-
-/** 进程内只保留一份 Trace 分析会话。打开、列文件、按 Store id 解析路径。 */
-struct FNexusTraceSessionCache
-{
-	/** 打开已停录的 .utrace。另一份还在分析时不抢占，OutError 说明原因。 */
-	static TSharedPtr<const TraceServices::IAnalysisSession> Open(const FString& TracePath, FString& OutError);
-
-	/** TracePath 优先；否则用 TraceId 向本机 Trace Store 要文件路径。 */
-	static bool ResolveTracePath(const TSharedPtr<FJsonObject>& Args, FString& OutPath, FString& OutError);
+	/** TracePath 优先，否则打开本机 Store id。无真实路径时 OutPath 留空。 */
+	static TSharedPtr<const FNexusTraceAnalysisSession> Open(const TSharedPtr<FJsonObject>& Args,
+		FString& OutPath, FString& OutError, uint32 StorePort = 0);
 
 	/** Saved/Profiling 与本机 Store，按修改时间倒序，最多 Limit 条。 */
-	static void CollectRecentTraces(int32 Limit, TArray<TSharedPtr<FJsonValue>>& OutTraces);
+	static void CollectRecentTraces(int32 Limit, TArray<TSharedPtr<FJsonValue>>& OutTraces, uint32 StorePort = 0);
 };
 
 #endif

@@ -21,14 +21,24 @@ struct FNexusTraceListItem
 	FString Path;
 	int64 Size = 0;
 	int64 UnixTime = 0;
-	int32 TraceId = INDEX_NONE;
+	int64 TraceId = INDEX_NONE;
 };
 
 struct FNexusTraceSessionSlot
 {
+	/** 模块卸载前结束分析，避免 Provider 或自定义流在工作线程仍使用时析构。 */
+	~FNexusTraceSessionSlot()
+	{
+		if (Session.IsValid()) Session->Stop(true);
+	}
+
 	FString Path;
 	int64 Size = -1;
-	TSharedPtr<const TraceServices::IAnalysisSession> Session;
+	uint64 Timestamp = 0;
+	uint32 StorePort = 0;
+	int64 TraceId = INDEX_NONE;
+	TSharedPtr<FThreadSafeCounter, ESPMode::ThreadSafe> ReadError;
+	TSharedPtr<const FNexusTraceAnalysisSession> Session;
 };
 
 static FString NormalizeTracePath(const FString& InPath)
@@ -47,16 +57,6 @@ static FString NormalizeTracePath(const FString& InPath)
 	return Path;
 }
 
-static FString Utf8ViewToString(FUtf8StringView View)
-{
-	if (View.IsEmpty())
-	{
-		return FString();
-	}
-	const FUTF8ToTCHAR Convert(reinterpret_cast<const ANSICHAR*>(View.GetData()), View.Len());
-	return FString(Convert.Length(), Convert.Get());
-}
-
 static void DisableHeavyTraceModules()
 {
 	static bool bTrimmed = false;
@@ -66,7 +66,7 @@ static void DisableHeavyTraceModules()
 	}
 
 	ITraceServicesModule& TraceModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>(TEXT("TraceServices"));
-	const TSharedPtr<TraceServices::IModuleService> Modules = TraceModule.GetModuleService();
+	const TSharedPtr<FNexusTraceModuleService> Modules = TraceModule.GetModuleService();
 	if (!Modules.IsValid())
 	{
 		return;
@@ -96,7 +96,7 @@ static int64 FileUnixTime(const FString& Path)
 	return Stat.ModificationTime.ToUnixTimestamp();
 }
 
-static void AddTraceItem(TArray<FNexusTraceListItem>& Items, TSet<FString>& Seen, const FString& RawPath, int32 TraceId)
+static void AddTraceItem(TArray<FNexusTraceListItem>& Items, TSet<FString>& Seen, const FString& RawPath, int64 TraceId)
 {
 	if (RawPath.IsEmpty())
 	{
@@ -120,40 +120,75 @@ static void AddTraceItem(TArray<FNexusTraceListItem>& Items, TSet<FString>& Seen
 	Seen.Add(Path);
 }
 
-static FString StoreTracePath(UE::Trace::FStoreClient& Client, const UE::Trace::FStoreClient::FTraceInfo& Info)
+TSharedPtr<const FNexusTraceAnalysisSession> FNexusTraceSessionCache::Open(
+	const TSharedPtr<FJsonObject>& Args, FString& OutPath, FString& OutError, uint32 StorePort)
 {
-	const FString Uri = Utf8ViewToString(Info.GetUri());
-	if (!Uri.IsEmpty())
+	OutPath.Empty();
+	FString TracePath;
+	if (Args.IsValid()) Args->TryGetStringField(TEXT("TracePath"), TracePath);
+	int64 Size = -1;
+	int64 TraceId = INDEX_NONE;
+	uint64 Timestamp = 0;
+	FString TraceName;
+	TUniquePtr<FNexusTraceStoreClient> Store;
+	if (!TracePath.IsEmpty())
 	{
-		return Uri;
+		OutPath = NormalizeTracePath(TracePath);
 	}
-	const UE::Trace::FStoreClient::FStatus* Status = Client.GetStatus();
-	if (Status == nullptr)
+	else
 	{
-		return FString();
+		double TraceIdNumber = 0.0;
+		if (!Args.IsValid() || !Args->TryGetNumberField(TEXT("TraceId"), TraceIdNumber))
+		{
+			OutError = TEXT("TracePath or TraceId is required");
+			return nullptr;
+		}
+		if (!FMath::IsFinite(TraceIdNumber) || TraceIdNumber < 0 || TraceIdNumber > MAX_uint32
+			|| TraceIdNumber != static_cast<double>(static_cast<uint32>(TraceIdNumber)))
+		{
+			OutError = TEXT("TraceId must be an unsigned 32-bit integer");
+			return nullptr;
+		}
+		TraceId = static_cast<uint32>(TraceIdNumber);
+		Store = FNexusEditorTraceUtils::CreateStoreClient(TEXT("127.0.0.1"), StorePort);
+		if (!Store)
+		{
+			OutError = TEXT("Trace Store is not running, and TracePath was not given");
+			return nullptr;
+		}
+		const FNexusTraceStoreClient::FTraceInfo* Info = Store->GetTraceInfoById(static_cast<uint32>(TraceId));
+		if (Info == nullptr)
+		{
+			OutError = FString::Printf(TEXT("Trace id %u was not found in the local Trace Store"), static_cast<uint32>(TraceId));
+			return nullptr;
+		}
+		// Store 的下一次请求会覆盖响应缓冲，先复制所有元数据。
+		Size = static_cast<int64>(Info->GetSize());
+		Timestamp = Info->GetTimestamp();
+		TraceName = FNexusEditorTraceUtils::StoreString(Info->GetName());
+		const FString StorePath = FNexusEditorTraceUtils::StoreTracePath(*Store, *Info);
+		if (!StorePath.IsEmpty()) OutPath = NormalizeTracePath(StorePath);
+		if (!OutPath.IsEmpty()) TraceId = INDEX_NONE;
 	}
-	const FString StoreDir = Utf8ViewToString(Status->GetStoreDir());
-	const FString Name = Utf8ViewToString(Info.GetName());
-	if (StoreDir.IsEmpty() || Name.IsEmpty())
+	if (!OutPath.IsEmpty())
 	{
-		return FString();
-	}
-	return FPaths::SetExtension(FPaths::Combine(StoreDir, Name), TEXT("utrace"));
-}
-
-TSharedPtr<const TraceServices::IAnalysisSession> FNexusTraceSessionCache::Open(const FString& TracePath, FString& OutError)
-{
-	const FString Path = NormalizeTracePath(TracePath);
-	const int64 Size = IFileManager::Get().FileSize(*Path);
-	if (Size < 0)
-	{
-		OutError = FString::Printf(TEXT("Trace file not found: %s"), *Path);
-		return nullptr;
+		Size = IFileManager::Get().FileSize(*OutPath);
+		if (Size < 0)
+		{
+			OutError = FString::Printf(TEXT("Trace file not found: %s"), *OutPath);
+			return nullptr;
+		}
 	}
 
 	static FNexusTraceSessionSlot Slot;
-	if (Slot.Session.IsValid() && Slot.Path == Path && Slot.Size == Size)
+	if (Slot.Session.IsValid() && Slot.Path == OutPath && Slot.Size == Size
+		&& Slot.TraceId == TraceId && (TraceId == INDEX_NONE || (Slot.Timestamp == Timestamp && Slot.StorePort == StorePort)))
 	{
+		if (Slot.ReadError.IsValid() && Slot.ReadError->GetValue() != 0)
+		{
+			OutError = TEXT("Trace Store stream ended before the snapshot was fully read");
+			return nullptr;
+		}
 		return Slot.Session;
 	}
 	if (Slot.Session.IsValid() && !Slot.Session->IsAnalysisComplete())
@@ -164,76 +199,50 @@ TSharedPtr<const TraceServices::IAnalysisSession> FNexusTraceSessionCache::Open(
 
 	DisableHeavyTraceModules();
 	ITraceServicesModule& TraceModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>(TEXT("TraceServices"));
-	const TSharedPtr<TraceServices::IAnalysisService> Analysis = TraceModule.GetAnalysisService();
+	const TSharedPtr<FNexusTraceAnalysisService> Analysis = TraceModule.GetAnalysisService();
 	if (!Analysis.IsValid())
 	{
 		OutError = TEXT("TraceServices analysis service is unavailable");
 		return nullptr;
 	}
 
-	// StartAnalysis 自己起分析线程，并在打开时记下文件大小，不会跟着正在写的文件增长。
-	TSharedPtr<const TraceServices::IAnalysisSession> Session = Analysis->StartAnalysis(*Path);
+	TSharedPtr<const FNexusTraceAnalysisSession> Session;
+	TSharedPtr<FThreadSafeCounter, ESPMode::ThreadSafe> ReadError;
+	if (!OutPath.IsEmpty())
+	{
+		Session = Analysis->StartAnalysis(*OutPath);
+	}
+	else
+	{
+		FNexusTraceStoreClient::FTraceData Data = Store->ReadTrace(static_cast<uint32>(TraceId));
+		if (!Data)
+		{
+			OutError = TEXT("Failed to read trace from the local Trace Store");
+			return nullptr;
+		}
+		ReadError = MakeShared<FThreadSafeCounter, ESPMode::ThreadSafe>();
+		TUniquePtr<FNexusTraceInputStream> Source(Data.Release());
+		TUniquePtr<FNexusTraceInputStream> Snapshot(new FNexusTraceSnapshotStream(MoveTemp(Source), Size, ReadError.ToSharedRef()));
+		Session = FNexusEditorTraceUtils::StartStoreAnalysis(*Analysis, static_cast<uint32>(TraceId), *TraceName, MoveTemp(Snapshot));
+	}
 	if (!Session.IsValid())
 	{
-		OutError = FString::Printf(TEXT("Failed to open trace: %s"), *Path);
+		OutError = TEXT("Failed to open trace for analysis");
 		return nullptr;
 	}
 
-	if (Slot.Session.IsValid())
-	{
-		Slot.Session->Stop(false);
-		Slot.Session.Reset();
-	}
-	Slot.Path = Path;
+	if (Slot.Session.IsValid()) Slot.Session->Stop(false);
+	Slot.Path = OutPath;
 	Slot.Size = Size;
+	Slot.TraceId = TraceId;
+	Slot.Timestamp = Timestamp;
+	Slot.StorePort = StorePort;
+	Slot.ReadError = ReadError;
 	Slot.Session = Session;
 	return Session;
 }
 
-bool FNexusTraceSessionCache::ResolveTracePath(const TSharedPtr<FJsonObject>& Args, FString& OutPath, FString& OutError)
-{
-	FString TracePath;
-	if (Args.IsValid())
-	{
-		Args->TryGetStringField(TEXT("TracePath"), TracePath);
-	}
-	if (!TracePath.IsEmpty())
-	{
-		OutPath = NormalizeTracePath(TracePath);
-		return true;
-	}
-
-	double TraceIdNumber = 0.0;
-	if (!Args.IsValid() || !Args->TryGetNumberField(TEXT("TraceId"), TraceIdNumber))
-	{
-		OutError = TEXT("TracePath or TraceId is required");
-		return false;
-	}
-
-	TUniquePtr<UE::Trace::FStoreClient> Store = FNexusEditorTraceUtils::CreateStoreClient(TEXT("127.0.0.1"));
-	if (Store == nullptr)
-	{
-		OutError = TEXT("Trace Store is not running, and TracePath was not given");
-		return false;
-	}
-	const uint32 TraceId = static_cast<uint32>(TraceIdNumber);
-	const UE::Trace::FStoreClient::FTraceInfo* Info = Store->GetTraceInfoById(TraceId);
-	if (Info == nullptr)
-	{
-		OutError = FString::Printf(TEXT("Trace id %u was not found in the local Trace Store"), TraceId);
-		return false;
-	}
-	const FString StorePath = StoreTracePath(*Store, *Info);
-	if (StorePath.IsEmpty())
-	{
-		OutError = FString::Printf(TEXT("Trace id %u has no file path"), TraceId);
-		return false;
-	}
-	OutPath = NormalizeTracePath(StorePath);
-	return true;
-}
-
-void FNexusTraceSessionCache::CollectRecentTraces(int32 Limit, TArray<TSharedPtr<FJsonValue>>& OutTraces)
+void FNexusTraceSessionCache::CollectRecentTraces(int32 Limit, TArray<TSharedPtr<FJsonValue>>& OutTraces, uint32 StorePort)
 {
 	TArray<FNexusTraceListItem> Items;
 	TSet<FString> Seen;
@@ -245,18 +254,32 @@ void FNexusTraceSessionCache::CollectRecentTraces(int32 Limit, TArray<TSharedPtr
 		AddTraceItem(Items, Seen, FPaths::ProfilingDir() / FileName, INDEX_NONE);
 	}
 
-	TUniquePtr<UE::Trace::FStoreClient> Store = FNexusEditorTraceUtils::CreateStoreClient(TEXT("127.0.0.1"));
+	TUniquePtr<FNexusTraceStoreClient> Store = FNexusEditorTraceUtils::CreateStoreClient(TEXT("127.0.0.1"), StorePort);
 	if (Store != nullptr)
 	{
 		const uint32 Count = Store->GetTraceCount();
 		for (uint32 Index = 0; Index < Count; ++Index)
 		{
-			const UE::Trace::FStoreClient::FTraceInfo* Info = Store->GetTraceInfo(Index);
+			const FNexusTraceStoreClient::FTraceInfo* Info = Store->GetTraceInfo(Index);
 			if (Info == nullptr)
 			{
 				continue;
 			}
-			AddTraceItem(Items, Seen, StoreTracePath(*Store, *Info), static_cast<int32>(Info->GetId()));
+			const uint32 TraceId = Info->GetId();
+			const uint64 Size = Info->GetSize();
+			const uint64 Timestamp = Info->GetTimestamp();
+			const FString Path = FNexusEditorTraceUtils::StoreTracePath(*Store, *Info);
+			if (Path.IsEmpty())
+			{
+				FNexusTraceListItem& Item = Items.AddDefaulted_GetRef();
+				Item.TraceId = TraceId;
+				Item.Size = static_cast<int64>(Size);
+				Item.UnixTime = FDateTime(static_cast<int64>(Timestamp)).ToUnixTimestamp();
+			}
+			else
+			{
+				AddTraceItem(Items, Seen, Path, TraceId);
+			}
 		}
 	}
 
@@ -277,7 +300,7 @@ void FNexusTraceSessionCache::CollectRecentTraces(int32 Limit, TArray<TSharedPtr
 		Obj->SetNumberField(TEXT("Timestamp"), static_cast<double>(Item.UnixTime));
 		if (Item.TraceId != INDEX_NONE)
 		{
-			Obj->SetNumberField(TEXT("TraceId"), Item.TraceId);
+			Obj->SetNumberField(TEXT("TraceId"), static_cast<double>(Item.TraceId));
 		}
 		OutTraces.Add(MakeShared<FJsonValueObject>(Obj));
 	}

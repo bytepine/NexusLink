@@ -80,3 +80,12 @@
 2. **优先**复用现有 `NX_*` 宏
 3. 若需新增：在 `NexusVersionCompat.h` 中按版本号升序追加，行内注释标明变更内容
 4. 宏名格式：`NX_UE_HAS_<语义描述>` — 以 API 变更点而非版本号命名
+
+## Unreal Insights Trace
+
+`ListTraces` / `GetTrace` 在 UE 4.26+ Editor 提供，Game / DS 不链接分析模块。语义宏集中在 `NexusVersionCompat.h`，实现由 `FNexusEditorTraceUtils` 适配：
+
+- UE4 使用 `Trace` 类型；UE5 使用 `TraceServices` / `UE::Trace`。
+- CPU 聚合：4.26–5.2 使用多参数，5.3–5.5 使用 `FCreateAggreationParams`，5.6+ 使用 `FCreateAggregationParams`；均排除 GPU。
+- Store 路径：5.3+ 使用 URI，5.0–5.2 使用目录加名称；UE4 不提供真实路径，列表 `Path` 与读取结果 `TracePath` 留空，传 `TraceId` 读取有大小边界的流快照。
+- UE 5.8 的 `GetTimerReader` / Store `Create` 仍由原有语义宏适配。低版本缺少的摘要字段省略。

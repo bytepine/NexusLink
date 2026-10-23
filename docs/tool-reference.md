@@ -218,6 +218,8 @@ Inspect unreal Python members. Live dir/signature for this engine bind. Probe be
 
 ### `GetTrace`
 
+UE 4.26+ Editor only. On UE4 Store entries, `Path` / `TracePath` are empty: pass `TraceId` to read the Store stream directly. No cache file is created.
+
 Read a stopped .utrace: frame stats, hitches, CPU timers, bookmarks.
 
 **When to use**: Read one stopped .utrace
@@ -240,6 +242,8 @@ Read a stopped .utrace: frame stats, hitches, CPU timers, bookmarks.
 ---
 
 ### `ListTraces`
+
+UE 4.26+ Editor only. On UE4 Store entries, `Path` / `TracePath` are empty: pass `TraceId` to read the Store stream directly. No cache file is created.
 
 List recent .utrace files and the local Trace Store.
 

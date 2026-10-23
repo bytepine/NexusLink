@@ -40,7 +40,7 @@ public class NexusLinkEditor : ModuleRules
 			PrivateDependencyModuleNames.Add("LiveCoding");
 
 		// 只读 .utrace。TraceServices 是引擎 Developer 模块，只链进 Editor，不进 Runtime/Game。
-		if (NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 6))
+		if (NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 4, 26))
 		{
 			PrivateDependencyModuleNames.Add("TraceServices");
 			PrivateDependencyModuleNames.Add("TraceAnalysis");

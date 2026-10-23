@@ -80,7 +80,7 @@ Legacy keys → `ArgInvalid`.
 | Screenshot | `CaptureViewport` for Game/PIE viewport or full window; `CaptureEditorPanel` for LevelEditor panel tabs and Actor `ViewAngle` shots (Editor only) |
 | Editor automation via Python | `GetPythonApi(Target="unreal", Query="…")` to confirm the API exists on this engine → `ExecPython`; both need Python Editor Script Plugin, and `ExecPython` is disabled by default |
 | Errors / crashes / PIE / packaged Game logs | Errors: `GetOutputLog(Preset="Diagnose")`. Logs from the next action: `GetOutputLog(Watch={categories,TextIncludes,TextExcludes,verbosity})` then `bCollectWatch=true` (side buffer; consecutive duplicates collapse to `Repeat`). `SetLogCaptureFilter` is the persistent category whitelist (Warning/Error always captured) |
-| Unreal Insights trace | UE 5.6+ editor only. `ListTraces` → `GetTrace(Sections=["Summary","Frames"])` → pass a hitch frame's `StartTime`/`EndTime` into `Timers` and `Bookmarks`. Stopped `.utrace` only; `bAnalysisComplete=false` means call again. Not `GetOutputLog` |
+| Unreal Insights trace | UE 4.26+ editor only. `ListTraces` → `GetTrace(Sections=["Summary","Frames"])` → pass a hitch frame's `StartTime`/`EndTime` into `Timers` and `Bookmarks`. UE4 Store entries have an empty `Path`; pass `TraceId` instead. Stopped `.utrace` only; `bAnalysisComplete=false` means call again. Not `GetOutputLog` |
 | Game design docs | Project **knowledge-base MCP** if available — not NexusLink asset search |
 
 ---

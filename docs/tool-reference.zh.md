@@ -218,6 +218,8 @@
 
 ### `GetTrace`
 
+仅 UE 4.26+ Editor。UE4 Store 条目的 `Path` / `TracePath` 为空，传 `TraceId` 直接读取 Store 流，不生成缓存文件。
+
 读已停录的 .utrace：帧统计、卡顿帧、CPU 计时、Bookmark。
 
 **适用场景**: 读一份已停录的 .utrace
@@ -240,6 +242,8 @@
 ---
 
 ### `ListTraces`
+
+仅 UE 4.26+ Editor。UE4 Store 条目的 `Path` / `TracePath` 为空，传 `TraceId` 直接读取 Store 流，不生成缓存文件。
 
 列出最近的 .utrace 和本机 Trace Store。
 
