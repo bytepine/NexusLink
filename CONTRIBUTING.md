@@ -67,7 +67,7 @@ py scripts/build_unreal.py --version <version> --output release/
 
 ## 发版（维护者）
 
-GAS 复测工具位于 `tools/gas_retest`，仅依赖 Python 标准库。修改后在 `tools/` 执行 `python -m unittest gas_retest.test_runner gas_retest.test_report gas_retest.test_compare`；打包回归用 `python -m pytest scripts/tests`。基线/对比是离线操作，回归覆盖新增失败、恢复、缺失步骤、事件去重与会话噪声、用例签名及文件保护。发布包包含工具与示例，不包含 Python 缓存或默认 `gas-retest-results/` 本地报告。联机验证使用公开示例工程的 `Script/gas_network_retest.py`，格式与限制见 [GAS 诊断与复测](docs/gas-retest.md)。
+GAS 复测工具位于 `tools/gas_retest`，仅依赖 Python 标准库。修改后在 `tools/` 执行 `python -m unittest gas_retest.test_runner gas_retest.test_report gas_retest.test_compare`（Build CI 同步执行）；打包回归用 `python -m pytest scripts/tests`。基线/对比是离线操作，回归覆盖新增失败、恢复、缺失步骤、事件去重与会话噪声、用例签名及文件保护。发布包包含工具与示例，不包含 Python 缓存或默认 `gas-retest-results/` 本地报告。联机验证使用公开示例工程的 `Script/gas_network_retest.py`，固定用例与基线门禁/归档用 `Script/gas_regression.py`；更改固定用例或签名算法时须人工复核示例工程基线，禁止自动接受本次结果。格式与限制见 [GAS 诊断与复测](docs/gas-retest.md)。
 
 GitHub Release **正文唯一来源**为 `CHANGELOG.md` 对应版本段落（CI 经 `scripts/extract_release_notes.py --verify` 提取）。禁止网页手写 Release 说明或 `gh release create`。
 

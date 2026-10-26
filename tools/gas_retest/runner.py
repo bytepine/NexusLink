@@ -181,6 +181,13 @@ class Client:
                 pass
 
 
+def case_signature(case):
+    # 地址和凭证来源随部署变化，不影响用例定义；断言、步骤及角色配置必须一致。
+    definition = {**case, "Endpoints": {name: {key: value for key, value in config.items()
+                  if key not in ("Url", "TokenEnv")} for name, config in case["Endpoints"].items()}}
+    return hashlib.sha256(json.dumps(definition, sort_keys=True, allow_nan=False).encode()).hexdigest()
+
+
 class Runner:
     READ_CAPS = {"GetRuntimeActorAbilitySystem", "GetRuntimeActorProperty", "ListRuntimeActors"}
 
@@ -394,12 +401,8 @@ class Runner:
             for client in self.clients.values():
                 client.close()
         code = 2 if any(item["Status"] == "Error" for item in self.records) else int(any(item["Status"] == "Failed" for item in self.records))
-        # 地址和凭证来源随部署变化，不影响用例定义；断言、步骤及角色配置必须一致。
-        definition = {**self.case, "Endpoints": {name: {key: value for key, value in config.items()
-                      if key not in ("Url", "TokenEnv")} for name, config in self.case["Endpoints"].items()}}
-        signature = hashlib.sha256(json.dumps(definition, sort_keys=True, allow_nan=False).encode()).hexdigest()
         return {"SchemaVersion": 1, "Name": self.case.get("Name", "GAS retest"), "ExitCode": code,
-                "CaseSignature": signature,
+                "CaseSignature": case_signature(self.case),
                 "Mode": "Preflight" if preflight else "Replay", "Contexts": self.contexts,
                 "Endpoints": {name: {key: config[key] for key in ("Url", "bAuthority") if key in config and (key != "Url" or name in self.clients)}
                               for name, config in self.case["Endpoints"].items()},

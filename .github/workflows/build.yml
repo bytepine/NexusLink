@@ -82,6 +82,10 @@ jobs:
       - name: Run script unit tests
         run: pytest scripts/tests/ -v
 
+      - name: Run GAS replay and baseline unit tests
+        working-directory: tools
+        run: python -m unittest gas_retest.test_runner gas_retest.test_report gas_retest.test_compare
+
       - name: Audit capability params
         run: python scripts/audit_capability_params.py
 
