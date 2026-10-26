@@ -37,6 +37,8 @@ EXCLUDE_DIRS = {
     "scripts",
     ".github",
     ".pytest_cache",
+    "__pycache__",
+    "gas-retest-results",
     ".vs",
     ".idea",
     ".git",
@@ -57,6 +59,7 @@ EXCLUDE_ROOT_FILES = {
 EXCLUDE_EXTS = {
     ".pdb", ".obj", ".lib", ".exp", ".dll", ".so", ".dylib",
     ".log", ".tmp", ".bak",
+    ".pyc", ".pyo",
 }
 
 # Git LFS pointer 文件头（CI 未 lfs pull 时工作区仍是该文本，不可打进发布包）
@@ -156,6 +159,7 @@ def build_zip(
                 ".github",
                 ".git",
                 ".pytest_cache",
+                "__pycache__",
             ),
         )
 

@@ -70,3 +70,6 @@ desktop.ini
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# 本地 GAS 复测报告
+gas-retest-results/

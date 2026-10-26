@@ -8,6 +8,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
 #include "Utils/NexusGasUtils.h"
+#include "Utils/NexusGasDiagnostics.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
@@ -22,25 +23,28 @@
 void FNexusGetRuntimeActorAbilitySystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("GetRuntimeActorAbilitySystem");
-	Out.Description = TEXT("Read Actor ASC snapshot in PIE. Sections=abilities|effects|attributes. Writes via interact.");
+	Out.Description = TEXT("Read ASC state, activation diagnostics and captured events in PIE/Game. Never invokes custom activation checks.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Runtime, FNexusMcpTags::Gas };
-	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("asc"), TEXT("ability"), TEXT("Runtime"), TEXT("PIE") };
+	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("asc"), TEXT("ability"), TEXT("Runtime"), TEXT("PIE"), TEXT("activation"), TEXT("failure"), TEXT("prediction"), TEXT("cooldown") };
 	Out.RelatedCapabilities = { TEXT("InteractRuntimeActorAbilitySystem"), TEXT("GetGameplayTags"), TEXT("GetRuntimeActorProperty") };
 	Out.Prerequisites = { TEXT("PIE") };
-	Out.WhenToUse = TEXT("Read Actor abilities/GE/attributes in PIE; write via InteractRuntimeActorAbilitySystem");
+	Out.WhenToUse = TEXT("Inspect GAS state and activation evidence");
 }
 
 TSharedPtr<FJsonObject> FNexusGetRuntimeActorAbilitySystemCapability::BuildCapabilitySchema() const
 {
 	return FNexusSchema::Object()
 		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Actor name (optional; first ASC in World if omitted)")))
+		.Prop(TEXT("SpecHandle"), FNexusSchema::Str(TEXT("Granted ability handle from Abilities; exclusive with AbilityPath")))
+		.Prop(TEXT("AbilityPath"), FNexusSchema::Str(TEXT("Exact ability class path; exclusive with SpecHandle")))
+		.Prop(TEXT("CaptureId"), FNexusSchema::Str(TEXT("Activation capture returned by StartActivationCapture")))
 		.Build();
 }
 
 TArray<FString> FNexusGetRuntimeActorAbilitySystemCapability::GetSectionNames() const
 {
-	return { TEXT("Abilities"), TEXT("Effects"), TEXT("Attributes") };
+	return { TEXT("Abilities"), TEXT("Effects"), TEXT("Attributes"), TEXT("Context"), TEXT("Tags"), TEXT("ActivationDiagnostics"), TEXT("ActivationEvents") };
 }
 
 TArray<FString> FNexusGetRuntimeActorAbilitySystemCapability::GetDefaultSectionNames() const
@@ -60,6 +64,12 @@ bool FNexusGetRuntimeActorAbilitySystemCapability::PrepareEntry(
 
 	FString ActorName;
 	if (Args.IsValid()) Args->TryGetStringField(TEXT("ActorName"), ActorName);
+	const TArray<TSharedPtr<FJsonValue>>* Sections = nullptr;
+	if (ActorName.IsEmpty() && Args.IsValid() && Args->TryGetArrayField(TEXT("Sections"), Sections))
+		for (const TSharedPtr<FJsonValue>& Section : *Sections)
+			if (Section->AsString() == TEXT("Context") || Section->AsString() == TEXT("Tags")
+				|| Section->AsString().StartsWith(TEXT("Activation")))
+			{ OutError = TEXT("Diagnostic sections require explicit ActorName"); return false; }
 
 	UAbilitySystemComponent* ASC = nullptr;
 
@@ -99,6 +109,42 @@ void FNexusGetRuntimeActorAbilitySystemCapability::ExecuteSection(
 {
 	UAbilitySystemComponent* ASC = static_cast<UAbilitySystemComponent*>(TargetOpaque);
 	if (!ASC) { OutError = TEXT("Invalid ASC pointer"); return; }
+	bool bAll = false;
+	const TArray<TSharedPtr<FJsonValue>>* RequestedSections = nullptr;
+	if (Args.IsValid() && Args->TryGetArrayField(TEXT("Sections"), RequestedSections))
+		for (const TSharedPtr<FJsonValue>& Section : *RequestedSections)
+			bAll |= Section->AsString().Equals(TEXT("All"), ESearchCase::IgnoreCase);
+	if (SectionName == TEXT("Context"))
+	{
+		InOutDetail->SetObjectField(TEXT("Context"), FNexusGasDiagnostics::Context(ASC));
+		return;
+	}
+	if (SectionName == TEXT("Tags"))
+	{
+		FGameplayTagContainer Owned, Blocked;
+		ASC->GetOwnedGameplayTags(Owned);
+		ASC->GetBlockedAbilityTags(Blocked);
+		InOutDetail->SetArrayField(TEXT("OwnedTags"), FNexusGasUtils::SerializeTagContainer(Owned));
+		InOutDetail->SetArrayField(TEXT("BlockedAbilityTags"), FNexusGasUtils::SerializeTagContainer(Blocked));
+		return;
+	}
+	if (SectionName == TEXT("ActivationDiagnostics"))
+	{
+		// 旧 All 查询无需新增选择器；只有明确请求诊断或传入选择器时才解析它。
+		if (bAll && !Args->HasField(TEXT("SpecHandle")) && !Args->HasField(TEXT("AbilityPath"))) return;
+		TSharedPtr<FJsonObject> Diagnosis = MakeShared<FJsonObject>();
+		FNexusGasDiagnostics::Diagnose(ASC, Args, Diagnosis, OutError);
+		InOutDetail->SetObjectField(TEXT("ActivationDiagnostics"), Diagnosis);
+		return;
+	}
+	if (SectionName == TEXT("ActivationEvents"))
+	{
+		FString Id;
+		if (Args.IsValid()) Args->TryGetStringField(TEXT("CaptureId"), Id);
+		if (bAll && Id.IsEmpty()) return;
+		FNexusGasDiagnostics::ReadCapture(ASC, Id, InOutDetail, OutError);
+		return;
+	}
 
 	if (SectionName == TEXT("Abilities"))
 	{
@@ -110,6 +156,10 @@ void FNexusGetRuntimeActorAbilitySystemCapability::ExecuteSection(
 			if (Spec.Ability)
 			{
 				AbObj->SetStringField(TEXT("AbilityClass"), Spec.Ability->GetClass()->GetName());
+				AbObj->SetStringField(TEXT("AbilityPath"), Spec.Ability->GetClass()->GetPathName());
+				AbObj->SetStringField(TEXT("SpecHandle"), Spec.Handle.ToString());
+				AbObj->SetNumberField(TEXT("InstancingPolicy"), static_cast<int32>(Spec.Ability->GetInstancingPolicy()));
+				AbObj->SetNumberField(TEXT("NetExecutionPolicy"), static_cast<int32>(Spec.Ability->GetNetExecutionPolicy()));
 				AbObj->SetNumberField(TEXT("Level"),        Spec.Level);
 				AbObj->SetBoolField(TEXT("bIsActive"),       Spec.IsActive());
 				AbObj->SetNumberField(TEXT("InputId"),      Spec.InputID);

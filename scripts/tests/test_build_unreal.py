@@ -12,6 +12,7 @@ from build_unreal import (  # noqa: E402
     assert_no_lfs_pointers,
     is_lfs_pointer,
     patch_uplugin,
+    build_zip,
 )
 
 _POINTER = (
@@ -19,6 +20,25 @@ _POINTER = (
     b"oid sha256:afabb656d57dbd8ae80930344f6a645f16460a02c20e0043c833726a65fa83b7\n"
     b"size 5091\n"
 )
+
+
+def test_zip_includes_replay_tool_without_python_caches(tmp_path):
+    import zipfile
+    plugin = tmp_path / "plugin"
+    tools = plugin / "tools" / "gas_retest"
+    tools.mkdir(parents=True)
+    (plugin / "NexusLink.uplugin").write_text('{"VersionName":"0.0.0"}', encoding="utf-8")
+    (tools / "runner.py").write_text("pass\n", encoding="utf-8")
+    (tools / "__pycache__").mkdir()
+    (tools / "__pycache__" / "runner.pyc").write_bytes(b"cache")
+    reports = plugin / "tools" / "gas-retest-results"
+    reports.mkdir()
+    (reports / "results.json").write_text('{}', encoding="utf-8")
+    archive = build_zip(str(plugin), "0.0.0", str(tmp_path / "out"))
+    with zipfile.ZipFile(archive) as result:
+        assert "NexusLink/tools/gas_retest/runner.py" in result.namelist()
+        assert not any("__pycache__" in name or name.endswith(".pyc") for name in result.namelist())
+        assert not any("gas-retest-results" in name for name in result.namelist())
 
 
 def test_is_lfs_pointer_true(tmp_path):

@@ -218,8 +218,6 @@ Inspect unreal Python members. Live dir/signature for this engine bind. Probe be
 
 ### `GetTrace`
 
-UE 4.26+ Editor only. On UE4 Store entries, `Path` / `TracePath` are empty: pass `TraceId` to read the Store stream directly. No cache file is created.
-
 Read a stopped .utrace: frame stats, hitches, CPU timers, bookmarks.
 
 **When to use**: Read one stopped .utrace
@@ -242,8 +240,6 @@ Read a stopped .utrace: frame stats, hitches, CPU timers, bookmarks.
 ---
 
 ### `ListTraces`
-
-UE 4.26+ Editor only. On UE4 Store entries, `Path` / `TracePath` are empty: pass `TraceId` to read the Store stream directly. No cache file is created.
 
 List recent .utrace files and the local Trace Store.
 
@@ -3015,17 +3011,20 @@ Console buffer. Arm watch, act, bCollectWatch=true. Or Preset=diagnose.
 
 ### `GetRuntimeActorAbilitySystem`
 
-Read Actor ASC snapshot in PIE. Sections=abilities|effects|attributes. Writes via interact.
+Read ASC state, activation diagnostics and captured events in PIE/Game. Never invokes custom activation checks.
 
 **Prerequisites**: `PIE`
 
-**When to use**: Read Actor abilities/GE/attributes in PIE; write via InteractRuntimeActorAbilitySystem
+**When to use**: Inspect GAS state and activation evidence
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `Abilities` / `Effects` / `Attributes` |
+| `sections` | `string[]` |  | Sections (multi-select): `Abilities` / `Effects` / `Attributes` / `Context` / `Tags` / `ActivationDiagnostics` / `ActivationEvents` |
 | `ActorName` | `string` |  | Actor name (optional; first ASC in World if omitted) |
-| `Sections` | `string[]` |  | Sections to fetch (default: Abilities+Effects+Attributes) enum: `Abilities` / `Effects` / `Attributes` / `All` |
+| `SpecHandle` | `string` |  | Granted ability handle from Abilities; exclusive with AbilityPath |
+| `AbilityPath` | `string` |  | Exact ability class path; exclusive with SpecHandle |
+| `CaptureId` | `string` |  | Activation capture returned by StartActivationCapture |
+| `Sections` | `string[]` |  | Sections to fetch (default: Abilities+Effects+Attributes) enum: `Abilities` / `Effects` / `Attributes` / `Context` / `Tags` / `ActivationDiagnostics` / `ActivationEvents` / `All` |
 
 **Related capabilities**: `InteractRuntimeActorAbilitySystem`, `GetGameplayTags`, `GetRuntimeActorProperty`
 
@@ -3087,17 +3086,19 @@ Read runtime UMG element fields. Locate via WidgetName+OwnerClass; includes layo
 
 ### `InteractRuntimeActorAbilitySystem`
 
-Write runtime ASC. Action=activate/cancel/give/ClearAbility, apply/RemoveEffect, SetAttribute, cue, loose tags.
+Command ASC. Try existing abilities, capture activation/commit/failure events; grant/apply/attributes.
 
 **Prerequisites**: `PIE`
 
-**When to use**: Cast/give Ability, apply GE, set Attribute, Cue, loose tags in PIE
+**When to use**: Reproduce GAS activation failures
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `Action` | `string (enum)` | ★ | Write operation enum: `ActivateAbility` / `CancelAbility` / `ApplyEffect` / `RemoveEffect` / `SetAttribute` / `GiveAbility` / `ClearAbility` / `ExecuteCue` / `AddLooseTag` / `RemoveLooseTag` |
+| `Action` | `string (enum)` | ★ | Write operation enum: `ActivateAbility` / `CancelAbility` / `ApplyEffect` / `RemoveEffect` / `SetAttribute` / `GiveAbility` / `ClearAbility` / `ExecuteCue` / `AddLooseTag` / `RemoveLooseTag` / `TryActivateGrantedAbility` / `StartActivationCapture` / `StopActivationCapture` |
 | `ActorName` | `string` |  | Actor name (optional; first ASC Pawn/Actor if omitted) |
 | `AbilityPath` | `string` |  | GameplayAbility asset path |
+| `SpecHandle` | `string` |  | Granted ability handle; exclusive with AbilityPath for TryActivateGrantedAbility |
+| `CaptureId` | `string` |  | Capture to stop; bound to ActorName |
 | `EffectPath` | `string` |  | GameplayEffect asset path (apply/remove) |
 | `AttributeName` | `string` |  | Attribute name: AttributeSetName.AttributeName (SetAttribute) |
 | `Value` | `number` |  | New attribute base value (SetAttribute) |

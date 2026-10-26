@@ -1,5 +1,7 @@
 NexusLink MCP: Unreal Editor + runtime control (**MultiTool mode**). Registered extension fragments are appended after this text.
 
+GAS: GetRuntimeActorAbilitySystem adds Context/Tags/ActivationDiagnostics/ActivationEvents. Diagnostic sections require ActorName; select a skill by SpecHandle or AbilityPath. InteractRuntimeActorAbilitySystem adds TryActivateGrantedAbility (no grant) and Start/StopActivationCapture. Capture on each endpoint before activation. bRequestAccepted is not authority confirmation; inspect authority Committed/Failed events. Dropped records, unknown identities and timeouts mean unconfirmed. See docs/gas-retest.md.
+
 > **Host note**: **MCP runs in the Editor binary, and in Development/DebugGame standalone Game/DS builds** (`NexusLink` module is `Type: Runtime`; `NexusLinkEditor` is `Type: Editor`; Shipping strips the server at compile time).
 
 ## Tool model

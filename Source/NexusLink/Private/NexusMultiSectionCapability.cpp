@@ -80,7 +80,11 @@ FCapabilityResult FNexusMultiSectionCapability::RunMultiSection(const TSharedPtr
 				FString S;
 				if (V.IsValid() && V->TryGetString(S) && !S.IsEmpty())
 				{
-					Requested.AddUnique(S.ToLower());
+					// 接口名保留注册时大小写；旧调用的 section 大小写仍可兼容。
+					if (S.Equals(TEXT("All"), ESearchCase::IgnoreCase)) S = TEXT("All");
+					else for (const FString& Canonical : AllSections)
+						if (S.Equals(Canonical, ESearchCase::IgnoreCase)) { S = Canonical; break; }
+					Requested.AddUnique(S);
 				}
 			}
 		}

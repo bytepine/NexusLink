@@ -7,6 +7,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- GAS 联机诊断与复测：ASC `Context` / `Tags` / `ActivationDiagnostics` / `ActivationEvents`，显式目标的已有技能激活和限时事件捕获；`tools/gas_retest` 以 JSON 用例执行多端步骤、等待与断言，输出 JSON / JUnit，失败保留证据、写操作不重试。
+
+### Fixed
+
+- MultiSection 显式 section 按注册名称解析，保留大小写兼容并正确展开 `All`，避免 PascalCase 名称被转小写后误报未知 section。
+
 ## [2.3.0-beta.1] - 2026-10-23
 
 > ⚠️ Pre-release，非生产环境使用。

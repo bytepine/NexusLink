@@ -52,6 +52,8 @@ Forbidden: `ManageAnimation`, `SetRuntimeActorAnimation`.
 
 ## Workflow notes
 
+GAS diagnosis: explicit ActorName; GetRuntimeActorAbilitySystem Sections=[Context,Tags,ActivationDiagnostics] with SpecHandle or AbilityPath. StartActivationCapture on authority/client before TryActivateGrantedAbility (never grants), read ActivationEvents with CaptureId, then StopActivationCapture. bRequestAccepted is local only: require authority Committed/Failed evidence. Unknown identity, Dropped>0 or absent authority evidence means unconfirmed. Diagnose is snapshot-only; custom cost/check rules need real failure events. See docs/gas-retest.md for replay.
+
 1. Before blueprint writes: `GetAssetBlueprint(Sections=["graphOverview"])`, use returned graph names; non-Actor BP forbids `AddComponent` / `SetDefaults`. BPI: `CreateAssetBlueprint(ParentClass=Interface)`; functions/impl via `AddFunction` / `AddInterface`. WBP tree/animation: `ManageAssetUserWidget` (`AddTrack` may take `WidgetName`+`PropertyPath`); `GetAssetUserWidget(Sections=["graphOverview"])` lists graphs, EventGraph via `ManageAssetBlueprint`.
 2. Behavior trees: after edits `bSaveToDisk` or `SaveAsset`; change type with `ReplaceNode`; graph drift with `SyncGraph`.
 3. manage optional `bSaveToDisk` (default false); only BP/ABP/WBP manage may pass `bCompile` (default false). Standalone `SaveAsset` / `CompileBlueprint` still available.

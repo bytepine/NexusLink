@@ -10,6 +10,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
 #include "Utils/NexusGasUtils.h"
+#include "Utils/NexusGasDiagnostics.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "Abilities/GameplayAbility.h"
@@ -25,13 +26,16 @@
 void FNexusInteractRuntimeActorAbilitySystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("InteractRuntimeActorAbilitySystem");
-	Out.Description = TEXT("Write runtime ASC. Action=activate/cancel/give/ClearAbility, apply/RemoveEffect, SetAttribute, cue, loose tags.");
+	Out.Description = TEXT("Command ASC. Try existing abilities, capture activation/commit/failure events; grant/apply/attributes.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"),        FNexusSchema::Enum(TEXT("Write operation"),
 			{ TEXT("ActivateAbility"), TEXT("CancelAbility"), TEXT("ApplyEffect"), TEXT("RemoveEffect"), TEXT("SetAttribute"),
-			  TEXT("GiveAbility"), TEXT("ClearAbility"), TEXT("ExecuteCue"), TEXT("AddLooseTag"), TEXT("RemoveLooseTag") }))
+			  TEXT("GiveAbility"), TEXT("ClearAbility"), TEXT("ExecuteCue"), TEXT("AddLooseTag"), TEXT("RemoveLooseTag"),
+			  TEXT("TryActivateGrantedAbility"), TEXT("StartActivationCapture"), TEXT("StopActivationCapture") }))
 		.Prop(TEXT("ActorName"),     FNexusSchema::Str(TEXT("Actor name (optional; first ASC Pawn/Actor if omitted)")))
 		.Prop(TEXT("AbilityPath"),   FNexusSchema::Str(TEXT("GameplayAbility asset path")))
+		.Prop(TEXT("SpecHandle"), FNexusSchema::Str(TEXT("Granted ability handle; exclusive with AbilityPath for TryActivateGrantedAbility")))
+		.Prop(TEXT("CaptureId"), FNexusSchema::Str(TEXT("Capture to stop; bound to ActorName")))
 		.Prop(TEXT("EffectPath"),    FNexusSchema::Str(TEXT("GameplayEffect asset path (apply/remove)")))
 		.Prop(TEXT("AttributeName"), FNexusSchema::Str(TEXT("Attribute name: AttributeSetName.AttributeName (SetAttribute)")))
 		.Prop(TEXT("Value"),         FNexusSchema::Num(TEXT("New attribute base value (SetAttribute)")))
@@ -40,10 +44,10 @@ void FNexusInteractRuntimeActorAbilitySystemCapability::BuildDefinition(FNexusCa
 		.Required({ TEXT("Action") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Runtime, FNexusMcpTags::Gas };
-	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("asc"), TEXT("ability"), TEXT("effect"), TEXT("Attribute") };
+	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("asc"), TEXT("ability"), TEXT("effect"), TEXT("Attribute"), TEXT("activation"), TEXT("failure"), TEXT("prediction"), TEXT("capture") };
 	Out.RelatedCapabilities = { TEXT("GetRuntimeActorAbilitySystem"), TEXT("GetGameplayTags") };
 	Out.Prerequisites = { TEXT("PIE") };
-	Out.WhenToUse = TEXT("Cast/give Ability, apply GE, set Attribute, Cue, loose tags in PIE");
+	Out.WhenToUse = TEXT("Reproduce GAS activation failures");
 }
 
 // ── 执行 ──────────────────────────────────────────────────────────────────────
@@ -63,6 +67,15 @@ FCapabilityResult FNexusInteractRuntimeActorAbilitySystemCapability::Execute(con
 		// 定位 Actor
 		FString ActorName;
 		if (Arguments.IsValid()) Arguments->TryGetStringField(TEXT("ActorName"), ActorName);
+		const bool bDiagnosticAction = Action == TEXT("TryActivateGrantedAbility")
+			|| Action == TEXT("StartActivationCapture") || Action == TEXT("StopActivationCapture");
+		if (bDiagnosticAction && ActorName.IsEmpty())
+		{
+			TSharedPtr<FJsonObject> ErrorEntry = MakeShared<FJsonObject>();
+			ErrorEntry->SetStringField(TEXT("Error"), TEXT("Diagnostic actions require explicit ActorName"));
+			OutEntries.Add(MakeShared<FJsonValueObject>(ErrorEntry));
+			return;
+		}
 
 		AActor* Actor = nullptr;
 		UAbilitySystemComponent* ASC = nullptr;
@@ -101,7 +114,29 @@ FCapabilityResult FNexusInteractRuntimeActorAbilitySystemCapability::Execute(con
 		Entry->SetStringField(TEXT("ActorName"), Actor->GetName());
 		Entry->SetStringField(TEXT("Action"),    Action);
 
-		if (Action.Equals(TEXT("ActivateAbility"), ESearchCase::IgnoreCase))
+		if (bDiagnosticAction)
+		{
+			FString DiagnosticError;
+			if (Action == TEXT("StartActivationCapture"))
+				Entry->SetStringField(TEXT("CaptureId"), FNexusGasDiagnostics::StartCapture(ASC, DiagnosticError));
+			else if (Action == TEXT("StopActivationCapture"))
+				Entry->SetBoolField(TEXT("bStopped"), FNexusGasDiagnostics::StopCapture(ASC, A.Str(TEXT("CaptureId")), DiagnosticError));
+			else
+			{
+				FGameplayAbilitySpec* Spec = FNexusGasDiagnostics::FindSpec(ASC, Arguments, DiagnosticError);
+				if (!Spec && DiagnosticError.IsEmpty()) DiagnosticError = TEXT("Ability not granted or not visible on this endpoint");
+				if (Spec)
+				{
+					// 激活可能清除或修改 Spec；调用前复制句柄，之后不再解引用它。
+					const FGameplayAbilitySpecHandle Handle = Spec->Handle;
+					Entry->SetStringField(TEXT("SpecHandle"), Handle.ToString());
+					Entry->SetBoolField(TEXT("bRequestAccepted"), ASC->TryActivateAbility(Handle, true));
+					Entry->SetStringField(TEXT("AuthorityOutcome"), TEXT("Unconfirmed; inspect authority capture"));
+				}
+			}
+			if (!DiagnosticError.IsEmpty()) Entry->SetStringField(TEXT("Error"), DiagnosticError);
+		}
+		else if (Action.Equals(TEXT("ActivateAbility"), ESearchCase::IgnoreCase))
 		{
 			if (AbilityPath.IsEmpty())
 			{
@@ -181,8 +216,9 @@ FCapabilityResult FNexusInteractRuntimeActorAbilitySystemCapability::Execute(con
 			UGameplayEffect* GECDO = LoadObject<UGameplayEffect>(nullptr, *EffectPath);
 			if (!GECDO)
 			{
-				const FString CfgPath = EffectPath + TEXT("_C");
-				if (UClass* Cls = LoadObject<UClass>(nullptr, *CfgPath))
+				UClass* EffectClass = LoadObject<UClass>(nullptr, *EffectPath);
+				if (!EffectClass) EffectClass = LoadObject<UClass>(nullptr, *(EffectPath + TEXT("_C")));
+				if (UClass* Cls = EffectClass)
 				{
 					if (Cls->IsChildOf(UGameplayEffect::StaticClass()))
 					{

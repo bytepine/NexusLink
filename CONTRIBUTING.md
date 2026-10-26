@@ -67,6 +67,8 @@ py scripts/build_unreal.py --version <version> --output release/
 
 ## 发版（维护者）
 
+GAS 复测工具位于 `tools/gas_retest`，仅依赖 Python 标准库。修改后在 `tools/` 执行 `python -m unittest gas_retest.test_runner`；打包回归用 `python -m pytest scripts/tests`。发布包包含工具与示例，不包含 Python 缓存或默认 `gas-retest-results/` 本地报告。联机验证使用公开示例工程的 `Script/gas_network_retest.py`，格式与限制见 [GAS 诊断与复测](docs/gas-retest.md)。
+
 GitHub Release **正文唯一来源**为 `CHANGELOG.md` 对应版本段落（CI 经 `scripts/extract_release_notes.py --verify` 提取）。禁止网页手写 Release 说明或 `gh release create`。
 
 **L2 E2E 按本次变更选模式**（打 tag 前；日常默认仍是 headless，**不要**发版时一律 `--gui`）。判定材料：本仓 `[Unreleased]`、相对上一 tag 的 `git diff`、拟发版文件。在**宿主游戏工程**（含 `Tests/` 与 `Script/run_e2e.py`）执行：

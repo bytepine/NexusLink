@@ -1,0 +1,295 @@
+{
+  "SchemaVersion": 1,
+  "Name": "PredictionRejected",
+  "Endpoints": {
+    "Server": {
+      "Url": "http://127.0.0.1:45010/stream",
+      "bAuthority": true
+    },
+    "Owner": {
+      "Url": "http://127.0.0.1:45011/stream",
+      "bAuthority": false
+    },
+    "Observer": {
+      "Url": "http://127.0.0.1:45012/stream",
+      "bAuthority": false
+    }
+  },
+  "Actors": {
+    "Hero": {
+      "ClassFilter": "NexusDiagnosticCharacter",
+      "OwnerEndpoint": "Owner"
+    }
+  },
+  "Setup": [
+    {
+      "Id": "clearCooldownServer",
+      "Type": "Call",
+      "Endpoint": "Server",
+      "Capability": "InteractRuntimeActorAbilitySystem",
+      "Arguments": {
+        "ActorName": {
+          "Ref": "/Actors/Hero/Server"
+        },
+        "Action": "RemoveEffect",
+        "EffectPath": "NexusDiagnosticCooldown"
+      }
+    },
+    {
+      "Id": "setManaServer",
+      "Type": "Call",
+      "Endpoint": "Server",
+      "Capability": "InteractRuntimeActorAbilitySystem",
+      "Arguments": {
+        "ActorName": {
+          "Ref": "/Actors/Hero/Server"
+        },
+        "Action": "SetAttribute",
+        "AttributeName": "NexusDiagnosticAttributes.Mana",
+        "Value": 100
+      }
+    },
+    {
+      "Id": "clearCooldownOwner",
+      "Type": "Call",
+      "Endpoint": "Owner",
+      "Capability": "InteractRuntimeActorAbilitySystem",
+      "Arguments": {
+        "ActorName": {
+          "Ref": "/Actors/Hero/Owner"
+        },
+        "Action": "RemoveEffect",
+        "EffectPath": "NexusDiagnosticCooldown"
+      }
+    },
+    {
+      "Id": "setManaOwner",
+      "Type": "Call",
+      "Endpoint": "Owner",
+      "Capability": "InteractRuntimeActorAbilitySystem",
+      "Arguments": {
+        "ActorName": {
+          "Ref": "/Actors/Hero/Owner"
+        },
+        "Action": "SetAttribute",
+        "AttributeName": "NexusDiagnosticAttributes.Mana",
+        "Value": 100
+      }
+    },
+    {
+      "Id": "break",
+      "Type": "Call",
+      "Endpoint": "Server",
+      "Capability": "SetRuntimeActorProperty",
+      "Arguments": {
+        "Updates": [
+          {
+            "ActorName": {
+              "Ref": "/Actors/Hero/Server"
+            },
+            "PropertyPath": "bRejectActivation",
+            "Value": "true"
+          }
+        ]
+      }
+    },
+    {
+      "Id": "captureServer",
+      "Type": "Call",
+      "Endpoint": "Server",
+      "Capability": "InteractRuntimeActorAbilitySystem",
+      "Arguments": {
+        "ActorName": {
+          "Ref": "/Actors/Hero/Server"
+        },
+        "Action": "StartActivationCapture"
+      }
+    },
+    {
+      "Id": "captureOwner",
+      "Type": "Call",
+      "Endpoint": "Owner",
+      "Capability": "InteractRuntimeActorAbilitySystem",
+      "Arguments": {
+        "ActorName": {
+          "Ref": "/Actors/Hero/Owner"
+        },
+        "Action": "StartActivationCapture"
+      }
+    }
+  ],
+  "Steps": [
+    {
+      "Id": "diagnose",
+      "Type": "Call",
+      "Endpoint": "Server",
+      "Capability": "GetRuntimeActorAbilitySystem",
+      "Arguments": {
+        "ActorName": {
+          "Ref": "/Actors/Hero/Server"
+        },
+        "Sections": [
+          "Context",
+          "Tags",
+          "ActivationDiagnostics",
+          "Attributes",
+          "Effects"
+        ],
+        "AbilityPath": "/Script/Nexus.NexusDiagnosticAbility"
+      }
+    },
+    {
+      "Id": "attempt",
+      "Type": "Call",
+      "Endpoint": "Owner",
+      "Capability": "InteractRuntimeActorAbilitySystem",
+      "Arguments": {
+        "ActorName": {
+          "Ref": "/Actors/Hero/Owner"
+        },
+        "Action": "TryActivateGrantedAbility",
+        "AbilityPath": "/Script/Nexus.NexusDiagnosticAbility"
+      }
+    },
+    {
+      "Id": "authority",
+      "Type": "Await",
+      "Endpoint": "Server",
+      "Capability": "GetRuntimeActorAbilitySystem",
+      "Arguments": {
+        "ActorName": {
+          "Ref": "/Actors/Hero/Server"
+        },
+        "Sections": [
+          "ActivationEvents"
+        ],
+        "CaptureId": {
+          "Ref": "/Steps/captureServer/Payload/CaptureId"
+        }
+      },
+      "Check": {
+        "Path": "/Payload/EventTypes",
+        "Op": "Contains",
+        "Value": "Failed"
+      }
+    },
+    {
+      "Id": "authoritySkill",
+      "Type": "Assert",
+      "Actual": {
+        "Ref": "/Steps/authority/Payload/Events/0/SpecHandle"
+      },
+      "Value": {
+        "Ref": "/Steps/diagnose/Payload/ActivationDiagnostics/SpecHandle"
+      }
+    },
+    {
+      "Id": "authorityClass",
+      "Type": "Assert",
+      "Actual": {
+        "Ref": "/Steps/authority/Payload/Events/0/AbilityPath"
+      },
+      "Value": "/Script/Nexus.NexusDiagnosticAbility",
+      "Op": "Equal"
+    },
+    {
+      "Id": "failureTag",
+      "Type": "Assert",
+      "Actual": {
+        "Ref": "/Steps/authority/Payload/FailureTags"
+      },
+      "Value": "Nexus.Diagnostics.Rejected",
+      "Op": "Contains"
+    },
+    {
+      "Id": "prediction",
+      "Type": "Await",
+      "Endpoint": "Owner",
+      "Capability": "GetRuntimeActorAbilitySystem",
+      "Arguments": {
+        "ActorName": {
+          "Ref": "/Actors/Hero/Owner"
+        },
+        "Sections": [
+          "ActivationEvents"
+        ],
+        "CaptureId": {
+          "Ref": "/Steps/captureOwner/Payload/CaptureId"
+        }
+      },
+      "Check": {
+        "Path": "/Payload/EventTypes",
+        "Op": "Contains",
+        "Value": "Activated"
+      }
+    },
+    {
+      "Id": "requestAccepted",
+      "Type": "Assert",
+      "Actual": {
+        "Ref": "/Steps/attempt/Payload/bRequestAccepted"
+      },
+      "Value": true,
+      "Op": "Equal"
+    },
+    {
+      "Id": "predictionSkill",
+      "Type": "Assert",
+      "Actual": {
+        "Ref": "/Steps/prediction/Payload/Events/0/SpecHandle"
+      },
+      "Value": {
+        "Ref": "/Steps/attempt/Payload/SpecHandle"
+      }
+    }
+  ],
+  "Teardown": [
+    {
+      "Id": "restoreReject",
+      "Type": "Call",
+      "Endpoint": "Server",
+      "Capability": "SetRuntimeActorProperty",
+      "Arguments": {
+        "Updates": [
+          {
+            "ActorName": {
+              "Ref": "/Actors/Hero/Server"
+            },
+            "PropertyPath": "bRejectActivation",
+            "Value": "false"
+          }
+        ]
+      }
+    },
+    {
+      "Id": "stopServer",
+      "Type": "Call",
+      "Endpoint": "Server",
+      "Capability": "InteractRuntimeActorAbilitySystem",
+      "Arguments": {
+        "ActorName": {
+          "Ref": "/Actors/Hero/Server"
+        },
+        "Action": "StopActivationCapture",
+        "CaptureId": {
+          "Ref": "/Steps/captureServer/Payload/CaptureId"
+        }
+      }
+    },
+    {
+      "Id": "stopOwner",
+      "Type": "Call",
+      "Endpoint": "Owner",
+      "Capability": "InteractRuntimeActorAbilitySystem",
+      "Arguments": {
+        "ActorName": {
+          "Ref": "/Actors/Hero/Owner"
+        },
+        "Action": "StopActivationCapture",
+        "CaptureId": {
+          "Ref": "/Steps/captureOwner/Payload/CaptureId"
+        }
+      }
+    }
+  ]
+}

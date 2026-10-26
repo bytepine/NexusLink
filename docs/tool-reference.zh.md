@@ -218,8 +218,6 @@
 
 ### `GetTrace`
 
-仅 UE 4.26+ Editor。UE4 Store 条目的 `Path` / `TracePath` 为空，传 `TraceId` 直接读取 Store 流，不生成缓存文件。
-
 读已停录的 .utrace：帧统计、卡顿帧、CPU 计时、Bookmark。
 
 **适用场景**: 读一份已停录的 .utrace
@@ -242,8 +240,6 @@
 ---
 
 ### `ListTraces`
-
-仅 UE 4.26+ Editor。UE4 Store 条目的 `Path` / `TracePath` 为空，传 `TraceId` 直接读取 Store 流，不生成缓存文件。
 
 列出最近的 .utrace 和本机 Trace Store。
 
@@ -3015,7 +3011,7 @@
 
 ### `GetRuntimeActorAbilitySystem`
 
-读取 PIE 中 Actor 的 ASC 快照。Sections=abilities|effects|attributes。写入走 interact。
+读取 PIE/Game ASC 上下文、标签、激活条件快照及捕获事件；不调用自定义激活检查。
 
 **前置条件**: `PIE`
 
@@ -3023,9 +3019,12 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | 查询段（可多选）: `Abilities` / `Effects` / `Attributes` |
+| `sections` | `string[]` |  | 查询段（可多选）: `Abilities` / `Effects` / `Attributes` / `Context` / `Tags` / `ActivationDiagnostics` / `ActivationEvents` |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
-| `Sections` | `string[]` |  | 查询段（可多选）；见各 cap 的 section 列表 枚举: `Abilities` / `Effects` / `Attributes` / `All` |
+| `SpecHandle` | `string` |  | Granted ability handle from Abilities; exclusive with AbilityPath |
+| `AbilityPath` | `string` |  | Exact ability class path; exclusive with SpecHandle |
+| `CaptureId` | `string` |  | Activation capture returned by StartActivationCapture |
+| `Sections` | `string[]` |  | 查询段（可多选）；见各 cap 的 section 列表 枚举: `Abilities` / `Effects` / `Attributes` / `Context` / `Tags` / `ActivationDiagnostics` / `ActivationEvents` / `All` |
 
 **相关 Capability**: `InteractRuntimeActorAbilitySystem`, `GetGameplayTags`, `GetRuntimeActorProperty`
 
@@ -3087,7 +3086,7 @@
 
 ### `InteractRuntimeActorAbilitySystem`
 
-写入运行时 ASC。Action=activate/cancel/give/ClearAbility、apply/RemoveEffect、SetAttribute、cue、loose tags。
+操作运行时 ASC；支持仅激活已有技能及开始/停止事件捕获；旧 ActivateAbility 仍先授予。
 
 **前置条件**: `PIE`
 
@@ -3095,9 +3094,11 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Action` | `string (enum)` | ★ | 写操作 枚举: `ActivateAbility` / `CancelAbility` / `ApplyEffect` / `RemoveEffect` / `SetAttribute` / `GiveAbility` / `ClearAbility` / `ExecuteCue` / `AddLooseTag` / `RemoveLooseTag` |
+| `Action` | `string (enum)` | ★ | 写操作 枚举: `ActivateAbility` / `CancelAbility` / `ApplyEffect` / `RemoveEffect` / `SetAttribute` / `GiveAbility` / `ClearAbility` / `ExecuteCue` / `AddLooseTag` / `RemoveLooseTag` / `TryActivateGrantedAbility` / `StartActivationCapture` / `StopActivationCapture` |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `AbilityPath` | `string` |  | GameplayAbility 资产路径 |
+| `SpecHandle` | `string` |  | Granted ability handle; exclusive with AbilityPath for TryActivateGrantedAbility |
+| `CaptureId` | `string` |  | Capture to stop; bound to ActorName |
 | `EffectPath` | `string` |  | GameplayEffect 资产路径 (apply/remove) |
 | `AttributeName` | `string` |  | Attribute name: AttributeSetName.AttributeName (SetAttribute) |
 | `Value` | `number` |  | New attribute base value (SetAttribute) |
