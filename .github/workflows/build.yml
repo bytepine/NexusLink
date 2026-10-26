@@ -84,13 +84,24 @@ jobs:
 
       - name: Run GAS replay and baseline unit tests
         working-directory: tools
-        run: python -m unittest gas_retest.test_runner gas_retest.test_report gas_retest.test_compare
+        run: python -m unittest discover -s gas_retest -t .
+
+      - name: Test offline Trace comparison
+        working-directory: tools
+        run: python -m unittest trace_compare.test_runner
+
+      - name: Test BT replay and shared baselines
+        working-directory: tools
+        run: python -m unittest bt_retest.test_runner
 
       - name: Audit capability params
         run: python scripts/audit_capability_params.py
 
       - name: Audit capability naming
         run: python scripts/audit_capability_naming.py
+
+      - name: Check public input compatibility
+        run: python scripts/check_schema_compatibility.py scripts/generated/capability_schemas.json
 
   link-check:
     name: nexus-link-markdown-links

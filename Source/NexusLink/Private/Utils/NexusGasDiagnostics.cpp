@@ -5,6 +5,7 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "Utils/NexusGasUtils.h"
+#include "Utils/NexusRuntimeUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Containers/Ticker.h"
 #include "Engine/World.h"
@@ -131,6 +132,12 @@ TSharedPtr<FJsonObject> FNexusGasDiagnostics::Context(UAbilitySystemComponent* A
 	Result->SetStringField(TEXT("WorldName"), GetPathNameSafe(World));
 	Result->SetStringField(TEXT("Owner"), GetNameSafe(Owner));
 	Result->SetStringField(TEXT("Avatar"), GetNameSafe(Avatar));
+	Result->SetStringField(TEXT("AscId"), FNexusRuntimeUtils::GetObjectIdentity(Asc));
+	Result->SetStringField(TEXT("OwnerId"), FNexusRuntimeUtils::GetObjectIdentity(Owner));
+	Result->SetStringField(TEXT("AvatarId"), FNexusRuntimeUtils::GetObjectIdentity(Avatar));
+	Result->SetStringField(TEXT("WorldIdentity"), FNexusRuntimeUtils::GetObjectIdentity(World));
+	Result->SetStringField(TEXT("OwnerClass"), Owner ? Owner->GetClass()->GetPathName() : FString());
+	Result->SetStringField(TEXT("AvatarClass"), Avatar ? Avatar->GetClass()->GetPathName() : FString());
 	Result->SetNumberField(TEXT("PlayerId"), PlayerState ? PlayerState->GetPlayerId() : -1);
 	Result->SetBoolField(TEXT("bLocallyControlled"), Pawn && Pawn->IsLocallyControlled());
 	Result->SetBoolField(TEXT("bAuthority"), Owner && Owner->HasAuthority());
@@ -208,17 +215,20 @@ bool FNexusGasDiagnostics::ReadCapture(UAbilitySystemComponent* Asc, const FStri
 	Detail->SetStringField(TEXT("CaptureId"), Id);
 	Detail->SetNumberField(TEXT("Dropped"), (*Found)->Dropped);
 	Detail->SetNumberField(TEXT("LatestSequence"), (*Found)->Sequence);
-	Detail->SetArrayField(TEXT("Events"), (*Found)->Events);
+	TArray<TSharedPtr<FJsonValue>> Snapshot;
 	TArray<TSharedPtr<FJsonValue>> Types;
 	FGameplayTagContainer Failures;
 	for (const TSharedPtr<FJsonValue>& Value : (*Found)->Events)
 	{
 		const TSharedPtr<FJsonObject> Event = Value->AsObject();
+		// 响应压缩会移除共同字段；事件只有标量和字符串数组，复制字段表即可隔离缓存。
+		Snapshot.Add(MakeShared<FJsonValueObject>(MakeShared<FJsonObject>(*Event)));
 		Types.Add(MakeShared<FJsonValueString>(Event->GetStringField(TEXT("Event"))));
 		const TArray<TSharedPtr<FJsonValue>>& Tags = Event->GetArrayField(TEXT("FailureTags"));
 		for (const TSharedPtr<FJsonValue>& Tag : Tags)
 			Failures.AddTag(FGameplayTag::RequestGameplayTag(FName(*Tag->AsString()), false));
 	}
+	Detail->SetArrayField(TEXT("Events"), Snapshot);
 	Detail->SetArrayField(TEXT("EventTypes"), Types);
 	Detail->SetArrayField(TEXT("FailureTags"), FNexusGasUtils::SerializeTagContainer(Failures));
 	return true;

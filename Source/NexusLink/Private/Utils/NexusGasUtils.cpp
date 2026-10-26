@@ -346,6 +346,7 @@ UAbilitySystemComponent* FNexusGasUtils::FindAbilitySystemComponent(AActor* Acto
 				if (UAbilitySystemComponent* ASC = PSASI->GetAbilitySystemComponent())
 					return ASC;
 			}
+			if (UAbilitySystemComponent* ASC = PS->FindComponentByClass<UAbilitySystemComponent>()) return ASC;
 		}
 	}
 

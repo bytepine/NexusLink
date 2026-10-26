@@ -34,11 +34,22 @@ def test_zip_includes_replay_tool_without_python_caches(tmp_path):
     reports = plugin / "tools" / "gas-retest-results"
     reports.mkdir()
     (reports / "results.json").write_text('{}', encoding="utf-8")
+    for package in ("retest", "bt_retest", "trace_compare"):
+        directory = plugin / "tools" / package
+        directory.mkdir()
+        (directory / "runner.py").write_text("pass\n", encoding="utf-8")
+    for name in ("bt-retest-results", "trace-compare-results"):
+        directory = plugin / "tools" / name
+        directory.mkdir()
+        (directory / "results.json").write_text('{}', encoding="utf-8")
     archive = build_zip(str(plugin), "0.0.0", str(tmp_path / "out"))
     with zipfile.ZipFile(archive) as result:
         assert "NexusLink/tools/gas_retest/runner.py" in result.namelist()
         assert not any("__pycache__" in name or name.endswith(".pyc") for name in result.namelist())
         assert not any("gas-retest-results" in name for name in result.namelist())
+        for package in ("retest", "bt_retest", "trace_compare"):
+            assert f"NexusLink/tools/{package}/runner.py" in result.namelist()
+        assert not any("-results/" in name for name in result.namelist())
 
 
 def test_is_lfs_pointer_true(tmp_path):

@@ -10,6 +10,7 @@
 #include "Utils/NexusWidgetLayoutUtils.h"
 #include "Utils/NexusWidgetAnimationUtils.h"
 #include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusAssetEditUtils.h"
 #if WITH_EDITOR
 #include "WidgetBlueprint.h"
 #include "Blueprint/WidgetTree.h"
@@ -41,6 +42,7 @@ void FNexusManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefi
 		.Prop(TEXT("Time"),         FNexusSchema::Num(TEXT("Keyframe time seconds (AddKey/RemoveKey)")))
 		.Prop(TEXT("KeyValue"),     FNexusSchema::Num(TEXT("Float keyframe value (AddKey)")))
 		.Prop(TEXT("Value"),        FNexusSchema::Str(TEXT("Property value (SetProperty)")))
+		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous scalar value (SetProperty only)")))
 		.Prop(TEXT("AnchorMinX"),   FNexusSchema::Num(TEXT("Canvas anchor MinX (SetSlot)")))
 		.Prop(TEXT("AnchorMinY"),   FNexusSchema::Num(TEXT("Canvas anchor MinY (SetSlot)")))
 		.Prop(TEXT("AnchorMaxX"),   FNexusSchema::Num(TEXT("Canvas anchor MaxX (SetSlot)")))
@@ -56,6 +58,7 @@ void FNexusManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefi
 
 		return FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("WidgetBlueprint asset path (shared)")))
+		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar SetProperty after compilation before saving; rejects other actions"), true, false))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch widget ops"), ItemSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
@@ -232,6 +235,11 @@ static void HandleWBP_SetSlot(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 static void HandleWBP_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
+	if (WBP && (FNexusAssetEditUtils::IsVerified(Ctx.Args) || Op->HasField(TEXT("ExpectedValue"))))
+	{
+		FNexusAssetEditUtils::Apply(WBP, TEXT("ManageAssetUserWidget"), Op, FNexusAssetEditUtils::IsVerified(Ctx.Args), Ctx.Entry);
+		return;
+	}
 	if (!WBP)
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("WidgetBlueprint is null"));
@@ -241,7 +249,7 @@ static void HandleWBP_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	const FString WidgetName = A.Str(TEXT("WidgetName"));
 	const FString PropPath = A.Str(TEXT("PropertyPath"));
 	const FString Value = A.Str(TEXT("Value"));
-	if (WidgetName.IsEmpty() || PropPath.IsEmpty() || Value.IsEmpty())
+	if (WidgetName.IsEmpty() || PropPath.IsEmpty() || !Op->HasField(TEXT("Value")))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires WidgetName、PropertyPath、value"));
 		return;
@@ -253,16 +261,19 @@ static void HandleWBP_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActio
 		return;
 	}
 	FString OldVal, ActualVal, PropErr;
+	WBP->WidgetTree->Modify();
+	Target->SetFlags(RF_Transactional);
+	Target->Modify();
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(Target, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), PropErr);
 		return;
 	}
-	WBP->WidgetTree->Modify();
-	Target->Modify();
 	Ctx.Entry->SetStringField(TEXT("WidgetName"), WidgetName);
 	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
-	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
+	Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("Verification"), TEXT("NotRequested"));
 	MarkWBPMutated(Ctx);
 }
 
@@ -427,6 +438,7 @@ bool FNexusManageAssetUserWidgetCapability::PrepareTarget(
 	FString& OutError) const
 {
 #if WITH_EDITOR
+	if (!FNexusAssetEditUtils::ValidateOperations(TEXT("ManageAssetUserWidget"), Args, OutError)) return false;
 	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
 	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UWidgetBlueprint* WBP = FNexusAssetEditorUtils::LoadWidgetBP(AssetPath);

@@ -11,6 +11,7 @@
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusPinTypeUtils.h"
 #include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusAssetEditUtils.h"
 #include "Utils/NexusBlueprintGraphUtils.h"
 #include "Utils/NexusEditorTransaction.h"
 #include "Utils/NexusVersionCompat.h"
@@ -110,10 +111,12 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("AttachTo"),        FNexusSchema::Str(TEXT("Parent component var (AddComponent); default scene root if omitted")))
 		.Prop(TEXT("PropertyPath"),    FNexusSchema::Str(TEXT("Property path, dot notation e.g. RelativeLocation.X")))
 		.Prop(TEXT("Value"),           FNexusSchema::Str(TEXT("String value e.g. (X=100,Y=0,Z=50) or true")))
+		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous scalar value (SetDefaults only)")))
 		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
+		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar SetDefaults after compilation before saving; rejects other actions"), true, false))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
@@ -427,6 +430,11 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	// 任意 Blueprint（含 GameplayAbility/UI/BPI）均可写自身 CDO 属性
 	if (Action == TEXT("SetDefaults"))
 	{
+		if (FNexusAssetEditUtils::IsVerified(Ctx.Args) || Op->HasField(TEXT("ExpectedValue")))
+		{
+			FNexusAssetEditUtils::Apply(BP, TEXT("ManageAssetBlueprint"), Op, FNexusAssetEditUtils::IsVerified(Ctx.Args), Entry);
+			return;
+		}
 		FString PropPath, Value;
 		Op->TryGetStringField(TEXT("PropertyPath"), PropPath);
 		Op->TryGetStringField(TEXT("Value"),        Value);
@@ -447,6 +455,11 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 		FString    PropErr;
 		if (!FNexusPropertyUtils::ResolvePropertyWrite(CDO, Segments, 0, Prop, ValPtr, PropErr)) { Entry->SetStringField(TEXT("Error"), PropErr);
 	return; }
+		FString OldValue;
+		FNexusPropertyUtils::ExportText(Prop, OldValue, ValPtr);
+		BP->Modify();
+		CDO->SetFlags(RF_Transactional);
+		CDO->Modify();
 		if (!FNexusPropertyUtils::ImportTextFromString(Prop, Value, ValPtr, CDO))
 		{
 			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Failed to set '%s' = '%s'"), *PropPath, *Value));
@@ -454,6 +467,11 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 		}
 
 		Entry->SetStringField(TEXT("PropertyPath"), PropPath);
+		FString ActualValue;
+		FNexusPropertyUtils::ExportText(Prop, ActualValue, ValPtr);
+		Entry->SetStringField(TEXT("OldValue"), OldValue);
+		Entry->SetStringField(TEXT("NewValue"), ActualValue);
+		Entry->SetStringField(TEXT("Verification"), TEXT("NotRequested"));
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 		FKismetEditorUtilities::CompileBlueprint(BP);
 	return;
@@ -605,6 +623,7 @@ bool FNexusManageAssetBlueprintCapability::PrepareTarget(
 	FString& OutError) const
 {
 #if WITH_EDITOR
+	if (!FNexusAssetEditUtils::ValidateOperations(TEXT("ManageAssetBlueprint"), Args, OutError)) return false;
 	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
 	Entry->SetStringField(TEXT("Path"), AssetPath);
 

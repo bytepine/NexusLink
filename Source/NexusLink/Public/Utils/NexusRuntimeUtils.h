@@ -15,6 +15,8 @@ class UWorld;
 class NEXUSLINK_API FNexusRuntimeUtils
 {
 public:
+	/** 进程内对象身份：对象槽位和序列号，销毁后复用槽位不会复用身份。 */
+	static FString GetObjectIdentity(const UObject* Object);
 	/**
 	 * 当前活跃 World：PIE 优先，否则第一个 Game 或 Editor World。
 	 * 只读查询若需在未开 PIE 时看编辑器关卡，用本函数。写路径请用 RequirePlayWorld。

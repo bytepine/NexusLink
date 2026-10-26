@@ -17,7 +17,7 @@
 3. 遵循 CapabilitySpec（命名 / 四段式描述 / 自检清单）
 4. Capability 通过 `CallCapability` 元工具直接调用，或在 MultiTool 模式下作为独立 MCP Tool 暴露
 
-改 InputSchema 后：在编辑器跑 Automation `NexusLink.Smoke.PluginAndRegistry.SchemaDump`，更新 `scripts/generated/capability_schemas.json`，再跑 `py scripts/build_tool_reference.py`（优先读该 json；无文件时仍从 C++ 链抽取）。旧名表改 `Resources/legacy_capability_names.json` 后跑 `py scripts/gen_legacy_capability_names.py`。
+改 InputSchema 后：在编辑器跑 Automation `NexusLink.Smoke.PluginAndRegistry.SchemaDump`，默认导出到宿主 `Saved/NexusLink/capability-schemas.json`。用 `py scripts/check_schema_compatibility.py <导出文件>` 对照受审查的 `scripts/contracts/input-schemas.json`；特定宿主/可选插件组合可传 `--enabled <已审查能力名数组.json>`，不要从当前导出自动推导该清单。测试不会覆盖基线。确认兼容后显式更新 `scripts/generated/capability_schemas.json`（也可启动时传 `-NexusSchemaOutput=<绝对输出路径>`），再跑 `py scripts/build_tool_reference.py`。旧名表改 `Resources/legacy_capability_names.json` 后跑 `py scripts/gen_legacy_capability_names.py`。
 
 新增或修改 Capability 后运行 `py scripts/build_tool_reference.py`，**同时**重生英文 [docs/tool-reference.md](docs/tool-reference.md) 与中文 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)。不要只改其中一份生成段。新 cap 的中文 Description 补进 [scripts/tool_reference_zh.json](scripts/tool_reference_zh.json)；未收录的参数说明会按短语规则即时译成中文。增减 cap 后同步改 `scripts/audit_capability_naming.py` 的 `EXPECTED_CAP_COUNT`。
 

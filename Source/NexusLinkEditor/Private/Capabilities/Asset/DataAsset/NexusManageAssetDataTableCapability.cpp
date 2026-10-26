@@ -6,6 +6,7 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusAssetEditUtils.h"
 #include "Engine/DataTable.h"
 #include "UObject/StructOnScope.h"
 #include "NexusMcpTool.h"
@@ -40,12 +41,14 @@ void FNexusManageAssetDataTableCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("RowName"),   FNexusSchema::Str(TEXT("Row name")))
 		.Prop(TEXT("FieldName"), FNexusSchema::Str(TEXT("Field name (set only)")))
 		.Prop(TEXT("Value"),     FNexusSchema::Str(TEXT("New value string (set only)")))
+		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous scalar value (Set only)")))
 		.Required({ TEXT("Action"), TEXT("RowName") })
 		.Build();
 		ItemSchema->GetObjectField(TEXT("properties"))->SetObjectField(TEXT("Fields"), FieldsSchema);
 
 		return FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("DataTable asset path (shared)")))
+		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar Set readback before saving; rejects other actions"), true, false))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch row ops (at least one)"), ItemSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
@@ -190,6 +193,11 @@ static void HandleDT_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionConte
 static void HandleDT_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UDataTable* DT = DTFrom(Ctx);
+	if (DT && (FNexusAssetEditUtils::IsVerified(Ctx.Args) || Op->HasField(TEXT("ExpectedValue"))))
+	{
+		FNexusAssetEditUtils::Apply(DT, TEXT("ManageAssetDataTable"), Op, FNexusAssetEditUtils::IsVerified(Ctx.Args), Ctx.Entry);
+		return;
+	}
 	if (!DT)
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DataTable is null"));
@@ -241,8 +249,9 @@ static void HandleDT_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	}
 	FString ActualValue;
 	FNexusPropertyUtils::ExportText(Prop, ActualValue, ValuePtr);
-	if (!OldValue.IsEmpty())    Ctx.Entry->SetStringField(TEXT("OldValue"), OldValue);
-	if (!ActualValue.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualValue);
+	Ctx.Entry->SetStringField(TEXT("OldValue"), OldValue);
+	Ctx.Entry->SetStringField(TEXT("NewValue"), ActualValue);
+	Ctx.Entry->SetStringField(TEXT("Verification"), TEXT("NotRequested"));
 	MarkDTDirty(Ctx);
 }
 
@@ -252,6 +261,7 @@ bool FNexusManageAssetDataTableCapability::PrepareTarget(
 	void*& OutTarget,
 	FString& OutError) const
 {
+	if (!FNexusAssetEditUtils::ValidateOperations(TEXT("ManageAssetDataTable"), Args, OutError)) return false;
 	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
 	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UDataTable* DT = FNexusAssetUtils::LoadAssetWithFallback<UDataTable>(AssetPath);

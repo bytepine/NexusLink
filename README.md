@@ -4,6 +4,10 @@
 
 基于 Unreal Engine 的 MCP 集成插件，将 UE 项目上下文通过 MCP 协议暴露给 AI 工具。
 
+运行时 AI 支持 [行为树 / Blackboard 复测](docs/bt-retest.md)：显式目标、条件恢复、快照证据和独立领域基线。
+
+停录 Trace 支持 [同条件性能对比](docs/trace-compare.md)：显式端点导出、离线 HTML/JSON、多次采样与原始证据保留。
+
 > 支持 UE 4.26 及以上所有版本（含 UE5）。插件拆两个模块：`NexusLink`（`Type: Runtime`，Development/DebugGame 的独立 Game/DS 也能托管 MCP）+ `NexusLinkEditor`（`Type: Editor`，编辑器 UI）；**Shipping 编译期整体剔除 MCP 服务器**。
 
 > **从 1.x 升级**：2.0 默认开启身份验证且 MCP/AI 可见文案改为英文，插件与客户端须同批升到 2.x。见 [usage-guide §0](docs/usage-guide.md#0-从-1x-升级到-20)。
@@ -56,7 +60,9 @@ UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](http
 
 ## 能力范围
 
-GAS 运行时诊断支持上下文、标签、激活条件快照及激活/提交/失败/结束事件捕获；已有技能可单独尝试激活。配套 Python 复测工具支持用例模板、只读接入预检，执行多端 JSON 用例并输出 HTML / JSON / JUnit 报告；可离线保存通过基线，对比修改前后的失败、恢复及各端事件变化。公开示例工程提供手动启动的固定用例复测、基线门禁与报告归档。见 [GAS 诊断与复测](docs/gas-retest.md)。
+蓝图默认值、DataTable 字段和 Widget 属性支持只读预览、前值检查与编译后读回，见 [资产修改预览](docs/asset-edit-preview.md)。
+
+GAS 运行时诊断支持上下文、标签、激活条件快照及激活/提交/失败/结束事件捕获；已有技能可单独尝试激活。配套 Python 复测工具支持通用 `GenericActivation` JSON 接入、显式 Actor 映射和只读预检，校验本地对象身份后执行多端用例并输出 HTML / JSON / JUnit 报告；可离线保存通过基线，对比失败、恢复及各端事件变化。公开示例工程提供手动启动的固定用例复测、基线门禁与报告归档。见 [GAS 诊断与复测](docs/gas-retest.md)。
 
 默认 **SearchMode**：`tools/list` 仅 3 个元工具（`SearchCapabilities` / `CallCapability` / `SubmitFeedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara，以及 PIE / 独立 Game / Dedicated Server 运行时调试。UE 4.26+ 编辑器还可只读已停录的 Unreal Insights `.utrace`（`ListTraces` / `GetTrace`）。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
 

@@ -1,6 +1,12 @@
 # NexusLink 使用指南
 
-GAS 运行时问题可用只读诊断、接入预检、激活事件捕获和多端 JSON 复测排查；结果可查看离线 HTML 报告、保存通过基线并对比修改前后的步骤和事件，见 [GAS 诊断与复测](gas-retest.md)。
+行为树可显式绑定 Pawn/AIController，用 Blackboard 条件变化、状态快照和清理读回复测，见 [行为树复测](bt-retest.md)。
+
+停录 Trace 可按相同场景、预热和时间窗导出快照，离线比较帧中位数/P95/最大值及 CPU 耗时，见 [性能对比报告](trace-compare.md)。
+
+蓝图默认值、DataTable 字段和 Widget 属性可先用 `GetAssetEditPreview` 预览，再通过 `ExpectedValue` 和 `bVerify` 校验写入，见 [资产修改预览](asset-edit-preview.md)。
+
+GAS 运行时问题可用只读诊断、接入预检、激活事件捕获和多端 JSON 复测排查；通用 `GenericActivation` 支持 JSON 显式端点及 Actor 映射，不要求示例 GameMode 或 PlayerState。结果可查看离线 HTML 报告、保存通过基线并对比修改前后的步骤和事件，见 [GAS 诊断与复测](gas-retest.md)。
 
 面向最终用户：安装 UE 插件、选客户端、打开对应层开关、配置身份验证。Capability 参数见 [`tool-reference.zh.md`](./tool-reference.zh.md)（[English](./tool-reference.md)）；架构见 [`architecture.md`](./architecture.md)。
 

@@ -8,7 +8,9 @@ python -m gas_retest case.json --preflight --output preflight-results
 python -m unittest gas_retest.test_runner gas_retest.test_report gas_retest.test_compare
 ```
 
-先启动服务器和两个客户端，在用例 `Endpoints` 中填写三个进程各自的 **UE 直连** `/stream` 地址。凭证来自 `TokenEnv` 环境变量或本机共享 NexusLink token 文件，不能写入用例。
+在用例 `Endpoints` 中填写已确认的各进程 **UE 直连** `/stream` 地址。凭证来自 `TokenEnv` 环境变量或本机共享 NexusLink token 文件，不能写入用例。通用场景支持一个或多个端点；原有网络示例使用服务器和两个客户端。
+
+任意工程使用 `python -m gas_retest case.json --template GenericActivation --config project.json` 离线生成用例，再 `--preflight`、执行和离线比较。配置示例见 [通用接入](../../docs/gas-retest.md#genericactivation)。可以按 PlayerId 自动关联，或在每个端点显式绑定 Actor（不要求 PlayerState）。显式映射是用户声明，不是自动证明的跨端身份；预检校验实际 ASC、Owner/Avatar、权限与已授予技能，每步核对进程、World 和本地对象身份。首版限 InstancedPerActor，每次尝试独立捕获、同一技能串行执行。
 
 `examples/PredictionRejected.json` 与 `examples/Success.json` 使用公开 NexusUnreal 的 `NexusDiagnosticGameMode`；端口是示例值，运行前须替换。用例会修改测试角色的运行时状态。
 

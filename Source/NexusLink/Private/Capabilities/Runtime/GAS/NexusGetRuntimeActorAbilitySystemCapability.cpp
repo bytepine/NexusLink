@@ -23,7 +23,7 @@
 void FNexusGetRuntimeActorAbilitySystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("GetRuntimeActorAbilitySystem");
-	Out.Description = TEXT("Read ASC state, activation diagnostics and captured events in PIE/Game. Never invokes custom activation checks.");
+	Out.Description = TEXT("Read ASC state, local Actor/ASC/Owner/Avatar/World identities, activation diagnostics and captured events in PIE/Game. Never invokes custom activation checks.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Runtime, FNexusMcpTags::Gas };
 	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("asc"), TEXT("ability"), TEXT("Runtime"), TEXT("PIE"), TEXT("activation"), TEXT("failure"), TEXT("prediction"), TEXT("cooldown") };
@@ -116,7 +116,14 @@ void FNexusGetRuntimeActorAbilitySystemCapability::ExecuteSection(
 			bAll |= Section->AsString().Equals(TEXT("All"), ESearchCase::IgnoreCase);
 	if (SectionName == TEXT("Context"))
 	{
-		InOutDetail->SetObjectField(TEXT("Context"), FNexusGasDiagnostics::Context(ASC));
+		TSharedPtr<FJsonObject> Context = FNexusGasDiagnostics::Context(ASC);
+		FString ActorName;
+		if (Args.IsValid()) Args->TryGetStringField(TEXT("ActorName"), ActorName);
+		AActor* Actor = ActorName.IsEmpty() ? ASC->GetOwnerActor() : FNexusRuntimeUtils::FindActorByName(ASC->GetWorld(), ActorName);
+		Context->SetStringField(TEXT("ActorId"), FNexusRuntimeUtils::GetObjectIdentity(Actor));
+		Context->SetStringField(TEXT("ActorName"), GetNameSafe(Actor));
+		Context->SetStringField(TEXT("ActorClass"), Actor ? Actor->GetClass()->GetPathName() : FString());
+		InOutDetail->SetObjectField(TEXT("Context"), Context);
 		return;
 	}
 	if (SectionName == TEXT("Tags"))

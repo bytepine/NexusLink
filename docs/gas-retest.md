@@ -1,5 +1,7 @@
 # GAS activation diagnostics / 技能激活诊断
 
+执行器、HTML 布局与基线代码已提取到 `tools/retest`，`gas_retest` 的 CLI、Python 导入路径和旧报告继续可用。新报告标注 `Domain=GAS`；缺少 Domain 的历史报告按 GAS 解释，不能与 BT 报告比较。
+
 Read-only snapshots, bounded activation event capture, and a standard-library Python replay tool.
 只读快照、限量事件捕获，以及仅依赖 Python 标准库的复测工具。
 
@@ -23,6 +25,39 @@ Existing `All` queries still work without skill selectors or a capture: optional
 Captures expire after 120 seconds, retain 256 events, and report dropped records. At most 16 captures may be active per process. Captures are removed on World destruction or MCP shutdown; destroyed ASCs are pruned. Capture before the attempt on each endpoint. `Activated`, `Committed`, `Failed`, and `Ended` are distinct events. A prediction is not a server confirmation. A missing server event is unconfirmed, not a proven rejection. Non-instanced/ambiguous identities are explicitly marked `bIdentityKnown=false`; do not attribute them to a specific attempt.
 
 诊断不授予或激活技能，也不调用项目自定义检查。冷却只按配置的 GE 类匹配，不能证明自定义冷却逻辑允许激活；消耗、自定义规则应结合真实失败事件。其他玩家的技能可能只对所属客户端可见，未看到技能不等于服务器未授予。采集溢出、超时、身份不明确时，结果应标记为未确认。
+
+## GenericActivation
+
+通用接入不依赖示例技能、属性、标签或 GameMode。先通过发现工具确认端点、Actor 名和完整技能类路径；下面的占位值须替换为真实值，保存为 `project.json`：
+
+```json
+{
+  "Name": "Project activation",
+  "Endpoints": {"Authority": {"Url": "http://127.0.0.1:45000/stream", "bAuthority": true}},
+  "Actors": {"Target": {"Bindings": {"Authority": "ACTOR_FROM_DISCOVERY"}}},
+  "AbilityPath": "/Script/YOUR_MODULE.YOUR_ABILITY",
+  "ActivationEndpoint": "Authority",
+  "AuthorityEndpoint": "Authority",
+  "ExpectedEvent": "Committed",
+  "FailureTagHints": {}
+}
+```
+
+```sh
+python -m gas_retest case.json --template GenericActivation --config project.json
+python -m gas_retest case.json --preflight --output preflight
+python -m gas_retest case.json --output results
+```
+
+`ExpectedEvent` 可为 `Committed` 或 `Failed`；自定义 `FailureTagHints` 为实际失败标签到项目说明的映射，只在捕获到相应 `FailureTags` 时显示。生成过程完全离线、拒绝覆盖、不会授予技能或改变运行条件。修改条件由项目显式配置生成用例的 `Setup` / `Teardown`，也可在两次运行之间人工恢复；保留相同用例定义进行失败/恢复比较。配置只接受声明字段和显式端点，不扫描后自动选择。
+
+`Actors` 首版包含一个逻辑目标。`Bindings` 在每个端点分别指定 Actor，支持没有 PlayerState 的普通 Actor，以及 ASC 在 Pawn / PlayerState 上的工程。映射是用户声明；报告只确认各端本地身份，不自动证明跨端 Actor 相同。也可用原有 `ClassFilter` + `OwnerEndpoint`（或显式 `PlayerId`）代替 `Bindings` 进行 PlayerId 关联。每个端点需独立进程，显式配置 `bAuthority`。发起端必须具有 Authority 或本地控制权；发起端、权威端各需恰好一个匹配技能，策略限 InstancedPerActor。观察端不强制技能可见。
+
+Context 新增 `ActorId`、`AscId`、`OwnerId`、`AvatarId`、`WorldIdentity`、Actor/Owner/Avatar 类路径。对象身份由本地槽位与序列号组成，仅在本进程内解释。通用模板要求 Owner/Avatar 初始化完成及身份字段可用；每一步前检查所有绑定端，进程/World/对象被替换立即停止，包括清理写入。旧用例仍可读取旧版 Context，存在新身份字段时同样检查变化。
+
+采集从每次尝试前开始，步骤串行；只读诊断不调用项目 `CanActivateAbility`。只记录快照与真实激活事件，缺少服务器事件、身份未知、溢出或观察到其他技能时显示未确认。模板及报告完全独立于 `NexusDiagnosticGameMode`。
+
+The GenericActivation template accepts explicit endpoint/Actor mappings, ability class, activation/authority endpoints, expected server event, and optional observed failure-tag explanations. It supports component-owned ASCs on ordinary actors, pawns and player states. Binding declarations are not automatic cross-process identity proofs. Each attempt uses a fresh capture; only InstancedPerActor is supported. Existing templates, CLI and reports remain usable.
 
 ## Replay / 复测
 

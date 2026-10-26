@@ -8,6 +8,9 @@
 #include "Utils/NexusRuntimeUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/Controller.h"
+#include "HAL/PlatformProcess.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "NexusMcpTool.h"
@@ -124,6 +127,30 @@ static bool ReadActorPropertyDispatch(
 	Detail->SetStringField(TEXT("ActorClass"), Actor->GetClass()->GetName());
 
 	const FNexusArgs A(Arguments);
+	if (A.Str(TEXT("View")).Equals(TEXT("Context"), ESearchCase::IgnoreCase))
+	{
+		UWorld* World = Actor->GetWorld();
+		APawn* Pawn = Cast<APawn>(Actor);
+		AController* Controller = Pawn ? Pawn->GetController() : Cast<AController>(Actor);
+		if (!Pawn && Controller) Pawn = Controller->GetPawn();
+		TSharedPtr<FJsonObject> Context = MakeShared<FJsonObject>();
+		Context->SetNumberField(TEXT("ProcessId"), FPlatformProcess::GetCurrentProcessId());
+		Context->SetNumberField(TEXT("WorldId"), World->GetUniqueID());
+		Context->SetStringField(TEXT("WorldIdentity"), FNexusRuntimeUtils::GetObjectIdentity(World));
+		Context->SetStringField(TEXT("ActorId"), FNexusRuntimeUtils::GetObjectIdentity(Actor));
+		Context->SetStringField(TEXT("ActorName"), Actor->GetName());
+		Context->SetStringField(TEXT("ActorClass"), Actor->GetClass()->GetPathName());
+		Context->SetStringField(TEXT("PawnId"), FNexusRuntimeUtils::GetObjectIdentity(Pawn));
+		Context->SetStringField(TEXT("ControllerId"), FNexusRuntimeUtils::GetObjectIdentity(Controller));
+		Context->SetBoolField(TEXT("bIsPawn"), Actor->IsA<APawn>());
+		Context->SetBoolField(TEXT("bIsController"), Actor->IsA<AController>());
+		Context->SetBoolField(TEXT("bAuthority"), Actor->HasAuthority());
+		Context->SetBoolField(TEXT("bLocallyControlled"), Pawn ? Pawn->IsLocallyControlled() : Controller && Controller->IsLocalController());
+		Context->SetNumberField(TEXT("NetMode"), static_cast<int32>(World->GetNetMode()));
+		Context->SetNumberField(TEXT("LocalRole"), static_cast<int32>(Actor->GetLocalRole()));
+		Detail->SetObjectField(TEXT("Context"), Context);
+		return true;
+	}
 
 	// ?? A????????
 	if (Arguments->HasField(TEXT("Diagnose")))
@@ -356,14 +383,14 @@ static bool ReadActorPropertyDispatch(
 void FNexusGetRuntimeActorPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("GetRuntimeActorProperty");
-	Out.Description = TEXT("Query runtime Actor fields. Supports batch PropertyPaths and component tree.");
+	Out.Description = TEXT("Query runtime Actor fields, component tree and identity via View=Context.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("Target"),        FNexusSchema::Enum(TEXT("Dispatch target (auto-inferred)"),
 		                                                 { TEXT("Actor"), TEXT("Widget"), TEXT("Asset") }))
 		.Prop(TEXT("ActorName"),     FNexusSchema::Str(TEXT("Actor name/tag (ListRuntimeActors first)")))
 		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("Dot-separated paths (batch)")))
-		.Prop(TEXT("View"),          FNexusSchema::Enum(TEXT("Actor tree view"),
-		                                                 { TEXT("Components"), TEXT("AttachHierarchy"), TEXT("All") }))
+		.Prop(TEXT("View"),          FNexusSchema::Enum(TEXT("Actor view; Context returns lifecycle identity and authority"),
+		                                                 { TEXT("Components"), TEXT("AttachHierarchy"), TEXT("All"), TEXT("Context") }))
 		.Prop(TEXT("Diagnose"),      FNexusSchema::Enum(TEXT("Actor diagnostic preset"),
 		                                                 { TEXT("Visibility"), TEXT("Transform"),
 		                                                   TEXT("WorldTransform"), TEXT("RotationChain"),

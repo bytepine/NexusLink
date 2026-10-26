@@ -1,39 +1,8 @@
-"""Offline HTML views of recorded evidence; never runs game or case code."""
-from html import escape
+"""GAS evidence views; shared HTML helpers retain their historical imports."""
 import json
 from pathlib import Path
 from urllib.parse import quote
-
-
-STYLE = """:root{color-scheme:light;font-family:Segoe UI,Microsoft YaHei,sans-serif;color:#203047;background:#f3f5f8}
-*{box-sizing:border-box}body{margin:0}main{max-width:1160px;margin:auto;padding:36px 24px 70px}
-h1{font-size:30px;margin:8px 0 14px}h2{font-size:19px;margin:0 0 16px}h3{font-size:15px;margin:0 0 10px}
-p{line-height:1.7}a{color:#2356a8}small,.muted{color:#66758a}.eyebrow{letter-spacing:2px;font-size:12px;color:#526783}
-.panel{background:white;border:1px solid #dfe5ee;border-radius:12px;padding:22px;margin:18px 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.grid .panel{margin:0;min-width:0}
-.stats{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
-.pill{display:inline-block;padding:4px 10px;border-radius:20px;font-size:12px;background:#eaf0f8;color:#3c5471}
-.Passed{background:#e4f4eb;color:#166443}.Failed,.Error{background:#fff0e9;color:#9d3d22}
-.evidence{border-left:4px solid #56799d}.evidence.warning{border-left-color:#ca762d}
-.event{border-left:2px solid #d8e1ed;padding:0 0 18px 16px;margin-left:5px}.event:last-child{padding-bottom:0}
-.event .pill{margin-right:8px}code{font-family:Consolas,monospace;font-size:12px;overflow-wrap:anywhere}
-pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f7fa;padding:14px;border-radius:8px;font-size:12px}
-table{border-collapse:collapse;width:100%;font-size:13px}td,th{text-align:left;vertical-align:top;border-bottom:1px solid #e7ecf3;padding:10px 7px;overflow-wrap:anywhere}
-th{color:#64748b;font-weight:500}.scroll{overflow-x:auto}details{margin-top:12px}summary{cursor:pointer;color:#456184;font-size:13px}
-dl{margin:0}dt{color:#718096;font-size:12px;margin-top:10px}dd{margin:3px 0 0;overflow-wrap:anywhere}ul{padding-left:22px;line-height:1.8}
-@media(max-width:600px){main{padding:20px 14px}h1{font-size:24px}.panel{padding:16px}table{min-width:560px}}
-"""
-
-
-def text(value):
-    return escape(str(value), quote=True)
-
-
-def document(title, body):
-    return ('<!doctype html><html lang="zh-CN"><meta charset="utf-8">'
-            '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'">'
-            f'<title>{text(title)}</title><style>{STYLE}</style><main>{body}</main></html>')
+from retest.report import STYLE, text, document
 
 
 def collect_evidence(report):
@@ -48,6 +17,7 @@ def collect_evidence(report):
         incomplete |= bool(payload.get("Dropped", 0))
         for event in payload.get("Events", []):
             incomplete |= event.get("bIdentityKnown") is not True
+            incomplete |= bool(report.get("EvidenceAbilityPath") and event.get("AbilityPath") != report["EvidenceAbilityPath"])
             key = (endpoint, payload.get("CaptureId", record["Id"]), event.get("Sequence"))
             events[key] = {**event, "Endpoint": endpoint, "Capture": key[1]}
     return contexts, list(events.values()), incomplete
@@ -93,12 +63,14 @@ def next_checks(report):
              "Nexus.Diagnostics.Cooldown": "示例返回了 Cooldown：核对权威端冷却效果及剩余时间。",
              "Nexus.Diagnostics.Required": "核对权威端必需标签与实际拥有的标签。",
              "Nexus.Diagnostics.Blocked": "核对权威端阻止标签与技能配置。"}
+    hints.update({tag: "配置说明（实际观察到 " + tag + "）：" + hint
+                  for tag, hint in report.get("FailureTagHints", {}).items()})
     selected = [hint for tag, hint in hints.items() if tag in tags]
     if selected:
         return selected
     if report["ExitCode"]:
         return ["从首个失败步骤及其原始记录开始检查；清理失败单独记录在 Teardown 阶段。"]
-    return ["查看用例中的权威端事件与观察端断言；接入业务技能时，用实际业务效果替换示例的 CommitCount 检查。"]
+    return ["查看权威端事件及用例断言；技能提交后的业务效果需要项目自己的断言验证。"]
 
 
 def render_report(report):
@@ -119,6 +91,10 @@ def render_report(report):
     contexts, events, _ = collect_evidence(report)
     endpoints = list(dict.fromkeys([*report.get("Endpoints", {}), *contexts]))
     body += '<section class="panel"><h2>端点与角色绑定</h2><div class="grid">'
+    for record in records:
+        evidence = record.get("Result", {}).get("BindingEvidence", {})
+        if "UserDeclared" in evidence.values():
+            body += '<p class="muted">显式 Actor 映射由用户声明。各端本地身份已核验，不代表自动证明了跨端 Actor 身份。</p>'
     for endpoint in endpoints:
         context = contexts.get(endpoint, {})
         role = "权威端" if context.get("bAuthority") is True else "客户端" if context.get("bAuthority") is False else "角色未验证"

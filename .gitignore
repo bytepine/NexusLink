@@ -73,3 +73,5 @@ __pycache__/
 
 # 本地 GAS 复测报告
 gas-retest-results/
+trace-compare-results/
+bt-retest-results/

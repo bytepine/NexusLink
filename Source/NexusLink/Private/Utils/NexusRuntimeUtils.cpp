@@ -1,6 +1,17 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Utils/NexusRuntimeUtils.h"
+#include "UObject/UObjectArray.h"
+#include "UObject/WeakObjectPtr.h"
+
+FString FNexusRuntimeUtils::GetObjectIdentity(const UObject* Object)
+{
+	if (!Object) return FString();
+	const FWeakObjectPtr Weak(Object); // 确保已分配对象序列号。
+	if (!Weak.IsValid()) return FString();
+	const int32 ObjectIndex = Object->GetUniqueID();
+	return FString::Printf(TEXT("%d:%d"), ObjectIndex, GUObjectArray.GetSerialNumber(ObjectIndex));
+}
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Engine/Engine.h"

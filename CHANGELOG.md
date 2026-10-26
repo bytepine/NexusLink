@@ -9,9 +9,21 @@
 
 ### Added
 
+- 行为树 / Blackboard `bt_retest`：显式 Pawn/AIController、只读预检、改变条件/等待快照/恢复原值、超时末次证据及领域隔离基线；与 GAS 共用执行和报告代码，保留旧 CLI/导入/报告。Runtime Actor 增加独立 Context，行为树新增路径/运行状态/类型化继承键；SetBlackboard 拒绝错误标量类型。
+
+- 同条件性能报告 `tools/trace_compare`：显式端点导出停录 Trace、离线 HTML/JSON 对比及多次采样中位数；GetTrace 显式时间窗统一 Frames/Timers，完整帧统计新增中位数，CPU 返回总条目数和截断标记。条件不一致、零基线、缺项及分析未完成不会产生虚假的性能变化结论。
+
+- `GetAssetEditPreview`：只读预览蓝图 SetDefaults、DataTable Set、Widget SetProperty 的标量类型、当前值与规范化目标值；对应操作支持 ExpectedValue 和默认关闭的 bVerify，编译后重新定位读回，失败不自动保存，并修正 CDO/Widget 写入前的 Undo 记录时机。
+
+- 通用 GAS `GenericActivation` 模板：JSON 显式端点/Actor 映射、技能及权威事件配置；支持无 PlayerState 的 Actor，ASC 的本地对象身份在每步前重新核对，替换或换图停止；项目自定义失败标签说明只在观察到真实标签时展示。
+
+- 公开 InputSchema 兼容基线与检查器：检测字段删除、类型/枚举收窄和新增必填项，支持按明确的宿主能力集检查；Schema 测试默认导出到宿主 Saved，基线只显式更新。
+
 - GAS 联机诊断与复测：ASC `Context` / `Tags` / `ActivationDiagnostics` / `ActivationEvents`，显式目标的已有技能激活和限时事件捕获；`tools/gas_retest` 以 JSON 用例执行多端步骤、等待与断言，支持只读接入预检、显式端点的用例模板及 HTML / JSON / JUnit 报告，分别展示用例状态、权威端事件与未确认结果；支持离线保存通过基线、对比新增失败/恢复/缺失步骤及各端事件变化，以用例签名核对断言并保留前后完整证据，拒绝覆盖已有基线和对比目录；签名核对供示例工程手动启动的固定用例复测复用，无需 UE 的工具回归纳入 GitHub 云端 CI；失败保留证据、写操作不重试。
 
 ### Fixed
+
+- GAS 事件读取返回独立字段快照，避免响应压缩修改捕获缓存、导致第二次读取丢失技能身份；Pawn 的 PlayerState 通过组件提供 ASC 时也可发现。
 
 - MultiSection 显式 section 按注册名称解析，保留大小写兼容并正确展开 `All`，避免 PascalCase 名称被转小写后误报未知 section。
 - 恢复实例发现、注册文件、WebSocket 身份验证与代理握手的既有字段拼写，修复已发布 Desktop / Rider / VSCode 无法扫描或连接新版插件；Capability 业务字段仍使用 PascalCase。

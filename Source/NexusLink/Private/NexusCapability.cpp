@@ -451,6 +451,14 @@ static void ApplyIfRequested(
 	bool bSaveToDisk = false;
 	Args->TryGetBoolField(TEXT("bCompile"), bCompile);
 	Args->TryGetBoolField(TEXT("bSaveToDisk"), bSaveToDisk);
+	bool bVerify = false;
+	Args->TryGetBoolField(TEXT("bVerify"), bVerify);
+	if (bVerify && (CapName == TEXT("ManageAssetBlueprint") || CapName == TEXT("ManageAssetDataTable") || CapName == TEXT("ManageAssetUserWidget")))
+	{
+		// 支持的标量操作已在写入事务内完成编译与重新定位读回；失败不得自动保存。
+		if (Result.HasErrors()) return;
+		bCompile = false;
+	}
 	if (!bCompile && !bSaveToDisk)
 	{
 		return;

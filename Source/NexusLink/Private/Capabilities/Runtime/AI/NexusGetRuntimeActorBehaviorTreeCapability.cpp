@@ -5,6 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
 #include "Utils/NexusStringMatchUtils.h"
+#include "Utils/NexusBlackboardUtils.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BTNode.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
@@ -19,7 +20,7 @@
 void FNexusGetRuntimeActorBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("GetRuntimeActorBehaviorTree");
-	Out.Description = TEXT("Query running AI BT nodes and BB keys. Write BB/restart via interact.");
+	Out.Description = TEXT("Query runtime BT paths/state and typed inherited Blackboard keys.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Controller or Pawn name (optional; first AIController if omitted)")))
 		.Prop(TEXT("NameFilter"), FNexusSchema::Str(TEXT("Blackboard key name filter")))
@@ -81,6 +82,12 @@ FCapabilityResult FNexusGetRuntimeActorBehaviorTreeCapability::Execute(const TSh
 	if (!ActorName.IsEmpty())
 		Entry->SetStringField(TEXT("ActorName"), ActorName);
 	Entry->SetStringField(TEXT("Controller"), AICtrl->GetName());
+	Entry->SetStringField(TEXT("ControllerId"), FNexusRuntimeUtils::GetObjectIdentity(AICtrl));
+	Entry->SetBoolField(TEXT("bRunning"), BTComp->IsRunning());
+	Entry->SetStringField(TEXT("TreePath"), BTComp->GetCurrentTree() ? BTComp->GetCurrentTree()->GetPathName() : TEXT(""));
+	Entry->SetStringField(TEXT("TreeId"), FNexusRuntimeUtils::GetObjectIdentity(BTComp->GetCurrentTree()));
+	Entry->SetStringField(TEXT("RootTreePath"), BTComp->GetRootTree() ? BTComp->GetRootTree()->GetPathName() : TEXT(""));
+	Entry->SetStringField(TEXT("RootTreeId"), FNexusRuntimeUtils::GetObjectIdentity(BTComp->GetRootTree()));
 
 	if (const UBehaviorTree* BTAsset = BTComp->GetCurrentTree())
 		Entry->SetStringField(TEXT("BehaviorTree"), BTAsset->GetName());
@@ -89,11 +96,15 @@ FCapabilityResult FNexusGetRuntimeActorBehaviorTreeCapability::Execute(const TSh
 
 	if (UBlackboardComponent* BBComp = AICtrl->GetBlackboardComponent())
 	{
+		Entry->SetStringField(TEXT("BlackboardId"), FNexusRuntimeUtils::GetObjectIdentity(BBComp));
 		if (const UBlackboardData* BBData = BBComp->GetBlackboardAsset())
 		{
 			TArray<TSharedPtr<FJsonValue>> Keys;
-			for (const FBlackboardEntry& E : BBData->Keys)
+			for (int32 Index = 0; Index < BBData->GetNumKeys(); ++Index)
 			{
+				const FBlackboardEntry* Key = BBData->GetKey(static_cast<FBlackboard::FKey>(Index));
+				if (!Key) continue;
+				const FBlackboardEntry& E = *Key;
 				if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(E.EntryName.ToString(), NameFilter))
 					continue;
 				const uint16 KeyID = BBComp->GetKeyID(E.EntryName);
@@ -102,6 +113,8 @@ FCapabilityResult FNexusGetRuntimeActorBehaviorTreeCapability::Execute(const TSh
 				if (E.KeyType)
 					KObj->SetStringField(TEXT("type"), E.KeyType->GetClass()->GetName());
 				KObj->SetStringField(TEXT("Value"), BBComp->DescribeKeyValue(KeyID, EBlackboardDescription::OnlyValue));
+				KObj->SetBoolField(TEXT("bInherited"), Index < BBData->GetFirstKeyID());
+				FNexusBlackboardUtils::WriteTyped(BBComp, E.EntryName, E.KeyType, *KObj);
 				Keys.Add(MakeShared<FJsonValueObject>(KObj));
 			}
 			Entry->SetArrayField(TEXT("BlackboardKeys"), Keys);

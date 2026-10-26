@@ -1,0 +1,6931 @@
+{
+  "CaptureEditorPanel": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorName": {
+        "type": "string"
+      },
+      "Format": {
+        "default": "png",
+        "enum": [
+          "png",
+          "jpg"
+        ],
+        "type": "string"
+      },
+      "MaxSize": {
+        "default": 1920,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "Padding": {
+        "default": 0.1,
+        "type": "number"
+      },
+      "Target": {
+        "default": "Viewport",
+        "type": "string"
+      },
+      "ViewAngle": {
+        "enum": [
+          "Front",
+          "Back",
+          "Left",
+          "Right",
+          "Top",
+          "Bottom"
+        ],
+        "type": "string"
+      },
+      "bValidateOnly": {
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  "CaptureViewport": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorName": {
+        "type": "string"
+      },
+      "Format": {
+        "default": "png",
+        "enum": [
+          "png",
+          "jpg"
+        ],
+        "type": "string"
+      },
+      "MaxSize": {
+        "default": 1920,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "OwnerClass": {
+        "type": "string"
+      },
+      "Padding": {
+        "default": 0.1,
+        "type": "number"
+      },
+      "Target": {
+        "default": "Editor",
+        "type": "string"
+      },
+      "WidgetName": {
+        "type": "string"
+      },
+      "WindowIndex": {
+        "type": "integer"
+      },
+      "bValidateOnly": {
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  "CompileBlueprint": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "bSaveToDisk": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "ControlMoviePipeline": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "Enqueue",
+          "Status",
+          "Cancel"
+        ],
+        "type": "string"
+      },
+      "AssetPath": {
+        "type": "string"
+      },
+      "SequencePath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Action"
+    ],
+    "type": "object"
+  },
+  "ControlPie": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "Start",
+          "Stop",
+          "Status",
+          "Pause",
+          "Resume",
+          "Step"
+        ],
+        "type": "string"
+      },
+      "Mode": {
+        "default": "Viewport",
+        "enum": [
+          "Viewport",
+          "Simulate"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "Action"
+    ],
+    "type": "object"
+  },
+  "CreateAssetAnimBlueprint": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "SkeletonPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "SkeletonPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetAnimComposite": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "SkeletonPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetAnimMontage": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "SkeletonPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "SkeletonPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetAttributeSet": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "ParentClass": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetBehaviorTree": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetBlackboard": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetBlendSpace": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "BlendSpaceType": {
+        "enum": [
+          "BlendSpace",
+          "BlendSpace1D"
+        ],
+        "type": "string"
+      },
+      "SkeletonPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "SkeletonPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetBlueprint": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "ParentClass": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "ParentClass"
+    ],
+    "type": "object"
+  },
+  "CreateAssetCommonButtonStyle": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetCommonTextStyle": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetControlRig": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetCurve": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "CurveType": {
+        "default": "float",
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetDataAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "ParentClass": {
+        "default": "PrimaryDataAsset",
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetDataLayer": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "DebugColor": {
+        "type": "string"
+      },
+      "type": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetDataTable": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "RowStructName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "RowStructName"
+    ],
+    "type": "object"
+  },
+  "CreateAssetEQS": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetEnum": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetFoliageType": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "MeshPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetFont": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetGameplayAbility": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "ParentClass": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetGameplayCueNotify": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "CueName": {
+        "type": "string"
+      },
+      "Kind": {
+        "default": "Static",
+        "enum": [
+          "Static",
+          "Actor"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetGameplayEffect": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "ParentClass": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetIKRetargeter": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "SourceRigPath": {
+        "type": "string"
+      },
+      "TargetRigPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetIKRig": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "MeshPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetInputAction": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "ValueType": {
+        "default": "Boolean",
+        "enum": [
+          "Boolean",
+          "Axis1D",
+          "Axis2D",
+          "Axis3D"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetInputMappingContext": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetLevel": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetLevelSequence": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetMaterial": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "MaterialDomain": {
+        "default": "Surface",
+        "enum": [
+          "Surface",
+          "DeferredDecal",
+          "LightFunction",
+          "Volume",
+          "PostProcess",
+          "UI",
+          "RuntimeVirtualTexture"
+        ],
+        "type": "string"
+      },
+      "ParentMaterial": {
+        "type": "string"
+      },
+      "type": {
+        "default": "Material",
+        "enum": [
+          "Material",
+          "MaterialInstance"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetMaterialFunction": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "bExposeToLibrary": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetMaterialParameterCollection": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetMediaSource": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "MediaPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetMetaSound": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetMetaSoundPatch": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetMoviePipelineConfig": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetNiagaraSystem": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetPCGGraph": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetPaperFlipbook": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetPaperSprite": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "SourceTexturePath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetPaperTileMap": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "MapHeight": {
+        "type": "integer"
+      },
+      "MapWidth": {
+        "type": "integer"
+      },
+      "TileHeight": {
+        "type": "integer"
+      },
+      "TileSetPath": {
+        "type": "string"
+      },
+      "TileWidth": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetPhysicalMaterial": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Friction": {
+        "type": "number"
+      },
+      "Restitution": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetPoseSearch": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetKind": {
+        "enum": [
+          "Database",
+          "Schema"
+        ],
+        "type": "string"
+      },
+      "AssetPath": {
+        "type": "string"
+      },
+      "SchemaPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetRenderTarget": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "SizeX": {
+        "default": 256,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "SizeY": {
+        "default": 256,
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetSoundAttenuation": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "FalloffDistance": {
+        "type": "number"
+      },
+      "InnerRadius": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetSoundClass": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Pitch": {
+        "type": "number"
+      },
+      "Volume": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetSoundConcurrency": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "MaxCount": {
+        "default": 16,
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetSoundCue": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetSoundSubmix": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetStateTree": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetStringTable": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Namespace": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetStruct": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CreateAssetUserWidget": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "ParentClass": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "DeleteAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "DestroyRuntimeActor": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "ActorName"
+    ],
+    "type": "object"
+  },
+  "DestroyRuntimeWidget": {
+    "additionalProperties": false,
+    "properties": {
+      "OwnerClass": {
+        "type": "string"
+      },
+      "WidgetName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "WidgetName"
+    ],
+    "type": "object"
+  },
+  "DiffRuntimeActors": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorNameA": {
+        "type": "string"
+      },
+      "ActorNameB": {
+        "type": "string"
+      },
+      "PropertyPaths": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "ActorNameA",
+      "ActorNameB"
+    ],
+    "type": "object"
+  },
+  "DofileRuntimeLua": {
+    "additionalProperties": false,
+    "properties": {
+      "Reason": {
+        "type": "string"
+      },
+      "ScriptPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "ScriptPath"
+    ],
+    "type": "object"
+  },
+  "DuplicateAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "DestAssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "DestAssetPath"
+    ],
+    "type": "object"
+  },
+  "EvalRuntimeLua": {
+    "additionalProperties": false,
+    "properties": {
+      "Code": {
+        "type": "string"
+      },
+      "Reason": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Code"
+    ],
+    "type": "object"
+  },
+  "ExecCommand": {
+    "additionalProperties": false,
+    "properties": {
+      "Command": {
+        "type": "string"
+      },
+      "Reason": {
+        "type": "string"
+      },
+      "bSilent": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "Command"
+    ],
+    "type": "object"
+  },
+  "ExecPython": {
+    "additionalProperties": false,
+    "properties": {
+      "Code": {
+        "type": "string"
+      },
+      "Mode": {
+        "default": "Exec",
+        "enum": [
+          "Exec",
+          "File",
+          "Eval"
+        ],
+        "type": "string"
+      },
+      "Reason": {
+        "type": "string"
+      },
+      "ScriptPath": {
+        "type": "string"
+      },
+      "bPersistent": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bUnattended": {
+        "default": true,
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  "ExportAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "OutputPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GcRuntimeLua": {
+    "additionalProperties": false,
+    "properties": {
+      "Mode": {
+        "default": "Collect",
+        "enum": [
+          "Collect",
+          "Stop",
+          "Restart",
+          "Count"
+        ],
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetAssetAnimBlueprint": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "Variables",
+            "statemachines",
+            "Defaults",
+            "graphOverview",
+            "graph",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "type": "object"
+  },
+  "GetAssetAnimComposite": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetAnimMontage": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetAnimSequence": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetAttributeSet": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetBehaviorTree": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetAssetBlackboard": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "NameFilter": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetAssetBlendSpace": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetBlueprint": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "GraphName": {
+        "type": "string"
+      },
+      "GraphType": {
+        "enum": [
+          "Event",
+          "Function",
+          "Macro",
+          "Animgraph",
+          "Statemachine",
+          "State",
+          "Transition",
+          "Conduit",
+          "All"
+        ],
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "PropertyPaths": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "variable",
+            "Function",
+            "Component",
+            "graph",
+            "graphOverview",
+            "Defaults",
+            "orphaned",
+            "ExecPaths",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetCommonButtonStyle": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetCommonTextStyle": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetControlRig": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetCurve": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetDataAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "PropertyPaths": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetDataLayer": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetDataTable": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Mode": {
+        "default": "Auto",
+        "enum": [
+          "Auto",
+          "Schema",
+          "Rows"
+        ],
+        "type": "string"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "PropertyPaths": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "RowNames": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetEQS": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetEnum": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetFoliageType": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetFont": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetGameplayAbility": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "metadata",
+            "Tags",
+            "costs",
+            "graphOverview",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetGameplayCueNotify": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetGameplayEffect": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "policy",
+            "Modifiers",
+            "Tags",
+            "cues",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetIKRetargeter": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetIKRig": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetInputAction": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetInputMappingContext": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetLevel": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "ClassFilter": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "Actors",
+            "Settings",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "TagFilter": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetLevelSequence": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetLuaBinding": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetMaterial": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "overview",
+            "Params",
+            "graph",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "bIncludePins": {
+        "default": true,
+        "type": "boolean"
+      },
+      "bIncludeWires": {
+        "default": true,
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  "GetAssetMaterialParameterCollection": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetMediaSource": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetMetaSound": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetMoviePipelineConfig": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetNiagaraSystem": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetPCGGraph": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetPaperFlipbook": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetPaperSprite": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetPaperTileMap": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetPhysicalMaterial": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetPhysicsAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetPoseSearch": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetRefs": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "AssetTypeFilter": {
+        "type": "string"
+      },
+      "Direction": {
+        "enum": [
+          "Dependencies",
+          "Referencers",
+          "Children",
+          "Descendants",
+          "Parent",
+          "Ancestors"
+        ],
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "bRecursive": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetRenderTarget": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetSkeletalMesh": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetSkeleton": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetSoundAttenuation": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetSoundClass": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetSoundConcurrency": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetSoundCue": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetSoundSubmix": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetSoundWave": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetStateTree": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetStaticMesh": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetStringTable": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 50,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetStruct": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "PropertyPaths": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetTexture": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetUserWidget": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "Widgets",
+            "Animations",
+            "graphOverview",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "TypeFilter": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetViewModel": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetEditorContext": {
+    "additionalProperties": false,
+    "properties": {
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "SelectionActors",
+            "SelectionAssets",
+            "ContentBrowserPath",
+            "CurrentMap",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "type": "object"
+  },
+  "GetEditorInfo": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object"
+  },
+  "GetGameplayTags": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorName": {
+        "type": "string"
+      },
+      "AssetPath": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 200,
+        "maximum": 2000,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "ParentTag": {
+        "type": "string"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "Hierarchy",
+            "Actor",
+            "Asset",
+            "Referencers",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "Tag": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetOutputLog": {
+    "additionalProperties": false,
+    "properties": {
+      "CategoryFilter": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 1000,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "Order": {
+        "default": "Newest",
+        "enum": [
+          "Newest",
+          "Oldest"
+        ],
+        "type": "string"
+      },
+      "Preset": {
+        "default": "None",
+        "enum": [
+          "None",
+          "Diagnose"
+        ],
+        "type": "string"
+      },
+      "SinceSequence": {
+        "default": -1,
+        "minimum": -1,
+        "type": "integer"
+      },
+      "TextFilter": {
+        "type": "string"
+      },
+      "TextFilters": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "Verbosity": {
+        "default": "Log",
+        "enum": [
+          "Error",
+          "Warning",
+          "Display",
+          "Log",
+          "Verbose",
+          "Veryverbose",
+          "All"
+        ],
+        "type": "string"
+      },
+      "Watch": {
+        "additionalProperties": false,
+        "properties": {
+          "Categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "TextExcludes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "TextIncludes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "Verbosity": {
+            "default": "Log",
+            "enum": [
+              "Error",
+              "Warning",
+              "Display",
+              "Log",
+              "Verbose",
+              "Veryverbose",
+              "All"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "bCollectWatch": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bDisarm": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bIncludeSummary": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bSummaryOnly": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  "GetPythonApi": {
+    "additionalProperties": false,
+    "properties": {
+      "Limit": {
+        "default": 30,
+        "maximum": 100,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "Query": {
+        "type": "string"
+      },
+      "Target": {
+        "default": "unreal",
+        "type": "string"
+      },
+      "bSearchDoc": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  "GetRuntimeActorAbilitySystem": {
+    "additionalProperties": false,
+    "properties": {
+      "AbilityPath": {
+        "type": "string"
+      },
+      "ActorName": {
+        "type": "string"
+      },
+      "CaptureId": {
+        "type": "string"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "Abilities",
+            "Effects",
+            "Attributes",
+            "Context",
+            "Tags",
+            "ActivationDiagnostics",
+            "ActivationEvents",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "SpecHandle": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetRuntimeActorAnimation": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorName": {
+        "type": "string"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "State",
+            "Slots",
+            "Variables",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "ActorName"
+    ],
+    "type": "object"
+  },
+  "GetRuntimeActorBehaviorTree": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorName": {
+        "type": "string"
+      },
+      "NameFilter": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetRuntimeActorProperty": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorName": {
+        "type": "string"
+      },
+      "Diagnose": {
+        "enum": [
+          "Visibility",
+          "Transform",
+          "WorldTransform",
+          "RotationChain",
+          "Defaults"
+        ],
+        "type": "string"
+      },
+      "PropertyPaths": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "Target": {
+        "enum": [
+          "Actor",
+          "Widget",
+          "Asset"
+        ],
+        "type": "string"
+      },
+      "View": {
+        "enum": [
+          "Components",
+          "AttachHierarchy",
+          "All"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "ActorName"
+    ],
+    "type": "object"
+  },
+  "GetRuntimeLuaEnv": {
+    "additionalProperties": false,
+    "properties": {
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "LuaPath": {
+        "type": "string"
+      },
+      "NameFilter": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetRuntimeLuaLoaded": {
+    "additionalProperties": false,
+    "properties": {
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetRuntimeLuaMemory": {
+    "additionalProperties": false,
+    "type": "object"
+  },
+  "GetRuntimeLuaMetatable": {
+    "additionalProperties": false,
+    "properties": {
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "LuaPath": {
+        "type": "string"
+      },
+      "NameFilter": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "LuaPath"
+    ],
+    "type": "object"
+  },
+  "GetRuntimeLuaObject": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorName": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "LuaPath": {
+        "type": "string"
+      },
+      "NameFilter": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "ActorName"
+    ],
+    "type": "object"
+  },
+  "GetRuntimeLuaStack": {
+    "additionalProperties": false,
+    "properties": {
+      "Detail": {
+        "default": "Summary",
+        "enum": [
+          "Summary",
+          "Locals",
+          "Upvalues",
+          "All"
+        ],
+        "type": "string"
+      },
+      "FrameIndex": {
+        "type": "integer"
+      },
+      "FrameIndices": {
+        "items": {
+          "type": "number"
+        },
+        "type": "array"
+      },
+      "MaxDepth": {
+        "default": 50,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "SourceFilter": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetRuntimeLuaValue": {
+    "additionalProperties": false,
+    "properties": {
+      "LuaPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "LuaPath"
+    ],
+    "type": "object"
+  },
+  "GetRuntimeSlateWidget": {
+    "additionalProperties": false,
+    "properties": {
+      "Address": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Address"
+    ],
+    "type": "object"
+  },
+  "GetRuntimeWidgetProperty": {
+    "additionalProperties": false,
+    "properties": {
+      "OwnerClass": {
+        "type": "string"
+      },
+      "PropertyPaths": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "WidgetName": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetTrace": {
+    "additionalProperties": false,
+    "properties": {
+      "BookmarkLimit": {
+        "default": 50,
+        "maximum": 200,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "EndTime": {
+        "type": "number"
+      },
+      "FrameType": {
+        "default": "Game",
+        "enum": [
+          "Game",
+          "Render"
+        ],
+        "type": "string"
+      },
+      "HitchLimit": {
+        "default": 10,
+        "maximum": 50,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "Summary",
+            "Frames",
+            "Timers",
+            "Bookmarks",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "StartTime": {
+        "type": "number"
+      },
+      "TimerLimit": {
+        "default": 30,
+        "maximum": 100,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "TraceId": {
+        "type": "integer"
+      },
+      "TracePath": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "HotReloadRuntimeLua": {
+    "additionalProperties": false,
+    "type": "object"
+  },
+  "InteractRuntimeActorAI": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "MoveTo"
+        ],
+        "type": "string"
+      },
+      "ActorName": {
+        "type": "string"
+      },
+      "x": {
+        "type": "number"
+      },
+      "y": {
+        "type": "number"
+      },
+      "z": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "Action",
+      "ActorName"
+    ],
+    "type": "object"
+  },
+  "InteractRuntimeActorAbilitySystem": {
+    "additionalProperties": false,
+    "properties": {
+      "AbilityPath": {
+        "type": "string"
+      },
+      "Action": {
+        "enum": [
+          "ActivateAbility",
+          "CancelAbility",
+          "ApplyEffect",
+          "RemoveEffect",
+          "SetAttribute",
+          "GiveAbility",
+          "ClearAbility",
+          "ExecuteCue",
+          "AddLooseTag",
+          "RemoveLooseTag",
+          "TryActivateGrantedAbility",
+          "StartActivationCapture",
+          "StopActivationCapture"
+        ],
+        "type": "string"
+      },
+      "ActorName": {
+        "type": "string"
+      },
+      "AttributeName": {
+        "type": "string"
+      },
+      "CaptureId": {
+        "type": "string"
+      },
+      "EffectPath": {
+        "type": "string"
+      },
+      "Level": {
+        "default": 1,
+        "type": "number"
+      },
+      "SpecHandle": {
+        "type": "string"
+      },
+      "Tag": {
+        "type": "string"
+      },
+      "Value": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "Action"
+    ],
+    "type": "object"
+  },
+  "InteractRuntimeActorAnimation": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "PlayMontage",
+          "StopMontage",
+          "StopAll",
+          "SetAnimVariable",
+          "JumpToSection",
+          "SetAnimClass"
+        ],
+        "type": "string"
+      },
+      "ActorName": {
+        "type": "string"
+      },
+      "AnimClassPath": {
+        "type": "string"
+      },
+      "MontagePath": {
+        "type": "string"
+      },
+      "PlayRate": {
+        "default": 1,
+        "type": "number"
+      },
+      "StartSection": {
+        "type": "string"
+      },
+      "Value": {
+        "type": "string"
+      },
+      "VariableName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Action",
+      "ActorName"
+    ],
+    "type": "object"
+  },
+  "InteractRuntimeActorAudio": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "PlaySound"
+        ],
+        "type": "string"
+      },
+      "ActorName": {
+        "type": "string"
+      },
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Action",
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "InteractRuntimeActorBehaviorTree": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "SetBlackboard",
+          "RestartTree",
+          "StopTree"
+        ],
+        "type": "string"
+      },
+      "ActorName": {
+        "type": "string"
+      },
+      "KeyName": {
+        "type": "string"
+      },
+      "TreePath": {
+        "type": "string"
+      },
+      "Value": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Action"
+    ],
+    "type": "object"
+  },
+  "InteractRuntimeActorNiagara": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "Activate",
+          "Deactivate"
+        ],
+        "type": "string"
+      },
+      "ActorName": {
+        "type": "string"
+      },
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Action"
+    ],
+    "type": "object"
+  },
+  "InteractRuntimeWidget": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "Click",
+          "Check",
+          "Uncheck",
+          "Toggle",
+          "Set",
+          "Read"
+        ],
+        "type": "string"
+      },
+      "OwnerClass": {
+        "type": "string"
+      },
+      "Value": {
+        "type": "string"
+      },
+      "WidgetName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "WidgetName",
+      "Action"
+    ],
+    "type": "object"
+  },
+  "ListRuntimeActors": {
+    "additionalProperties": false,
+    "properties": {
+      "ClassFilter": {
+        "type": "string"
+      },
+      "Detail": {
+        "default": "Standard",
+        "enum": [
+          "Minimal",
+          "Standard",
+          "Full"
+        ],
+        "type": "string"
+      },
+      "Limit": {
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "type": "integer"
+      },
+      "TagFilter": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "ListRuntimeWidgets": {
+    "additionalProperties": false,
+    "properties": {
+      "ClassFilter": {
+        "type": "string"
+      },
+      "Limit": {
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "type": "integer"
+      },
+      "TextFilter": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "ListTraces": {
+    "additionalProperties": false,
+    "properties": {
+      "Limit": {
+        "default": 20,
+        "maximum": 100,
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "ManageAssetAnimBlueprint": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddStateMachine",
+                "RemoveStateMachine",
+                "AddState",
+                "RemoveState",
+                "AddTransition",
+                "RemoveTransition",
+                "AddNode",
+                "RemoveNode",
+                "SetNode",
+                "Connect",
+                "Disconnect"
+              ],
+              "type": "string"
+            },
+            "BoneName": {
+              "type": "string"
+            },
+            "GraphName": {
+              "type": "string"
+            },
+            "NodeClass": {
+              "enum": [
+                "SequencePlayer",
+                "SequenceEvaluator",
+                "BlendSpacePlayer",
+                "BlendSpace1D",
+                "BlendSpaceEvaluator",
+                "RandomPlayer",
+                "PoseBlendNode",
+                "PoseByName",
+                "Slot",
+                "Blend",
+                "BlendListByEnum",
+                "BlendListByInt",
+                "MultiWayBlend",
+                "LayeredBoneBlend",
+                "ApplyAdditive",
+                "SaveCachedPose",
+                "UseCachedPose",
+                "Inertialization",
+                "ComponentToLocalSpace",
+                "LocalToComponentSpace",
+                "TwoBoneIK",
+                "FABRIK",
+                "CCDIK",
+                "LookAt",
+                "ModifyBone",
+                "CopyBone",
+                "HandIKRetargeting",
+                "AimOffset",
+                "AimOffsetLookAt",
+                "ControlRig"
+              ],
+              "type": "string"
+            },
+            "NodeId": {
+              "type": "string"
+            },
+            "PosX": {
+              "type": "number"
+            },
+            "PosY": {
+              "type": "number"
+            },
+            "SequencePath": {
+              "type": "string"
+            },
+            "SlotName": {
+              "type": "string"
+            },
+            "SourceNodeId": {
+              "type": "string"
+            },
+            "SourcePinName": {
+              "type": "string"
+            },
+            "StateMachineName": {
+              "type": "string"
+            },
+            "StateName": {
+              "type": "string"
+            },
+            "TargetNodeId": {
+              "type": "string"
+            },
+            "TargetPinName": {
+              "type": "string"
+            },
+            "TargetStateName": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bCompile": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetAnimComposite": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddSegment",
+                "RemoveSegment"
+              ],
+              "type": "string"
+            },
+            "AnimEndTime": {
+              "type": "number"
+            },
+            "AnimPath": {
+              "type": "string"
+            },
+            "AnimStartTime": {
+              "type": "number"
+            },
+            "PlayRate": {
+              "type": "number"
+            },
+            "SegmentIndex": {
+              "type": "integer"
+            },
+            "StartPos": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetAnimMontage": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddSegment",
+                "RemoveSegment",
+                "AddSection",
+                "RemoveSection"
+              ],
+              "type": "string"
+            },
+            "AnimEndTime": {
+              "type": "number"
+            },
+            "AnimSequencePath": {
+              "type": "string"
+            },
+            "AnimStartTime": {
+              "type": "number"
+            },
+            "NextSectionName": {
+              "type": "string"
+            },
+            "SectionName": {
+              "type": "string"
+            },
+            "SectionStartTime": {
+              "type": "number"
+            },
+            "SegmentIndex": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "SlotName": {
+              "default": "DefaultSlot",
+              "type": "string"
+            },
+            "StartPos": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetAnimSequence": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddNotify",
+                "RemoveNotify",
+                "SetFrameRate",
+                "SetRootMotion",
+                "AddFloatCurve",
+                "SetCurveKey",
+                "RemoveCurve"
+              ],
+              "type": "string"
+            },
+            "CurveName": {
+              "type": "string"
+            },
+            "Duration": {
+              "type": "number"
+            },
+            "FrameRate": {
+              "type": "number"
+            },
+            "NotifyClass": {
+              "type": "string"
+            },
+            "NotifyIndex": {
+              "type": "integer"
+            },
+            "NotifyName": {
+              "type": "string"
+            },
+            "RootMotion": {
+              "type": "string"
+            },
+            "Time": {
+              "type": "number"
+            },
+            "Value": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetAttributeSet": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Set",
+                "Reset"
+              ],
+              "type": "string"
+            },
+            "AttributeName": {
+              "type": "string"
+            },
+            "BaseValue": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action",
+            "AttributeName"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetBehaviorTree": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetRoot",
+                "AddNode",
+                "RemoveNode",
+                "ReplaceNode",
+                "MoveNode",
+                "AddDecorator",
+                "RemoveDecorator",
+                "AddService",
+                "RemoveService",
+                "SetBlackboard",
+                "SetProperty",
+                "SyncGraph"
+              ],
+              "type": "string"
+            },
+            "BlackboardPath": {
+              "type": "string"
+            },
+            "ChildIndex": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "NodeClass": {
+              "type": "string"
+            },
+            "NodeName": {
+              "type": "string"
+            },
+            "ParentPath": {
+              "type": "string"
+            },
+            "PropertyName": {
+              "type": "string"
+            },
+            "PropertyValue": {
+              "type": "string"
+            },
+            "TargetIndex": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "TargetPath": {
+              "type": "string"
+            },
+            "TargetType": {
+              "enum": [
+                "Node",
+                "Decorator",
+                "Service"
+              ],
+              "type": "string"
+            },
+            "properties": {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetBlackboard": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Add",
+                "Remove",
+                "Rename",
+                "SetParent"
+              ],
+              "type": "string"
+            },
+            "KeyName": {
+              "type": "string"
+            },
+            "KeyType": {
+              "enum": [
+                "bool",
+                "float",
+                "int",
+                "string",
+                "name",
+                "Vector",
+                "Rotator",
+                "object",
+                "Class",
+                "enum"
+              ],
+              "type": "string"
+            },
+            "NewName": {
+              "type": "string"
+            },
+            "ParentPath": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetBlendSpace": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetAxis",
+                "AddSample",
+                "RemoveSample"
+              ],
+              "type": "string"
+            },
+            "AnimationPath": {
+              "type": "string"
+            },
+            "AxisIndex": {
+              "type": "integer"
+            },
+            "DisplayName": {
+              "type": "string"
+            },
+            "GridNum": {
+              "type": "integer"
+            },
+            "Max": {
+              "type": "number"
+            },
+            "Min": {
+              "type": "number"
+            },
+            "SampleIndex": {
+              "type": "integer"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetBlueprint": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddVariable",
+                "RemoveVariable",
+                "AddFunction",
+                "RemoveFunction",
+                "AddMacro",
+                "AddTimeline",
+                "AddDispatcher",
+                "AddLocalVariable",
+                "AddInterface",
+                "RemoveInterface",
+                "AddNode",
+                "RemoveNode",
+                "SetNode",
+                "PromotePin",
+                "Connect",
+                "Disconnect",
+                "DisconnectAll",
+                "AddComponent",
+                "RemoveComponent",
+                "SetComponentProperty",
+                "SetDefaults"
+              ],
+              "type": "string"
+            },
+            "AttachTo": {
+              "type": "string"
+            },
+            "Category": {
+              "type": "string"
+            },
+            "Comment": {
+              "type": "string"
+            },
+            "ComponentClass": {
+              "type": "string"
+            },
+            "ComponentName": {
+              "type": "string"
+            },
+            "DefaultValue": {
+              "type": "string"
+            },
+            "FunctionClass": {
+              "type": "string"
+            },
+            "FunctionName": {
+              "type": "string"
+            },
+            "GraphName": {
+              "type": "string"
+            },
+            "InterfaceName": {
+              "type": "string"
+            },
+            "NodeClass": {
+              "type": "string"
+            },
+            "NodeId": {
+              "type": "string"
+            },
+            "PinDefaultValue": {
+              "type": "string"
+            },
+            "PinName": {
+              "type": "string"
+            },
+            "PosX": {
+              "type": "number"
+            },
+            "PosY": {
+              "type": "number"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "SourceNodeId": {
+              "type": "string"
+            },
+            "SourcePinName": {
+              "type": "string"
+            },
+            "TargetNodeId": {
+              "type": "string"
+            },
+            "TargetPinName": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            },
+            "VariableName": {
+              "type": "string"
+            },
+            "VariableType": {
+              "type": "string"
+            },
+            "bIsLocal": {
+              "default": false,
+              "type": "boolean"
+            },
+            "bIsPublic": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bCompile": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetCommonButtonStyle": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetProperty"
+              ],
+              "type": "string"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetCommonTextStyle": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetProperty"
+              ],
+              "type": "string"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetControlRig": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "RenameElement",
+                "SetControlColor",
+                "AddNull",
+                "RemoveElement",
+                "AddRigLink",
+                "BreakRigLink",
+                "AddRigNode",
+                "AddControl",
+                "AddBone",
+                "SetPinDefault"
+              ],
+              "type": "string"
+            },
+            "ElementName": {
+              "type": "string"
+            },
+            "ElementType": {
+              "enum": [
+                "Bone",
+                "Control",
+                "null"
+              ],
+              "type": "string"
+            },
+            "NewName": {
+              "type": "string"
+            },
+            "NodeName": {
+              "type": "string"
+            },
+            "ParentName": {
+              "type": "string"
+            },
+            "PinDefaultValue": {
+              "type": "string"
+            },
+            "PinPath": {
+              "type": "string"
+            },
+            "SourcePinPath": {
+              "type": "string"
+            },
+            "StructType": {
+              "type": "string"
+            },
+            "TargetPinPath": {
+              "type": "string"
+            },
+            "a": {
+              "type": "number"
+            },
+            "b": {
+              "type": "number"
+            },
+            "g": {
+              "type": "number"
+            },
+            "r": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetCurve": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "type": "string"
+            },
+            "Channel": {
+              "type": "string"
+            },
+            "Interp": {
+              "type": "string"
+            },
+            "RowName": {
+              "type": "string"
+            },
+            "Time": {
+              "type": "number"
+            },
+            "Value": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetDataAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "default": "Set",
+              "enum": [
+                "Set",
+                "Reset"
+              ],
+              "type": "string"
+            },
+            "PropertyName": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "PropertyName"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetDataLayer": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetDataTable": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "default": "Add",
+              "enum": [
+                "Add",
+                "Remove",
+                "Set"
+              ],
+              "type": "string"
+            },
+            "FieldName": {
+              "type": "string"
+            },
+            "Fields": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "RowName": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action",
+            "RowName"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetEQS": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddOption",
+                "RemoveOption",
+                "SetGenerator",
+                "AddTest",
+                "RemoveTest"
+              ],
+              "type": "string"
+            },
+            "GeneratorClass": {
+              "type": "string"
+            },
+            "OptionIndex": {
+              "type": "integer"
+            },
+            "TestClass": {
+              "type": "string"
+            },
+            "TestIndex": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetEnum": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "type": "string"
+            },
+            "DisplayName": {
+              "type": "string"
+            },
+            "Index": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetFoliageType": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetMesh",
+                "SetDensity",
+                "SetProperty"
+              ],
+              "type": "string"
+            },
+            "Density": {
+              "type": "number"
+            },
+            "MeshPath": {
+              "type": "string"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetFont": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetProperty"
+              ],
+              "type": "string"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetGameplayAbility": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetTags",
+                "SetPolicy",
+                "SetCostCooldown"
+              ],
+              "type": "string"
+            },
+            "CooldownGE": {
+              "type": "string"
+            },
+            "CostGE": {
+              "type": "string"
+            },
+            "InstancingPolicy": {
+              "enum": [
+                "NonInstanced",
+                "InstancedPerActor",
+                "InstancedPerExecution"
+              ],
+              "type": "string"
+            },
+            "Mode": {
+              "enum": [
+                "Set",
+                "Add",
+                "Remove"
+              ],
+              "type": "string"
+            },
+            "NetExecutionPolicy": {
+              "enum": [
+                "LocalPredicted",
+                "LocalOnly",
+                "ServerInitiated",
+                "ServerOnly"
+              ],
+              "type": "string"
+            },
+            "TagContainer": {
+              "enum": [
+                "AbilityTags",
+                "ActivationOwnedTags",
+                "ActivationRequiredTags",
+                "ActivationBlockedTags",
+                "CancelAbilitiesWithTag",
+                "BlockAbilitiesWithTag"
+              ],
+              "type": "string"
+            },
+            "Tags": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetGameplayCueNotify": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetCueName"
+              ],
+              "type": "string"
+            },
+            "CueName": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetGameplayEffect": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetPolicy",
+                "SetTags",
+                "AddModifier",
+                "RemoveModifier",
+                "SetModifier"
+              ],
+              "type": "string"
+            },
+            "Attribute": {
+              "type": "string"
+            },
+            "Duration": {
+              "type": "number"
+            },
+            "DurationPolicy": {
+              "enum": [
+                "Instant",
+                "Infinite",
+                "HasDuration"
+              ],
+              "type": "string"
+            },
+            "Index": {
+              "type": "number"
+            },
+            "Magnitude": {
+              "type": "number"
+            },
+            "Mode": {
+              "enum": [
+                "Set",
+                "Add",
+                "Remove"
+              ],
+              "type": "string"
+            },
+            "ModifierOp": {
+              "enum": [
+                "Add",
+                "Multiply",
+                "Divide",
+                "Override"
+              ],
+              "type": "string"
+            },
+            "Period": {
+              "type": "number"
+            },
+            "TagContainer": {
+              "enum": [
+                "GameplayEffectTags",
+                "GrantedTags",
+                "BlockedAbilityTags"
+              ],
+              "type": "string"
+            },
+            "Tags": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetIKRetargeter": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetSourceRig",
+                "SetTargetRig",
+                "SetChainSource"
+              ],
+              "type": "string"
+            },
+            "RigPath": {
+              "type": "string"
+            },
+            "SourceChain": {
+              "type": "string"
+            },
+            "TargetChain": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetIKRig": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetPreviewMesh",
+                "SetSolverEnabled",
+                "AddChain",
+                "RemoveChain",
+                "SetGoal"
+              ],
+              "type": "string"
+            },
+            "ChainName": {
+              "type": "string"
+            },
+            "EndBone": {
+              "type": "string"
+            },
+            "GoalName": {
+              "type": "string"
+            },
+            "MeshPath": {
+              "type": "string"
+            },
+            "SolverIndex": {
+              "type": "integer"
+            },
+            "StartBone": {
+              "type": "string"
+            },
+            "bEnabled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetInputAction": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetValueType",
+                "AddTrigger",
+                "RemoveTrigger",
+                "AddModifier",
+                "RemoveModifier",
+                "SetFlags"
+              ],
+              "type": "string"
+            },
+            "ClassName": {
+              "type": "string"
+            },
+            "ValueType": {
+              "enum": [
+                "Boolean",
+                "Axis1D",
+                "Axis2D",
+                "Axis3D"
+              ],
+              "type": "string"
+            },
+            "bConsumesInput": {
+              "type": "boolean"
+            },
+            "bReserveAllMappings": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetInputMappingContext": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddMapping",
+                "RemoveMapping",
+                "ClearMappings"
+              ],
+              "type": "string"
+            },
+            "ActionPath": {
+              "type": "string"
+            },
+            "Key": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetLevel": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetProperty",
+                "SpawnActor",
+                "RemoveActor",
+                "SetActorProperty"
+              ],
+              "type": "string"
+            },
+            "ActorName": {
+              "type": "string"
+            },
+            "AssetPath": {
+              "type": "string"
+            },
+            "ClassName": {
+              "type": "string"
+            },
+            "Location": {
+              "type": "string"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Rotation": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetLevelSequence": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetDisplayRate",
+                "SetPlaybackRange",
+                "RemoveBinding",
+                "AddMasterTrack",
+                "RemoveMasterTrack",
+                "AddPossessable",
+                "AddSpawnable",
+                "AddTrack",
+                "AddFloatKey",
+                "SetTransformKey"
+              ],
+              "type": "string"
+            },
+            "BindingGuid": {
+              "type": "string"
+            },
+            "ClassName": {
+              "type": "string"
+            },
+            "Denominator": {
+              "default": 1,
+              "type": "integer"
+            },
+            "EndFrame": {
+              "type": "integer"
+            },
+            "KeyValue": {
+              "type": "number"
+            },
+            "Numerator": {
+              "default": 30,
+              "type": "integer"
+            },
+            "Pitch": {
+              "type": "number"
+            },
+            "PossessableName": {
+              "type": "string"
+            },
+            "Roll": {
+              "type": "number"
+            },
+            "StartFrame": {
+              "type": "integer"
+            },
+            "Time": {
+              "type": "number"
+            },
+            "TrackClass": {
+              "enum": [
+                "CameraCut",
+                "Audio",
+                "CinematicShot",
+                "Fade",
+                "Event",
+                "LevelVisibility",
+                "Slomo",
+                "Float",
+                "Transform",
+                "SkeletalAnimation",
+                "Particle",
+                "Visibility",
+                "Color",
+                "Bool",
+                "Integer",
+                "Vector",
+                "FloatVector",
+                "DoubleVector"
+              ],
+              "type": "string"
+            },
+            "Yaw": {
+              "type": "number"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetLuaBinding": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Bind",
+                "Unbind"
+              ],
+              "type": "string"
+            },
+            "ModuleName": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetMaterial": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetParam",
+                "AddNode",
+                "RemoveNode",
+                "SetNode",
+                "Recompile",
+                "Connect",
+                "Disconnect",
+                "DisconnectAll"
+              ],
+              "type": "string"
+            },
+            "DefaultValue": {
+              "type": "string"
+            },
+            "ExpressionClass": {
+              "type": "string"
+            },
+            "NodeId": {
+              "type": "string"
+            },
+            "ParamName": {
+              "type": "string"
+            },
+            "ParamType": {
+              "enum": [
+                "Scalar",
+                "Vector",
+                "Texture"
+              ],
+              "type": "string"
+            },
+            "ParameterName": {
+              "type": "string"
+            },
+            "PosX": {
+              "type": "number"
+            },
+            "PosY": {
+              "type": "number"
+            },
+            "SourceNodeId": {
+              "type": "string"
+            },
+            "SourceOutputName": {
+              "type": "string"
+            },
+            "TargetInputName": {
+              "type": "string"
+            },
+            "TargetNodeId": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetMaterialParameterCollection": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddScalar",
+                "AddVector",
+                "Remove",
+                "SetScalarDefault",
+                "SetVectorDefault"
+              ],
+              "type": "string"
+            },
+            "DefaultValue": {
+              "type": "number"
+            },
+            "ParamName": {
+              "type": "string"
+            },
+            "a": {
+              "type": "number"
+            },
+            "b": {
+              "type": "number"
+            },
+            "g": {
+              "type": "number"
+            },
+            "r": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetMediaSource": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetFilePath",
+                "SetLoop"
+              ],
+              "type": "string"
+            },
+            "MediaPath": {
+              "type": "string"
+            },
+            "bLoop": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetMetaSound": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddInput",
+                "RemoveInput",
+                "AddOutput",
+                "RemoveOutput",
+                "AddNode",
+                "RemoveNode",
+                "AddEdge",
+                "RemoveEdge"
+              ],
+              "type": "string"
+            },
+            "ClassId": {
+              "type": "string"
+            },
+            "FromNodeId": {
+              "type": "string"
+            },
+            "FromPin": {
+              "type": "string"
+            },
+            "NodeId": {
+              "type": "string"
+            },
+            "NodeName": {
+              "type": "string"
+            },
+            "ToNodeId": {
+              "type": "string"
+            },
+            "ToPin": {
+              "type": "string"
+            },
+            "TypeName": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetMoviePipelineConfig": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetOutput",
+                "SetAntiAliasing",
+                "AddSetting",
+                "RemoveSetting",
+                "SetSettingProperty",
+                "SetSettingEnabled"
+              ],
+              "type": "string"
+            },
+            "Directory": {
+              "type": "string"
+            },
+            "FileNameFormat": {
+              "type": "string"
+            },
+            "Height": {
+              "type": "integer"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "SettingClass": {
+              "enum": [
+                "Output",
+                "AntiAliasing",
+                "HighRes",
+                "Camera",
+                "GameOverride",
+                "Color",
+                "Debug"
+              ],
+              "type": "string"
+            },
+            "SpatialSampleCount": {
+              "type": "integer"
+            },
+            "TemporalSampleCount": {
+              "type": "integer"
+            },
+            "Value": {
+              "type": "string"
+            },
+            "Width": {
+              "type": "integer"
+            },
+            "bEnabled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetNiagaraSystem": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetProperty",
+                "SetUserParameter",
+                "SetEmitterEnabled",
+                "RenameEmitter",
+                "AddEmitter",
+                "RemoveEmitter",
+                "AddModule",
+                "RemoveModule",
+                "SetModuleParameter"
+              ],
+              "type": "string"
+            },
+            "EmitterName": {
+              "type": "string"
+            },
+            "EmitterPath": {
+              "type": "string"
+            },
+            "ModuleName": {
+              "type": "string"
+            },
+            "ModulePath": {
+              "type": "string"
+            },
+            "NewName": {
+              "type": "string"
+            },
+            "ParameterName": {
+              "type": "string"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Usage": {
+              "enum": [
+                "Spawn",
+                "Update",
+                "EmitterSpawn",
+                "EmitterUpdate"
+              ],
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            },
+            "bEnabled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetPCGGraph": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddNode",
+                "RemoveNode",
+                "AddEdge",
+                "RemoveEdge"
+              ],
+              "type": "string"
+            },
+            "FromNodeId": {
+              "type": "string"
+            },
+            "FromPin": {
+              "type": "string"
+            },
+            "NodeId": {
+              "type": "string"
+            },
+            "SettingsClass": {
+              "type": "string"
+            },
+            "ToNodeId": {
+              "type": "string"
+            },
+            "ToPin": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetPaperFlipbook": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddKey",
+                "RemoveKey",
+                "SetFramesPerSecond"
+              ],
+              "type": "string"
+            },
+            "FrameRun": {
+              "default": 1,
+              "type": "integer"
+            },
+            "FramesPerSecond": {
+              "type": "number"
+            },
+            "KeyIndex": {
+              "type": "integer"
+            },
+            "SpritePath": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetPaperSprite": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetSource",
+                "SetPivot"
+              ],
+              "type": "string"
+            },
+            "PivotX": {
+              "type": "number"
+            },
+            "PivotY": {
+              "type": "number"
+            },
+            "SourceTexturePath": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetPaperTileMap": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetMapSize",
+                "SetTileSize",
+                "SetTileset",
+                "AddLayer",
+                "RemoveLayer",
+                "SetLayerName",
+                "SetCell",
+                "ClearCell"
+              ],
+              "type": "string"
+            },
+            "LayerIndex": {
+              "type": "integer"
+            },
+            "LayerName": {
+              "type": "string"
+            },
+            "MapHeight": {
+              "type": "integer"
+            },
+            "MapWidth": {
+              "type": "integer"
+            },
+            "TileHeight": {
+              "type": "integer"
+            },
+            "TileIndex": {
+              "type": "integer"
+            },
+            "TileSetPath": {
+              "type": "string"
+            },
+            "TileWidth": {
+              "type": "integer"
+            },
+            "x": {
+              "type": "integer"
+            },
+            "y": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetPhysicalMaterial": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Set"
+              ],
+              "type": "string"
+            },
+            "Density": {
+              "type": "number"
+            },
+            "Friction": {
+              "type": "number"
+            },
+            "RaiseMassToPower": {
+              "type": "number"
+            },
+            "Restitution": {
+              "type": "number"
+            },
+            "SurfaceType": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetPhysicsAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetPhysicsType",
+                "AddSphere",
+                "AddCapsule",
+                "AddBox",
+                "ClearShapes",
+                "AddConstraint",
+                "RemoveConstraint"
+              ],
+              "type": "string"
+            },
+            "Bone1": {
+              "type": "string"
+            },
+            "Bone2": {
+              "type": "string"
+            },
+            "BoneName": {
+              "type": "string"
+            },
+            "ExtentX": {
+              "type": "number"
+            },
+            "ExtentY": {
+              "type": "number"
+            },
+            "ExtentZ": {
+              "type": "number"
+            },
+            "HalfHeight": {
+              "type": "number"
+            },
+            "JointName": {
+              "type": "string"
+            },
+            "PhysicsType": {
+              "default": "Simulated",
+              "enum": [
+                "Simulated",
+                "Kinematic",
+                "Default"
+              ],
+              "type": "string"
+            },
+            "Radius": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetPoseSearch": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetRenderTarget": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Set"
+              ],
+              "type": "string"
+            },
+            "ClearColorA": {
+              "type": "number"
+            },
+            "ClearColorB": {
+              "type": "number"
+            },
+            "ClearColorG": {
+              "type": "number"
+            },
+            "ClearColorR": {
+              "type": "number"
+            },
+            "FormatValue": {
+              "type": "integer"
+            },
+            "SizeX": {
+              "default": 0,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "SizeY": {
+              "default": 0,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetSkeletalMesh": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetMaterialSlot",
+                "SetProperty",
+                "AddSocket",
+                "RemoveSocket",
+                "SetSocket",
+                "SetLODScreenSize"
+              ],
+              "type": "string"
+            },
+            "BoneName": {
+              "type": "string"
+            },
+            "LODIndex": {
+              "type": "integer"
+            },
+            "LocX": {
+              "type": "number"
+            },
+            "LocY": {
+              "type": "number"
+            },
+            "LocZ": {
+              "type": "number"
+            },
+            "MaterialPath": {
+              "type": "string"
+            },
+            "Pitch": {
+              "type": "number"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Roll": {
+              "type": "number"
+            },
+            "ScaleX": {
+              "type": "number"
+            },
+            "ScaleY": {
+              "type": "number"
+            },
+            "ScaleZ": {
+              "type": "number"
+            },
+            "ScreenSize": {
+              "type": "number"
+            },
+            "SlotIndex": {
+              "type": "integer"
+            },
+            "SocketName": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            },
+            "Yaw": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetSkeleton": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddSocket",
+                "RemoveSocket",
+                "ModifySocket"
+              ],
+              "type": "string"
+            },
+            "BoneName": {
+              "type": "string"
+            },
+            "Location": {
+              "type": "string"
+            },
+            "Rotation": {
+              "type": "string"
+            },
+            "Scale": {
+              "type": "string"
+            },
+            "SocketName": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetSoundAttenuation": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Set"
+              ],
+              "type": "string"
+            },
+            "DBAtMax": {
+              "type": "number"
+            },
+            "FalloffDistance": {
+              "type": "number"
+            },
+            "InnerRadius": {
+              "type": "number"
+            },
+            "ShapeValue": {
+              "type": "integer"
+            },
+            "bAttenuate": {
+              "type": "boolean"
+            },
+            "bSpatialize": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetSoundClass": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Set"
+              ],
+              "type": "string"
+            },
+            "AttenuationScale": {
+              "type": "number"
+            },
+            "LowPassFilter": {
+              "type": "number"
+            },
+            "Pitch": {
+              "type": "number"
+            },
+            "Volume": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetSoundConcurrency": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Set"
+              ],
+              "type": "string"
+            },
+            "MaxCount": {
+              "type": "integer"
+            },
+            "ResolutionRuleValue": {
+              "type": "integer"
+            },
+            "RetriggerTime": {
+              "type": "number"
+            },
+            "bLimitToOwner": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetSoundCue": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetProperty",
+                "AddNode",
+                "RemoveNode",
+                "ConnectNodes"
+              ],
+              "type": "string"
+            },
+            "ChildIndex": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "ChildSlot": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "NodeClass": {
+              "type": "string"
+            },
+            "NodeIndex": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "ParentNodeIndex": {
+              "default": -1,
+              "minimum": -1,
+              "type": "integer"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "SoundWavePath": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetSoundSubmix": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Set"
+              ],
+              "type": "string"
+            },
+            "DryLevel": {
+              "type": "number"
+            },
+            "DryLevelDB": {
+              "type": "number"
+            },
+            "OutputVolume": {
+              "type": "number"
+            },
+            "OutputVolumeDB": {
+              "type": "number"
+            },
+            "WetLevel": {
+              "type": "number"
+            },
+            "WetLevelDB": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetSoundWave": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetProperty"
+              ],
+              "type": "string"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetStateTree": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddState",
+                "RemoveState",
+                "RenameState",
+                "Recompile",
+                "AddTask",
+                "RemoveTask",
+                "AddEnterCondition",
+                "RemoveEnterCondition",
+                "AddTransition",
+                "RemoveTransition"
+              ],
+              "type": "string"
+            },
+            "Index": {
+              "type": "integer"
+            },
+            "NewName": {
+              "type": "string"
+            },
+            "NodeType": {
+              "type": "string"
+            },
+            "ParentState": {
+              "type": "string"
+            },
+            "StateName": {
+              "type": "string"
+            },
+            "StateType": {
+              "default": "State",
+              "enum": [
+                "State",
+                "Group",
+                "Linked",
+                "Subtree"
+              ],
+              "type": "string"
+            },
+            "TargetState": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetStaticMesh": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetMaterialSlot",
+                "SetProperty",
+                "SetCollisionTraceFlag",
+                "AddBoxCollision",
+                "AddSphereCollision",
+                "ClearSimpleCollision",
+                "AddSocket",
+                "RemoveSocket",
+                "SetSocket",
+                "SetLODScreenSize"
+              ],
+              "type": "string"
+            },
+            "CollisionTraceFlag": {
+              "enum": [
+                "UseDefault",
+                "UseSimpleAndComplex",
+                "UseSimpleAsComplex",
+                "UseComplexAsSimple"
+              ],
+              "type": "string"
+            },
+            "ExtentX": {
+              "type": "number"
+            },
+            "ExtentY": {
+              "type": "number"
+            },
+            "ExtentZ": {
+              "type": "number"
+            },
+            "LODIndex": {
+              "type": "integer"
+            },
+            "LocX": {
+              "type": "number"
+            },
+            "LocY": {
+              "type": "number"
+            },
+            "LocZ": {
+              "type": "number"
+            },
+            "MaterialPath": {
+              "type": "string"
+            },
+            "Pitch": {
+              "type": "number"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Radius": {
+              "type": "number"
+            },
+            "Roll": {
+              "type": "number"
+            },
+            "ScaleX": {
+              "type": "number"
+            },
+            "ScaleY": {
+              "type": "number"
+            },
+            "ScaleZ": {
+              "type": "number"
+            },
+            "ScreenSize": {
+              "type": "number"
+            },
+            "SlotIndex": {
+              "type": "integer"
+            },
+            "SocketName": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            },
+            "Yaw": {
+              "type": "number"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetStringTable": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddKey",
+                "RemoveKey",
+                "SetSource"
+              ],
+              "type": "string"
+            },
+            "Key": {
+              "type": "string"
+            },
+            "Source": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetStructField": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Add",
+                "Remove",
+                "Set"
+              ],
+              "type": "string"
+            },
+            "DefaultValue": {
+              "type": "string"
+            },
+            "FieldName": {
+              "type": "string"
+            },
+            "FieldType": {
+              "type": "string"
+            },
+            "NewName": {
+              "type": "string"
+            },
+            "NewType": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action",
+            "FieldName"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetTexture": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetProperty"
+              ],
+              "type": "string"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetUserWidget": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Add",
+                "Remove",
+                "SetSlot",
+                "SetProperty",
+                "AddAnimation",
+                "RemoveAnimation",
+                "AddTrack",
+                "AddKey",
+                "RemoveTrack",
+                "RemoveKey"
+              ],
+              "type": "string"
+            },
+            "AlignmentX": {
+              "type": "number"
+            },
+            "AlignmentY": {
+              "type": "number"
+            },
+            "AnchorMaxX": {
+              "type": "number"
+            },
+            "AnchorMaxY": {
+              "type": "number"
+            },
+            "AnchorMinX": {
+              "type": "number"
+            },
+            "AnchorMinY": {
+              "type": "number"
+            },
+            "AnimationName": {
+              "type": "string"
+            },
+            "KeyValue": {
+              "type": "number"
+            },
+            "OffsetBottom": {
+              "type": "number"
+            },
+            "OffsetLeft": {
+              "type": "number"
+            },
+            "OffsetRight": {
+              "type": "number"
+            },
+            "OffsetTop": {
+              "type": "number"
+            },
+            "ParentWidget": {
+              "type": "string"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Time": {
+              "type": "number"
+            },
+            "TrackName": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            },
+            "WidgetClass": {
+              "type": "string"
+            },
+            "WidgetName": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bCompile": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageAssetViewModel": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "AddViewModel",
+                "RemoveViewModel",
+                "AddBinding",
+                "RemoveBinding"
+              ],
+              "type": "string"
+            },
+            "BindingIndex": {
+              "type": "integer"
+            },
+            "ViewModelClass": {
+              "type": "string"
+            },
+            "ViewModelName": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ReimportAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "RenameAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "DestAssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "DestAssetPath"
+    ],
+    "type": "object"
+  },
+  "SaveAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "SearchAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetType": {
+        "default": "Blueprint",
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "PathFilter": {
+        "default": "/Game/Feature/",
+        "type": "string"
+      },
+      "Query": {
+        "default": "",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "SearchConsoleVariables": {
+    "additionalProperties": false,
+    "properties": {
+      "Limit": {
+        "default": 50,
+        "maximum": 200,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "Query": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Query"
+    ],
+    "type": "object"
+  },
+  "SetLogCaptureFilter": {
+    "additionalProperties": false,
+    "properties": {
+      "Categories": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "Categories"
+    ],
+    "type": "object"
+  },
+  "SetRuntimeActorProperty": {
+    "additionalProperties": false,
+    "properties": {
+      "Target": {
+        "enum": [
+          "Actor",
+          "Widget",
+          "Asset"
+        ],
+        "type": "string"
+      },
+      "Updates": {
+        "items": {
+          "properties": {
+            "ActorName": {
+              "type": "string"
+            },
+            "OwnerClass": {
+              "type": "string"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            },
+            "WidgetName": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "PropertyPath",
+            "Value"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      }
+    },
+    "type": "object"
+  },
+  "SetRuntimeLua": {
+    "additionalProperties": false,
+    "properties": {
+      "LuaPath": {
+        "type": "string"
+      },
+      "Value": {
+        "type": [
+          "string",
+          "number",
+          "boolean",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "LuaPath",
+      "Value"
+    ],
+    "type": "object"
+  },
+  "SetRuntimeWidgetProperty": {
+    "additionalProperties": false,
+    "properties": {
+      "Updates": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "OwnerClass": {
+              "type": "string"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            },
+            "WidgetName": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "PropertyPath",
+            "Value"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "Updates"
+    ],
+    "type": "object"
+  },
+  "SpawnRuntimeActor": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "ClassName": {
+        "type": "string"
+      },
+      "LocationX": {
+        "default": 0,
+        "type": "number"
+      },
+      "LocationY": {
+        "default": 0,
+        "type": "number"
+      },
+      "LocationZ": {
+        "default": 0,
+        "type": "number"
+      },
+      "RotationPitch": {
+        "default": 0,
+        "type": "number"
+      },
+      "RotationRoll": {
+        "default": 0,
+        "type": "number"
+      },
+      "RotationYaw": {
+        "default": 0,
+        "type": "number"
+      }
+    },
+    "type": "object"
+  },
+  "SpawnRuntimeWidget": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "ZOrder": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "UnloadAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "bForceGC": {
+        "default": true,
+        "type": "boolean"
+      },
+      "bSkipDirty": {
+        "default": true,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  }
+}

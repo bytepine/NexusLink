@@ -39,6 +39,8 @@ EXCLUDE_DIRS = {
     ".pytest_cache",
     "__pycache__",
     "gas-retest-results",
+    "trace-compare-results",
+    "bt-retest-results",
     ".vs",
     ".idea",
     ".git",

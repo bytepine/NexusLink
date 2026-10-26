@@ -7,6 +7,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusRuntimeUtils.h"
 #include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusBlackboardUtils.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -105,100 +106,89 @@ FCapabilityResult FNexusInteractRuntimeActorBehaviorTreeCapability::Execute(cons
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
-			// 检查键是否存在（遍历 BBData->Keys，避免 GetKeyID 跨版本 API 差异）
-			bool bKeyFound = false;
-			if (const UBlackboardData* BBData = BBComp->GetBlackboardAsset())
-			{
-				for (const FBlackboardEntry& E : BBData->Keys)
-				{
-					if (E.EntryName == FName(*KeyName)) { bKeyFound = true; break; }
-				}
-			}
-			if (!bKeyFound)
+			const UBlackboardData* Data = BBComp->GetBlackboardAsset();
+			const FBlackboardEntry* Key = Data ? Data->GetKey(BBComp->GetKeyID(FName(*KeyName))) : nullptr;
+			if (!Key || !Key->KeyType)
 			{
 				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Blackboard key does not exist: %s"), *KeyName));
 				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 				return;
 			}
-
-			// 获取键类型信息以推断值类型
-			if (const UBlackboardData* BBData = BBComp->GetBlackboardAsset())
+			const FString TypeStr = GetKeyTypeName(Key->KeyType);
+			if (!Arguments->HasTypedField<EJson::String>(TEXT("Value")) || !FNexusBlackboardUtils::IsValidScalar(TypeStr, KeyValue))
 			{
-				for (const FBlackboardEntry& E : BBData->Keys)
-				{
-					if (E.EntryName != FName(*KeyName) || !E.KeyType) continue;
-
-					const FString TypeStr = GetKeyTypeName(E.KeyType);
-
-					// 用类名字符串判断，避免引入跨版本 KeyType 头文件
-					if (TypeStr.Contains(TEXT("Object")))
-					{
-						// 对象类型：按路径加载
-						UObject* Obj = !KeyValue.IsEmpty() ? LoadObject<UObject>(nullptr, *KeyValue) : nullptr;
-						BBComp->SetValueAsObject(FName(*KeyName), Obj);
-						Entry->SetStringField(TEXT("TypeName"), TEXT("Object"));
-						if (Obj) Entry->SetStringField(TEXT("ObjectClass"), Obj->GetClass()->GetName());
-					}
-					else if (TypeStr.Contains(TEXT("Enum")))
-					{
-						BBComp->SetValueAsEnum(FName(*KeyName), static_cast<uint8>(FCString::Atoi(*KeyValue)));
-						Entry->SetStringField(TEXT("TypeName"), TEXT("Enum"));
-						Entry->SetNumberField(TEXT("EnumValue"), FCString::Atoi(*KeyValue));
-					}
-					else if (TypeStr.Contains(TEXT("Float")))
-					{
-						BBComp->SetValueAsFloat(FName(*KeyName), FCString::Atof(*KeyValue));
-						Entry->SetStringField(TEXT("TypeName"), TEXT("Float"));
-						Entry->SetNumberField(TEXT("FloatValue"), FCString::Atof(*KeyValue));
-					}
-					else if (TypeStr.Contains(TEXT("Int")))
-					{
-						BBComp->SetValueAsInt(FName(*KeyName), FCString::Atoi(*KeyValue));
-						Entry->SetStringField(TEXT("TypeName"), TEXT("Int"));
-						Entry->SetNumberField(TEXT("IntValue"), FCString::Atoi(*KeyValue));
-					}
-					else if (TypeStr.Contains(TEXT("Bool")))
-					{
-						const bool bVal = KeyValue.ToBool();
-						BBComp->SetValueAsBool(FName(*KeyName), bVal);
-						Entry->SetStringField(TEXT("TypeName"), TEXT("Bool"));
-						Entry->SetBoolField(TEXT("bBoolValue"), bVal);
-					}
-					else if (TypeStr.Contains(TEXT("String")))
-					{
-						BBComp->SetValueAsString(FName(*KeyName), KeyValue);
-						Entry->SetStringField(TEXT("TypeName"), TEXT("String"));
-						Entry->SetStringField(TEXT("StringValue"), KeyValue);
-					}
-					else if (TypeStr.Contains(TEXT("Name")))
-					{
-						BBComp->SetValueAsName(FName(*KeyName), FName(*KeyValue));
-						Entry->SetStringField(TEXT("TypeName"), TEXT("Name"));
-						Entry->SetStringField(TEXT("NameValue"), KeyValue);
-					}
-					else if (TypeStr.Contains(TEXT("Vector")))
-					{
-						FVector Vec = FVector::ZeroVector;
-						Vec.InitFromString(KeyValue);
-						BBComp->SetValueAsVector(FName(*KeyName), Vec);
-						Entry->SetStringField(TEXT("TypeName"), TEXT("Vector"));
-						Entry->SetStringField(TEXT("VectorValue"), Vec.ToString());
-					}
-					else if (TypeStr.Contains(TEXT("Rotator")))
-					{
-						FRotator Rot = FRotator::ZeroRotator;
-						Rot.InitFromString(KeyValue);
-						BBComp->SetValueAsRotator(FName(*KeyName), Rot);
-						Entry->SetStringField(TEXT("TypeName"), TEXT("Rotator"));
-						Entry->SetStringField(TEXT("RotatorValue"), Rot.ToString());
-					}
-					else
-					{
-						Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Unsupported blackboard key type: %s"), *TypeStr));
-					}
-					break;
-				}
+				Entry->SetStringField(TEXT("Error"), TEXT("Value does not match the Blackboard key type"));
+				OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
+				return;
 			}
+
+			// 用类名字符串判断，避免引入跨版本 KeyType 头文件
+			if (TypeStr.Contains(TEXT("Object")))
+			{
+				// 对象类型：按路径加载
+				UObject* Obj = !KeyValue.IsEmpty() ? LoadObject<UObject>(nullptr, *KeyValue) : nullptr;
+				BBComp->SetValueAsObject(FName(*KeyName), Obj);
+				Entry->SetStringField(TEXT("TypeName"), TEXT("Object"));
+				if (Obj) Entry->SetStringField(TEXT("ObjectClass"), Obj->GetClass()->GetName());
+			}
+			else if (TypeStr.Contains(TEXT("Enum")))
+			{
+				BBComp->SetValueAsEnum(FName(*KeyName), static_cast<uint8>(FCString::Atoi(*KeyValue)));
+				Entry->SetStringField(TEXT("TypeName"), TEXT("Enum"));
+				Entry->SetNumberField(TEXT("EnumValue"), FCString::Atoi(*KeyValue));
+			}
+			else if (TypeStr.Contains(TEXT("Float")))
+			{
+				BBComp->SetValueAsFloat(FName(*KeyName), FCString::Atof(*KeyValue));
+				Entry->SetStringField(TEXT("TypeName"), TEXT("Float"));
+				Entry->SetNumberField(TEXT("FloatValue"), FCString::Atof(*KeyValue));
+			}
+			else if (TypeStr.Contains(TEXT("Int")))
+			{
+				BBComp->SetValueAsInt(FName(*KeyName), FCString::Atoi(*KeyValue));
+				Entry->SetStringField(TEXT("TypeName"), TEXT("Int"));
+				Entry->SetNumberField(TEXT("IntValue"), FCString::Atoi(*KeyValue));
+			}
+			else if (TypeStr.Contains(TEXT("Bool")))
+			{
+				const bool bVal = KeyValue.ToBool();
+				BBComp->SetValueAsBool(FName(*KeyName), bVal);
+				Entry->SetStringField(TEXT("TypeName"), TEXT("Bool"));
+				Entry->SetBoolField(TEXT("bBoolValue"), bVal);
+			}
+			else if (TypeStr.Contains(TEXT("String")))
+			{
+				BBComp->SetValueAsString(FName(*KeyName), KeyValue);
+				Entry->SetStringField(TEXT("TypeName"), TEXT("String"));
+				Entry->SetStringField(TEXT("StringValue"), KeyValue);
+			}
+			else if (TypeStr.Contains(TEXT("Name")))
+			{
+				BBComp->SetValueAsName(FName(*KeyName), FName(*KeyValue));
+				Entry->SetStringField(TEXT("TypeName"), TEXT("Name"));
+				Entry->SetStringField(TEXT("NameValue"), KeyValue);
+			}
+			else if (TypeStr.Contains(TEXT("Vector")))
+			{
+				FVector Vec = FVector::ZeroVector;
+				Vec.InitFromString(KeyValue);
+				BBComp->SetValueAsVector(FName(*KeyName), Vec);
+				Entry->SetStringField(TEXT("TypeName"), TEXT("Vector"));
+				Entry->SetStringField(TEXT("VectorValue"), Vec.ToString());
+			}
+			else if (TypeStr.Contains(TEXT("Rotator")))
+			{
+				FRotator Rot = FRotator::ZeroRotator;
+				Rot.InitFromString(KeyValue);
+				BBComp->SetValueAsRotator(FName(*KeyName), Rot);
+				Entry->SetStringField(TEXT("TypeName"), TEXT("Rotator"));
+				Entry->SetStringField(TEXT("RotatorValue"), Rot.ToString());
+			}
+			else
+			{
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Unsupported blackboard key type: %s"), *TypeStr));
+			}
+
 			Entry->SetStringField(TEXT("KeyName"), KeyName);
 			Entry->SetBoolField(TEXT("bSuccess"), !Entry->HasField(TEXT("Error")));
 		}

@@ -15,6 +15,7 @@
 #include "TraceServices/Model/Frames.h"
 #include "TraceServices/Model/TimingProfiler.h"
 #include "Utils/NexusEditorTraceUtils.h"
+#include "Utils/NexusTraceStatistics.h"
 
 static int32 ReadLimit(const TSharedPtr<FJsonObject>& Args, const TCHAR* Key, int32 DefaultValue, int32 MinValue, int32 MaxValue)
 {
@@ -55,7 +56,7 @@ static bool ReadTimeWindow(const TSharedPtr<FJsonObject>& Args, double& OutStart
 	}
 	OutStart = Args->GetNumberField(TEXT("StartTime"));
 	OutEnd = Args->GetNumberField(TEXT("EndTime"));
-	if (!(OutEnd > OutStart))
+	if (!FMath::IsFinite(OutStart) || !FMath::IsFinite(OutEnd) || !(OutEnd > OutStart))
 	{
 		OutError = TEXT("EndTime must be greater than StartTime");
 		return false;
@@ -92,8 +93,11 @@ struct FNexusTraceFrameSample
 	double DurationSeconds = 0.0;
 };
 
-static void WriteFrames(const FNexusTraceAnalysisSession& Session, ETraceFrameType FrameType, int32 HitchLimit, TSharedPtr<FJsonObject>& Detail, FString& OutError)
+static void WriteFrames(const FNexusTraceAnalysisSession& Session, const TSharedPtr<FJsonObject>& Args, ETraceFrameType FrameType, int32 HitchLimit, TSharedPtr<FJsonObject>& Detail, FString& OutError)
 {
+	double WindowStart = 0.0, WindowEnd = 0.0;
+	bool bHasWindow = false;
+	if (!ReadTimeWindow(Args, WindowStart, WindowEnd, bHasWindow, OutError)) return;
 	FNexusTraceReadScope ReadScope(Session);
 	const FNexusTraceFrameProvider& Frames = FNexusEditorTraceUtils::ReadFrames(Session);
 	const uint64 FrameCount64 = Frames.GetFrameCount(FrameType);
@@ -112,17 +116,15 @@ static void WriteFrames(const FNexusTraceAnalysisSession& Session, ETraceFrameTy
 	TArray<double> Durations;
 	TArray<FNexusTraceFrameSample> Hitches;
 	Durations.Reserve(FrameCount);
-	double TotalSeconds = 0.0;
 
 	Frames.EnumerateFrames(FrameType, 0, FrameCount64, [&](const FNexusTraceFrame& Frame)
 	{
 		const double Duration = Frame.EndTime - Frame.StartTime;
-		if (!FMath::IsFinite(Duration) || Duration < 0.0)
+		if (!FNexusTraceStatistics::AcceptFrame(Frame.StartTime, Frame.EndTime, bHasWindow, WindowStart, WindowEnd))
 		{
 			return;
 		}
 		Durations.Add(Duration);
-		TotalSeconds += Duration;
 
 		FNexusTraceFrameSample Sample;
 		Sample.Index = Frame.Index;
@@ -148,15 +150,13 @@ static void WriteFrames(const FNexusTraceAnalysisSession& Session, ETraceFrameTy
 		return;
 	}
 
-	TArray<double> Sorted = Durations;
-	Sorted.Sort();
-	const int32 P95Index = FMath::Clamp(FMath::CeilToInt(0.95 * Sorted.Num()) - 1, 0, Sorted.Num() - 1);
-
 	Detail->SetStringField(TEXT("FrameType"), FrameType == TraceFrameType_Rendering ? TEXT("Render") : TEXT("Game"));
-	Detail->SetNumberField(TEXT("FrameCount"), Durations.Num());
-	Detail->SetNumberField(TEXT("AverageSeconds"), TotalSeconds / Durations.Num());
-	Detail->SetNumberField(TEXT("P95Seconds"), Sorted[P95Index]);
-	Detail->SetNumberField(TEXT("MaxSeconds"), Sorted.Last());
+	FNexusTraceStatistics::Write(MoveTemp(Durations), *Detail);
+	if (bHasWindow)
+	{
+		Detail->SetNumberField(TEXT("StartTime"), WindowStart);
+		Detail->SetNumberField(TEXT("EndTime"), WindowEnd);
+	}
 
 	TArray<TSharedPtr<FJsonValue>> HitchValues;
 	for (const FNexusTraceFrameSample& Hitch : Hitches)
@@ -271,6 +271,8 @@ static void WriteTimers(const FNexusTraceAnalysisSession& Session, const TShared
 	{
 		return A.TotalInclusiveSeconds > B.TotalInclusiveSeconds;
 	});
+	Detail->SetNumberField(TEXT("TotalTimerCount"), Rows.Num());
+	Detail->SetBoolField(TEXT("bTimersTruncated"), Rows.Num() > TimerLimit);
 	if (Rows.Num() > TimerLimit)
 	{
 		Rows.SetNum(TimerLimit);
@@ -411,7 +413,7 @@ void FNexusGetTraceCapability::ExecuteSection(const FString&                 Sec
 	}
 	if (SectionName == TEXT("Frames"))
 	{
-		WriteFrames(*Session, ParseFrameType(Args), ReadLimit(Args, TEXT("HitchLimit"), 10, 1, 50), InOutDetail, OutError);
+		WriteFrames(*Session, Args, ParseFrameType(Args), ReadLimit(Args, TEXT("HitchLimit"), 10, 1, 50), InOutDetail, OutError);
 		return;
 	}
 	if (SectionName == TEXT("Timers"))
