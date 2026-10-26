@@ -30,8 +30,25 @@ From the plugin's `tools` directory:
 
 ```sh
 python -m gas_retest case.json --output results
-python -m unittest gas_retest.test_runner
+python -m gas_retest case.json --preflight --output preflight-results
+python -m unittest gas_retest.test_runner gas_retest.test_report
 ```
+
+### First connection / 首次接入
+
+With the public NexusUnreal example compiled, run `python Script/gas_network_retest.py --ue-root <UE-directory> --quickstart` from that project. It starts one server and two clients, performs read-only binding/ability checks, reproduces prediction rejection, restores the condition, and verifies a successful activation. Open `Saved/GasRetest/index.html` to compare reports. Existing runs without `--quickstart` retain all eight scenarios and their configured repeat count.
+
+已有三个运行中的诊断进程时，可从插件 `tools/` 目录生成端口已填写的用例；URL 必须是发现后确认的 UE 直连端点。模板生成不连接 UE，也不覆盖现有文件：
+
+```sh
+python -m gas_retest rejected.json --template PredictionRejected --server http://127.0.0.1:45010/stream --owner http://127.0.0.1:45011/stream --observer http://127.0.0.1:45012/stream
+python -m gas_retest rejected.json --preflight --output preflight-results
+python -m gas_retest rejected.json --output rejected-results
+```
+
+The example endpoints above must be replaced with the actual discovered addresses. `--template Success` creates the repaired-case template. Templates depend on `NexusDiagnosticGameMode` and are not generic production skill definitions.
+
+`--preflight` initializes MCP and reads actor identity, ownership, process/World, and any explicit `RequiredAbilities`. It never executes `Setup`, `Steps`, or `Teardown`. Without `Actors` it can only check MCP initialization; role/World identity remains unverified. A replay runs the same checks before any scenario writes. If a binding or required ability fails, scenario cleanup is also skipped because the scenario has not started.
 
 Only explicit **direct UE** `/stream` endpoints are supported in v1. One process must host one play World. Credentials come from the endpoint's `TokenEnv` environment variable (default `NEXUS_MCP_TOKEN`) or the shared local NexusLink token file; never put tokens in the case JSON.
 
@@ -54,6 +71,8 @@ Minimal read-only example (replace the endpoint and Actor name with discovered v
 
 Cases have optional `Actors`, `Setup`, and `Teardown`. Actor bindings use `ClassFilter` and `OwnerEndpoint` to find the owning client's unique locally controlled Pawn, then match its replicated `PlayerId` on other endpoints. Alternatively supply a `PlayerId`. Missing or ambiguous matches fail before scenario writes. Reference an endpoint's Actor with `{"Ref":"/Actors/Hero/Server"}`; actual names are resolved separately per process.
 
+`RequiredAbilities` is an optional array of `{"Actor":"Hero","Endpoint":"Server","AbilityPath":"/Script/Nexus.NexusDiagnosticAbility"}`. Each item must match exactly one granted InstancedPerActor spec on that bound Actor/endpoint. It reads `Abilities`, never grants or activates anything. List only prerequisites that should exist: an intentionally ungranted skill used in a negative test must not be a requirement. Other players' skill visibility on an observer is not required.
+
 Steps:
 
 - `Call`: `Id`, `Endpoint`, `Capability`, `Arguments`; `ExpectError=true` permits an expected MCP tool error while preserving its structured payload.
@@ -64,7 +83,9 @@ A complete `{"Ref":"/Steps/context/Payload/Context/ProcessId"}` object resolves 
 
 No writes are retried. Process/World changes abort replay. `Teardown` runs best-effort after failures, and cleanup failures are reported separately. Supply explicit cleanup for runtime modifications; this runner does not roll back arbitrary gameplay side effects. Captures expire even if cleanup cannot reach the process.
 
-Output: `results.json`, `junit.xml`, terminal summary. Exit `0`: passed; `1`: assertion failed; `2`: configuration, transport, or incomplete evidence. An Await timeout keeps its final observation and reports the authority outcome as unconfirmed.
+Output: offline `report.html`, `results.json`, `junit.xml`, terminal summary. Exit `0`: passed; `1`: assertion failed; `2`: configuration, transport, or incomplete evidence. An Await timeout keeps its final observation and reports the authority outcome as unconfirmed.
+
+HTML reports show endpoint roles, the first failing steps, activation snapshots, deduplicated per-endpoint events, next checks, and expandable raw evidence. Case pass/fail is separate from the observed gameplay outcome: an expected rejection may pass its test. Missing authority events, dropped events, unknown identity or conflicting activations remain unconfirmed. Events stay in each capture's observed order; clocks across processes do not establish causation. Reports work offline with no external scripts or assets.
 
 用例中的 `Setup` / `Steps` / `Teardown` 顺序执行；不自动重试写操作。JSON Pointer 引用保留原始类型；遇到响应默认值压缩会先还原再断言。执行前后检查进程与 World，换图或重启后不继续写入。失败和清理失败分别进入报告。
 

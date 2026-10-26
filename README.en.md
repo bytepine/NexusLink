@@ -52,7 +52,7 @@ Capabilities for optional plugins such as UnLua are not in this repo. Install [N
 
 ## Example project
 
-GAS runtime diagnostics expose context, tags, activation-condition snapshots and activation/commit/failure/end captures. The standard-library Python runner executes multi-endpoint JSON cases and exports JSON/JUnit. See [GAS diagnostics and replay](docs/gas-retest.md).
+GAS runtime diagnostics expose context, tags, activation-condition snapshots and activation/commit/failure/end captures. The standard-library Python runner creates case templates, performs read-only onboarding checks, executes multi-endpoint JSON cases and exports offline HTML/JSON/JUnit reports. See [GAS diagnostics and replay](docs/gas-retest.md).
 
 Public sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) (ThirdPerson template + MCP regression tests). The plugin is a git submodule and **is not bundled** with the sample; clone with `--recurse-submodules` or install this plugin separately.
 

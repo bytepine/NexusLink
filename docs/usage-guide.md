@@ -1,6 +1,6 @@
 # NexusLink 使用指南
 
-GAS 运行时问题可用只读诊断、激活事件捕获和多端 JSON 复测排查，见 [GAS 诊断与复测](gas-retest.md)。
+GAS 运行时问题可用只读诊断、接入预检、激活事件捕获和多端 JSON 复测排查；结果可直接查看离线 HTML 报告，见 [GAS 诊断与复测](gas-retest.md)。
 
 面向最终用户：安装 UE 插件、选客户端、打开对应层开关、配置身份验证。Capability 参数见 [`tool-reference.zh.md`](./tool-reference.zh.md)（[English](./tool-reference.md)）；架构见 [`architecture.md`](./architecture.md)。
 

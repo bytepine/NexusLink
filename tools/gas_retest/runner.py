@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+from datetime import datetime, timezone
 import json
 import math
 import os
@@ -99,12 +100,23 @@ def machine_token():
         return ""
 
 
+def direct_url(value):
+    try:
+        if not isinstance(value, str):
+            raise ValueError()
+        value = value.rstrip("/")
+        parsed = urlparse(value)
+        if (parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.port is None or parsed.port < 1
+                or parsed.path != "/stream" or parsed.username or parsed.password or parsed.query or parsed.fragment):
+            raise ValueError()
+    except ValueError as exc:
+        raise RunError("Url must be a direct UE http(s)://host:port/stream endpoint without credentials, query or fragment") from exc
+    return value
+
+
 class Client:
     def __init__(self, config):
-        self.url = config["Url"].rstrip("/")
-        parsed = urlparse(self.url)
-        if parsed.scheme not in ("http", "https") or parsed.path != "/stream" or parsed.username or parsed.password:
-            raise RunError("Url must be a direct UE http(s)://host:port/stream endpoint")
+        self.url = direct_url(config["Url"])
         self.token = os.environ.get(config.get("TokenEnv", "NEXUS_MCP_TOKEN"), "") or machine_token()
         self.session = ""
         self.counter = 0
@@ -178,6 +190,7 @@ class Runner:
         self.factory = factory
         self.clients = {}
         self.identities = {}
+        self.contexts = {}
         self.state = {"Actors": {}, "Steps": {}}
         self.records = []
 
@@ -195,7 +208,25 @@ class Runner:
         if expected_authority is not None and context.get("bAuthority") is not expected_authority:
             raise RunError("Endpoint authority role differs from the configured expectation")
         self.identities[endpoint] = identity
+        self.contexts[endpoint] = context
         return context
+
+    def preflight_abilities(self):
+        for required in self.case.get("RequiredAbilities", []):
+            endpoint, alias = required["Endpoint"], required["Actor"]
+            actor = self.state["Actors"][alias][endpoint]
+            result = self.clients[endpoint].call("GetRuntimeActorAbilitySystem", {"ActorName": actor, "Sections": ["Abilities"]})
+            record = {"Id": f"Ability:{alias}/{endpoint}", "Stage": "Preflight", "Endpoint": endpoint,
+                      "Status": "Passed", "Result": result, "AbilityPath": required["AbilityPath"]}
+            self.records.append(record)
+            matches = [ability for ability in result["Payload"].get("Abilities", [])
+                       if ability.get("AbilityPath") == required["AbilityPath"]]
+            if result["IsError"] or len(matches) != 1 or not matches[0].get("SpecHandle"):
+                record.update(Status="Error", Message="Required granted ability missing or ambiguous: " + required["AbilityPath"])
+                raise RunError(record["Message"])
+            if matches[0].get("InstancingPolicy") != 1:
+                record.update(Status="Error", Message="Required ability must use InstancedPerActor for this replay format")
+                raise RunError(record["Message"])
 
     def bind_actors(self):
         # 先定位所属客户端，再以复制的 PlayerId 在其他进程中关联；Actor 名不跨进程复用。
@@ -292,9 +323,12 @@ class Runner:
                     raise CheckFailed("Await timed out; last observation retained, authority outcome unconfirmed")
                 time.sleep(interval)
 
-    def run_steps(self, steps, cleanup=False):
+    def run_steps(self, steps, cleanup=False, stage="Steps"):
         for step in steps:
-            record = {"Id": step.get("Id", "?"), "Endpoint": step.get("Endpoint"), "Status": "Passed"}
+            started = time.monotonic()
+            record = {"Id": step.get("Id", "?"), "Endpoint": step.get("Endpoint"), "Status": "Passed",
+                      "Stage": stage, "Type": step.get("Type"), "Capability": step.get("Capability"),
+                      "StartedAt": datetime.now(timezone.utc).isoformat()}
             try:
                 result = self.execute_step(step)
                 self.state["Steps"][step["Id"]] = result
@@ -304,11 +338,12 @@ class Runner:
                 record["Message"] = str(exc) if isinstance(exc, (RunError, CheckFailed)) else type(exc).__name__
                 if step.get("Id") in self.state["Steps"]:
                     record["Result"] = self.state["Steps"][step["Id"]]
+            record["DurationMs"] = round((time.monotonic() - started) * 1000, 2)
             self.records.append(record)
             if record["Status"] != "Passed" and not cleanup:
                 break
 
-    def run(self):
+    def run(self, preflight=False):
         all_steps = [step for key in ("Setup", "Steps", "Teardown") for step in self.case.get(key, [])]
         ids = [step.get("Id") for step in all_steps]
         if any(not isinstance(item, str) or not item for item in ids) or len(set(ids)) != len(ids):
@@ -328,19 +363,40 @@ class Runner:
             if kind == "Assert" and "Actual" not in step:
                 raise RunError("Assert requires Actual")
         json.dumps(self.case, allow_nan=False)
+        requirements = self.case.get("RequiredAbilities", [])
+        if not isinstance(requirements, list):
+            raise RunError("RequiredAbilities must be an array")
+        for required in requirements:
+            if (not isinstance(required, dict) or required.get("Endpoint") not in self.case["Endpoints"]
+                    or required.get("Actor") not in self.case.get("Actors", {})
+                    or not isinstance(required.get("AbilityPath"), str) or not required["AbilityPath"]):
+                raise RunError("RequiredAbilities needs a known Actor, Endpoint and nonempty AbilityPath")
+        scenario_started = False
         try:
             for endpoint, config in self.case["Endpoints"].items():
                 self.clients[endpoint] = self.factory(config)
             self.bind_actors()
-            self.run_steps(self.case.get("Setup", []) + self.case.get("Steps", []))
+            self.records.append({"Id": "BindActors", "Stage": "Preflight", "Status": "Passed",
+                                 "Result": {"Actors": copy.deepcopy(self.state["Actors"])}})
+            self.preflight_abilities()
+            if not preflight:
+                scenario_started = True
+                self.run_steps(self.case.get("Setup", []), stage="Setup")
+                if all(record["Status"] == "Passed" for record in self.records):
+                    self.run_steps(self.case.get("Steps", []))
         except Exception as exc:
-            self.records.append({"Id": "Initialize", "Status": "Error", "Message": str(exc) if isinstance(exc, RunError) else type(exc).__name__})
+            if not self.records or self.records[-1]["Status"] != "Error":
+                self.records.append({"Id": "Initialize", "Stage": "Preflight", "Status": "Error", "Message": str(exc) if isinstance(exc, RunError) else type(exc).__name__})
         finally:
-            self.run_steps(self.case.get("Teardown", []), cleanup=True)
+            if scenario_started:
+                self.run_steps(self.case.get("Teardown", []), cleanup=True, stage="Teardown")
             for client in self.clients.values():
                 client.close()
         code = 2 if any(item["Status"] == "Error" for item in self.records) else int(any(item["Status"] == "Failed" for item in self.records))
         return {"SchemaVersion": 1, "Name": self.case.get("Name", "GAS retest"), "ExitCode": code,
+                "Mode": "Preflight" if preflight else "Replay", "Contexts": self.contexts,
+                "Endpoints": {name: {key: config[key] for key in ("Url", "bAuthority") if key in config and (key != "Url" or name in self.clients)}
+                              for name, config in self.case["Endpoints"].items()},
                 "Records": self.records, "Actors": self.state["Actors"], "Identities": self.identities}
 
 
@@ -358,21 +414,45 @@ def write_reports(report, output):
             ET.SubElement(node, "failure" if record["Status"] == "Failed" else "error", message=record["Message"])
         ET.SubElement(node, "system-out").text = json.dumps(record.get("Result", {}), ensure_ascii=False)
     ET.ElementTree(root).write(output / "junit.xml", encoding="utf-8", xml_declaration=True)
+    from .report import render_report
+    (output / "report.html").write_text(render_report(report), encoding="utf-8")
+
+
+def create_template(path, name, endpoints):
+    if not all(endpoints.values()):
+        raise RunError("Template requires --server, --owner and --observer direct UE URLs")
+    endpoints = {role: direct_url(url) for role, url in endpoints.items()}
+    case = json.loads((Path(__file__).parent / "examples" / (name + ".json")).read_text(encoding="utf-8"))
+    for role, url in endpoints.items():
+        case["Endpoints"][role]["Url"] = url
+    with path.open("x", encoding="utf-8") as destination:
+        destination.write(json.dumps(case, ensure_ascii=False, indent=2) + "\n")
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("case", type=Path)
     parser.add_argument("--output", default="gas-retest-results")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--preflight", action="store_true", help="Read-only endpoint, Actor and RequiredAbilities checks; never runs Setup/Steps/Teardown")
+    mode.add_argument("--template", choices=("PredictionRejected", "Success"), help="Create an example case without connecting or overwriting a file")
+    for role in ("server", "owner", "observer"):
+        parser.add_argument("--" + role, help="Direct UE /stream URL for template generation")
     args = parser.parse_args(argv)
     try:
+        if args.template:
+            create_template(args.case, args.template, {role.title(): getattr(args, role) for role in ("server", "owner", "observer")})
+            print(f"Created {args.case}; check with: python -m gas_retest \"{args.case}\" --preflight")
+            return 0
+        if any(getattr(args, role) for role in ("server", "owner", "observer")):
+            raise RunError("--server/--owner/--observer require --template")
         case = json.loads(args.case.read_text(encoding="utf-8"))
-        report = Runner(case).run()
+        report = Runner(case).run(preflight=args.preflight)
         write_reports(report, args.output)
     except (OSError, ValueError, KeyError, TypeError, RunError) as exc:
         message = str(exc) if isinstance(exc, RunError) else type(exc).__name__
         print(f"GAS retest configuration error: {message}", file=sys.stderr)
-        report = {"SchemaVersion": 1, "Name": args.case.stem, "ExitCode": 2,
+        report = {"SchemaVersion": 1, "Name": args.case.stem, "ExitCode": 2, "Mode": "Preflight" if args.preflight else "Replay",
                   "Records": [{"Id": "Configuration", "Status": "Error", "Message": message}]}
         try:
             write_reports(report, args.output)

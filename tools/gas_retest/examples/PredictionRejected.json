@@ -291,5 +291,17 @@
         }
       }
     }
+  ],
+  "RequiredAbilities": [
+    {
+      "Actor": "Hero",
+      "Endpoint": "Server",
+      "AbilityPath": "/Script/Nexus.NexusDiagnosticAbility"
+    },
+    {
+      "Actor": "Hero",
+      "Endpoint": "Owner",
+      "AbilityPath": "/Script/Nexus.NexusDiagnosticAbility"
+    }
   ]
 }

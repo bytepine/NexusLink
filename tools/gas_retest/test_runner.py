@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 import xml.etree.ElementTree as ET
 
-from .runner import Client, Runner, RunError, check, expand_defaults, pointer, resolve, write_reports, main
+from .runner import Client, Runner, RunError, check, direct_url, expand_defaults, pointer, resolve, write_reports, main
 
 
 class FakeClient:
@@ -27,6 +27,8 @@ class FakeClient:
         if args.get("Sections") == ["Context"]:
             return {"IsError": False, "Payload": {"Context": {"ProcessId": 4 if self.role == "server" else 5, "WorldId": self.world,
                     "PlayerId": 17, "bLocallyControlled": self.role == "owner", "bAuthority": self.role == "server"}}}
+        if args.get("Sections") == ["Abilities"]:
+            return {"IsError": False, "Payload": {"Abilities": [{"AbilityPath": "/Script/Test.Ability", "SpecHandle": "1", "InstancingPolicy": 1}]}}
         return {"IsError": capability == "ExpectedFailure", "Payload": {"Value": 42}}
 
     def close(self):
@@ -69,8 +71,9 @@ class RunnerTests(unittest.TestCase):
         case["Teardown"] = [{"Id": "cleanup", "Type": "Call", "Endpoint": "server", "Capability": "Probe"}]
         report = Runner(case, FakeClient).run()
         self.assertEqual(report["ExitCode"], 2)
-        self.assertEqual([r["Id"] for r in report["Records"]], ["failed", "cleanup"])
-        self.assertTrue(report["Records"][0]["Result"]["IsError"])
+        steps = [r for r in report["Records"] if r.get("Stage") != "Preflight"]
+        self.assertEqual([r["Id"] for r in steps], ["failed", "cleanup"])
+        self.assertTrue(steps[0]["Result"]["IsError"])
 
     def test_expected_tool_error_is_assertable(self):
         case = self.case()
@@ -83,7 +86,7 @@ class RunnerTests(unittest.TestCase):
                          "Timeout": 0.01, "Interval": 0.01, "Check": {"Path": "/Payload/Value", "Value": 0}}]
         report = Runner(case, FakeClient).run()
         self.assertEqual(report["ExitCode"], 1)
-        self.assertEqual(report["Records"][0]["Result"]["Payload"]["Value"], 42)
+        self.assertEqual(report["Records"][-1]["Result"]["Payload"]["Value"], 42)
 
     def test_world_change_stops_before_write(self):
         class ChangedClient(FakeClient):
@@ -152,7 +155,58 @@ class RunnerTests(unittest.TestCase):
             case["Steps"] = [{"Id": "events", "Type": "Call", "Endpoint": "server", "Capability": "GetEvents"}]
             report = Runner(case, Incomplete).run()
             self.assertEqual(report["ExitCode"], 2)
-            self.assertEqual(report["Records"][0]["Result"]["Payload"], payload)
+            self.assertEqual(report["Records"][-1]["Result"]["Payload"], payload)
+
+    def test_preflight_never_runs_scenario_or_cleanup(self):
+        case = self.case()
+        case["RequiredAbilities"] = [{"Actor": "hero", "Endpoint": "server", "AbilityPath": "/Script/Test.Ability"}]
+        for stage in ("Setup", "Steps", "Teardown"):
+            case[stage] = [{"Id": stage, "Type": "Call", "Endpoint": "server", "Capability": "Write"}]
+        runner = Runner(case, FakeClient)
+        report = runner.run(preflight=True)
+        self.assertEqual((report["ExitCode"], report["Mode"]), (0, "Preflight"))
+        self.assertTrue(report["Contexts"]["server"]["bAuthority"])
+        self.assertTrue(all(r["Stage"] == "Preflight" for r in report["Records"]))
+        self.assertFalse(any(cap == "Write" for client in runner.clients.values() for cap, _ in client.calls))
+
+    def test_missing_ability_stops_before_setup_and_cleanup(self):
+        for preflight in (False, True):
+            case = self.case()
+            case["RequiredAbilities"] = [{"Actor": "hero", "Endpoint": "server", "AbilityPath": "/Script/Missing.Ability"}]
+            case["Setup"] = [{"Id": "setup", "Type": "Call", "Endpoint": "server", "Capability": "Write"}]
+            case["Teardown"] = [{"Id": "cleanup", "Type": "Call", "Endpoint": "server", "Capability": "Write"}]
+            runner = Runner(case, FakeClient)
+            self.assertEqual(runner.run(preflight=preflight)["ExitCode"], 2)
+            self.assertFalse(any(cap == "Write" for client in runner.clients.values() for cap, _ in client.calls))
+
+    def test_template_creation_does_not_connect_or_overwrite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "case.json"
+            args = [str(path), "--template", "PredictionRejected", "--output", str(Path(directory) / "errors")]
+            for role, port in (("server", 45010), ("owner", 45011), ("observer", 45012)):
+                args.extend(["--" + role, f"http://127.0.0.1:{port}/stream"])
+            with patch("gas_retest.runner.Client", side_effect=AssertionError("must not connect")):
+                self.assertEqual(main(args), 0)
+                before = path.read_text(encoding="utf-8")
+                self.assertEqual(main(args), 2)
+                self.assertEqual(before, path.read_text(encoding="utf-8"))
+            case = json.loads(before)
+            self.assertEqual(case["Endpoints"]["Owner"]["Url"], "http://127.0.0.1:45011/stream")
+            self.assertEqual(len(case["RequiredAbilities"]), 2)
+
+    def test_credential_url_not_written_to_failure_report(self):
+        case = {"SchemaVersion": 1, "Endpoints": {"bad": {"Url": "http://user:private-secret@localhost:45000/stream"}}, "Steps": []}
+        report = Runner(case).run(preflight=True)
+        self.assertEqual(report["ExitCode"], 2)
+        self.assertNotIn("private-secret", json.dumps(report))
+
+    def test_invalid_endpoint_ports_and_embedded_credentials_rejected(self):
+        for url in ("http://localhost/stream", "http://localhost:0/stream", "http://localhost:65536/stream",
+                    "http://localhost:abc/stream", "http://user:secret@localhost:45000/stream",
+                    "http://localhost:45000/stream?token=secret", "http://localhost:45000/stream#secret"):
+            with self.assertRaises(RunError):
+                direct_url(url)
+        self.assertEqual(direct_url("http://localhost:45000/stream/"), "http://localhost:45000/stream")
 
     def test_http_client_protocol_and_no_write_retry(self):
         writes = []
