@@ -9,7 +9,7 @@
 - bool 变量 / 参数是 b + 大写
 - 标识符不要 k 前缀（kMax 这种）
 - 协议工具 id、Prop / JSON 字段、Enum 取值：PascalCase；布尔字段 b 前缀
-  JSON Schema 关键字、MCP 信封，以及 Server/ 里的 MCP 握手字段保持原样
+  JSON Schema 关键字、MCP 信封，以及 Server/ 与实例注册文件里的代理基础协议保持原样
 
 不检查「变量名是否表达角色」和单字母。那是评审，不是正则。
 名叫 type / description 的字段和 Schema 关键字分不开，所以这两个词全局放行。
@@ -43,11 +43,15 @@ ALLOW_KEYS = frozenset({
     "pattern", "format", "anyOf", "oneOf", "allOf",
     "$schema", "$ref", "title", "const", "examples",
 })
-# MCP 握手 / tools/list 字段。只在 Server/ 放行，Capability 自己的 name 仍要查。
+# MCP 与代理基础协议。只在 Server/ 和实例注册文件放行，Capability 仍检查 PascalCase。
 MCP_WIRE_KEYS = frozenset({
     "protocolVersion", "capabilities", "tools", "listChanged",
     "serverInfo", "name", "version", "instructions",
     "description", "inputSchema", "annotations", "readOnlyHint", "code", "message",
+    "server", "engineVersion", "projectName", "wsPort", "netRole", "hostKind",
+    "hasPlayWorld", "authRequired", "token", "ok", "pid", "mcpPort", "authToken",
+    "minProxyVersion", "initializePrefix", "nexusLinkVersion",
+    "category", "tool", "proxy", "note", "errorText", "actualError", "attemptedArgs", "recorded",
 })
 # 不是动作名的枚举取值（图片格式等）。
 ALLOW_ENUM_VALUES = frozenset({"png", "jpg", "jpeg"})
@@ -207,10 +211,10 @@ def _want_pascal(name: str, *, mcp: bool) -> str | None:
     return f"协议名 {name} 不是 PascalCase"
 
 
-def _want_bool_field(name: str) -> str | None:
+def _want_bool_field(name: str, *, mcp: bool) -> str | None:
     if not _is_ident(name):
         return None
-    if name in ALLOW_KEYS or RE_BOOL_NAME.fullmatch(name):
+    if name in ALLOW_KEYS or (mcp and name in MCP_WIRE_KEYS) or RE_BOOL_NAME.fullmatch(name):
         return None
     return f"布尔字段 {name} 缺少 b 前缀"
 
@@ -227,15 +231,15 @@ def check_protocol(code: str, *, mcp: bool = False) -> list[tuple[int, str]]:
     for m in RE_PROP.finditer(code):
         add(m.start(), _want_pascal(m.group(1), mcp=mcp))
     for m in RE_PROP_BOOL.finditer(code):
-        add(m.start(), _want_bool_field(m.group(1)))
+        add(m.start(), _want_bool_field(m.group(1), mcp=mcp))
     for m in RE_FIELD.finditer(code):
         add(m.start(), _want_pascal(m.group(1), mcp=mcp))
     for m in RE_BOOL_FIELD.finditer(code):
-        add(m.start(), _want_bool_field(m.group(1)))
+        add(m.start(), _want_bool_field(m.group(1), mcp=mcp))
     for m in RE_ARGS.finditer(code):
         add(m.start(), _want_pascal(m.group(1), mcp=mcp))
     for m in RE_ARGS_BOOL.finditer(code):
-        add(m.start(), _want_bool_field(m.group(1)))
+        add(m.start(), _want_bool_field(m.group(1), mcp=mcp))
     for block in RE_REQUIRED.finditer(code):
         for m in RE_TEXT.finditer(block.group(1)):
             add(block.start() + m.start(), _want_pascal(m.group(1), mcp=mcp))
@@ -303,7 +307,7 @@ def audit(roots: list[Path]) -> list[str]:
             findings.append(f"[bool] {rel}:{line}: {msg}")
         for line, msg in check_k_prefix(plain):
             findings.append(f"[k] {rel}:{line}: {msg}")
-        mcp = "/Server/" in f"/{rel}"
+        mcp = "/Server/" in f"/{rel}" or path.name == "NexusInstanceRegistry.cpp"
         for line, msg in check_protocol(code, mcp=mcp):
             findings.append(f"[protocol] {rel}:{line}: {msg}")
     findings.sort()

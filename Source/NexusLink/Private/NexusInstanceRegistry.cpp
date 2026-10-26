@@ -65,12 +65,13 @@ void FNexusInstanceRegistry::Register(int32 McpPort, int32 WsPort, const FString
 	CleanupStaleFiles();
 
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-	Obj->SetNumberField(TEXT("Pid"), FPlatformProcess::GetCurrentProcessId());
-	Obj->SetNumberField(TEXT("McpPort"), McpPort);
-	Obj->SetNumberField(TEXT("WsPort"), WsPort);
-	Obj->SetStringField(TEXT("ProjectName"), ProjectName);
-	Obj->SetStringField(TEXT("EngineVersion"), EngineVersion);
-	Obj->SetStringField(TEXT("AuthToken"), AuthToken);
+	// 本地代理读取的注册协议与 /status 一样保留原字段名。
+	Obj->SetNumberField(TEXT("pid"), FPlatformProcess::GetCurrentProcessId());
+	Obj->SetNumberField(TEXT("mcpPort"), McpPort);
+	Obj->SetNumberField(TEXT("wsPort"), WsPort);
+	Obj->SetStringField(TEXT("projectName"), ProjectName);
+	Obj->SetStringField(TEXT("engineVersion"), EngineVersion);
+	Obj->SetStringField(TEXT("authToken"), AuthToken);
 
 	FString Json;
 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Json);
@@ -129,13 +130,13 @@ TArray<int32> FNexusInstanceRegistry::GetClaimedPorts()
 		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Content);
 		if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid()) continue;
 
-		if (Json->HasField(TEXT("McpPort")))
+		if (Json->HasField(TEXT("mcpPort")))
 		{
-			Result.AddUnique(static_cast<int32>(Json->GetNumberField(TEXT("McpPort"))));
+			Result.AddUnique(static_cast<int32>(Json->GetNumberField(TEXT("mcpPort"))));
 		}
-		if (Json->HasField(TEXT("WsPort")))
+		if (Json->HasField(TEXT("wsPort")))
 		{
-			Result.AddUnique(static_cast<int32>(Json->GetNumberField(TEXT("WsPort"))));
+			Result.AddUnique(static_cast<int32>(Json->GetNumberField(TEXT("wsPort"))));
 		}
 	}
 

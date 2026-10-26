@@ -431,16 +431,17 @@ void FNexusMcpServer::RegisterRoutes()
 				}
 
 				TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-				Obj->SetStringField(TEXT("Server"), TEXT("Nexus-Unreal"));
+				// 实例发现是代理基础协议，字段保持既有拼写，不随 Capability 命名迁移。
+				Obj->SetStringField(TEXT("server"), TEXT("Nexus-Unreal"));
 				Obj->SetStringField(TEXT("version"), GetPluginVersionName());
-				Obj->SetStringField(TEXT("EngineVersion"),
+				Obj->SetStringField(TEXT("engineVersion"),
 					FString::Printf(TEXT("%d.%d"), ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION));
-				Obj->SetStringField(TEXT("ProjectName"), FApp::GetProjectName());
-				Obj->SetNumberField(TEXT("WsPort"), Server->GetWsPort());
-				Obj->SetStringField(TEXT("NetRole"), DetectCurrentNetRole());
-				Obj->SetStringField(TEXT("HostKind"), FNexusHostUtils::GetHostKind());
-				Obj->SetBoolField(TEXT("bHasPlayWorld"), FNexusRuntimeUtils::HasPlayWorld());
-				Obj->SetBoolField(TEXT("bAuthRequired"), UNexusLinkSettings::IsMcpAuthRequired());
+				Obj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
+				Obj->SetNumberField(TEXT("wsPort"), Server->GetWsPort());
+				Obj->SetStringField(TEXT("netRole"), DetectCurrentNetRole());
+				Obj->SetStringField(TEXT("hostKind"), FNexusHostUtils::GetHostKind());
+				Obj->SetBoolField(TEXT("hasPlayWorld"), FNexusRuntimeUtils::HasPlayWorld());
+				Obj->SetBoolField(TEXT("authRequired"), UNexusLinkSettings::IsMcpAuthRequired());
 				ReplyJson(Complete, FNexusJsonUtils::SerializeCondensed(Obj));
 			});
 			return true;
@@ -684,7 +685,7 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 			const TSharedPtr<FJsonObject>* ParamsObj = nullptr;
 			if (JsonMsg.IsValid() && JsonMsg->TryGetObjectField(TEXT("params"), ParamsObj) && ParamsObj)
 			{
-				(*ParamsObj)->TryGetStringField(TEXT("Token"), Presented);
+				(*ParamsObj)->TryGetStringField(TEXT("token"), Presented);
 			}
 			// 鉴权关闭时仍接受 auth 并回 ok，兼容误发首帧的中转
 			const FString Extra = UNexusLinkSettings::Get() ? UNexusLinkSettings::Get()->GetExtraMcpAuthTokensText() : FString();
@@ -692,7 +693,7 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 			{
 				Self->AuthenticatedWsClients.Add(ClientWebSocket);
 				TSharedPtr<FJsonObject> Ok = MakeShared<FJsonObject>();
-				Ok->SetBoolField(TEXT("bOk"), true);
+				Ok->SetBoolField(TEXT("ok"), true);
 				SendWsText(ClientWebSocket, FNexusMcpDispatcher::MakeJsonRpcResult(Id, Ok));
 			}
 			else

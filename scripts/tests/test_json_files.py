@@ -33,6 +33,16 @@ def test_proxyconfig_valid_json():
     assert isinstance(data, dict)
 
 
+def test_proxyconfig_preserves_client_wire_contract():
+    data = _load("Resources/ProxyConfig.json")
+    for key in ("protocolVersion", "minProxyVersion", "initializePrefix", "localToolNames", "connectionTools", "errorMessages"):
+        assert key in data, f"proxy configuration missing client field: {key}"
+    tools = {tool["name"]: tool["inputSchema"] for tool in data["connectionTools"]}
+    assert set(tools) == set(data["localToolNames"])
+    connect = tools["connect_unreal_instance"]
+    assert "port" in connect["properties"] and "port" in connect["required"]
+
+
 def test_changelog_has_unreleased():
     path = os.path.join(REPO_ROOT, "CHANGELOG.md")
     text = open(path, encoding="utf-8").read()

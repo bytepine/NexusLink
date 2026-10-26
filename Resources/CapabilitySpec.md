@@ -259,6 +259,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 - C++：私有 Capability 类名为 `FNexus{PascalCase}Capability`，文件 `Nexus{PascalCase}Capability.{h,cpp}`（去掉 `F` 后与文件名一致）。
 - 词序：`{Verb}{Scope}{Target}{Aspect?}`；`Scope` 为 `Asset` 或 `Runtime` 时必须出现在名中；Editor / 通用例外见 §6.4。
 - JSON Schema 关键字（`type`、`properties`、`required`、`enum`）和 MCP / JSON-RPC 标准字段保持协议原样，不套这套 PascalCase。包括 `capabilities`、`instructions`、`listChanged`、`inputSchema`、`annotations`、`readOnlyHint`、`code`、`message`，以及 `jsonrpc`、`method`、`params`、`isError`、`structuredContent`。
+- 实例发现与代理基础协议同样保持既有拼写：`GET /status` 的 `server` / `wsPort` / `projectName` / `engineVersion` / `netRole` / `hostKind` / `hasPlayWorld` / `authRequired`；实例注册文件的 `pid` / `mcpPort` / `wsPort` / `projectName` / `engineVersion` / `authToken`；WS `auth` 的 `params.token` 与 `result.ok`，以及 `status` / `nexus/instructions` / `nexus/proxy_config` / `nexus/proxy_feedback` 的方法名与字段。这些不是 Capability 业务参数，改名会破坏已发布代理的发现与连接。
 
 ### 6.2 Asset 盘（编辑器资产）
 

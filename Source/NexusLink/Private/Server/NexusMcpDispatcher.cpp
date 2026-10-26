@@ -688,30 +688,30 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 void FNexusMcpDispatcher::HandleProxyFeedback(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Params)
 {
 	FString Category;
-	if (!Params.IsValid() || !Params->TryGetStringField(TEXT("Category"), Category) || Category.IsEmpty())
+	if (!Params.IsValid() || !Params->TryGetStringField(TEXT("category"), Category) || Category.IsEmpty())
 	{
 		SendError(Id, JsonRpcInvalidParams, TEXT("Missing required field: category"));
 		return;
 	}
 
 	FNexusFeedback::FFields Fields;
-	Params->TryGetStringField(TEXT("Tool"), Fields.Tool);
-	Params->TryGetStringField(TEXT("Proxy"), Fields.Proxy);
-	Params->TryGetStringField(TEXT("Note"), Fields.Note);
+	Params->TryGetStringField(TEXT("tool"), Fields.Tool);
+	Params->TryGetStringField(TEXT("proxy"), Fields.Proxy);
+	Params->TryGetStringField(TEXT("note"), Fields.Note);
 	FString ErrorText;
-	if (Params->TryGetStringField(TEXT("ErrorText"), ErrorText) ||
-		Params->TryGetStringField(TEXT("ActualError"), ErrorText))
+	if (Params->TryGetStringField(TEXT("errorText"), ErrorText) ||
+		Params->TryGetStringField(TEXT("actualError"), ErrorText))
 	{
 		Fields.ErrorText = ErrorText;
 	}
-	Params->TryGetStringField(TEXT("AttemptedArgs"), Fields.AttemptedArgs);
+	Params->TryGetStringField(TEXT("attemptedArgs"), Fields.AttemptedArgs);
 
 	// 代理层事件走既有 30 秒节流，与其它 auto 类别一致；bEnableFeedback=false 时静默跳过。
 	FNexusFeedback::RecordAuto(Category, Fields);
 
 	TSharedPtr<FJsonObject> Out = MakeShared<FJsonObject>();
-	Out->SetBoolField(TEXT("bOk"), true);
-	Out->SetStringField(TEXT("Recorded"), FDateTime::UtcNow().ToIso8601());
+	Out->SetBoolField(TEXT("ok"), true);
+	Out->SetStringField(TEXT("recorded"), FDateTime::UtcNow().ToIso8601());
 	SendResult(Id, Out);
 }
 
@@ -755,16 +755,16 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 	{
 		HandleToolsCall(Id, Params);
 	}
-	else if (Method == TEXT("Status"))
+	else if (Method == TEXT("status"))
 	{
 		// 返回编辑器状态信息（与 GET /status 相同内容，供 WebSocket 通道使用）
 		TSharedPtr<FJsonObject> StatusObj = MakeShared<FJsonObject>();
-		StatusObj->SetStringField(TEXT("Server"), TEXT("Nexus-Unreal"));
+		StatusObj->SetStringField(TEXT("server"), TEXT("Nexus-Unreal"));
 		StatusObj->SetStringField(TEXT("version"), GetNexusLinkUpluginVersionName());
-		StatusObj->SetStringField(TEXT("EngineVersion"), FString::Printf(TEXT("%d.%d"),
+		StatusObj->SetStringField(TEXT("engineVersion"), FString::Printf(TEXT("%d.%d"),
 			ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION));
-		StatusObj->SetStringField(TEXT("ProjectName"), FApp::GetProjectName());
-		StatusObj->SetBoolField(TEXT("bAuthRequired"), UNexusLinkSettings::IsMcpAuthRequired());
+		StatusObj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
+		StatusObj->SetBoolField(TEXT("authRequired"), UNexusLinkSettings::IsMcpAuthRequired());
 		SendResult(Id, StatusObj);
 	}
 	else if (Method == TEXT("nexus/instructions"))
@@ -772,7 +772,7 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 		// 返回握手说明（本插件正文 + 已注册的扩展片段）。
 		// 不复用 MCP initialize：避免污染握手语义和状态机。
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-		Obj->SetStringField(TEXT("Instructions"), BuildInitializeInstructions());
+		Obj->SetStringField(TEXT("instructions"), BuildInitializeInstructions());
 		SendResult(Id, Obj);
 	}
 	else if (Method == TEXT("nexus/proxy_config"))

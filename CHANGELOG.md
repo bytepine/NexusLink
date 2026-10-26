@@ -14,6 +14,7 @@
 ### Fixed
 
 - MultiSection 显式 section 按注册名称解析，保留大小写兼容并正确展开 `All`，避免 PascalCase 名称被转小写后误报未知 section。
+- 恢复实例发现、注册文件、WebSocket 身份验证与代理握手的既有字段拼写，修复已发布 Desktop / Rider / VSCode 无法扫描或连接新版插件；Capability 业务字段仍使用 PascalCase。
 
 ## [2.3.0-beta.1] - 2026-10-23
 

@@ -30,9 +30,9 @@ TSharedPtr<FJsonObject> FNexusProxyConfig::BuildConfigObject()
 	{
 		ConfigObj = MakeShared<FJsonObject>();
 		ConfigObj->SetStringField(TEXT("protocolVersion"), TEXT("2025-06-18"));
-		ConfigObj->SetStringField(TEXT("MinProxyVersion"), TEXT("1.3.3"));
+		ConfigObj->SetStringField(TEXT("minProxyVersion"), TEXT("1.3.3"));
 		ConfigObj->SetStringField(
-			TEXT("InitializePrefix"),
+			TEXT("initializePrefix"),
 			TEXT("NexusLink MCP Proxy for Unreal Engine."));
 	}
 
@@ -42,7 +42,7 @@ TSharedPtr<FJsonObject> FNexusProxyConfig::BuildConfigObject()
 	{
 		LinkVersion = Plugin->GetDescriptor().VersionName;
 	}
-	ConfigObj->SetStringField(TEXT("NexusLinkVersion"), LinkVersion);
+	ConfigObj->SetStringField(TEXT("nexusLinkVersion"), LinkVersion);
 
 	return ConfigObj;
 }

@@ -100,10 +100,12 @@ flowchart TB
 
 `GET /status` 只检查服务在不在，**不含 token**。本机代理连本机 UE 会自动读该文件（及 `{Temp}/NexusLink/{PID}.json`），**无需**再配 remoteUnreal。
 
+实例发现和代理身份验证保持原协议字段（例如 `server`、`wsPort`、`authRequired`、`params.token`、`result.ok`）；Capability 的 PascalCase 命名不应用到这些字段。
+
 | 开关 | 位置 | 默认 | 关闭后 |
 |------|------|------|--------|
-| **MCP 身份验证** | UE 编辑器偏好 | 开 | HTTP/WS 不校验；`/status.bAuthRequired=false`（同旧版插件） |
-| **启用 MCP 身份验证** | Desktop / Rider / VSCode | 开 | AI 连该中转无需 Bearer（同旧版中转）；连 UE 仍看对方 `bAuthRequired` |
+| **MCP 身份验证** | UE 编辑器偏好 | 开 | HTTP/WS 不校验；`/status.authRequired=false`（同旧版插件） |
+| **启用 MCP 身份验证** | Desktop / Rider / VSCode | 开 | AI 连该中转无需 Bearer（同旧版中转）；连 UE 仍看对方 `/status.authRequired` |
 
 两端开关独立：
 
