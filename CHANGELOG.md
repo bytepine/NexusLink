@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [2.3.0-beta.2] - 2026-10-26
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Added
 
 - 行为树 / Blackboard `bt_retest`：显式 Pawn/AIController、只读预检、改变条件/等待快照/恢复原值、超时末次证据及领域隔离基线；与 GAS 共用执行和报告代码，保留旧 CLI/导入/报告。Runtime Actor 增加独立 Context，行为树新增路径/运行状态/类型化继承键；SetBlackboard 拒绝错误标量类型。
