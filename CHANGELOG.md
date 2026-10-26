@@ -9,7 +9,7 @@
 
 ### Added
 
-- GAS 联机诊断与复测：ASC `Context` / `Tags` / `ActivationDiagnostics` / `ActivationEvents`，显式目标的已有技能激活和限时事件捕获；`tools/gas_retest` 以 JSON 用例执行多端步骤、等待与断言，支持只读接入预检、显式端点的用例模板及 HTML / JSON / JUnit 报告，分别展示用例状态、权威端事件与未确认结果；支持离线保存通过基线、对比新增失败/恢复/缺失步骤及各端事件变化，以用例签名核对断言并保留前后完整证据，拒绝覆盖已有基线和对比目录；签名核对供示例工程固定用例自动回归复用，工具回归纳入 Build CI；失败保留证据、写操作不重试。
+- GAS 联机诊断与复测：ASC `Context` / `Tags` / `ActivationDiagnostics` / `ActivationEvents`，显式目标的已有技能激活和限时事件捕获；`tools/gas_retest` 以 JSON 用例执行多端步骤、等待与断言，支持只读接入预检、显式端点的用例模板及 HTML / JSON / JUnit 报告，分别展示用例状态、权威端事件与未确认结果；支持离线保存通过基线、对比新增失败/恢复/缺失步骤及各端事件变化，以用例签名核对断言并保留前后完整证据，拒绝覆盖已有基线和对比目录；签名核对供示例工程手动启动的固定用例复测复用，无需 UE 的工具回归纳入 GitHub 云端 CI；失败保留证据、写操作不重试。
 
 ### Fixed
 

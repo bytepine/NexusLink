@@ -31,7 +31,7 @@ python -m gas_retest current/results.json --compare gas-retest-results/baselines
 
 也可用 `--compare previous/results.json` 比较两份普通结果，包括失败后恢复。对比退出码：0 本次用例通过且没有缺失步骤；1 本次失败/错误或有缺失步骤；2 输入不合法、不兼容或文件写入失败。事件变化本身不判定回归，未确认结果不会被当成服务器成功。
 
-自动回归入口位于公开 NexusUnreal 示例工程：`python Script/gas_regression.py --ue-root <UE-directory>`。它先核对受版本控制的基线及用例签名，再运行固定的 `PredictionRejected` / `Success`，生成汇总 HTML / JSON / JUnit、逐项对比及包含日志的 `reports.zip`；失败和未执行用例同样进入归档与门禁，不自动更新基线。GitHub CI 的工具检查无需 UE；真实联机任务要求配置 Windows UE 自托管 Runner，详见示例工程测试指南。
+用户可在公开 NexusUnreal 示例工程手动运行 `python Script/gas_regression.py --ue-root <UE-directory>`。它先核对受版本控制的基线及用例签名，再运行固定的 `PredictionRejected` / `Success`，生成汇总 HTML / JSON / JUnit、逐项对比及包含日志的 `reports.zip`；失败和未执行用例同样进入归档与门禁，不自动更新基线。GitHub CI 仅在云端执行无需 UE 的工具检查，不调度本机运行 UE，详见示例工程测试指南。
 
 Python 3.10+, standard library only. Run from the plugin's `tools` directory. Configure explicit direct UE endpoints for server, owning client and observer. Tokens come from an environment variable or the local shared token file. Examples require the opt-in diagnostic GameMode from the public NexusUnreal sample. They modify only the selected test character's runtime state. Writes are never retried; missing authority evidence remains unconfirmed.
 
