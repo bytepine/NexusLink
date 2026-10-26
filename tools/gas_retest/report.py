@@ -5,12 +5,13 @@ from pathlib import Path
 from urllib.parse import quote
 
 
-STYLE = """+:root{color-scheme:light;font-family:Segoe UI,Microsoft YaHei,sans-serif;color:#203047;background:#f3f5f8}
+STYLE = """:root{color-scheme:light;font-family:Segoe UI,Microsoft YaHei,sans-serif;color:#203047;background:#f3f5f8}
 *{box-sizing:border-box}body{margin:0}main{max-width:1160px;margin:auto;padding:36px 24px 70px}
 h1{font-size:30px;margin:8px 0 14px}h2{font-size:19px;margin:0 0 16px}h3{font-size:15px;margin:0 0 10px}
 p{line-height:1.7}a{color:#2356a8}small,.muted{color:#66758a}.eyebrow{letter-spacing:2px;font-size:12px;color:#526783}
 .panel{background:white;border:1px solid #dfe5ee;border-radius:12px;padding:22px;margin:18px 0}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.grid .panel{margin:0;min-width:0}
+.stats{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
 .pill{display:inline-block;padding:4px 10px;border-radius:20px;font-size:12px;background:#eaf0f8;color:#3c5471}
 .Passed{background:#e4f4eb;color:#166443}.Failed,.Error{background:#fff0e9;color:#9d3d22}
 .evidence{border-left:4px solid #56799d}.evidence.warning{border-left-color:#ca762d}
@@ -48,7 +49,7 @@ def collect_evidence(report):
         for event in payload.get("Events", []):
             incomplete |= event.get("bIdentityKnown") is not True
             key = (endpoint, payload.get("CaptureId", record["Id"]), event.get("Sequence"))
-            events[key] = {**event, "Endpoint": endpoint}
+            events[key] = {**event, "Endpoint": endpoint, "Capture": key[1]}
     return contexts, list(events.values()), incomplete
 
 

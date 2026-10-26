@@ -31,7 +31,7 @@ From the plugin's `tools` directory:
 ```sh
 python -m gas_retest case.json --output results
 python -m gas_retest case.json --preflight --output preflight-results
-python -m unittest gas_retest.test_runner gas_retest.test_report
+python -m unittest gas_retest.test_runner gas_retest.test_report gas_retest.test_compare
 ```
 
 ### First connection / 首次接入
@@ -86,6 +86,27 @@ No writes are retried. Process/World changes abort replay. `Teardown` runs best-
 Output: offline `report.html`, `results.json`, `junit.xml`, terminal summary. Exit `0`: passed; `1`: assertion failed; `2`: configuration, transport, or incomplete evidence. An Await timeout keeps its final observation and reports the authority outcome as unconfirmed.
 
 HTML reports show endpoint roles, the first failing steps, activation snapshots, deduplicated per-endpoint events, next checks, and expandable raw evidence. Case pass/fail is separate from the observed gameplay outcome: an expected rejection may pass its test. Missing authority events, dropped events, unknown identity or conflicting activations remain unconfirmed. Events stay in each capture's observed order; clocks across processes do not establish causation. Reports work offline with no external scripts or assets.
+
+### Baselines and comparison / 保存基线与前后对比
+
+Both operations consume recorded results offline; they never initialize MCP, activate skills, or rerun case steps:
+
+```sh
+python -m gas_retest previous/results.json --save-baseline gas-retest-results/baselines/Success.json
+python -m gas_retest current/results.json --compare gas-retest-results/baselines/Success.json --output gas-retest-results/comparison-01
+```
+
+Save one baseline per case, such as `Success` and `PredictionRejected`. A baseline preserves the full report and UTC save time, requires a passed replay without dropped/unidentified events, and refuses to overwrite an existing file. A passed rejection case is a valid baseline: it asserts expected rejection and does not claim successful gameplay. Preflight cannot be saved as a replay baseline. Read-only cases with no authority activation evidence retain their unconfirmed outcome.
+
+Compare runs of the same case. Name, mode, endpoint aliases and configured authority roles must agree. New reports carry a `CaseSignature` of the case definition, including steps, assertions and expected roles while excluding deployment URLs and token environment variable names. Different signatures are rejected, so weakening an assertion cannot masquerade as recovery. Legacy reports without signatures remain readable but prominently warn that the original assertion definition cannot be verified.
+
+`comparison.html` and `comparison.json` distinguish newly failed checks, recovered checks, added checks and missing/unexecuted checks, including setup and cleanup. Missing checks are not treated as successful. The report separately compares authority conclusions, observed roles, event order/count, capture boundaries, ability paths and failure tags. Process/World IDs, URLs, timing, capture IDs, SpecHandle and PredictionKey are excluded from semantic event comparison; raw values remain in the evidence. Repeated capture snapshots are deduplicated. Event changes alone are observations, not proof of regression or repair; incomplete/ambiguous evidence remains unconfirmed.
+
+The comparison directory must not already exist. `before/` and `after/` contain independent HTML, JSON and JUnit reports, so the comparison remains navigable offline after moving the directory. No original input or existing baseline is overwritten. To inspect recovery from a failed run, use `--compare failed/results.json` instead of saving that failed run as a baseline.
+
+Comparison exit codes: `0` current case passed with no missing checks; `1` current case failed/errored or checks are missing; `2` invalid/incompatible input or an output error. These describe the comparison operation; the original replay exit codes remain visible in each side's report.
+
+这两个模式的首个参数为已保存的结果文件，而非用例定义；与 `--preflight` / `--template` 互斥。固定用例的修改前、修改后结果分别对比；不要用预期不同的 `PredictionRejected` 和 `Success` 相互替代。基线和对比记录保留完整原始证据，步骤状态与实际技能结果分别展示。
 
 用例中的 `Setup` / `Steps` / `Teardown` 顺序执行；不自动重试写操作。JSON Pointer 引用保留原始类型；遇到响应默认值压缩会先还原再断言。执行前后检查进程与 World，换图或重启后不继续写入。失败和清理失败分别进入报告。
 

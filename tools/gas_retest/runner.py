@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import copy
 from datetime import datetime, timezone
+import hashlib
 import json
 import math
 import os
@@ -393,7 +394,12 @@ class Runner:
             for client in self.clients.values():
                 client.close()
         code = 2 if any(item["Status"] == "Error" for item in self.records) else int(any(item["Status"] == "Failed" for item in self.records))
+        # 地址和凭证来源随部署变化，不影响用例定义；断言、步骤及角色配置必须一致。
+        definition = {**self.case, "Endpoints": {name: {key: value for key, value in config.items()
+                      if key not in ("Url", "TokenEnv")} for name, config in self.case["Endpoints"].items()}}
+        signature = hashlib.sha256(json.dumps(definition, sort_keys=True, allow_nan=False).encode()).hexdigest()
         return {"SchemaVersion": 1, "Name": self.case.get("Name", "GAS retest"), "ExitCode": code,
+                "CaseSignature": signature,
                 "Mode": "Preflight" if preflight else "Replay", "Contexts": self.contexts,
                 "Endpoints": {name: {key: config[key] for key in ("Url", "bAuthority") if key in config and (key != "Url" or name in self.clients)}
                               for name, config in self.case["Endpoints"].items()},
@@ -431,15 +437,32 @@ def create_template(path, name, endpoints):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("case", type=Path)
+    parser.add_argument("case", type=Path, help="Case JSON; for offline baseline/compare modes, a recorded results.json")
     parser.add_argument("--output", default="gas-retest-results")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--preflight", action="store_true", help="Read-only endpoint, Actor and RequiredAbilities checks; never runs Setup/Steps/Teardown")
     mode.add_argument("--template", choices=("PredictionRejected", "Success"), help="Create an example case without connecting or overwriting a file")
+    mode.add_argument("--save-baseline", type=Path, help="Offline: save a passed replay to a new baseline JSON file")
+    mode.add_argument("--compare", type=Path, help="Offline: compare recorded results against a baseline or an earlier results.json")
     for role in ("server", "owner", "observer"):
         parser.add_argument("--" + role, help="Direct UE /stream URL for template generation")
     args = parser.parse_args(argv)
     try:
+        if args.save_baseline or args.compare:
+            if any(getattr(args, role) for role in ("server", "owner", "observer")):
+                raise RunError("Offline comparison does not accept endpoint URLs")
+            from .compare import load_report, save_baseline, compare_reports, write_comparison
+            current = load_report(args.case)
+            if args.save_baseline:
+                save_baseline(current, args.save_baseline)
+                print(f"Baseline saved: {args.save_baseline}")
+                return 0
+            previous = load_report(args.compare)
+            comparison = compare_reports(previous, current)
+            write_comparison(comparison, previous, current, args.output)
+            print(f"Comparison: {Path(args.output) / 'comparison.html'}; " +
+                  ", ".join(f"{key}={value}" for key, value in comparison["Counts"].items()))
+            return comparison["ExitCode"]
         if args.template:
             create_template(args.case, args.template, {role.title(): getattr(args, role) for role in ("server", "owner", "observer")})
             print(f"Created {args.case}; check with: python -m gas_retest \"{args.case}\" --preflight")
@@ -451,7 +474,11 @@ def main(argv=None):
         write_reports(report, args.output)
     except (OSError, ValueError, KeyError, TypeError, RunError) as exc:
         message = str(exc) if isinstance(exc, RunError) else type(exc).__name__
+        if isinstance(exc, FileExistsError) and (args.save_baseline or args.compare):
+            message = "Output already exists; choose a new baseline file or comparison directory"
         print(f"GAS retest configuration error: {message}", file=sys.stderr)
+        if args.save_baseline or args.compare:
+            return 2
         report = {"SchemaVersion": 1, "Name": args.case.stem, "ExitCode": 2, "Mode": "Preflight" if args.preflight else "Replay",
                   "Records": [{"Id": "Configuration", "Status": "Error", "Message": message}]}
         try:
