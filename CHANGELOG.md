@@ -9,7 +9,7 @@
 
 ### Changed
 
-- 统一 Unreal Engine MCP 的中英文首页介绍，说明 Fab 商品 NexusMCP 与 NexusLink 的关系，补充 Fab / 客户端入口并精简插件展示描述。
+- 统一 Unreal Engine MCP 的中英文首页介绍、插件定位和客户端入口，精简插件展示描述；移除 README 中的 Fab 内容，避免商品页 403 导致链接检查失败。
 
 ### Fixed
 

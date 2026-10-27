@@ -4,9 +4,9 @@
 
 **让 AI 读取、修改和调试 Unreal Engine 项目。** NexusLink 是免费开源的 Unreal Engine MCP 插件，通过 Model Context Protocol（MCP）连接 Cursor、Claude Code、Windsurf 等 AI 客户端。
 
-[Fab 免费获取（NexusMCP）](https://www.fab.com/listings/60097027-d7a5-4f73-87f3-81edb1b6ef0b) · [快速开始](#快速开始) · [GitHub 下载](https://github.com/bytepine/NexusLink/releases) · [文档导航](docs/README.md) · [更新记录](CHANGELOG.md)
+[快速开始](#快速开始) · [GitHub 下载](https://github.com/bytepine/NexusLink/releases) · [文档导航](docs/README.md) · [更新记录](CHANGELOG.md)
 
-Fab 商品名为 **NexusMCP**，UE 插件和源码名为 **NexusLink**。首次使用推荐 [NexusDesktop](https://github.com/bytepine/NexusDesktop)；已有 IDE 工作流可选 **Nexus MCP** 扩展：[VS Marketplace](https://marketplace.visualstudio.com/items?itemName=byteyang.nexus-mcp-vscode) / [Open VSX](https://open-vsx.org/extension/byteyang/nexus-mcp-vscode)，或 [NexusRider](https://github.com/bytepine/NexusRider)。这些客户端任选其一，UE 侧都需安装 NexusLink。
+首次使用推荐 [NexusDesktop](https://github.com/bytepine/NexusDesktop)；已有 IDE 工作流可选 **Nexus MCP** 扩展：[VS Marketplace](https://marketplace.visualstudio.com/items?itemName=byteyang.nexus-mcp-vscode) / [Open VSX](https://open-vsx.org/extension/byteyang/nexus-mcp-vscode)，或 [NexusRider](https://github.com/bytepine/NexusRider)。这些客户端任选其一，UE 侧都需安装 NexusLink。
 
 ## 能做什么
 
@@ -22,7 +22,7 @@ Fab 商品名为 **NexusMCP**，UE 插件和源码名为 **NexusLink**。首次�
 
 ### 1. 安装并启用 UE 插件
 
-1. 从 [Fab（NexusMCP）](https://www.fab.com/listings/60097027-d7a5-4f73-87f3-81edb1b6ef0b) 获取并安装适配引擎版本的插件；或从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载 `nexus-mcp-unreal-<version>.zip`，将其中的 `NexusLink/` 目录放入项目 `Plugins/`，确认文件位于 `Plugins/NexusLink/NexusLink.uplugin`。各渠道的版本和能力以对应发布说明为准。
+1. 从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载 `nexus-mcp-unreal-<version>.zip`，将其中的 `NexusLink/` 目录放入项目 `Plugins/`，确认文件位于 `Plugins/NexusLink/NexusLink.uplugin`。
 2. 在 **Edit → Plugins → Developer → NexusLink** 中启用插件，重启编辑器。
 3. 在 **Edit → Editor Preferences → Plugins → NexusLink** 中勾选 **启用 MCP 服务器**（默认关闭），确认运行状态与标题栏的 MCP / WS 端口。
 
