@@ -1,125 +1,79 @@
-﻿# NexusLink — UE MCP 插件
+# NexusLink
 
-**语言 / Language**: **简体中文** · [English](README.en.md)
+**简体中文** · [English](README.en.md)
 
-基于 Unreal Engine 的 MCP 集成插件，将 UE 项目上下文通过 MCP 协议暴露给 AI 工具。
+通过 Model Context Protocol（MCP），让 AI 读取、修改和调试 Unreal Engine 项目。
 
-运行时 AI 支持 [行为树 / Blackboard 复测](docs/bt-retest.md)：显式目标、条件恢复、快照证据和独立领域基线。
+[快速开始](#快速开始) · [文档导航](docs/README.md) · [下载](https://github.com/bytepine/NexusLink/releases) · [更新记录](CHANGELOG.md)
 
-停录 Trace 支持 [同条件性能对比](docs/trace-compare.md)：显式端点导出、离线 HTML/JSON、多次采样与原始证据保留。
+## 能做什么
 
-> 支持 UE 4.26 及以上所有版本（含 UE5）。插件拆两个模块：`NexusLink`（`Type: Runtime`，Development/DebugGame 的独立 Game/DS 也能托管 MCP）+ `NexusLinkEditor`（`Type: Editor`，编辑器 UI）；**Shipping 编译期整体剔除 MCP 服务器**。
+- **编辑器与资产**：查询项目上下文，读写蓝图、材质、动画、音频、DataTable、Widget 和 Niagara 等资产；支持[修改前预览与写后校验](docs/asset-edit-preview.md)。
+- **运行时调试**：在 PIE、独立 Game 和 Dedicated Server 中检查日志、Actor、动画、AI / EQS 和 GAS；有视口的 Game / PIE 还支持 [UMG 控件交互](docs/runtime-widgets.md)。
+- **复测与性能分析**：[GAS 技能激活诊断](docs/gas-retest.md)、[行为树 / Blackboard 条件复测](docs/bt-retest.md)、[已停录 Trace 的同条件性能对比](docs/trace-compare.md)。
 
-> **从 1.x 升级**：2.0 默认开启身份验证且 MCP/AI 可见文案改为英文，插件与客户端须同批升到 2.x。见 [usage-guide §0](docs/usage-guide.md#0-从-1x-升级到-20)。
+支持 **UE 4.26+（含 UE5）**。MCP 可运行于编辑器及 Development / DebugGame 的 Game / DS；**Shipping 在编译期剔除 MCP 服务器**。具体能力随引擎版本、宿主类型和已启用插件裁剪。
 
-## 5 分钟快速开始（推荐 NexusDesktop）
+## 快速开始
 
-日常使用推荐独立中转 [NexusDesktop](https://github.com/bytepine/NexusDesktop)：无需安装 IDE 扩展，固定端口，多开 UE 时可切换实例。
+推荐通过独立托盘应用 [NexusDesktop](https://github.com/bytepine/NexusDesktop) 接入：无需 IDE 扩展，端点固定，支持多 UE 实例切换。
 
-1. 从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载 `nexus-mcp-unreal-<version>.zip`，解压到项目 `Plugins/NexusLink`
-2. 在 **Edit → Plugins → Developer → NexusLink** 中启用插件并重启编辑器
-3. 在 **Edit → Editor Preferences → Plugins → NexusLink** 中勾选 **启用 MCP 服务器**（默认关闭），确认运行状态和标题栏显示 MCP / WS 端口
-4. 从 [NexusDesktop Releases](https://github.com/bytepine/NexusDesktop/releases) 下载当前最新正式版：Windows 选 `*-setup.exe`，macOS 选 `.dmg`；`*-update.zip` 不是安装包
-5. 启动 NexusDesktop，在托盘勾选 **启用中转服务器**（默认 `:6700`），确认状态行显示当前 UE 项目
-6. 托盘选择 **MCP 客户端配置…**，选 **Streamable HTTP** 和 Cursor / CodeBuddy，将生成的配置粘贴到 AI 客户端
-7. 重启 MCP 会话；默认 SearchMode 提供 `SearchCapabilities`、`CallCapability`、`SubmitFeedback` 3 个元工具，加上 NexusDesktop 的两个实例工具通常共 5 个。输入 **「使用 MCP 告诉我当前 UE 编辑器信息。」**，核对返回的工程、引擎版本和运行状态
+### 1. 安装并启用 UE 插件
 
-> **安全**：MCP 身份验证默认开启。Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中；分享截图前必须打码。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
+1. 从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载 `nexus-mcp-unreal-<version>.zip`，将其中的 `NexusLink/` 目录放入项目 `Plugins/`。确认文件位于 `Plugins/NexusLink/NexusLink.uplugin`。
+2. 在 **Edit → Plugins → Developer → NexusLink** 中启用插件，重启编辑器。
+3. 在 **Edit → Editor Preferences → Plugins → NexusLink** 中勾选 **启用 MCP 服务器**（默认关闭），确认运行状态与标题栏的 MCP / WS 端口。
 
-未启用 UE 端服务时，标题栏不显示端口、NexusDesktop 扫不到实例、直连 `http://127.0.0.1:45000/stream` 无响应。首次接入可跟随 [NexusDesktop 图文步骤](docs/usage-guide.md#3-nexusdesktop)；插件安装、身份验证与跨机接入见 [使用指南](docs/usage-guide.md)。
+### 2. 连接 AI 客户端
 
-## 其他连接方式
+1. 从 [NexusDesktop Releases](https://github.com/bytepine/NexusDesktop/releases) 下载最新正式版：Windows 选 `*-setup.exe`，macOS 选 `.dmg`。
+2. 启动 NexusDesktop，在托盘勾选 **启用中转服务器**，确认状态行显示目标 UE 项目。
+3. 选择 **MCP 客户端配置…**，选 **Streamable HTTP** 和所用 AI 客户端，将生成的配置粘贴到客户端。
 
-NexusLink 提供 HTTP `:45000` + WebSocket `:55000`。本机只开一个代理，避免多个代理重复扫描并连接同一 UE。
+首次接入可跟随[图文步骤](docs/usage-guide.md#3-nexusdesktop)。`*-update.zip` 用于更新，不是安装包。
 
-| 客户端 | MCP 端点 | 说明 |
-|--------|----------|------|
-| **[NexusDesktop](https://github.com/bytepine/NexusDesktop)**（推荐） | `http://127.0.0.1:6700/stream` | 独立托盘，无需 IDE 扩展 |
-| **[NexusRider](https://github.com/bytepine/NexusRider)** | `http://127.0.0.1:6800/stream` | Rider Marketplace 搜索 **Nexus MCP** |
-| **[NexusVSCode](https://github.com/bytepine/NexusVSCode)** | `http://127.0.0.1:6900/stream` | VSCode / Cursor / CodeBuddy / Windsurf 扩展 |
-| 直连 UE | `http://127.0.0.1:45000/stream` | 无代理缓存、写入前确认和多实例切换 |
+### 3. 验证连接
 
-## 运行时 / Dedicated Server 调试
+重启 MCP 会话，向 AI 输入：
 
-- 编辑器和 PIE 可使用 Preferences 开关；Development / DebugGame 的独立 Game、`-game` / `-server` 子进程及 commandlet 不读取该开关，启动时显式追加 `-EnableNexusMcp`
-- 若默认端口已被其他 UE 进程占用，服务会自动换成下一个端口；在 NexusDesktop 中选择对应实例。多开时按 `/status.HostKind` 区分 Editor / Game / DedicatedServer（不随 PIE 变）；当前编辑器关卡用 `GetEditorContext` 的 `CurrentMap`
+> 使用 MCP 告诉我当前 UE 编辑器信息。
 
-- PIE / 独立 Game 可用 `NexusLink.Mcp panel` 查看状态并临时开关 Capability；Dedicated Server 无视口，使用 `NexusLink.Mcp status`
-- Runtime Capability 可调试日志、Actor 属性、动画、行为树、GAS、Widget 等；Dedicated Server 没有视口和 UMG
-- Shipping 构建在编译期剔除 MCP
+核对返回的工程、引擎版本和运行状态。默认 **SearchMode** 通过 `SearchCapabilities`、`CallCapability`、`SubmitFeedback` 三个元工具按需发现和调用能力；NexusDesktop 另外提供两个实例工具。
 
-GAS / Niagara 等 Capability 按宿主项目插件探测，NexusLink **不**在 `.uplugin` 里强制依赖。
+连接失败时，先检查 UE 和中转两端的开关，再看[常见问题](docs/usage-guide.md#6-常见问题)。
 
-## 可选插件 Capability：[NexusLinkExt](https://github.com/bytepine/NexusLinkExt)
+## 连接方式
 
-UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) 后，它们注册进同一套 MCP，用 `SearchCapabilities` 发现。示例工程 [NexusUnreal](https://github.com/bytepine/NexusUnreal) 以子模块挂在 `Plugins/NexusLinkExt`。Ext 单独发版（tag `nexus-linkext-v*`，产物 `nexus-mcp-ext-<ver>.zip`）。当前 Ext 提供 UnLua 运行时调试和蓝图绑定；其中 `EvalRuntimeLua` / `DofileRuntimeLua` 与下面的脚本逃生舱一样默认禁用。
+任选一个本机代理，或直连 UE；避免多个代理重复扫描并连接同一实例。
 
-## 示例工程
+| 接入方式 | 默认 MCP 端点 | 适用场景 |
+|----------|---------------|----------|
+| [NexusDesktop](https://github.com/bytepine/NexusDesktop)（推荐） | `http://127.0.0.1:6700/stream` | 独立托盘，无需 IDE 扩展 |
+| [NexusRider](https://github.com/bytepine/NexusRider) | `http://127.0.0.1:6800/stream` | Rider 内使用，Marketplace 搜索 **Nexus MCP** |
+| [NexusVSCode](https://github.com/bytepine/NexusVSCode) | `http://127.0.0.1:6900/stream` | VSCode / Cursor / CodeBuddy / Windsurf 扩展 |
+| 直连 UE | `http://127.0.0.1:45000/stream` | 直接配置 Bearer Token；无代理缓存、写入前确认与实例切换 |
 
-公开示例 [NexusUnreal](https://github.com/bytepine/NexusUnreal)（ThirdPerson 模板 + MCP 回归测试）。插件以子模块挂载，**不随示例仓分发**；克隆须 `--recurse-submodules` 或单独安装本插件。
+UE 默认监听 HTTP `:45000` 和 WebSocket `:55000`；冲突时自动切换端口，以界面显示为准。身份验证、各端开关及跨机接入见[使用指南](docs/usage-guide.md#1-选端与开关)。
 
-## 能力范围
+## 运行时与扩展
 
-蓝图默认值、DataTable 字段和 Widget 属性支持只读预览、前值检查与编译后读回，见 [资产修改预览](docs/asset-edit-preview.md)。
+- **独立 Game / DS**：Development / DebugGame 启动参数追加 `-EnableNexusMcp`，不继承编辑器 Preferences 开关。Game / PIE 可用 `NexusLink.Mcp panel` 查看状态；DS 无视口，使用 `NexusLink.Mcp status`。详见[运行时调试](docs/usage-guide.md#241-独立-game--ds-mcp-debug-清单)。
+- **UnLua 扩展**：安装独立发布的 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)，获得运行时 Lua 调试和蓝图绑定，再用 `SearchCapabilities` 搜索 `lua`。详见[安装步骤](docs/usage-guide.md#可选安装-nexuslinkextunlua)。
+- **示例工程**：[NexusUnreal](https://github.com/bytepine/NexusUnreal) 提供 ThirdPerson 模板与 MCP 回归测试。插件以子模块挂载，克隆时使用 `--recurse-submodules`，或另行安装插件。
 
-运行时 UMG 精确交互：从 `ListRuntimeWidgets` 取得目标的完整实例 `Path`，传给 `InteractRuntimeWidget` 的 `WidgetPath`（例如 `Action="Click"`）。也可按 `WidgetName` 子串匹配唯一目标；多匹配返回 `Error` 和 `Candidates[].Path`，不执行交互。仅操作当前 PIE/Game 视口中仍挂载且沿父级可见的控件，拒绝缓存实例、隐藏层级和 Switcher 非活动页。实例重建后需重新枚举路径；显式路径不存在时不回退名称。点击触发 UMG 委托，不模拟鼠标坐标或验证遮挡。
+## 安全与写入边界
 
-GAS 运行时诊断支持上下文、标签、激活条件快照及激活/提交/失败/结束事件捕获；已有技能可单独尝试激活。配套 Python 复测工具支持通用 `GenericActivation` JSON 接入、显式 Actor 映射和只读预检，校验本地对象身份后执行多端用例并输出 HTML / JSON / JUnit 报告；可离线保存通过基线，对比失败、恢复及各端事件变化。公开示例工程提供手动启动的固定用例复测、基线门禁与报告归档。见 [GAS 诊断与复测](docs/gas-retest.md)。
+- **身份验证默认开启**。Token 是访问凭证，不要提交到仓库、写入公开文档或暴露在截图中。
+- **危险能力默认禁用**。`ExecCommand`、`ExecPython` 等能力须显式授权；访问模式和脚本风险见[危险 Capability](docs/usage-guide.md#210-危险-capability-与脚本执行)。只查询 Python API 时优先用只读 `GetPythonApi`。
+- **写操作会修改真实资产或运行状态**。Undo 和批次回滚不覆盖所有副作用；提交前检查版本管理差异，具体边界见[写入与回滚说明](docs/usage-guide.md#修改了属性但-ue-中没有生效--磁盘未变化)。
 
-默认 **SearchMode**：`tools/list` 仅 3 个元工具（`SearchCapabilities` / `CallCapability` / `SubmitFeedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara，以及 PIE / 独立 Game / Dedicated Server 运行时调试。UE 4.26+ 编辑器还可只读已停录的 Unreal Insights `.utrace`（`ListTraces` / `GetTrace`）。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。
+从 1.x 升级时，插件与客户端须一起升至 2.x；身份验证和 MCP 文案变化见[升级指南](docs/usage-guide.md#0-从-1x-升级到-20)。
 
-## 危险 Capability（默认全部禁用）
+## 文档与开发
 
-本插件里的脚本逃生舱是 `ExecCommand` 与 `ExecPython`，带 `dangerous` 标签。**Editor Preferences → Plugins → NexusLink → 危险 Capability → 访问模式**：
-
-| 模式 | 行为 |
-|---|---|
-| **全部禁用**（默认） | search 报 `disabled`，调用失败。树里保留勾选记录，置灰不可改 |
-| **每次手动确认** | 沿用勾选记录，可改。勾选的可被 search/调用，每次执行前编辑器弹窗。AI 须传 `Reason`（目的、预期效果、为何没有更安全的专用 cap）。允许仅针对**本次**；拒绝返回 `ErrorKind=UserDenied`（不要重试）。超时（默认 90s）自动拒绝。全屏 PIE 下请先退出沉浸模式 |
-| **自定义开启** | 在 Capability 树逐项勾选；勾上则始终允许、不弹窗 |
-
-启动加 `-NexusEnableDangerousCaps` 仍会话级视为当前已注册的危险 Capability 全部始终允许（不写盘），覆盖访问模式。手动勾选过的不会被后续升级覆盖；升级时若已有任一危险 cap 启用则迁到「自定义开启」。
-
-| Capability | 做什么 | 附加前提 |
-|---|---|---|
-| `ExecCommand` | 执行 UE 控制台命令并捕获输出 | — |
-| `ExecPython` | 编辑器内执行 Python（`Exec` / `File` / `Eval`），回 stdout 与 traceback | 宿主启用 Python Editor Script Plugin |
-
-> 只读探测走 **`GetPythonApi`**：它同样需要 Python Editor Script Plugin，但只做 `inspect`，参数经白名单校验后嵌入固定脚本，不接受用户代码，因此**默认开启**。想知道某个 `unreal.*` API 在本引擎版本上存不存在，用它，不必为此打开 `ExecPython`。
-
-### 为什么默认关
-
-- **等价于进程内任意代码执行**：Python 可 `import os`、读写任意文件、起子进程。一旦开启，身份验证就成了唯一防线，按 Capability 的启用/禁用粒度全部失效。
-- **写路径的安全网只剩半张**：其余 Capability 的写操作统一包 `FNexusEditorTransaction`（可 Undo；`Calls[]` 业务或自动编译失败会回滚已记录的内存修改，自动保存延迟到整批检查通过之后）。保存阶段不是磁盘原子事务，具体边界见返回的 `bRolledBack` / `UndoNote`。`ExecPython` 同样开了事务，但 UE 只记录调用过 `Modify()` 的对象：Python 里最自然的 `obj.foo = x` 走 `NotifyMode::Never`，**不进事务**；只有 `obj.set_editor_property(...)` 与显式 `obj.modify()` 会。脚本混用两种写法时 Ctrl+Z 只回滚一半，资产会落进一个从未存在过的中间态。返回里的 `bUndoRecorded` 如实回报本次是否产生了可回滚记录。此外 `create_asset` / `DeleteAsset` / `SaveAsset` 等包级操作本来就不在事务范围内。
-- **容易崩编辑器**：模型现写的脚本很容易碰到错误线程、失效对象或 GC，崩溃后也难归因。
-
-### 与默认开启的 Capability 的取舍
-
-| 维度 | 声明式 Capability（默认开） | 脚本逃生舱（默认关） |
-|---|---|---|
-| 覆盖面 | 覆盖已实现的域，没做的做不了 | 引擎暴露多少就能做多少，长尾全覆盖 |
-| 参数 | JSON Schema 校验，错参立即 `ArgInvalid` | 自由文本，错误要等运行期 traceback |
-| 返回 | 结构化 + `*_defaults` 压缩，token 可控 | 非结构化 stdout，容易打爆响应体 |
-| 可撤销 | 统一事务包裹 | 仅 `set_editor_property` / `modify()` 路径可撤；直接赋值与包级操作不可，易半回滚 |
-| 控制流 | `calls[]` 只能批量，无条件与循环 | 任意分支循环，一次往返做完 |
-| 跨版本 | `NX_*` 语义宏在编译期消化 4.26~5.8 差异 | 由脚本自己承担，UE4/UE5 API 差异易翻车 |
-
-### 什么时候才用
-
-先 `SearchCapabilities` 找专用 cap。只有三种情况值得开逃生舱：目标能力确实**没有**对应 Capability（顺手 `SubmitFeedback` 提一条）；需要一段带条件或循环的批处理；排查某个 cap 自身的 bug。用完建议关回去。
-
-## 文档
-
-| 文档 | 受众 |
-|------|------|
-| [docs/usage-guide.md](docs/usage-guide.md) | 安装、开关层、**身份验证**、四端接入 |
-| [docs/architecture.md](docs/architecture.md) | 分层、Capability 系统、暴露模式 |
-| [docs/proxy-session.md](docs/proxy-session.md) | 代理会话层约定（TTL / degraded / 写入前确认） |
-| [docs/tool-reference.zh.md](docs/tool-reference.zh.md) / [English](docs/tool-reference.md) | Capability 参数手册（`py scripts/build_tool_reference.py` 中英同时生成） |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | 新增 Capability、测试、打包、发版 |
-| [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) | Capability 元数据规范 |
-| [Resources/AIRules.mdc](Resources/AIRules.mdc) | IDE Rule 模板（复制到游戏项目，见 [usage-guide §2.9](docs/usage-guide.md#29-挂载-airules)） |
-| [CHANGELOG.md](CHANGELOG.md) | 版本记录 |
+- [文档导航](docs/README.md)：按安装接入、日常操作、诊断复测和插件开发查找指南。
+- [Capability 参数手册](docs/tool-reference.zh.md) / [English](docs/tool-reference.md)：工具、参数与返回约定。
+- [贡献指南](CONTRIBUTING.md)：新增 Capability、测试、打包与发版；设计背景见[架构](docs/architecture.md)和[Capability 规范](Resources/CapabilitySpec.md)。
 
 ## License
 

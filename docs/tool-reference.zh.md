@@ -1,5 +1,7 @@
 # NexusLink 工具参考手册
 
+[文档导航](README.md) · [项目首页](../README.md)
+
 **语言 / Language**: **简体中文** · [English](tool-reference.md)
 
 本文列出 NexusLink 暴露的全部 MCP 工具与 Capability，并附参数说明。
@@ -53,7 +55,7 @@
 - [动画资产](#动画资产)
 - [材质工具](#材质工具)
 - [结构体工具](#结构体工具)
-- [数据资产（DataAsset / DataTable）](#数据资产-dataasset-datatable)
+- [数据资产（DataAsset / DataTable）](#数据资产dataasset--datatable)
 - [控件蓝图工具](#控件蓝图工具)
 - [运行时工具](#运行时工具)
 - [AI 工具](#ai-工具)

@@ -1,5 +1,7 @@
 # GAS activation diagnostics / 技能激活诊断
 
+[文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
+
 执行器、HTML 布局与基线代码已提取到 `tools/retest`，`gas_retest` 的 CLI、Python 导入路径和旧报告继续可用。新报告标注 `Domain=GAS`；缺少 Domain 的历史报告按 GAS 解释，不能与 BT 报告比较。
 
 Read-only snapshots, bounded activation event capture, and a standard-library Python replay tool.

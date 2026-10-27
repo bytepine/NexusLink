@@ -1,5 +1,7 @@
 # 代理会话层约定
 
+[文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
+
 Desktop / Rider / VSCode 夹在 AI 客户端与 UE WebSocket 之间。本文是三端必须对齐的协议补丁；游戏语义仍只在 NexusLink。
 
 参考实现：`nexus-vscode/src/proxy/`。Rider / Desktop 按同一字段与判定对齐。
@@ -36,21 +38,6 @@ Desktop / Rider / VSCode 夹在 AI 客户端与 UE WebSocket 之间。本文是�
 `UE editor unreachable (compile/restart?). Serving last snapshot. Do not loop list_unreal_instances.`
 
 写操作在断线时仍返回既有 `ErrorKind: proxy_not_connected`，不提供 degraded 快照。
-
----
-
-## 8. `/status` 与选实例
-
-UE `GET /status` 在 `NetRole` 之外增加：
-
-| 字段 | 含义 |
-|------|------|
-| `HostKind` | `Editor` / `Game` / `DedicatedServer`。进程级，**不随 PIE 变化** |
-| `bHasPlayWorld` | 是否存在 PIE/Game World（与 `list_runtime_*` 探测一致） |
-
-`NetRole` 在编辑器开 PIE 后会变成 `Standalone`/`Client` 等，**不要**再用它判断是不是 Editor 进程。
-
-三端自动连接：`HostKind=Editor` 优先 → 旧 UE 无 `HostKind` 时改用 `NetRole=Editor` → 否则 `found[0]`。`list_unreal_instances` 透出这两个字段。`bHasPlayWorld=false` 时不要调 `list_runtime_*`。
 
 ---
 
@@ -121,3 +108,18 @@ TTL：
 ## 7. 大包保存到磁盘
 
 `content[0].text` 超过 **48000** 字符时写入系统临时目录 `nexus-mcp-offload/`，结果 JSON 改为摘要 + `_proxy.offloaded` / `path` / `bytes`。Agent 可用 Read 工具打开该路径。
+
+---
+
+## 8. `/status` 与选实例
+
+UE `GET /status` 在 `NetRole` 之外增加：
+
+| 字段 | 含义 |
+|------|------|
+| `HostKind` | `Editor` / `Game` / `DedicatedServer`。进程级，**不随 PIE 变化** |
+| `bHasPlayWorld` | 是否存在 PIE/Game World（与 `list_runtime_*` 探测一致） |
+
+`NetRole` 在编辑器开 PIE 后会变成 `Standalone`/`Client` 等，**不要**再用它判断是不是 Editor 进程。
+
+三端自动连接：`HostKind=Editor` 优先 → 旧 UE 无 `HostKind` 时改用 `NetRole=Editor` → 否则 `found[0]`。`list_unreal_instances` 透出这两个字段。`bHasPlayWorld=false` 时不要调 `list_runtime_*`。

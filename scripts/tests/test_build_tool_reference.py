@@ -18,9 +18,9 @@ def _read(rel: str) -> str:
     return open(os.path.join(REPO_ROOT, rel), encoding="utf-8").read()
 
 
-def test_heading_anchor_keeps_ascii_parens():
-    assert heading_anchor("Data assets (DataAsset / DataTable)") == "data-assets-(dataasset-datatable)"
-    assert heading_anchor("数据资产（DataAsset / DataTable）") == "数据资产-dataasset-datatable"
+def test_heading_anchor_matches_github_punctuation_and_spaces():
+    assert heading_anchor("Data assets (DataAsset / DataTable)") == "data-assets-dataasset--datatable"
+    assert heading_anchor("数据资产（DataAsset / DataTable）") == "数据资产dataasset--datatable"
 
 
 def test_translate_param_live_patterns():

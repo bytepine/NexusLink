@@ -1,5 +1,7 @@
 # NexusLink Tool Reference
 
+[Documentation](README.md) · [Home](../README.en.md)
+
 **Language / Language**: **English** · [简体中文](tool-reference.zh.md)
 
 This document lists all MCP tools and capabilities exposed by NexusLink with detailed parameter notes.
@@ -53,7 +55,7 @@ This document lists all MCP tools and capabilities exposed by NexusLink with det
 - [Animation assets](#animation-assets)
 - [Material tools](#material-tools)
 - [Struct tools](#struct-tools)
-- [Data assets (DataAsset / DataTable)](#data-assets-(dataasset-datatable))
+- [Data assets (DataAsset / DataTable)](#data-assets-dataasset--datatable)
 - [Widget blueprint tools](#widget-blueprint-tools)
 - [Runtime tools](#runtime-tools)
 - [AI tools](#ai-tools)

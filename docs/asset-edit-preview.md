@@ -1,5 +1,7 @@
 # Asset edit preview / 资产修改预览
 
+[文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
+
 `GetAssetEditPreview` 在临时属性存储中解析值，返回 `PropertyType`、`CurrentValue`、规范化的 `TargetValue`、`bValid` 与逐项 `Error`。它不写入真实属性、不编译、不保存、不创建 Undo。请求包含单个 `AssetPath`、目标 `Capability` 和 `Operations`，参数保持原有写操作格式：
 
 ```json

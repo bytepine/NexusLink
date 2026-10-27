@@ -1,5 +1,7 @@
 # 为 NexusLink 做贡献
 
+[文档导航](docs/README.md) · [项目首页](README.md)
+
 面向插件维护者与 Capability 作者。用户安装与四端接入见 [docs/usage-guide.md](docs/usage-guide.md)；架构见 [docs/architecture.md](docs/architecture.md)；代理会话层约定见 [docs/proxy-session.md](docs/proxy-session.md)。
 
 ## 新增 Tool / Capability

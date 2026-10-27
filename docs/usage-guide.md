@@ -1,33 +1,26 @@
 # NexusLink 使用指南
 
-行为树可显式绑定 Pawn/AIController，用 Blackboard 条件变化、状态快照和清理读回复测，见 [行为树复测](bt-retest.md)。
-
-停录 Trace 可按相同场景、预热和时间窗导出快照，离线比较帧中位数/P95/最大值及 CPU 耗时，见 [性能对比报告](trace-compare.md)。
-
-蓝图默认值、DataTable 字段和 Widget 属性可先用 `GetAssetEditPreview` 预览，再通过 `ExpectedValue` 和 `bVerify` 校验写入，见 [资产修改预览](asset-edit-preview.md)。
-
-GAS 运行时问题可用只读诊断、接入预检、激活事件捕获和多端 JSON 复测排查；通用 `GenericActivation` 支持 JSON 显式端点及 Actor 映射，不要求示例 GameMode 或 PlayerState。结果可查看离线 HTML 报告、保存通过基线并对比修改前后的步骤和事件，见 [GAS 诊断与复测](gas-retest.md)。
+[文档导航](README.md) · [项目首页](../README.md)
 
 面向最终用户：安装 UE 插件、选客户端、打开对应层开关、配置身份验证。Capability 参数见 [`tool-reference.zh.md`](./tool-reference.zh.md)（[English](./tool-reference.md)）；架构见 [`architecture.md`](./architecture.md)。
 
 本文适用于任意 UE 4.26+ 工程；工程已集成插件时可直接启用 MCP。配图用于说明界面位置，截图中的版本号、项目名和旧版 snake_case 工具名仅为示例；工具名称与参数以当前连接返回的清单为准，本文使用当前 PascalCase 命名。
 
----
+## 本页目录
+
+- [从 1.x 升级](#0-从-1x-升级到-20)
+- [选端与开关](#1-选端与开关)：[身份验证](#11-身份验证)、[跨机接入](#12-跨机显式-ip不扫网段)
+- [UE 插件](#2-nexuslinkue-插件)：[安装](#21-安装)、[启用服务](#22-启用-mcp-服务器必做)、[调试面板](#24-游戏内调试面板pie--独立包)、[危险能力](#210-危险-capability-与脚本执行)
+- [NexusDesktop](#3-nexusdesktop) / [NexusRider](#4-nexusrider) / [NexusVSCode](#5-nexusvscode)
+- [常见问题](#6-常见问题)
 
 ## 快速开始（推荐 NexusDesktop）
 
-首次接入按这一条主路径即可：
-
-1. 从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载插件，解压到项目 `Plugins/NexusLink`，在 **Edit → Plugins → Developer → NexusLink** 中启用并重启
-2. 在 **Edit → Editor Preferences → Plugins → NexusLink** 中勾选 **启用 MCP 服务器**，确认运行状态和标题栏显示 MCP / WS 端口
-3. 从 [NexusDesktop Releases](https://github.com/bytepine/NexusDesktop/releases) 下载当前最新正式版：Windows 选 `*-setup.exe`，macOS 选 `.dmg`；不要下载 `*-update.zip`
-4. 启动 NexusDesktop，在托盘勾选 **启用中转服务器**，确认状态行显示当前 UE 项目
-5. 托盘选择 **MCP 客户端配置…**，选 **Streamable HTTP** 和 Cursor / CodeBuddy，将生成的配置粘贴到 AI 客户端
-6. 重启 MCP 会话，按 [§3.3](#33-验证连接) 检查工具清单并让 AI 实际读取编辑器信息
+首次接入按[项目首页的快速开始](../README.md#快速开始)操作。本文提供详细设置和排障；NexusDesktop 配图见 [§3](#3-nexusdesktop)，其他接入方式见 [§1](#1-选端与开关)。
 
 > **安全**：Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
 
-编辑器 / PIE 直接读取 Preferences 开关；另起的 `-game` / `-server` 进程、Development / DebugGame 独立 Game / DS 及 commandlet 须在原启动参数后追加 `-EnableNexusMcp`。多进程端口冲突会自动换成下一个端口，再从 NexusDesktop 选择目标实例。
+编辑器 / PIE 与独立 Game / DS 的启用方式不同，见 [§2.2](#22-启用-mcp-服务器必做)。连接后需要资产预览、UMG 交互或诊断复测时，转到[专题文档](README.md#日常操作--workflows)。
 
 ---
 
@@ -43,7 +36,7 @@ GAS 运行时问题可用只读诊断、接入预检、激活事件捕获和多�
 
 - **直连 UE 的 AI 配置须加 Bearer**：从 UE 设置面板复制 **MCP 身份验证 Token**（详见 [§1.1](#11-身份验证)）。经中转且中转在同机时无需配置。
 - **额外身份验证 Token 从「单行逗号分隔」改为逐条列表**：升级后自动拆分；若一条合法 token 都解析不出会保留原值并在日志告警，不会静默清空。
-- **危险 Capability 默认全部禁用**：`ExecCommand` / `ExecPython` 带 `dangerous` 标签。UnLua 的 `EvalRuntimeLua` / `DofileRuntimeLua` 在 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)，同样默认禁用。访问模式默认「全部禁用」（树里保留勾选但置灰不可改）；「每次手动确认」沿用勾选，可改；「自定义开启」逐项勾选。或用 `-NexusEnableDangerousCaps` 启动。按名记录，后续版本新增的危险 cap 也会对老配置生效，且不会覆盖你手动启用过的（升级时若已有启用项则迁到自定义开启）。
+- **危险 Capability 默认全部禁用**：设置按名称记录，不覆盖手动启用项；升级时若已有危险 cap 启用则迁到「自定义开启」。访问模式与会话覆盖见 [§2.10](#210-危险-capability-与脚本执行)。
 - **用过 2.0.0-beta 的工程**：beta 曾往 `Engine.ini` 写全局键 `[HTTPServer.Listeners] DefaultBindAddress`。正式版只写本端口的 `ListenerOverrides`，检测到该残留键会在启动日志告警，可手动删除。
 
 ---
@@ -323,11 +316,9 @@ UE4 Store 按 `TraceId` 直接分析数据流，返回的 `TracePath` 为空，�
 
 控制台行按钮：**打开目录** / **导出 Markdown** / **创建 GitHub Issue**。批量读取后若需保留包，对 `CallCapability` 传 `bKeepLoaded=true`；立即释放用 `UnloadAsset`。
 
-危险 Capability 的访问模式在同一设置页。`ExecCommand` / `ExecPython` 及 Ext 的 `EvalRuntimeLua` / `DofileRuntimeLua` 默认全部禁用；各模式行为见 [README](../README.md#危险-capability默认全部禁用)。只查询 Python API 时优先用只读 `GetPythonApi`。
+危险 Capability 的访问模式也在同一设置页，完整行为见 [§2.10](#210-危险-capability-与脚本执行)。
 
-![危险 Capability 的全部禁用、每次手动确认和自定义开启模式](images/dangerous-capability-mode.png)
-
-自动埋点与 `SubmitFeedback` 的 schema 见 [`tool-reference.zh.md`](./tool-reference.zh.md#SubmitFeedback)。
+自动埋点与 `SubmitFeedback` 的 schema 见 [`tool-reference.zh.md`](./tool-reference.zh.md#submitfeedback)。
 
 ### 2.7 直连 UE
 
@@ -382,6 +373,36 @@ Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可�
 3. 插件升级后 diff 插件内 `AIRules.mdc`，将通用段合并进项目副本
 
 勿在 AIRules 中重复 Capability 路由表（以 `InitializeInstructions.SearchMode.md` 为准）。
+
+### 2.10 危险 Capability 与脚本执行
+
+带 `dangerous` 标签的能力**默认全部禁用**。在 **Editor Preferences → Plugins → NexusLink → 危险 Capability → 访问模式** 中管理：
+
+| 模式 | 行为 |
+|------|------|
+| **全部禁用**（默认） | search 报 `disabled`，调用失败。保留 Capability 树中的勾选记录，但置灰不可改 |
+| **每次手动确认** | 沿用勾选记录并允许调整；勾选的能力可被发现和调用，每次执行前弹编辑器确认窗 |
+| **自定义开启** | 在 Capability 树逐项勾选；勾选后始终允许，不弹窗 |
+
+确认模式要求 AI 传 `Reason`，说明目的、预期效果，以及为何没有更安全的专用能力。允许仅针对本次请求；拒绝返回 `ErrorKind=UserDenied`，不要重试。默认 90 秒超时后自动拒绝；全屏 PIE 下若看不到弹窗，先退出沉浸模式。独立 Game / DS 没有编辑器确认窗，Confirm 模式会拒绝执行。
+
+启动参数 `-NexusEnableDangerousCaps` 会在本会话中允许当前已注册的全部危险能力，覆盖访问模式但不写入设置。调试面板也可临时允许单条能力，见 [§2.4](#24-游戏内调试面板pie--独立包)。
+
+![危险 Capability 的全部禁用、每次手动确认和自定义开启模式](images/dangerous-capability-mode.png)
+
+**脚本入口与前提**：
+
+- `ExecCommand`：执行 UE 控制台命令并捕获输出。
+- `ExecPython`：在编辑器中执行 Python（`Exec` / `File` / `Eval`），返回 stdout 与 traceback；宿主须启用 **Python Editor Script Plugin**。
+- NexusLinkExt 的 `EvalRuntimeLua` / `DofileRuntimeLua`：同样默认禁用，安装前提见 [§2.1](#可选安装-nexuslinkextunlua)。
+
+只查询 `unreal.*` API 是否存在时，优先使用默认开启的只读 `GetPythonApi`。它同样需要 Python 插件，但只将白名单校验后的参数嵌入固定 `inspect` 脚本，不接受用户代码。
+
+**脚本为何默认禁用**：Python 可读写文件、启动子进程，等价于进程内任意代码执行；脚本也可绕过专用能力的启用边界，触碰错误线程、失效对象或 GC 而导致崩溃。自由文本脚本须自行处理引擎 API 的版本差异、错误与输出大小。
+
+专用能力使用 Schema 校验和结构化响应，并按支持的写路径记录事务；脚本则允许任意分支、循环和副作用。`ExecPython` 虽然开启事务，直接赋值与包级操作仍可能不可撤销，`bUndoRecorded=true` 也不保证全部可撤。具体写法见 [Python Undo 语义](#execpython-的-undo-语义与-bundorecorded)，批次边界见[写入与回滚](#修改了属性但-ue-中没有生效--磁盘未变化)。
+
+先用 `SearchCapabilities` 找专用能力。仅在缺少对应能力、需要带分支或循环的批处理，或排查能力自身问题时使用脚本；缺失能力可通过 `SubmitFeedback` 反馈，用完后关闭临时授权。
 
 ---
 

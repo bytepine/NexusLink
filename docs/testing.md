@@ -1,5 +1,7 @@
 # pytest E2E 测试指南
 
+[文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
+
 > 本指南描述在**宿主推 UE 游戏工程**中运行 NexusLink L2 回归测试。须在工程中自建 `Tests/`、`Script/run_e2e.py` 等目录（本仓库仅提供插件源码，不含示例测试工程）。
 
 L2 通过 MCP HTTP 协议对 3 个元工具及已注册 Capability 做真实端到端验证（宿主插件门控会裁剪集合）。L1（C++ Automation）在宿主工程插件 `Plugins/NexusLinkTestSuite/`（**不**在本仓）。

@@ -1,119 +1,79 @@
-**Language / Language**: [简体中文](README.md) · **English**
+# NexusLink
 
-# NexusLink — UE MCP Plugin
+[简体中文](README.md) · **English**
 
-An MCP integration plugin for Unreal Engine that exposes UE project context to AI tools via the MCP protocol.
+Read, modify, and debug Unreal Engine projects with AI through the Model Context Protocol (MCP).
 
-> Supports UE 4.26 and all later versions (including UE5). Split into two modules: `NexusLink` (`Type: Runtime`; standalone Development/DebugGame Game/DS builds can host MCP too) + `NexusLinkEditor` (`Type: Editor`; editor UI). **Shipping builds strip the MCP server entirely at compile time.**
+[Quick start](#quick-start) · [Documentation](docs/README.md) · [Download](https://github.com/bytepine/NexusLink/releases) · [Changelog](CHANGELOG.md)
 
-> **Upgrading from 1.x**: 2.0 enables auth by default and switches all MCP/AI-facing text to English. Upgrade the plugin and clients to 2.x together — see [usage-guide §0](docs/usage-guide.md#0-从-1x-升级到-20) (Chinese).
+## What you can do
 
-## 5-minute quick start (NexusDesktop recommended)
+- **Editor and assets**: inspect project context and work with Blueprints, materials, animation, audio, DataTables, widgets, and Niagara; [preview edits and verify writes](docs/asset-edit-preview.md).
+- **Runtime debugging**: inspect logs, Actors, animation, AI / EQS, and GAS in PIE, standalone Game, and Dedicated Server; Game / PIE with a viewport also supports [UMG interaction](docs/runtime-widgets.md).
+- **Diagnostics and comparison**: [GAS activation diagnostics](docs/gas-retest.md), [behavior-tree / Blackboard condition replay](docs/bt-retest.md), and [performance comparison from stopped Traces](docs/trace-compare.md).
 
-For daily use, the recommended relay is [NexusDesktop](https://github.com/bytepine/NexusDesktop): no IDE extension, a stable endpoint, and instance switching when multiple UE processes are running.
+Supports **UE 4.26+ (including UE5)**. MCP runs in the editor and Development / DebugGame Game / DS builds; **Shipping builds strip the MCP server at compile time**. Available capabilities depend on the engine version, host type, and enabled plugins.
 
-1. Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) and extract it to `Plugins/NexusLink`
-2. Enable **Edit → Plugins → Developer → NexusLink**, then restart the editor
-3. Open **Edit → Editor Preferences → Plugins → NexusLink**, check **Enable MCP Server** (off by default), and verify the runtime status and title-bar MCP / WS ports
-4. Download the latest stable [NexusDesktop release](https://github.com/bytepine/NexusDesktop/releases): use `*-setup.exe` on Windows or `.dmg` on macOS; `*-update.zip` is not an installer
-5. Start NexusDesktop, check **Enable relay server** in the tray (default `:6700`), and verify that the status line shows the current UE project
-6. Choose **MCP client configuration…** in the tray, select **Streamable HTTP** and Cursor / CodeBuddy, then paste the generated configuration into the AI client
-7. Restart the MCP session. Default SearchMode provides 3 meta-tools: `SearchCapabilities`, `CallCapability`, and `SubmitFeedback`; NexusDesktop adds two instance tools, usually making 5 in total. Ask the AI to **use MCP to report the current UE editor information**, then check the returned project, engine version, and runtime state
+## Quick start
 
-> **Security**: MCP auth is on by default. Treat the token as a credential: never commit it, paste it into public documentation, or expose it in screenshots. Review version-control changes before committing because write calls modify real assets or runtime state.
+The recommended relay is [NexusDesktop](https://github.com/bytepine/NexusDesktop): a standalone tray app with a stable endpoint and UE instance switching, without an IDE extension.
 
-When the UE-side server is disabled, the title bar shows no port, NexusDesktop cannot discover the instance, and direct `http://127.0.0.1:45000/stream` connections get no response. Follow the [illustrated NexusDesktop setup](docs/usage-guide.md#3-nexusdesktop) for first-time connections; see the [usage guide](docs/usage-guide.md) for plugin installation, auth, and remote-host instructions (Chinese).
+### 1. Install and enable the UE plugin
 
-## Other connection options
+1. Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://github.com/bytepine/NexusLink/releases). Place its `NexusLink/` directory in your project's `Plugins/` folder. Confirm the file is at `Plugins/NexusLink/NexusLink.uplugin`.
+2. Enable **Edit → Plugins → Developer → NexusLink**, then restart the editor.
+3. Open **Edit → Editor Preferences → Plugins → NexusLink**, check **Enable MCP Server** (off by default), and verify the runtime status and title-bar MCP / WS ports.
 
-NexusLink serves HTTP `:45000` + WebSocket `:55000`. Run only one local proxy so multiple proxies do not scan and connect to the same UE process.
+### 2. Connect your AI client
 
-| Client | MCP endpoint | Notes |
-|--------|--------------|-------|
-| **[NexusDesktop](https://github.com/bytepine/NexusDesktop)** (recommended) | `http://127.0.0.1:6700/stream` | Standalone tray app; no IDE extension |
-| **[NexusRider](https://github.com/bytepine/NexusRider)** | `http://127.0.0.1:6800/stream` | Rider Marketplace: **Nexus MCP** |
-| **[NexusVSCode](https://github.com/bytepine/NexusVSCode)** | `http://127.0.0.1:6900/stream` | VSCode / Cursor / CodeBuddy / Windsurf extension |
-| Direct UE | `http://127.0.0.1:45000/stream` | No proxy cache, write gate, or instance switching |
+1. Download the latest stable [NexusDesktop release](https://github.com/bytepine/NexusDesktop/releases): use `*-setup.exe` on Windows or `.dmg` on macOS.
+2. Start NexusDesktop, check **Enable relay server** in the tray, and verify that the status line shows the intended UE project.
+3. Choose **MCP client configuration…**, select **Streamable HTTP** and your AI client, then paste the generated configuration into that client.
 
-## Runtime / Dedicated Server debugging
+An [illustrated walkthrough](docs/usage-guide.md#3-nexusdesktop) is available in Chinese. `*-update.zip` is an update package, not an installer.
 
-- Editor and PIE can use the Preferences switch. Development / DebugGame standalone Game builds, `-game` / `-server` child processes, and commandlets do not read that switch; explicitly append `-EnableNexusMcp` to their launch arguments
-- If another UE process owns the default ports, the server advances to the next available ports; select the intended instance in NexusDesktop. With multiple processes, use `/status.HostKind` (Editor / Game / DedicatedServer; does not change during PIE). The open editor map is `GetEditorContext` section `CurrentMap`
+### 3. Verify the connection
 
-- PIE and standalone Game can use `NexusLink.Mcp panel` for status and session-only Capability toggles. Dedicated Server has no viewport; use `NexusLink.Mcp status`
-- Runtime Capabilities cover logs, Actor properties, animation, behavior trees, GAS, widgets, and more. Dedicated Server has no viewport or UMG
-- Shipping builds strip MCP at compile time
+Restart the MCP session and ask the AI:
 
-GAS / Niagara Capabilities are detected from the host project; NexusLink does **not** force those plugins via `.uplugin`.
+> Use MCP to report the current UE editor information.
 
-## Optional-plugin Capabilities: [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)
+Check the returned project, engine version, and runtime state. Default **SearchMode** discovers and calls capabilities through three meta-tools: `SearchCapabilities`, `CallCapability`, and `SubmitFeedback`. NexusDesktop adds two instance tools.
 
-Capabilities for optional plugins such as UnLua are not in this repo. Install [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) and they register into the same MCP server; discover them with `SearchCapabilities`. The sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) mounts it as a submodule at `Plugins/NexusLinkExt`. Ext is released on its own (`nexus-linkext-v*` tags, `nexus-mcp-ext-<ver>.zip`). Today Ext covers UnLua runtime debugging and Blueprint binding. `EvalRuntimeLua` / `DofileRuntimeLua` are dangerous and disabled by default, same as the escape hatches below.
+If the connection fails, check the UE and relay switches first, then see [troubleshooting](docs/usage-guide.md#6-常见问题) (Chinese).
 
-## Example project
+## Connection options
 
-GAS runtime diagnostics expose context, tags, activation-condition snapshots and activation/commit/failure/end captures. The standard-library Python runner creates case templates, performs read-only onboarding checks, executes multi-endpoint JSON cases and exports offline HTML/JSON/JUnit reports. See [GAS diagnostics and replay](docs/gas-retest.md).
+Choose one local proxy, or connect directly to UE. Avoid multiple proxies scanning and connecting to the same instance.
 
-For precise UMG interaction, pass the live instance `Path` returned by `ListRuntimeWidgets` as `InteractRuntimeWidget.WidgetPath`, with `Action="Click"`. `WidgetName` substring matching must identify one target; multiple matches return an `Error` and `Candidates[].Path` without interacting. Only widgets attached to the current PIE/Game viewport through visible ancestors are eligible; detached caches, hidden branches and inactive WidgetSwitcher pages are excluded. Refresh paths after instances are recreated. An explicit path never falls back to a name. Click broadcasts the UMG delegate; it does not simulate mouse coordinates or test occlusion.
+| Connection | Default MCP endpoint | Use case |
+|------------|----------------------|----------|
+| [NexusDesktop](https://github.com/bytepine/NexusDesktop) (recommended) | `http://127.0.0.1:6700/stream` | Standalone tray app; no IDE extension |
+| [NexusRider](https://github.com/bytepine/NexusRider) | `http://127.0.0.1:6800/stream` | Rider integration; search **Nexus MCP** in Marketplace |
+| [NexusVSCode](https://github.com/bytepine/NexusVSCode) | `http://127.0.0.1:6900/stream` | VSCode / Cursor / CodeBuddy / Windsurf extension |
+| Direct UE | `http://127.0.0.1:45000/stream` | Configure a Bearer token directly; no proxy cache, write gate, or instance switching |
 
-Public sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) (ThirdPerson template + MCP regression tests). The plugin is a git submodule and **is not bundled** with the sample; clone with `--recurse-submodules` or install this plugin separately.
+UE defaults to HTTP `:45000` and WebSocket `:55000`; it advances to available ports on conflict. Use the ports shown in the UI. See the [usage guide](docs/usage-guide.md#1-选端与开关) for authentication, switches, and remote connections (Chinese).
 
-## Coverage
+## Runtime and extensions
 
-Default **SearchMode**: `tools/list` exposes 3 meta-tools (`SearchCapabilities` / `CallCapability` / `SubmitFeedback`); Capabilities are discovered on demand. Coverage includes editor, Blueprint, animation, material, audio, AI / EQS, GAS, UMG, Niagara, and PIE / standalone Game / Dedicated Server runtime debugging. On UE 4.26+ the editor can also read a stopped Unreal Insights `.utrace` (`ListTraces` / `GetTrace`). Full parameters: [docs/tool-reference.md](docs/tool-reference.md) ([简体中文](docs/tool-reference.zh.md)). SearchMode vs MultiTool: [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode).
+- **Standalone Game / DS**: append `-EnableNexusMcp` to Development / DebugGame launch arguments; these processes do not inherit editor Preferences. Game / PIE can use `NexusLink.Mcp panel`; DS has no viewport, so use `NexusLink.Mcp status`. See [runtime debugging](docs/usage-guide.md#241-独立-game--ds-mcp-debug-清单) (Chinese).
+- **UnLua extension**: install the separately released [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) for runtime Lua debugging and Blueprint binding, then discover its capabilities with `SearchCapabilities` and `lua`. See [installation](docs/usage-guide.md#可选安装-nexuslinkextunlua) (Chinese).
+- **Example project**: [NexusUnreal](https://github.com/bytepine/NexusUnreal) includes a ThirdPerson template and MCP regression tests. Plugins are git submodules; clone with `--recurse-submodules` or install the plugin separately.
 
-## Dangerous Capabilities (all disabled by default)
+## Security and write boundaries
 
-The script escape hatches in this plugin are `ExecCommand` and `ExecPython`. They carry the `dangerous` tag. **Editor Preferences → Plugins → NexusLink → Dangerous Capability → Access mode**:
+- **Authentication is on by default**. Treat tokens as credentials: never commit them, publish them in documentation, or expose them in screenshots.
+- **Dangerous capabilities are disabled by default**. `ExecCommand`, `ExecPython`, and other dangerous capabilities require explicit authorization. See [access modes and script risks](docs/usage-guide.md#210-危险-capability-与脚本执行) (Chinese). Prefer read-only `GetPythonApi` for API inspection.
+- **Writes change real assets or runtime state**. Undo and batch rollback do not cover every side effect. Review version-control changes before committing; see [write and rollback boundaries](docs/usage-guide.md#修改了属性但-ue-中没有生效--磁盘未变化) (Chinese).
 
-| Mode | Behavior |
-|---|---|
-| **Disabled** (default) | Search reports `disabled`, calls fail. Tree keeps your checkmarks but greys them out (not editable) |
-| **Confirm each request** | Keeps existing checkmarks; you can change them. Checked caps are discoverable and callable; the editor prompts before each run. The AI must pass `Reason` (purpose, expected effect, why no safer dedicated cap). Allow applies to **this call only**; deny returns `ErrorKind=UserDenied` (do not retry). Timeout (default 90s) auto-denies. Exit immersive PIE if the window is hidden |
-| **Custom** | Per-cap checkboxes in the Capability tree; checked = always allow, no prompt |
+When upgrading from 1.x, upgrade the plugin and clients to 2.x together. See the [migration guide](docs/usage-guide.md#0-从-1x-升级到-20) for authentication and MCP text changes (Chinese).
 
-Launch with `-NexusEnableDangerousCaps` still session-enables every registered dangerous Capability (never written to settings) and overrides the access mode. Caps you enabled by hand are not overwritten by later upgrades; if any dangerous cap is already enabled, upgrade migrates to Custom.
+## Documentation and development
 
-| Capability | What it does | Extra requirement |
-|---|---|---|
-| `ExecCommand` | Run a UE console command and capture its output | — |
-| `ExecPython` | Run Python in the editor (`Exec` / `File` / `Eval`); returns stdout and traceback | Python Editor Script Plugin enabled in the host project |
-
-> Read-only probing goes through **`GetPythonApi`**. It needs the same Python plugin but only runs `inspect`, embedding whitelist-validated arguments into a fixed script — it never accepts user code, so it is **enabled by default**. Use it to check whether an `unreal.*` API exists on this engine version instead of turning on `ExecPython`.
-
-### Why they are off by default
-
-- **Equivalent to arbitrary in-process code execution**: Python can `import os`, touch any file, and spawn subprocesses. Once enabled, auth is the only remaining boundary and per-capability enable/disable stops meaning anything.
-- **Only half the write-path safety net applies**: every other Capability wraps its writes in `FNexusEditorTransaction`. A `Calls[]` business or automatic-compile failure reverts recorded memory edits and skips automatic saves; saves run only after all checks pass. Disk writes are not atomic: inspect `bRolledBack` / `UndoNote` for the actual rollback boundary. `ExecPython` opens a transaction too, but UE only records objects that went through `Modify()`: the most natural Python form, `obj.foo = x`, uses `NotifyMode::Never` and is **not** recorded — only `obj.set_editor_property(...)` and an explicit `obj.modify()` are. A script mixing both leaves Ctrl+Z rolling back half the change, landing the asset in a state that never existed. The returned `bUndoRecorded` reports honestly whether this call produced any undoable record. Package-level operations (`create_asset` / `DeleteAsset` / `SaveAsset`) are outside transactions entirely.
-- **They crash the editor easily**: model-written scripts routinely hit the wrong thread, stale objects, or GC — and the crash is hard to attribute afterwards.
-
-### Trade-off versus the default-enabled Capabilities
-
-| Aspect | Declarative Capability (default on) | Script escape hatch (default off) |
-|---|---|---|
-| Coverage | Only the domains already implemented | Whatever the engine exposes — full long tail |
-| Arguments | JSON Schema validated; bad args fail fast with `ArgInvalid` | Free-form text; errors surface as a runtime traceback |
-| Response | Structured + `*_defaults` compaction, predictable token cost | Unstructured stdout, easy to blow up the response body |
-| Undo | Uniform transaction wrapper | Only the `set_editor_property` / `modify()` path; direct assignment and package ops are not — partial rollback is easy to hit |
-| Control flow | `calls[]` batches only — no branching or loops | Arbitrary loops and branches in a single round trip |
-| Version drift | `NX_*` semantic macros absorb 4.26–5.8 differences at compile time | Left to the script; UE4/UE5 API differences break easily |
-
-### When to actually use them
-
-Try `SearchCapabilities` for a dedicated cap first. Only three cases justify the escape hatch: the capability genuinely does **not** exist yet (send a `SubmitFeedback` while you are there), you need a batch with branching or loops, or you are debugging a capability itself. Turn it back off afterwards.
-
-## Documentation
-
-| Doc | Audience |
-|-----|----------|
-| [docs/usage-guide.md](docs/usage-guide.md) | Install, switch layers, **auth**, four clients |
-| [docs/architecture.md](docs/architecture.md) | Layering, Capability system, exposure modes |
-| [docs/proxy-session.md](docs/proxy-session.md) | Proxy session contract (TTL / degraded / write gate) |
-| [docs/tool-reference.md](docs/tool-reference.md) / [简体中文](docs/tool-reference.zh.md) | Capability parameter reference (`py scripts/build_tool_reference.py` emits both) |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Add Capabilities, tests, packaging, release |
-| [Resources/CapabilitySpec.md](Resources/CapabilitySpec.md) | Capability metadata spec |
-| [Resources/AIRules.mdc](Resources/AIRules.mdc) | IDE Rule template (copy into the game project; [usage-guide §2.9](docs/usage-guide.md#29-挂载-airules)) |
-| [CHANGELOG.md](CHANGELOG.md) | Version history |
+- [Documentation index](docs/README.md): find setup, workflows, diagnostics, and development guides. Most guides are in Chinese; bilingual pages and English references are marked.
+- [Capability reference](docs/tool-reference.md) / [简体中文](docs/tool-reference.zh.md): tools, parameters, and response conventions.
+- [Contributing](CONTRIBUTING.md): adding capabilities, testing, packaging, and releases. Design details: [architecture](docs/architecture.md) and [Capability specification](Resources/CapabilitySpec.md) (Chinese).
 
 ## License
 

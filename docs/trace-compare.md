@@ -1,5 +1,7 @@
 # 同条件 Trace 性能对比
 
+[文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
+
 `tools/trace_compare` 是 Python 标准库命令行工具。通过显式 UE HTTP 端点读取已停录的 `.utrace`，随后离线生成 HTML / JSON。只提供测量报告，不设置性能通过/失败阈值，不分析实时录制或网络包。
 
 ## 采集条件

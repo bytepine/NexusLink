@@ -360,9 +360,8 @@ class DocLocale:
 
 
 def heading_anchor(title: str) -> str:
-    """与历史英文 TOC 一致：小写，空白/中文括号/斜线变连字符（保留 ASCII 括号）。"""
-    anchor = re.sub(r"[（）/\s]+", "-", title.lower()).strip("-")
-    return re.sub(r"-+", "-", anchor)
+    """目录标题遵循 GitHub 锚点：去掉标点，空格逐个变连字符。"""
+    return re.sub(r"[^\w -]", "", title.lower()).replace(" ", "-")
 
 
 def load_zh_overlay() -> dict[str, Any]:
