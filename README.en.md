@@ -18,11 +18,11 @@ For daily use, the recommended relay is [NexusDesktop](https://github.com/bytepi
 4. Download the latest stable [NexusDesktop release](https://github.com/bytepine/NexusDesktop/releases): use `*-setup.exe` on Windows or `.dmg` on macOS; `*-update.zip` is not an installer
 5. Start NexusDesktop, check **Enable relay server** in the tray (default `:6700`), and verify that the status line shows the current UE project
 6. Choose **MCP client configuration…** in the tray, select **Streamable HTTP** and Cursor / CodeBuddy, then paste the generated configuration into the AI client
-7. Restart the MCP session. Default SearchMode should expose 3 meta-tools: `SearchCapabilities`, `CallCapability`, and `SubmitFeedback`
+7. Restart the MCP session. Default SearchMode provides 3 meta-tools: `SearchCapabilities`, `CallCapability`, and `SubmitFeedback`; NexusDesktop adds two instance tools, usually making 5 in total. Ask the AI to **use MCP to report the current UE editor information**, then check the returned project, engine version, and runtime state
 
 > **Security**: MCP auth is on by default. Treat the token as a credential: never commit it, paste it into public documentation, or expose it in screenshots. Review version-control changes before committing because write calls modify real assets or runtime state.
 
-When the UE-side server is disabled, the title bar shows no port, NexusDesktop cannot discover the instance, and direct `http://127.0.0.1:45000/stream` connections get no response. For full setup, auth, and remote-host instructions, see the [usage guide](docs/usage-guide.md) (Chinese).
+When the UE-side server is disabled, the title bar shows no port, NexusDesktop cannot discover the instance, and direct `http://127.0.0.1:45000/stream` connections get no response. Follow the [illustrated NexusDesktop setup](docs/usage-guide.md#3-nexusdesktop) for first-time connections; see the [usage guide](docs/usage-guide.md) for plugin installation, auth, and remote-host instructions (Chinese).
 
 ## Other connection options
 

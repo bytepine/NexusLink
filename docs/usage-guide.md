@@ -10,6 +10,8 @@ GAS 运行时问题可用只读诊断、接入预检、激活事件捕获和多�
 
 面向最终用户：安装 UE 插件、选客户端、打开对应层开关、配置身份验证。Capability 参数见 [`tool-reference.zh.md`](./tool-reference.zh.md)（[English](./tool-reference.md)）；架构见 [`architecture.md`](./architecture.md)。
 
+本文适用于任意 UE 4.26+ 工程；工程已集成插件时可直接启用 MCP。配图用于说明界面位置，截图中的版本号、项目名和旧版 snake_case 工具名仅为示例；工具名称与参数以当前连接返回的清单为准，本文使用当前 PascalCase 命名。
+
 ---
 
 ## 快速开始（推荐 NexusDesktop）
@@ -21,7 +23,7 @@ GAS 运行时问题可用只读诊断、接入预检、激活事件捕获和多�
 3. 从 [NexusDesktop Releases](https://github.com/bytepine/NexusDesktop/releases) 下载当前最新正式版：Windows 选 `*-setup.exe`，macOS 选 `.dmg`；不要下载 `*-update.zip`
 4. 启动 NexusDesktop，在托盘勾选 **启用中转服务器**，确认状态行显示当前 UE 项目
 5. 托盘选择 **MCP 客户端配置…**，选 **Streamable HTTP** 和 Cursor / CodeBuddy，将生成的配置粘贴到 AI 客户端
-6. 重启 MCP 会话；默认 SearchMode 下应看到 `SearchCapabilities`、`CallCapability`、`SubmitFeedback` 3 个元工具
+6. 重启 MCP 会话，按 [§3.3](#33-验证连接) 检查工具清单并让 AI 实际读取编辑器信息
 
 > **安全**：Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
 
@@ -172,6 +174,18 @@ Rider / Desktop 远程列表每行：`192.168.1.30:45000` 或 `192.168.1.30:4500
 2. **Edit → Plugins → Developer → NexusLink** — 启用插件
 3. 重启编辑器
 
+解压后应能直接看到 `Plugins/NexusLink/NexusLink.uplugin`。启用插件不会自动启动 MCP，还须完成下一节的服务器开关设置。
+
+#### 可选：安装 NexusLinkExt（UnLua）
+
+需要蓝图 Lua 绑定或运行时 Lua 调试时，再安装 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)：
+
+1. 从 [NexusLinkExt Releases](https://github.com/bytepine/NexusLinkExt/releases) 下载 `nexus-mcp-ext-*.zip`，将其中的 `NexusLinkExt/` 目录放入项目 `Plugins/`
+2. 确认工程已安装并启用 **UnLua**，在 `.uproject` 中启用 **NexusLinkExt**，然后重启编辑器
+3. 用 `SearchCapabilities` 搜索 `lua` 验证注册结果；没有 UnLua 时，这些 Capability 不会注册
+
+`HotReloadRuntimeLua` 需要 UnLua 2.x。`EvalRuntimeLua`、`DofileRuntimeLua` 默认禁用，访问模式统一在 NexusLink 的危险 Capability 设置中管理。
+
 插件拆两个模块：`NexusLink`（**`Type: Runtime`**）+ `NexusLinkEditor`（**`Type: Editor`**，仅编辑器二进制加载）——**MCP 跑在 Editor / PIE / editor-hosted `-server`，以及 Development/DebugGame 的独立 Game/DS**；Shipping 编译期整体剔除服务器。
 
 ### 2.2 启用 MCP 服务器（必做）
@@ -199,8 +213,11 @@ MCP HTTP/WebSocket **默认不启动**。启停统一由三层来源解析，**�
 
 ```bat
 UE4Editor.exe YourProject.uproject -EnableNexusMcp
-Nexus.exe -EnableNexusMcp
+YourGame.exe -log -EnableNexusMcp
+UnrealEditor.exe YourProject.uproject -server -EnableNexusMcp
 ```
+
+在**原有启动参数末尾追加** `-EnableNexusMcp`，保留原来的 `-log`、`-server` 等参数。新进程不会继承编辑器 Preferences 勾选；启动后在 NexusDesktop 的「选择 UE 实例」中按进程、PID 或端口选中目标 Game / DS。Shipping 中该参数无效。
 
 可选：`-NexusMcpPort=45000` `-NexusWsPort=55000` `-NexusAllowLan`
 
@@ -239,6 +256,8 @@ NexusLink.Mcp panel on|off                    ; 显式打开/关闭
 - `Esc` 或点击「关闭」按钮退出；面板打开时临时切到 `FInputModeGameAndUI` 并显示鼠标，关闭后尽量还原
 
 危险 Capability 的 Preferences 访问模式（全部禁用 / 确认 / 自定义）本身不改；面板勾选是**单条会话覆盖**：即使访问模式是「全部禁用」，仍可临时启用某一条（等同 `-NexusEnableDangerousCaps` 的单条版），不影响其他危险 cap，也不写 ini。退出进程或点「清除本会话覆盖」即恢复。
+
+![PIE 中通过 NexusLink.Mcp panel 打开的 MCP 调试面板](images/runtime-debug-panel.png)
 
 ### 2.4.1 独立 Game / DS MCP debug 清单
 
@@ -304,6 +323,10 @@ UE4 Store 按 `TraceId` 直接分析数据流，返回的 `TracePath` 为空，�
 
 控制台行按钮：**打开目录** / **导出 Markdown** / **创建 GitHub Issue**。批量读取后若需保留包，对 `CallCapability` 传 `bKeepLoaded=true`；立即释放用 `UnloadAsset`。
 
+危险 Capability 的访问模式在同一设置页。`ExecCommand` / `ExecPython` 及 Ext 的 `EvalRuntimeLua` / `DofileRuntimeLua` 默认全部禁用；各模式行为见 [README](../README.md#危险-capability默认全部禁用)。只查询 Python API 时优先用只读 `GetPythonApi`。
+
+![危险 Capability 的全部禁用、每次手动确认和自定义开启模式](images/dangerous-capability-mode.png)
+
 自动埋点与 `SubmitFeedback` 的 schema 见 [`tool-reference.zh.md`](./tool-reference.zh.md#SubmitFeedback)。
 
 ### 2.7 直连 UE
@@ -366,12 +389,68 @@ Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可�
 
 独立托盘程序，**无需 IDE 插件**。默认 `:6700`。
 
+### 3.1 安装并启用中转
+
 1. 从 [NexusDesktop Releases](https://github.com/bytepine/NexusDesktop/releases) 下载：**Windows** `NexusDesktop-windows-amd64-v<版本>-setup.exe`，**macOS** `NexusDesktop-darwin-arm64.dmg`（仅 Apple Silicon）。不要下载 `*-update.zip`（应用内更新包）
 2. 安装并启动，程序进入系统托盘（macOS 为菜单栏，不出现在 Dock）
-3. 托盘勾选 **启用中转服务器**
-4. AI 客户端指向 `http://127.0.0.1:6700/stream`
+3. 右键托盘图标，勾选 **启用中转服务器**（新安装默认关闭）
+4. 确认状态行显示当前 UE 工程；多开编辑器或独立 Game / DS 时，通过 **选择 UE 实例** 切换目标
+
+![NexusDesktop 托盘中的启用中转服务器与客户端配置入口](images/desktop-relay-tray.png)
 
 安装范围、应用内更新、开机自启见 [NexusDesktop README](https://github.com/bytepine/NexusDesktop/blob/master/README.md)。
+
+### 3.2 复制 MCP 客户端配置
+
+1. 托盘选择 **MCP 客户端配置…**
+2. 选择 **Streamable HTTP** 和 Cursor 或 CodeBuddy，再点击 **复制**
+3. Cursor：把生成的 `nexus-unreal` 条目合并进 `~/.cursor/mcp.json` 的 `mcpServers`（Windows 为 `%USERPROFILE%\.cursor\mcp.json`）；保留已有的其他服务器条目
+4. CodeBuddy：粘贴到自定义 MCP 配置中
+
+![NexusDesktop 生成 Streamable HTTP 客户端配置，Token 已打码](images/desktop-client-config.png)
+
+Cursor 完整配置结构示例（占位符须替换为客户端配置窗口复制的 Token）：
+
+```json
+{
+  "mcpServers": {
+    "nexus-unreal": {
+      "url": "http://127.0.0.1:6700/stream",
+      "headers": {
+        "Authorization": "Bearer <Token>"
+      }
+    }
+  }
+}
+```
+
+![Cursor mcp.json 中的 nexus-unreal 配置，Token 已打码](images/cursor-mcp-config.png)
+
+CodeBuddy / Windsurf 的服务器条目还包含 `"transportType": "streamable-http"`，使用窗口按客户端生成的配置即可。端口冲突时会自动顺延，URL 以 NexusDesktop 显示的实际端口为准；不要把 UE 的 `:45000` 或 WS 的 `:55000` 填成中转地址。
+
+### 3.3 验证连接
+
+1. 重启 MCP 会话或重新打开 AI 面板，确认 `nexus-unreal` 显示已连接
+2. UE 默认 SearchMode 提供 `SearchCapabilities`、`CallCapability`、`SubmitFeedback` **3 个元工具**；NexusDesktop 还提供 `list_unreal_instances`、`connect_unreal_instance`，因此经中转通常显示 **5 个工具**。若首次连接只见两个实例工具，先发现并连接 UE，再刷新清单
+3. 向 AI 输入：**「使用 MCP 告诉我当前 UE 编辑器信息。」**
+4. 核对实际调用返回的引擎版本、工程和运行状态是否与目标编辑器一致；不要仅凭绿色连接状态判断 UE 已连通
+
+以下是旧版 CodeBuddy 的调用与返回示例；实际信息应来自你当前连接的工程。
+
+![CodeBuddy 通过 MCP 获取编辑器信息的示例](images/codebuddy-editor-info.png)
+
+### 3.4 日常使用
+
+直接描述目标并要求 AI 使用 MCP，无需记忆 Capability 名称。例如：
+
+- 「使用 MCP 查看这个蓝图有哪些变量」
+- 「使用 MCP 检查当前 PIE 中玩家角色的位置和可见性」
+- 「使用 MCP 检查当前 DS 中指定 Actor、行为树或 GAS 的运行状态」
+- 「使用 MCP 把这个 Widget 的文本改为指定内容，保存前先告诉我改动」
+- 「使用 MCP 只看我接下来这次操作的 Output Log」
+- 「使用 MCP 检查这个蓝图是否绑定了 Lua」（需要 NexusLinkExt）
+
+涉及资产时让 AI 先搜索真实路径；写入后读回检查，并按需保存资产。托盘 **暂停 Agent 转发** 会让后续请求排队。删除、重命名、停止 PIE 等操作默认触发写入前确认，可在设置中选择关闭、仅破坏性操作或全部写操作；确认行为见 [代理会话层](proxy-session.md)。提交前检查版本管理差异，尤其是二进制资产。
 
 ---
 
@@ -400,10 +479,18 @@ Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可�
 
 ### AI 客户端「MCP 初始化超时」
 
-- UE 已启动且 NexusLink 已加载，并勾选 **启用 MCP 服务器**
+- UE 已启动且 NexusLink 已加载；编辑器勾选 **启用 MCP 服务器**，独立 Game / DS 则追加 `-EnableNexusMcp`
 - 代理模式下 Desktop 托盘已启用中转 / Rider 或 VSCode 总开关已开，且状态显示已连 UE
 - AI 配置的端口与界面显示的实际端口一致
 - 身份验证开启时 `mcp.json` 须带 `Authorization: Bearer`，且 token 是对端接受的那份（见 [§1.1](#11-身份验证)）
+
+### 独立 Game / DS 启动后 NexusDesktop 中看不到
+
+确认原有启动参数中已追加 `-EnableNexusMcp`，并检查启动日志是否出现 MCP 启动信息；Shipping 不支持 MCP。在托盘执行 **扫描 UE 实例**，再通过 **选择 UE 实例** 按进程、PID 或实际端口切换。独立进程不会继承编辑器的 Preferences 勾选。
+
+### 搜不到 Lua / 蓝图绑定相关能力
+
+确认已安装并启用 **NexusLinkExt** 和 **UnLua**，重启编辑器后用 `SearchCapabilities` 搜索 `lua`。这些能力不在 NexusLink 核心包中；`EvalRuntimeLua`、`DofileRuntimeLua` 默认禁用，须另行设置访问模式。安装步骤见 [§2.1](#21-安装)。
 
 ### 连接被拒（401 / `unauthorized`）
 

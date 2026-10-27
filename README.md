@@ -22,11 +22,11 @@
 4. 从 [NexusDesktop Releases](https://github.com/bytepine/NexusDesktop/releases) 下载当前最新正式版：Windows 选 `*-setup.exe`，macOS 选 `.dmg`；`*-update.zip` 不是安装包
 5. 启动 NexusDesktop，在托盘勾选 **启用中转服务器**（默认 `:6700`），确认状态行显示当前 UE 项目
 6. 托盘选择 **MCP 客户端配置…**，选 **Streamable HTTP** 和 Cursor / CodeBuddy，将生成的配置粘贴到 AI 客户端
-7. 重启 MCP 会话；默认 SearchMode 下应看到 `SearchCapabilities`、`CallCapability`、`SubmitFeedback` 3 个元工具
+7. 重启 MCP 会话；默认 SearchMode 提供 `SearchCapabilities`、`CallCapability`、`SubmitFeedback` 3 个元工具，加上 NexusDesktop 的两个实例工具通常共 5 个。输入 **「使用 MCP 告诉我当前 UE 编辑器信息。」**，核对返回的工程、引擎版本和运行状态
 
 > **安全**：MCP 身份验证默认开启。Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中；分享截图前必须打码。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
 
-未启用 UE 端服务时，标题栏不显示端口、NexusDesktop 扫不到实例、直连 `http://127.0.0.1:45000/stream` 无响应。完整步骤、身份验证与跨机接入见 [使用指南](docs/usage-guide.md)。
+未启用 UE 端服务时，标题栏不显示端口、NexusDesktop 扫不到实例、直连 `http://127.0.0.1:45000/stream` 无响应。首次接入可跟随 [NexusDesktop 图文步骤](docs/usage-guide.md#3-nexusdesktop)；插件安装、身份验证与跨机接入见 [使用指南](docs/usage-guide.md)。
 
 ## 其他连接方式
 
