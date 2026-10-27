@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- 统一 Unreal Engine MCP 的中英文首页介绍，说明 Fab 商品 NexusMCP 与 NexusLink 的关系，补充 Fab / 客户端入口并精简插件展示描述。
+
 ### Fixed
 
 - `InteractRuntimeWidget` 支持用 `ListRuntimeWidgets` 返回的完整实例 `Path` 作为 `WidgetPath` 精确交互；名称命中多个控件时返回候选路径并拒绝执行，排除已移出视口、已脱离层级、隐藏或处于 Switcher 非活动页的缓存控件，支持当前视口内的嵌套 UserWidget。

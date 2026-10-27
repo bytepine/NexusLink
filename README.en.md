@@ -1,10 +1,12 @@
-# NexusLink
+# NexusLink — Unreal Engine MCP
 
 [简体中文](README.md) · **English**
 
-Read, modify, and debug Unreal Engine projects with AI through the Model Context Protocol (MCP).
+**Read, modify, and debug Unreal Engine projects with AI.** NexusLink is a free, open-source Unreal Engine MCP plugin that connects AI clients such as Cursor, Claude Code, and Windsurf through the Model Context Protocol (MCP).
 
-[Quick start](#quick-start) · [Documentation](docs/README.md) · [Download](https://github.com/bytepine/NexusLink/releases) · [Changelog](CHANGELOG.md)
+[Get it free on Fab (NexusMCP)](https://www.fab.com/listings/60097027-d7a5-4f73-87f3-81edb1b6ef0b) · [Quick start](#quick-start) · [GitHub downloads](https://github.com/bytepine/NexusLink/releases) · [Documentation](docs/README.md) · [Changelog](CHANGELOG.md)
+
+The Fab listing is named **NexusMCP**; the UE plugin and source repository are named **NexusLink**. Start with [NexusDesktop](https://github.com/bytepine/NexusDesktop), or use the **Nexus MCP** IDE integration from [VS Marketplace](https://marketplace.visualstudio.com/items?itemName=byteyang.nexus-mcp-vscode) / [Open VSX](https://open-vsx.org/extension/byteyang/nexus-mcp-vscode), or [NexusRider](https://github.com/bytepine/NexusRider). Choose one client; each requires NexusLink in UE.
 
 ## What you can do
 
@@ -20,7 +22,7 @@ The recommended relay is [NexusDesktop](https://github.com/bytepine/NexusDesktop
 
 ### 1. Install and enable the UE plugin
 
-1. Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://github.com/bytepine/NexusLink/releases). Place its `NexusLink/` directory in your project's `Plugins/` folder. Confirm the file is at `Plugins/NexusLink/NexusLink.uplugin`.
+1. Install the plugin for your engine version from [Fab (NexusMCP)](https://www.fab.com/listings/60097027-d7a5-4f73-87f3-81edb1b6ef0b), or download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://github.com/bytepine/NexusLink/releases). For the ZIP, place its `NexusLink/` directory in your project's `Plugins/` folder and confirm the file is at `Plugins/NexusLink/NexusLink.uplugin`. Versions and capabilities can differ between channels; check the corresponding release notes.
 2. Enable **Edit → Plugins → Developer → NexusLink**, then restart the editor.
 3. Open **Edit → Editor Preferences → Plugins → NexusLink**, check **Enable MCP Server** (off by default), and verify the runtime status and title-bar MCP / WS ports.
 
