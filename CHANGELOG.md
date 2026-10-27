@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [2.3.0-beta.3] - 2026-10-27
+
 ### Changed
 
 - 统一 Unreal Engine MCP 的中英文首页介绍、插件定位和客户端入口，精简插件展示描述；移除 README 中的 Fab 内容，避免商品页 403 导致链接检查失败。
