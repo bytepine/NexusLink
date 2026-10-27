@@ -146,10 +146,10 @@
     "InteractRuntimeActorAudio": "运行时播放声音。Action=PlaySound；可选附着 Actor。",
     "InteractRuntimeActorBehaviorTree": "写入运行时行为树。Action=SetBlackboard|RestartTree|StopTree。按 AIController 定位。",
     "InteractRuntimeActorNiagara": "激活/停用运行时 Niagara。Action=activate|deactivate。",
-    "InteractRuntimeWidget": "触发运行时 UMG 事件。Action=click|check|toggle|set|read。",
+    "InteractRuntimeWidget": "通过精确 WidgetPath 或唯一名称匹配触发视口内可见 UMG 事件。名称有歧义时拒绝交互。",
     "ListRuntimeActors": "枚举 PIE/Game 中 Actor。按类/标签/名过滤；返回引用非属性。",
     "ListTraces": "列出最近的 .utrace 和本机 Trace Store。",
-    "ListRuntimeWidgets": "枚举 PIE/Game 视口 UMG 实例。按类/名/DisplayText 过滤。",
+    "ListRuntimeWidgets": "枚举 PIE/Game 视口 UMG 实例及嵌套控件；返回的 Path 可直接作为 InteractRuntimeWidget 的 WidgetPath。按类/名/DisplayText 过滤。",
     "ManageAssetAnimBlueprint": "批量编辑动画蓝图。状态机与 AnimGraph 节点；不要用 K2。",
     "ManageAssetAnimComposite": "编辑 AnimComposite 合成轨道片段。action: AddSegment/RemoveSegment。",
     "ManageAssetAnimMontage": "批量编辑 Montage 结构。须 SaveAsset 落盘。",
@@ -377,6 +377,8 @@
     "UnloadAsset": "批量读取后内存仍高时手动调用"
   },
   "param_text": {
+    "Child Widget name substring; must match exactly one active widget. Required unless WidgetPath is provided": "子控件名称子串；必须唯一命中活动控件。未提供 WidgetPath 时必填",
+    "Exact live instance Path from ListRuntimeWidgets; never falls back to name. If WidgetName/OwnerClass are also supplied they must match": "ListRuntimeWidgets 返回的完整实例 Path；精确匹配，不回退名称。同时提供 WidgetName/OwnerClass 时也必须匹配",
     "Bookmarks to return": "返回的 Bookmark 条数",
     "Frame stats to summarize": "要统计的帧类型",
     "Max traces to return": "最多返回的 trace 数",

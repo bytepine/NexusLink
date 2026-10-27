@@ -19,42 +19,43 @@
 #include "Components/ProgressBar.h"
 #include "Components/ComboBoxString.h"
 #include "Components/ListView.h"
-#include "UObject/UObjectIterator.h"
 #include "NexusMcpTool.h"
 
-static UWidget* FindRuntimeWidgetCap(UWorld* World, const FString& WidgetName, const FString& OwnerFilter, FString& OutOwner)
+static UWidget* FindRuntimeWidgetCap(UWorld* World, const FString& WidgetName, const FString& WidgetPath,
+	const FString& OwnerFilter, FString& OutOwner, TArray<UWidget*>& OutMatches)
 {
-	for (TObjectIterator<UUserWidget> It; It; ++It)
+	// 只遍历已挂载的控件树，不能把仍存活但已移出视口的缓存实例当作交互目标。
+	for (UUserWidget* Root : FNexusRuntimeUtils::GetActiveUserWidgets())
 	{
-		UUserWidget* UW = *It;
-		if (!UW || !UW->GetWorld() || UW->GetWorld() != World) continue;
-		if (!UW->IsInViewport() && !UW->IsVisible()) continue;
-		if (!OwnerFilter.IsEmpty() && !UW->GetName().Contains(OwnerFilter) && !UW->GetClass()->GetName().Contains(OwnerFilter))
-			continue;
-
-		UWidget* Found = nullptr;
-		FNexusRuntimeUtils::ForEachWidgetRecursive(UW, [&](UWidget* Child)
+		if (!IsValid(Root) || Root->GetWorld() != World) continue;
+		FNexusRuntimeUtils::ForEachWidgetRecursive(Root, [&](UWidget* Child)
 		{
-			if (Found || !Child) return;
-			if (Child->GetName() == WidgetName || Child->GetName().Contains(WidgetName))
-				Found = Child;
-		});
-		if (Found) { OutOwner = UW->GetName(); return Found; }
+			if (!WidgetPath.IsEmpty() && !Child->GetPathName().Equals(WidgetPath, ESearchCase::CaseSensitive)) return;
+			if (!WidgetName.IsEmpty() && !Child->GetName().Contains(WidgetName)) return;
+			UUserWidget* Owner = Child->GetTypedOuter<UUserWidget>();
+			if (!Owner) Owner = Root;
+			if (!OwnerFilter.IsEmpty() && !Owner->GetName().Contains(OwnerFilter)
+				&& !Owner->GetClass()->GetName().Contains(OwnerFilter)
+				&& !Root->GetName().Contains(OwnerFilter) && !Root->GetClass()->GetName().Contains(OwnerFilter)) return;
+			OutMatches.AddUnique(Child);
+			OutOwner = Owner->GetName();
+		}, true);
 	}
-	return nullptr;
+	return OutMatches.Num() == 1 ? OutMatches[0] : nullptr;
 }
 
 void FNexusInteractRuntimeWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("InteractRuntimeWidget");
-	Out.Description = TEXT("Trigger runtime UMG events. Action=click|check|toggle|set|read.");
+	Out.Description = TEXT("Trigger visible viewport UMG events by exact WidgetPath or unique name match. Ambiguous names fail without interaction.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("WidgetName"),  FNexusSchema::Str(TEXT("Child Widget name")))
+		.Prop(TEXT("WidgetName"),  FNexusSchema::Str(TEXT("Child Widget name substring; must match exactly one active widget. Required unless WidgetPath is provided")))
+		.Prop(TEXT("WidgetPath"),  FNexusSchema::Str(TEXT("Exact live instance Path from ListRuntimeWidgets; never falls back to name. If WidgetName/OwnerClass are also supplied they must match")))
 		.Prop(TEXT("Action"),      FNexusSchema::Enum(TEXT("Interaction action"),
 			{ TEXT("Click"), TEXT("Check"), TEXT("Uncheck"), TEXT("Toggle"), TEXT("Set"), TEXT("Read") }))
 		.Prop(TEXT("Value"),       FNexusSchema::Str(TEXT("New value when Action=set")))
 		.Prop(TEXT("OwnerClass"),  FNexusSchema::Str(TEXT("Owner UserWidget class/name filter")))
-		.Required({ TEXT("WidgetName"), TEXT("Action") })
+		.Required({ TEXT("Action") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("Click"), TEXT("button"), TEXT("Toggle"), TEXT("input"), TEXT("UI") };
@@ -68,39 +69,60 @@ FCapabilityResult FNexusInteractRuntimeWidgetCapability::Execute(const TSharedPt
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 
-		FString WidgetName, Action, Value, OwnerFilter;
+		FString WidgetName, WidgetPath, Action, Value, OwnerFilter;
 		if (!Arguments.IsValid() ||
-		    !Arguments->TryGetStringField(TEXT("WidgetName"), WidgetName) || WidgetName.IsEmpty() ||
 		    !Arguments->TryGetStringField(TEXT("Action"), Action) || Action.IsEmpty())
 		{
-			OutError = TEXT("WidgetName and action required");
+			OutError = TEXT("Action required");
+			return;
+		}
+		Arguments->TryGetStringField(TEXT("WidgetName"), WidgetName);
+		Arguments->TryGetStringField(TEXT("WidgetPath"), WidgetPath);
+		if ((WidgetName.IsEmpty() && WidgetPath.IsEmpty()) ||
+			(Arguments->HasField(TEXT("WidgetPath")) && WidgetPath.IsEmpty()))
+		{
+			OutError = TEXT("Non-empty WidgetPath or WidgetName required; an explicit WidgetPath must not be empty");
 			return;
 		}
 		Arguments->TryGetStringField(TEXT("Value"),      Value);
 		Arguments->TryGetStringField(TEXT("OwnerClass"), OwnerFilter);
 
-		UWorld* World = nullptr;
-		for (TObjectIterator<UWorld> It; It; ++It)
-		{
-			if (It->WorldType == EWorldType::PIE || It->WorldType == EWorldType::Game)
-			{ World = *It; break; }
-		}
-		if (!World) { OutError = TEXT("No running World (start ControlPie first)"); return; }
+		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
+		if (!World) return;
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("WidgetName"), WidgetName);
+		if (!WidgetName.IsEmpty()) Entry->SetStringField(TEXT("WidgetName"), WidgetName);
+		if (!WidgetPath.IsEmpty()) Entry->SetStringField(TEXT("Path"), WidgetPath);
 		Entry->SetStringField(TEXT("Action"),     Action);
 
 		FString OwnerName;
-		UWidget* Target = FindRuntimeWidgetCap(World, WidgetName, OwnerFilter, OwnerName);
+		TArray<UWidget*> Matches;
+		UWidget* Target = FindRuntimeWidgetCap(World, WidgetName, WidgetPath, OwnerFilter, OwnerName, Matches);
 		if (!Target)
 		{
-			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Widget '%s' not found"), *WidgetName));
+			if (Matches.Num() > 1)
+			{
+				Entry->SetStringField(TEXT("Error"), TEXT("Ambiguous widget name; use an exact WidgetPath from Candidates or ListRuntimeWidgets"));
+				TArray<TSharedPtr<FJsonValue>> Candidates;
+				for (UWidget* Match : Matches)
+				{
+					TSharedPtr<FJsonObject> Candidate = MakeShared<FJsonObject>();
+					Candidate->SetStringField(TEXT("Path"), Match->GetPathName());
+					Candidate->SetStringField(TEXT("WidgetName"), Match->GetName());
+					Candidates.Add(MakeShared<FJsonValueObject>(Candidate));
+				}
+				Entry->SetArrayField(TEXT("Candidates"), Candidates);
+			}
+			else
+			{
+				Entry->SetStringField(TEXT("Error"), TEXT("Widget not found in the visible active viewport tree; cached, detached or hidden widgets cannot be interacted with"));
+			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;
 		}
 
 		Entry->SetStringField(TEXT("WidgetName"),  Target->GetName());
+		Entry->SetStringField(TEXT("Path"), Target->GetPathName());
 		Entry->SetStringField(TEXT("WidgetClass"), Target->GetClass()->GetName());
 		Entry->SetStringField(TEXT("OwnerClass"), OwnerName);
 

@@ -18,7 +18,7 @@
 void FNexusListRuntimeWidgetsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("ListRuntimeWidgets");
-	Out.Description = TEXT("List PIE/Game viewport UMG instances. Filter by class/name/DisplayText.");
+	Out.Description = TEXT("List PIE/Game viewport UMG instances, including nested widgets. Each Path is an exact WidgetPath for InteractRuntimeWidget. Filter by class/name/DisplayText.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("ClassFilter"), FNexusSchema::Str(TEXT("UserWidget class name filter")))
 		.Prop(TEXT("NameFilter"),  FNexusSchema::Str(TEXT("Child Widget name filter")))
@@ -49,11 +49,14 @@ FCapabilityResult FNexusListRuntimeWidgetsCapability::Execute(const TSharedPtr<F
 			if (Arguments->HasField(TEXT("Limit")))       Limit  = FMath::Clamp(static_cast<int32>(A.Num(TEXT("Limit"))), 1, 500);
 		}
 
-		struct FEntry { FString OwnerClass; FString Name; FString Class; FString Parent; FString DisplayText; };
+		struct FEntry { FString OwnerClass; FString Name; FString Path; FString Class; FString Parent; FString DisplayText; };
 		TArray<FEntry> All;
+		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
+		if (!World) return;
 
 		for (UUserWidget* UW : FNexusRuntimeUtils::GetActiveUserWidgets())
 		{
+			if (!IsValid(UW) || UW->GetWorld() != World) continue;
 			const FString OwnerClass = UW->GetClass()->GetName();
 			if (!ClassFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(OwnerClass, ClassFilter)) continue;
 
@@ -63,6 +66,7 @@ FCapabilityResult FNexusListRuntimeWidgetsCapability::Execute(const TSharedPtr<F
 				FEntry E;
 				E.OwnerClass  = OwnerClass;
 				E.Name        = Child->GetName();
+				E.Path        = Child->GetPathName();
 				E.Class       = Child->GetClass()->GetName();
 				E.DisplayText = FNexusRuntimeUtils::GetWidgetDisplayText(Child);
 				if (UWidget* P = Child->GetParent()) E.Parent = P->GetName();
@@ -86,6 +90,7 @@ FCapabilityResult FNexusListRuntimeWidgetsCapability::Execute(const TSharedPtr<F
 			TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
 			O->SetStringField(TEXT("WidgetClass"), All[i].OwnerClass);
 			O->SetStringField(TEXT("name"),  All[i].Name);
+			O->SetStringField(TEXT("Path"), All[i].Path);
 			O->SetStringField(TEXT("Class"), All[i].Class);
 			if (!All[i].Parent.IsEmpty())      O->SetStringField(TEXT("Parent"),      All[i].Parent);
 			if (!All[i].DisplayText.IsEmpty()) O->SetStringField(TEXT("DisplayText"), All[i].DisplayText);

@@ -3164,13 +3164,14 @@ Activate/deactivate runtime Niagara. Action=activate|deactivate.
 
 ### `InteractRuntimeWidget`
 
-Trigger runtime UMG events. Action=click|check|toggle|set|read.
+Trigger visible viewport UMG events by exact WidgetPath or unique name match. Ambiguous names fail without interaction.
 
 **Prerequisites**: `PIE`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `WidgetName` | `string` | ★ | Child Widget name |
+| `WidgetName` | `string` |  | Child Widget name substring; must match exactly one active widget. Required unless WidgetPath is provided |
+| `WidgetPath` | `string` |  | Exact live instance Path from ListRuntimeWidgets; never falls back to name. If WidgetName/OwnerClass are also supplied they must match |
 | `Action` | `string (enum)` | ★ | Interaction action enum: `Click` / `Check` / `Uncheck` / `Toggle` / `Set` / `Read` |
 | `Value` | `string` |  | New value when Action=set |
 | `OwnerClass` | `string` |  | Owner UserWidget class/name filter |
@@ -3200,7 +3201,7 @@ List Actors in PIE/Game. Filter by class/tag/name; returns refs not properties.
 
 ### `ListRuntimeWidgets`
 
-List PIE/Game viewport UMG instances. Filter by class/name/DisplayText.
+List PIE/Game viewport UMG instances, including nested widgets. Each Path is an exact WidgetPath for InteractRuntimeWidget. Filter by class/name/DisplayText.
 
 **Prerequisites**: `PIE`
 

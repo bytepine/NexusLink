@@ -54,6 +54,8 @@ Capabilities for optional plugins such as UnLua are not in this repo. Install [N
 
 GAS runtime diagnostics expose context, tags, activation-condition snapshots and activation/commit/failure/end captures. The standard-library Python runner creates case templates, performs read-only onboarding checks, executes multi-endpoint JSON cases and exports offline HTML/JSON/JUnit reports. See [GAS diagnostics and replay](docs/gas-retest.md).
 
+For precise UMG interaction, pass the live instance `Path` returned by `ListRuntimeWidgets` as `InteractRuntimeWidget.WidgetPath`, with `Action="Click"`. `WidgetName` substring matching must identify one target; multiple matches return an `Error` and `Candidates[].Path` without interacting. Only widgets attached to the current PIE/Game viewport through visible ancestors are eligible; detached caches, hidden branches and inactive WidgetSwitcher pages are excluded. Refresh paths after instances are recreated. An explicit path never falls back to a name. Click broadcasts the UMG delegate; it does not simulate mouse coordinates or test occlusion.
+
 Public sample [NexusUnreal](https://github.com/bytepine/NexusUnreal) (ThirdPerson template + MCP regression tests). The plugin is a git submodule and **is not bundled** with the sample; clone with `--recurse-submodules` or install this plugin separately.
 
 ## Coverage

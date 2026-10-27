@@ -62,6 +62,8 @@ UnLua 等可选插件的 Capability 不在本仓库。安装 [NexusLinkExt](http
 
 蓝图默认值、DataTable 字段和 Widget 属性支持只读预览、前值检查与编译后读回，见 [资产修改预览](docs/asset-edit-preview.md)。
 
+运行时 UMG 精确交互：从 `ListRuntimeWidgets` 取得目标的完整实例 `Path`，传给 `InteractRuntimeWidget` 的 `WidgetPath`（例如 `Action="Click"`）。也可按 `WidgetName` 子串匹配唯一目标；多匹配返回 `Error` 和 `Candidates[].Path`，不执行交互。仅操作当前 PIE/Game 视口中仍挂载且沿父级可见的控件，拒绝缓存实例、隐藏层级和 Switcher 非活动页。实例重建后需重新枚举路径；显式路径不存在时不回退名称。点击触发 UMG 委托，不模拟鼠标坐标或验证遮挡。
+
 GAS 运行时诊断支持上下文、标签、激活条件快照及激活/提交/失败/结束事件捕获；已有技能可单独尝试激活。配套 Python 复测工具支持通用 `GenericActivation` JSON 接入、显式 Actor 映射和只读预检，校验本地对象身份后执行多端用例并输出 HTML / JSON / JUnit 报告；可离线保存通过基线，对比失败、恢复及各端事件变化。公开示例工程提供手动启动的固定用例复测、基线门禁与报告归档。见 [GAS 诊断与复测](docs/gas-retest.md)。
 
 默认 **SearchMode**：`tools/list` 仅 3 个元工具（`SearchCapabilities` / `CallCapability` / `SubmitFeedback`），按需发现 Capability。覆盖编辑器、蓝图、动画、材质、音频、AI / EQS、GAS、控件、Niagara，以及 PIE / 独立 Game / Dedicated Server 运行时调试。UE 4.26+ 编辑器还可只读已停录的 Unreal Insights `.utrace`（`ListTraces` / `GetTrace`）。完整参数见 [docs/tool-reference.zh.md](docs/tool-reference.zh.md)（[English](docs/tool-reference.md)）；SearchMode vs MultiTool 见 [docs/architecture.md](docs/architecture.md#暴露模式toolslistmode)。

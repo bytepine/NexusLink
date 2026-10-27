@@ -42,8 +42,9 @@ public:
 	/**
 	 * 递归遍历 UserWidget 下所有子控件（走面板层级而非 WidgetTree 注册列表）。
 	 * 与 UWidgetTree::ForEachWidget 的区别：能发现运行时通过 AddChild() 动态添加的控件。
+	 * 包括嵌套 UserWidget；bVisibleOnly 会剪除不可见控件及其整棵子树。
 	 */
-	static void ForEachWidgetRecursive(UUserWidget* UserWidget, const TFunction<void(UWidget*)>& Callback);
+	static void ForEachWidgetRecursive(UUserWidget* UserWidget, const TFunction<void(UWidget*)>& Callback, bool bVisibleOnly = false);
 
 	/**
 	 * 解析 Actor 上单条属性路径（支持 "CompName.PropA.PropB" 组件前缀语法）。

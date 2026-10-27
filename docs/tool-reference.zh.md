@@ -3164,13 +3164,14 @@
 
 ### `InteractRuntimeWidget`
 
-触发运行时 UMG 事件。Action=click|check|toggle|set|read。
+通过精确 WidgetPath 或唯一名称匹配触发视口内可见 UMG 事件。名称有歧义时拒绝交互。
 
 **前置条件**: `PIE`
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `WidgetName` | `string` | ★ | 运行时 Widget 名 |
+| `WidgetName` | `string` |  | 子控件名称子串；必须唯一命中活动控件。未提供 WidgetPath 时必填 |
+| `WidgetPath` | `string` |  | ListRuntimeWidgets 返回的完整实例 Path；精确匹配，不回退名称。同时提供 WidgetName/OwnerClass 时也必须匹配 |
 | `Action` | `string (enum)` | ★ | 交互操作 枚举: `Click` / `Check` / `Uncheck` / `Toggle` / `Set` / `Read` |
 | `Value` | `string` |  | New value when Action=set |
 | `OwnerClass` | `string` |  | Owner UserWidget 类/名过滤 |
@@ -3200,7 +3201,7 @@
 
 ### `ListRuntimeWidgets`
 
-枚举 PIE/Game 视口 UMG 实例。按类/名/DisplayText 过滤。
+枚举 PIE/Game 视口 UMG 实例及嵌套控件；返回的 Path 可直接作为 InteractRuntimeWidget 的 WidgetPath。按类/名/DisplayText 过滤。
 
 **前置条件**: `PIE`
 

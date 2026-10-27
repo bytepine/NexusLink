@@ -15,7 +15,7 @@ When connected to UE: MCP first—do not guess `/Game/...` or grep the repo alon
 - Response body is the main cost: keep `Sections` narrow (avoid `All`), start with small `Limit`; for logs use `GetOutputLog` ≤50 with `CategoryFilter` / `Verbosity` / `TextFilter`, paginate with `Offset` if needed.
 - When lists include `<k>_defaults`, missing fields equal that value (`merged={**defaults,**entry}`).
 - Diagnostic logs: prefer `Preset=diagnose` (newest + ≥warning + `SummaryByCategory`/`ErrorCount` + limit≤50); or manual `Order=newest` + `bIncludeSummary`; note `LatestSequence` before repro, then `SinceSequence` for deltas. Entries include UTC `Time` (ISO-8601). To capture only the next action: `GetOutputLog` with `Watch` (categories/TextIncludes/TextExcludes/verbosity), act, then `bCollectWatch=true`. Consecutive duplicates collapse to `Repeat`.
-- **Single target**: capabilities use only `AssetPath` / `ActorName` / `WidgetName`; cross-target batch via `CallCapability(Calls=[{capability,arguments},…])` in one round. Within one target keep `Sections` / `PropertyPaths` / `Operations` / `Updates`.
+- **Single target**: capabilities use `AssetPath` / `ActorName` / `WidgetName`; `InteractRuntimeWidget` also accepts exact `WidgetPath` from `ListRuntimeWidgets` → `Path`. Ambiguous names return `Candidates[].Path` without interacting; detached/hidden widgets are rejected. Cross-target batch via `CallCapability(Calls=[{capability,arguments},…])` in one round. Within one target keep `Sections` / `PropertyPaths` / `Operations` / `Updates`.
 - Prefer `SearchCapabilities` with `CapabilityName` once for full `parameters[]`.
 
 ## Parameter contract (Breaking)

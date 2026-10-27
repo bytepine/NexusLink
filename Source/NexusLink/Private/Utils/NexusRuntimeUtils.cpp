@@ -22,6 +22,7 @@ FString FNexusRuntimeUtils::GetObjectIdentity(const UObject* Object)
 #include "Blueprint/WidgetTree.h"
 #include "Components/Widget.h"
 #include "Components/PanelWidget.h"
+#include "Components/WidgetSwitcher.h"
 #include "Components/TextBlock.h"
 #include "Components/RichTextBlock.h"
 #include "Components/EditableText.h"
@@ -195,9 +196,10 @@ UWidget* FNexusRuntimeUtils::FindRuntimeWidget(const FString& WidgetClassName, c
 	return nullptr;
 }
 
-void FNexusRuntimeUtils::ForEachWidgetRecursive(UUserWidget* UserWidget, const TFunction<void(UWidget*)>& Callback)
+void FNexusRuntimeUtils::ForEachWidgetRecursive(UUserWidget* UserWidget, const TFunction<void(UWidget*)>& Callback, bool bVisibleOnly)
 {
-	if (!UserWidget || !UserWidget->WidgetTree || !UserWidget->WidgetTree->RootWidget)
+	if (!IsValid(UserWidget) || !UserWidget->WidgetTree || !UserWidget->WidgetTree->RootWidget
+		|| (bVisibleOnly && !UserWidget->IsVisible()))
 	{
 		return;
 	}
@@ -206,6 +208,7 @@ void FNexusRuntimeUtils::ForEachWidgetRecursive(UUserWidget* UserWidget, const T
 	Stack.Reserve(64);
 	Stack.Add(UserWidget->WidgetTree->RootWidget);
 
+	TSet<UWidget*> Visited;
 	while (Stack.Num() > 0)
 	{
 #if NX_UE_HAS_ALLOW_SHRINKING_ENUM
@@ -213,12 +216,26 @@ void FNexusRuntimeUtils::ForEachWidgetRecursive(UUserWidget* UserWidget, const T
 #else
 		UWidget* Current = Stack.Pop(false);
 #endif
-		if (!Current) continue;
+		if (!IsValid(Current) || Visited.Contains(Current) || (bVisibleOnly && !Current->IsVisible())) continue;
+		Visited.Add(Current);
 
 		Callback(Current);
+		if (UUserWidget* Nested = Cast<UUserWidget>(Current))
+		{
+			if (Nested->WidgetTree && Nested->WidgetTree->RootWidget) Stack.Add(Nested->WidgetTree->RootWidget);
+		}
 
 		if (UPanelWidget* Panel = Cast<UPanelWidget>(Current))
 		{
+			// Switcher 的非活动页仍可能保持 Visible，交互遍历只能进入当前页。
+			if (bVisibleOnly)
+			{
+				if (UWidgetSwitcher* Switcher = Cast<UWidgetSwitcher>(Panel))
+				{
+					if (UWidget* Active = Switcher->GetActiveWidget()) Stack.Add(Active);
+					continue;
+				}
+			}
 			for (int32 i = 0; i < Panel->GetChildrenCount(); ++i)
 			{
 				Stack.Add(Panel->GetChildAt(i));
