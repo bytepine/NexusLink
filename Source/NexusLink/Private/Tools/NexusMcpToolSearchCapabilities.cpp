@@ -57,6 +57,7 @@ static void EmitCapabilityDetailFromRecord(const FCapRecord& Record, TSharedPtr<
 	O->SetStringField(TEXT("name"),        Record.Def.Name);
 	O->SetStringField(TEXT("description"), Record.Def.Description);
 	O->SetArrayField(TEXT("Parameters"),   FNexusCapabilityIndexUtils::ExtractParameters(Record.Def.InputSchema));
+	if (Record.Def.OutputSchema.IsValid()) O->SetObjectField(TEXT("outputSchema"), Record.Def.OutputSchema);
 	FNexusCapabilityIndexUtils::AttachMetaHints(O, Record.Def);
 	Output->SetObjectField(TEXT("Capability"), O);
 }
@@ -477,6 +478,8 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 			}
 		}
 		if (bFull && S.Def) FNexusCapabilityIndexUtils::AttachMetaHints(S.Entry, *S.Def);
+        if (S.Def && S.Def->OutputSchema.IsValid()) S.Entry->SetObjectField(TEXT("outputSchema"), S.Def->OutputSchema);
+        if (S.Def && S.Def->ExecutionInfo) S.Entry->SetObjectField(TEXT("Execution"), S.Def->ExecutionInfo());
 		S.Entry->RemoveField(TEXT("Schema"));
 		CapArr.Add(MakeShared<FJsonValueObject>(S.Entry));
 	}

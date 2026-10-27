@@ -50,3 +50,5 @@ Same as SearchMode: `GetAssetBlueprint` before graph edits; GAS graphs via `Mana
 - Before `get/manage_asset_*`, call `SearchAsset`; prefer returned `RecommendedGet` / `RecommendedManage`.
 - Reuse an existing `Sections=["All"]` response when still current. Re-read after writes or runtime changes; `RedundantCall` is advisory and fresh data is still returned.
 - `SubmitFeedback` triggers same as SearchMode; **`FeedbackHint` is mandatory**.
+
+Editor UI: GetEditorSlate → Ref → InteractEditorSlate / CaptureEditorSlate. Local tests: ControlEditorAutomation / ListEditorAutomationTests. Compile: CompileEditorLiveCoding. Long tasks return OperationId; poll GetEditorOperation (optional WaitSeconds ≤30). Completed is execution state; inspect Outcome separately. Request cancellation only cancels waiting. Explicit Stop applies only where supported. Never retry writes automatically or mix these operations into atomic Calls[] batches. Search exposes outputSchema and Execution backend information.

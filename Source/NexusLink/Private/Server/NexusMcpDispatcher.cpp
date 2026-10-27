@@ -1,4 +1,4 @@
-﻿// Copyright byteyang. All Rights Reserved.
+// Copyright byteyang. All Rights Reserved.
 
 #include "Server/NexusMcpDispatcher.h"
 #include "Server/NexusToolsListCache.h"
@@ -6,6 +6,7 @@
 #include "Server/NexusProxyConfig.h"
 #include "NexusMcpToolRegistry.h"
 #include "NexusCapabilityRegistry.h"
+#include "NexusEditorOperation.h"
 #include "NexusLinkSettings.h"
 #include "NexusMcpTool.h"
 #include "NexusFeedback.h"
@@ -158,6 +159,10 @@ void FNexusMcpDispatcher::Dispatch(const FString& JsonLine, FOnSendResponse PerR
 	else if (Method == TEXT("notifications/initialized"))
 	{
 		HandleInitialized();
+	}
+	else if (Method == TEXT("notifications/cancelled"))
+	{
+		HandleCancelled(Params);
 	}
 	else if (Method == TEXT("ping"))
 	{
@@ -349,6 +354,8 @@ static TSharedPtr<FJsonObject> ToolDefToJson(const FNexusMcpToolDefinition& Def)
 		ToolObj->SetObjectField(TEXT("inputSchema"), EmptySchema);
 	}
 
+	if (Def.OutputSchema.IsValid()) ToolObj->SetObjectField(TEXT("outputSchema"), Def.OutputSchema);
+
 	// MCP 标准字段保持原样，仅业务参数使用 PascalCase。
 	TSharedPtr<FJsonObject> Annotations = MakeShared<FJsonObject>();
 	if (Def.HasTag(FNexusMcpTags::Readonly))
@@ -397,6 +404,10 @@ void FNexusMcpDispatcher::HandleToolsList(const TSharedPtr<FJsonValue>& Id, cons
 			// MultiTool 模式下 AI 无法调用 SearchCapabilities 补充元信息，
 			// 将 prerequisites / RelatedCapabilities 拼入 description 末尾。
 			FString Desc = Record.Def.Description;
+            if (Record.Def.ExecutionInfo) {
+                const auto Info = Record.Def.ExecutionInfo();
+                Desc += TEXT(" [backend: ") + Info->GetStringField(TEXT("Backend")) + TEXT("; ") + Info->GetStringField(TEXT("Reason")) + TEXT("]");
+            }
 			if (Record.Def.Prerequisites.Num() > 0)
 			{
 				Desc += TEXT(" [prerequisites: ") + FString::Join(Record.Def.Prerequisites, TEXT(",")) + TEXT("]");
@@ -415,6 +426,7 @@ void FNexusMcpDispatcher::HandleToolsList(const TSharedPtr<FJsonValue>& Id, cons
 			ToolDef.Name        = Record.Def.Name;
 			ToolDef.Description = Desc;
 			ToolDef.InputSchema = Record.Def.InputSchema;
+			ToolDef.OutputSchema = Record.Def.OutputSchema;
 			ToolDef.Tags        = Record.Def.Tags;
 			ToolsArray.Add(MakeShared<FJsonValueObject>(ToolDefToJson(ToolDef)));
 		}
@@ -450,13 +462,61 @@ void FNexusMcpDispatcher::HandleToolsList(const TSharedPtr<FJsonValue>& Id, cons
 
 int32 FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, const FNexusMcpToolResult& ToolResult)
 {
+	FString OperationId;
+	if (!ToolResult.bIsError && ToolResult.StructuredContent.IsValid() && WaitSeconds > 0
+		&& ToolResult.StructuredContent->TryGetStringField(TEXT("OperationId"), OperationId))
+	{
+		auto Key = MakeShared<FJsonObject>(); Key->SetField(TEXT("id"), Id);
+		const FString RequestKey = FNexusEditorOperations::RequestOwner() + TEXT("|") + FNexusJsonUtils::SerializeCondensed(Key);
+		const FOnSendResponse Send = SendCallback;
+		const FOnSendResponse Notify = NotificationSink;
+		const auto Token = ProgressToken;
+		const auto Schema = ToolResult.OutputSchema;
+		const double WaitStartedAt = FPlatformTime::Seconds();
+		FNexusEditorOperations::Wait(OperationId, WaitSeconds, RequestKey,
+			[Send, Id, Schema](TSharedPtr<FJsonObject> Snapshot)
+			{
+				FNexusMcpToolResult Final;
+				Final.StructuredContent = Snapshot;
+				Final.OutputSchema = Schema;
+                FString State;
+                if (Snapshot.IsValid() && Snapshot->TryGetStringField(TEXT("State"), State) && State == TEXT("Failed")) {
+                    Final.bIsError = true; Final.ErrorText = FNexusJsonUtils::SerializeCondensed(Snapshot);
+                }
+				if (!Snapshot.IsValid()) { Final.bIsError = true; Final.ErrorText = TEXT("Unknown operation or duplicate pending request id"); }
+				FNexusMcpDispatcher Completion(Send);
+				Completion.EmitToolResult(Id, Final);
+			},
+			[Notify, Token, WaitStartedAt](const FString& Message)
+			{
+				if (!Notify || !Token.IsValid()) return;
+				auto Params = MakeShared<FJsonObject>();
+				Params->SetField(TEXT("progressToken"), Token);
+				Params->SetNumberField(TEXT("progress"), FPlatformTime::Seconds() - WaitStartedAt);
+				Params->SetStringField(TEXT("message"), Message);
+				auto Event = MakeShared<FJsonObject>();
+				Event->SetStringField(TEXT("jsonrpc"), TEXT("2.0"));
+				Event->SetStringField(TEXT("method"), TEXT("notifications/progress"));
+				Event->SetObjectField(TEXT("params"), Params);
+				Notify(FNexusJsonUtils::SerializeCondensed(Event));
+			});
+		return 0;
+	}
+	FString ContractError;
+	if (!ToolResult.bIsError && !FNexusCapability::ValidateOutput(ToolResult.StructuredContent, ToolResult.OutputSchema, ContractError))
+	{
+		FNexusMcpToolResult Error;
+		Error.bIsError = true;
+		Error.ErrorText = TEXT("OutputSchema violation: ") + ContractError;
+		return EmitToolResult(Id, Error);
+	}
 	// 统一序列化
 	FString ResponseText;
 	if (ToolResult.bIsError)
 	{
 		ResponseText = ToolResult.ErrorText;
 	}
-	else if (!ToolResult.OutputText.IsEmpty())
+	else if (!ToolResult.OutputText.IsEmpty() && !ToolResult.OutputSchema.IsValid())
 	{
 		ResponseText = ToolResult.OutputText;
 	}
@@ -486,7 +546,7 @@ int32 FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, cons
 	{
 		Result->SetObjectField(TEXT("structuredContent"), ToolResult.StructuredContent);
 	}
-	else if (!ToolResult.OutputText.IsEmpty())
+	else if (!ToolResult.OutputText.IsEmpty() && !ToolResult.OutputSchema.IsValid())
 	{
 		TArray<TSharedPtr<FJsonValue>> ContentArray;
 		TSharedPtr<FJsonObject> TextContent = MakeShared<FJsonObject>();
@@ -522,6 +582,9 @@ static void InjectTtlMetadata(FNexusMcpToolResult& ToolResult, const FString& Ca
 		return;
 	}
 
+	const FCapRecord* Record = FNexusCapabilityRegistry::Get().FindRecordByName(CapabilityName);
+	if (Record && !Record->Def.bCacheable) ToolResult.StructuredContent->SetNumberField(TEXT("TtlSeconds"), 0);
+	if (Record) ToolResult.OutputSchema = Record->Def.OutputSchema;
 	ToolResult.StructuredContent->SetStringField(TEXT("SnapshotAt"),
 		FDateTime::UtcNow().ToIso8601());
 
@@ -559,6 +622,17 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 	{
 		Arguments = MakeShared<FJsonObject>();
 	}
+
+	const auto Meta = TryGetJsonObject(Params, TEXT("_meta"));
+	FString ProxySession;
+	if (Meta.IsValid()) Meta->TryGetStringField(TEXT("nexusSessionId"), ProxySession);
+	const FString Owner = ProxySession.IsEmpty() ? SessionId : TEXT("proxy:") + ProxySession;
+	TGuardValue<FString> OwnerGuard(FNexusEditorOperations::RequestOwner(), Owner);
+	auto Inner = ToolName == TEXT("CallCapability") ? TryGetJsonObject(Arguments, TEXT("Arguments")) : Arguments;
+	double RequestedWait = 0;
+	if (Inner.IsValid()) Inner->TryGetNumberField(TEXT("WaitSeconds"), RequestedWait);
+	TGuardValue<double> WaitGuard(WaitSeconds, FMath::Clamp(RequestedWait, 0.0, 30.0));
+	TGuardValue<TSharedPtr<FJsonValue>> ProgressGuard(ProgressToken, Meta.IsValid() ? Meta->TryGetField(TEXT("progressToken")) : nullptr);
 
 	// 先在 ToolRegistry 中查找（SearchMode 的元工具 + SubmitFeedback 始终可用）
 	const bool bHasTool = FNexusMcpToolRegistry::Get().HasTool(ToolName);
@@ -715,8 +789,11 @@ void FNexusMcpDispatcher::HandleProxyFeedback(const TSharedPtr<FJsonValue>& Id, 
 	SendResult(Id, Out);
 }
 
-void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendResponse PerRequestSend)
+void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendResponse PerRequestSend, FOnSendResponse PerRequestNotification, const FString& Owner)
 {
+    // 危险能力的模态确认允许游戏线程重入，每一层都必须恢复原连接身份与通知出口。
+    TGuardValue<FString> OwnerGuard(SessionId, Owner.IsEmpty() ? SessionId : Owner);
+    TGuardValue<FOnSendResponse> NotificationGuard(NotificationSink, MoveTemp(PerRequestNotification));
 	TGuardValue<FOnSendResponse> CallbackGuard(SendCallback, MoveTemp(PerRequestSend));
 	TSharedPtr<FJsonObject> JsonMsg;
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonLine);
@@ -754,6 +831,10 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 	else if (Method == TEXT("tools/call"))
 	{
 		HandleToolsCall(Id, Params);
+	}
+	else if (Method == TEXT("notifications/cancelled"))
+	{
+		HandleCancelled(Params);
 	}
 	else if (Method == TEXT("status"))
 	{
@@ -796,3 +877,13 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 
 
 
+
+void FNexusMcpDispatcher::HandleCancelled(const TSharedPtr<FJsonObject>& Params)
+{
+	if (!Params.IsValid() || !Params->HasField(TEXT("requestId"))) return;
+	FString ProxySession;
+	auto Meta = TryGetJsonObject(Params, TEXT("_meta"));
+	if (Meta.IsValid()) Meta->TryGetStringField(TEXT("nexusSessionId"), ProxySession);
+	auto Key = MakeShared<FJsonObject>(); Key->SetField(TEXT("id"), Params->TryGetField(TEXT("requestId")));
+	FNexusEditorOperations::CancelWait((ProxySession.IsEmpty() ? SessionId : TEXT("proxy:") + ProxySession) + TEXT("|") + FNexusJsonUtils::SerializeCondensed(Key));
+}

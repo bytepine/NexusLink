@@ -27,6 +27,9 @@
 #define NX_UE_HAS_APP_STYLE            NX_UE_AT_LEAST(5, 0)  // FEditorStyle::Get() → FAppStyle::Get()（Styling/AppStyle.h）
 #define NX_UE_HAS_LEVEL_EDITOR_TITLE_BAR_ITEM  NX_UE_AT_LEAST(5, 0)  // FStatusBarItem/AddStatusBarItem → FTitleBarItem/AddTitleBarItem
 #define NX_UE_HAS_EQS                  NX_UE_AT_LEAST(5, 0)  // Environment Query System（EQS）插件；UE4 无 UEnvQuery 稳定 API
+#define NX_UE_HAS_WIDGET_PATH_POINTER_CONTAINS NX_UE_AT_LEAST(5, 0) // FWidgetPath::ContainsWidget 改用裸指针参数
+#define NX_UE_HAS_AUTOMATION_FILTERED_REPORTS NX_UE_AT_LEAST(5, 3) // AutomationController 的 GetReports 从 5.3 起弃用
+#define NX_UE_HAS_LIVE_CODING_RESULT NX_UE_AT_LEAST(5, 0) // 非等待编译入口的启动结果
 #define NX_UE_HAS_FTSTICKER            NX_UE_AT_LEAST(5, 0)  // FTicker → FTSTicker
 #define NX_UE_HAS_SAVE_PACKAGE_ARGS    NX_UE_AT_LEAST(5, 0)  // UPackage::SavePackage(FSavePackageArgs)
 #define NX_UE_HAS_MARK_AS_GARBAGE      NX_UE_AT_LEAST(5, 0)  // MarkPendingKill() → MarkAsGarbage()

@@ -1,4 +1,4 @@
-﻿// Copyright byteyang. All Rights Reserved.
+// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Runtime/AI/NexusGetRuntimeActorBehaviorTreeCapability.h"
 #include "NexusCapabilityRegistry.h"
@@ -113,7 +113,7 @@ FCapabilityResult FNexusGetRuntimeActorBehaviorTreeCapability::Execute(const TSh
 				if (E.KeyType)
 					KObj->SetStringField(TEXT("type"), E.KeyType->GetClass()->GetName());
 				KObj->SetStringField(TEXT("Value"), BBComp->DescribeKeyValue(KeyID, EBlackboardDescription::OnlyValue));
-				KObj->SetBoolField(TEXT("bInherited"), Index < BBData->GetFirstKeyID());
+				KObj->SetBoolField(TEXT("bInherited"), Index < static_cast<uint16>(BBData->GetFirstKeyID()));
 				FNexusBlackboardUtils::WriteTyped(BBComp, E.EntryName, E.KeyType, *KObj);
 				Keys.Add(MakeShared<FJsonValueObject>(KObj));
 			}

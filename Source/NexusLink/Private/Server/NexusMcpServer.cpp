@@ -399,12 +399,18 @@ void FNexusMcpServer::RegisterRoutes()
 					return;
 				}
 
-				FString ResponseJson;
-				Dispatcher->Dispatch(JsonBody, [&ResponseJson](const FString& Json)
+				Dispatcher->Dispatch(JsonBody, [Complete, SessionId](const FString& Json)
 				{
-					ResponseJson = Json;
+					ReplyJson(Complete, Json, SessionId);
 				});
-				ReplyJson(Complete, ResponseJson, SessionId);
+				TSharedPtr<FJsonObject> Parsed;
+				auto Reader = TJsonReaderFactory<>::Create(JsonBody);
+				if (FJsonSerializer::Deserialize(Reader, Parsed) && Parsed.IsValid() && !Parsed->HasField(TEXT("id")))
+				{
+					auto Response = FHttpServerResponse::Create(TEXT(""), TEXT("application/json"));
+					Response->Code = EHttpServerResponseCodes::Accepted;
+					Complete(MoveTemp(Response));
+				}
 			});
 			return true;
 		})
@@ -605,6 +611,7 @@ void FNexusMcpServer::OnWebSocketClientConnected(INetworkingWebSocket* ClientWeb
 {
 	UE_LOG(LogNexusMcpServer, Verbose, TEXT("WebSocket 客户端已连接"));
 	ConnectedClients.Add(ClientWebSocket);
+	ClientIds.Add(ClientWebSocket, FGuid::NewGuid().ToString());
 
 	// 绑定消息和断开回调
 	FWebSocketPacketReceivedCallBack OnMessage;
@@ -709,12 +716,15 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 			return;
 		}
 
-		FString ResponseJson;
-		Self->WsDispatcher->DispatchDirect(JsonLine, [&ResponseJson](const FString& Json)
+		const FString ConnectionId = Self->ClientIds.FindRef(ClientWebSocket);
+		auto Send = [WeakSelf, ClientWebSocket, ConnectionId](const FString& Json)
 		{
-			ResponseJson = Json;
-		});
-		SendWsText(ClientWebSocket, ResponseJson);
+			auto Server = WeakSelf.Pin();
+			if (Server.IsValid() && Server->IsRunning() && Server->ClientIds.FindRef(ClientWebSocket) == ConnectionId
+				&& (!UNexusLinkSettings::IsMcpAuthRequired() || Server->AuthenticatedWsClients.Contains(ClientWebSocket)))
+				SendWsText(ClientWebSocket, Json);
+		};
+		Self->WsDispatcher->DispatchDirect(JsonLine, Send, Send, ConnectionId);
 	});
 }
 
@@ -728,6 +738,7 @@ void FNexusMcpServer::OnWebSocketClientDisconnected(INetworkingWebSocket* Client
 	UE_LOG(LogNexusMcpServer, Verbose, TEXT("WebSocket 客户端已断开"));
 	AuthenticatedWsClients.Remove(ClientWebSocket);
 	ConnectedClients.Remove(ClientWebSocket);
+	ClientIds.Remove(ClientWebSocket);
 }
 
 bool FNexusMcpServer::TickWebSocket(float DeltaTime)

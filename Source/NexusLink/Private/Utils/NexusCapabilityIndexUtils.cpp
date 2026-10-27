@@ -263,6 +263,9 @@ TArray<FString> FNexusCapabilityIndexUtils::FilterVisibleRelated(
 void FNexusCapabilityIndexUtils::AttachMetaHints(TSharedPtr<FJsonObject>& Entry,
                                                   const FNexusCapabilityDefinition& Def)
 {
+    if (Def.OutputSchema.IsValid()) Entry->SetObjectField(TEXT("outputSchema"), Def.OutputSchema);
+    if (Def.ExecutionInfo) Entry->SetObjectField(TEXT("Execution"), Def.ExecutionInfo());
+
 	const TArray<FString> Related = FilterVisibleRelated(Def.RelatedCapabilities, UNexusLinkSettings::Get());
 	if (Related.Num() > 0)
 	{

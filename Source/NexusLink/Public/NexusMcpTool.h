@@ -38,6 +38,7 @@ struct FNexusMcpToolDefinition
 	 * 典型结构：{ "type": "object", "properties": {...}, "required": [...] }
 	 */
 	TSharedPtr<FJsonObject> InputSchema;
+	TSharedPtr<FJsonObject> OutputSchema;
 
 	/**
 	 * 工具标签（访问级别 + 功能分类）。
@@ -70,6 +71,7 @@ struct FNexusMcpToolResult
 
 	/** 结构化返回数据（成功路径的主要数据出口）。 */
 	TSharedPtr<FJsonObject> StructuredContent;
+	TSharedPtr<FJsonObject> OutputSchema;
 
 	/**
 	 * 可选：覆盖 content[0].text 的预格式化文本（如 markdown）。

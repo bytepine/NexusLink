@@ -221,7 +221,14 @@
     "SpawnRuntimeActor": "在 PIE 生成 Actor。AssetPath 或 ClassName；可选位置/旋转。",
     "SpawnRuntimeWidget": "在 PIE/Game 视口创建并显示 UMG 面板。需 AssetPath+ZOrder。",
     "SubmitFeedback": "上报工具/Capability 使用摩擦。触发：重试≥2 次无进展、找不到合适 Capability、Schema 需猜测、被迫串行≥3 次。`Category`：`WrongTool` / `Misuse` / `SchemaGuess` / `SearchZero` / `SearchOverflow` / `Other`。优先填结构化字段（`AttemptedArgs`、`ActualError`、`ExpectedField`）而不是长 `Note`。",
-    "UnloadAsset": "手动卸载已加载的包。兜底用；通常自动卸载即可。"
+    "UnloadAsset": "手动卸载已加载的包。兜底用；通常自动卸载即可。",
+    "GetEditorSlate": "查询可见编辑器窗口或 Slate 子树；返回引用，控件重建后需重新查询。",
+    "CaptureEditorSlate": "截图编辑器可见控件子树并保存本地图片；需要 GUI 编辑器。",
+    "InteractEditorSlate": "向已查询的 Slate 目标发送点击、文字、按键或聚焦；不提供事务回滚。",
+    "ControlEditorAutomation": "发现、运行本地编辑器测试或停止所属运行；不覆盖外部测试。",
+    "ListEditorAutomationTests": "枚举已发现的完整测试名，支持名称子串筛选；须先完成发现。",
+    "CompileEditorLiveCoding": "非阻塞启动 C++ 热编译；限 Windows，用户须先启用 Live Coding。",
+    "GetEditorOperation": "读取所属会话的操作状态和结果；可有界等待，不缓存。"
   },
   "when_to_use": {
     "CaptureEditorPanel": "截编辑器面板/关卡视口，或按固定视角拍 Actor",

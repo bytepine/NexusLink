@@ -20,7 +20,7 @@
 
 > **安全**：Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
 
-编辑器 / PIE 与独立 Game / DS 的启用方式不同，见 [§2.2](#22-启用-mcp-服务器必做)。连接后需要资产预览、UMG 交互或诊断复测时，转到[专题文档](README.md#日常操作--workflows)。
+编辑器 / PIE 与独立 Game / DS 的启用方式不同，见 [§2.2](#22-启用-mcp-服务器必做)。连接后需要资产预览、UMG 交互、编辑器自动化或诊断复测时，转到[专题文档](README.md#日常操作--workflows)。
 
 ---
 
@@ -395,6 +395,7 @@ Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可�
 - `ExecCommand`：执行 UE 控制台命令并捕获输出。
 - `ExecPython`：在编辑器中执行 Python（`Exec` / `File` / `Eval`），返回 stdout 与 traceback；宿主须启用 **Python Editor Script Plugin**。
 - NexusLinkExt 的 `EvalRuntimeLua` / `DofileRuntimeLua`：同样默认禁用，安装前提见 [§2.1](#可选安装-nexuslinkextunlua)。
+- 编辑器 UI 输入、测试控制和编译也属于危险能力；宿主、长操作和副作用边界见[编辑器工具](editor-toolsets.md)。
 
 只查询 `unreal.*` API 是否存在时，优先使用默认开启的只读 `GetPythonApi`。它同样需要 Python 插件，但只将白名单校验后的参数嵌入固定 `inspect` 脚本，不接受用户代码。
 

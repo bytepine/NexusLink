@@ -89,6 +89,13 @@ struct FNexusCapabilityDefinition
 
 	/** 输入参数 JSON Schema：`{type:"object", properties:{...}, required?:[...]}`。 */
 	TSharedPtr<FJsonObject> InputSchema;
+	/** 可选的最终输出契约；旧能力不声明时保持原行为。 */
+	TSharedPtr<FJsonObject> OutputSchema;
+	bool bAutoTransaction = true;
+	bool bAllowBatch = true;
+	bool bCacheable = true;
+	/** Optional session-specific backend discovery metadata. */
+	TFunction<TSharedPtr<FJsonObject>()> ExecutionInfo;
 
 	/**
 	 * 标签集合（访问级别 + 功能分类，使用 FNexusMcpTags 常量）。
@@ -209,6 +216,8 @@ public:
 	 * 守卫：若 Args 中缺少 Key 字段，向 OutEntries 写入带 error 的条目并返回 false，
 	 * 调用方直接 return 即可。Locator 为 entry 中的定位字段（如 {"AssetPath", "/Game/X"}）。
 	 */
+	static bool ValidateOutput(const TSharedPtr<FJsonObject>& Value, const TSharedPtr<FJsonObject>& Schema, FString& Error);
+
 	static bool RequireString(const TSharedPtr<FJsonObject>& Args,
 	                          const TCHAR* Key,
 	                          FString& OutValue,

@@ -12,7 +12,13 @@
 - 统一 Unreal Engine MCP 的中英文首页介绍、插件定位和客户端入口，精简插件展示描述；移除 README 中的 Fab 内容，避免商品页 403 导致链接检查失败。
 - 移除 Runtime / Editor 模块的 `PlatformAllowList` 与 `WhitelistPlatforms`，不再在插件描述文件中限定 Win64 / Mac；其他平台仍取决于引擎依赖与源码兼容性。
 
+### Added
+
+- 编辑器 Slate 查询/截图/输入、Automation 发现/执行/停止和非阻塞 Live Coding；UE 5.8 可经白名单复用官方 Toolset，旧版使用引擎兼容实现；长操作按会话查询并支持有界等待、输出契约校验及非事务批次预检。
+
 ### Fixed
+
+- 修复 UE 5.2 Blackboard 键 ID 比较的整数转换歧义，恢复跨版本编译。
 
 - `InteractRuntimeWidget` 支持用 `ListRuntimeWidgets` 返回的完整实例 `Path` 作为 `WidgetPath` 精确交互；名称命中多个控件时返回候选路径并拒绝执行，排除已移出视口、已脱离层级、隐藏或处于 Switcher 非活动页的缓存控件，支持当前视口内的嵌套 UserWidget。
 

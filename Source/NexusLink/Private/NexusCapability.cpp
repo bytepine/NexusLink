@@ -113,13 +113,13 @@ static bool ValidateValue(
 		const TSharedPtr<FJsonValue>& Value,
 		const TSharedPtr<FJsonObject>& Schema,
 		const FString& Path,
-		FString& OutError);
+		FString& OutError, bool bOutput = false);
 
 static bool ValidateObject(
-		const TSharedPtr<FJsonObject>& Obj,
-		const TSharedPtr<FJsonObject>& Schema,
-		const FString& Path,
-		FString& OutError)
+        const TSharedPtr<FJsonObject>& Obj,
+        const TSharedPtr<FJsonObject>& Schema,
+        const FString& Path,
+        FString& OutError, bool bOutput = false)
 {
 	if (!Obj.IsValid() || !Schema.IsValid())
 	{
@@ -162,7 +162,7 @@ static bool ValidateObject(
 				OutError = FString::Printf(TEXT("Missing required field '%s'"), *JoinPath(Path, Field));
 				return false;
 			}
-			if (FieldVal->Type == EJson::String)
+			if (!bOutput && FieldVal->Type == EJson::String)
 			{
 				FString StrVal;
 				FieldVal->TryGetString(StrVal);
@@ -181,7 +181,7 @@ static bool ValidateObject(
 		for (const auto& PropKV : Props->Values)
 		{
 			const TSharedPtr<FJsonValue> FieldVal = Obj->TryGetField(PropKV.Key);
-			if (!FieldVal.IsValid() || FieldVal->IsNull())
+			if (!FieldVal.IsValid() || (!bOutput && FieldVal->IsNull()))
 			{
 				continue;
 			}
@@ -191,7 +191,7 @@ static bool ValidateObject(
 			{
 				continue;
 			}
-			if (!ValidateValue(FieldVal, *FieldSchemaPtr, JoinPath(Path, KeyAsString(PropKV.Key)), OutError))
+			if (!ValidateValue(FieldVal, *FieldSchemaPtr, JoinPath(Path, KeyAsString(PropKV.Key)), OutError, bOutput))
 			{
 				return false;
 			}
@@ -205,7 +205,7 @@ static bool ValidateValue(
 		const TSharedPtr<FJsonValue>& Value,
 		const TSharedPtr<FJsonObject>& Schema,
 		const FString& Path,
-		FString& OutError)
+		FString& OutError, bool bOutput)
 {
 	if (!Schema.IsValid())
 	{
@@ -314,7 +314,7 @@ static bool ValidateValue(
 					Path.IsEmpty() ? TEXT("$") : *Path);
 			return false;
 		}
-		return ValidateObject(*ObjPtr, Schema, Path, OutError);
+		return ValidateObject(*ObjPtr, Schema, Path, OutError, bOutput);
 	}
 
 	if (Value.IsValid() && Value->Type == EJson::Array)
@@ -326,7 +326,7 @@ static bool ValidateValue(
 		{
 			for (int32 i = 0; i < Arr.Num(); ++i)
 			{
-				if (!ValidateValue(Arr[i], *ItemsSchemaPtr, IndexPath(Path, i), OutError))
+				if (!ValidateValue(Arr[i], *ItemsSchemaPtr, IndexPath(Path, i), OutError, bOutput))
 				{
 					return false;
 				}
@@ -504,6 +504,11 @@ void FNexusCapability::Finalize(const TSharedPtr<FJsonObject>& Arguments, FCapab
 	ApplyIfRequested(GetDefinition().Name, Arguments, Result);
 }
 
+bool FNexusCapability::ValidateOutput(const TSharedPtr<FJsonObject>& Value, const TSharedPtr<FJsonObject>& Schema, FString& Error)
+{
+	return !Schema.IsValid() || (Value.IsValid() && ValidateValue(MakeShared<FJsonValueObject>(Value), Schema, FString(), Error, true));
+}
+
 FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments, bool bFinalize) const
 {
 	// Args 兜底：防止子类 Execute 收到空指针
@@ -532,7 +537,7 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 
 	const double StartTime = FPlatformTime::Seconds();
 	TUniquePtr<INexusTransactionHandle> Tx;
-	if (FNexusEditorTransaction::ShouldTransact(Def.Name, Def.Tags))
+	if (Def.bAutoTransaction && FNexusEditorTransaction::ShouldTransact(Def.Name, Def.Tags))
 	{
 		Tx = FNexusEditorTransaction::Begin(Def.Name);
 	}

@@ -102,6 +102,7 @@ private:
 	/** WebSocket 服务器。 */
 	TUniquePtr<IWebSocketServer> WebSocketServer;
 	TArray<INetworkingWebSocket*> ConnectedClients;
+	TMap<INetworkingWebSocket*, FString> ClientIds;
 	/** 已通过 WS 首帧 auth 的客户端。 */
 	TSet<INetworkingWebSocket*> AuthenticatedWsClients;
 	FString AuthToken;

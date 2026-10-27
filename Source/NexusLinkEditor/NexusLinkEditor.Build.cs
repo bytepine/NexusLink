@@ -1,4 +1,4 @@
-﻿// Copyright byteyang. All Rights Reserved.
+// Copyright byteyang. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -48,6 +48,43 @@ public class NexusLinkEditor : ModuleRules
 
 		string ProjectRoot = NexusLinkOptionalPlugins.FindProjectRoot(ModuleDirectory);
 		var SearchDirs = NexusLinkOptionalPlugins.CollectPluginSearchDirs(ProjectRoot, this);
+
+		PrivateDependencyModuleNames.AddRange(new[] { "AutomationController", "SessionServices" });
+		// 官方 Registry 仅在宿主明确启用官方 Toolset 时链接，旧版完全不解析其类型。
+		bool bNativeTools = false;
+        bool bNativeSlate = false;
+		if (NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 8) && ProjectRoot != null)
+		{
+			foreach (string File in System.IO.Directory.GetFiles(ProjectRoot, "*.uproject"))
+			{
+				string Descriptor = System.IO.File.ReadAllText(File);
+				foreach (string Name in new[] { "SlateInspectorToolset", "AutomationTestToolset", "AllToolsets" })
+				{
+					int NameIndex = Descriptor.IndexOf("\"" + Name + "\"", System.StringComparison.Ordinal);
+                    if (NameIndex >= 0)
+                    {
+                        int Start = Descriptor.LastIndexOf('{', NameIndex);
+                        int End = Descriptor.IndexOf('}', NameIndex);
+                        if (Start >= 0 && End > Start && NexusLinkOptionalPlugins.JsonHasEnabledLiteral(Descriptor.Substring(Start, End - Start + 1), "true")) {
+                            bNativeTools = true;
+                            if (Name == "SlateInspectorToolset" || Name == "AllToolsets") bNativeSlate = true;
+                        }
+                    }
+				}
+			}
+		}
+		if (bNativeTools)
+		{
+			var Registry = NexusLinkOptionalPlugins.Opt(new[] { "ToolsetRegistry.uplugin" }, "WITH_NEXUS_TOOLSETS", "NEXUS_NATIVE_TOOLSETS", 5, 8,
+				rt: new[] { "ToolsetRegistry" }, uproj: "ToolsetRegistry");
+			NexusLinkOptionalPlugins.Apply(this, Target, Registry, SearchDirs, ProjectRoot, false);
+		}
+		else PrivateDefinitions.Add("WITH_NEXUS_TOOLSETS=0");
+        if (bNativeSlate) {
+            var SlateRefs = NexusLinkOptionalPlugins.Opt(new[] { "SlateInspectorToolset.uplugin" }, "WITH_NEXUS_SLATE_REFS", "NEXUS_NATIVE_SLATE_REFS", 5, 8,
+                rt: new[] { "SlateInspectorToolset" }, uproj: "SlateInspectorToolset");
+            NexusLinkOptionalPlugins.Apply(this, Target, SlateRefs, SearchDirs, ProjectRoot, false);
+        } else PrivateDefinitions.Add("WITH_NEXUS_SLATE_REFS=0");
 
 		// Editor 模块覆盖全量可选插件表：190 个 EditorOnly cap 里用到的资产编辑/图编辑功能
 		// 需要各插件的 Runtime 模块（资产数据类型）与 EditorModules（编译器/图编辑器）两部分。

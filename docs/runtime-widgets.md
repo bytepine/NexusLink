@@ -16,7 +16,7 @@
 
 仅操作当前 PIE / Game 视口中仍挂载、且沿父级可见的控件。缓存中已脱离视口的实例、隐藏层级和 WidgetSwitcher 非活动页均不可交互。
 
-`Click` 触发 UMG 委托，不模拟鼠标坐标，也不验证遮挡。完整参数见[工具手册](tool-reference.zh.md#interactruntimewidget)。
+`Click` 触发 UMG 委托，不模拟鼠标坐标，也不验证遮挡。需要操作编辑器 Slate 界面时，使用[编辑器工具](editor-toolsets.md)。完整参数见[工具手册](tool-reference.zh.md#interactruntimewidget)。
 
 ## English
 

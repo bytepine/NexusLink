@@ -49,7 +49,9 @@ public:
 	 * @param JsonLine       JSON-RPC 消息字符串。
 	 * @param PerRequestSend 响应回调。
 	 */
-	void DispatchDirect(const FString& JsonLine, FOnSendResponse PerRequestSend);
+	void DispatchDirect(const FString& JsonLine, FOnSendResponse PerRequestSend, FOnSendResponse PerRequestNotification = FOnSendResponse(), const FString& Owner = FString());
+
+	void SetNotificationSink(FOnSendResponse Sink) { NotificationSink = MoveTemp(Sink); }
 
 	ENexusMcpSessionState GetState() const { return State; }
 	bool IsRunning() const { return State == ENexusMcpSessionState::Running; }
@@ -87,6 +89,10 @@ private:
 	/** 处理 IDE/Desktop 代理转发失败上报（nexus/proxy_feedback），落盘为 RecordAuto。 */
 	void HandleProxyFeedback(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Params);
 
+	void HandleCancelled(const TSharedPtr<FJsonObject>& Params);
+	FOnSendResponse NotificationSink;
+	double WaitSeconds = 0;
+	TSharedPtr<FJsonValue> ProgressToken;
 	FOnSendResponse SendCallback;
 	ENexusMcpSessionState State = ENexusMcpSessionState::WaitingForInitialize;
 

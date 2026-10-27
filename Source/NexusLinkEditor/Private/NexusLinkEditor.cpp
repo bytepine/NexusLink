@@ -1,6 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "NexusLinkEditor.h"
+#include "Utils/NexusEditorToolsets.h"
 #include "NexusEditorServices.h"
 #include "NexusLinkSettings.h"
 #include "NexusUpdateChecker.h"
@@ -88,6 +89,7 @@ void FNexusLinkEditorModule::StartupModule()
 
 void FNexusLinkEditorModule::ShutdownModule()
 {
+	FNexusEditorToolsets::Shutdown();
 #if NX_UE_HAS_POST_ENGINE_INIT_ACCESSOR
 	FCoreDelegates::GetOnPostEngineInit().RemoveAll(this);
 #else

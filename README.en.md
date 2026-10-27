@@ -13,6 +13,7 @@ Start with [NexusDesktop](https://github.com/bytepine/NexusDesktop), or use the 
 - **Editor and assets**: inspect project context and work with Blueprints, materials, animation, audio, DataTables, widgets, and Niagara; [preview edits and verify writes](docs/asset-edit-preview.md).
 - **Runtime debugging**: inspect logs, Actors, animation, AI / EQS, and GAS in PIE, standalone Game, and Dedicated Server; Game / PIE with a viewport also supports [UMG interaction](docs/runtime-widgets.md).
 - **Diagnostics and comparison**: [GAS activation diagnostics](docs/gas-retest.md), [behavior-tree / Blackboard condition replay](docs/bt-retest.md), and [performance comparison from stopped Traces](docs/trace-compare.md).
+- **Editor automation**: [Slate inspection and interaction, Automation tests, and nonblocking Live Coding](docs/editor-toolsets.md).
 
 Supports **UE 4.26+ (including UE5)**. MCP runs in the editor and Development / DebugGame Game / DS builds; **Shipping builds strip the MCP server at compile time**. Available capabilities depend on the engine version, host type, and enabled plugins.
 
@@ -66,7 +67,7 @@ UE defaults to HTTP `:45000` and WebSocket `:55000`; it advances to available po
 ## Security and write boundaries
 
 - **Authentication is on by default**. Treat tokens as credentials: never commit them, publish them in documentation, or expose them in screenshots.
-- **Dangerous capabilities are disabled by default**. `ExecCommand`, `ExecPython`, and other dangerous capabilities require explicit authorization. See [access modes and script risks](docs/usage-guide.md#210-危险-capability-与脚本执行) (Chinese). Prefer read-only `GetPythonApi` for API inspection.
+- **Dangerous capabilities are disabled by default**. `ExecCommand`, `ExecPython`, and editor UI input, test control, and compilation require explicit authorization. See [access modes and script risks](docs/usage-guide.md#210-危险-capability-与脚本执行) (Chinese). Prefer read-only `GetPythonApi` for API inspection.
 - **Writes change real assets or runtime state**. Undo and batch rollback do not cover every side effect. Review version-control changes before committing; see [write and rollback boundaries](docs/usage-guide.md#修改了属性但-ue-中没有生效--磁盘未变化) (Chinese).
 
 When upgrading from 1.x, upgrade the plugin and clients to 2.x together. See the [migration guide](docs/usage-guide.md#0-从-1x-升级到-20) for authentication and MCP text changes (Chinese).

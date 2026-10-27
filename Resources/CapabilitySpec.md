@@ -1,5 +1,7 @@
 # NexusLink Capability 元数据规范
 
+引擎本体及引擎自带插件（含 UE 官方 Toolset）的能力归属 `NexusLink` / `NexusLinkEditor`；只有第三方插件能力归属 `NexusLinkExt` / `NexusLinkExtEditor`。可选启用不等于第三方。
+
 > 新增或修改 Capability 时，必须全部遵循本规范。注册期有自动校验兜底，但提交前请先过自检清单。
 
 ---
@@ -91,9 +93,9 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 - 插件门控 cap：`#if WITH_*` 包 class + `REGISTER_MCP_CAPABILITY`
 - **插件加载范围**：`NexusLink` 主模块 `Type: Runtime`（可进 cooked Game/DS），`NexusLinkEditor` 子模块 `Type: Editor`（仅编辑器二进制加载）；`REGISTER_MCP_CAPABILITY` / `REGISTER_MCP_TOOL` 由 `NEXUSLINK_WITH_SERVER`（`!UE_BUILD_SHIPPING`）门控——MCP 跑在 Editor / PIE / 非 Shipping 的独立 Game/DS。平台门控须同时写 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）
 
-#### 2.1.2 扩展插件（可选插件 Capability）
+#### 2.1.2 扩展插件（第三方插件 Capability）
 
-依赖某个可选插件、而 NexusLink **不**探测该插件时，Capability 放进扩展插件，不放进 `NexusLink` / `NexusLinkEditor`。当前扩展插件是 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)。主插件不扫描扩展插件目录，只认下面两种注册。
+依赖第三方插件的 Capability 放进扩展插件，不放进 `NexusLink` / `NexusLinkEditor`。当前扩展插件是 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)。主插件不扫描扩展插件目录，只认下面两种注册。
 
 | 事项 | 规则 |
 |------|------|
@@ -506,3 +508,14 @@ public:
 | `PackagePath` + `assetName` | `AssetPath` | create 等只认完整 `AssetPath` |
 | get 侧 `PropertyPath`（单数） | `PropertyPaths` | get 只留复数数组；单数键 → `ArgInvalid` |
 | Schema 未声明键 | — | `Object()` 默认 `additionalProperties:false`；未知键 → `ArgInvalid` |
+
+
+## 编辑器长操作契约
+
+引擎内置 Slate/Automation/Live Coding 能力放在 NexusLinkEditor。第三方插件能力放在 NexusLinkExtEditor。
+
+`FNexusCapabilityDefinition` 可声明 `OutputSchema`、`bAutoTransaction`、`bAllowBatch`、`bCacheable`。默认行为保持兼容；非事务编辑器动作关闭后三项。多调用批次在执行前检查 bAllowBatch，不能在已经执行副作用后拒绝。
+
+操作使用 `FNexusEditorOperations` 保存有界状态，Owner 来自当前请求上下文。仅在游戏线程访问，结果快照独立复制，异步回调持有响应与身份而不是引用分发栈。等待最多 30 秒，停止等待与停止底层工作分别表达。新增工具返回操作信封并声明输出 Schema；错误不会伪装成已成功完成。
+
+发现元数据可选 `ExecutionInfo` 回调仅返回会话固定后端及原因，以 `Execution` 提供给 SearchCapabilities；不在核心模块引入具体引擎插件类型。

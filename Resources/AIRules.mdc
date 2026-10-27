@@ -26,6 +26,8 @@ For UE assets / PIE / blueprints / Widget / material / behavior tree / GAS, **ca
 
 **Meta-tools** `SearchCapabilities`, `CallCapability`, `SubmitFeedback` must use **MCP `tools/call` directly** — not `CallCapability(Capability="SearchCapabilities", …)`.
 
+Editor UI uses `GetEditorSlate` / `CaptureEditorSlate` / `InteractEditorSlate`; use only returned `Ref` identifiers. Local tests use `ControlEditorAutomation` / `ListEditorAutomationTests`; compile uses `CompileEditorLiveCoding`. Start once, then query `GetEditorOperation` with `OperationId`; `WaitSeconds` is capped at 30. `State=Completed` describes execution, so inspect `Result.Outcome` or per-test outcomes. Cancelling a request ends its wait; explicitly stop supported operations. Never retry writes after disconnect or timeout. These operations cannot join `Calls[]` atomic batches. Discovery publishes `Execution` backend reasons and `outputSchema`.
+
 ---
 
 ## 2. Prohibitions

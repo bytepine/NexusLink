@@ -2,6 +2,8 @@
 
 [文档导航](docs/README.md) · [项目首页](README.md)
 
+引擎本体及引擎自带插件（含 UE 官方 Toolset）的能力归属 `NexusLink` / `NexusLinkEditor`；只有第三方插件能力归属 `NexusLinkExt` / `NexusLinkExtEditor`。可选启用不等于第三方。
+
 面向插件维护者与 Capability 作者。用户安装与四端接入见 [docs/usage-guide.md](docs/usage-guide.md)；架构见 [docs/architecture.md](docs/architecture.md)；代理会话层约定见 [docs/proxy-session.md](docs/proxy-session.md)。
 
 ## 新增 Tool / Capability
@@ -14,7 +16,7 @@
 
 **路径 B — Capability**（主流路径）
 
-1. **先按 [CapabilitySpec.md](Resources/CapabilitySpec.md) §2.1.0 选模块**。可选插件的 Capability（当前是 UnLua）不进本插件，按 §2.1.2 放到 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)。本插件内：PIE/Game 活对象、不保存到磁盘 → `NexusLink` Runtime 模块；磁盘资产 / 编辑器 API / 保存到磁盘 → `NexusLinkEditor` 模块。再按 §2.1.1 **选基类**（`Manage*` + `Operations[]` → `FNexusActionCapability`，子类禁止 `Execute`；`Sections[]` → MultiSection；PIE/Game 运行时含 `GetOutputLog` / `ExecCommand` / `CaptureViewport` → `FNexusRuntimeCapability`；其余 → `FNexusCapability`），最后在对应模块下创建 `Source/<模块>/Private/Capabilities/<分类>/NexusXxxCapability.h/.cpp`。类名是 `FNexusXxxCapability`。命名见 CapabilitySpec §6 与 §8.3：工具 id / 字段 PascalCase，变量名表达角色。
+1. **先按 [CapabilitySpec.md](Resources/CapabilitySpec.md) §2.1.0 选模块**。第三方插件的 Capability（当前是 UnLua）不进本插件，按 §2.1.2 放到 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)。本插件内：PIE/Game 活对象、不保存到磁盘 → `NexusLink` Runtime 模块；磁盘资产 / 编辑器 API / 保存到磁盘 → `NexusLinkEditor` 模块。再按 §2.1.1 **选基类**（`Manage*` + `Operations[]` → `FNexusActionCapability`，子类禁止 `Execute`；`Sections[]` → MultiSection；PIE/Game 运行时含 `GetOutputLog` / `ExecCommand` / `CaptureViewport` → `FNexusRuntimeCapability`；其余 → `FNexusCapability`），最后在对应模块下创建 `Source/<模块>/Private/Capabilities/<分类>/NexusXxxCapability.h/.cpp`。类名是 `FNexusXxxCapability`。命名见 CapabilitySpec §6 与 §8.3：工具 id / 字段 PascalCase，变量名表达角色。
 2. 实现该基类要求的钩子（Action：`BuildDefinition` + `RegisterActions` + `PrepareTarget`；普通：`BuildDefinition` + `Execute`）；资产 get/manage 须填 `Out.SearchAssetTypes`；`.cpp` 末尾 `REGISTER_MCP_CAPABILITY(...)`
 3. 遵循 CapabilitySpec（命名 / 四段式描述 / 自检清单）
 4. Capability 通过 `CallCapability` 元工具直接调用，或在 MultiTool 模式下作为独立 MCP Tool 暴露

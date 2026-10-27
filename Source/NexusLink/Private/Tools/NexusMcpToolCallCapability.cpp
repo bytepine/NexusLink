@@ -409,6 +409,23 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			return Result;
 		}
 
+		// 执行前检查整批，不能在发生不可撤销副作用之后才拒绝。
+		if (CallsArr->Num() > 0)
+		{
+			for (const auto& Call : *CallsArr)
+			{
+				if (!Call.IsValid() || Call->Type != EJson::Object) continue;
+				FString Name;
+				Call->AsObject()->TryGetStringField(TEXT("Capability"), Name);
+				const FCapRecord* Record = FNexusCapabilityRegistry::Get().FindRecordByName(Name);
+				if (Record && !Record->Def.bAllowBatch)
+				{
+					Result.bIsError = true;
+					Result.ErrorText = FString::Printf(TEXT("Capability '%s' requires a single call; the batch was not executed."), *Name);
+					return Result;
+				}
+			}
+		}
 		TArray<TSharedPtr<FJsonValue>> BatchResults;
 		struct FPendingFinalize
 		{
