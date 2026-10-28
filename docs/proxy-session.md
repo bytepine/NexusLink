@@ -1,5 +1,7 @@
 # 代理会话层约定
 
+含标准 MCP `content[]` 图片块的结果直接透传，保留 PNG/JPEG MIME、base64 以及既有文本/structuredContent 元数据。三端检测到 `type=image` 时跳过大文本转存和代理缓存；异步及批量调用遵循相同规则。UE 只为截图生成的可信文件创建附件，每次响应最多 4 张、合计 4 MiB 原始图片，省略时仍保留路径及说明。代理不重新解码、转换图片或读取 UE 文件路径。
+
 [文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
 
 Desktop / Rider / VSCode 夹在 AI 客户端与 UE WebSocket 之间。本文是三端必须对齐的协议补丁；游戏语义仍只在 NexusLink。

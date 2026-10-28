@@ -1,6 +1,8 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Utils/NexusCaptureUtils.h"
+#include "NexusCapability.h"
+
 #include "Utils/NexusRuntimeUtils.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -11,6 +13,7 @@
 #include "ImageUtils.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Misc/Guid.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/SWidget.h"
@@ -25,6 +28,17 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Slate/WidgetRenderer.h"
 #endif
+
+void FNexusCaptureUtils::AttachGeneratedImages(FCapabilityResult& Result)
+{
+	if (!Result.FatalError.IsEmpty()) return;
+	for (const auto& Entry : Result.Entries)
+	{
+		if (!Entry.IsValid() || Entry->Type != EJson::Object || Entry->AsObject()->HasField(TEXT("Error"))) continue;
+		FString Path;
+		if (Entry->AsObject()->TryGetStringField(TEXT("FilePath"), Path) && !Path.IsEmpty()) Result.ImageFiles.Add(FPaths::ConvertRelativePathToFull(Path));
+	}
+}
 
 bool FNexusCaptureUtils::CaptureGameViewportPixels(TArray<FColor>& OutPixels, int32& OutW, int32& OutH)
 {
@@ -334,8 +348,8 @@ bool FNexusCaptureUtils::SaveAndBuildEntry(TArray<FColor>& Pixels, int32 W, int3
 	IPlatformFile& PF = FPlatformFileManager::Get().GetPlatformFile();
 	PF.CreateDirectoryTree(*OutputDir);
 	const FString Timestamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
-	const FString FileName = FString::Printf(TEXT("NexusCapture_%s_%s.%s"),
-		*FileSuffix, *Timestamp, *Format);
+	const FString FileName = FString::Printf(TEXT("NexusCapture_%s_%s_%s.%s"),
+		*FileSuffix, *Timestamp, *FGuid::NewGuid().ToString(EGuidFormats::Digits), *Format);
 	const FString FilePath = OutputDir / FileName;
 
 	if (!SavePixels(*FinalPixels, FinalW, FinalH, Format, FilePath))

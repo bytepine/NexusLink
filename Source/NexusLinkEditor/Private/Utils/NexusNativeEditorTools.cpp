@@ -22,6 +22,30 @@
 static TMap<FString, bool> GNexusNativeDomains;
 static uint32 GNexusNativeGeneration = 0;
 
+#if WITH_NEXUS_TOOLSETS
+static TWeakObjectPtr<UToolCallAsyncResultString> GNexusNativePcgPending;
+static FString NexusNativeToolsetName(const FString& Domain)
+{
+	if (Domain == TEXT("ToolsetRegistry")) return TEXT("ToolsetRegistry.AgentSkillToolset");
+	if (Domain == TEXT("NiagaraToolsets")) return TEXT("NiagaraToolsets.NiagaraToolset_System");
+	return Domain + TEXT(".") + Domain;
+}
+
+static bool NexusNativeToolAllowed(const FString& Domain, const FString& Tool)
+{
+	static const TMap<FString, TSet<FString>> Allowed = {
+		{TEXT("SlateInspectorToolset"), {TEXT("Windows"), TEXT("Observe"), TEXT("Unobserve"), TEXT("Snapshot"), TEXT("Screenshot"), TEXT("Click"), TEXT("Type"), TEXT("PressKey"), TEXT("Hover"), TEXT("Drag"), TEXT("SelectOption"), TEXT("FillForm"), TEXT("WaitFor")}},
+		{TEXT("AutomationTestToolset"), {TEXT("DiscoverTests"), TEXT("ListTests"), TEXT("RunTests"), TEXT("GetTestStatus"), TEXT("GetTestResults"), TEXT("StopTests")}},
+		{TEXT("ToolsetRegistry"), {TEXT("ListSkills"), TEXT("GetSkills")}},
+		{TEXT("SemanticSearchToolset"), {TEXT("Search"), TEXT("FindSimilar")}},
+		{TEXT("PCGToolset"), {TEXT("ListGraphInstances"), TEXT("GetGraphStructure"), TEXT("GetGraphSchema"), TEXT("ListNativeNodes"), TEXT("GetNativeNodeSchema"), TEXT("SpawnGraphInstance"), TEXT("ExecuteGraphInstance"), TEXT("GetNodeDataView")}},
+		{TEXT("NiagaraToolsets"), {TEXT("GetSystemData"), TEXT("GetSystemCompileState"), TEXT("GetStackIssues"), TEXT("GetSystemDependencies"), TEXT("GetModuleTopology"), TEXT("GetModuleSchema"), TEXT("GetModuleInputValues"), TEXT("GetRendererSchema"), TEXT("GetRendererData"), TEXT("GetStackInputSchema"), TEXT("GetStackInputData"), TEXT("GetDynamicInputChain"), TEXT("GetAvailableDynamicInputs"), TEXT("ApplyStackIssueFix")}}
+	};
+	const auto* Tools = Allowed.Find(Domain);
+	return Tools && Tools->Contains(Tool);
+}
+#endif
+
 bool FNexusNativeEditorTools::UseNative(const FString& Domain)
 {
 	if (const bool* bChosen = GNexusNativeDomains.Find(Domain)) return *bChosen;
@@ -86,9 +110,10 @@ static TSharedPtr<FJsonValue> NexusCanonicalAutomationValue(const TSharedPtr<FJs
 bool FNexusNativeEditorTools::CanCall(const FString& Domain, const FString& Tool)
 {
 #if WITH_NEXUS_TOOLSETS
+    if (!NexusNativeToolAllowed(Domain, Tool) || !UseNative(Domain)) return false;
     auto Subsystem = UToolsetRegistrySubsystem::Get();
     if (Subsystem.HasError()) return false;
-    const FString Name = Domain + TEXT(".") + Domain;
+    const FString Name = NexusNativeToolsetName(Domain);
     auto Handler = Subsystem.GetValue()->ToolsetRegistry.Find(Name);
     return Handler.IsValid() && Handler->IsToolEnabled(Name + TEXT(".") + Tool);
 #else
@@ -101,20 +126,20 @@ void FNexusNativeEditorTools::Call(const FString& Domain, const FString& Tool,
 {
     if (!Operation.IsValid()) return;
 #if WITH_NEXUS_TOOLSETS
-	const TSet<FString> SlateTools = { TEXT("Windows"), TEXT("Observe"), TEXT("Unobserve"), TEXT("Snapshot"), TEXT("Screenshot"), TEXT("Click"), TEXT("Type"), TEXT("PressKey") };
-	const TSet<FString> AutomationTools = { TEXT("DiscoverTests"), TEXT("ListTests"), TEXT("RunTests"), TEXT("GetTestStatus"), TEXT("GetTestResults"), TEXT("StopTests") };
-	if (!(Domain == TEXT("SlateInspectorToolset") ? SlateTools.Contains(Tool) : Domain == TEXT("AutomationTestToolset") && AutomationTools.Contains(Tool)))
+	if (!NexusNativeToolAllowed(Domain, Tool))
 	{
 		FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Tool is not allowlisted"));
 		return;
 	}
 	// 使用 Registry 的启用及逐工具过滤，不直接调用 UFUNCTION 绕过它们。
-	const FString Name = Domain + TEXT(".") + (Domain == TEXT("AutomationTestToolset") ? TEXT("AutomationTestToolset") : TEXT("SlateInspectorToolset"));
+	const FString Name = NexusNativeToolsetName(Domain);
 	if (!CanCall(Domain, Tool))
 	{
-		FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Official toolset is unavailable or disabled; backend remains fixed for this session."));
+		FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, FString::Printf(TEXT("Official tool unavailable or disabled: %s.%s; backend remains fixed for this session."), *Name, *Tool));
 		return;
 	}
+	if (Domain == TEXT("PCGToolset") && GNexusNativePcgPending.IsValid() && !GNexusNativePcgPending->bIsComplete)
+	{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Another PCG call is running; wait for completion before using shared inspection state")); return; }
 	FString Json;
 	auto Writer = TJsonWriterFactory<>::Create(&Json);
 	auto NativeArgs = MakeShared<FJsonObject>();
@@ -125,14 +150,18 @@ void FNexusNativeEditorTools::Call(const FString& Domain, const FString& Tool,
     if (Tool == TEXT("ListTests")) NativeArgs->SetStringField(TEXT("tagFilter"), TEXT(""));
     FJsonSerializer::Serialize(NativeArgs, Writer);
 	auto Pending = MakeShared<TStrongObjectPtr<UToolCallAsyncResultString>>(UToolsetRegistry::ExecuteTool(Name, Tool, Json));
+	if (Domain == TEXT("PCGToolset")) GNexusNativePcgPending = Pending->Get();
 	const uint32 Generation = GNexusNativeGeneration;
 	auto Tick = FTickerDelegate::CreateLambda([Pending, Operation, Generation, Tool, Domain](float)
 	{
 		if (Generation != GNexusNativeGeneration) return false;
 		if (!Pending->IsValid()) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Official tool returned no result")); return false; }
 		if (!(*Pending)->bIsComplete) return true;
+		if (!Operation->IsRunning()) return false;
 		if (!(*Pending)->Error.IsEmpty()) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, (*Pending)->Error); return false; }
 		FString JsonResult = (*Pending)->Value;
+		const bool bDomainResult = Domain != TEXT("SlateInspectorToolset") && Domain != TEXT("AutomationTestToolset");
+		if (bDomainResult && JsonResult.Len() > 2 * 1024 * 1024) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Official result exceeds the 2M-character limit; narrow the query or page its data")); return false; }
 		TSharedPtr<FJsonValue> Value;
 		auto Reader = TJsonReaderFactory<>::Create(JsonResult);
 		FJsonSerializer::Deserialize(Reader, Value);
@@ -162,7 +191,7 @@ void FNexusNativeEditorTools::Call(const FString& Domain, const FString& Tool,
             Result->SetBoolField(TEXT("bTruncated"), bTruncated || Snapshot.Len() > 131072);
         }
 		FString BusinessError;
-        if (Result->TryGetStringField(TEXT("Error"), BusinessError) && !BusinessError.IsEmpty()) {
+		if ((Result->TryGetStringField(TEXT("Error"), BusinessError) || Result->TryGetStringField(TEXT("error"), BusinessError)) && !BusinessError.IsEmpty()) {
             FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, BusinessError); return false;
         }
         if (Tool == TEXT("Screenshot"))
@@ -177,8 +206,14 @@ void FNexusNativeEditorTools::Call(const FString& Domain, const FString& Tool,
 			if (!FBase64::Decode(Data, Bytes) || Bytes.Num() == 0 || Bytes.Num() > 32 * 1024 * 1024 || !FFileHelper::SaveArrayToFile(Bytes, *Path))
 			{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Could not save official screenshot")); return false; }
 			Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("FilePath"), Path);
+			if (Operation->bIncludeImage) Operation->ImageFiles.Add(Path);
 		}
-		const bool bFalseResult = Value.IsValid() && Value->Type == EJson::Boolean && !Value->AsBool();
+		if (bDomainResult)
+		{
+			auto Wrapped = MakeShared<FJsonObject>(); Wrapped->SetObjectField(TEXT("OfficialResult"), Result);
+			FNexusEditorOperations::Finish(Operation, TEXT("Completed"), Wrapped); return false;
+		}
+		const bool bFalseResult = Tool != TEXT("WaitFor") && Value.IsValid() && Value->Type == EJson::Boolean && !Value->AsBool();
 		FNexusEditorOperations::Finish(Operation, bFalseResult ? TEXT("Failed") : TEXT("Completed"), Result);
 		return false;
 	});

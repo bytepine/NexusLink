@@ -15,6 +15,7 @@
 #include "Utils/NexusHostUtils.h"
 #include "Utils/NexusCapabilityIndexUtils.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusMcpImageUtils.h"
 #include "NexusInstructionRegistry.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -473,8 +474,9 @@ int32 FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, cons
 		const auto Token = ProgressToken;
 		const auto Schema = ToolResult.OutputSchema;
 		const double WaitStartedAt = FPlatformTime::Seconds();
+		const auto OwnedOperation = FNexusEditorOperations::Find(OperationId);
 		FNexusEditorOperations::Wait(OperationId, WaitSeconds, RequestKey,
-			[Send, Id, Schema](TSharedPtr<FJsonObject> Snapshot)
+			[Send, Id, Schema, OwnedOperation](TSharedPtr<FJsonObject> Snapshot)
 			{
 				FNexusMcpToolResult Final;
 				Final.StructuredContent = Snapshot;
@@ -483,6 +485,7 @@ int32 FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, cons
                 if (Snapshot.IsValid() && Snapshot->TryGetStringField(TEXT("State"), State) && State == TEXT("Failed")) {
                     Final.bIsError = true; Final.ErrorText = FNexusJsonUtils::SerializeCondensed(Snapshot);
                 }
+				if (State == TEXT("Completed") && OwnedOperation.IsValid()) Final.ImageFiles = OwnedOperation->ImageFiles;
 				if (!Snapshot.IsValid()) { Final.bIsError = true; Final.ErrorText = TEXT("Unknown operation or duplicate pending request id"); }
 				FNexusMcpDispatcher Completion(Send);
 				Completion.EmitToolResult(Id, Final);
@@ -516,7 +519,7 @@ int32 FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, cons
 	{
 		ResponseText = ToolResult.ErrorText;
 	}
-	else if (!ToolResult.OutputText.IsEmpty() && !ToolResult.OutputSchema.IsValid())
+	else if (!ToolResult.OutputText.IsEmpty() && !ToolResult.OutputSchema.IsValid() && ToolResult.ImageFiles.Num() == 0)
 	{
 		ResponseText = ToolResult.OutputText;
 	}
@@ -546,7 +549,7 @@ int32 FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, cons
 	{
 		Result->SetObjectField(TEXT("structuredContent"), ToolResult.StructuredContent);
 	}
-	else if (!ToolResult.OutputText.IsEmpty() && !ToolResult.OutputSchema.IsValid())
+	else if (!ToolResult.OutputText.IsEmpty() && !ToolResult.OutputSchema.IsValid() && ToolResult.ImageFiles.Num() == 0)
 	{
 		TArray<TSharedPtr<FJsonValue>> ContentArray;
 		TSharedPtr<FJsonObject> TextContent = MakeShared<FJsonObject>();
@@ -565,8 +568,9 @@ int32 FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, cons
 		Result->SetArrayField(TEXT("content"), ContentArray);
 	}
 
+	const int32 ImageCharacters = FNexusMcpImageUtils::AppendContent(ToolResult.ImageFiles, Result);
 	SendResult(Id, Result);
-	return ResponseText.Len();
+	return ResponseText.Len() + ImageCharacters;
 }
 
 /**

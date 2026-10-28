@@ -1,5 +1,7 @@
 # NexusLink 使用指南
 
+[编辑器工具专题](editor-toolsets.md)还覆盖 Slate 进阶操作、UE 5.8 UMG 结构、PCG 执行采样、Niagara 诊断与明确修复、语义搜索、项目技能、设置与插件发现。截图默认携带标准 MCP 图片块；仅需磁盘路径时传 `bIncludeImage=false`。5.8 专用领域需在宿主工程启用对应 Toolset 插件并重新编译。
+
 [文档导航](README.md) · [项目首页](../README.md)
 
 面向最终用户：安装 UE 插件、选客户端、打开对应层开关、配置身份验证。Capability 参数见 [`tool-reference.zh.md`](./tool-reference.zh.md)（[English](./tool-reference.md)）；架构见 [`architecture.md`](./architecture.md)。

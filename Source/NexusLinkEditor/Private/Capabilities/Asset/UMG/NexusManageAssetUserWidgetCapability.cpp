@@ -15,6 +15,13 @@
 #include "WidgetBlueprint.h"
 #include "Blueprint/WidgetTree.h"
 #include "Animation/WidgetAnimation.h"
+#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
+#include "WidgetBlueprintOperationUtils.h"
+#include "Blueprint/WidgetBlueprintGeneratedClass.h"
+#include "Blueprint/UserWidget.h"
+#include "Components/NamedSlotInterface.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#endif
 #endif
 #include "Components/Widget.h"
 #include "Components/PanelWidget.h"
@@ -32,10 +39,18 @@ void FNexusManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefi
 		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Widget operation"),
 			{ TEXT("Add"), TEXT("Remove"), TEXT("SetSlot"), TEXT("SetProperty"),
 			  TEXT("AddAnimation"), TEXT("RemoveAnimation"), TEXT("AddTrack"), TEXT("AddKey"),
-			  TEXT("RemoveTrack"), TEXT("RemoveKey") }))
-		.Prop(TEXT("WidgetClass"),  FNexusSchema::Str(TEXT("Widget class short name (add)")))
+			  TEXT("RemoveTrack"), TEXT("RemoveKey")
+#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
+			  , TEXT("Move"), TEXT("Wrap"), TEXT("ReplaceWithTemplate"), TEXT("ReplaceWithChild"), TEXT("SetNamedSlotContent")
+#endif
+			  }))
+		.Prop(TEXT("WidgetClass"),  FNexusSchema::Str(TEXT("Widget class short name or generated class path (Add/Wrap/ReplaceWithTemplate/SetNamedSlotContent)")))
 		.Prop(TEXT("WidgetName"),   FNexusSchema::Str(TEXT("Widget name; required for remove/set_*/animation track")))
-		.Prop(TEXT("ParentWidget"), FNexusSchema::Str(TEXT("Parent panel Widget name (add)")))
+		.Prop(TEXT("ParentWidget"), FNexusSchema::Str(TEXT("Parent panel (Add/Move), or named-slot host (SetNamedSlotContent; omit for inherited blueprint slots)")))
+#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
+		.Prop(TEXT("ChildIndex"), FNexusSchema::Int(TEXT("Destination child index for Move; -1 appends"), -1, -1))
+		.Prop(TEXT("SlotName"), FNexusSchema::Str(TEXT("Empty named slot receiving a new WidgetName/WidgetClass (SetNamedSlotContent)")))
+#endif
 		.Prop(TEXT("AnimationName"), FNexusSchema::Str(TEXT("Animation name (add/RemoveAnimation/track/key)")))
 		.Prop(TEXT("TrackName"),    FNexusSchema::Str(TEXT("Float track display name (add/RemoveTrack/key)")))
 		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("Property path (SetProperty; e.g. RenderOpacity for AddTrack)")))
@@ -101,6 +116,79 @@ static void MarkWBPMutated(FNexusActionContext& Ctx)
 	}
 }
 
+#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
+static void HandleWBP_Structure(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UWidgetBlueprint* BP = WBPFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString Action = A.Str(TEXT("Action"));
+	const FString Name = A.Str(TEXT("WidgetName"));
+	if (!BP || !BP->WidgetTree || Name.IsEmpty()) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("WidgetName and a valid widget tree are required")); return; }
+	UWidget* Widget = BP->WidgetTree->FindWidget(FName(*Name));
+	UClass* Class = nullptr;
+	if (Action == TEXT("Wrap") || Action == TEXT("ReplaceWithTemplate") || Action == TEXT("SetNamedSlotContent"))
+	{
+		Class = FNexusAssetUtils::FindClassWithUPrefix(A.Str(TEXT("WidgetClass")));
+		if (!Class || !Class->IsChildOf(UWidget::StaticClass()) || Class->HasAnyClassFlags(CLASS_Abstract)) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("WidgetClass must be a concrete widget class")); return; }
+	}
+	FText Error;
+	bool bDone = false;
+	if (Action == TEXT("SetNamedSlotContent"))
+	{
+		FText NameError;
+		if (!FName(*Name).IsValidObjectName(NameError)) { Ctx.Entry->SetStringField(TEXT("Error"), NameError.ToString()); return; }
+		const FString Parent = A.Str(TEXT("ParentWidget"));
+		UWidget* Host = Parent.IsEmpty() ? nullptr : BP->WidgetTree->FindWidget(FName(*Parent));
+		INamedSlotInterface* Slots = Parent.IsEmpty() ? static_cast<INamedSlotInterface*>(BP->WidgetTree) : Cast<INamedSlotInterface>(Host);
+		const FName Slot(*A.Str(TEXT("SlotName")));
+		TArray<FName> Names;
+		if (Slots) Slots->GetSlotNames(Names);
+		if (Parent.IsEmpty())
+		{
+			if (const auto* ClassInfo = Cast<UWidgetBlueprintGeneratedClass>(BP->GeneratedClass)) Names = ClassInfo->AvailableNamedSlots;
+			if (BP->WidgetTree->FindWidget(Slot)) Names.Remove(Slot);
+		}
+		if (!Slots || !Names.Contains(Slot) || Slots->GetContentForSlot(Slot) || Widget || FindObject<UObject>(BP->WidgetTree, *Name) || (BP->ParentClass && BP->ParentClass->FindPropertyByName(FName(*Name))))
+		{ Ctx.Entry->SetStringField(TEXT("Error"), TEXT("A valid empty named slot and unused WidgetName are required")); return; }
+		if (UUserWidget* Template = Cast<UUserWidget>(Class->GetDefaultObject())) if (!BP->IsWidgetFreeFromCircularReferences(Template)) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("WidgetClass would create a circular widget reference")); return; }
+		BP->Modify(); BP->WidgetTree->Modify(); if (Host) Host->Modify();
+		Widget = BP->WidgetTree->ConstructWidget<UWidget>(Class, FName(*Name));
+		if (Widget) { BP->OnVariableAdded(Widget->GetFName()); Slots->SetContentForSlot(Slot, Widget); bDone = true; }
+	}
+	else
+	{
+		if (!Widget) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("WidgetName was not found")); return; }
+		if (Action == TEXT("Move"))
+		{
+			UPanelWidget* Parent = Cast<UPanelWidget>(BP->WidgetTree->FindWidget(FName(*A.Str(TEXT("ParentWidget")))));
+			if (!Parent) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Move requires a valid ParentWidget panel")); return; }
+			const int32 Index = static_cast<int32>(A.Num(TEXT("ChildIndex"), -1));
+			if (Parent == Widget->GetParent())
+			{
+				if (Index > Parent->GetChildrenCount()) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("ChildIndex exceeds the destination panel")); return; }
+				const int32 Destination = Index < 0 ? Parent->GetChildrenCount() - 1 : FMath::Min(Index, Parent->GetChildrenCount() - 1);
+				BP->Modify(); BP->WidgetTree->Modify(); Parent->Modify(); Widget->Modify();
+				Parent->ShiftChild(Destination, Widget); bDone = Parent->GetChildIndex(Widget) == Destination;
+			}
+			else bDone = FWidgetBlueprintOperationUtils::MoveWidget(BP, Widget, Parent, Index, Error);
+		}
+		else if (Action == TEXT("Wrap"))
+		{
+			if (!Class->IsChildOf(UPanelWidget::StaticClass())) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Wrap requires a panel WidgetClass")); return; }
+			const TArray<UWidget*> Wrappers = FWidgetBlueprintOperationUtils::WrapWidgets(BP, {Widget}, Class);
+			bDone = Wrappers.Num() > 0;
+			if (bDone) Ctx.Entry->SetStringField(TEXT("WrapperName"), Wrappers[0]->GetName());
+		}
+		else if (Action == TEXT("ReplaceWithTemplate")) bDone = FWidgetBlueprintOperationUtils::ReplaceWidgetWithTemplate(BP, Widget, Class, Error);
+		else if (Action == TEXT("ReplaceWithChild")) bDone = FWidgetBlueprintOperationUtils::ReplaceWidgetWithChild(BP, Widget, Error);
+	}
+	if (!bDone) { Ctx.Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Widget structure operation failed") : Error.ToString()); return; }
+	Ctx.Entry->SetStringField(TEXT("WidgetName"), Name);
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
+	MarkWBPMutated(Ctx);
+}
+#endif
+
 static void HandleWBP_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UWidgetBlueprint* WBP = WBPFrom(Ctx);
@@ -122,6 +210,10 @@ static void HandleWBP_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Widget not found: %s"), *WidgetName));
 		return;
 	}
+#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
+	FText Error;
+	if (!FWidgetBlueprintOperationUtils::RemoveWidget(WBP, Target, Error)) { Ctx.Entry->SetStringField(TEXT("Error"), Error.ToString()); return; }
+#else
 	WBP->WidgetTree->Modify();
 	if (Target->Slot && Target->Slot->Parent) Target->Slot->Parent->RemoveChild(Target);
 	else if (WBP->WidgetTree->RootWidget == Target) WBP->WidgetTree->RootWidget = nullptr;
@@ -130,6 +222,7 @@ static void HandleWBP_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 	Target->MarkAsGarbage();
 #else
 	Target->MarkPendingKill();
+#endif
 #endif
 	MarkWBPMutated(Ctx);
 }
@@ -515,6 +608,9 @@ void FNexusManageAssetUserWidgetCapability::RegisterActions(TMap<FString, FNexus
 	OutHandlers.Add(TEXT("AddKey"),          &HandleWBP_AddKey);
 	OutHandlers.Add(TEXT("RemoveTrack"),     &HandleWBP_RemoveTrack);
 	OutHandlers.Add(TEXT("RemoveKey"),       &HandleWBP_RemoveKey);
+#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
+	for (const FString& Action : {TEXT("Move"), TEXT("Wrap"), TEXT("ReplaceWithTemplate"), TEXT("ReplaceWithChild"), TEXT("SetNamedSlotContent")}) OutHandlers.Add(Action, &HandleWBP_Structure);
+#endif
 #else
 	(void)OutHandlers;
 #endif

@@ -40,6 +40,11 @@ struct FNexusEditorToolSchema final
             .Prop(TEXT("Snapshot"), FNexusSchema::Str(TEXT("Official accessibility snapshot")))
             .Prop(TEXT("bTruncated"), FNexusSchema::Bool(TEXT("Snapshot was bounded")))
             .Prop(TEXT("bApplied"), FNexusSchema::Bool(TEXT("Single interaction accepted")))
+            .Prop(TEXT("AppliedCount"), FNexusSchema::Int(TEXT("Completed form fields before failure")))
+            .Prop(TEXT("FailedFieldIndex"), FNexusSchema::Int(TEXT("Zero-based failed form field")))
+            .Prop(TEXT("bConditionMet"), FNexusSchema::Bool(TEXT("WaitFor condition matched")))
+            .Prop(TEXT("bTimedOut"), FNexusSchema::Bool(TEXT("WaitFor reached its deadline")))
+            .Prop(TEXT("OfficialResult"), FNexusSchema::AnyObject(TEXT("Official domain result; arrays use Items, scalar values use bApplied or Snapshot. Inspect business outcome separately from operation State.")))
             .Prop(TEXT("FilePath"), FNexusSchema::Str(TEXT("Saved screenshot path")))
             .Prop(TEXT("Format"), FNexusSchema::Str(TEXT("Screenshot format")))
             .Prop(TEXT("Width"), FNexusSchema::Int(TEXT("Screenshot width")))
@@ -79,11 +84,24 @@ struct FNexusEditorToolSchema final
 			.Prop(TEXT("TtlSeconds"), FNexusSchema::Int(TEXT("Cache lifetime")))
 			.Prop(TEXT("Error"), FNexusSchema::Str(TEXT("Operation failure"))).Build();
 	}
+	static void ConfigureNative(FNexusCapabilityDefinition& Out, bool bWrite, const FString& Domain)
+	{
+		Configure(Out, bWrite);
+		Out.Prerequisites.Add(TEXT("PluginEnabled:") + Domain);
+		Out.ExecutionInfo = [Domain]()
+		{
+			auto Info = MakeShared<FJsonObject>(); Info->SetStringField(TEXT("Backend"), TEXT("OfficialToolset"));
+			Info->SetStringField(TEXT("Reason"), FNexusNativeEditorTools::UseNative(Domain) ? TEXT("Host enabled the official domain; Registry enable and filter rules apply") : TEXT("Requires UE 5.8+ and enabled plugin: ") + Domain);
+			return Info;
+		};
+	}
 	static FCapabilityResult Result(const TSharedPtr<FNexusEditorOperation>& Operation)
 	{
 		if (!Operation.IsValid()) return FCapabilityResult::MakeFatal(TEXT("Unknown operation, foreign owner, or operation capacity reached"));
 		FCapabilityResult Out; auto Entry = Operation->Snapshot();
 		if (Operation->State == TEXT("Failed")) Entry->SetStringField(TEXT("Error"), Operation->Message);
-		Out.Entries.Add(MakeShared<FJsonValueObject>(Entry)); return Out;
+		Out.Entries.Add(MakeShared<FJsonValueObject>(Entry));
+		if (Operation->State == TEXT("Completed")) Out.ImageFiles = Operation->ImageFiles;
+		return Out;
 	}
 };

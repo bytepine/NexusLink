@@ -423,6 +423,7 @@ public:
 | `NX_UE_HAS_CONTENT_BROWSER_ITEM_PATH` | Content Browser：`GetCurrentPath()` → `FContentBrowserItemPath`（UE4 用无参 `FString`） |
 | `NX_UE_HAS_ASSET_SOFT_OBJECT_PATH` | `FAssetData::GetSoftObjectPath()`（UE4 用 `ObjectPath`） |
 | `NX_UE_HAS_TAG_SEARCHABLE_REFERENCERS` | AssetRegistry `GetReferencers(SearchableName)` 按 GameplayTag 查引用包 |
+| `NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS` | UE 5.8 控件蓝图结构操作公共 API；旧版本裁剪新增动作 |
 | `NX_UE_HAS_K2_PIN_REAL` | 蓝图 Pin `PC_Real`（UE4 仅 `PC_Float`） |
 
 ### 8.6 `#if` 守卫规则

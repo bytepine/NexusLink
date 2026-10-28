@@ -473,6 +473,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			const TSharedPtr<FJsonObject> Inner = MergeNestedArguments(*CallObj);
 
 			const FNexusCallCore::FResult Core = RunCapabilityCore(CapName, Inner, !bDeferFinalize);
+			Result.ImageFiles.Append(Core.CapResult.ImageFiles);
 
 			switch (Core.Status)
 			{
@@ -640,6 +641,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 
 	const TSharedPtr<FJsonObject> Inner = MergeNestedArguments(Args);
 	const FNexusCallCore::FResult Core = RunCapabilityCore(CapName, Inner);
+	Result.ImageFiles = Core.CapResult.ImageFiles;
 
 	switch (Core.Status)
 	{

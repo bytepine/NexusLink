@@ -23,6 +23,7 @@ void FNexusCaptureEditorPanelCapability::BuildDefinition(FNexusCapabilityDefinit
 		.Prop(TEXT("Target"),    FNexusSchema::Str(TEXT("Panel name or Tab ID; 'list' enumerates"), TEXT("Viewport")))
 		.Prop(TEXT("Format"),    FNexusSchema::Enum(TEXT("Image format"), { TEXT("png"), TEXT("jpg") }, TEXT("png")))
 		.Prop(TEXT("MaxSize"),   FNexusSchema::Int(TEXT("Max edge pixels (0=native)"), 1920, 0))
+		.Prop(TEXT("bIncludeImage"), FNexusSchema::Bool(TEXT("Return standard MCP image content with FilePath metadata"), true, true))
 		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Actor name/tag; crop to editor-viewport bounds")))
 		.Prop(TEXT("Padding"),   FNexusSchema::Num(TEXT("Actor bounds padding ratio"), 0.1))
 		.Prop(TEXT("ViewAngle"), FNexusSchema::Enum(TEXT("Move editor camera to this angle; needs ActorName"),
@@ -30,6 +31,7 @@ void FNexusCaptureEditorPanelCapability::BuildDefinition(FNexusCapabilityDefinit
 		.Prop(TEXT("bValidateOnly"), FNexusSchema::Bool(TEXT("If true skip image; validate panel only"), false))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
+	Out.bCacheable = false;
 	Out.ExtraSearchKeywords = { TEXT("screenshot"), TEXT("panel"), TEXT("tab"), TEXT("image"), TEXT("outliner"), TEXT("details") };
 	Out.RelatedCapabilities = { TEXT("CaptureViewport"), TEXT("GetEditorContext") };
 	Out.WhenToUse = TEXT("Screenshot an editor panel/level viewport, or an Actor from a fixed angle");
@@ -37,7 +39,7 @@ void FNexusCaptureEditorPanelCapability::BuildDefinition(FNexusCapabilityDefinit
 
 FCapabilityResult FNexusCaptureEditorPanelCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	FCapabilityResult Result = FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
@@ -219,6 +221,8 @@ FCapabilityResult FNexusCaptureEditorPanelCapability::Execute(const TSharedPtr<F
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
+	if (FNexusArgs(Arguments).Bool(TEXT("bIncludeImage"), true)) FNexusCaptureUtils::AttachGeneratedImages(Result);
+	return Result;
 }
 
 REGISTER_MCP_CAPABILITY(FNexusCaptureEditorPanelCapability)

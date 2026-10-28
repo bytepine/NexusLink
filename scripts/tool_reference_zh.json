@@ -2,8 +2,8 @@
   "descriptions": {
     "GetAssetEditPreview": "只读预览蓝图默认值、DataTable 字段或 Widget 标量属性；临时解析目标值，不写入、编译、保存或记录 Undo。",
     "CallCapability": "执行 Capability（在 SearchAsset / get_asset_* 之后）。失败时检查 ErrorKind：unknown/disabled/unavailable/ArgInvalid/UserDenied；disabled 与 UserDenied 不要重试。Confirm 模式危险 cap 须传 reason。旧名（如 create_blackboard）映射到规范名。批量 calls[] 与单条形式互斥。",
-    "CaptureEditorPanel": "截图 LevelEditor 面板 tab，或按视角拍 Actor。仅编辑器；Game/PIE 视口走 CaptureViewport。",
-    "CaptureViewport": "截图 Game/PIE 视口或顶层窗口；可选 Actor/UMG 裁切。面板与 ViewAngle 走 CaptureEditorPanel。",
+    "CaptureEditorPanel": "截图编辑器面板或 Actor 视角，默认附带标准 MCP PNG/JPEG 图片和 FilePath。",
+    "CaptureViewport": "截图编辑器、Game 或 PIE 视口，默认附带标准 MCP PNG/JPEG 图片和 FilePath。",
     "CompileBlueprint": "显式编译 Blueprint/ABP/WBP。可选 bSaveToDisk；manage 之后使用。",
     "ControlMoviePipeline": "控制 MRQ 队列。enqueue/status/cancel。不等待渲染完成。UE5+。",
     "ControlPie": "启动/停止/暂停/单步 PIE。Action=start|stop|status|pause|resume|step。",
@@ -222,13 +222,21 @@
     "SpawnRuntimeWidget": "在 PIE/Game 视口创建并显示 UMG 面板。需 AssetPath+ZOrder。",
     "SubmitFeedback": "上报工具/Capability 使用摩擦。触发：重试≥2 次无进展、找不到合适 Capability、Schema 需猜测、被迫串行≥3 次。`Category`：`WrongTool` / `Misuse` / `SchemaGuess` / `SearchZero` / `SearchOverflow` / `Other`。优先填结构化字段（`AttemptedArgs`、`ActualError`、`ExpectedField`）而不是长 `Note`。",
     "UnloadAsset": "手动卸载已加载的包。兜底用；通常自动卸载即可。",
-    "GetEditorSlate": "查询可见编辑器窗口或 Slate 子树；返回引用，控件重建后需重新查询。",
-    "CaptureEditorSlate": "截图编辑器可见控件子树并保存本地图片；需要 GUI 编辑器。",
-    "InteractEditorSlate": "向已查询的 Slate 目标发送点击、文字、按键或聚焦；不提供事务回滚。",
+    "GetEditorSlate": "读取窗口/控件快照，或有界等待可见文本出现/消失；异步结果用 GetEditorOperation 查询。",
+    "CaptureEditorSlate": "按窗口/控件 Ref 截图，默认附带标准 MCP PNG 图片和 FilePath；bIncludeImage=false 只返回路径。",
+    "InteractEditorSlate": "按有效 Slate Ref 点击、替换/输入、组合按键、聚焦、悬停、拖拽、选择组合框、设置复选框或填充表单；中途失败保留成功项。",
     "ControlEditorAutomation": "发现、运行本地编辑器测试或停止所属运行；不覆盖外部测试。",
     "ListEditorAutomationTests": "枚举已发现的完整测试名，支持名称子串筛选；须先完成发现。",
     "CompileEditorLiveCoding": "非阻塞启动 C++ 热编译；限 Windows，用户须先启用 Live Coding。",
-    "GetEditorOperation": "读取所属会话的操作状态和结果；可有界等待，不缓存。"
+    "GetEditorOperation": "读取所属会话的操作状态和结果；可有界等待，不缓存。",
+    "GetProjectSettings": "只读发现已注册设置的容器、分类、分区、属性和明确列出的值，不修改或保存配置。",
+    "GetProjectPlugins": "只读查询插件列表、信息、依赖/被依赖与资产挂载归属，不启用或禁用插件。",
+    "GetProjectSkills": "读取 UE 5.8 注册 AgentSkill 类的列表或详情，包含项目蓝图及插件 Python 类；不自动应用 Instructions。",
+    "SearchAssetsSemantic": "UE 5.8 官方语义/相似资产搜索，ClassPaths 必填；依赖索引和嵌入提供器，无名称搜索降级。",
+    "GetEditorPCG": "UE 5.8 官方 PCG 实例、图结构/Schema、原生节点与节点数据分页查询；首次 inspection 可能需重执行。",
+    "ControlEditorPCG": "通过 UE 5.8 官方 PCG Toolset 创建图实例或执行已发现实例；异步危险写操作，无事务回滚保证。",
+    "GetEditorNiagara": "UE 5.8 官方 Niagara 编译、StackIssues、依赖、系统/模块/渲染器/输入及动态输入链诊断。",
+    "ExecNiagaraStackFix": "应用同一系统最新诊断返回的明确 IssueId/FixId；UE 5.8 官方危险写操作，不自动选择修复。"
   },
   "when_to_use": {
     "CaptureEditorPanel": "截编辑器面板/关卡视口，或按固定视角拍 Actor",
@@ -381,7 +389,15 @@
     "ReimportAsset": "重新导入源（例如改过外部 FBX/贴图之后）",
     "SetRuntimeActorProperty": "运行时修改 Actor 实时字段",
     "SetRuntimeWidgetProperty": "运行时修改 UMG 实时字段",
-    "UnloadAsset": "批量读取后内存仍高时手动调用"
+    "UnloadAsset": "批量读取后内存仍高时手动调用",
+    "GetProjectSettings": "先发现容器、分类、分区和属性名，再显式读取需要的设置值。",
+    "GetProjectPlugins": "确认插件启用状态、依赖关系或某个资产路径所属的挂载根。",
+    "GetProjectSkills": "发现宿主已注册的项目或插件技能，按 SkillPath 获取说明；读取不代表执行。",
+    "SearchAssetsSemantic": "按含义查找已索引资产或寻找相似资产；必须限定 ClassPaths。",
+    "GetEditorPCG": "先发现实例、节点路径与引脚，再执行有界的节点数据采样。",
+    "ControlEditorPCG": "创建 PCG 实例，或按已发现 ActorPath 执行图后再次读取检查数据。",
+    "GetEditorNiagara": "定位系统编译、StackIssues、模块/输入/渲染器及动态输入链问题。",
+    "ExecNiagaraStackFix": "仅在最新 StackIssues 已给出目标 IssueId 和 FixId 时应用该修复。"
   },
   "param_text": {
     "Child Widget name substring; must match exactly one active widget. Required unless WidgetPath is provided": "子控件名称子串；必须唯一命中活动控件。未提供 WidgetPath 时必填",

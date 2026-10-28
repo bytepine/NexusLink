@@ -7,7 +7,12 @@ void FNexusGetEditorSlateCapability::BuildDefinition(FNexusCapabilityDefinition&
 {
 	Out.Name = TEXT("GetEditorSlate");
 	Out.Description = TEXT("Inspect visible windows or UI tree. Returns refs; query again after rebuilds.");
-	Out.InputSchema = FNexusSchema::Object().Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Inspection kind"), {TEXT("Windows"), TEXT("Snapshot")}, TEXT("Snapshot"))).Prop(TEXT("Ref"), FNexusSchema::Str(TEXT("Subtree ref from this editor session"))).Prop(TEXT("MaxDepth"), FNexusSchema::Int(TEXT("Tree depth"),20,0,30)).Build();
+	Out.InputSchema = FNexusSchema::Object().Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Inspection kind"), {TEXT("Windows"), TEXT("Snapshot"), TEXT("WaitFor")}, TEXT("Snapshot")))
+		.Prop(TEXT("Ref"), FNexusSchema::Str(TEXT("Subtree ref; WaitFor checks all visible windows")))
+		.Prop(TEXT("MaxDepth"), FNexusSchema::Int(TEXT("Tree depth"),20,0,30))
+		.Prop(TEXT("Text"), FNexusSchema::Str(TEXT("WaitFor text to appear")))
+		.Prop(TEXT("TextGone"), FNexusSchema::Str(TEXT("WaitFor text to disappear")))
+		.Prop(TEXT("TimeoutSeconds"), FNexusSchema::Int(TEXT("Bounded condition wait"),5,0,30)).Build();
 	FNexusEditorToolSchema::Configure(Out, false);
 	Out.RelatedCapabilities = { TEXT("GetEditorOperation") };
 }

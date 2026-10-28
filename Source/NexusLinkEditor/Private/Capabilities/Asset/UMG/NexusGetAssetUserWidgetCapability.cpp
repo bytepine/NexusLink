@@ -14,11 +14,32 @@
 #include "WidgetBlueprint.h"
 #include "Engine/Blueprint.h"
 #include "Blueprint/WidgetTree.h"
+#include "Blueprint/UserWidget.h"
 #include "Animation/WidgetAnimation.h"
 #include "EdGraph/EdGraph.h"
 #endif
 #include "Components/Widget.h"
+#include "Components/PanelWidget.h"
+#include "Components/NamedSlotInterface.h"
+#include "Utils/NexusVersionCompat.h"
 #include "NexusMcpTool.h"
+
+#if WITH_EDITOR
+static void NexusAppendWidgetSlots(INamedSlotInterface* Slots, const TSharedPtr<FJsonObject>& Result, const TCHAR* Key, const TArray<FName>* DeclaredNames = nullptr)
+{
+	if (!Slots) return;
+	TArray<FName> Names; Slots->GetSlotNames(Names);
+	if (DeclaredNames) for (FName Name : *DeclaredNames) Names.AddUnique(Name);
+	TArray<TSharedPtr<FJsonValue>> Items;
+	for (FName Name : Names)
+	{
+		auto Item = MakeShared<FJsonObject>(); Item->SetStringField(TEXT("Name"), Name.ToString());
+		if (UWidget* Content = Slots->GetContentForSlot(Name)) Item->SetStringField(TEXT("Content"), Content->GetName());
+		Items.Add(MakeShared<FJsonValueObject>(Item));
+	}
+	if (Items.Num()) Result->SetArrayField(Key, Items);
+}
+#endif
 
 void FNexusGetAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -157,6 +178,8 @@ void FNexusGetAssetUserWidgetCapability::ExecuteSection(const FString&          
 			if (UWidget* W = WBP->WidgetTree->FindWidget(FName(*All[i].Name)))
 			{
 				FNexusWidgetLayoutUtils::AppendUmgLayoutFields(W, O);
+				if (W->GetParent()) O->SetNumberField(TEXT("ChildIndex"), W->GetParent()->GetChildIndex(W));
+				NexusAppendWidgetSlots(Cast<INamedSlotInterface>(W), O, TEXT("NamedSlots"));
 			}
 			Page.Add(MakeShared<FJsonValueObject>(O));
 		}
@@ -165,6 +188,12 @@ void FNexusGetAssetUserWidgetCapability::ExecuteSection(const FString&          
 		InOutDetail->SetNumberField(TEXT("Offset"),     Start);
 		InOutDetail->SetNumberField(TEXT("Limit"),      Limit);
 		InOutDetail->SetArrayField(TEXT("Widgets"),     Page);
+		if (WBP->WidgetTree->RootWidget) InOutDetail->SetStringField(TEXT("RootWidget"), WBP->WidgetTree->RootWidget->GetName());
+#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
+		TArray<FName> Declared;
+		if (WBP->ParentClass) if (const auto* Parent = Cast<UUserWidget>(WBP->ParentClass->GetDefaultObject())) Parent->GetSlotNames(Declared);
+		NexusAppendWidgetSlots(WBP->WidgetTree, InOutDetail, TEXT("InheritedNamedSlots"), &Declared);
+#endif
 		return;
 	}
 

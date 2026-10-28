@@ -20,6 +20,7 @@ struct FNexusEditorToolsets final
 
 struct FNexusNativeEditorTools final
 {
+	static TSharedRef<FJsonObject> Reference(const FString& Path) { auto Ref = MakeShared<FJsonObject>(); Ref->SetStringField(TEXT("refPath"), Path); return Ref; }
 	static bool UseNative(const FString& Domain);
     static TSharedPtr<FJsonObject> Describe(const FString& Capability);
     static bool CanCall(const FString& Domain, const FString& Tool);

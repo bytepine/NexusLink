@@ -31,8 +31,8 @@ void FNexusManageAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefini
 			.Prop(TEXT("NodeId"),        FNexusSchema::Str(TEXT("Node id (RemoveNode)")))
 			.Prop(TEXT("FromNodeId"),    FNexusSchema::Str(TEXT("Edge source node id (add/RemoveEdge)")))
 			.Prop(TEXT("ToNodeId"),      FNexusSchema::Str(TEXT("Edge target node id (add/RemoveEdge)")))
-			.Prop(TEXT("FromPin"),       FNexusSchema::Str(TEXT("Edge source pin name, default Out")))
-			.Prop(TEXT("ToPin"),         FNexusSchema::Str(TEXT("Edge target pin name, default In")))
+			.Prop(TEXT("FromPin"),       FNexusSchema::Str(TEXT("Edge source pin name, default first output pin")))
+			.Prop(TEXT("ToPin"),         FNexusSchema::Str(TEXT("Edge target pin name, default first input pin")))
 			.Required({ TEXT("Action") })
 			.Build().ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
@@ -51,6 +51,8 @@ static UPCGGraph* PCGFrom(FNexusActionContext& Ctx)
 static UPCGNode* FindPCGNodeById(UPCGGraph* Graph, const FString& NodeId)
 {
 	if (!Graph) return nullptr;
+	if (Graph->GetInputNode() && Graph->GetInputNode()->GetName() == NodeId) return Graph->GetInputNode();
+	if (Graph->GetOutputNode() && Graph->GetOutputNode()->GetName() == NodeId) return Graph->GetOutputNode();
 	for (UPCGNode* Node : Graph->GetNodes())
 	{
 		if (Node && Node->GetName() == NodeId) return Node;
@@ -114,6 +116,7 @@ static void HandlePCG_RemoveNode(const TSharedPtr<FJsonObject>& Op, FNexusAction
 			FString::Printf(TEXT("Node '%s' not found"), *NodeId));
 		return;
 	}
+	if (TargetNode == Graph->GetInputNode() || TargetNode == Graph->GetOutputNode()) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Built-in graph input/output nodes cannot be removed")); return; }
 	Graph->RemoveNode(TargetNode);
 	Ctx.Entry->SetStringField(TEXT("NodeId"), NodeId);
 }
@@ -139,8 +142,10 @@ static bool ResolvePCGEdgeEnds(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Source or target node not found"));
 		return false;
 	}
-	OutFromLabel = FromPin.IsEmpty() ? NAME_None : FName(*FromPin);
-	OutToLabel   = ToPin.IsEmpty()   ? NAME_None : FName(*ToPin);
+	const auto Outputs = OutFrom->OutputPinProperties(), Inputs = OutTo->InputPinProperties();
+	OutFromLabel = FromPin.IsEmpty() ? (Outputs.Num() ? Outputs[0].Label : NAME_None) : FName(*FromPin);
+	OutToLabel = ToPin.IsEmpty() ? (Inputs.Num() ? Inputs[0].Label : NAME_None) : FName(*ToPin);
+	if (!OutFrom->GetOutputPin(OutFromLabel) || !OutTo->GetInputPin(OutToLabel)) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Source output pin or destination input pin not found")); return false; }
 	return true;
 }
 
@@ -154,7 +159,7 @@ static void HandlePCG_AddEdge(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	{
 		return;
 	}
-	PCGFrom(Ctx)->AddEdge(FromNode, FromLabel, ToNode, ToLabel);
+	if (!PCGFrom(Ctx)->AddEdge(FromNode, FromLabel, ToNode, ToLabel)) Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PCG rejected the edge connection"));
 }
 
 static void HandlePCG_RemoveEdge(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)

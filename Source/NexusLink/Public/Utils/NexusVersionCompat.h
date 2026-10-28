@@ -88,6 +88,7 @@
 #define NX_UE_HAS_ASSET_SOFT_OBJECT_PATH     NX_UE_AT_LEAST(5, 1) // FAssetData::GetSoftObjectPath()（UE4 用 ObjectPath）
 #define NX_UE_HAS_TAG_SEARCHABLE_REFERENCERS NX_UE_AT_LEAST(5, 0) // AssetRegistry GetReferencers(SearchableName) 按 GameplayTag 查引用
 #define NX_UE_HAS_K2_PIN_REAL              NX_UE_AT_LEAST(5, 0) // UEdGraphSchema_K2::PC_Real（UE4 仅 PC_Float）
+#define NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS NX_UE_AT_LEAST(5, 8) // 无需打开设计器的 UMG 结构编辑公共 API
 
 // ── SoundSubmix 版本兼容 ──
 // UE5.1 移除 OutputVolume/WetLevel/DryLevel 直接字段，改用 OutputVolumeModulation/WetLevelModulation/DryLevelModulation

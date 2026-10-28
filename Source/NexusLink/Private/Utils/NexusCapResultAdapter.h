@@ -163,6 +163,7 @@ struct FNexusCapResultAdapter final
 		const TSharedPtr<FJsonObject>& Args = nullptr)
 	{
 		FNexusMcpToolResult Result;
+		Result.ImageFiles = CapResult.ImageFiles;
 
 		if (!CapResult.FatalError.IsEmpty())
 		{

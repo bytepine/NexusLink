@@ -78,6 +78,8 @@ struct FNexusMcpToolResult
 	 * 仅用于工具输出本身就是给人读的纯文本；常规情况留空即可。
 	 */
 	FString OutputText;
+	/** 可信截图输出，协议层在响应预算内编码成标准 MCP image content。 */
+	TArray<FString> ImageFiles;
 };
 
 /**

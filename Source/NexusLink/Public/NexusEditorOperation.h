@@ -11,6 +11,8 @@ struct NEXUSLINK_API FNexusEditorOperation
 	TSharedPtr<FJsonObject> Result;
 	TFunction<bool()> Stop;
 	double StartedAt = 0;
+	TArray<FString> ImageFiles;
+	bool bIncludeImage = false;
 	bool IsRunning() const { return State == TEXT("Running"); }
 	TSharedPtr<FJsonObject> Snapshot() const;
 };

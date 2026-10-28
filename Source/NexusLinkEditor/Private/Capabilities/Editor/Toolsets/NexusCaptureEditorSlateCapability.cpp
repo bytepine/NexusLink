@@ -7,7 +7,8 @@ void FNexusCaptureEditorSlateCapability::BuildDefinition(FNexusCapabilityDefinit
 {
 	Out.Name = TEXT("CaptureEditorSlate");
 	Out.Description = TEXT("Capture visible UI subtree. Saves a local image; requires a GUI editor.");
-	Out.InputSchema = FNexusSchema::Object().Prop(TEXT("Ref"), FNexusSchema::Str(TEXT("Widget ref; empty selects active window"))).Build();
+	Out.InputSchema = FNexusSchema::Object().Prop(TEXT("Ref"), FNexusSchema::Str(TEXT("Widget ref; empty selects active window")))
+		.Prop(TEXT("bIncludeImage"), FNexusSchema::Bool(TEXT("Include standard MCP image content on completion"), true, true)).Build();
 	FNexusEditorToolSchema::Configure(Out, false);
 	Out.RelatedCapabilities = { TEXT("GetEditorOperation") };
 }

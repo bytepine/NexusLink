@@ -14,6 +14,7 @@ Start with [NexusDesktop](https://github.com/bytepine/NexusDesktop), or use the 
 - **Runtime debugging**: inspect logs, Actors, animation, AI / EQS, and GAS in PIE, standalone Game, and Dedicated Server; Game / PIE with a viewport also supports [UMG interaction](docs/runtime-widgets.md).
 - **Diagnostics and comparison**: [GAS activation diagnostics](docs/gas-retest.md), [behavior-tree / Blackboard condition replay](docs/bt-retest.md), and [performance comparison from stopped Traces](docs/trace-compare.md).
 - **Editor automation**: [Slate inspection and interaction, Automation tests, and nonblocking Live Coding](docs/editor-toolsets.md).
+- **Project discovery and UE 5.8 domains**: [settings/plugins, skills, semantic search, PCG execution and sampling, Niagara diagnostics/fixes, UMG structure, and inline screenshots](docs/editor-toolsets.md).
 - **MVVM data binding**: [ViewModel / widget / WBP property paths, binding directions, and unary conversions](docs/mvvm-bindings.md) (UE 5.5+).
 
 Supports **UE 4.26+ (including UE5)**. MCP runs in the editor and Development / DebugGame Game / DS builds; **Shipping builds strip the MCP server at compile time**. Available capabilities depend on the engine version, host type, and enabled plugins.

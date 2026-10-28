@@ -54,11 +54,11 @@ FCapabilityResult FNexusGetAssetPCGGraphCapability::Execute(const TSharedPtr<FJs
 		// 节点列表
 		const TArray<UPCGNode*>& Nodes = Graph->GetNodes();
 		TArray<TSharedPtr<FJsonValue>> NodesArr;
-		for (const UPCGNode* Node : Nodes)
+		auto NodeInfo = [](const UPCGNode* Node)
 		{
-			if (!Node) continue;
 			TSharedPtr<FJsonObject> NObj = MakeShared<FJsonObject>();
 			NObj->SetStringField(TEXT("Id"),    Node->GetName());
+			NObj->SetStringField(TEXT("Path"), Node->GetPathName());
 			NObj->SetStringField(TEXT("Title"), Node->GetNodeTitle(EPCGNodeTitleType::FullTitle).ToString());
 
 			if (const UPCGSettings* Settings = Node->GetSettings())
@@ -75,10 +75,13 @@ FCapabilityResult FNexusGetAssetPCGGraphCapability::Execute(const TSharedPtr<FJs
 			NObj->SetArrayField(TEXT("InputPins"),  InArr);
 			NObj->SetArrayField(TEXT("OutputPins"), OutArr);
 
-			NodesArr.Add(MakeShared<FJsonValueObject>(NObj));
-		}
+			return NObj;
+		};
+		for (const UPCGNode* Node : Nodes) if (Node) NodesArr.Add(MakeShared<FJsonValueObject>(NodeInfo(Node)));
 		Entry->SetArrayField(TEXT("Nodes"), NodesArr);
 		Entry->SetNumberField(TEXT("NodeCount"), Nodes.Num());
+		if (Graph->GetInputNode()) Entry->SetObjectField(TEXT("InputNode"), NodeInfo(Graph->GetInputNode()));
+		if (Graph->GetOutputNode()) Entry->SetObjectField(TEXT("OutputNode"), NodeInfo(Graph->GetOutputNode()));
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

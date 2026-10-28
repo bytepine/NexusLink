@@ -9,6 +9,7 @@
 
 class AActor;
 class UWidget;
+struct FCapabilityResult;
 
 /**
  * Runtime 截图辅助：Game/PIE 视口 ReadPixels、顶层窗口 FWidgetRenderer、
@@ -21,6 +22,8 @@ class NEXUSLINK_API FNexusCaptureUtils final
 {
 public:
 	FNexusCaptureUtils() = delete;
+	/** 仅用于本类截图结果，把本次成功生成的 FilePath 转为显式图片附件。 */
+	static void AttachGeneratedImages(FCapabilityResult& Result);
 
 	struct FWindowInfo
 	{

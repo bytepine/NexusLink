@@ -20,6 +20,7 @@ void FNexusCaptureViewportCapability::BuildDefinition(FNexusCapabilityDefinition
 		.Prop(TEXT("Target"),      FNexusSchema::Str(TEXT("editor|EditorDesktop|viewport|pie|list"), TEXT("Editor")))
 		.Prop(TEXT("Format"),      FNexusSchema::Enum(TEXT("Image format"), { TEXT("png"), TEXT("jpg") }, TEXT("png")))
 		.Prop(TEXT("MaxSize"),     FNexusSchema::Int(TEXT("Max edge pixels (0=native)"), 1920, 0))
+		.Prop(TEXT("bIncludeImage"), FNexusSchema::Bool(TEXT("Return standard MCP image content with FilePath metadata"), true, true))
 		.Prop(TEXT("ActorName"),   FNexusSchema::Str(TEXT("Actor name/tag; crop to screen bounds")))
 		.Prop(TEXT("WidgetName"),  FNexusSchema::Str(TEXT("runtime UMG Widget; uses Game viewport")))
 		.Prop(TEXT("OwnerClass"),  FNexusSchema::Str(TEXT("UserWidget class filter")))
@@ -28,6 +29,7 @@ void FNexusCaptureViewportCapability::BuildDefinition(FNexusCapabilityDefinition
 		.Prop(TEXT("bValidateOnly"), FNexusSchema::Bool(TEXT("If true skip image; validate target/viewport only"), false))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
+	Out.bCacheable = false;
 	Out.ExtraSearchKeywords = { TEXT("screenshot"), TEXT("image"), TEXT("screen"), TEXT("snap"), TEXT("photo") };
 	Out.RelatedCapabilities = { TEXT("CaptureEditorPanel"), TEXT("ListRuntimeWidgets"), TEXT("ListRuntimeActors") };
 	Out.WhenToUse = TEXT("Screenshot Game/PIE viewport or the game window for visual debug");
@@ -35,7 +37,7 @@ void FNexusCaptureViewportCapability::BuildDefinition(FNexusCapabilityDefinition
 
 FCapabilityResult FNexusCaptureViewportCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
-	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
+	FCapabilityResult Result = FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
@@ -66,6 +68,8 @@ FCapabilityResult FNexusCaptureViewportCapability::Execute(const TSharedPtr<FJso
 			if (Arguments->HasField(TEXT("bValidateOnly"))) bValidateOnly = A.Bool(TEXT("bValidateOnly"));
 		}
 		if (Format != TEXT("png") && Format != TEXT("jpg")) Format = TEXT("png");
+		for (const FString& Canonical : {TEXT("Editor"), TEXT("EditorDesktop"), TEXT("Viewport"), TEXT("PIE"), TEXT("list")})
+			if (Target.Equals(Canonical, ESearchCase::IgnoreCase)) { Target = Canonical; break; }
 
 		const bool bHasGameViewport = GEngine && GEngine->GameViewport
 			&& (GEngine->GameViewport->Viewport || GEngine->GameViewport->GetGameViewport());
@@ -299,6 +303,8 @@ FCapabilityResult FNexusCaptureViewportCapability::Execute(const TSharedPtr<FJso
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});
+	if (FNexusArgs(Arguments).Bool(TEXT("bIncludeImage"), true)) FNexusCaptureUtils::AttachGeneratedImages(Result);
+	return Result;
 }
 
 REGISTER_MCP_CAPABILITY(FNexusCaptureViewportCapability)

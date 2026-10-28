@@ -27,6 +27,8 @@ struct FCapabilityResult
 	bool                           bIsUserDenied = false;
 	/** 为 true 时 CallCapability 不 RecordAuto（如 Confirm 模式缺 reason，避免污染 CallArgInvalid）。 */
 	bool                           bSkipFeedback = false;
+	/** 仅由截图实现附加本次生成的图片；与结构化数据分离，不从客户端 FilePath 推断。 */
+	TArray<FString>                 ImageFiles;
 
 	/** 聚合业务条目、section 与编译/保存收尾错误；不递归检查业务数据里的同名属性。 */
 	NEXUSLINK_API bool HasErrors() const;
