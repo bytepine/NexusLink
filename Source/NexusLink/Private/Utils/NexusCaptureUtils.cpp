@@ -73,6 +73,16 @@ bool FNexusCaptureUtils::CaptureWidgetPixels(TSharedRef<SWidget> Widget,
 #else
 	if (!FSlateApplication::IsInitialized()) return false;
 
+	// 已挂接的视口必须在原窗口绘制，避免离屏窗口与 SceneViewport 的所属窗口不一致。
+	if (FSlateApplication::Get().FindWidgetWindow(Widget).IsValid())
+	{
+		FIntVector PixelSize = FIntVector::ZeroValue;
+		if (!FSlateApplication::Get().TakeScreenshot(Widget, OutPixels, PixelSize)) return false;
+		OutW = PixelSize.X;
+		OutH = PixelSize.Y;
+		return OutW > 0 && OutH > 0 && OutPixels.Num() == OutW * OutH;
+	}
+
 	const FGeometry Geo = Widget->GetCachedGeometry();
 	FVector2D SlateSize = Geo.GetAbsoluteSize();
 	if (SlateSize.X <= 0 || SlateSize.Y <= 0) return false;

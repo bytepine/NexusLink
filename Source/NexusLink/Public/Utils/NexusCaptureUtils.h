@@ -12,7 +12,7 @@ class UWidget;
 struct FCapabilityResult;
 
 /**
- * Runtime 截图辅助：Game/PIE 视口 ReadPixels、顶层窗口 FWidgetRenderer、
+ * Runtime 截图辅助：Game/PIE 视口 ReadPixels、Slate 原窗口截图与离屏绘制、
  * Actor/UMG 屏幕包围盒裁切、PNG/JPEG 保存。不依赖 UnrealEd / LevelEditor。
  *
  * 导出为 Public：NexusLinkEditor 的 CaptureEditorPanel 复用这里的像素裁切 /
@@ -38,7 +38,7 @@ public:
 	/** GameViewport 像素（FViewport::ReadPixels）。成功返回 true。 */
 	static bool CaptureGameViewportPixels(TArray<FColor>& OutPixels, int32& OutW, int32& OutH);
 
-	/** 用 FWidgetRenderer 把 Slate Widget 渲成像素。Dedicated Server 恒为 false。 */
+	/** 已挂接 Widget 使用原窗口截图，无窗口时离屏绘制。Dedicated Server 恒为 false。 */
 	static bool CaptureWidgetPixels(TSharedRef<SWidget> Widget,
 	                                TArray<FColor>& OutPixels, int32& OutW, int32& OutH);
 
