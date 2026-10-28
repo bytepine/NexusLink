@@ -1580,13 +1580,16 @@
 
 ### `GetAssetViewModel`
 
-检查 WBP 的 MVVM ViewModel 与 Binding。只读。UE 5.5+。
+检查 WBP 数据绑定：上下文、路径、方向与可选单输入转换发现。UE 5.5+。
 
 **适用场景**: 读 Widget 蓝图上的 MVVM ViewModel 与绑定（source↔target/方向/转换）
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
+| `bIncludeConversionFunctions` | `boolean` |  | List available unary UFunctions (bounded) |
+| `ConversionFilter` | `string` |  | Conversion path 子串 filter |
+| `ConversionLimit` | `integer` |  | Maximum conversion functions to return |
 
 **相关 Capability**: `GetAssetUserWidget`, `ManageAssetUserWidget`, `SearchAsset`, `GetAssetBlueprint`, `ManageAssetViewModel`
 
@@ -2243,15 +2246,16 @@
 
 ### `ManageAssetViewModel`
 
-编辑 WBP MVVM：增删 ViewModel 与 Binding。UE 5.5+。
+编辑 WBP 数据绑定：上下文、属性路径、方向与单输入转换。UE 5.5+。
 
-**适用场景**: 为 WBP 增删 MVVM ViewModel/Binding
+**适用场景**: 为 WBP 增删 ViewModel 与绑定；完整绑定需两端路径，可编译与保存
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `Operations` | `object[]` | ★ | 操作列表; 条目: `Action`(AddViewModel/RemoveViewModel/AddBinding/RemoveBinding), `ViewModelName`, `ViewModelClass`, `BindingIndex` |
+| `Operations` | `object[]` | ★ | 操作列表; 条目: `Action`(AddViewModel/RemoveViewModel/AddBinding/RemoveBinding), `ViewModelName`, `ViewModelClass`, `BindingIndex`, `BindingId`, `SourceContext`, `SourcePath`, `DestinationContext`, `DestinationPath`, `BindingType`(OneWayToDestination/TwoWay/OneWayToSource/OneTimeToDestination/OneTimeToSource), `ConversionFunction`, `ReverseConversionFunction`, `bEnabled`, `bCompile` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
+| `bCompile` | `boolean` |  | 需要时编译蓝图（仅 BP/ABP/WBP） |
 
 **相关 Capability**: `GetAssetViewModel`, `GetAssetUserWidget`, `SaveAsset`
 

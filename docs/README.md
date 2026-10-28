@@ -19,6 +19,7 @@ Most guides are in Chinese. English readers can start with the [English quick st
 - [资产修改预览](asset-edit-preview.md)：预览蓝图默认值、DataTable 字段和 Widget 属性，检查前值并校验写入。
 - [运行时 UMG 交互](runtime-widgets.md)：按实例路径定位控件，处理重名、重建和可见性限制。
 - [编辑器工具](editor-toolsets.md)：Slate UI、Automation 测试、Live Coding，以及后端兼容和长操作查询。
+- [MVVM 数据绑定](mvvm-bindings.md)：上下文与属性路径、绑定方向、单输入转换函数，以及编译后读回。
 - [危险 Capability 与脚本执行](usage-guide.md#210-危险-capability-与脚本执行)：访问模式、确认流程、Python 前提和写入风险。
 - [AIRules 模板接入](usage-guide.md#29-挂载-airules)：将规则装入游戏项目并维护项目定制项。
 

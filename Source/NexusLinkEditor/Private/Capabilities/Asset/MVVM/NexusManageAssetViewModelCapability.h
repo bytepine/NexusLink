@@ -5,7 +5,7 @@
 #if WITH_MVVM
 #include "NexusActionCapability.h"
 
-/** ManageAssetViewModel：WBP MVVM ViewModel/Binding 增删。UE 5.5+。 */
+/** ManageAssetViewModel：WBP MVVM 上下文、完整属性绑定与单输入转换。UE 5.5+。 */
 class FNexusManageAssetViewModelCapability : public FNexusActionCapability
 {
 protected:

@@ -1580,13 +1580,16 @@ Inspect Texture2D snapshot. Writes via ManageAssetTexture.
 
 ### `GetAssetViewModel`
 
-Inspect WBP MVVM ViewModels and Bindings. Read-only. UE 5.5+.
+Inspect WBP data bindings. Contexts, paths, directions and optional unary conversion discovery; UE 5.5+.
 
 **When to use**: Read MVVM ViewModels and bindings on Widget BP (source<->target/direction/conversion)
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | Widget Blueprint asset path (/Game/…/WBP_Foo) |
+| `bIncludeConversionFunctions` | `boolean` |  | List available unary UFunctions (bounded) |
+| `ConversionFilter` | `string` |  | Conversion path substring filter |
+| `ConversionLimit` | `integer` |  | Maximum conversion functions to return |
 
 **Related capabilities**: `GetAssetUserWidget`, `ManageAssetUserWidget`, `SearchAsset`, `GetAssetBlueprint`, `ManageAssetViewModel`
 
@@ -2243,15 +2246,16 @@ Batch edit Texture properties. Compression/bSRGB/LODGroup.
 
 ### `ManageAssetViewModel`
 
-Edit WBP MVVM: add/remove ViewModel and Binding. UE 5.5+.
+Edit WBP data bindings. Contexts, property paths, direction and unary conversions; UE 5.5+.
 
-**When to use**: For WBP add/remove MVVM ViewModel/Binding
+**When to use**: Add/remove WBP ViewModels and bindings; specify both paths for a complete binding; compile and save separately
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | WidgetBlueprint path |
-| `Operations` | `object[]` | ★ | Operation list; item: `Action`(AddViewModel/RemoveViewModel/AddBinding/RemoveBinding), `ViewModelName`, `ViewModelClass`, `BindingIndex` |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(AddViewModel/RemoveViewModel/AddBinding/RemoveBinding), `ViewModelName`, `ViewModelClass`, `BindingIndex`, `BindingId`, `SourceContext`, `SourcePath`, `DestinationContext`, `DestinationPath`, `BindingType`(OneWayToDestination/TwoWay/OneWayToSource/OneTimeToDestination/OneTimeToSource), `ConversionFunction`, `ReverseConversionFunction`, `bEnabled`, `bCompile` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
+| `bCompile` | `boolean` |  | Compile blueprint if needed (BP/ABP/WBP only) |
 
 **Related capabilities**: `GetAssetViewModel`, `GetAssetUserWidget`, `SaveAsset`
 
