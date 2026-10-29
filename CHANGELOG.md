@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [2.3.0-beta.5] - 2026-10-29
+
+> ⚠️ Pre-release，非生产环境使用。
+
 ### Added
 
 - Sequencer / Control Rig 进阶编辑（UE 5.8 官方动画 Toolset）：轨道/分段发现与编辑、不同类型关键帧与通道烘焙、Rig 控件/变换、烘焙到 Control Rig、动画层与动画导出；固定动作映射，原生参数 Schema 按需发现。
