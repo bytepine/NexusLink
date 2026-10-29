@@ -1,5 +1,7 @@
 # NexusLink 使用指南
 
+[动画与原生 Toolset 专题](animation-niagara-gamefeatures-toolsets.md)覆盖 Sequencer / Control Rig、Niagara 深层写入、Game Features 和项目自定义 Toolset 发现。
+
 [编辑器工具专题](editor-toolsets.md)还覆盖 Slate 进阶操作、UE 5.8 UMG 结构、PCG 执行采样、Niagara 诊断与明确修复、语义搜索、项目技能、设置与插件发现。截图默认携带标准 MCP 图片块；仅需磁盘路径时传 `bIncludeImage=false`。5.8 专用领域需在宿主工程启用对应 Toolset 插件并重新编译。
 
 [文档导航](README.md) · [项目首页](../README.md)

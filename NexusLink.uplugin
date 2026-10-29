@@ -108,6 +108,11 @@
 			"Optional": true
 		},
 		{
+			"Name": "GameFeatures",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
 			"Name": "DataRegistry",
 			"Enabled": false,
 			"Optional": true

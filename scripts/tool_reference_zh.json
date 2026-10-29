@@ -235,11 +235,17 @@
     "SearchAssetsSemantic": "UE 5.8 官方语义/相似资产搜索，ClassPaths 必填；依赖索引和嵌入提供器，无名称搜索降级。",
     "GetEditorPCG": "查询 PCG 图、节点 Schema/设置、实例参数、可用子图及有界输出数据；NodeData 首次检查可能要求执行后重读。",
     "ControlEditorPCG": "使用 UE 5.8 官方 Toolset 创建/执行实例，修改节点设置、图参数、实例覆盖和子图；异步危险写入，无事务回滚，图资产需显式保存。",
-    "GetEditorNiagara": "UE 5.8 官方 Niagara 编译、StackIssues、依赖、系统/模块/渲染器/输入及动态输入链诊断。",
+    "GetEditorNiagara": "UE 5.8 Niagara 深层查询：系统/发射器/脚本堆栈拓扑、编译诊断、属性与用户变量、输入/渲染器/Data Interface Schema 及动态输入链。",
     "ExecNiagaraStackFix": "应用同一系统最新诊断返回的明确 IssueId/FixId；UE 5.8 官方危险写操作，不自动选择修复。",
     "CreateAssetPhysicsAsset": "从已发现的 SkeletalMesh 创建并保存物理资产，拒绝覆盖；默认不赋给 Mesh，可显式选择赋值并保存。",
     "ManageGameplayTags": "使用引擎 INI 编辑器新增、重命名或移除单个项目标签；立即写配置，危险且不可事务回滚，不支持批次；删除拒绝子标签和资产引用。",
-    "GetProjectDataRegistry": "只读查询已注册 DataRegistry、行 Schema、条目 ID、配置/运行时源和明确条目的缓存值；未缓存逐项标记，不隐式加载或 Acquire。"
+    "GetProjectDataRegistry": "只读查询已注册 DataRegistry、行 Schema、条目 ID、配置/运行时源和明确条目的缓存值；未缓存逐项标记，不隐式加载或 Acquire。",
+    "GetEditorAnimation": "通过 UE 5.8 官方动画工具查询轨道、绑定、分段、通道关键帧和 Control Rig 控件/动画层；参数按原生 Schema 传递。",
+    "ControlEditorAnimation": "通过固定动作编辑 Sequencer 分段与关键帧、Control Rig 控件、烘焙和动画层；UE 5.8+，原生参数 Schema 可发现。",
+    "ControlEditorNiagara": "UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data Interface、用户变量和 Set Parameters。",
+    "GetProjectGameFeatures": "发现引擎认可的内置 Game Feature 插件并查询实时状态；GameFeatures 插件，UE 5.7+。",
+    "ControlEditorGameFeature": "会话内激活/停用内置 Game Feature 插件，等待引擎回调并读回最终状态；UE 5.7+。",
+    "GetProjectToolsets": "发现启用的原生/自定义 C++、Blueprint、Python Toolset、分页工具和精确 Schema，遵循 Registry 过滤；不提供任意执行。"
   },
   "when_to_use": {
     "CaptureEditorPanel": "截编辑器面板/关卡视口，或按固定视角拍 Actor",
@@ -403,7 +409,13 @@
     "ExecNiagaraStackFix": "仅在最新 StackIssues 已给出目标 IssueId 和 FixId 时应用该修复。",
     "CreateAssetPhysicsAsset": "为已发现的 SkeletalMesh 生成新的物理资产，不覆盖现有资产。",
     "ManageGameplayTags": "先查询 Info/Referencers，再编辑明确标签；Config 即时落盘。",
-    "GetProjectDataRegistry": "先发现注册类型，再查询行结构、来源或已缓存的明确条目。"
+    "GetProjectDataRegistry": "先发现注册类型，再查询行结构、来源或已缓存的明确条目。",
+    "GetEditorAnimation": "通过 UE 5.8 官方动画工具查询轨道、绑定、分段、通道关键帧和 Control Rig 控件/动画层；参数按原生 Schema 传递。",
+    "ControlEditorAnimation": "通过固定动作编辑 Sequencer 分段与关键帧、Control Rig 控件、烘焙和动画层；UE 5.8+，原生参数 Schema 可发现。",
+    "ControlEditorNiagara": "UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data Interface、用户变量和 Set Parameters。",
+    "GetProjectGameFeatures": "发现引擎认可的内置 Game Feature 插件并查询实时状态；GameFeatures 插件，UE 5.7+。",
+    "ControlEditorGameFeature": "会话内激活/停用内置 Game Feature 插件，等待引擎回调并读回最终状态；UE 5.7+。",
+    "GetProjectToolsets": "发现启用的原生/自定义 C++、Blueprint、Python Toolset、分页工具和精确 Schema，遵循 Registry 过滤；不提供任意执行。"
   },
   "param_text": {
     "Child Widget name substring; must match exactly one active widget. Required unless WidgetPath is provided": "子控件名称子串；必须唯一命中活动控件。未提供 WidgetPath 时必填",

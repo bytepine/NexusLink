@@ -1,6 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 #include "Utils/NexusEditorToolsets.h"
 #include "Utils/NexusVersionCompat.h"
+#include "Utils/NexusAnimationToolActions.h"
 #include "Interfaces/IPluginManager.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -26,6 +27,7 @@ static uint32 GNexusNativeGeneration = 0;
 static TWeakObjectPtr<UToolCallAsyncResultString> GNexusNativePcgPending;
 static FString NexusNativeToolsetName(const FString& Domain)
 {
+	if (Domain.StartsWith(TEXT("animation_toolset.toolsets."))) return Domain;
 	if (Domain == TEXT("ToolsetRegistry")) return TEXT("ToolsetRegistry.AgentSkillToolset");
 	if (Domain == TEXT("NiagaraToolsets")) return TEXT("NiagaraToolsets.NiagaraToolset_System");
 	return Domain + TEXT(".") + Domain;
@@ -33,13 +35,19 @@ static FString NexusNativeToolsetName(const FString& Domain)
 
 static bool NexusNativeToolAllowed(const FString& Domain, const FString& Tool)
 {
+	if (Domain.StartsWith(TEXT("animation_toolset.toolsets.")))
+    {
+        const FString FullName = Domain + TEXT(".") + Tool;
+        for (bool bWrite : {false, true}) for (const auto& Pair : FNexusAnimationToolActions::Get(bWrite)) if (Pair.Value == FullName) return true;
+        return false;
+    }
 	static const TMap<FString, TSet<FString>> Allowed = {
 		{TEXT("SlateInspectorToolset"), {TEXT("Windows"), TEXT("Observe"), TEXT("Unobserve"), TEXT("Snapshot"), TEXT("Screenshot"), TEXT("Click"), TEXT("Type"), TEXT("PressKey"), TEXT("Hover"), TEXT("Drag"), TEXT("SelectOption"), TEXT("FillForm"), TEXT("WaitFor")}},
 		{TEXT("AutomationTestToolset"), {TEXT("DiscoverTests"), TEXT("ListTests"), TEXT("RunTests"), TEXT("GetTestStatus"), TEXT("GetTestResults"), TEXT("StopTests")}},
 		{TEXT("ToolsetRegistry"), {TEXT("ListSkills"), TEXT("GetSkills")}},
 		{TEXT("SemanticSearchToolset"), {TEXT("Search"), TEXT("FindSimilar")}},
 		{TEXT("PCGToolset"), {TEXT("ListGraphInstances"), TEXT("GetGraphStructure"), TEXT("GetGraphSchema"), TEXT("ListNativeNodes"), TEXT("GetNativeNodeSchema"), TEXT("SpawnGraphInstance"), TEXT("ExecuteGraphInstance"), TEXT("GetNodeDataView"), TEXT("UpdateNode"), TEXT("SetGraphParams"), TEXT("RemoveGraphParams"), TEXT("SetGraphInstanceParams"), TEXT("ResetGraphInstanceParams"), TEXT("AddSubgraphNode"), TEXT("GetNodeInfo"), TEXT("GetGraphInstanceParams"), TEXT("ListAvailableSubgraphs")}},
-		{TEXT("NiagaraToolsets"), {TEXT("GetSystemData"), TEXT("GetSystemCompileState"), TEXT("GetStackIssues"), TEXT("GetSystemDependencies"), TEXT("GetModuleTopology"), TEXT("GetModuleSchema"), TEXT("GetModuleInputValues"), TEXT("GetRendererSchema"), TEXT("GetRendererData"), TEXT("GetStackInputSchema"), TEXT("GetStackInputData"), TEXT("GetDynamicInputChain"), TEXT("GetAvailableDynamicInputs"), TEXT("ApplyStackIssueFix")}}
+		{TEXT("NiagaraToolsets"), {TEXT("GetSystemData"), TEXT("GetSystemCompileState"), TEXT("GetStackIssues"), TEXT("GetSystemDependencies"), TEXT("GetModuleTopology"), TEXT("GetModuleSchema"), TEXT("GetModuleInputValues"), TEXT("GetRendererSchema"), TEXT("GetRendererData"), TEXT("GetStackInputSchema"), TEXT("GetStackInputData"), TEXT("GetDynamicInputChain"), TEXT("GetAvailableDynamicInputs"), TEXT("ApplyStackIssueFix"), TEXT("SetSystemData"), TEXT("SetEmitterData"), TEXT("AddRenderer"), TEXT("SetRendererData"), TEXT("RemoveRenderer"), TEXT("SetStackInputData"), TEXT("AddUserVariables"), TEXT("RemoveUserVariables"), TEXT("SetModuleEnabled"), TEXT("AddSetParametersModule"), TEXT("AddSetParameterEntry"), TEXT("RemoveSetParameterEntry"), TEXT("GetSystemSchema"), TEXT("GetEmitterSchema"), TEXT("GetEmitterData"), TEXT("GetUserVariables"), TEXT("GetDataInterfaceSchema"), TEXT("GetSystemSummary"), TEXT("GetEmitterTopology"), TEXT("GetScriptStackTopology")}}
 	};
 	const auto* Tools = Allowed.Find(Domain);
 	return Tools && Tools->Contains(Tool);
@@ -51,7 +59,7 @@ bool FNexusNativeEditorTools::UseNative(const FString& Domain)
 	if (const bool* bChosen = GNexusNativeDomains.Find(Domain)) return *bChosen;
 	bool bUse = false;
 #if WITH_NEXUS_TOOLSETS
-	const auto Plugin = IPluginManager::Get().FindPlugin(Domain);
+	const auto Plugin = IPluginManager::Get().FindPlugin(Domain.StartsWith(TEXT("animation_toolset.toolsets.")) ? TEXT("AnimationAssistantToolset") : Domain);
 	bUse = Plugin.IsValid() && Plugin->IsEnabled();
 #if !WITH_NEXUS_SLATE_REFS
     if (Domain == TEXT("SlateInspectorToolset")) bUse = false;
@@ -177,6 +185,7 @@ void FNexusNativeEditorTools::Call(const FString& Domain, const FString& Tool,
         if (Domain == TEXT("AutomationTestToolset") && Value.IsValid()) Value = NexusCanonicalAutomationValue(Value);
 		TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
 		if (Value.IsValid() && Value->Type == EJson::Object) Result = Value->AsObject();
+		else if (Value.IsValid() && Value->Type == EJson::Number) Result->SetNumberField(TEXT("Value"), Value->AsNumber());
 		else if (Value.IsValid() && Value->Type == EJson::Boolean) Result->SetBoolField(TEXT("bApplied"), Value->AsBool());
         else if (Value.IsValid() && Value->Type == EJson::Array) {
             if (Tool == TEXT("Windows")) Result->SetArrayField(TEXT("Windows"), FNexusEditorToolsets::WindowRefs());

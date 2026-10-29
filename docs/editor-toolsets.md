@@ -82,3 +82,6 @@ Desktop、VSCode、Rider 的等待请求支持 MCP `notifications/progress`；�
 每个响应最多 4 张、合计 4 MiB 原始图片；超出、文件失效或格式不支持时附带省略说明，路径仍保留。只发送截图实现明确生成的文件，不从任意业务 FilePath 推断附件。同秒截图使用不同文件名。Desktop、VSCode、Rider 对含图片结果不做大文本转存或代理缓存，保证图片可直接显示。
 
 PCG 节点/图/实例参数与子图编辑，以及 PhysicsAsset、GameplayTags 和 DataRegistry 的操作闭环与版本边界见[参数与项目数据](pcg-physics-tags-dataregistry.md)。
+
+
+后续领域能力见[动画、Niagara 深层写入、Game Features 与自定义 Toolset 发现](animation-niagara-gamefeatures-toolsets.md)。

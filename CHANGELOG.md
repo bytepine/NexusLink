@@ -9,6 +9,10 @@
 
 ### Added
 
+- Sequencer / Control Rig 进阶编辑（UE 5.8 官方动画 Toolset）：轨道/分段发现与编辑、不同类型关键帧与通道烘焙、Rig 控件/变换、烘焙到 Control Rig、动画层与动画导出；固定动作映射，原生参数 Schema 按需发现。
+- Niagara 深层写入（UE 5.8 官方 Toolset）：系统/发射器属性、渲染器增改删、嵌套动态输入与 Data Interface、User Variables 和 Set Parameters；补齐对应 Schema/数据读回。
+- Game Features 会话生命周期（启用插件，UE 5.7+）：发现内置 Feature 插件、查询状态、激活/停用；异步等待引擎回调并读回最终状态，同插件并发保护，不修改描述符或卸载插件。
+- 自定义 Toolset 发现（UE 5.8 Registry）：当前启用的 C++ / Blueprint / Python Toolset、分页工具列表、原生输入/输出 Schema 和动画动作映射；遵守 Registry 过滤与禁用规则，注册/注销即时反映，不提供任意 Toolset 执行。
 - PCG 参数编辑闭环（UE 5.8 官方 Toolset）：节点设置与读回、图参数定义/移除、实例参数覆盖/重置和子图插入；子图循环及重名预检，仍使用所属异步操作查询。
 - PhysicsAsset 精细编辑：从 SkeletalMesh 创建资产，Body 增删、单形状尺寸/局部变换修改与移除、质量缩放和约束角度限制；读回形状索引、几何参数、质量与约束限制。
 - GameplayTags 项目配置管理：单标签新增、重命名、删除，Info/INI Sources 读回；使用引擎 INI 编辑器即时落盘，删除检查子标签和资产引用，危险操作不支持批次或事务回滚。

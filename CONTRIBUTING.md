@@ -1,5 +1,7 @@
 # 为 NexusLink 做贡献
 
+[动画与原生 Toolset 专题](docs/animation-niagara-gamefeatures-toolsets.md)覆盖 Sequencer / Control Rig、Niagara 深层写入、Game Features 和项目自定义 Toolset 发现。
+
 [文档导航](docs/README.md) · [项目首页](README.md)
 
 引擎本体及引擎自带插件（含 UE 官方 Toolset）的能力归属 `NexusLink` / `NexusLinkEditor`；只有第三方插件能力归属 `NexusLinkExt` / `NexusLinkExtEditor`。可选启用不等于第三方。

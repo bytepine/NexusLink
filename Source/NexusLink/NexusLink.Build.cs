@@ -93,6 +93,7 @@ public static class NexusLinkOptionalPlugins
 			Opt(new[] { "ControlRig.uplugin" }, "WITH_CONTROL_RIG", "WITH_CONTROL_RIG", 5, 0, new[] { "ControlRig", "RigVM" }, new[] { "ControlRigDeveloper", "RigVMDeveloper" }),
 			Opt(new[] { "IKRig.uplugin" }, "WITH_IK_RIG", "WITH_IK_RIG", 5, 0, new[] { "IKRig" }, new[] { "IKRigEditor", "IKRigDeveloper" }),
 			Opt(new[] { "Metasound.uplugin" }, "WITH_METASOUND", "WITH_METASOUND", 5, 0, new[] { "MetasoundEngine", "MetasoundFrontend", "MetasoundGraphCore" }, new[] { "MetasoundEditor" }),
+            Opt(new[] { "GameFeatures.uplugin" }, "WITH_GAME_FEATURES", "NEXUS_GAME_FEATURES", 5, 7, new[] { "GameFeatures" }, uproj: "GameFeatures"),
             Opt(new[] { "DataRegistry.uplugin" }, "WITH_DATA_REGISTRY", "NEXUS_DATA_REGISTRY", 5, 0, new[] { "DataRegistry" }, uproj: "DataRegistry"),
             Opt(new[] { "GameplayTagsEditor.uplugin" }, "WITH_NEXUS_TAGS_EDITOR", "NEXUS_TAGS_EDITOR", 4, 26, ed: new[] { "GameplayTagsEditor" }, uproj: "GameplayTagsEditor"),
 			Opt(new[] { "PCG.uplugin" }, "WITH_PCG", "WITH_PCG", 5, 4, new[] { "PCG" }, new[] { "PCGEditor" }),
