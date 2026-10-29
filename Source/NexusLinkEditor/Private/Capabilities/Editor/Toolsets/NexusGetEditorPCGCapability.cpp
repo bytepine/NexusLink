@@ -10,7 +10,7 @@ void FNexusGetEditorPCGCapability::BuildDefinition(FNexusCapabilityDefinition& O
 	Out.Name = TEXT("GetEditorPCG");
 	Out.Description = TEXT("Inspect PCG graph schemas, native nodes, graph instances and bounded node output data. NodeData may require inspection followed by re-execution.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("PCG inspection"), {TEXT("Instances"), TEXT("GraphStructure"), TEXT("GraphSchema"), TEXT("NativeNodes"), TEXT("NativeNodeSchema"), TEXT("NodeData")}, TEXT("Instances")))
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("PCG inspection"), {TEXT("Instances"), TEXT("GraphStructure"), TEXT("GraphSchema"), TEXT("NativeNodes"), TEXT("NativeNodeSchema"), TEXT("NodeData"), TEXT("NodeInfo"), TEXT("InstanceParameters"), TEXT("AvailableSubgraphs")}, TEXT("Instances")))
 		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Graph asset object path for GraphStructure/GraphSchema")))
 		.Prop(TEXT("ActorPath"), FNexusSchema::Str(TEXT("PCGVolume object refPath from Instances")))
 		.Prop(TEXT("NodePath"), FNexusSchema::Str(TEXT("PCGNode object refPath from GraphStructure")))
@@ -31,6 +31,15 @@ FCapabilityResult FNexusGetEditorPCGCapability::Execute(const TSharedPtr<FJsonOb
 	auto Input = MakeShared<FJsonObject>(); FString Tool;
 	if (Action == TEXT("Instances")) Tool = TEXT("ListGraphInstances");
 	else if (Action == TEXT("NativeNodes")) { Tool = TEXT("ListNativeNodes"); Input->SetBoolField(TEXT("bCommonOnly"), A.Bool(TEXT("bCommonOnly"), true)); }
+	else if (Action == TEXT("AvailableSubgraphs")) Tool = TEXT("ListAvailableSubgraphs");
+	else if (Action == TEXT("NodeInfo")) {
+		if (A.Str(TEXT("NodePath")).IsEmpty()) return FCapabilityResult::MakeArgInvalid(TEXT("NodeInfo requires NodePath"));
+		Tool = TEXT("GetNodeInfo"); Input->SetObjectField(TEXT("Node"), FNexusNativeEditorTools::Reference(A.Str(TEXT("NodePath"))));
+	}
+	else if (Action == TEXT("InstanceParameters")) {
+		if (A.Str(TEXT("ActorPath")).IsEmpty()) return FCapabilityResult::MakeArgInvalid(TEXT("InstanceParameters requires ActorPath"));
+		Tool = TEXT("GetGraphInstanceParams"); Input->SetObjectField(TEXT("PCGVolume"), FNexusNativeEditorTools::Reference(A.Str(TEXT("ActorPath"))));
+	}
 	else if (Action == TEXT("NativeNodeSchema"))
 	{
 		if (A.Str(TEXT("NodeName")).IsEmpty()) return FCapabilityResult::MakeArgInvalid(TEXT("NativeNodeSchema requires NodeName"));

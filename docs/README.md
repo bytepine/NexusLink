@@ -38,3 +38,5 @@ Most guides are in Chinese. English readers can start with the [English quick st
 - [Capability 规范](../Resources/CapabilitySpec.md)：模块与基类选择、元数据和接口契约。
 - [版本兼容宏参考](version-compat-reference.md)：跨 UE 版本的语义宏与使用规则。
 - [更新记录](../CHANGELOG.md)：版本历史与升级变化。
+
+- [参数与项目数据](pcg-physics-tags-dataregistry.md)：PCG 调参、物理资产、Tag 配置与 DataRegistry。

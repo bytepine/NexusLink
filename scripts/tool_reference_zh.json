@@ -109,7 +109,7 @@
     "GetAssetPaperTileMap": "读取 PaperTileMap：尺寸/图层/图块集。写入走 manage/create。",
     "GetAssetPCGGraph": "读取 PCG Graph 节点列表与引脚概览。写入走 ManageAssetPCGGraph。",
     "GetAssetPhysicalMaterial": "读取 PhysicalMaterial：friction/restitution/density/表面类型。",
-    "GetAssetPhysicsAsset": "列出 PhysicsAsset 的 Body 与 Constraint 概览。",
+    "GetAssetPhysicsAsset": "读取 PhysicsAsset Body、质量缩放、形状索引/局部几何和约束运动方式/角度限制。",
     "GetAssetPoseSearch": "读取 PoseSearchDatabase 或 Schema 概览。写入走 ManageAssetPoseSearch。",
     "GetAssetRefs": "查依赖/引用/继承。direction 含 children|ancestors；可按类型过滤。",
     "GetAssetRenderTarget": "读取 TextureRenderTarget2D：尺寸/格式/清屏色/生成 Mips。",
@@ -130,7 +130,7 @@
     "GetAssetViewModel": "检查 WBP 数据绑定：上下文、路径、方向与可选单输入转换发现。UE 5.5+。",
     "GetEditorContext": "读取编辑器选中与浏览路径。3 个 section；编辑器 World ≠ PIE。",
     "GetEditorInfo": "返回 UE 版本、项目名、平台与构建配置。无参数。",
-    "GetGameplayTags": "查询标签树/Actor/资产/引用者。sections 含 referencers。",
+    "GetGameplayTags": "查询标签层级、Actor/资产标签及引用，Info 读回显式状态/来源/注释，Sources 发现普通 INI 来源。",
     "GetOutputLog": "控制台缓冲。先 watch 装上筛选，操作后再 bCollectWatch=true。查错用 Preset=diagnose。",
     "GetPythonApi": "内省当前引擎 unreal 模块成员。返回签名与 docstring 首行，支持分页；写 Python 前先探测。",
     "GetRuntimeActorAbilitySystem": "读取 PIE/Game ASC 上下文、本地 Actor/ASC/Owner/Avatar/World 身份、标签、激活条件快照及捕获事件；不调用自定义激活检查。",
@@ -191,7 +191,7 @@
     "ManageAssetPaperTileMap": "批量编辑 PaperTileMap：尺寸/TileSet/图层/格子。",
     "ManageAssetPCGGraph": "管理 PCG Graph：AddNode/RemoveNode/AddEdge/RemoveEdge（UE 5.4+）。",
     "ManageAssetPhysicalMaterial": "设置 PhysicalMaterial：friction / restitution / density / SurfaceType / RaiseMassToPower。",
-    "ManageAssetPhysicsAsset": "编辑 PhysicsAsset 形状与约束。见 operations[].action。",
+    "ManageAssetPhysicsAsset": "编辑 PhysicsAsset Body、碰撞形状、质量缩放及约束角度，使用 Operations 并读回核对。",
     "ManageAssetPoseSearch": "管理 PoseSearchDatabase：SetSchema/AddTag/RemoveTag（UE 5.4+）。",
     "ManageAssetRenderTarget": "编辑 TextureRenderTarget2D：SizeX/SizeY/FormatValue/ClearColor(r,g,b,a)。",
     "ManageAssetSkeletalMesh": "批量编辑 SkeletalMesh。碰撞走 ManageAssetPhysicsAsset。",
@@ -233,10 +233,13 @@
     "GetProjectPlugins": "只读查询插件列表、信息、依赖/被依赖与资产挂载归属，不启用或禁用插件。",
     "GetProjectSkills": "读取 UE 5.8 注册 AgentSkill 类的列表或详情，包含项目蓝图及插件 Python 类；不自动应用 Instructions。",
     "SearchAssetsSemantic": "UE 5.8 官方语义/相似资产搜索，ClassPaths 必填；依赖索引和嵌入提供器，无名称搜索降级。",
-    "GetEditorPCG": "UE 5.8 官方 PCG 实例、图结构/Schema、原生节点与节点数据分页查询；首次 inspection 可能需重执行。",
-    "ControlEditorPCG": "通过 UE 5.8 官方 PCG Toolset 创建图实例或执行已发现实例；异步危险写操作，无事务回滚保证。",
+    "GetEditorPCG": "查询 PCG 图、节点 Schema/设置、实例参数、可用子图及有界输出数据；NodeData 首次检查可能要求执行后重读。",
+    "ControlEditorPCG": "使用 UE 5.8 官方 Toolset 创建/执行实例，修改节点设置、图参数、实例覆盖和子图；异步危险写入，无事务回滚，图资产需显式保存。",
     "GetEditorNiagara": "UE 5.8 官方 Niagara 编译、StackIssues、依赖、系统/模块/渲染器/输入及动态输入链诊断。",
-    "ExecNiagaraStackFix": "应用同一系统最新诊断返回的明确 IssueId/FixId；UE 5.8 官方危险写操作，不自动选择修复。"
+    "ExecNiagaraStackFix": "应用同一系统最新诊断返回的明确 IssueId/FixId；UE 5.8 官方危险写操作，不自动选择修复。",
+    "CreateAssetPhysicsAsset": "从已发现的 SkeletalMesh 创建并保存物理资产，拒绝覆盖；默认不赋给 Mesh，可显式选择赋值并保存。",
+    "ManageGameplayTags": "使用引擎 INI 编辑器新增、重命名或移除单个项目标签；立即写配置，危险且不可事务回滚，不支持批次；删除拒绝子标签和资产引用。",
+    "GetProjectDataRegistry": "只读查询已注册 DataRegistry、行 Schema、条目 ID、配置/运行时源和明确条目的缓存值；未缓存逐项标记，不隐式加载或 Acquire。"
   },
   "when_to_use": {
     "CaptureEditorPanel": "截编辑器面板/关卡视口，或按固定视角拍 Actor",
@@ -395,9 +398,12 @@
     "GetProjectSkills": "发现宿主已注册的项目或插件技能，按 SkillPath 获取说明；读取不代表执行。",
     "SearchAssetsSemantic": "按含义查找已索引资产或寻找相似资产；必须限定 ClassPaths。",
     "GetEditorPCG": "先发现实例、节点路径与引脚，再执行有界的节点数据采样。",
-    "ControlEditorPCG": "创建 PCG 实例，或按已发现 ActorPath 执行图后再次读取检查数据。",
+    "ControlEditorPCG": "先发现路径/Schema，再调参或执行；按 OperationId 查询，读回业务结果，图资产显式保存。",
     "GetEditorNiagara": "定位系统编译、StackIssues、模块/输入/渲染器及动态输入链问题。",
-    "ExecNiagaraStackFix": "仅在最新 StackIssues 已给出目标 IssueId 和 FixId 时应用该修复。"
+    "ExecNiagaraStackFix": "仅在最新 StackIssues 已给出目标 IssueId 和 FixId 时应用该修复。",
+    "CreateAssetPhysicsAsset": "为已发现的 SkeletalMesh 生成新的物理资产，不覆盖现有资产。",
+    "ManageGameplayTags": "先查询 Info/Referencers，再编辑明确标签；Config 即时落盘。",
+    "GetProjectDataRegistry": "先发现注册类型，再查询行结构、来源或已缓存的明确条目。"
   },
   "param_text": {
     "Child Widget name substring; must match exactly one active widget. Required unless WidgetPath is provided": "子控件名称子串；必须唯一命中活动控件。未提供 WidgetPath 时必填",

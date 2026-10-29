@@ -80,3 +80,5 @@ Desktop、VSCode、Rider 的等待请求支持 MCP `notifications/progress`；�
 `CaptureViewport`、`CaptureEditorPanel`、`CaptureEditorSlate` 默认在 FilePath 元数据之外返回 MCP `content[]` 图片块：`type=image`、`mimeType=image/png|image/jpeg`、base64 `data`。`bIncludeImage=false` 保留仅路径模式。异步 Slate 截图完成后通过所属 GetEditorOperation 取图，批量截图同样保留附件。Text 和 StructuredContent 模式都保留原有元数据。
 
 每个响应最多 4 张、合计 4 MiB 原始图片；超出、文件失效或格式不支持时附带省略说明，路径仍保留。只发送截图实现明确生成的文件，不从任意业务 FilePath 推断附件。同秒截图使用不同文件名。Desktop、VSCode、Rider 对含图片结果不做大文本转存或代理缓存，保证图片可直接显示。
+
+PCG 节点/图/实例参数与子图编辑，以及 PhysicsAsset、GameplayTags 和 DataRegistry 的操作闭环与版本边界见[参数与项目数据](pcg-physics-tags-dataregistry.md)。

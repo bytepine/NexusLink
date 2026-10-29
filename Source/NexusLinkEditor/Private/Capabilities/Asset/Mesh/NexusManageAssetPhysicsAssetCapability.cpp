@@ -8,6 +8,8 @@
 #include "Utils/NexusVersionCompat.h"
 #include "NexusMcpTool.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Engine/SkeletalMesh.h"
+#include "PhysicsAssetUtils.h"
 #if NX_UE_HAS_SKELETAL_BODY_SETUP_HEADER
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #endif
@@ -45,7 +47,7 @@ void FNexusManageAssetPhysicsAssetCapability::BuildDefinition(FNexusCapabilityDe
 				TEXT("AddBox"),
 				TEXT("ClearShapes"),
 				TEXT("AddConstraint"),
-				TEXT("RemoveConstraint"),
+				TEXT("RemoveConstraint"), TEXT("AddBody"), TEXT("RemoveBody"), TEXT("UpdateShape"), TEXT("RemoveShape"), TEXT("SetMassScale"), TEXT("SetConstraintLimits"),
 			}))
 		.Prop(TEXT("BoneName"),    FNexusSchema::Str(TEXT("Target bone name (required for most ops)")))
 		.Prop(TEXT("PhysicsType"), FNexusSchema::Enum(TEXT("SetPhysicsType"), { TEXT("Simulated"), TEXT("Kinematic"), TEXT("Default") }, TEXT("Simulated")))
@@ -56,7 +58,22 @@ void FNexusManageAssetPhysicsAssetCapability::BuildDefinition(FNexusCapabilityDe
 		.Prop(TEXT("ExtentZ"),     FNexusSchema::Num(TEXT("Box Z half-extent")))
 		.Prop(TEXT("Bone1"),       FNexusSchema::Str(TEXT("AddConstraint: skeleton1")))
 		.Prop(TEXT("Bone2"),       FNexusSchema::Str(TEXT("AddConstraint: skeleton2")))
-		.Prop(TEXT("JointName"),   FNexusSchema::Str(TEXT("RemoveConstraint: joint name")))
+		.Prop(TEXT("ShapeType"), FNexusSchema::Enum(TEXT("UpdateShape/RemoveShape target"), {TEXT("Sphere"), TEXT("Capsule"), TEXT("Box")}))
+        .Prop(TEXT("ShapeIndex"), FNexusSchema::Int(TEXT("Index within the selected shape type from GetAssetPhysicsAsset"), 0, 0))
+        .Prop(TEXT("CenterX"), FNexusSchema::Num(TEXT("Shape local center X")))
+        .Prop(TEXT("CenterY"), FNexusSchema::Num(TEXT("Shape local center Y")))
+        .Prop(TEXT("CenterZ"), FNexusSchema::Num(TEXT("Shape local center Z")))
+        .Prop(TEXT("RotationPitch"), FNexusSchema::Num(TEXT("Box/capsule local rotation pitch")))
+        .Prop(TEXT("RotationYaw"), FNexusSchema::Num(TEXT("Box/capsule local rotation yaw")))
+        .Prop(TEXT("RotationRoll"), FNexusSchema::Num(TEXT("Box/capsule local rotation roll")))
+        .Prop(TEXT("MassScale"), FNexusSchema::Num(TEXT("Positive body mass multiplier")))
+        .Prop(TEXT("Swing1Motion"), FNexusSchema::Enum(TEXT("Angular swing 1"), {TEXT("Free"), TEXT("Limited"), TEXT("Locked")}))
+        .Prop(TEXT("Swing2Motion"), FNexusSchema::Enum(TEXT("Angular swing 2"), {TEXT("Free"), TEXT("Limited"), TEXT("Locked")}))
+        .Prop(TEXT("TwistMotion"), FNexusSchema::Enum(TEXT("Angular twist"), {TEXT("Free"), TEXT("Limited"), TEXT("Locked")}))
+        .Prop(TEXT("Swing1Limit"), FNexusSchema::Num(TEXT("Swing 1 limit in degrees, 0-180")))
+        .Prop(TEXT("Swing2Limit"), FNexusSchema::Num(TEXT("Swing 2 limit in degrees, 0-180")))
+        .Prop(TEXT("TwistLimit"), FNexusSchema::Num(TEXT("Twist limit in degrees, 0-180")))
+        .Prop(TEXT("JointName"),   FNexusSchema::Str(TEXT("RemoveConstraint: joint name")))
 		.Build();
 
 	Out.InputSchema = FNexusSchema::Object()
@@ -250,6 +267,72 @@ static void HandlePA_RemoveConstraint(const TSharedPtr<FJsonObject>& Op, FNexusA
 	if (Removed > 0) MarkPADirty(Ctx);
 }
 
+// 精细操作只接受已读回的 Body/形状索引；验证完全部输入再开始修改。
+static void HandlePA_EditBody(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+    UPhysicsAsset* Asset = PAFrom(Ctx);
+    if (!Asset) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PhysicsAsset is null")); return; }
+    const FNexusArgs Args(Op); const FString BoneName = Args.Str(TEXT("BoneName"));
+    if (BoneName.IsEmpty()) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("BoneName is required")); return; }
+    USkeletalBodySetup* Body = FindBodyByBone(Asset, BoneName);
+    if (Ctx.Action == TEXT("AddBody")) {
+        if (Body) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Body already exists")); return; }
+        if (USkeletalMesh* Mesh = Asset->GetPreviewMesh()) if (Mesh->GetRefSkeleton().FindBoneIndex(FName(*BoneName)) == INDEX_NONE) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("BoneName is absent from the preview mesh skeleton")); return; }
+        Asset->Modify(); Body = GetOrCreateBody(Asset, BoneName);
+    } else {
+        if (!Body) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Body not found")); return; }
+        if (Ctx.Action == TEXT("RemoveBody")) {
+            Asset->Modify(); Body->Modify();
+            FPhysicsAssetUtils::DestroyBody(Asset, Asset->SkeletalBodySetups.IndexOfByKey(Body));
+        } else if (Ctx.Action == TEXT("SetMassScale")) {
+            const double Scale = Args.Num(TEXT("MassScale"), 0);
+            if (!FMath::IsFinite(Scale) || Scale <= 0 || Scale > MAX_flt) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("MassScale must be finite and positive")); return; }
+            Body->Modify(); Body->DefaultInstance.MassScale = static_cast<float>(Scale);
+        } else {
+            const FString Type = Args.Str(TEXT("ShapeType")); const int32 ShapeIndex = static_cast<int32>(Args.Num(TEXT("ShapeIndex")));
+            const int32 Count = Type == TEXT("Sphere") ? Body->AggGeom.SphereElems.Num() : Type == TEXT("Box") ? Body->AggGeom.BoxElems.Num() : Type == TEXT("Capsule") ? Body->AggGeom.SphylElems.Num() : 0;
+            if (ShapeIndex < 0 || ShapeIndex >= Count) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("ShapeType/ShapeIndex does not identify an existing shape")); return; }
+            for (const FString& Key : {TEXT("Radius"), TEXT("HalfHeight"), TEXT("ExtentX"), TEXT("ExtentY"), TEXT("ExtentZ")})
+                if (Op->HasField(Key) && (!FMath::IsFinite(Args.Num(*Key)) || Args.Num(*Key) <= 0 || Args.Num(*Key) > MAX_flt / 2)) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Shape dimensions must be finite and positive")); return; }
+            for (const FString& Key : {TEXT("CenterX"), TEXT("CenterY"), TEXT("CenterZ"), TEXT("RotationPitch"), TEXT("RotationYaw"), TEXT("RotationRoll")})
+                if (Op->HasField(Key) && !FMath::IsFinite(Args.Num(*Key))) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Shape transform must be finite")); return; }
+            Body->Modify();
+            if (Ctx.Action == TEXT("RemoveShape")) {
+                if (Type == TEXT("Sphere")) Body->AggGeom.SphereElems.RemoveAt(ShapeIndex);
+                else if (Type == TEXT("Box")) Body->AggGeom.BoxElems.RemoveAt(ShapeIndex);
+                else Body->AggGeom.SphylElems.RemoveAt(ShapeIndex);
+            } else {
+                FVector* Center = nullptr; FRotator* Rotation = nullptr;
+                if (Type == TEXT("Sphere")) { auto& Shape = Body->AggGeom.SphereElems[ShapeIndex]; Center = &Shape.Center; if (Op->HasField(TEXT("Radius"))) Shape.Radius = Args.Num(TEXT("Radius")); }
+                else if (Type == TEXT("Box")) { auto& Shape = Body->AggGeom.BoxElems[ShapeIndex]; Center = &Shape.Center; Rotation = &Shape.Rotation;
+                    if (Op->HasField(TEXT("ExtentX"))) Shape.X = Args.Num(TEXT("ExtentX")) * 2; if (Op->HasField(TEXT("ExtentY"))) Shape.Y = Args.Num(TEXT("ExtentY")) * 2; if (Op->HasField(TEXT("ExtentZ"))) Shape.Z = Args.Num(TEXT("ExtentZ")) * 2;
+                } else { auto& Shape = Body->AggGeom.SphylElems[ShapeIndex]; Center = &Shape.Center; Rotation = &Shape.Rotation;
+                    if (Op->HasField(TEXT("Radius"))) Shape.Radius = Args.Num(TEXT("Radius")); if (Op->HasField(TEXT("HalfHeight"))) Shape.Length = Args.Num(TEXT("HalfHeight")) * 2;
+                }
+                if (Center) { if (Op->HasField(TEXT("CenterX"))) Center->X = Args.Num(TEXT("CenterX")); if (Op->HasField(TEXT("CenterY"))) Center->Y = Args.Num(TEXT("CenterY")); if (Op->HasField(TEXT("CenterZ"))) Center->Z = Args.Num(TEXT("CenterZ")); }
+                if (Rotation) { if (Op->HasField(TEXT("RotationPitch"))) Rotation->Pitch = Args.Num(TEXT("RotationPitch")); if (Op->HasField(TEXT("RotationYaw"))) Rotation->Yaw = Args.Num(TEXT("RotationYaw")); if (Op->HasField(TEXT("RotationRoll"))) Rotation->Roll = Args.Num(TEXT("RotationRoll")); }
+            }
+            Body->InvalidatePhysicsData();
+        }
+    }
+    Ctx.Entry->SetStringField(TEXT("BoneName"), BoneName); MarkPADirty(Ctx);
+}
+static void HandlePA_SetConstraintLimits(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+    UPhysicsAsset* Asset = PAFrom(Ctx);
+    if (!Asset) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PhysicsAsset is null")); return; }
+    const FNexusArgs Args(Op); UPhysicsConstraintTemplate* Target = nullptr;
+    for (UPhysicsConstraintTemplate* Constraint : Asset->ConstraintSetup) if (Constraint && Constraint->DefaultInstance.JointName.ToString() == Args.Str(TEXT("JointName"))) Target = Constraint;
+    if (!Target) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("JointName not found")); return; }
+    for (const FString& Key : {TEXT("Swing1Limit"), TEXT("Swing2Limit"), TEXT("TwistLimit")}) if (Op->HasField(Key) && (!FMath::IsFinite(Args.Num(*Key)) || Args.Num(*Key) < 0 || Args.Num(*Key) > 180)) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Angular limits must be finite, 0-180 degrees")); return; }
+    auto Motion = [](const FString& Value) { return Value == TEXT("Locked") ? ACM_Locked : Value == TEXT("Limited") ? ACM_Limited : ACM_Free; };
+    Target->Modify(); auto& Instance = Target->DefaultInstance;
+    if (Op->HasField(TEXT("Swing1Motion")) || Op->HasField(TEXT("Swing1Limit"))) Instance.SetAngularSwing1Limit(Op->HasField(TEXT("Swing1Motion")) ? Motion(Args.Str(TEXT("Swing1Motion"))) : Instance.GetAngularSwing1Motion(), Args.Num(TEXT("Swing1Limit"), Instance.GetAngularSwing1Limit()));
+    if (Op->HasField(TEXT("Swing2Motion")) || Op->HasField(TEXT("Swing2Limit"))) Instance.SetAngularSwing2Limit(Op->HasField(TEXT("Swing2Motion")) ? Motion(Args.Str(TEXT("Swing2Motion"))) : Instance.GetAngularSwing2Motion(), Args.Num(TEXT("Swing2Limit"), Instance.GetAngularSwing2Limit()));
+    if (Op->HasField(TEXT("TwistMotion")) || Op->HasField(TEXT("TwistLimit"))) Instance.SetAngularTwistLimit(Op->HasField(TEXT("TwistMotion")) ? Motion(Args.Str(TEXT("TwistMotion"))) : Instance.GetAngularTwistMotion(), Args.Num(TEXT("TwistLimit"), Instance.GetAngularTwistLimit()));
+    MarkPADirty(Ctx);
+}
+
 bool FNexusManageAssetPhysicsAssetCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
@@ -276,14 +359,23 @@ void FNexusManageAssetPhysicsAssetCapability::FinalizeTarget(void* Target) const
 	if (!State) return;
 	if (State->bDirty && State->PA)
 	{
-		State->PA->MarkPackageDirty();
+		State->PA->UpdateBodySetupIndexMap();
+        State->PA->UpdateBoundsBodiesArray();
+        State->PA->RefreshPhysicsAssetChange();
+        State->PA->MarkPackageDirty();
 	}
 	delete State;
 }
 
 void FNexusManageAssetPhysicsAssetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
-	OutHandlers.Add(TEXT("SetPhysicsType"),  &HandlePA_SetPhysicsType);
+	OutHandlers.Add(TEXT("AddBody"), &HandlePA_EditBody);
+    OutHandlers.Add(TEXT("RemoveBody"), &HandlePA_EditBody);
+    OutHandlers.Add(TEXT("UpdateShape"), &HandlePA_EditBody);
+    OutHandlers.Add(TEXT("RemoveShape"), &HandlePA_EditBody);
+    OutHandlers.Add(TEXT("SetMassScale"), &HandlePA_EditBody);
+    OutHandlers.Add(TEXT("SetConstraintLimits"), &HandlePA_SetConstraintLimits);
+    OutHandlers.Add(TEXT("SetPhysicsType"),  &HandlePA_SetPhysicsType);
 	OutHandlers.Add(TEXT("AddSphere"),        &HandlePA_AddSphere);
 	OutHandlers.Add(TEXT("AddCapsule"),       &HandlePA_AddCapsule);
 	OutHandlers.Add(TEXT("AddBox"),           &HandlePA_AddBox);

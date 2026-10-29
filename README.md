@@ -15,6 +15,7 @@
 - **复测与性能分析**：[GAS 技能激活诊断](docs/gas-retest.md)、[行为树 / Blackboard 条件复测](docs/bt-retest.md)、[已停录 Trace 的同条件性能对比](docs/trace-compare.md)。
 - **编辑器自动化**：[Slate 界面查询与交互、Automation 测试、非阻塞 Live Coding](docs/editor-toolsets.md)。
 - **项目发现与 5.8 领域诊断**：[设置/插件、技能、语义搜索、PCG 执行采样、Niagara 诊断/修复、UMG 结构与标准截图图片](docs/editor-toolsets.md)。
+- **参数与项目数据编辑**：[PCG 参数闭环、PhysicsAsset 精细编辑、GameplayTags 配置与 DataRegistry 查询](docs/pcg-physics-tags-dataregistry.md)。
 - **MVVM 数据绑定**：[ViewModel / 控件 / WBP 属性路径、绑定方向和单输入转换函数](docs/mvvm-bindings.md)（UE 5.5+）。
 
 支持 **UE 4.26+（含 UE5）**。MCP 可运行于编辑器及 Development / DebugGame 的 Game / DS；**Shipping 在编译期剔除 MCP 服务器**。具体能力随引擎版本、宿主类型和已启用插件裁剪。

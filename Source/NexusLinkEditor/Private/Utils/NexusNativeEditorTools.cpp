@@ -38,7 +38,7 @@ static bool NexusNativeToolAllowed(const FString& Domain, const FString& Tool)
 		{TEXT("AutomationTestToolset"), {TEXT("DiscoverTests"), TEXT("ListTests"), TEXT("RunTests"), TEXT("GetTestStatus"), TEXT("GetTestResults"), TEXT("StopTests")}},
 		{TEXT("ToolsetRegistry"), {TEXT("ListSkills"), TEXT("GetSkills")}},
 		{TEXT("SemanticSearchToolset"), {TEXT("Search"), TEXT("FindSimilar")}},
-		{TEXT("PCGToolset"), {TEXT("ListGraphInstances"), TEXT("GetGraphStructure"), TEXT("GetGraphSchema"), TEXT("ListNativeNodes"), TEXT("GetNativeNodeSchema"), TEXT("SpawnGraphInstance"), TEXT("ExecuteGraphInstance"), TEXT("GetNodeDataView")}},
+		{TEXT("PCGToolset"), {TEXT("ListGraphInstances"), TEXT("GetGraphStructure"), TEXT("GetGraphSchema"), TEXT("ListNativeNodes"), TEXT("GetNativeNodeSchema"), TEXT("SpawnGraphInstance"), TEXT("ExecuteGraphInstance"), TEXT("GetNodeDataView"), TEXT("UpdateNode"), TEXT("SetGraphParams"), TEXT("RemoveGraphParams"), TEXT("SetGraphInstanceParams"), TEXT("ResetGraphInstanceParams"), TEXT("AddSubgraphNode"), TEXT("GetNodeInfo"), TEXT("GetGraphInstanceParams"), TEXT("ListAvailableSubgraphs")}},
 		{TEXT("NiagaraToolsets"), {TEXT("GetSystemData"), TEXT("GetSystemCompileState"), TEXT("GetStackIssues"), TEXT("GetSystemDependencies"), TEXT("GetModuleTopology"), TEXT("GetModuleSchema"), TEXT("GetModuleInputValues"), TEXT("GetRendererSchema"), TEXT("GetRendererData"), TEXT("GetStackInputSchema"), TEXT("GetStackInputData"), TEXT("GetDynamicInputChain"), TEXT("GetAvailableDynamicInputs"), TEXT("ApplyStackIssueFix")}}
 	};
 	const auto* Tools = Allowed.Find(Domain);

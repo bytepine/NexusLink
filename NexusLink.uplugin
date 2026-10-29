@@ -106,6 +106,16 @@
 			"Name": "MovieRenderPipeline",
 			"Enabled": false,
 			"Optional": true
+		},
+		{
+			"Name": "DataRegistry",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "GameplayTagsEditor",
+			"Enabled": false,
+			"Optional": true
 		}
 	]
 }

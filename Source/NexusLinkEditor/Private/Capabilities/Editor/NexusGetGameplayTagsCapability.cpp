@@ -82,7 +82,7 @@ TSharedPtr<FJsonObject> FNexusGetGameplayTagsCapability::BuildCapabilitySchema()
 
 TArray<FString> FNexusGetGameplayTagsCapability::GetSectionNames() const
 {
-	return { TEXT("Hierarchy"), TEXT("Actor"), TEXT("Asset"), TEXT("Referencers") };
+	return { TEXT("Hierarchy"), TEXT("Actor"), TEXT("Asset"), TEXT("Referencers"), TEXT("Info"), TEXT("Sources") };
 }
 
 TArray<FString> FNexusGetGameplayTagsCapability::GetDefaultSectionNames() const
@@ -110,6 +110,25 @@ void FNexusGetGameplayTagsCapability::ExecuteSection(const FString&             
 			Limit = FMath::Clamp(static_cast<int32>(Args->GetNumberField(TEXT("Limit"))), 1, 2000);
 	}
 
+    if (SectionName == TEXT("Info")) {
+        auto Node = UGameplayTagsManager::Get().FindTagNode(FName(*TagName));
+        if (!Node.IsValid()) { OutError = TEXT("Tag not found"); return; }
+        auto Info = MakeShared<FJsonObject>(); Info->SetStringField(TEXT("Tag"), Node->GetCompleteTagName().ToString());
+        FString Comment; FName Source; bool bExplicit = false, bRestricted = false, bAllowChildren = false;
+        UGameplayTagsManager::Get().GetTagEditorData(FName(*TagName), Comment, Source, bExplicit, bRestricted, bAllowChildren);
+        Info->SetBoolField(TEXT("bExplicit"), bExplicit); Info->SetStringField(TEXT("Source"), Source.ToString()); Info->SetStringField(TEXT("Comment"), Comment);
+        InOutDetail->SetObjectField(TEXT("Info"), Info); return;
+    }
+    if (SectionName == TEXT("Sources")) {
+        TArray<const FGameplayTagSource*> Sources;
+        UGameplayTagsManager::Get().FindTagSourcesWithType(EGameplayTagSourceType::TagList, Sources);
+        TArray<TSharedPtr<FJsonValue>> Values;
+        for (const auto* Source : Sources) if (Source && (NameFilter.IsEmpty() || FNexusStringMatchUtils::Matches(Source->SourceName.ToString(), NameFilter))) {
+            auto Item = MakeShared<FJsonObject>(); Item->SetStringField(TEXT("Name"), Source->SourceName.ToString()); Values.Add(MakeShared<FJsonValueObject>(Item));
+        }
+        Values.Sort([](const auto& Left, const auto& Right) { return Left->AsObject()->GetStringField(TEXT("Name")) < Right->AsObject()->GetStringField(TEXT("Name")); });
+        InOutDetail->SetArrayField(TEXT("Sources"), Values); return;
+    }
 	if (SectionName == TEXT("Hierarchy"))
 	{
 		UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
