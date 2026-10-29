@@ -3,6 +3,7 @@
 #include "Capabilities/Asset/Mesh/NexusManageAssetPhysicsAssetCapability.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
+#include "Utils/NexusEditorToolsets.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusVersionCompat.h"
@@ -278,15 +279,21 @@ static void HandlePA_EditBody(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
     if (Ctx.Action == TEXT("AddBody")) {
         if (Body) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Body already exists")); return; }
         if (USkeletalMesh* Mesh = Asset->GetPreviewMesh()) if (Mesh->GetRefSkeleton().FindBoneIndex(FName(*BoneName)) == INDEX_NONE) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("BoneName is absent from the preview mesh skeleton")); return; }
+        auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("PhysicsAsset"), FNexusNativeEditorTools::Reference(Asset->GetPathName())); Input->SetStringField(TEXT("BoneName"), BoneName);
+        if (FNexusNativeEditorTools::EditSync(TEXT("PhysicsToolsets"), TEXT("AddBody"), Input, Ctx.Entry)) { if (!Ctx.Entry->HasField(TEXT("Error"))) { Ctx.Entry->SetStringField(TEXT("BoneName"), BoneName); MarkPADirty(Ctx); } return; }
         Asset->Modify(); Body = GetOrCreateBody(Asset, BoneName);
     } else {
         if (!Body) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Body not found")); return; }
         if (Ctx.Action == TEXT("RemoveBody")) {
+            auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("PhysicsAsset"), FNexusNativeEditorTools::Reference(Asset->GetPathName())); Input->SetStringField(TEXT("BoneName"), BoneName);
+            if (FNexusNativeEditorTools::EditSync(TEXT("PhysicsToolsets"), TEXT("RemoveBody"), Input, Ctx.Entry)) { if (!Ctx.Entry->HasField(TEXT("Error"))) { Ctx.Entry->SetStringField(TEXT("BoneName"), BoneName); MarkPADirty(Ctx); } return; }
             Asset->Modify(); Body->Modify();
             FPhysicsAssetUtils::DestroyBody(Asset, Asset->SkeletalBodySetups.IndexOfByKey(Body));
         } else if (Ctx.Action == TEXT("SetMassScale")) {
             const double Scale = Args.Num(TEXT("MassScale"), 0);
             if (!FMath::IsFinite(Scale) || Scale <= 0 || Scale > MAX_flt) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("MassScale must be finite and positive")); return; }
+            auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("PhysicsAsset"), FNexusNativeEditorTools::Reference(Asset->GetPathName())); Input->SetStringField(TEXT("BoneName"), BoneName); Input->SetNumberField(TEXT("MassScale"), Scale);
+            if (FNexusNativeEditorTools::EditSync(TEXT("PhysicsToolsets"), TEXT("SetBodyMassScale"), Input, Ctx.Entry)) { if (!Ctx.Entry->HasField(TEXT("Error"))) { Ctx.Entry->SetStringField(TEXT("BoneName"), BoneName); MarkPADirty(Ctx); } return; }
             Body->Modify(); Body->DefaultInstance.MassScale = static_cast<float>(Scale);
         } else {
             const FString Type = Args.Str(TEXT("ShapeType")); const int32 ShapeIndex = static_cast<int32>(Args.Num(TEXT("ShapeIndex")));

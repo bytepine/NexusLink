@@ -28,6 +28,19 @@ struct FNexusNativeEditorTools final
         auto Operation = MakeShared<FNexusEditorOperation>(); Operation->Backend = TEXT("OfficialToolset");
         Operation->StartedAt = FPlatformTime::Seconds(); return Operation;
     }
+    // true 表示已选择原生后端（含失败），调用方不得再执行兼容写入。
+    static bool EditSync(const FString& Domain, const FString& Tool, const TSharedPtr<FJsonObject>& Args,
+        const TSharedPtr<FJsonObject>& Entry) {
+        if (!UseNative(Domain)) return false;
+        TSharedPtr<FJsonValue> Value; FString Error;
+        if (!InvokeSync(Domain, Tool, Args, Value, Error) || (Value.IsValid() && Value->Type == EJson::Boolean && !Value->AsBool()))
+            Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Official tool reported false") : Error);
+        else Entry->SetStringField(TEXT("Backend"), TEXT("OfficialToolset"));
+        return true;
+    }
+    // 仅供白名单内的同步原生方法使用；不等待或泵送游戏线程。
+    static bool InvokeSync(const FString& Domain, const FString& Tool, const TSharedPtr<FJsonObject>& Args,
+        TSharedPtr<FJsonValue>& Value, FString& Error);
 	static void Call(const FString& Domain, const FString& Tool, const TSharedPtr<FJsonObject>& Args,
 		const TSharedPtr<FNexusEditorOperation>& Operation);
 	static void Shutdown();

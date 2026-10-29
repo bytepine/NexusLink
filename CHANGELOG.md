@@ -18,6 +18,10 @@
 - GameplayTags 项目配置管理：单标签新增、重命名、删除，Info/INI Sources 读回；使用引擎 INI 编辑器即时落盘，删除检查子标签和资产引用，危险操作不支持批次或事务回滚。
 - DataRegistry 只读查询（启用插件，UE 5.0+）：已注册 Registry、Schema、条目 ID、配置/运行时数据源及明确条目的缓存值；未缓存逐项标明，不隐式加载或 Acquire。
 
+### Changed
+
+- 既有 Capability 在 UE 5.8 启用对应官方插件时复用 Registry 同步后端：设置/插件列表、DataRegistry 条目与缓存、受保护的 Tag 写入、PhysicsAsset Body/质量、PCG 删节点/连边、Sequencer 显示帧率、Control Rig Pin、Niagara 发射器删除、MVVM 绑定删除、唯一具名 StaticMesh 材质槽与材质编译。保留同步返回、过滤分页、错误保护及低版本引擎后端；官方禁用/过滤不触发兼容重试。
+
 ## [2.3.0-beta.4] - 2026-10-28
 
 > ⚠️ Pre-release，非生产环境使用。

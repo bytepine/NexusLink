@@ -2,6 +2,7 @@
 #include "Capabilities/Editor/NexusManageGameplayTagsCapability.h"
 #if WITH_NEXUS_TAGS_EDITOR
 #include "NexusCapabilityRegistry.h"
+#include "Utils/NexusEditorToolsets.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpTool.h"
 #include "Utils/NexusArgs.h"
@@ -42,8 +43,11 @@ static void NexusEditGameplayTag(const TSharedPtr<FJsonObject>& Operation, FNexu
         if (Node.IsValid()) { Context.Entry->SetStringField(TEXT("Error"), TEXT("Tag already exists, including implicit parent tags")); return; }
         const FString Source = Args.Str(TEXT("TagSource"));
         if (Source.IsEmpty() || Source != FPaths::GetCleanFilename(Source) || !Source.EndsWith(TEXT(".ini")) || Source.Contains(TEXT("..")) || Source.Contains(TEXT(":"))) { Context.Entry->SetStringField(TEXT("Error"), TEXT("Add requires a simple TagSource .ini filename")); return; }
+        if (FNexusNativeEditorTools::UseNative(TEXT("GameplayTagsToolset")) && !FNexusNativeEditorTools::CanCall(TEXT("GameplayTagsToolset"), TEXT("AddTag"))) { Context.Entry->SetStringField(TEXT("Error"), TEXT("Official AddTag is unavailable, disabled or filtered")); return; }
         if (!Manager.FindTagSource(FName(*Source)) && !Editor.AddNewGameplayTagSource(Source)) { Context.Entry->SetStringField(TEXT("Error"), TEXT("Could not create TagSource")); return; }
-        bApplied = Editor.AddNewGameplayTagToINI(*Tag, Args.Str(TEXT("Comment")), FName(*Source));
+        auto Input = MakeShared<FJsonObject>(); Input->SetStringField(TEXT("TagName"), *Tag); Input->SetStringField(TEXT("Comment"), Args.Str(TEXT("Comment"))); Input->SetStringField(TEXT("TagSource"), Source);
+        if (FNexusNativeEditorTools::EditSync(TEXT("GameplayTagsToolset"), TEXT("AddTag"), Input, Context.Entry)) { if (Context.Entry->HasField(TEXT("Error"))) return; bApplied = Manager.FindTagNode(FName(**Tag)).IsValid(); }
+        else bApplied = Editor.AddNewGameplayTagToINI(*Tag, Args.Str(TEXT("Comment")), FName(*Source));
     } else {
         if (!Node.IsValid() || !Node->IsExplicitTag()) { Context.Entry->SetStringField(TEXT("Error"), TEXT("Tag must exist explicitly in a writable INI source")); return; }
         FString Comment; FName SourceName; bool bExplicit = false, bRestricted = false, bAllowChildren = false;
@@ -53,14 +57,18 @@ static void NexusEditGameplayTag(const TSharedPtr<FJsonObject>& Operation, FNexu
         if (Context.Action == TEXT("Rename")) {
             const FString NewTag = Args.Str(TEXT("NewTag")); FText Validation;
             if (!UGameplayTagsManager::Get().IsValidGameplayTagString(NewTag, &Validation) || Manager.FindTagNode(FName(*NewTag)).IsValid() || NewTag.StartsWith(*Tag + TEXT("."))) { Context.Entry->SetStringField(TEXT("Error"), TEXT("NewTag is invalid, already exists or is a descendant of Tag")); return; }
-            bApplied = Editor.RenameTagInINI(*Tag, NewTag);
+            auto Input = MakeShared<FJsonObject>(); Input->SetStringField(TEXT("OldTagName"), *Tag); Input->SetStringField(TEXT("NewTagName"), NewTag);
+            if (FNexusNativeEditorTools::EditSync(TEXT("GameplayTagsToolset"), TEXT("RenameTag"), Input, Context.Entry)) { if (Context.Entry->HasField(TEXT("Error"))) return; bApplied = Manager.FindTagNode(FName(*NewTag)).IsValid(); }
+            else bApplied = Editor.RenameTagInINI(*Tag, NewTag);
             if (bApplied) { Context.Entry->SetStringField(TEXT("PreviousTag"), *Tag); *Tag = NewTag; }
         } else {
             if (Node->GetChildTagNodes().Num()) { Context.Entry->SetStringField(TEXT("Error"), TEXT("Remove child tags first")); return; }
             TArray<FString> References; FString Failure;
             if (!FNexusGameplayTagReferencerUtils::FindReferencerPackagePaths(*Tag, References, Failure)) { Context.Entry->SetStringField(TEXT("Error"), Failure); return; }
             if (References.Num()) { Context.Entry->SetStringField(TEXT("Error"), TEXT("Tag has asset references; remove/rewrite references first")); return; }
-            bApplied = Editor.DeleteTagFromINI(Node);
+            auto Input = MakeShared<FJsonObject>(); Input->SetStringField(TEXT("TagName"), *Tag);
+            if (FNexusNativeEditorTools::EditSync(TEXT("GameplayTagsToolset"), TEXT("RemoveTag"), Input, Context.Entry)) { if (Context.Entry->HasField(TEXT("Error"))) return; bApplied = !Manager.FindTagNode(FName(**Tag)).IsValid(); }
+            else bApplied = Editor.DeleteTagFromINI(Node);
         }
     }
     Context.Entry->SetStringField(TEXT("Tag"), *Tag); Context.Entry->SetBoolField(TEXT("bApplied"), bApplied);

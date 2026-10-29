@@ -3,6 +3,7 @@
 #include "Capabilities/Asset/Mesh/NexusManageAssetStaticMeshCapability.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
+#include "Utils/NexusEditorToolsets.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusPropertyUtils.h"
@@ -176,7 +177,16 @@ static void HandleSM_SetMaterialSlot(const TSharedPtr<FJsonObject>& Op, FNexusAc
 		return;
 	}
 #if WITH_EDITOR
-	Mesh->SetMaterial(SlotIndex, Material);
+    // 原生按槽名定位；仅唯一具名槽可与现有索引契约等价。
+    const FName SlotName = Materials[SlotIndex].MaterialSlotName;
+    int32 SameNameCount = 0; for (const auto& Slot : Materials) if (Slot.MaterialSlotName == SlotName) ++SameNameCount;
+    bool bNative = false;
+    if (Material && !SlotName.IsNone() && SameNameCount == 1) {
+        auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("mesh"), FNexusNativeEditorTools::Reference(Mesh->GetPathName())); Input->SetStringField(TEXT("slot_name"), SlotName.ToString()); Input->SetObjectField(TEXT("material"), FNexusNativeEditorTools::Reference(Material->GetPathName()));
+        bNative = FNexusNativeEditorTools::EditSync(TEXT("editor_toolset.toolsets.static_mesh.StaticMeshTools"), TEXT("set_material"), Input, Ctx.Entry);
+        if (Ctx.Entry->HasField(TEXT("Error"))) return;
+    }
+    if (!bNative) Mesh->SetMaterial(SlotIndex, Material);
 	MarkMeshDirty(Ctx);
 	Ctx.Entry->SetNumberField(TEXT("SlotIndex"), SlotIndex);
 	Ctx.Entry->SetStringField(TEXT("MaterialClass"), Material ? Material->GetClass()->GetName() : TEXT("None"));

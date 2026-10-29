@@ -6,6 +6,7 @@
 
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
+#include "Utils/NexusEditorToolsets.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusVersionCompat.h"
@@ -19,6 +20,7 @@
 #include "Rigs/RigHierarchyDefines.h"
 #include "RigVMModel/RigVMController.h"
 #include "RigVMModel/RigVMGraph.h"
+#include "RigVMModel/RigVMPin.h"
 #include "NexusMcpTool.h"
 
 void FNexusManageAssetControlRigCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -334,6 +336,11 @@ static void HandleCR_SetPinDefault(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	}
 	URigVMController* VmCtrl = RequireVmCtrl(Ctx);
 	if (!VmCtrl) return;
+    URigVMGraph* Graph = VmCtrl->GetGraph(); URigVMPin* Pin = Graph ? Graph->FindPin(PinPath) : nullptr;
+    if (Graph && Pin && CRState(Ctx) && CRState(Ctx)->CRBp) {
+        auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("control_rig"), FNexusNativeEditorTools::Reference(CRState(Ctx)->CRBp->GetPathName())); Input->SetObjectField(TEXT("graph"), FNexusNativeEditorTools::Reference(Graph->GetPathName())); Input->SetObjectField(TEXT("pin"), FNexusNativeEditorTools::Reference(Pin->GetPathName())); Input->SetStringField(TEXT("value"), PinVal);
+        if (FNexusNativeEditorTools::EditSync(TEXT("animation_toolset.toolsets.controlrig.ControlRigTools"), TEXT("set_pin_value"), Input, Ctx.Entry)) { if (!Ctx.Entry->HasField(TEXT("Error"))) MarkCRDirty(Ctx); return; }
+    }
 	const bool bOk = VmCtrl->SetPinDefaultValue(PinPath, PinVal, true, false, false);
 	if (!bOk) Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetPinDefaultValue failed"));
 	else MarkCRDirty(Ctx);

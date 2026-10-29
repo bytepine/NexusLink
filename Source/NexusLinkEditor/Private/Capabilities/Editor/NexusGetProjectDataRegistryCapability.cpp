@@ -5,6 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpTool.h"
 #include "Utils/NexusArgs.h"
+#include "Utils/NexusEditorToolsets.h"
 #include "Utils/NexusStringMatchUtils.h"
 #include "DataRegistry.h"
 #include "DataRegistrySubsystem.h"
@@ -49,14 +50,26 @@ void FNexusGetProjectDataRegistryCapability::ExecuteSection(const FString& Secti
             if (!Struct) { Error = TEXT("Registry has no item struct"); return; }
             for (TFieldIterator<FProperty> Property(Struct); Property; ++Property) Add(Property->GetName())->SetStringField(TEXT("Type"), Property->GetCPPType());
         } else if (SectionName == TEXT("Items")) {
-            TArray<FDataRegistryId> Ids; Registry->GetPossibleRegistryIds(Ids); for (const auto& Id : Ids) Add(Id.ItemName.ToString());
+            if (FNexusNativeEditorTools::UseNative(TEXT("DataRegistryToolset"))) {
+                auto Input = MakeShared<FJsonObject>(); Input->SetStringField(TEXT("RegistryName"), Arguments.Str(TEXT("RegistryName")));
+                TSharedPtr<FJsonValue> Value; if (!FNexusNativeEditorTools::InvokeSync(TEXT("DataRegistryToolset"), TEXT("ListItems"), Input, Value, Error)) return;
+                if (Value->Type != EJson::Array) { Error = TEXT("Expected native registry item array"); return; }
+                for (const auto& Name : Value->AsArray()) Add(Name->AsString()); Out->SetStringField(TEXT("Backend"), TEXT("OfficialToolset"));
+            } else { TArray<FDataRegistryId> Ids; Registry->GetPossibleRegistryIds(Ids); for (const auto& Id : Ids) Add(Id.ItemName.ToString()); }
         } else if (SectionName == TEXT("Values")) {
             const TArray<FString> Names = Arguments.StrArr(TEXT("ItemNames"));
             if (Names.Num() == 0 || Names.Num() > 100) { Error = TEXT("Values requires 1-100 ItemNames"); return; }
+            TSharedPtr<FJsonObject> NativeItems;
+            if (FNexusNativeEditorTools::UseNative(TEXT("DataRegistryToolset"))) {
+                auto Input = MakeShared<FJsonObject>(); Input->SetStringField(TEXT("RegistryName"), Arguments.Str(TEXT("RegistryName"))); Input->SetField(TEXT("ItemNames"), Args->TryGetField(TEXT("ItemNames")));
+                TSharedPtr<FJsonValue> Value; if (!FNexusNativeEditorTools::InvokeSync(TEXT("DataRegistryToolset"), TEXT("GetItems"), Input, Value, Error)) return;
+                if (Value->Type != EJson::Object) { Error = TEXT("Expected native registry value map"); return; }
+                NativeItems = Value->AsObject(); Out->SetStringField(TEXT("Backend"), TEXT("OfficialToolset"));
+            }
             for (const FString& Name : Names) {
                 const uint8* Memory = nullptr; const UScriptStruct* ItemStruct = nullptr;
                 const auto CacheResult = Subsystem->GetCachedItemRaw(Memory, ItemStruct, FDataRegistryId(Registry->GetRegistryType(), FName(*Name)));
-                auto Item = Add(Name); const bool bCached = CacheResult && Memory && ItemStruct; Item->SetBoolField(TEXT("bCached"), bCached);
+                auto Item = Add(Name); const bool bCached = CacheResult && Memory && ItemStruct && (!NativeItems.IsValid() || NativeItems->HasField(Name)); Item->SetBoolField(TEXT("bCached"), bCached);
                 if (bCached) { auto Value = MakeShared<FJsonObject>(); if (!FJsonObjectConverter::UStructToJsonObject(ItemStruct, Memory, Value, 0, 0)) { Error = TEXT("Could not serialize cached row"); return; } Item->SetObjectField(TEXT("Value"), Value); }
                 else Item->SetStringField(TEXT("Status"), TEXT("NotCached; acquire through the consuming game system before reading"));
             }

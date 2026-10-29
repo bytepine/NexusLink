@@ -7,6 +7,7 @@
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #include "NexusCapabilityRegistry.h"
+#include "Utils/NexusEditorToolsets.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "NexusMcpTool.h"
@@ -117,6 +118,8 @@ static void HandlePCG_RemoveNode(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		return;
 	}
 	if (TargetNode == Graph->GetInputNode() || TargetNode == Graph->GetOutputNode()) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Built-in graph input/output nodes cannot be removed")); return; }
+    auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("Graph"), FNexusNativeEditorTools::Reference(Graph->GetPathName())); Input->SetObjectField(TEXT("Node"), FNexusNativeEditorTools::Reference(TargetNode->GetPathName()));
+    if (FNexusNativeEditorTools::EditSync(TEXT("PCGToolset"), TEXT("RemoveNode"), Input, Ctx.Entry)) { if (!Ctx.Entry->HasField(TEXT("Error"))) Ctx.Entry->SetStringField(TEXT("NodeId"), NodeId); return; }
 	Graph->RemoveNode(TargetNode);
 	Ctx.Entry->SetStringField(TEXT("NodeId"), NodeId);
 }
@@ -159,6 +162,8 @@ static void HandlePCG_AddEdge(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	{
 		return;
 	}
+    auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("FromNode"), FNexusNativeEditorTools::Reference(FromNode->GetPathName())); Input->SetObjectField(TEXT("ToNode"), FNexusNativeEditorTools::Reference(ToNode->GetPathName())); Input->SetStringField(TEXT("FromPinLabel"), FromLabel.ToString()); Input->SetStringField(TEXT("ToPinLabel"), ToLabel.ToString());
+    if (FNexusNativeEditorTools::EditSync(TEXT("PCGToolset"), TEXT("ConnectNodePins"), Input, Ctx.Entry)) return;
 	if (!PCGFrom(Ctx)->AddEdge(FromNode, FromLabel, ToNode, ToLabel)) Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PCG rejected the edge connection"));
 }
 
@@ -172,6 +177,13 @@ static void HandlePCG_RemoveEdge(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	{
 		return;
 	}
+    auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("FromNode"), FNexusNativeEditorTools::Reference(FromNode->GetPathName())); Input->SetObjectField(TEXT("ToNode"), FNexusNativeEditorTools::Reference(ToNode->GetPathName())); Input->SetStringField(TEXT("FromPinLabel"), FromLabel.ToString()); Input->SetStringField(TEXT("ToPinLabel"), ToLabel.ToString());
+    if (FNexusNativeEditorTools::UseNative(TEXT("PCGToolset"))) {
+        TSharedPtr<FJsonValue> Value; FString Error;
+        if (!FNexusNativeEditorTools::InvokeSync(TEXT("PCGToolset"), TEXT("DisconnectNodePins"), Input, Value, Error)) Ctx.Entry->SetStringField(TEXT("Error"), Error);
+        else Ctx.Entry->SetStringField(TEXT("Backend"), TEXT("OfficialToolset"));
+        return; // 既有 RemoveEdge 对不存在的边保持幂等。
+    }
 	PCGFrom(Ctx)->RemoveEdge(FromNode, FromLabel, ToNode, ToLabel);
 }
 

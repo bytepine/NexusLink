@@ -6,6 +6,7 @@
 
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
+#include "Utils/NexusEditorToolsets.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusPropertyUtils.h"
@@ -386,6 +387,9 @@ static void HandleNiagara_RemoveEmitter(const TSharedPtr<FJsonObject>& Op, FNexu
 	const FString EmitterName = FNexusArgs(Op).Str(TEXT("EmitterName"));
 	FNiagaraEmitterHandle* Handle = FindEmitterHandle(System, EmitterName, Ctx.Entry);
 	if (!Handle) return;
+    auto Ref = MakeShared<FJsonObject>(); Ref->SetObjectField(TEXT("system"), FNexusNativeEditorTools::Reference(System->GetPathName())); Ref->SetStringField(TEXT("emitterName"), Handle->GetName().ToString()); Ref->SetStringField(TEXT("scriptName"), TEXT("")); Ref->SetStringField(TEXT("moduleName"), TEXT("")); Ref->SetNumberField(TEXT("rendererIndex"), -1); Ref->SetArrayField(TEXT("inputNameStack"), {});
+    auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("EmitterToRemove"), Ref);
+    if (FNexusNativeEditorTools::EditSync(TEXT("NiagaraToolsets"), TEXT("RemoveEmitter"), Input, Ctx.Entry)) { if (!Ctx.Entry->HasField(TEXT("Error"))) { MarkNiagaraDirty(Ctx); Ctx.Entry->SetStringField(TEXT("bRemoved"), EmitterName); Ctx.Entry->SetStringField(TEXT("EmitterName"), EmitterName); Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset")); } return; }
 #if NX_UE_HAS_NIAGARA_REMOVE_EMITTER_BY_ID
 	TSet<FGuid> Ids;
 	Ids.Add(Handle->GetId());

@@ -3,6 +3,7 @@
 #include "Capabilities/Asset/Sequencer/NexusManageAssetLevelSequenceCapability.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
+#include "Utils/NexusEditorToolsets.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusVersionCompat.h"
@@ -251,7 +252,10 @@ static void HandleLS_SetDisplayRate(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	Op->TryGetNumberField(TEXT("Numerator"),   Num);
 	Op->TryGetNumberField(TEXT("Denominator"), Den);
 	if (Den <= 0) Den = 1;
-	Scene->SetDisplayRate(FFrameRate(static_cast<int32>(Num), static_cast<int32>(Den)));
+    auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("sequence"), FNexusNativeEditorTools::Reference(static_cast<ULevelSequence*>(Ctx.Target)->GetPathName())); Input->SetNumberField(TEXT("numerator"), static_cast<int32>(Num)); Input->SetNumberField(TEXT("denominator"), static_cast<int32>(Den));
+    const bool bNative = Num > 0 && Num <= MAX_int32 && Den <= MAX_int32 && FNexusNativeEditorTools::EditSync(TEXT("animation_toolset.toolsets.sequencer.SequencerTools"), TEXT("set_display_rate"), Input, Ctx.Entry);
+    if (Ctx.Entry->HasField(TEXT("Error"))) return;
+    if (!bNative) Scene->SetDisplayRate(FFrameRate(static_cast<int32>(Num), static_cast<int32>(Den)));
 	Ctx.Entry->SetStringField(TEXT("DisplayRate"), FString::Printf(TEXT("%d/%d"), (int32)Num, (int32)Den));
 	MarkLSDirty(Ctx);
 }

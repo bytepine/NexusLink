@@ -8,6 +8,7 @@
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
+#include "Utils/NexusEditorToolsets.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusMaterialUtils.h"
 #include "Utils/NexusAssetUtils.h"
@@ -81,6 +82,8 @@ static void HandleMaterialRecompile(const TSharedPtr<FJsonObject>& Op, FNexusAct
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("recompile only for UMaterial; MaterialFunction need not recompile"));
 		return;
 	}
+    auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("material_or_function"), FNexusNativeEditorTools::Reference(Mat->GetPathName()));
+    if (FNexusNativeEditorTools::EditSync(TEXT("editor_toolset.toolsets.material.MaterialTools"), TEXT("recompile"), Input, Ctx.Entry)) return;
 	UMaterialEditingLibrary::RecompileMaterial(Mat);
 }
 

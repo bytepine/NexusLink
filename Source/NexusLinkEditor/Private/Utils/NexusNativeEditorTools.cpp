@@ -27,7 +27,9 @@ static uint32 GNexusNativeGeneration = 0;
 static TWeakObjectPtr<UToolCallAsyncResultString> GNexusNativePcgPending;
 static FString NexusNativeToolsetName(const FString& Domain)
 {
-	if (Domain.StartsWith(TEXT("animation_toolset.toolsets."))) return Domain;
+	if (Domain.StartsWith(TEXT("animation_toolset.toolsets.")) || Domain.StartsWith(TEXT("editor_toolset.toolsets."))) return Domain;
+    if (Domain == TEXT("PhysicsToolsets")) return TEXT("PhysicsToolsets.PhysicsAssetToolset");
+    if (Domain == TEXT("DataRegistryToolset")) return TEXT("DataRegistryToolset.DataRegistryTools");
 	if (Domain == TEXT("ToolsetRegistry")) return TEXT("ToolsetRegistry.AgentSkillToolset");
 	if (Domain == TEXT("NiagaraToolsets")) return TEXT("NiagaraToolsets.NiagaraToolset_System");
 	return Domain + TEXT(".") + Domain;
@@ -38,16 +40,27 @@ static bool NexusNativeToolAllowed(const FString& Domain, const FString& Tool)
 	if (Domain.StartsWith(TEXT("animation_toolset.toolsets.")))
     {
         const FString FullName = Domain + TEXT(".") + Tool;
+        if (Domain == TEXT("animation_toolset.toolsets.sequencer.SequencerTools") && (Tool == TEXT("set_display_rate") || Tool == TEXT("set_playback_range"))) return true;
+        if (Domain == TEXT("animation_toolset.toolsets.controlrig.ControlRigTools") && (Tool == TEXT("set_pin_value") || Tool == TEXT("connect_pins") || Tool == TEXT("disconnect_pins"))) return true;
         for (bool bWrite : {false, true}) for (const auto& Pair : FNexusAnimationToolActions::Get(bWrite)) if (Pair.Value == FullName) return true;
         return false;
     }
 	static const TMap<FString, TSet<FString>> Allowed = {
+        {TEXT("editor_toolset.toolsets.static_mesh.StaticMeshTools"), {TEXT("set_material")}},
+        {TEXT("editor_toolset.toolsets.skeletal_mesh.SkeletalMeshTools"), {TEXT("set_material")}},
+        {TEXT("editor_toolset.toolsets.material.MaterialTools"), {TEXT("recompile")}},
+        {TEXT("ConfigSettingsToolset"), {TEXT("ListContainers"), TEXT("ListCategories"), TEXT("ListSections")}},
+        {TEXT("PluginToolset"), {TEXT("ListEnabledPlugins"), TEXT("ListDiscoveredPlugins"), TEXT("GetPluginInfo"), TEXT("GetPluginDependencies"), TEXT("GetPluginDependents"), TEXT("GetPluginForAsset")}},
+        {TEXT("DataRegistryToolset"), {TEXT("ListRegistries"), TEXT("ListItems"), TEXT("GetItems")}},
+        {TEXT("GameplayTagsToolset"), {TEXT("ListTags"), TEXT("GetTagInfo"), TEXT("AddTag"), TEXT("RemoveTag"), TEXT("RenameTag"), TEXT("FindReferencersByTag")}},
+        {TEXT("PhysicsToolsets"), {TEXT("AddBody"), TEXT("RemoveBody"), TEXT("SetBodyMassScale"), TEXT("SetBodyPhysicsMode"), TEXT("SetSphere"), TEXT("SetCapsule"), TEXT("SetBox"), TEXT("RemoveShape")}},
+        {TEXT("MVVMToolset"), {TEXT("RemoveWidgetViewBinding")}},
 		{TEXT("SlateInspectorToolset"), {TEXT("Windows"), TEXT("Observe"), TEXT("Unobserve"), TEXT("Snapshot"), TEXT("Screenshot"), TEXT("Click"), TEXT("Type"), TEXT("PressKey"), TEXT("Hover"), TEXT("Drag"), TEXT("SelectOption"), TEXT("FillForm"), TEXT("WaitFor")}},
 		{TEXT("AutomationTestToolset"), {TEXT("DiscoverTests"), TEXT("ListTests"), TEXT("RunTests"), TEXT("GetTestStatus"), TEXT("GetTestResults"), TEXT("StopTests")}},
 		{TEXT("ToolsetRegistry"), {TEXT("ListSkills"), TEXT("GetSkills")}},
 		{TEXT("SemanticSearchToolset"), {TEXT("Search"), TEXT("FindSimilar")}},
-		{TEXT("PCGToolset"), {TEXT("ListGraphInstances"), TEXT("GetGraphStructure"), TEXT("GetGraphSchema"), TEXT("ListNativeNodes"), TEXT("GetNativeNodeSchema"), TEXT("SpawnGraphInstance"), TEXT("ExecuteGraphInstance"), TEXT("GetNodeDataView"), TEXT("UpdateNode"), TEXT("SetGraphParams"), TEXT("RemoveGraphParams"), TEXT("SetGraphInstanceParams"), TEXT("ResetGraphInstanceParams"), TEXT("AddSubgraphNode"), TEXT("GetNodeInfo"), TEXT("GetGraphInstanceParams"), TEXT("ListAvailableSubgraphs")}},
-		{TEXT("NiagaraToolsets"), {TEXT("GetSystemData"), TEXT("GetSystemCompileState"), TEXT("GetStackIssues"), TEXT("GetSystemDependencies"), TEXT("GetModuleTopology"), TEXT("GetModuleSchema"), TEXT("GetModuleInputValues"), TEXT("GetRendererSchema"), TEXT("GetRendererData"), TEXT("GetStackInputSchema"), TEXT("GetStackInputData"), TEXT("GetDynamicInputChain"), TEXT("GetAvailableDynamicInputs"), TEXT("ApplyStackIssueFix"), TEXT("SetSystemData"), TEXT("SetEmitterData"), TEXT("AddRenderer"), TEXT("SetRendererData"), TEXT("RemoveRenderer"), TEXT("SetStackInputData"), TEXT("AddUserVariables"), TEXT("RemoveUserVariables"), TEXT("SetModuleEnabled"), TEXT("AddSetParametersModule"), TEXT("AddSetParameterEntry"), TEXT("RemoveSetParameterEntry"), TEXT("GetSystemSchema"), TEXT("GetEmitterSchema"), TEXT("GetEmitterData"), TEXT("GetUserVariables"), TEXT("GetDataInterfaceSchema"), TEXT("GetSystemSummary"), TEXT("GetEmitterTopology"), TEXT("GetScriptStackTopology")}}
+		{TEXT("PCGToolset"), {TEXT("ListGraphInstances"), TEXT("GetGraphStructure"), TEXT("GetGraphSchema"), TEXT("ListNativeNodes"), TEXT("GetNativeNodeSchema"), TEXT("SpawnGraphInstance"), TEXT("ExecuteGraphInstance"), TEXT("GetNodeDataView"), TEXT("UpdateNode"), TEXT("SetGraphParams"), TEXT("RemoveGraphParams"), TEXT("SetGraphInstanceParams"), TEXT("ResetGraphInstanceParams"), TEXT("AddSubgraphNode"), TEXT("GetNodeInfo"), TEXT("GetGraphInstanceParams"), TEXT("ListAvailableSubgraphs"), TEXT("RemoveNode"), TEXT("ConnectNodePins"), TEXT("DisconnectNodePins")}},
+		{TEXT("NiagaraToolsets"), {TEXT("GetSystemData"), TEXT("GetSystemCompileState"), TEXT("GetStackIssues"), TEXT("GetSystemDependencies"), TEXT("GetModuleTopology"), TEXT("GetModuleSchema"), TEXT("GetModuleInputValues"), TEXT("GetRendererSchema"), TEXT("GetRendererData"), TEXT("GetStackInputSchema"), TEXT("GetStackInputData"), TEXT("GetDynamicInputChain"), TEXT("GetAvailableDynamicInputs"), TEXT("ApplyStackIssueFix"), TEXT("SetSystemData"), TEXT("SetEmitterData"), TEXT("AddRenderer"), TEXT("SetRendererData"), TEXT("RemoveRenderer"), TEXT("SetStackInputData"), TEXT("AddUserVariables"), TEXT("RemoveUserVariables"), TEXT("SetModuleEnabled"), TEXT("AddSetParametersModule"), TEXT("AddSetParameterEntry"), TEXT("RemoveSetParameterEntry"), TEXT("GetSystemSchema"), TEXT("GetEmitterSchema"), TEXT("GetEmitterData"), TEXT("GetUserVariables"), TEXT("GetDataInterfaceSchema"), TEXT("GetSystemSummary"), TEXT("GetEmitterTopology"), TEXT("GetScriptStackTopology"), TEXT("RemoveEmitter"), TEXT("RemoveModule")}}
 	};
 	const auto* Tools = Allowed.Find(Domain);
 	return Tools && Tools->Contains(Tool);
@@ -59,7 +72,8 @@ bool FNexusNativeEditorTools::UseNative(const FString& Domain)
 	if (const bool* bChosen = GNexusNativeDomains.Find(Domain)) return *bChosen;
 	bool bUse = false;
 #if WITH_NEXUS_TOOLSETS
-	const auto Plugin = IPluginManager::Get().FindPlugin(Domain.StartsWith(TEXT("animation_toolset.toolsets.")) ? TEXT("AnimationAssistantToolset") : Domain);
+	const FString PluginName = Domain.StartsWith(TEXT("animation_toolset.toolsets.")) ? TEXT("AnimationAssistantToolset") : Domain.StartsWith(TEXT("editor_toolset.toolsets.")) ? TEXT("EditorToolset") : Domain;
+    const auto Plugin = IPluginManager::Get().FindPlugin(PluginName);
 	bUse = Plugin.IsValid() && Plugin->IsEnabled();
 #if !WITH_NEXUS_SLATE_REFS
     if (Domain == TEXT("SlateInspectorToolset")) bUse = false;
@@ -126,6 +140,35 @@ bool FNexusNativeEditorTools::CanCall(const FString& Domain, const FString& Tool
     return Handler.IsValid() && Handler->IsToolEnabled(Name + TEXT(".") + Tool);
 #else
     return false;
+#endif
+}
+
+bool FNexusNativeEditorTools::InvokeSync(const FString& Domain, const FString& Tool,
+    const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonValue>& Value, FString& Error)
+{
+    check(IsInGameThread()); Value.Reset();
+#if WITH_NEXUS_TOOLSETS
+    const bool bSynchronousDomain = Domain == TEXT("ConfigSettingsToolset") || Domain == TEXT("PluginToolset") || Domain == TEXT("DataRegistryToolset") || Domain == TEXT("GameplayTagsToolset") || Domain == TEXT("PhysicsToolsets") || Domain == TEXT("MVVMToolset") || Domain.StartsWith(TEXT("editor_toolset.toolsets."))
+        || (Domain == TEXT("animation_toolset.toolsets.sequencer.SequencerTools") && Tool == TEXT("set_display_rate"))
+        || (Domain == TEXT("animation_toolset.toolsets.controlrig.ControlRigTools") && Tool == TEXT("set_pin_value"))
+        || (Domain == TEXT("PCGToolset") && (Tool == TEXT("RemoveNode") || Tool == TEXT("ConnectNodePins") || Tool == TEXT("DisconnectNodePins")))
+        || (Domain == TEXT("NiagaraToolsets") && Tool == TEXT("RemoveEmitter"));
+    if (!bSynchronousDomain) { Error = TEXT("Tool is not approved for synchronous legacy execution"); return false; }
+    if (!CanCall(Domain, Tool)) { Error = TEXT("Official tool is unavailable, disabled or filtered: ") + Domain + TEXT(".") + Tool; return false; }
+    if (Domain == TEXT("PCGToolset") && GNexusNativePcgPending.IsValid() && !GNexusNativePcgPending->bIsComplete) { Error = TEXT("Another PCG call is running"); return false; }
+    auto NativeArgs = MakeShared<FJsonObject>();
+    for (const auto& Pair : Args->Values) { FString Key(Pair.Key); if (!Key.IsEmpty()) Key[0] = FChar::ToLower(Key[0]); NativeArgs->SetField(Key, Pair.Value); }
+    FString Json; FJsonSerializer::Serialize(NativeArgs, TJsonWriterFactory<>::Create(&Json));
+    // 固定方法均为同步 UFUNCTION/Python 函数。Registry 负责权限过滤、转换和脚本异常。
+    TStrongObjectPtr<UToolCallAsyncResultString> Result(UToolsetRegistry::ExecuteTool(NexusNativeToolsetName(Domain), Tool, Json));
+    if (!Result.IsValid() || !Result->bIsComplete) { Error = TEXT("Native method did not complete synchronously; no compatibility retry was performed"); return false; }
+    if (!Result->Error.IsEmpty()) { Error = Result->Error; return false; }
+    if (Result->Value.Len() > 2 * 1024 * 1024 || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Result->Value), Value)) { Error = TEXT("Invalid or oversized native JSON result"); return false; }
+    if (Value.IsValid() && Value->Type == EJson::Object && Value->AsObject()->HasField(TEXT("returnValue"))) Value = Value->AsObject()->TryGetField(TEXT("returnValue"));
+    if (Value.IsValid() && Value->Type == EJson::String) { TSharedPtr<FJsonValue> Inner; if (FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Value->AsString()), Inner)) Value = Inner; }
+    return Value.IsValid();
+#else
+    Error = TEXT("Official Toolset integration was not compiled for this host"); return false;
 #endif
 }
 

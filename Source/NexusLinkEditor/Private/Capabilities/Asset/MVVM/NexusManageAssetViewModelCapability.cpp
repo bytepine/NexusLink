@@ -6,6 +6,7 @@
 
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
+#include "Utils/NexusEditorToolsets.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusAssetEditorUtils.h"
@@ -310,6 +311,8 @@ static void HandleVM_RemoveBinding(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	}
 	State->WBP->Modify();
 	View->Modify();
+    auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("WidgetBlueprint"), FNexusNativeEditorTools::Reference(State->WBP->GetPathName())); Input->SetStringField(TEXT("BindingID"), View->GetBindingAt(Idx)->BindingId.ToString(EGuidFormats::DigitsWithHyphens));
+    if (FNexusNativeEditorTools::EditSync(TEXT("MVVMToolset"), TEXT("RemoveWidgetViewBinding"), Input, Ctx.Entry)) { if (!Ctx.Entry->HasField(TEXT("Error"))) { Ctx.Entry->SetNumberField(TEXT("BindingsCount"), View->GetNumBindings()); MarkVMDirty(Ctx); } return; }
 	View->RemoveBindingAt(Idx);
 	MarkVMDirty(Ctx);
 }

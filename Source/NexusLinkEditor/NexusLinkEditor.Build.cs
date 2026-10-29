@@ -58,7 +58,7 @@ public class NexusLinkEditor : ModuleRules
 			foreach (string File in System.IO.Directory.GetFiles(ProjectRoot, "*.uproject"))
 			{
 				string Descriptor = System.IO.File.ReadAllText(File);
-				foreach (string Name in new[] { "SlateInspectorToolset", "AutomationTestToolset", "ToolsetRegistry", "SemanticSearchToolset", "PCGToolset", "NiagaraToolsets", "AnimationAssistantToolset", "GameFeaturesToolset", "AllToolsets" })
+				foreach (string Name in new[] { "SlateInspectorToolset", "AutomationTestToolset", "ToolsetRegistry", "SemanticSearchToolset", "PCGToolset", "NiagaraToolsets", "AnimationAssistantToolset", "GameFeaturesToolset", "PhysicsToolsets", "GameplayTagsToolset", "DataRegistryToolset", "ConfigSettingsToolset", "PluginToolset", "MVVMToolset", "EditorToolset", "UMGToolSet", "AllToolsets" })
 				{
 					int NameIndex = Descriptor.IndexOf("\"" + Name + "\"", System.StringComparison.Ordinal);
                     if (NameIndex >= 0)

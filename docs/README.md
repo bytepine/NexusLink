@@ -39,5 +39,6 @@ Most guides are in Chinese. English readers can start with the [English quick st
 - [版本兼容宏参考](version-compat-reference.md)：跨 UE 版本的语义宏与使用规则。
 - [更新记录](../CHANGELOG.md)：版本历史与升级变化。
 
+- [版本后端复用](toolset-backends.md)：既有查询和编辑接口复用 5.8 官方 Toolset，保留旧版契约。
 - [动画与原生 Toolset 扩展](animation-niagara-gamefeatures-toolsets.md)：Sequencer / Control Rig、Niagara 深层写入、Game Features 与自定义 Toolset 发现。
 - [参数与项目数据](pcg-physics-tags-dataregistry.md)：PCG 调参、物理资产、Tag 配置与 DataRegistry。
