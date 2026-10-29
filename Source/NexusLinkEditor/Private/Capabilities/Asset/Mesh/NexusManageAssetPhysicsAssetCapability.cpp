@@ -278,7 +278,7 @@ static void HandlePA_EditBody(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
     USkeletalBodySetup* Body = FindBodyByBone(Asset, BoneName);
     if (Ctx.Action == TEXT("AddBody")) {
         if (Body) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Body already exists")); return; }
-        if (USkeletalMesh* Mesh = Asset->GetPreviewMesh()) if (Mesh->GetRefSkeleton().FindBoneIndex(FName(*BoneName)) == INDEX_NONE) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("BoneName is absent from the preview mesh skeleton")); return; }
+        if (USkeletalMesh* Mesh = Asset->GetPreviewMesh()) if (FNexusAssetUtils::GetSkeletalMeshRefSkeleton(*Mesh).FindBoneIndex(FName(*BoneName)) == INDEX_NONE) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("BoneName is absent from the preview mesh skeleton")); return; }
         auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("PhysicsAsset"), FNexusNativeEditorTools::Reference(Asset->GetPathName())); Input->SetStringField(TEXT("BoneName"), BoneName);
         if (FNexusNativeEditorTools::EditSync(TEXT("PhysicsToolsets"), TEXT("AddBody"), Input, Ctx.Entry)) { if (!Ctx.Entry->HasField(TEXT("Error"))) { Ctx.Entry->SetStringField(TEXT("BoneName"), BoneName); MarkPADirty(Ctx); } return; }
         Asset->Modify(); Body = GetOrCreateBody(Asset, BoneName);

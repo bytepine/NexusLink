@@ -7,6 +7,7 @@
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusEditorToolsets.h"
 #include "Utils/NexusStringMatchUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #include "DataRegistry.h"
 #include "DataRegistrySubsystem.h"
 #include "DataRegistrySource.h"
@@ -81,7 +82,14 @@ void FNexusGetProjectDataRegistryCapability::ExecuteSection(const FString& Secti
             FScriptArrayHelper Sources(Property, Property->ContainerPtrToValuePtr<void>(Registry));
             for (int32 SourceIndex = 0; SourceIndex < Sources.Num(); ++SourceIndex) {
                 UDataRegistrySource* Source = Cast<UDataRegistrySource>(Inner->GetObjectPropertyValue(Sources.GetRawPtr(SourceIndex))); if (!Source) continue;
-                auto Item = Add(Source->GetName()); Item->SetStringField(TEXT("ClassPath"), Source->GetClass()->GetPathName()); Item->SetStringField(TEXT("AssetPath"), Source->GetSourceAssetPath().ToString());
+                auto Item = Add(Source->GetName()); Item->SetStringField(TEXT("ClassPath"), Source->GetClass()->GetPathName());
+#if NX_UE_HAS_DATA_REGISTRY_SOURCE_ASSET_PATH
+                Item->SetStringField(TEXT("AssetPath"), Source->GetSourceAssetPath().ToString());
+#else
+                // 旧版表来源没有 getter；读取软引用而不加载表。
+                const FSoftObjectProperty* SourceTable = FindFProperty<FSoftObjectProperty>(Source->GetClass(), TEXT("SourceTable"));
+                Item->SetStringField(TEXT("AssetPath"), SourceTable ? SourceTable->GetPropertyValue_InContainer(Source).ToSoftObjectPath().ToString() : TEXT(""));
+#endif
                 Item->SetStringField(TEXT("Description"), Source->GetDebugString()); Item->SetBoolField(TEXT("bInitialized"), Source->IsInitialized()); Item->SetBoolField(TEXT("bTransient"), Source->IsTransientSource());
                 Item->SetStringField(TEXT("Availability"), StaticEnum<EDataRegistryAvailability>()->GetNameStringByValue(static_cast<int64>(Source->GetSourceAvailability())));
             }

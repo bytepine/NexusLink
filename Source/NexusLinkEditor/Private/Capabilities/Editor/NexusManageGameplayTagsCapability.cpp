@@ -7,6 +7,7 @@
 #include "NexusMcpTool.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusGameplayTagReferencerUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #include "GameplayTagsEditorModule.h"
 #include "GameplayTagsManager.h"
 #include "Misc/Paths.h"
@@ -44,7 +45,10 @@ static void NexusEditGameplayTag(const TSharedPtr<FJsonObject>& Operation, FNexu
         const FString Source = Args.Str(TEXT("TagSource"));
         if (Source.IsEmpty() || Source != FPaths::GetCleanFilename(Source) || !Source.EndsWith(TEXT(".ini")) || Source.Contains(TEXT("..")) || Source.Contains(TEXT(":"))) { Context.Entry->SetStringField(TEXT("Error"), TEXT("Add requires a simple TagSource .ini filename")); return; }
         if (FNexusNativeEditorTools::UseNative(TEXT("GameplayTagsToolset")) && !FNexusNativeEditorTools::CanCall(TEXT("GameplayTagsToolset"), TEXT("AddTag"))) { Context.Entry->SetStringField(TEXT("Error"), TEXT("Official AddTag is unavailable, disabled or filtered")); return; }
+#if NX_UE_HAS_GAMEPLAY_TAG_SOURCE_CREATION
         if (!Manager.FindTagSource(FName(*Source)) && !Editor.AddNewGameplayTagSource(Source)) { Context.Entry->SetStringField(TEXT("Error"), TEXT("Could not create TagSource")); return; }
+#endif
+        // UE 4.26 的 AddNewGameplayTagToINI 会同时创建缺失来源并落盘。
         auto Input = MakeShared<FJsonObject>(); Input->SetStringField(TEXT("TagName"), *Tag); Input->SetStringField(TEXT("Comment"), Args.Str(TEXT("Comment"))); Input->SetStringField(TEXT("TagSource"), Source);
         if (FNexusNativeEditorTools::EditSync(TEXT("GameplayTagsToolset"), TEXT("AddTag"), Input, Context.Entry)) { if (Context.Entry->HasField(TEXT("Error"))) return; bApplied = Manager.FindTagNode(FName(**Tag)).IsValid(); }
         else bApplied = Editor.AddNewGameplayTagToINI(*Tag, Args.Str(TEXT("Comment")), FName(*Source));

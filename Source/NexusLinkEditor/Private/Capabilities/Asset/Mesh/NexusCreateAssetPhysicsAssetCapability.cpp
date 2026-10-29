@@ -6,6 +6,7 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
+#include "Utils/NexusVersionCompat.h"
 #include "PhysicsAssetUtils.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Engine/SkeletalMesh.h"
@@ -25,7 +26,7 @@ FCapabilityResult FNexusCreateAssetPhysicsAssetCapability::Execute(const TShared
     return FNexusCapabilityResultBuilder::Build([&](auto& Entries, auto& Top, auto& Error) {
         const FNexusArgs Args(Arguments);
         USkeletalMesh* Mesh = FNexusAssetUtils::LoadAssetWithFallback<USkeletalMesh>(Args.Str(TEXT("SkeletalMeshPath")));
-        if (!Mesh || Mesh->GetRefSkeleton().GetNum() == 0) { Error = TEXT("SkeletalMeshPath must resolve to a mesh with bones"); return; }
+        if (!Mesh || FNexusAssetUtils::GetSkeletalMeshRefSkeleton(*Mesh).GetNum() == 0) { Error = TEXT("SkeletalMeshPath must resolve to a mesh with bones"); return; }
         const FString Destination = Args.Str(TEXT("AssetPath"));
         const FString DestinationObject = Destination + TEXT(".") + FPaths::GetBaseFilename(Destination);
         if (StaticFindObject(UObject::StaticClass(), nullptr, *DestinationObject) || FPackageName::DoesPackageExist(Destination)) { Error = TEXT("Destination asset/package already exists"); return; }
@@ -35,7 +36,11 @@ FCapabilityResult FNexusCreateAssetPhysicsAssetCapability::Execute(const TShared
         if (!Asset) { Error = TEXT("Could not create PhysicsAsset"); return; }
         if (Args.Bool(TEXT("bAssignToMesh"))) Mesh->Modify();
         FText Failure; FPhysAssetCreateParams Params;
-        if (!FPhysicsAssetUtils::CreateFromSkeletalMesh(Asset, Mesh, Params, Failure, Args.Bool(TEXT("bAssignToMesh")), false)) {
+        if (!FPhysicsAssetUtils::CreateFromSkeletalMesh(Asset, Mesh, Params, Failure, Args.Bool(TEXT("bAssignToMesh"))
+#if NX_UE_HAS_PHYSICS_ASSET_PROGRESS_ARG
+            , false
+#endif
+        )) {
             Error = Failure.ToString();
             // 生成失败的临时对象不占据用户请求的目标名，也不注册或写入资产。
             Asset->ClearFlags(RF_Public | RF_Standalone);

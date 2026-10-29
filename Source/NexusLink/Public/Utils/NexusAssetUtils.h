@@ -187,6 +187,9 @@ public:
 	/** SkeletalMesh 材质槽列表（跨版本：GetMaterials / Materials）。 */
 	static const TArray<struct FSkeletalMaterial>& GetSkeletalMeshMaterials(const USkeletalMesh& Mesh);
 
+	/** SkeletalMesh 参考骨架（跨版本：GetRefSkeleton / RefSkeleton）。 */
+	static const struct FReferenceSkeleton& GetSkeletalMeshRefSkeleton(const USkeletalMesh& Mesh);
+
 	/** SkeletalMesh PhysicsAsset（跨版本：GetPhysicsAsset / PhysicsAsset）。Mesh 为 nullptr 时返回 nullptr。 */
 	static UPhysicsAsset* GetSkeletalMeshPhysicsAsset(USkeletalMesh* Mesh);
 

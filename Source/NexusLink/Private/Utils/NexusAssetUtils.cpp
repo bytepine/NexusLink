@@ -244,6 +244,15 @@ UPhysicsAsset* FNexusAssetUtils::GetSkeletalMeshPhysicsAsset(USkeletalMesh* Mesh
 #endif
 }
 
+const FReferenceSkeleton& FNexusAssetUtils::GetSkeletalMeshRefSkeleton(const USkeletalMesh& Mesh)
+{
+#if NX_UE_HAS_SKELETAL_MESH_ACCESSORS
+	return Mesh.GetRefSkeleton();
+#else
+	return Mesh.RefSkeleton;
+#endif
+}
+
 UClass* FNexusAssetUtils::FindClassWithUPrefix(const FString& ClassName)
 {
 	if (ClassName.IsEmpty()) return nullptr;

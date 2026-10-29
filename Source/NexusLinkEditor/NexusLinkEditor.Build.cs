@@ -19,7 +19,7 @@ public class NexusLinkEditor : ModuleRules
 			"NexusLink",
 			"CoreUObject", "Engine", "Projects", "Json", "JsonUtilities",
 			"AssetRegistry", "UMG", "GameplayTags", "AIModule", "GameplayTasks",
-			"PhysicsUtilities", "ImageWrapper", "AnimGraphRuntime", "RenderCore", "PhysicsCore",
+			"ImageWrapper", "AnimGraphRuntime", "RenderCore", "PhysicsCore",
 			"LevelSequence", "MovieScene", "MovieSceneTracks", "Foliage", "MediaAssets",
 			"Slate", "SlateCore", "ApplicationCore", "InputCore",
 			"HTTP",
@@ -29,6 +29,10 @@ public class NexusLinkEditor : ModuleRules
 			"KismetCompiler", "Kismet", "BlueprintGraph", "AnimGraph", "UMGEditor", "AssetTools",
 			"MaterialEditor", "PropertyEditor", "ContentBrowser", "ContentBrowserData",
 		});
+
+		// UE4 的 PhysicsAssetUtils 由 UnrealEd 提供，UE5 起拆入 PhysicsUtilities。
+		if (NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 0))
+			PrivateDependencyModuleNames.Add("PhysicsUtilities");
 
 		// NexusLink（Runtime）里 NexusMcpAuth / NexusLanHost 仍是 Private 头（无 UnrealEd 依赖，
 		// 无需为区区两个设置面板要用的静态工具类整体提升为 Public API），设置定制面板需要直接

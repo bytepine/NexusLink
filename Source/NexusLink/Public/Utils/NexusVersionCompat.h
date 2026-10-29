@@ -35,6 +35,9 @@
 #define NX_UE_HAS_MARK_AS_GARBAGE      NX_UE_AT_LEAST(5, 0)  // MarkPendingKill() → MarkAsGarbage()
 #define NX_UE_HAS_FIND_FIRST_OBJECT    NX_UE_AT_LEAST(5, 1)  // ANY_PACKAGE → FindFirstObject
 #define NX_UE_HAS_SKELETAL_BODY_SETUP_HEADER  NX_UE_AT_LEAST(5, 5)  // PhysicsEngine/SkeletalBodySetup.h 单独头文件仅 5.5+
+#define NX_UE_HAS_PHYSICS_ASSET_PROGRESS_ARG NX_UE_AT_LEAST(5, 4)  // CreateFromSkeletalMesh 新增 bShowProgress 参数
+#define NX_UE_HAS_DATA_REGISTRY_SOURCE_ASSET_PATH NX_UE_AT_LEAST(5, 5)  // UDataRegistrySource 新增来源资产路径 getter
+#define NX_UE_HAS_GAMEPLAY_TAG_SOURCE_CREATION NX_UE_AT_LEAST(4, 27)  // GameplayTagsEditor 新增显式 INI 来源创建接口
 #define NX_UE_HAS_CPF_BLUEPRINT_READWRITE  0                      // CPF_BlueprintReadWrite 在 UE 5.0 移除，所有版本均走 else 分支
 #define NX_UE_HAS_CLASS_PATHS          NX_UE_AT_LEAST(5, 1)  // FARFilter::ClassNames → ClassPaths
 #define NX_UE_HAS_IMPORT_TEXT_DIRECT   NX_UE_AT_LEAST(5, 1)  // FProperty::ImportText → ImportText_Direct

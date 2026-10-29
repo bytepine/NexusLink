@@ -22,6 +22,12 @@
 
 - 既有 Capability 在 UE 5.8 启用对应官方插件时复用 Registry 同步后端：设置/插件列表、DataRegistry 条目与缓存、受保护的 Tag 写入、PhysicsAsset Body/质量、PCG 删节点/连边、Sequencer 显示帧率、Control Rig Pin、Niagara 发射器删除、MVVM 绑定删除、唯一具名 StaticMesh 材质槽与材质编译。保留同步返回、过滤分页、错误保护及低版本引擎后端；官方禁用/过滤不触发兼容重试。
 
+### Fixed
+
+- 修复 PhysicsAsset 的跨版本兼容：UE4 使用 UnrealEd 提供的生成接口，UE 4.26 通过已有参考骨架字段校验骨骼；UE 5.3 及以下使用旧生成参数签名。
+- 修复 UE 5.0–5.4 DataRegistry 来源路径查询的接口兼容，读取已有软引用，不额外加载数据表。
+- 修复 UE 4.26 新 GameplayTags INI 来源的创建兼容，使用引擎已有的标签写入接口创建并落盘。
+
 ## [2.3.0-beta.4] - 2026-10-28
 
 > ⚠️ Pre-release，非生产环境使用。
