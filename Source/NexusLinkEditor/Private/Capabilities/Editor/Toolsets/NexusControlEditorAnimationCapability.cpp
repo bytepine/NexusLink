@@ -3,6 +3,7 @@
 #if WITH_EDITOR
 #include "Utils/NexusEditorToolSchema.h"
 #include "Utils/NexusAnimationToolActions.h"
+#include "Utils/NexusAnimationAdvancedTools.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 
@@ -28,6 +29,7 @@ FCapabilityResult FNexusControlEditorAnimationCapability::Execute(const TSharedP
     const TSharedPtr<FJsonObject>* Parameters = nullptr;
     if (!Route || !Arguments->TryGetObjectField(TEXT("Parameters"), Parameters)) return FCapabilityResult::MakeArgInvalid(TEXT("Unknown action or missing Parameters object"));
     int32 Separator = INDEX_NONE; Route->FindLastChar(TEXT('.'), Separator);
+    FString ValidationError; if (!FNexusAnimationAdvancedTools::ValidateFileIO(Route->Mid(Separator+1),*Parameters,ValidationError)) return FCapabilityResult::MakeArgInvalid(ValidationError);
     auto Operation = FNexusEditorOperations::Create(TEXT("OfficialToolset"));
     FNexusNativeEditorTools::Call(Route->Left(Separator), Route->Mid(Separator + 1), *Parameters, Operation);
     return FNexusEditorToolSchema::Result(Operation);

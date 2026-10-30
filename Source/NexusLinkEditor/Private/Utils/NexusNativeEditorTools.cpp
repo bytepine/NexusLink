@@ -28,7 +28,7 @@ static uint32 GNexusNativeGeneration = 0;
 static TWeakObjectPtr<UToolCallAsyncResultString> GNexusNativePcgPending;
 static FString NexusNativeToolsetName(const FString& Domain)
 {
-	if (Domain.StartsWith(TEXT("animation_toolset.toolsets.")) || Domain.StartsWith(TEXT("editor_toolset.toolsets."))) return Domain;
+	if (Domain.StartsWith(TEXT("animation_toolset.toolsets.")) || Domain.StartsWith(TEXT("editor_toolset.toolsets.")) || Domain.StartsWith(TEXT("sequencer_animmixer_toolset."))) return Domain;
     if (Domain == TEXT("PhysicsToolsets")) return TEXT("PhysicsToolsets.PhysicsAssetToolset");
     if (Domain == TEXT("DataRegistryToolset")) return TEXT("DataRegistryToolset.DataRegistryTools");
 	if (Domain == TEXT("ToolsetRegistry")) return TEXT("ToolsetRegistry.AgentSkillToolset");
@@ -38,7 +38,7 @@ static FString NexusNativeToolsetName(const FString& Domain)
 
 static bool NexusNativeToolAllowed(const FString& Domain, const FString& Tool)
 {
-	if (Domain.StartsWith(TEXT("animation_toolset.toolsets.")))
+	if (Domain.StartsWith(TEXT("animation_toolset.toolsets.")) || Domain.StartsWith(TEXT("sequencer_animmixer_toolset.")))
     {
         const FString FullName = Domain + TEXT(".") + Tool;
         if (Domain == TEXT("animation_toolset.toolsets.sequencer.SequencerTools") && (Tool == TEXT("set_display_rate") || Tool == TEXT("set_playback_range"))) return true;
@@ -47,13 +47,14 @@ static bool NexusNativeToolAllowed(const FString& Domain, const FString& Tool)
         return false;
     }
 	static const TMap<FString, TSet<FString>> Allowed = {
+        {TEXT("UMGToolSet"), {TEXT("RenameWidget"), TEXT("ToggleWidgetAsVariable"), TEXT("BindToEventProperty"), TEXT("AddUIComponent"), TEXT("RemoveUIComponent"), TEXT("MoveUIComponent")}},
         {TEXT("editor_toolset.toolsets.static_mesh.StaticMeshTools"), {TEXT("set_material"), TEXT("generate_lods"), TEXT("remove_lods"), TEXT("generate_convex_collisions"), TEXT("set_nanite_enabled")}},
         {TEXT("editor_toolset.toolsets.skeletal_mesh.SkeletalMeshTools"), {TEXT("set_material")}},
-        {TEXT("editor_toolset.toolsets.material.MaterialTools"), {TEXT("recompile")}},
+        {TEXT("editor_toolset.toolsets.material.MaterialTools"), {TEXT("recompile"),TEXT("layout_expressions"),TEXT("delete_unused_expressions"),TEXT("rename_parameter_group"),TEXT("delete_parameter_group"),TEXT("list_parameter_groups")}},
         {TEXT("editor_toolset.toolsets.scene.SceneTools"), {TEXT("get_folders"), TEXT("get_actors_in_folder"), TEXT("set_actor_folder"), TEXT("rename_folder"), TEXT("delete_folder"), TEXT("trace_world"), TEXT("merge_actors"), TEXT("create_level_instance"), TEXT("edit_level_instance")}},
         {TEXT("editor_toolset.toolsets.blueprint.BlueprintTools"), {TEXT("get_connected_subgraph"), TEXT("find_node_types"), TEXT("get_node_type_pins"), TEXT("arrange_nodes"), TEXT("add_function_param"), TEXT("remove_function_param"), TEXT("write_graph_dsl"), TEXT("read_graph_dsl"), TEXT("get_graph_dsl_docs"), TEXT("set_variable_category"), TEXT("set_variable_instance_editable")}},
-        {TEXT("ConfigSettingsToolset"), {TEXT("ListContainers"), TEXT("ListCategories"), TEXT("ListSections")}},
-        {TEXT("PluginToolset"), {TEXT("ListEnabledPlugins"), TEXT("ListDiscoveredPlugins"), TEXT("GetPluginInfo"), TEXT("GetPluginDependencies"), TEXT("GetPluginDependents"), TEXT("GetPluginForAsset")}},
+        {TEXT("ConfigSettingsToolset"), {TEXT("ListContainers"), TEXT("ListCategories"), TEXT("ListSections"), TEXT("SetSectionProperties"), TEXT("SaveSection"), TEXT("ResetSectionToDefaults")}},
+        {TEXT("PluginToolset"), {TEXT("CreatePlugin"), TEXT("GetPluginTemplateDescriptions"), TEXT("SetPluginEnabled"), TEXT("GetPluginDescriptor"), TEXT("UpdatePluginDescriptor"), TEXT("AddPluginDependency"), TEXT("RemovePluginDependency"), TEXT("ListEnabledPlugins"), TEXT("ListDiscoveredPlugins"), TEXT("GetPluginInfo"), TEXT("GetPluginDependencies"), TEXT("GetPluginDependents"), TEXT("GetPluginForAsset")}},
         {TEXT("DataRegistryToolset"), {TEXT("ListRegistries"), TEXT("ListItems"), TEXT("GetItems")}},
         {TEXT("GameplayTagsToolset"), {TEXT("ListTags"), TEXT("GetTagInfo"), TEXT("AddTag"), TEXT("RemoveTag"), TEXT("RenameTag"), TEXT("FindReferencersByTag")}},
         {TEXT("PhysicsToolsets"), {TEXT("AddBody"), TEXT("RemoveBody"), TEXT("SetBodyMassScale"), TEXT("SetBodyPhysicsMode"), TEXT("SetSphere"), TEXT("SetCapsule"), TEXT("SetBox"), TEXT("RemoveShape")}},
@@ -75,7 +76,7 @@ bool FNexusNativeEditorTools::UseNative(const FString& Domain)
 	if (const bool* bChosen = GNexusNativeDomains.Find(Domain)) return *bChosen;
 	bool bUse = false;
 #if WITH_NEXUS_TOOLSETS
-	const FString PluginName = Domain.StartsWith(TEXT("animation_toolset.toolsets.")) ? TEXT("AnimationAssistantToolset") : Domain.StartsWith(TEXT("editor_toolset.toolsets.")) ? TEXT("EditorToolset") : Domain;
+	const FString PluginName = Domain.StartsWith(TEXT("sequencer_animmixer_toolset.")) ? TEXT("SequencerAnimMixerToolset") : Domain.StartsWith(TEXT("animation_toolset.toolsets.")) ? TEXT("AnimationAssistantToolset") : Domain.StartsWith(TEXT("editor_toolset.toolsets.")) ? TEXT("EditorToolset") : Domain;
     const auto Plugin = IPluginManager::Get().FindPlugin(PluginName);
 	bUse = Plugin.IsValid() && Plugin->IsEnabled();
 #if !WITH_NEXUS_SLATE_REFS
@@ -151,7 +152,7 @@ bool FNexusNativeEditorTools::InvokeSync(const FString& Domain, const FString& T
 {
     check(IsInGameThread()); Value.Reset();
 #if WITH_NEXUS_TOOLSETS
-    const bool bSynchronousDomain = Domain == TEXT("ConfigSettingsToolset") || Domain == TEXT("PluginToolset") || Domain == TEXT("DataRegistryToolset") || Domain == TEXT("GameplayTagsToolset") || Domain == TEXT("PhysicsToolsets") || Domain == TEXT("MVVMToolset") || Domain.StartsWith(TEXT("editor_toolset.toolsets."))
+    const bool bSynchronousDomain = Domain == TEXT("ConfigSettingsToolset") || Domain == TEXT("PluginToolset") || Domain == TEXT("DataRegistryToolset") || Domain == TEXT("GameplayTagsToolset") || Domain == TEXT("PhysicsToolsets") || Domain == TEXT("MVVMToolset") || Domain == TEXT("UMGToolSet") || Domain.StartsWith(TEXT("editor_toolset.toolsets."))
         || (Domain == TEXT("animation_toolset.toolsets.sequencer.SequencerTools") && Tool == TEXT("set_display_rate"))
         || (Domain == TEXT("animation_toolset.toolsets.controlrig.ControlRigTools") && Tool == TEXT("set_pin_value"))
         || (Domain == TEXT("PCGToolset") && (Tool == TEXT("RemoveNode") || Tool == TEXT("ConnectNodePins") || Tool == TEXT("DisconnectNodePins")))

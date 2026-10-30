@@ -4,6 +4,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpTool.h"
 #include "Utils/NexusArgs.h"
+#include "JsonObjectConverter.h"
 #include "Utils/NexusEditorToolsets.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusStringMatchUtils.h"
@@ -103,6 +104,7 @@ void FNexusGetProjectSettingsCapability::ExecuteSection(const FString& SectionNa
 					{
 						FString Value; FNexusPropertyUtils::ExportText(*It, Value, It->ContainerPtrToValuePtr<void>(Object));
 						Item->SetStringField(TEXT("Value"), Value.Left(8192));
+                        auto JsonValue=FJsonObjectConverter::UPropertyToJsonValue(*It,It->ContainerPtrToValuePtr<void>(Object),0,0); if (JsonValue) Item->SetField(TEXT("JsonValue"),JsonValue);
 						if (Value.Len() > 8192) Item->SetBoolField(TEXT("bTruncated"), true);
 					}
 				}

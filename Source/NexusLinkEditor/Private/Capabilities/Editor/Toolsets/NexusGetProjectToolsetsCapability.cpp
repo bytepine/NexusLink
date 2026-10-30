@@ -42,6 +42,7 @@ void FNexusGetProjectToolsetsCapability::ExecuteSection(const FString& SectionNa
     {
         for (bool bWrite : {false, true}) for (const auto& Pair : FNexusAnimationToolActions::Get(bWrite))
         {
+            if (Pair.Value.StartsWith(TEXT("NexusSequenceFolders."))) continue;
             auto Item = MakeShared<FJsonObject>(); int32 Separator = INDEX_NONE; Pair.Value.FindLastChar(TEXT('.'), Separator);
             Item->SetStringField(TEXT("Name"), Pair.Key); Item->SetStringField(TEXT("Capability"), bWrite ? TEXT("ControlEditorAnimation") : TEXT("GetEditorAnimation"));
             Item->SetStringField(TEXT("ToolsetName"), Pair.Value.Left(Separator)); Item->SetStringField(TEXT("ToolName"), Pair.Value);

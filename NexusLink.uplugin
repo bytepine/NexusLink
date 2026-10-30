@@ -30,6 +30,7 @@
 	"Plugins": [
 		{ "Name": "EditorScriptingUtilities", "Enabled": true, "Optional": true },
 		{ "Name": "StructUtils", "Enabled": true, "Optional": true },
+		{ "Name": "SequencerScripting", "Enabled": true, "Optional": true },
 		{
 			"Name": "WebSocketNetworking",
 			"Enabled": true

@@ -4,6 +4,11 @@
 #include "Utils/NexusWidgetLayoutUtils.h"
 #include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
+#include "Utils/NexusVersionCompat.h"
+#if NX_UE_HAS_UI_COMPONENTS
+#include "UIComponentWidgetBlueprintExtension.h"
+#include "Extensions/UIComponent.h"
+#endif
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusAssetEditorUtils.h"
@@ -73,7 +78,7 @@ TSharedPtr<FJsonObject> FNexusGetAssetUserWidgetCapability::BuildCapabilitySchem
 
 TArray<FString> FNexusGetAssetUserWidgetCapability::GetSectionNames() const
 {
-	return { TEXT("Widgets"), TEXT("Animations"), TEXT("graphOverview") };
+	return { TEXT("Widgets"), TEXT("Animations"), TEXT("graphOverview"), TEXT("UIComponents") };
 }
 
 TArray<FString> FNexusGetAssetUserWidgetCapability::GetDefaultSectionNames() const
@@ -137,6 +142,16 @@ void FNexusGetAssetUserWidgetCapability::ExecuteSection(const FString&          
 		if (Args->HasField(TEXT("Limit")))  Limit  = FMath::Clamp(static_cast<int32>(Args->GetNumberField(TEXT("Limit"))), 1, 500);
 	}
 
+    if (SectionName==TEXT("UIComponents")) {
+        TArray<TSharedPtr<FJsonValue>> Components;
+#if NX_UE_HAS_UI_COMPONENTS
+        auto* Extension=UWidgetBlueprintExtension::GetExtension<UUIComponentWidgetBlueprintExtension>(WBP);
+        if (Extension && WBP->WidgetTree) WBP->WidgetTree->ForEachWidget([&](UWidget* Widget) { if (!Widget || (!NameFilter.IsEmpty() && !Widget->GetName().Contains(NameFilter))) return; for (UUIComponent* Component : Extension->GetComponentsFor(Widget)) if (Component) { auto Item=MakeShared<FJsonObject>(); Item->SetStringField(TEXT("WidgetName"),Widget->GetName()); Item->SetStringField(TEXT("ClassPath"),Component->GetClass()->GetPathName()); Item->SetStringField(TEXT("ComponentPath"),Component->GetPathName()); Components.Add(MakeShared<FJsonValueObject>(Item)); } });
+#else
+        InOutDetail->SetStringField(TEXT("UIComponentSupport"),TEXT("Requires UE5.6+"));
+#endif
+        InOutDetail->SetNumberField(TEXT("UIComponentCount"),Components.Num()); TArray<TSharedPtr<FJsonValue>> Page; for (int32 ComponentIndex=Offset;ComponentIndex<FMath::Min(Components.Num(),Offset+Limit);++ComponentIndex) Page.Add(Components[ComponentIndex]); InOutDetail->SetArrayField(TEXT("UIComponents"),Page); return;
+    }
 	if (SectionName == TEXT("Widgets"))
 	{
 		if (!WBP->WidgetTree)

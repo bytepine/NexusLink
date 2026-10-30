@@ -1,6 +1,8 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Utils/NexusEditorContextUtils.h"
+#include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
 #include "Utils/NexusVersionCompat.h"
 
 #if WITH_EDITOR

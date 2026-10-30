@@ -9,6 +9,7 @@
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusWidgetLayoutUtils.h"
 #include "Utils/NexusWidgetTreeCompat.h"
+#include "Utils/NexusWidgetAdvancedOps.h"
 #include "Utils/NexusWidgetAnimationUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusAssetEditUtils.h"
@@ -41,13 +42,19 @@ void FNexusManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefi
 			{ TEXT("Add"), TEXT("Remove"), TEXT("SetSlot"), TEXT("SetProperty"),
 			  TEXT("AddAnimation"), TEXT("RemoveAnimation"), TEXT("AddTrack"), TEXT("AddKey"),
 			  TEXT("RemoveTrack"), TEXT("RemoveKey")
-			  , TEXT("Move"), TEXT("Wrap"), TEXT("ReplaceWithTemplate"), TEXT("ReplaceWithChild"), TEXT("SetNamedSlotContent")
+			  , TEXT("Move"), TEXT("Wrap"), TEXT("ReplaceWithTemplate"), TEXT("ReplaceWithChild"), TEXT("SetNamedSlotContent"), TEXT("Rename"), TEXT("SetVariable"), TEXT("BindEvent"), TEXT("AddUIComponent"), TEXT("RemoveUIComponent"), TEXT("MoveUIComponent")
 			  }))
 		.Prop(TEXT("WidgetClass"),  FNexusSchema::Str(TEXT("Widget class short name or generated class path (Add/Wrap/ReplaceWithTemplate/SetNamedSlotContent)")))
 		.Prop(TEXT("WidgetName"),   FNexusSchema::Str(TEXT("Widget name; required for remove/set_*/animation track")))
 		.Prop(TEXT("ParentWidget"), FNexusSchema::Str(TEXT("Parent panel (Add/Move), or named-slot host (SetNamedSlotContent; omit for inherited blueprint slots)")))
 		.Prop(TEXT("ChildIndex"), FNexusSchema::Int(TEXT("Destination child index for Move; -1 appends"), -1, -1))
 		.Prop(TEXT("SlotName"), FNexusSchema::Str(TEXT("Empty named slot receiving a new WidgetName/WidgetClass (SetNamedSlotContent)")))
+        .Prop(TEXT("NewWidgetName"),FNexusSchema::Str(TEXT("Unique widget member name for Rename")))
+        .Prop(TEXT("bIsVariable"),FNexusSchema::Bool(TEXT("Expose widget as Blueprint variable")))
+        .Prop(TEXT("EventName"),FNexusSchema::Str(TEXT("Assignable multicast event on widget")))
+        .Prop(TEXT("ComponentClass"),FNexusSchema::Str(TEXT("UIComponent class path (UE5.6+)")))
+        .Prop(TEXT("RelativeComponentClass"),FNexusSchema::Str(TEXT("Existing relative UIComponent class")))
+        .Prop(TEXT("bMoveAfter"),FNexusSchema::Bool(TEXT("Place component after relative component"),true,true))
 		.Prop(TEXT("AnimationName"), FNexusSchema::Str(TEXT("Animation name (add/RemoveAnimation/track/key)")))
 		.Prop(TEXT("TrackName"),    FNexusSchema::Str(TEXT("Float track display name (add/RemoveTrack/key)")))
 		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("Property path (SetProperty; e.g. RenderOpacity for AddTrack)")))
@@ -111,6 +118,13 @@ static void MarkWBPMutated(FNexusActionContext& Ctx)
 	{
 		S->bDidMutate = true;
 	}
+}
+
+static void HandleWBP_Advanced(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+    FString Error;
+    if (!FNexusWidgetAdvancedOps::Apply(WBPFrom(Ctx),Ctx.Action,Op,Ctx.Entry,Error)) { if (!Error.IsEmpty()) Ctx.Entry->SetStringField(TEXT("Error"),Error); }
+    else MarkWBPMutated(Ctx);
 }
 
 static void HandleWBP_Structure(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -599,6 +613,7 @@ void FNexusManageAssetUserWidgetCapability::FinalizeTarget(void* Target) const
 void FNexusManageAssetUserWidgetCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
 #if WITH_EDITOR
+    for (const FString& Action : {TEXT("Rename"),TEXT("SetVariable"),TEXT("BindEvent"),TEXT("AddUIComponent"),TEXT("RemoveUIComponent"),TEXT("MoveUIComponent")}) OutHandlers.Add(Action,&HandleWBP_Advanced);
 	OutHandlers.Add(TEXT("Remove"),           &HandleWBP_Remove);
 	OutHandlers.Add(TEXT("Add"),              &HandleWBP_Add);
 	OutHandlers.Add(TEXT("SetSlot"),         &HandleWBP_SetSlot);

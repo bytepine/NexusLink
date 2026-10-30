@@ -37,6 +37,7 @@ static TSharedRef<FJsonObject> NexusProjectPluginInfo(const TSharedRef<IPlugin>&
 	const FPluginDescriptor& Descriptor = Plugin->GetDescriptor();
 	Item->SetStringField(TEXT("Name"), Plugin->GetName());
 	Item->SetStringField(TEXT("FriendlyName"), Descriptor.FriendlyName);
+    Item->SetStringField(TEXT("Category"),Descriptor.Category);
 	Item->SetStringField(TEXT("VersionName"), Descriptor.VersionName);
 	Item->SetBoolField(TEXT("bEnabled"), Plugin->IsEnabled());
 	Item->SetBoolField(TEXT("bCanContainContent"), Plugin->CanContainContent());

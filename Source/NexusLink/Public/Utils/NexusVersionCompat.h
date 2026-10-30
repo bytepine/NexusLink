@@ -255,3 +255,10 @@
 
 // Graph parameter update callback added in UE 5.7.
 #define NX_UE_HAS_PCG_PARAMETER_UPDATE_HELPER NX_UE_AT_LEAST(5, 7)
+
+// UIComponent 资产扩展在 UE 5.6 引入。
+#define NX_UE_HAS_UI_COMPONENTS NX_UE_AT_LEAST(5, 6)
+
+// 旧版蓝图无变量重命名通知，MovieScene 根文件夹只能经数组编辑。
+#define NX_UE_HAS_BLUEPRINT_VARIABLE_RENAME_NOTICE NX_UE_AT_LEAST(5, 6)
+#define NX_UE_HAS_MOVIESCENE_FOLDER_MUTATORS NX_UE_AT_LEAST(5, 1)

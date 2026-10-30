@@ -616,3 +616,5 @@ UE 5.6+ 还会区分「已配置未启用」与「已启用未初始化」两种
 - **包级操作**：`create_asset` / `DeleteAsset` / `RenameAsset` / `SaveAsset` 不在事务范围内。脚本「建资产 + 改属性」后撤销，只回滚属性，资产还在。
 - **脚本自己开事务**：Python 自带 `unreal.ScopedEditorTransaction`。它在我们已开的事务里属于嵌套，而 UE 的 `UTransBuffer::Cancel` 不支持部分取消（日志原话是 *Canceling transaction partially is unsupported. Canceling %s entirely.*）——脚本里一句 `tx.cancel()` 会取消整笔，`calls[]` 批量下会连带取消同批其它 cap 的写入。**不要在 `ExecPython` 里 cancel 事务**。
 - **撑爆 undo 缓冲区**：上限来自 `GEditorPerProjectIni` 的 `[Undo] UndoBufferSize`，默认仅 16 MB，超出后会从头逐笔丢弃历史。循环 `Modify()` 上万个对象会把用户之前的手工操作历史一起挤掉；这类批量改写请拆批或改用声明式 cap。
+
+[后续编辑器领域](editor-remaining-toolsets.md)说明 UMG 变量/事件、材质整理、设置与插件持久化、Sequencer 条件/FBX 及 AnimMixer 的版本边界。

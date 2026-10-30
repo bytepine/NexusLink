@@ -57,7 +57,7 @@ META_TOOLS = frozenset({
 PLANNED_GAP_READ_CAPS = frozenset({
 })
 
-EXPECTED_CAP_COUNT = 245
+EXPECTED_CAP_COUNT = 247
 
 
 def _scan_capability_cpp_files() -> list[Path]:

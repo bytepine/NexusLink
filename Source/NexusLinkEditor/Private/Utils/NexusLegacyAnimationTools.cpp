@@ -1,5 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
 #include "Utils/NexusLegacyToolsets.h"
+#include "Utils/NexusAnimationAdvancedTools.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusEditorToolsets.h"
 #include "Utils/NexusVersionCompat.h"
@@ -47,6 +48,7 @@ static bool NexusAnimationReadChannel(TChannel* Channel, UMovieScene* Scene, con
 
 bool FNexusLegacyToolsets::Animation(const FString& Domain, const FString& Tool, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Result, FString& Error)
 {
+    if (FNexusAnimationAdvancedTools::Handles(Domain,Tool)) return FNexusAnimationAdvancedTools::Call(Domain,Tool,Args,Result,Error);
     const FNexusArgs A(Args);
     ULevelSequence* Sequence = Cast<ULevelSequence>(Resolve(Args, TEXT("sequence")));
     UMovieSceneTrack* Track = Cast<UMovieSceneTrack>(Resolve(Args, TEXT("track")));

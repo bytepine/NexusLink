@@ -7,7 +7,7 @@
 
 bool FNexusLegacyToolsets::Handles(const FString& Domain)
 {
-    return Domain == TEXT("PCGToolset") || Domain == TEXT("NiagaraToolsets") || Domain.StartsWith(TEXT("animation_toolset.toolsets."));
+    return Domain == TEXT("PCGToolset") || Domain == TEXT("NiagaraToolsets") || Domain.StartsWith(TEXT("animation_toolset.toolsets.")) || Domain.StartsWith(TEXT("sequencer_animmixer_toolset.")) || Domain==TEXT("NexusSequenceFolders");
 }
 
 UObject* FNexusLegacyToolsets::Resolve(const TSharedPtr<FJsonObject>& Args, const TCHAR* Key)

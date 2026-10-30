@@ -16,7 +16,7 @@
 - **编辑器自动化**：[Slate 界面查询与交互、Automation 测试、非阻塞 Live Coding](docs/editor-toolsets.md)。
 - **项目发现与 5.8 领域诊断**：[设置/插件、技能、语义搜索、PCG 执行采样、Niagara 诊断/修复、UMG 结构与标准截图图片](docs/editor-toolsets.md)。
 - **版本后端复用**：[既有接口的 5.8 官方 Toolset 后端与旧版兼容](docs/toolset-backends.md)。
-- **编辑器兼容扩展**：[参数/UMG、网格生成、场景整理与蓝图图编辑](docs/editor-compatibility.md)。
+- **编辑器兼容扩展**：[参数/UMG、网格生成、场景整理与蓝图图编辑](docs/editor-compatibility.md)；[UMG、材质、项目配置与 Sequencer 扩展](docs/editor-remaining-toolsets.md)。
 - **动画与原生 Toolset 扩展**：[Sequencer / Control Rig、Niagara 深层写入、Game Features 与自定义 Toolset 发现](docs/animation-niagara-gamefeatures-toolsets.md)。
 - **参数与项目数据编辑**：[PCG 参数闭环、PhysicsAsset 精细编辑、GameplayTags 配置与 DataRegistry 查询](docs/pcg-physics-tags-dataregistry.md)。
 - **MVVM 数据绑定**：[ViewModel / 控件 / WBP 属性路径、绑定方向和单输入转换函数](docs/mvvm-bindings.md)（UE 5.5+）。

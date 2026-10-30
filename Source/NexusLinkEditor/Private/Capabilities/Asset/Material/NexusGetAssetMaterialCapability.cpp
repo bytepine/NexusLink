@@ -155,7 +155,7 @@ TSharedPtr<FJsonObject> FNexusGetAssetMaterialCapability::BuildCapabilitySchema(
 
 TArray<FString> FNexusGetAssetMaterialCapability::GetSectionNames() const
 {
-	return { TEXT("overview"), TEXT("Params"), TEXT("graph") };
+	return { TEXT("overview"), TEXT("Params"), TEXT("graph"), TEXT("ParameterGroups") };
 }
 
 TArray<FString> FNexusGetAssetMaterialCapability::GetDefaultSectionNames() const
@@ -215,6 +215,14 @@ void FNexusGetAssetMaterialCapability::ExecuteSection(const FString&            
 
 	FNexusMaterialQueryParams Q = ParseMaterialQueryParams(Args);
 
+    if (SectionName==TEXT("ParameterGroups")) {
+        UObject* Target=static_cast<UObject*>(TargetOpaque); TArray<UMaterialExpression*> Expressions;
+        if (auto* Material=Cast<UMaterial>(Target)) for (UMaterialExpression* Expression : FNexusMaterialUtils::GetExpressions(Material)) Expressions.Add(Expression);
+        else if (auto* Function=Cast<UMaterialFunction>(Target)) for (UMaterialExpression* Expression : FNexusMaterialUtils::GetExpressions(Function)) Expressions.Add(Expression);
+        else { OutError=TEXT("ParameterGroups requires Material or MaterialFunction"); return; }
+        TMap<FString,int32> Counts; for (auto* Expression : Expressions) if (Expression) if (auto* Group=FindFProperty<FNameProperty>(Expression->GetClass(),TEXT("Group"))) ++Counts.FindOrAdd(Group->GetPropertyValue_InContainer(Expression).ToString());
+        TArray<TSharedPtr<FJsonValue>> Items; for (const auto& Pair : Counts) { auto Item=MakeShared<FJsonObject>(); Item->SetStringField(TEXT("Name"),Pair.Key); Item->SetNumberField(TEXT("ParameterCount"),Pair.Value); Items.Add(MakeShared<FJsonValueObject>(Item)); } InOutDetail->SetArrayField(TEXT("ParameterGroups"),Items); return;
+    }
 	if (SectionName == TEXT("overview"))
 	{
 		if (MF)

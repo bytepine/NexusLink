@@ -23,6 +23,7 @@
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
+#include "Materials/MaterialExpressionCustomOutput.h"
 #include "MaterialEditingLibrary.h"
 #include "NexusMcpTool.h"
 
@@ -140,8 +141,44 @@ static void HandleMaterialDisconnectAll(const TSharedPtr<FJsonObject>& Op, FNexu
 	else { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DisconnectAll requires a UMaterial or UMaterialFunction")); }
 }
 
+static void HandleMaterialOrganize(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Context)
+{
+    UObject* Target=MaterialTargetFromContext(Context); UMaterial* Material=Cast<UMaterial>(Target); UMaterialFunction* Function=Cast<UMaterialFunction>(Target); const FNexusArgs Arguments(Op);
+    if (!Material && !Function) { Context.Entry->SetStringField(TEXT("Error"),TEXT("Graph organization requires Material or MaterialFunction")); return; }
+    auto Input=MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("material_or_function"),FNexusNativeEditorTools::Reference(Target->GetPathName())); FString Tool;
+    TArray<UMaterialExpression*> Expressions; if (Material) for (UMaterialExpression* Expression : FNexusMaterialUtils::GetExpressions(Material)) Expressions.Add(Expression); else for (UMaterialExpression* Expression : FNexusMaterialUtils::GetExpressions(Function)) Expressions.Add(Expression);
+    const bool bGroup=Context.Action==TEXT("RenameParameterGroup") || Context.Action==TEXT("UngroupParameters"); TArray<UMaterialExpression*> GroupMembers;
+    if (bGroup) {
+        const FName Group(*Arguments.Str(TEXT("GroupName"))),NewGroup(*Arguments.Str(TEXT("NewGroupName")));
+        if (!Op->HasTypedField<EJson::String>(TEXT("GroupName")) || (Context.Action==TEXT("RenameParameterGroup") && NewGroup.IsNone())) { Context.Entry->SetStringField(TEXT("Error"),TEXT("Explicit GroupName and a nonempty NewGroupName are required for rename")); return; }
+        for (UMaterialExpression* Expression : Expressions) if (Expression) if (auto* Property=FindFProperty<FNameProperty>(Expression->GetClass(),TEXT("Group"))) if (Property->GetPropertyValue_InContainer(Expression)==Group) GroupMembers.Add(Expression);
+        if (!GroupMembers.Num()) { Context.Entry->SetStringField(TEXT("Error"),TEXT("Parameter group not found")); return; }
+        if (Context.Action==TEXT("RenameParameterGroup")) { Tool=TEXT("rename_parameter_group"); Input->SetStringField(TEXT("old_name"),Group.ToString()); Input->SetStringField(TEXT("new_name"),NewGroup.ToString()); }
+        else { Tool=TEXT("delete_parameter_group"); Input->SetStringField(TEXT("group_name"),Group.ToString()); }
+    } else if (Context.Action==TEXT("Layout")) Tool=TEXT("layout_expressions");
+    else { Tool=TEXT("delete_unused_expressions"); Input->RemoveField(TEXT("material_or_function")); Input->SetObjectField(TEXT("material"),FNexusNativeEditorTools::Reference(Target->GetPathName())); }
+    // 原生清理仅支持 Material；函数图仍使用相同的兼容图遍历。
+    if ((Material || Context.Action!=TEXT("DeleteUnused")) && FNexusNativeEditorTools::EditSync(TEXT("editor_toolset.toolsets.material.MaterialTools"),Tool,Input,Context.Entry)) return;
+    Target->Modify();
+    if (Context.Action==TEXT("Layout")) { if (Material) UMaterialEditingLibrary::LayoutMaterialExpressions(Material); else UMaterialEditingLibrary::LayoutMaterialFunctionExpressions(Function); }
+    else if (bGroup) {
+        const FName Group=Context.Action==TEXT("UngroupParameters")?NAME_None:FName(*Arguments.Str(TEXT("NewGroupName")));
+        for (auto* Expression : GroupMembers) { Expression->Modify(); FindFProperty<FNameProperty>(Expression->GetClass(),TEXT("Group"))->SetPropertyValue_InContainer(Expression,Group); }
+        Context.Entry->SetNumberField(TEXT("ChangedCount"),GroupMembers.Num());
+    } else {
+        TArray<UMaterialExpression*> Pending; TSet<UMaterialExpression*> Reachable;
+        if (Material) for (int32 Property=0;Property<MP_MAX;++Property) { auto* InputPin=Material->GetExpressionInputForProperty(static_cast<EMaterialProperty>(Property)); if (InputPin && InputPin->Expression) Pending.Add(InputPin->Expression); }
+        for (auto* Expression : Expressions) if (Expression && (Expression->IsA(UMaterialExpressionFunctionOutput::StaticClass()) || Expression->IsA(UMaterialExpressionCustomOutput::StaticClass()))) Pending.Add(Expression);
+        while (Pending.Num()) { UMaterialExpression* Expression=Pending.Pop(); if (!Expression || Reachable.Contains(Expression)) continue; Reachable.Add(Expression); for (int32 PinIndex=0;;++PinIndex) { auto* Pin=Expression->GetInput(PinIndex); if (!Pin) break; if (Pin->Expression) Pending.Add(Pin->Expression); } }
+        int32 Removed=0; for (auto* Expression : Expressions) if (Expression && !Reachable.Contains(Expression)) { if (Material) UMaterialEditingLibrary::DeleteMaterialExpression(Material,Expression); else UMaterialEditingLibrary::DeleteMaterialExpressionInFunction(Function,Expression); ++Removed; }
+        Context.Entry->SetNumberField(TEXT("RemovedCount"),Removed);
+    }
+    Target->MarkPackageDirty(); Context.Entry->SetStringField(TEXT("Backend"),TEXT("EngineCompatibility"));
+}
+
 void FNexusManageAssetMaterialCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
+    for (const FString& Action : {TEXT("Layout"),TEXT("DeleteUnused"),TEXT("RenameParameterGroup"),TEXT("UngroupParameters")}) OutHandlers.Add(Action,&HandleMaterialOrganize);
 	OutHandlers.Add(TEXT("Recompile"),       &HandleMaterialRecompile);
 	OutHandlers.Add(TEXT("SetParam"),       &HandleMaterialSetParam);
 	OutHandlers.Add(TEXT("AddNode"),        &HandleMaterialAddNode);
@@ -179,7 +216,9 @@ void FNexusManageAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.InputSchema = [this]() -> TSharedPtr<FJsonObject>
 	{
 		TSharedPtr<FJsonObject> ItemSchema = FNexusSchema::Object()
-		.Prop(TEXT("Action"),           FNexusSchema::Enum(TEXT("Edit operation"), { TEXT("SetParam"), TEXT("AddNode"), TEXT("RemoveNode"), TEXT("SetNode"), TEXT("Recompile"), TEXT("Connect"), TEXT("Disconnect"), TEXT("DisconnectAll") }))
+		.Prop(TEXT("Action"),           FNexusSchema::Enum(TEXT("Edit operation"), { TEXT("SetParam"), TEXT("AddNode"), TEXT("RemoveNode"), TEXT("SetNode"), TEXT("Recompile"), TEXT("Connect"), TEXT("Disconnect"), TEXT("DisconnectAll"), TEXT("Layout"), TEXT("DeleteUnused"), TEXT("RenameParameterGroup"), TEXT("UngroupParameters") }))
+		.Prop(TEXT("GroupName"),FNexusSchema::Str(TEXT("Existing parameter group; None denotes ungrouped parameters")))
+        .Prop(TEXT("NewGroupName"),FNexusSchema::Str(TEXT("Destination nonempty parameter group")))
 		.Prop(TEXT("ParamName"),        FNexusSchema::Str(TEXT("Parameter name (SetParam)")))
 		.Prop(TEXT("ParamType"),        FNexusSchema::Enum(TEXT("Parameter type"), { TEXT("Scalar"), TEXT("Vector"), TEXT("Texture") }))
 		.Prop(TEXT("Value"),            FNexusSchema::Str(TEXT("float / R,G,B,A / texture path")))
