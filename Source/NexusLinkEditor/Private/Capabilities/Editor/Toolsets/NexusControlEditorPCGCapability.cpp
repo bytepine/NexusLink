@@ -1,6 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
 #include "Capabilities/Editor/Toolsets/NexusControlEditorPCGCapability.h"
-#if WITH_NEXUS_TOOLSETS
+#if WITH_PCG
 #include "Utils/NexusEditorToolSchema.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusJsonUtils.h"
@@ -16,7 +16,7 @@
 void FNexusControlEditorPCGCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
     Out.Name = TEXT("ControlEditorPCG");
-    Out.Description = TEXT("Spawn/execute PCG instances or edit node settings, graph parameters, instance overrides and subgraphs through the official UE 5.8 Toolset. Writes are not transactionally rolled back; save graph assets explicitly.");
+    Out.Description = TEXT("Spawn/execute PCG instances or edit node settings, graph parameters, instance overrides and subgraphs through the official UE 5.8 Toolset or supported engine compatibility actions. Writes are not transactionally rolled back; save graph assets explicitly.");
     auto Vector = FNexusSchema::Object().Required(TEXT("X"), FNexusSchema::Num(TEXT("X"))).Required(TEXT("Y"), FNexusSchema::Num(TEXT("Y"))).Required(TEXT("Z"), FNexusSchema::Num(TEXT("Z"))).Build();
     auto Parameter = FNexusSchema::Object()
         .Required(TEXT("Name"), FNexusSchema::Str(TEXT("Unique graph parameter name")))
@@ -38,7 +38,7 @@ void FNexusControlEditorPCGCapability::BuildDefinition(FNexusCapabilityDefinitio
         .Prop(TEXT("NodeName"), FNexusSchema::Str(TEXT("Unique new subgraph node object name")))
         .Prop(TEXT("NodeTitle"), FNexusSchema::Str(TEXT("Optional node display title")))
         .Build();
-    FNexusEditorToolSchema::ConfigureNative(Out, true, TEXT("PCGToolset"));
+    FNexusEditorToolSchema::ConfigureCompatible(Out, true, TEXT("PCGToolset"));
     Out.SearchAssetTypes = {TEXT("PCGGraph")};
     Out.RelatedCapabilities = {TEXT("GetEditorPCG"), TEXT("GetEditorOperation"), TEXT("SaveAsset")};
 }

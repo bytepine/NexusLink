@@ -2,6 +2,7 @@
 #include "Utils/NexusEditorToolsets.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusAnimationToolActions.h"
+#include "Utils/NexusLegacyToolsets.h"
 #include "Interfaces/IPluginManager.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -46,9 +47,11 @@ static bool NexusNativeToolAllowed(const FString& Domain, const FString& Tool)
         return false;
     }
 	static const TMap<FString, TSet<FString>> Allowed = {
-        {TEXT("editor_toolset.toolsets.static_mesh.StaticMeshTools"), {TEXT("set_material")}},
+        {TEXT("editor_toolset.toolsets.static_mesh.StaticMeshTools"), {TEXT("set_material"), TEXT("generate_lods"), TEXT("remove_lods"), TEXT("generate_convex_collisions"), TEXT("set_nanite_enabled")}},
         {TEXT("editor_toolset.toolsets.skeletal_mesh.SkeletalMeshTools"), {TEXT("set_material")}},
         {TEXT("editor_toolset.toolsets.material.MaterialTools"), {TEXT("recompile")}},
+        {TEXT("editor_toolset.toolsets.scene.SceneTools"), {TEXT("get_folders"), TEXT("get_actors_in_folder"), TEXT("set_actor_folder"), TEXT("rename_folder"), TEXT("delete_folder"), TEXT("trace_world"), TEXT("merge_actors"), TEXT("create_level_instance"), TEXT("edit_level_instance")}},
+        {TEXT("editor_toolset.toolsets.blueprint.BlueprintTools"), {TEXT("get_connected_subgraph"), TEXT("find_node_types"), TEXT("get_node_type_pins"), TEXT("arrange_nodes"), TEXT("add_function_param"), TEXT("remove_function_param"), TEXT("write_graph_dsl"), TEXT("read_graph_dsl"), TEXT("get_graph_dsl_docs"), TEXT("set_variable_category"), TEXT("set_variable_instance_editable")}},
         {TEXT("ConfigSettingsToolset"), {TEXT("ListContainers"), TEXT("ListCategories"), TEXT("ListSections")}},
         {TEXT("PluginToolset"), {TEXT("ListEnabledPlugins"), TEXT("ListDiscoveredPlugins"), TEXT("GetPluginInfo"), TEXT("GetPluginDependencies"), TEXT("GetPluginDependents"), TEXT("GetPluginForAsset")}},
         {TEXT("DataRegistryToolset"), {TEXT("ListRegistries"), TEXT("ListItems"), TEXT("GetItems")}},
@@ -176,6 +179,7 @@ void FNexusNativeEditorTools::Call(const FString& Domain, const FString& Tool,
 	const TSharedPtr<FJsonObject>& Args, const TSharedPtr<FNexusEditorOperation>& Operation)
 {
     if (!Operation.IsValid()) return;
+    if (!UseNative(Domain) && FNexusLegacyToolsets::Handles(Domain)) { FNexusLegacyToolsets::Call(Domain, Tool, Args, Operation); return; }
 #if WITH_NEXUS_TOOLSETS
 	if (!NexusNativeToolAllowed(Domain, Tool))
 	{

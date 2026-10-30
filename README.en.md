@@ -16,6 +16,7 @@ Start with [NexusDesktop](https://github.com/bytepine/NexusDesktop), or use the 
 - **Editor automation**: [Slate inspection and interaction, Automation tests, and nonblocking Live Coding](docs/editor-toolsets.md).
 - **Project discovery and UE 5.8 domains**: [settings/plugins, skills, semantic search, PCG execution and sampling, Niagara diagnostics/fixes, UMG structure, and inline screenshots](docs/editor-toolsets.md).
 - **Version-aware backends**: [official UE 5.8 Toolsets behind existing interfaces and older-engine compatibility](docs/toolset-backends.md).
+- **Editor compatibility**: [advanced parameters/UMG, mesh generation, scene organization, and Blueprint graph editing](docs/editor-compatibility.md).
 - **Animation and native Toolsets**: [Sequencer / Control Rig, deep Niagara editing, Game Features, and custom Toolset discovery](docs/animation-niagara-gamefeatures-toolsets.md).
 - **Parameters and project data**: [PCG parameter editing, detailed PhysicsAsset edits, GameplayTags configuration, and DataRegistry queries](docs/pcg-physics-tags-dataregistry.md).
 - **MVVM data binding**: [ViewModel / widget / WBP property paths, binding directions, and unary conversions](docs/mvvm-bindings.md) (UE 5.5+).

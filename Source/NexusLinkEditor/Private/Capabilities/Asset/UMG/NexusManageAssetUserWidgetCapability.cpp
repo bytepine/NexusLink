@@ -1,4 +1,4 @@
-﻿// Copyright byteyang. All Rights Reserved.
+// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/UMG/NexusManageAssetUserWidgetCapability.h"
 #include "NexusCapabilityRegistry.h"
@@ -8,6 +8,7 @@
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusWidgetLayoutUtils.h"
+#include "Utils/NexusWidgetTreeCompat.h"
 #include "Utils/NexusWidgetAnimationUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusAssetEditUtils.h"
@@ -40,17 +41,13 @@ void FNexusManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefi
 			{ TEXT("Add"), TEXT("Remove"), TEXT("SetSlot"), TEXT("SetProperty"),
 			  TEXT("AddAnimation"), TEXT("RemoveAnimation"), TEXT("AddTrack"), TEXT("AddKey"),
 			  TEXT("RemoveTrack"), TEXT("RemoveKey")
-#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
 			  , TEXT("Move"), TEXT("Wrap"), TEXT("ReplaceWithTemplate"), TEXT("ReplaceWithChild"), TEXT("SetNamedSlotContent")
-#endif
 			  }))
 		.Prop(TEXT("WidgetClass"),  FNexusSchema::Str(TEXT("Widget class short name or generated class path (Add/Wrap/ReplaceWithTemplate/SetNamedSlotContent)")))
 		.Prop(TEXT("WidgetName"),   FNexusSchema::Str(TEXT("Widget name; required for remove/set_*/animation track")))
 		.Prop(TEXT("ParentWidget"), FNexusSchema::Str(TEXT("Parent panel (Add/Move), or named-slot host (SetNamedSlotContent; omit for inherited blueprint slots)")))
-#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
 		.Prop(TEXT("ChildIndex"), FNexusSchema::Int(TEXT("Destination child index for Move; -1 appends"), -1, -1))
 		.Prop(TEXT("SlotName"), FNexusSchema::Str(TEXT("Empty named slot receiving a new WidgetName/WidgetClass (SetNamedSlotContent)")))
-#endif
 		.Prop(TEXT("AnimationName"), FNexusSchema::Str(TEXT("Animation name (add/RemoveAnimation/track/key)")))
 		.Prop(TEXT("TrackName"),    FNexusSchema::Str(TEXT("Float track display name (add/RemoveTrack/key)")))
 		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("Property path (SetProperty; e.g. RenderOpacity for AddTrack)")))
@@ -116,9 +113,13 @@ static void MarkWBPMutated(FNexusActionContext& Ctx)
 	}
 }
 
-#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
 static void HandleWBP_Structure(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
+#if !NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
+    FString Error;
+    if (!FNexusWidgetTreeCompat::Apply(WBPFrom(Ctx), Op, Ctx.Entry, Error)) Ctx.Entry->SetStringField(TEXT("Error"), Error);
+    else MarkWBPMutated(Ctx);
+#else
 	UWidgetBlueprint* BP = WBPFrom(Ctx);
 	const FNexusArgs A(Op);
 	const FString Action = A.Str(TEXT("Action"));
@@ -186,8 +187,8 @@ static void HandleWBP_Structure(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 	Ctx.Entry->SetStringField(TEXT("WidgetName"), Name);
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 	MarkWBPMutated(Ctx);
-}
 #endif
+}
 
 static void HandleWBP_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
@@ -608,9 +609,7 @@ void FNexusManageAssetUserWidgetCapability::RegisterActions(TMap<FString, FNexus
 	OutHandlers.Add(TEXT("AddKey"),          &HandleWBP_AddKey);
 	OutHandlers.Add(TEXT("RemoveTrack"),     &HandleWBP_RemoveTrack);
 	OutHandlers.Add(TEXT("RemoveKey"),       &HandleWBP_RemoveKey);
-#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
 	for (const FString& Action : {TEXT("Move"), TEXT("Wrap"), TEXT("ReplaceWithTemplate"), TEXT("ReplaceWithChild"), TEXT("SetNamedSlotContent")}) OutHandlers.Add(Action, &HandleWBP_Structure);
-#endif
 #else
 	(void)OutHandlers;
 #endif

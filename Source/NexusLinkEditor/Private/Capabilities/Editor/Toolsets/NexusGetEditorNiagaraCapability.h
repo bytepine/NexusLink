@@ -1,6 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
 #pragma once
-#if WITH_NEXUS_TOOLSETS
+#if WITH_NIAGARA
 #include "NexusCapability.h"
 class FNexusGetEditorNiagaraCapability : public FNexusCapability
 {

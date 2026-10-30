@@ -28,6 +28,8 @@ Capability 名称、输入参数与返回结构保持原有契约。UE 5.8+ 宿�
 
 ## 保留的兼容语义
 
+参数/UMG、网格生成、场景整理与蓝图图编辑的新增路由和低版本动作范围见[编辑器兼容扩展](editor-compatibility.md)。UMG 的 FWidgetBlueprintOperationUtils 仅用于具备该 API 的 UE 5.8；更低版本通过 WidgetTree 实现受限结构编辑。
+
 PhysicsAsset 的形状按类型和索引定位，官方形状编辑使用名称并可能改变数组顺序；创建资产的指定目标路径也不同。因此这些操作继续使用既有实现。MVVM 的自定义 ViewModel 名称、创建策略、绑定方向及双向转换保持现有实现。UMG 结构操作已经复用与官方 Toolset 相同的 `FWidgetBlueprintOperationUtils`。
 
 Game Features 的完成回调、Live Coding 的非阻塞编译、运行时 Game/DS 与 UnLua 等能力保持各自后端。写入后的保存、事务及批次边界仍遵循原 Capability，原生 Toolset 的存在不额外提供回滚保证。

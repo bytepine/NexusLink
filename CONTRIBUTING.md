@@ -12,6 +12,8 @@
 
 ## 新增 Tool / Capability
 
+扩展编辑器操作时，先检查 [原生与兼容接口范围](docs/editor-compatibility.md)。可等价的 UE 5.8 调用加入固定 Toolset 白名单，旧版通过引擎公开接口实现；原生执行失败不得重试兼容写入。兼容路径必须有读写回环和失败输入验证，声明版本下限及受限动作；结构化蓝图计划只连接本次创建的节点，以便失败时清理。
+
 **路径 A — 纯 Tool**（轻量、无 section，直接重写 `ExecuteImpl`）
 
 1. 创建 `Private/Tools/<模块>/NexusMcpToolXxx.h/.cpp`，继承 `FNexusMcpTool`

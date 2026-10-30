@@ -45,6 +45,7 @@ struct FNexusEditorToolSchema final
             .Prop(TEXT("bConditionMet"), FNexusSchema::Bool(TEXT("WaitFor condition matched")))
             .Prop(TEXT("bTimedOut"), FNexusSchema::Bool(TEXT("WaitFor reached its deadline")))
             .Prop(TEXT("OfficialResult"), FNexusSchema::AnyObject(TEXT("Official domain result; arrays use Items, scalar values use bApplied or Snapshot. Inspect business outcome separately from operation State.")))
+            .Prop(TEXT("CompatibilityResult"), FNexusSchema::AnyObject(TEXT("Engine compatibility data; unsupported actions fail explicitly.")))
             .Prop(TEXT("FilePath"), FNexusSchema::Str(TEXT("Saved screenshot path")))
             .Prop(TEXT("Format"), FNexusSchema::Str(TEXT("Screenshot format")))
             .Prop(TEXT("Width"), FNexusSchema::Int(TEXT("Screenshot width")))
@@ -95,6 +96,16 @@ struct FNexusEditorToolSchema final
 			return Info;
 		};
 	}
+    static void ConfigureCompatible(FNexusCapabilityDefinition& Out, bool bWrite, const FString& Domain)
+    {
+        Configure(Out, bWrite);
+        Out.ExecutionInfo = [Domain]() {
+            auto Info = MakeShared<FJsonObject>();
+            Info->SetStringField(TEXT("Backend"), FNexusNativeEditorTools::UseNative(Domain) ? TEXT("OfficialToolset") : TEXT("EngineCompatibility"));
+            Info->SetStringField(TEXT("Reason"), TEXT("Fixed session backend; compatibility actions depend on engine APIs. Native failures never retry a compatibility write."));
+            return Info;
+        };
+    }
 	static FCapabilityResult Result(const TSharedPtr<FNexusEditorOperation>& Operation)
 	{
 		if (!Operation.IsValid()) return FCapabilityResult::MakeFatal(TEXT("Unknown operation, foreign owner, or operation capacity reached"));

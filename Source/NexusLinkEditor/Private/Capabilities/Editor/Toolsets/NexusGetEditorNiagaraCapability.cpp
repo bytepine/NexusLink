@@ -1,6 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
 #include "Capabilities/Editor/Toolsets/NexusGetEditorNiagaraCapability.h"
-#if WITH_NEXUS_TOOLSETS
+#if WITH_NIAGARA
 #include "Utils/NexusEditorToolSchema.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
@@ -18,7 +18,7 @@ void FNexusGetEditorNiagaraCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Prop(TEXT("RendererIndex"), FNexusSchema::Int(TEXT("Emitter renderer index for RendererData"), -1, -1))
 		.Prop(TEXT("InputNameStack"), FNexusSchema::StrArr(TEXT("1-32 input names, outermost to innermost, for InputSchema/InputData/DynamicInputChain")))
 		.Prop(TEXT("ClassPath"), FNexusSchema::Str(TEXT("Renderer class for RendererSchema, data interface class for DataInterfaceSchema, or Niagara type struct/class/enum for AvailableDynamicInputs"))).Build();
-	FNexusEditorToolSchema::ConfigureNative(Out, false, TEXT("NiagaraToolsets"));
+	FNexusEditorToolSchema::ConfigureCompatible(Out, false, TEXT("NiagaraToolsets"));
 	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
 	Out.ExtraSearchKeywords = {TEXT("niagara"), TEXT("vfx"), TEXT("stack"), TEXT("renderer"), TEXT("dynamic input")};
 	Out.RelatedCapabilities = {TEXT("GetAssetNiagaraSystem"), TEXT("ExecNiagaraStackFix"), TEXT("ControlEditorNiagara"), TEXT("GetProjectToolsets"), TEXT("GetEditorOperation")};

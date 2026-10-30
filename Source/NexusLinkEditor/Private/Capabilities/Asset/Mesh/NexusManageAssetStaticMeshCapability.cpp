@@ -15,6 +15,12 @@
 #include "PhysicsEngine/BoxElem.h"
 #include "PhysicsEngine/SphereElem.h"
 #include "NexusMcpTool.h"
+#include "Editor.h"
+#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
+#include "StaticMeshEditorSubsystem.h"
+#else
+#include "EditorStaticMeshLibrary.h"
+#endif
 
 static bool ParseStaticMeshVec3(const TSharedPtr<FJsonObject>& Op, const TCHAR* XKey, const TCHAR* YKey, const TCHAR* ZKey,
 		FVector& Out, FVector Default)
@@ -99,7 +105,7 @@ void FNexusManageAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefi
 			TEXT("SetCollisionTraceFlag"), TEXT("AddBoxCollision"), TEXT("AddSphereCollision"),
 			TEXT("ClearSimpleCollision"),
 			TEXT("AddSocket"), TEXT("RemoveSocket"), TEXT("SetSocket"),
-			TEXT("SetLODScreenSize")
+			TEXT("SetLODScreenSize"), TEXT("GenerateLODs"), TEXT("RemoveLODs"), TEXT("GenerateConvexCollision"), TEXT("SetNaniteEnabled")
 		}))
 		.Prop(TEXT("SlotIndex"),      FNexusSchema::Int(TEXT("Material slot index (SetMaterialSlot)")))
 		.Prop(TEXT("MaterialPath"),   FNexusSchema::Str(TEXT("Material asset path (SetMaterialSlot)")))
@@ -126,6 +132,11 @@ void FNexusManageAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefi
 		.Prop(TEXT("ScaleY"), FNexusSchema::Num(TEXT("Socket rotation Scale Y")))
 		.Prop(TEXT("ScaleZ"), FNexusSchema::Num(TEXT("Socket rotation Scale Z")))
 		.Prop(TEXT("LODIndex"), FNexusSchema::Int(TEXT("LOD index (SetLODScreenSize)")))
+        .Prop(TEXT("TrianglePercents"), FNexusSchema::ArrayOf(TEXT("Generated LOD retention fractions excluding LOD0"), FNexusSchema::Num(TEXT("Triangle retention fraction"))))
+        .Prop(TEXT("HullCount"), FNexusSchema::Int(TEXT("Convex decomposition hull count"), 4, 1, 64))
+        .Prop(TEXT("MaxHullVertices"), FNexusSchema::Int(TEXT("Maximum vertices per hull"), 16, 4, 64))
+        .Prop(TEXT("HullPrecision"), FNexusSchema::Int(TEXT("Convex decomposition precision"), 100000, 10000, 1000000))
+        .Prop(TEXT("bEnabled"), FNexusSchema::Bool(TEXT("Explicit Nanite state (UE5+)")))
 		.Prop(TEXT("ScreenSize"), FNexusSchema::Num(TEXT("LOD ScreenSize（0–1）")))
 		.Required({ TEXT("Action") })
 		.Build();
@@ -424,6 +435,86 @@ static void HandleSM_SetLodScreenSize(const TSharedPtr<FJsonObject>& Op, FNexusA
 #endif
 }
 
+static void HandleSM_Generate(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+    UStaticMesh* Mesh = MeshFrom(Ctx); if (!Mesh) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Static mesh is missing")); return; }
+    const FNexusArgs A(Op); auto Input = MakeShared<FJsonObject>();
+    Input->SetObjectField(TEXT("mesh"), FNexusNativeEditorTools::Reference(Mesh->GetPathName())); FString Tool;
+    const TArray<TSharedPtr<FJsonValue>>* Percents = nullptr;
+    if (Ctx.Action == TEXT("GenerateLODs")) {
+        if (!Op->TryGetArrayField(TEXT("TrianglePercents"), Percents) || Percents->Num() < 1 || Percents->Num() > 7) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("GenerateLODs requires 1-7 retention fractions")); return; }
+        double Previous = 1;
+        for (const auto& Value : *Percents) { double Percent = 0; if (!Value->TryGetNumber(Percent) || !FMath::IsFinite(Percent) || Percent <= 0 || Percent > Previous) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LOD retention must decrease within (0,1]")); return; } Previous = Percent; }
+        Tool = TEXT("generate_lods"); Input->SetArrayField(TEXT("triangle_percents"), *Percents);
+    } else if (Ctx.Action == TEXT("RemoveLODs")) Tool = TEXT("remove_lods");
+    else if (Ctx.Action == TEXT("GenerateConvexCollision")) {
+        for (const FString& Key : {TEXT("HullCount"),TEXT("MaxHullVertices"),TEXT("HullPrecision")}) if (Op->HasField(Key)) {
+            const double Value=A.Num(*Key,-1); if (!FMath::IsFinite(Value) || Value<0 || Value>1000000 || Value!=static_cast<int32>(Value)) { Ctx.Entry->SetStringField(TEXT("Error"),TEXT("Convex limits must be bounded integers")); return; }
+        }
+        const int32 Count = static_cast<int32>(A.Num(TEXT("HullCount"),4)), Vertices = static_cast<int32>(A.Num(TEXT("MaxHullVertices"),16)), Precision = static_cast<int32>(A.Num(TEXT("HullPrecision"),100000));
+        if (Count < 1 || Count > 64 || Vertices < 4 || Vertices > 64 || Precision < 10000 || Precision > 1000000) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Convex decomposition limits are invalid")); return; }
+        Tool = TEXT("generate_convex_collisions"); Input->SetNumberField(TEXT("hull_count"),Count); Input->SetNumberField(TEXT("max_hull_verts"),Vertices); Input->SetNumberField(TEXT("hull_precision"),Precision);
+    } else {
+#if !NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
+        Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Nanite requires UE5")); return;
+#endif
+        if (!Op->HasTypedField<EJson::Boolean>(TEXT("bEnabled"))) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetNaniteEnabled requires bEnabled")); return; }
+        Tool = TEXT("set_nanite_enabled"); Input->SetBoolField(TEXT("enabled"),A.Bool(TEXT("bEnabled")));
+    }
+    if (!FNexusNativeEditorTools::EditSync(TEXT("editor_toolset.toolsets.static_mesh.StaticMeshTools"), Tool, Input, Ctx.Entry)) {
+        bool bOk = false;
+#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
+        UStaticMeshEditorSubsystem* Editor = GEditor ? GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>() : nullptr;
+        if (!Editor) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Static mesh editor subsystem is unavailable")); return; }
+#endif
+        if (Ctx.Action == TEXT("GenerateLODs")) {
+#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
+            FStaticMeshReductionOptions Options;
+#else
+            FEditorScriptingMeshReductionOptions Options;
+#endif
+            Options.bAutoComputeLODScreenSize = true;
+            for (int32 Index = -1; Index < Percents->Num(); ++Index) {
+#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
+                FStaticMeshReductionSettings Setting;
+#else
+                FEditorScriptingMeshReductionSettings Setting;
+#endif
+                Setting.PercentTriangles = Index < 0 ? 1 : static_cast<float>((*Percents)[Index]->AsNumber()); Options.ReductionSettings.Add(Setting);
+            }
+            Mesh->Modify();
+#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
+            bOk = Editor->SetLods(Mesh, Options) > 0;
+#else
+            bOk = UEditorStaticMeshLibrary::SetLods(Mesh, Options) > 0;
+#endif
+        } else if (Ctx.Action == TEXT("RemoveLODs")) {
+            Mesh->Modify();
+#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
+            bOk = Editor->RemoveLods(Mesh);
+#else
+            bOk = UEditorStaticMeshLibrary::RemoveLods(Mesh);
+#endif
+        } else if (Ctx.Action == TEXT("GenerateConvexCollision")) {
+            Mesh->Modify();
+#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
+            bOk = Editor->SetConvexDecompositionCollisions(Mesh, static_cast<int32>(A.Num(TEXT("HullCount"),4)), static_cast<int32>(A.Num(TEXT("MaxHullVertices"),16)), static_cast<int32>(A.Num(TEXT("HullPrecision"),100000)));
+#else
+            bOk = UEditorStaticMeshLibrary::SetConvexDecompositionCollisions(Mesh, static_cast<int32>(A.Num(TEXT("HullCount"),4)), static_cast<int32>(A.Num(TEXT("MaxHullVertices"),16)), static_cast<int32>(A.Num(TEXT("HullPrecision"),100000)));
+#endif
+        } else {
+#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
+            auto Settings = Editor->GetNaniteSettings(Mesh); Settings.bEnabled = A.Bool(TEXT("bEnabled")); Mesh->Modify(); Editor->SetNaniteSettings(Mesh, Settings); bOk = Editor->GetNaniteSettings(Mesh).bEnabled == Settings.bEnabled;
+#endif
+        }
+        if (!bOk) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Mesh generation failed; inspect editor diagnostics")); return; }
+        Ctx.Entry->SetStringField(TEXT("Backend"), TEXT("EngineCompatibility"));
+    }
+    if (Ctx.Entry->HasField(TEXT("Error"))) return;
+    MarkMeshDirty(Ctx); Ctx.Entry->SetNumberField(TEXT("LODCount"), Mesh->GetNumLODs());
+    if (const auto* Body = FNexusAssetUtils::GetStaticMeshBodySetup(Mesh)) Ctx.Entry->SetNumberField(TEXT("ConvexCount"), Body->AggGeom.ConvexElems.Num());
+}
+
 bool FNexusManageAssetStaticMeshCapability::PrepareTarget(
 	const TSharedPtr<FJsonObject>& Args,
 	TSharedPtr<FJsonObject>& Entry,
@@ -454,6 +545,7 @@ void FNexusManageAssetStaticMeshCapability::RegisterActions(TMap<FString, FNexus
 	OutHandlers.Add(TEXT("SetSocket"),               &HandleSM_SetSocket);
 	OutHandlers.Add(TEXT("RemoveSocket"),            &HandleSM_RemoveSocket);
 	OutHandlers.Add(TEXT("SetLODScreenSize"),      &HandleSM_SetLodScreenSize);
+    for (const FString& Action : {TEXT("GenerateLODs"), TEXT("RemoveLODs"), TEXT("GenerateConvexCollision"), TEXT("SetNaniteEnabled")}) OutHandlers.Add(Action, &HandleSM_Generate);
 }
 
 REGISTER_MCP_CAPABILITY(FNexusManageAssetStaticMeshCapability)

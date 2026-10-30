@@ -1,6 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
 #include "Capabilities/Editor/Toolsets/NexusGetEditorPCGCapability.h"
-#if WITH_NEXUS_TOOLSETS
+#if WITH_PCG
 #include "Utils/NexusEditorToolSchema.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
@@ -20,7 +20,7 @@ void FNexusGetEditorPCGCapability::BuildDefinition(FNexusCapabilityDefinition& O
 		.Prop(TEXT("AttributeName"), FNexusSchema::Str(TEXT("Optional node attribute/property filter")))
 		.Prop(TEXT("Offset"), FNexusSchema::Int(TEXT("Node data element offset"), 0, 0, 1000000000))
 		.Prop(TEXT("Limit"), FNexusSchema::Int(TEXT("Node data element count"), 100, 1, 1000)).Build();
-	FNexusEditorToolSchema::ConfigureNative(Out, false, TEXT("PCGToolset"));
+	FNexusEditorToolSchema::ConfigureCompatible(Out, false, TEXT("PCGToolset"));
 	Out.SearchAssetTypes = {TEXT("PCGGraph")};
 	Out.ExtraSearchKeywords = {TEXT("pcg"), TEXT("procedural"), TEXT("inspection"), TEXT("points"), TEXT("attributes")};
 	Out.RelatedCapabilities = {TEXT("ControlEditorPCG"), TEXT("GetAssetPCGGraph"), TEXT("GetEditorOperation")};

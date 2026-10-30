@@ -1,6 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
 #pragma once
-#if WITH_NEXUS_TOOLSETS
+#if WITH_PCG
 #include "NexusCapability.h"
 class FNexusControlEditorPCGCapability : public FNexusCapability
 {

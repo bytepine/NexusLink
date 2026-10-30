@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- 编辑器能力兼容扩展：PCG 参数/实例覆盖、Niagara User Variables/Renderer、Sequencer Section/关键帧与 UMG 结构操作补充低版本实现；静态网格增加 LOD/凸包碰撞生成与 Nanite 设置，新增场景文件夹/选择/合并/Level Instance 操作及蓝图节点发现、连通子图、布局、函数参数和结构化 GraphPlan。UE 5.8 可映射操作复用官方 Toolset，保留原生错误不回退规则；具体版本与兼容边界见编辑器兼容专题。
+
 ## [2.3.0-beta.5] - 2026-10-29
 
 > ⚠️ Pre-release，非生产环境使用。

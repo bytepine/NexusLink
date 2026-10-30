@@ -13,6 +13,7 @@
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusAssetEditUtils.h"
 #include "Utils/NexusBlueprintGraphUtils.h"
+#include "Utils/NexusBlueprintGraphEnhancements.h"
 #include "Utils/NexusEditorTransaction.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Engine/Blueprint.h"
@@ -83,8 +84,14 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 			TEXT("AddInterface"), TEXT("RemoveInterface"),
 			TEXT("AddNode"), TEXT("RemoveNode"), TEXT("SetNode"), TEXT("PromotePin"),
 			TEXT("Connect"), TEXT("Disconnect"), TEXT("DisconnectAll"),
-			TEXT("AddComponent"), TEXT("RemoveComponent"), TEXT("SetComponentProperty"), TEXT("SetDefaults")
-		}))
+			TEXT("AddComponent"), TEXT("RemoveComponent"), TEXT("SetComponentProperty"), TEXT("SetDefaults"), TEXT("ArrangeNodes"), TEXT("WriteGraphDSL"), TEXT("WriteGraphPlan"), TEXT("AddFunctionParameter"), TEXT("RemoveFunctionParameter"), TEXT("SetVariableCategory"), TEXT("SetVariableEditable") }))
+        .Prop(TEXT("Code"), FNexusSchema::Str(TEXT("UE5.8 native Blueprint S-expression DSL")))
+        .Prop(TEXT("GraphNodes"), FNexusSchema::ArrayOf(TEXT("Append-only plan nodes with Id and existing AddNode fields"), FNexusSchema::AnyObject(TEXT("Plan node"))))
+        .Prop(TEXT("GraphLinks"), FNexusSchema::ArrayOf(TEXT("Plan links with From/FromPin/To/ToPin"), FNexusSchema::AnyObject(TEXT("Plan link"))))
+        .Prop(TEXT("ParameterName"), FNexusSchema::Str(TEXT("Function parameter name")))
+        .Prop(TEXT("bInput"), FNexusSchema::Bool(TEXT("Function input rather than output"), true, true))
+        .Prop(TEXT("Category"), FNexusSchema::Str(TEXT("Blueprint variable category")))
+        .Prop(TEXT("bEditable"), FNexusSchema::Bool(TEXT("Expose variable on instances")))
 		.Prop(TEXT("GraphName"),       FNexusSchema::Str(TEXT("Graph name (nodes/wires/PromotePin)")))
 		.Prop(TEXT("VariableName"),    FNexusSchema::Str(TEXT("Variable name (AddVariable/PromotePin; auto if omitted)")))
 		.Prop(TEXT("VariableType"),    FNexusSchema::Str(TEXT("Basic or object type (AddVariable)")))
@@ -644,6 +651,7 @@ bool FNexusManageAssetBlueprintCapability::PrepareTarget(
 
 void FNexusManageAssetBlueprintCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
+    for (const FString& Action : {TEXT("ArrangeNodes"),TEXT("WriteGraphDSL"),TEXT("WriteGraphPlan"),TEXT("AddFunctionParameter"),TEXT("RemoveFunctionParameter"),TEXT("SetVariableCategory"),TEXT("SetVariableEditable")}) OutHandlers.Add(Action, &FNexusBlueprintGraphEnhancements::Write);
 	OutHandlers.Add(TEXT("AddVariable"), &HandleBP_Variable);
 	OutHandlers.Add(TEXT("RemoveVariable"), &HandleBP_Variable);
 	OutHandlers.Add(TEXT("AddFunction"), &HandleBP_FunctionGraph);

@@ -245,7 +245,9 @@
     "ControlEditorNiagara": "UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data Interface、用户变量和 Set Parameters。",
     "GetProjectGameFeatures": "发现引擎认可的内置 Game Feature 插件并查询实时状态；GameFeatures 插件，UE 5.7+。",
     "ControlEditorGameFeature": "会话内激活/停用内置 Game Feature 插件，等待引擎回调并读回最终状态；UE 5.7+。",
-    "GetProjectToolsets": "发现启用的原生/自定义 C++、Blueprint、Python Toolset、分页工具和精确 Schema，遵循 Registry 过滤；不提供任意执行。"
+    "GetProjectToolsets": "发现启用的原生/自定义 C++、Blueprint、Python Toolset、分页工具和精确 Schema，遵循 Registry 过滤；不提供任意执行。",
+    "GetEditorScene": "读取当前编辑器场景的文件夹、Actor、选择集和 Visibility 射线命中。",
+    "ControlEditorScene": "整理当前编辑器场景的文件夹、选择集、合并静态网格 Actor，并编辑 UE5 Level Instance。"
   },
   "when_to_use": {
     "CaptureEditorPanel": "截编辑器面板/关卡视口，或按固定视角拍 Actor",

@@ -38,6 +38,11 @@
 #define NX_UE_HAS_PHYSICS_ASSET_PROGRESS_ARG NX_UE_AT_LEAST(5, 4)  // CreateFromSkeletalMesh 新增 bShowProgress 参数
 #define NX_UE_HAS_DATA_REGISTRY_SOURCE_ASSET_PATH NX_UE_AT_LEAST(5, 5)  // UDataRegistrySource 新增来源资产路径 getter
 #define NX_UE_HAS_GAMEPLAY_TAG_SOURCE_CREATION NX_UE_AT_LEAST(4, 27)  // GameplayTagsEditor 新增显式 INI 来源创建接口
+#define NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM NX_UE_AT_LEAST(5, 0) // UE5 网格编辑子系统；UE4 使用 EditorScriptingUtilities
+#define NX_UE_HAS_WORLD_FOLDER_ROOT_HELPER NX_UE_AT_LEAST(5, 1) // FFolder 根对象构造器与世界根查询
+#define NX_UE_HAS_EDITOR_FOLDER_OBJECT NX_UE_AT_LEAST(5, 0) // 编辑器文件夹路径增加根对象
+#define NX_UE_HAS_LEVEL_INSTANCE_DISCARD_CHECK NX_UE_AT_LEAST(5, 1) // CanCommitLevelInstance 增加丢弃参数
+#define NX_UE_HAS_LEVEL_INSTANCE_EDITOR NX_UE_AT_LEAST(5, 0) // LevelInstance 编辑子系统
 #define NX_UE_HAS_CPF_BLUEPRINT_READWRITE  0                      // CPF_BlueprintReadWrite 在 UE 5.0 移除，所有版本均走 else 分支
 #define NX_UE_HAS_CLASS_PATHS          NX_UE_AT_LEAST(5, 1)  // FARFilter::ClassNames → ClassPaths
 #define NX_UE_HAS_IMPORT_TEXT_DIRECT   NX_UE_AT_LEAST(5, 1)  // FProperty::ImportText → ImportText_Direct
@@ -247,3 +252,6 @@
 #define NX_UE_HAS_TRACE_AUXILIARY_START  NX_UE_AT_LEAST(5, 0) // 启动参数录制 → FTraceAuxiliary::Start/Stop
 #define NX_UE_HAS_TRACE_TIMER_READER  NX_UE_AT_LEAST(5, 8) // ReadTimers 回调改为 GetTimerReader
 #define NX_UE_HAS_TRACE_STORE_CREATE  NX_UE_AT_LEAST(5, 8) // Store Connect 裸指针改为 Create 智能指针
+
+// Graph parameter update callback added in UE 5.7.
+#define NX_UE_HAS_PCG_PARAMETER_UPDATE_HELPER NX_UE_AT_LEAST(5, 7)

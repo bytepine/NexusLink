@@ -33,6 +33,7 @@ public class NexusLinkEditor : ModuleRules
 		// UE4 的 PhysicsAssetUtils 由 UnrealEd 提供，UE5 起拆入 PhysicsUtilities。
 		if (NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 0))
 			PrivateDependencyModuleNames.Add("PhysicsUtilities");
+		PrivateDependencyModuleNames.Add(NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 0) ? "StaticMeshEditor" : "EditorScriptingUtilities");
 
 		// NexusLink（Runtime）里 NexusMcpAuth / NexusLanHost 仍是 Private 头（无 UnrealEd 依赖，
 		// 无需为区区两个设置面板要用的静态工具类整体提升为 Public API），设置定制面板需要直接
@@ -100,5 +101,9 @@ public class NexusLinkEditor : ModuleRules
 			NexusLinkOptionalPlugins.Apply(this, Target, C, SearchDirs, ProjectRoot,
 				bAllowEditorModules: true, bDefineMacro: !bSharedWithRuntime);
 		}
+        // Before UE 5.5 property bags lived in the StructUtils plugin module.
+        if (PrivateDependencyModuleNames.Contains("PCGEditor") && !NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 5))
+            PrivateDependencyModuleNames.Add("StructUtils");
+
 	}
 }

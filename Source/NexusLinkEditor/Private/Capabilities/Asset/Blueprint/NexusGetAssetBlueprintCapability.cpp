@@ -9,6 +9,8 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusBlueprintGraphUtils.h"
+#include "Utils/NexusBlueprintGraphEnhancements.h"
+#include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyReportUtils.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
@@ -373,6 +375,11 @@ TSharedPtr<FJsonObject> FNexusGetAssetBlueprintCapability::BuildCapabilitySchema
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
 		.Prop(TEXT("NameFilter"),     FNexusSchema::Str(TEXT("Item name filter (/regex/ ^prefix suffix$)")))
 		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("Exact property name filter for defaults, e.g. [\"bUseBuffClass\",\"Scale\"]")))
+        .Prop(TEXT("NodeId"), FNexusSchema::Str(TEXT("Subgraph starting node GUID")))
+        .Prop(TEXT("MaxDepth"), FNexusSchema::Int(TEXT("Connected subgraph traversal depth"), 8, 0, 64))
+        .Prop(TEXT("NodeTypeId"), FNexusSchema::Str(TEXT("Native node type from NodeTypes (UE5.8)")))
+        .Prop(TEXT("FunctionName"), FNexusSchema::Str(TEXT("Compatibility callable for pin discovery")))
+        .Prop(TEXT("FunctionClass"), FNexusSchema::Str(TEXT("Compatibility callable owner")))
 		.Prop(TEXT("GraphName"),     FNexusSchema::Str(TEXT("Graph name (graph / ExecPaths)")))
 		.Prop(TEXT("GraphType"),  FNexusSchema::Enum(TEXT("Graph type filter"),
 			{ TEXT("Event"), TEXT("Function"), TEXT("Macro"), TEXT("Animgraph"),
@@ -387,7 +394,7 @@ TSharedPtr<FJsonObject> FNexusGetAssetBlueprintCapability::BuildCapabilitySchema
 
 TArray<FString> FNexusGetAssetBlueprintCapability::GetSectionNames() const
 {
-	return { TEXT("variable"), TEXT("Function"), TEXT("Component"), TEXT("graph"), TEXT("graphOverview"), TEXT("Defaults"), TEXT("orphaned"), TEXT("ExecPaths") };
+	return { TEXT("variable"), TEXT("Function"), TEXT("Component"), TEXT("graph"), TEXT("graphOverview"), TEXT("Defaults"), TEXT("orphaned"), TEXT("ExecPaths"), TEXT("Subgraph"), TEXT("NodeTypes"), TEXT("NodeTypePins"), TEXT("GraphDSL") };
 }
 
 TArray<FString> FNexusGetAssetBlueprintCapability::GetDefaultSectionNames() const
@@ -464,6 +471,10 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 		return;
 	}
 
+    if (SectionName==TEXT("Subgraph") || SectionName==TEXT("NodeTypes") || SectionName==TEXT("NodeTypePins") || SectionName==TEXT("GraphDSL")) {
+        if (FNexusArgs(Args).Str(TEXT("GraphName")).IsEmpty() && FNexusArgs(Args).StrArr(TEXT("Sections")).Contains(TEXT("all"))) return;
+        FNexusBlueprintGraphEnhancements::Read(BP,SectionName,Args,InOutDetail,OutError); return;
+    }
 	FNexusBPQueryParams Q = ParseBPQueryParams(Args);
 
 	if (SectionName == TEXT("graphOverview"))
