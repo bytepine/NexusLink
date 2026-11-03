@@ -233,6 +233,11 @@ static void HandleWBP_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 	if (!FWidgetBlueprintOperationUtils::RemoveWidget(WBP, Target, Error)) { Ctx.Entry->SetStringField(TEXT("Error"), Error.ToString()); return; }
 #else
 	WBP->WidgetTree->Modify();
+#if NX_UE_HAS_WIDGET_VARIABLE_GUIDS
+	TArray<UWidget*> RemovedWidgets = {Target};
+	UWidgetTree::GetChildWidgets(Target, RemovedWidgets);
+	for (UWidget* Removed : RemovedWidgets) WBP->OnVariableRemoved(Removed->GetFName());
+#endif
 	if (Target->Slot && Target->Slot->Parent) Target->Slot->Parent->RemoveChild(Target);
 	else if (WBP->WidgetTree->RootWidget == Target) WBP->WidgetTree->RootWidget = nullptr;
 	Target->Rename(nullptr, GetTransientPackage());
@@ -271,6 +276,11 @@ static void HandleWBP_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 	}
 	if (WidgetName.IsEmpty())
 		WidgetName = FString::Printf(TEXT("%s_%d"), *WidgetClass, FMath::Rand() % 10000);
+	if (WBP->WidgetTree->FindWidget(FName(*WidgetName)) || (ParentName.IsEmpty() && WBP->WidgetTree->RootWidget))
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("WidgetName already exists or the root is occupied"));
+		return;
+	}
 
 	WBP->WidgetTree->SetFlags(RF_Transactional);
 	WBP->WidgetTree->Modify();
@@ -285,7 +295,7 @@ static void HandleWBP_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 	if (!ParentName.IsEmpty())
 	{
 		UPanelWidget* Panel = Cast<UPanelWidget>(WBP->WidgetTree->FindWidget(FName(*ParentName)));
-		if (!Panel)
+		if (!Panel || !Panel->AddChild(NewWidget))
 		{
 			NewWidget->Rename(nullptr, GetTransientPackage());
 #if NX_UE_HAS_MARK_AS_GARBAGE
@@ -293,10 +303,9 @@ static void HandleWBP_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 #else
 			NewWidget->MarkPendingKill();
 #endif
-			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Parent panel Widget not found: %s"), *ParentName));
+			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Parent panel is unavailable or rejected the widget: %s"), *ParentName));
 			return;
 		}
-		Panel->AddChild(NewWidget);
 		AttachedTo = ParentName;
 	}
 	else
@@ -304,6 +313,10 @@ static void HandleWBP_Add(const TSharedPtr<FJsonObject>& Op, FNexusActionContext
 		if (!WBP->WidgetTree->RootWidget) WBP->WidgetTree->RootWidget = NewWidget;
 		AttachedTo = TEXT("(root)");
 	}
+
+#if NX_UE_HAS_WIDGET_VARIABLE_GUIDS
+	WBP->OnVariableAdded(NewWidget->GetFName());
+#endif
 
 	Ctx.Entry->SetStringField(TEXT("WidgetName"),  NewWidget->GetName());
 	Ctx.Entry->SetStringField(TEXT("WidgetClass"), NewClass->GetName());

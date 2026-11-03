@@ -171,14 +171,11 @@ bool FNexusLegacyToolsets::PCG(const FString& Tool, const TSharedPtr<FJsonObject
 #endif
 #if NX_UE_HAS_PCG_SHARED_INSPECTION_DATA
         const auto Stacks = Inspection.GetExecutedNodeStacks(Node);
-#elif NX_UE_HAS_PCG_INSPECTION_OBJECT
-        const auto AllStacks = Inspection.GetExecutedNodeStacks();
-        const auto* Found = AllStacks.Find(TObjectKey<const UPCGNode>(Node));
-        const auto Stacks = Found ? *Found : TSet<FPCGGraphExecutionInspection::FNodeExecutedNotificationData>();
 #else
         const auto AllStacks = Inspection.GetExecutedNodeStacks();
         const auto* Found = AllStacks.Find(TObjectKey<const UPCGNode>(Node));
-        const auto Stacks = Found ? *Found : TSet<FPCGStack>();
+        // 各版本使用不同栈容器，缺失节点时保留映射的原生值类型。
+        const auto Stacks = Found ? *Found : decltype(AllStacks)::ValueType();
 #endif
         if (!Inspection.IsInspecting()) Inspection.EnableInspection();
         if (Stacks.Num() != 1) { Error = TEXT("Node has no inspection data or multiple execution stacks; execute the instance and use a single-stack node"); return false; }

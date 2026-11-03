@@ -2,6 +2,7 @@
 #include "Utils/NexusWidgetTreeCompat.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #include "WidgetBlueprint.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/PanelWidget.h"
@@ -44,6 +45,9 @@ bool FNexusWidgetTreeCompat::Apply(UWidgetBlueprint* Blueprint, const TSharedPtr
         UWidget* Child = Panel->GetChildAt(0); Blueprint->Modify(); Blueprint->WidgetTree->Modify(); Panel->Modify(); Child->Modify();
         Panel->RemoveChild(Child); if (Parent) { Parent->Modify(); Parent->RemoveChild(Panel); }
         if (!NexusWidgetCompatAttach(Blueprint, Parent, PreviousIndex, Child)) { Panel->AddChild(Child); NexusWidgetCompatAttach(Blueprint, Parent, PreviousIndex, Panel); Error = TEXT("Could not replace panel"); return false; }
+#if NX_UE_HAS_WIDGET_VARIABLE_GUIDS
+        Blueprint->OnVariableRemoved(Panel->GetFName());
+#endif
         Blueprint->WidgetTree->RemoveWidget(Panel); Panel->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
         Entry->SetStringField(TEXT("ReplacementName"), Child->GetName());
     } else if (Action == TEXT("Wrap") || Action == TEXT("ReplaceWithTemplate") || Action == TEXT("SetNamedSlotContent")) {
@@ -56,6 +60,9 @@ bool FNexusWidgetTreeCompat::Apply(UWidgetBlueprint* Blueprint, const TSharedPtr
             if (!Slots || !Names.Contains(Slot) || Slots->GetContentForSlot(Slot) || Widget || Name.IsEmpty() || !FName(*Name).IsValidObjectName(NameError)) { Error = TEXT("Compatibility named slots require an existing local host, an empty named slot and a unique valid widget name"); return false; }
             Blueprint->Modify(); Blueprint->WidgetTree->Modify(); Host->Modify(); UWidget* NewWidget = Blueprint->WidgetTree->ConstructWidget<UWidget>(Class, FName(*Name));
             if (!NewWidget) { Error = TEXT("Could not construct slot content"); return false; } Slots->SetContentForSlot(Slot, NewWidget);
+#if NX_UE_HAS_WIDGET_VARIABLE_GUIDS
+            Blueprint->OnVariableAdded(NewWidget->GetFName());
+#endif
         } else {
             UPanelWidget* Panel = Cast<UPanelWidget>(Widget);
             if (!Widget || (Action == TEXT("Wrap") && !Class->IsChildOf(UPanelWidget::StaticClass())) || (Action == TEXT("ReplaceWithTemplate") && Panel && Panel->GetChildrenCount())) { Error = TEXT("Wrap requires a panel class; template replacement currently requires a leaf or empty panel"); return false; }
@@ -72,7 +79,15 @@ bool FNexusWidgetTreeCompat::Apply(UWidgetBlueprint* Blueprint, const TSharedPtr
                 }
                 Entry->SetStringField(TEXT("WrapperName"), NewWidget->GetName());
             }
-            else { Blueprint->WidgetTree->RemoveWidget(Widget); Widget->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors); Entry->SetStringField(TEXT("ReplacementName"), NewWidget->GetName()); }
+            else {
+#if NX_UE_HAS_WIDGET_VARIABLE_GUIDS
+                Blueprint->OnVariableRemoved(Widget->GetFName());
+#endif
+                Blueprint->WidgetTree->RemoveWidget(Widget); Widget->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors); Entry->SetStringField(TEXT("ReplacementName"), NewWidget->GetName());
+            }
+#if NX_UE_HAS_WIDGET_VARIABLE_GUIDS
+            Blueprint->OnVariableAdded(NewWidget->GetFName());
+#endif
         }
     } else { Error = TEXT("Unknown widget structure action"); return false; }
     Entry->SetStringField(TEXT("Backend"), TEXT("EngineCompatibility")); Entry->SetStringField(TEXT("WidgetName"), Name);

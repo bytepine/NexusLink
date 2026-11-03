@@ -290,7 +290,7 @@ static void HandleLS_RemoveBinding(const TSharedPtr<FJsonObject>& Op, FNexusActi
 		return;
 	}
 	FGuid Guid;
-	if (!FGuid::Parse(GuidStr, Guid))
+	if (!FGuid::Parse(GuidStr, Guid) || !Guid.IsValid())
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Invalid GUID: %s"), *GuidStr));
 		return;
@@ -468,7 +468,7 @@ static void HandleLS_AddTrack(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	const FString GuidStr = FNexusArgs(Op).Str(TEXT("BindingGuid"));
 	const FString TrackClass = FNexusArgs(Op).Str(TEXT("TrackClass"));
 	FGuid Guid;
-	if (!FGuid::Parse(GuidStr, Guid))
+	if (!FGuid::Parse(GuidStr, Guid) || !Guid.IsValid())
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddTrack requires valid BindingGuid"));
 		return;
@@ -507,7 +507,7 @@ static void HandleLS_AddFloatKey(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	const double TimeSec = FNexusArgs(Op).Num(TEXT("Time"));
 	const double KeyVal = FNexusArgs(Op).Num(TEXT("KeyValue"));
 	FGuid Guid;
-	if (!FGuid::Parse(GuidStr, Guid))
+	if (!FGuid::Parse(GuidStr, Guid) || !Guid.IsValid())
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddFloatKey requires valid BindingGuid"));
 		return;
@@ -551,7 +551,7 @@ static void HandleLS_SetTransformKey(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	const double Yaw   = bHasYaw   ? FNexusArgs(Op).Num(TEXT("Yaw"))   : 0.0;
 	const double Roll  = bHasRoll  ? FNexusArgs(Op).Num(TEXT("Roll"))  : 0.0;
 	FGuid Guid;
-	if (!FGuid::Parse(GuidStr, Guid))
+	if (!FGuid::Parse(GuidStr, Guid) || !Guid.IsValid())
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetTransformKey requires BindingGuid"));
 		return;

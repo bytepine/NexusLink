@@ -43,6 +43,9 @@ UWidgetAnimation* FNexusWidgetAnimationUtils::AddAnimation(UWidgetBlueprint* WBP
 	if (!WBP) { OutError = TEXT("Invalid WidgetBlueprint"); return nullptr; }
 	if (Name.IsEmpty()) { OutError = TEXT("AnimationName is required"); return nullptr; }
 	if (FindAnimation(WBP, Name)) { OutError = FString::Printf(TEXT("Animation already exists: %s"), *Name); return nullptr; }
+#if NX_UE_HAS_WIDGET_VARIABLE_GUIDS
+	if (WBP->WidgetVariableNameToGuidMap.Contains(FName(*Name))) { OutError = TEXT("Animation name conflicts with an existing widget variable"); return nullptr; }
+#endif
 
 	UWidgetAnimation* Anim = NewObject<UWidgetAnimation>(WBP, FName(*Name), RF_Transactional);
 	if (!Anim) { OutError = TEXT("Create UWidgetAnimation failed"); return nullptr; }
@@ -56,6 +59,9 @@ UWidgetAnimation* FNexusWidgetAnimationUtils::AddAnimation(UWidgetBlueprint* WBP
 #endif
 	WBP->Modify();
 	WBP->Animations.Add(Anim);
+#if NX_UE_HAS_WIDGET_VARIABLE_GUIDS
+	WBP->OnVariableAdded(Anim->GetFName());
+#endif
 	return Anim;
 }
 
@@ -66,6 +72,9 @@ bool FNexusWidgetAnimationUtils::RemoveAnimation(UWidgetBlueprint* WBP, const FS
 	if (!Anim) { OutError = FString::Printf(TEXT("Animation not found: %s"), *Name); return false; }
 	WBP->Modify();
 	WBP->Animations.Remove(Anim);
+#if NX_UE_HAS_WIDGET_VARIABLE_GUIDS
+	WBP->OnVariableRemoved(Anim->GetFName());
+#endif
 	return true;
 }
 

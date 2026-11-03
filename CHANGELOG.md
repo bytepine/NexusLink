@@ -7,17 +7,41 @@
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-03
+
 ### Added
 
-- 首批功能补充：动作级后端/可用性与参数发现、BP/UMG/PCG 有界结构预览与回读、图片/WAV/FBX 首次导入、多人 PIE 拓扑配置、兼容 PCG 执行与点输出、动画骨骼姿态采样、所属任务历史/取消、离线性能预算及资产源控只读预检。具体范围与后续边界见 `docs/feature-followups.md`，任务控制路由同步三端。
+- 编辑器自动化：Slate 查询、截图、悬停、拖拽、表单与文本交互，Automation 发现、执行和停止，非阻塞 Live Coding；长操作支持进度、所属任务历史、有界等待与后端支持的取消。
+- UE 5.8 官方 Toolset 适配：动作级后端、可用性与参数发现，自定义 C++ / Blueprint / Python Toolset 的工具和 Schema 查询，按资产类型约束的语义/相似搜索与 AgentSkill 查询；保留官方启用过滤和错误，低版本使用对应兼容后端。
+- 蓝图与 UMG 编辑：蓝图节点发现、连通子图、布局、函数参数和 GraphPlan，UMG 重命名、变量、事件、UIComponent 及结构操作；MVVM 支持嵌套属性、五种绑定方向、单输入转换函数、编译和保存。
+- 资产编辑预览与回读：标量值预检、ExpectedValue、可选写后校验，以及 BP / UMG / PCG 有界结构预览；结构验证失败时阻止自动保存。资产源控提供只读状态预检。
+- 图片、WAV 和 FBX 首次导入；FBX 动画逐 take 保护已有资产，返回完整导入产物，骨骼网格导入限定单网格节点。
+- PCG 参数、实例覆盖、子图与节点编辑，实例执行及点输出采样；提供低版本兼容实现。
+- 动画与 Sequencer / Control Rig 进阶编辑：轨道、分段、关键帧、通道烘焙、Rig 控件、动画层与导出，条件、文件夹、FBX、Outliner、自定义绑定和 AnimMixer；支持骨骼姿态采样。
+- Niagara 系统、发射器、渲染器、动态输入、Data Interface、User Variables 与 Set Parameters 编辑，以及深层诊断和明确 Stack Fix。
+- PhysicsAsset 创建、Body 与形状编辑、质量和约束限制；StaticMesh 支持 LOD、凸包碰撞生成与 Nanite 设置。
+- 项目设置的类型化读写、插件依赖与启停管理、场景文件夹/选择/合并/Level Instance 操作；GameplayTags 支持 INI 来源管理及受保护的标签增删改，DataRegistry 支持 Schema、来源与缓存只读查询。
+- Game Features 会话生命周期管理（UE 5.7+，宿主须启用插件）：查询、激活与停用，等待回调并读回状态。
+- 多人 PIE 拓扑配置；截图返回标准 MCP PNG/JPEG 图片块，支持路径模式、异步取图与批量附件。
+- GAS 联机诊断与复测：ASC 上下文、标签、激活诊断及事件捕获，显式多端用例、通用激活模板、离线基线与 HTML / JSON / JUnit 报告；行为树 / Blackboard 支持条件改变、等待快照、恢复与基线复测。
+- UE 4.26+ 已停录 Unreal Insights Trace 只读分析，包含帧、CPU 计时和 Bookmark；离线同条件对比支持多次采样中位数与性能预算。
+- 公开 InputSchema 兼容基线与检查器，检测字段删除、类型/枚举收窄和新增必填项。
+
+### Changed
+
+- **破坏性**：Capability 工具 ID、入参、出参、动作名和标签统一为 PascalCase，布尔字段使用 `b` 前缀；旧 snake_case / camelCase 名称不再接受。MCP / JSON-RPC 标准信封字段保持不变。
+- 插件描述文件不再限定 Win64 / Mac 模块平台白名单；其他平台仍取决于引擎依赖与源码兼容性。
 
 ### Fixed
 
-- 启动注册校验支持已公开的 Import 动词；PhysicsAsset 创建及编辑器 Toolset 能力移除仅供 GetAsset/ManageAsset 使用的资产路由声明，避免启动 ensure，并以真实注册定义回归验证。
-- 结构编辑预览包含 Blueprint 接口实现图与 UE 5.8 控件变量引用清理；结构 Hash 保留 Unicode 名称，任一结构验证失败时禁止本次自动保存，保留既有内存部分成功语义。
-- FBX 动画导入预检所有潜在 take 目标，Fail/Unique 不再覆盖已有后缀动画；返回完整的新建及替换动画产物。骨骼网格固定完整目标名，首批仅接受单网格节点 FBX，多节点文件在写入前拒绝。
-- GameFeatures 仅在宿主明确启用时链接，避免默认关闭时 NexusLinkEditor 因缺少运行期 DLL 依赖而加载失败；可选插件启用判断限定到目标插件条目，其他条目的 Enabled:true 不再覆盖显式关闭。
-- 编辑器能力兼容扩展：PCG 参数/实例覆盖、Niagara User Variables/Renderer、Sequencer Section/关键帧与 UMG 结构操作补充低版本实现；UE5 Transform 双精度通道支持关键帧读写/删除，Niagara 向量与四元数使用宿主实际类型，UE 5.4–5.6 图参数变更向既有实例传播并保留覆盖值；点输出兼容 UE 5.4 计数 API，UE 5.6 UIComponent 排序保留组件实例与其他控件关联。静态网格增加 LOD/凸包碰撞生成与 Nanite 设置，新增场景文件夹/选择/合并/Level Instance 操作及蓝图节点发现、连通子图、布局、函数参数和结构化 GraphPlan。UE 5.8 可映射操作复用官方 Toolset，保留原生错误不回退规则；补充 UMG 重命名/变量/事件/UIComponent、材质及函数图整理、类型化设置与工程插件管理，以及 Sequencer 条件/文件夹/FBX、Outliner/自定义绑定与 AnimMixer 固定路由；具体版本与兼容边界见编辑器专题。
+- UE 5.6+ UMG 控件与动画增删、包裹后正常编译，保留未修改控件的变量标识。
+- Sequencer 拒绝全零等无效绑定 GUID，避免负向请求触发引擎 ensure。
+- 运行时 UMG 交互可通过完整实例路径精确定位，同名歧义返回候选，排除已移出视口、隐藏或非活动页的缓存控件。
+- UE5 蓝图 float 默认值与变量类型保持浮点精度，UE4 保留原有类别。
+- 多段读取正确解析显式 Section 名称并展开 All。
+- 批量调用汇总业务、编译与保存错误，失败时尝试回滚内存并跳过自动保存，明确磁盘与运行时副作用边界。
+- DataTable 写入接受动态 Fields 字典，校验字段并记录 Undo，失败路径正确释放临时行。
+- 读取始终返回当前数据，重复调用提示不再拦截读取；写入后清理读取历史。
 
 ## [2.3.0-beta.5] - 2026-10-29
 
