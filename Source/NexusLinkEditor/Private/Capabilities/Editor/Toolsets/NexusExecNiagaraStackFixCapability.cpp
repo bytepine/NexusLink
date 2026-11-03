@@ -14,7 +14,6 @@ void FNexusExecNiagaraStackFixCapability::BuildDefinition(FNexusCapabilityDefini
 		.Required(TEXT("IssueId"), FNexusSchema::Str(TEXT("IssueId from a fresh StackIssues query")))
 		.Required(TEXT("FixId"), FNexusSchema::Str(TEXT("FixId belonging to that issue"))).Build();
 	FNexusEditorToolSchema::ConfigureNative(Out, true, TEXT("NiagaraToolsets"));
-	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
 	Out.RelatedCapabilities = {TEXT("GetEditorNiagara"), TEXT("GetEditorOperation")};
 }
 FCapabilityResult FNexusExecNiagaraStackFixCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const

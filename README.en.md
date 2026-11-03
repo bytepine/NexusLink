@@ -11,7 +11,7 @@ Start with [NexusDesktop](https://github.com/bytepine/NexusDesktop), or use the 
 ## What you can do
 
 - **Feature follow-ups**: [action schemas, structural plans, first import, multiplayer PIE, PCG output, bone sampling, task history, performance budgets, and source-control preflight](docs/feature-followups.md).
-- **Editor and assets**: inspect project context and work with Blueprints, materials, animation, audio, DataTables, widgets, and Niagara; [preview edits and verify writes](docs/asset-edit-preview.md).
+- **Editor and assets**: inspect project context and work with Blueprints, materials, animation, audio, DataTables, widgets, and Niagara; [preview edits and verify writes](docs/asset-edit-preview.md). Structural verification failures block automatic saving, and FBX animation imports check collisions for every take.
 - **Runtime debugging**: inspect logs, Actors, animation, AI / EQS, and GAS in PIE, standalone Game, and Dedicated Server; Game / PIE with a viewport also supports [UMG interaction](docs/runtime-widgets.md).
 - **Diagnostics and comparison**: [GAS activation diagnostics](docs/gas-retest.md), [behavior-tree / Blackboard condition replay](docs/bt-retest.md), and [performance comparison from stopped Traces](docs/trace-compare.md).
 - **Editor automation**: [Slate inspection and interaction, Automation tests, and nonblocking Live Coding](docs/editor-toolsets.md).

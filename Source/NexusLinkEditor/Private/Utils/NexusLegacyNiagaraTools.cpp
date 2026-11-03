@@ -48,8 +48,13 @@ bool FNexusLegacyToolsets::Niagara(const FString& Tool, const TSharedPtr<FJsonOb
             if (!Definition) { Error=TEXT("Each variable must be an object"); return false; }
             const TSharedPtr<FJsonObject>* Type = nullptr;
             UScriptStruct* Struct = Definition->TryGetObjectField(TEXT("type"), Type) ? Cast<UScriptStruct>(Resolve(*Type, TEXT("classStructOrEnum"))) : nullptr;
-            const TSet<FString> SafeTypes={TEXT("/Script/Niagara.NiagaraFloat"),TEXT("/Script/Niagara.NiagaraInt32"),TEXT("/Script/Niagara.NiagaraBool"),TEXT("/Script/Niagara.NiagaraPosition"),TEXT("/Script/CoreUObject.Vector"),TEXT("/Script/CoreUObject.Vector2D"),TEXT("/Script/CoreUObject.Vector4"),TEXT("/Script/CoreUObject.LinearColor"),TEXT("/Script/CoreUObject.Quat")};
-            if (!Name.StartsWith(TEXT("User.")) || Names.Contains(FName(*Name)) || !Struct || !SafeTypes.Contains(Struct->GetPathName()) || Struct->GetStructureSize() > 256) { Error = TEXT("Expected unique User.* names and a supported value struct"); return false; }
+            // 从宿主类型定义取值，兼容 UE4 向量和 UE5 Niagara 的 float 向量/四元数。
+            const TSet<UScriptStruct*> SafeTypes={FNiagaraTypeDefinition::GetFloatStruct(),FNiagaraTypeDefinition::GetIntStruct(),FNiagaraTypeDefinition::GetBoolStruct(),FNiagaraTypeDefinition::GetVec2Struct(),FNiagaraTypeDefinition::GetVec3Struct(),FNiagaraTypeDefinition::GetVec4Struct(),FNiagaraTypeDefinition::GetColorStruct(),FNiagaraTypeDefinition::GetQuatStruct()
+#if NX_UE_HAS_NIAGARA_POSITION
+                ,FNiagaraTypeDefinition::GetPositionStruct()
+#endif
+            };
+            if (!Name.StartsWith(TEXT("User.")) || Names.Contains(FName(*Name)) || !Struct || !SafeTypes.Contains(Struct) || Struct->GetStructureSize() > 256) { Error = TEXT("Expected unique User.* names and a supported value struct"); return false; }
             Names.Add(FName(*Name)); FNiagaraVariable Variable{FNiagaraTypeDefinition(Struct), FName(*Name)}; Variable.AllocateData();
             if (Tool == TEXT("AddUserVariables")) {
                 if (System->GetExposedParameters().IndexOf(Variable) != INDEX_NONE) { Error = TEXT("User variable already exists: ") + Name; return false; }

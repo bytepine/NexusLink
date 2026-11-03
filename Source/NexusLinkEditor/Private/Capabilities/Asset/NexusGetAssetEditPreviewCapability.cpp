@@ -72,7 +72,7 @@ FCapabilityResult FNexusGetAssetEditPreviewCapability::Execute(const TSharedPtr<
 			if (bStructural)
 			{
 				FString PlanError;
-				const bool bValid = Value.IsValid() && Value->Type == EJson::Object && FNexusAssetStructureUtils::ApplyPreview(Preview, Capability, Value->AsObject(), Entry, PlanError);
+				const bool bValid = Value.IsValid() && Value->Type == EJson::Object && FNexusAssetStructureUtils::ApplyPreview(Preview, Capability, Value->AsObject(), Entry, PlanError, Asset);
 				Entry->SetBoolField(TEXT("bValid"), bValid);
 				if (!bValid) Entry->SetStringField(TEXT("Error"), PlanError.IsEmpty() ? TEXT("Invalid structural operation") : PlanError);
 				Entries.Add(MakeShared<FJsonValueObject>(Entry));

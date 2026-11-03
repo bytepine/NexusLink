@@ -39,7 +39,6 @@ void FNexusControlEditorPCGCapability::BuildDefinition(FNexusCapabilityDefinitio
         .Prop(TEXT("NodeTitle"), FNexusSchema::Str(TEXT("Optional node display title")))
         .Build();
     FNexusEditorToolSchema::ConfigureCompatible(Out, true, TEXT("PCGToolset"));
-    Out.SearchAssetTypes = {TEXT("PCGGraph")};
     Out.RelatedCapabilities = {TEXT("GetEditorPCG"), TEXT("GetEditorOperation"), TEXT("SaveAsset")};
 }
 FCapabilityResult FNexusControlEditorPCGCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const

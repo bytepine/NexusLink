@@ -17,6 +17,78 @@
 #if NX_UE_HAS_UI_COMPONENTS
 #include "UIComponentWidgetBlueprintExtension.h"
 #include "Extensions/UIComponent.h"
+#if !NX_UE_HAS_UI_COMPONENT_MOVE
+#include "Extensions/UIComponentContainer.h"
+#if WITH_DEV_AUTOMATION_TESTS
+#include "Misc/AutomationTest.h"
+#include "Engine/BlueprintGeneratedClass.h"
+#include "Components/Button.h"
+#endif
+#endif
+#endif
+
+#if NX_UE_HAS_UI_COMPONENTS && !NX_UE_HAS_UI_COMPONENT_MOVE
+static bool NexusMoveLegacyUIComponent(UUIComponentWidgetBlueprintExtension* Extension, FName OwnerName,
+    UClass* ComponentClass, UClass* RelativeClass, bool bMoveAfter, FString& Error)
+{
+    UUIComponent* Component = Extension->GetComponent(ComponentClass, OwnerName);
+    UUIComponentContainer* Container = Component ? Cast<UUIComponentContainer>(Component->GetOuter()) : nullptr;
+    if (!Container) { Error = TEXT("UIComponent container is unavailable"); return false; }
+    TArray<FUIComponentTarget> Targets;
+    Container->ForEachComponentTarget([&](const FUIComponentTarget& Target) { Targets.Add(Target); });
+    const int32 From = Targets.IndexOfByPredicate([&](const FUIComponentTarget& Target) { return Target.GetTargetName() == OwnerName && Target.GetComponent() == Component; });
+    if (From == INDEX_NONE) { Error = TEXT("UIComponent is not registered in its container"); return false; }
+    const FUIComponentTarget Moved = Targets[From];
+    Targets.RemoveAt(From);
+    const int32 Relative = Targets.IndexOfByPredicate([&](const FUIComponentTarget& Target) { return Target.GetTargetName() == OwnerName && Target.GetComponent() && Target.GetComponent()->GetClass() == RelativeClass; });
+    if (Relative == INDEX_NONE || Targets.ContainsByPredicate([](const FUIComponentTarget& Target) { return !Target.GetComponent(); }))
+    { Error = TEXT("UIComponent relative target is unavailable"); return false; }
+    Targets.Insert(Moved, Relative + (bMoveAfter ? 1 : 0));
+    // UE5.6 没有移动接口；用公开登记接口重排，保留组件实例、属性及其他控件的顺序。
+    for (const auto& Target : Targets) Container->RemoveComponent(Target.GetTargetName(), Target.GetComponent());
+    for (const auto& Target : Targets) Container->AddComponent(Target.GetTargetName(), Target.GetComponent());
+    return true;
+}
+
+#if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusLegacyUIComponentMoveTest, "NexusLink.Toolsets.Compatibility.UIComponentMove", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FNexusLegacyUIComponentMoveTest::RunTest(const FString&)
+{
+    // 用真实生成类提供两个具体组件类型，不修改原生抽象类标志。
+    UBlueprint* FirstType = FKismetEditorUtilities::CreateBlueprint(UUIComponent::StaticClass(), GetTransientPackage(),
+        MakeUniqueObjectName(GetTransientPackage(), UBlueprint::StaticClass(), TEXT("NexusMoveFirst")), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
+    UBlueprint* SecondType = FKismetEditorUtilities::CreateBlueprint(UUIComponent::StaticClass(), GetTransientPackage(),
+        MakeUniqueObjectName(GetTransientPackage(), UBlueprint::StaticClass(), TEXT("NexusMoveSecond")), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
+    if (!TestTrue(TEXT("Concrete component classes created"), FirstType && SecondType && FirstType->GeneratedClass && SecondType->GeneratedClass)) return false;
+    UWidgetBlueprint* Blueprint = NewObject<UWidgetBlueprint>();
+    UUIComponentWidgetBlueprintExtension* Extension = NewObject<UUIComponentWidgetBlueprintExtension>(Blueprint);
+    UButton* Owner = NewObject<UButton>();
+    UButton* OtherOwner = NewObject<UButton>();
+    UUIComponent* First = Extension->AddComponent(FirstType->GeneratedClass, Owner->GetFName());
+    UUIComponent* OtherFirst = Extension->AddComponent(FirstType->GeneratedClass, OtherOwner->GetFName());
+    UUIComponent* Second = Extension->AddComponent(SecondType->GeneratedClass, Owner->GetFName());
+    UUIComponent* OtherSecond = Extension->AddComponent(SecondType->GeneratedClass, OtherOwner->GetFName());
+    if (!TestTrue(TEXT("Components for both widgets created"), First && OtherFirst && Second && OtherSecond)) return false;
+    First->Initialize(Owner); OtherFirst->Initialize(OtherOwner);
+    UUIComponentContainer* Container = Cast<UUIComponentContainer>(First->GetOuter());
+    if (!TestNotNull(TEXT("Component owns the real container"), Container)) return false;
+    const auto Check = [&](const TArray<UUIComponent*>& Expected)
+    {
+        TArray<UUIComponent*> Actual;
+        Container->ForEachComponentTarget([&](const FUIComponentTarget& Target) { Actual.Add(Target.GetComponent()); });
+        TestTrue(TEXT("Global component order and identity match"), Actual == Expected);
+        TestTrue(TEXT("Moved widget association is retained"), Extension->GetComponent(SecondType->GeneratedClass, Owner->GetFName()) == Second);
+        TestTrue(TEXT("Other widget association is retained"), Extension->GetComponent(SecondType->GeneratedClass, OtherOwner->GetFName()) == OtherSecond);
+        TestTrue(TEXT("Component state is retained"), First->GetOwner().Get() == Owner && OtherFirst->GetOwner().Get() == OtherOwner);
+    };
+    FString Error;
+    if (!TestTrue(TEXT("Move before succeeds"), NexusMoveLegacyUIComponent(Extension, Owner->GetFName(), SecondType->GeneratedClass, FirstType->GeneratedClass, false, Error))) return false;
+    Check({Second, First, OtherFirst, OtherSecond});
+    if (!TestTrue(TEXT("Move after succeeds"), NexusMoveLegacyUIComponent(Extension, Owner->GetFName(), SecondType->GeneratedClass, FirstType->GeneratedClass, true, Error))) return false;
+    Check({First, Second, OtherFirst, OtherSecond});
+    return true;
+}
+#endif
 #endif
 
 bool FNexusWidgetAdvancedOps::Apply(UWidgetBlueprint* Blueprint, const FString& Action, const TSharedPtr<FJsonObject>& Args, const TSharedPtr<FJsonObject>& Entry, FString& Error)
@@ -97,7 +169,13 @@ bool FNexusWidgetAdvancedOps::Apply(UWidgetBlueprint* Blueprint, const FString& 
             if (!Added) { Error=TEXT("UIComponent could not be added to this widget"); return false; }
         }
         else if (Action==TEXT("RemoveUIComponent")) Extension->RemoveComponent(ComponentClass,OldName);
-        else Extension->MoveComponent(OldName,ComponentClass,RelativeClass,Arguments.Bool(TEXT("bMoveAfter"),true));
+        else {
+#if NX_UE_HAS_UI_COMPONENT_MOVE
+            Extension->MoveComponent(OldName,ComponentClass,RelativeClass,Arguments.Bool(TEXT("bMoveAfter"),true));
+#else
+            if (!NexusMoveLegacyUIComponent(Extension,OldName,ComponentClass,RelativeClass,Arguments.Bool(TEXT("bMoveAfter"),true),Error)) return false;
+#endif
+        }
     }
 #endif
     FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint); Entry->SetStringField(TEXT("Backend"),TEXT("EngineCompatibility")); return true;

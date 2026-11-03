@@ -9,7 +9,7 @@ struct FNexusAssetStructureUtils final
 	static FString Hash(UObject* Asset);
 	static bool Check(UObject* Asset, const FString& Capability, const TSharedPtr<FJsonObject>& Args, FString& Error);
 	static bool Supports(const FString& Capability, const FString& Action);
-	static bool ApplyPreview(UObject* Copy, const FString& Capability, const TSharedPtr<FJsonObject>& Op, const TSharedPtr<FJsonObject>& Entry, FString& Error);
+	static bool ApplyPreview(UObject* Copy, const FString& Capability, const TSharedPtr<FJsonObject>& Op, const TSharedPtr<FJsonObject>& Entry, FString& Error, UObject* Source);
 	static UObject* Copy(UObject* Asset);
 	static void Wrap(const FString& Capability, TMap<FString, FNexusActionHandler>& Handlers, TFunction<UObject*(FNexusActionContext&)> Target);
 };

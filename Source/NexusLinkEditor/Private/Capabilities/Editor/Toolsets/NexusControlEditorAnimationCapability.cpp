@@ -19,7 +19,6 @@ void FNexusControlEditorAnimationCapability::BuildDefinition(FNexusCapabilityDef
         .Required(TEXT("Action"), ActionSchema)
         .Required(TEXT("Parameters"), FNexusSchema::AnyObject(TEXT("Exact native inputSchema fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths."))).Build();
     FNexusEditorToolSchema::ConfigureCompatible(Out, true, TEXT("AnimationAssistantToolset"));
-    Out.SearchAssetTypes = {TEXT("LevelSequence"), TEXT("ControlRigBlueprint")};
     Out.ExtraSearchKeywords = {TEXT("sequencer"), TEXT("control rig"), TEXT("animation layer"), TEXT("bake"), TEXT("keyframe")};
     Out.RelatedCapabilities = {TEXT("GetProjectToolsets"), TEXT("GetEditorAnimation"), TEXT("ControlEditorAnimation"), TEXT("GetEditorOperation")};
 }

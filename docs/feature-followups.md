@@ -16,7 +16,7 @@ GetAssetEditPreview 在隔离临时副本上顺序规划：
 - UserWidget：具名 Add、Remove、Move；Add 必须指定 WidgetName，根已存在时指定父面板。
 - PCGGraph：AddNode、RemoveNode、AddEdge、RemoveEdge。
 
-返回 StructureHash、结构记录的 Added / Removed 与逐项 bValid。首个失败后停止；副本中新节点 ID 仅供预览，实际写入后重新读取。计划验证节点、边与层级，不编译、保存或验证图的业务结果。不要混合标量与结构预览。
+返回 StructureHash、结构记录的 Added / Removed 与逐项 bValid。Hash 保留中文等 Unicode 名称；Blueprint 副本包含接口实现图，UE 5.8 控件删除计划也包含引擎删除的变量引用节点。首个失败后停止；副本中新节点 ID 仅供预览，实际写入后重新读取。计划验证节点、边与层级，不编译、保存或验证图的业务结果。不要混合标量与结构预览。
 
 对应 Manage 接受 ExpectedStructureHash，拒绝预览后的结构变化；bVerifyStructure=true 逐操作构造结构计划并比较实际结构，返回 bStructureVerified。不一致阻止本次自动保存，已执行的内存修改按既有部分成功规则保留；不承诺磁盘整体回滚。标量 ExpectedValue / bVerify 保持原规则。
 
@@ -27,9 +27,9 @@ ImportAsset 接受单个本地绝对 SourceFile、DestinationPath（/Game/ 下�
 - Texture：PNG/JPEG/BMP/TGA/EXR/HDR，bSRGB 控制颜色空间。
 - SoundWave：WAV。
 - StaticMesh：FBX，合并文件内网格，bGenerateCollision 控制自动碰撞。
-- SkeletalMesh / AnimSequence：FBX，必须指定已有 SkeletonPath。
+- SkeletalMesh / AnimSequence：FBX，必须指定已有 SkeletonPath。SkeletalMesh 首批只接受一个网格节点并固定目标完整名称；含多个网格节点（包括多 LOD、同骨架分片）的文件须先拆分，避免工厂忽略指定名称造成覆盖。AnimSequence 支持多 take。
 
-ConflictPolicy 默认 Fail，也可显式选 Unique 或 Replace。FBX 不导入材质/纹理、不创建 PhysicsAsset，网格导入不附带动画。返回工厂实际报告的产物路径、类型及读回结果，不自动保存。随后调用 SaveAsset；失败检查 GetOutputLog。已有资产更新可用 ReimportAsset。
+ConflictPolicy 默认 Fail，也可显式选 Unique 或 Replace。动画 FBX 在写入前检查单 take 及多 take 的潜在目标名；任一冲突时 Fail 拒绝整个导入，Unique 为整组 take 选择空闲基础名，只有 Replace 允许覆盖。take 名经合法化后重名会拒绝导入。返回全部实际创建或修改的动画路径，包括被工厂主返回值遗漏的 take。FBX 不导入材质/纹理、不创建 PhysicsAsset，网格导入不附带动画。返回产物路径、类型及读回结果，不自动保存。随后调用 SaveAsset；失败检查 GetOutputLog。已有资产更新可用 ReimportAsset。
 
 ## 多人 PIE 配置
 

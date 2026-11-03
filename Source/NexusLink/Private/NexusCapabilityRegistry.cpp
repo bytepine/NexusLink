@@ -105,7 +105,7 @@ static const TSet<FString>& GetAllowedCapabilityVerbs()
 			TEXT("HotReload"), TEXT("Duplicate"), TEXT("Reimport"), TEXT("Interact"),
 			TEXT("Destroy"), TEXT("Capture"), TEXT("Compile"), TEXT("Control"),
 			TEXT("Manage"), TEXT("Create"), TEXT("Delete"), TEXT("Rename"),
-			TEXT("Search"), TEXT("Unload"), TEXT("Export"), TEXT("Submit"),
+			TEXT("Search"), TEXT("Unload"), TEXT("Export"), TEXT("Import"), TEXT("Submit"),
 			TEXT("Spawn"), TEXT("Dofile"), TEXT("Diff"), TEXT("List"),
 			TEXT("Save"), TEXT("Call"), TEXT("Exec"), TEXT("Eval"),
 			TEXT("Get"), TEXT("Set"), TEXT("Gc"),
@@ -354,3 +354,21 @@ void FNexusCapabilityRegistry::Reset()
 	SearchAssetRouteIndex.Reset();
 	NexusBumpToolsListGeneration();
 }
+
+#if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
+#include "Misc/AutomationTest.h"
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusRegisteredDefinitionsTest, "NexusLink.Registry.AllDefinitionsValid",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FNexusRegisteredDefinitionsTest::RunTest(const FString&)
+{
+	// 使用真实注册的定义和生产匹配器，防止审计脚本与启动期规则再次分歧。
+	for (const FCapRecord& Record : FNexusCapabilityRegistry::Get().GetAllRecords())
+	{
+		TestFalse(Record.Def.Name + TEXT(" has an allowed verb"), MatchCapabilityVerb(Record.Def.Name).IsEmpty());
+		if (Record.Def.SearchAssetTypes.Num())
+			TestTrue(Record.Def.Name + TEXT(" is an asset read/manage route"),
+				Record.Def.Name.StartsWith(TEXT("GetAsset")) || Record.Def.Name.StartsWith(TEXT("ManageAsset")));
+	}
+	return true;
+}
+#endif

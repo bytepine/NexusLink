@@ -15,8 +15,53 @@
 #include "Factories/FbxImportUI.h"
 #include "Factories/FbxStaticMeshImportData.h"
 #include "Animation/Skeleton.h"
+#include "Animation/AnimSequence.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "FbxImporter.h"
 #include "Misc/PackageName.h"
+#include "Misc/ScopeExit.h"
 #include "ObjectTools.h"
+#include "UObject/Package.h"
+
+// 同时预检单个有效 take 与多个有效 take 的命名；无效 take 不得使已有资产失去保护。
+static bool ReadFbxImportSuffixes(const FString& File, bool bSkeletalMesh, TArray<FString>& Suffixes, FString& Error)
+{
+	FbxManager* Manager = FbxManager::Create();
+	if (!Manager) { Error = TEXT("Could not create FBX reader"); return false; }
+	ON_SCOPE_EXIT { Manager->Destroy(); };
+	Manager->SetIOSettings(FbxIOSettings::Create(Manager, IOSROOT));
+	FbxImporter* Importer = FbxImporter::Create(Manager, "NexusImportPreflight");
+	FbxScene* Scene = FbxScene::Create(Manager, "NexusImportPreflight");
+	if (!Importer->Initialize(TCHAR_TO_UTF8(*File), -1, Manager->GetIOSettings()) || !Importer->Import(Scene))
+	{ Error = TEXT("Could not inspect FBX import destinations"); return false; }
+	Suffixes.Add(FString());
+	if (bSkeletalMesh)
+	{
+		int32 MeshNodes = 0;
+		TArray<FbxNode*> Pending = {Scene->GetRootNode()};
+		while (Pending.Num())
+		{
+			FbxNode* Node = Pending.Pop();
+			if (Node->GetMesh()) ++MeshNodes;
+			for (int32 ChildIndex = 0; ChildIndex < Node->GetChildCount(); ++ChildIndex) Pending.Add(Node->GetChild(ChildIndex));
+		}
+		// 多网格组会忽略目标基础名；首批导入拒绝这类文件，避免绕过任何冲突策略。
+		if (MeshNodes != 1) { Error = TEXT("SkeletalMesh import requires exactly one mesh node; split multi-mesh/LOD FBX files before importing"); return false; }
+		return true;
+	}
+	if (Scene->GetSrcObjectCount<FbxAnimStack>() > 1)
+	{
+		TSet<FName> TakenSuffixes;
+		for (int32 StackIndex = 0; StackIndex < Scene->GetSrcObjectCount<FbxAnimStack>(); ++StackIndex)
+		{
+			const FString Suffix = TEXT("_") + ObjectTools::SanitizeObjectName(UTF8_TO_TCHAR(Scene->GetSrcObject<FbxAnimStack>(StackIndex)->GetName()));
+			if (TakenSuffixes.Contains(FName(*Suffix))) { Error = TEXT("FBX take names collide after sanitization"); return false; }
+			TakenSuffixes.Add(FName(*Suffix));
+			Suffixes.Add(Suffix);
+		}
+	}
+	return true;
+}
 
 void FNexusImportAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -78,9 +123,12 @@ FCapabilityResult FNexusImportAssetCapability::Execute(const TSharedPtr<FJsonObj
 				if (!Skeleton) { Error = TEXT("A valid existing SkeletonPath is required"); return; }
 			}
 			UFbxFactory* FbxFactory = NewObject<UFbxFactory>();
+			FbxFactory->SetDetectImportTypeOnImport(false);
 			UFbxImportUI* Options = FbxFactory->ImportUI;
 			Options->bAutomatedImportShouldDetectType = false;
+			Options->bOverrideFullName = true;
 			Options->MeshTypeToImport = Type == TEXT("StaticMesh") ? FBXIT_StaticMesh : Type == TEXT("SkeletalMesh") ? FBXIT_SkeletalMesh : FBXIT_Animation;
+			Options->OriginalImportType = Options->MeshTypeToImport;
 			Options->bImportAsSkeletal = Type != TEXT("StaticMesh");
 			Options->bImportMesh = Type != TEXT("AnimSequence");
 			Options->bImportAnimations = Type == TEXT("AnimSequence");
@@ -94,10 +142,49 @@ FCapabilityResult FNexusImportAssetCapability::Execute(const TSharedPtr<FJsonObj
 		}
 		else { Error = TEXT("Unknown AssetType"); return; }
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
-		FString Package = Folder / Name;
-		if (Policy == TEXT("Unique")) AssetTools.CreateUniqueAssetName(Package, TEXT(""), Package, Name);
-		else if (Policy == TEXT("Fail") && (FPackageName::DoesPackageExist(Package) || FindPackage(nullptr, *Package)))
-		{ Error = TEXT("Destination already exists; choose Unique or explicit Replace"); return; }
+		TArray<FString> Suffixes = {FString()};
+		if (Type == TEXT("AnimSequence") || Type == TEXT("SkeletalMesh"))
+		{
+			Suffixes.Empty();
+			if (!ReadFbxImportSuffixes(File, Type == TEXT("SkeletalMesh"), Suffixes, Error)) return;
+		}
+		const auto HasConflict = [&](const FString& BaseName)
+		{
+			for (const FString& Suffix : Suffixes)
+			{
+				const FString Destination = Folder / (BaseName + Suffix);
+				if (FPackageName::DoesPackageExist(Destination) || FindPackage(nullptr, *Destination)) return true;
+			}
+			return false;
+		};
+		if (Policy == TEXT("Unique"))
+		{
+			const FString BaseName = Name;
+			int32 Attempt = 0;
+			while (HasConflict(Name))
+			{
+				if (++Attempt > 10000) { Error = TEXT("Could not find an unused destination for all FBX takes"); return; }
+				Name = BaseName + FString::Printf(TEXT("_%d"), Attempt);
+			}
+		}
+		else if (Policy == TEXT("Fail") && HasConflict(Name))
+		{ Error = TEXT("An import destination already exists; choose Unique or explicit Replace"); return; }
+		TSet<FName> AnimationPackages;
+		TSet<FString> ImportedPaths;
+		if (Type == TEXT("AnimSequence")) for (const FString& Suffix : Suffixes) AnimationPackages.Add(FName(*(Folder / (Name + Suffix))));
+		IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		// 引擎 FBX 工厂仅返回最后一个动画；同时收集新产物和已存在动画的实际修改通知。
+		const FDelegateHandle Added = Registry.OnAssetAdded().AddLambda([&](const FAssetData& Data)
+		{
+			if (AnimationPackages.Contains(Data.PackageName))
+				if (UObject* Asset = Data.GetAsset()) if (Asset->IsA(UAnimSequence::StaticClass())) ImportedPaths.Add(Asset->GetPathName());
+		});
+		const FDelegateHandle Dirtied = UPackage::PackageMarkedDirtyEvent.AddLambda([&](UPackage* DirtyPackage, bool)
+		{
+			if (DirtyPackage && AnimationPackages.Contains(DirtyPackage->GetFName()))
+				if (UAnimSequence* Animation = FindObject<UAnimSequence>(DirtyPackage, *FPackageName::GetShortName(DirtyPackage->GetName()))) ImportedPaths.Add(Animation->GetPathName());
+		});
+		ON_SCOPE_EXIT { Registry.OnAssetAdded().Remove(Added); UPackage::PackageMarkedDirtyEvent.Remove(Dirtied); };
 		UAssetImportTask* Task = NewObject<UAssetImportTask>();
 		Task->Filename = File; Task->DestinationPath = Folder; Task->DestinationName = Name;
 		Task->bAutomated = true; Task->bReplaceExisting = Policy == TEXT("Replace"); Task->bReplaceExistingSettings = Task->bReplaceExisting;
@@ -105,7 +192,9 @@ FCapabilityResult FNexusImportAssetCapability::Execute(const TSharedPtr<FJsonObj
 		if (UFbxFactory* FbxFactory = Cast<UFbxFactory>(Factory)) Task->Options = FbxFactory->ImportUI;
 		AssetTools.ImportAssetTasks({Task});
 		// 工厂的实际产物是结果依据，不能用输入文件名假定只有一个产物。
-		for (const FString& Path : Task->ImportedObjectPaths)
+		for (const FString& Path : Task->ImportedObjectPaths) ImportedPaths.Add(Path);
+		TArray<FString> Paths = ImportedPaths.Array(); Paths.Sort();
+		for (const FString& Path : Paths)
 		{
 			UObject* Asset = FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
 			if (!Asset) { Error = TEXT("Imported asset could not be read back: ") + Path; continue; }

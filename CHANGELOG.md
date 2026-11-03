@@ -13,8 +13,11 @@
 
 ### Fixed
 
+- 启动注册校验支持已公开的 Import 动词；PhysicsAsset 创建及编辑器 Toolset 能力移除仅供 GetAsset/ManageAsset 使用的资产路由声明，避免启动 ensure，并以真实注册定义回归验证。
+- 结构编辑预览包含 Blueprint 接口实现图与 UE 5.8 控件变量引用清理；结构 Hash 保留 Unicode 名称，任一结构验证失败时禁止本次自动保存，保留既有内存部分成功语义。
+- FBX 动画导入预检所有潜在 take 目标，Fail/Unique 不再覆盖已有后缀动画；返回完整的新建及替换动画产物。骨骼网格固定完整目标名，首批仅接受单网格节点 FBX，多节点文件在写入前拒绝。
 - GameFeatures 仅在宿主明确启用时链接，避免默认关闭时 NexusLinkEditor 因缺少运行期 DLL 依赖而加载失败；可选插件启用判断限定到目标插件条目，其他条目的 Enabled:true 不再覆盖显式关闭。
-- 编辑器能力兼容扩展：PCG 参数/实例覆盖、Niagara User Variables/Renderer、Sequencer Section/关键帧与 UMG 结构操作补充低版本实现；静态网格增加 LOD/凸包碰撞生成与 Nanite 设置，新增场景文件夹/选择/合并/Level Instance 操作及蓝图节点发现、连通子图、布局、函数参数和结构化 GraphPlan。UE 5.8 可映射操作复用官方 Toolset，保留原生错误不回退规则；补充 UMG 重命名/变量/事件/UIComponent、材质及函数图整理、类型化设置与工程插件管理，以及 Sequencer 条件/文件夹/FBX、Outliner/自定义绑定与 AnimMixer 固定路由；具体版本与兼容边界见编辑器专题。
+- 编辑器能力兼容扩展：PCG 参数/实例覆盖、Niagara User Variables/Renderer、Sequencer Section/关键帧与 UMG 结构操作补充低版本实现；UE5 Transform 双精度通道支持关键帧读写/删除，Niagara 向量与四元数使用宿主实际类型，UE 5.4–5.6 图参数变更向既有实例传播并保留覆盖值；点输出兼容 UE 5.4 计数 API，UE 5.6 UIComponent 排序保留组件实例与其他控件关联。静态网格增加 LOD/凸包碰撞生成与 Nanite 设置，新增场景文件夹/选择/合并/Level Instance 操作及蓝图节点发现、连通子图、布局、函数参数和结构化 GraphPlan。UE 5.8 可映射操作复用官方 Toolset，保留原生错误不回退规则；补充 UMG 重命名/变量/事件/UIComponent、材质及函数图整理、类型化设置与工程插件管理，以及 Sequencer 条件/文件夹/FBX、Outliner/自定义绑定与 AnimMixer 固定路由；具体版本与兼容边界见编辑器专题。
 
 ## [2.3.0-beta.5] - 2026-10-29
 

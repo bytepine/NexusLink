@@ -18,7 +18,6 @@ void FNexusCreateAssetPhysicsAssetCapability::BuildDefinition(FNexusCapabilityDe
         .Required(TEXT("SkeletalMeshPath"), FNexusSchema::Str(TEXT("SkeletalMesh path from asset discovery")))
         .Prop(TEXT("bAssignToMesh"), FNexusSchema::Bool(TEXT("Assign and save the new physics asset on the source mesh"), true, false)).Build();
     Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor};
-    Out.SearchAssetTypes = {TEXT("PhysicsAsset")};
     Out.RelatedCapabilities = {TEXT("GetAssetPhysicsAsset"), TEXT("ManageAssetPhysicsAsset"), TEXT("GetAssetSkeletalMesh")};
 }
 FCapabilityResult FNexusCreateAssetPhysicsAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const

@@ -19,7 +19,6 @@ void FNexusGetEditorNiagaraCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Prop(TEXT("InputNameStack"), FNexusSchema::StrArr(TEXT("1-32 input names, outermost to innermost, for InputSchema/InputData/DynamicInputChain")))
 		.Prop(TEXT("ClassPath"), FNexusSchema::Str(TEXT("Renderer class for RendererSchema, data interface class for DataInterfaceSchema, or Niagara type struct/class/enum for AvailableDynamicInputs"))).Build();
 	FNexusEditorToolSchema::ConfigureCompatible(Out, false, TEXT("NiagaraToolsets"));
-	Out.SearchAssetTypes = {TEXT("NiagaraSystem")};
 	Out.ExtraSearchKeywords = {TEXT("niagara"), TEXT("vfx"), TEXT("stack"), TEXT("renderer"), TEXT("dynamic input")};
 	Out.RelatedCapabilities = {TEXT("GetAssetNiagaraSystem"), TEXT("ExecNiagaraStackFix"), TEXT("ControlEditorNiagara"), TEXT("GetProjectToolsets"), TEXT("GetEditorOperation")};
 }

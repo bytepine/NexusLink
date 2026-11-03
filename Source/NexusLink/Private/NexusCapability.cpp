@@ -453,6 +453,10 @@ static void ApplyIfRequested(
 	Args->TryGetBoolField(TEXT("bSaveToDisk"), bSaveToDisk);
 	bool bVerify = false;
 	Args->TryGetBoolField(TEXT("bVerify"), bVerify);
+	bool bVerifyStructure = false;
+	Args->TryGetBoolField(TEXT("bVerifyStructure"), bVerifyStructure);
+	// 结构验证的任意失败也必须阻止部分成功结果自动编译、保存。
+	if (bVerifyStructure && Result.HasErrors()) return;
 	if (bVerify && (CapName == TEXT("ManageAssetBlueprint") || CapName == TEXT("ManageAssetDataTable") || CapName == TEXT("ManageAssetUserWidget")))
 	{
 		// 支持的标量操作已在写入事务内完成编译与重新定位读回；失败不得自动保存。

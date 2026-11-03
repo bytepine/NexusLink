@@ -10,6 +10,9 @@
 #include "MovieSceneSection.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#if NX_UE_HAS_MOVIE_SCENE_DOUBLE_CHANNEL
+#include "Channels/MovieSceneDoubleChannel.h"
+#endif
 #include "Channels/MovieSceneBoolChannel.h"
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneStringChannel.h"
@@ -25,6 +28,9 @@ static TChannel* NexusAnimationChannel(UMovieSceneSection* Section, const FStrin
 }
 
 static TSharedPtr<FJsonValue> NexusAnimationValue(const FMovieSceneFloatValue& Value) { return MakeShared<FJsonValueNumber>(Value.Value); }
+#if NX_UE_HAS_MOVIE_SCENE_DOUBLE_CHANNEL
+static TSharedPtr<FJsonValue> NexusAnimationValue(const FMovieSceneDoubleValue& Value) { return MakeShared<FJsonValueNumber>(Value.Value); }
+#endif
 static TSharedPtr<FJsonValue> NexusAnimationValue(int32 Value) { return MakeShared<FJsonValueNumber>(Value); }
 static TSharedPtr<FJsonValue> NexusAnimationValue(bool Value) { return MakeShared<FJsonValueBoolean>(Value); }
 static TSharedPtr<FJsonValue> NexusAnimationValue(const FString& Value) { return MakeShared<FJsonValueString>(Value); }
@@ -124,26 +130,44 @@ bool FNexusLegacyToolsets::Animation(const FString& Domain, const FString& Tool,
     const FString Name = A.Str(TEXT("channel_name"));
     auto* Float = NexusAnimationChannel<FMovieSceneFloatChannel>(Section, Name); auto* Bool = NexusAnimationChannel<FMovieSceneBoolChannel>(Section, Name);
     auto* Integer = NexusAnimationChannel<FMovieSceneIntegerChannel>(Section, Name); auto* String = NexusAnimationChannel<FMovieSceneStringChannel>(Section, Name);
+#if NX_UE_HAS_MOVIE_SCENE_DOUBLE_CHANNEL
+    auto* Double = NexusAnimationChannel<FMovieSceneDoubleChannel>(Section, Name);
+#endif
     if (Tool == TEXT("get_keys")) {
         if (NexusAnimationReadChannel(Float, Scene, Tool, Result) || NexusAnimationReadChannel(Bool, Scene, Tool, Result) || NexusAnimationReadChannel(Integer, Scene, Tool, Result) || NexusAnimationReadChannel(String, Scene, Tool, Result)) return true;
+#if NX_UE_HAS_MOVIE_SCENE_DOUBLE_CHANNEL
+        if (NexusAnimationReadChannel(Double, Scene, Tool, Result)) return true;
+#endif
     }
     const double Frame = A.Num(TEXT("frame"));
     if (!Args->HasTypedField<EJson::Number>(TEXT("frame")) || !FMath::IsFinite(Frame) || Frame < MIN_int32 || Frame > MAX_int32 || FMath::FloorToDouble(Frame)!=Frame) { Error = TEXT("Key requires an int32 display frame"); return false; }
     const FFrameNumber Tick = ToTicks(static_cast<int32>(Frame));
     if (Tool == TEXT("remove_key_at_frame")) {
         FMovieSceneChannel* Channel=Float?static_cast<FMovieSceneChannel*>(Float):Bool?static_cast<FMovieSceneChannel*>(Bool):Integer?static_cast<FMovieSceneChannel*>(Integer):static_cast<FMovieSceneChannel*>(String);
+#if NX_UE_HAS_MOVIE_SCENE_DOUBLE_CHANNEL
+        if (!Channel) Channel = Double;
+#endif
         if (!Channel) { Error=TEXT("Named typed channel was not found"); return false; }
         TArray<FKeyHandle> Handles; Channel->GetKeys(TRange<FFrameNumber>::Inclusive(Tick,Tick),nullptr,&Handles);
         Section->Modify(); Channel->DeleteKeys(Handles); Section->MarkPackageDirty(); Result->SetNumberField(TEXT("RemovedCount"),Handles.Num()); return true;
     }
-    if (Tool == TEXT("add_key_float") && Float && Args->HasTypedField<EJson::Number>(TEXT("value"))) {
+    const bool bNumericChannel = Float != nullptr
+#if NX_UE_HAS_MOVIE_SCENE_DOUBLE_CHANNEL
+        || Double != nullptr
+#endif
+        ;
+    if (Tool == TEXT("add_key_float") && bNumericChannel && Args->HasTypedField<EJson::Number>(TEXT("value"))) {
         const double Value = A.Num(TEXT("value")); if (!FMath::IsFinite(Value)) { Error = TEXT("Key value must be finite"); return false; }
         FMovieSceneFloatValue Key(static_cast<float>(Value)); const FString Interpolation = A.Str(TEXT("interpolation")).ToLower();
         if (Interpolation.IsEmpty() || Interpolation == TEXT("auto") || Interpolation == TEXT("cubic")) Key.InterpMode = RCIM_Cubic;
         else if (Interpolation == TEXT("linear")) Key.InterpMode = RCIM_Linear;
         else if (Interpolation == TEXT("constant")) Key.InterpMode = RCIM_Constant;
         else { Error = TEXT("Compatibility interpolation must be Auto, Linear or Constant"); return false; }
-        Section->Modify(); Float->GetData().UpdateOrAddKey(Tick, Key); Float->AutoSetTangents();
+        Section->Modify();
+        if (Float) { Float->GetData().UpdateOrAddKey(Tick, Key); Float->AutoSetTangents(); }
+#if NX_UE_HAS_MOVIE_SCENE_DOUBLE_CHANNEL
+        else { FMovieSceneDoubleValue DoubleKey(Value); DoubleKey.InterpMode = Key.InterpMode; Double->GetData().UpdateOrAddKey(Tick, DoubleKey); Double->AutoSetTangents(); }
+#endif
     } else if (Tool == TEXT("add_key_bool") && Bool && Args->HasTypedField<EJson::Boolean>(TEXT("value"))) { Section->Modify(); Bool->GetData().UpdateOrAddKey(Tick, A.Bool(TEXT("value"))); }
     else if (Tool == TEXT("add_key_integer") && Integer && Args->HasTypedField<EJson::Number>(TEXT("value")) && A.Num(TEXT("value")) >= MIN_int32 && A.Num(TEXT("value")) <= MAX_int32 && A.Num(TEXT("value")) == static_cast<int32>(A.Num(TEXT("value")))) { Section->Modify(); Integer->GetData().UpdateOrAddKey(Tick, static_cast<int32>(A.Num(TEXT("value")))); }
     else if (Tool == TEXT("add_key_string") && String && Args->HasTypedField<EJson::String>(TEXT("value"))) { Section->Modify(); String->GetData().UpdateOrAddKey(Tick, A.Str(TEXT("value"))); }

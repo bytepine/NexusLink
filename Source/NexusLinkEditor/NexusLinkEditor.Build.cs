@@ -14,6 +14,7 @@ public class NexusLinkEditor : ModuleRules
 		NexusLinkOptionalPlugins.ApplyCustomEngineCompatDefines(this);
 
 		PublicDependencyModuleNames.AddRange(new[] { "Core", "DeveloperSettings" });
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "FBX");
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
 			"NexusLink",

@@ -4,6 +4,8 @@
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusBlueprintGraphUtils.h"
+#include "Utils/NexusVersionCompat.h"
+#include "Containers/StringConv.h"
 #include "Misc/SecureHash.h"
 #include "Engine/Blueprint.h"
 #include "WidgetBlueprint.h"
@@ -15,6 +17,11 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
+#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
+#include "K2Node_Variable.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "WidgetBlueprintEditorUtils.h"
+#endif
 #if WITH_PCG
 #include "PCGGraph.h"
 #include "PCGNode.h"
@@ -69,7 +76,12 @@ TArray<FString> FNexusAssetStructureUtils::Snapshot(UObject* Asset, const FStrin
 	Rows.Sort(); return Rows;
 }
 
-FString FNexusAssetStructureUtils::Hash(UObject* Asset) { return FMD5::HashAnsiString(*FString::Join(Snapshot(Asset), TEXT("\n"))); }
+FString FNexusAssetStructureUtils::Hash(UObject* Asset)
+{
+	const FString Structure = FString::Join(Snapshot(Asset), TEXT("\n"));
+	const FTCHARToUTF8 Encoded(*Structure);
+	return FMD5::HashBytes(reinterpret_cast<const uint8*>(Encoded.Get()), Encoded.Length());
+}
 
 bool FNexusAssetStructureUtils::Supports(const FString& Capability, const FString& Action)
 {
@@ -110,6 +122,13 @@ UObject* FNexusAssetStructureUtils::Copy(UObject* Asset)
 		CopyGraphs(Source->FunctionGraphs, Blueprint->FunctionGraphs);
 		CopyGraphs(Source->MacroGraphs, Blueprint->MacroGraphs);
 		CopyGraphs(Source->DelegateSignatureGraphs, Blueprint->DelegateSignatureGraphs);
+		for (const FBPInterfaceDescription& Interface : Source->ImplementedInterfaces)
+		{
+			FBPInterfaceDescription CopyInterface;
+			CopyInterface.Interface = Interface.Interface;
+			CopyGraphs(Interface.Graphs, CopyInterface.Graphs);
+			Blueprint->ImplementedInterfaces.Add(MoveTemp(CopyInterface));
+		}
 		if (UWidgetBlueprint* Widget = Cast<UWidgetBlueprint>(Source))
 		{
 			UWidgetBlueprint* WidgetCopy = Cast<UWidgetBlueprint>(Blueprint);
@@ -129,7 +148,7 @@ UObject* FNexusAssetStructureUtils::Copy(UObject* Asset)
 	return Result;
 }
 
-bool FNexusAssetStructureUtils::ApplyPreview(UObject* Asset, const FString& Capability, const TSharedPtr<FJsonObject>& Op, const TSharedPtr<FJsonObject>& Entry, FString& Error)
+bool FNexusAssetStructureUtils::ApplyPreview(UObject* Asset, const FString& Capability, const TSharedPtr<FJsonObject>& Op, const TSharedPtr<FJsonObject>& Entry, FString& Error, UObject* Source)
 {
 	const FNexusArgs A(Op); const FString Action = A.Str(TEXT("Action"));
 	if (!Supports(Capability, Action)) { Error = TEXT("Unsupported structural preview action"); return false; }
@@ -153,7 +172,34 @@ bool FNexusAssetStructureUtils::ApplyPreview(UObject* Asset, const FString& Capa
 		else
 		{
 			if (!Widget) { Error = TEXT("WidgetName not found"); return false; }
-			if (Action == TEXT("Remove")) { if (Widget == Tree->RootWidget) Tree->RootWidget = nullptr; else Widget->RemoveFromParent(); }
+			if (Action == TEXT("Remove"))
+			{
+#if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
+				// 只读原生成类判定变量使用；仅在副本清理真实删除也会移除的引用节点。
+				UWidgetBlueprint* SourceBlueprint = Cast<UWidgetBlueprint>(Source);
+				TArray<UWidget*> RemovedWidgets = {Widget};
+				UWidgetTree::GetChildWidgets(Widget, RemovedWidgets);
+				TSet<FName> UsedVariables;
+				if (SourceBlueprint) for (UWidget* Removed : RemovedWidgets)
+					if (FBlueprintEditorUtils::IsVariableUsed(SourceBlueprint, Removed->GetFName())) UsedVariables.Add(Removed->GetFName());
+				TArray<UEdGraph*> Graphs;
+				Blueprint->GetAllGraphs(Graphs);
+				for (UEdGraph* Graph : Graphs) if (Graph)
+				{
+					TArray<UK2Node_Variable*> Nodes;
+					Graph->GetNodesOfClass(Nodes);
+					for (UK2Node_Variable* Node : Nodes)
+						if (UsedVariables.Contains(Node->GetVarName()) && SourceBlueprint
+							&& Node->VariableReference.GetMemberParentClass(SourceBlueprint->GeneratedClass) == SourceBlueprint->GeneratedClass)
+							Node->DestroyNode();
+				}
+				Tree->RemoveWidget(Widget);
+				if (TScriptInterface<INamedSlotInterface> SlotHost = FWidgetBlueprintEditorUtils::FindNamedSlotHostForContent(Widget, Tree))
+					FWidgetBlueprintEditorUtils::RemoveNamedSlotHostContent(Widget, SlotHost);
+#else
+				if (Widget == Tree->RootWidget) Tree->RootWidget = nullptr; else Widget->RemoveFromParent();
+#endif
+			}
 			else
 			{
 				const int32 Index = static_cast<int32>(A.Num(TEXT("ChildIndex"), -1));
@@ -177,8 +223,8 @@ bool FNexusAssetStructureUtils::ApplyPreview(UObject* Asset, const FString& Capa
 			if (!Node) { Error = TEXT("NodeId not found"); return false; }
 			Graph->GetSchema()->BreakNodeLinks(*Node); Graph->RemoveNode(Node); return true;
 		}
-		UEdGraphNode* Source = FNexusBlueprintGraphUtils::FindBPNode(Graph, A.Str(TEXT("SourceNodeId")));
-		UEdGraphPin* Pin = Source ? FNexusBlueprintGraphUtils::FindBPPin(Source, A.Str(TEXT("SourcePinName"))) : nullptr;
+		UEdGraphNode* SourceNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, A.Str(TEXT("SourceNodeId")));
+		UEdGraphPin* Pin = SourceNode ? FNexusBlueprintGraphUtils::FindBPPin(SourceNode, A.Str(TEXT("SourcePinName"))) : nullptr;
 		if (!Pin) { Error = TEXT("Source pin not found"); return false; }
 		if (Action == TEXT("DisconnectAll")) { Graph->GetSchema()->BreakPinLinks(*Pin, false); return true; }
 		UEdGraphNode* Target = FNexusBlueprintGraphUtils::FindBPNode(Graph, A.Str(TEXT("TargetNodeId")));
@@ -224,7 +270,7 @@ void FNexusAssetStructureUtils::Wrap(const FString& Capability, TMap<FString, FN
 			if (!FNexusArgs(Context.Args).Bool(TEXT("bVerifyStructure"))) { Handler(Op, Context); return; }
 			UObject* Asset = Target(Context); UObject* Preview = Copy(Asset);
 			auto Plan = MakeShared<FJsonObject>(); FString Error;
-			if (!Preview || !ApplyPreview(Preview, Capability, Op, Plan, Error)) { Context.Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Could not create structural plan") : Error); return; }
+			if (!Preview || !ApplyPreview(Preview, Capability, Op, Plan, Error, Asset)) { Context.Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Could not create structural plan") : Error); return; }
 			const auto Expected = Snapshot(Preview, FNexusArgs(Plan).Str(TEXT("NodeId")));
 			Handler(Op, Context);
 			if (Context.Entry->HasField(TEXT("Error"))) return;

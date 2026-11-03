@@ -21,7 +21,6 @@ void FNexusGetEditorPCGCapability::BuildDefinition(FNexusCapabilityDefinition& O
 		.Prop(TEXT("Offset"), FNexusSchema::Int(TEXT("Node data element offset"), 0, 0, 1000000000))
 		.Prop(TEXT("Limit"), FNexusSchema::Int(TEXT("Node data element count"), 100, 1, 1000)).Build();
 	FNexusEditorToolSchema::ConfigureCompatible(Out, false, TEXT("PCGToolset"));
-	Out.SearchAssetTypes = {TEXT("PCGGraph")};
 	Out.ExtraSearchKeywords = {TEXT("pcg"), TEXT("procedural"), TEXT("inspection"), TEXT("points"), TEXT("attributes")};
 	Out.RelatedCapabilities = {TEXT("ControlEditorPCG"), TEXT("GetAssetPCGGraph"), TEXT("GetEditorOperation")};
 }

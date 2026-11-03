@@ -205,7 +205,11 @@ bool FNexusLegacyToolsets::PCG(const FString& Tool, const TSharedPtr<FJsonObject
             const UPCGPointData* Points = Cast<UPCGPointData>(Tagged.Data);
 #endif
             if (!Points) { Error = TEXT("Compatibility node data currently supports point datasets only"); return false; }
+#if NX_UE_HAS_PCG_BASE_POINT_DATA
             const int32 Count = Points->GetNumPoints();
+#else
+            const int32 Count = Points->GetPoints().Num();
+#endif
             const int32 BeginPoint = FMath::Clamp(Offset - Total, 0, Count), EndPoint = FMath::Clamp(End - Total, 0, Count);
             for (int32 PointIndex = BeginPoint; PointIndex < EndPoint; ++PointIndex)
             {
@@ -287,14 +291,11 @@ bool FNexusLegacyToolsets::PCG(const FString& Tool, const TSharedPtr<FJsonObject
 #if NX_UE_HAS_PCG_PARAMETER_UPDATE_HELPER
         Graph->UpdateUserParametersStruct([&](FInstancedPropertyBag& Bag) { Bag = Candidate; });
 #else
-        // Use the older editor property-change lifecycle so the graph can compare
-        // descriptors and refresh its instances without calling private notifications.
-        FProperty* ParametersProperty=FindFProperty<FProperty>(Graph->GetClass(),TEXT("UserParameters"));
-        if (!ParametersProperty) { Error=TEXT("Graph parameter property is unavailable"); return false; }
-        Graph->PreEditChange(ParametersProperty);
+        // 通过公开基类接口刷新完整参数包，与新版 helper 一样传播默认值并保留实例覆盖。
+        // 删除事件还会清理已失去参数的 Getter 节点，不依赖各版本不同的属性编辑回调。
         *Graph->GetMutableUserParametersStruct_Unsafe() = Candidate;
-        FPropertyChangedEvent Event(ParametersProperty,EPropertyChangeType::ValueSet);
-        Graph->PostEditChangeProperty(Event);
+        static_cast<UPCGGraphInterface*>(Graph)->OnGraphParametersChanged(
+            Tool == TEXT("RemoveGraphParams") ? EPCGGraphParameterEvent::RemovedUnused : EPCGGraphParameterEvent::GraphPostLoad, NAME_None);
 #endif
         Graph->MarkPackageDirty(); return true;
     }
