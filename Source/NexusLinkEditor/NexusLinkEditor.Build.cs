@@ -28,6 +28,7 @@ public class NexusLinkEditor : ModuleRules
 			"Settings", "UnrealEd", "LevelEditor", "EditorStyle",
 			"KismetCompiler", "Kismet", "BlueprintGraph", "AnimGraph", "UMGEditor", "AssetTools",
 			"MaterialEditor", "PropertyEditor", "ContentBrowser", "ContentBrowserData",
+			"SourceControl", "AudioEditor",
 		});
 
 		// UE4 的 PhysicsAssetUtils 由 UnrealEd 提供，UE5 起拆入 PhysicsUtilities。

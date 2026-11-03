@@ -26,6 +26,9 @@ void FNexusControlPieCapability::BuildDefinition(FNexusCapabilityDefinition& Out
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("PIE operation"), { TEXT("Start"), TEXT("Stop"), TEXT("Status"), TEXT("Pause"), TEXT("Resume"), TEXT("Step") }))
 		.Prop(TEXT("Mode"),   FNexusSchema::Enum(TEXT("Play mode (start only)"), { TEXT("Viewport"), TEXT("Simulate") }, TEXT("Viewport")))
+		.Prop(TEXT("NetMode"), FNexusSchema::Enum(TEXT("Start networking topology"), {TEXT("Standalone"), TEXT("ListenServer"), TEXT("Client")}, TEXT("Standalone")))
+		.Prop(TEXT("NumberOfClients"), FNexusSchema::Int(TEXT("PIE player count, 1-8"), 1, 1, 8))
+		.Prop(TEXT("bRunUnderOneProcess"), FNexusSchema::Bool(TEXT("Run PIE clients in one editor process"), true, true))
 		.Required({ TEXT("Action") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Editor };
@@ -58,6 +61,17 @@ FCapabilityResult FNexusControlPieCapability::Execute(const TSharedPtr<FJsonObje
 			const bool bHasPlayWorld = FNexusRuntimeUtils::HasPlayWorld();
 			OutEntry->SetBoolField(TEXT("bIsPIERunning"), bRunning);
 			OutEntry->SetBoolField(TEXT("bHasPlayWorld"), bHasPlayWorld);
+			TArray<TSharedPtr<FJsonValue>> Worlds;
+			for (const FWorldContext& Context : GEngine->GetWorldContexts()) if (Context.WorldType == EWorldType::PIE && Context.World())
+			{
+				auto Item = MakeShared<FJsonObject>(); UWorld* World = Context.World();
+				const ENetMode NetMode = World->GetNetMode();
+				Item->SetNumberField(TEXT("PieInstance"), Context.PIEInstance);
+				Item->SetStringField(TEXT("WorldPath"), World->GetPathName());
+				Item->SetStringField(TEXT("NetMode"), NetMode == NM_Client ? TEXT("Client") : NetMode == NM_ListenServer ? TEXT("ListenServer") : NetMode == NM_DedicatedServer ? TEXT("DedicatedServer") : TEXT("Standalone"));
+				Worlds.Add(MakeShared<FJsonValueObject>(Item));
+			}
+			OutEntry->SetArrayField(TEXT("PlayWorlds"), Worlds);
 			if (bSimulating) OutEntry->SetBoolField(TEXT("bIsPIESimulating"), true);
 			FString State = TEXT("bStopped");
 			if (bRunning)
@@ -97,8 +111,14 @@ FCapabilityResult FNexusControlPieCapability::Execute(const TSharedPtr<FJsonObje
 
 			ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
 			const bool bSimulate = Mode.Equals(TEXT("Simulate"), ESearchCase::IgnoreCase);
+			const FString NetMode = A.Str(TEXT("NetMode"), TEXT("Standalone"));
+			const int32 Clients = static_cast<int32>(A.Num(TEXT("NumberOfClients"), 1));
+			if ((bSimulate && (NetMode != TEXT("Standalone") || Clients != 1)) || (NetMode == TEXT("Standalone") && Clients != 1))
+			{ OutError = TEXT("Simulate/Standalone require one player; use ListenServer or Client for multiplayer"); return; }
 			PlaySettings->LastExecutedPlayModeType = bSimulate ? PlayMode_Simulate : PlayMode_InViewPort;
-			PlaySettings->SetPlayNetMode(PIE_Standalone);
+			PlaySettings->SetPlayNetMode(NetMode == TEXT("ListenServer") ? PIE_ListenServer : NetMode == TEXT("Client") ? PIE_Client : PIE_Standalone);
+			PlaySettings->SetPlayNumberOfClients(Clients);
+			PlaySettings->SetRunUnderOneProcess(A.Bool(TEXT("bRunUnderOneProcess"), true));
 			PlaySettings->PostEditChange();
 			PlaySettings->SaveConfig();
 
@@ -120,6 +140,9 @@ FCapabilityResult FNexusControlPieCapability::Execute(const TSharedPtr<FJsonObje
 
 			OutEntry->SetStringField(TEXT("Action"), TEXT("Start"));
 			OutEntry->SetStringField(TEXT("Mode"), Mode.ToLower());
+			OutEntry->SetStringField(TEXT("NetMode"), NetMode);
+			OutEntry->SetNumberField(TEXT("NumberOfClients"), Clients);
+			OutEntry->SetBoolField(TEXT("bRunUnderOneProcess"), A.Bool(TEXT("bRunUnderOneProcess"), true));
 			OutEntry->SetStringField(TEXT("Note"), TEXT("PIE start requested; begins next frame."));
 		}
 		else if (Action.Equals(TEXT("Stop"), ESearchCase::IgnoreCase))

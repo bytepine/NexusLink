@@ -2,6 +2,8 @@
 
 [文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
 
+节点/连线及控件树的首批结构计划、StructureHash 前置条件和 bVerifyStructure 回读见[功能补充](feature-followups.md#结构预览与回读)。下文介绍原有标量模式。
+
 `GetAssetEditPreview` 在临时属性存储中解析值，返回 `PropertyType`、`CurrentValue`、规范化的 `TargetValue`、`bValid` 与逐项 `Error`。它不写入真实属性、不编译、不保存、不创建 Undo。请求包含单个 `AssetPath`、目标 `Capability` 和 `Operations`，参数保持原有写操作格式：
 
 ```json
@@ -29,4 +31,4 @@
 
 单次 Manage 保持部分成功：前项成功的修改保留，任何验证失败阻止该调用自动保存，不能描述为资产已还原。跨调用 `CallCapability.Calls` 批次沿用事务回滚，保存在内存事务完成后进行，保存失败不宣称磁盘整体回滚。失败写入不自动重试。
 
-Preview uses temporary property storage and never mutates, compiles, saves or records Undo. Only the three listed scalar edits are supported. ExpectedValue is an optional optimistic precondition. bVerify compiles BP/WBP, resolves the property again and compares the readback before automatic save. Existing partial-success and batch rollback boundaries remain in effect.
+Scalar preview uses temporary property storage and never mutates, compiles, saves or records Undo. ExpectedValue is an optional optimistic precondition. bVerify compiles BP/WBP, resolves the property again and compares the readback before automatic save. Structural plans and bVerifyStructure cover the bounded operations linked above. Existing partial-success and batch rollback boundaries remain in effect.

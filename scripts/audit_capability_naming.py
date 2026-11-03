@@ -32,7 +32,7 @@ RE_TEXT = re.compile(r'TEXT\("([^"]+)"\)')
 RE_AT_LEAST_IN_CAP = re.compile(r"NX_UE_AT_LEAST\s*\(")
 
 ALLOWED_FIRST_VERBS = (
-    "HotReload", "Duplicate", "Reimport", "Interact",
+    "HotReload", "Duplicate", "Reimport", "Interact", "Import",
     "Destroy", "Capture", "Compile", "Control",
     "Manage", "Create", "Delete", "Rename",
     "Search", "Unload", "Export", "Submit",
@@ -57,7 +57,7 @@ META_TOOLS = frozenset({
 PLANNED_GAP_READ_CAPS = frozenset({
 })
 
-EXPECTED_CAP_COUNT = 247
+EXPECTED_CAP_COUNT = 250
 
 
 def _scan_capability_cpp_files() -> list[Path]:

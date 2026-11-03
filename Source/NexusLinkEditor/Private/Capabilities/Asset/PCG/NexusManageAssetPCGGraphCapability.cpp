@@ -10,6 +10,7 @@
 #include "Utils/NexusEditorToolsets.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusAssetStructureUtils.h"
 #include "NexusMcpTool.h"
 #include "PCGGraph.h"
 #include "PCGNode.h"
@@ -24,6 +25,8 @@ void FNexusManageAssetPCGGraphCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.Description = TEXT("Manage PCG Graph: AddNode/RemoveNode/AddEdge/RemoveEdge (UE 5.4+).");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("PCG Graph asset path")))
+		.Prop(TEXT("ExpectedStructureHash"), FNexusSchema::Str(TEXT("Precondition hash from GetAssetEditPreview")))
+		.Prop(TEXT("bVerifyStructure"), FNexusSchema::Bool(TEXT("Verify node/edge changes against an isolated structural plan"), true, false))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Operation list"),
 			FNexusSchema::Object()
 			.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"),
@@ -202,6 +205,7 @@ bool FNexusManageAssetPCGGraphCapability::PrepareTarget(
 		return false;
 	}
 	OutTarget = Graph;
+	if (!FNexusAssetStructureUtils::Check(Graph, TEXT("ManageAssetPCGGraph"), Args, OutError)) return false;
 	return true;
 }
 
@@ -219,6 +223,7 @@ void FNexusManageAssetPCGGraphCapability::RegisterActions(TMap<FString, FNexusAc
 	OutHandlers.Add(TEXT("RemoveNode"), &HandlePCG_RemoveNode);
 	OutHandlers.Add(TEXT("AddEdge"),    &HandlePCG_AddEdge);
 	OutHandlers.Add(TEXT("RemoveEdge"), &HandlePCG_RemoveEdge);
+	FNexusAssetStructureUtils::Wrap(TEXT("ManageAssetPCGGraph"), OutHandlers, [](FNexusActionContext& Context) -> UObject* { return PCGFrom(Context); });
 }
 
 REGISTER_MCP_CAPABILITY(FNexusManageAssetPCGGraphCapability)

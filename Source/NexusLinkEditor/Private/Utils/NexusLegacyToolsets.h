@@ -11,6 +11,7 @@ struct FNexusLegacyToolsets final
     static void Call(const FString& Domain, const FString& Tool, const TSharedPtr<FJsonObject>& Args,
         const TSharedPtr<FNexusEditorOperation>& Operation);
     static bool PCG(const FString& Tool, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Result, FString& Error);
+    static void ExecutePCG(const TSharedPtr<FJsonObject>& Args, const TSharedPtr<FNexusEditorOperation>& Operation);
     static bool Niagara(const FString& Tool, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Result, FString& Error);
     static bool Animation(const FString& Domain, const FString& Tool, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Result, FString& Error);
     static UObject* Resolve(const TSharedPtr<FJsonObject>& Args, const TCHAR* Key);

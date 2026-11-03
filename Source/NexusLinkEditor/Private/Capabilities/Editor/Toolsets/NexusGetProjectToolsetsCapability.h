@@ -1,7 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
 #pragma once
 #include "NexusMultiSectionCapability.h"
-#if WITH_NEXUS_TOOLSETS
 
 class FNexusGetProjectToolsetsCapability : public FNexusMultiSectionCapability
 {
@@ -13,5 +12,3 @@ protected:
 	void ExecuteSection(const FString& SectionName, const TSharedPtr<FJsonObject>& Args, void* Target,
 		TSharedPtr<FJsonObject>& Out, FString& Error) const override;
 };
-
-#endif

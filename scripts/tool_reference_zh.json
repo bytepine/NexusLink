@@ -1,6 +1,9 @@
 {
   "descriptions": {
-    "GetAssetEditPreview": "只读预览蓝图默认值、DataTable 字段或 Widget 标量属性；临时解析目标值，不写入、编译、保存或记录 Undo。",
+    "GetAssetEditPreview": "在临时存储中预览标量属性与首批 BP/UMG/PCG 结构修改；不写入源资产、不编译、不保存。",
+    "ImportAsset": "使用明确工厂首次导入图片、WAV 或 FBX，指定目标冲突策略，返回实际产物；单文件，单独保存。",
+    "GetAssetSourceControl": "只读预检已保存资产包的文件只读、检出、锁定与冲突状态；可显式刷新 Provider，不提交。",
+    "ControlEditorOperation": "请求取消当前会话所属任务，仅支持暴露停止回调的运行任务。",
     "CallCapability": "执行 Capability（在 SearchAsset / get_asset_* 之后）。失败时检查 ErrorKind：unknown/disabled/unavailable/ArgInvalid/UserDenied；disabled 与 UserDenied 不要重试。Confirm 模式危险 cap 须传 reason。旧名（如 create_blackboard）映射到规范名。批量 calls[] 与单条形式互斥。",
     "CaptureEditorPanel": "截图编辑器面板或 Actor 视角，默认附带标准 MCP PNG/JPEG 图片和 FilePath。",
     "CaptureViewport": "截图编辑器、Game 或 PIE 视口，默认附带标准 MCP PNG/JPEG 图片和 FilePath。",

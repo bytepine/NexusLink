@@ -34,6 +34,7 @@
 | `Delete` | 删除资产文件 | `DeleteAsset` |
 | `Rename` | 移动/重命名资产 | `RenameAsset` |
 | `Duplicate` | 复制资产到新路径 | `DuplicateAsset` |
+| `Import` | 从外部文件首次创建资产 | `ImportAsset` |
 | `Save` | 持久化脏标记资产 | `SaveAsset` |
 | `Unload` | 从内存卸载已加载资产包 | `UnloadAsset` |
 | `Spawn` | 运行时实例化 | `SpawnRuntimeActor`, `SpawnRuntimeWidget` |

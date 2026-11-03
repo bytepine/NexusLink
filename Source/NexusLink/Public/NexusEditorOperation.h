@@ -14,7 +14,7 @@ struct NEXUSLINK_API FNexusEditorOperation
 	TArray<FString> ImageFiles;
 	bool bIncludeImage = false;
 	bool IsRunning() const { return State == TEXT("Running"); }
-	TSharedPtr<FJsonObject> Snapshot() const;
+	TSharedPtr<FJsonObject> Snapshot(bool bIncludeResult = true) const;
 };
 
 /** 仅管理状态和有界等待，不负责调度编辑器工作。所有入口必须在游戏线程。 */
@@ -23,6 +23,7 @@ struct NEXUSLINK_API FNexusEditorOperations final
 	static FString& RequestOwner();
 	static TSharedPtr<FNexusEditorOperation> Create(const FString& Backend);
 	static TSharedPtr<FNexusEditorOperation> Find(const FString& Id);
+	static TArray<TSharedPtr<FJsonValue>> List(bool bRunningOnly, int32 Limit);
 	static void Finish(const TSharedPtr<FNexusEditorOperation>& Operation, const FString& State,
 		const TSharedPtr<FJsonObject>& Result, const FString& Message = FString());
 	static bool Cancel(const FString& Id);

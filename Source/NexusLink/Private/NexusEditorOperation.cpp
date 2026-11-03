@@ -18,7 +18,7 @@ static TArray<FDelegateHandle> GNexusOperationWaitHandles;
 
 FString& FNexusEditorOperations::RequestOwner() { return GNexusOperationOwner; }
 
-TSharedPtr<FJsonObject> FNexusEditorOperation::Snapshot() const
+TSharedPtr<FJsonObject> FNexusEditorOperation::Snapshot(bool bIncludeResult) const
 {
 	auto Out = MakeShared<FJsonObject>();
 	Out->SetStringField(TEXT("OperationId"), Id);
@@ -28,7 +28,7 @@ TSharedPtr<FJsonObject> FNexusEditorOperation::Snapshot() const
 	Out->SetNumberField(TEXT("TtlSeconds"), 0);
 	Out->SetStringField(TEXT("Message"), Message);
 	Out->SetNumberField(TEXT("ElapsedSeconds"), FPlatformTime::Seconds() - StartedAt);
-	if (Result.IsValid()) {
+	if (bIncludeResult && Result.IsValid()) {
         FString Text; auto Writer = TJsonWriterFactory<>::Create(&Text); FJsonSerializer::Serialize(Result.ToSharedRef(), Writer);
         TSharedPtr<FJsonObject> Copy; auto Reader = TJsonReaderFactory<>::Create(Text);
         if (FJsonSerializer::Deserialize(Reader, Copy)) Out->SetObjectField(TEXT("Result"), Copy);
@@ -71,6 +71,21 @@ void FNexusEditorOperations::Finish(const TSharedPtr<FNexusEditorOperation>& Ope
 	Operation->Result = Result;
 	Operation->Message = Message;
 	Operation->Stop = nullptr;
+}
+
+TArray<TSharedPtr<FJsonValue>> FNexusEditorOperations::List(bool bRunningOnly, int32 Limit)
+{
+	check(IsInGameThread());
+	TArray<TSharedPtr<FJsonValue>> Items;
+	for (int32 Index = GNexusOperations.Num() - 1; Index >= 0 && Items.Num() < FMath::Clamp(Limit, 1, 128); --Index)
+	{
+		const auto& Item = GNexusOperations[Index];
+		if (Item->Owner != RequestOwner() || (bRunningOnly && !Item->IsRunning())) continue;
+		auto Summary = Item->Snapshot(false);
+		Summary->SetBoolField(TEXT("bHasResult"), Item->Result.IsValid());
+		Items.Add(MakeShared<FJsonValueObject>(Summary));
+	}
+	return Items;
 }
 
 bool FNexusEditorOperations::Cancel(const FString& Id)

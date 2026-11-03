@@ -151,7 +151,9 @@ def compare(before, after):
 def render_report(report):
     fmt = lambda value: "—" if value is None else f"{value:.6g}"
     body = '<div class="eyebrow">NEXUSLINK · TRACE COMPARE</div><h1>同条件性能对比</h1>'
-    body += '<p>仅报告统计变化，不设置性能通过/失败阈值。负变化表示记录值降低。</p>'
+    body += '<p>负变化表示记录值降低。未指定预算时仅报告统计变化。</p>'
+    if "Budget" in report:
+        body += '<section class="panel"><h2>性能预算：' + text(report["Budget"]["Outcome"]) + '</h2><pre>' + text(json.dumps(report["Budget"], ensure_ascii=False, indent=2)) + '</pre></section>'
     if not report["bComparable"]:
         body += '<section class="panel warning"><h2>不可直接比较</h2><p>采样条件不一致：' + text(", ".join(report["ConditionDifferences"])) + '</p><p>保留每组数值，暂停计算差值。</p></section>'
     if report["bSingleSample"]: body += '<p class="pill">至少一组只有单次采样，不能据此判断稳定性。</p>'
@@ -179,6 +181,36 @@ def write_json(path, value):
         json.dump(value, destination, ensure_ascii=False, indent=2, allow_nan=False)
 
 
+def apply_budget(report, budget):
+    """显式 CI 预算；证据不足与性能回退均不能返回通过。"""
+    if not isinstance(budget, dict) or not budget or budget.keys() - {"MinSamples", "Frames", "Cpu"}:
+        raise RunError("Budget requires MinSamples, Frames and/or Cpu")
+    minimum = budget.get("MinSamples", 3)
+    if type(minimum) is not int or minimum < 1:
+        raise RunError("MinSamples must be a positive integer")
+    checks = []
+    for group in ("Frames", "Cpu"):
+        limits = budget.get(group, {})
+        if not isinstance(limits, dict): raise RunError(group + " budgets must be an object")
+        for name, limit in limits.items():
+            if not isinstance(limit, dict) or not limit or limit.keys() - {"MaxAfterSeconds", "MaxIncreaseSeconds", "MaxIncreasePercent"}:
+                raise RunError("Unknown or empty metric budget: " + name)
+            if group == "Frames" and name not in METRICS: raise RunError("Unknown frame metric: " + name)
+            for key, value in limit.items(): number(value, key)
+            row = report["Frames"].get(name) if group == "Frames" else next((r for r in report["Cpu"] if r["Name"] == name), None)
+            fields = {"MaxAfterSeconds": "After", "MaxIncreaseSeconds": "AbsoluteChange", "MaxIncreasePercent": "PercentChange"}
+            sufficient = report["bComparable"] and min(report["SampleCounts"].values()) >= minimum and row is not None and row["Before"] is not None and row["After"] is not None
+            for key, value in limit.items():
+                actual = row.get(fields[key]) if row and sufficient else None
+                checks.append({"Metric": group + "." + name, "Rule": key, "Limit": value, "Actual": actual,
+                               "Outcome": "InsufficientEvidence" if actual is None else "Failed" if actual > value else "Passed"})
+    if not checks: raise RunError("Budget requires at least one metric limit")
+    outcome = "InsufficientEvidence" if any(c["Outcome"] == "InsufficientEvidence" for c in checks) else "Failed" if any(c["Outcome"] == "Failed" for c in checks) else "Passed"
+    report["Budget"] = {"Outcome": outcome, "MinSamples": minimum, "Checks": checks}
+    report["ExitCode"] = 0 if outcome == "Passed" else 3 if outcome == "InsufficientEvidence" else 1
+    return report
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="mode", required=True)
@@ -196,6 +228,7 @@ def main(argv=None):
     comparison.add_argument("--before", required=True, nargs="+", type=Path)
     comparison.add_argument("--after", required=True, nargs="+", type=Path)
     comparison.add_argument("--output", type=Path, default=Path("trace-compare-results"))
+    comparison.add_argument("--budget", type=Path, help="Optional JSON performance budgets; exit 1=regression, 3=insufficient evidence")
     args = parser.parse_args(argv)
     read = lambda path: json.loads(path.read_text(encoding="utf-8-sig"))
     try:
@@ -206,13 +239,14 @@ def main(argv=None):
             write_json(args.output, snapshot)
         else:
             report = compare([read(path) for path in args.before], [read(path) for path in args.after])
+            if args.budget: apply_budget(report, read(args.budget))
             args.output.mkdir(parents=True)
             write_json(args.output / "comparison.json", report)
             (args.output / "report.html").write_text(render_report(report), encoding="utf-8")
             for group, samples in report["Samples"].items():
                 for index, sample in enumerate(samples, 1): write_json(args.output / f"{group.lower()}-{index}.json", sample)
         print(args.output)
-        return 0
+        return report["ExitCode"] if args.mode == "compare" else 0
     except (RunError, OSError, ValueError, TypeError, KeyError) as exc:
         print("Trace comparison error: " + (str(exc) if isinstance(exc, RunError) else type(exc).__name__), file=sys.stderr)
         return 2

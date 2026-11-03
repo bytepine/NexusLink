@@ -4,6 +4,7 @@
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusEditorToolsets.h"
 #include "JsonObjectConverter.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -13,10 +14,53 @@
 #include "PCGSettings.h"
 #include "PCGComponent.h"
 #include "PCGVolume.h"
+#include "PCGPin.h"
+#include "Data/PCGPointData.h"
+#if NX_UE_HAS_PCG_BASE_POINT_DATA
+#include "Data/PCGBasePointData.h"
+#endif
 #include "Editor.h"
 #include "EngineUtils.h"
 #include "UObject/NoExportTypes.h"
+#include "ActorFactories/ActorFactory.h"
+#include "Builders/CubeBuilder.h"
+#include "Components/BrushComponent.h"
 #endif
+
+void FNexusLegacyToolsets::ExecutePCG(const TSharedPtr<FJsonObject>& Args, const TSharedPtr<FNexusEditorOperation>& Operation)
+{
+#if WITH_PCG
+	APCGVolume* Volume = Cast<APCGVolume>(Resolve(Args, TEXT("pCGVolume")));
+	if (!Volume) Volume = Cast<APCGVolume>(Resolve(Args, TEXT("pcgVolume")));
+	UPCGComponent* Component = Volume ? Volume->FindComponentByClass<UPCGComponent>() : nullptr;
+	if (!Component || !Component->GetGraph() || Component->IsGenerating())
+	{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("PCG component/graph is unavailable or already generating")); return; }
+#if NX_UE_HAS_PCG_EXECUTION_STATE
+	auto& Inspection = Component->GetExecutionState().GetInspection();
+#else
+	auto& Inspection = *Component;
+#endif
+	if (!Inspection.IsInspecting()) Inspection.EnableInspection();
+	const FPCGTaskId Task = Component->GenerateLocalGetTaskId(true);
+	if (Task == InvalidPCGTaskId) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("PCG did not schedule generation")); return; }
+	const TWeakObjectPtr<UPCGComponent> Weak(Component);
+	Operation->Stop = [Weak, Operation]() { if (!Weak.IsValid()) return false; Weak->CancelGeneration(); FNexusEditorOperations::Finish(Operation, TEXT("Cancelled"), nullptr); return true; };
+	const double Deadline = FPlatformTime::Seconds() + 120;
+	FNexusEditorToolsets::AddTicker(FTickerDelegate::CreateLambda([Weak, Operation, Deadline](float)
+	{
+		if (!Operation->IsRunning()) return false;
+		if (!Weak.IsValid()) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("PCG component was destroyed")); return false; }
+		if (FPlatformTime::Seconds() > Deadline) { Weak->CancelGeneration(); FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("PCG generation timed out")); return false; }
+		if (Weak->IsGenerating()) return true;
+		auto Result = MakeShared<FJsonObject>(); auto Data = MakeShared<FJsonObject>();
+		Data->SetBoolField(TEXT("bGenerationFinished"), true); Data->SetStringField(TEXT("ActorPath"), Weak->GetOwner()->GetPathName());
+		Data->SetStringField(TEXT("Note"), TEXT("Execution finished; inspect NodeData and GetOutputLog for graph business errors"));
+		Result->SetObjectField(TEXT("CompatibilityResult"), Data); FNexusEditorOperations::Finish(Operation, TEXT("Completed"), Result); return false;
+	}), 0.1f);
+#else
+	FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("PCG plugin is unavailable"));
+#endif
+}
 
 #if WITH_PCG
 static bool NexusPCGImportBag(FInstancedPropertyBag& Bag, const TSharedPtr<FJsonObject>& Values, FString& Error)
@@ -89,7 +133,97 @@ bool FNexusLegacyToolsets::PCG(const FString& Tool, const TSharedPtr<FJsonObject
         }
         Result->SetArrayField(TEXT("Items"), Items); return true;
     }
+    if (Tool == TEXT("SpawnGraphInstance"))
+    {
+        UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+        if (!Graph || !World) { Error = TEXT("Graph and editor world are required"); return false; }
+        const TSharedPtr<FJsonObject>* Transform = nullptr; const TSharedPtr<FJsonObject>* Location = nullptr;
+        if (Args->TryGetObjectField(TEXT("transform"), Transform)) (*Transform)->TryGetObjectField(TEXT("location"), Location);
+        const FNexusArgs Position(Location ? *Location : nullptr);
+        const FVector Point(Position.Num(TEXT("x")), Position.Num(TEXT("y")), Position.Num(TEXT("z")));
+        FActorSpawnParameters Spawn; Spawn.Name = MakeUniqueObjectName(World->PersistentLevel, APCGVolume::StaticClass(), FName(*A.Str(TEXT("name"), Graph->GetName())));
+        APCGVolume* Added = World->SpawnActor<APCGVolume>(Point, FRotator::ZeroRotator, Spawn);
+        if (!Added) { Error = TEXT("Could not spawn PCG volume"); return false; }
+        Added->SetActorLabel(A.Str(TEXT("name"), Graph->GetName())); Added->SetActorScale3D(FVector(25, 25, 10));
+        UCubeBuilder* Builder = NewObject<UCubeBuilder>(); Builder->X = Builder->Y = Builder->Z = 200; Builder->Hollow = false;
+        UActorFactory::CreateBrushForVolumeActor(Added, Builder);
+        if (UBrushComponent* Brush = Added->GetBrushComponent()) { Brush->ReregisterComponent(); Brush->SetCollisionEnabled(ECollisionEnabled::NoCollision); Brush->SetCanEverAffectNavigation(false); }
+        UPCGComponent* AddedComponent = Added->FindComponentByClass<UPCGComponent>();
+        if (!AddedComponent) { World->DestroyActor(Added); Error = TEXT("Spawned volume has no PCG component"); return false; }
+        AddedComponent->SetGraph(Graph);
+        if (Values->Values.Num() && !NexusPCGSetInstance(AddedComponent->GetGraphInstance(), Values, Error)) { World->DestroyActor(Added); return false; }
+        Result->SetStringField(TEXT("ActorPath"), Added->GetPathName()); Result->SetStringField(TEXT("Name"), Added->GetName()); return true;
+    }
     if (Tool == TEXT("GetGraphInstanceParams")) { if (!Instance) { Error = TEXT("PCG instance not found"); return false; } Result = NexusPCGBagJson(Instance->GetUserParametersStruct()); return true; }
+    if (Tool == TEXT("GetNodeDataView"))
+    {
+        UPCGNode* Node = Cast<UPCGNode>(Resolve(Args, TEXT("node")));
+        if (!Component || !Node || Node->GetGraph() != Component->GetGraph()) { Error = TEXT("Node must belong to the selected PCG instance graph"); return false; }
+        if (Component->IsGenerating()) { Error = TEXT("Wait for graph execution to finish before reading node data"); return false; }
+        const FString Attribute = A.Str(TEXT("attributeName"));
+        if (!Attribute.IsEmpty() && Attribute != TEXT("Transform") && Attribute != TEXT("Density") && Attribute != TEXT("Seed")) { Error = TEXT("Compatibility node data currently exposes Transform, Density and Seed only"); return false; }
+        const UPCGPin* Pin = Node->GetOutputPin(FName(*A.Str(TEXT("pinLabel"), TEXT("Out"))));
+        if (!Pin) { Error = TEXT("Output pin not found"); return false; }
+#if NX_UE_HAS_PCG_EXECUTION_STATE
+        auto& Inspection = Component->GetExecutionState().GetInspection();
+#else
+        auto& Inspection = *Component;
+#endif
+#if NX_UE_HAS_PCG_SHARED_INSPECTION_DATA
+        const auto Stacks = Inspection.GetExecutedNodeStacks(Node);
+#elif NX_UE_HAS_PCG_INSPECTION_OBJECT
+        const auto AllStacks = Inspection.GetExecutedNodeStacks();
+        const auto* Found = AllStacks.Find(TObjectKey<const UPCGNode>(Node));
+        const auto Stacks = Found ? *Found : TSet<FPCGGraphExecutionInspection::FNodeExecutedNotificationData>();
+#else
+        const auto AllStacks = Inspection.GetExecutedNodeStacks();
+        const auto* Found = AllStacks.Find(TObjectKey<const UPCGNode>(Node));
+        const auto Stacks = Found ? *Found : TSet<FPCGStack>();
+#endif
+        if (!Inspection.IsInspecting()) Inspection.EnableInspection();
+        if (Stacks.Num() != 1) { Error = TEXT("Node has no inspection data or multiple execution stacks; execute the instance and use a single-stack node"); return false; }
+#if NX_UE_HAS_PCG_INSPECTION_OBJECT
+        FPCGStack Stack = Stacks.CreateConstIterator()->Stack;
+#else
+        FPCGStack Stack = *Stacks.CreateConstIterator();
+#endif
+        Stack.PushFrame(Node); Stack.PushFrame(Pin);
+#if NX_UE_HAS_PCG_SHARED_INSPECTION_DATA
+        const auto InspectionData = Inspection.GetInspectionDataPtr(Stack);
+        const FPCGDataCollection* Collection = InspectionData ? InspectionData->Data.Get() : nullptr;
+#else
+        const FPCGDataCollection* Collection = Inspection.GetInspectionData(Stack);
+#endif
+        if (!Collection) { Error = TEXT("No captured output data; execute after enabling inspection"); return false; }
+        const int32 Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("startIndex")))), End = FMath::Clamp(static_cast<int32>(A.Num(TEXT("endIndex"), 100)), Offset, Offset + 1000);
+        TArray<TSharedPtr<FJsonValue>> Items; int32 Total = 0;
+        for (const auto& Tagged : Collection->TaggedData)
+        {
+#if NX_UE_HAS_PCG_BASE_POINT_DATA
+            const UPCGBasePointData* Points = Cast<UPCGBasePointData>(Tagged.Data);
+#else
+            const UPCGPointData* Points = Cast<UPCGPointData>(Tagged.Data);
+#endif
+            if (!Points) { Error = TEXT("Compatibility node data currently supports point datasets only"); return false; }
+            const int32 Count = Points->GetNumPoints();
+            const int32 BeginPoint = FMath::Clamp(Offset - Total, 0, Count), EndPoint = FMath::Clamp(End - Total, 0, Count);
+            for (int32 PointIndex = BeginPoint; PointIndex < EndPoint; ++PointIndex)
+            {
+#if NX_UE_HAS_PCG_BASE_POINT_DATA
+                const FTransform Transform = Points->GetTransform(PointIndex); const float Density = Points->GetDensity(PointIndex); const int32 Seed = Points->GetSeed(PointIndex);
+#else
+                const FPCGPoint& Point = Points->GetPoints()[PointIndex]; const FTransform Transform = Point.Transform; const float Density = Point.Density; const int32 Seed = Point.Seed;
+#endif
+                auto Item = MakeShared<FJsonObject>(); Item->SetNumberField(TEXT("Index"), Total + PointIndex);
+                if (Attribute.IsEmpty() || Attribute == TEXT("Transform")) Item->SetStringField(TEXT("Transform"), Transform.ToString());
+                if (Attribute.IsEmpty() || Attribute == TEXT("Density")) Item->SetNumberField(TEXT("Density"), Density);
+                if (Attribute.IsEmpty() || Attribute == TEXT("Seed")) Item->SetNumberField(TEXT("Seed"), Seed);
+                Items.Add(MakeShared<FJsonValueObject>(Item));
+            }
+            Total += Count;
+        }
+        Result->SetArrayField(TEXT("Items"), Items); Result->SetNumberField(TEXT("Total"), Total); Result->SetNumberField(TEXT("Returned"), Items.Num()); return true;
+    }
     if (Tool == TEXT("SetGraphInstanceParams")) return NexusPCGSetInstance(Instance, Values, Error);
     if (Tool == TEXT("ResetGraphInstanceParams")) {
         if (!Instance || !Instance->GetUserParametersStruct()) { Error = TEXT("PCG instance not found"); return false; }

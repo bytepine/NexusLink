@@ -90,7 +90,7 @@ bool FNexusNativeEditorTools::UseNative(const FString& Domain)
 TSharedPtr<FJsonObject> FNexusNativeEditorTools::Describe(const FString& Capability)
 {
     auto Info = MakeShared<FJsonObject>(); FString Backend, Reason;
-    if (Capability == TEXT("GetEditorOperation")) { Backend = TEXT("PerOperation"); Reason = TEXT("Read the fixed backend recorded in the selected operation"); }
+    if (Capability == TEXT("GetEditorOperation") || Capability == TEXT("ControlEditorOperation")) { Backend = TEXT("PerOperation"); Reason = TEXT("Use the fixed backend recorded in owned operations"); }
     else if (Capability == TEXT("CompileEditorLiveCoding")) { Backend = TEXT("LiveCoding"); Reason = TEXT("Requires Windows and an already enabled editor Live Coding session"); }
     else {
         const bool bAutomation = Capability.Contains(TEXT("Automation"));

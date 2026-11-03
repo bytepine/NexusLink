@@ -51,6 +51,7 @@ void FNexusLegacyToolsets::Call(const FString& Domain, const FString& Tool, cons
     Operation->Backend = TEXT("EngineCompatibility");
     auto Input = MakeShared<FJsonObject>();
     for (const auto& Pair : Args->Values) { FString Key(*Pair.Key); if (!Key.IsEmpty()) Key[0] = FChar::ToLower(Key[0]); Input->SetField(Key, Pair.Value); }
+    if (Domain == TEXT("PCGToolset") && Tool == TEXT("ExecuteGraphInstance")) { ExecutePCG(Input, Operation); return; }
     TSharedPtr<FJsonObject> Data = MakeShared<FJsonObject>(); FString Error;
     const bool bOk = Domain == TEXT("PCGToolset") ? PCG(Tool, Input, Data, Error)
         : Domain == TEXT("NiagaraToolsets") ? Niagara(Tool, Input, Data, Error) : Animation(Domain, Tool, Input, Data, Error);

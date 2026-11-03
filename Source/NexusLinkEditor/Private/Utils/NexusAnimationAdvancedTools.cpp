@@ -82,6 +82,24 @@ bool FNexusAnimationAdvancedTools::ValidateFileIO(const FString& Tool,const TSha
     return true;
 }
 
+UFunction* FNexusAnimationAdvancedTools::FindMixerFunction(const FString& Tool)
+{
+    const auto Plugin = IPluginManager::Get().FindPlugin(TEXT("MovieSceneAnimMixer"));
+    if (!Plugin || !Plugin->IsEnabled()) return nullptr;
+    FModuleManager::Get().LoadModulePtr<IModuleInterface>(TEXT("MovieSceneAnimMixer"));
+    static const TMap<FString,FString> Routes={
+        {TEXT("get_mixer_layers"),TEXT("MovieSceneAnimMixerTrackExtensions.GetLayers")}, {TEXT("get_mixer_layer_count"),TEXT("MovieSceneAnimMixerTrackExtensions.GetLayerCount")},
+        {TEXT("add_mixer_layer"),TEXT("MovieSceneAnimMixerTrackExtensions.AddLayer")}, {TEXT("insert_mixer_layer"),TEXT("MovieSceneAnimMixerTrackExtensions.InsertLayer")},
+        {TEXT("get_layer_name"),TEXT("MovieSceneAnimMixerLayerExtensions.GetLayerName")}, {TEXT("set_layer_name"),TEXT("MovieSceneAnimMixerLayerExtensions.SetLayerName")},
+        {TEXT("get_layer_sections"),TEXT("MovieSceneAnimMixerLayerExtensions.GetSections")}, {TEXT("get_layer_index"),TEXT("MovieSceneAnimMixerLayerExtensions.GetLayerIndex")}, {TEXT("is_layer_empty"),TEXT("MovieSceneAnimMixerLayerExtensions.IsEmpty")},
+        {TEXT("get_decorations"),TEXT("MovieSceneDecorationContainerExtensions.GetDecorations")}, {TEXT("add_decoration"),TEXT("MovieSceneDecorationContainerExtensions.AddDecoration")}, {TEXT("remove_decoration"),TEXT("MovieSceneDecorationContainerExtensions.RemoveDecoration")}
+    };
+    const FString* Route=Routes.Find(Tool); FString ClassName, FunctionName;
+    if (!Route || !Route->Split(TEXT("."), &ClassName, &FunctionName)) return nullptr;
+    UClass* Class = FNexusAssetUtils::FindClassWithUPrefix(ClassName);
+    return Class ? Class->FindFunctionByName(FName(*FunctionName)) : nullptr;
+}
+
 bool FNexusAnimationAdvancedTools::Handles(const FString& Domain,const FString& Tool)
 {
     return Domain.Contains(TEXT(".conditions.")) || Domain.Contains(TEXT(".outliner.")) || Domain.Contains(TEXT(".custom_bindings.")) || Domain.StartsWith(TEXT("sequencer_animmixer_toolset.")) || Tool==TEXT("export_fbx") || Tool==TEXT("import_fbx") || Tool==TEXT("get_sequence_folders") || Tool==TEXT("add_sequence_folder") || Tool==TEXT("remove_sequence_folder");
@@ -140,16 +158,9 @@ bool FNexusAnimationAdvancedTools::Call(const FString& Domain,const FString& Too
     if (Domain.StartsWith(TEXT("sequencer_animmixer_toolset."))) {
         FModuleManager::Get().LoadModulePtr<IModuleInterface>(TEXT("MovieSceneAnimMixer"));
         // 旧版 Mixer 与 5.8 Layer/Transition 对象模型不同，只调用真实存在的脚本扩展。
-        static const TMap<FString,FString> Routes={
-            {TEXT("get_mixer_layers"),TEXT("MovieSceneAnimMixerTrackExtensions.GetLayers")}, {TEXT("get_mixer_layer_count"),TEXT("MovieSceneAnimMixerTrackExtensions.GetLayerCount")},
-            {TEXT("add_mixer_layer"),TEXT("MovieSceneAnimMixerTrackExtensions.AddLayer")}, {TEXT("insert_mixer_layer"),TEXT("MovieSceneAnimMixerTrackExtensions.InsertLayer")},
-            {TEXT("get_layer_name"),TEXT("MovieSceneAnimMixerLayerExtensions.GetLayerName")}, {TEXT("set_layer_name"),TEXT("MovieSceneAnimMixerLayerExtensions.SetLayerName")},
-            {TEXT("get_layer_sections"),TEXT("MovieSceneAnimMixerLayerExtensions.GetSections")}, {TEXT("get_layer_index"),TEXT("MovieSceneAnimMixerLayerExtensions.GetLayerIndex")}, {TEXT("is_layer_empty"),TEXT("MovieSceneAnimMixerLayerExtensions.IsEmpty")},
-            {TEXT("get_decorations"),TEXT("MovieSceneDecorationContainerExtensions.GetDecorations")}, {TEXT("add_decoration"),TEXT("MovieSceneDecorationContainerExtensions.AddDecoration")}, {TEXT("remove_decoration"),TEXT("MovieSceneDecorationContainerExtensions.RemoveDecoration")}
-        };
-        const FString* Route=Routes.Find(Tool); FString ClassName,FunctionName; if (Route) Route->Split(TEXT("."),&ClassName,&FunctionName); UClass* Class=Route?FNexusAssetUtils::FindClassWithUPrefix(ClassName):nullptr;
-        if (!Class) { Error=TEXT("This engine has the older Mixer framework without the requested Layer/Transition/Decoration scripting API"); return false; }
-        return NexusAnimationInvoke(Class->GetDefaultObject(),FunctionName,Args,Result,Error);
+        UFunction* Function = FindMixerFunction(Tool);
+        if (!Function) { Error=TEXT("This engine has the older Mixer framework without the requested Layer/Transition/Decoration scripting API"); return false; }
+        return NexusAnimationInvoke(Function->GetOuterUClass()->GetDefaultObject(),Function->GetName(),Args,Result,Error);
     }
     FModuleManager::Get().LoadModulePtr<IModuleInterface>(TEXT("SequencerScriptingEditor"));
     if (Tool==TEXT("export_fbx") || Tool==TEXT("import_fbx")) {

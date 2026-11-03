@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from .runner import compare, export_snapshot, main, render_report, RunError, validate_snapshot
+from .runner import compare, export_snapshot, main, render_report, RunError, validate_snapshot, apply_budget
 
 
 def snapshot(value=1, build="before"):
@@ -26,6 +26,35 @@ class FakeClient:
 
 
 class TraceCompareTests(unittest.TestCase):
+    def test_budget_checks_regressions_and_missing_evidence(self):
+        budget = {"Frames": {"P95Seconds": {"MaxIncreasePercent": 10}}, "Cpu": {"Tick": {"MaxAfterSeconds": 2}}}
+        report = lambda value: compare([snapshot()] * 3, [snapshot(value)] * 3)
+        self.assertEqual(apply_budget(report(1.05), budget)["ExitCode"], 0)
+        failed = apply_budget(report(1.2), budget)
+        self.assertEqual(failed["ExitCode"], 1)
+        self.assertIn("Failed", render_report(failed))
+        for evidence in (compare([snapshot()], [snapshot()]), compare([snapshot(0)] * 3, [snapshot()] * 3)):
+            self.assertEqual(apply_budget(evidence, budget)["ExitCode"], 3)
+        unknown = {"Cpu": {"Missing": {"MaxAfterSeconds": 1}}}
+        self.assertEqual(apply_budget(report(1), unknown)["ExitCode"], 3)
+        changed = snapshot(); changed["Conditions"]["Hardware"] = "other"
+        self.assertEqual(apply_budget(compare([snapshot()] * 3, [changed] * 3), budget)["ExitCode"], 3)
+        for invalid in ({}, {"MinSamples": True}, {"Frames": {"Typo": {"MaxAfterSeconds": 1}}}, {"Frames": {"P95Seconds": {"MaxAfterSeconds": float("nan")}}}):
+            with self.assertRaises(RunError): apply_budget(report(1), invalid)
+
+    def test_budget_cli_exit_code_and_report_match(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            old, new, budget = root / "old.json", root / "new.json", root / "budget.json"
+            old.write_text(json.dumps(snapshot(1)), encoding="utf-8")
+            new.write_text(json.dumps(snapshot(2)), encoding="utf-8")
+            budget.write_text(json.dumps({"MinSamples": 1, "Frames": {"P95Seconds": {"MaxIncreasePercent": 5}}}), encoding="utf-8")
+            output = root / "report"
+            self.assertEqual(main(["compare", "--before", str(old), "--after", str(new), "--budget", str(budget), "--output", str(output)]), 1)
+            report = json.loads((output / "comparison.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["ExitCode"], 1)
+            self.assertEqual(report["Budget"]["Outcome"], "Failed")
+
     def test_deterministic_deltas_and_multiple_sample_medians(self):
         result = compare([snapshot(1), snapshot(3), snapshot(100)], [snapshot(2, "new"), snapshot(4, "new"), snapshot(50, "new")])
         self.assertTrue(result["bComparable"]); self.assertFalse(result["bSingleSample"])

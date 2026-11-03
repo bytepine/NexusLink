@@ -13,6 +13,7 @@
 #include "Utils/NexusWidgetAnimationUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusAssetEditUtils.h"
+#include "Utils/NexusAssetStructureUtils.h"
 #if WITH_EDITOR
 #include "WidgetBlueprint.h"
 #include "Blueprint/WidgetTree.h"
@@ -77,6 +78,8 @@ void FNexusManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefi
 
 		return FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("WidgetBlueprint asset path (shared)")))
+		.Prop(TEXT("ExpectedStructureHash"), FNexusSchema::Str(TEXT("Precondition hash from GetAssetEditPreview")))
+		.Prop(TEXT("bVerifyStructure"), FNexusSchema::Bool(TEXT("Verify Add/Remove/Move against an isolated widget-tree plan"), true, false))
 		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar SetProperty after compilation before saving; rejects other actions"), true, false))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch widget ops"), ItemSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
@@ -561,6 +564,7 @@ bool FNexusManageAssetUserWidgetCapability::PrepareTarget(
 		return false;
 	}
 	FUserWidgetActionState* State = new FUserWidgetActionState();
+	if (!FNexusAssetStructureUtils::Check(WBP, TEXT("ManageAssetUserWidget"), Args, OutError)) { delete State; return false; }
 	State->WBP = WBP;
 	OutTarget = State;
 	return true;
@@ -625,6 +629,7 @@ void FNexusManageAssetUserWidgetCapability::RegisterActions(TMap<FString, FNexus
 	OutHandlers.Add(TEXT("RemoveTrack"),     &HandleWBP_RemoveTrack);
 	OutHandlers.Add(TEXT("RemoveKey"),       &HandleWBP_RemoveKey);
 	for (const FString& Action : {TEXT("Move"), TEXT("Wrap"), TEXT("ReplaceWithTemplate"), TEXT("ReplaceWithChild"), TEXT("SetNamedSlotContent")}) OutHandlers.Add(Action, &HandleWBP_Structure);
+	FNexusAssetStructureUtils::Wrap(TEXT("ManageAssetUserWidget"), OutHandlers, [](FNexusActionContext& Context) -> UObject* { return WBPFrom(Context); });
 #else
 	(void)OutHandlers;
 #endif

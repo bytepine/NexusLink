@@ -12,6 +12,7 @@
 #include "Utils/NexusPinTypeUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusAssetEditUtils.h"
+#include "Utils/NexusAssetStructureUtils.h"
 #include "Utils/NexusBlueprintGraphUtils.h"
 #include "Utils/NexusBlueprintGraphEnhancements.h"
 #include "Utils/NexusEditorTransaction.h"
@@ -123,6 +124,8 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
+		.Prop(TEXT("ExpectedStructureHash"), FNexusSchema::Str(TEXT("Precondition hash from GetAssetEditPreview")))
+		.Prop(TEXT("bVerifyStructure"), FNexusSchema::Bool(TEXT("Verify RemoveNode/Disconnect/DisconnectAll against an isolated structural plan"), true, false))
 		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar SetDefaults after compilation before saving; rejects other actions"), true, false))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
@@ -642,6 +645,7 @@ bool FNexusManageAssetBlueprintCapability::PrepareTarget(
 		return false;
 	}
 	OutTarget = BP;
+	if (!FNexusAssetStructureUtils::Check(BP, TEXT("ManageAssetBlueprint"), Args, OutError)) return false;
 	return true;
 #else
 	OutError = TEXT("ManageAssetBlueprint only available in editor builds");
@@ -673,6 +677,7 @@ void FNexusManageAssetBlueprintCapability::RegisterActions(TMap<FString, FNexusA
 	OutHandlers.Add(TEXT("Connect"), &FNexusBlueprintGraphOps::HandleWire);
 	OutHandlers.Add(TEXT("Disconnect"), &FNexusBlueprintGraphOps::HandleWire);
 	OutHandlers.Add(TEXT("DisconnectAll"), &FNexusBlueprintGraphOps::HandleWire);
+	FNexusAssetStructureUtils::Wrap(TEXT("ManageAssetBlueprint"), OutHandlers, [](FNexusActionContext& Context) -> UObject* { return static_cast<UBlueprint*>(Context.Target); });
 }
 
 

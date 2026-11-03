@@ -78,6 +78,7 @@ public static class NexusLinkOptionalPlugins
 		public string[] PublicRuntimeModules, RuntimeModules, EditorModules;
 		public string Define, EnvVar;
 		public bool EnvVarSupportsDisable; // 默认 true；false 时环境变量只认 =1
+		public bool bRequireProjectEnable; // 默认关闭的框架须由宿主明确启用，避免运行期缺少 DLL 搜索路径。
 	}
 
 	/// <summary>全量可选插件表（两模块共用，顺序与旧版一致）。</summary>
@@ -93,7 +94,7 @@ public static class NexusLinkOptionalPlugins
 			Opt(new[] { "ControlRig.uplugin" }, "WITH_CONTROL_RIG", "WITH_CONTROL_RIG", 5, 0, new[] { "ControlRig", "RigVM" }, new[] { "ControlRigDeveloper", "RigVMDeveloper" }),
 			Opt(new[] { "IKRig.uplugin" }, "WITH_IK_RIG", "WITH_IK_RIG", 5, 0, new[] { "IKRig" }, new[] { "IKRigEditor", "IKRigDeveloper" }),
 			Opt(new[] { "Metasound.uplugin" }, "WITH_METASOUND", "WITH_METASOUND", 5, 0, new[] { "MetasoundEngine", "MetasoundFrontend", "MetasoundGraphCore" }, new[] { "MetasoundEditor" }),
-            Opt(new[] { "GameFeatures.uplugin" }, "WITH_GAME_FEATURES", "NEXUS_GAME_FEATURES", 5, 7, new[] { "GameFeatures" }, uproj: "GameFeatures"),
+            Opt(new[] { "GameFeatures.uplugin" }, "WITH_GAME_FEATURES", "NEXUS_GAME_FEATURES", 5, 7, new[] { "GameFeatures" }, uproj: "GameFeatures", requireProjectEnable: true),
             Opt(new[] { "DataRegistry.uplugin" }, "WITH_DATA_REGISTRY", "NEXUS_DATA_REGISTRY", 5, 0, new[] { "DataRegistry" }, uproj: "DataRegistry"),
             Opt(new[] { "GameplayTagsEditor.uplugin" }, "WITH_NEXUS_TAGS_EDITOR", "NEXUS_TAGS_EDITOR", 4, 26, ed: new[] { "GameplayTagsEditor" }, uproj: "GameplayTagsEditor"),
 			Opt(new[] { "PCG.uplugin" }, "WITH_PCG", "WITH_PCG", 5, 4, new[] { "PCG" }, new[] { "PCGEditor" }),
@@ -113,7 +114,7 @@ public static class NexusLinkOptionalPlugins
 		string[] files, string define, string env,
 		int minMajor = 0, int minMinor = 0,
 		string[] rt = null, string[] ed = null,
-		string uproj = null, string[] pub = null, bool noDisable = false)
+		string uproj = null, string[] pub = null, bool noDisable = false, bool requireProjectEnable = false)
 	{
 		return new OptionalPluginConfig
 		{
@@ -122,6 +123,7 @@ public static class NexusLinkOptionalPlugins
 			RuntimeModules = rt, EditorModules = ed,
 			UprojectPluginName = uproj, PublicRuntimeModules = pub,
 			EnvVarSupportsDisable = !noDisable,
+			bRequireProjectEnable = requireProjectEnable,
 		};
 	}
 
@@ -135,6 +137,7 @@ public static class NexusLinkOptionalPlugins
 	{
 		bool on = MeetsMinEngineVersion(Target, C.MinEngineMajor, C.MinEngineMinor)
 			&& DetectAnyEnginePlugin(SearchDirs, C.UpluginFiles);
+		if (on && C.bRequireProjectEnable && GetProjectPluginEnabled(ProjectRoot, C.UprojectPluginName) != true) on = false;
 		if (on && C.UprojectPluginName != null && ProjectRoot != null
 			&& IsPluginExplicitlyDisabledInUproject(ProjectRoot, C.UprojectPluginName))
 			on = false;
@@ -342,18 +345,29 @@ public static class NexusLinkOptionalPlugins
 	/// <summary>.uproject 显式 Enabled:false（空白容忍）且非 true 时返回 true。</summary>
 	public static bool IsPluginExplicitlyDisabledInUproject(string projectRoot, string pluginName)
 	{
+		return GetProjectPluginEnabled(projectRoot, pluginName) == false;
+	}
+
+	/// <summary>只解析目标插件条目；其他插件的 Enabled:true 不得覆盖它的 false。</summary>
+	public static bool? GetProjectPluginEnabled(string projectRoot, string pluginName)
+	{
 		try
 		{
 			foreach (string f in System.IO.Directory.GetFiles(projectRoot, "*.uproject"))
 			{
 				string c = System.IO.File.ReadAllText(f);
-				if (!c.Contains("\"" + pluginName + "\"")) return false;
-				bool en = JsonHasEnabledLiteral(c, "true");
-				return JsonHasEnabledLiteral(c, "false") && !en;
+				int plugins = c.IndexOf("\"Plugins\"", System.StringComparison.Ordinal);
+				int name = plugins < 0 ? -1 : c.IndexOf("\"" + pluginName + "\"", plugins, System.StringComparison.Ordinal);
+				if (name < 0) continue;
+				int start = c.LastIndexOf('{', name), end = c.IndexOf('}', name);
+				if (start < 0 || end < start) continue;
+				string entry = c.Substring(start, end - start + 1);
+				if (JsonHasEnabledLiteral(entry, "true")) return true;
+				if (JsonHasEnabledLiteral(entry, "false")) return false;
 			}
 		}
 		catch (System.Exception) { }
-		return false;
+		return null;
 	}
 
 	public static void ApplyCustomEngineCompatDefines(ModuleRules Module)
