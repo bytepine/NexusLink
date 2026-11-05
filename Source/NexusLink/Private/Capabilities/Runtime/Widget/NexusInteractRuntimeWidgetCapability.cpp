@@ -24,8 +24,8 @@
 static UWidget* FindRuntimeWidgetCap(UWorld* World, const FString& WidgetName, const FString& WidgetPath,
 	const FString& OwnerFilter, FString& OutOwner, TArray<UWidget*>& OutMatches)
 {
-	// 只遍历已挂载的控件树，不能把仍存活但已移出视口的缓存实例当作交互目标。
-	for (UUserWidget* Root : FNexusRuntimeUtils::GetActiveUserWidgets())
+	// 只遍历视口与已注册 WidgetComponent 的活动树，拒绝缓存、脱离和隐藏的实例。
+	for (UUserWidget* Root : FNexusRuntimeUtils::GetActiveUserWidgets(true, true))
 	{
 		if (!IsValid(Root) || Root->GetWorld() != World) continue;
 		FNexusRuntimeUtils::ForEachWidgetRecursive(Root, [&](UWidget* Child)
@@ -47,7 +47,7 @@ static UWidget* FindRuntimeWidgetCap(UWorld* World, const FString& WidgetName, c
 void FNexusInteractRuntimeWidgetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("InteractRuntimeWidget");
-	Out.Description = TEXT("Trigger visible viewport UMG events by exact WidgetPath or unique name match. Ambiguous names fail without interaction.");
+	Out.Description = TEXT("Trigger visible viewport/WidgetComponent UMG events by exact WidgetPath or unique name. Ambiguous names fail without interaction.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("WidgetName"),  FNexusSchema::Str(TEXT("Child Widget name substring; must match exactly one active widget. Required unless WidgetPath is provided")))
 		.Prop(TEXT("WidgetPath"),  FNexusSchema::Str(TEXT("Exact live instance Path from ListRuntimeWidgets; never falls back to name. If WidgetName/OwnerClass are also supplied they must match")))
@@ -115,7 +115,7 @@ FCapabilityResult FNexusInteractRuntimeWidgetCapability::Execute(const TSharedPt
 			}
 			else
 			{
-				Entry->SetStringField(TEXT("Error"), TEXT("Widget not found in the visible active viewport tree; cached, detached or hidden widgets cannot be interacted with"));
+				Entry->SetStringField(TEXT("Error"), TEXT("Widget not found in a visible active viewport/WidgetComponent tree; cached, detached or hidden widgets cannot be interacted with"));
 			}
 			OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 			return;

@@ -10,11 +10,13 @@
 2. 将该值传给 `InteractRuntimeWidget.WidgetPath`，例如设置 `Action="Click"`。
 3. 控件实例重建后重新枚举路径；显式路径不存在时不会回退到名称匹配。
 
+读取 Actor 的空间控件时，在 `ListRuntimeWidgets` 指定 `ActorName`。返回的路径同样适用于 `GetRuntimeWidgetProperty.WidgetPath`、`SetRuntimeWidgetProperty.Updates[].WidgetPath` 与交互；组件必须已注册到当前 PIE / Game 世界。
+
 也可用 `WidgetName` 子串匹配唯一目标。多匹配时返回 `Error` 和 `Candidates[].Path`，不执行交互；从候选中确认完整路径后再调用。
 
 ## 可见性与点击边界
 
-仅操作当前 PIE / Game 视口中仍挂载、且沿父级可见的控件。缓存中已脱离视口的实例、隐藏层级和 WidgetSwitcher 非活动页均不可交互。
+仅操作当前 PIE / Game 视口或已注册 WidgetComponent 中仍挂载、且沿父级可见的控件。缓存中已脱离活动树的实例、隐藏 Actor/组件/控件层级和 WidgetSwitcher 非活动页均不可交互。
 
 `Click` 触发 UMG 委托，不模拟鼠标坐标，也不验证遮挡。需要操作编辑器 Slate 界面时，使用[编辑器工具](editor-toolsets.md)。完整参数见[工具手册](tool-reference.zh.md#interactruntimewidget)。
 
@@ -22,4 +24,6 @@
 
 In PIE / Game with a viewport, call `ListRuntimeWidgets` and pass the live instance's full `Path` as `InteractRuntimeWidget.WidgetPath`, for example with `Action="Click"`. Refresh paths after instances are recreated. An explicit path never falls back to a name.
 
-`WidgetName` substring matching must identify one target. Multiple matches return an `Error` and `Candidates[].Path` without interacting. Only widgets attached to the current viewport through visible ancestors are eligible; detached caches, hidden branches, and inactive WidgetSwitcher pages are excluded. Click broadcasts the UMG delegate; it does not simulate mouse coordinates or test occlusion. Dedicated Server has no UMG. See the [English reference](tool-reference.md#interactruntimewidget) for parameters.
+Pass `ActorName` to include that Actor's registered WidgetComponent trees. Their paths also work with `GetRuntimeWidgetProperty.WidgetPath` and `SetRuntimeWidgetProperty.Updates[].WidgetPath`. Hidden Actors/components and unregistered components cannot be interacted with.
+
+`WidgetName` substring matching must identify one target. Multiple matches return an `Error` and `Candidates[].Path` without interacting. Only widgets attached to the current viewport or a registered WidgetComponent through visible ancestors are eligible; detached caches, hidden branches, and inactive WidgetSwitcher pages are excluded. Click broadcasts the UMG delegate; it does not simulate mouse coordinates or test occlusion. Dedicated Server has no UMG. See the [English reference](tool-reference.md#interactruntimewidget) for parameters.

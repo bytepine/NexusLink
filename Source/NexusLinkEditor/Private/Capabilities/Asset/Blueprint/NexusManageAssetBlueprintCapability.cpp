@@ -18,10 +18,13 @@
 #include "Utils/NexusEditorTransaction.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "GameFramework/Actor.h"
+#include "Components/ActorComponent.h"
 #if WITH_EDITOR
+#include "Editor.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
@@ -85,7 +88,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 			TEXT("AddInterface"), TEXT("RemoveInterface"),
 			TEXT("AddNode"), TEXT("RemoveNode"), TEXT("SetNode"), TEXT("PromotePin"),
 			TEXT("Connect"), TEXT("Disconnect"), TEXT("DisconnectAll"),
-			TEXT("AddComponent"), TEXT("RemoveComponent"), TEXT("SetComponentProperty"), TEXT("SetDefaults"), TEXT("ArrangeNodes"), TEXT("WriteGraphDSL"), TEXT("WriteGraphPlan"), TEXT("AddFunctionParameter"), TEXT("RemoveFunctionParameter"), TEXT("SetVariableCategory"), TEXT("SetVariableEditable") }))
+			TEXT("AddComponent"), TEXT("RemoveComponent"), TEXT("SetComponentProperty"), TEXT("CopyComponent"), TEXT("ReattachComponent"), TEXT("SetDefaults"), TEXT("ArrangeNodes"), TEXT("WriteGraphDSL"), TEXT("WriteGraphPlan"), TEXT("AddFunctionParameter"), TEXT("RemoveFunctionParameter"), TEXT("SetVariableCategory"), TEXT("SetVariableEditable") }))
         .Prop(TEXT("Code"), FNexusSchema::Str(TEXT("UE5.8 native Blueprint S-expression DSL")))
         .Prop(TEXT("GraphNodes"), FNexusSchema::ArrayOf(TEXT("Append-only plan nodes with Id and existing AddNode fields"), FNexusSchema::AnyObject(TEXT("Plan node"))))
         .Prop(TEXT("GraphLinks"), FNexusSchema::ArrayOf(TEXT("Plan links with From/FromPin/To/ToPin"), FNexusSchema::AnyObject(TEXT("Plan link"))))
@@ -115,8 +118,10 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("TargetNodeId"),    FNexusSchema::Str(TEXT("Target node GUID (connect/disconnect)")))
 		.Prop(TEXT("TargetPinName"),   FNexusSchema::Str(TEXT("Target pin name")))
 		.Prop(TEXT("ComponentClass"),  FNexusSchema::Str(TEXT("Component class (AddComponent), e.g. StaticMeshComponent")))
-		.Prop(TEXT("ComponentName"),   FNexusSchema::Str(TEXT("SCS variable name (add/remove/SetComponentProperty)")))
-		.Prop(TEXT("AttachTo"),        FNexusSchema::Str(TEXT("Parent component var (AddComponent); default scene root if omitted")))
+		.Prop(TEXT("ComponentName"),   FNexusSchema::Str(TEXT("SCS variable name (add/remove/SetComponentProperty/CopyComponent/ReattachComponent)")))
+		.Prop(TEXT("AttachTo"),        FNexusSchema::Str(TEXT("Parent component. Current SCS, inherited SCS, or a native component. AddComponent defaults to the scene root.")))
+		.Prop(TEXT("SourceAssetPath"), FNexusSchema::Str(TEXT("Source Blueprint (CopyComponent)")))
+		.Prop(TEXT("SourceComponentName"), FNexusSchema::Str(TEXT("Source SCS variable (CopyComponent)")))
 		.Prop(TEXT("PropertyPath"),    FNexusSchema::Str(TEXT("Property path, dot notation e.g. RelativeLocation.X")))
 		.Prop(TEXT("Value"),           FNexusSchema::Str(TEXT("String value e.g. (X=100,Y=0,Z=50) or true")))
 		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous scalar value (SetDefaults only)")))
@@ -429,6 +434,221 @@ static void HandleBP_Interface(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 #endif
 }
 
+#if WITH_EDITOR
+struct FNexusScsAttachTarget
+{
+	USCS_Node* OwnedNode = nullptr;
+	FName ParentVar = NAME_None;
+	FName OwnerClassName = NAME_None;
+	bool bNative = false;
+	bool bResolved = false;
+};
+
+/** 本蓝图 SCS、父蓝图 SCS、C++ 原生组件，三者按这个顺序解析挂载目标。 */
+static bool ResolveScsAttachTarget(UBlueprint* BP, const FString& AttachTo, FNexusScsAttachTarget& Out, FString& OutError)
+{
+	Out = FNexusScsAttachTarget();
+	if (!BP || !BP->SimpleConstructionScript)
+	{
+		OutError = TEXT("Blueprint has no SimpleConstructionScript");
+		return false;
+	}
+	if (USCS_Node* Node = BP->SimpleConstructionScript->FindSCSNode(*AttachTo))
+	{
+		Out.OwnedNode = Node;
+		Out.bResolved = true;
+		return true;
+	}
+	for (UClass* Cls = BP->ParentClass; Cls; Cls = Cls->GetSuperClass())
+	{
+		UBlueprint* ParentBP = Cast<UBlueprint>(Cls->ClassGeneratedBy);
+		if (!ParentBP || !ParentBP->SimpleConstructionScript)
+		{
+			continue;
+		}
+		if (USCS_Node* Node = ParentBP->SimpleConstructionScript->FindSCSNode(*AttachTo))
+		{
+			Out.ParentVar = Node->GetVariableName();
+			Out.OwnerClassName = Cls->GetFName();
+			Out.bResolved = true;
+			return true;
+		}
+	}
+	UClass* NativeAncestor = BP->ParentClass;
+	while (NativeAncestor && !NativeAncestor->HasAnyClassFlags(CLASS_Native))
+	{
+		NativeAncestor = NativeAncestor->GetSuperClass();
+	}
+	AActor* NativeActor = NativeAncestor ? Cast<AActor>(NativeAncestor->GetDefaultObject(false)) : nullptr;
+	if (NativeActor)
+	{
+		TInlineComponentArray<UActorComponent*> Comps;
+		NativeActor->GetComponents(Comps);
+		for (UActorComponent* Comp : Comps)
+		{
+			if (Comp && Comp->GetName() == AttachTo)
+			{
+				Out.ParentVar = Comp->GetFName();
+				Out.OwnerClassName = NativeAncestor->GetFName();
+				Out.bNative = true;
+				Out.bResolved = true;
+				return true;
+			}
+		}
+	}
+	OutError = FString::Printf(TEXT("AttachTo component '%s' not found"), *AttachTo);
+	return false;
+}
+
+static void DetachScsNode(USimpleConstructionScript* SCS, USCS_Node* Node)
+{
+	if (!SCS || !Node)
+	{
+		return;
+	}
+	// 引擎 API 同时移除根/子节点记录；稍后统一重新登记，保留整个子树。
+	Node->Modify();
+	SCS->RemoveNode(Node, false);
+	Node->ParentComponentOrVariableName = NAME_None;
+	Node->ParentComponentOwnerClassName = NAME_None;
+	Node->bIsParentComponentNative = false;
+}
+
+static void ApplyScsAttach(USimpleConstructionScript* SCS, USCS_Node* Node, const FNexusScsAttachTarget& Target)
+{
+	if (Target.OwnedNode)
+	{
+		Target.OwnedNode->AddChildNode(Node);
+		return;
+	}
+	Node->ParentComponentOrVariableName = Target.ParentVar;
+	Node->ParentComponentOwnerClassName = Target.OwnerClassName;
+	Node->bIsParentComponentNative = Target.bNative;
+	SCS->AddNode(Node);
+}
+
+static USCS_Node* FindScsNodeInParents(UBlueprint* BP, const FString& ComponentName)
+{
+	if (!BP)
+	{
+		return nullptr;
+	}
+	if (BP->SimpleConstructionScript)
+	{
+		if (USCS_Node* Node = BP->SimpleConstructionScript->FindSCSNode(*ComponentName))
+		{
+			return Node;
+		}
+	}
+	for (UClass* Cls = BP->ParentClass; Cls; Cls = Cls->GetSuperClass())
+	{
+		UBlueprint* ParentBP = Cast<UBlueprint>(Cls->ClassGeneratedBy);
+		if (ParentBP && ParentBP->SimpleConstructionScript)
+		{
+			if (USCS_Node* Node = ParentBP->SimpleConstructionScript->FindSCSNode(*ComponentName))
+			{
+				return Node;
+			}
+		}
+	}
+	return nullptr;
+}
+
+/** 硬对象引用如果指到来源组件模板，按变量名重映射；对不上的清空并记录。软引用保持原路径。 */
+static UActorComponent* MapCopiedComponentRef(
+	UBlueprint* SourceBP, UBlueprint* DestBP, UObject* Value,
+	const FString& SourceComponentName, USCS_Node* NewNode, FString& OutVarName)
+{
+	OutVarName.Reset();
+	if (!SourceBP || !SourceBP->SimpleConstructionScript || !Value)
+	{
+		return nullptr;
+	}
+	for (USCS_Node* Node : SourceBP->SimpleConstructionScript->GetAllNodes())
+	{
+		if (Node && Node->ComponentTemplate == Value)
+		{
+			OutVarName = Node->GetVariableName().ToString();
+			break;
+		}
+	}
+	if (OutVarName.IsEmpty())
+	{
+		return nullptr;
+	}
+	if (OutVarName == SourceComponentName && NewNode)
+	{
+		return NewNode->ComponentTemplate;
+	}
+	if (DestBP && DestBP->SimpleConstructionScript)
+	{
+		if (USCS_Node* DestNode = DestBP->SimpleConstructionScript->FindSCSNode(*OutVarName))
+		{
+			return DestNode->ComponentTemplate;
+		}
+	}
+	return nullptr;
+}
+
+static void RemapCopiedComponentRefs(
+	UBlueprint* SourceBP, UBlueprint* DestBP, UActorComponent* DestTemplate,
+	const FString& SourceComponentName, USCS_Node* NewNode, TArray<FString>& Unmapped)
+{
+	if (!SourceBP || !SourceBP->SimpleConstructionScript || !DestTemplate)
+	{
+		return;
+	}
+	auto RemapOne = [&](FObjectProperty* ObjProp, void* Container)
+	{
+		UObject* Value = ObjProp->GetObjectPropertyValue_InContainer(Container);
+		FString VarName;
+		if (UActorComponent* Mapped = MapCopiedComponentRef(SourceBP, DestBP, Value, SourceComponentName, NewNode, VarName))
+		{
+			ObjProp->SetObjectPropertyValue_InContainer(Container, Mapped);
+		}
+		else if (!VarName.IsEmpty())
+		{
+			ObjProp->SetObjectPropertyValue_InContainer(Container, nullptr);
+			Unmapped.Add(ObjProp->GetName() + TEXT("->") + VarName);
+		}
+	};
+	for (TFieldIterator<FProperty> It(DestTemplate->GetClass()); It; ++It)
+	{
+		FProperty* Prop = *It;
+		if (!Prop || Prop->HasAnyPropertyFlags(CPF_Transient | CPF_Deprecated))
+		{
+			continue;
+		}
+		if (FObjectProperty* ObjProp = CastField<FObjectProperty>(Prop))
+		{
+			RemapOne(ObjProp, DestTemplate);
+			continue;
+		}
+		FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop);
+		FObjectProperty* Inner = ArrayProp ? CastField<FObjectProperty>(ArrayProp->Inner) : nullptr;
+		if (!ArrayProp || !Inner)
+		{
+			continue;
+		}
+		FScriptArrayHelper Helper(ArrayProp, ArrayProp->ContainerPtrToValuePtr<void>(DestTemplate));
+		for (int32 Index = 0; Index < Helper.Num(); ++Index)
+		{
+			UObject* Value = Inner->GetObjectPropertyValue(Helper.GetRawPtr(Index));
+			FString VarName;
+			if (UActorComponent* Mapped = MapCopiedComponentRef(SourceBP, DestBP, Value, SourceComponentName, NewNode, VarName))
+			{
+				Inner->SetObjectPropertyValue(Helper.GetRawPtr(Index), Mapped);
+			}
+			else if (!VarName.IsEmpty())
+			{
+				Inner->SetObjectPropertyValue(Helper.GetRawPtr(Index), nullptr);
+				Unmapped.Add(FString::Printf(TEXT("%s[%d]->%s"), *Prop->GetName(), Index, *VarName));
+			}
+		}
+	}
+}
+#endif
+
 static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 #if WITH_EDITOR
@@ -488,13 +708,14 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	}
 
 	if (Action == TEXT("AddComponent") || Action == TEXT("RemoveComponent") ||
-	    Action == TEXT("SetComponentProperty"))
+	    Action == TEXT("SetComponentProperty") || Action == TEXT("CopyComponent") ||
+	    Action == TEXT("ReattachComponent"))
 	{
 		if (!BP->ParentClass || !BP->ParentClass->IsChildOf(AActor::StaticClass()))
 		{
 			const FString ParentName = BP->ParentClass ? BP->ParentClass->GetName() : TEXT("(none)");
 			Entry->SetStringField(TEXT("Error"), FString::Printf(
-				TEXT("Blueprint parent is not Actor subclass: %s (Parent=%s). AddComponent/RemoveComponent/SetComponentProperty need Actor BP; use AddVariable/AddFunction/AddNode for GA/UI/BPI, or ManageAssetGameplayAbility for GAS semantic fields."),
+				TEXT("Blueprint parent is not Actor subclass: %s (Parent=%s). Component actions need an Actor BP; use AddVariable/AddFunction/AddNode for GA/UI/BPI, or ManageAssetGameplayAbility for GAS semantic fields."),
 				*Ctx.AssetPath, *ParentName));
 	return;
 		}
@@ -533,10 +754,19 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 			Op->TryGetStringField(TEXT("AttachTo"), AttachTo);
 			if (!AttachTo.IsEmpty())
 			{
-				USCS_Node* ParentNode = SCS->FindSCSNode(*AttachTo);
-				if (!ParentNode) { Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("AttachTo component '%s' not found"), *AttachTo));
-	return; }
-				ParentNode->AddChildNode(NewNode);
+				FNexusScsAttachTarget Target;
+				FString AttachErr;
+				if (!ResolveScsAttachTarget(BP, AttachTo, Target, AttachErr))
+				{
+					if (NewNode->ComponentTemplate)
+					{
+						NewNode->ComponentTemplate->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_DoNotDirty);
+					}
+					NewNode->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_DoNotDirty);
+					Entry->SetStringField(TEXT("Error"), AttachErr);
+					return;
+				}
+				ApplyScsAttach(SCS, NewNode, Target);
 			}
 			else
 			{
@@ -618,6 +848,152 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 			FKismetEditorUtilities::CompileBlueprint(BP);
 	return;
 		}
+
+		if (Action == TEXT("CopyComponent") || Action == TEXT("ReattachComponent"))
+		{
+			USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
+			if (!SCS)
+			{
+				Entry->SetStringField(TEXT("Error"), TEXT("Blueprint has no SimpleConstructionScript"));
+				return;
+			}
+			FString ComponentName;
+			Op->TryGetStringField(TEXT("ComponentName"), ComponentName);
+
+			if (Action == TEXT("ReattachComponent"))
+			{
+				if (ComponentName.IsEmpty())
+				{
+					Entry->SetStringField(TEXT("Error"), TEXT("ReattachComponent requires ComponentName"));
+					return;
+				}
+				FString AttachTo;
+				Op->TryGetStringField(TEXT("AttachTo"), AttachTo);
+				if (AttachTo.IsEmpty())
+				{
+					Entry->SetStringField(TEXT("Error"), TEXT("ReattachComponent requires AttachTo"));
+					return;
+				}
+				USCS_Node* Node = SCS->FindSCSNode(*ComponentName);
+				if (!Node)
+				{
+					Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Component '%s' not found"), *ComponentName));
+					return;
+				}
+				FNexusScsAttachTarget Target;
+				FString AttachErr;
+				if (!ResolveScsAttachTarget(BP, AttachTo, Target, AttachErr))
+				{
+					Entry->SetStringField(TEXT("Error"), AttachErr);
+					return;
+				}
+				if (Target.OwnedNode == Node)
+				{
+					Entry->SetStringField(TEXT("Error"), TEXT("AttachTo cannot be the component itself"));
+					return;
+				}
+				if (Target.OwnedNode && Target.OwnedNode->IsChildOf(Node))
+				{
+					Entry->SetStringField(TEXT("Error"), TEXT("AttachTo cannot be a descendant of the component"));
+					return;
+				}
+				DetachScsNode(SCS, Node);
+				ApplyScsAttach(SCS, Node, Target);
+				Entry->SetStringField(TEXT("ComponentName"), ComponentName);
+				Entry->SetStringField(TEXT("AttachTo"), AttachTo);
+				FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+				FKismetEditorUtilities::CompileBlueprint(BP);
+				return;
+			}
+
+			FString SourceAssetPath, SourceComponentName;
+			Op->TryGetStringField(TEXT("SourceAssetPath"), SourceAssetPath);
+			Op->TryGetStringField(TEXT("SourceComponentName"), SourceComponentName);
+			if (SourceAssetPath.IsEmpty() || SourceComponentName.IsEmpty())
+			{
+				Entry->SetStringField(TEXT("Error"), TEXT("CopyComponent requires SourceAssetPath and SourceComponentName"));
+				return;
+			}
+			if (ComponentName.IsEmpty())
+			{
+				ComponentName = SourceComponentName;
+			}
+			if (SCS->FindSCSNode(*ComponentName))
+			{
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Component '%s' already exists"), *ComponentName));
+				return;
+			}
+			UBlueprint* SourceBP = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(SourceAssetPath);
+			if (!SourceBP)
+			{
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Source Blueprint not found: %s"), *SourceAssetPath));
+				return;
+			}
+			USCS_Node* SourceNode = FindScsNodeInParents(SourceBP, SourceComponentName);
+			if (!SourceNode || !SourceNode->ComponentTemplate)
+			{
+				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Source component '%s' not found"), *SourceComponentName));
+				return;
+			}
+			UBlueprintGeneratedClass* SourceClass = Cast<UBlueprintGeneratedClass>(SourceBP->GeneratedClass);
+			UActorComponent* SourceTemplate = SourceClass ? SourceNode->GetActualComponentTemplate(SourceClass) : nullptr;
+			if (!SourceTemplate)
+			{
+				Entry->SetStringField(TEXT("Error"), TEXT("Source component has no effective template"));
+				return;
+			}
+			USCS_Node* NewNode = SCS->CreateNode(SourceTemplate->GetClass(), *ComponentName);
+			if (!NewNode || !NewNode->ComponentTemplate)
+			{
+				Entry->SetStringField(TEXT("Error"), TEXT("Create SCS node failed"));
+				return;
+			}
+			if (GEditor)
+			{
+				GEditor->CopyPropertiesForUnrelatedObjects(SourceTemplate, NewNode->ComponentTemplate);
+			}
+			FString AttachTo;
+			Op->TryGetStringField(TEXT("AttachTo"), AttachTo);
+			if (!AttachTo.IsEmpty())
+			{
+				FNexusScsAttachTarget Target;
+				FString AttachErr;
+				if (!ResolveScsAttachTarget(BP, AttachTo, Target, AttachErr))
+				{
+					if (NewNode->ComponentTemplate)
+					{
+						NewNode->ComponentTemplate->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_DoNotDirty);
+					}
+					NewNode->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_DoNotDirty);
+					Entry->SetStringField(TEXT("Error"), AttachErr);
+					return;
+				}
+				ApplyScsAttach(SCS, NewNode, Target);
+			}
+			else
+			{
+				USCS_Node* DefaultRoot = SCS->GetDefaultSceneRootNode();
+				if (DefaultRoot) DefaultRoot->AddChildNode(NewNode);
+				else SCS->AddNode(NewNode);
+			}
+			TArray<FString> Unmapped;
+			RemapCopiedComponentRefs(SourceBP, BP, NewNode->ComponentTemplate, SourceComponentName, NewNode, Unmapped);
+			Entry->SetStringField(TEXT("ComponentName"), ComponentName);
+			Entry->SetStringField(TEXT("ComponentClass"), NewNode->ComponentTemplate->GetClass()->GetName());
+			Entry->SetStringField(TEXT("SourceComponentName"), SourceComponentName);
+			if (Unmapped.Num() > 0)
+			{
+				TArray<TSharedPtr<FJsonValue>> UnmappedJson;
+				for (const FString& Item : Unmapped)
+				{
+					UnmappedJson.Add(MakeShared<FJsonValueString>(Item));
+				}
+				Entry->SetArrayField(TEXT("UnmappedRefs"), UnmappedJson);
+			}
+			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+			FKismetEditorUtilities::CompileBlueprint(BP);
+			return;
+		}
 	}
 #else
 	(void)Op; (void)Ctx;
@@ -669,6 +1045,8 @@ void FNexusManageAssetBlueprintCapability::RegisterActions(TMap<FString, FNexusA
 	OutHandlers.Add(TEXT("AddComponent"), &HandleBP_SCS);
 	OutHandlers.Add(TEXT("RemoveComponent"), &HandleBP_SCS);
 	OutHandlers.Add(TEXT("SetComponentProperty"), &HandleBP_SCS);
+	OutHandlers.Add(TEXT("CopyComponent"), &HandleBP_SCS);
+	OutHandlers.Add(TEXT("ReattachComponent"), &HandleBP_SCS);
 	OutHandlers.Add(TEXT("SetDefaults"), &HandleBP_SCS);
 	OutHandlers.Add(TEXT("AddNode"), &FNexusBlueprintGraphOps::HandleGraphNode);
 	OutHandlers.Add(TEXT("RemoveNode"), &FNexusBlueprintGraphOps::HandleGraphNode);

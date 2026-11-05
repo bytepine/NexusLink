@@ -11,6 +11,7 @@
 
 static void WriteRuntimeWidgetPropertyImpl(
 	const FString& WidgetName,
+	const FString& WidgetPath,
 	const FString& OwnerClass,
 	const FString& PropertyPath,
 	const FString& NewValue,
@@ -20,10 +21,10 @@ static void WriteRuntimeWidgetPropertyImpl(
 	OutEntry->SetStringField(TEXT("PropertyPath"), PropertyPath);
 	if (!OwnerClass.IsEmpty()) { OutEntry->SetStringField(TEXT("OwnerClass"), OwnerClass); }
 
-	if (WidgetName.IsEmpty())   { OutEntry->SetStringField(TEXT("Error"), TEXT("Missing WidgetName")); return; }
+	if (WidgetName.IsEmpty() && WidgetPath.IsEmpty()) { OutEntry->SetStringField(TEXT("Error"), TEXT("Missing WidgetName or WidgetPath")); return; }
 	if (PropertyPath.IsEmpty()) { OutEntry->SetStringField(TEXT("Error"), TEXT("Missing PropertyPath")); return; }
 
-	UWidget* Widget = FNexusRuntimeUtils::FindRuntimeWidget(OwnerClass, WidgetName);
+	UWidget* Widget = FNexusRuntimeUtils::FindRuntimeWidget(OwnerClass, WidgetName, WidgetPath);
 	if (!Widget) { OutEntry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Runtime Widget '%s' not found"), *WidgetName)); return; }
 
 	TArray<FString> Segs;
@@ -51,6 +52,7 @@ void FNexusSetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityD
 			.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("Dot-separated path")))
 			.Prop(TEXT("Value"),        FNexusSchema::Str(TEXT("New value string")))
 			.Prop(TEXT("WidgetName"),   FNexusSchema::Str(TEXT("Widget name")))
+			.Prop(TEXT("WidgetPath"),   FNexusSchema::Str(TEXT("Exact Path from ListRuntimeWidgets; never falls back to name")))
 			.Prop(TEXT("OwnerClass"),   FNexusSchema::Str(TEXT("UserWidget filter")))
 			.Required({ TEXT("PropertyPath"), TEXT("Value") })
 			.Build();
@@ -92,20 +94,21 @@ FCapabilityResult FNexusSetRuntimeWidgetPropertyCapability::Execute(const TShare
 				continue;
 			}
 
-			FString PropertyPath, NewValue, WidgetName, OwnerClass;
+			FString PropertyPath, NewValue, WidgetName, WidgetPath, OwnerClass;
 			Item->TryGetStringField(TEXT("PropertyPath"), PropertyPath);
 			Item->TryGetStringField(TEXT("Value"),        NewValue);
 			Item->TryGetStringField(TEXT("WidgetName"),   WidgetName);
+			Item->TryGetStringField(TEXT("WidgetPath"),   WidgetPath);
 			Item->TryGetStringField(TEXT("OwnerClass"),   OwnerClass);
 
-			if (PropertyPath.IsEmpty())
+			if (PropertyPath.IsEmpty() || (Item->HasField(TEXT("WidgetPath")) && WidgetPath.IsEmpty()))
 			{
-				OutEntry->SetStringField(TEXT("Error"), TEXT("Each update requires PropertyPath"));
+				OutEntry->SetStringField(TEXT("Error"), TEXT("Each update requires PropertyPath and a non-empty WidgetPath when provided"));
 				OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 				continue;
 			}
 
-			WriteRuntimeWidgetPropertyImpl(WidgetName, OwnerClass, PropertyPath, NewValue, OutEntry);
+			WriteRuntimeWidgetPropertyImpl(WidgetName, WidgetPath, OwnerClass, PropertyPath, NewValue, OutEntry);
 			OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 		}
 	

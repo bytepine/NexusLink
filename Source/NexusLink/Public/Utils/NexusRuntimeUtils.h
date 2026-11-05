@@ -36,8 +36,9 @@ public:
 	static FString               GetActorLabelOrName(const AActor* Actor);
 	static AActor*               FindActorByName(UWorld* World, const FString& ActorName);
 	static FString               GetWidgetDisplayText(UWidget* Widget);
-	static TArray<UUserWidget*>  GetActiveUserWidgets();
-	static UWidget*              FindRuntimeWidget(const FString& WidgetClassName, const FString& WidgetName);
+	/** 视口根；可同时包含当前运行世界中已注册 WidgetComponent 的根。交互时过滤隐藏组件。 */
+	static TArray<UUserWidget*>  GetActiveUserWidgets(bool bIncludeWidgetComponents = false, bool bVisibleOnly = false);
+	static UWidget*              FindRuntimeWidget(const FString& WidgetClassName, const FString& WidgetName, const FString& WidgetPath = FString());
 
 	/**
 	 * 递归遍历 UserWidget 下所有子控件（走面板层级而非 WidgetTree 注册列表）。

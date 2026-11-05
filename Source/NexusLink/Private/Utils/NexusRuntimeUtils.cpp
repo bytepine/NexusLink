@@ -23,6 +23,7 @@ FString FNexusRuntimeUtils::GetObjectIdentity(const UObject* Object)
 #include "Components/Widget.h"
 #include "Components/PanelWidget.h"
 #include "Components/WidgetSwitcher.h"
+#include "Components/WidgetComponent.h"
 #include "Components/TextBlock.h"
 #include "Components/RichTextBlock.h"
 #include "Components/EditableText.h"
@@ -165,7 +166,7 @@ FString FNexusRuntimeUtils::GetWidgetDisplayText(UWidget* Widget)
 	return FString::Join(Texts, TEXT(" | "));
 }
 
-TArray<UUserWidget*> FNexusRuntimeUtils::GetActiveUserWidgets()
+TArray<UUserWidget*> FNexusRuntimeUtils::GetActiveUserWidgets(bool bIncludeWidgetComponents, bool bVisibleOnly)
 {
 	TArray<UUserWidget*> Result;
 	for (TObjectIterator<UUserWidget> It; It; ++It)
@@ -174,13 +175,34 @@ TArray<UUserWidget*> FNexusRuntimeUtils::GetActiveUserWidgets()
 		if (!W || !W->IsInViewport()) continue;
 		Result.Add(W);
 	}
+	if (bIncludeWidgetComponents)
+	{
+		FString WorldError;
+		UWorld* World = RequirePlayWorld(WorldError);
+		for (TObjectIterator<UWidgetComponent> It; World && It; ++It)
+		{
+			UWidgetComponent* Component = *It;
+			AActor* Owner = Component->GetOwner();
+			if (!IsValid(Component) || !Component->IsRegistered() || Component->GetWorld() != World || !IsValid(Owner)) continue;
+			if (bVisibleOnly && (!Component->IsVisible() || Component->bHiddenInGame || Owner->IsHidden())) continue;
+			if (UUserWidget* Widget = Component->GetWidget())
+			{
+				if (IsValid(Widget)) Result.AddUnique(Widget);
+			}
+		}
+	}
 	return Result;
 }
 
-UWidget* FNexusRuntimeUtils::FindRuntimeWidget(const FString& WidgetClassName, const FString& WidgetName)
+UWidget* FNexusRuntimeUtils::FindRuntimeWidget(const FString& WidgetClassName, const FString& WidgetName, const FString& WidgetPath)
 {
-	for (UUserWidget* UW : GetActiveUserWidgets())
+	if (WidgetName.IsEmpty() && WidgetPath.IsEmpty()) return nullptr;
+	FString WorldError;
+	UWorld* World = RequirePlayWorld(WorldError);
+	if (!World) return nullptr;
+	for (UUserWidget* UW : GetActiveUserWidgets(true))
 	{
+		if (!IsValid(UW) || UW->GetWorld() != World) continue;
 		if (!WidgetClassName.IsEmpty() && !UW->GetClass()->GetName().Contains(WidgetClassName))
 		{
 			continue;
@@ -189,7 +211,8 @@ UWidget* FNexusRuntimeUtils::FindRuntimeWidget(const FString& WidgetClassName, c
 		UWidget* Found = nullptr;
 		ForEachWidgetRecursive(UW, [&](UWidget* Child)
 		{
-			if (!Found && Child && Child->GetName() == WidgetName) Found = Child;
+			if (!Found && Child && (WidgetName.IsEmpty() || Child->GetName() == WidgetName)
+				&& (WidgetPath.IsEmpty() || Child->GetPathName().Equals(WidgetPath, ESearchCase::CaseSensitive))) Found = Child;
 		});
 		if (Found) return Found;
 	}

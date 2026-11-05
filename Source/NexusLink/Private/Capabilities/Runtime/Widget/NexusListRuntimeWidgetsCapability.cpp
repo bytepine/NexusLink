@@ -13,13 +13,16 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Widget.h"
 #include "Components/PanelWidget.h"
+#include "Components/WidgetComponent.h"
+#include "GameFramework/Actor.h"
 #include "NexusMcpTool.h"
 
 void FNexusListRuntimeWidgetsCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("ListRuntimeWidgets");
-	Out.Description = TEXT("List PIE/Game viewport UMG instances, including nested widgets. Each Path is an exact WidgetPath for InteractRuntimeWidget. Filter by class/name/DisplayText.");
+	Out.Description = TEXT("List PIE/Game viewport UMG and, when ActorName is set, that Actor's WidgetComponent trees. Each Path is an exact WidgetPath for InteractRuntimeWidget.");
 	Out.InputSchema = FNexusSchema::Object()
+		.Prop(TEXT("ActorName"),   FNexusSchema::Str(TEXT("Also list WidgetComponent widgets on this Actor (NPC HUD / Billboard)")))
 		.Prop(TEXT("ClassFilter"), FNexusSchema::Str(TEXT("UserWidget class name filter")))
 		.Prop(TEXT("NameFilter"),  FNexusSchema::Str(TEXT("Child Widget name filter")))
 		.Prop(TEXT("TextFilter"),  FNexusSchema::Str(TEXT("Visible display text substring filter")))
@@ -27,7 +30,7 @@ void FNexusListRuntimeWidgetsCapability::BuildDefinition(FNexusCapabilityDefinit
 		.Prop(TEXT("Limit"),       FNexusSchema::Int(TEXT("Max count 1-500 (default 100)")))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("Viewport"), TEXT("hud"), TEXT("screen"), TEXT("enumerate") };
+	Out.ExtraSearchKeywords = { TEXT("umg"), TEXT("Viewport"), TEXT("hud"), TEXT("screen"), TEXT("enumerate"), TEXT("WidgetComponent"), TEXT("billboard") };
 	Out.RelatedCapabilities = { TEXT("GetRuntimeWidgetProperty"), TEXT("InteractRuntimeWidget") };
 	Out.Prerequisites = { TEXT("PIE") };
 }
@@ -37,11 +40,12 @@ FCapabilityResult FNexusListRuntimeWidgetsCapability::Execute(const TSharedPtr<F
 	return FNexusCapabilityResultBuilder::Build([&](auto& OutEntries, auto& OutTop, auto& OutError)
 	{
 		const FNexusArgs A(Arguments);
-		FString ClassFilter, NameFilter, TextFilter;
+		FString ActorName, ClassFilter, NameFilter, TextFilter;
 		int32 Offset = 0, Limit = 100;
 
 		if (Arguments.IsValid())
 		{
+			if (Arguments->HasField(TEXT("ActorName")))   ActorName   = A.Str(TEXT("ActorName"));
 			if (Arguments->HasField(TEXT("ClassFilter"))) ClassFilter = A.Str(TEXT("ClassFilter"));
 			if (Arguments->HasField(TEXT("NameFilter")))  NameFilter  = A.Str(TEXT("NameFilter"));
 			if (Arguments->HasField(TEXT("TextFilter")))  TextFilter  = A.Str(TEXT("TextFilter"));
@@ -49,7 +53,7 @@ FCapabilityResult FNexusListRuntimeWidgetsCapability::Execute(const TSharedPtr<F
 			if (Arguments->HasField(TEXT("Limit")))       Limit  = FMath::Clamp(static_cast<int32>(A.Num(TEXT("Limit"))), 1, 500);
 		}
 
-		struct FEntry { FString OwnerClass; FString Name; FString Path; FString Class; FString Parent; FString DisplayText; };
+		struct FEntry { FString OwnerClass; FString Name; FString Path; FString Class; FString Parent; FString DisplayText; FString ComponentName; };
 		TArray<FEntry> All;
 		UWorld* World = FNexusRuntimeUtils::RequirePlayWorld(OutError);
 		if (!World) return;
@@ -74,6 +78,48 @@ FCapabilityResult FNexusListRuntimeWidgetsCapability::Execute(const TSharedPtr<F
 			});
 		}
 
+		if (!ActorName.IsEmpty())
+		{
+			AActor* Actor = FNexusRuntimeUtils::FindActorByName(World, ActorName);
+			if (!Actor)
+			{
+				OutError = FString::Printf(TEXT("Actor not found: %s"), *ActorName);
+				return;
+			}
+			TInlineComponentArray<UWidgetComponent*> WidgetComps;
+			Actor->GetComponents(WidgetComps);
+			for (UWidgetComponent* Comp : WidgetComps)
+			{
+				UUserWidget* Widget = IsValid(Comp) && Comp->IsRegistered() ? Comp->GetWidget() : nullptr;
+				if (!IsValid(Widget))
+				{
+					continue;
+				}
+				const FString OwnerClass = Widget->GetClass()->GetName();
+				if (!ClassFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(OwnerClass, ClassFilter))
+				{
+					continue;
+				}
+				const FString CompName = Comp->GetName();
+				FNexusRuntimeUtils::ForEachWidgetRecursive(Widget, [&](UWidget* Child)
+				{
+					if (!Child)
+					{
+						return;
+					}
+					FEntry E;
+					E.OwnerClass = OwnerClass;
+					E.Name = Child->GetName();
+					E.Path = Child->GetPathName();
+					E.Class = Child->GetClass()->GetName();
+					E.DisplayText = FNexusRuntimeUtils::GetWidgetDisplayText(Child);
+					E.ComponentName = CompName;
+					if (UWidget* P = Child->GetParent()) E.Parent = P->GetName();
+					All.Add(E);
+				});
+			}
+		}
+
 		All = All.FilterByPredicate([&](const FEntry& E)
 		{
 			if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(E.Name, NameFilter)) return false;
@@ -92,6 +138,7 @@ FCapabilityResult FNexusListRuntimeWidgetsCapability::Execute(const TSharedPtr<F
 			O->SetStringField(TEXT("name"),  All[i].Name);
 			O->SetStringField(TEXT("Path"), All[i].Path);
 			O->SetStringField(TEXT("Class"), All[i].Class);
+			if (!All[i].ComponentName.IsEmpty()) O->SetStringField(TEXT("ComponentName"), All[i].ComponentName);
 			if (!All[i].Parent.IsEmpty())      O->SetStringField(TEXT("Parent"),      All[i].Parent);
 			if (!All[i].DisplayText.IsEmpty()) O->SetStringField(TEXT("DisplayText"), All[i].DisplayText);
 			Page.Add(MakeShared<FJsonValueObject>(O));

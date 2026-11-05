@@ -48,9 +48,10 @@ static void ReadRuntimeWidgetPropertyImpl(UWidget* Widget, const FString& Proper
 void FNexusGetRuntimeWidgetPropertyCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("GetRuntimeWidgetProperty");
-	Out.Description = TEXT("Read runtime UMG element fields. Locate via WidgetName+OwnerClass; includes layout without PropertyPaths.");
+	Out.Description = TEXT("Read runtime UMG fields by WidgetPath or WidgetName+OwnerClass, including WidgetComponent trees and layout.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("WidgetName"),    FNexusSchema::Str(TEXT("Runtime Widget name")))
+		.Prop(TEXT("WidgetPath"),    FNexusSchema::Str(TEXT("Exact Path from ListRuntimeWidgets; never falls back to name")))
 		.Prop(TEXT("OwnerClass"),    FNexusSchema::Str(TEXT("UserWidget filter")))
 		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("Dot-separated paths (batch)")))
 		.Build();
@@ -69,6 +70,12 @@ FCapabilityResult FNexusGetRuntimeWidgetPropertyCapability::Execute(const TShare
 		const FNexusArgs A(Arguments);
 
 		const FString WN = A.Str(TEXT("WidgetName"));
+		const FString WidgetPath = A.Str(TEXT("WidgetPath"));
+		if (Arguments.IsValid() && Arguments->HasField(TEXT("WidgetPath")) && WidgetPath.IsEmpty())
+		{
+			OutError = TEXT("WidgetPath must not be empty");
+			return;
+		}
 
 		FString OwnerClass;
 		OwnerClass = FNexusArgs(Arguments).Str(TEXT("OwnerClass"), OwnerClass);
@@ -77,7 +84,7 @@ FCapabilityResult FNexusGetRuntimeWidgetPropertyCapability::Execute(const TShare
 		TArray<FString> PropertyPaths;
 		FNexusPropertyUtils::ReadStringArray(Arguments, TEXT("PropertyPaths"), PropertyPaths);
 
-		UWidget* Widget = FNexusRuntimeUtils::FindRuntimeWidget(OwnerClass, WN);
+		UWidget* Widget = FNexusRuntimeUtils::FindRuntimeWidget(OwnerClass, WN, WidgetPath);
 		if (!Widget)
 		{
 			TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();

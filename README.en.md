@@ -11,8 +11,8 @@ Start with [NexusDesktop](https://github.com/bytepine/NexusDesktop), or use the 
 ## What you can do
 
 - **Feature follow-ups**: [action schemas, structural plans, first import, multiplayer PIE, PCG output, bone sampling, task history, performance budgets, and source-control preflight](docs/feature-followups.md).
-- **Editor and assets**: inspect project context and work with Blueprints, materials, animation, audio, DataTables, widgets, and Niagara; [preview edits and verify writes](docs/asset-edit-preview.md). Structural verification failures block automatic saving, and FBX animation imports check collisions for every take.
-- **Runtime debugging**: inspect logs, Actors, animation, AI / EQS, and GAS in PIE, standalone Game, and Dedicated Server; Game / PIE with a viewport also supports [UMG interaction](docs/runtime-widgets.md).
+- **Editor and assets**: inspect project context and work with Blueprints, materials, animation, audio, DataTables, widgets, and Niagara; open an editor map, with protection for unsaved levels and external Actor packages. [Preview edits and verify writes](docs/asset-edit-preview.md). Structural verification failures block automatic saving, and FBX animation imports check collisions for every take.
+- **Runtime debugging**: inspect logs, Actors, animation, AI / EQS, and GAS in PIE, standalone Game, and Dedicated Server; move an Actor with the native transform setters. Game / PIE with a viewport also supports [UMG interaction](docs/runtime-widgets.md), with instance paths for reading, writing, and interacting with WidgetComponent trees on an Actor.
 - **Diagnostics and comparison**: [GAS activation diagnostics](docs/gas-retest.md), [behavior-tree / Blackboard condition replay](docs/bt-retest.md), and [performance comparison from stopped Traces](docs/trace-compare.md).
 - **Editor automation**: [Slate inspection and interaction, Automation tests, and nonblocking Live Coding](docs/editor-toolsets.md).
 - **Project discovery and UE 5.8 domains**: [settings/plugins, skills, semantic search, PCG execution and sampling, Niagara diagnostics/fixes, UMG structure, and inline screenshots](docs/editor-toolsets.md).
