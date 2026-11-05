@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-11-05
+
 ### Added
 
 - 新增 C++ / 蓝图纯函数 `UNexusLinkSettings::IsMcpEnabled()`，查询 MCP 服务的实际运行状态；未启动、启动失败或 Shipping 构建时返回 `false`。
