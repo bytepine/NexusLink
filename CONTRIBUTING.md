@@ -46,7 +46,7 @@ py scripts/audit_cpp_naming.py  # 报告：类型前缀/文件名、布尔 b、k
 
 两层自动化：
 
-- **L0 跨版本编译**（宿主工程 `Script/build_test.py`）：对本机已装的每套引擎编整个 `Nexus.uproject`（`NexusEditor` + `Nexus` Game）。编进游戏模块与工程内插件（NexusLink、NexusLinkExt 等）。每套引擎在临时目录隔离 Intermediate，不改仓库工程；默认 `--max-workers 3` 并行。
+- **L0 跨版本编译**（宿主工程 `Script/build_test.py`）：对本机已装的每套引擎编整个 `Nexus.uproject`（`NexusEditor` + `Nexus` Game）。编进游戏模块与工程内插件（NexusLink、NexusLinkExt 等）。每套引擎在临时目录隔离 Intermediate，不改仓库工程；一次只编一套引擎，不传 `-MaxParallelActions`，并行度交给 UBT。
 
 - **L1 C++ Automation**（宿主工程，**不**在本仓）：`Plugins/NexusLinkTestSuite/` 覆盖本插件；UnLua Capability 在 `Plugins/NexusLinkExtTestSuite/`。经 UEEditor-Cmd 触发：
 
