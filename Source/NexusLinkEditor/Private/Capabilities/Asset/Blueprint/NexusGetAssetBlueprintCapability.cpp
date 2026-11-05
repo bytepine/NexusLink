@@ -132,7 +132,7 @@ static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FNexusBPQu
 		BP->GeneratedClass, CDO, BP->GeneratedClass,
 		Q.NameFilter, Q.PropertyPaths, Q.Offset, Q.Limit, Total);
 
-	// 将 name 字段重命名为 path（BP defaults 的惯例），并修正 inherited 逻辑
+	// 将 Name 字段重命名为 Path（BP defaults 的惯例），并修正继承标记
 	// BuildEditablePropsPage 用 OwnerClass != LeafClass 判断继承，而 BPDefaults 要用 BP.NewVariables 白名单
 	for (TSharedPtr<FJsonValue>& V : Page)
 	{
@@ -141,7 +141,7 @@ static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FNexusBPQu
 		FString PropName;
 		Entry->TryGetStringField(TEXT("Name"), PropName);
 		Entry->SetStringField(TEXT("Path"), PropName);
-		Entry->RemoveField(TEXT("name"));
+		Entry->RemoveField(TEXT("Name"));
 		// 用 NewVariables 白名单覆盖 inherited；始终写出以便压缩抽取
 		Entry->SetBoolField(TEXT("bInherited"), !BPVarNames.Contains(PropName));
 	}
@@ -690,7 +690,7 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 		}
 
 		// 每个 section 写独立的列表键，避免 variable 和 function 合并时覆盖
-		const FString ListKey = (SectionName == TEXT("variable")) ? TEXT("Variables") : TEXT("functions");
+		const FString ListKey = (SectionName == TEXT("Variable")) ? TEXT("Variables") : TEXT("Functions");
 		InOutDetail->SetNumberField(FString::Printf(TEXT("%sTotalCount"), *SectionName), Total);
 		InOutDetail->SetArrayField(ListKey, Page);
 #else
