@@ -86,10 +86,10 @@ void FNexusManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinitio
 {
 	Out.Name = TEXT("ManageAssetLevel");
 	Out.SearchAssetTypes = {TEXT("World")};
-	Out.Description = TEXT("Batch edit level WorldSettings and Actors. Action=spawn/remove/SetProperty.");
+	Out.Description = TEXT("Batch edit level WorldSettings and Actors. Action=spawn/remove/SetProperty/ResetActorPropertyToDefault.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Action"),
-			{ TEXT("SetProperty"), TEXT("SpawnActor"), TEXT("RemoveActor"), TEXT("SetActorProperty") }))
+			{ TEXT("SetProperty"), TEXT("SpawnActor"), TEXT("RemoveActor"), TEXT("SetActorProperty"), TEXT("ResetActorPropertyToDefault") }))
 		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("WorldSettings propertypath (SetProperty)")))
 		.Prop(TEXT("Value"),        FNexusSchema::Str(TEXT("New property value string")))
 		.Prop(TEXT("ClassName"),    FNexusSchema::Str(TEXT("Actor class name (SpawnActor)")))
@@ -223,6 +223,56 @@ static void HandleLevel_SetActorProperty(const TSharedPtr<FJsonObject>& Op, FNex
 	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
 }
 
+static void HandleLevel_ResetActorPropertyToDefault(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	FLevelActionState* S = LevelFrom(Ctx);
+	const FNexusArgs A(Op);
+	const FString ActorName = A.Str(TEXT("ActorName"));
+	const FString PropPath = A.Str(TEXT("PropertyPath"));
+	if (ActorName.IsEmpty() || PropPath.IsEmpty())
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("ResetActorPropertyToDefault requires ActorName and PropertyPath"));
+		return;
+	}
+	AActor* Actor = FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(S->World, ActorName);
+	if (!Actor)
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
+		return;
+	}
+	UObject* CDO = Actor->GetClass()->GetDefaultObject();
+	if (!CDO)
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Actor class has no CDO"));
+		return;
+	}
+	TArray<FString> Segments;
+	PropPath.ParseIntoArray(Segments, TEXT("."), true);
+	FProperty* Prop = nullptr;
+	void* ValPtr = nullptr;
+	FString PropErr;
+	if (!FNexusPropertyUtils::ResolvePropertyWrite(CDO, Segments, 0, Prop, ValPtr, PropErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), PropErr);
+		return;
+	}
+	FString CdoText;
+	FNexusPropertyUtils::ExportText(Prop, CdoText, ValPtr);
+	Actor->Modify();
+	FString OldVal, ActualVal;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(Actor, Segments, 0, CdoText, OldVal, ActualVal, PropErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), PropErr);
+		return;
+	}
+	S->World->MarkPackageDirty();
+	Ctx.Entry->SetStringField(TEXT("ActorName"), ActorName);
+	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
+	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
+	Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
+}
+
 static void HandleLevel_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	FLevelActionState* S = LevelFrom(Ctx);
@@ -286,6 +336,7 @@ void FNexusManageAssetLevelCapability::RegisterActions(TMap<FString, FNexusActio
 	OutHandlers.Add(TEXT("SpawnActor"),         &HandleLevel_SpawnActor);
 	OutHandlers.Add(TEXT("RemoveActor"),        &HandleLevel_RemoveActor);
 	OutHandlers.Add(TEXT("SetActorProperty"),  &HandleLevel_SetActorProperty);
+	OutHandlers.Add(TEXT("ResetActorPropertyToDefault"), &HandleLevel_ResetActorPropertyToDefault);
 	OutHandlers.Add(TEXT("SetProperty"),        &HandleLevel_SetProperty);
 }
 

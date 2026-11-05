@@ -82,6 +82,15 @@ public:
 		FString& OutRecommendedManage) const;
 
 	/**
+	 * 别名已登记时，返回同一 RecommendedGet 下的全部类型名（小写）。
+	 * 未登记，或该 get cap 在当前宿主不可见时返回 false。
+	 */
+	bool CollectSearchTypeAliases(
+		const FString& AssetType,
+		FString& OutRecommendedGet,
+		TArray<FString>& OutTypeNames) const;
+
+	/**
 	 * 清空整个注册表（仅供测试使用：用例可临时注册若干 cap 跑 Execute，
 	 * 结束后调用本方法清场，避免污染下一条用例的全局表状态）。
 	 */

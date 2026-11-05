@@ -2,6 +2,7 @@
   "descriptions": {
     "ControlEditorLevel": "按资产路径打开编辑器地图。关卡或外部 Actor 有未保存修改时拒绝，除非指定 bDiscardUnsaved；不启动 PIE。",
     "SetRuntimeActorTransform": "使用原生变换接口移动、旋转或缩放运行时 Actor，返回修改前的变换；写入前校验全部参数。",
+    "GetAssetPackageChunks": "读取 AssetRegistry 中的包分块 ID，或在指定 PathFilter 下按 ChunkId 列包。",
     "GetAssetEditPreview": "在临时存储中预览标量属性与首批 BP/UMG/PCG 结构修改；不写入源资产、不编译、不保存。",
     "ImportAsset": "使用明确工厂首次导入图片、WAV 或 FBX，指定目标冲突策略，返回实际产物；单文件，单独保存。",
     "GetAssetSourceControl": "只读预检已保存资产包的文件只读、检出、锁定与冲突状态；可显式刷新 Provider，不提交。",

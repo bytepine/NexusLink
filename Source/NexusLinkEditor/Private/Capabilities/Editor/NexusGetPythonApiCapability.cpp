@@ -87,7 +87,7 @@ void FNexusGetPythonApiCapability::BuildDefinition(FNexusCapabilityDefinition& O
 	Out.Name = TEXT("GetPythonApi");
 	Out.Description = TEXT("Inspect unreal Python members. Live dir/signature for this engine bind. Probe before ExecPython.");
 	Out.InputSchema = FNexusSchema::Object()
-		.Prop(TEXT("Target"), FNexusSchema::Str(TEXT("Dotted unreal path to inspect"), TEXT("unreal")))
+		.Prop(TEXT("Target"), FNexusSchema::Str(TEXT("Dotted path starting with unreal, e.g. unreal.AssetData. A bare identifier is prefixed automatically."), TEXT("unreal")))
 		.Prop(TEXT("Query"), FNexusSchema::Str(TEXT("Substring filter on member names")))
 		.Prop(TEXT("bSearchDoc"), FNexusSchema::Bool(TEXT("Also match query against docstrings"), true, false))
 		.Prop(TEXT("Offset"), FNexusSchema::Int(TEXT("Pagination offset"), 0, 0))
@@ -107,11 +107,19 @@ FCapabilityResult FNexusGetPythonApiCapability::Execute(const TSharedPtr<FJsonOb
 	{
 		Target = TEXT("unreal");
 	}
+	// 裸标识符补 unreal. 前缀。已带点但不以 unreal 开头的仍交给下面的白名单拒绝。
+	if (!Target.Equals(TEXT("unreal"), ESearchCase::CaseSensitive)
+		&& !Target.Contains(TEXT("."))
+		&& IsSafePythonQuery(Target)
+		&& !Target.IsEmpty())
+	{
+		Target = TEXT("unreal.") + Target;
+	}
 	const FString Query = A.Str(TEXT("Query"));
 	if (!IsSafePythonTarget(Target))
 	{
 		return FCapabilityResult::MakeArgInvalid(
-			TEXT("target must be a dotted unreal.* path (letters, digits, underscore, dots)"));
+			TEXT("target must be a dotted unreal.* path (letters, digits, underscore, dots), e.g. unreal.AssetData"));
 	}
 	if (!IsSafePythonQuery(Query))
 	{

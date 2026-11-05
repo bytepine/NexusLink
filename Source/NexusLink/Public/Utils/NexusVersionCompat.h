@@ -34,6 +34,7 @@
 #define NX_UE_HAS_SAVE_PACKAGE_ARGS    NX_UE_AT_LEAST(5, 0)  // UPackage::SavePackage(FSavePackageArgs)
 #define NX_UE_HAS_MARK_AS_GARBAGE      NX_UE_AT_LEAST(5, 0)  // MarkPendingKill() → MarkAsGarbage()
 #define NX_UE_HAS_FIND_FIRST_OBJECT    NX_UE_AT_LEAST(5, 1)  // ANY_PACKAGE → FindFirstObject
+#define NX_UE_HAS_ASSET_DATA_GET_CHUNK_IDS NX_UE_AT_LEAST(5, 1) // FAssetData::GetChunkIDs；4.26/5.0 用公开字段 ChunkIDs
 #define NX_UE_HAS_SKELETAL_BODY_SETUP_HEADER  NX_UE_AT_LEAST(5, 5)  // PhysicsEngine/SkeletalBodySetup.h 单独头文件仅 5.5+
 #define NX_UE_HAS_PHYSICS_ASSET_PROGRESS_ARG NX_UE_AT_LEAST(5, 4)  // CreateFromSkeletalMesh 新增 bShowProgress 参数
 #define NX_UE_HAS_DATA_REGISTRY_SOURCE_ASSET_PATH NX_UE_AT_LEAST(5, 5)  // UDataRegistrySource 新增来源资产路径 getter

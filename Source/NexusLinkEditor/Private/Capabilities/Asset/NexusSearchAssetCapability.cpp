@@ -242,6 +242,35 @@ static const TArray<FNexusSearchTypeEntry>& GetSearchTypeTableLate()
 	return Table;
 }
 
+/** 按类型名找 UClass。大小写不敏感，裸名再试一次 U 前缀。 */
+static UClass* FindSearchAssetClass(const FString& TypeName)
+{
+	if (TypeName.IsEmpty())
+	{
+		return nullptr;
+	}
+#if NX_UE_HAS_FIND_FIRST_OBJECT
+	if (UClass* Cls = FindFirstObject<UClass>(*TypeName, EFindFirstObjectOptions::NativeFirst))
+	{
+		return Cls;
+	}
+	if (!TypeName.StartsWith(TEXT("U"), ESearchCase::IgnoreCase))
+	{
+		return FindFirstObject<UClass>(*(TEXT("U") + TypeName), EFindFirstObjectOptions::NativeFirst);
+	}
+#else
+	if (UClass* Cls = FindObject<UClass>(ANY_PACKAGE, *TypeName))
+	{
+		return Cls;
+	}
+	if (!TypeName.StartsWith(TEXT("U"), ESearchCase::IgnoreCase))
+	{
+		return FindObject<UClass>(ANY_PACKAGE, *(TEXT("U") + TypeName));
+	}
+#endif
+	return nullptr;
+}
+
 /** TypeLower 是否命中内置 shortcut（blueprint/blendspace/GAS 三项等雪花 + 三张同构表）；用于 UClass 动态回退前的判定。 */
 static bool IsKnownSearchAssetType(const FString& TypeLower)
 {
@@ -454,31 +483,67 @@ FCapabilityResult FNexusSearchAssetCapability::Execute(const TSharedPtr<FJsonObj
 			RunTypeEntry(Entry);
 		}
 
+		auto QueryClassAssets = [&](UClass* TargetClass, const FString& TypeLabel)
+		{
+			FARFilter Filter;
+			NEXUS_FILTER_ADD_CLASS(Filter, TargetClass);
+			Filter.PackagePaths.Add(FName(*PathFilter));
+			Filter.bRecursivePaths = true;
+			Filter.bRecursiveClasses = true;
+			TArray<FAssetData> Assets;
+			Registry.GetAssets(Filter, Assets);
+			for (const FAssetData& A : Assets) AddEntry(A, TypeLabel);
+		};
+
 		if (!bIsAll && !IsKnownSearchAssetType(TypeLower))
 		{
-	#if NX_UE_HAS_FIND_FIRST_OBJECT
-			UClass* TargetClass = FindFirstObject<UClass>(*AssetType, EFindFirstObjectOptions::NativeFirst);
-	#else
-			UClass* TargetClass = FindObject<UClass>(ANY_PACKAGE, *AssetType);
-	#endif
-			if (TargetClass)
+			if (UClass* TargetClass = FindSearchAssetClass(AssetType))
 			{
-				FARFilter Filter;
-				NEXUS_FILTER_ADD_CLASS(Filter, TargetClass);
-				Filter.PackagePaths.Add(FName(*PathFilter));
-				Filter.bRecursivePaths = true;
-				Filter.bRecursiveClasses = true;
-				TArray<FAssetData> Assets;
-				Registry.GetAssets(Filter, Assets);
-				for (const FAssetData& A : Assets) AddEntry(A, AssetType);
+				QueryClassAssets(TargetClass, AssetType);
 			}
-		else
-		{
-			OutError = FString::Printf(
-				TEXT("Unknown AssetType '%s'. Use a UClass name (e.g. AnimSequence, SkeletalMesh) or a shortcut (Blueprint/Widget/Struct/DataTable/DataAsset/Material/MaterialInstance/AnimMontage/AnimBlueprint/BehaviorTree/Blackboard/AnimSequence/SkeletalMesh/Skeleton/Texture2D/StaticMesh/GameplayAbility/…/all)."),
-				*AssetType);
-			return;
-		}
+			else
+			{
+				FString RecommendedGet;
+				TArray<FString> Aliases;
+				const bool bDeclared = FNexusCapabilityRegistry::Get().CollectSearchTypeAliases(
+					TypeLower, RecommendedGet, Aliases);
+				bool bFoundClass = false;
+				TArray<FString> Tried;
+				if (bDeclared)
+				{
+					for (const FString& Alias : Aliases)
+					{
+						if (Alias.Equals(TypeLower, ESearchCase::IgnoreCase))
+						{
+							continue;
+						}
+						Tried.Add(Alias);
+						if (UClass* Sibling = FindSearchAssetClass(Alias))
+						{
+							QueryClassAssets(Sibling, Sibling->GetName());
+							bFoundClass = true;
+						}
+					}
+				}
+				if (!bFoundClass)
+				{
+					if (bDeclared)
+					{
+						OutError = FString::Printf(
+							TEXT("AssetType '%s' is declared by %s but no matching UClass is loaded (tried %s)."),
+							*AssetType,
+							*RecommendedGet,
+							Tried.Num() ? *FString::Join(Tried, TEXT(", ")) : TEXT("no sibling class name"));
+					}
+					else
+					{
+						OutError = FString::Printf(
+							TEXT("Unknown AssetType '%s'. Use a UClass name (e.g. AnimSequence, SkeletalMesh) or a shortcut (Blueprint/Widget/Struct/DataTable/DataAsset/Material/MaterialInstance/AnimMontage/AnimBlueprint/BehaviorTree/Blackboard/AnimSequence/SkeletalMesh/Skeleton/Texture2D/StaticMesh/GameplayAbility/…/all)."),
+							*AssetType);
+					}
+					return;
+				}
+			}
 		}
 
 		if (!NameFilter.IsEmpty())

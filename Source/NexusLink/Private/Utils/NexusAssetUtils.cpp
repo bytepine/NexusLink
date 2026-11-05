@@ -7,6 +7,7 @@
 DEFINE_LOG_CATEGORY_STATIC(LogNexusAssetUtils, Log, All);
 
 #include "Engine/Blueprint.h"
+#include "Engine/World.h"
 #include "UObject/UObjectGlobals.h"
 #include "Engine/Texture2D.h"
 #include "Animation/AnimSequence.h"
@@ -286,7 +287,8 @@ bool FNexusAssetUtils::SaveNewAsset(UPackage* Package, UObject* Asset, const FSt
 {
 	if (!Package) return false;
 
-	const FString FilePath = FPackageName::LongPackageNameToFilename(PackagePath, FPackageName::GetAssetPackageExtension());
+	const FString FilePath = FPackageName::LongPackageNameToFilename(
+		PackagePath, GetPackageFileExtension(Package, Asset));
 	bool bSaved = false;
 #if NX_UE_HAS_SAVE_PACKAGE_ARGS
 	FSavePackageArgs SaveArgs;
@@ -301,6 +303,13 @@ bool FNexusAssetUtils::SaveNewAsset(UPackage* Package, UObject* Asset, const FSt
 		UE_LOG(LogNexusAssetUtils, Warning, TEXT("[NexusLink] SaveNewAsset failed: %s"), *FilePath);
 	}
 	return bSaved;
+}
+
+FString FNexusAssetUtils::GetPackageFileExtension(const UPackage* Package, const UObject* Asset)
+{
+	const bool bMap = (Package && Package->ContainsMap())
+		|| (Asset && Asset->IsA(UWorld::StaticClass()));
+	return bMap ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
 }
 
 FString FNexusAssetUtils::PackagePathOf(const UObject* Obj)
@@ -427,4 +436,21 @@ FNexusAssetUtils::FAssetCreateOutcome FNexusAssetUtils::CreatePlainAsset(
 	Out.Asset = Asset;
 	return Out;
 }
+
+#if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
+#include "Misc/AutomationTest.h"
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusPackageFileExtensionTest, "NexusLink.Asset.PackageFileExtension",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FNexusPackageFileExtensionTest::RunTest(const FString&)
+{
+	TestEqual(TEXT("ordinary package uses uasset"),
+		FNexusAssetUtils::GetPackageFileExtension(nullptr, nullptr),
+		FPackageName::GetAssetPackageExtension());
+	UWorld* World = NewObject<UWorld>(GetTransientPackage(), NAME_None, RF_Transient);
+	TestEqual(TEXT("world uses umap"),
+		FNexusAssetUtils::GetPackageFileExtension(nullptr, World),
+		FPackageName::GetMapPackageExtension());
+	return true;
+}
+#endif
 

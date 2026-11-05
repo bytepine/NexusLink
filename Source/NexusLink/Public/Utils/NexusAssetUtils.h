@@ -156,6 +156,9 @@ public:
 	 */
 	static bool SaveNewAsset(UPackage* Package, UObject* Asset, const FString& PackagePath);
 
+	/** 地图包用 .umap，其余用 .uasset。Asset 是 UWorld，或包带 ContainsMap 时视为地图。 */
+	static FString GetPackageFileExtension(const UPackage* Package, const UObject* Asset);
+
 	// SaveDirtyPackage / CompileAndSaveBlueprint / ApplyManageFinalize 需要 Kismet2 / LiveCoding
 	// 检测（UnrealEd），已迁移到 FNexusAssetEditorUtils；ApplyManageFinalize 的调用方经
 	// FNexusEditorServices::ApplyManageFinalize 钩子转发（见 NexusEditorServices.h）。

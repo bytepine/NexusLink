@@ -12,8 +12,17 @@
 - 新增 C++ / 蓝图纯函数 `UNexusLinkSettings::IsMcpEnabled()`，查询 MCP 服务的实际运行状态；未启动、启动失败或 Shipping 构建时返回 `false`。
 - `ControlEditorLevel` 按资产路径打开编辑器地图；主关卡、子关卡或外部 Actor 包有未保存修改时拒绝，`bDiscardUnsaved` 才丢弃，不启动 PIE；加载失败时恢复仍存活主包的脏标记。
 - `SetRuntimeActorTransform` 用 `SetActorLocation` / `SetActorRotation` / `SetActorScale3D` 改运行时变换，并返回改前的值；写入前校验全部参数，拒绝非数字、非有限数和错误格式，参数错误不产生部分修改。
+- `GetAssetPackageChunks` 读取 AssetRegistry 的 pak chunk id；按 chunk 列包时必须带 `PathFilter`。
 - `ManageAssetBlueprint` 增加 `CopyComponent`、`ReattachComponent`。复制使用源蓝图的实际继承覆盖模板；重挂载拒绝自身与后代，并保持根节点及完整组件树一致。`AddComponent` 的 `AttachTo` 可挂到父蓝图 SCS 或 C++ 原生组件。
+- `ManageAssetLevel` 增加 `ResetActorPropertyToDefault`，把关卡 Actor 的属性写回蓝图 CDO 并记录 Undo。
 - `ListRuntimeWidgets` 增加 `ActorName`，一并列出该 Actor 上已注册 `WidgetComponent` 的控件树；列表路径可供交互和属性读写精确定位，交互拒绝隐藏或已注销的组件。
+
+### Fixed
+
+- `SearchAsset` 对扩展插件登记的类型别名（如 `abl_ability`）改查同一 cap 下能加载到的 UClass，而不是直接报 Unknown。
+- 保存和删除 World 包时使用 `.umap`。
+- `GetPythonApi` 的裸标识符自动补 `unreal.` 前缀。
+- `GetAssetBlueprint` 的 component 条目带上模板相对 CDO 有差异的属性。
 
 ## [2.3.0] - 2026-11-03
 

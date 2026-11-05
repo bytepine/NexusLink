@@ -163,7 +163,52 @@ struct FNexusBPComponentEntry
 	FString AttachParent;
 	FString Source; // "owned" | "bInherited" | "native"
 	FString OwnerBlueprint; // 仅 inherited：来源父蓝图名
+	TSharedPtr<FJsonObject> TemplateProperties;
 };
+
+/** 模板相对组件类 CDO 有差异的可编辑属性。数量和单条长度有上限。 */
+static void FillTemplatePropertyDiffs(FNexusBPComponentEntry& Entry, UActorComponent* Template)
+{
+	if (!Template)
+	{
+		return;
+	}
+	UObject* CDO = Template->GetClass()->GetDefaultObject();
+	if (!CDO || CDO == Template)
+	{
+		return;
+	}
+	TSharedPtr<FJsonObject> Props = MakeShared<FJsonObject>();
+	int32 Count = 0;
+	constexpr int32 MaxProps = 32;
+	constexpr int32 MaxChars = 256;
+	for (TFieldIterator<FProperty> It(Template->GetClass()); It && Count < MaxProps; ++It)
+	{
+		FProperty* Prop = *It;
+		if (!Prop || !Prop->HasAnyPropertyFlags(CPF_Edit) || Prop->HasAnyPropertyFlags(CPF_Transient | CPF_Deprecated))
+		{
+			continue;
+		}
+		void* Data = Prop->ContainerPtrToValuePtr<void>(Template);
+		void* CdoData = Prop->ContainerPtrToValuePtr<void>(CDO);
+		if (Prop->Identical(Data, CdoData))
+		{
+			continue;
+		}
+		FString Text;
+		FNexusPropertyUtils::ExportText(Prop, Text, Data);
+		if (Text.Len() > MaxChars)
+		{
+			Text = Text.Left(MaxChars) + TEXT("...");
+		}
+		Props->SetStringField(Prop->GetName(), Text);
+		++Count;
+	}
+	if (Count > 0)
+	{
+		Entry.TemplateProperties = Props;
+	}
+}
 
 static TSharedPtr<FJsonObject> SerializeComponentEntry(const FNexusBPComponentEntry& E)
 {
@@ -178,6 +223,7 @@ static TSharedPtr<FJsonObject> SerializeComponentEntry(const FNexusBPComponentEn
 	Obj->SetStringField(TEXT("Source"), E.Source);
 	Obj->SetBoolField(TEXT("bInherited"), E.Source != TEXT("owned"));
 	if (!E.OwnerBlueprint.IsEmpty()) Obj->SetStringField(TEXT("OwnerBlueprint"), E.OwnerBlueprint);
+	if (E.TemplateProperties.IsValid()) Obj->SetObjectField(TEXT("TemplateProperties"), E.TemplateProperties);
 	return Obj;
 }
 
@@ -197,6 +243,7 @@ static void CollectOwnedSCSEntries(USimpleConstructionScript* SCS, TSet<FString>
 		}
 		if (!Node->ParentComponentOrVariableName.IsNone())
 			E.AttachParent = Node->ParentComponentOrVariableName.ToString();
+		FillTemplatePropertyDiffs(E, Node->ComponentTemplate);
 		E.Source = TEXT("owned");
 		Out.Add(E);
 		UsedNames.Add(E.VariableName);
@@ -225,6 +272,7 @@ static void CollectInheritedSCSEntries(UClass* ParentClass, TSet<FString>& UsedN
 			}
 			if (!Node->ParentComponentOrVariableName.IsNone())
 				E.AttachParent = Node->ParentComponentOrVariableName.ToString();
+			FillTemplatePropertyDiffs(E, Node->ComponentTemplate);
 			E.Source = TEXT("bInherited");
 			E.OwnerBlueprint = ParentBP->GetName();
 			Out.Add(E);
@@ -261,6 +309,7 @@ static void CollectNativeEntries(UClass* ParentClass, TSet<FString>& UsedNames, 
 			if (SceneComp->GetAttachParent())
 				E.AttachParent = SceneComp->GetAttachParent()->GetFName().ToString();
 		}
+		FillTemplatePropertyDiffs(E, Comp);
 		E.Source = TEXT("native");
 		Out.Add(E);
 		UsedNames.Add(VarName);

@@ -11,6 +11,8 @@
 #include "ObjectTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusAssetUtils.h"
+#include "Engine/World.h"
 #include "NexusMcpTool.h"
 
 void FNexusDeleteAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -79,6 +81,20 @@ FCapabilityResult FNexusDeleteAssetCapability::Execute(const TSharedPtr<FJsonObj
 			}
 		}
 
+		FString PackageExt = FPackageName::GetAssetPackageExtension();
+		for (UObject* Obj : ObjectsToDelete)
+		{
+			if (!Obj)
+			{
+				continue;
+			}
+			PackageExt = FNexusAssetUtils::GetPackageFileExtension(Obj->GetOutermost(), Obj);
+			if (PackageExt == FPackageName::GetMapPackageExtension())
+			{
+				break;
+			}
+		}
+
 		const int32 Count = ObjectsToDelete.Num() > 0 ? ObjectTools::DeleteObjects(ObjectsToDelete, false) : 0;
 		const bool bDeleted = Count > 0;
 
@@ -112,7 +128,7 @@ FCapabilityResult FNexusDeleteAssetCapability::Execute(const TSharedPtr<FJsonObj
 			}
 
 			FString FilePath;
-			if (FPackageName::TryConvertLongPackageNameToFilename(PackagePath, FilePath, FPackageName::GetAssetPackageExtension()) &&
+			if (FPackageName::TryConvertLongPackageNameToFilename(PackagePath, FilePath, PackageExt) &&
 				!FPaths::FileExists(FilePath))
 			{
 				TArray<FString> DeletedFilePaths = { FilePath };

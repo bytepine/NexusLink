@@ -347,6 +347,38 @@ void FNexusCapabilityRegistry::ResolveSearchAssetRoute(
 	ClearIfInvisible(OutRecommendedManage);
 }
 
+bool FNexusCapabilityRegistry::CollectSearchTypeAliases(
+	const FString& AssetType,
+	FString& OutRecommendedGet,
+	TArray<FString>& OutTypeNames) const
+{
+	OutRecommendedGet.Reset();
+	OutTypeNames.Reset();
+	if (AssetType.IsEmpty())
+	{
+		return false;
+	}
+	const FNexusSearchAssetRoute* Hit = SearchAssetRouteIndex.Find(AssetType.ToLower());
+	if (!Hit || Hit->RecommendedGet.IsEmpty())
+	{
+		return false;
+	}
+	const FCapRecord* Rec = FindRecordByName(Hit->RecommendedGet);
+	if (!Rec || !FNexusHostUtils::IsCapabilityVisibleOnHost(*Rec))
+	{
+		return false;
+	}
+	OutRecommendedGet = Hit->RecommendedGet;
+	for (const TPair<FString, FNexusSearchAssetRoute>& Pair : SearchAssetRouteIndex)
+	{
+		if (Pair.Value.RecommendedGet == Hit->RecommendedGet)
+		{
+			OutTypeNames.Add(Pair.Key);
+		}
+	}
+	return OutTypeNames.Num() > 0;
+}
+
 void FNexusCapabilityRegistry::Reset()
 {
 	Records.Reset();
@@ -369,6 +401,24 @@ bool FNexusRegisteredDefinitionsTest::RunTest(const FString&)
 			TestTrue(Record.Def.Name + TEXT(" is an asset read/manage route"),
 				Record.Def.Name.StartsWith(TEXT("GetAsset")) || Record.Def.Name.StartsWith(TEXT("ManageAsset")));
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusSearchTypeAliasTest, "NexusLink.Registry.SearchTypeAliases",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FNexusSearchTypeAliasTest::RunTest(const FString&)
+{
+	FString GetCap;
+	TArray<FString> Names;
+	TestTrue(TEXT("blueprint alias is registered"),
+		FNexusCapabilityRegistry::Get().CollectSearchTypeAliases(TEXT("Blueprint"), GetCap, Names));
+	TestFalse(TEXT("recommended get is set"), GetCap.IsEmpty());
+	TestTrue(TEXT("alias list contains blueprint"), Names.Contains(TEXT("blueprint")));
+
+	GetCap.Reset();
+	Names.Reset();
+	TestFalse(TEXT("unknown alias"),
+		FNexusCapabilityRegistry::Get().CollectSearchTypeAliases(TEXT("no-such-asset-type"), GetCap, Names));
 	return true;
 }
 #endif
