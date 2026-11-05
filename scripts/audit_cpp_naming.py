@@ -12,7 +12,7 @@
   JSON Schema 关键字、MCP 信封，以及 Server/ 与实例注册文件里的代理基础协议保持原样
 
 不检查「变量名是否表达角色」和单字母。那是评审，不是正则。
-名叫 type / description 的字段和 Schema 关键字分不开，所以这两个词全局放行。
+字段序列化中的 Schema 关键字放行；Prop / Required / Args 明确是业务字段，不放行同名关键字。
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ SKIP_DIRS = {"Intermediate", "Binaries", "ThirdParty"}
 TYPE_PREFIXES = frozenset("UAFETI")
 
 # JSON Schema 关键字 + MCP 信封。协议原样，不套 PascalCase / b 前缀。
-# ponytail: type/description 全局放行。要按「是不是 Schema 对象」区分，得做类型分析。
+# 序列化字段仍可能是 Schema；builder 声明的属性和 Args 读取不使用此例外。
 ALLOW_KEYS = frozenset({
     "jsonrpc", "method", "params", "id", "result", "error",
     "isError", "structuredContent", "content", "text",
@@ -65,9 +65,9 @@ RE_BOOL = re.compile(r"\bbool\b\s*([&*]\s*)?([A-Za-z_][A-Za-z0-9_]*)")
 RE_K = re.compile(r"\b(k[A-Z][A-Za-z0-9_]*)\b")
 RE_TEXT = re.compile(r'TEXT\(\s*"([^"]*)"\s*\)')
 RE_OUT_NAME = re.compile(r'Out\.Name\s*=\s*TEXT\(\s*"([^"]*)"\s*\)')
-RE_PROP = re.compile(r'\.Prop\(\s*TEXT\(\s*"([^"]*)"\s*\)')
+RE_PROP = re.compile(r'\.(?:Prop|Required)\(\s*TEXT\(\s*"([^"]*)"\s*\)')
 RE_PROP_BOOL = re.compile(
-    r'\.Prop\(\s*TEXT\(\s*"([^"]*)"\s*\)\s*,\s*FNexusSchema::Bool\b'
+    r'\.(?:Prop|Required)\(\s*TEXT\(\s*"([^"]*)"\s*\)\s*,\s*FNexusSchema::Bool\b'
 )
 RE_FIELD = re.compile(
     r"\b(?:Set|Get|TryGet|Has)(?:Bool|String|Number|Array|Object|Raw)?Field"
@@ -203,10 +203,10 @@ def check_k_prefix(code: str) -> list[tuple[int, str]]:
     return [(_line(code, m.start()), m.group(1)) for m in RE_K.finditer(code)]
 
 
-def _want_pascal(name: str, *, mcp: bool) -> str | None:
+def _want_pascal(name: str, *, mcp: bool, allow_schema_keys: bool = True) -> str | None:
     if not _is_ident(name):
         return None
-    if name in ALLOW_KEYS or (mcp and name in MCP_WIRE_KEYS) or RE_PASCAL.fullmatch(name):
+    if (allow_schema_keys and name in ALLOW_KEYS) or (mcp and name in MCP_WIRE_KEYS) or RE_PASCAL.fullmatch(name):
         return None
     return f"协议名 {name} 不是 PascalCase"
 
@@ -229,7 +229,7 @@ def check_protocol(code: str, *, mcp: bool = False) -> list[tuple[int, str]]:
     for m in RE_OUT_NAME.finditer(code):
         add(m.start(), _want_pascal(m.group(1), mcp=mcp))
     for m in RE_PROP.finditer(code):
-        add(m.start(), _want_pascal(m.group(1), mcp=mcp))
+        add(m.start(), _want_pascal(m.group(1), mcp=False, allow_schema_keys=False))
     for m in RE_PROP_BOOL.finditer(code):
         add(m.start(), _want_bool_field(m.group(1), mcp=mcp))
     for m in RE_FIELD.finditer(code):
@@ -237,12 +237,12 @@ def check_protocol(code: str, *, mcp: bool = False) -> list[tuple[int, str]]:
     for m in RE_BOOL_FIELD.finditer(code):
         add(m.start(), _want_bool_field(m.group(1), mcp=mcp))
     for m in RE_ARGS.finditer(code):
-        add(m.start(), _want_pascal(m.group(1), mcp=mcp))
+        add(m.start(), _want_pascal(m.group(1), mcp=False, allow_schema_keys=False))
     for m in RE_ARGS_BOOL.finditer(code):
         add(m.start(), _want_bool_field(m.group(1), mcp=mcp))
     for block in RE_REQUIRED.finditer(code):
         for m in RE_TEXT.finditer(block.group(1)):
-            add(block.start() + m.start(), _want_pascal(m.group(1), mcp=mcp))
+            add(block.start() + m.start(), _want_pascal(m.group(1), mcp=False, allow_schema_keys=False))
 
     key = "FNexusSchema::Enum("
     start = 0

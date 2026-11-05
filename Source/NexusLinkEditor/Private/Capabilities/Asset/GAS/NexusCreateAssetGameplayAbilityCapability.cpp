@@ -49,7 +49,7 @@ FCapabilityResult FNexusCreateAssetGameplayAbilityCapability::Execute(const TSha
 		}
 		UBlueprint* NewBP = Cast<UBlueprint>(Created.Asset);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		OutEntry->SetStringField(TEXT("name"), NewBP->GetName());
+		OutEntry->SetStringField(TEXT("Name"), NewBP->GetName());
 		OutEntry->SetStringField(TEXT("Path"), AssetPath);
 		if (NewBP->ParentClass)
 		{

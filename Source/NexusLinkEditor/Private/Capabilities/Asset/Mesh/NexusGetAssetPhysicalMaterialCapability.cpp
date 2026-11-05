@@ -38,7 +38,7 @@ FCapabilityResult FNexusGetAssetPhysicalMaterialCapability::Execute(const TShare
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),             PM->GetName());
+		Entry->SetStringField(TEXT("Name"),             PM->GetName());
 		Entry->SetStringField(TEXT("Path"),             PM->GetPathName());
 		Entry->SetNumberField(TEXT("Friction"),         PM->Friction);
 		Entry->SetNumberField(TEXT("Restitution"),      PM->Restitution);

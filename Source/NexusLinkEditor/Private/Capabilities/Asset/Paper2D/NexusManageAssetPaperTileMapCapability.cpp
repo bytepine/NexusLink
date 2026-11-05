@@ -30,8 +30,8 @@ void FNexusManageAssetPaperTileMapCapability::BuildDefinition(FNexusCapabilityDe
 		.Prop(TEXT("TileSetPath"), FNexusSchema::Str(TEXT("PaperTileSet path (SetTileset / SetCell optional)")))
 		.Prop(TEXT("LayerIndex"), FNexusSchema::Int(TEXT("Layer index (remove/SetLayerName/SetCell/ClearCell)")))
 		.Prop(TEXT("LayerName"), FNexusSchema::Str(TEXT("Layer name (AddLayer optional / SetLayerName)")))
-		.Prop(TEXT("x"), FNexusSchema::Int(TEXT("Cell X (SetCell/ClearCell)")))
-		.Prop(TEXT("y"), FNexusSchema::Int(TEXT("Cell Y (SetCell/ClearCell)")))
+		.Prop(TEXT("X"), FNexusSchema::Int(TEXT("Cell X (SetCell/ClearCell)")))
+		.Prop(TEXT("Y"), FNexusSchema::Int(TEXT("Cell Y (SetCell/ClearCell)")))
 		.Prop(TEXT("TileIndex"), FNexusSchema::Int(TEXT("Tile index (SetCell)")))
 		.Required({ TEXT("Action") })
 		.Build();
@@ -81,14 +81,14 @@ static UPaperTileLayer* ResolveLayerCell(const TSharedPtr<FJsonObject>& Op, FNex
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("PaperTileMap is null"));
 		return nullptr;
 	}
-	if (!Op->HasField(TEXT("LayerIndex")) || !Op->HasField(TEXT("x")) || !Op->HasField(TEXT("y")))
+	if (!Op->HasField(TEXT("LayerIndex")) || !Op->HasField(TEXT("X")) || !Op->HasField(TEXT("Y")))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetCell/ClearCell requires LayerIndex、x、y"));
 		return nullptr;
 	}
 	OutLayerIdx = static_cast<int32>(Op->GetNumberField(TEXT("LayerIndex")));
-	OutX = static_cast<int32>(Op->GetNumberField(TEXT("x")));
-	OutY = static_cast<int32>(Op->GetNumberField(TEXT("y")));
+	OutX = static_cast<int32>(Op->GetNumberField(TEXT("X")));
+	OutY = static_cast<int32>(Op->GetNumberField(TEXT("Y")));
 	if (!Map->TileLayers.IsValidIndex(OutLayerIdx) || !Map->TileLayers[OutLayerIdx])
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Invalid LayerIndex"));
@@ -304,8 +304,8 @@ static void HandlePTM_SetCell(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	Ctx.Entry->SetNumberField(TEXT("TileIndex"), Info.GetTileIndex());
 	Ctx.Entry->SetStringField(TEXT("TileSet"), TileSet->GetPathName());
 	Ctx.Entry->SetNumberField(TEXT("LayerIndex"), LayerIdx);
-	Ctx.Entry->SetNumberField(TEXT("x"), X);
-	Ctx.Entry->SetNumberField(TEXT("y"), Y);
+	Ctx.Entry->SetNumberField(TEXT("X"), X);
+	Ctx.Entry->SetNumberField(TEXT("Y"), Y);
 }
 
 static void HandlePTM_ClearCell(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -316,8 +316,8 @@ static void HandlePTM_ClearCell(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 	Layer->SetCell(X, Y, FPaperTileInfo());
 	MarkTileMapDirty(Ctx);
 	Ctx.Entry->SetNumberField(TEXT("LayerIndex"), LayerIdx);
-	Ctx.Entry->SetNumberField(TEXT("x"), X);
-	Ctx.Entry->SetNumberField(TEXT("y"), Y);
+	Ctx.Entry->SetNumberField(TEXT("X"), X);
+	Ctx.Entry->SetNumberField(TEXT("Y"), Y);
 }
 
 bool FNexusManageAssetPaperTileMapCapability::PrepareTarget(

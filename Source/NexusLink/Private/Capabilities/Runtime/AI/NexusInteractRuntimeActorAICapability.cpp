@@ -17,9 +17,9 @@ void FNexusInteractRuntimeActorAICapability::BuildDefinition(FNexusCapabilityDef
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"), { TEXT("MoveTo") }))
 		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Pawn/Actor name")))
-		.Prop(TEXT("x"), FNexusSchema::Num(TEXT("Target X")))
-		.Prop(TEXT("y"), FNexusSchema::Num(TEXT("Target Y")))
-		.Prop(TEXT("z"), FNexusSchema::Num(TEXT("Target Z")))
+		.Prop(TEXT("X"), FNexusSchema::Num(TEXT("Target X")))
+		.Prop(TEXT("Y"), FNexusSchema::Num(TEXT("Target Y")))
+		.Prop(TEXT("Z"), FNexusSchema::Num(TEXT("Target Z")))
 		.Required({ TEXT("Action"), TEXT("ActorName") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Runtime };
@@ -70,9 +70,9 @@ FCapabilityResult FNexusInteractRuntimeActorAICapability::Execute(const TSharedP
 			return;
 		}
 		double X = 0, Y = 0, Z = 0;
-		Arguments->TryGetNumberField(TEXT("x"), X);
-		Arguments->TryGetNumberField(TEXT("y"), Y);
-		Arguments->TryGetNumberField(TEXT("z"), Z);
+		Arguments->TryGetNumberField(TEXT("X"), X);
+		Arguments->TryGetNumberField(TEXT("Y"), Y);
+		Arguments->TryGetNumberField(TEXT("Z"), Z);
 		const FVector Dest(static_cast<float>(X), static_cast<float>(Y), static_cast<float>(Z));
 		const EPathFollowingRequestResult::Type Result = AIC->MoveToLocation(Dest);
 		Entry->SetStringField(TEXT("ActorName"), Actor->GetName());

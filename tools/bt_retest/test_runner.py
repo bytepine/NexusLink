@@ -33,7 +33,7 @@ class FakeClient:
         elif cap == "GetRuntimeActorBehaviorTree":
             payload = {"TreeId": "50:2" if self.replace_tree and self.context_reads > 1 else "50:1", "BlackboardId": "60:1",
                        "TreePath": "/Game/AI/Test.Test", "bRunning": self.running, "ActiveNode": "Allowed" if self.value and not self.hold else "Blocked",
-                       "BlackboardKeys": [{"name": "CanRun", "type": "BlackboardKeyType_" + self.kind, "TypeName": self.kind,
+                       "BlackboardKeys": [{"Name": "CanRun", "Type": "BlackboardKeyType_" + self.kind, "TypeName": self.kind,
                                            "Value": str(self.value), "TypedValue": self.value, "bTypedValueAvailable": True, "bInherited": True}]}
             payload.update(RootTreeId=payload["TreeId"], RootTreePath=payload["TreePath"])
             if self.subtree and self.context_reads > 1: payload.update(TreeId="90:1", TreePath="/Game/AI/Sub.Sub")

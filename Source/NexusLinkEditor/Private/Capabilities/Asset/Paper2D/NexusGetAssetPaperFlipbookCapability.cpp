@@ -38,7 +38,7 @@ FCapabilityResult FNexusGetAssetPaperFlipbookCapability::Execute(const TSharedPt
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Book->GetName());
+		Entry->SetStringField(TEXT("Name"), Book->GetName());
 		Entry->SetStringField(TEXT("Path"), Book->GetPathName());
 		Entry->SetNumberField(TEXT("FramesPerSecond"), Book->GetFramesPerSecond());
 		Entry->SetNumberField(TEXT("KeyCount"), Book->GetNumKeyFrames());

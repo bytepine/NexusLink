@@ -45,7 +45,7 @@ void FNexusEditorContextUtils::CollectSelectionActors(
 		}
 
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-		Obj->SetStringField(TEXT("name"), Actor->GetName());
+		Obj->SetStringField(TEXT("Name"), Actor->GetName());
 		Obj->SetStringField(TEXT("Label"), Actor->GetActorLabel());
 		Obj->SetStringField(TEXT("Class"), Actor->GetClass()->GetName());
 		if (EditorWorld && Actor->GetWorld() == EditorWorld)

@@ -40,7 +40,7 @@ FCapabilityResult FNexusGetAssetMaterialParameterCollectionCapability::Execute(c
 		}
 
 		OutEntry->SetStringField(TEXT("AssetType"), TEXT("MaterialParameterCollection"));
-		OutEntry->SetStringField(TEXT("name"),      MPC->GetName());
+		OutEntry->SetStringField(TEXT("Name"),      MPC->GetName());
 		OutEntry->SetStringField(TEXT("Path"),      FNexusAssetUtils::PackagePathOf(MPC));
 		OutEntry->SetNumberField(TEXT("ScalarParametersCount"), MPC->ScalarParameters.Num());
 		OutEntry->SetNumberField(TEXT("VectorParametersCount"), MPC->VectorParameters.Num());
@@ -50,7 +50,7 @@ FCapabilityResult FNexusGetAssetMaterialParameterCollectionCapability::Execute(c
 		for (const FCollectionScalarParameter& P : MPC->ScalarParameters)
 		{
 			TSharedPtr<FJsonObject> PObj = MakeShared<FJsonObject>();
-			PObj->SetStringField(TEXT("name"),         P.ParameterName.ToString());
+			PObj->SetStringField(TEXT("Name"),         P.ParameterName.ToString());
 			PObj->SetNumberField(TEXT("DefaultValue"), P.DefaultValue);
 			ScalarArr.Add(MakeShared<FJsonValueObject>(PObj));
 		}
@@ -61,12 +61,12 @@ FCapabilityResult FNexusGetAssetMaterialParameterCollectionCapability::Execute(c
 		for (const FCollectionVectorParameter& P : MPC->VectorParameters)
 		{
 			TSharedPtr<FJsonObject> PObj = MakeShared<FJsonObject>();
-			PObj->SetStringField(TEXT("name"), P.ParameterName.ToString());
+			PObj->SetStringField(TEXT("Name"), P.ParameterName.ToString());
 			TSharedPtr<FJsonObject> ColorObj = MakeShared<FJsonObject>();
-			ColorObj->SetNumberField(TEXT("r"), P.DefaultValue.R);
-			ColorObj->SetNumberField(TEXT("g"), P.DefaultValue.G);
-			ColorObj->SetNumberField(TEXT("b"), P.DefaultValue.B);
-			ColorObj->SetNumberField(TEXT("a"), P.DefaultValue.A);
+			ColorObj->SetNumberField(TEXT("R"), P.DefaultValue.R);
+			ColorObj->SetNumberField(TEXT("G"), P.DefaultValue.G);
+			ColorObj->SetNumberField(TEXT("B"), P.DefaultValue.B);
+			ColorObj->SetNumberField(TEXT("A"), P.DefaultValue.A);
 			PObj->SetObjectField(TEXT("DefaultValue"), ColorObj);
 			VectorArr.Add(MakeShared<FJsonValueObject>(PObj));
 		}

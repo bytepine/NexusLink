@@ -43,7 +43,7 @@ FCapabilityResult FNexusGetAssetPaperTileMapCapability::Execute(const TSharedPtr
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Map->GetName());
+		Entry->SetStringField(TEXT("Name"), Map->GetName());
 		Entry->SetStringField(TEXT("Path"), Map->GetPathName());
 		Entry->SetNumberField(TEXT("MapWidth"), Map->MapWidth);
 		Entry->SetNumberField(TEXT("MapHeight"), Map->MapHeight);
@@ -64,7 +64,7 @@ FCapabilityResult FNexusGetAssetPaperTileMapCapability::Execute(const TSharedPtr
 			UPaperTileLayer* Layer = Map->TileLayers[i];
 			TSharedPtr<FJsonObject> L = MakeShared<FJsonObject>();
 			L->SetNumberField(TEXT("Index"), i);
-			L->SetStringField(TEXT("name"), Layer ? Layer->LayerName.ToString() : FString());
+			L->SetStringField(TEXT("Name"), Layer ? Layer->LayerName.ToString() : FString());
 			LayersArr.Add(MakeShared<FJsonValueObject>(L));
 		}
 		Entry->SetArrayField(TEXT("Layers"), LayersArr);

@@ -21,7 +21,7 @@ void FNexusCreateAssetDataLayerCapability::BuildDefinition(FNexusCapabilityDefin
 	Out.Description = TEXT("Create DataLayer asset (UDataLayerAsset, ≥UE5.1). type: Runtime or Editor.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),   FNexusSchema::Str(TEXT("New DataLayer asset full path, e.g. /Game/WorldData/DL_New")))
-		.Prop(TEXT("type"),        FNexusSchema::Str(TEXT("Runtime or Editor (default Runtime)")))
+		.Prop(TEXT("Type"),        FNexusSchema::Str(TEXT("Runtime or Editor (default Runtime)")))
 		.Prop(TEXT("DebugColor"),  FNexusSchema::Str(TEXT("Debug color (#RRGGBB or color name, optional)")))
 		.Required({ TEXT("AssetPath") })
 		.Build();
@@ -60,14 +60,14 @@ FCapabilityResult FNexusCreateAssetDataLayerCapability::Execute(const TSharedPtr
 			RF_Public | RF_Standalone | RF_Transactional);
 		if (!DLA)
 		{
-			FNexusCapability::EmitError(OutEntries, {{TEXT("assetName"), AssetName}}, TEXT("NewObject<UDataLayerAsset> failed"));
+			FNexusCapability::EmitError(OutEntries, {{TEXT("AssetName"), AssetName}}, TEXT("NewObject<UDataLayerAsset> failed"));
 			return;
 		}
 
 #if WITH_EDITOR
 		// 设置类型
 		FString TypeStr;
-		TypeStr = FNexusArgs(Arguments).Str(TEXT("type"), TypeStr);
+		TypeStr = FNexusArgs(Arguments).Str(TEXT("Type"), TypeStr);
 		EDataLayerType LayerType = EDataLayerType::Runtime;
 		if (TypeStr.Equals(TEXT("Editor"), ESearchCase::IgnoreCase))
 			LayerType = EDataLayerType::Editor;
@@ -89,7 +89,7 @@ FCapabilityResult FNexusCreateAssetDataLayerCapability::Execute(const TSharedPtr
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("Path"), DLA->GetPathName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("DataLayerAsset"));
-		Entry->SetStringField(TEXT("type"),      DLA->GetType() == EDataLayerType::Runtime ? TEXT("Runtime") : TEXT("Editor"));
+		Entry->SetStringField(TEXT("Type"),      DLA->GetType() == EDataLayerType::Runtime ? TEXT("Runtime") : TEXT("Editor"));
 		Entry->SetBoolField(TEXT("bCreated"),     true);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

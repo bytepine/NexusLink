@@ -49,7 +49,7 @@ FCapabilityResult FNexusGetAssetBehaviorTreeCapability::Execute(const TSharedPtr
 			return;
 		}
 
-		OutEntry->SetStringField(TEXT("name"), BT->GetName());
+		OutEntry->SetStringField(TEXT("Name"), BT->GetName());
 
 		if (BT->BlackboardAsset)
 		{

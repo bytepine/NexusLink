@@ -39,7 +39,7 @@ FCapabilityResult FNexusGetAssetFoliageTypeCapability::Execute(const TSharedPtr<
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Type->GetName());
+		Entry->SetStringField(TEXT("Name"), Type->GetName());
 		Entry->SetStringField(TEXT("Path"), Type->GetPathName());
 		Entry->SetStringField(TEXT("Class"), Type->GetClass()->GetName());
 		Entry->SetNumberField(TEXT("Density"), Type->Density);

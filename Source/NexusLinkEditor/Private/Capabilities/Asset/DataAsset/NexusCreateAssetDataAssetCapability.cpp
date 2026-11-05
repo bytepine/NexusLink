@@ -67,7 +67,7 @@ FCapabilityResult FNexusCreateAssetDataAssetCapability::Execute(const TSharedPtr
 		}
 		UDataAsset* NewDA = Cast<UDataAsset>(Created.Asset);
 
-		OutEntry->SetStringField(TEXT("name"), NewDA->GetName());
+		OutEntry->SetStringField(TEXT("Name"), NewDA->GetName());
 		OutEntry->SetStringField(TEXT("Path"), NewDA->GetOutermost()->GetName());
 		OutEntry->SetStringField(TEXT("ParentClass"), ParentClass->GetName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));

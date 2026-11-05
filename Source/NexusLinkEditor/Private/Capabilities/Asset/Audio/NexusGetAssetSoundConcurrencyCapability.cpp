@@ -43,7 +43,7 @@ FCapabilityResult FNexusGetAssetSoundConcurrencyCapability::Execute(const TShare
 			: FString::FromInt((int32)SC->Concurrency.ResolutionRule);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),            SC->GetName());
+		Entry->SetStringField(TEXT("Name"),            SC->GetName());
 		Entry->SetStringField(TEXT("Path"),            SC->GetPathName());
 		Entry->SetNumberField(TEXT("MaxCount"),        SC->Concurrency.MaxCount);
 		Entry->SetStringField(TEXT("ResolutionRule"),  RuleStr);

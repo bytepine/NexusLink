@@ -61,7 +61,7 @@ static void HandleRT_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	if (Op->HasField(TEXT("ClearColorA"))) RT->ClearColor.A = static_cast<float>(Op->GetNumberField(TEXT("ClearColorA")));
 	if (bResized) RT->UpdateResourceImmediate(true);
 	RTState(Ctx)->bDirty = true;
-	Ctx.Entry->SetStringField(TEXT("name"),        RT->GetName());
+	Ctx.Entry->SetStringField(TEXT("Name"),        RT->GetName());
 	Ctx.Entry->SetNumberField(TEXT("SizeX"),       RT->SizeX);
 	Ctx.Entry->SetNumberField(TEXT("SizeY"),       RT->SizeY);
 	Ctx.Entry->SetNumberField(TEXT("FormatValue"), static_cast<double>(static_cast<int32>(RT->RenderTargetFormat)));

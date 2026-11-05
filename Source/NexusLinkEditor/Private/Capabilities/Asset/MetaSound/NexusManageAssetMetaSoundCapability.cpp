@@ -53,7 +53,7 @@ void FNexusManageAssetMetaSoundCapability::BuildDefinition(FNexusCapabilityDefin
 			TEXT("AddNode"), TEXT("RemoveNode"),
 			TEXT("AddEdge"), TEXT("RemoveEdge")
 		}))
-		.Prop(TEXT("name"), FNexusSchema::Str(TEXT("Interface input/output name (add/RemoveInput|output)")))
+		.Prop(TEXT("Name"), FNexusSchema::Str(TEXT("Interface input/output name (add/RemoveInput|output)")))
 		.Prop(TEXT("TypeName"), FNexusSchema::Str(TEXT("Type name, e.g. Audio/Float/Trigger (AddInput/AddOutput)")))
 		.Prop(TEXT("ClassId"), FNexusSchema::Str(TEXT("Node class GUID (AddNode; from GetAssetMetaSound dependencies)")))
 		.Prop(TEXT("NodeName"), FNexusSchema::Str(TEXT("Node display name (AddNode, optional)")))
@@ -122,7 +122,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 	const FString Action = A.Str(TEXT("Action")).ToLower();
 	if (Action == TEXT("AddInput"))
 	{
-		const FString Name = A.Str(TEXT("name"));
+		const FString Name = A.Str(TEXT("Name"));
 		const FString TypeName = A.Str(TEXT("TypeName"));
 		if (Name.IsEmpty() || TypeName.IsEmpty())
 		{
@@ -146,7 +146,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 	}
 	else if (Action == TEXT("RemoveInput"))
 	{
-		const FString Name = A.Str(TEXT("name"));
+		const FString Name = A.Str(TEXT("Name"));
 		const FName InputName(*Name);
 		const int32 Removed = Iface.Inputs.RemoveAll([&](const FMetasoundFrontendClassInput& I) {
 			return I.Name == InputName;
@@ -158,7 +158,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 	}
 	else if (Action == TEXT("AddOutput"))
 	{
-		const FString Name = A.Str(TEXT("name"));
+		const FString Name = A.Str(TEXT("Name"));
 		const FString TypeName = A.Str(TEXT("TypeName"));
 		if (Name.IsEmpty() || TypeName.IsEmpty())
 		{
@@ -182,7 +182,7 @@ static void ApplyOperation(const TSharedPtr<FJsonObject>& Op, FMetasoundFrontend
 	}
 	else if (Action == TEXT("RemoveOutput"))
 	{
-		const FString Name = A.Str(TEXT("name"));
+		const FString Name = A.Str(TEXT("Name"));
 		const FName OutputName(*Name);
 		const int32 Removed = Iface.Outputs.RemoveAll([&](const FMetasoundFrontendClassOutput& O) {
 			return O.Name == OutputName;

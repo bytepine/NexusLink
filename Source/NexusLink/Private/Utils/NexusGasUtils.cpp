@@ -315,7 +315,7 @@ TArray<TSharedPtr<FJsonValue>> FNexusGasUtils::SerializeGameplayAttributes(
 		if (!AttrData) continue;
 
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-		Obj->SetStringField(TEXT("name"),         Prop->GetName());
+		Obj->SetStringField(TEXT("Name"),         Prop->GetName());
 		Obj->SetNumberField(TEXT("BaseValue"),     AttrData->GetBaseValue());
 		Obj->SetNumberField(TEXT("CurrentValue"),  AttrData->GetCurrentValue());
 		Out.Add(MakeShared<FJsonValueObject>(Obj));

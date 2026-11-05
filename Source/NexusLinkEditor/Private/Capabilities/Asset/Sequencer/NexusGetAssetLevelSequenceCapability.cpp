@@ -55,7 +55,7 @@ FCapabilityResult FNexusGetAssetLevelSequenceCapability::Execute(const TSharedPt
 		}
 
 		OutEntry->SetStringField(TEXT("AssetType"), TEXT("LevelSequence"));
-		OutEntry->SetStringField(TEXT("name"),      LS->GetName());
+		OutEntry->SetStringField(TEXT("Name"),      LS->GetName());
 		OutEntry->SetStringField(TEXT("Path"),      FNexusAssetUtils::PackagePathOf(LS));
 
 		// 帧率
@@ -88,8 +88,8 @@ FCapabilityResult FNexusGetAssetLevelSequenceCapability::Execute(const TSharedPt
 		{
 			const FMovieScenePossessable& Poss = Scene->GetPossessable(i);
 			TSharedPtr<FJsonObject> BObj = MakeShared<FJsonObject>();
-			BObj->SetStringField(TEXT("type"),  TEXT("Possessable"));
-			BObj->SetStringField(TEXT("name"),  Poss.GetName());
+			BObj->SetStringField(TEXT("Type"),  TEXT("Possessable"));
+			BObj->SetStringField(TEXT("Name"),  Poss.GetName());
 			BObj->SetStringField(TEXT("Guid"),  Poss.GetGuid().ToString());
 			BObj->SetStringField(TEXT("Class"), Poss.GetPossessedObjectClass() ? Poss.GetPossessedObjectClass()->GetName() : TEXT(""));
 			GuidToInfo.Add(Poss.GetGuid(), BObj);
@@ -98,8 +98,8 @@ FCapabilityResult FNexusGetAssetLevelSequenceCapability::Execute(const TSharedPt
 		{
 			const FMovieSceneSpawnable& Spawn = Scene->GetSpawnable(i);
 			TSharedPtr<FJsonObject> BObj = MakeShared<FJsonObject>();
-			BObj->SetStringField(TEXT("type"), TEXT("Spawnable"));
-			BObj->SetStringField(TEXT("name"), Spawn.GetName());
+			BObj->SetStringField(TEXT("Type"), TEXT("Spawnable"));
+			BObj->SetStringField(TEXT("Name"), Spawn.GetName());
 			BObj->SetStringField(TEXT("Guid"), Spawn.GetGuid().ToString());
 			GuidToInfo.Add(Spawn.GetGuid(), BObj);
 		}

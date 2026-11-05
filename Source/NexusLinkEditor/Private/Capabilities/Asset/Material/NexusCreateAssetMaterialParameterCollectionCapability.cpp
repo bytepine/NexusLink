@@ -62,7 +62,7 @@ FCapabilityResult FNexusCreateAssetMaterialParameterCollectionCapability::Execut
 
 		UMaterialParameterCollection* MPC = Cast<UMaterialParameterCollection>(NewAsset);
 		OutEntry->SetStringField(TEXT("AssetType"), TEXT("MaterialParameterCollection"));
-		OutEntry->SetStringField(TEXT("name"),    MPC->GetName());
+		OutEntry->SetStringField(TEXT("Name"),    MPC->GetName());
 		OutEntry->SetStringField(TEXT("Path"),    FNexusAssetUtils::PackagePathOf(MPC));
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 #endif

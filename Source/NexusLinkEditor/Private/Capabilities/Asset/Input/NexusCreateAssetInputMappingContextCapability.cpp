@@ -40,7 +40,7 @@ FCapabilityResult FNexusCreateAssetInputMappingContextCapability::Execute(const 
 		}
 		UInputMappingContext* IMC = Cast<UInputMappingContext>(Created.Asset);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
-		OutEntry->SetStringField(TEXT("name"), IMC->GetName());
+		OutEntry->SetStringField(TEXT("Name"), IMC->GetName());
 		OutEntry->SetStringField(TEXT("Path"), FNexusAssetUtils::PackagePathOf(IMC));
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});

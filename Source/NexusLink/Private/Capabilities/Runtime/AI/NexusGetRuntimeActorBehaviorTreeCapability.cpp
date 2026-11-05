@@ -109,9 +109,9 @@ FCapabilityResult FNexusGetRuntimeActorBehaviorTreeCapability::Execute(const TSh
 					continue;
 				const uint16 KeyID = BBComp->GetKeyID(E.EntryName);
 				TSharedPtr<FJsonObject> KObj = MakeShared<FJsonObject>();
-				KObj->SetStringField(TEXT("name"), E.EntryName.ToString());
+				KObj->SetStringField(TEXT("Name"), E.EntryName.ToString());
 				if (E.KeyType)
-					KObj->SetStringField(TEXT("type"), E.KeyType->GetClass()->GetName());
+					KObj->SetStringField(TEXT("Type"), E.KeyType->GetClass()->GetName());
 				KObj->SetStringField(TEXT("Value"), BBComp->DescribeKeyValue(KeyID, EBlackboardDescription::OnlyValue));
 				KObj->SetBoolField(TEXT("bInherited"), Index < static_cast<uint16>(BBData->GetFirstKeyID()));
 				FNexusBlackboardUtils::WriteTyped(BBComp, E.EntryName, E.KeyType, *KObj);

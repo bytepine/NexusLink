@@ -92,9 +92,9 @@ struct FNexusCapResultAdapter final
 	}
 
 	/**
-	 * 省略与入参相同的身份回显：get_/manage_ 且 Args 含单个 AssetPath 时，
+	 * 省略与入参相同的身份回显：GetAsset/ManageAsset 且 Args 含单个 AssetPath 时，
 	 * 若响应 path（或遗留 AssetPath）与入参等价则删除（调用方已知）。
-	 * create_/search_/save_ 等不剥离。
+	 * Create/Search/Save 等不剥离。
 	 */
 	static inline void StripRedundantPathEcho(
 		const TSharedPtr<FJsonObject>& Content,
@@ -105,7 +105,7 @@ struct FNexusCapResultAdapter final
 		{
 			return;
 		}
-		if (!CapName.StartsWith(TEXT("get_")) && !CapName.StartsWith(TEXT("manage_")))
+		if (!CapName.StartsWith(TEXT("GetAsset")) && !CapName.StartsWith(TEXT("ManageAsset")))
 		{
 			return;
 		}
@@ -155,7 +155,7 @@ struct FNexusCapResultAdapter final
 	 * 聚合逻辑：
 	 *   - FatalError 非空 → bIsError=true, ErrorText=FatalError
 	 *   - 正常 → AssembleStructuredContent（单条提升 / 多条 results[]）
-	 *   - 若传入 Args：对 get_/manage_ 省略与入参等价的 path 回显
+	 *   - 若传入 Args：对 GetAsset/ManageAsset 省略与入参等价的 Path 回显
 	 */
 	static inline FNexusMcpToolResult Convert(
 		const FCapabilityResult& CapResult,

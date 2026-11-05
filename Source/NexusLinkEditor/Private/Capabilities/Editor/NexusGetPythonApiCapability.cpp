@@ -190,10 +190,10 @@ FCapabilityResult FNexusGetPythonApiCapability::Execute(const TSharedPtr<FJsonOb
 			TEXT("  for n in names[OFFSET:OFFSET+LIMIT]:\n")
 			TEXT("    try: m=getattr(obj,n)\n")
 			TEXT("    except Exception: continue\n")
-			TEXT("    entries.append({'name':n,'Kind':_kind(m),'signature':_sig(m),'doc':_first(_rawdoc(m))})\n")
-			TEXT("  payload={'Target':TARGET,'pythonVersion':PYVER,'totalMatched':total,'Offset':OFFSET,'Entries':entries}\n")
+			TEXT("    entries.append({'Name':n,'Kind':_kind(m),'Signature':_sig(m),'Doc':_first(_rawdoc(m))})\n")
+			TEXT("  payload={'Target':TARGET,'PythonVersion':PYVER,'TotalMatched':total,'Offset':OFFSET,'Entries':entries}\n")
 			TEXT("except Exception as e:\n")
-			TEXT("  payload={'Target':TARGET,'pythonVersion':PYVER,'Error':type(e).__name__+': '+str(e)}\n")
+			TEXT("  payload={'Target':TARGET,'PythonVersion':PYVER,'Error':type(e).__name__+': '+str(e)}\n")
 			TEXT("print('NEXUS_PY_API:'+json.dumps(payload,ensure_ascii=True))\n"),
 			*Target, *Query, Offset, Limit, bSearchDoc ? TEXT("True") : TEXT("False"));
 

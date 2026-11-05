@@ -26,7 +26,7 @@ static FNexusActorComparePairResult ComparePairCap(AActor* ActorA, AActor* Actor
 	{
 		TSharedPtr<FJsonObject> Diff = MakeShared<FJsonObject>();
 		Diff->SetStringField(TEXT("Path"), Path);
-		if (!Type.IsEmpty()) { Diff->SetStringField(TEXT("type"), Type); }
+		if (!Type.IsEmpty()) { Diff->SetStringField(TEXT("Type"), Type); }
 		Diff->SetStringField(TEXT("ValueA"), ValA);
 		Diff->SetStringField(TEXT("ValueB"), ValB);
 		R.Diffs.Add(MakeShared<FJsonValueObject>(Diff));
@@ -66,7 +66,7 @@ static FNexusActorComparePairResult ComparePairCap(AActor* ActorA, AActor* Actor
 			if (ValueA != ValueB || !bOkA || !bOkB)
 			{
 				FString Type;
-				if (bOkA && ResA->HasField(TEXT("type"))) { Type = ResA->GetStringField(TEXT("type")); }
+				if (bOkA && ResA->HasField(TEXT("Type"))) { Type = ResA->GetStringField(TEXT("Type")); }
 				AddDiff(Path, Type, ValueA, ValueB);
 			}
 		}
@@ -143,7 +143,7 @@ static FNexusActorComparePairResult ComparePairCap(AActor* ActorA, AActor* Actor
 static TSharedPtr<FJsonObject> MakeActorInfoCap(AActor* Actor)
 {
 	TSharedPtr<FJsonObject> Info = MakeShared<FJsonObject>();
-	Info->SetStringField(TEXT("name"), Actor->GetName());
+	Info->SetStringField(TEXT("Name"), Actor->GetName());
 	Info->SetStringField(TEXT("Class"), Actor->GetClass()->GetName());
 	return Info;
 }

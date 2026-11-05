@@ -38,7 +38,7 @@ FCapabilityResult FNexusGetAssetFontCapability::Execute(const TSharedPtr<FJsonOb
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Font->GetName());
+		Entry->SetStringField(TEXT("Name"), Font->GetName());
 		Entry->SetStringField(TEXT("Path"), Font->GetPathName());
 		Entry->SetNumberField(TEXT("ScalingFactor"), Font->ScalingFactor);
 		Entry->SetNumberField(TEXT("LegacyFontSize"), Font->LegacyFontSize);

@@ -42,7 +42,7 @@ FCapabilityResult FNexusGetAssetPoseSearchCapability::Execute(const TSharedPtr<F
 		if (UPoseSearchDatabase* DB = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchDatabase>(AssetPath))
 		{
 			Entry->SetStringField(TEXT("AssetType"), TEXT("PoseSearchDatabase"));
-			Entry->SetStringField(TEXT("name"), DB->GetName());
+			Entry->SetStringField(TEXT("Name"), DB->GetName());
 
 			if (DB->Schema)
 				Entry->SetStringField(TEXT("Schema"), DB->Schema->GetPathName());
@@ -67,7 +67,7 @@ FCapabilityResult FNexusGetAssetPoseSearchCapability::Execute(const TSharedPtr<F
 		if (UPoseSearchSchema* Schema = FNexusAssetUtils::LoadAssetWithFallback<UPoseSearchSchema>(AssetPath))
 		{
 			Entry->SetStringField(TEXT("AssetType"), TEXT("PoseSearchSchema"));
-			Entry->SetStringField(TEXT("name"), Schema->GetName());
+			Entry->SetStringField(TEXT("Name"), Schema->GetName());
 
 			// Channels（5.4+ Channels 为 private，走 GetChannels）
 			TArray<TSharedPtr<FJsonValue>> ChArr;

@@ -61,7 +61,7 @@ FCapabilityResult FNexusGetAssetPhysicsAssetCapability::Execute(const TSharedPtr
 		}
 
 		OutEntry->SetStringField(TEXT("AssetType"),       TEXT("PhysicsAsset"));
-		OutEntry->SetStringField(TEXT("name"),            PA->GetName());
+		OutEntry->SetStringField(TEXT("Name"),            PA->GetName());
 		OutEntry->SetStringField(TEXT("Path"),            FNexusAssetUtils::PackagePathOf(PA));
 		OutEntry->SetNumberField(TEXT("BodiesCount"),     PA->SkeletalBodySetups.Num());
 		OutEntry->SetNumberField(TEXT("ConstraintsCount"), PA->ConstraintSetup.Num());

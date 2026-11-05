@@ -24,3 +24,18 @@ def test_transport_fields_are_scoped_to_wire_code():
 def test_capability_boolean_fields_still_require_prefix():
     assert check_protocol('Obj->SetBoolField(TEXT("Enabled"), true);')
     assert check_protocol('Obj->SetBoolField(TEXT("bEnabled"), true);') == []
+
+
+def test_schema_keywords_used_as_business_names_are_checked():
+    code = '''
+    .Prop(TEXT("type"), FNexusSchema::Str(TEXT("Asset kind")))
+    .Required(TEXT("description"), FNexusSchema::Str(TEXT("Summary")))
+    .Required({TEXT("properties")})
+    Args.Str(TEXT("type"));
+    '''
+    for wire in (False, True):
+        messages = [message for _, message in check_protocol(code, mcp=wire)]
+        for name in ("type", "description", "properties"):
+            assert any(f"协议名 {name} " in message for message in messages)
+    assert check_protocol('Schema->SetStringField(TEXT("type"), TEXT("object"));') == []
+    assert check_protocol('.Prop(TEXT("Type"), FNexusSchema::Str(TEXT("Asset kind")))') == []

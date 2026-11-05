@@ -45,7 +45,7 @@ TSharedPtr<FJsonObject> FNexusCapabilityResultBuilder::MakeCreatedEntry(const UO
 		Entry->SetStringField(TEXT("Error"), TEXT("Create failed"));
 		return Entry;
 	}
-	Entry->SetStringField(TEXT("name"), Obj->GetName());
+	Entry->SetStringField(TEXT("Name"), Obj->GetName());
 	Entry->SetStringField(TEXT("Path"), Obj->GetPathName());
 	return Entry;
 }

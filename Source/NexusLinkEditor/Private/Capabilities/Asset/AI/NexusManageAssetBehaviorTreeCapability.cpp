@@ -52,7 +52,7 @@ void FNexusManageAssetBehaviorTreeCapability::BuildDefinition(FNexusCapabilityDe
 			{ TEXT("Node"), TEXT("Decorator"), TEXT("Service") }))
 		.Prop(TEXT("PropertyName"),  FNexusSchema::Str(TEXT("UPROPERTY name to set (SetProperty)")))
 		.Prop(TEXT("PropertyValue"), FNexusSchema::Str(TEXT("Text value, ImportText format (SetProperty)")))
-		.Prop(TEXT("properties"),  FNexusSchema::ArrOfObj(TEXT("Initial props for AddNode/ReplaceNode [{name,value}]")))
+		.Prop(TEXT("Properties"),  FNexusSchema::ArrOfObj(TEXT("Initial props for AddNode/ReplaceNode [{Name,Value}]")))
 		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()

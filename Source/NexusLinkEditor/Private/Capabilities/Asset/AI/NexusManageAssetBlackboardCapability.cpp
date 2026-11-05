@@ -57,8 +57,8 @@ void FNexusManageAssetBlackboardCapability::BuildDefinition(FNexusCapabilityDefi
 		.Prop(TEXT("Action"),  FNexusSchema::Enum(TEXT("Key operation"), { TEXT("Add"), TEXT("Remove"), TEXT("Rename"), TEXT("SetParent") }))
 		.Prop(TEXT("KeyName"), FNexusSchema::Str(TEXT("Key name (not needed for SetParent)")))
 		.Prop(TEXT("KeyType"), FNexusSchema::Enum(TEXT("Key type (add only)"),
-		{ TEXT("bool"), TEXT("float"), TEXT("int"), TEXT("string"), TEXT("name"),
-		  TEXT("Vector"), TEXT("Rotator"), TEXT("object"), TEXT("Class"), TEXT("enum") }))
+		{ TEXT("Bool"), TEXT("Float"), TEXT("Int"), TEXT("String"), TEXT("Name"),
+		  TEXT("Vector"), TEXT("Rotator"), TEXT("Object"), TEXT("Class"), TEXT("Enum") }))
 		.Prop(TEXT("NewName"), FNexusSchema::Str(TEXT("New key name (rename only)")))
 		.Prop(TEXT("ParentPath"), FNexusSchema::Str(TEXT("Parent BlackboardData path (SetParent only; empty clears)")))
 		.Required({ TEXT("Action") })

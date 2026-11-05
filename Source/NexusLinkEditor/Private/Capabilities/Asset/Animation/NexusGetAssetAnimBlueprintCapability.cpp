@@ -75,7 +75,7 @@ bool FNexusGetAssetAnimBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonO
 		return false;
 	}
 
-	OutEntry->SetStringField(TEXT("name"), AnimBP->GetName());
+	OutEntry->SetStringField(TEXT("Name"), AnimBP->GetName());
 	if (AnimBP->TargetSkeleton)
 	{
 		OutEntry->SetStringField(TEXT("Skeleton"), AnimBP->TargetSkeleton->GetPathName());
@@ -111,8 +111,8 @@ void FNexusGetAssetAnimBlueprintCapability::ExecuteSection(const FString&       
 			if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(VarName, NameFilter)) { continue; }
 
 			TSharedPtr<FJsonObject> VarObj = MakeShared<FJsonObject>();
-			VarObj->SetStringField(TEXT("name"), VarName);
-			VarObj->SetStringField(TEXT("type"), Var.VarType.PinCategory.ToString());
+			VarObj->SetStringField(TEXT("Name"), VarName);
+			VarObj->SetStringField(TEXT("Type"), Var.VarType.PinCategory.ToString());
 			if (!Var.VarType.PinSubCategory.IsNone())
 			{
 				VarObj->SetStringField(TEXT("SubType"), Var.VarType.PinSubCategory.ToString());
@@ -138,13 +138,13 @@ void FNexusGetAssetAnimBlueprintCapability::ExecuteSection(const FString&       
 			for (const FBakedAnimationStateMachine& SM : BakedSMs)
 			{
 				TSharedPtr<FJsonObject> SMObj = MakeShared<FJsonObject>();
-				SMObj->SetStringField(TEXT("name"), SM.MachineName.ToString());
+				SMObj->SetStringField(TEXT("Name"), SM.MachineName.ToString());
 
 				TArray<TSharedPtr<FJsonValue>> States;
 				for (const FBakedAnimationState& State : SM.States)
 				{
 					TSharedPtr<FJsonObject> StateObj = MakeShared<FJsonObject>();
-					StateObj->SetStringField(TEXT("name"), State.StateName.ToString());
+					StateObj->SetStringField(TEXT("Name"), State.StateName.ToString());
 					States.Add(MakeShared<FJsonValueObject>(StateObj));
 				}
 				if (States.Num() > 0)
@@ -200,7 +200,7 @@ void FNexusGetAssetAnimBlueprintCapability::ExecuteSection(const FString&       
 			{
 				if (!Pin) continue;
 				TSharedPtr<FJsonObject> PObj = MakeShared<FJsonObject>();
-				PObj->SetStringField(TEXT("name"), Pin->PinName.ToString());
+				PObj->SetStringField(TEXT("Name"), Pin->PinName.ToString());
 				PObj->SetStringField(TEXT("Direction"), Pin->Direction == EGPD_Input ? TEXT("input") : TEXT("Output"));
 				PinsArr.Add(MakeShared<FJsonValueObject>(PObj));
 			}
@@ -233,8 +233,8 @@ void FNexusGetAssetAnimBlueprintCapability::ExecuteSection(const FString&       
 				const FString PropName = Prop->GetName();
 				if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(PropName, NameFilter)) continue;
 				TSharedPtr<FJsonObject> DObj = MakeShared<FJsonObject>();
-				DObj->SetStringField(TEXT("name"), PropName);
-				DObj->SetStringField(TEXT("type"), Prop->GetCPPType());
+				DObj->SetStringField(TEXT("Name"), PropName);
+				DObj->SetStringField(TEXT("Type"), Prop->GetCPPType());
 				FString Val;
 				FNexusPropertyUtils::ExportText(Prop, Val, Prop->ContainerPtrToValuePtr<void>(CDO));
 				if (!Val.IsEmpty()) DObj->SetStringField(TEXT("Value"), Val);

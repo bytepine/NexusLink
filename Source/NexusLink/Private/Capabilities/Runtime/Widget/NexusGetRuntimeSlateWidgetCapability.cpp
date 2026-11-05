@@ -94,7 +94,7 @@ FCapabilityResult FNexusGetRuntimeSlateWidgetCapability::Execute(const TSharedPt
 		}
 
 		OutEntry->SetStringField(TEXT("Address"), FString::Printf(TEXT("0x%llX"), static_cast<uint64>(CachedAddress)));
-		OutEntry->SetStringField(TEXT("type"), WidgetTypeToString(Widget->GetType()));
+		OutEntry->SetStringField(TEXT("Type"), WidgetTypeToString(Widget->GetType()));
 
 		const FString Location = Widget->GetReadableLocation();
 		if (!Location.IsEmpty()) OutEntry->SetStringField(TEXT("ReadableLocation"), Location);
@@ -119,7 +119,7 @@ FCapabilityResult FNexusGetRuntimeSlateWidgetCapability::Execute(const TSharedPt
 			{
 				TSharedRef<SWidget> Child = Children->GetChildAt(i);
 				TSharedPtr<FJsonObject> ChildObj = MakeShared<FJsonObject>();
-				ChildObj->SetStringField(TEXT("type"), WidgetTypeToString(Child->GetType()));
+				ChildObj->SetStringField(TEXT("Type"), WidgetTypeToString(Child->GetType()));
 				ChildObj->SetStringField(TEXT("Address"), FString::Printf(TEXT("0x%llX"),
 					static_cast<uint64>(reinterpret_cast<UPTRINT>(&Child.Get()))));
 				ChildArr.Add(MakeShared<FJsonValueObject>(ChildObj));
@@ -141,7 +141,7 @@ FCapabilityResult FNexusGetRuntimeSlateWidgetCapability::Execute(const TSharedPt
 			if (!CachedWidget.IsValid() || CachedWidget.Get() != Widget.Get()) continue;
 
 			TSharedPtr<FJsonObject> UmgObj = MakeShared<FJsonObject>();
-			UmgObj->SetStringField(TEXT("name"),  UW->GetName());
+			UmgObj->SetStringField(TEXT("Name"),  UW->GetName());
 			UmgObj->SetStringField(TEXT("Class"), UW->GetClass()->GetName());
 			if (UWidgetTree* WT = Cast<UWidgetTree>(UW->GetOuter()))
 				if (UUserWidget* Owner = Cast<UUserWidget>(WT->GetOuter()))

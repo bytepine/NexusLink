@@ -46,7 +46,7 @@ FCapabilityResult FNexusGetAssetAnimSequenceCapability::Execute(const TSharedPtr
 			return;
 		}
 
-		Entry->SetStringField(TEXT("name"), Seq->GetName());
+		Entry->SetStringField(TEXT("Name"), Seq->GetName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("AnimSequence"));
 		FNexusAssetUtils::AppendAnimSequenceMetadataFields(Seq, Entry);
 		FNexusAssetUtils::AppendAnimSequenceNotifyFields(Seq, Entry);

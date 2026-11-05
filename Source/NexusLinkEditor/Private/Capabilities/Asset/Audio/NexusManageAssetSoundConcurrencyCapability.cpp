@@ -53,7 +53,7 @@ static void HandleConc_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContex
 	if (Op->HasField(TEXT("bLimitToOwner")))
 		SC->Concurrency.bLimitToOwner = Op->GetBoolField(TEXT("bLimitToOwner")) ? 1 : 0;
 	ConcState(Ctx)->bDirty = true;
-	Ctx.Entry->SetStringField(TEXT("name"),     SC->GetName());
+	Ctx.Entry->SetStringField(TEXT("Name"),     SC->GetName());
 	Ctx.Entry->SetNumberField(TEXT("MaxCount"), SC->Concurrency.MaxCount);
 }
 

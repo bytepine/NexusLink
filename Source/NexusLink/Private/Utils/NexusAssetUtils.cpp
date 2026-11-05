@@ -100,7 +100,7 @@ void FNexusAssetUtils::AppendAnimSequenceNotifyFields(const UAnimSequence* Seq, 
 		const FAnimNotifyEvent& Ev = SeqMut->Notifies[i];
 		TSharedPtr<FJsonObject> N = MakeShared<FJsonObject>();
 		N->SetNumberField(TEXT("Index"), static_cast<double>(i));
-		N->SetStringField(TEXT("name"), Ev.NotifyName.ToString());
+		N->SetStringField(TEXT("Name"), Ev.NotifyName.ToString());
 		N->SetNumberField(TEXT("Time"), static_cast<double>(Ev.GetTime()));
 		N->SetNumberField(TEXT("Duration"), static_cast<double>(Ev.GetDuration()));
 		if (Ev.Notify)
@@ -140,7 +140,7 @@ static void AppendFloatCurvesToJson(const TArray<FFloatCurve>& FloatCurves, TSha
 	{
 		const FFloatCurve& FC = FloatCurves[CurveIndex];
 		TSharedPtr<FJsonObject> CObj = MakeShared<FJsonObject>();
-		CObj->SetStringField(TEXT("name"), NexusGetFloatCurveName(FC).ToString());
+		CObj->SetStringField(TEXT("Name"), NexusGetFloatCurveName(FC).ToString());
 
 		TArray<float> Times, Values;
 		const_cast<FFloatCurve&>(FC).GetKeys(Times, Values);

@@ -114,9 +114,9 @@ void FNexusManageAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefi
 		.Prop(TEXT("CollisionTraceFlag"), FNexusSchema::Enum(TEXT("Collision complexity"), {
 			TEXT("UseDefault"), TEXT("UseSimpleAndComplex"), TEXT("UseSimpleAsComplex"), TEXT("UseComplexAsSimple")
 		}))
-		.Prop(TEXT("x"), FNexusSchema::Num(TEXT("Position/half-axis X (collision center or Box half-axis)")))
-		.Prop(TEXT("y"), FNexusSchema::Num(TEXT("Position/half-axis Y")))
-		.Prop(TEXT("z"), FNexusSchema::Num(TEXT("Position/half-axis Z")))
+		.Prop(TEXT("X"), FNexusSchema::Num(TEXT("Position/half-axis X (collision center or Box half-axis)")))
+		.Prop(TEXT("Y"), FNexusSchema::Num(TEXT("Position/half-axis Y")))
+		.Prop(TEXT("Z"), FNexusSchema::Num(TEXT("Position/half-axis Z")))
 		.Prop(TEXT("ExtentX"), FNexusSchema::Num(TEXT("Box half-extent X (defaults to x)")))
 		.Prop(TEXT("ExtentY"), FNexusSchema::Num(TEXT("Box half-extent Y (defaults to y)")))
 		.Prop(TEXT("ExtentZ"), FNexusSchema::Num(TEXT("Box half-extent Z (defaults to z)")))

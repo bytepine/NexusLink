@@ -37,7 +37,7 @@ FCapabilityResult FNexusGetAssetGeometryCollectionCapability::Execute(const TSha
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), GC->GetName());
+		Entry->SetStringField(TEXT("Name"), GC->GetName());
 		Entry->SetStringField(TEXT("Path"), GC->GetPathName());
 		TArray<TSharedPtr<FJsonValue>> Thresholds;
 		for (float V : GC->DamageThreshold)

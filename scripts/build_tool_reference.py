@@ -384,9 +384,9 @@ def load_manage_compile_caps() -> frozenset[str]:
 
 
 def inject_manage_finalize_params(cap: dict[str, Any]) -> None:
-    """与 FNexusCapability::GetDefinition 框架注入对齐：全 manage 加 bSaveToDisk；BP/ABP/WBP 加 compile。"""
+    """与框架注入对齐：ManageAsset 加 bSaveToDisk；BP/ABP/WBP 加 bCompile。"""
     name = cap.get("name") or ""
-    if not name.startswith("manage_asset_"):
+    if not name.startswith("ManageAsset"):
         return
     params: list[dict[str, Any]] = cap.setdefault("params", [])
     existing = {p.get("name") for p in params}
@@ -396,9 +396,9 @@ def inject_manage_finalize_params(cap: dict[str, Any]) -> None:
             "type":        "boolean",
             "description": "Save the package to disk after success",
         })
-    if name in load_manage_compile_caps() and "compile" not in existing:
+    if name in load_manage_compile_caps() and "bCompile" not in existing:
         params.append({
-            "name":        "compile",
+            "name":        "bCompile",
             "type":        "boolean",
             "description": "Compile blueprint if needed (BP/ABP/WBP only)",
         })
@@ -428,24 +428,6 @@ def _parse_tool_file(cpp_path: Path, *, kind: str) -> dict[str, Any] | None:
 
     catalog = load_capability_schemas() or {}
     dumped = catalog.get(cap["name"]) if kind == "capability" else None
-    if isinstance(dumped, dict) and dumped.get("properties"):
-        params, req = params_from_input_schema(dumped)
-        cap["params"] = params
-        cap["required"] = req
-        if kind == "capability":
-            m_rel = RE_RELATED.search(text)
-            if m_rel:
-                cap["related"] = extract_text_values(m_rel.group(1))
-            m_pre = RE_PREREQ.search(text)
-            if m_pre:
-                cap["prerequisites"] = extract_text_values(m_pre.group(1))
-            m_when = RE_WHEN.search(text)
-            if m_when:
-                cap["when_to_use"] = m_when.group(1)
-            if RE_USE_SECTIONS.search(text):
-                cap["sections"] = parse_section_names(text)
-            inject_manage_finalize_params(cap)
-        return cap
 
     if kind == "capability":
         m_rel = RE_RELATED.search(text)
@@ -473,6 +455,9 @@ def _parse_tool_file(cpp_path: Path, *, kind: str) -> dict[str, Any] | None:
                 params, req = parse_schema_block(schema_text, full_source=text)
                 cap["params"] = params
                 cap["required"] = req
+        # 当前源码优先，无法抽取时才回退导出清单，避免旧 Schema 恢复已迁移的参数。
+        if not cap["params"] and isinstance(dumped, dict):
+            cap["params"], cap["required"] = params_from_input_schema(dumped)
         inject_manage_finalize_params(cap)
         return cap
 
@@ -513,7 +498,7 @@ def render_cap_section(cap: dict[str, Any], locale: DocLocale) -> str:
     if sections:
         sec_vals = " / ".join(f'`{s}`' for s in sections)
         params_display.append({
-            "name":        "sections",
+            "name":        "Sections",
             "type":        "string[]",
             "required":    False,
             "description": f'{labels["sections"]}: {sec_vals}',

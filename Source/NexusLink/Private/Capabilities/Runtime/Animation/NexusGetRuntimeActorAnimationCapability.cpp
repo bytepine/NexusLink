@@ -123,7 +123,7 @@ void FNexusGetRuntimeActorAnimationCapability::ExecuteSection(const FString&    
 		if (ActiveMontage)
 		{
 			TSharedPtr<FJsonObject> MontageObj = MakeShared<FJsonObject>();
-			MontageObj->SetStringField(TEXT("name"),      ActiveMontage->GetName());
+			MontageObj->SetStringField(TEXT("Name"),      ActiveMontage->GetName());
 			MontageObj->SetNumberField(TEXT("Position"),  AnimInst->Montage_GetPosition(ActiveMontage));
 			MontageObj->SetNumberField(TEXT("PlayRate"),  AnimInst->Montage_GetPlayRate(ActiveMontage));
 			MontageObj->SetBoolField(TEXT("bIsPlaying"),   AnimInst->Montage_IsPlaying(ActiveMontage));
@@ -142,7 +142,7 @@ void FNexusGetRuntimeActorAnimationCapability::ExecuteSection(const FString&    
 				const FBakedAnimationStateMachine& BakedSM = BakedMachines[MachineIdx];
 
 				TSharedPtr<FJsonObject> SMObj = MakeShared<FJsonObject>();
-				SMObj->SetStringField(TEXT("name"), BakedSM.MachineName.ToString());
+				SMObj->SetStringField(TEXT("Name"), BakedSM.MachineName.ToString());
 
 				// GetStateMachineInstance(idx) 按 AnimNodeProperties 倒序取节点，
 				// 第 0 项常常不是状态机 → 返回 nullptr；ThirdPerson 角色上会 AV 读 +0x24。
@@ -196,8 +196,8 @@ void FNexusGetRuntimeActorAnimationCapability::ExecuteSection(const FString&    
 			if (!NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(PropName, NameFilter)) continue;
 
 			TSharedPtr<FJsonObject> VarObj = MakeShared<FJsonObject>();
-			VarObj->SetStringField(TEXT("name"), PropName);
-			VarObj->SetStringField(TEXT("type"), It->GetCPPType());
+			VarObj->SetStringField(TEXT("Name"), PropName);
+			VarObj->SetStringField(TEXT("Type"), It->GetCPPType());
 
 			FString Value;
 			const void* Ptr = It->ContainerPtrToValuePtr<void>(AnimInst);

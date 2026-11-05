@@ -39,7 +39,7 @@ def params_from_input_schema(schema: dict[str, Any]) -> tuple[list[dict[str, Any
     for name, spec in props.items():
         if not isinstance(spec, dict):
             continue
-        if name == "sections":
+        if name == "Sections":
             continue
         p: dict[str, Any] = {
             "name": name,

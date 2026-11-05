@@ -55,7 +55,7 @@ FCapabilityResult FNexusGetAssetIKRigCapability::Execute(const TSharedPtr<FJsonO
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("Path"), AssetPath);
-		Entry->SetStringField(TEXT("name"),      IKRig->GetName());
+		Entry->SetStringField(TEXT("Name"),      IKRig->GetName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("IKRigDefinition"));
 
 		if (USkeletalMesh* Mesh = IKRig->GetPreviewMesh())

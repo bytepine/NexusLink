@@ -64,7 +64,7 @@ FCapabilityResult FNexusGetAssetControlRigCapability::Execute(const TSharedPtr<F
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("Path"), AssetPath);
-		Entry->SetStringField(TEXT("name"),      CRBp->GetName());
+		Entry->SetStringField(TEXT("Name"),      CRBp->GetName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("ControlRigBlueprint"));
 
 		if (USkeletalMesh* PreviewMesh = CRBp->GetPreviewMesh())
@@ -83,7 +83,7 @@ FCapabilityResult FNexusGetAssetControlRigCapability::Execute(const TSharedPtr<F
 		{
 			if (!Bone) continue;
 			TSharedPtr<FJsonObject> BObj = MakeShared<FJsonObject>();
-			BObj->SetStringField(TEXT("name"), RigElementName(Bone));
+			BObj->SetStringField(TEXT("Name"), RigElementName(Bone));
 			BonesArr.Add(MakeShared<FJsonValueObject>(BObj));
 		}
 		Entry->SetArrayField(TEXT("Bones"), BonesArr);
@@ -94,7 +94,7 @@ FCapabilityResult FNexusGetAssetControlRigCapability::Execute(const TSharedPtr<F
 		{
 			if (!Ctrl) continue;
 			TSharedPtr<FJsonObject> CObj = MakeShared<FJsonObject>();
-			CObj->SetStringField(TEXT("name"), RigElementName(Ctrl));
+			CObj->SetStringField(TEXT("Name"), RigElementName(Ctrl));
 			CObj->SetNumberField(TEXT("ControlType"), static_cast<int32>(Ctrl->Settings.ControlType));
 			CtrlsArr.Add(MakeShared<FJsonValueObject>(CObj));
 		}
@@ -106,7 +106,7 @@ FCapabilityResult FNexusGetAssetControlRigCapability::Execute(const TSharedPtr<F
 		{
 			if (!Null) continue;
 			TSharedPtr<FJsonObject> NObj = MakeShared<FJsonObject>();
-			NObj->SetStringField(TEXT("name"), RigElementName(Null));
+			NObj->SetStringField(TEXT("Name"), RigElementName(Null));
 			NullsArr.Add(MakeShared<FJsonValueObject>(NObj));
 		}
 		Entry->SetArrayField(TEXT("Nulls"), NullsArr);

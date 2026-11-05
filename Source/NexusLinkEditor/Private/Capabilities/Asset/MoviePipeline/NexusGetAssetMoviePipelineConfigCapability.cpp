@@ -53,7 +53,7 @@ FCapabilityResult FNexusGetAssetMoviePipelineConfigCapability::Execute(const TSh
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Cfg->GetName());
+		Entry->SetStringField(TEXT("Name"), Cfg->GetName());
 		Entry->SetStringField(TEXT("Path"), Cfg->GetPathName());
 		if (UMoviePipelineOutputSetting* OutSet = Cfg->FindSetting<UMoviePipelineOutputSetting>())
 		{

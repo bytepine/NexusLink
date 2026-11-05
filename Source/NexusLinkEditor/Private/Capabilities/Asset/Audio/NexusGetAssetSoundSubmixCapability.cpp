@@ -39,7 +39,7 @@ FCapabilityResult FNexusGetAssetSoundSubmixCapability::Execute(const TSharedPtr<
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),             SM->GetName());
+		Entry->SetStringField(TEXT("Name"),             SM->GetName());
 		Entry->SetStringField(TEXT("Path"),             SM->GetPathName());
 
 		// UE4.x / UE5.0: 线性 [0,1] 字段；UE5.1+ 改为 dB 调制目标

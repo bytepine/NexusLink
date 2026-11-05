@@ -75,7 +75,7 @@ FCapabilityResult FNexusCaptureEditorPanelCapability::Execute(const TSharedPtr<F
 			for (const TPair<FString, FString>& Pair : FNexusEditorCaptureUtils::GetPanelTabMapping())
 			{
 				TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
-				P->SetStringField(TEXT("name"),  Pair.Key);
+				P->SetStringField(TEXT("Name"),  Pair.Key);
 				P->SetStringField(TEXT("TabId"), Pair.Value);
 				P->SetBoolField(TEXT("bOpen"), FNexusEditorCaptureUtils::FindPanelTab(Pair.Key).IsValid());
 				Arr.Add(MakeShared<FJsonValueObject>(P));

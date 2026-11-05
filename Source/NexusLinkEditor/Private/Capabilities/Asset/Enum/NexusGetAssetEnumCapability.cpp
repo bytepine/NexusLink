@@ -38,7 +38,7 @@ FCapabilityResult FNexusGetAssetEnumCapability::Execute(const TSharedPtr<FJsonOb
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Enum->GetName());
+		Entry->SetStringField(TEXT("Name"), Enum->GetName());
 		Entry->SetStringField(TEXT("Path"), Enum->GetPathName());
 
 		TArray<TSharedPtr<FJsonValue>> EntriesArr;
@@ -48,7 +48,7 @@ FCapabilityResult FNexusGetAssetEnumCapability::Execute(const TSharedPtr<FJsonOb
 		{
 			TSharedPtr<FJsonObject> Item = MakeShared<FJsonObject>();
 			Item->SetNumberField(TEXT("Index"),       i);
-			Item->SetStringField(TEXT("name"),        Enum->GetNameStringByIndex(i));
+			Item->SetStringField(TEXT("Name"),        Enum->GetNameStringByIndex(i));
 			Item->SetStringField(TEXT("DisplayName"), Enum->GetDisplayNameTextByIndex(i).ToString());
 			Item->SetNumberField(TEXT("Value"),       (double)Enum->GetValueByIndex(i));
 			EntriesArr.Add(MakeShared<FJsonValueObject>(Item));

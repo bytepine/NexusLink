@@ -206,9 +206,9 @@ void FNexusManageAssetLevelSequenceCapability::BuildDefinition(FNexusCapabilityD
 			}))
 		.Prop(TEXT("Time"),        FNexusSchema::Num(TEXT("Keyframe time in seconds")))
 		.Prop(TEXT("KeyValue"),    FNexusSchema::Num(TEXT("Float keyframe value")))
-		.Prop(TEXT("x"), FNexusSchema::Num(TEXT("Transform location X")))
-		.Prop(TEXT("y"), FNexusSchema::Num(TEXT("Transform location Y")))
-		.Prop(TEXT("z"), FNexusSchema::Num(TEXT("Transform location Z")))
+		.Prop(TEXT("X"), FNexusSchema::Num(TEXT("Transform location X")))
+		.Prop(TEXT("Y"), FNexusSchema::Num(TEXT("Transform location Y")))
+		.Prop(TEXT("Z"), FNexusSchema::Num(TEXT("Transform location Z")))
 		.Prop(TEXT("Pitch"), FNexusSchema::Num(TEXT("Transform rotation Pitch (optional)")))
 		.Prop(TEXT("Yaw"), FNexusSchema::Num(TEXT("Transform rotation Yaw (optional)")))
 		.Prop(TEXT("Roll"), FNexusSchema::Num(TEXT("Transform rotation Roll (optional)")))
@@ -541,9 +541,9 @@ static void HandleLS_SetTransformKey(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	if (!Scene) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LevelSequence has no MovieScene data")); return; }
 	const FString GuidStr = FNexusArgs(Op).Str(TEXT("BindingGuid"));
 	const double TimeSec = FNexusArgs(Op).Num(TEXT("Time"));
-	const double X = FNexusArgs(Op).Num(TEXT("x"));
-	const double Y = FNexusArgs(Op).Num(TEXT("y"));
-	const double Z = FNexusArgs(Op).Num(TEXT("z"));
+	const double X = FNexusArgs(Op).Num(TEXT("X"));
+	const double Y = FNexusArgs(Op).Num(TEXT("Y"));
+	const double Z = FNexusArgs(Op).Num(TEXT("Z"));
 	const bool bHasPitch = Op->HasField(TEXT("Pitch"));
 	const bool bHasYaw   = Op->HasField(TEXT("Yaw"));
 	const bool bHasRoll  = Op->HasField(TEXT("Roll"));
@@ -605,9 +605,9 @@ static void HandleLS_SetTransformKey(const TSharedPtr<FJsonObject>& Op, FNexusAc
 	{
 		Ctx.Entry->SetStringField(TEXT("RotationNote"), TEXT("Rotation channels missing; ignored pitch/yaw/roll"));
 	}
-	Ctx.Entry->SetNumberField(TEXT("x"), X);
-	Ctx.Entry->SetNumberField(TEXT("y"), Y);
-	Ctx.Entry->SetNumberField(TEXT("z"), Z);
+	Ctx.Entry->SetNumberField(TEXT("X"), X);
+	Ctx.Entry->SetNumberField(TEXT("Y"), Y);
+	Ctx.Entry->SetNumberField(TEXT("Z"), Z);
 	if (bHasPitch) Ctx.Entry->SetNumberField(TEXT("Pitch"), Pitch);
 	if (bHasYaw)   Ctx.Entry->SetNumberField(TEXT("Yaw"), Yaw);
 	if (bHasRoll)  Ctx.Entry->SetNumberField(TEXT("Roll"), Roll);

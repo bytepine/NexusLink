@@ -9,7 +9,7 @@ from .template import blackboard_condition, value_string
 
 
 def blackboard_value(payload, key, kind):
-    rows = [entry for entry in payload.get("BlackboardKeys", []) if entry.get("name") == key]
+    rows = [entry for entry in payload.get("BlackboardKeys", []) if entry.get("Name") == key]
     if len(rows) != 1 or rows[0].get("TypeName") != kind or rows[0].get("bTypedValueAvailable") is not True:
         raise RunError("Blackboard key missing, ambiguous or wrong type: " + key)
     value = rows[0].get("TypedValue")

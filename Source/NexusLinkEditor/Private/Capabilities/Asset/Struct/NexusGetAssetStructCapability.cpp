@@ -31,8 +31,8 @@ static TSharedPtr<FJsonObject> HandleStruct(UUserDefinedStruct* Struct, const TA
 		const FEdGraphPinType PT = Var.ToPinType();
 
 		TSharedPtr<FJsonObject> F = MakeShared<FJsonObject>();
-		F->SetStringField(TEXT("name"), Var.FriendlyName);
-		F->SetStringField(TEXT("type"), PT.PinCategory.ToString());
+		F->SetStringField(TEXT("Name"), Var.FriendlyName);
+		F->SetStringField(TEXT("Type"), PT.PinCategory.ToString());
 		if (!PT.PinSubCategory.IsNone()) F->SetStringField(TEXT("SubType"), PT.PinSubCategory.ToString());
 		// 对象/结构引用的具体类名（e.g. struct/object 引用类型）
 		if (UObject* SubObj = PT.PinSubCategoryObject.Get())

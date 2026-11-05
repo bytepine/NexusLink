@@ -45,7 +45,7 @@ FCapabilityResult FNexusCreateAssetEQSCapability::Execute(const TSharedPtr<FJson
 		UEnvQuery* EQ = Cast<UEnvQuery>(Created.Asset);
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 		OutEntry->SetStringField(TEXT("AssetType"), TEXT("EnvQuery"));
-		OutEntry->SetStringField(TEXT("name"),    EQ->GetName());
+		OutEntry->SetStringField(TEXT("Name"),    EQ->GetName());
 		OutEntry->SetStringField(TEXT("Path"),    FNexusAssetUtils::PackagePathOf(EQ));
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 #endif

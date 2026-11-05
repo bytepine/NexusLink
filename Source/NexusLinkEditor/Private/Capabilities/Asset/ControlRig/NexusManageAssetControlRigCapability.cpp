@@ -35,10 +35,10 @@ void FNexusManageAssetControlRigCapability::BuildDefinition(FNexusCapabilityDefi
 			  TEXT("AddControl"), TEXT("AddBone"), TEXT("SetPinDefault") }))
 		.Prop(TEXT("ElementName"),  FNexusSchema::Str(TEXT("Target element name")))
 		.Prop(TEXT("NewName"),      FNexusSchema::Str(TEXT("New name (RenameElement)")))
-		.Prop(TEXT("r"),            FNexusSchema::Num(TEXT("Color R (SetControlColor)")))
-		.Prop(TEXT("g"),            FNexusSchema::Num(TEXT("Color G")))
-		.Prop(TEXT("b"),            FNexusSchema::Num(TEXT("Color B")))
-		.Prop(TEXT("a"),            FNexusSchema::Num(TEXT("Color A")))
+		.Prop(TEXT("R"),            FNexusSchema::Num(TEXT("Color R (SetControlColor)")))
+		.Prop(TEXT("G"),            FNexusSchema::Num(TEXT("Color G")))
+		.Prop(TEXT("B"),            FNexusSchema::Num(TEXT("Color B")))
+		.Prop(TEXT("A"),            FNexusSchema::Num(TEXT("Color A")))
 		.Prop(TEXT("ParentName"),   FNexusSchema::Str(TEXT("Parent element name (AddNull; empty=root)")))
 		.Prop(TEXT("ElementType"),  FNexusSchema::Enum(TEXT("Element type (RemoveElement)"),
 			{ TEXT("Bone"), TEXT("Control"), TEXT("null") }))
@@ -157,10 +157,10 @@ static void HandleCR_SetControlColor(const TSharedPtr<FJsonObject>& Op, FNexusAc
 		return;
 	}
 	Ctrl->Settings.ShapeColor = FLinearColor(
-		static_cast<float>(A.Num(TEXT("r"), 1.0)),
-		static_cast<float>(A.Num(TEXT("g"), 1.0)),
-		static_cast<float>(A.Num(TEXT("b"), 1.0)),
-		static_cast<float>(A.Num(TEXT("a"), 1.0)));
+		static_cast<float>(A.Num(TEXT("R"), 1.0)),
+		static_cast<float>(A.Num(TEXT("G"), 1.0)),
+		static_cast<float>(A.Num(TEXT("B"), 1.0)),
+		static_cast<float>(A.Num(TEXT("A"), 1.0)));
 	MarkCRDirty(Ctx);
 }
 

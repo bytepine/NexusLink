@@ -80,7 +80,7 @@ FCapabilityResult FNexusCreateAssetDataTableCapability::Execute(const TSharedPtr
 		FNexusAssetUtils::NotifyAndSaveCreated(NewDT->GetOutermost(), NewDT, AssetPath);
 
 		OutEntry->SetStringField(TEXT("Path"), AssetPath);
-		OutEntry->SetStringField(TEXT("name"), NewDT->GetName());
+		OutEntry->SetStringField(TEXT("Name"), NewDT->GetName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	
 	});

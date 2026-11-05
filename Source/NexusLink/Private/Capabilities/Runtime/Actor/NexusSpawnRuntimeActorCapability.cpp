@@ -104,7 +104,7 @@ FCapabilityResult FNexusSpawnRuntimeActorCapability::Execute(const TSharedPtr<FJ
 			return;
 		}
 
-		Entry->SetStringField(TEXT("name"),     NewActor->GetName());
+		Entry->SetStringField(TEXT("Name"),     NewActor->GetName());
 		Entry->SetStringField(TEXT("Class"),    NewActor->GetClass()->GetName());
 		Entry->SetStringField(TEXT("Location"), FString::Printf(TEXT("%.1f, %.1f, %.1f"), Location.X, Location.Y, Location.Z));
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

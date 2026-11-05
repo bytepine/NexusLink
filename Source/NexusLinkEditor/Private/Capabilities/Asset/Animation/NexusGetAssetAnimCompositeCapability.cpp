@@ -40,7 +40,7 @@ FCapabilityResult FNexusGetAssetAnimCompositeCapability::Execute(const TSharedPt
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Composite->GetName());
+		Entry->SetStringField(TEXT("Name"), Composite->GetName());
 		Entry->SetStringField(TEXT("Path"), Composite->GetPathName());
 
 		if (USkeleton* Skel = Composite->GetSkeleton())

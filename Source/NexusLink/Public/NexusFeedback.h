@@ -39,11 +39,11 @@ struct NEXUSLINK_API FNexusFeedback
 	struct FFields
 	{
 		FString Tool;           ///< MCP 工具名（如 SearchCapabilities）
-		FString Capability;     ///< Capability 名（call_* 类使用）
+		FString Capability;     ///< Capability 名（Call* 类使用）
 		FString Query;          ///< 原始 search query（search_* 类使用）
 		int32   MatchCount = 0; ///< 命中数（SearchOverflow 使用）
 		FString ArgsDigest;     ///< 参数 hash 摘要（CallFatal 使用）
-		FString ErrorText;      ///< 错误片段前 120 字符（call_* 类使用）
+		FString ErrorText;      ///< 错误片段前 120 字符（Call* 类使用）
 		FString Note;           ///< AI 自由文本描述（manual 必填）
 		FString Proxy;          ///< 代理来源：vscode | rider | desktop（proxy_* 类使用）
 		// SubmitFeedback 结构化扩展字段

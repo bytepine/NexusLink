@@ -191,7 +191,7 @@ bool FNexusGetAssetMaterialCapability::PrepareEntry(const TSharedPtr<FJsonObject
 	}
 
 	// 写公共 locator 字段
-	OutEntry->SetStringField(TEXT("name"), Obj->GetName());
+	OutEntry->SetStringField(TEXT("Name"), Obj->GetName());
 	if (Obj->IsA(UMaterial::StaticClass()))                  OutEntry->SetStringField(TEXT("AssetType"), TEXT("Material"));
 	else if (Obj->IsA(UMaterialInstanceConstant::StaticClass())) OutEntry->SetStringField(TEXT("AssetType"), TEXT("MaterialInstance"));
 	else                                            OutEntry->SetStringField(TEXT("AssetType"), TEXT("MaterialFunction"));
@@ -228,7 +228,7 @@ void FNexusGetAssetMaterialCapability::ExecuteSection(const FString&            
 		if (MF)
 		{
 			InOutDetail->SetNumberField(TEXT("ExpressionCount"), FNexusMaterialUtils::GetExpressions(MF).Num());
-			if (!MF->Description.IsEmpty()) InOutDetail->SetStringField(TEXT("description"), MF->Description);
+			if (!MF->Description.IsEmpty()) InOutDetail->SetStringField(TEXT("Description"), MF->Description);
 		}
 		else if (Mat)
 		{

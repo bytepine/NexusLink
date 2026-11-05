@@ -46,7 +46,7 @@ FCapabilityResult FNexusGetAssetAttributeSetCapability::Execute(const TSharedPtr
 
 		TSharedPtr<FJsonObject> OutEntry = MakeShared<FJsonObject>();
 		OutEntry->SetStringField(TEXT("Path"), AssetPath);
-		OutEntry->SetStringField(TEXT("name"),      BP->GetName());
+		OutEntry->SetStringField(TEXT("Name"),      BP->GetName());
 		if (BP->ParentClass) OutEntry->SetStringField(TEXT("ParentClass"), BP->ParentClass->GetName());
 		OutEntry->SetArrayField(TEXT("Attributes"),  Attrs);
 		OutEntry->SetNumberField(TEXT("Count"),      Attrs.Num());

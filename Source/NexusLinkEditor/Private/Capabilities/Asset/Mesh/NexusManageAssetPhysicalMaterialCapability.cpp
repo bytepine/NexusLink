@@ -55,7 +55,7 @@ static void HandlePM_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 		PM->SurfaceType = EPhysicalSurface(SurfVal);
 	}
 	PMState(Ctx)->bDirty = true;
-	Ctx.Entry->SetStringField(TEXT("name"),        PM->GetName());
+	Ctx.Entry->SetStringField(TEXT("Name"),        PM->GetName());
 	Ctx.Entry->SetNumberField(TEXT("Friction"),    PM->Friction);
 	Ctx.Entry->SetNumberField(TEXT("Restitution"), PM->Restitution);
 	Ctx.Entry->SetNumberField(TEXT("Density"),     PM->Density);

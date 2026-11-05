@@ -39,8 +39,8 @@ void FNexusManageAssetBlendSpaceCapability::BuildDefinition(FNexusCapabilityDefi
 		.Prop(TEXT("Max"),             FNexusSchema::Num(TEXT("Axis maximum (SetAxis)")))
 		.Prop(TEXT("GridNum"),         FNexusSchema::Int(TEXT("Axis grid divisions (SetAxis)")))
 		.Prop(TEXT("AnimationPath"),   FNexusSchema::Str(TEXT("AnimSequence path (AddSample)")))
-		.Prop(TEXT("x"),               FNexusSchema::Num(TEXT("Horizontal axis coordinate (add/RemoveSample)")))
-		.Prop(TEXT("y"),               FNexusSchema::Num(TEXT("Vertical axis coordinate (add/RemoveSample, 2D)")))
+		.Prop(TEXT("X"),               FNexusSchema::Num(TEXT("Horizontal axis coordinate (add/RemoveSample)")))
+		.Prop(TEXT("Y"),               FNexusSchema::Num(TEXT("Vertical axis coordinate (add/RemoveSample, 2D)")))
 		.Prop(TEXT("SampleIndex"),     FNexusSchema::Int(TEXT("Sample index (RemoveSample)")))
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
@@ -143,8 +143,8 @@ static void HandleBS_AddSample(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 		return;
 	}
 	double X = 0.0, Y = 0.0;
-	Op->TryGetNumberField(TEXT("x"), X);
-	Op->TryGetNumberField(TEXT("y"), Y);
+	Op->TryGetNumberField(TEXT("X"), X);
+	Op->TryGetNumberField(TEXT("Y"), Y);
 	FBlendSample NewSample;
 	NewSample.Animation  = Anim;
 	NewSample.SampleValue = FVector(static_cast<float>(X), static_cast<float>(Y), 0.f);
@@ -172,8 +172,8 @@ static void HandleBS_RemoveSample(const TSharedPtr<FJsonObject>& Op, FNexusActio
 	else
 	{
 		double X = 0.0, Y = 0.0;
-		Op->TryGetNumberField(TEXT("x"), X);
-		Op->TryGetNumberField(TEXT("y"), Y);
+		Op->TryGetNumberField(TEXT("X"), X);
+		Op->TryGetNumberField(TEXT("Y"), Y);
 		const FVector TargetVal(static_cast<float>(X), static_cast<float>(Y), 0.f);
 		for (int32 i = 0; i < SampleData->Num(); ++i)
 		{

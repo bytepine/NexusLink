@@ -59,7 +59,7 @@ static void HandleAtten_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionConte
 	if (Op->HasField(TEXT("DBAtMax")))
 		SA->Attenuation.dBAttenuationAtMax = static_cast<float>(Op->GetNumberField(TEXT("DBAtMax")));
 	AttenState(Ctx)->bDirty = true;
-	Ctx.Entry->SetStringField(TEXT("name"),            SA->GetName());
+	Ctx.Entry->SetStringField(TEXT("Name"),            SA->GetName());
 	Ctx.Entry->SetNumberField(TEXT("InnerRadius"),     SA->Attenuation.AttenuationShapeExtents.X);
 	Ctx.Entry->SetNumberField(TEXT("FalloffDistance"), SA->Attenuation.FalloffDistance);
 }

@@ -49,7 +49,7 @@ FCapabilityResult FNexusGetAssetPCGGraphCapability::Execute(const TSharedPtr<FJs
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("Path"), Graph->GetPathName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("PCGGraph"));
-		Entry->SetStringField(TEXT("name"),      Graph->GetName());
+		Entry->SetStringField(TEXT("Name"),      Graph->GetName());
 
 		// 节点列表
 		const TArray<UPCGNode*>& Nodes = Graph->GetNodes();

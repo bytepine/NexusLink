@@ -24,8 +24,8 @@ static TSharedPtr<FJsonObject> HandleDataTable(UDataTable* DT, const FString& Na
 			const FString ColName = It->GetName();
 			if (!FNexusAssetUtils::MatchesPropertyPathsFilter(PropertyPaths, ColName)) continue;
 			TSharedPtr<FJsonObject> C = MakeShared<FJsonObject>();
-			C->SetStringField(TEXT("name"), ColName);
-			C->SetStringField(TEXT("type"), It->GetCPPType());
+			C->SetStringField(TEXT("Name"), ColName);
+			C->SetStringField(TEXT("Type"), It->GetCPPType());
 			Cols.Add(MakeShared<FJsonValueObject>(C));
 		}
 		Info->SetArrayField(TEXT("Columns"), Cols);
@@ -188,8 +188,8 @@ FCapabilityResult FNexusGetAssetDataTableCapability::Execute(const TSharedPtr<FJ
 					FNexusPropertyUtils::ExportText(Prop, ValueStr, ValuePtr);
 
 					TSharedPtr<FJsonObject> Field = MakeShared<FJsonObject>();
-					Field->SetStringField(TEXT("name"), PropName);
-					Field->SetStringField(TEXT("type"), Prop->GetCPPType());
+					Field->SetStringField(TEXT("Name"), PropName);
+					Field->SetStringField(TEXT("Type"), Prop->GetCPPType());
 					if (!ValueStr.IsEmpty()) Field->SetStringField(TEXT("Value"), ValueStr);
 					Fields.Add(MakeShared<FJsonValueObject>(Field));
 				}

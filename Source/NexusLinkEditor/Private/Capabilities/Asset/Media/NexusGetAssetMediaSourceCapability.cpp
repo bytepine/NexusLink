@@ -38,7 +38,7 @@ FCapabilityResult FNexusGetAssetMediaSourceCapability::Execute(const TSharedPtr<
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Source->GetName());
+		Entry->SetStringField(TEXT("Name"), Source->GetName());
 		Entry->SetStringField(TEXT("Path"), Source->GetPathName());
 		Entry->SetStringField(TEXT("MediaPath"), Source->GetFilePath());
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

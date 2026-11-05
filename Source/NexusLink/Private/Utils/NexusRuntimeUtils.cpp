@@ -290,8 +290,8 @@ bool FNexusRuntimeUtils::ResolveActorPropertyPath(
 		{
 			if (Segs.Num() == 1)
 			{
-				OutResult->SetStringField(TEXT("name"), Comp->GetName());
-				OutResult->SetStringField(TEXT("type"), Comp->GetClass()->GetName());
+				OutResult->SetStringField(TEXT("Name"), Comp->GetName());
+				OutResult->SetStringField(TEXT("Type"), Comp->GetClass()->GetName());
 				TArray<TSharedPtr<FJsonValue>> Children;
 				FNexusPropertyUtils::CollectEditableProperties(Comp, Children);
 				OutResult->SetArrayField(TEXT("Children"), Children);

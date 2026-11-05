@@ -45,7 +45,7 @@ FCapabilityResult FNexusGetAssetSoundCueCapability::Execute(const TSharedPtr<FJs
 			return;
 		}
 
-		Entry->SetStringField(TEXT("name"), Cue->GetName());
+		Entry->SetStringField(TEXT("Name"), Cue->GetName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("SoundCue"));
 		Entry->SetNumberField(TEXT("Duration"), Cue->GetDuration());
 		Entry->SetNumberField(TEXT("MaxDistance"), Cue->MaxDistance);

@@ -67,7 +67,7 @@ FCapabilityResult FNexusDestroyRuntimeActorCapability::Execute(const TSharedPtr<
 			return;
 		}
 
-		Entry->SetStringField(TEXT("name"),  Name);
+		Entry->SetStringField(TEXT("Name"),  Name);
 		Entry->SetStringField(TEXT("Class"), Class);
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	

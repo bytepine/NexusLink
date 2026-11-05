@@ -47,7 +47,7 @@ FCapabilityResult FNexusGetAssetAnimMontageCapability::Execute(const TSharedPtr<
 			return;
 		}
 
-		Entry->SetStringField(TEXT("name"),     Montage->GetName());
+		Entry->SetStringField(TEXT("Name"),     Montage->GetName());
 		Entry->SetNumberField(TEXT("Duration"), Montage->GetPlayLength());
 
 		// Skeleton 路径（继承自 UAnimSequenceBase）
@@ -97,7 +97,7 @@ FCapabilityResult FNexusGetAssetAnimMontageCapability::Execute(const TSharedPtr<
 		for (const FCompositeSection& Sec : Montage->CompositeSections)
 		{
 			TSharedPtr<FJsonObject> SecObj = MakeShared<FJsonObject>();
-			SecObj->SetStringField(TEXT("name"), Sec.SectionName.ToString());
+			SecObj->SetStringField(TEXT("Name"), Sec.SectionName.ToString());
 			// UE4/5 均通过 GetTime() 读取时间（FAnimLinkableElement 接口）
 			SecObj->SetNumberField(TEXT("Time"), Sec.GetTime());
 			if (!Sec.NextSectionName.IsNone())

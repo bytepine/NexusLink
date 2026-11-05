@@ -46,7 +46,7 @@ FCapabilityResult FNexusGetAssetEQSCapability::Execute(const TSharedPtr<FJsonObj
 		}
 
 		OutEntry->SetStringField(TEXT("AssetType"), TEXT("EnvQuery"));
-		OutEntry->SetStringField(TEXT("name"),      EQ->GetName());
+		OutEntry->SetStringField(TEXT("Name"),      EQ->GetName());
 		OutEntry->SetStringField(TEXT("Path"),      FNexusAssetUtils::PackagePathOf(EQ));
 
 		TArray<UEnvQueryOption*>* OptionsPtr = GetEnvQueryOptionsPtr(EQ);

@@ -64,3 +64,50 @@ def test_zh_overlay_json_valid():
     assert isinstance(data["when_to_use"], dict)
     assert isinstance(data["param_text"], dict)
     assert len(data["descriptions"]) >= 200
+
+
+def test_current_source_names_override_stale_catalog(tmp_path, monkeypatch):
+    import build_tool_reference as reference
+
+    source = tmp_path / "NexusCreateAssetNamingCapability.cpp"
+    source.write_text('''
+    Out.Name = TEXT("CreateAssetNaming");
+    Out.Description = TEXT("Create a test asset.");
+    Out.InputSchema = FNexusSchema::Object()
+        .Prop(TEXT("Type"), FNexusSchema::Str(TEXT("Asset kind")))
+        .Build();
+    ''', encoding="utf-8")
+    monkeypatch.setattr(reference, "load_capability_schemas", lambda: {
+        "CreateAssetNaming": {"properties": {"type": {"type": "string"}}},
+    })
+    parsed = reference.parse_capability(source)
+    assert [param["name"] for param in parsed["params"]] == ["Type"]
+
+
+def test_dynamic_source_keeps_catalog_fallback(tmp_path, monkeypatch):
+    import build_tool_reference as reference
+
+    source = tmp_path / "NexusGetNamingCapability.cpp"
+    source.write_text('''
+    Out.Name = TEXT("GetNaming");
+    Out.Description = TEXT("Read a test value.");
+    Out.InputSchema = BuildDynamicSchema();
+    ''', encoding="utf-8")
+    monkeypatch.setattr(reference, "load_capability_schemas", lambda: {
+        "GetNaming": {"properties": {"Name": {"type": "string"}}},
+    })
+    parsed = reference.parse_capability(source)
+    assert [param["name"] for param in parsed["params"]] == ["Name"]
+
+
+def test_pascal_manage_names_receive_framework_parameters_once(monkeypatch):
+    import build_tool_reference as reference
+
+    monkeypatch.setattr(reference, "load_manage_compile_caps", lambda: {"ManageAssetBlueprint"})
+    cap = {"name": "ManageAssetBlueprint", "params": []}
+    reference.inject_manage_finalize_params(cap)
+    reference.inject_manage_finalize_params(cap)
+    assert [param["name"] for param in cap["params"]] == ["bSaveToDisk", "bCompile"]
+    create = {"name": "CreateAssetBlueprint", "params": []}
+    reference.inject_manage_finalize_params(create)
+    assert create["params"] == []

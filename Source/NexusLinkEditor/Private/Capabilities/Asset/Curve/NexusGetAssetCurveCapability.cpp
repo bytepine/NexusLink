@@ -27,7 +27,7 @@ static FString InterpToStr(ERichCurveInterpMode M)
 static TSharedPtr<FJsonObject> SerializeChannel(const FString& ChannelName, const FRichCurve& Curve)
 {
 	TSharedPtr<FJsonObject> Chan = MakeShared<FJsonObject>();
-	Chan->SetStringField(TEXT("name"), ChannelName);
+	Chan->SetStringField(TEXT("Name"), ChannelName);
 	Chan->SetNumberField(TEXT("KeyCount"), Curve.Keys.Num());
 
 	TArray<TSharedPtr<FJsonValue>> KeysArr;
@@ -75,7 +75,7 @@ FCapabilityResult FNexusGetAssetCurveCapability::Execute(const TSharedPtr<FJsonO
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), AssetObj->GetName());
+		Entry->SetStringField(TEXT("Name"), AssetObj->GetName());
 		Entry->SetStringField(TEXT("Path"), AssetObj->GetPathName());
 
 		if (UCurveFloat* CF = Cast<UCurveFloat>(AssetObj))
@@ -113,7 +113,7 @@ FCapabilityResult FNexusGetAssetCurveCapability::Execute(const TSharedPtr<FJsonO
 			{
 				FRichCurve* RC = static_cast<FRichCurve*>(Pair.Value);
 				TSharedPtr<FJsonObject> Row = MakeShared<FJsonObject>();
-				Row->SetStringField(TEXT("name"), Pair.Key.ToString());
+				Row->SetStringField(TEXT("Name"), Pair.Key.ToString());
 				Row->SetNumberField(TEXT("KeyCount"), RC ? RC->Keys.Num() : 0);
 				RowsArr.Add(MakeShared<FJsonValueObject>(Row));
 			}

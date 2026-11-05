@@ -89,9 +89,9 @@ bool FNexusBehaviorTreeEditUtils::FindParentAndIndex(UBehaviorTree* BT, const FS
 
 void FNexusBehaviorTreeEditUtils::ApplyInitialProperties(UBTNode* Node, const TSharedPtr<FJsonObject>& OpArgs, TArray<FString>& OutErrors)
 {
-	if (!Node || !OpArgs.IsValid() || !OpArgs->HasField(TEXT("properties"))) return;
+	if (!Node || !OpArgs.IsValid() || !OpArgs->HasField(TEXT("Properties"))) return;
 
-	const TArray<TSharedPtr<FJsonValue>>& PropsArr = OpArgs->GetArrayField(TEXT("properties"));
+	const TArray<TSharedPtr<FJsonValue>>& PropsArr = OpArgs->GetArrayField(TEXT("Properties"));
 	UClass* NodeClass = Node->GetClass();
 	for (const TSharedPtr<FJsonValue>& PropVal : PropsArr)
 	{
@@ -104,7 +104,7 @@ void FNexusBehaviorTreeEditUtils::ApplyInitialProperties(UBTNode* Node, const TS
 		const TSharedPtr<FJsonObject>& PropObj = *PropObjPtr;
 
 		FString PropName, PropValue;
-		if (!PropObj->TryGetStringField(TEXT("name"), PropName) || PropName.IsEmpty())
+		if (!PropObj->TryGetStringField(TEXT("Name"), PropName) || PropName.IsEmpty())
 		{
 			OutErrors.Add(TEXT("properties item missing non-empty name; skipped"));
 			continue;

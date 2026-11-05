@@ -135,7 +135,7 @@ FCapabilityResult FNexusListRuntimeWidgetsCapability::Execute(const TSharedPtr<F
 		{
 			TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
 			O->SetStringField(TEXT("WidgetClass"), All[i].OwnerClass);
-			O->SetStringField(TEXT("name"),  All[i].Name);
+			O->SetStringField(TEXT("Name"),  All[i].Name);
 			O->SetStringField(TEXT("Path"), All[i].Path);
 			O->SetStringField(TEXT("Class"), All[i].Class);
 			if (!All[i].ComponentName.IsEmpty()) O->SetStringField(TEXT("ComponentName"), All[i].ComponentName);

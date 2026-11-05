@@ -39,8 +39,8 @@ static void WriteActorComponentsSection(AActor* Actor, TSharedPtr<FJsonObject>& 
 	{
 		if (!Comp) continue;
 		TSharedPtr<FJsonObject> C = MakeShared<FJsonObject>();
-		C->SetStringField(TEXT("name"), Comp->GetName());
-		C->SetStringField(TEXT("type"), Comp->GetClass()->GetName());
+		C->SetStringField(TEXT("Name"), Comp->GetName());
+		C->SetStringField(TEXT("Type"), Comp->GetClass()->GetName());
 		if (!Comp->IsRegistered()) { C->SetBoolField(TEXT("bRegistered"), false); }
 		if (!Comp->IsActive())     { C->SetBoolField(TEXT("bIsActive"),   false); }
 		if (USceneComponent* Scene = Cast<USceneComponent>(Comp))
@@ -65,8 +65,8 @@ static void WriteActorAttachHierarchySection(AActor* Actor, TSharedPtr<FJsonObje
 		if (!Scene) continue;
 
 		TSharedPtr<FJsonObject> H = MakeShared<FJsonObject>();
-		H->SetStringField(TEXT("name"), Scene->GetName());
-		H->SetStringField(TEXT("type"), Scene->GetClass()->GetName());
+		H->SetStringField(TEXT("Name"), Scene->GetName());
+		H->SetStringField(TEXT("Type"), Scene->GetClass()->GetName());
 		if (USceneComponent* Parent = Scene->GetAttachParent())
 		{
 			H->SetStringField(TEXT("AttachParent"), Parent->GetName());
@@ -366,8 +366,8 @@ static bool ReadActorPropertyDispatch(
 		{
 			if (!Comp) continue;
 			TSharedPtr<FJsonObject> C = MakeShared<FJsonObject>();
-			C->SetStringField(TEXT("name"), Comp->GetName());
-			C->SetStringField(TEXT("type"), Comp->GetClass()->GetName());
+			C->SetStringField(TEXT("Name"), Comp->GetName());
+			C->SetStringField(TEXT("Type"), Comp->GetClass()->GetName());
 			C->SetStringField(TEXT("Kind"), TEXT("Component"));
 			Children.Add(MakeShared<FJsonValueObject>(C));
 		}

@@ -61,13 +61,13 @@ FCapabilityResult FNexusGetAssetBlackboardCapability::Execute(const TSharedPtr<F
 			}
 
 			TSharedPtr<FJsonObject> KeyObj = MakeShared<FJsonObject>();
-			KeyObj->SetStringField(TEXT("name"), Entry.EntryName.ToString());
+			KeyObj->SetStringField(TEXT("Name"), Entry.EntryName.ToString());
 			if (Entry.KeyType)
 			{
 				// 去掉 BlackboardKeyType_ 前缀，只保留类型名
 				FString TypeName = Entry.KeyType->GetClass()->GetName();
 				TypeName.RemoveFromStart(TEXT("BlackboardKeyType_"));
-				KeyObj->SetStringField(TEXT("type"), TypeName);
+				KeyObj->SetStringField(TEXT("Type"), TypeName);
 			}
 			Keys.Add(MakeShared<FJsonValueObject>(KeyObj));
 		}
@@ -85,12 +85,12 @@ FCapabilityResult FNexusGetAssetBlackboardCapability::Execute(const TSharedPtr<F
 				}
 
 				TSharedPtr<FJsonObject> KeyObj = MakeShared<FJsonObject>();
-				KeyObj->SetStringField(TEXT("name"), Entry.EntryName.ToString());
+				KeyObj->SetStringField(TEXT("Name"), Entry.EntryName.ToString());
 				if (Entry.KeyType)
 				{
 					FString TypeName = Entry.KeyType->GetClass()->GetName();
 					TypeName.RemoveFromStart(TEXT("BlackboardKeyType_"));
-					KeyObj->SetStringField(TEXT("type"), TypeName);
+					KeyObj->SetStringField(TEXT("Type"), TypeName);
 				}
 				KeyObj->SetStringField(TEXT("From"), Cur->GetPathName());
 				InheritedKeys.Add(MakeShared<FJsonValueObject>(KeyObj));

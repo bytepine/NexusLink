@@ -43,7 +43,7 @@ FCapabilityResult FNexusGetAssetSoundAttenuationCapability::Execute(const TShare
 			: FString::FromInt((int32)SA->Attenuation.AttenuationShape.GetValue());
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),             SA->GetName());
+		Entry->SetStringField(TEXT("Name"),             SA->GetName());
 		Entry->SetStringField(TEXT("Path"),             SA->GetPathName());
 		Entry->SetStringField(TEXT("Shape"),            ShapeStr);
 		Entry->SetNumberField(TEXT("ShapeValue"),       (double)(int32)SA->Attenuation.AttenuationShape.GetValue());

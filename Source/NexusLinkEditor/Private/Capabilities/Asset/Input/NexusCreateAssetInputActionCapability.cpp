@@ -62,7 +62,7 @@ FCapabilityResult FNexusCreateAssetInputActionCapability::Execute(const TSharedP
 
 		FNexusAssetUtils::NotifyAndSaveCreated(IA->GetOutermost(), IA, AssetPath);
 
-		OutEntry->SetStringField(TEXT("name"), IA->GetName());
+		OutEntry->SetStringField(TEXT("Name"), IA->GetName());
 		OutEntry->SetStringField(TEXT("Path"), FNexusAssetUtils::PackagePathOf(IA));
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 	});

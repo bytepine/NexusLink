@@ -56,7 +56,7 @@ FCapabilityResult FNexusGetAssetSkeletonCapability::Execute(const TSharedPtr<FJs
 			return;
 		}
 
-		Entry->SetStringField(TEXT("name"), Skeleton->GetName());
+		Entry->SetStringField(TEXT("Name"), Skeleton->GetName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("Skeleton"));
 
 		const FReferenceSkeleton& RefSkel = Skeleton->GetReferenceSkeleton();
@@ -69,7 +69,7 @@ FCapabilityResult FNexusGetAssetSkeletonCapability::Execute(const TSharedPtr<FJs
 		{
 			TSharedPtr<FJsonObject> BoneObj = MakeShared<FJsonObject>();
 			BoneObj->SetNumberField(TEXT("Index"), i);
-			BoneObj->SetStringField(TEXT("name"), RefSkel.GetBoneName(i).ToString());
+			BoneObj->SetStringField(TEXT("Name"), RefSkel.GetBoneName(i).ToString());
 			BoneObj->SetNumberField(TEXT("ParentIndex"), RefSkel.GetParentIndex(i));
 			Bones.Add(MakeShared<FJsonValueObject>(BoneObj));
 		}
@@ -85,7 +85,7 @@ FCapabilityResult FNexusGetAssetSkeletonCapability::Execute(const TSharedPtr<FJs
 			const USkeletalMeshSocket* Sock = SocketList[SocketListIndex];
 			if (!Sock) continue;
 			TSharedPtr<FJsonObject> SockObj = MakeShared<FJsonObject>();
-			SockObj->SetStringField(TEXT("name"), Sock->SocketName.ToString());
+			SockObj->SetStringField(TEXT("Name"), Sock->SocketName.ToString());
 			SockObj->SetStringField(TEXT("BoneName"), Sock->BoneName.ToString());
 			Sockets.Add(MakeShared<FJsonValueObject>(SockObj));
 		}

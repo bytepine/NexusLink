@@ -60,7 +60,7 @@ FCapabilityResult FNexusGetAssetBlendSpaceCapability::Execute(const TSharedPtr<F
 			return;
 		}
 
-		Entry->SetStringField(TEXT("name"), BS->GetName());
+		Entry->SetStringField(TEXT("Name"), BS->GetName());
 		const bool bIsBlendSpace1D = BS->IsA(UBlendSpace1D::StaticClass());
 		Entry->SetStringField(TEXT("AssetType"), bIsBlendSpace1D ? TEXT("BlendSpace1D") : TEXT("BlendSpace"));
 		if (const USkeleton* Skel = BS->GetSkeleton())
@@ -127,8 +127,8 @@ FCapabilityResult FNexusGetAssetBlendSpaceCapability::Execute(const TSharedPtr<F
 			const FBlendSample& S = Samples[SampleIndex];
 			TSharedPtr<FJsonObject> SObj = MakeShared<FJsonObject>();
 			SObj->SetNumberField(TEXT("Index"), SampleIndex);
-			SObj->SetNumberField(TEXT("x"),      S.SampleValue.X);
-			SObj->SetNumberField(TEXT("y"),      S.SampleValue.Y);
+			SObj->SetNumberField(TEXT("X"),      S.SampleValue.X);
+			SObj->SetNumberField(TEXT("Y"),      S.SampleValue.Y);
 #if NX_UE_HAS_BLEND_SAMPLE_IS_VALID
 			SObj->SetBoolField(TEXT("bIsValid"),  S.bIsValid);
 #endif

@@ -26,7 +26,7 @@
     "CreateAssetControlRig": "创建空白 ControlRig 蓝图；用 manage 添加骨骼/控制器。",
     "CreateAssetCurve": "创建曲线资产：CurveFloat/CurveVector/CurveLinearColor/CurveTable。",
     "CreateAssetDataAsset": "创建类型化 DataAsset。需非抽象子类名。",
-    "CreateAssetDataLayer": "创建 DataLayer 资产（UDataLayerAsset，≥UE5.1）。type: Runtime 或 Editor。",
+    "CreateAssetDataLayer": "创建 DataLayer 资产（UDataLayerAsset，≥UE5.1）。Type: Runtime 或 Editor。",
     "CreateAssetDataTable": "创建带行结构体的 DataTable；用 ManageAssetDataTable 填行。",
     "CreateAssetEnum": "创建 UserDefinedEnum 资产；用 manage 增删条目。",
     "CreateAssetEQS": "创建空白 UEnvQuery。经 manage 添加 Generator/Test。",

@@ -130,7 +130,7 @@ FCapabilityResult FNexusCaptureViewportCapability::Execute(const TSharedPtr<FJso
 			for (const TCHAR* T : Builtins)
 			{
 				TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
-				P->SetStringField(TEXT("name"), T);
+				P->SetStringField(TEXT("Name"), T);
 				P->SetStringField(TEXT("TabId"), TEXT("-"));
 				P->SetBoolField(TEXT("bOpen"),
 					(FCString::Stricmp(T, TEXT("PIE")) == 0 || FCString::Stricmp(T, TEXT("Viewport")) == 0)

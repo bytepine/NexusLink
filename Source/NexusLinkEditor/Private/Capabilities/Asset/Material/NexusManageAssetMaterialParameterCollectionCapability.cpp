@@ -23,10 +23,10 @@ void FNexusManageAssetMaterialParameterCollectionCapability::BuildDefinition(FNe
 			{ TEXT("AddScalar"), TEXT("AddVector"), TEXT("Remove"), TEXT("SetScalarDefault"), TEXT("SetVectorDefault") }))
 		.Prop(TEXT("ParamName"),     FNexusSchema::Str(TEXT("Parameter name")))
 		.Prop(TEXT("DefaultValue"),  FNexusSchema::Num(TEXT("Scalar default (AddScalar/SetScalarDefault)")))
-		.Prop(TEXT("r"), FNexusSchema::Num(TEXT("Vector R component")))
-		.Prop(TEXT("g"), FNexusSchema::Num(TEXT("Vector G component")))
-		.Prop(TEXT("b"), FNexusSchema::Num(TEXT("Vector B component")))
-		.Prop(TEXT("a"), FNexusSchema::Num(TEXT("Vector A component")))
+		.Prop(TEXT("R"), FNexusSchema::Num(TEXT("Vector R component")))
+		.Prop(TEXT("G"), FNexusSchema::Num(TEXT("Vector G component")))
+		.Prop(TEXT("B"), FNexusSchema::Num(TEXT("Vector B component")))
+		.Prop(TEXT("A"), FNexusSchema::Num(TEXT("Vector A component")))
 		.Build();
 	const TSharedRef<FJsonObject> OpSchema = OpSchemaPtr.ToSharedRef();
 
@@ -122,10 +122,10 @@ static void HandleMPC_AddVector(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 	FCollectionVectorParameter NewParam;
 	NewParam.ParameterName = *ParamName;
 	double R = 0, G = 0, B = 0, Alpha = 1;
-	Op->TryGetNumberField(TEXT("r"), R);
-	Op->TryGetNumberField(TEXT("g"), G);
-	Op->TryGetNumberField(TEXT("b"), B);
-	Op->TryGetNumberField(TEXT("a"), Alpha);
+	Op->TryGetNumberField(TEXT("R"), R);
+	Op->TryGetNumberField(TEXT("G"), G);
+	Op->TryGetNumberField(TEXT("B"), B);
+	Op->TryGetNumberField(TEXT("A"), Alpha);
 	NewParam.DefaultValue = FLinearColor(
 		static_cast<float>(R), static_cast<float>(G),
 		static_cast<float>(B), static_cast<float>(Alpha));
@@ -196,10 +196,10 @@ static void HandleMPC_SetVectorDefault(const TSharedPtr<FJsonObject>& Op, FNexus
 	}
 	double R = Found->DefaultValue.R, G = Found->DefaultValue.G;
 	double B = Found->DefaultValue.B, Alpha = Found->DefaultValue.A;
-	Op->TryGetNumberField(TEXT("r"), R);
-	Op->TryGetNumberField(TEXT("g"), G);
-	Op->TryGetNumberField(TEXT("b"), B);
-	Op->TryGetNumberField(TEXT("a"), Alpha);
+	Op->TryGetNumberField(TEXT("R"), R);
+	Op->TryGetNumberField(TEXT("G"), G);
+	Op->TryGetNumberField(TEXT("B"), B);
+	Op->TryGetNumberField(TEXT("A"), Alpha);
 	Found->DefaultValue = FLinearColor(
 		static_cast<float>(R), static_cast<float>(G),
 		static_cast<float>(B), static_cast<float>(Alpha));

@@ -230,7 +230,7 @@ void FNexusGetRuntimeActorAbilitySystemCapability::ExecuteSection(
 
 				FGameplayAttribute Attr(StructProp);
 				TSharedPtr<FJsonObject> AObj = MakeShared<FJsonObject>();
-				AObj->SetStringField(TEXT("name"),          PropIt->GetName());
+				AObj->SetStringField(TEXT("Name"),          PropIt->GetName());
 				AObj->SetStringField(TEXT("AttributeSet"),  AttrClass->GetName());
 				AObj->SetNumberField(TEXT("BaseValue"),     ASC->GetNumericAttributeBase(Attr));
 				AObj->SetNumberField(TEXT("CurrentValue"),  ASC->GetNumericAttribute(Attr));

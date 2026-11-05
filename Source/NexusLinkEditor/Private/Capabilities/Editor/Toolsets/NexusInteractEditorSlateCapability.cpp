@@ -18,7 +18,7 @@ void FNexusInteractEditorSlateCapability::BuildDefinition(FNexusCapabilityDefini
 		.Prop(TEXT("Fields"), FNexusSchema::ArrayOf(TEXT("Ordered form fields; prevalidated, not atomic"), FNexusSchema::Object()
 			.Required(TEXT("Ref"), FNexusSchema::Str(TEXT("Discovered field under the form root")))
 			.Required(TEXT("Value"), FNexusSchema::Str(TEXT("Replacement text, option label or true/false")))
-			.Required(TEXT("FieldType"), FNexusSchema::Enum(TEXT("Form field type"), {TEXT("textbox"),TEXT("checkbox"),TEXT("combobox")})).Build().ToSharedRef()))
+			.Required(TEXT("FieldType"), FNexusSchema::Enum(TEXT("Form field type"), {TEXT("TextBox"),TEXT("CheckBox"),TEXT("ComboBox")})).Build().ToSharedRef()))
 		.Build();
 	FNexusEditorToolSchema::Configure(Out, true);
 	Out.RelatedCapabilities = { TEXT("GetEditorOperation") };

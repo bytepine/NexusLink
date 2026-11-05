@@ -23,7 +23,7 @@ static TSharedPtr<FJsonObject> HandleDataAsset(UDataAsset* DA, const FString& Na
 	Info->SetNumberField(TEXT("TotalCount"), Total);
 	Info->SetNumberField(TEXT("Offset"),     Start);
 	Info->SetNumberField(TEXT("Limit"),      Limit);
-	Info->SetArrayField(TEXT("properties"),  Page);
+	Info->SetArrayField(TEXT("Properties"),  Page);
 	return Info;
 }
 

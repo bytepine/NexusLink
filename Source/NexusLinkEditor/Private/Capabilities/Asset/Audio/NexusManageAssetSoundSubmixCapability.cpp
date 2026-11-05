@@ -57,7 +57,7 @@ static void HandleSubmix_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 	if (Op->HasField(TEXT("DryLevelDB")))     SM->DryLevelModulation.Value     = FMath::Clamp(static_cast<float>(Op->GetNumberField(TEXT("DryLevelDB"))),     -96.f, 0.f);
 #endif
 	SubmixState(Ctx)->bDirty = true;
-	Ctx.Entry->SetStringField(TEXT("name"), SM->GetName());
+	Ctx.Entry->SetStringField(TEXT("Name"), SM->GetName());
 #if NX_UE_HAS_SUBMIX_LINEAR_VOLUME_FIELDS
 	Ctx.Entry->SetNumberField(TEXT("OutputVolume"), SM->OutputVolume);
 	Ctx.Entry->SetNumberField(TEXT("WetLevel"),     SM->WetLevel);

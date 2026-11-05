@@ -66,7 +66,7 @@ FCapabilityResult FNexusGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJ
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("Path"), SoundAsset->GetPathName());
 		Entry->SetStringField(TEXT("AssetType"), ActualType);
-		Entry->SetStringField(TEXT("name"),      SoundAsset->GetName());
+		Entry->SetStringField(TEXT("Name"),      SoundAsset->GetName());
 
 #if NX_UE_HAS_METASOUND_FRONTEND_DOCUMENT
 		// 通过 IMetaSoundDocumentInterface 接口读取 Frontend Document（Source 和 Patch ≥5.3 均实现该接口）
@@ -90,7 +90,7 @@ FCapabilityResult FNexusGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJ
 			for (const FMetasoundFrontendClassInput& Input : Iface.Inputs)
 			{
 				TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-				Obj->SetStringField(TEXT("name"),     Input.Name.ToString());
+				Obj->SetStringField(TEXT("Name"),     Input.Name.ToString());
 				Obj->SetStringField(TEXT("TypeName"), Input.TypeName.ToString());
 				InputsArr.Add(MakeShared<FJsonValueObject>(Obj));
 			}
@@ -101,7 +101,7 @@ FCapabilityResult FNexusGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJ
 			for (const FMetasoundFrontendClassOutput& Output : Iface.Outputs)
 			{
 				TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-				Obj->SetStringField(TEXT("name"),     Output.Name.ToString());
+				Obj->SetStringField(TEXT("Name"),     Output.Name.ToString());
 				Obj->SetStringField(TEXT("TypeName"), Output.TypeName.ToString());
 				OutputsArr.Add(MakeShared<FJsonValueObject>(Obj));
 			}
@@ -116,7 +116,7 @@ FCapabilityResult FNexusGetAssetMetaSoundCapability::Execute(const TSharedPtr<FJ
 			{
 				TSharedPtr<FJsonObject> NObj = MakeShared<FJsonObject>();
 				NObj->SetStringField(TEXT("Id"),   Node.GetID().ToString());
-				NObj->SetStringField(TEXT("name"), Node.Name.ToString());
+				NObj->SetStringField(TEXT("Name"), Node.Name.ToString());
 				// 输入/输出引脚名（用于 AddEdge 的 FromPin/ToPin）
 				TArray<TSharedPtr<FJsonValue>> InPins, OutPins;
 				for (const FMetasoundFrontendVertex& V : Node.Interface.Inputs)

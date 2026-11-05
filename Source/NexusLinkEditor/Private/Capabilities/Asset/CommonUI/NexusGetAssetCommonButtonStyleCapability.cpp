@@ -40,7 +40,7 @@ FCapabilityResult FNexusGetAssetCommonButtonStyleCapability::Execute(const TShar
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Style->GetName());
+		Entry->SetStringField(TEXT("Name"), Style->GetName());
 		Entry->SetStringField(TEXT("Path"), Style->GetPathName());
 		Entry->SetStringField(TEXT("Class"), Style->GetClass()->GetName());
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

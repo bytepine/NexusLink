@@ -38,7 +38,7 @@ FCapabilityResult FNexusGetAssetSoundClassCapability::Execute(const TSharedPtr<F
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),                SC->GetName());
+		Entry->SetStringField(TEXT("Name"),                SC->GetName());
 		Entry->SetStringField(TEXT("Path"),                SC->GetPathName());
 		Entry->SetNumberField(TEXT("Volume"),              SC->Properties.Volume);
 		Entry->SetNumberField(TEXT("Pitch"),               SC->Properties.Pitch);

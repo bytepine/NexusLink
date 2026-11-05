@@ -83,13 +83,13 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 
 | 命中条件 | 继承 | 子类要实现 |
 |------|------|------|
-| `manage_*` 且 Schema 含 `operations[]` | `FNexusActionCapability` | `BuildDefinition` + `RegisterActions` + `PrepareTarget`；可选 `FinalizeTarget` / `AfterPrepareTarget` |
-| 只读且用 `sections[]`（含 `"All"`） | `FNexusMultiSectionCapability`（编辑器）或 `FNexusRuntimeMultiSectionCapability`（PIE） | `BuildDefinition`（`Out.InputSchema = BuildSchemaWithSections()`）+ `BuildCapabilitySchema` / `GetSectionNames` / `ExecuteSection` |
-| PIE/Game 运行时（`*_runtime_*` / `list_runtime_*` / `GetOutputLog` / `SetLogCaptureFilter` / `ExecCommand` / `CaptureViewport` 等，**无** `operations[]`） | `FNexusRuntimeCapability` | `BuildDefinition` + `Execute` |
-| 其余（`create_*` / `save`/`delete`/`Rename`/`duplicate`/`unload` / 无 sections 的 `get_*` / `ControlPie` / `ControlMoviePipeline` / `set_*_property`） | `FNexusCapability` | `BuildDefinition` + `Execute` |
+| `Manage*` 且 Schema 含 `Operations[]` | `FNexusActionCapability` | `BuildDefinition` + `RegisterActions` + `PrepareTarget`；可选 `FinalizeTarget` / `AfterPrepareTarget` |
+| 只读且用 `Sections[]`（含 `"All"`） | `FNexusMultiSectionCapability`（编辑器）或 `FNexusRuntimeMultiSectionCapability`（PIE） | `BuildDefinition`（`Out.InputSchema = BuildSchemaWithSections()`）+ `BuildCapabilitySchema` / `GetSectionNames` / `ExecuteSection` |
+| PIE/Game 运行时（`*Runtime*` / `ListRuntime*` / `GetOutputLog` / `SetLogCaptureFilter` / `ExecCommand` / `CaptureViewport` 等，**无** `Operations[]`） | `FNexusRuntimeCapability` | `BuildDefinition` + `Execute` |
+| 其余（`Create*` / `save`/`delete`/`Rename`/`duplicate`/`unload` / 无 sections 的 `Get*` / `ControlPie` / `ControlMoviePipeline` / `Set*Property`） | `FNexusCapability` | `BuildDefinition` + `Execute` |
 
-- `interact_*` / `ControlPie` / `ControlMoviePipeline` 的顶层 `Action` 是**命令**，不是批量 `operations[]` → **不要**用 `FNexusActionCapability`
-- `set_*_property` 走 `updates[]` → `FNexusCapability` 或 `FNexusRuntimeCapability`
+- `Interact*` / `ControlPie` / `ControlMoviePipeline` 的顶层 `Action` 是**命令**，不是批量 `Operations[]` → **不要**用 `FNexusActionCapability`
+- `Set*Property` 走 `Updates[]` → `FNexusCapability` 或 `FNexusRuntimeCapability`
 - 默认 `GetHostScope()=EditorOnly`；Runtime 基类会幂等补 `Runtime` 分类标签
 - 插件门控 cap：`#if WITH_*` 包 class + `REGISTER_MCP_CAPABILITY`
 - **插件加载范围**：`NexusLink` 主模块 `Type: Runtime`（可进 cooked Game/DS），`NexusLinkEditor` 子模块 `Type: Editor`（仅编辑器二进制加载）；`REGISTER_MCP_CAPABILITY` / `REGISTER_MCP_TOOL` 由 `NEXUSLINK_WITH_SERVER`（`!UE_BUILD_SHIPPING`）门控——MCP 跑在 Editor / PIE / 非 Shipping 的独立 Game/DS。平台门控须同时写 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）
@@ -103,7 +103,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | 模块 | 只用已有的 `NexusLinkExt`（Runtime）与 `NexusLinkExtEditor`（Editor）。新域放 `Capabilities/<域>/`，不为此再加模块 |
 | 基类 | 仍按 §2.1.1。`.cpp` 末尾 `REGISTER_MCP_CAPABILITY`，与主插件同一张注册表 |
 | 门控宏 | `WITH_*` 只由**首次**链接该可选插件的模块写入 `PublicDefinitions`。另一模块再链接时不要重定义（C4005） |
-| 危险 | 在该 cap 的 `Out.Tags` 加上 `FNexusMcpTags::Dangerous`，并带 `write`。主插件按标签识别：默认禁用、确认框、`-NexusEnableDangerousCaps`。不要把名字写进 NexusLink |
+| 危险 | 在该 cap 的 `Out.Tags` 加上 `FNexusMcpTags::Dangerous`，并带 `Write`。主插件按标签识别：默认禁用、确认框、`-NexusEnableDangerousCaps`。不要把名字写进 NexusLink |
 | 握手说明 | 扩展插件 `StartupModule` 读取自己的 `Resources/InitializeInstructions.SearchMode.md` 与 `InitializeInstructions.MultiTool.md`，调用 `FNexusInstructionRegistry::Get().Register(插件名, …)`。`ShutdownModule` 里 `Unregister`。片段只写本插件的 cap。主插件把已注册片段按名称接在自己的说明后面 |
 | 测试 | L1 放示例工程 `Plugins/NexusLinkExtTestSuite`（前缀 `NexusLinkExt.`），不进扩展插件仓 |
 
@@ -114,7 +114,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | `Out.Name` | 必填 | snake_case，全局唯一，`verb_noun` 命名 |
 | `Out.Description` | 必填 | 四段式；建议 ≤100 字符（注册期不硬拦） |
 | `Out.InputSchema` | 必填 | `FNexusSchema::Object().Prop(...).Required({...}).Build()` |
-| `Out.Tags` | 必填 | 至少含 1 个访问标签（`readonly`/`write`）+ 1 个分类标签 |
+| `Out.Tags` | 必填 | 至少含 1 个访问标签（`readonly`/`Write`）+ 1 个分类标签 |
 | `Out.ExtraSearchKeywords` | 可选 | 口语词/同义词；禁重复 name token；注册期自动剥离 |
 | `Out.RelatedCapabilities` | 可选 | cap name 列表；有强关联兄弟 cap（get/manage 成对）时填 |
 | `Out.SearchAssetTypes` | 可选 | **资产 get/manage cap 必填**：与 `SearchAsset` 返回的 `AssetType` 对齐（如 `{"Blueprint"}`）；注册期写入路由索引，供 `RecommendedGet`/`RecommendedManage` |
@@ -144,8 +144,8 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | 标签 | 类型 | 含义 |
 |---|---|---|
 | `readonly` | 访问级别 | 只读标记，**不是沙箱**；禁用写类 cap 仍可能通过其它 cap 改工程 |
-| `write` | 访问级别 | 会修改数据/状态 |
-| `dangerous` | 访问级别 | 脚本逃生舱（任意代码/控制台）；**不进分类树、不进 search 关键词**。带此标签必须同时带 `write`。默认全部禁用；访问模式 Confirm/Custom 见设置面板 |
+| `Write` | 访问级别 | 会修改数据/状态 |
+| `Dangerous` | 访问级别 | 脚本逃生舱（任意代码/控制台）；**不进分类树、不进 search 关键词**。带此标签必须同时带 `Write`。默认全部禁用；访问模式 Confirm/Custom 见设置面板 |
 | `Editor` | 分类 | 通用/仅编辑器 |
 | `blueprint` | 分类 | Blueprint 资产 |
 | `Material` | 分类 | Material / MaterialInstance 资产 |
@@ -207,7 +207,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | `slider`, `button`, `text`, `image`, `checkbox` | `InteractRuntimeWidget`, `GetRuntimeWidgetProperty` |
 | `struct field`, `struct type` | `ManageAssetStructField`, `GetAssetStruct` |
 | `Row`, `datatable row` | `ManageAssetDataTable`, `GetAssetDataTable` |
-| `cdo`, `default value`, `class default` | `GetAssetBlueprint` (Section=defaults), `ManageAssetDataAsset` |
+| `cdo`, `default Value`, `class default` | `GetAssetBlueprint` (Section=defaults), `ManageAssetDataAsset` |
 
 原生 C++ `UENUM` / 头文件反射不在范围；UserDefinedEnum 资产用 `GetAssetEnum`。
 
@@ -222,7 +222,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 - [ ] **差异化**：同前缀 cap 的 Description 在 DIFFERENTIATOR 段有明显区分词
 - [ ] **Keywords**：ExtraSearchKeywords 均为口语词/同义词，无 name 已有词
 - [ ] **关联**：RelatedCapabilities 列出了强关联的兄弟 cap（get/manage 通常成对）
-- [ ] **SearchAssetTypes**：资产 `get_asset_*` / `manage_asset_*` 已声明对应 `AssetType`（与 `SearchAsset` 返回值对齐）；非资产 cap 留空
+- [ ] **SearchAssetTypes**：资产 `GetAsset*` / `ManageAsset*` 已声明对应 `AssetType`（与 `SearchAsset` 返回值对齐）；非资产 cap 留空
 - [ ] **命名**：`Out.Name` 符合 §6 决策树；非 pattern cap 已登记 InitializeInstructions 例外表
 - [ ] 运行时（PIE/Game/DS）能力继承 `FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`（资产/编辑器能力保持默认基类）
 
@@ -262,7 +262,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 - C++：私有 Capability 类名为 `FNexus{PascalCase}Capability`，文件 `Nexus{PascalCase}Capability.{h,cpp}`（去掉 `F` 后与文件名一致）。
 - 词序：`{Verb}{Scope}{Target}{Aspect?}`；`Scope` 为 `Asset` 或 `Runtime` 时必须出现在名中；Editor / 通用例外见 §6.4。
 - JSON Schema 关键字（`type`、`properties`、`required`、`enum`）和 MCP / JSON-RPC 标准字段保持协议原样，不套这套 PascalCase。包括 `capabilities`、`instructions`、`listChanged`、`inputSchema`、`annotations`、`readOnlyHint`、`code`、`message`，以及 `jsonrpc`、`method`、`params`、`isError`、`structuredContent`。
-- 实例发现与代理基础协议同样保持既有拼写：`GET /status` 的 `server` / `wsPort` / `projectName` / `engineVersion` / `netRole` / `hostKind` / `hasPlayWorld` / `authRequired`；实例注册文件的 `pid` / `mcpPort` / `wsPort` / `projectName` / `engineVersion` / `authToken`；WS `auth` 的 `params.token` 与 `result.ok`，以及 `status` / `nexus/instructions` / `nexus/proxy_config` / `nexus/proxy_feedback` 的方法名与字段。这些不是 Capability 业务参数，改名会破坏已发布代理的发现与连接。
+- 实例发现与代理基础协议同样保持既有拼写：`GET /status` 的 `server` / `wsPort` / `projectName` / `engineVersion` / `netRole` / `hostKind` / `bHasPlayWorld` / `authRequired`；实例注册文件的 `pid` / `mcpPort` / `wsPort` / `projectName` / `engineVersion` / `authToken`；WS `auth` 的 `params.token` 与 `result.ok`，以及 `status` / `nexus/instructions` / `nexus/proxy_config` / `nexus/proxy_feedback` 的方法名与字段。这些不是 Capability 业务参数，改名会破坏已发布代理的发现与连接。
 
 ### 6.2 Asset 盘（编辑器资产）
 
@@ -307,7 +307,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | `ManageAnimation` | v1.9 已删；用 `InteractRuntimeActorAnimation` |
 | `SetRuntimeActorAnimation` | Set 动词误用 |
 | `GetAssetGeneric` 等无 scope 旧名 | 已废弃 |
-| `manage_asset_abl_ability` | Able 插件能力；公开仓 NexusLink 无 Able 依赖，不实现 get/manage |
+| `ManageAssetabl_ability` | Able 插件能力；公开仓 NexusLink 无 Able 依赖，不实现 get/manage |
 
 ### 6.6 RelatedCapabilities 与文档同步
 
@@ -459,7 +459,7 @@ public:
 - entry 级错误：普通 cap 用 `AddEntryError(OutEntries, ErrCode, Msg)`；**Action handler** 写 `Ctx.Entry` 的 `Error` 后 `return`，禁止 `OutEntries.Add` / `AddEntryError`。
 - 运行时 World 获取禁止手写 null 检查链——改用 `FNexusRuntimeUtils::RequirePlayWorld(OutError)`。
 - 新建资产 finalize 禁止手写 `MarkPackageDirty` + `AssetCreated` + Save 五件套——改用对应 `FNexusAssetUtils` 接口。
-- 带 `operations[]` 的新增 `manage_*` **必须**继承 `FNexusActionCapability`（`RegisterActions` 静态分派），禁止手写 `ExtractOperations` 循环壳；读参走 `FNexusArgs`。
+- 带 `Operations[]` 的新增 `Manage*` **必须**继承 `FNexusActionCapability`（`RegisterActions` 静态分派），禁止手写 `ExtractOperations` 循环壳；读参走 `FNexusArgs`。
 - 函数返回的指针，解引用前**必须**判空。`XxxFrom(Ctx)`、`LoadObject` 等只要有 `nullptr` 返回路径，调用方在 `->` 之前要判空：Action handler 写 `Ctx.Entry` 的 `Error` 后 `return`；返回指针的 helper 则 `return nullptr`。`if (T* P = Foo())` 包住后续 `->` 同样满足。只在 helper 里 `return nullptr`、调用方直接 `->`，静态检查仍会报。
 
 ### 8.10 提交前自检（6 条）
@@ -477,20 +477,20 @@ public:
 
 | 项 | 约定 |
 |---|---|
-| 单目标 | **Capability 仅单目标**：禁止 Schema/Execute 再暴露或消费 `assetPaths` / `actorNames` / `widgetNames`。跨目标批量**只**走元工具 `CallCapability.calls[]` |
+| 单目标 | **Capability 仅单目标**：禁止 Schema/Execute 再暴露或消费 `assetPaths` / `actorNames` / `widgetNames`。跨目标批量**只**走元工具 `CallCapability.Calls[]` |
 | 单目标内集合 | **保留** `Sections` / `PropertyPaths` / `Operations` / `Updates`（以及领域语义数组，见下表「有意保留」） |
-| manage 命令列表 | Schema **只**暴露 `operations: [{action, ...}]`；禁止 `ops`、禁止顶层裸 `Action` 作为批量列表 |
-| Execute 读入 | 带 `operations[]` 的 `manage_*` 由 `FNexusActionCapability` 基类 `Execute` 调用 `ExtractOperations`（禁止子类再写循环壳）；**仅**读 `operations[]`；不回退 `ops`、不把顶层 `Action`+其余字段合成单元素数组；非 object 元素写入对应 `entries[].error`（`Invalid operation (expected object)`），不静默跳过 |
+| manage 命令列表 | Schema **只**暴露 `Operations: [{Action, ...}]`；禁止 `ops`、禁止顶层裸 `Action` 作为批量列表 |
+| Execute 读入 | 带 `Operations[]` 的 `Manage*` 由 `FNexusActionCapability` 基类 `Execute` 调用 `ExtractOperations`（禁止子类再写循环壳）；**仅**读 `Operations[]`；不回退 `ops`、不把顶层 `Action`+其余字段合成单元素数组；非 object 元素写入对应 `entries[].error`（`Invalid operation (expected object)`），不静默跳过 |
 | Schema 严格性 | `FNexusSchema::Object()` 默认 `additionalProperties: false`；`AnyObject()` 显式 `true`（动态字段）；`AnyScalar()` 为 `type: [string,number,boolean,null]`。`FNexusCapability::Run` 在 `Execute` 之前按 InputSchema **递归严格校验**（未知键 / type（string 或数组） / required / required 空串 / enum / array items / 嵌套 object）；失败一律 `FCapabilityResult::MakeArgInvalid` |
 | 结果信封 | 禁止「一条 Entry + 内嵌 `results[]`」的双层包裹；每个 op 必须对应一条独立 `OutEntries.Add(...)`，交由适配层 `AssembleStructuredContent` 统一提升/包装 |
 | `bSuccess` 字段 | 成功不写 `bSuccess`；失败写 Error 或明确的编译/保存错误，统一由 HasErrors 聚合到 MCP `isError`。禁止写「成功恒为 true」或条件判断结果恒为 true 的 `bSuccess` |
 | create 入参 | **只**暴露 / 消费 `AssetPath`；删除 `PackagePath`+`assetName` 双字段路径 |
 | create 响应 | 成功条目必须含 `Path` 字段 |
-| manage 收尾 | 框架按定义标志注入：`bInjectSaveToDisk`（Action 基类对 `manage_asset_*` 置位）→ 可选 `bSaveToDisk`；`bInjectCompile`（仅 BP/ABP/WBP manage 的 BuildDefinition）→ 可选 `bCompile`。单次 `Run` 默认自动收尾；`Calls[]`（≥2）内部使用 `Run(args, false)` 延迟收尾，全部业务操作通过后调用 `Finalize` 编译，全部编译通过后提交内存事务并保存。UDS 自动编译、Material 的 `Recompile` op、显式 `SaveAsset` / `CompileBlueprint` 不延迟 |
+| manage 收尾 | 框架按定义标志注入：`bInjectSaveToDisk`（Action 基类对 `ManageAsset*` 置位）→ 可选 `bSaveToDisk`；`bInjectCompile`（仅 BP/ABP/WBP manage 的 BuildDefinition）→ 可选 `bCompile`。单次 `Run` 默认自动收尾；`Calls[]`（≥2）内部使用 `Run(args, false)` 延迟收尾，全部业务操作通过后调用 `Finalize` 编译，全部编译通过后提交内存事务并保存。UDS 自动编译、Material 的 `Recompile` op、显式 `SaveAsset` / `CompileBlueprint` 不延迟 |
 | 失败聚合 | `FCapabilityResult::HasErrors()` 检查 FatalError、顶层及 Entries 的 Error / CompileError / SaveError / FinalizeError 和非空 SectionErrors；不递归检查业务数据。SearchMode / MultiTool 均返回 `isError=true` 并保留结构化详情；部分失败的单次 manage 保留成功操作 |
 | 批量回滚边界 | 业务或自动编译失败计入 FailureCount，尝试回滚已记录的内存修改并跳过自动保存；`bRolledBack` / UndoNote 报告实际边界。保存阶段失败也返回 `isError=true`，已提交内存和磁盘不宣称整体回滚。包级操作、运行时副作用不受编辑器事务保护 |
 | Execute 卫生 | 非 MultiSection 的 cap 优先 `FNexusCapabilityResultBuilder::Build`；资产定位统一 `RequireString` + `EmitError`（或对应 Fatal/`MakeArgInvalid`）；禁止裸 `SetStringField("Error")` 作为唯一失败路径 |
-| 有意保留 | 单目标内：`Sections` / `PropertyPaths` / `Operations` / `Updates`；领域数组经 `Operations` 承载（勿再把 `Fields`/`Rows`/`Keys`/`Widgets` 当顶层操作容器）；runtime `interact_*` / `ControlPie` / `ControlMoviePipeline` 的顶层 `Action`（命令式语义，非批量操作列表）；元工具 `calls[]` |
+| 有意保留 | 单目标内：`Sections` / `PropertyPaths` / `Operations` / `Updates`；领域数组经 `Operations` 承载（勿再把 `Fields`/`Rows`/`Keys`/`Widgets` 当顶层操作容器）；runtime `Interact*` / `ControlPie` / `ControlMoviePipeline` 的顶层 `Action`（命令式语义，非批量操作列表）；元工具 `Calls[]` |
 
 ### 8.12 参数权威表 / Breaking 迁移
 
@@ -498,13 +498,13 @@ public:
 
 | 旧键 / 旧形态 | 权威键 / 新形态 | 说明 |
 |---|---|---|
-| `assetPaths` / `actorNames` / `widgetNames` | （删除）→ `CallCapability.calls[]` | Capability 单目标；跨目标批量只走元工具 |
+| `assetPaths` / `actorNames` / `widgetNames` | （删除）→ `CallCapability.Calls[]` | Capability 单目标；跨目标批量只走元工具 |
 | `newPath` | `DestAssetPath` | 复制/迁移目标路径 |
 | `FilePath` | `ScriptPath` | 脚本磁盘/工程相对路径 |
 | `ownerWidget` | `OwnerClass` | Widget 归属类 |
 | spawn `blueprintPath` | `AssetPath` | 生成用蓝图资产路径统一 |
 | `classPath` | `ClassName` | 类名/路径字段统一为 `ClassName` |
-| 顶层 `Fields` / `Rows` / `Keys` / `Widgets` 作操作容器 | `operations[]` | 操作列表只认 `Operations`；领域数组若需保留须落在 op 项内，不得顶层替代 `Operations` |
+| 顶层 `Fields` / `Rows` / `Keys` / `Widgets` 作操作容器 | `Operations[]` | 操作列表只认 `Operations`；领域数组若需保留须落在 op 项内，不得顶层替代 `Operations` |
 | `ops` | （删除） | 不回退；Execute 只读 `Operations` |
 | 顶层 `Action` 合成单 op | （删除） | manage 批量不得靠顶层 `Action` 回退 |
 | `PackagePath` + `assetName` | `AssetPath` | create 等只认完整 `AssetPath` |

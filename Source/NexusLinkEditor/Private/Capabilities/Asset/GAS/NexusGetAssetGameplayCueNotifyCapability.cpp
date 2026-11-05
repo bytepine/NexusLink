@@ -79,7 +79,7 @@ FCapabilityResult FNexusGetAssetGameplayCueNotifyCapability::Execute(const TShar
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Loaded->GetName());
+		Entry->SetStringField(TEXT("Name"), Loaded->GetName());
 		Entry->SetStringField(TEXT("Path"), Loaded->GetPathName());
 		Entry->SetStringField(TEXT("ClassName"), ClassName);
 		Entry->SetBoolField(TEXT("bIsBlueprint"), bIsBlueprint);

@@ -138,7 +138,7 @@ FCapabilityResult FNexusGetAssetViewModelCapability::Execute(const TSharedPtr<FJ
 		}
 
 		OutEntry->SetStringField(TEXT("AssetType"), TEXT("WidgetBlueprint"));
-		OutEntry->SetStringField(TEXT("name"), WBP->GetName());
+		OutEntry->SetStringField(TEXT("Name"), WBP->GetName());
 		OutEntry->SetStringField(TEXT("Path"), FNexusAssetUtils::PackagePathOf(WBP));
 
 		if (A.Bool(TEXT("bIncludeConversionFunctions")))
@@ -188,7 +188,7 @@ FCapabilityResult FNexusGetAssetViewModelCapability::Execute(const TSharedPtr<FJ
 		for (const FMVVMBlueprintViewModelContext& Ctx : View->GetViewModels())
 		{
 			TSharedPtr<FJsonObject> VmObj = MakeShared<FJsonObject>();
-			VmObj->SetStringField(TEXT("name"), Ctx.ViewModelName.ToString());
+			VmObj->SetStringField(TEXT("Name"), Ctx.ViewModelName.ToString());
 			VmObj->SetStringField(TEXT("Id"), Ctx.GetViewModelId().ToString());
 			VmObj->SetStringField(TEXT("CreationType"), CreationTypeToStr(Ctx.CreationType));
 			if (Ctx.NotifyFieldValueClass)

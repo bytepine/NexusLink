@@ -92,7 +92,7 @@ FCapabilityResult FNexusCreateAssetBlueprintCapability::Execute(const TSharedPtr
 		FNexusAssetEditorUtils::NotifyCompileAndSave(NewBlueprint->GetOutermost(), NewBlueprint, AssetPath);
 
 		OutEntry->SetStringField(TEXT("Path"),    AssetPath);
-		OutEntry->SetStringField(TEXT("name"),    NewBlueprint->GetName());
+		OutEntry->SetStringField(TEXT("Name"),    NewBlueprint->GetName());
 		FNexusAssetUtils::AppendBlueprintMetaFields(NewBlueprint, OutEntry);
 		OutEntry->SetNumberField(TEXT("BeginPlayEnsured"), BeginPlayEnsured);
 		if (NewBlueprint->UbergraphPages.Num() > 0)

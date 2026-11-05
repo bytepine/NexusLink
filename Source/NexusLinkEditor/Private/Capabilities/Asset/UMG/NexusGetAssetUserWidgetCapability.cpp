@@ -187,7 +187,7 @@ void FNexusGetAssetUserWidgetCapability::ExecuteSection(const FString&          
 		for (int32 i = Start; i < End; ++i)
 		{
 			TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
-			O->SetStringField(TEXT("name"),  All[i].Name);
+			O->SetStringField(TEXT("Name"),  All[i].Name);
 			O->SetStringField(TEXT("Class"), All[i].Class);
 			if (!All[i].Parent.IsEmpty()) O->SetStringField(TEXT("Parent"), All[i].Parent);
 			if (UWidget* W = WBP->WidgetTree->FindWidget(FName(*All[i].Name)))
@@ -234,7 +234,7 @@ void FNexusGetAssetUserWidgetCapability::ExecuteSection(const FString&          
 			}
 
 			TSharedPtr<FJsonObject> AnimObj = MakeShared<FJsonObject>();
-			AnimObj->SetStringField(TEXT("name"), ObjName);
+			AnimObj->SetStringField(TEXT("Name"), ObjName);
 			if (!DisplayLabel.IsEmpty() && DisplayLabel != ObjName)
 			{
 				AnimObj->SetStringField(TEXT("DisplayLabel"), DisplayLabel);

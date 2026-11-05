@@ -62,7 +62,7 @@ void FNexusCreateAssetMaterialCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.Description = TEXT("Create Material or MaterialInstance. MI requires ParentMaterial.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("New asset full package path (e.g. /Game/Mats/M1.M1)")))
-		.Prop(TEXT("type"), FNexusSchema::Enum(TEXT("Asset kind"), { TEXT("Material"), TEXT("MaterialInstance") }, TEXT("Material")))
+		.Prop(TEXT("Type"), FNexusSchema::Enum(TEXT("Asset kind"), { TEXT("Material"), TEXT("MaterialInstance") }, TEXT("Material")))
 		.Prop(TEXT("ParentMaterial"), FNexusSchema::Str(TEXT("Parent material path (required for MaterialInstance)")))
 		.Prop(TEXT("MaterialDomain"), FNexusSchema::Enum(TEXT("Material domain (Material only)"),
 			{
@@ -106,9 +106,9 @@ FCapabilityResult FNexusCreateAssetMaterialCapability::Execute(const TSharedPtr<
 		}
 
 		FString Type = TEXT("Material");
-		if (Arguments->HasField(TEXT("type")))
+		if (Arguments->HasField(TEXT("Type")))
 		{
-			Type = A.Str(TEXT("type"));
+			Type = A.Str(TEXT("Type"));
 		}
 		else if (Arguments->HasField(TEXT("ParentMaterial")))
 		{
@@ -159,8 +159,8 @@ FCapabilityResult FNexusCreateAssetMaterialCapability::Execute(const TSharedPtr<
 				return;
 			}
 			UMaterialInstanceConstant* MI = Cast<UMaterialInstanceConstant>(NewAsset);
-			OutEntry->SetStringField(TEXT("type"), TEXT("MaterialInstance"));
-			OutEntry->SetStringField(TEXT("name"), MI->GetName());
+			OutEntry->SetStringField(TEXT("Type"), TEXT("MaterialInstance"));
+			OutEntry->SetStringField(TEXT("Name"), MI->GetName());
 			OutEntry->SetStringField(TEXT("Path"), FNexusAssetUtils::PackagePathOf(MI));
 			OutEntry->SetStringField(TEXT("ParentMaterial"), FNexusAssetUtils::PackagePathOf(ParentMat));
 			TArray<TSharedPtr<FJsonValue>> InheritedParams;
@@ -203,8 +203,8 @@ FCapabilityResult FNexusCreateAssetMaterialCapability::Execute(const TSharedPtr<
 				Mat->MaterialDomain = DomainToApply;
 				Mat->PostEditChange();
 			}
-			OutEntry->SetStringField(TEXT("type"), TEXT("Material"));
-			OutEntry->SetStringField(TEXT("name"), Mat->GetName());
+			OutEntry->SetStringField(TEXT("Type"), TEXT("Material"));
+			OutEntry->SetStringField(TEXT("Name"), Mat->GetName());
 			OutEntry->SetStringField(TEXT("Path"), FNexusAssetUtils::PackagePathOf(Mat));
 			OutEntry->SetStringField(TEXT("MaterialDomain"), DomainEcho);
 		}

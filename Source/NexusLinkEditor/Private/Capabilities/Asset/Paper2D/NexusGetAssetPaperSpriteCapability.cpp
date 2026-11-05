@@ -37,7 +37,7 @@ FCapabilityResult FNexusGetAssetPaperSpriteCapability::Execute(const TSharedPtr<
 			return;
 		}
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Sprite->GetName());
+		Entry->SetStringField(TEXT("Name"), Sprite->GetName());
 		Entry->SetStringField(TEXT("Path"), Sprite->GetPathName());
 		UTexture2D* Tex = Sprite->GetSourceTexture();
 		Entry->SetStringField(TEXT("SourceTexture"), Tex ? Tex->GetPathName() : FString());

@@ -61,7 +61,7 @@ static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FNexusBPQuery
 
 	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 	Root->SetStringField(TEXT("AssetType"), TEXT("Blueprint"));
-	Root->SetStringField(TEXT("name"), BP->GetName());
+	Root->SetStringField(TEXT("Name"), BP->GetName());
 
 	if (Q.GraphName.IsEmpty())
 	{
@@ -114,7 +114,7 @@ static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FNexusBPQu
 {
 	TSharedPtr<FJsonObject> Info = MakeShared<FJsonObject>();
 	Info->SetStringField(TEXT("AssetType"), TEXT("Blueprint"));
-	Info->SetStringField(TEXT("name"), BP->GetName());
+	Info->SetStringField(TEXT("Name"), BP->GetName());
 	if (BP->ParentClass) Info->SetStringField(TEXT("ParentClass"), BP->ParentClass->GetName());
 
 	UObject* CDO = BP->GeneratedClass ? BP->GeneratedClass->GetDefaultObject(false) : nullptr;
@@ -139,7 +139,7 @@ static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FNexusBPQu
 		TSharedPtr<FJsonObject> Entry = V->AsObject();
 		if (!Entry.IsValid()) continue;
 		FString PropName;
-		Entry->TryGetStringField(TEXT("name"), PropName);
+		Entry->TryGetStringField(TEXT("Name"), PropName);
 		Entry->SetStringField(TEXT("Path"), PropName);
 		Entry->RemoveField(TEXT("name"));
 		// 用 NewVariables 白名单覆盖 inherited；始终写出以便压缩抽取
@@ -478,7 +478,7 @@ bool FNexusGetAssetBlueprintCapability::PrepareEntry(const TSharedPtr<FJsonObjec
 		return false;
 	}
 
-	OutEntry->SetStringField(TEXT("name"), BP->GetName());
+	OutEntry->SetStringField(TEXT("Name"), BP->GetName());
 	if (BP->ParentClass) { OutEntry->SetStringField(TEXT("ParentClass"), BP->ParentClass->GetName()); }
 	FNexusAssetUtils::AppendBlueprintMetaFields(BP, OutEntry);
 
@@ -657,9 +657,9 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 		{
 			const FNexusBPEntryLocal& E = All[i];
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-			Obj->SetStringField(TEXT("name"), E.Name);
+			Obj->SetStringField(TEXT("Name"), E.Name);
 			Obj->SetStringField(TEXT("Kind"), E.Kind);
-			if (!E.Type.IsEmpty())          { Obj->SetStringField(TEXT("type"),          E.Type); }
+			if (!E.Type.IsEmpty())          { Obj->SetStringField(TEXT("Type"),          E.Type); }
 			if (!E.SubType.IsEmpty())       { Obj->SetStringField(TEXT("SubType"),       E.SubType); }
 			if (!E.SubTypeObject.IsEmpty()) { Obj->SetStringField(TEXT("SubTypeObject"), E.SubTypeObject); }
 			if (!E.Category.IsEmpty())      { Obj->SetStringField(TEXT("Category"),      E.Category); }
@@ -675,8 +675,8 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 					{
 						FProperty* Prm = *It;
 						TSharedPtr<FJsonObject> PObj = MakeShared<FJsonObject>();
-						PObj->SetStringField(TEXT("name"), Prm->GetName());
-						PObj->SetStringField(TEXT("type"), Prm->GetCPPType());
+						PObj->SetStringField(TEXT("Name"), Prm->GetName());
+						PObj->SetStringField(TEXT("Type"), Prm->GetCPPType());
 						if (Prm->HasAnyPropertyFlags(CPF_ReturnParm | CPF_OutParm))
 							Outputs.Add(MakeShared<FJsonValueObject>(PObj));
 						else

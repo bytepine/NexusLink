@@ -10,8 +10,8 @@ def evidence(report):
         if "TreePath" not in payload: continue
         snapshots.setdefault(record.get("Endpoint", "UE"), []).append({"Step": record["Id"],
             "TreePath": payload["TreePath"], "RootTreePath": payload.get("RootTreePath", payload["TreePath"]), "bRunning": payload.get("bRunning"), "ActiveNode": payload.get("ActiveNode"),
-            "Blackboard": sorted([{key: entry.get(key) for key in ("name", "TypeName", "TypedValue", "bTypedValueAvailable", "bInherited")}
-                                 for entry in payload.get("BlackboardKeys", [])], key=lambda entry: entry["name"])})
+            "Blackboard": sorted([{key: entry.get(key) for key in ("Name", "TypeName", "TypedValue", "bTypedValueAvailable", "bInherited")}
+                                 for entry in payload.get("BlackboardKeys", [])], key=lambda entry: entry["Name"])})
     complete = all(any(record["Id"] == step and record["Status"] == "Passed"
                        and record.get("Result", {}).get("Payload", {}).get("MatchesExpected") is True
                        for record in report["Records"]) for step in ("expected", "restored"))

@@ -45,7 +45,7 @@ FCapabilityResult FNexusGetAssetStaticMeshCapability::Execute(const TSharedPtr<F
 			return;
 		}
 
-		Entry->SetStringField(TEXT("name"), Mesh->GetName());
+		Entry->SetStringField(TEXT("Name"), Mesh->GetName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("StaticMesh"));
 
 		const FBoxSphereBounds Bounds = Mesh->GetBounds();
@@ -90,7 +90,7 @@ FCapabilityResult FNexusGetAssetStaticMeshCapability::Execute(const TSharedPtr<F
 		{
 			if (!Socket) continue;
 			TSharedPtr<FJsonObject> S = MakeShared<FJsonObject>();
-			S->SetStringField(TEXT("name"), Socket->SocketName.ToString());
+			S->SetStringField(TEXT("Name"), Socket->SocketName.ToString());
 			S->SetNumberField(TEXT("LocX"), Socket->RelativeLocation.X);
 			S->SetNumberField(TEXT("LocY"), Socket->RelativeLocation.Y);
 			S->SetNumberField(TEXT("LocZ"), Socket->RelativeLocation.Z);

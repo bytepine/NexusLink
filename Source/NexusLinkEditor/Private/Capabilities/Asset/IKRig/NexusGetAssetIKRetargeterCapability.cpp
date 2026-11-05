@@ -49,7 +49,7 @@ FCapabilityResult FNexusGetAssetIKRetargeterCapability::Execute(const TSharedPtr
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("Path"), AssetPath);
-		Entry->SetStringField(TEXT("name"),      Retargeter->GetName());
+		Entry->SetStringField(TEXT("Name"),      Retargeter->GetName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("IKRetargeter"));
 
 #if NX_UE_HAS_IK_RETARGETER_GET_IKRIG

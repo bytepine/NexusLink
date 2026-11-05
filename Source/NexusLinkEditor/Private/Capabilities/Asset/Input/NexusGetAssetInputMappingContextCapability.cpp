@@ -44,7 +44,7 @@ FCapabilityResult FNexusGetAssetInputMappingContextCapability::Execute(const TSh
 		}
 
 		OutEntry->SetStringField(TEXT("AssetType"), TEXT("InputMappingContext"));
-		OutEntry->SetStringField(TEXT("name"),      IMC->GetName());
+		OutEntry->SetStringField(TEXT("Name"),      IMC->GetName());
 		OutEntry->SetStringField(TEXT("Path"),      FNexusAssetUtils::PackagePathOf(IMC));
 		OutEntry->SetNumberField(TEXT("MappingsCount"), IMC->GetMappings().Num());
 

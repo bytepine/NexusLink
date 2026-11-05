@@ -230,7 +230,7 @@ bool FNexusNiagaraGraphUtils::AddModule(UNiagaraSystem* System, const FString& E
 	for (const TSharedPtr<FJsonObject>& M : Before)
 	{
 		FString N;
-		if (M.IsValid() && M->TryGetStringField(TEXT("name"), N)) BeforeNames.Add(N);
+		if (M.IsValid() && M->TryGetStringField(TEXT("Name"), N)) BeforeNames.Add(N);
 	}
 
 	bool bFoundModule = false;
@@ -246,7 +246,7 @@ bool FNexusNiagaraGraphUtils::AddModule(UNiagaraSystem* System, const FString& E
 	for (const TSharedPtr<FJsonObject>& M : After)
 	{
 		FString N;
-		if (!M.IsValid() || !M->TryGetStringField(TEXT("name"), N) || N.IsEmpty()) continue;
+		if (!M.IsValid() || !M->TryGetStringField(TEXT("Name"), N) || N.IsEmpty()) continue;
 		if (!BeforeNames.Contains(N))
 		{
 			OutModuleName = N;
@@ -255,7 +255,7 @@ bool FNexusNiagaraGraphUtils::AddModule(UNiagaraSystem* System, const FString& E
 	}
 	if (OutModuleName.IsEmpty() && After.Num() > 0)
 	{
-		After.Last()->TryGetStringField(TEXT("name"), OutModuleName);
+		After.Last()->TryGetStringField(TEXT("Name"), OutModuleName);
 	}
 	if (!bAdded && OutModuleName.IsEmpty())
 	{
@@ -681,7 +681,7 @@ void FNexusNiagaraGraphUtils::CollectModules(const FNiagaraEmitterHandle& Handle
 		TSharedPtr<FJsonObject> M = MakeShared<FJsonObject>();
 		const FString Fn = Call->GetFunctionName();
 		const FString ModName = Fn.IsEmpty() ? Call->GetName() : Fn;
-		M->SetStringField(TEXT("name"), ModName);
+		M->SetStringField(TEXT("Name"), ModName);
 		const ENiagaraScriptUsage Usage = InferModuleUsage(Call);
 		M->SetStringField(TEXT("Usage"), UsageToString(Usage));
 
@@ -693,8 +693,8 @@ void FNexusNiagaraGraphUtils::CollectModules(const FNiagaraEmitterHandle& Handle
 				const FString Full = Var.GetName().ToString();
 				if (!Full.Contains(ModName)) continue;
 				TSharedPtr<FJsonObject> In = MakeShared<FJsonObject>();
-				In->SetStringField(TEXT("name"), LastNameSegment(Full));
-				In->SetStringField(TEXT("type"), Var.GetType().GetName());
+				In->SetStringField(TEXT("Name"), LastNameSegment(Full));
+				In->SetStringField(TEXT("Type"), Var.GetType().GetName());
 				const uint8* Bytes = Script->RapidIterationParameters.GetParameterData(Var);
 				const FString Val = FormatNiagaraBytes(Var.GetType(), Bytes);
 				if (!Val.IsEmpty()) In->SetStringField(TEXT("Value"), Val);

@@ -49,7 +49,7 @@ static void HandleSClass_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 	if (Op->HasField(TEXT("LowPassFilter")))    SC->Properties.LowPassFilterFrequency   = static_cast<float>(Op->GetNumberField(TEXT("LowPassFilter")));
 	if (Op->HasField(TEXT("AttenuationScale"))) SC->Properties.AttenuationDistanceScale = static_cast<float>(Op->GetNumberField(TEXT("AttenuationScale")));
 	SClassState(Ctx)->bDirty = true;
-	Ctx.Entry->SetStringField(TEXT("name"),          SC->GetName());
+	Ctx.Entry->SetStringField(TEXT("Name"),          SC->GetName());
 	Ctx.Entry->SetNumberField(TEXT("Volume"),        SC->Properties.Volume);
 	Ctx.Entry->SetNumberField(TEXT("Pitch"),         SC->Properties.Pitch);
 	Ctx.Entry->SetNumberField(TEXT("LowPassFilter"), SC->Properties.LowPassFilterFrequency);

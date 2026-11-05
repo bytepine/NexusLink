@@ -53,7 +53,7 @@ FCapabilityResult FNexusGetAssetNiagaraSystemCapability::Execute(const TSharedPt
 			return;
 		}
 
-		Entry->SetStringField(TEXT("name"), System->GetName());
+		Entry->SetStringField(TEXT("Name"), System->GetName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("NiagaraSystem"));
 
 		TArray<TSharedPtr<FJsonValue>> Emitters;
@@ -64,7 +64,7 @@ FCapabilityResult FNexusGetAssetNiagaraSystemCapability::Execute(const TSharedPt
 		{
 			if (!Handle.IsValid()) continue;
 			TSharedPtr<FJsonObject> Em = MakeShared<FJsonObject>();
-			Em->SetStringField(TEXT("name"), Handle.GetName().ToString());
+			Em->SetStringField(TEXT("Name"), Handle.GetName().ToString());
 			Em->SetStringField(TEXT("Id"), Handle.GetId().ToString());
 			Em->SetBoolField(TEXT("bEnabled"), Handle.GetIsEnabled());
 #if WITH_EDITOR
@@ -88,7 +88,7 @@ FCapabilityResult FNexusGetAssetNiagaraSystemCapability::Execute(const TSharedPt
 		{
 			const FNiagaraEmitterHandle Handle = System->GetEmitterHandle(i);
 			TSharedPtr<FJsonObject> Em = MakeShared<FJsonObject>();
-			Em->SetStringField(TEXT("name"), Handle.GetName().ToString());
+			Em->SetStringField(TEXT("Name"), Handle.GetName().ToString());
 			Em->SetStringField(TEXT("Id"), Handle.GetId().ToString());
 			Em->SetBoolField(TEXT("bEnabled"), Handle.GetIsEnabled());
 #if WITH_EDITOR
@@ -116,8 +116,8 @@ FCapabilityResult FNexusGetAssetNiagaraSystemCapability::Execute(const TSharedPt
 		{
 			if (ParamIdx >= 32) break;
 			TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
-			P->SetStringField(TEXT("name"), Var.GetName().ToString());
-			P->SetStringField(TEXT("type"), Var.GetType().GetName());
+			P->SetStringField(TEXT("Name"), Var.GetName().ToString());
+			P->SetStringField(TEXT("Type"), Var.GetType().GetName());
 			Params.Add(MakeShared<FJsonValueObject>(P));
 			++ParamIdx;
 		}

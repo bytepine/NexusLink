@@ -363,14 +363,14 @@ static void BuildIssueDraftFromRecords(const TArray<TSharedPtr<FJsonObject>>& Re
 		}
 	}
 
-	// ── Top Capability 误用（call_*）─────────────────────────────────────
+	// ── Top Capability 误用（Call*）─────────────────────────────────────
 	{
 		TMap<FString, int32> CapTotal;
 		TMap<FString, FString> CapSample;
 		for (const auto& R : Records)
 		{
 			const FString Cat = GetStr(R, TEXT("Category"));
-			if (!Cat.StartsWith(TEXT("call_"))) continue;
+			if (!Cat.StartsWith(TEXT("Call"))) continue;
 			const FString Cap    = GetStr(R, TEXT("Capability"));
 			const FString CapKey = Cap.IsEmpty() ? TEXT("(unknown)") : Cap;
 			int32& V = CapTotal.FindOrAdd(CapKey);
@@ -669,7 +669,7 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 		Md += TEXT("---\n\n");
 	}
 
-	// §4 Capability 误用 Top 10（call_*），二级分组：capability × 规则化错误前缀 + 原始原因样本
+	// §4 Capability 误用 Top 10（Call*），二级分组：capability × 规则化错误前缀 + 原始原因样本
 	{
 		// 外层 key: capability；内层 key: 规则化错误前缀
 		TMap<FString, TMap<FString, int32>> CapErrMap;
@@ -679,7 +679,7 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 		for (const auto& R : Records)
 		{
 			const FString Cat = GetStr(R, TEXT("Category"));
-			if (!Cat.StartsWith(TEXT("call_"))) continue;
+			if (!Cat.StartsWith(TEXT("Call"))) continue;
 			const FString Cap    = GetStr(R, TEXT("Capability"));
 			const FString CapKey = Cap.IsEmpty() ? TEXT("(unknown)") : Cap;
 			const FString Err    = FNexusFeedbackInternal::NormalizeForThrottle(GetStr(R, TEXT("ErrorText")));
@@ -700,7 +700,7 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 				}
 			}
 		}
-		Md += TEXT("## §4 Capability 误用 Top 10（call_*）\n\n");
+		Md += TEXT("## §4 Capability 误用 Top 10（Call*）\n\n");
 		if (CapErrMap.Num() == 0)
 		{
 			Md += TEXT("_无数据_\n\n");
@@ -868,8 +868,7 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 		for (const auto& R : Records)
 		{
 			const FString Cat = GetStr(R, TEXT("Category"));
-			if (!Cat.StartsWith(TEXT("call_")) && Cat != TEXT("CallArgInvalid")
-					&& Cat != TEXT("CallFatal")) continue;
+			if (!Cat.StartsWith(TEXT("Call"))) continue;
 			const FString Err = GetStr(R, TEXT("ErrorText"));
 			if (Err.IsEmpty()) continue;
 			const FString FP = FNexusFeedbackInternal::NormalizeForThrottle(Err);

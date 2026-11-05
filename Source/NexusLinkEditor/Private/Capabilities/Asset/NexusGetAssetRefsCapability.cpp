@@ -112,7 +112,7 @@ static TSharedPtr<FJsonObject> RefItemToJson(const FNexusAssetRefItem& Item, boo
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 	Obj->SetStringField(TEXT("Path"), Item.Path);
 	if (!Item.Name.IsEmpty())
-		Obj->SetStringField(TEXT("name"), Item.Name);
+		Obj->SetStringField(TEXT("Name"), Item.Name);
 	if (!Item.AssetType.IsEmpty())
 		Obj->SetStringField(TEXT("AssetType"), Item.AssetType);
 	if (!Item.ParentClass.IsEmpty())

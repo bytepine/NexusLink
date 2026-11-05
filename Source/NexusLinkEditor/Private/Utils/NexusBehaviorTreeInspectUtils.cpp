@@ -56,7 +56,7 @@ TSharedPtr<FJsonObject> FNexusBehaviorTreeInspectUtils::BuildBTNodeInfoRec(const
 	}
 
 	TSharedPtr<FJsonObject> NodeObj = MakeShared<FJsonObject>();
-	NodeObj->SetStringField(TEXT("name"), Node->GetNodeName());
+	NodeObj->SetStringField(TEXT("Name"), Node->GetNodeName());
 	NodeObj->SetStringField(TEXT("Class"), Node->GetClass()->GetName());
 	NodeObj->SetStringField(TEXT("Path"), Path);
 	// 先序 DFS：进入本节点时分配序号，与 ManageAssetBehaviorTree 的路径定位互补
@@ -65,7 +65,7 @@ TSharedPtr<FJsonObject> FNexusBehaviorTreeInspectUtils::BuildBTNodeInfoRec(const
 	TArray<TSharedPtr<FJsonValue>> NodeProps = BuildEditableProps(Node);
 	if (NodeProps.Num() > 0)
 	{
-		NodeObj->SetArrayField(TEXT("properties"), NodeProps);
+		NodeObj->SetArrayField(TEXT("Properties"), NodeProps);
 	}
 
 	if (const UBTCompositeNode* Composite = Cast<UBTCompositeNode>(Node))
@@ -81,12 +81,12 @@ TSharedPtr<FJsonObject> FNexusBehaviorTreeInspectUtils::BuildBTNodeInfoRec(const
 			TSharedPtr<FJsonObject> S = MakeShared<FJsonObject>();
 			S->SetNumberField(TEXT("Index"), ServiceIndex);
 			S->SetStringField(TEXT("Class"), Svc->GetClass()->GetName());
-			S->SetStringField(TEXT("name"), Svc->GetNodeName());
+			S->SetStringField(TEXT("Name"), Svc->GetNodeName());
 			S->SetStringField(TEXT("ParentPath"), Path);
 			TArray<TSharedPtr<FJsonValue>> SvcProps = BuildEditableProps(Svc);
 			if (SvcProps.Num() > 0)
 			{
-				S->SetArrayField(TEXT("properties"), SvcProps);
+				S->SetArrayField(TEXT("Properties"), SvcProps);
 			}
 			Services.Add(MakeShared<FJsonValueObject>(S));
 		}
@@ -128,11 +128,11 @@ TSharedPtr<FJsonObject> FNexusBehaviorTreeInspectUtils::BuildBTNodeInfoRec(const
 				D->SetNumberField(TEXT("ChildIndex"), ChildIndex);
 				D->SetStringField(TEXT("ParentPath"), Path);
 				D->SetStringField(TEXT("Class"), Dec->GetClass()->GetName());
-				D->SetStringField(TEXT("name"), Dec->GetNodeName());
+				D->SetStringField(TEXT("Name"), Dec->GetNodeName());
 				TArray<TSharedPtr<FJsonValue>> DecProps = BuildEditableProps(Dec);
 				if (DecProps.Num() > 0)
 				{
-					D->SetArrayField(TEXT("properties"), DecProps);
+					D->SetArrayField(TEXT("Properties"), DecProps);
 				}
 				Decorators.Add(MakeShared<FJsonValueObject>(D));
 			}

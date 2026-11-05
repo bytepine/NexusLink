@@ -69,8 +69,8 @@ TArray<TSharedPtr<FJsonValue>> FNexusPropertyReportUtils::BuildEditablePropsPage
 		if (!FNexusAssetUtils::MatchesPropertyPathsFilter(PropertyPaths, PN)) continue;
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), PN);
-		Entry->SetStringField(TEXT("type"), SafeGetCPPType(Prop));
+		Entry->SetStringField(TEXT("Name"), PN);
+		Entry->SetStringField(TEXT("Type"), SafeGetCPPType(Prop));
 
 		void* ValuePtr = Instance ? Prop->ContainerPtrToValuePtr<void>(Instance) : nullptr;
 

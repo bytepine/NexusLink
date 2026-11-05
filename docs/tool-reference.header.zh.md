@@ -8,7 +8,7 @@
 
 > **工具 vs Capability**
 > - **MCP 工具（3 个）**：`SearchCapabilities`、`CallCapability`、`SubmitFeedback` — 经 MCP `tools/call` 直接调用。
-> - **Capability（其余全部）**：经 `CallCapability`：单条 `Capability` + `Arguments`；或批量 `Calls=[{capability,arguments?},...]`。下文除元工具外每个 `###` 小节都是 Capability，标题即 `Capability` 字段值。
+> - **Capability（其余全部）**：经 `CallCapability`：单条 `Capability` + `Arguments`；或批量 `Calls=[{Capability,Arguments?},...]`。下文除元工具外每个 `###` 小节都是 Capability，标题即 `Capability` 字段值。
 >
 > 示例（单条）：`CallCapability(Capability="ListRuntimeActors", Arguments={"ClassFilter":"BP_Enemy"})`
 
@@ -31,9 +31,9 @@
 > - 过滤器支持子串（`Player`）、前缀（`^BP_`）、后缀（`Actor$`）、正则（`/^BP_.+$/`）
 > - 列表类工具支持 `Offset`（默认 0）和 `Limit`（默认 100，最大 500）
 > - ★ 表示必填参数
-> - **manage 收尾**：所有 `manage_asset_*` 接受可选 `bSaveToDisk`（默认 false）；仅 `ManageAssetBlueprint` / `ManageAssetAnimBlueprint` / `ManageAssetUserWidget` 另接受 `bCompile`（默认 false）。UDS 改字段后仍会自动编译；材质用 `Recompile` 操作。独立的 `SaveAsset` / `CompileBlueprint` 仍可用
-> - **单目标 + 跨目标批量（Breaking）**：Capability 一次处理一个目标（`AssetPath` / `ActorName` / `WidgetName`）；跨目标走 `CallCapability(Calls=[{capability,arguments?},...])`。同一目标内继续用 `Sections` / `PropertyPaths` / `Operations` / `Updates`。没有 `assetPaths`/`actorNames`/`widgetNames` 或旧键（`blueprintPath`→`AssetPath`、`newPath`→`DestAssetPath`、`ownerWidget`→`OwnerClass`、`FilePath`→`ScriptPath`、顶层 `Fields`/`Rows`/`Keys`/`Widgets`→`Operations`）；旧键 → `ArgInvalid`
-> - **响应默认值压缩（全局开启）**：`NexusMcpDispatcher` 在序列化前递归扫描 `StructuredContent` 中的对象数组字段 `K`。仅当标量字段（string / number / bool / null）出现在**每一**条对象上才成为候选；主导值满足阈值（`MinCount=2` / `MinMatchRatio=0.7` / `MinNetSaveBytes=20`）时，在同级写入 `<K>_defaults` 并从条目中省略相等字段。稀疏字段（仅部分条目有）不抽取。身份字段（`name` / `Path` / `AssetPath` / `NodeId` / `Tag` / `Message` / `Timestamp` / `frame` / `Id` / `Label` / `Title` / `text` / `Error`）永不进入 defaults。ForcedDefault：带类型的 `SearchAsset` 抽取 `AssetType`；`GetOutputLog` 在 `verbosity≠all` 时抽取下限；`CategoryFilter` / `ListRuntimeActors.ClassFilter` / `ListRuntimeWidgets.ClassFilter` 等过滤器仅当**本页所有条目一致**时抽取（含 N=1；不要把过滤子串当默认值）。
+> - **manage 收尾**：所有 `ManageAsset*` 接受可选 `bSaveToDisk`（默认 false）；仅 `ManageAssetBlueprint` / `ManageAssetAnimBlueprint` / `ManageAssetUserWidget` 另接受 `bCompile`（默认 false）。UDS 改字段后仍会自动编译；材质用 `Recompile` 操作。独立的 `SaveAsset` / `CompileBlueprint` 仍可用
+> - **单目标 + 跨目标批量（Breaking）**：Capability 一次处理一个目标（`AssetPath` / `ActorName` / `WidgetName`）；跨目标走 `CallCapability(Calls=[{Capability,Arguments?},...])`。同一目标内继续用 `Sections` / `PropertyPaths` / `Operations` / `Updates`。没有 `assetPaths`/`actorNames`/`widgetNames` 或旧键（`blueprintPath`→`AssetPath`、`newPath`→`DestAssetPath`、`ownerWidget`→`OwnerClass`、`FilePath`→`ScriptPath`、顶层 `Fields`/`Rows`/`Keys`/`Widgets`→`Operations`）；旧键 → `ArgInvalid`
+> - **响应默认值压缩（全局开启）**：`NexusMcpDispatcher` 在序列化前递归扫描 `StructuredContent` 中的对象数组字段 `K`。仅当标量字段（string / number / bool / null）出现在**每一**条对象上才成为候选；主导值满足阈值（`MinCount=2` / `MinMatchRatio=0.7` / `MinNetSaveBytes=20`）时，在同级写入 `<K>_defaults` 并从条目中省略相等字段。稀疏字段（仅部分条目有）不抽取。身份字段（`Name` / `Path` / `AssetPath` / `NodeId` / `Tag` / `Message` / `Timestamp` / `frame` / `Id` / `Label` / `Title` / `text` / `Error`）永不进入 defaults。ForcedDefault：带类型的 `SearchAsset` 抽取 `AssetType`；`GetOutputLog` 在 `verbosity≠all` 时抽取下限；`CategoryFilter` / `ListRuntimeActors.ClassFilter` / `ListRuntimeWidgets.ClassFilter` 等过滤器仅当**本页所有条目一致**时抽取（含 N=1；不要把过滤子串当默认值）。
 >
 >   **合并规则**：`merged = {**defaults, **entry}`；条目缺字段即等于 defaults。
 >

@@ -42,7 +42,7 @@ FCapabilityResult FNexusGetAssetTextureCapability::Execute(const TSharedPtr<FJso
 			return;
 		}
 
-		Entry->SetStringField(TEXT("name"), Tex->GetName());
+		Entry->SetStringField(TEXT("Name"), Tex->GetName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("Texture2D"));
 
 		int32 TexW = 0;

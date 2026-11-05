@@ -21,7 +21,7 @@ void FNexusCreateAssetMaterialFunctionCapability::BuildDefinition(FNexusCapabili
 	Out.Description = TEXT("Create empty UMaterialFunction. Optional description and bExposeToLibrary.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Asset package path (/Game/…/MF_MyFunc)")))
-		.Prop(TEXT("description"),     FNexusSchema::Str(TEXT("Function description (optional)")))
+		.Prop(TEXT("Description"),     FNexusSchema::Str(TEXT("Function description (optional)")))
 		.Prop(TEXT("bExposeToLibrary"), FNexusSchema::Bool(TEXT("Show in material function library")))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Material };
@@ -66,7 +66,7 @@ FCapabilityResult FNexusCreateAssetMaterialFunctionCapability::Execute(const TSh
 		bool bDirty = false;
 
 		FString Desc;
-		if (Arguments->TryGetStringField(TEXT("description"), Desc) && !Desc.IsEmpty())
+		if (Arguments->TryGetStringField(TEXT("Description"), Desc) && !Desc.IsEmpty())
 		{
 			MF->Description = Desc;
 			bDirty = true;
@@ -85,7 +85,7 @@ FCapabilityResult FNexusCreateAssetMaterialFunctionCapability::Execute(const TSh
 		}
 
 		OutEntry->SetStringField(TEXT("AssetType"), TEXT("MaterialFunction"));
-		OutEntry->SetStringField(TEXT("name"),    MF->GetName());
+		OutEntry->SetStringField(TEXT("Name"),    MF->GetName());
 		OutEntry->SetStringField(TEXT("Path"),    FNexusAssetUtils::PackagePathOf(MF));
 		OutEntries.Add(MakeShared<FJsonValueObject>(OutEntry));
 #endif

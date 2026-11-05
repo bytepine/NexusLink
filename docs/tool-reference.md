@@ -8,7 +8,7 @@ This document lists all MCP tools and capabilities exposed by NexusLink with det
 
 > **Tools vs capabilities**
 > - **MCP tools (3)**: `SearchCapabilities`, `CallCapability`, `SubmitFeedback` — call directly via MCP `tools/call`.
-> - **Capabilities (all others)**: via `CallCapability`: single `Capability` + `Arguments`; or batch `Calls=[{capability,arguments?},...]`. Every `###` section below except meta-tools is a capability; the heading is the `Capability` field value.
+> - **Capabilities (all others)**: via `CallCapability`: single `Capability` + `Arguments`; or batch `Calls=[{Capability,Arguments?},...]`. Every `###` section below except meta-tools is a capability; the heading is the `Capability` field value.
 >
 > Example (single): `CallCapability(Capability="ListRuntimeActors", Arguments={"ClassFilter":"BP_Enemy"})`
 
@@ -31,9 +31,9 @@ This document lists all MCP tools and capabilities exposed by NexusLink with det
 > - Filters support substring (`Player`), prefix (`^BP_`), suffix (`Actor$`), regex (`/^BP_.+$/`)
 > - List tools support `Offset` (default 0) and `Limit` (default 100, max 500)
 > - ★ marks required parameters
-> - **manage finalize**: all `manage_asset_*` accept optional `bSaveToDisk` (default false); only `ManageAssetBlueprint` / `ManageAssetAnimBlueprint` / `ManageAssetUserWidget` also accept `bCompile` (default false). UDS fields still auto-compile after edits; materials use `Recompile` op. Standalone `SaveAsset` / `CompileBlueprint` remain available
-> - **Single target + cross-target batch (Breaking)**: capabilities handle one target (`AssetPath` / `ActorName` / `WidgetName`); cross-target via `CallCapability(Calls=[{capability,arguments?},...])`. Within one target keep `Sections` / `PropertyPaths` / `Operations` / `Updates`. No `assetPaths`/`actorNames`/`widgetNames` or legacy keys (`blueprintPath`→`AssetPath`, `newPath`→`DestAssetPath`, `ownerWidget`→`OwnerClass`, `FilePath`→`ScriptPath`, top-level `Fields`/`Rows`/`Keys`/`Widgets`→`Operations`); legacy keys → `ArgInvalid`
-> - **Response default compaction (enabled globally)**: `NexusMcpDispatcher` recursively scans object-array fields `K` in `StructuredContent` before serialization. Only scalar fields (string / number / bool / null) present on **every** object entry are candidates; when the dominant value meets thresholds (`MinCount=2` / `MinMatchRatio=0.7` / `MinNetSaveBytes=20`), write `<K>_defaults` at the same level and omit equal fields from entries. Sparse fields (only some entries) are not extracted. Identity fields (`name` / `Path` / `AssetPath` / `NodeId` / `Tag` / `Message` / `Timestamp` / `frame` / `Id` / `Label` / `Title` / `text` / `Error`) never enter defaults. ForcedDefault: typed `SearchAsset` extracts `AssetType`; `GetOutputLog` with `verbosity≠all` extracts floor; filters like `CategoryFilter` / `ListRuntimeActors.ClassFilter` / `ListRuntimeWidgets.ClassFilter` extract only when **all entries on the page agree** (N=1 included; do not treat filter substrings as defaults).
+> - **manage finalize**: all `ManageAsset*` accept optional `bSaveToDisk` (default false); only `ManageAssetBlueprint` / `ManageAssetAnimBlueprint` / `ManageAssetUserWidget` also accept `bCompile` (default false). UDS fields still auto-compile after edits; materials use `Recompile` op. Standalone `SaveAsset` / `CompileBlueprint` remain available
+> - **Single target + cross-target batch (Breaking)**: capabilities handle one target (`AssetPath` / `ActorName` / `WidgetName`); cross-target via `CallCapability(Calls=[{Capability,Arguments?},...])`. Within one target keep `Sections` / `PropertyPaths` / `Operations` / `Updates`. No `assetPaths`/`actorNames`/`widgetNames` or legacy keys (`blueprintPath`→`AssetPath`, `newPath`→`DestAssetPath`, `ownerWidget`→`OwnerClass`, `FilePath`→`ScriptPath`, top-level `Fields`/`Rows`/`Keys`/`Widgets`→`Operations`); legacy keys → `ArgInvalid`
+> - **Response default compaction (enabled globally)**: `NexusMcpDispatcher` recursively scans object-array fields `K` in `StructuredContent` before serialization. Only scalar fields (string / number / bool / null) present on **every** object entry are candidates; when the dominant value meets thresholds (`MinCount=2` / `MinMatchRatio=0.7` / `MinNetSaveBytes=20`), write `<K>_defaults` at the same level and omit equal fields from entries. Sparse fields (only some entries) are not extracted. Identity fields (`Name` / `Path` / `AssetPath` / `NodeId` / `Tag` / `Message` / `Timestamp` / `frame` / `Id` / `Label` / `Title` / `text` / `Error`) never enter defaults. ForcedDefault: typed `SearchAsset` extracts `AssetType`; `GetOutputLog` with `verbosity≠all` extracts floor; filters like `CategoryFilter` / `ListRuntimeActors.ClassFilter` / `ListRuntimeWidgets.ClassFilter` extract only when **all entries on the page agree** (N=1 included; do not treat filter substrings as defaults).
 >
 >   **Merge rule**: `merged = {**defaults, **entry}`; missing entry fields equal defaults.
 >
@@ -154,9 +154,7 @@ Edit Sequencer sections, typed keys, Control Rig controls, baking and animation 
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `Action` | `string (enum)` | ★ | Fixed animation action enum: `AddAnimationLayer` / `AddBindingTrack` / `AddBoolKey` / `AddFloatKey` / `AddIntegerKey` / `AddSection` / `AddSequenceFolder` / `AddSequenceTrack` / `AddStringKey` / `BakeChannelKeys` / `BakeRigSpace` / `BakeToControlRig` / `BakeTransform` / `ChangeActorTemplateClass` / `ClearSectionCondition` / `ClearTrackCondition` / `ClearTrackRowCondition` / `CloseSequence` / `CollapseRigLayers` / `ConvertToCustomBinding` / `ConvertToPossessable` / `ConvertToSpawnable` / `CreateRigTrack` / `DeleteAnimationLayer` / `DuplicateAnimationLayer` / `ExportAnimation` / `ExportFbx` / `ImportFbx` / `KeyRigControls` / `KeyRigControlsAtFrames` / `LinkAnimSequence` / `MergeAnimationLayers` / `MixerAddAnimationToMixer` / `MixerAddChildTrackToLayer` / `MixerAddDecoration` / `MixerAddMixerLayer` / `MixerChangeTransitionType` / `MixerInsertMixerLayer` / `MixerRemoveDecoration` / `MixerSetLayerName` / `OpenSequence` / `RemoveKey` / `RemoveSection` / `RemoveSequenceFolder` / `ReorderAnimationLayers` / `SaveDefaultSpawnableState` / `SetChannelDefault` / `SetNodeDeactivated` / `SetNodeExpanded` / `SetNodeLocked` / `SetNodeMuted` / `SetNodePinned` / `SetNodeSolo` / `SetOutlinerSelection` / `SetRigBool` / `SetRigEulerTransform` / `SetRigFloat` / `SetRigGlobalTransform` / `SetRigInteger` / `SetRigLocalTransform` / `SetRigTransform` / `SetRigWorldTransform` / `SetSectionAnimation` / `SetSectionBlendType` / `SetSectionCompletionMode` / `SetSectionCondition` / `SetSectionEaseIn` / `SetSectionEaseOut` / `SetSectionRange` / `SetTrackCondition` / `SetTrackRowCondition` |
 | `Parameters` | `object` | ★ | Exact native inputSchema fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths. |
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `GetProjectToolsets`, `GetEditorAnimation`, `ControlEditorAnimation`, `GetEditorOperation`
 
@@ -169,9 +167,8 @@ Discover or run local tests. Explicit stop uses owned operation id; no rollback.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | Controller action enum: `Discover` / `Run` / `Stop` |
-| `TestNames` | `string[]` |  | Full discovered names |
+| `TestNames` | `object[]` |  | Full discovered names |
 | `OperationId` | `string` |  | Owned run to stop |
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `GetEditorOperation`
 
@@ -187,7 +184,6 @@ Activate/deactivate a discovered built-in Game Feature plugin for this editor se
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | Session lifecycle request enum: `Activate` / `Deactivate` |
 | `PluginName` | `string` | ★ | Exact name from GetProjectGameFeatures.Plugins |
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `GetProjectGameFeatures`, `GetEditorOperation`
 
@@ -214,9 +210,7 @@ Edit Niagara renderers, nested dynamic inputs/data interfaces, emitter/system pr
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `Action` | `string (enum)` | ★ | Deep Niagara write enum: `SetSystemData` / `SetEmitterData` / `AddRenderer` / `SetRendererData` / `RemoveRenderer` / `SetStackInputData` / `AddUserVariables` / `RemoveUserVariables` / `SetModuleEnabled` / `AddSetParametersModule` / `AddSetParameterEntry` / `RemoveSetParameterEntry` |
 | `Parameters` | `object` | ★ | Exact native inputSchema fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths. |
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `GetProjectToolsets`, `GetEditorNiagara`, `ManageAssetNiagaraSystem`, `GetEditorOperation`
 
@@ -229,7 +223,6 @@ Request cancellation of an owned task. Only tasks exposing a stop callback can b
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `OperationId` | `string` | ★ | Owned running operation with bCanCancel=true |
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `GetEditorOperation`
 
@@ -244,7 +237,6 @@ Spawn/execute PCG instances or edit node settings, graph parameters, instance ov
 | `Action` | `string (enum)` | ★ | PCG control enum: `Spawn` / `Execute` / `UpdateNode` / `SetGraphParameters` / `RemoveGraphParameters` / `SetInstanceParameters` / `ResetInstanceParameters` / `AddSubgraph` |
 | `AssetPath` | `string` |  | Graph asset object path |
 | `ActorName` | `string` |  | New instance name for Spawn |
-| `Location` | `object` |  |  |
 | `ActorPath` | `string` |  | PCGVolume refPath from discovery |
 | `NodePath` | `string` |  | PCGNode refPath from discovery for UpdateNode |
 | `Parameters` | `object` |  | Native settings/instance property names and JSON values; inspect schema first |
@@ -253,7 +245,7 @@ Spawn/execute PCG instances or edit node settings, graph parameters, instance ov
 | `SubgraphPath` | `string` |  | Subgraph asset object path from AvailableSubgraphs or asset discovery |
 | `NodeName` | `string` |  | Unique new subgraph node object name |
 | `NodeTitle` | `string` |  | Optional node display title |
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
+| `Location` | `object` |  |  |
 
 **Related capabilities**: `GetEditorPCG`, `GetEditorOperation`, `SaveAsset`
 
@@ -308,7 +300,6 @@ Apply one exact fix returned by GetEditorNiagara StackIssues, then wait for nati
 | `AssetPath` | `string` | ★ | NiagaraSystem asset object path |
 | `IssueId` | `string` | ★ | IssueId from a fresh StackIssues query |
 | `FixId` | `string` | ★ | FixId belonging to that issue |
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `GetEditorNiagara`, `GetEditorOperation`
 
@@ -339,7 +330,6 @@ Inspect Sequencer sections, typed channel keys, Control Rig controls and animati
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `Action` | `string (enum)` | ★ | Fixed animation action enum: `AnimationLayers` / `Bindings` / `BindingTracks` / `ChannelDefault` / `ChannelNames` / `ControlRigs` / `Controls` / `CurrentSequence` / `FocusedSequence` / `GetCustomBindingObjects` / `GetCustomBindingsOfType` / `GetCustomBindingType` / `GetDeactivatedNodes` / `GetLinkedAnimSequences` / `GetLinkedLevelSequence` / `GetLockedNodes` / `GetMutedNodes` / `GetNodeLabel` / `GetOutlinerChildren` / `GetOutlinerSelection` / `GetOutlinerTree` / `GetPinnedNodes` / `GetSectionCondition` / `GetSectionsForNodes` / `GetSoloedNodes` / `GetTrackCondition` / `GetTrackRowCondition` / `IsNodeExpanded` / `Keys` / `MixerFindDecoration` / `MixerGetCompatibleDecorations` / `MixerGetDecorations` / `MixerGetLayerIndex` / `MixerGetLayerName` / `MixerGetLayerSections` / `MixerGetMixerLayerCount` / `MixerGetMixerLayers` / `MixerGetTransitionBetween` / `MixerGetTransitionInfo` / `MixerGetTransitionName` / `MixerGetTransitionsForSection` / `MixerIsLayerEmpty` / `RigBool` / `RigFloat` / `RigGlobalTransform` / `RigLocalTransform` / `RigTransform` / `SectionProperties` / `SectionRange` / `Sections` / `SequenceFolders` / `SequenceTracks` |
 | `Parameters` | `object` | ★ | Exact native inputSchema fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths. |
 
 **Related capabilities**: `GetProjectToolsets`, `GetEditorAnimation`, `ControlEditorAnimation`, `GetEditorOperation`
@@ -356,9 +346,8 @@ Read editor selection, browse path, and current map. editor World != PIE.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `SelectionActors` / `SelectionAssets` / `ContentBrowserPath` / `CurrentMap` |
+| `Sections` | `string[]` |  | Sections (multi-select): `SelectionActors` / `SelectionAssets` / `ContentBrowserPath` / `CurrentMap` |
 | `Limit` | `integer` |  | Max list items (selection section) |
-| `Sections` | `string[]` |  | Sections to fetch (default: SelectionActors+SelectionAssets+ContentBrowserPath+CurrentMap) enum: `SelectionActors` / `SelectionAssets` / `ContentBrowserPath` / `CurrentMap` / `All` |
 
 **Related capabilities**: `GetEditorInfo`, `CaptureViewport`, `SearchAsset`
 
@@ -473,7 +462,7 @@ Query Tag tree/Actor/asset/referencers. sections includes referencers.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `Hierarchy` / `Actor` / `Asset` / `Referencers` / `Info` / `Sources` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Hierarchy` / `Actor` / `Asset` / `Referencers` / `Info` / `Sources` |
 | `ParentTag` | `string` |  | Root tag for subtree |
 | `ActorName` | `string` |  | Runtime Actor name (actor section) |
 | `AssetPath` | `string` |  | Asset path (asset section) |
@@ -481,7 +470,6 @@ Query Tag tree/Actor/asset/referencers. sections includes referencers.
 | `NameFilter` | `string` |  | Tag name filter |
 | `Offset` | `integer` |  | referencers section pagination offset |
 | `Limit` | `integer` |  | Max count |
-| `Sections` | `string[]` |  | Sections to fetch (default: Hierarchy) enum: `Hierarchy` / `Actor` / `Asset` / `Referencers` / `Info` / `Sources` / `All` |
 
 **Related capabilities**: `GetRuntimeActorProperty`
 
@@ -495,13 +483,12 @@ Inspect registered Data Registries, row schema, item IDs, configured/runtime sou
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `Registries` / `Info` / `Schema` / `Items` / `DataSources` / `RuntimeSources` / `Values` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Registries` / `Info` / `Schema` / `Items` / `DataSources` / `RuntimeSources` / `Values` |
 | `RegistryName` | `string` |  | Registered type name from Registries; required except for Registries |
 | `ItemNames` | `string[]` |  | Values requires 1-100 exact item names |
 | `NameFilter` | `string` |  | Name substring/wildcard for discovery |
 | `Offset` | `integer` |  | Discovery offset |
 | `Limit` | `integer` |  | Discovery page size |
-| `Sections` | `string[]` |  | Sections to fetch (default: Registries) enum: `Registries` / `Info` / `Schema` / `Items` / `DataSources` / `RuntimeSources` / `Values` / `All` |
 
 ---
 
@@ -513,12 +500,11 @@ Discover built-in Game Feature plugins recognized by the engine settings, or rea
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `Plugins` / `State` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Plugins` / `State` |
 | `PluginName` | `string` |  | Exact built-in Game Feature plugin name for State |
 | `NameFilter` | `string` |  | Name substring for Plugins |
 | `Offset` | `integer` |  | Pagination offset |
 | `Limit` | `integer` |  | Maximum plugins returned |
-| `Sections` | `string[]` |  | Sections to fetch (default: Plugins) enum: `Plugins` / `State` / `All` |
 
 **Related capabilities**: `ControlEditorGameFeature`, `GetProjectPlugins`
 
@@ -530,14 +516,13 @@ Inspect discovered/enabled plugins, module names, dependencies, dependents and a
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `Plugins` / `Info` / `Dependencies` / `Dependents` / `AssetOwner` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Plugins` / `Info` / `Dependencies` / `Dependents` / `AssetOwner` |
 | `PluginName` | `string` |  | Exact discovered plugin name for Info/Dependencies/Dependents |
 | `AssetPath` | `string` |  | Asset package/object path for AssetOwner; resolves the plugin mount root |
 | `NameFilter` | `string` |  | Plugin name substring or wildcard |
 | `bEnabledOnly` | `boolean` |  | List only enabled plugins |
 | `Offset` | `integer` |  | Pagination offset |
 | `Limit` | `integer` |  | Page size |
-| `Sections` | `string[]` |  | Sections to fetch (default: Plugins) enum: `Plugins` / `Info` / `Dependencies` / `Dependents` / `AssetOwner` / `All` |
 
 ---
 
@@ -547,7 +532,7 @@ Discover registered project/editor settings, inspect property types, and read ex
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `Containers` / `Categories` / `Sections` / `Properties` / `Values` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Containers` / `Categories` / `Sections` / `Properties` / `Values` |
 | `Container` | `string` |  | Registered container; discover Containers first |
 | `Category` | `string` |  | Category name; required for Sections/Properties/Values |
 | `Section` | `string` |  | Section name; required for Properties/Values |
@@ -555,7 +540,6 @@ Discover registered project/editor settings, inspect property types, and read ex
 | `NameFilter` | `string` |  | Name substring or wildcard for discovery |
 | `Offset` | `integer` |  | Pagination offset |
 | `Limit` | `integer` |  | Page size |
-| `Sections` | `string[]` |  | Sections to fetch (default: Containers) enum: `Containers` / `Categories` / `Sections` / `Properties` / `Values` / `All` |
 
 ---
 
@@ -580,7 +564,7 @@ Discover editor Actions with per-action backend, availability, prerequisites and
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `Toolsets` / `Tools` / `Schema` / `AnimationRoutes` / `Actions` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Toolsets` / `Tools` / `Schema` / `AnimationRoutes` / `Actions` |
 | `ToolsetName` | `string` |  | Exact Toolset name from Toolsets; required for Tools/Schema |
 | `ToolName` | `string` |  | Exact fully qualified tool name from Tools; required for Schema |
 | `NameFilter` | `string` |  | Case-insensitive name substring for listing |
@@ -588,7 +572,6 @@ Discover editor Actions with per-action backend, availability, prerequisites and
 | `Action` | `string` |  | Exact action for Actions; omit to list |
 | `Offset` | `integer` |  | Pagination offset |
 | `Limit` | `integer` |  | Maximum rows |
-| `Sections` | `string[]` |  | Sections to fetch (default: Toolsets) enum: `Toolsets` / `Tools` / `Schema` / `AnimationRoutes` / `Actions` / `All` |
 
 **Related capabilities**: `GetProjectPlugins`, `GetEditorAnimation`, `ControlEditorAnimation`, `ControlEditorNiagara`
 
@@ -602,7 +585,7 @@ Inspect unreal Python members. Live dir/signature for this engine bind. Probe be
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `Target` | `string` |  | Dotted unreal path to inspect |
+| `Target` | `string` |  | Dotted path starting with unreal, e.g. unreal.AssetData. A bare identifier is prefixed automatically. |
 | `Query` | `string` |  | Substring filter on member names |
 | `bSearchDoc` | `boolean` |  | Also match query against docstrings |
 | `Offset` | `integer` |  | Pagination offset |
@@ -620,7 +603,7 @@ Read a stopped .utrace: frame stats, hitches, CPU timers, bookmarks.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `Summary` / `Frames` / `Timers` / `Bookmarks` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Summary` / `Frames` / `Timers` / `Bookmarks` |
 | `TracePath` | `string` |  | Path to a stopped .utrace file |
 | `TraceId` | `integer` |  | Store id if TracePath is omitted |
 | `StartTime` | `number` |  | Window start in seconds |
@@ -629,7 +612,6 @@ Read a stopped .utrace: frame stats, hitches, CPU timers, bookmarks.
 | `HitchLimit` | `integer` |  | Slowest frames to return |
 | `TimerLimit` | `integer` |  | Top CPU timers to return |
 | `BookmarkLimit` | `integer` |  | Bookmarks to return |
-| `Sections` | `string[]` |  | Sections to fetch (default: Summary+Frames) enum: `Summary` / `Frames` / `Timers` / `Bookmarks` / `All` |
 
 **Related capabilities**: `ListTraces`, `GetOutputLog`
 
@@ -648,8 +630,8 @@ Send UI input to a discovered target. Non-transactional; requires confirmation.
 | `Key` | `string` |  | Unreal key with optional Ctrl+/Shift+/Alt+/Cmd+ |
 | `EndRef` | `string` |  | Discovered drag destination |
 | `Value` | `string` |  | Exact option label or checkbox true/false |
-| `Fields` | `object[]` |  | Ordered form fields; prevalidated, not atomic; item: `Ref`, `Value`, `FieldType`(textbox/checkbox/combobox) |
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
+| `Fields` | `object[]` |  | Ordered form fields; prevalidated, not atomic; item: `Ref`, `Value`, `FieldType`(TextBox/CheckBox/ComboBox) |
+| `FieldType` | `string (enum)` | ★ | Form field type enum: `TextBox` / `CheckBox` / `ComboBox` |
 
 **Related capabilities**: `GetEditorOperation`
 
@@ -690,7 +672,6 @@ Add, rename or remove one explicit project GameplayTag using the engine INI edit
 |------|------|:----:|------|
 | `Tag` | `string` | ★ | Single target tag; subsequent operations follow the renamed name |
 | `Operations` | `object[]` | ★ | Ordered edits; prior successful config writes are retained after failure; item: `Action`(Add/Rename/Remove), `NewTag`, `TagSource`, `Comment` |
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `GetGameplayTags`
 
@@ -704,7 +685,6 @@ Create content-only project plugins, edit descriptor metadata/dependencies or se
 |------|------|:----:|------|
 | `PluginName` | `string` | ★ | Plugin identifier; creation only under project Plugins |
 | `Operations` | `object[]` | ★ | Plugin operations; persistent and restart-aware; item: `Action`(Create/SetEnabled/UpdateDescriptor/AddDependency/RemoveDependency), `Description`, `bEnabled`, `bOptional`, `DependencyName`, `Properties` |
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `GetProjectPlugins`
 
@@ -720,7 +700,6 @@ Set typed registered settings, save or reset a section; reports persistence and 
 | `Category` | `string` | ★ | Registered settings category |
 | `Section` | `string` | ★ | Registered settings section |
 | `Operations` | `object[]` | ★ | Settings operations; SetProperties persists values; item: `Action`(SetProperties/Save/Reset), `Properties` |
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 **Related capabilities**: `GetProjectSettings`
 
@@ -852,7 +831,7 @@ Create DataLayer asset (UDataLayerAsset, ≥UE5.1). type: Runtime or Editor.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | New DataLayer asset full path, e.g. /Game/WorldData/DL_New |
-| `type` | `string` |  | Runtime or Editor (default Runtime) |
+| `Type` | `string` |  | Runtime or Editor (default Runtime) |
 | `DebugColor` | `string` |  | Debug color (#RRGGBB or color name, optional) |
 
 **Related capabilities**: `GetAssetDataLayer`, `ManageAssetDataLayer`, `SearchAsset`
@@ -1521,9 +1500,8 @@ Read GA Blueprint. Sections=metadata|tags|costs|graphOverview; read-only.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `metadata` / `Tags` / `costs` / `graphOverview` |
+| `Sections` | `string[]` |  | Sections (multi-select): `metadata` / `Tags` / `costs` / `graphOverview` |
 | `AssetPath` | `string` | ★ | GameplayAbility Blueprint path |
-| `Sections` | `string[]` |  | Sections to fetch (default: metadata+Tags+costs) enum: `metadata` / `Tags` / `costs` / `graphOverview` / `All` |
 
 **Related capabilities**: `ManageAssetGameplayAbility`, `ManageAssetBlueprint`, `CreateAssetGameplayAbility`
 
@@ -1549,9 +1527,8 @@ Read GE Blueprint. Sections=policy|modifiers|tags|cues; read-only.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `policy` / `Modifiers` / `Tags` / `cues` |
+| `Sections` | `string[]` |  | Sections (multi-select): `policy` / `Modifiers` / `Tags` / `cues` |
 | `AssetPath` | `string` | ★ | GameplayEffect Blueprint path |
-| `Sections` | `string[]` |  | Sections to fetch (default: policy+Modifiers+Tags) enum: `policy` / `Modifiers` / `Tags` / `cues` / `All` |
 
 **Related capabilities**: `ManageAssetGameplayEffect`, `CreateAssetGameplayEffect`
 
@@ -1635,14 +1612,13 @@ Inspect level snapshot. Writes via ManageAssetLevel.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `Actors` / `Settings` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Actors` / `Settings` |
 | `AssetPath` | `string` | ★ | Level asset path (/Game/.../*.umap package path) |
 | `ClassFilter` | `string` |  | Actor class name filter (optional) |
 | `NameFilter` | `string` |  | Actor name/tag filter (optional) |
 | `TagFilter` | `string` |  | Actor Tag exact match (optional) |
 | `Offset` | `integer` |  | actors section pagination offset |
 | `Limit` | `integer` |  | actors section page size |
-| `Sections` | `string[]` |  | Sections to fetch (default: Actors+Settings) enum: `Actors` / `Settings` / `All` |
 
 **Related capabilities**: `ManageAssetLevel`, `CreateAssetLevel`, `SearchAsset`, `ListRuntimeActors`, `GetAssetRefs`
 
@@ -2107,7 +2083,7 @@ Edit ControlRig hierarchy and RigVM graph. See operations[].action.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | ControlRig Blueprint asset path |
-| `Operations` | `object[]` | ★ | Operation list; item: `Action`(RenameElement/SetControlColor/AddNull/RemoveElement/AddRigLink/BreakRigLink/AddRigNode/AddControl…), `ElementName`, `NewName`, `r`, `g`, `b`, `a`, `ParentName`, `ElementType`(Bone/Control/null), `SourcePinPath`, `TargetPinPath`, `StructType`, `NodeName`, `PinPath`, `PinDefaultValue` |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(RenameElement/SetControlColor/AddNull/RemoveElement/AddRigLink/BreakRigLink/AddRigNode/AddControl…), `ElementName`, `NewName`, `R`, `G`, `B`, `A`, `ParentName`, `ElementType`(Bone/Control/null), `SourcePinPath`, `TargetPinPath`, `StructType`, `NodeName`, `PinPath`, `PinDefaultValue` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetControlRig`, `CreateAssetControlRig`
@@ -2240,6 +2216,7 @@ Batch edit GeometryCollection. Action=SetDamageThreshold/SetProperty.
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | GeometryCollection asset path |
 | `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetDamageThreshold/SetProperty), `Index`, `Value`, `PropertyPath` |
+| `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetGeometryCollection`, `CreateAssetGeometryCollection`
 
@@ -2336,7 +2313,7 @@ Edit LevelSequence: rate/range/bindings/tracks/keys.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | LevelSequence asset path |
-| `Operations` | `object[]` | ★ | Operation list; item: `Action`(SetDisplayRate/SetPlaybackRange/RemoveBinding/AddMasterTrack/RemoveMasterTrack/AddPossessable/AddSpawnable/AddTrack…), `Numerator`, `Denominator`, `StartFrame`, `EndFrame`, `BindingGuid`, `PossessableName`, `ClassName`, `TrackClass`(CameraCut/Audio/CinematicShot/Fade/Event/LevelVisibility/Slomo/Float…), `Time`, `KeyValue`, `x`, `y`, `z`, `Pitch`, `Yaw`, `Roll` |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(SetDisplayRate/SetPlaybackRange/RemoveBinding/AddMasterTrack/RemoveMasterTrack/AddPossessable/AddSpawnable/AddTrack…), `Numerator`, `Denominator`, `StartFrame`, `EndFrame`, `BindingGuid`, `PossessableName`, `ClassName`, `TrackClass`(CameraCut/Audio/CinematicShot/Fade/Event/LevelVisibility/Slomo/Float…), `Time`, `KeyValue`, `X`, `Y`, `Z`, `Pitch`, `Yaw`, `Roll` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetLevelSequence`, `CreateAssetLevelSequence`, `SaveAsset`
@@ -2366,7 +2343,7 @@ Edit MetaSound Source/Patch graph: IO, nodes, edges (≥UE5.3 Document API).
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | MetaSound Source or Patch asset path |
-| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddInput/RemoveInput/AddOutput/RemoveOutput/AddNode/RemoveNode/AddEdge/RemoveEdge), `name`, `TypeName`, `ClassId`, `NodeName`, `NodeId`, `FromNodeId`, `FromPin`, `ToNodeId`, `ToPin` |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddInput/RemoveInput/AddOutput/RemoveOutput/AddNode/RemoveNode/AddEdge/RemoveEdge), `Name`, `TypeName`, `ClassId`, `NodeName`, `NodeId`, `FromNodeId`, `FromPin`, `ToNodeId`, `ToPin` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetMetaSound`, `CreateAssetMetaSound`, `CreateAssetMetaSoundPatch`
@@ -2419,6 +2396,13 @@ Manage PCG Graph: AddNode/RemoveNode/AddEdge/RemoveEdge (UE 5.4+).
 | `ExpectedStructureHash` | `string` |  | Precondition hash from GetAssetEditPreview |
 | `bVerifyStructure` | `boolean` |  | Verify node/edge changes against an isolated structural plan |
 | `Operations` | `object[]` | ★ | Operation list; item: `Action`(AddNode/RemoveNode/AddEdge/RemoveEdge), `SettingsClass`, `NodeId`, `FromNodeId`, `ToNodeId`, `FromPin`, `ToPin` |
+| `Action` | `string (enum)` | ★ | Action enum: `AddNode` / `RemoveNode` / `AddEdge` / `RemoveEdge` |
+| `SettingsClass` | `string` |  | UPCGSettings subclass name (AddNode) |
+| `NodeId` | `string` |  | Node id (RemoveNode) |
+| `FromNodeId` | `string` |  | Edge source node id (add/RemoveEdge) |
+| `ToNodeId` | `string` |  | Edge target node id (add/RemoveEdge) |
+| `FromPin` | `string` |  | Edge source pin name, default first output pin |
+| `ToPin` | `string` |  | Edge target pin name, default first input pin |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetPCGGraph`, `CreateAssetPCGGraph`
@@ -2462,7 +2446,7 @@ Batch edit PaperTileMap: size/TileSet/layers/cells.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | PaperTileMap asset path |
-| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetMapSize/SetTileSize/SetTileset/AddLayer/RemoveLayer/SetLayerName/SetCell/ClearCell), `MapWidth`, `MapHeight`, `TileWidth`, `TileHeight`, `TileSetPath`, `LayerIndex`, `LayerName`, `x`, `y`, `TileIndex` |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetMapSize/SetTileSize/SetTileset/AddLayer/RemoveLayer/SetLayerName/SetCell/ClearCell), `MapWidth`, `MapHeight`, `TileWidth`, `TileHeight`, `TileSetPath`, `LayerIndex`, `LayerName`, `X`, `Y`, `TileIndex` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetPaperTileMap`, `CreateAssetPaperTileMap`, `SaveAsset`
@@ -2666,7 +2650,7 @@ Batch edit StaticMesh. Material/collision/Socket/LOD ScreenSize.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | StaticMesh asset path |
-| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetMaterialSlot/SetProperty/SetCollisionTraceFlag/AddBoxCollision/AddSphereCollision/ClearSimpleCollision/AddSocket/RemoveSocket…), `SlotIndex`, `MaterialPath`, `PropertyPath`, `Value`, `CollisionTraceFlag`(UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple), `x`, `y`, `z`, `ExtentX`, `ExtentY`, `ExtentZ`, `Radius`, `SocketName`, `LocX`, `LocY`, `LocZ`, `Pitch`, `Yaw`, `Roll`, `ScaleX`, `ScaleY`, `ScaleZ`, `LODIndex`, `TrianglePercents`, `HullCount`, `MaxHullVertices`, `HullPrecision`, `bEnabled`, `ScreenSize` |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetMaterialSlot/SetProperty/SetCollisionTraceFlag/AddBoxCollision/AddSphereCollision/ClearSimpleCollision/AddSocket/RemoveSocket…), `SlotIndex`, `MaterialPath`, `PropertyPath`, `Value`, `CollisionTraceFlag`(UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple), `X`, `Y`, `Z`, `ExtentX`, `ExtentY`, `ExtentZ`, `Radius`, `SocketName`, `LocX`, `LocY`, `LocZ`, `Pitch`, `Yaw`, `Roll`, `ScaleX`, `ScaleY`, `ScaleZ`, `LODIndex`, `TrianglePercents`, `HullCount`, `MaxHullVertices`, `HullPrecision`, `bEnabled`, `ScreenSize` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetStaticMesh`, `SearchAsset`, `SaveAsset`
@@ -2836,10 +2820,10 @@ Read BP from editor. CompileStatus/orphaned/ExecPaths. Must call before answerin
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `variable` / `Function` / `Component` / `graph` / `graphOverview` / `Defaults` / `orphaned` / `ExecPaths` / `Subgraph` / `NodeTypes` / `NodeTypePins` / `GraphDSL` |
+| `Sections` | `string[]` |  | Sections (multi-select): `variable` / `Function` / `Component` / `graph` / `graphOverview` / `Defaults` / `orphaned` / `ExecPaths` / `Subgraph` / `NodeTypes` / `NodeTypePins` / `GraphDSL` |
 | `AssetPath` | `string` | ★ | Blueprint asset path |
 | `NameFilter` | `string` |  | Item name filter (/regex/ ^prefix suffix$) |
-| `PropertyPaths` | `string[]` |  | Exact property name filter for defaults, e.g. ["bUseBuffClass","Scale"] |
+| `PropertyPaths` | `string[]` |  | Exact property name filter for defaults, e.g. [\"bUseBuffClass\",\"Scale\"] |
 | `NodeId` | `string` |  | Subgraph starting node GUID |
 | `MaxDepth` | `integer` |  | Connected subgraph traversal depth |
 | `NodeTypeId` | `string` |  | Native node type from NodeTypes (UE5.8) |
@@ -2849,7 +2833,6 @@ Read BP from editor. CompileStatus/orphaned/ExecPaths. Must call before answerin
 | `GraphType` | `string (enum)` |  | Graph type filter enum: `Event` / `Function` / `Macro` / `Animgraph` / `Statemachine` / `State` / `Transition` / `Conduit` / `All` |
 | `Offset` | `integer` |  | Pagination offset |
 | `Limit` | `integer` |  | Max items per page |
-| `Sections` | `string[]` |  | Sections to fetch (default: variable+Function) enum: `variable` / `Function` / `Component` / `graph` / `graphOverview` / `Defaults` / `orphaned` / `ExecPaths` / `Subgraph` / `NodeTypes` / `NodeTypePins` / `GraphDSL` / `All` |
 
 **Related capabilities**: `ManageAssetBlueprint`, `CreateAssetBlueprint`
 
@@ -2946,10 +2929,9 @@ Inspect ABP structure. Sections=variables|statemachines|defaults|graphOverview|g
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `Variables` / `statemachines` / `Defaults` / `graphOverview` / `graph` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Variables` / `statemachines` / `Defaults` / `graphOverview` / `graph` |
 | `AssetPath` | `string` |  | AnimBlueprint asset path |
 | `NameFilter` | `string` |  | Variable/default name filter |
-| `Sections` | `string[]` |  | Sections to fetch (default: Variables+statemachines) enum: `Variables` / `statemachines` / `Defaults` / `graphOverview` / `graph` / `All` |
 
 **Related capabilities**: `ManageAssetAnimBlueprint`, `CreateAssetAnimBlueprint`
 
@@ -2991,7 +2973,7 @@ Inspect AnimSequence snapshot. Writes via ManageAssetAnimSequence.
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | AnimSequence asset path |
 | `BoneNames` | `string[]` |  | Optional 1-32 skeleton bone names to sample in local space |
-| `SampleTimes` | `array` |  | 1-128 times in seconds within the clip; required with BoneNames |
+| `SampleTimes` | `object[]` |  | 1-128 times in seconds within the clip; required with BoneNames |
 
 **Related capabilities**: `ManageAssetAnimSequence`, `SearchAsset`, `GetAssetSkeleton`, `GetAssetAnimMontage`, `GetAssetRefs`
 
@@ -3035,10 +3017,9 @@ Get AnimInstance from running skeletal mesh. Sections=state|slots|variables.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `State` / `Slots` / `Variables` |
+| `Sections` | `string[]` |  | Sections (multi-select): `State` / `Slots` / `Variables` |
 | `ActorName` | `string` | ★ | Actor name |
 | `NameFilter` | `string` |  | Variable/slot name filter |
-| `Sections` | `string[]` |  | Sections to fetch (default: State) enum: `State` / `Slots` / `Variables` / `All` |
 
 **Related capabilities**: `InteractRuntimeActorAnimation`, `GetAssetAnimMontage`
 
@@ -3139,7 +3120,7 @@ Edit BlendSpace: SetAxis / AddSample / RemoveSample.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | BlendSpace asset path |
-| `Operations` | `object[]` | ★ | Operation list; item: `Action`(SetAxis/AddSample/RemoveSample), `AxisIndex`, `DisplayName`, `Min`, `Max`, `GridNum`, `AnimationPath`, `x`, `y`, `SampleIndex` |
+| `Operations` | `object[]` | ★ | Operation list; item: `Action`(SetAxis/AddSample/RemoveSample), `AxisIndex`, `DisplayName`, `Min`, `Max`, `GridNum`, `AnimationPath`, `X`, `Y`, `SampleIndex` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetBlendSpace`, `CreateAssetBlendSpace`
@@ -3175,7 +3156,7 @@ Create Material or MaterialInstance. MI requires ParentMaterial.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | New asset full package path (e.g. /Game/Mats/M1.M1) |
-| `type` | `string (enum)` |  | Asset kind enum: `Material` / `MaterialInstance` |
+| `Type` | `string (enum)` |  | Asset kind enum: `Material` / `MaterialInstance` |
 | `ParentMaterial` | `string` |  | Parent material path (required for MaterialInstance) |
 | `MaterialDomain` | `string (enum)` |  | Material domain (Material only) enum: `Surface` / `DeferredDecal` / `LightFunction` / `Volume` / `PostProcess` / `UI` / `RuntimeVirtualTexture` |
 
@@ -3192,7 +3173,7 @@ Create empty UMaterialFunction. Optional description and bExposeToLibrary.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | Asset package path (/Game/…/MF_MyFunc) |
-| `description` | `string` |  | Function description (optional) |
+| `Description` | `string` |  | Function description (optional) |
 | `bExposeToLibrary` | `boolean` |  | Show in material function library |
 
 **Related capabilities**: `GetAssetMaterial`, `ManageAssetMaterial`, `CreateAssetMaterial`
@@ -3221,14 +3202,13 @@ Inspect Mat/MI/MF nodes and params. Sections=overview|params|graph.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `overview` / `Params` / `graph` / `ParameterGroups` |
+| `Sections` | `string[]` |  | Sections (multi-select): `overview` / `Params` / `graph` / `ParameterGroups` |
 | `AssetPath` | `string` |  | Material/MI/MaterialFunction asset path |
 | `NameFilter` | `string` |  | Parameter/node name filter |
 | `bIncludePins` | `boolean` |  | Include pin details (graph) |
 | `bIncludeWires` | `boolean` |  | Include connection info (graph) |
 | `Offset` | `integer` |  | Pagination offset |
 | `Limit` | `integer` |  | Max items per page |
-| `Sections` | `string[]` |  | Sections to fetch (default: overview) enum: `overview` / `Params` / `graph` / `ParameterGroups` / `All` |
 
 **Related capabilities**: `ManageAssetMaterial`, `CreateAssetMaterial`, `CreateAssetMaterialFunction`
 
@@ -3273,7 +3253,7 @@ Add/remove/edit MPC scalar/vector params (AddScalar/AddVector/remove/set_default
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | MPC asset path |
-| `Operations` | `object[]` | ★ | Operation list; item: `Action`(AddScalar/AddVector/Remove/SetScalarDefault/SetVectorDefault), `ParamName`, `DefaultValue`, `r`, `g`, `b`, `a` |
+| `Operations` | `object[]` | ★ | Operation list |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetMaterialParameterCollection`, `ManageAssetMaterial`
@@ -3369,7 +3349,7 @@ Read DataAsset properties. Includes type/value/inherited; path filter supported.
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | DataAsset asset path |
 | `NameFilter` | `string` |  | Property name filter (/regex/ ^prefix suffix$) |
-| `PropertyPaths` | `string[]` |  | Exact property name filter (first path segment), e.g. ["Health","Damage"] |
+| `PropertyPaths` | `string[]` |  | Exact property name filter (first path segment), e.g. [\"Health\",\"Damage\"] |
 | `Offset` | `integer` |  | Pagination offset |
 | `Limit` | `integer` |  | Max items per page |
 
@@ -3423,7 +3403,7 @@ Batch edit DataTable rows: add/remove/set; ImportText validate.
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | DataTable asset path (shared) |
 | `bVerify` | `boolean` |  | Verify scalar Set readback before saving; rejects other actions |
-| `Operations` | `object[]` | ★ | Batch row ops (at least one); item: `Action`(Add/Remove/Set), `RowName`, `FieldName`, `Value`, `ExpectedValue`, `Fields` |
+| `Operations` | `object[]` | ★ | Batch row ops (at least one); item: `Action`(Add/Remove/Set), `RowName`, `FieldName`, `Value`, `ExpectedValue` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetDataTable`, `CreateAssetDataTable`, `SaveAsset`
@@ -3455,13 +3435,12 @@ Read WBP tree, animations, graphOverview from editor. Graph details via blueprin
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `Widgets` / `Animations` / `graphOverview` / `UIComponents` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Widgets` / `Animations` / `graphOverview` / `UIComponents` |
 | `AssetPath` | `string` | ★ | Widget Blueprint asset path |
 | `NameFilter` | `string` |  | Widget/animation name substring (optional) |
 | `TypeFilter` | `string` |  | Widget class substring (widgets section only) |
 | `Offset` | `integer` |  | Widget paginationoffset (default 0) |
 | `Limit` | `integer` |  | Max widgets per page 1-500 (default 100) |
-| `Sections` | `string[]` |  | Sections to fetch (default: Widgets) enum: `Widgets` / `Animations` / `graphOverview` / `UIComponents` / `All` |
 
 **Related capabilities**: `ManageAssetUserWidget`, `CreateAssetUserWidget`, `GetAssetBlueprint`, `ManageAssetBlueprint`
 
@@ -3592,9 +3571,9 @@ Console buffer. Arm watch, act, bCollectWatch=true. Or Preset=diagnose.
 | `Verbosity` | `string (enum)` |  | Minimum verbosity level enum: `Error` / `Warning` / `Display` / `Log` / `Verbose` / `Veryverbose` / `All` |
 | `TextFilter` | `string` |  | Single text substring filter |
 | `TextFilters` | `string[]` |  | Text filter (OR); overrides TextFilter |
-| `Watch` | `object` |  | categories, TextIncludes, TextExcludes, verbosity; empty arms capture-all |
 | `bCollectWatch` | `boolean` |  | Return the armed watch buffer |
 | `bDisarm` | `boolean` |  | Disarm the watch after this call |
+| `Watch` | `object` |  | fields: `Categories`, `TextIncludes`, `TextExcludes`, `Verbosity`(Error/Warning/Display/Log/Verbose/Veryverbose/All) |
 
 **Related capabilities**: `SetLogCaptureFilter`, `ExecCommand`
 
@@ -3610,12 +3589,11 @@ Read ASC state, local Actor/ASC/Owner/Avatar/World identities, activation diagno
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `sections` | `string[]` |  | Sections (multi-select): `Abilities` / `Effects` / `Attributes` / `Context` / `Tags` / `ActivationDiagnostics` / `ActivationEvents` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Abilities` / `Effects` / `Attributes` / `Context` / `Tags` / `ActivationDiagnostics` / `ActivationEvents` |
 | `ActorName` | `string` |  | Actor name (optional; first ASC in World if omitted) |
 | `SpecHandle` | `string` |  | Granted ability handle from Abilities; exclusive with AbilityPath |
 | `AbilityPath` | `string` |  | Exact ability class path; exclusive with SpecHandle |
 | `CaptureId` | `string` |  | Activation capture returned by StartActivationCapture |
-| `Sections` | `string[]` |  | Sections to fetch (default: Abilities+Effects+Attributes) enum: `Abilities` / `Effects` / `Attributes` / `Context` / `Tags` / `ActivationDiagnostics` / `ActivationEvents` / `All` |
 
 **Related capabilities**: `InteractRuntimeActorAbilitySystem`, `GetGameplayTags`, `GetRuntimeActorProperty`
 
@@ -3799,7 +3777,7 @@ Configure buffered log categories. Empty=all; Warning/Error always captured. Aff
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `Categories` | `string[]` | ★ | Log category substrings to capture. Empty array=all. Examples: ["LogTemp"], ["LogBlueprintUserMessages","LogNexusLink"], []. Warning/Error always written regardless of this list. |
+| `Categories` | `string[]` | ★ |  |
 
 **Related capabilities**: `GetOutputLog`
 
@@ -3816,7 +3794,7 @@ Batch modify runtime Actor editable fields. One result per updates[] item.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `Target` | `string (enum)` |  | Dispatch target (auto-inferred) enum: `Actor` / `Widget` / `Asset` |
-| `Updates` | `object[]` |  | Batch update; item: `PropertyPath`, `Value`, `ActorName`, `WidgetName`, `OwnerClass` |
+| `Updates` | `object[]` |  | Batch update |
 
 **Related capabilities**: `GetRuntimeActorProperty`
 
@@ -4009,9 +3987,9 @@ runtime AI Move. Action=MoveTo; requires AIController.
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | Action enum: `MoveTo` |
 | `ActorName` | `string` | ★ | Pawn/Actor name |
-| `x` | `number` |  | Target X |
-| `y` | `number` |  | Target Y |
-| `z` | `number` |  | Target Z |
+| `X` | `number` |  | Target X |
+| `Y` | `number` |  | Target Y |
+| `Z` | `number` |  | Target Z |
 
 **Related capabilities**: `GetRuntimeActorBehaviorTree`, `ListRuntimeActors`
 
@@ -4046,7 +4024,7 @@ Batch edit BT nodes/decorators/services. ReplaceNode swaps type; SyncGraph fixes
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | BehaviorTree asset path |
-| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetRoot/AddNode/RemoveNode/ReplaceNode/MoveNode/AddDecorator/RemoveDecorator/AddService…), `NodeClass`, `NodeName`, `ParentPath`, `ChildIndex`, `TargetPath`, `TargetIndex`, `BlackboardPath`, `TargetType`(Node/Decorator/Service), `PropertyName`, `PropertyValue`, `properties` |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetRoot/AddNode/RemoveNode/ReplaceNode/MoveNode/AddDecorator/RemoveDecorator/AddService…), `NodeClass`, `NodeName`, `ParentPath`, `ChildIndex`, `TargetPath`, `TargetIndex`, `BlackboardPath`, `TargetType`(Node/Decorator/Service), `PropertyName`, `PropertyValue`, `Properties` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetBehaviorTree`, `ManageAssetBlackboard`, `SaveAsset`
@@ -4062,7 +4040,7 @@ Batch edit BB keys: add/remove/rename/set parent; persist with SaveAsset.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | BlackboardData or BehaviorTree asset path |
-| `Operations` | `object[]` | ★ | Batch key ops; item: `Action`(Add/Remove/Rename/SetParent), `KeyName`, `KeyType`(bool/float/int/string/name/Vector/Rotator/object…), `NewName`, `ParentPath` |
+| `Operations` | `object[]` | ★ | Batch key ops; item: `Action`(Add/Remove/Rename/SetParent), `KeyName`, `KeyType`(Bool/Float/Int/String/Name/Vector/Rotator/Object…), `NewName`, `ParentPath` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetBlackboard`, `CreateAssetBlackboard`, `SaveAsset`

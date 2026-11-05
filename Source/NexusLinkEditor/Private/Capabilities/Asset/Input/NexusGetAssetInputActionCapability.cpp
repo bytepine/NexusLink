@@ -92,7 +92,7 @@ FCapabilityResult FNexusGetAssetInputActionCapability::Execute(const TSharedPtr<
 		}
 
 		OutEntry->SetStringField(TEXT("AssetType"),  TEXT("InputAction"));
-		OutEntry->SetStringField(TEXT("name"),       IA->GetName());
+		OutEntry->SetStringField(TEXT("Name"),       IA->GetName());
 		OutEntry->SetStringField(TEXT("Path"),       FNexusAssetUtils::PackagePathOf(IA));
 		OutEntry->SetStringField(TEXT("ValueType"),  InputActionValueTypeToStr(IA->ValueType));
 		OutEntry->SetBoolField(TEXT("bConsumesInput"),    IA->bConsumeInput);

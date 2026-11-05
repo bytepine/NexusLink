@@ -581,7 +581,7 @@ FCapabilityResult FNexusSearchAssetCapability::Execute(const TSharedPtr<FJsonObj
 		{
 			const FEntry& E = AllEntries[i];
 			TSharedPtr<FJsonObject> EntryObj = MakeShared<FJsonObject>();
-			EntryObj->SetStringField(TEXT("name"),      E.Name);
+			EntryObj->SetStringField(TEXT("Name"),      E.Name);
 			EntryObj->SetStringField(TEXT("Path"),      E.Path);
 			EntryObj->SetStringField(TEXT("AssetType"), E.Type);
 			if (!bHoistRecommended)

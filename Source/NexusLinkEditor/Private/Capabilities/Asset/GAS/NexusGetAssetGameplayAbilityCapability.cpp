@@ -87,7 +87,7 @@ bool FNexusGetAssetGameplayAbilityCapability::PrepareEntry(
 	if (!BP) { OutError = LoadError; return false; }
 
 	OutEntry->SetStringField(TEXT("Path"), Path);
-	OutEntry->SetStringField(TEXT("name"),      BP->GetName());
+	OutEntry->SetStringField(TEXT("Name"),      BP->GetName());
 	if (BP->ParentClass) OutEntry->SetStringField(TEXT("ParentClass"), BP->ParentClass->GetName());
 
 	OutTargetOpaque = static_cast<void*>(BP);
@@ -145,8 +145,8 @@ void FNexusGetAssetGameplayAbilityCapability::ExecuteSection(
 		for (const UEdGraph* G : AllGraphs)
 		{
 			TSharedPtr<FJsonObject> GObj = MakeShared<FJsonObject>();
-			GObj->SetStringField(TEXT("name"), G->GetName());
-			GObj->SetStringField(TEXT("type"), FNexusBlueprintGraphUtils::GetBPGraphType(G));
+			GObj->SetStringField(TEXT("Name"), G->GetName());
+			GObj->SetStringField(TEXT("Type"), FNexusBlueprintGraphUtils::GetBPGraphType(G));
 			Graphs.Add(MakeShared<FJsonValueObject>(GObj));
 		}
 		InOutDetail->SetArrayField(TEXT("Graphs"), Graphs);

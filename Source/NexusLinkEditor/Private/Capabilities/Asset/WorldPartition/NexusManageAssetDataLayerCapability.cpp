@@ -63,12 +63,12 @@ static void HandleDL_SetType(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 		return;
 	}
 	FString TypeStr;
-	Op->TryGetStringField(TEXT("type"), TypeStr);
+	Op->TryGetStringField(TEXT("Type"), TypeStr);
 	EDataLayerType LayerType = EDataLayerType::Runtime;
 	if (TypeStr.Equals(TEXT("Editor"), ESearchCase::IgnoreCase))
 		LayerType = EDataLayerType::Editor;
 	DLA->SetType(LayerType);
-	Ctx.Entry->SetStringField(TEXT("type"), TypeStr.IsEmpty() ? TEXT("Runtime") : TypeStr);
+	Ctx.Entry->SetStringField(TEXT("Type"), TypeStr.IsEmpty() ? TEXT("Runtime") : TypeStr);
 	MarkDLDirty(Ctx);
 }
 

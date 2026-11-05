@@ -64,7 +64,7 @@ FCapabilityResult FNexusSearchConsoleVariablesCapability::Execute(const TSharedP
 				}
 
 				TSharedPtr<FJsonObject> Item = MakeShared<FJsonObject>();
-				Item->SetStringField(TEXT("name"), NameStr);
+				Item->SetStringField(TEXT("Name"), NameStr);
 
 				if (IConsoleVariable* CVar = Obj->AsVariable())
 				{
@@ -82,8 +82,8 @@ FCapabilityResult FNexusSearchConsoleVariablesCapability::Execute(const TSharedP
 
 		AllMatches.Sort([](const TSharedPtr<FJsonValue>& A, const TSharedPtr<FJsonValue>& B)
 		{
-			const FString NameA = A->AsObject()->GetStringField(TEXT("name"));
-			const FString NameB = B->AsObject()->GetStringField(TEXT("name"));
+			const FString NameA = A->AsObject()->GetStringField(TEXT("Name"));
+			const FString NameB = B->AsObject()->GetStringField(TEXT("Name"));
 			return NameA < NameB;
 		});
 

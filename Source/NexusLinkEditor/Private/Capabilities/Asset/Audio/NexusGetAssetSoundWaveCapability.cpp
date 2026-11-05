@@ -42,7 +42,7 @@ FCapabilityResult FNexusGetAssetSoundWaveCapability::Execute(const TSharedPtr<FJ
 			return;
 		}
 
-		Entry->SetStringField(TEXT("name"), Wave->GetName());
+		Entry->SetStringField(TEXT("Name"), Wave->GetName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("SoundWave"));
 		Entry->SetNumberField(TEXT("Duration"), Wave->GetDuration());
 		Entry->SetNumberField(TEXT("SampleRate"), Wave->GetSampleRateForCurrentPlatform());

@@ -229,7 +229,7 @@ void FNexusEditorLevelUtils::AppendLevelActorsSection(UWorld* World, const TShar
 	for (int32 i = Start; i < End; ++i)
 	{
 		TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
-		O->SetStringField(TEXT("name"), All[i].Name);
+		O->SetStringField(TEXT("Name"), All[i].Name);
 		if (!All[i].Label.IsEmpty())
 		{
 			O->SetStringField(TEXT("Label"), All[i].Label);

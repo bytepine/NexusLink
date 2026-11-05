@@ -67,8 +67,8 @@ static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, int3
 	}
 
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-	Obj->SetStringField(TEXT("name"), State->Name.ToString());
-	Obj->SetStringField(TEXT("type"), StateTypeToStr(State->Type));
+	Obj->SetStringField(TEXT("Name"), State->Name.ToString());
+	Obj->SetStringField(TEXT("Type"), StateTypeToStr(State->Type));
 	Obj->SetStringField(TEXT("Id"), State->ID.ToString());
 
 	// 进入条件节点数量
@@ -158,7 +158,7 @@ FCapabilityResult FNexusGetAssetStateTreeCapability::Execute(const TSharedPtr<FJ
 		}
 
 		OutEntry->SetStringField(TEXT("AssetType"), TEXT("StateTree"));
-		OutEntry->SetStringField(TEXT("name"), ST->GetName());
+		OutEntry->SetStringField(TEXT("Name"), ST->GetName());
 		OutEntry->SetStringField(TEXT("Path"), FNexusAssetUtils::PackagePathOf(ST));
 		OutEntry->SetBoolField(TEXT("bIsReadyToRun"), ST->IsReadyToRun());
 

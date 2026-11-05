@@ -48,7 +48,7 @@ FCapabilityResult FNexusGetAssetDataLayerCapability::Execute(const TSharedPtr<FJ
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("Path"), DLA->GetPathName());
 		Entry->SetStringField(TEXT("AssetType"), TEXT("DataLayerAsset"));
-		Entry->SetStringField(TEXT("name"),      DLA->GetName());
+		Entry->SetStringField(TEXT("Name"),      DLA->GetName());
 
 		// 类型
 		const EDataLayerType LayerType = DLA->GetType();
@@ -59,7 +59,7 @@ FCapabilityResult FNexusGetAssetDataLayerCapability::Execute(const TSharedPtr<FJ
 		case EDataLayerType::Editor:  TypeStr = TEXT("Editor");  break;
 		default:                      TypeStr = TEXT("Unknown"); break;
 		}
-		Entry->SetStringField(TEXT("type"),       TypeStr);
+		Entry->SetStringField(TEXT("Type"),       TypeStr);
 		Entry->SetNumberField(TEXT("TypeValue"),   static_cast<int32>(LayerType));
 		Entry->SetBoolField(TEXT("bIsRuntime"),     DLA->IsRuntime());
 

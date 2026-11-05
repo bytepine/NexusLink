@@ -44,7 +44,7 @@ FCapabilityResult FNexusGetAssetRenderTargetCapability::Execute(const TSharedPtr
 			: FString::FromInt((int32)RT->RenderTargetFormat);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"),         RT->GetName());
+		Entry->SetStringField(TEXT("Name"),         RT->GetName());
 		Entry->SetStringField(TEXT("Path"),         RT->GetPathName());
 		Entry->SetNumberField(TEXT("SizeX"),        RT->SizeX);
 		Entry->SetNumberField(TEXT("SizeY"),        RT->SizeY);
@@ -54,10 +54,10 @@ FCapabilityResult FNexusGetAssetRenderTargetCapability::Execute(const TSharedPtr
 
 		// ClearColor
 		TSharedPtr<FJsonObject> ClearColorObj = MakeShared<FJsonObject>();
-		ClearColorObj->SetNumberField(TEXT("r"), RT->ClearColor.R);
-		ClearColorObj->SetNumberField(TEXT("g"), RT->ClearColor.G);
-		ClearColorObj->SetNumberField(TEXT("b"), RT->ClearColor.B);
-		ClearColorObj->SetNumberField(TEXT("a"), RT->ClearColor.A);
+		ClearColorObj->SetNumberField(TEXT("R"), RT->ClearColor.R);
+		ClearColorObj->SetNumberField(TEXT("G"), RT->ClearColor.G);
+		ClearColorObj->SetNumberField(TEXT("B"), RT->ClearColor.B);
+		ClearColorObj->SetNumberField(TEXT("A"), RT->ClearColor.A);
 		Entry->SetObjectField(TEXT("ClearColor"), ClearColorObj);
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

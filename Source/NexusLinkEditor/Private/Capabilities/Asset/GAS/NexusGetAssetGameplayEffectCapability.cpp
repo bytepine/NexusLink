@@ -85,7 +85,7 @@ bool FNexusGetAssetGameplayEffectCapability::PrepareEntry(
 	if (!BP) { OutError = LoadError; return false; }
 
 	OutEntry->SetStringField(TEXT("Path"), Path);
-	OutEntry->SetStringField(TEXT("name"),      BP->GetName());
+	OutEntry->SetStringField(TEXT("Name"),      BP->GetName());
 	if (BP->ParentClass) OutEntry->SetStringField(TEXT("ParentClass"), BP->ParentClass->GetName());
 
 	OutTargetOpaque = static_cast<void*>(BP);

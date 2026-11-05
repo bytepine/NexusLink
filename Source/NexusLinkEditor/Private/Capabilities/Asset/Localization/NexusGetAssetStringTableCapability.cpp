@@ -48,7 +48,7 @@ FCapabilityResult FNexusGetAssetStringTableCapability::Execute(const TSharedPtr<
 		}
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("name"), Table->GetName());
+		Entry->SetStringField(TEXT("Name"), Table->GetName());
 		Entry->SetStringField(TEXT("Path"), Table->GetPathName());
 		Entry->SetStringField(TEXT("Namespace"), Table->GetMutableStringTable()->GetNamespace());
 
