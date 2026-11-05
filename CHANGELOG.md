@@ -7,11 +7,7 @@
 
 ## [Unreleased]
 
-### Fixed
-
-- 补齐 PascalCase 迁移遗漏：统一业务入参与返回字段、蓝图 Functions 列表、坐标/颜色分量及枚举，修复路径回显去重和新版 Call 分类反馈汇总；同步握手指引、文档及离线复测工具，审计脚本区分 Schema 关键字与同名业务参数。
-
-## [2.3.1] - 2026-11-05
+## [2.3.2] - 2026-11-05
 
 ### Added
 
@@ -29,6 +25,7 @@
 - 保存和删除 World 包时使用 `.umap`。
 - `GetPythonApi` 的裸标识符自动补 `unreal.` 前缀。
 - `GetAssetBlueprint` 的 component 条目带上模板相对 CDO 有差异的属性。
+- 统一 PascalCase 业务字段、蓝图 Functions 列表、坐标/颜色分量与枚举；修复路径回显去重和 Call 分类反馈汇总，同步调用指引及复测工具。
 
 ## [2.3.0] - 2026-11-03
 
