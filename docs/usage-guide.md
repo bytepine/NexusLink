@@ -249,6 +249,8 @@ NexusLink.Mcp panel on|off                    ; 显式打开/关闭
 - 游戏内调试面板 `NexusLink.Mcp panel`（PIE / 独立 Game 包，见 [§2.4](#24-游戏内调试面板pie--独立包)）：可视化运行信息与 Capability 会话开关
 - 输出日志可见 `NexusLink 服务器已启动`，或未启用时的提示
 
+C++ 可包含 `NexusLinkSettings.h` 并调用 `UNexusLinkSettings::IsMcpEnabled()`；调用方模块需依赖 `NexusLink`。蓝图可在 `NexusLink|MCP` 分类下使用纯函数节点 **Is Mcp Enabled**。接口读取服务的实际运行状态，反映启动参数、控制台与 Preferences 最终生效的结果；未启动、启动失败或 Shipping 构建时返回 `false`，查询本身不会加载模块或启动服务。
+
 ### 2.4 游戏内调试面板（PIE / 独立包）
 
 `~` 打开控制台执行 `NexusLink.Mcp panel`（或 `panel on`/`panel off`），挂一层 Slate 视口叠加层，不依赖任何 UMG 资产，Shipping 编译期整体剔除：

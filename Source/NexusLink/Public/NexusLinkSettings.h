@@ -59,6 +59,10 @@ public:
 	/** 获取单例。 */
 	static UNexusLinkSettings* Get();
 
+	/** 当前 MCP 服务是否实际运行；未启动、启动失败或 Shipping 构建时返回 false。 */
+	UFUNCTION(BlueprintPure, Category = "NexusLink|MCP")
+	static bool IsMcpEnabled();
+
 	/** 当前是否要求 MCP 鉴权；无 Settings 时视为开启。 */
 	static bool IsMcpAuthRequired();
 

@@ -26,6 +26,19 @@ UNexusLinkSettings* UNexusLinkSettings::Get()
 	return GetMutableDefault<UNexusLinkSettings>();
 }
 
+bool UNexusLinkSettings::IsMcpEnabled()
+{
+#if NEXUSLINK_WITH_SERVER
+	const FNexusLinkModule* Module = FModuleManager::GetModulePtr<FNexusLinkModule>(TEXT("NexusLink"));
+	if (Module)
+	{
+		const TSharedPtr<FNexusMcpServer>& Server = Module->GetMcpServer();
+		return Server.IsValid() && Server->IsRunning();
+	}
+#endif
+	return false;
+}
+
 FString UNexusLinkSettings::GetExtraMcpAuthTokensText() const
 {
 	FString Out;

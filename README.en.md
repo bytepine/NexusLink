@@ -67,6 +67,7 @@ UE defaults to HTTP `:45000` and WebSocket `:55000`; it advances to available po
 
 ## Runtime and extensions
 
+- **MCP status query**: C++ and Blueprints can query the actual server state with `UNexusLinkSettings::IsMcpEnabled()`. It returns `false` when the server has not started, startup failed, or the build is Shipping. See [runtime status](docs/usage-guide.md#23-确认运行状态).
 - **Standalone Game / DS**: append `-EnableNexusMcp` to Development / DebugGame launch arguments; these processes do not inherit editor Preferences. Game / PIE can use `NexusLink.Mcp panel`; DS has no viewport, so use `NexusLink.Mcp status`. See [runtime debugging](docs/usage-guide.md#241-独立-game--ds-mcp-debug-清单) (Chinese).
 - **UnLua extension**: install the separately released [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) for runtime Lua debugging and Blueprint binding, then discover its capabilities with `SearchCapabilities` and `lua`. See [installation](docs/usage-guide.md#可选安装-nexuslinkextunlua) (Chinese).
 - **Example project**: [NexusUnreal](https://github.com/bytepine/NexusUnreal) includes a ThirdPerson template and MCP regression tests. Plugins are git submodules; clone with `--recurse-submodules` or install the plugin separately.

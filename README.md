@@ -68,6 +68,7 @@ UE 默认监听 HTTP `:45000` 和 WebSocket `:55000`；冲突时自动切换端�
 ## 运行时与扩展
 
 - **独立 Game / DS**：Development / DebugGame 启动参数追加 `-EnableNexusMcp`，不继承编辑器 Preferences 开关。Game / PIE 可用 `NexusLink.Mcp panel` 查看状态；DS 无视口，使用 `NexusLink.Mcp status`。详见[运行时调试](docs/usage-guide.md#241-独立-game--ds-mcp-debug-清单)。
+- **MCP 状态查询**：C++ / 蓝图可通过 `UNexusLinkSettings::IsMcpEnabled()` 获取服务实际运行状态；未启动、启动失败或 Shipping 构建时返回 `false`。详见[运行状态](docs/usage-guide.md#23-确认运行状态)。
 - **UnLua 扩展**：安装独立发布的 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)，获得运行时 Lua 调试和蓝图绑定，再用 `SearchCapabilities` 搜索 `lua`。详见[安装步骤](docs/usage-guide.md#可选安装-nexuslinkextunlua)。
 - **示例工程**：[NexusUnreal](https://github.com/bytepine/NexusUnreal) 提供 ThirdPerson 模板与 MCP 回归测试。插件以子模块挂载，克隆时使用 `--recurse-submodules`，或另行安装插件。
 
