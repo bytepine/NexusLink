@@ -131,11 +131,11 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 			NewNode = FNexusBlueprintGraphUtils::MakeGenericNode(Graph, NodeUClass, PosX, PosY);
 		}
 
+	if (!NewNode) { Entry->SetStringField(TEXT("Error"), TEXT("Failed to create graph node")); return; }
 	Entry->SetStringField(TEXT("NodeId"),    NewNode->NodeGuid.ToString());
 	Entry->SetStringField(TEXT("NodeClass"), NewNode->GetClass()->GetName());
 	Entry->SetStringField(TEXT("NodeTitle"), NewNode->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
 	FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-	FKismetEditorUtilities::CompileBlueprint(BP);
 	return;
 	}
 
@@ -237,12 +237,8 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 		// 提升依赖 SkeletonGeneratedClass
 		if (!BP->SkeletonGeneratedClass)
 		{
-			FKismetEditorUtilities::CompileBlueprint(BP);
-			if (!BP->SkeletonGeneratedClass)
-			{
-				Entry->SetStringField(TEXT("Error"), TEXT("Blueprint has no SkeletonGeneratedClass; cannot PromotePin"));
+			Entry->SetStringField(TEXT("Error"), TEXT("Blueprint has no SkeletonGeneratedClass; compile explicitly before PromotePin"));
 	return;
-			}
 		}
 
 		const FName SavedPinName = TargetPin->PinName;
@@ -346,7 +342,6 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 		Entry->SetStringField(TEXT("NodeClass"), Spawned->GetClass()->GetName());
 		Entry->SetBoolField(TEXT("bIsLocal"), bIsLocal);
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-		FKismetEditorUtilities::CompileBlueprint(BP);
 	return;
 	}
 #else

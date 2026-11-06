@@ -18,7 +18,7 @@ public class NexusLink : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
 			"CoreUObject", "Engine", "Projects", "Sockets", "Networking", "Json", "JsonUtilities",
-			"AssetRegistry", "UMG", "GameplayTags", "AIModule", "GameplayTasks",
+			"AssetRegistry", "UMG", "GameplayTags", "AIModule", "GameplayTasks", "NavigationSystem",
 			"ImageWrapper", "AnimGraphRuntime", "RenderCore", "PhysicsCore",
 			"LevelSequence", "MovieScene", "MovieSceneTracks", "Foliage", "MediaAssets",
 			"Slate", "SlateCore", "ApplicationCore", "InputCore",

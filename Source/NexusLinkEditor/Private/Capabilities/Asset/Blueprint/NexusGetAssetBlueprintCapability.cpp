@@ -13,6 +13,7 @@
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyReportUtils.h"
 #include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Components/SceneComponent.h"
@@ -163,6 +164,8 @@ struct FNexusBPComponentEntry
 	FString AttachParent;
 	FString Source; // "owned" | "bInherited" | "native"
 	FString OwnerBlueprint; // 仅 inherited：来源父蓝图名
+	FString TemplatePath;
+	bool bOverridesResolved = true;
 	TSharedPtr<FJsonObject> TemplateProperties;
 };
 
@@ -173,6 +176,7 @@ static void FillTemplatePropertyDiffs(FNexusBPComponentEntry& Entry, UActorCompo
 	{
 		return;
 	}
+	Entry.TemplatePath = Template->GetPathName();
 	UObject* CDO = Template->GetClass()->GetDefaultObject();
 	if (!CDO || CDO == Template)
 	{
@@ -223,6 +227,8 @@ static TSharedPtr<FJsonObject> SerializeComponentEntry(const FNexusBPComponentEn
 	Obj->SetStringField(TEXT("Source"), E.Source);
 	Obj->SetBoolField(TEXT("bInherited"), E.Source != TEXT("owned"));
 	if (!E.OwnerBlueprint.IsEmpty()) Obj->SetStringField(TEXT("OwnerBlueprint"), E.OwnerBlueprint);
+	Obj->SetStringField(TEXT("TemplatePath"), E.TemplatePath);
+	Obj->SetBoolField(TEXT("bOverridesResolved"), E.bOverridesResolved);
 	if (E.TemplateProperties.IsValid()) Obj->SetObjectField(TEXT("TemplateProperties"), E.TemplateProperties);
 	return Obj;
 }
@@ -252,7 +258,7 @@ static void CollectOwnedSCSEntries(USimpleConstructionScript* SCS, TSet<FString>
 
 #if WITH_EDITOR
 // 沿父类链向上找蓝图生成类，合并各级父蓝图自身 SCS 中新增的组件（同名以更近的层级为准）
-static void CollectInheritedSCSEntries(UClass* ParentClass, TSet<FString>& UsedNames, TArray<FNexusBPComponentEntry>& Out)
+static void CollectInheritedSCSEntries(UClass* ParentClass, UBlueprintGeneratedClass* TargetClass, TSet<FString>& UsedNames, TArray<FNexusBPComponentEntry>& Out)
 {
 	for (UClass* Cls = ParentClass; Cls; Cls = Cls->GetSuperClass())
 	{
@@ -265,14 +271,17 @@ static void CollectInheritedSCSEntries(UClass* ParentClass, TSet<FString>& UsedN
 			if (UsedNames.Contains(VarName)) continue; // 更近层级（本 BP 或更近祖先）已覆盖，跳过
 			FNexusBPComponentEntry E;
 			E.VariableName = VarName;
-			if (Node->ComponentTemplate)
+			UActorComponent* Template = TargetClass ? Node->GetActualComponentTemplate(TargetClass) : nullptr;
+			E.bOverridesResolved = Template != nullptr;
+			if (!Template) Template = Node->ComponentTemplate;
+			if (Template)
 			{
-				E.ComponentClass = Node->ComponentTemplate->GetClass()->GetName();
-				E.bIsSceneComponent = Node->ComponentTemplate->IsA(USceneComponent::StaticClass());
+				E.ComponentClass = Template->GetClass()->GetName();
+				E.bIsSceneComponent = Template->IsA(USceneComponent::StaticClass());
 			}
 			if (!Node->ParentComponentOrVariableName.IsNone())
 				E.AttachParent = Node->ParentComponentOrVariableName.ToString();
-			FillTemplatePropertyDiffs(E, Node->ComponentTemplate);
+			FillTemplatePropertyDiffs(E, Template);
 			E.Source = TEXT("bInherited");
 			E.OwnerBlueprint = ParentBP->GetName();
 			Out.Add(E);
@@ -282,15 +291,17 @@ static void CollectInheritedSCSEntries(UClass* ParentClass, TSet<FString>& UsedN
 }
 #endif // WITH_EDITOR
 
-// 沿父类链找最近的 C++ 原生类，读取其 CDO 上 CreateDefaultSubobject 生成的原生组件
-static void CollectNativeEntries(UClass* ParentClass, TSet<FString>& UsedNames, TArray<FNexusBPComponentEntry>& Out)
+// 读取目标蓝图 CDO 的原生子对象，保留各级蓝图已保存的覆盖；无 CDO 时显式标记回退。
+static void CollectNativeEntries(UBlueprint* BP, TSet<FString>& UsedNames, TArray<FNexusBPComponentEntry>& Out)
 {
-	UClass* NativeAncestor = ParentClass;
+	UClass* NativeAncestor = BP->ParentClass;
 	while (NativeAncestor && !NativeAncestor->HasAnyClassFlags(CLASS_Native))
 		NativeAncestor = NativeAncestor->GetSuperClass();
 	if (!NativeAncestor) return;
 
-	AActor* NativeActor = Cast<AActor>(NativeAncestor->GetDefaultObject(false));
+	AActor* NativeActor = BP->GeneratedClass ? Cast<AActor>(BP->GeneratedClass->GetDefaultObject(false)) : nullptr;
+	const bool bOverridesResolved = NativeActor != nullptr;
+	if (!NativeActor) NativeActor = Cast<AActor>(NativeAncestor->GetDefaultObject(false));
 	if (!NativeActor) return;
 
 	TInlineComponentArray<UActorComponent*> Comps;
@@ -302,6 +313,7 @@ static void CollectNativeEntries(UClass* ParentClass, TSet<FString>& UsedNames, 
 		if (UsedNames.Contains(VarName)) continue; // 蓝图层已覆盖同名组件
 		FNexusBPComponentEntry E;
 		E.VariableName = VarName;
+		E.bOverridesResolved = bOverridesResolved;
 		E.ComponentClass = Comp->GetClass()->GetName();
 		E.bIsSceneComponent = Comp->IsA(USceneComponent::StaticClass());
 		if (USceneComponent* SceneComp = Cast<USceneComponent>(Comp))
@@ -366,9 +378,9 @@ static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FNexusBP
 	TArray<FNexusBPComponentEntry> AllEntries;
 	CollectOwnedSCSEntries(BP->SimpleConstructionScript, UsedNames, AllEntries);
 #if WITH_EDITOR
-	if (BP->ParentClass) CollectInheritedSCSEntries(BP->ParentClass, UsedNames, AllEntries);
+	if (BP->ParentClass) CollectInheritedSCSEntries(BP->ParentClass, Cast<UBlueprintGeneratedClass>(BP->GeneratedClass), UsedNames, AllEntries);
 #endif
-	if (BP->ParentClass) CollectNativeEntries(BP->ParentClass, UsedNames, AllEntries);
+	if (BP->ParentClass) CollectNativeEntries(BP, UsedNames, AllEntries);
 
 	// NameFilter 过滤（对变量名 / 组件类名）
 	TArray<FNexusBPComponentEntry> Filtered;

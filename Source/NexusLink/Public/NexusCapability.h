@@ -210,7 +210,7 @@ public:
 	FCapabilityResult Run(const TSharedPtr<FJsonObject>& Arguments, bool bFinalize = true) const;
 
 	/** 批处理延迟收尾：全部内存操作通过后再编译，全部编译通过后再保存。 */
-	void Finalize(const TSharedPtr<FJsonObject>& Arguments, FCapabilityResult& Result) const;
+	virtual void Finalize(const TSharedPtr<FJsonObject>& Arguments, FCapabilityResult& Result) const;
 
 	// ── 子类样板 helper（protected static，opt-in，新 cap 推荐使用）──────────
 

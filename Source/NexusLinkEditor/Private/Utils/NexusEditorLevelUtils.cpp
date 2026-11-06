@@ -52,7 +52,11 @@ UWorld* FNexusEditorLevelUtils::LoadLevelWorldForRead(const FString& AssetPath, 
 		}
 	}
 
-	UPackage* Package = LoadPackage(nullptr, *PackagePath, LOAD_NoWarn);
+	// 优先复用已加载的地图（包括尚未保存的新地图），避免重复加载及忽略内存中的修改。
+	UPackage* Package = FindPackage(nullptr, *PackagePath);
+	UWorld* LoadedWorld = Package ? UWorld::FindWorldInPackage(Package) : nullptr;
+	if (LoadedWorld && !LoadedWorld->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad)) return LoadedWorld;
+	Package = LoadPackage(nullptr, *PackagePath, LOAD_NoWarn);
 	if (!Package)
 	{
 		OutError = FString::Printf(TEXT("Level package not found: %s"), *PackagePath);

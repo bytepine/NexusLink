@@ -4,18 +4,22 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusEditorLevelUtils.h"
+#include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
+#include "GameFramework/Actor.h"
 #include "NexusMcpTool.h"
 
 void FNexusGetAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("GetAssetLevel");
 	Out.SearchAssetTypes = {TEXT("World")};
-	Out.Description = TEXT("Inspect level snapshot. Writes via ManageAssetLevel.");
+	Out.Description = TEXT("Inspect level actors, settings and object property values versus class defaults; no writes.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.Prerequisites = { TEXT("EditorOnly") };
-	Out.ExtraSearchKeywords = { TEXT("Level"), TEXT("map"), TEXT("umap"), TEXT("World"), TEXT("Actor") };
+	Out.ExtraSearchKeywords = { TEXT("Level"), TEXT("map"), TEXT("umap"), TEXT("World"), TEXT("Actor"), TEXT("object"), TEXT("property") };
 	Out.RelatedCapabilities = { TEXT("ManageAssetLevel"), TEXT("CreateAssetLevel"), TEXT("SearchAsset"), TEXT("ListRuntimeActors"), TEXT("GetAssetRefs") };
 	Out.WhenToUse = TEXT("Read on-disk level; WorldSettings via ManageAssetLevel");
 }
@@ -27,6 +31,8 @@ TSharedPtr<FJsonObject> FNexusGetAssetLevelCapability::BuildCapabilitySchema() c
 		.Prop(TEXT("ClassFilter"), FNexusSchema::Str(TEXT("Actor class name filter (optional)")))
 		.Prop(TEXT("NameFilter"),  FNexusSchema::Str(TEXT("Actor name/tag filter (optional)")))
 		.Prop(TEXT("TagFilter"),   FNexusSchema::Str(TEXT("Actor Tag exact match (optional)")))
+		.Prop(TEXT("ActorName"),   FNexusSchema::Str(TEXT("Exact actor name from Actors for ActorProperties")))
+		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("ActorProperties: explicit reflected property paths (max 32); returns Value, DefaultValue and bDiffersFromDefault")))
 		.Prop(TEXT("Offset"),      FNexusSchema::Int(TEXT("actors section pagination offset"), 0, 0))
 		.Prop(TEXT("Limit"),       FNexusSchema::Int(TEXT("actors section page size"), 100, 1, 500))
 		.Required({ TEXT("AssetPath") })
@@ -35,7 +41,7 @@ TSharedPtr<FJsonObject> FNexusGetAssetLevelCapability::BuildCapabilitySchema() c
 
 TArray<FString> FNexusGetAssetLevelCapability::GetSectionNames() const
 {
-	return { TEXT("Actors"), TEXT("Settings") };
+	return { TEXT("Actors"), TEXT("Settings"), TEXT("ActorProperties") };
 }
 
 TArray<FString> FNexusGetAssetLevelCapability::GetDefaultSectionNames() const
@@ -91,6 +97,65 @@ void FNexusGetAssetLevelCapability::ExecuteSection(const FString&               
 	else if (SectionName == TEXT("Settings"))
 	{
 		FNexusEditorLevelUtils::AppendLevelSettingsSection(World, InOutDetail);
+	}
+	else if (SectionName == TEXT("ActorProperties"))
+	{
+		const FString ActorName = FNexusArgs(Args).Str(TEXT("ActorName"));
+		TArray<FString> Paths;
+		FNexusPropertyUtils::ReadStringArray(Args, TEXT("PropertyPaths"), Paths);
+		if (ActorName.IsEmpty() && Paths.Num() == 0)
+		{ InOutDetail->SetStringField(TEXT("Note"), TEXT("Provide ActorName and PropertyPaths for actor/default property values")); return; }
+		if (ActorName.IsEmpty() || Paths.Num() == 0 || Paths.Num() > 32)
+		{ OutError = TEXT("ActorProperties requires ActorName and 1..32 PropertyPaths"); return; }
+		AActor* Actor = nullptr;
+		for (TActorIterator<AActor> ActorIt(World); ActorIt; ++ActorIt)
+		{
+			if (ActorIt->GetName() != ActorName) continue;
+			if (Actor) { OutError = TEXT("ActorName is ambiguous across loaded levels"); return; }
+			Actor = *ActorIt;
+		}
+		if (!Actor)
+		{ OutError = TEXT("Exact actor name not found; read Actors first"); return; }
+		UObject* Defaults = Actor->GetClass()->GetDefaultObject(false);
+		InOutDetail->SetStringField(TEXT("ActorName"), ActorName);
+		if (Defaults) InOutDetail->SetStringField(TEXT("DefaultObjectPath"), Defaults->GetPathName());
+		TArray<TSharedPtr<FJsonValue>> Properties;
+		for (const FString& Path : Paths)
+		{
+			TSharedPtr<FJsonObject> Property = MakeShared<FJsonObject>();
+			Property->SetStringField(TEXT("PropertyPath"), Path);
+			TArray<FString> Segments;
+			Path.ParseIntoArray(Segments, TEXT("."), false);
+			FProperty* Field = nullptr;
+			void* Value = nullptr;
+			FString Error;
+			if (!FNexusPropertyUtils::ResolvePropertyWrite(Actor, Segments, 0, Field, Value, Error))
+			{ Property->SetStringField(TEXT("Error"), Error); OutError = TEXT("One or more actor properties could not be read"); }
+			else
+			{
+				FString Text;
+				FNexusPropertyUtils::ExportText(Field, Text, Value);
+				Property->SetStringField(TEXT("Type"), Field->GetCPPType());
+				Property->SetStringField(TEXT("Value"), Text);
+				FProperty* DefaultField = nullptr;
+				void* DefaultValue = nullptr;
+				if (Defaults && FNexusPropertyUtils::ResolvePropertyWrite(Defaults, Segments, 0, DefaultField, DefaultValue, Error)
+					&& DefaultField == Field)
+				{
+					Text.Reset();
+					FNexusPropertyUtils::ExportText(DefaultField, Text, DefaultValue);
+					Property->SetStringField(TEXT("DefaultValue"), Text);
+					Property->SetBoolField(TEXT("bDiffersFromDefault"), !Field->Identical(Value, DefaultValue, PPF_None));
+				}
+				else
+				{
+					Property->SetStringField(TEXT("DefaultError"), Error.IsEmpty() ? TEXT("Matching class default is unavailable") : Error);
+					OutError = TEXT("One or more class default properties could not be read");
+				}
+			}
+			Properties.Add(MakeShared<FJsonValueObject>(Property));
+		}
+		InOutDetail->SetArrayField(TEXT("Properties"), Properties);
 	}
 	else
 	{

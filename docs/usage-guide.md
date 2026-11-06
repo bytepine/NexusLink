@@ -334,6 +334,8 @@ UE4 Store 按 `TraceId` 直接分析数据流，返回的 `TracePath` 为空，�
 
 控制台行按钮：**打开目录** / **导出 Markdown** / **创建 GitHub Issue**。批量读取后若需保留包，对 `CallCapability` 传 `bKeepLoaded=true`；立即释放用 `UnloadAsset`。
 
+导出报告会展示 `Other` 补充意见及结构化错误，合并旧分类拼写后比较趋势；搜索平均命中数只统计实际带数值的记录，慢调用附脱敏参数摘要。Issue 草稿优先使用包含实际错误的反馈。
+
 危险 Capability 的访问模式也在同一设置页，完整行为见 [§2.10](#210-危险-capability-与脚本执行)。
 
 自动埋点与 `SubmitFeedback` 的 schema 见 [`tool-reference.zh.md`](./tool-reference.zh.md#submitfeedback)。

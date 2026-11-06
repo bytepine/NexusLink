@@ -45,9 +45,8 @@ public:
 	// ── 跨版本属性序列化兼容 ──
 	static void ExportText(const FProperty* Prop, FString& OutValue, const void* Data)
 	{
-#if NX_UE_HAS_EXPORT_TEXT_DIRECT
-		Prop->ExportText_Direct(OutValue, Data, nullptr, nullptr, PPF_None);
-#elif NX_UE_HAS_EXPORT_TEXT_ITEM_DIR
+#if NX_UE_HAS_EXPORT_TEXT_ITEM_DIR
+		// ExportText_Direct 是差分导出，会省略 false/0；属性读取必须无条件导出实际值。
 		Prop->ExportTextItem_Direct(OutValue, Data, nullptr, nullptr, PPF_None);
 #else
 		Prop->ExportTextItem(OutValue, Data, nullptr, nullptr, PPF_None);

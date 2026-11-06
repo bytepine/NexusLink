@@ -36,12 +36,25 @@ static TArray<TSharedPtr<FJsonObject>> ParseLines(const TArray<FString>& Lines)
 	return Result;
 }
 
+/** 兼容旧分类拼写，避免趋势图把改名误报为问题消失或新增。 */
+static FString NormalizeCategory(const FString& Category)
+{
+	FString Key = Category.ToLower().Replace(TEXT("_"), TEXT(""));
+	for (const TCHAR* Name : {TEXT("CallArgInvalid"), TEXT("CallFatal"), TEXT("CallUnknown"), TEXT("CallDisabled"),
+		TEXT("SearchZero"), TEXT("SearchOverflow"), TEXT("SlowCall"), TEXT("SchemaGuess"), TEXT("WrongTool"),
+		TEXT("Misuse"), TEXT("Other"), TEXT("RedundantCall"), TEXT("ProxyDisconnect"), TEXT("ProxyTimeout"), TEXT("ProxyConnectFail")})
+	{
+		if (Key == FString(Name).ToLower()) return Name;
+	}
+	return Category;
+}
+
 /** 从 JSON 对象安全取字符串，缺失返回 ""。 */
 static FString GetStr(const TSharedPtr<FJsonObject>& O, const FString& Key)
 {
 	FString V;
 	O->TryGetStringField(Key, V);
-	return V;
+	return Key == TEXT("Category") ? NormalizeCategory(V) : V;
 }
 
 /** 读取 jsonl 文件为记录数组；文件不存在或为空时返回空数组。 */
@@ -209,6 +222,7 @@ static int32 CategoryWeight(const FString& Cat)
 	if (Cat == TEXT("Misuse"))           return 20;
 	if (Cat == TEXT("SchemaGuess"))     return 20;
 	if (Cat == TEXT("WrongTool"))       return 20;
+	if (Cat == TEXT("Other"))          return 12;
 	if (Cat == TEXT("CallUnknown"))     return 15;
 	if (Cat == TEXT("ProxyDisconnect")) return 15;
 	if (Cat == TEXT("ProxyTimeout"))    return 15;
@@ -258,7 +272,8 @@ static void BuildIssueDraftFromRecords(const TArray<TSharedPtr<FJsonObject>>& Re
 	for (const auto& R : Records)
 	{
 		const FString Cat = GetStr(R, TEXT("Category"));
-		const int32 W = CategoryWeight(Cat);
+		// 手动提交的实际错误比自动慢调用更适合作为最小复现，不能把长反馈藏在 Other 计数里。
+		const int32 W = CategoryWeight(Cat) + (GetStr(R, TEXT("ActualError")).IsEmpty() ? 0 : 20);
 		if (W > BestWeight)
 		{
 			BestWeight = W;
@@ -500,7 +515,7 @@ static void AppendIssuePrefillSection(FString& Md, const TArray<TSharedPtr<FJson
 	const FString BaseUrl = ResolveIssueNewBaseUrl();
 
 	Md += TEXT("---\n\n");
-	Md += TEXT("## §8 GitHub Issue 预填\n\n");
+	Md += TEXT("## §11 GitHub Issue 预填\n\n");
 	Md += FString::Printf(
 			TEXT("目标仓库：[issues/new](%s)\n\n"),
 			*BaseUrl);
@@ -632,7 +647,7 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 
 	// §3 搜索过载 Top 10（SearchOverflow）
 	{
-		struct FOverflowStat { int32 Count = 0; int64 TotalMatch = 0; };
+		struct FOverflowStat { int32 Count = 0; int32 MatchSamples = 0; int64 TotalMatch = 0; };
 		TMap<FString, FOverflowStat> Stats;
 		for (const auto& R : Records)
 		{
@@ -640,10 +655,10 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 			const FString Q = GetStr(R, TEXT("Query"));
 			if (Q.IsEmpty()) continue;
 			int32 MC = 0;
-			R->TryGetNumberField(TEXT("MatchCount"), MC);
 			FOverflowStat& S = Stats.FindOrAdd(Q);
 			S.Count++;
-			S.TotalMatch += MC;
+			if (R->TryGetNumberField(TEXT("MatchCount"), MC) && MC > 0)
+			{ S.TotalMatch += MC; ++S.MatchSamples; }
 		}
 		Md += TEXT("## §3 搜索过载 Top 10（SearchOverflow）\n\n");
 		if (Stats.Num() == 0)
@@ -660,9 +675,9 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 			for (const auto& P : Arr)
 			{
 				if (++Cnt > 10) break;
-				const double Avg = P.Value.Count > 0
-					? static_cast<double>(P.Value.TotalMatch) / P.Value.Count : 0.0;
-				Md += FString::Printf(TEXT("| `%s` | %d | %.1f |\n"), *P.Key, P.Value.Count, Avg);
+				const FString Avg = P.Value.MatchSamples > 0
+					? FString::Printf(TEXT("%.1f"), static_cast<double>(P.Value.TotalMatch) / P.Value.MatchSamples) : TEXT("—");
+				Md += FString::Printf(TEXT("| `%s` | %d | %s |\n"), *P.Key, P.Value.Count, *Avg);
 			}
 			Md += TEXT("\n");
 		}
@@ -941,6 +956,19 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 		}
 	}
 
+	Md += TEXT("\n---\n\n## §10 补充意见（Other）\n\n");
+	int32 OtherCount = 0;
+	for (const auto& Record : Records)
+	{
+		if (GetStr(Record, TEXT("Category")) != TEXT("Other")) continue;
+		Md += FString::Printf(TEXT("### %d. %s\n\n"), ++OtherCount, *GetStr(Record, TEXT("Capability")));
+		for (const TCHAR* Field : {TEXT("Ts"), TEXT("Note"), TEXT("AttemptedArgs"), TEXT("ActualError"), TEXT("ExpectedField")})
+		{
+			const FString Value = GetStr(Record, Field);
+			if (!Value.IsEmpty()) Md += FString::Printf(TEXT("**%s**: %s\n\n"), Field, *Value);
+		}
+	}
+	if (OtherCount == 0) Md += TEXT("_无数据_\n\n");
 	AppendIssuePrefillSection(Md, Records);
 	return Md;
 }
@@ -1006,7 +1034,19 @@ FString FNexusFeedback::ExportReport()
 			TSharedPtr<FJsonObject> SummaryObj;
 			if (FJsonSerializer::Deserialize(SR, SummaryObj) && SummaryObj.IsValid())
 			{
-				PrevSummary = SummaryObj->GetObjectField(TEXT("Categories"));
+				const TSharedPtr<FJsonObject>* Categories = nullptr;
+				if (SummaryObj->TryGetObjectField(TEXT("Categories"), Categories) || SummaryObj->TryGetObjectField(TEXT("categories"), Categories))
+				{
+					PrevSummary = MakeShared<FJsonObject>();
+					for (const auto& Pair : (*Categories)->Values)
+					{
+						double Count = 0, Previous = 0;
+						if (!Pair.Value->TryGetNumber(Count)) continue;
+						const FString Category = NormalizeCategory(Pair.Key);
+						PrevSummary->TryGetNumberField(Category, Previous);
+						PrevSummary->SetNumberField(Category, Previous + Count);
+					}
+				}
 			}
 		}
 	}

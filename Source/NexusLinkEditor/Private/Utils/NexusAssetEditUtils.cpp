@@ -3,6 +3,7 @@
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusEditorTransaction.h"
 #include "Engine/Blueprint.h"
 #include "Engine/DataTable.h"
 #include "WidgetBlueprint.h"
@@ -83,6 +84,7 @@ static bool ResolveEditProperty(UObject* Asset, const FString& Capability, const
 	if (!Resolved.Owner) { Error = TEXT("Target/CDO/Widget is unavailable; prepare the asset before preview"); return false; }
 	if (Capability != TEXT("ManageAssetDataTable"))
 	{ Struct = Resolved.Owner->GetClass(); Container = Resolved.Owner; }
+	UObject* RootOwner = Resolved.Owner;
 	if (!Struct || !Container || Path.IsEmpty()) { Error = TEXT("Property path or DataTable row is missing"); return false; }
 	TArray<FString> Segments;
 	Path.ParseIntoArray(Segments, TEXT("."), false);
@@ -94,9 +96,18 @@ static bool ResolveEditProperty(UObject* Asset, const FString& Capability, const
 		Resolved.Value = Resolved.Property->ContainerPtrToValuePtr<void>(Container);
 		if (SegmentIndex + 1 < Segments.Num())
 		{
-			FStructProperty* Nested = CastField<FStructProperty>(Resolved.Property);
-			if (!Nested) { Error = TEXT("Only struct field traversal is supported; object/container traversal is rejected"); return false; }
-			Struct = Nested->Struct; Container = Resolved.Value;
+			if (FStructProperty* Nested = CastField<FStructProperty>(Resolved.Property))
+			{ Struct = Nested->Struct; Container = Resolved.Value; }
+			else if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Resolved.Property))
+			{
+				UObject* Subobject = ObjectProperty->GetObjectPropertyValue(Resolved.Value);
+				// 只允许目标 CDO/Widget 自己持有的子对象，禁止沿资产引用修改外部对象。
+				if (!Subobject || !Subobject->IsIn(RootOwner))
+				{ Error = TEXT("Object traversal requires an owned subobject; null/external references are rejected"); return false; }
+				Resolved.Owner = Subobject;
+				Struct = Subobject->GetClass(); Container = Subobject;
+			}
+			else { Error = TEXT("Only struct fields and owned subobjects support traversal; containers are rejected"); return false; }
 		}
 	}
 	FProperty* Property = Resolved.Property;
@@ -219,9 +230,12 @@ void FNexusAssetEditUtils::Apply(UObject* Asset, const FString& Capability, cons
 	if (Blueprint)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-		if (bVerify || Capability == TEXT("ManageAssetBlueprint"))
+		// BP 在整批操作结束后统一编译与回读；这里不能因 ExpectedValue/bVerify 隐式编译。
+		if (bVerify && Capability != TEXT("ManageAssetBlueprint"))
 		{
-			FKismetEditorUtilities::CompileBlueprint(Blueprint);
+			const EBlueprintCompileOptions Options = FNexusEditorTransaction::IsTransactionActive()
+				? EBlueprintCompileOptions::SkipGarbageCollection : EBlueprintCompileOptions::None;
+			FKismetEditorUtilities::CompileBlueprint(Blueprint, Options);
 			Entry->SetBoolField(TEXT("bCompiled"), Blueprint->Status != BS_Error);
 			if (Blueprint->Status == BS_Error)
 			{
@@ -243,4 +257,22 @@ void FNexusAssetEditUtils::Apply(UObject* Asset, const FString& Capability, cons
 		Entry->SetBoolField(TEXT("bVerified"), true);
 		Entry->SetStringField(TEXT("Verification"), TEXT("Passed"));
 	}
+}
+
+void FNexusAssetEditUtils::Verify(UObject* Asset, const FString& Capability,
+	const TSharedPtr<FJsonObject>& Operation, TSharedPtr<FJsonObject>& Entry)
+{
+	FAssetEditProperty Actual;
+	FString Error, Readback;
+	Entry->SetBoolField(TEXT("bVerified"), false);
+	Entry->SetStringField(TEXT("Verification"), TEXT("Failed"));
+	if (!ResolveEditProperty(Asset, Capability, Operation, Actual, Error))
+	{ Entry->SetStringField(TEXT("Error"), TEXT("Readback failed: ") + Error); return; }
+	FNexusPropertyUtils::ExportText(Actual.Property, Readback, Actual.Value);
+	Entry->SetStringField(TEXT("ReadbackValue"), Readback);
+	if (Actual.Property->GetCPPType() != Entry->GetStringField(TEXT("PropertyType"))
+		|| Readback != Entry->GetStringField(TEXT("NewValue")))
+	{ Entry->SetStringField(TEXT("Error"), TEXT("Readback differs from normalized target value; package was not saved")); return; }
+	Entry->SetBoolField(TEXT("bVerified"), true);
+	Entry->SetStringField(TEXT("Verification"), TEXT("Passed"));
 }

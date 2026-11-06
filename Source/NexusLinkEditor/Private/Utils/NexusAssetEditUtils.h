@@ -10,4 +10,5 @@ struct FNexusAssetEditUtils final
 	static bool ValidateOperations(const FString& Capability, const TSharedPtr<FJsonObject>& Args, FString& Error);
 	static void Preview(UObject* Asset, const FString& Capability, const TSharedPtr<FJsonObject>& Operation, TSharedPtr<FJsonObject>& Entry);
 	static void Apply(UObject* Asset, const FString& Capability, const TSharedPtr<FJsonObject>& Operation, bool bVerify, TSharedPtr<FJsonObject>& Entry);
+	static void Verify(UObject* Asset, const FString& Capability, const TSharedPtr<FJsonObject>& Operation, TSharedPtr<FJsonObject>& Entry);
 };

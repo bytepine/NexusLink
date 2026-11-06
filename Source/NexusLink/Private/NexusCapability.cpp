@@ -573,6 +573,7 @@ FCapabilityResult FNexusCapability::Run(const TSharedPtr<FJsonObject>& Arguments
 			? Def.Name
 			: TEXT("CallCapability");
 		F.Capability = Def.Name;
+		F.AttemptedArgs = FNexusFeedback::BuildRedactedArgsSnapshot(Args);
 			F.Note       = FString::Printf(TEXT("%.0fms > threshold %dms%s"), ElapsedMs, S->SlowCallThresholdMs,
 				Result.FatalError.IsEmpty() ? TEXT("") : TEXT(" (error)"));
 			FNexusFeedback::RecordAuto(TEXT("SlowCall"), F);

@@ -9,11 +9,26 @@
 
 ### Fixed
 
-- HTTP / WebSocket 请求在帧起点派发，避免 Tick 期间或编译等待时重入资产编辑；蓝图组件操作按 `bCompile` 在批次结束后集中编译，外层事务中的收尾编译跳过 GC，保留 Undo 回滚快照。
+- HTTP / WebSocket 请求在帧起点派发，避免 Tick 期间或编译等待时重入资产编辑；蓝图变量、图、接口、默认值与组件操作按 `bCompile` 在批次结束后集中编译，`ExpectedValue` / `bVerify` 不再隐式编译蓝图，外层事务中的收尾编译跳过 GC，保留 Undo 回滚快照。
+- `GetAssetBlueprint` 组件读取使用目标蓝图 CDO 与继承覆盖模板，返回模板路径及覆盖解析标记；标量编辑预览和校验支持目标拥有的组件子对象，拒绝空指针和外部对象引用。
+- 修复 UE 5.5+ 属性文本读取把 `false`、`0` 等默认值错误输出为空串的问题，避免影响属性检查和标量写入校验。
+- 反馈报告合并旧分类名称后比较趋势，搜索平均命中数只计算有数值的样本，完整展示 `Other` 补充意见并优先选择含实际错误的复现记录；慢调用附脱敏参数摘要，修复章节编号重复。
+- `ExportAsset` 按输出扩展名选择导出器并使用自动化导出任务，禁止弹出交互对话框，返回导出器错误。
 - 修复 MCP 异步操作结果回调中局部变量遮蔽会话状态成员导致的 Linux Clang `-Wshadow` 编译失败。
 - 将编辑器操作使用的 `EditorScriptingUtilities`、`SequencerScripting` 依赖限制为仅在 Editor 目标启用，兼容 UE4 / UE5 目标过滤字段，修复 iOS 等非编辑器构建的平台依赖检查失败，并避免额外引入 `PythonScriptPlugin`。
 - 修复 Android API 23 的网卡枚举编译兼容，改用引擎 SocketSubsystem；Android / iOS 的鉴权 token 使用应用可写目录并限制文件权限，不再调用桌面端 `UserHomeDir`。
 - Shipping 强制关闭 MCP，剔除鉴权和网卡枚举实现，跳过日志捕获、控制台命令、引擎初始化回调及 token 配置归一化；不再由本插件启用 `WebSocketNetworking`。
+
+### Added
+
+- `ManageAssetBlueprint` 增加 `Reparent`，支持普通蓝图重设父类、Undo 与批末按需编译，拒绝继承循环和不兼容资产类型，离开原继承链须显式允许潜在数据丢失；增加原生成员变量重命名 `RenameVariable`，存在子蓝图或 RepNotify 时提前拒绝；共享变量类型解析支持 BlueprintType 结构体路径及数组、Set、Map，拒绝嵌套容器和不可哈希的键。
+- `GetAssetLevel` 增加 `ActorProperties`，按 `ActorName` 与 `PropertyPaths` 只读比较关卡 Actor 当前值和类默认值，复用已加载地图，避免为属性检查导出整个关卡。
+- `GetNavigationPath` 在 Editor / PIE / Game 中查询已有导航路径，支持普通 Actor 上下文、完整/部分路径及有界路径点，返回长度与代价；不移动 Actor、不创建或重建导航数据。
+- `ControlEditorAssetEditor` 打开、聚焦或查询单个资产编辑器；支持只验证，地图仍经 `ControlEditorLevel` 的未保存检查，不加入原子批次。
+
+### Changed
+
+- 工具搜索可发现变量重命名和关卡对象属性读取；`reparent`、`navigation path`、`asset editor` 直接返回对应能力的完整参数，避免宽泛结果过载。
 
 ## [2.3.2] - 2026-11-05
 

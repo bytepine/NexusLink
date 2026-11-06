@@ -9,12 +9,13 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Exporters/Exporter.h"
+#include "AssetExportTask.h"
 #include "NexusMcpTool.h"
 
 void FNexusExportAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("ExportAsset");
-	Out.Description = TEXT("Export asset to disk file. Uses UE ExportToFile.");
+	Out.Description = TEXT("Export asset to disk without dialogs. Output extension selects a compatible UE exporter.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Asset path")))
 		.Prop(TEXT("OutputPath"), FNexusSchema::Str(TEXT("Export file path (ext included; empty auto-exports to Saved/Exported/)")))
@@ -68,11 +69,13 @@ FCapabilityResult FNexusExportAssetCapability::Execute(const TSharedPtr<FJsonObj
 		FString OutputPath;
 		if (Arguments.IsValid()) Arguments->TryGetStringField(TEXT("OutputPath"), OutputPath);
 
-		UExporter* Exporter = FindExporterForAsset(Asset);
+		const FString RequestedExtension = FPaths::GetExtension(OutputPath);
+		UExporter* Exporter = OutputPath.IsEmpty() ? FindExporterForAsset(Asset)
+			: (RequestedExtension.IsEmpty() ? nullptr : UExporter::FindExporter(Asset, *RequestedExtension));
 		if (!Exporter)
 		{
 			FNexusCapability::EmitError(OutEntries, {{TEXT("Path"), AssetPath}},
-				TEXT("No applicable exporter found"));
+				TEXT("No applicable exporter for the asset and requested extension"));
 			return;
 		}
 
@@ -95,15 +98,22 @@ FCapabilityResult FNexusExportAssetCapability::Execute(const TSharedPtr<FJsonObj
 			if (!Dir.IsEmpty()) IFileManager::Get().MakeDirectory(*Dir, true);
 		}
 
-		const int32 ExportResult = UExporter::ExportToFile(Asset, Exporter, *OutputPath, false, false, false);
-		const bool bSuccess = (ExportResult != 0);
+		UAssetExportTask* Task = NewObject<UAssetExportTask>();
+		Task->Object = Asset;
+		Task->Exporter = Exporter;
+		Task->Filename = OutputPath;
+		Task->bAutomated = true;
+		Task->bPrompt = false;
+		Task->bReplaceIdentical = true;
+		const bool bSuccess = UExporter::RunAssetExportTask(Task);
 
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("Path"), AssetPath);
 		Entry->SetStringField(TEXT("AssetClass"), Asset->GetClass()->GetName());
 		Entry->SetStringField(TEXT("OutputPath"), OutputPath);
 		Entry->SetStringField(TEXT("Exporter"), Exporter->GetClass()->GetName());
-		if (!bSuccess) Entry->SetStringField(TEXT("Error"), TEXT("Exportfailed"));
+		Entry->SetBoolField(TEXT("bAutomated"), true);
+		if (!bSuccess) Entry->SetStringField(TEXT("Error"), Task->Errors.Num() > 0 ? FString::Join(Task->Errors, TEXT("; ")) : TEXT("Export failed"));
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	});

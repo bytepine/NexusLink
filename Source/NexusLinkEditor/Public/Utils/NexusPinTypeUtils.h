@@ -28,6 +28,8 @@ public:
 	 *   - bool / int / float / string / name / text
 	 *   - vector / rotator / transform（自动映射到对应 TBaseStructure）
 	 *   - 其他：按 UClass 名查找（允许裸名、带 U 前缀、完整资产路径）
+	 *   - BlueprintType UScriptStruct 名或完整路径（如 /Script/CoreUObject.Vector）
+	 *   - T[] / Array<T> / Set<T> / Map<K,V>；不支持嵌套容器，Set/Map key 必须可哈希
 	 */
 	static bool ParsePinType(const FString& TypeStr, FEdGraphPinType& OutPinType, FString& OutError);
 #endif

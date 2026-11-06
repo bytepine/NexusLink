@@ -10,6 +10,9 @@ class UBlueprint;
 /** ManageAssetBlueprint 的 Capability —— 增删/修改蓝图变量、图节点及连线。 */
 class FNexusManageAssetBlueprintCapability : public FNexusActionCapability
 {
+public:
+	virtual void Finalize(const TSharedPtr<FJsonObject>& Arguments, FCapabilityResult& Result) const override;
+
 protected:
 	virtual void BuildDefinition(FNexusCapabilityDefinition& Out) const override;
 	virtual void RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const override;

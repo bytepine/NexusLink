@@ -317,20 +317,25 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 	// ── query 精确 cap 名短路（等同 CapabilityName）────────────────────────────
 	const FString QueryTrimmed = QueryRaw.TrimStartAndEnd();
 	{
+		// 明确的操作意图直接返回专用接口，避免 asset/editor 等分类词产生搜索过载。
+		FString LookupName = QueryTrimmed;
+		if (QueryTrimmed.Equals(TEXT("reparent"), ESearchCase::IgnoreCase)) LookupName = TEXT("ManageAssetBlueprint");
+		else if (QueryTrimmed.Equals(TEXT("navigation path"), ESearchCase::IgnoreCase)) LookupName = TEXT("GetNavigationPath");
+		else if (QueryTrimmed.Equals(TEXT("asset editor"), ESearchCase::IgnoreCase)) LookupName = TEXT("ControlEditorAssetEditor");
 		const FCapRecord* Record = nullptr;
-		const FNexusCapabilityLookup::EStatus Status = ResolveCapabilityByName(QueryTrimmed, Settings, Record);
+		const FNexusCapabilityLookup::EStatus Status = ResolveCapabilityByName(LookupName, Settings, Record);
 		if (Status == FNexusCapabilityLookup::EStatus::Enabled)
 		{
 			EmitCapabilityDetailFromRecord(*Record, Output);
 			Output->SetStringField(TEXT("Hint"),
-				TEXT("Exact capability name match; full parameter schema returned."));
+				LookupName == QueryTrimmed ? TEXT("Exact capability name match; full parameter schema returned.") : TEXT("Intent match; full parameter schema returned."));
 			Result.StructuredContent = Output;
 			Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 			return Result;
 		}
 		if (Status == FNexusCapabilityLookup::EStatus::Disabled || Status == FNexusCapabilityLookup::EStatus::Unavailable)
 		{
-			EmitCapabilityLookupError(Status, QueryTrimmed, Record, Output);
+			EmitCapabilityLookupError(Status, LookupName, Record, Output);
 			Result.StructuredContent = Output;
 			Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 			return Result;

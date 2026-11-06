@@ -1,5 +1,7 @@
 {
   "descriptions": {
+    "GetNavigationPath": "在 Editor/PIE/Game 中只读查询已有导航数据的路径；不移动 Actor、不依赖 AIController、不重建导航。",
+    "ControlEditorAssetEditor": "打开或聚焦单个资产编辑器，或查询其打开状态；不保存、不关闭，地图使用 ControlEditorLevel。",
     "ControlEditorLevel": "按资产路径打开编辑器地图。关卡或外部 Actor 有未保存修改时拒绝，除非指定 bDiscardUnsaved；不启动 PIE。",
     "SetRuntimeActorTransform": "使用原生变换接口移动、旋转或缩放运行时 Actor，返回修改前的变换；写入前校验全部参数。",
     "GetAssetPackageChunks": "读取 AssetRegistry 中的包分块 ID，或在指定 PathFilter 下按 ChunkId 列包。",
@@ -73,7 +75,7 @@
     "DuplicateAsset": "复制编辑器资产到新路径。源资产不变。",
     "ExecCommand": "执行 UE 控制台命令并捕获输出。镜像到 LogConsole。",
     "ExecPython": "在编辑器内执行 Python。exec 传 code、file 传 ScriptPath、eval 求值；捕获 stdout 与 traceback。写前先 GetPythonApi。",
-    "ExportAsset": "将资产导出到磁盘文件。使用 UE ExportToFile。",
+    "ExportAsset": "按输出扩展名选择兼容 UE 导出器，以自动化模式导出到磁盘，不弹出对话框。",
     "GetAssetAnimBlueprint": "检查动画蓝图结构。Sections=variables|statemachines|defaults|graphOverview|graph。",
     "GetAssetAnimComposite": "读取 AnimComposite 轨道片段（AnimReference/StartPos/duration/PlayRate）。",
     "GetAssetAnimMontage": "检查 Montage 时间轴快照。只读，不触发播放。",
@@ -102,7 +104,7 @@
     "GetAssetIKRig": "读取 IKRig：预览网格/Solver/BoneChain 列表。写入走 manage。",
     "GetAssetInputAction": "读取 InputAction 配置：ValueType/Trigger/Modifier/flags。UE5+。",
     "GetAssetInputMappingContext": "列出 IMC 全部 Action-Key 绑定及 Trigger/Modifier 数量。UE5+。",
-    "GetAssetLevel": "检查关卡快照。写入走 ManageAssetLevel。",
+    "GetAssetLevel": "只读检查关卡 Actor、设置及对象属性，比较当前值与类默认值。",
     "GetAssetLevelSequence": "读取 LevelSequence 时长/帧率、Binding 与 Track 类型概览。",
     "GetAssetMaterial": "检查 Mat/MI/MF 节点与参数。Sections=overview|params|graph。",
     "GetAssetMaterialParameterCollection": "列出 MPC 标量/向量参数及默认值。",
