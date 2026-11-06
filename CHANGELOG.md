@@ -11,6 +11,8 @@
 
 - 修复 MCP 异步操作结果回调中局部变量遮蔽会话状态成员导致的 Linux Clang `-Wshadow` 编译失败。
 - 将编辑器操作使用的 `EditorScriptingUtilities`、`SequencerScripting` 依赖限制为仅在 Editor 目标启用，兼容 UE4 / UE5 目标过滤字段，修复 iOS 等非编辑器构建的平台依赖检查失败，并避免额外引入 `PythonScriptPlugin`。
+- 修复 Android API 23 的网卡枚举编译兼容，改用引擎 SocketSubsystem；Android / iOS 的鉴权 token 使用应用可写目录并限制文件权限，不再调用桌面端 `UserHomeDir`。
+- Shipping 强制关闭 MCP，剔除鉴权和网卡枚举实现，跳过日志捕获、控制台命令、引擎初始化回调及 token 配置归一化；不再由本插件启用 `WebSocketNetworking`。
 
 ## [2.3.2] - 2026-11-05
 

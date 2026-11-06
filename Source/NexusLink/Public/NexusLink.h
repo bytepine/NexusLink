@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NexusLinkBuildConfig.h"
 #include "Modules/ModuleManager.h"
 
 class FNexusMcpServer;
@@ -47,10 +48,12 @@ private:
 	void HandleMcpCommand(const TArray<FString>& Args, class UWorld* World, class FOutputDevice& Ar);
 
 	TSharedPtr<FNexusMcpServer>  McpServer;
+#if NEXUSLINK_WITH_SERVER
 	/** 日志捕获器，模块生命周期内持续收集 UE 输出日志。 */
 	TUniquePtr<FNexusLogCapture> LogCapture;
 
 	/** NexusLink.Mcp 控制台命令句柄。 */
 	class IConsoleObject* McpConsoleCommand = nullptr;
+#endif
 };
 

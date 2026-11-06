@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 
 /**
- * 本机共享 MCP 鉴权 token。
- * 落盘 {LocalAppData|Application Support|.config}/NexusLink/mcp-auth-token，
- * 同机 UE / Desktop / Rider / VSCode 复用同一份。
+ * MCP 鉴权 token。
+ * 桌面端落盘 {LocalAppData|Application Support|.config}/NexusLink/mcp-auth-token，
+ * 同机 UE / Desktop / Rider / VSCode 复用；移动端使用各应用自己的目录。
  */
 struct NEXUSLINK_API FNexusMcpAuth
 {

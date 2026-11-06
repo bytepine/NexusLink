@@ -108,6 +108,10 @@ flowchart TB
 | Windows | `%LOCALAPPDATA%\NexusLink\mcp-auth-token` |
 | macOS | `~/Library/Application Support/NexusLink/mcp-auth-token` |
 | Linux | `~/.config/NexusLink/mcp-auth-token` |
+| Android | `<应用内部 files 目录>/NexusLink/mcp-auth-token` |
+| iOS | `<ProjectSavedDir>/NexusLink/mcp-auth-token` |
+
+移动端使用各应用自己的目录，不与电脑代理共享 token 文件；Android 使用应用内部存储。
 
 `GET /status` 只检查服务在不在，**不含 token**。本机代理连本机 UE 会自动读该文件（及 `{Temp}/NexusLink/{PID}.json`），**无需**再配 remoteUnreal。
 
@@ -190,6 +194,8 @@ Rider / Desktop 远程列表每行：`192.168.1.30:45000` 或 `192.168.1.30:4500
 `HotReloadRuntimeLua` 需要 UnLua 2.x。`EvalRuntimeLua`、`DofileRuntimeLua` 默认禁用，访问模式统一在 NexusLink 的危险 Capability 设置中管理。
 
 插件拆两个模块：`NexusLink`（**`Type: Runtime`**）+ `NexusLinkEditor`（**`Type: Editor`**，仅编辑器二进制加载）——**MCP 跑在 Editor / PIE / editor-hosted `-server`，以及 Development/DebugGame 的独立 Game/DS**；Shipping 编译期整体剔除服务器。
+
+Shipping 中模块启动与退出不安装 MCP 日志捕获、控制台命令或初始化回调，不读写鉴权 token、不整理 token 配置、不枚举网卡；扩展插件也不读取指引文件。即使传入启用参数，也不会启动 MCP。
 
 ### 2.2 启用 MCP 服务器（必做）
 

@@ -1,15 +1,20 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "NexusLanHost.h"
+#include "NexusLinkBuildConfig.h"
 
 const TCHAR* FNexusLanHost::Loopback = TEXT("127.0.0.1");
 
+#if NEXUSLINK_WITH_SERVER
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <winsock2.h>
 #include <iphlpapi.h>
 #include "Windows/HideWindowsPlatformTypes.h"
 #pragma comment(lib, "iphlpapi.lib")
+#elif PLATFORM_ANDROID
+#include "IPAddress.h"
+#include "SocketSubsystem.h"
 #else
 #include <ifaddrs.h>
 #include <arpa/inet.h>
@@ -79,6 +84,23 @@ TArray<FNexusLanIPv4> FNexusLanHost::ListLanIPv4()
 		}
 	}
 	FMemory::Free(Adapters);
+#elif PLATFORM_ANDROID
+	// Android API 24 之前没有 getifaddrs，使用引擎的兼容实现。
+	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	if (SocketSubsystem)
+	{
+		TArray<TSharedPtr<FInternetAddr>> Addresses;
+		if (SocketSubsystem->GetLocalAdapterAddresses(Addresses))
+		{
+			for (const TSharedPtr<FInternetAddr>& Address : Addresses)
+			{
+				if (Address.IsValid() && Address->IsValid() && Address->GetProtocolType() == FNetworkProtocolTypes::IPv4)
+				{
+					AddUniqueLan(Out, TEXT("Android"), Address->ToString(false));
+				}
+			}
+		}
+	}
 #else
 	ifaddrs* Ifaces = nullptr;
 	if (getifaddrs(&Ifaces) == 0)
@@ -103,3 +125,9 @@ TArray<FNexusLanIPv4> FNexusLanHost::ListLanIPv4()
 
 	return Out;
 }
+
+#else
+
+TArray<FNexusLanIPv4> FNexusLanHost::ListLanIPv4() { return TArray<FNexusLanIPv4>(); }
+
+#endif

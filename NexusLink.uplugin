@@ -45,7 +45,9 @@
 		},
 		{
 			"Name": "WebSocketNetworking",
-			"Enabled": true
+			"Enabled": true,
+			"BlacklistTargetConfigurations": [ "Shipping" ],
+			"TargetConfigurationDenyList": [ "Shipping" ]
 		},
 		{
 			"Name": "GameplayAbilities",

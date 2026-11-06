@@ -2,6 +2,9 @@
 
 #include "NexusLink.h"
 #include "NexusLinkBuildConfig.h"
+
+#if NEXUSLINK_WITH_SERVER
+#include "Log/NexusLogCapture.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Server/NexusMcpServer.h"
 #include "NexusLinkSettings.h"
@@ -9,7 +12,6 @@
 #include "NexusMcpToolRegistry.h"
 #include "Utils/NexusPortUtils.h"
 #include "NexusInstanceRegistry.h"
-#include "Log/NexusLogCapture.h"
 #include "Containers/Ticker.h"
 #include "Misc/App.h"
 #include "Misc/CommandLine.h"
@@ -504,5 +506,16 @@ void FNexusLinkModule::HandleMcpCommand(const TArray<FString>& Args, UWorld* Wor
 	ApplyDesiredMcpState(&Ar);
 #endif
 }
+
+#else
+
+// Shipping 保留模块接口，不安装日志捕获、控制台命令或引擎初始化回调。
+void FNexusLinkModule::StartupModule() {}
+void FNexusLinkModule::ShutdownModule() {}
+bool FNexusLinkModule::TryStartMcpServer() { return false; }
+void FNexusLinkModule::StopMcpServer() {}
+void FNexusLinkModule::ApplyDesiredMcpState(FOutputDevice*) {}
+
+#endif
 
 IMPLEMENT_MODULE(FNexusLinkModule, NexusLink)

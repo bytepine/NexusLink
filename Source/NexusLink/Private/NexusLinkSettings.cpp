@@ -56,6 +56,7 @@ FString UNexusLinkSettings::GetExtraMcpAuthTokensText() const
 void UNexusLinkSettings::PostInitProperties()
 {
 	Super::PostInitProperties();
+#if NEXUSLINK_WITH_SERVER
 	// 旧版本这里是逗号分隔的单个字符串，升级后按数组逐条归一化
 	TArray<FString> Normalized;
 	for (const FString& Item : ExtraMcpAuthTokens)
@@ -74,6 +75,7 @@ void UNexusLinkSettings::PostInitProperties()
 		ExtraMcpAuthTokens = MoveTemp(Normalized);
 		SaveConfig();
 	}
+#endif
 }
 
 bool UNexusLinkSettings::IsMcpAuthRequired()

@@ -1,6 +1,9 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "NexusMcpAuth.h"
+#include "NexusLinkBuildConfig.h"
+
+#if NEXUSLINK_WITH_SERVER
 #include "Misc/FileHelper.h"
 #include "Misc/Guid.h"
 #include "Misc/Paths.h"
@@ -8,7 +11,7 @@
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformProcess.h"
 
-#if PLATFORM_MAC || PLATFORM_LINUX
+#if PLATFORM_MAC || PLATFORM_LINUX || PLATFORM_ANDROID || PLATFORM_IOS
 #include <sys/stat.h>
 #endif
 
@@ -51,12 +54,20 @@ static FString GetMachineAuthTokenPath()
 	}
 #elif PLATFORM_MAC
 	const FString Base = FPaths::Combine(FPlatformProcess::UserHomeDir(), TEXT("Library/Application Support"));
-#else
+#elif PLATFORM_ANDROID
+	// 使用应用内部目录，避免把长期凭证写到外部共享存储。
+	extern FString GInternalFilePath;
+	const FString Base = GInternalFilePath;
+#elif PLATFORM_IOS
+	const FString Base = FPaths::ProjectSavedDir();
+#elif PLATFORM_LINUX
 	FString Base = FPlatformMisc::GetEnvironmentVariable(TEXT("XDG_CONFIG_HOME"));
 	if (Base.IsEmpty())
 	{
 		Base = FPaths::Combine(FPlatformProcess::UserHomeDir(), TEXT(".config"));
 	}
+#else
+	const FString Base = FPaths::ProjectSavedDir();
 #endif
 	return FPaths::Combine(Base, TEXT("NexusLink"), TEXT("mcp-auth-token"));
 }
@@ -64,7 +75,7 @@ static FString GetMachineAuthTokenPath()
 // token 是长期凭证，POSIX 上默认 0644 同机其他用户可读，收敛为 0600
 static void RestrictTokenFilePermissions(const FString& Path)
 {
-#if PLATFORM_MAC || PLATFORM_LINUX
+#if PLATFORM_MAC || PLATFORM_LINUX || PLATFORM_ANDROID || PLATFORM_IOS
 	chmod(TCHAR_TO_UTF8(*Path), S_IRUSR | S_IWUSR);
 #endif
 }
@@ -202,3 +213,12 @@ bool FNexusMcpAuth::IsTokenAccepted(const FString& PresentedRaw, const FString& 
 	}
 	return false;
 }
+
+#else
+
+// Shipping 不生成、读取或校验鉴权凭证；保留接口，误调用时默认拒绝。
+FString FNexusMcpAuth::LoadOrCreateMachineToken(const FString&) { return FString(); }
+void FNexusMcpAuth::ParseAuthTokens(const FString&, TArray<FString>&) {}
+bool FNexusMcpAuth::IsTokenAccepted(const FString&, const FString&, const FString&) { return false; }
+
+#endif
