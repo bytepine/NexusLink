@@ -28,9 +28,21 @@
 		}
 	],
 	"Plugins": [
-		{ "Name": "EditorScriptingUtilities", "Enabled": true, "Optional": true },
+		{
+			"Name": "EditorScriptingUtilities",
+			"Enabled": true,
+			"Optional": true,
+			"WhitelistTargets": [ "Editor" ],
+			"TargetAllowList": [ "Editor" ]
+		},
 		{ "Name": "StructUtils", "Enabled": true, "Optional": true },
-		{ "Name": "SequencerScripting", "Enabled": true, "Optional": true },
+		{
+			"Name": "SequencerScripting",
+			"Enabled": true,
+			"Optional": true,
+			"WhitelistTargets": [ "Editor" ],
+			"TargetAllowList": [ "Editor" ]
+		},
 		{
 			"Name": "WebSocketNetworking",
 			"Enabled": true

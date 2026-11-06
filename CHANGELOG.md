@@ -10,6 +10,7 @@
 ### Fixed
 
 - 修复 MCP 异步操作结果回调中局部变量遮蔽会话状态成员导致的 Linux Clang `-Wshadow` 编译失败。
+- 将编辑器操作使用的 `EditorScriptingUtilities`、`SequencerScripting` 依赖限制为仅在 Editor 目标启用，兼容 UE4 / UE5 目标过滤字段，修复 iOS 等非编辑器构建的平台依赖检查失败，并避免额外引入 `PythonScriptPlugin`。
 
 ## [2.3.2] - 2026-11-05
 
