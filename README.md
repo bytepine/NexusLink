@@ -11,7 +11,7 @@
 ## 能做什么
 
 - **功能补充**：[动作级发现、结构预览、首次导入、多人 PIE、PCG 输出、骨骼采样、任务历史、性能预算与源控预检](docs/feature-followups.md)。
-- **编辑器与资产**：查询项目上下文，读写蓝图、材质、动画、音频、DataTable、Widget 和 Niagara 等资产；可打开编辑器地图（当前关卡未保存时拒绝），并按 AssetRegistry 查询包的 pak chunk。支持[修改前预览与写后校验](docs/asset-edit-preview.md)，结构校验失败时阻止自动保存，FBX 动画导入逐 take 保护已有资产。
+- **编辑器与资产**：查询项目上下文，读写蓝图、材质、动画、音频、DataTable、Widget 和 Niagara 等资产；蓝图组件批量编辑后按 `bCompile` 集中编译；可打开编辑器地图（当前关卡未保存时拒绝），并按 AssetRegistry 查询包的 pak chunk。支持[修改前预览与写后校验](docs/asset-edit-preview.md)，结构校验失败时阻止自动保存，FBX 动画导入逐 take 保护已有资产。
 - **运行时调试**：在 PIE、独立 Game 和 Dedicated Server 中检查日志、Actor、动画、AI / EQS 和 GAS；可用原生变换接口移动 Actor。有视口的 Game / PIE 还支持 [UMG 控件交互](docs/runtime-widgets.md)，可按实例路径读取、修改和交互 Actor 上 WidgetComponent 的控件树。
 - **复测与性能分析**：[GAS 技能激活诊断](docs/gas-retest.md)、[行为树 / Blackboard 条件复测](docs/bt-retest.md)、[已停录 Trace 的同条件性能对比](docs/trace-compare.md)。
 - **编辑器自动化**：[Slate 界面查询与交互、Automation 测试、非阻塞 Live Coding](docs/editor-toolsets.md)。

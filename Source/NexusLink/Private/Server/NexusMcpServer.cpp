@@ -228,6 +228,14 @@ bool FNexusMcpServer::Start(int32 InMcpPort, int32 InWsPort)
 	}
 
 	bRunning = true;
+	const TWeakPtr<FNexusMcpServer> WeakSelf = AsShared();
+	RequestFrameHandle = FCoreDelegates::OnBeginFrame.AddLambda([WeakSelf]()
+	{
+		if (const TSharedPtr<FNexusMcpServer> Server = WeakSelf.Pin())
+		{
+			Server->ProcessPendingRequests();
+		}
+	});
 
 	// 注册 60s 周期的会话主动清理 Ticker，防止客户端崩溃后孤儿会话滞留
 #if NX_UE_HAS_FTSTICKER
@@ -253,6 +261,10 @@ void FNexusMcpServer::Stop()
 
 	bRunning = false;
 	bLanBound = false;
+	FCoreDelegates::OnBeginFrame.Remove(RequestFrameHandle);
+	RequestFrameHandle.Reset();
+	// 请求闭包先检查运行状态，HTTP 返回 ServerStopped，WS 丢弃失效连接。
+	ProcessPendingRequests();
 	StopWebSocket();
 
 	// 移除会话清理 Ticker
@@ -279,6 +291,33 @@ void FNexusMcpServer::Stop()
 
 	HttpRouter.Reset();
 	UE_LOG(LogNexusMcpServer, Log, TEXT("NexusLink 服务器已停止"));
+}
+
+void FNexusMcpServer::QueueRequest(const TWeakPtr<FNexusMcpServer>& WeakSelf, TFunction<void()> Request)
+{
+	AsyncTask(ENamedThreads::GameThread, [WeakSelf, Request = MoveTemp(Request)]() mutable
+	{
+		const TSharedPtr<FNexusMcpServer> Server = WeakSelf.Pin();
+		if (Server.IsValid() && Server->IsRunning())
+		{
+			Server->PendingRequests.Add(MoveTemp(Request));
+		}
+		else
+		{
+			Request();
+		}
+	});
+}
+
+void FNexusMcpServer::ProcessPendingRequests()
+{
+	check(IsInGameThread());
+	// 编译/渲染等待可能处理 TaskGraph；新到请求留在成员队列，下一帧才执行。
+	TArray<TFunction<void()>> Requests = MoveTemp(PendingRequests);
+	for (TFunction<void()>& Request : Requests)
+	{
+		Request();
+	}
 }
 
 /** 从 Request.Headers 提取指定头的第一个值（大小写不敏感），不存在时返回空字符串。 */
@@ -313,7 +352,7 @@ void FNexusMcpServer::RegisterRoutes()
 	}
 
 	// POST /stream — MCP Streamable HTTP（per-session 会话隔离）
-	// 收包线程只拷贝 body/header，会话表与 Dispatch 一律回切 GameThread；OnComplete 推迟到派发结束，避免 FEvent::Wait 卡死收包线程。
+	// 收包线程只拷贝 body/header，会话表与 Dispatch 延至帧起点；OnComplete 推迟到派发结束。
 	const TWeakPtr<FNexusMcpServer> WeakSelf = AsShared();
 	StreamPostRouteHandle = HttpRouter->BindRoute(
 		FHttpPath(StreamEndpoint),
@@ -367,7 +406,7 @@ void FNexusMcpServer::RegisterRoutes()
 			}
 
 			FHttpResultCallback Complete = OnComplete;
-			AsyncTask(ENamedThreads::GameThread,
+			QueueRequest(WeakSelf,
 				[WeakSelf, JsonBody, IncomingSessionId, bIsInitialize, PresentedToken, Complete]()
 			{
 				const TSharedPtr<FNexusMcpServer> Server = WeakSelf.Pin();
@@ -426,7 +465,7 @@ void FNexusMcpServer::RegisterRoutes()
 		MakeHttpHandler([WeakSelf](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete) -> bool
 		{
 			FHttpResultCallback Complete = OnComplete;
-			AsyncTask(ENamedThreads::GameThread, [WeakSelf, Complete]()
+			QueueRequest(WeakSelf, [WeakSelf, Complete]()
 			{
 				const TSharedPtr<FNexusMcpServer> Server = WeakSelf.Pin();
 				if (!Server.IsValid() || !Server->IsRunning())
@@ -657,10 +696,10 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 	FString JsonLine = Utf8BytesToString(static_cast<const uint8*>(Data), DataSize);
 
 	// 勿在 WebSocket 收包回调里同步执行 tools/call：SearchAsset 等会阻塞 GameThread 数秒～数十秒，
-	// 同帧内无法继续 TickWebSocket，代理侧长连接易被判定超时/断开。推迟到本帧后续 GameThread 任务执行。
+	// 同帧内无法继续 TickWebSocket，代理侧长连接易被判定超时/断开。统一延至下一次帧起点。
 	// 与 HTTP 路径一致用弱引用：任务跨帧执行，期间服务器可能已被停掉/析构
 	const TWeakPtr<FNexusMcpServer> WeakSelf = AsShared();
-	AsyncTask(ENamedThreads::GameThread, [WeakSelf, ClientWebSocket, JsonLine = MoveTemp(JsonLine)]()
+	QueueRequest(WeakSelf, [WeakSelf, ClientWebSocket, JsonLine = MoveTemp(JsonLine)]()
 	{
 		const TSharedPtr<FNexusMcpServer> Self = WeakSelf.Pin();
 		if (!Self.IsValid() || !Self->IsRunning())

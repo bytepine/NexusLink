@@ -777,8 +777,8 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 
 			Entry->SetStringField(TEXT("ComponentName"),  ComponentName);
 			Entry->SetStringField(TEXT("ComponentClass"), CompClass->GetName());
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			FKismetEditorUtilities::CompileBlueprint(BP);
+			// 这里只刷新 skeleton，完整编译由 bCompile 在批次收尾统一执行。
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 	return;
 		}
 
@@ -799,8 +799,7 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 
 			Entry->SetStringField(TEXT("ComponentName"), ComponentName);
 			SCS->RemoveNodeAndPromoteChildren(Node);
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			FKismetEditorUtilities::CompileBlueprint(BP);
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 	return;
 		}
 
@@ -845,7 +844,6 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 			Entry->SetStringField(TEXT("ComponentName"), ComponentName);
 			Entry->SetStringField(TEXT("PropertyPath"),  PropPath);
 			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			FKismetEditorUtilities::CompileBlueprint(BP);
 	return;
 		}
 
@@ -901,8 +899,7 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 				ApplyScsAttach(SCS, Node, Target);
 				Entry->SetStringField(TEXT("ComponentName"), ComponentName);
 				Entry->SetStringField(TEXT("AttachTo"), AttachTo);
-				FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-				FKismetEditorUtilities::CompileBlueprint(BP);
+				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 				return;
 			}
 
@@ -990,8 +987,7 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 				}
 				Entry->SetArrayField(TEXT("UnmappedRefs"), UnmappedJson);
 			}
-			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-			FKismetEditorUtilities::CompileBlueprint(BP);
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 			return;
 		}
 	}

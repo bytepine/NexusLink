@@ -3,6 +3,7 @@
 #include "Utils/NexusAssetEditorUtils.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusPackageLedger.h"
+#include "Utils/NexusEditorTransaction.h"
 #include "NexusEditorServices.h"
 #include "Logging/LogMacros.h"
 #include "Engine/Blueprint.h"
@@ -201,7 +202,10 @@ void FNexusAssetEditorUtils::ApplyManageFinalize(
 		}
 		else
 		{
-			FKismetEditorUtilities::CompileBlueprint(BP);
+			// 跨资产批次在外层事务提交前编译以校验错误；GC 会破坏尚需回滚的 Undo 快照。
+			const EBlueprintCompileOptions CompileOptions = FNexusEditorTransaction::IsTransactionActive()
+				? EBlueprintCompileOptions::SkipGarbageCollection : EBlueprintCompileOptions::None;
+			FKismetEditorUtilities::CompileBlueprint(BP, CompileOptions);
 			OutTop->SetBoolField(TEXT("bCompiled"), BP->Status != BS_Error);
 			OutTop->SetBoolField(TEXT("bHasCompilerErrors"), BP->Status == BS_Error);
 			if (BP->Status == BS_Error)

@@ -60,6 +60,14 @@ public:
 	void ResetWsAuthentications();
 
 private:
+	friend class FNexusFrameRequestDispatchTest;
+
+	/** 收包回切只入队；在帧起点、World Tick 之外派发，避免等待 TaskGraph 时重入编辑。 */
+	static void QueueRequest(const TWeakPtr<FNexusMcpServer>& WeakSelf, TFunction<void()> Request);
+	void ProcessPendingRequests();
+	TArray<TFunction<void()>> PendingRequests;
+	FDelegateHandle RequestFrameHandle;
+
 	/** 注册 HTTP 路由。 */
 	void RegisterRoutes();
 	void UnregisterRoutes();
@@ -82,7 +90,7 @@ private:
 	/**
 	 * 按 Mcp-Session-Id 获取或创建 Dispatcher。
 	 * initialize 请求时 SessionId 为空，创建新会话并生成 ID；后续请求按 ID 查找。
-	 * 仅允许在 GameThread 调用（HTTP 收包线程经 AsyncTask 回切后再碰 HttpSessions）。
+	 * 仅允许在 GameThread 的帧起点请求派发阶段调用。
 	 */
 	TSharedPtr<FNexusMcpDispatcher> GetOrCreateDispatcher(const FString& SessionId, bool bIsInitialize, FString& OutSessionId);
 

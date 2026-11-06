@@ -196,11 +196,13 @@ sequenceDiagram
 
 每个 HTTP 会话通过 `Mcp-Session-Id` 隔离，支持多 AI 客户端并发。并发会话数达设置里的上限（默认 16，0=不限制）时，`GetOrCreateDispatcher` 驱逐最久未活动（`LastActivityAt`）的会话，保证新客户端总能握手成功；被驱逐会话再来请求会按已有的 404 `SessionNotFound` 处理。
 
-HTTP 收包线程只拷贝请求体与 header，然后 `AsyncTask` 回切 GameThread 再碰 `HttpSessions` / `Dispatch` / `DetectCurrentNetRole`，并用推迟的 `OnComplete` 回写响应（不再 `FEvent::Wait` 阻塞收包线程）。`GET /status` 同样回切 GameThread，避免非 GT 读 `GEngine->GetWorldContexts()`。
+HTTP 收包线程只拷贝请求体与 header，然后 `AsyncTask` 回切 GameThread 将请求入队，在下一次 `FCoreDelegates::OnBeginFrame`、World Tick 开始前统一派发，再访问 `HttpSessions` / `Dispatch` / `DetectCurrentNetRole`。WebSocket 与 `GET /status` 使用相同队列；HTTP 用推迟的 `OnComplete` 回写响应，停止服务器时拒绝尚未执行的请求。
+
+每次帧起点只处理队列快照。蓝图编译、GC 或渲染等待可能处理 GameThread 的 TaskGraph 任务，此时新请求只入队，留到下次帧起点执行，避免在 Tick 中或另一次编辑操作中重入。`ManageAssetBlueprint` 的组件操作不逐项完整编译，由 `bCompile` 控制批次收尾；外层事务尚未结束时，收尾编译跳过 GC，以保留失败回滚需要的 Undo 快照。
 
 ### 同步执行模型与已知限制
 
-`tools/call` 从 `Dispatch`/`DispatchDirect` 到 `EmitToolResult` 全程同步跑在 GameThread，回切只发生在收发两端（见上），执行期间不会让出。重 capability（蓝图编译、资产保存到磁盘、`FlushRenderingCommands` 截图、全表资产扫描）会让整个编辑器同帧掉帧——这是相关 UE API 本身仅限 GameThread 调用的直接后果，非 NexusLink 传输层的实现缺陷，也没有切片/异步空间。
+`tools/call` 从 `Dispatch`/`DispatchDirect` 到 `EmitToolResult` 同步跑在 GameThread；引擎等待期间可能处理其他 TaskGraph 任务，但不会从请求队列重入另一次派发。蓝图编译、资产保存、`FlushRenderingCommands` 截图及全表资产扫描仍可能让编辑器同帧掉帧；需要分步执行的能力应使用已有的编辑器长操作接口。
 
 HTTP `/stream` 是无状态 request-response，没有 SSE/chunked 等推送通道；WebSocket 虽可 `BroadcastNotification` 推送，但三个代理目前只识别 `notifications/tools/list_changed`，其余通知一律丢弃。因此长任务无法用「返回 pending + 事后推送」的方式实现——唯一现实路径是让请求原样挂着，直到 capability 跑完。
 
