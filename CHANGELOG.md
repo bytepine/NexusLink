@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- 修复 MCP 异步操作结果回调中局部变量遮蔽会话状态成员导致的 Linux Clang `-Wshadow` 编译失败。
+
 ## [2.3.2] - 2026-11-05
 
 ### Added

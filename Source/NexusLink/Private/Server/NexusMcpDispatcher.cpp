@@ -481,11 +481,11 @@ int32 FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, cons
 				FNexusMcpToolResult Final;
 				Final.StructuredContent = Snapshot;
 				Final.OutputSchema = Schema;
-                FString State;
-                if (Snapshot.IsValid() && Snapshot->TryGetStringField(TEXT("State"), State) && State == TEXT("Failed")) {
+                FString OperationState;
+                if (Snapshot.IsValid() && Snapshot->TryGetStringField(TEXT("State"), OperationState) && OperationState == TEXT("Failed")) {
                     Final.bIsError = true; Final.ErrorText = FNexusJsonUtils::SerializeCondensed(Snapshot);
                 }
-				if (State == TEXT("Completed") && OwnedOperation.IsValid()) Final.ImageFiles = OwnedOperation->ImageFiles;
+				if (OperationState == TEXT("Completed") && OwnedOperation.IsValid()) Final.ImageFiles = OwnedOperation->ImageFiles;
 				if (!Snapshot.IsValid()) { Final.bIsError = true; Final.ErrorText = TEXT("Unknown operation or duplicate pending request id"); }
 				FNexusMcpDispatcher Completion(Send);
 				Completion.EmitToolResult(Id, Final);
