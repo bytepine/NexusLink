@@ -5,7 +5,7 @@ build_unreal.py — NexusLink UE 插件打包（独立仓）
     python scripts/build_unreal.py --version <版本号> [--engine-version <引擎版>] [--output <输出目录>]
 
 说明:
-    1. 复制插件源码到临时目录（排除 docs/、scripts/、tools/、release/ 等仓级文件）
+    1. 基于插件源码生成安装包（排除根目录 tools/ 及 docs/、scripts/、release/ 等仓级文件）
     2. 注入 NexusLink.uplugin VersionName；可选 --engine-version 覆盖 EngineVersion（Fab 多引擎版本提交）
     3. 输出 release/nexus-mcp-unreal-<ver>[-ue<engine>].zip（zip 内顶层为 NexusLink/）
 """
@@ -35,7 +35,6 @@ EXCLUDE_DIRS = {
     "release",
     "docs",
     "scripts",
-    "tools",
     ".github",
     ".pytest_cache",
     "__pycache__",
@@ -124,6 +123,8 @@ def patch_uplugin(uplugin_path: str, version: str, engine_version: str | None = 
 def should_exclude(rel_path: str, is_root_file: bool) -> bool:
     norm = rel_path.replace("\\", "/")
     parts = norm.split("/")
+    if len(parts) > 1 and parts[0].lower() == "tools":
+        return True
     if is_root_file and len(parts) == 1 and parts[0].lower() in EXCLUDE_ROOT_FILES:
         return True
     for part in parts[:-1]:
@@ -159,7 +160,6 @@ def build_zip(
                 "release",
                 "docs",
                 "scripts",
-                "tools",
                 ".github",
                 ".git",
                 ".pytest_cache",

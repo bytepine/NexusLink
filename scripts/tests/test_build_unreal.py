@@ -28,7 +28,11 @@ def test_zip_excludes_tools_and_preserves_plugin_files(tmp_path):
     tools = plugin / "tools" / "gas_retest"
     tools.mkdir(parents=True)
     (plugin / "NexusLink.uplugin").write_text('{"VersionName":"0.0.0"}', encoding="utf-8")
-    for relative in ("Source/NexusLink/NexusLink.Build.cs", "Resources/ProxyConfig.json"):
+    for relative in (
+        "Source/NexusLink/NexusLink.Build.cs",
+        "Source/NexusLink/Private/Tools/NexusMcpToolCallCapability.cpp",
+        "Resources/ProxyConfig.json",
+    ):
         path = plugin / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("{}", encoding="utf-8")
@@ -51,6 +55,7 @@ def test_zip_excludes_tools_and_preserves_plugin_files(tmp_path):
         assert set(result.namelist()) == {
             "NexusLink/NexusLink.uplugin",
             "NexusLink/Source/NexusLink/NexusLink.Build.cs",
+            "NexusLink/Source/NexusLink/Private/Tools/NexusMcpToolCallCapability.cpp",
             "NexusLink/Resources/ProxyConfig.json",
         }
 
