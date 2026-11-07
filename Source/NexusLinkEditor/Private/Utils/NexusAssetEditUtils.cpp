@@ -16,8 +16,6 @@
 #include "Components/Widget.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "Misc/DefaultValueHelper.h"
-#include "Misc/OutputDeviceNull.h"
 
 static FString SupportedEditAction(const FString& Capability)
 {
@@ -167,20 +165,8 @@ static bool ParseEditValue(const FAssetEditProperty& Resolved, const FString& In
 			while (IntegerText.Len() > 1 && IntegerText[0] == TEXT('0')) IntegerText.RightChopInline(1);
 			if (bNegative && IntegerText != TEXT("0")) IntegerText = TEXT("-") + IntegerText;
 		}
-		else
-		{
-			double Number = 0;
-			if (!FDefaultValueHelper::ParseDouble(Trimmed, Number) || !FMath::IsFinite(Number))
-			{ Error = TEXT("Invalid or nonfinite numeric value"); return false; }
-		}
 	}
-	FOutputDeviceNull ParseErrors;
-#if NX_UE_HAS_IMPORT_TEXT_DIRECT
-	const TCHAR* End = Property->ImportText_Direct(*Input, Storage, Resolved.Owner, PPF_None, &ParseErrors);
-#else
-	const TCHAR* End = Property->ImportText(*Input, Storage, PPF_None, Resolved.Owner, &ParseErrors);
-#endif
-	if (!End || !FString(End).TrimStartAndEnd().IsEmpty()) { Error = TEXT("Value does not match the property type"); return false; }
+	if (!FNexusPropertyUtils::ParsePropertyValue(Property, Input, Storage, Resolved.Owner, Error)) return false;
 	FNexusPropertyUtils::ExportText(Property, Normalized, Storage);
 	if (Numeric && !Numeric->IsEnum() && ((Numeric->IsInteger() && Normalized != IntegerText)
 		|| (Numeric->IsFloatingPoint() && !FMath::IsFinite(Numeric->GetFloatingPointPropertyValue(Storage)))))

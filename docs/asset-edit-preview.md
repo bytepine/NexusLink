@@ -48,9 +48,9 @@ Scalar preview uses temporary property storage and never mutates, compiles, save
 
 变量类型回读同时提供 `ContainerType`、`CanonicalType`、`ElementType`、Map 的 `KeyType` / `ValueType`、类型对象完整路径和 `Guid`；函数列表提供局部变量类型及 GUID。`RenameLocalVariable` 使用 `FunctionName`、`VariableName`、`NewVariableName`。成员重命名、局部重命名和 `ChangeVariableType` 均保护子蓝图，等待资产注册表扫描完成；类型变更还拒绝隐式改变 RepNotify 或 Set/Map 复制设置。先用 `GetAssetEditPreview` 预检 `ChangeVariableType`，确认后显式 `bAllowPotentialDataLoss=true`；它保留 GUID、清空旧默认值并重建本蓝图引用节点，不保证旧连接或外部依赖仍可编译。
 
-标量预览及写后校验新增 `ManageAssetDataAsset/Set`（`PropertyName`）、`ManageAssetLevel/SetActorProperty`（精确 `ActorName` 和 `PropertyPath`）、`ManageAssetBlueprint/SetComponentProperty`（`ComponentName` 和 `PropertyPath`），均可用 `ExpectedValue` 防止过期写入。仍只支持 bool/数值/枚举/String/Name/Text 叶子及结构体/目标拥有子对象路径，拒绝容器和外部对象遍历。关卡普通属性写入统一支持点分路径、空字符串和解析失败前置拒绝。
+标量预览及写后校验新增 `ManageAssetDataAsset/Set`（`PropertyName`）、`ManageAssetLevel/SetActorProperty`（精确 `ActorName` 和 `PropertyPath`）、`ManageAssetBlueprint/SetComponentProperty`（`ComponentName` 和 `PropertyPath`），均可用 `ExpectedValue` 防止过期写入。仍只支持 bool/数值/枚举/String/Name/Text 叶子及结构体/目标拥有子对象路径，拒绝容器和外部对象遍历。浮点值接受 `1e3` 等科学计数法，普通写入、预览、前值检查和写后验证保持一致，非法或非有限值不写入。关卡普通属性写入统一支持点分路径、空字符串和解析失败前置拒绝。
 
-组件查询在 `GetAssetBlueprint(Sections=["Component"])` 中指定 `ComponentName`、最多 32 个 `PropertyPaths` 和 `Baseline=ClassDefault|ParentTemplate`，返回 `Value`、`DefaultValue`、`bDiffersFromDefault` 及 `BaselinePath`。不指定路径时有界列出可编辑字段。原有组件摘要保持组件类 CDO 基准；显式 ParentTemplate 比较目标父蓝图的实际模板。`ResetComponentPropertyToDefault` 使用相同基准，默认 ParentTemplate；自有组件无父模板时须明确选 ClassDefault。拒绝通过复制父模板恢复实例化子对象或组件引用。
+组件查询在 `GetAssetBlueprint(Sections=["Component"])` 中指定 `ComponentName`、最多 32 个 `PropertyPaths` 和 `Baseline=ClassDefault|ParentTemplate`，返回 `Value`、`DefaultValue`、`bDiffersFromDefault` 及 `BaselinePath`。不指定路径时有界列出可编辑字段。原有组件摘要保持组件类 CDO 基准；显式 ParentTemplate 比较目标父蓝图的实际模板。`ResetComponentPropertyToDefault` 使用相同基准，默认 ParentTemplate；自有组件无父模板时须明确选 ClassDefault。恢复仅限组件及其拥有的子对象，基准和目标的实际属性 Owner 均须在相应组件范围内；修改记录在实际属性 Owner 上，普通继承组件写入和恢复支持 Undo。拒绝通过复制父模板恢复实例化子对象或组件引用。
 
 集中编译与 `CompileBlueprint` 返回 `CompilerErrorCount`、`CompilerWarningCount`、最多 128 条 `CompilerMessages`（严重级别、消息及可解析的 `GraphName` / `NodeId`）和截断标记。所有编译保存辅助路径在失败时不保存，磁盘回滚仍不属于内存 Undo 事务。
 

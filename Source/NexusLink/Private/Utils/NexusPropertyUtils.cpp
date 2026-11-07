@@ -3,6 +3,7 @@
 #include "Utils/NexusPropertyUtils.h"
 #include "UObject/UnrealType.h"
 #include "Misc/OutputDeviceNull.h"
+#include <cstdlib>
 
 // ====================================================================
 // 路径段解析 —— 支持 "Items[0]"、"Map[\"key\"]"、"Matrix[0][1]" 等容器访问语法
@@ -440,11 +441,13 @@ bool FNexusPropertyUtils::ResolvePropertyRead(
 static bool ResolveStructWrite(
 	UScriptStruct* Struct,
 	void* StructPtr,
+	UObject* Owner,
 	const TArray<FString>& PathSegments,
 	int32 SegmentIdx,
 	FProperty*& OutProp,
 	void*& OutValuePtr,
-	FString& OutError)
+	FString& OutError,
+	UObject** OutOwner)
 {
 	FString SegName;
 	TArray<FString> Accessors;
@@ -463,12 +466,13 @@ static bool ResolveStructWrite(
 	{
 		OutProp = P;
 		OutValuePtr = VP;
+		if (OutOwner) *OutOwner = Owner;
 		return true;
 	}
 
 	if (FStructProperty* SubStruct = CastField<FStructProperty>(P))
 	{
-		return ResolveStructWrite(SubStruct->Struct, VP, PathSegments, SegmentIdx + 1, OutProp, OutValuePtr, OutError);
+		return ResolveStructWrite(SubStruct->Struct, VP, Owner, PathSegments, SegmentIdx + 1, OutProp, OutValuePtr, OutError, OutOwner);
 	}
 
 	if (FObjectProperty* ObjProp = CastField<FObjectProperty>(P))
@@ -479,7 +483,7 @@ static bool ResolveStructWrite(
 			OutError = FString::Printf(TEXT("Property '%s' has null object reference"), *PathSegments[SegmentIdx]);
 			return false;
 		}
-		return FNexusPropertyUtils::ResolvePropertyWrite(SubObj, PathSegments, SegmentIdx + 1, OutProp, OutValuePtr, OutError);
+		return FNexusPropertyUtils::ResolvePropertyWrite(SubObj, PathSegments, SegmentIdx + 1, OutProp, OutValuePtr, OutError, OutOwner);
 	}
 
 	OutError = FString::Printf(TEXT("Property '%s' is neither struct nor object reference; cannot descend"), *PathSegments[SegmentIdx]);
@@ -494,8 +498,10 @@ bool FNexusPropertyUtils::ResolvePropertyWrite(
 	int32 SegmentIdx,
 	FProperty*& OutProp,
 	void*& OutValuePtr,
-	FString& OutError)
+	FString& OutError,
+	UObject** OutOwner)
 {
+	if (OutOwner) *OutOwner = nullptr;
 	if (!Obj || SegmentIdx >= PathSegments.Num())
 	{
 		OutError = TEXT("Invalid path resolution state");
@@ -519,6 +525,7 @@ bool FNexusPropertyUtils::ResolvePropertyWrite(
 	{
 		OutProp = P;
 		OutValuePtr = VP;
+		if (OutOwner) *OutOwner = Obj;
 		return true;
 	}
 
@@ -531,13 +538,13 @@ bool FNexusPropertyUtils::ResolvePropertyWrite(
 			OutError = FString::Printf(TEXT("Property '%s' has null object reference"), *PathSegments[SegmentIdx]);
 			return false;
 		}
-		return FNexusPropertyUtils::ResolvePropertyWrite(SubObj, PathSegments, SegmentIdx + 1, OutProp, OutValuePtr, OutError);
+		return FNexusPropertyUtils::ResolvePropertyWrite(SubObj, PathSegments, SegmentIdx + 1, OutProp, OutValuePtr, OutError, OutOwner);
 	}
 
 	// 结构体
 	if (FStructProperty* StructProp = CastField<FStructProperty>(P))
 	{
-		return ResolveStructWrite(StructProp->Struct, VP, PathSegments, SegmentIdx + 1, OutProp, OutValuePtr, OutError);
+		return ResolveStructWrite(StructProp->Struct, VP, Obj, PathSegments, SegmentIdx + 1, OutProp, OutValuePtr, OutError, OutOwner);
 	}
 
 	OutError = FString::Printf(TEXT("Property '%s' does not support nested access"), *PathSegments[SegmentIdx]);
@@ -557,6 +564,37 @@ void FNexusPropertyUtils::CollectEditableProperties(UObject* Obj, TArray<TShared
 		O->SetStringField(TEXT("Type"), It->GetCPPType());
 		OutArray.Add(MakeShared<FJsonValueObject>(O));
 	}
+}
+
+bool FNexusPropertyUtils::ParsePropertyValue(const FProperty* Property, const FString& Text, void* Storage, UObject* Owner, FString& OutError)
+{
+	if (const FNumericProperty* Number = CastField<FNumericProperty>(Property))
+	{
+		if (Number->IsFloatingPoint())
+		{
+			// UE 的浮点 ImportText 转换值后仍可能把消费指针停在指数前，不能靠它校验完整输入。
+			FString NumericText = Text.TrimStartAndEnd();
+			NumericText.RemoveFromEnd(TEXT("f"), ESearchCase::IgnoreCase);
+			const FTCHARToUTF8 Utf8(*NumericText);
+			char* End = nullptr;
+			const double Value = std::strtod(Utf8.Get(), &End);
+			if (End == Utf8.Get() || *End != '\0' || !FMath::IsFinite(Value))
+			{ OutError = TEXT("Invalid or nonfinite numeric value"); return false; }
+			Number->SetFloatingPointPropertyValue(Storage, Value);
+			if (!FMath::IsFinite(Number->GetFloatingPointPropertyValue(Storage)))
+			{ OutError = TEXT("Numeric value is outside the property range"); return false; }
+			return true;
+		}
+	}
+	FOutputDeviceNull ParseErrors;
+#if NX_UE_HAS_IMPORT_TEXT_DIRECT
+	const TCHAR* End = Property->ImportText_Direct(*Text, Storage, Owner, PPF_None, &ParseErrors);
+#else
+	const TCHAR* End = Property->ImportText(*Text, Storage, PPF_None, Owner, &ParseErrors);
+#endif
+	if (!End || !FString(End).TrimStartAndEnd().IsEmpty())
+	{ OutError = TEXT("Value does not match the property type"); return false; }
+	return true;
 }
 
 bool FNexusPropertyUtils::WritePropertyAndEcho(
@@ -603,17 +641,7 @@ bool FNexusPropertyUtils::WritePropertyAndEcho(
 	FDefaultConstructedPropertyElement Storage(Prop);
 	// 保留结构体中未显式提供的成员；解析失败也不会改变原值。
 	Prop->CopyCompleteValue(Storage.GetObjAddress(), Ptr);
-	FOutputDeviceNull ParseErrors;
-#if NX_UE_HAS_IMPORT_TEXT_DIRECT
-	const TCHAR* End = Prop->ImportText_Direct(*NewValue, Storage.GetObjAddress(), Target, PPF_None, &ParseErrors);
-#else
-	const TCHAR* End = Prop->ImportText(*NewValue, Storage.GetObjAddress(), PPF_None, Target, &ParseErrors);
-#endif
-	if (!End || !FString(End).TrimStartAndEnd().IsEmpty())
-	{ OutError = TEXT("Value does not match the property type"); return false; }
-	if (FNumericProperty* Number = CastField<FNumericProperty>(Prop))
-		if (Number->IsFloatingPoint() && !FMath::IsFinite(Number->GetFloatingPointPropertyValue(Storage.GetObjAddress())))
-		{ OutError = TEXT("Nonfinite numeric values are not supported"); return false; }
+	if (!ParsePropertyValue(Prop, NewValue, Storage.GetObjAddress(), Target, OutError)) return false;
 	Prop->CopyCompleteValue(Ptr, Storage.GetObjAddress());
 	// 写入后再次导出（反映实际生效值）
 	ExportText(Prop, OutActualValue, Ptr);

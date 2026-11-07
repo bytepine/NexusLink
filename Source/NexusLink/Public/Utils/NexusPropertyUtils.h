@@ -28,14 +28,18 @@ public:
 		TSharedPtr<FJsonObject>& OutResult,
 		FString& OutError);
 
-	/** 从 UObject 上按路径段列表（全路径）递归定位属性指针，用于写入。 */
+	/** 从 UObject 上递归定位属性指针；OutOwner 可回读叶子实际所属对象（结构体沿用其宿主）。 */
 	static bool ResolvePropertyWrite(
 		UObject* Obj,
 		const TArray<FString>& PathSegments,
 		int32 SegmentIdx,
 		FProperty*& OutProp,
 		void*& OutValuePtr,
-		FString& OutError);
+		FString& OutError,
+		UObject** OutOwner = nullptr);
+
+	/** 在调用方提供的临时存储中完整解析属性文本；浮点数支持科学计数法并拒绝非有限值。 */
+	static bool ParsePropertyValue(const FProperty* Property, const FString& Text, void* Storage, UObject* Owner, FString& OutError);
 
 	/** 列出 UObject 上所有可编辑属性的名称和类型（单层，不递归）。 */
 	static void CollectEditableProperties(
