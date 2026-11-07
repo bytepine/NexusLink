@@ -7,34 +7,30 @@
 
 ## [Unreleased]
 
-### Fixed
-
-- HTTP / WebSocket 请求在帧起点派发，避免 Tick 期间或编译等待时重入资产编辑；蓝图变量、图、接口、默认值与组件操作按 `bCompile` 在批次结束后集中编译，`ExpectedValue` / `bVerify` 不再隐式编译蓝图，外层事务中的收尾编译跳过 GC，保留 Undo 回滚快照；集中编译和 `CompileBlueprint` 返回结构化消息及图/节点定位，所有编译保存路径在编译失败时阻止落盘。
-- `GetAssetBlueprint` 组件读取使用目标蓝图 CDO 与继承覆盖模板，返回模板路径及覆盖解析标记；标量编辑预览和校验支持目标拥有的组件子对象，拒绝空指针和外部对象引用；组件属性恢复拒绝沿引用修改外部资产，并对实际属性 Owner 记录 Undo，普通继承组件写入和恢复也可撤销。
-- 修复 UE 5.5+ 属性文本读取把 `false`、`0` 等默认值错误输出为空串的问题，避免影响属性检查和标量写入校验。
-- 反馈报告合并旧分类名称后比较趋势，搜索平均命中数只计算有数值的样本，完整展示 `Other` 补充意见并优先选择含实际错误的复现记录；慢调用附脱敏参数摘要，修复章节编号重复。
-- `ExportAsset` 按输出扩展名选择导出器并使用自动化导出任务，禁止弹出交互对话框，返回导出器错误。
-- 共享属性写入先在临时存储中完整解析再提交，拒绝解析失败和残余文本，统一点分路径并保留带点的容器键；浮点解析保留科学计数法和有限值/范围检查，普通写入、标量预览与校验使用同一解析逻辑；关卡属性写入支持嵌套字段和空字符串。
-- `GetAssetStruct` 回读类型字段时保持描述对象存活，避免临时对象释放后悬空遍历导致容器等元数据缺失。
-- `ManageProjectSettings` 使用独立命名的校验副本，避免设置写入后 Reset 与引擎临时默认对象重名并触发断言崩溃。
-- 修复 MCP 异步操作结果回调中局部变量遮蔽会话状态成员导致的 Linux Clang `-Wshadow` 编译失败。
-- 将编辑器操作使用的 `EditorScriptingUtilities`、`SequencerScripting` 依赖限制为仅在 Editor 目标启用，兼容 UE4 / UE5 目标过滤字段，修复 iOS 等非编辑器构建的平台依赖检查失败，并避免额外引入 `PythonScriptPlugin`。
-- 修复 Android API 23 的网卡枚举编译兼容，改用引擎 SocketSubsystem；Android / iOS 的鉴权 token 使用应用可写目录并限制文件权限，不再调用桌面端 `UserHomeDir`。
-- Shipping 强制关闭 MCP，剔除鉴权和网卡枚举实现，跳过日志捕获、控制台命令、引擎初始化回调及 token 配置归一化；不再由本插件启用 `WebSocketNetworking`。
+## [2.3.3] - 2026-11-07
 
 ### Added
 
-- `ManageAssetBlueprint` 增加 `Reparent`，覆盖普通、UMG、动画和 GameplayAbility 蓝图，支持兼容性预览、Undo 与批末按需编译，拒绝继承循环、类型/骨架/成员冲突，离开原继承链须显式允许潜在数据丢失；增加成员/局部变量重命名与带前置条件的成员类型变更，保护子蓝图和复制设置、保留 GUID；共享类型解析支持 BlueprintType 结构体路径及数组、Set、Map，读取完整回显容器、键值类型和类型对象路径；组件支持父模板/类 CDO 的显式属性比较和恢复。
-- `GetAssetLevel` 增加 `ActorProperties`，按 `ActorName` 与 `PropertyPaths` 只读比较关卡 Actor 当前值和类默认值，复用已加载地图，避免为属性检查导出整个关卡。
-- `GetNavigationPath` 在 Editor / PIE / Game 中查询已有导航路径，支持坐标投影、Agent/Filter、精确世界选择、完整/部分路径及有界路径点，返回长度与代价；`GetNavigationPoint` 独立查询导航面投影及可用性，不移动 Actor、不创建或重建导航数据。
-- `GetRuntimeActorAI` 查询移动状态及本工具捕获的请求完成结果；`InteractRuntimeActorAI` 支持 MoveTo/Stop、Filter、投影、部分路径和接受半径，区分请求接受与实际到达。
-- `ControlEditorAssetEditor` 打开、聚焦、查询或安全关闭单个资产编辑器，关闭拒绝未保存资产和共享编辑器实例；`GetEditorContext/AssetEditors` 列出资产、编辑器类型和脏状态；支持只验证，地图仍经 `ControlEditorLevel` 的未保存检查，不加入原子批次。
-- `GetAssetEditPreview` 增加蓝图重设父类与变量类型预检，标量编辑预览和 `ExpectedValue` / `bVerify` 扩展至 DataAsset、关卡 Actor 与蓝图组件属性。
-- `GetAssetExportOptions` 只读发现导出器和格式；导出支持只验证及主输出路径的 Fail/Unique/Replace 策略，只验证不创建目录或写文件。
+- `ManageAssetBlueprint` 支持普通、UMG、动画和 GameplayAbility 蓝图重设父类，提供兼容性预览、Undo 与类型/骨架/成员冲突保护；支持成员及局部变量重命名、保留 GUID 的受保护类型变更、完整容器类型回读，以及组件继承覆盖比较和默认值恢复。
+- `GetAssetLevel/ActorProperties` 只读比较关卡 Actor 属性与类默认值，并复用已加载地图。
+- `GetNavigationPath` 和 `GetNavigationPoint` 只读查询已有导航路径与坐标投影，支持 Agent、Filter、精确世界选择、完整/部分路径及有界路径点，返回路径长度和代价。
+- `GetRuntimeActorAI` 查询移动状态与请求完成结果；`InteractRuntimeActorAI` 支持 MoveTo/Stop、Filter、投影、部分路径和接受半径，区分请求接受与实际到达。
+- `ControlEditorAssetEditor` 支持打开、聚焦、查询和安全关闭资产编辑器，拒绝关闭未保存资产和共享窗口；`GetEditorContext/AssetEditors` 列出资产、编辑器类型和脏状态。
+- `GetAssetEditPreview` 增加重设父类与变量类型预检；`ExpectedValue` / `bVerify` 扩展至 DataAsset、关卡 Actor 和蓝图组件属性。
+- `GetAssetExportOptions` 发现导出器和格式；导出支持只验证及 Fail/Unique/Replace 冲突策略，只验证不创建目录或写文件。
 
-### Changed
+### Fixed
 
-- 工具搜索可发现变量重命名和关卡对象属性读取；`reparent`、`navigation path`、`asset editor` 直接返回对应能力的完整参数，避免宽泛结果过载。
+- HTTP / WebSocket 请求在帧边界派发，避免蓝图编辑重入；蓝图按需集中编译并保留撤销记录，编译错误包含图/节点定位，编译失败时禁止保存。
+- 蓝图组件属性读取保留继承覆盖值；标量预览与校验支持所属子对象，并明确拒绝不支持的外部引用。
+- 修复 UE 5.5+ 属性文本读取将 `false`、`0` 等默认值输出为空串的问题。
+- 属性写入拒绝非法值和残余文本，保留科学计数法及未指定的结构字段；修复带点的容器键和关卡嵌套属性读写。
+- 导出按扩展名选择导出器，使用自动化任务执行并返回错误，不弹出交互对话框。
+- 修复项目设置写入后 Reset 的默认对象重名崩溃。
+- 修复反馈报告的分类趋势、平均命中数、Other 补充意见和错误复现选择；慢调用附脱敏参数摘要。
+- 修复 Linux Clang、UE5.8 及 iOS 等非编辑器目标的构建兼容。
+- 兼容 Android API 23 网卡枚举，Android / iOS 鉴权 token 使用应用可写目录。
+- Shipping 构建在编译期禁用 MCP 服务及相关初始化。
 
 ## [2.3.2] - 2026-11-05
 

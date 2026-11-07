@@ -32,22 +32,19 @@
 			"Name": "EditorScriptingUtilities",
 			"Enabled": true,
 			"Optional": true,
-			"WhitelistTargets": [ "Editor" ],
-			"TargetAllowList": [ "Editor" ]
+			"WhitelistTargets": [ "Editor" ]
 		},
 		{ "Name": "StructUtils", "Enabled": true, "Optional": true },
 		{
 			"Name": "SequencerScripting",
 			"Enabled": true,
 			"Optional": true,
-			"WhitelistTargets": [ "Editor" ],
-			"TargetAllowList": [ "Editor" ]
+			"WhitelistTargets": [ "Editor" ]
 		},
 		{
 			"Name": "WebSocketNetworking",
 			"Enabled": true,
-			"BlacklistTargetConfigurations": [ "Shipping" ],
-			"TargetConfigurationDenyList": [ "Shipping" ]
+			"BlacklistTargetConfigurations": [ "Shipping" ]
 		},
 		{
 			"Name": "GameplayAbilities",

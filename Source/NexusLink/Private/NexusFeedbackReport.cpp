@@ -1042,7 +1042,7 @@ FString FNexusFeedback::ExportReport()
 					{
 						double Count = 0, Previous = 0;
 						if (!Pair.Value->TryGetNumber(Count)) continue;
-						const FString Category = NormalizeCategory(Pair.Key);
+						const FString Category = NormalizeCategory(FString(Pair.Key.Len(), *Pair.Key));
 						PrevSummary->TryGetNumberField(Category, Previous);
 						PrevSummary->SetNumberField(Category, Previous + Count);
 					}

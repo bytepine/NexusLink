@@ -28,6 +28,31 @@ def test_uplugin_modules_not_empty():
     assert len(data["Modules"]) > 0
 
 
+def test_uplugin_filters_do_not_duplicate_renamed_fields():
+    data = _load("NexusLink.uplugin")
+    # UE5.8 拒绝同时声明新旧字段；UE4 仍需要旧字段。
+    aliases = (
+        ("TargetAllowList", "WhitelistTargets"),
+        ("TargetDenyList", "BlacklistTargets"),
+        ("TargetConfigurationAllowList", "WhitelistTargetConfigurations"),
+        ("TargetConfigurationDenyList", "BlacklistTargetConfigurations"),
+    )
+    for entry in data["Modules"] + data["Plugins"]:
+        for current, legacy in aliases:
+            assert not (current in entry and legacy in entry), (entry["Name"], current, legacy)
+
+
+def test_uplugin_editor_dependencies_remain_editor_only_on_ue4():
+    plugins = {entry["Name"]: entry for entry in _load("NexusLink.uplugin")["Plugins"]}
+    for name in ("EditorScriptingUtilities", "SequencerScripting"):
+        assert plugins[name]["WhitelistTargets"] == ["Editor"], name
+
+
+def test_uplugin_websocket_dependency_excludes_shipping_on_ue4():
+    plugins = {entry["Name"]: entry for entry in _load("NexusLink.uplugin")["Plugins"]}
+    assert plugins["WebSocketNetworking"]["BlacklistTargetConfigurations"] == ["Shipping"]
+
+
 def test_proxyconfig_valid_json():
     data = _load("Resources/ProxyConfig.json")
     assert isinstance(data, dict)
