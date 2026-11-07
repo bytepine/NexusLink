@@ -4,9 +4,11 @@
 
 `tools/trace_compare` 是 Python 标准库命令行工具。通过显式 UE HTTP 端点读取已停录的 `.utrace`，随后离线生成 HTML / JSON。默认只提供测量报告；可显式指定 [--budget 性能预算](feature-followups.md#性能预算)，通过退出码区分超预算和证据不足。不分析实时录制或网络包。
 
+命令行工具随源码提供，插件安装包不附带；先获取对应版本源码，见[安装说明](usage-guide.md#21-安装)。
+
 ## 采集条件
 
-先停止录制（启用 `cpu,frame` 通道），在 UE 所在机器上保留原始 Trace。在插件 `tools/` 下运行命令。文件路径属于 UE 主机；不要求运行 Python 的机器能直接读取它。身份验证沿用本机 NexusLink token 或 `NEXUS_MCP_TOKEN`，不写入快照。
+先停止录制（启用 `cpu,frame` 通道），在 UE 所在机器上保留原始 Trace。在源码仓库 `tools/` 下运行命令。文件路径属于 UE 主机；不要求运行 Python 的机器能直接读取它。身份验证沿用本机 NexusLink token 或 `NEXUS_MCP_TOKEN`，不写入快照。
 
 创建 `conditions.json`，例如：
 

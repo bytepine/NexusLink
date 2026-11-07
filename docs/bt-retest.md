@@ -4,9 +4,11 @@
 
 `tools/bt_retest` 提供固定的“阻断条件 → 改变条件 → 等待预期状态 → 恢复原值”流程。只接受显式绑定的 Pawn 或 AIController，不选择第一个 AIController。Python 标准库即可运行；与 `gas_retest` 共用 MCP 传输、步骤执行、HTML 布局和离线基线代码。
 
+命令行工具随源码提供，插件安装包不附带；先获取对应版本源码，见[安装说明](usage-guide.md#21-安装)。
+
 ## 配置与命令
 
-先用 `ListRuntimeActors` 找到准确的 Actor 名，再用 `GetRuntimeActorBehaviorTree` 获取完整根树路径 `RootTreePath`、运行状态和 Blackboard 键，将根树路径填入配置的 `TreePath`。正常进入/退出子树不会被误判为目标替换。在插件 `tools/` 下创建配置：
+先用 `ListRuntimeActors` 找到准确的 Actor 名，再用 `GetRuntimeActorBehaviorTree` 获取完整根树路径 `RootTreePath`、运行状态和 Blackboard 键，将根树路径填入配置的 `TreePath`。正常进入/退出子树不会被误判为目标替换。在源码仓库 `tools/` 下创建配置：
 
 ```json
 {

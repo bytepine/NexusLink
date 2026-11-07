@@ -7,6 +7,8 @@
 Read-only snapshots, bounded activation event capture, and a standard-library Python replay tool.
 只读快照、限量事件捕获，以及仅依赖 Python 标准库的复测工具。
 
+命令行工具随源码提供，插件安装包不附带；先获取对应版本源码并进入 `tools/` 目录，见[安装说明](usage-guide.md#21-安装)。
+
 ## Runtime capabilities / 运行时工具
 
 `GetRuntimeActorAbilitySystem` keeps its default `Abilities`, `Effects`, `Attributes` sections. Explicit diagnostic sections require `ActorName`:
@@ -63,7 +65,7 @@ The GenericActivation template accepts explicit endpoint/Actor mappings, ability
 
 ## Replay / 复测
 
-From the plugin's `tools` directory:
+From the source repository's `tools` directory (download the matching release's source code; the plugin installation archive does not include these tools):
 
 ```sh
 python -m gas_retest case.json --output results
@@ -75,7 +77,7 @@ python -m unittest gas_retest.test_runner gas_retest.test_report gas_retest.test
 
 With the public NexusUnreal example compiled, run `python Script/gas_network_retest.py --ue-root <UE-directory> --quickstart` from that project. It starts one server and two clients, performs read-only binding/ability checks, reproduces prediction rejection, restores the condition, and verifies a successful activation. Open `Saved/GasRetest/index.html` to compare reports. Existing runs without `--quickstart` retain all eight scenarios and their configured repeat count.
 
-已有三个运行中的诊断进程时，可从插件 `tools/` 目录生成端口已填写的用例；URL 必须是发现后确认的 UE 直连端点。模板生成不连接 UE，也不覆盖现有文件：
+已有三个运行中的诊断进程时，可从源码仓库 `tools/` 目录生成端口已填写的用例；URL 必须是发现后确认的 UE 直连端点。模板生成不连接 UE，也不覆盖现有文件：
 
 ```sh
 python -m gas_retest rejected.json --template PredictionRejected --server http://127.0.0.1:45010/stream --owner http://127.0.0.1:45011/stream --observer http://127.0.0.1:45012/stream

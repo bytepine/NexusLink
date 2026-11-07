@@ -22,12 +22,16 @@ _POINTER = (
 )
 
 
-def test_zip_includes_replay_tool_without_python_caches(tmp_path):
+def test_zip_excludes_tools_and_preserves_plugin_files(tmp_path):
     import zipfile
     plugin = tmp_path / "plugin"
     tools = plugin / "tools" / "gas_retest"
     tools.mkdir(parents=True)
     (plugin / "NexusLink.uplugin").write_text('{"VersionName":"0.0.0"}', encoding="utf-8")
+    for relative in ("Source/NexusLink/NexusLink.Build.cs", "Resources/ProxyConfig.json"):
+        path = plugin / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}", encoding="utf-8")
     (tools / "runner.py").write_text("pass\n", encoding="utf-8")
     (tools / "__pycache__").mkdir()
     (tools / "__pycache__" / "runner.pyc").write_bytes(b"cache")
@@ -44,12 +48,11 @@ def test_zip_includes_replay_tool_without_python_caches(tmp_path):
         (directory / "results.json").write_text('{}', encoding="utf-8")
     archive = build_zip(str(plugin), "0.0.0", str(tmp_path / "out"))
     with zipfile.ZipFile(archive) as result:
-        assert "NexusLink/tools/gas_retest/runner.py" in result.namelist()
-        assert not any("__pycache__" in name or name.endswith(".pyc") for name in result.namelist())
-        assert not any("gas-retest-results" in name for name in result.namelist())
-        for package in ("retest", "bt_retest", "trace_compare"):
-            assert f"NexusLink/tools/{package}/runner.py" in result.namelist()
-        assert not any("-results/" in name for name in result.namelist())
+        assert set(result.namelist()) == {
+            "NexusLink/NexusLink.uplugin",
+            "NexusLink/Source/NexusLink/NexusLink.Build.cs",
+            "NexusLink/Resources/ProxyConfig.json",
+        }
 
 
 def test_is_lfs_pointer_true(tmp_path):

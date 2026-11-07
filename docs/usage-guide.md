@@ -183,6 +183,8 @@ Rider / Desktop 远程列表每行：`192.168.1.30:45000` 或 `192.168.1.30:4500
 
 解压后应能直接看到 `Plugins/NexusLink/NexusLink.uplugin`。启用插件不会自动启动 MCP，还须完成下一节的服务器开关设置。
 
+插件安装包不附带 Python 命令行工具。需要 GAS / 行为树复测或 Trace 性能对比时，从对应版本 Release 下载 **Source code (zip / tar.gz)**，在解压后的源码仓库 `tools/` 目录运行；这些工具无需放入项目 `Plugins/`。
+
 #### 可选：安装 NexusLinkExt（UnLua）
 
 需要蓝图 Lua 绑定或运行时 Lua 调试时，再安装 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)：
