@@ -8,11 +8,13 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusEditorContextUtils.h"
 #include "NexusMcpTool.h"
+#include "Editor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 void FNexusGetEditorContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("GetEditorContext");
-	Out.Description = TEXT("Read editor selection, browse path, and current map. editor World != PIE.");
+	Out.Description = TEXT("Read selection, browse path, current map and open asset editors. Editor world differs from PIE.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.Prerequisites = { TEXT("EditorOnly") };
@@ -20,7 +22,7 @@ void FNexusGetEditorContextCapability::BuildDefinition(FNexusCapabilityDefinitio
 		TEXT("selection"), TEXT("content browser"), TEXT("picker"), TEXT("focused"),
 		TEXT("current map"), TEXT("open level"), TEXT("loaded map")
 	};
-	Out.RelatedCapabilities = { TEXT("GetEditorInfo"), TEXT("CaptureViewport"), TEXT("SearchAsset") };
+	Out.RelatedCapabilities = { TEXT("GetEditorInfo"), TEXT("CaptureViewport"), TEXT("SearchAsset"), TEXT("ControlEditorAssetEditor"), TEXT("GetEditorSlate") };
 	Out.WhenToUse = TEXT("Read editor selection or current map; use ListRuntimeActors in PIE");
 }
 
@@ -33,7 +35,7 @@ TSharedPtr<FJsonObject> FNexusGetEditorContextCapability::BuildCapabilitySchema(
 
 TArray<FString> FNexusGetEditorContextCapability::GetSectionNames() const
 {
-	return { TEXT("SelectionActors"), TEXT("SelectionAssets"), TEXT("ContentBrowserPath"), TEXT("CurrentMap") };
+	return { TEXT("SelectionActors"), TEXT("SelectionAssets"), TEXT("ContentBrowserPath"), TEXT("CurrentMap"), TEXT("AssetEditors") };
 }
 
 TArray<FString> FNexusGetEditorContextCapability::GetDefaultSectionNames() const
@@ -74,6 +76,28 @@ void FNexusGetEditorContextCapability::ExecuteSection(const FString&            
 		FNexusEditorContextUtils::CollectSelectionAssets(Assets, Count, Limit);
 		InOutDetail->SetArrayField(TEXT("Assets"), Assets);
 		InOutDetail->SetNumberField(TEXT("Count"), Assets.Num());
+	}
+	else if (SectionName == TEXT("AssetEditors"))
+	{
+		UAssetEditorSubsystem* Editors = GEditor ? GEditor->GetEditorSubsystem<UAssetEditorSubsystem>() : nullptr;
+		if (!Editors) { OutError = TEXT("Asset editor subsystem is unavailable"); return; }
+		TArray<TSharedPtr<FJsonValue>> Assets;
+		const auto OpenAssets = Editors->GetAllEditedAssets();
+		for (UObject* Asset : OpenAssets)
+		{
+			if (!Asset || Assets.Num() >= Limit) continue;
+			auto Entry = MakeShared<FJsonObject>();
+			Entry->SetStringField(TEXT("AssetPath"), Asset->GetPathName());
+			Entry->SetStringField(TEXT("AssetClass"), Asset->GetClass()->GetPathName());
+			Entry->SetBoolField(TEXT("bDirty"), Asset->GetOutermost()->IsDirty());
+			TArray<TSharedPtr<FJsonValue>> Names;
+			for (IAssetEditorInstance* Editor : Editors->FindEditorsForAsset(Asset)) if (Editor) Names.Add(MakeShared<FJsonValueString>(Editor->GetEditorName().ToString()));
+			Entry->SetArrayField(TEXT("EditorNames"), Names);
+			Assets.Add(MakeShared<FJsonValueObject>(Entry));
+		}
+		InOutDetail->SetArrayField(TEXT("Assets"), Assets);
+		InOutDetail->SetNumberField(TEXT("TotalCount"), OpenAssets.Num());
+		InOutDetail->SetBoolField(TEXT("bTruncated"), OpenAssets.Num() > Assets.Num());
 	}
 	else if (SectionName == TEXT("ContentBrowserPath"))
 	{

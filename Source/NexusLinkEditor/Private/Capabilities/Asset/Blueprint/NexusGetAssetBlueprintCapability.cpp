@@ -7,6 +7,9 @@
 #include "Utils/NexusStringMatchUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusPinTypeUtils.h"
+#include "Utils/NexusBlueprintEditUtils.h"
+#include "K2Node_FunctionEntry.h"
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusBlueprintGraphUtils.h"
 #include "Utils/NexusBlueprintGraphEnhancements.h"
@@ -411,7 +414,7 @@ static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FNexusBP
 	return Info;
 }
 
-struct FNexusBPEntryLocal { FString Name; FString Kind; FString Type; FString SubType; FString SubTypeObject; FString Category; bool bIsPublic = false; };
+struct FNexusBPEntryLocal { FString Name; FString Kind; FString Type; FString SubType; FString SubTypeObject; FString Category; bool bIsPublic = false; TSharedPtr<FJsonObject> TypeInfo; FString Guid; };
 
 // ── FNexusCapability 基础钩子 ──────────────────────────────────────────────────
 
@@ -435,6 +438,8 @@ TSharedPtr<FJsonObject> FNexusGetAssetBlueprintCapability::BuildCapabilitySchema
 	return FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
 		.Prop(TEXT("NameFilter"),     FNexusSchema::Str(TEXT("Item name filter (/regex/ ^prefix suffix$)")))
+		.Prop(TEXT("ComponentName"), FNexusSchema::Str(TEXT("Exact component name for explicit baseline/property comparison")))
+		.Prop(TEXT("Baseline"), FNexusSchema::Enum(TEXT("Component comparison baseline"), {TEXT("ClassDefault"), TEXT("ParentTemplate")}, TEXT("ClassDefault")))
 		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("Exact property name filter for defaults, e.g. [\"bUseBuffClass\",\"Scale\"]")))
         .Prop(TEXT("NodeId"), FNexusSchema::Str(TEXT("Subgraph starting node GUID")))
         .Prop(TEXT("MaxDepth"), FNexusSchema::Int(TEXT("Connected subgraph traversal depth"), 8, 0, 64))
@@ -571,6 +576,41 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 	}
 	else if (SectionName == TEXT("Component"))
 	{
+		const FNexusArgs ComponentArgs(Args);
+		if (!ComponentArgs.Str(TEXT("ComponentName")).IsEmpty())
+		{
+			FString Error;
+			UActorComponent* Component = FNexusBlueprintEditUtils::FindComponent(BP, ComponentArgs.Str(TEXT("ComponentName")), false, Error);
+			UActorComponent* Baseline = Component ? FNexusBlueprintEditUtils::FindComponentBaseline(BP, Component, ComponentArgs.Str(TEXT("ComponentName")), ComponentArgs.Str(TEXT("Baseline"), TEXT("ClassDefault")), Error) : nullptr;
+			if (!Component || !Baseline) { OutError = Error; return; }
+			InOutDetail->SetStringField(TEXT("TemplatePath"), Component->GetPathName());
+			InOutDetail->SetStringField(TEXT("BaselinePath"), Baseline->GetPathName());
+			TArray<FString> Paths = ComponentArgs.StrArr(TEXT("PropertyPaths"));
+			if (Paths.Num() == 0) for (TFieldIterator<FProperty> Field(Component->GetClass()); Field && Paths.Num() < 32; ++Field) if (Field->HasAnyPropertyFlags(CPF_Edit)) Paths.Add(Field->GetName());
+			if (Paths.Num() > 32) { OutError = TEXT("Component comparison is limited to 32 PropertyPaths"); return; }
+			TArray<TSharedPtr<FJsonValue>> Properties;
+			for (const FString& Path : Paths)
+			{
+				auto Entry = MakeShared<FJsonObject>();
+				Entry->SetStringField(TEXT("PropertyPath"), Path);
+				TArray<FString> Segments; Path.ParseIntoArray(Segments, TEXT("."), false);
+				FProperty* Property = nullptr; FProperty* DefaultProperty = nullptr;
+				void* Value = nullptr; void* DefaultValue = nullptr;
+				if (!FNexusPropertyUtils::ResolvePropertyWrite(Component, Segments, 0, Property, Value, Error)
+					|| !FNexusPropertyUtils::ResolvePropertyWrite(Baseline, Segments, 0, DefaultProperty, DefaultValue, Error) || Property != DefaultProperty)
+				{ Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Baseline property type differs") : Error); OutError = TEXT("One or more component properties could not be compared"); }
+				else
+				{
+					FString Text; FNexusPropertyUtils::ExportText(Property, Text, Value); Entry->SetStringField(TEXT("Value"), Text);
+					Text.Reset(); FNexusPropertyUtils::ExportText(Property, Text, DefaultValue); Entry->SetStringField(TEXT("DefaultValue"), Text);
+					Entry->SetStringField(TEXT("Type"), Property->GetCPPType());
+					Entry->SetBoolField(TEXT("bDiffersFromDefault"), !Property->Identical(Value, DefaultValue, PPF_None));
+				}
+				Properties.Add(MakeShared<FJsonValueObject>(Entry));
+			}
+			InOutDetail->SetArrayField(TEXT("Properties"), Properties);
+			return;
+		}
 		TSharedPtr<FJsonObject> CompResult = HandleBPComponents(BP, Q);
 		for (const auto& Pair : CompResult->Values)
 			InOutDetail->SetField(Pair.Key, Pair.Value);
@@ -640,6 +680,8 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 				FNexusBPEntryLocal E;
 			E.Name = Var.VarName.ToString(); E.Kind = TEXT("variable");
 			E.Type = Var.VarType.PinCategory.ToString(); E.bIsPublic = (Var.PropertyFlags & CPF_Edit) != 0;
+			E.TypeInfo = FNexusPinTypeUtils::DescribePinType(Var.VarType);
+			E.Guid = Var.VarGuid.ToString(EGuidFormats::DigitsWithHyphens);
 			if (!Var.VarType.PinSubCategory.IsNone()) E.SubType = Var.VarType.PinSubCategory.ToString();
 			if (Var.VarType.PinSubCategoryObject.IsValid()) E.SubTypeObject = Var.VarType.PinSubCategoryObject->GetName();
 			if (Var.HasMetaData(TEXT("Category"))) E.Category = Var.GetMetaData(TEXT("Category"));
@@ -671,6 +713,8 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			Obj->SetStringField(TEXT("Name"), E.Name);
 			Obj->SetStringField(TEXT("Kind"), E.Kind);
+			if (E.TypeInfo) for (const auto& Field : E.TypeInfo->Values) Obj->SetField(Field.Key, Field.Value);
+			if (!E.Guid.IsEmpty()) { Obj->SetStringField(TEXT("Guid"), E.Guid); Obj->SetBoolField(TEXT("bInherited"), false); }
 			if (!E.Type.IsEmpty())          { Obj->SetStringField(TEXT("Type"),          E.Type); }
 			if (!E.SubType.IsEmpty())       { Obj->SetStringField(TEXT("SubType"),       E.SubType); }
 			if (!E.SubTypeObject.IsEmpty()) { Obj->SetStringField(TEXT("SubTypeObject"), E.SubTypeObject); }
@@ -679,6 +723,17 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 			// 函数节：从 GeneratedClass 提取签名
 			if (E.Kind == TEXT("Function") && BP->GeneratedClass)
 			{
+				TArray<TSharedPtr<FJsonValue>> Locals;
+				if (UEdGraph* FunctionGraph = FNexusBlueprintGraphUtils::FindBPGraph(BP, E.Name))
+					for (UEdGraphNode* Node : FunctionGraph->Nodes) if (auto* FunctionEntry = Cast<UK2Node_FunctionEntry>(Node))
+						for (const auto& Variable : FunctionEntry->LocalVariables)
+						{
+							auto Local = FNexusPinTypeUtils::DescribePinType(Variable.VarType);
+							Local->SetStringField(TEXT("Name"), Variable.VarName.ToString());
+							Local->SetStringField(TEXT("Guid"), Variable.VarGuid.ToString(EGuidFormats::DigitsWithHyphens));
+							Locals.Add(MakeShared<FJsonValueObject>(Local));
+						}
+				Obj->SetArrayField(TEXT("LocalVariables"), Locals);
 				UFunction* Func = BP->GeneratedClass->FindFunctionByName(*E.Name);
 				if (Func)
 				{

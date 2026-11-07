@@ -1,4 +1,4 @@
-﻿// Copyright byteyang. All Rights Reserved.
+// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Runtime/Actor/NexusListRuntimeActorsCapability.h"
 #include "Utils/NexusJsonUtils.h"
@@ -28,7 +28,7 @@ void FNexusListRuntimeActorsCapability::BuildDefinition(FNexusCapabilityDefiniti
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
 	Out.ExtraSearchKeywords = { TEXT("scene"), TEXT("World"), TEXT("filter"), TEXT("find"), TEXT("Tag") };
-	Out.RelatedCapabilities = { TEXT("GetRuntimeActorProperty"), TEXT("DiffRuntimeActors") };
+	Out.RelatedCapabilities = { TEXT("GetRuntimeActorProperty"), TEXT("DiffRuntimeActors"), TEXT("GetRuntimeActorAI"), TEXT("GetNavigationPath"), TEXT("GetNavigationPoint") };
 	Out.Prerequisites = { TEXT("PIE") };
 }
 

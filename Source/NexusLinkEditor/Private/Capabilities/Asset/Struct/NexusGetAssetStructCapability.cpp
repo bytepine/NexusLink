@@ -8,6 +8,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusPinTypeUtils.h"
 #if NX_UE_HAS_STRUCT_UTILS_HEADER
 #include "StructUtils/UserDefinedStruct.h"
 #else
@@ -33,6 +34,7 @@ static TSharedPtr<FJsonObject> HandleStruct(UUserDefinedStruct* Struct, const TA
 		TSharedPtr<FJsonObject> F = MakeShared<FJsonObject>();
 		F->SetStringField(TEXT("Name"), Var.FriendlyName);
 		F->SetStringField(TEXT("Type"), PT.PinCategory.ToString());
+		for (const auto& Field : FNexusPinTypeUtils::DescribePinType(PT)->Values) F->SetField(Field.Key, Field.Value);
 		if (!PT.PinSubCategory.IsNone()) F->SetStringField(TEXT("SubType"), PT.PinSubCategory.ToString());
 		// 对象/结构引用的具体类名（e.g. struct/object 引用类型）
 		if (UObject* SubObj = PT.PinSubCategoryObject.Get())

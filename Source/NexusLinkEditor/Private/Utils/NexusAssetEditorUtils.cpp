@@ -17,6 +17,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogNexusAssetEditorUtils, Log, All);
 
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "EdGraph/EdGraph.h"
 #include "WidgetBlueprint.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Widget.h"
@@ -162,8 +164,52 @@ bool FNexusAssetEditorUtils::CompileAndSaveBlueprint(UPackage* Package, UBluepri
 {
 #if WITH_EDITOR
 	if (!Package || !Blueprint) return false;
-	FKismetEditorUtilities::CompileBlueprint(Blueprint);
+	if (!CompileWithDiagnostics(Blueprint, MakeShared<FJsonObject>())) return false;
 	return FNexusAssetUtils::SaveNewAsset(Package, Blueprint, PackagePath);
+#else
+	return false;
+#endif
+}
+
+bool FNexusAssetEditorUtils::CompileWithDiagnostics(UBlueprint* Blueprint, const TSharedPtr<FJsonObject>& Result)
+{
+#if WITH_EDITOR
+	if (!Blueprint || !Result) return false;
+	FCompilerResultsLog Log;
+	Log.bSilentMode = true;
+	const EBlueprintCompileOptions Options = FNexusEditorTransaction::IsTransactionActive()
+		? EBlueprintCompileOptions::SkipGarbageCollection : EBlueprintCompileOptions::None;
+	FKismetEditorUtilities::CompileBlueprint(Blueprint, Options, &Log);
+	const bool bSucceeded = Blueprint->Status != BS_Error && Log.NumErrors == 0;
+	Result->SetBoolField(TEXT("bCompiled"), bSucceeded);
+	Result->SetBoolField(TEXT("bHasCompilerErrors"), !bSucceeded);
+	Result->SetNumberField(TEXT("CompilerErrorCount"), Log.NumErrors);
+	Result->SetNumberField(TEXT("CompilerWarningCount"), Log.NumWarnings);
+	Result->SetStringField(TEXT("Status"), FString::FromInt(static_cast<int32>(Blueprint->Status)));
+	TArray<TSharedPtr<FJsonValue>> Messages;
+	for (const auto& Message : Log.Messages)
+	{
+		if (Messages.Num() >= 128) break;
+		auto Entry = MakeShared<FJsonObject>();
+		Entry->SetStringField(TEXT("Severity"), Message->GetSeverity() <= EMessageSeverity::Error ? TEXT("Error") : (Message->GetSeverity() <= EMessageSeverity::Warning ? TEXT("Warning") : TEXT("Info")));
+		Entry->SetStringField(TEXT("Message"), Message->ToText().ToString());
+		for (const auto& Token : Message->GetMessageTokens())
+		{
+			if (Token->GetType() != EMessageToken::EdGraph) continue;
+			const auto GraphToken = StaticCastSharedRef<FEdGraphToken>(Token);
+			const UEdGraphNode* Node = Cast<UEdGraphNode>(GraphToken->GetGraphObject());
+			if (!Node && GraphToken->GetPin()) Node = GraphToken->GetPin()->GetOwningNode();
+			if (!Node) continue;
+			Entry->SetStringField(TEXT("NodeId"), Node->NodeGuid.ToString(EGuidFormats::DigitsWithHyphens));
+			if (Node->GetGraph()) Entry->SetStringField(TEXT("GraphName"), Node->GetGraph()->GetName());
+			break;
+		}
+		Messages.Add(MakeShared<FJsonValueObject>(Entry));
+	}
+	Result->SetArrayField(TEXT("CompilerMessages"), Messages);
+	Result->SetBoolField(TEXT("bCompilerMessagesTruncated"), Log.Messages.Num() > Messages.Num());
+	if (!bSucceeded) Result->SetStringField(TEXT("CompileError"), TEXT("Blueprint compilation failed; package was not saved"));
+	return bSucceeded;
 #else
 	return false;
 #endif
@@ -202,18 +248,7 @@ void FNexusAssetEditorUtils::ApplyManageFinalize(
 		}
 		else
 		{
-			// 跨资产批次在外层事务提交前编译以校验错误；GC 会破坏尚需回滚的 Undo 快照。
-			const EBlueprintCompileOptions CompileOptions = FNexusEditorTransaction::IsTransactionActive()
-				? EBlueprintCompileOptions::SkipGarbageCollection : EBlueprintCompileOptions::None;
-			FKismetEditorUtilities::CompileBlueprint(BP, CompileOptions);
-			OutTop->SetBoolField(TEXT("bCompiled"), BP->Status != BS_Error);
-			OutTop->SetBoolField(TEXT("bHasCompilerErrors"), BP->Status == BS_Error);
-			if (BP->Status == BS_Error)
-			{
-				OutTop->SetStringField(TEXT("CompileError"), TEXT("Blueprint compilation failed; package was not saved."));
-			}
-			OutTop->SetStringField(TEXT("Status"),
-				FString::Printf(TEXT("%d"), static_cast<int32>(BP->Status)));
+			CompileWithDiagnostics(BP, OutTop);
 		}
 		if (OutTop->HasField(TEXT("CompileError"))) return;
 	}

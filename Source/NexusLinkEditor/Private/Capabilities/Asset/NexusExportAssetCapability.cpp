@@ -8,6 +8,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusArgs.h"
 #include "Exporters/Exporter.h"
 #include "AssetExportTask.h"
 #include "NexusMcpTool.h"
@@ -19,11 +20,13 @@ void FNexusExportAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Asset path")))
 		.Prop(TEXT("OutputPath"), FNexusSchema::Str(TEXT("Export file path (ext included; empty auto-exports to Saved/Exported/)")))
+		.Prop(TEXT("ConflictPolicy"), FNexusSchema::Enum(TEXT("Primary output path conflict policy; sidecar files are exporter-specific"), {TEXT("Fail"), TEXT("Unique"), TEXT("Replace")}, TEXT("Replace")))
+		.Prop(TEXT("bValidateOnly"), FNexusSchema::Bool(TEXT("Inspect exporter and destination without creating directories or writing files"), true, false))
 		.Required({ TEXT("AssetPath") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("export"), TEXT("save"), TEXT("File"), TEXT("disk") };
-	Out.RelatedCapabilities = { TEXT("SearchAsset"), TEXT("DuplicateAsset") };
+	Out.RelatedCapabilities = { TEXT("SearchAsset"), TEXT("DuplicateAsset"), TEXT("GetAssetExportOptions") };
 	Out.Prerequisites = { TEXT("EditorOnly") };
 	Out.WhenToUse = TEXT("Export asset to external file (FBX/OBJ/PNG)");
 }
@@ -92,6 +95,30 @@ FCapabilityResult FNexusExportAssetCapability::Execute(const TSharedPtr<FJsonObj
 			OutputPath = FPaths::ProjectSavedDir() / TEXT("Exported") / (Asset->GetName() + Extension);
 		}
 
+		OutputPath = FPaths::ConvertRelativePathToFull(OutputPath);
+		const FNexusArgs Args(Arguments);
+		const FString Policy = Args.Str(TEXT("ConflictPolicy"), TEXT("Replace"));
+		const bool bExisted = IFileManager::Get().FileExists(*OutputPath);
+		if (bExisted && Policy == TEXT("Fail")) { OutError = TEXT("Primary export destination exists; choose Unique or explicitly Replace"); return; }
+		if (Policy == TEXT("Unique"))
+		{
+			const FString Directory = FPaths::GetPath(OutputPath);
+			const FString BaseName = FPaths::GetBaseFilename(OutputPath);
+			const FString Extension = FPaths::GetExtension(OutputPath, true);
+			int32 Suffix = 1;
+			while (IFileManager::Get().FileExists(*OutputPath) && Suffix <= 10000) OutputPath = Directory / (BaseName + TEXT("_") + FString::FromInt(Suffix++) + Extension);
+			if (IFileManager::Get().FileExists(*OutputPath)) { OutError = TEXT("Could not find an unused export output path"); return; }
+		}
+		auto Entry = MakeShared<FJsonObject>();
+		Entry->SetStringField(TEXT("Path"), AssetPath);
+		Entry->SetStringField(TEXT("AssetClass"), Asset->GetClass()->GetName());
+		Entry->SetStringField(TEXT("OutputPath"), OutputPath);
+		Entry->SetStringField(TEXT("Exporter"), Exporter->GetClass()->GetName());
+		Entry->SetStringField(TEXT("ConflictPolicy"), Policy);
+		Entry->SetBoolField(TEXT("bDestinationExisted"), bExisted);
+		Entry->SetBoolField(TEXT("bValidateOnly"), Args.Bool(TEXT("bValidateOnly")));
+		Entry->SetBoolField(TEXT("bAutomated"), true);
+		if (Args.Bool(TEXT("bValidateOnly"))) { Entry->SetBoolField(TEXT("bWritten"), false); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 		// 确保目录存在
 		{
 			FString Dir = FPaths::GetPath(OutputPath);
@@ -104,15 +131,10 @@ FCapabilityResult FNexusExportAssetCapability::Execute(const TSharedPtr<FJsonObj
 		Task->Filename = OutputPath;
 		Task->bAutomated = true;
 		Task->bPrompt = false;
-		Task->bReplaceIdentical = true;
+		Task->bReplaceIdentical = Policy == TEXT("Replace");
 		const bool bSuccess = UExporter::RunAssetExportTask(Task);
 
-		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("Path"), AssetPath);
-		Entry->SetStringField(TEXT("AssetClass"), Asset->GetClass()->GetName());
-		Entry->SetStringField(TEXT("OutputPath"), OutputPath);
-		Entry->SetStringField(TEXT("Exporter"), Exporter->GetClass()->GetName());
-		Entry->SetBoolField(TEXT("bAutomated"), true);
+		Entry->SetBoolField(TEXT("bWritten"), bSuccess);
 		if (!bSuccess) Entry->SetStringField(TEXT("Error"), Task->Errors.Num() > 0 ? FString::Join(Task->Errors, TEXT("; ")) : TEXT("Export failed"));
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

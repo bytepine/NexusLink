@@ -4,6 +4,7 @@
 
 // Utils 层：Domain — §8.4 豁免：单 Capability 引用但合并了 2 处历史分散实现（>30 行）
 #include "CoreMinimal.h"
+class FJsonObject;
 
 #if WITH_EDITOR
 #include "EdGraph/EdGraphPin.h"
@@ -32,5 +33,7 @@ public:
 	 *   - T[] / Array<T> / Set<T> / Map<K,V>；不支持嵌套容器，Set/Map key 必须可哈希
 	 */
 	static bool ParsePinType(const FString& TypeStr, FEdGraphPinType& OutPinType, FString& OutError);
+	/** 完整描述 PinType；保留类别字段，同时返回可回读的容器、键值类型与对象路径。 */
+	static TSharedRef<FJsonObject> DescribePinType(const FEdGraphPinType& PinType);
 #endif
 };

@@ -6,6 +6,10 @@
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusAssetEditUtils.h"
+#include "Utils/NexusBlueprintEditUtils.h"
+#include "Engine/Blueprint.h"
+#include "Engine/World.h"
+#include "Utils/NexusEditorLevelUtils.h"
 #include "Utils/NexusAssetStructureUtils.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusJsonUtils.h"
@@ -15,7 +19,13 @@ void FNexusGetAssetEditPreviewCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.Name = TEXT("GetAssetEditPreview");
 	Out.Description = TEXT("Plan scalar values and bounded BP/UMG/PCG structural edits in temporary storage. No source writes, compilation or save.");
 	const TSharedRef<FJsonObject> Operation = FNexusSchema::Object()
-		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Matching operation"), {TEXT("SetDefaults"), TEXT("Set"), TEXT("SetProperty"), TEXT("Add"), TEXT("Remove"), TEXT("Move"), TEXT("AddNode"), TEXT("RemoveNode"), TEXT("AddEdge"), TEXT("RemoveEdge"), TEXT("Disconnect"), TEXT("DisconnectAll")}))
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Matching operation"), {TEXT("SetDefaults"), TEXT("Set"), TEXT("SetProperty"), TEXT("SetActorProperty"), TEXT("SetComponentProperty"), TEXT("Reparent"), TEXT("ChangeVariableType"), TEXT("Add"), TEXT("Remove"), TEXT("Move"), TEXT("AddNode"), TEXT("RemoveNode"), TEXT("AddEdge"), TEXT("RemoveEdge"), TEXT("Disconnect"), TEXT("DisconnectAll")}))
+		.Prop(TEXT("ParentClass"), FNexusSchema::Str(TEXT("Reparent target class or Blueprint path")))
+		.Prop(TEXT("VariableName"), FNexusSchema::Str(TEXT("Owned variable for ChangeVariableType")))
+		.Prop(TEXT("VariableType"), FNexusSchema::Str(TEXT("Proposed Blueprint variable type")))
+		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Exact level Actor name for SetActorProperty")))
+		.Prop(TEXT("ComponentName"), FNexusSchema::Str(TEXT("Blueprint component for SetComponentProperty")))
+		.Prop(TEXT("PropertyName"), FNexusSchema::Str(TEXT("DataAsset editable property path")))
 		.Prop(TEXT("ParentWidget"), FNexusSchema::Str(TEXT("Destination panel")))
 		.Prop(TEXT("WidgetClass"), FNexusSchema::Str(TEXT("Concrete widget class")))
 		.Prop(TEXT("ChildIndex"), FNexusSchema::Int(TEXT("Destination child index; -1 appends"), -1, -1))
@@ -39,7 +49,7 @@ void FNexusGetAssetEditPreviewCapability::BuildDefinition(FNexusCapabilityDefini
 		.Required({TEXT("Action")}).Build().ToSharedRef();
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Single asset path")))
-		.Prop(TEXT("Capability"), FNexusSchema::Enum(TEXT("Target write capability"), {TEXT("ManageAssetBlueprint"), TEXT("ManageAssetDataTable"), TEXT("ManageAssetUserWidget"), TEXT("ManageAssetPCGGraph")}))
+		.Prop(TEXT("Capability"), FNexusSchema::Enum(TEXT("Target write capability"), {TEXT("ManageAssetBlueprint"), TEXT("ManageAssetDataTable"), TEXT("ManageAssetDataAsset"), TEXT("ManageAssetLevel"), TEXT("ManageAssetUserWidget"), TEXT("ManageAssetPCGGraph")}))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Scalar edits to validate"), Operation))
 		.Required({TEXT("AssetPath"), TEXT("Capability"), TEXT("Operations")}).Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor};
@@ -53,12 +63,13 @@ FCapabilityResult FNexusGetAssetEditPreviewCapability::Execute(const TSharedPtr<
 	{
 		const FNexusArgs Args(Arguments);
 		const FString Path = Args.Str(TEXT("AssetPath"));
-		UObject* Asset = FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
+		const FString Capability = Args.Str(TEXT("Capability"));
+		bool bEditorWorld = false;
+		UObject* Asset = Capability == TEXT("ManageAssetLevel") ? FNexusEditorLevelUtils::LoadLevelWorldForRead(Path, bEditorWorld, Error) : FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
 		if (!Asset) { Error = TEXT("Asset not found"); return; }
 		const TArray<TSharedPtr<FJsonValue>> Operations = FNexusJsonUtils::ExtractOperations(Arguments);
 		if (Operations.Num() == 0) { Error = TEXT("Operations must not be empty"); return; }
 		for (const auto& Operation : Operations) if (!Operation || Operation->Type != EJson::Object) { Error = TEXT("Every operation must be an object"); return; }
-		const FString Capability = Args.Str(TEXT("Capability"));
 		const bool bStructural = FNexusAssetStructureUtils::Supports(Capability, FNexusArgs(Operations[0]->AsObject()).Str(TEXT("Action")));
 		if (bStructural && Operations.Num() > 128) { Error = TEXT("Structural preview is limited to 128 operations"); return; }
 		UObject* Preview = bStructural ? FNexusAssetStructureUtils::Copy(Asset) : nullptr;
@@ -69,6 +80,18 @@ FCapabilityResult FNexusGetAssetEditPreviewCapability::Execute(const TSharedPtr<
 		{
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 			Entry->SetStringField(TEXT("Path"), Path);
+			const FNexusArgs Operation(Value->AsObject());
+			if (Capability == TEXT("ManageAssetBlueprint") && (Operation.Str(TEXT("Action")) == TEXT("Reparent") || Operation.Str(TEXT("Action")) == TEXT("ChangeVariableType")))
+			{
+				FString PreviewError;
+				const bool bValid = Operation.Str(TEXT("Action")) == TEXT("Reparent")
+					? FNexusBlueprintEditUtils::PreviewReparent(Cast<UBlueprint>(Asset), Operation.Str(TEXT("ParentClass")), Entry, PreviewError)
+					: FNexusBlueprintEditUtils::ChangeVariableType(Cast<UBlueprint>(Asset), Operation.Str(TEXT("VariableName")), Operation.Str(TEXT("VariableType")), false, true, Entry, PreviewError);
+				Entry->SetBoolField(TEXT("bValid"), bValid);
+				if (!bValid) Entry->SetStringField(TEXT("Error"), PreviewError);
+				Entries.Add(MakeShared<FJsonValueObject>(Entry));
+				continue;
+			}
 			if (bStructural)
 			{
 				FString PlanError;

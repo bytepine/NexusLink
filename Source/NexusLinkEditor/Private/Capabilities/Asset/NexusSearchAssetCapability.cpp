@@ -1,4 +1,4 @@
-﻿// Copyright byteyang. All Rights Reserved.
+// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/NexusSearchAssetCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
@@ -305,7 +305,7 @@ void FNexusSearchAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Ou
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 	Out.ExtraSearchKeywords = { TEXT("Content"), TEXT("browse"), TEXT("registry"), TEXT("scan"), TEXT("filter") };
-	Out.RelatedCapabilities = { TEXT("GetAssetBlueprint"), TEXT("GetAssetRefs") };
+	Out.RelatedCapabilities = { TEXT("GetAssetBlueprint"), TEXT("GetAssetRefs"), TEXT("ControlEditorAssetEditor"), TEXT("GetAssetExportOptions") };
 }
 
 FCapabilityResult FNexusSearchAssetCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const

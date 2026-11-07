@@ -6,6 +6,7 @@
 #if NEXUSLINK_WITH_SERVER
 #include "Log/NexusLogCapture.h"
 #include "Utils/NexusVersionCompat.h"
+#include "Utils/NexusAIUtils.h"
 #include "Server/NexusMcpServer.h"
 #include "NexusLinkSettings.h"
 #include "NexusMcpActivation.h"
@@ -86,6 +87,7 @@ void FNexusLinkModule::StartupModule()
 
 void FNexusLinkModule::ShutdownModule()
 {
+	FNexusAIUtils::Shutdown();
 #if NX_UE_HAS_POST_ENGINE_INIT_ACCESSOR
 	FCoreDelegates::GetOnPostEngineInit().RemoveAll(this);
 #else

@@ -87,6 +87,10 @@ Legacy keys → `ArgInvalid`.
 
 ---
 
+Asset editors: `GetEditorContext(Sections=["AssetEditors"])` → `ControlEditorAssetEditor` Open/Focus/Status/Close. Close rejects dirty assets and shared instances; save explicitly first. Maps use `ControlEditorLevel`. Slate refs still come from `GetEditorSlate` before interaction.
+
+Navigation: `GetNavigationPoint` projects a point; `GetNavigationPath` queries existing nav data without movement/rebuild. Align Agent/Filter/projection/partial-path settings with `InteractRuntimeActorAI` MoveTo; Stop stops movement. Confirm tracked completion with `GetRuntimeActorAI`; acceptance is not arrival. Preview Blueprint reparent/type changes with `GetAssetEditPreview`; scalar DataAsset/Level/BP-component writes support ExpectedValue/bVerify. Discover export formats with `GetAssetExportOptions`; ExportAsset bValidateOnly does not write.
+
 ## 5. Project customization (fill after copying to your game project)
 
 > Keep this section only in the **game project** rule copy, not the plugin template.

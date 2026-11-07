@@ -4,6 +4,11 @@
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusEditorTransaction.h"
+#include "Utils/NexusBlueprintEditUtils.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
+#include "GameFramework/Actor.h"
+#include "Engine/DataAsset.h"
 #include "Engine/Blueprint.h"
 #include "Engine/DataTable.h"
 #include "WidgetBlueprint.h"
@@ -19,6 +24,8 @@ static FString SupportedEditAction(const FString& Capability)
 	if (Capability == TEXT("ManageAssetBlueprint")) return TEXT("SetDefaults");
 	if (Capability == TEXT("ManageAssetDataTable")) return TEXT("Set");
 	if (Capability == TEXT("ManageAssetUserWidget")) return TEXT("SetProperty");
+	if (Capability == TEXT("ManageAssetDataAsset")) return TEXT("Set");
+	if (Capability == TEXT("ManageAssetLevel")) return TEXT("SetActorProperty");
 	return FString();
 }
 
@@ -36,9 +43,10 @@ bool FNexusAssetEditUtils::ValidateOperations(const FString& Capability, const T
 		if (!Value.IsValid() || Value->Type != EJson::Object) continue;
 		const TSharedPtr<FJsonObject> Operation = Value->AsObject();
 		if ((IsVerified(Args) || Operation->HasField(TEXT("ExpectedValue")))
-			&& !FNexusArgs(Operation).Str(TEXT("Action")).Equals(SupportedEditAction(Capability), ESearchCase::IgnoreCase))
+			&& !FNexusArgs(Operation).Str(TEXT("Action")).Equals(SupportedEditAction(Capability), ESearchCase::IgnoreCase)
+			&& !(Capability == TEXT("ManageAssetBlueprint") && FNexusArgs(Operation).Str(TEXT("Action")) == TEXT("SetComponentProperty")))
 		{
-			Error = TEXT("bVerify / ExpectedValue only support SetDefaults, DataTable Set, and Widget SetProperty");
+			Error = TEXT("bVerify / ExpectedValue require a supported scalar set operation");
 			return false;
 		}
 	}
@@ -57,7 +65,8 @@ static bool ResolveEditProperty(UObject* Asset, const FString& Capability, const
 {
 	const FNexusArgs Args(Operation);
 	const FString Action = SupportedEditAction(Capability);
-	if (!Asset || Action.IsEmpty() || !Args.Str(TEXT("Action")).Equals(Action, ESearchCase::IgnoreCase))
+	const bool bComponent = Capability == TEXT("ManageAssetBlueprint") && Args.Str(TEXT("Action")) == TEXT("SetComponentProperty");
+	if (!Asset || Action.IsEmpty() || (!bComponent && !Args.Str(TEXT("Action")).Equals(Action, ESearchCase::IgnoreCase)))
 	{ Error = TEXT("Unsupported asset or operation for scalar preview/verification"); return false; }
 	FString Path = Args.Str(TEXT("PropertyPath"));
 	const UStruct* Struct = nullptr;
@@ -75,6 +84,25 @@ static bool ResolveEditProperty(UObject* Asset, const FString& Capability, const
 	{
 		UWidgetBlueprint* WidgetBP = Cast<UWidgetBlueprint>(Asset);
 		Resolved.Owner = WidgetBP && WidgetBP->WidgetTree ? WidgetBP->WidgetTree->FindWidget(FName(*Args.Str(TEXT("WidgetName")))) : nullptr;
+	}
+	else if (Capability == TEXT("ManageAssetDataAsset"))
+	{
+		Resolved.Owner = Cast<UDataAsset>(Asset);
+		Path = Args.Str(TEXT("PropertyName"));
+	}
+	else if (Capability == TEXT("ManageAssetLevel"))
+	{
+		UWorld* World = Cast<UWorld>(Asset);
+		if (World) for (TActorIterator<AActor> Actor(World); Actor; ++Actor)
+			if (Actor->GetName() == Args.Str(TEXT("ActorName")))
+			{
+				if (Resolved.Owner) { Error = TEXT("ActorName is ambiguous; use an exact actor from GetAssetLevel"); return false; }
+				Resolved.Owner = *Actor;
+			}
+	}
+	else if (bComponent)
+	{
+		Resolved.Owner = FNexusBlueprintEditUtils::FindComponent(Cast<UBlueprint>(Asset), Args.Str(TEXT("ComponentName")), false, Error);
 	}
 	else
 	{
@@ -163,7 +191,7 @@ static bool ParseEditValue(const FAssetEditProperty& Resolved, const FString& In
 static bool PrepareEdit(UObject* Asset, const FString& Capability, const TSharedPtr<FJsonObject>& Operation,
 	FAssetEditProperty& Resolved, TSharedPtr<FJsonObject>& Entry, FString& Error)
 {
-	for (const TCHAR* Field : { TEXT("Action"), TEXT("PropertyPath"), TEXT("WidgetName"), TEXT("RowName"), TEXT("FieldName") })
+	for (const TCHAR* Field : { TEXT("Action"), TEXT("PropertyPath"), TEXT("PropertyName"), TEXT("ActorName"), TEXT("ComponentName"), TEXT("WidgetName"), TEXT("RowName"), TEXT("FieldName") })
 	{
 		FString Value;
 		if (Operation->TryGetStringField(Field, Value)) Entry->SetStringField(Field, Value);
@@ -217,6 +245,12 @@ void FNexusAssetEditUtils::Apply(UObject* Asset, const FString& Capability, cons
 		FDefaultConstructedPropertyElement Storage(Resolved.Property);
 		if (!ParseEditValue(Resolved, FNexusArgs(Operation).Str(TEXT("Value")), Storage.GetObjAddress(), Expected, Error))
 		{ Entry->SetStringField(TEXT("Error"), Error); return; }
+		if (Capability == TEXT("ManageAssetBlueprint") && FNexusArgs(Operation).Str(TEXT("Action")) == TEXT("SetComponentProperty"))
+		{
+			if (!FNexusBlueprintEditUtils::FindComponent(Cast<UBlueprint>(Asset), FNexusArgs(Operation).Str(TEXT("ComponentName")), true, Error)
+				|| !ResolveEditProperty(Asset, Capability, Operation, Resolved, Error))
+			{ Entry->SetStringField(TEXT("Error"), Error); return; }
+		}
 		// 先记 Undo，再写入。临时属性存储必须在蓝图编译/重建类型前销毁。
 		Asset->SetFlags(RF_Transactional); Asset->Modify();
 		Resolved.Owner->SetFlags(RF_Transactional); Resolved.Owner->Modify();

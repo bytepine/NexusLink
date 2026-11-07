@@ -6,6 +6,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusAssetEditUtils.h"
 #include "Utils/NexusEditorLevelUtils.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
@@ -92,6 +93,7 @@ void FNexusManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinitio
 			{ TEXT("SetProperty"), TEXT("SpawnActor"), TEXT("RemoveActor"), TEXT("SetActorProperty"), TEXT("ResetActorPropertyToDefault") }))
 		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("WorldSettings propertypath (SetProperty)")))
 		.Prop(TEXT("Value"),        FNexusSchema::Str(TEXT("New property value string")))
+		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous scalar Actor property value")))
 		.Prop(TEXT("ClassName"),    FNexusSchema::Str(TEXT("Actor class name (SpawnActor)")))
 		.Prop(TEXT("AssetPath"),    FNexusSchema::Str(TEXT("Blueprint path (SpawnActor)")))
 		.Prop(TEXT("Location"),     FNexusSchema::Str(TEXT("Spawn location x,y,z (SpawnActor)")))
@@ -101,6 +103,7 @@ void FNexusManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Level asset path (e.g. /Game/Maps/MyLevel)")))
+		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar SetActorProperty operations before saving"), true, false))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
@@ -198,9 +201,14 @@ static void HandleLevel_SetActorProperty(const TSharedPtr<FJsonObject>& Op, FNex
 	const FString ActorName = A.Str(TEXT("ActorName"));
 	const FString PropPath = A.Str(TEXT("PropertyPath"));
 	const FString Value = A.Str(TEXT("Value"));
-	if (ActorName.IsEmpty() || PropPath.IsEmpty() || Value.IsEmpty())
+	if (ActorName.IsEmpty() || PropPath.IsEmpty() || !Op->HasTypedField<EJson::String>(TEXT("Value")))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetActorProperty requires ActorName、PropertyPath、value"));
+		return;
+	}
+	if (FNexusAssetEditUtils::IsVerified(Ctx.Args) || Op->HasField(TEXT("ExpectedValue")))
+	{
+		FNexusAssetEditUtils::Apply(S->World, TEXT("ManageAssetLevel"), Op, FNexusAssetEditUtils::IsVerified(Ctx.Args), Ctx.Entry);
 		return;
 	}
 	AActor* Actor = FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(S->World, ActorName);
@@ -209,6 +217,7 @@ static void HandleLevel_SetActorProperty(const TSharedPtr<FJsonObject>& Op, FNex
 		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 		return;
 	}
+	Actor->Modify();
 	FString OldVal, ActualVal, PropErr;
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(Actor, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
 	{
@@ -285,7 +294,7 @@ static void HandleLevel_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	const FNexusArgs A(Op);
 	const FString PropPath = A.Str(TEXT("PropertyPath"));
 	const FString Value = A.Str(TEXT("Value"));
-	if (PropPath.IsEmpty() || Value.IsEmpty())
+	if (PropPath.IsEmpty() || !Op->HasTypedField<EJson::String>(TEXT("Value")))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyPath and value"));
 		return;
@@ -309,6 +318,7 @@ bool FNexusManageAssetLevelCapability::PrepareTarget(
 	void*& OutTarget,
 	FString& OutError) const
 {
+	if (!FNexusAssetEditUtils::ValidateOperations(TEXT("ManageAssetLevel"), Args, OutError)) return false;
 	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
 	Entry->SetStringField(TEXT("Path"), AssetPath);
 	bool bEditorWorld = false;

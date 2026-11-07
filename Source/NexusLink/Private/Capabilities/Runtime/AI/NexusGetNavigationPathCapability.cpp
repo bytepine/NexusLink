@@ -13,28 +13,8 @@
 #include "NavigationSystem.h"
 #include "NavigationData.h"
 #include "NavigationSystemTypes.h"
+#include "Utils/NexusNavigationUtils.h"
 #include "AI/Navigation/NavAgentInterface.h"
-
-static bool ReadNavigationPoint(const TSharedPtr<FJsonObject>& Arguments, const TCHAR* Name, FVector& Point)
-{
-	const TSharedPtr<FJsonObject>* Object = nullptr;
-	if (!Arguments->TryGetObjectField(Name, Object) || !Object || !Object->IsValid()) return false;
-	const FNexusArgs Args(*Object);
-	const double X = Args.Num(TEXT("X")), Y = Args.Num(TEXT("Y")), Z = Args.Num(TEXT("Z"));
-	if (!FMath::IsFinite(X) || !FMath::IsFinite(Y) || !FMath::IsFinite(Z)
-		|| FMath::Abs(X) > MAX_flt || FMath::Abs(Y) > MAX_flt || FMath::Abs(Z) > MAX_flt) return false;
-	Point = FVector(X, Y, Z);
-	return true;
-}
-
-static TSharedRef<FJsonObject> NavigationPointJson(const FVector& Point)
-{
-	auto Object = MakeShared<FJsonObject>();
-	Object->SetNumberField(TEXT("X"), Point.X);
-	Object->SetNumberField(TEXT("Y"), Point.Y);
-	Object->SetNumberField(TEXT("Z"), Point.Z);
-	return Object;
-}
 
 void FNexusGetNavigationPathCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -49,56 +29,38 @@ void FNexusGetNavigationPathCapability::BuildDefinition(FNexusCapabilityDefiniti
 		.Required(TEXT("Start"), Point.ToSharedRef())
 		.Required(TEXT("End"), Point.ToSharedRef())
 		.Prop(TEXT("World"), FNexusSchema::Enum(TEXT("World selection; Auto prefers PIE/Game, otherwise Editor"), {TEXT("Auto"), TEXT("Editor"), TEXT("Play")}, TEXT("Auto")))
-		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Optional exact actor name or unambiguous label for navigation-agent context; ordinary Actors are supported")))
+		.Prop(TEXT("WorldName"), FNexusSchema::Str(TEXT("Optional exact world name; disambiguates multiple PIE worlds")))
+        .Prop(TEXT("FilterClass"), FNexusSchema::Str(TEXT("Optional NavigationQueryFilter class name/path")))
+        .Prop(TEXT("AgentRadius"), FNexusSchema::Num(TEXT("Optional navigation-agent radius override")))
+        .Prop(TEXT("AgentHeight"), FNexusSchema::Num(TEXT("Optional navigation-agent height override")))
+        .Prop(TEXT("ProjectionExtent"), Point.ToSharedRef())
+        .Prop(TEXT("bProjectStart"), FNexusSchema::Bool(TEXT("Project Start onto existing navigation before querying"), true, false))
+        .Prop(TEXT("bProjectEnd"), FNexusSchema::Bool(TEXT("Project End onto existing navigation before querying"), true, false))
+        .Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Optional exact actor name or unambiguous label for navigation-agent context; ordinary Actors are supported")))
 		.Prop(TEXT("bAllowPartialPath"), FNexusSchema::Bool(TEXT("Allow a path that does not reach End"), true, false))
 		.Prop(TEXT("MaxPoints"), FNexusSchema::Int(TEXT("Maximum returned path points; full path length/cost are retained"), 256, 1, 2048))
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime};
-	Out.ExtraSearchKeywords = {TEXT("navigation"), TEXT("navmesh"), TEXT("route"), TEXT("pathfinding"), TEXT("patrol")};
-	Out.RelatedCapabilities = {TEXT("ListRuntimeActors"), TEXT("GetAssetLevel"), TEXT("InteractRuntimeActorAI")};
+	Out.ExtraSearchKeywords = {TEXT("navigation"), TEXT("navmesh"), TEXT("route"), TEXT("pathfinding"), TEXT("patrol"), TEXT("projection"), TEXT("filter"), TEXT("agent")};
+	Out.RelatedCapabilities = {TEXT("ListRuntimeActors"), TEXT("GetAssetLevel"), TEXT("InteractRuntimeActorAI"), TEXT("GetNavigationPoint"), TEXT("GetRuntimeActorAI")};
 }
 
 FCapabilityResult FNexusGetNavigationPathCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	FVector Start, End;
-	if (!ReadNavigationPoint(Arguments, TEXT("Start"), Start) || !ReadNavigationPoint(Arguments, TEXT("End"), End))
+	if (!FNexusNavigationUtils::ReadPoint(Arguments, TEXT("Start"), Start) || !FNexusNavigationUtils::ReadPoint(Arguments, TEXT("End"), End))
 		return FCapabilityResult::MakeArgInvalid(TEXT("Start and End must contain three finite world coordinates"));
 	return FNexusCapabilityResultBuilder::Build([&](auto& Entries, auto& Top, auto& Error)
 	{
 		const FNexusArgs Args(Arguments);
-		const int32 WorldMode = Args.EnumInt(TEXT("World"), {TEXT("Auto"), TEXT("Editor"), TEXT("Play")}, 0);
-		UWorld* World = WorldMode == 2 ? FNexusRuntimeUtils::RequirePlayWorld(Error) : FNexusRuntimeUtils::GetActiveWorld();
-		if (WorldMode == 1)
-		{
-			World = nullptr;
-			if (GEngine) for (const FWorldContext& Context : GEngine->GetWorldContexts())
-				if (Context.WorldType == EWorldType::Editor && Context.World()) { World = Context.World(); break; }
-		}
-		if (!World) { Error = TEXT("No world of the requested type is available"); return; }
-		AActor* Actor = nullptr;
-		const FString ActorName = Args.Str(TEXT("ActorName"));
-		if (!ActorName.IsEmpty())
-		{
-			for (TActorIterator<AActor> ActorIt(World); ActorIt; ++ActorIt)
-			{
-				if (ActorIt->GetName() != ActorName && FNexusRuntimeUtils::GetActorLabelOrName(*ActorIt) != ActorName) continue;
-				if (Actor) { Error = TEXT("ActorName is ambiguous; use an exact actor name"); return; }
-				Actor = *ActorIt;
-			}
-			if (!Actor) { Error = TEXT("ActorName was not found in the selected world"); return; }
-		}
-		auto Entry = MakeShared<FJsonObject>();
-		Entry->SetStringField(TEXT("WorldName"), World->GetName());
-		Entry->SetStringField(TEXT("WorldType"), World->WorldType == EWorldType::Editor ? TEXT("Editor") : (World->WorldType == EWorldType::PIE ? TEXT("PIE") : TEXT("Game")));
-		Entry->SetObjectField(TEXT("Start"), NavigationPointJson(Start));
-		Entry->SetObjectField(TEXT("End"), NavigationPointJson(End));
-		if (Actor) Entry->SetStringField(TEXT("ActorName"), Actor->GetName());
-		UNavigationSystemV1* Navigation = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
-		const ANavigationData* NavData = Navigation ? Navigation->GetDefaultNavDataInstance(FNavigationSystem::DontCreate) : nullptr;
-		if (Navigation && Actor)
-			if (const INavAgentInterface* Agent = Cast<INavAgentInterface>(Actor))
-				NavData = Navigation->GetNavDataForProps(Agent->GetNavAgentPropertiesRef(), Start);
-		Entry->SetBoolField(TEXT("bNavigationAvailable"), NavData != nullptr);
+        FNexusNavigationContext Context;
+        if (!FNexusNavigationUtils::Resolve(Arguments, Start, Context, Error)) return;
+        auto Entry = MakeShared<FJsonObject>();
+        FNexusNavigationUtils::Describe(Context, Entry);
+        Entry->SetObjectField(TEXT("Start"), FNexusNavigationUtils::PointJson(Start));
+        Entry->SetObjectField(TEXT("End"), FNexusNavigationUtils::PointJson(End));
+        UNavigationSystemV1* Navigation = Context.System;
+        const ANavigationData* NavData = Context.Data;
 		Entry->SetBoolField(TEXT("bPathFound"), false);
 		Entry->SetArrayField(TEXT("Points"), {});
 		if (!Navigation || !NavData)
@@ -108,8 +70,27 @@ FCapabilityResult FNexusGetNavigationPathCapability::Execute(const TSharedPtr<FJ
 		}
 		else
 		{
-			UObject* Querier = Actor ? static_cast<UObject*>(Actor) : static_cast<UObject*>(World);
-			FPathFindingQuery Query(Querier, *NavData, Start, End);
+			FVector QueryStart = Start, QueryEnd = End;
+            FNavLocation Projected;
+            if (Args.Bool(TEXT("bProjectStart")))
+            {
+                const bool bProjected = Navigation->ProjectPointToNavigation(Start, Projected, Context.Extent, NavData, Context.Filter);
+                Entry->SetBoolField(TEXT("bStartProjected"), bProjected);
+                if (!bProjected) { Entry->SetStringField(TEXT("QueryResult"), TEXT("StartProjectionFailed")); Entries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+                QueryStart = Projected.Location;
+            }
+            if (Args.Bool(TEXT("bProjectEnd")))
+            {
+                const bool bProjected = Navigation->ProjectPointToNavigation(End, Projected, Context.Extent, NavData, Context.Filter);
+                Entry->SetBoolField(TEXT("bEndProjected"), bProjected);
+                if (!bProjected) { Entry->SetStringField(TEXT("QueryResult"), TEXT("EndProjectionFailed")); Entries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
+                QueryEnd = Projected.Location;
+            }
+            Entry->SetObjectField(TEXT("QueryStart"), FNexusNavigationUtils::PointJson(QueryStart));
+            Entry->SetObjectField(TEXT("QueryEnd"), FNexusNavigationUtils::PointJson(QueryEnd));
+            UObject* Querier = Context.Actor ? static_cast<UObject*>(Context.Actor) : static_cast<UObject*>(Context.World);
+            FPathFindingQuery Query(Querier, *NavData, QueryStart, QueryEnd, Context.Filter);
+            Query.SetNavAgentProperties(Context.Agent);
 			Query.SetAllowPartialPaths(Args.Bool(TEXT("bAllowPartialPath")));
 			const FPathFindingResult Result = Navigation->FindPathSync(Query);
 			Entry->SetStringField(TEXT("NavData"), NavData->GetPathName());
@@ -127,7 +108,7 @@ FCapabilityResult FNexusGetNavigationPathCapability::Execute(const TSharedPtr<FJ
 				Entry->SetBoolField(TEXT("bTruncated"), Points.Num() > Limit);
 				TArray<TSharedPtr<FJsonValue>> Values;
 				for (int32 PointIndex = 0; PointIndex < FMath::Min(Points.Num(), Limit); ++PointIndex)
-					Values.Add(MakeShared<FJsonValueObject>(NavigationPointJson(Points[PointIndex].Location)));
+					Values.Add(MakeShared<FJsonValueObject>(FNexusNavigationUtils::PointJson(Points[PointIndex].Location)));
 				Entry->SetArrayField(TEXT("Points"), Values);
 			}
 		}

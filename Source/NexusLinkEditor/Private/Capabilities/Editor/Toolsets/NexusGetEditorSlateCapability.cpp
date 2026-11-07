@@ -14,7 +14,7 @@ void FNexusGetEditorSlateCapability::BuildDefinition(FNexusCapabilityDefinition&
 		.Prop(TEXT("TextGone"), FNexusSchema::Str(TEXT("WaitFor text to disappear")))
 		.Prop(TEXT("TimeoutSeconds"), FNexusSchema::Int(TEXT("Bounded condition wait"),5,0,30)).Build();
 	FNexusEditorToolSchema::Configure(Out, false);
-	Out.RelatedCapabilities = { TEXT("GetEditorOperation") };
+	Out.RelatedCapabilities = { TEXT("GetEditorOperation"), TEXT("ControlEditorAssetEditor"), TEXT("GetEditorContext") };
 }
 
 FCapabilityResult FNexusGetEditorSlateCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const

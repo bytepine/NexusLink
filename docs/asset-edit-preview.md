@@ -39,8 +39,21 @@ Scalar preview uses temporary property storage and never mutates, compiles, save
 
 关卡属性检查使用 `GetAssetLevel` 的 `ActorProperties`：先从 `Actors` 节获取精确 `ActorName`，再传 1–32 个 `PropertyPaths`，返回 `Value`、`DefaultValue`、`bDiffersFromDefault`；默认值来自 Actor 类 CDO，与 `ResetActorPropertyToDefault` 一致。无需导出整个关卡。`ExportAsset` 则按输出扩展名选导出器，并以自动化模式执行；不保证大资产导出时间。
 
-重设普通蓝图父类使用 `ManageAssetBlueprint` 的 `Operations=[{"Action":"Reparent","ParentClass":"Character"}]`，或传入完整生成类路径。保留 Undo，完整编译和保存分别由顶层 `bCompile`、`bSaveToDisk` 控制；不隐式完整编译。离开当前父类继承链时必须显式设置该 operation 的 `bAllowPotentialDataLoss=true`，可能丢失原父类默认值或使引用失效。拒绝 PIE 期间操作、继承循环、专用蓝图类型不匹配、Actor/ActorComponent/普通对象跨族重设，以及与新父类重复声明的接口。
+重设普通、Widget、Anim、原生 GameplayAbility 蓝图的父类使用 `ManageAssetBlueprint` 的 `Operations=[{"Action":"Reparent","ParentClass":"Character"}]`，或传入蓝图资产/完整生成类路径。可先通过 `GetAssetEditPreview` 传同一操作获得兼容性、成员冲突、受影响继承属性和子蓝图列表；该结果不是编译证明。保留 Undo，完整编译和保存分别由顶层 `bCompile`、`bSaveToDisk` 控制；不隐式完整编译。离开当前父类继承链时必须显式设置该 operation 的 `bAllowPotentialDataLoss=true`，可能丢失原父类默认值或使引用失效。拒绝 PIE 期间操作、继承循环、专用蓝图类型不匹配、Actor/ActorComponent/普通对象跨族重设、专用蓝图基类或动画骨架不兼容、成员冲突，以及与新父类重复声明的接口。
 
 只读路径查询使用 `GetNavigationPath`，传 `Start={X,Y,Z}`、`End={X,Y,Z}`，`World=Auto|Editor|Play`（Auto 优先 PIE/Game）。可指定普通 Actor 的 `ActorName` 作为导航 Agent 上下文，无需 AIController。接口不移动 Actor、不创建或重建导航；无现有导航时返回 `bNavigationAvailable=false`、`QueryResult=Unavailable`，不可达时 `bPathFound=false`。部分路径须显式允许 `bAllowPartialPath=true`；`MaxPoints`（1–2048，默认 256）只限制返回路径点，`Length` / `Cost` / `PointCount` 来自完整路径，`bTruncated` 标明截断。
 
-打开资产编辑器使用 `ControlEditorAssetEditor(AssetPath=…, Action=Open)`，已打开时聚焦；`Focus` 只聚焦现有编辑器，`Status` 查询打开状态，`bValidateOnly=true` 不打开或聚焦。Open/Focus 要求可渲染的 GUI Editor，headless 宿主可执行 Status 和只验证。返回 `bWasOpen`、`bIsOpen`；不保存或关闭资产，不允许进入原子多调用批次。地图须使用带未保存关卡保护的 `ControlEditorLevel`。
+打开资产编辑器使用 `ControlEditorAssetEditor(AssetPath=…, Action=Open)`，已打开时聚焦；`Focus` 只聚焦现有编辑器，`Status` 查询状态，`Close` 只关闭已保存且不与其他资产共享实例的编辑器。未保存时须先显式 `SaveAsset`，接口不隐式保存或丢弃修改。`GetEditorContext(Sections=["AssetEditors"])` 返回资产、编辑器名称和脏状态。`bValidateOnly=true` 不改变界面；Open/Focus/Close 要求可渲染的 GUI Editor，headless 可执行 Status 和只验证。返回 `bWasOpen`、`bIsOpen`、`bDirty`、`bCanClose`；不允许进入原子多调用批次。地图使用 `ControlEditorLevel`。
+
+
+变量类型回读同时提供 `ContainerType`、`CanonicalType`、`ElementType`、Map 的 `KeyType` / `ValueType`、类型对象完整路径和 `Guid`；函数列表提供局部变量类型及 GUID。`RenameLocalVariable` 使用 `FunctionName`、`VariableName`、`NewVariableName`。成员重命名、局部重命名和 `ChangeVariableType` 均保护子蓝图，等待资产注册表扫描完成；类型变更还拒绝隐式改变 RepNotify 或 Set/Map 复制设置。先用 `GetAssetEditPreview` 预检 `ChangeVariableType`，确认后显式 `bAllowPotentialDataLoss=true`；它保留 GUID、清空旧默认值并重建本蓝图引用节点，不保证旧连接或外部依赖仍可编译。
+
+标量预览及写后校验新增 `ManageAssetDataAsset/Set`（`PropertyName`）、`ManageAssetLevel/SetActorProperty`（精确 `ActorName` 和 `PropertyPath`）、`ManageAssetBlueprint/SetComponentProperty`（`ComponentName` 和 `PropertyPath`），均可用 `ExpectedValue` 防止过期写入。仍只支持 bool/数值/枚举/String/Name/Text 叶子及结构体/目标拥有子对象路径，拒绝容器和外部对象遍历。关卡普通属性写入统一支持点分路径、空字符串和解析失败前置拒绝。
+
+组件查询在 `GetAssetBlueprint(Sections=["Component"])` 中指定 `ComponentName`、最多 32 个 `PropertyPaths` 和 `Baseline=ClassDefault|ParentTemplate`，返回 `Value`、`DefaultValue`、`bDiffersFromDefault` 及 `BaselinePath`。不指定路径时有界列出可编辑字段。原有组件摘要保持组件类 CDO 基准；显式 ParentTemplate 比较目标父蓝图的实际模板。`ResetComponentPropertyToDefault` 使用相同基准，默认 ParentTemplate；自有组件无父模板时须明确选 ClassDefault。拒绝通过复制父模板恢复实例化子对象或组件引用。
+
+集中编译与 `CompileBlueprint` 返回 `CompilerErrorCount`、`CompilerWarningCount`、最多 128 条 `CompilerMessages`（严重级别、消息及可解析的 `GraphName` / `NodeId`）和截断标记。所有编译保存辅助路径在失败时不保存，磁盘回滚仍不属于内存 Undo 事务。
+
+导航投影使用 `GetNavigationPoint(Point={X,Y,Z})`；导航路径可传 `bProjectStart` / `bProjectEnd`、`ProjectionExtent`（默认 100/100/250，非负轴）、`FilterClass`、正值 `AgentRadius` / `AgentHeight`，并用 `WorldName` 选择精确世界。返回导航系统/数据存在和构建状态；坐标投影失败有明确结果，不自动重建导航。`InteractRuntimeActorAI` 的 MoveTo 可显式传相同 Filter、目的地投影、部分路径策略和 `AcceptanceRadius`，并用 Stop 停止。`GetRuntimeActorAI` 返回当前移动状态与本工具捕获的最近请求结果，含请求 ID、完成标记及 Success/Blocked/OffPath/Aborted 等结果；无捕获时为 Unknown。请求接受不等于到达，捕获仅在当前进程有效。
+
+`GetAssetExportOptions` 发现已注册导出器及格式，并可检查主输出路径存在状态。`ExportAsset/bValidateOnly=true` 不创建目录或写文件；`ConflictPolicy=Fail|Unique|Replace` 作用于主输出路径，默认 Replace 保持已有行为。导出器可能写附属文件，它们取决于具体格式和导出器选项，格式发现不宣称所有格式在所有配置下均能导出成功。

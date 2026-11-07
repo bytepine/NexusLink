@@ -1,4 +1,4 @@
-﻿// Copyright byteyang. All Rights Reserved.
+// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/DataAsset/NexusGetAssetDataAssetCapability.h"
 #include "Utils/NexusCapabilityResultBuilder.h"
@@ -42,7 +42,7 @@ void FNexusGetAssetDataAssetCapability::BuildDefinition(FNexusCapabilityDefiniti
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Data };
 	Out.ExtraSearchKeywords = { TEXT("dataasset"), TEXT("udataasset"), TEXT("properties"), TEXT("config") };
-	Out.RelatedCapabilities = { TEXT("ManageAssetDataAsset"), TEXT("CreateAssetDataAsset") };
+	Out.RelatedCapabilities = { TEXT("ManageAssetDataAsset"), TEXT("GetAssetEditPreview"), TEXT("CreateAssetDataAsset") };
 	Out.WhenToUse = TEXT("Read DataAsset properties; no edits");
 }
 

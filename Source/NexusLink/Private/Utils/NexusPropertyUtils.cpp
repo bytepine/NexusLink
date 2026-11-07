@@ -2,6 +2,7 @@
 
 #include "Utils/NexusPropertyUtils.h"
 #include "UObject/UnrealType.h"
+#include "Misc/OutputDeviceNull.h"
 
 // ====================================================================
 // 路径段解析 —— 支持 "Items[0]"、"Map[\"key\"]"、"Matrix[0][1]" 等容器访问语法
@@ -575,13 +576,45 @@ bool FNexusPropertyUtils::WritePropertyAndEcho(
 
 	FProperty* Prop = nullptr;
 	void* Ptr = nullptr;
-	if (!ResolvePropertyWrite(Target, PathSegs, StartIdx, Prop, Ptr, OutError))
+	// 兼容调用方传整条点分路径或已拆分的段；统一在边界展开。
+	TArray<FString> Segments;
+	for (int32 SegmentIndex = StartIdx; SegmentIndex < PathSegs.Num(); ++SegmentIndex)
+	{
+		const FString& Path = PathSegs[SegmentIndex];
+		int32 Depth = 0, Begin = 0;
+		TCHAR Quote = 0;
+		for (int32 CharacterIndex = 0; CharacterIndex < Path.Len(); ++CharacterIndex)
+		{
+			const TCHAR Character = Path[CharacterIndex];
+			if (Quote) { if (Character == Quote && (CharacterIndex == 0 || Path[CharacterIndex - 1] != TEXT('\\'))) Quote = 0; continue; }
+			if (Character == TEXT('"') || Character == TEXT('\'')) { Quote = Character; continue; }
+			if (Character == TEXT('[')) ++Depth;
+			else if (Character == TEXT(']')) --Depth;
+			else if (Character == TEXT('.') && Depth == 0) { Segments.Add(Path.Mid(Begin, CharacterIndex - Begin)); Begin = CharacterIndex + 1; }
+		}
+		Segments.Add(Path.Mid(Begin));
+	}
+	if (!ResolvePropertyWrite(Target, Segments, 0, Prop, Ptr, OutError))
 		return false;
 
 	// 写入前导出旧值
 	ExportText(Prop, OutOldValue, Ptr);
-	// 写入新值
-	ImportText(Prop, NewValue, Ptr);
+	// 先在临时存储解析，拒绝解析失败和残余文本，防止错误输入产生部分写入。
+	FDefaultConstructedPropertyElement Storage(Prop);
+	// 保留结构体中未显式提供的成员；解析失败也不会改变原值。
+	Prop->CopyCompleteValue(Storage.GetObjAddress(), Ptr);
+	FOutputDeviceNull ParseErrors;
+#if NX_UE_HAS_IMPORT_TEXT_DIRECT
+	const TCHAR* End = Prop->ImportText_Direct(*NewValue, Storage.GetObjAddress(), Target, PPF_None, &ParseErrors);
+#else
+	const TCHAR* End = Prop->ImportText(*NewValue, Storage.GetObjAddress(), PPF_None, Target, &ParseErrors);
+#endif
+	if (!End || !FString(End).TrimStartAndEnd().IsEmpty())
+	{ OutError = TEXT("Value does not match the property type"); return false; }
+	if (FNumericProperty* Number = CastField<FNumericProperty>(Prop))
+		if (Number->IsFloatingPoint() && !FMath::IsFinite(Number->GetFloatingPointPropertyValue(Storage.GetObjAddress())))
+		{ OutError = TEXT("Nonfinite numeric values are not supported"); return false; }
+	Prop->CopyCompleteValue(Ptr, Storage.GetObjAddress());
 	// 写入后再次导出（反映实际生效值）
 	ExportText(Prop, OutActualValue, Ptr);
 	return true;

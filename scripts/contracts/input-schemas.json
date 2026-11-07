@@ -2722,13 +2722,13 @@
       "ActorName": {
         "type": "string"
       },
-      "x": {
+      "X": {
         "type": "number"
       },
-      "y": {
+      "Y": {
         "type": "number"
       },
-      "z": {
+      "Z": {
         "type": "number"
       }
     },

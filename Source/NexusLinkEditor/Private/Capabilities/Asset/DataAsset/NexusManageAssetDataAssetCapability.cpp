@@ -6,6 +6,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusAssetEditUtils.h"
 #include "Engine/DataAsset.h"
 #include "NexusMcpTool.h"
 
@@ -20,11 +21,13 @@ void FNexusManageAssetDataAssetCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Property operation"), { TEXT("Set"), TEXT("Reset") }, TEXT("Set")))
 		.Prop(TEXT("PropertyName"), FNexusSchema::Str(TEXT("Editable property name")))
 		.Prop(TEXT("Value"),        FNexusSchema::Str(TEXT("New value string (set only)")))
+		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous scalar value; prevents stale writes")))
 		.Required({ TEXT("PropertyName") })
 		.Build();
 
 		return FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("DataAsset asset path")))
+		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar Set operations before saving"), true, false))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch property ops (at least one)"), ItemSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
@@ -94,19 +97,24 @@ static void HandleDA_Set(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("DataAsset is null"));
 		return;
 	}
+	if (FNexusAssetEditUtils::IsVerified(Ctx.Args) || Op->HasField(TEXT("ExpectedValue")) || FNexusArgs(Op).Str(TEXT("PropertyName")).Contains(TEXT(".")))
+	{
+		FNexusAssetEditUtils::Apply(DA, TEXT("ManageAssetDataAsset"), Op, FNexusAssetEditUtils::IsVerified(Ctx.Args), Ctx.Entry);
+		if (!Ctx.Entry->HasField(TEXT("Error"))) MarkDADirty(Ctx);
+		return;
+	}
 	FProperty* Prop = ResolveDAProp(DA, Op, Ctx);
 	if (!Prop) return;
 	void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(DA);
 	FString OldValue;
 	FNexusPropertyUtils::ExportText(Prop, OldValue, ValuePtr);
 	const FString NewValue = Op->HasField(TEXT("Value")) ? Op->GetStringField(TEXT("Value")) : TEXT("");
-	if (!FNexusPropertyUtils::ImportTextFromString(Prop, NewValue, ValuePtr, DA))
+	FString ActualValue, WriteError;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(DA, {Prop->GetName()}, 0, NewValue, OldValue, ActualValue, WriteError))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("ImportText failed: '%s'"), *Prop->GetName()));
 		return;
 	}
-	FString ActualValue;
-	FNexusPropertyUtils::ExportText(Prop, ActualValue, ValuePtr);
 	if (!OldValue.IsEmpty())    Ctx.Entry->SetStringField(TEXT("OldValue"), OldValue);
 	if (!ActualValue.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualValue);
 	MarkDADirty(Ctx);
@@ -142,6 +150,7 @@ bool FNexusManageAssetDataAssetCapability::PrepareTarget(
 	void*& OutTarget,
 	FString& OutError) const
 {
+	if (!FNexusAssetEditUtils::ValidateOperations(TEXT("ManageAssetDataAsset"), Args, OutError)) return false;
 	const FString AssetPath = FNexusArgs(Args).Str(TEXT("AssetPath"));
 	Entry->SetStringField(TEXT("Path"), AssetPath);
 	UObject* Obj = FNexusAssetUtils::LoadAssetWithFallback<UObject>(AssetPath);

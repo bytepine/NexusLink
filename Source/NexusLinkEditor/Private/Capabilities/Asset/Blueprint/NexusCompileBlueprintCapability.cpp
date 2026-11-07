@@ -64,17 +64,19 @@ FCapabilityResult FNexusCompileBlueprintCapability::Execute(const TSharedPtr<FJs
 			return;
 		}
 
-		if (bSaveToDisk)
+		const bool bCompiled = FNexusAssetEditorUtils::CompileWithDiagnostics(BP, Entry);
+		if (bSaveToDisk && bCompiled)
 		{
 			UPackage* Pkg = BP->GetOutermost();
 			const FString PkgPath = FNexusAssetUtils::PackagePathOf(BP);
-			const bool bSaved = FNexusAssetEditorUtils::CompileAndSaveBlueprint(Pkg, BP, PkgPath);
+			bool bDeferred = false;
+			FString Note;
+			const bool bSaved = FNexusAssetEditorUtils::SaveDirtyPackage(Pkg, PkgPath, Path, bDeferred, Note);
 			Entry->SetBoolField(TEXT("bSaved"), bSaved);
+			Entry->SetBoolField(TEXT("bDeferred"), bDeferred);
+			if (!Note.IsEmpty()) Entry->SetStringField(TEXT("Note"), Note);
 		}
-		else
-		{
-			FKismetEditorUtilities::CompileBlueprint(BP);
-		}
+		else if (bSaveToDisk) Entry->SetBoolField(TEXT("bSaved"), false);
 
 		const bool bHasCompilerErrors = (BP->Status == BS_Error);
 		Entry->SetStringField(TEXT("Status"), BlueprintStatusToString(BP));

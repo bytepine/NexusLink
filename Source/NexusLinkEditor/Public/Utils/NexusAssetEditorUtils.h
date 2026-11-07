@@ -43,6 +43,8 @@ public:
 	 * @return 是否保存成功
 	 */
 	static bool CompileAndSaveBlueprint(UPackage* Package, UBlueprint* Blueprint, const FString& PackagePath);
+	/** 单次集中编译，返回有界结构化消息及图/节点定位；失败不保存。 */
+	static bool CompileWithDiagnostics(UBlueprint* Blueprint, const TSharedPtr<FJsonObject>& Result);
 
 	/**
 	 * manage 收尾：按需编译（UBlueprint）与可选落盘。由 FNexusEditorServices::ApplyManageFinalize
