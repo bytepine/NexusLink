@@ -29,7 +29,8 @@ static void NexusEditSettings(const TSharedPtr<FJsonObject>& Operation,FNexusAct
     if (Context.Action==TEXT("SetProperties")) {
         const TSharedPtr<FJsonObject>* Values=nullptr;
         if (!Target->Section->CanEdit() || !Target->Section->CanSave() || !Operation->TryGetObjectField(TEXT("Properties"),Values) || (*Values)->Values.Num()==0 || (*Values)->Values.Num()>64) { Fail(TEXT("SetProperties requires an editable/saveable section and 1-64 typed Properties")); return; }
-        Candidate=DuplicateObject(Target->Object,GetTransientPackage());
+        // 不占用引擎 ResetDefaults 临时 CDO 的 Default__ 类名。
+        Candidate=DuplicateObject(Target->Object,GetTransientPackage(),MakeUniqueObjectName(GetTransientPackage(),Target->Object->GetClass(),TEXT("NexusSettingsPreview")));
         for (const auto& Pair : (*Values)->Values) {
             FProperty* Property=FindFProperty<FProperty>(Target->Object->GetClass(),*Pair.Key);
             if (!Candidate || !Property || !Property->HasAllPropertyFlags(CPF_Edit|CPF_Config) || Property->HasAnyPropertyFlags(CPF_EditConst|CPF_Transient) || !FJsonObjectConverter::JsonValueToUProperty(Pair.Value,Property,Property->ContainerPtrToValuePtr<void>(Candidate),0,0)) { Fail(FString(TEXT("Invalid editable config property: "))+*Pair.Key); return; }
