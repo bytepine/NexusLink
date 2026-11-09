@@ -138,8 +138,9 @@ static bool ResolveEditProperty(UObject* Asset, const FString& Capability, const
 	}
 	FProperty* Property = Resolved.Property;
 	if (!CastField<FBoolProperty>(Property) && !CastField<FNumericProperty>(Property) && !CastField<FEnumProperty>(Property)
-		&& !CastField<FStrProperty>(Property) && !CastField<FNameProperty>(Property) && !CastField<FTextProperty>(Property))
-	{ Error = TEXT("Unsupported property type; only bool, number, enum, string, Name and Text are supported"); return false; }
+		&& !CastField<FStrProperty>(Property) && !CastField<FNameProperty>(Property) && !CastField<FTextProperty>(Property)
+		&& !CastField<FObjectProperty>(Property))
+	{ Error = TEXT("Unsupported property type; only bool, number, enum, string, Name, Text and object/class references are supported"); return false; }
 	return true;
 }
 

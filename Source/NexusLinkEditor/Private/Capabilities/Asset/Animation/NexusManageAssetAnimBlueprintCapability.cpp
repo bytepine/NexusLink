@@ -6,6 +6,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusAnimGraphUtils.h"
+#include "Utils/NexusAnimationRetargetUtils.h"
 #include "Animation/AnimBlueprint.h"
 #if WITH_EDITOR
 #include "EdGraph/EdGraph.h"
@@ -74,14 +75,14 @@ void FNexusManageAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityD
 	Out.Name = TEXT("ManageAssetAnimBlueprint");
 	Out.bInjectCompile = true;
 	Out.SearchAssetTypes = {TEXT("AnimBlueprint")};
-	Out.Description = TEXT("Batch edit ABP. State machines and AnimGraph nodes; avoid K2.");
+	Out.Description = TEXT("Edit state machines/AnimGraph and retarget one ABP Skeleton with explicit animation remaps; K2 edits use ManageAssetBlueprint.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"),           FNexusSchema::Enum(TEXT("Operation type"),
 			{ TEXT("AddStateMachine"), TEXT("RemoveStateMachine"),
 			  TEXT("AddState"),         TEXT("RemoveState"),
 			  TEXT("AddTransition"),    TEXT("RemoveTransition"),
 			  TEXT("AddNode"), TEXT("RemoveNode"), TEXT("SetNode"),
-			  TEXT("Connect"), TEXT("Disconnect") }))
+			  TEXT("Connect"), TEXT("Disconnect"), TEXT("Retarget") }))
 		.Prop(TEXT("GraphName"),        FNexusSchema::Str(TEXT("Owning AnimGraph name (default AnimGraph)")))
 		.Prop(TEXT("StateMachineName"), FNexusSchema::Str(TEXT("State machine name (bound graph)")))
 		.Prop(TEXT("StateName"),        FNexusSchema::Str(TEXT("State name (add/RemoveState, transition source)")))
@@ -109,6 +110,7 @@ void FNexusManageAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityD
 		.Prop(TEXT("PosY"),             FNexusSchema::Num(TEXT("Editor node Y (optional)")))
 		.Required({ TEXT("Action") })
 		.Build();
+	FNexusAnimationRetargetUtils::ExtendSchema(OpSchema);
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("AnimBlueprint asset path")))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
@@ -116,7 +118,7 @@ void FNexusManageAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityD
 		.Build();
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
-		TEXT("abp"), TEXT("Statemachine"), TEXT("State"), TEXT("Transition"), TEXT("Animgraph")
+		TEXT("abp"), TEXT("Statemachine"), TEXT("State"), TEXT("Transition"), TEXT("Animgraph"), TEXT("retarget"), TEXT("skeleton replacement")
 	};
 	Out.RelatedCapabilities = { TEXT("GetAssetAnimBlueprint"), TEXT("CreateAssetAnimBlueprint"), TEXT("SaveAsset") };
 	Out.WhenToUse = TEXT("State machine and AnimGraph node CRUD; do not use ManageAssetBlueprint for AnimGraph");
@@ -691,6 +693,9 @@ void FNexusManageAssetAnimBlueprintCapability::RegisterActions(TMap<FString, FNe
 {
 #if WITH_EDITOR
 	OutHandlers.Add(TEXT("AddStateMachine"),    &HandleABP_AddStateMachine);
+	OutHandlers.Add(TEXT("Retarget"), [](const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx) {
+		FNexusAnimationRetargetUtils::Apply(AnimBPFrom(Ctx), Op, Ctx.Entry, FNexusArgs(Ctx.Args).Bool(TEXT("bCompile")) || FNexusArgs(Ctx.Args).Bool(TEXT("bSaveToDisk")));
+	});
 	OutHandlers.Add(TEXT("RemoveStateMachine"), &HandleABP_RemoveStateMachine);
 	OutHandlers.Add(TEXT("AddState"),            &HandleABP_AddState);
 	OutHandlers.Add(TEXT("RemoveState"),         &HandleABP_RemoveState);

@@ -107,7 +107,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("bCallInEditor"), FNexusSchema::Bool(TEXT("SetFunctionCallInEditor: expose an owned parameterless function as an editor button")))
 		.Prop(TEXT("GraphName"),       FNexusSchema::Str(TEXT("Graph name (nodes/wires/PromotePin)")))
 		.Prop(TEXT("VariableName"),    FNexusSchema::Str(TEXT("Variable name (AddVariable/PromotePin; auto if omitted)")))
-		.Prop(TEXT("VariableType"),    FNexusSchema::Str(TEXT("Basic, object or BlueprintType struct name/path; T[], Array<T>, Set<T>, Map<K,V> (no nested containers)")))
+		.Prop(TEXT("VariableType"),    FNexusSchema::Str(TEXT("Basic, object, ClassReference<BaseClass> or BlueprintType struct; T[], Array<T>, Set<T>, Map<K,V> (no nested containers)")))
 		.Prop(TEXT("NewVariableName"), FNexusSchema::Str(TEXT("New member name (RenameVariable); leaf Blueprint only, preserves GUID and references; descendants/RepNotify are rejected")))
 		.Prop(TEXT("ParentClass"), FNexusSchema::Str(TEXT("Reparent: new native class name or Blueprint/generated class path; normal, Widget, Anim and GameplayAbility Blueprints")))
 		.Prop(TEXT("bAllowPotentialDataLoss"), FNexusSchema::Bool(TEXT("Reparent/ChangeVariableType: explicitly allow losing defaults or breaking graph references"), true, false))
@@ -320,14 +320,9 @@ static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	return; }
 
 			BP->SetFlags(RF_Transactional);
-			FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType);
-
-			if (Op->HasField(TEXT("DefaultValue")))
-			{
-				const FString DefaultVal = Op->GetStringField(TEXT("DefaultValue"));
-				for (FBPVariableDescription& Var : BP->NewVariables)
-				{ if (Var.VarName.ToString() == VarName) { Var.DefaultValue = DefaultVal; break; } }
-			}
+			// 默认值必须在引擎结构更新前写入，避免已存在子类先继承到零值。
+			if (!FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType, FNexusArgs(Op).Str(TEXT("DefaultValue"))))
+			{ Entry->SetStringField(TEXT("Error"), TEXT("Could not add variable; name may conflict with an inherited member")); return; }
 			if (Op->HasField(TEXT("Category")))
 			{
 				FBlueprintEditorUtils::SetBlueprintVariableCategory(BP, FName(*VarName), nullptr,
@@ -340,6 +335,7 @@ static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 				if (Var.VarName.ToString() != VarName) continue;
 				if (bIsPublic)
 				{
+					Var.PropertyFlags &= ~CPF_DisableEditOnInstance;
 #if NX_UE_HAS_CPF_BLUEPRINT_READWRITE
 					Var.PropertyFlags |= CPF_Edit | CPF_BlueprintVisible | CPF_BlueprintReadWrite;
 #else

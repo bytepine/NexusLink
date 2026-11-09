@@ -33,6 +33,7 @@
 #define NX_UE_HAS_FTSTICKER            NX_UE_AT_LEAST(5, 0)  // FTicker → FTSTicker
 #define NX_UE_HAS_SAVE_PACKAGE_ARGS    NX_UE_AT_LEAST(5, 0)  // UPackage::SavePackage(FSavePackageArgs)
 #define NX_UE_HAS_MARK_AS_GARBAGE      NX_UE_AT_LEAST(5, 0)  // MarkPendingKill() → MarkAsGarbage()
+#define NX_UE_HAS_ARCHIVE_REPLACE_OBJECT_FLAGS NX_UE_AT_LEAST(5, 0) // 对象引用替换使用枚举标志，UE4 仍接收布尔参数
 #define NX_UE_HAS_FIND_FIRST_OBJECT    NX_UE_AT_LEAST(5, 1)  // ANY_PACKAGE → FindFirstObject
 #define NX_UE_HAS_ASSET_DATA_GET_CHUNK_IDS NX_UE_AT_LEAST(5, 1) // FAssetData::GetChunkIDs；4.26/5.0 用公开字段 ChunkIDs
 #define NX_UE_HAS_SKELETAL_BODY_SETUP_HEADER  NX_UE_AT_LEAST(5, 5)  // PhysicsEngine/SkeletalBodySetup.h 单独头文件仅 5.5+

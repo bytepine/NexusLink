@@ -9,13 +9,17 @@
 
 ### Added
 
-- `ManageAssetBlueprint` 支持成员变量 ToolTip、Replication/RepNotify 与无参函数 CallInEditor 配置；`GetAssetBlueprint` 回读对应字段，RepNotify 使用显式已有通知函数，所属 Actor/组件复制开关保持独立。
+- `ManageAssetBlueprint` 支持成员变量 ToolTip、Replication/RepNotify 与无参函数 CallInEditor 配置；`GetAssetBlueprint` 回读对应字段，RepNotify 使用显式已有通知函数，所属 Actor/组件复制开关保持独立；变量类型支持 `ClassReference<BaseClass>` 及其容器，拒绝危险的 UClass 对象类型并诊断已有不安全配置。
+- `ManageAssetLevel/CreateNavMeshBoundsVolume` 通过原生 Actor Factory 创建带几何边界的导航体积；`GetEditorContext/CurrentMap` 返回已加载关卡、当前/选中状态、场景边界与导航体积，`ControlEditorScene/BuildNavigation` 异步构建导航并按请求保存。
+- `ManageAssetAnimSequence` / `ManageAssetAnimBlueprint` 增加 `Retarget`，支持旧式目标 Skeleton 更换、只验证预检、显式动画引用替换与受保护的序列引用重定向，返回影响资产和缺失骨骼。
 
 ### Fixed
 
 - 关卡 Actor 的 SCS/继承组件默认值比较与恢复使用实际蓝图组件模板，避免 CDO 空引用导致整批读取失败。
-- 蓝图变量类别批量写入不再逐项重建骨架或遍历图对象；修正类别回读来源。
-- `FindAsset` 搜索意图指向 `SearchAsset`；低版本 GraphDSL 错误明确使用 Graph 分段读取、WriteGraphPlan 追加节点。
+- 蓝图变量类别批量写入不再逐项重建骨架或遍历图对象；修正类别回读来源、`AddVariable/bIsPublic` 的实例可编辑标志，以及已有子类/实例继承新变量默认值的问题，仅补新字段并保留已有覆盖值。
+- `FindAsset` 搜索意图指向 `SearchAsset`；补充 `actor collision` 搜索关键字；低版本 GraphDSL 错误明确使用 Graph 分段读取、WriteGraphPlan 追加节点。
+- 属性预览及 ExpectedValue/写后校验支持对象和类引用，保留类型约束并拒绝沿外部引用写入。
+- `DeleteAsset` 失败时返回有界磁盘/内存引用、Undo、资产编辑器占用和只读文件诊断；部分删除不再误报完整成功。
 - 反馈报告的代理错误小节按规范化后的 Proxy 分类统计，修复概览有代理错误而明细显示无数据的问题。
 
 ### Changed

@@ -6,6 +6,9 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusVersionCompat.h"
+#include "Utils/NexusAnimationRetargetUtils.h"
+#include "NexusEditorServices.h"
+#include "Utils/NexusPropertyUtils.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
@@ -165,11 +168,11 @@ void FNexusManageAssetAnimSequenceCapability::BuildDefinition(FNexusCapabilityDe
 {
 	Out.Name = TEXT("ManageAssetAnimSequence");
 	Out.SearchAssetTypes = {TEXT("AnimSequence")};
-	Out.Description = TEXT("Batch edit AnimSequence: notify/frame rate/root motion/curve keys.");
+	Out.Description = TEXT("Edit notifies, curves, timing and retarget one sequence to another Skeleton with explicit reference remaps.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Edit operation"),
 			{ TEXT("AddNotify"), TEXT("RemoveNotify"), TEXT("SetFrameRate"), TEXT("SetRootMotion"),
-			  TEXT("AddFloatCurve"), TEXT("SetCurveKey"), TEXT("RemoveCurve") }))
+			  TEXT("AddFloatCurve"), TEXT("SetCurveKey"), TEXT("RemoveCurve"), TEXT("Retarget") }))
 		.Prop(TEXT("NotifyName"),   FNexusSchema::Str(TEXT("Notify name (add/remove)")))
 		.Prop(TEXT("NotifyClass"),  FNexusSchema::Str(TEXT("Notify class path (add; default AnimNotify)")))
 		.Prop(TEXT("NotifyIndex"),  FNexusSchema::Int(TEXT("Notify index (remove)")))
@@ -181,13 +184,14 @@ void FNexusManageAssetAnimSequenceCapability::BuildDefinition(FNexusCapabilityDe
 		.Prop(TEXT("Value"),        FNexusSchema::Num(TEXT("Keyframe value (SetCurveKey)")))
 		.Required({ TEXT("Action") })
 		.Build();
+	FNexusAnimationRetargetUtils::ExtendSchema(OpSchema);
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("AnimSequence asset path")))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch edit ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("notify"), TEXT("Event"), TEXT("frame"), TEXT("fps"), TEXT("root motion"), TEXT("curve"), TEXT("keyframe") };
+	Out.ExtraSearchKeywords = { TEXT("notify"), TEXT("Event"), TEXT("frame"), TEXT("fps"), TEXT("root motion"), TEXT("curve"), TEXT("keyframe"), TEXT("retarget"), TEXT("skeleton replacement") };
 	Out.RelatedCapabilities = { TEXT("GetAssetAnimSequence"), TEXT("GetAssetAnimMontage") };
 	Out.Prerequisites = { TEXT("EditorOnly") };
 	Out.WhenToUse = TEXT("Add/remove AnimNotify, frame rate/root motion, float curves; persist with SaveAsset");
@@ -495,6 +499,9 @@ bool FNexusManageAssetAnimSequenceCapability::PrepareTarget(
 
 void FNexusManageAssetAnimSequenceCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
+	OutHandlers.Add(TEXT("Retarget"), [](const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx) {
+		FNexusAnimationRetargetUtils::Apply(SeqFrom(Ctx), Op, Ctx.Entry, FNexusArgs(Ctx.Args).Bool(TEXT("bCompile")) || FNexusArgs(Ctx.Args).Bool(TEXT("bSaveToDisk")));
+	});
 	OutHandlers.Add(TEXT("AddNotify"),      &HandleAnimSeq_AddNotify);
 	OutHandlers.Add(TEXT("RemoveNotify"),   &HandleAnimSeq_RemoveNotify);
 	OutHandlers.Add(TEXT("SetFrameRate"),  &HandleAnimSeq_SetFrameRate);
@@ -505,3 +512,25 @@ void FNexusManageAssetAnimSequenceCapability::RegisterActions(TMap<FString, FNex
 }
 
 REGISTER_MCP_CAPABILITY(FNexusManageAssetAnimSequenceCapability)
+
+void FNexusManageAssetAnimSequenceCapability::Finalize(const TSharedPtr<FJsonObject>& Arguments, FCapabilityResult& Result) const
+{
+	FNexusCapability::Finalize(Arguments, Result);
+	if (Result.HasErrors() || !FNexusArgs(Arguments).Bool(TEXT("bSaveToDisk"))) return;
+	TSet<FString> Saved;
+	for (const auto& Value : Result.Entries)
+	{
+		TArray<FString> Paths;
+		FNexusPropertyUtils::ReadStringArray(Value->AsObject(), TEXT("AdditionalDirtyAssets"), Paths);
+		for (const FString& Path : Paths)
+		{
+			if (Saved.Contains(Path)) continue;
+			Saved.Add(Path);
+			TSharedPtr<FJsonObject> SaveResult = MakeShared<FJsonObject>();
+			FNexusEditorServices::ApplyManageFinalize(Path, false, true, SaveResult);
+			FString Error;
+			if (SaveResult->TryGetStringField(TEXT("SaveError"), Error) && !Error.IsEmpty())
+			{ Result.TopFields->SetStringField(TEXT("SaveError"), Path + TEXT(": ") + Error); return; }
+		}
+	}
+}

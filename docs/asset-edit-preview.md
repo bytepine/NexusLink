@@ -14,7 +14,7 @@
 }
 ```
 
-路径、行和字段名须先通过读取工具确认。首批支持 `ManageAssetBlueprint/SetDefaults`、`ManageAssetDataTable/Set`、`ManageAssetUserWidget/SetProperty`。叶子类型限 bool、数值、枚举、字符串、Name、Text；支持结构体中的标量字段及目标拥有的子对象，例如 `Mesh.RelativeLocation.Z`。拒绝空指针、外部对象/资产引用、容器、固定数组及经容器跳转的路径。BP 必须已有可用的生成类和 CDO；预览不会为缺失的目标编译或创建 CDO。每条预览读取当前真实值，不模拟前序预览的写入。
+路径、行和字段名须先通过读取工具确认。首批支持 `ManageAssetBlueprint/SetDefaults`、`ManageAssetDataTable/Set`、`ManageAssetUserWidget/SetProperty`。叶子类型支持 bool、数值、枚举、字符串、Name、Text，以及满足属性类型约束的对象/类引用（含 None）；支持结构体中的标量字段及目标拥有的子对象，例如 `Mesh.RelativeLocation.Z`。引用本身可以赋值，继续沿引用跳转时仅允许目标持有的子对象；拒绝空指针或外部对象跳转、容器、固定数组及经容器跳转的路径。BP 必须已有可用的生成类和 CDO；预览不会为缺失的目标编译或创建 CDO。每条预览读取当前真实值，不模拟前序预览的写入。
 
 写入时在 operation 中传入 `ExpectedValue`（建议使用预览的 `CurrentValue`），在顶层设置 `bVerify=true`。`ExpectedValue` 按相同类型规范化后比较，空字符串也是有效前值。前值不匹配时不写入。
 
@@ -31,9 +31,9 @@
 
 单次 Manage 保持部分成功：前项成功的修改保留，任何验证失败阻止该调用自动保存，不能描述为资产已还原。跨调用 `CallCapability.Calls` 批次沿用事务回滚，保存在内存事务完成后进行，保存失败不宣称磁盘整体回滚。失败写入不自动重试。
 
-Scalar preview uses temporary property storage and never mutates, compiles, saves or records Undo. Owned subobjects are allowed; external references are rejected. ExpectedValue is an optional optimistic precondition. Blueprint bVerify respects bCompile: false verifies memory only; true compiles once after the operations and verifies final values before saving. Widget verification still compiles and reads back. Structural plans and bVerifyStructure cover the bounded operations linked above. Existing partial-success and batch rollback boundaries remain in effect.
+Scalar preview uses temporary property storage and never mutates, compiles, saves or records Undo. Object/class reference values are supported with native type checks; traversal is limited to owned subobjects, so external objects cannot be edited through a reference. ExpectedValue is an optional optimistic precondition. Blueprint bVerify respects bCompile: false verifies memory only; true compiles once after the operations and verifies final values before saving. Widget verification still compiles and reads back. Structural plans and bVerifyStructure cover the bounded operations linked above. Existing partial-success and batch rollback boundaries remain in effect.
 
-`ManageAssetBlueprint/RenameVariable` 使用 `VariableName` 与 `NewVariableName`，调用引擎原生成员重命名并保留变量 GUID 与引用。仅允许无子蓝图的叶子蓝图；资产注册表仍在扫描、存在已登记或已加载的子蓝图、变量带 RepNotify、成员继承或名称冲突时均提前拒绝。部分引擎的原生重命名会重置子类默认值，因此当前接口不提供带子蓝图的安全重命名。`VariableType` 支持基本类型、对象类、BlueprintType 结构体名/路径，以及 `T[]`、`Array<T>`、`Set<T>`、`Map<K,V>`；不支持嵌套容器，Set 元素和 Map 键须可哈希。
+`ManageAssetBlueprint/RenameVariable` 使用 `VariableName` 与 `NewVariableName`，调用引擎原生成员重命名并保留变量 GUID 与引用。仅允许无子蓝图的叶子蓝图；资产注册表仍在扫描、存在已登记或已加载的子蓝图、变量带 RepNotify、成员继承或名称冲突时均提前拒绝。部分引擎的原生重命名会重置子类默认值，因此当前接口不提供带子蓝图的安全重命名。`VariableType` 支持基本类型、对象类、`ClassReference<BaseClass>`、BlueprintType 结构体名/路径，以及 `T[]`、`Array<T>`、`Set<T>`、`Map<K,V>`；不支持嵌套容器，Set 元素和 Map 键须可哈希。
 
 `GetAssetBlueprint` 的 `Component` 使用目标蓝图 CDO 中的原生组件和目标生成类的 SCS 继承覆盖模板。`TemplatePath` 标明值来源，`bOverridesResolved=false` 表示目标覆盖无法解析、已回退到祖先模板。
 
@@ -57,3 +57,9 @@ Scalar preview uses temporary property storage and never mutates, compiles, save
 导航投影使用 `GetNavigationPoint(Point={X,Y,Z})`；导航路径可传 `bProjectStart` / `bProjectEnd`、`ProjectionExtent`（默认 100/100/250，非负轴）、`FilterClass`、正值 `AgentRadius` / `AgentHeight`，并用 `WorldName` 选择精确世界。返回导航系统/数据存在和构建状态；坐标投影失败有明确结果，不自动重建导航。`InteractRuntimeActorAI` 的 MoveTo 可显式传相同 Filter、目的地投影、部分路径策略和 `AcceptanceRadius`，并用 Stop 停止。`GetRuntimeActorAI` 返回当前移动状态与本工具捕获的最近请求结果，含请求 ID、完成标记及 Success/Blocked/OffPath/Aborted 等结果；无捕获时为 Unknown。请求接受不等于到达，捕获仅在当前进程有效。
 
 `GetAssetExportOptions` 发现已注册导出器及格式，并可检查主输出路径存在状态。`ExportAsset/bValidateOnly=true` 不创建目录或写文件；`ConflictPolicy=Fail|Unique|Replace` 作用于主输出路径，默认 Replace 保持已有行为。导出器可能写附属文件，它们取决于具体格式和导出器选项，格式发现不宣称所有格式在所有配置下均能导出成功。
+
+导航写入先读 `GetEditorContext(Sections=["CurrentMap"])`：`Levels` 含已加载关卡 AssetPath、当前/选中/锁定/可见状态、场景 BoundsMin/BoundsMax 与导航体积。用选定关卡路径调用 `ManageAssetLevel`，operation `Action=CreateNavMeshBoundsVolume`，提供世界坐标 `BoundsMin={X,Y,Z}`、`BoundsMax={X,Y,Z}`；体积由原生 Actor Factory 创建，返回实际几何边界，保留 Undo，编译/构建互不隐式触发。保存体积所在关卡后，用 `ControlEditorScene(Action=BuildNavigation)` 提交当前世界的原生导航构建，再按 OperationId 查询 `GetEditorOperation`。请求先返回任务标识；原生构建阶段可能延迟编辑器响应，等待查询完成，勿重发构建请求。检查 `CompatibilityResult.Outcome`、`bBuildComplete`、`bHasNavigationData`，再用导航点/路径查询核对可行走区域。`bSaveToDisk=true` 要求构建前所有已加载关卡均已保存，并在完成后保存生成的关卡包；保存粒度是整个包，构建期间继续编辑的内容也属于包内容。
+
+旧式 Skeleton 重定向使用 `ManageAssetAnimSequence` 或 `ManageAssetAnimBlueprint`，operation 为 `Action=Retarget`、`TargetSkeleton=...`。先传 `bValidateOnly=true` 检查 `MissingBones`、`UnmappedAnimations` 与 `AffectedAssets`（不同时传顶层 bCompile/bSaveToDisk）；写入须 `bAllowPotentialDataLoss=true`。需要保留源资产时先 DuplicateAsset。ABP 以 `AnimationRemaps=[{SourceAssetPath,TargetAssetPath}]` 显式替换动画引用，目标动画必须已有目标 Skeleton、类型一致；先重定向父 ABP，当前 ABP 须无子类。序列 `bConvertSpaces` 控制参考姿势空间转换；存在引用动画时须显式 `bRetargetReferredAssets=true`，原生流程影响的附属脏资产列在 `AdditionalDirtyAssets`，随 `bSaveToDisk` 一并保存。ABP 的编译由顶层 bCompile 控制。此入口使用旧式 Skeleton 重定向，UE5 IK Retargeter 使用各自能力。
+
+`AddVariable` 的 DefaultValue 在引擎创建变量时提供；完整编译后，只对新增字段补齐已加载子类 CDO 和实例中仍为类型初始值的内容，保留已有字段和非默认覆盖值。`NewVariableDefaultPropagations` 与 `NewVariableDefaultPackages` 回报受影响项；子蓝图或关卡包仍须按需显式保存。已有错误资产不自动重置，避免覆盖业务配置。

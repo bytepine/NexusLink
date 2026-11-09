@@ -55,7 +55,7 @@ MultiTool：工具名即 capability。
 
 **精确命中：** 同一 capability + 规范化 JSON 参数（含 `Sections`）且未过期 → `cache: "hit"`，不转发。
 
-**section 短路：** 同一 capability + 同一 identity（`AssetPath` / `ActorName` / `WidgetName`）下，缓存条目的 `Sections` 含 `"All"` 或为本次 `Sections` 的超集，且距写入 ≤ **30s** → `cache: "section_hit"`（可返回比请求更全的旧 payload）。对应 UE `RedundantCall` 窗口，避免再占 GameThread。
+**section 短路：** 同一 capability 下除 `Sections` 外的全部读取参数一致（包括 identity、ComponentName、PropertyPaths、过滤条件、Baseline 等），缓存条目的 `Sections` 含 `"All"` 或为本次 `Sections` 的超集，且距写入 ≤ **30s** → `cache: "section_hit"`（可返回比请求更全的旧 payload）。对应 UE `RedundantCall` 窗口，避免再占 GameThread。
 
 TTL：
 

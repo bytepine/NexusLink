@@ -14,6 +14,52 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Engine/World.h"
 #include "NexusMcpTool.h"
+#include "Editor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "HAL/FileManager.h"
+
+static void AppendDeleteDiagnostics(const FString& PackagePath, const FString& Extension,
+	const TArray<TWeakObjectPtr<UObject>>& Objects, IAssetRegistry& Registry, const TSharedPtr<FJsonObject>& Entry)
+{
+	TArray<FName> Referencers;
+	Registry.GetReferencers(FName(*PackagePath), Referencers);
+	TArray<TSharedPtr<FJsonValue>> Disk, Memory, Editors;
+	for (const FName& Referencer : Referencers)
+		if (Referencer != FName(*PackagePath) && Disk.Num() < 32) Disk.Add(MakeShared<FJsonValueString>(Referencer.ToString()));
+	bool bReferenced = false, bUndo = false;
+	for (const auto& WeakObject : Objects)
+	{
+		UObject* Object = WeakObject.Get();
+		if (!Object) continue;
+		bool bObjectReferenced = false, bObjectUndo = false;
+		FReferencerInformationList References;
+		ObjectTools::GatherObjectReferencersForDeletion(Object, bObjectReferenced, bObjectUndo, &References, true);
+		bReferenced |= bObjectReferenced; bUndo |= bObjectUndo;
+		for (const auto& Reference : References.ExternalReferences)
+		{
+			if (!Reference.Referencer || Memory.Num() >= 32) continue;
+			auto Detail = MakeShared<FJsonObject>();
+			Detail->SetStringField(TEXT("ObjectPath"), Reference.Referencer->GetPathName());
+			Detail->SetNumberField(TEXT("ReferenceCount"), Reference.TotalReferences);
+			TArray<TSharedPtr<FJsonValue>> Properties;
+			for (const FProperty* Property : Reference.ReferencingProperties)
+				if (Property && Properties.Num() < 16) Properties.Add(MakeShared<FJsonValueString>(Property->GetName()));
+			Detail->SetArrayField(TEXT("Properties"), Properties);
+			Memory.Add(MakeShared<FJsonValueObject>(Detail));
+		}
+		UAssetEditorSubsystem* Subsystem = GEditor ? GEditor->GetEditorSubsystem<UAssetEditorSubsystem>() : nullptr;
+		if (Subsystem && Subsystem->FindEditorForAsset(Object, false)) Editors.Add(MakeShared<FJsonValueString>(Object->GetPathName()));
+	}
+	Entry->SetArrayField(TEXT("DiskReferencers"), Disk);
+	Entry->SetArrayField(TEXT("MemoryReferencers"), Memory);
+	Entry->SetArrayField(TEXT("OpenAssetEditors"), Editors);
+	Entry->SetBoolField(TEXT("bReferencedInMemory"), bReferenced);
+	Entry->SetBoolField(TEXT("bReferencedByUndo"), bUndo);
+	FString FilePath;
+	if (FPackageName::TryConvertLongPackageNameToFilename(PackagePath, FilePath, Extension))
+		Entry->SetBoolField(TEXT("bFileReadOnly"), IFileManager::Get().IsReadOnly(*FilePath));
+	Entry->SetStringField(TEXT("Note"), TEXT("Diagnostics are bounded snapshots after the failed deletion. Resolve references or explicitly save/close editors; no force delete was attempted."));
+}
 
 void FNexusDeleteAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -95,8 +141,10 @@ FCapabilityResult FNexusDeleteAssetCapability::Execute(const TSharedPtr<FJsonObj
 			}
 		}
 
+		TArray<TWeakObjectPtr<UObject>> WeakObjects;
+		for (UObject* Object : ObjectsToDelete) WeakObjects.Add(Object);
 		const int32 Count = ObjectsToDelete.Num() > 0 ? ObjectTools::DeleteObjects(ObjectsToDelete, false) : 0;
-		const bool bDeleted = Count > 0;
+		const bool bDeleted = Count > 0 && Count == ObjectsToDelete.Num();
 
 		if (bDeleted)
 		{
@@ -144,7 +192,9 @@ FCapabilityResult FNexusDeleteAssetCapability::Execute(const TSharedPtr<FJsonObj
 		{
 			Entry->SetBoolField(TEXT("bSuccess"), false);
 			Entry->SetStringField(TEXT("Error"),
-				FString::Printf(TEXT("%s (delete failed, may be referenced)"), *PackagePath));
+				FString::Printf(TEXT("%s (deletion incomplete; inspect reference/editor/file diagnostics)"), *PackagePath));
+			Entry->SetNumberField(TEXT("DeletedCount"), Count);
+			AppendDeleteDiagnostics(PackagePath, PackageExt, WeakObjects, Registry, Entry);
 		}
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));
 	

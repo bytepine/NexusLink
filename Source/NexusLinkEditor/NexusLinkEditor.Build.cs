@@ -19,7 +19,7 @@ public class NexusLinkEditor : ModuleRules
 		{
 			"NexusLink",
 			"CoreUObject", "Engine", "Projects", "Json", "JsonUtilities",
-			"AssetRegistry", "UMG", "GameplayTags", "AIModule", "GameplayTasks",
+			"AssetRegistry", "UMG", "GameplayTags", "AIModule", "GameplayTasks", "NavigationSystem",
 			"ImageWrapper", "AnimGraphRuntime", "RenderCore", "PhysicsCore",
 			"LevelSequence", "MovieScene", "MovieSceneTracks", "Foliage", "MediaAssets",
 			"Slate", "SlateCore", "ApplicationCore", "InputCore",

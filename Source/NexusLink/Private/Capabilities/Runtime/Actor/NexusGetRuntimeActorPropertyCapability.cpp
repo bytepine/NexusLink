@@ -398,7 +398,7 @@ void FNexusGetRuntimeActorPropertyCapability::BuildDefinition(FNexusCapabilityDe
 		.Required({ TEXT("ActorName") })
 		.Build();
 	Out.Tags = {FNexusMcpTags::Readonly, FNexusMcpTags::Runtime };
-	Out.ExtraSearchKeywords = { TEXT("Components"), TEXT("Hierarchy"), TEXT("field"), TEXT("Transform"), TEXT("character") };
+	Out.ExtraSearchKeywords = { TEXT("Components"), TEXT("Hierarchy"), TEXT("field"), TEXT("Transform"), TEXT("character"), TEXT("collision") };
 	Out.RelatedCapabilities = { TEXT("SetRuntimeActorProperty"), TEXT("ListRuntimeActors") };
 	Out.Prerequisites = { TEXT("PIE") };
 	Out.WhenToUse = TEXT("Read-only fields; no modifications");

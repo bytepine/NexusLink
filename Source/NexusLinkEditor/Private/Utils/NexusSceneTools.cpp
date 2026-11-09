@@ -12,6 +12,9 @@
 #include "EditorActorFolders.h"
 #include "FileHelpers.h"
 #include "Misc/PackageName.h"
+#include "NavigationSystem.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
+#include "AI/NavigationSystemBase.h"
 #if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
 #include "StaticMeshEditorSubsystem.h"
 #else
@@ -25,7 +28,7 @@
 TSharedPtr<FJsonObject> FNexusSceneTools::Schema(bool bWrite)
 {
     auto Vector = FNexusSchema::Object().Required(TEXT("X"),FNexusSchema::Num(TEXT("X"))).Required(TEXT("Y"),FNexusSchema::Num(TEXT("Y"))).Required(TEXT("Z"),FNexusSchema::Num(TEXT("Z"))).Build();
-    auto Action = bWrite ? FNexusSchema::Enum(TEXT("Scene write"),{TEXT("CreateFolder"),TEXT("RenameFolder"),TEXT("DeleteFolder"),TEXT("SetActorFolder"),TEXT("SetSelection"),TEXT("MergeActors"),TEXT("CreateLevelInstance"),TEXT("EditLevelInstance"),TEXT("CommitLevelInstance")})
+    auto Action = bWrite ? FNexusSchema::Enum(TEXT("Scene write"),{TEXT("CreateFolder"),TEXT("RenameFolder"),TEXT("DeleteFolder"),TEXT("SetActorFolder"),TEXT("SetSelection"),TEXT("MergeActors"),TEXT("CreateLevelInstance"),TEXT("EditLevelInstance"),TEXT("CommitLevelInstance"),TEXT("BuildNavigation")})
         : FNexusSchema::Enum(TEXT("Scene query"),{TEXT("Folders"),TEXT("FolderActors"),TEXT("Selection"),TEXT("Trace")});
     return FNexusSchema::Object().Required(TEXT("Action"), Action)
         .Prop(TEXT("FolderPath"),FNexusSchema::Str(TEXT("World Outliner folder path")))
@@ -39,6 +42,7 @@ TSharedPtr<FJsonObject> FNexusSceneTools::Schema(bool bWrite)
         .Prop(TEXT("bRecursive"),FNexusSchema::Bool(TEXT("Include subfolder actors"),true,false))
         .Prop(TEXT("bDestroySourceActors"),FNexusSchema::Bool(TEXT("Remove actors after a successful mesh merge"),true,false))
         .Prop(TEXT("bDiscard"),FNexusSchema::Bool(TEXT("Discard LevelInstance edits"),true,false))
+        .Prop(TEXT("bSaveToDisk"),FNexusSchema::Bool(TEXT("BuildNavigation: save generated loaded-level packages after completion; requires all loaded levels clean before starting"),true,false))
         .Prop(TEXT("Limit"),FNexusSchema::Int(TEXT("Maximum query results"),100,1,500)).Build();
 }
 
@@ -54,11 +58,62 @@ static bool NexusSceneFolderValid(const FString& Path)
     return !Path.IsEmpty() && !Path.StartsWith(TEXT("/")) && !Path.EndsWith(TEXT("/")) && !Path.Contains(TEXT("..")) && !Path.Contains(TEXT("\\")) && !Path.Contains(TEXT(":")) && !Path.Contains(TEXT("//"));
 }
 
+static FCapabilityResult NexusBuildNavigation(UWorld* World, bool bSave)
+{
+    if (GEditor->IsPlayingSessionInEditor()) return FCapabilityResult::MakeArgInvalid(TEXT("Stop PIE before building navigation"));
+    bool bHasBounds = false;
+    for (TActorIterator<ANavMeshBoundsVolume> It(World); It; ++It) { bHasBounds = true; break; }
+    if (!bHasBounds) return FCapabilityResult::MakeArgInvalid(TEXT("Create a NavMeshBoundsVolume with ManageAssetLevel first"));
+    if (bSave) for (ULevel* Level : World->GetLevels())
+        if (Level && Level->GetOutermost()->IsDirty()) return FCapabilityResult::MakeArgInvalid(TEXT("Save loaded levels explicitly before BuildNavigation with bSaveToDisk=true; unrelated unsaved edits are not saved implicitly"));
+    UNavigationSystemV1* Navigation = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+    if (!Navigation) {
+        FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);
+        Navigation = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+    }
+    if (!Navigation || Navigation->IsNavigationBuildInProgress()) return FCapabilityResult::MakeArgInvalid(TEXT("Navigation system unavailable or already building; inspect existing work before starting another build"));
+    if (Navigation->IsNavigationBuildingLocked(static_cast<uint8>(~ENavigationBuildLock::NoUpdateInEditor)))
+        return FCapabilityResult::MakeArgInvalid(TEXT("Navigation building is locked; no build was started"));
+    if (!Navigation->IsThereAnywhereToBuildNavigation())
+        return FCapabilityResult::MakeArgInvalid(TEXT("No registered navigation bounds are available; check volume geometry and level visibility"));
+    auto Operation = FNexusEditorOperations::Create(TEXT("EngineNavigation"));
+    if (!Operation) return FNexusEditorToolSchema::Result(Operation);
+    const TWeakObjectPtr<UWorld> WeakWorld(World);
+    const TWeakObjectPtr<UNavigationSystemV1> WeakNavigation(Navigation);
+    FNexusEditorToolsets::AddTicker(FTickerDelegate::CreateLambda([Operation, WeakWorld, WeakNavigation, bSave, bStarted = false](float) mutable {
+        UWorld* CurrentWorld = WeakWorld.Get(); UNavigationSystemV1* CurrentNavigation = WeakNavigation.Get();
+        if (!Operation->IsRunning()) return false;
+        if (!CurrentWorld || !CurrentNavigation || !GEditor || GEditor->GetEditorWorldContext().World() != CurrentWorld || GEditor->IsPlayingSessionInEditor()) {
+            FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Editor world changed; navigation operation cannot be verified")); return false;
+        }
+        if (!bStarted) { bStarted = true; CurrentNavigation->Build(); return true; }
+        if (CurrentNavigation->IsNavigationBuildInProgress()) return true;
+        auto Data = MakeShared<FJsonObject>();
+        const bool bHasData = CurrentNavigation->GetDefaultNavDataInstance(FNavigationSystem::DontCreate) != nullptr;
+        Data->SetBoolField(TEXT("bBuildComplete"), true); Data->SetBoolField(TEXT("bHasNavigationData"), bHasData);
+        Data->SetStringField(TEXT("Outcome"), bHasData ? TEXT("Success") : TEXT("NoNavigationData"));
+        FString Error;
+        if (bSave && bHasData) {
+            TArray<UPackage*> Packages;
+            for (ULevel* Level : CurrentWorld->GetLevels()) if (Level && Level->GetOutermost()->IsDirty()) Packages.AddUnique(Level->GetOutermost());
+            const bool bSaved = Packages.Num() == 0 || UEditorLoadingAndSavingUtils::SavePackages(Packages, true);
+            Data->SetBoolField(TEXT("bSaved"), bSaved);
+            if (!bSaved) Error = TEXT("Navigation completed but generated level packages could not be saved");
+        }
+        auto Result = MakeShared<FJsonObject>(); Result->SetObjectField(TEXT("CompatibilityResult"), Data);
+        if (!bHasData) Error = TEXT("Build ended without navigation data; inspect world navigation configuration and geometry");
+        FNexusEditorOperations::Finish(Operation, Error.IsEmpty() ? TEXT("Completed") : TEXT("Failed"), Result, Error);
+        return false;
+    }), 0.1f);
+    return FNexusEditorToolSchema::Result(Operation);
+}
+
 FCapabilityResult FNexusSceneTools::Execute(bool bWrite, const TSharedPtr<FJsonObject>& Args)
 {
     const FNexusArgs A(Args); const FString Action = A.Str(TEXT("Action")), FolderPath = A.Str(TEXT("FolderPath"));
     UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
     if (!World || World->WorldType != EWorldType::Editor) return FCapabilityResult::MakeFatal(TEXT("An editor world is required"));
+    if (bWrite && Action == TEXT("BuildNavigation")) return NexusBuildNavigation(World, A.Bool(TEXT("bSaveToDisk")));
     const TSet<FString> Writes = {TEXT("CreateFolder"),TEXT("RenameFolder"),TEXT("DeleteFolder"),TEXT("SetActorFolder"),TEXT("SetSelection"),TEXT("MergeActors"),TEXT("CreateLevelInstance"),TEXT("EditLevelInstance"),TEXT("CommitLevelInstance")};
     const TSet<FString> Reads = {TEXT("Folders"),TEXT("FolderActors"),TEXT("Selection"),TEXT("Trace")};
     if (!(bWrite ? Writes : Reads).Contains(Action)) return FCapabilityResult::MakeArgInvalid(TEXT("Unknown scene action"));

@@ -15,6 +15,10 @@
 #include "GameFramework/Actor.h"
 #include "Engine/Blueprint.h"
 #include "NexusMcpTool.h"
+#include "Editor.h"
+#include "LevelUtils.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
+#include "ActorFactories/ActorFactoryBoxVolume.h"
 
 /** 解析 "x,y,z" 或 "x y z" 为 FVector。 */
 static bool NxParseVector3Text(const FString& Text, FVector& OutVec)
@@ -91,7 +95,9 @@ void FNexusManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinitio
 	Out.Description = TEXT("Batch edit level WorldSettings and Actors. Action=spawn/remove/SetProperty/ResetActorPropertyToDefault.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Action"),
-			{ TEXT("SetProperty"), TEXT("SpawnActor"), TEXT("RemoveActor"), TEXT("SetActorProperty"), TEXT("ResetActorPropertyToDefault") }))
+			{ TEXT("SetProperty"), TEXT("SpawnActor"), TEXT("CreateNavMeshBoundsVolume"), TEXT("RemoveActor"), TEXT("SetActorProperty"), TEXT("ResetActorPropertyToDefault") }))
+		.Prop(TEXT("BoundsMin"), FNexusSchema::Object().Required(TEXT("X"), FNexusSchema::Num(TEXT("Minimum X"))).Required(TEXT("Y"), FNexusSchema::Num(TEXT("Minimum Y"))).Required(TEXT("Z"), FNexusSchema::Num(TEXT("Minimum Z"))).Build().ToSharedRef())
+		.Prop(TEXT("BoundsMax"), FNexusSchema::Object().Required(TEXT("X"), FNexusSchema::Num(TEXT("Maximum X"))).Required(TEXT("Y"), FNexusSchema::Num(TEXT("Maximum Y"))).Required(TEXT("Z"), FNexusSchema::Num(TEXT("Maximum Z"))).Build().ToSharedRef())
 		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("WorldSettings propertypath (SetProperty)")))
 		.Prop(TEXT("Value"),        FNexusSchema::Str(TEXT("New property value string")))
 		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous scalar Actor property value")))
@@ -109,7 +115,7 @@ void FNexusManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("Level"), TEXT("map"), TEXT("World"), TEXT("worldsettings"), TEXT("spawn") };
+	Out.ExtraSearchKeywords = { TEXT("Level"), TEXT("map"), TEXT("World"), TEXT("worldsettings"), TEXT("spawn"), TEXT("navigation"), TEXT("navmesh"), TEXT("bounds volume") };
 	Out.RelatedCapabilities = { TEXT("GetAssetLevel"), TEXT("SearchAsset") };
 	Out.Prerequisites = { TEXT("EditorOnly") };
 	Out.WhenToUse = TEXT("Edit WorldSettings or level Actors; persist with SaveAsset");
@@ -129,6 +135,61 @@ static FLevelActionState* LevelFrom(FNexusActionContext& Ctx)
 		Ctx.Entry->SetBoolField(TEXT("bIsEditorWorld"), S->bEditorWorld);
 	}
 	return S;
+}
+
+static void HandleLevel_CreateNavBounds(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	if (!World || GEditor->IsPlayingSessionInEditor())
+	{ Ctx.Entry->SetStringField(TEXT("Error"), TEXT("An editor world with PIE stopped is required")); return; }
+	ULevel* TargetLevel = nullptr;
+	const FString Package = FNexusEditorLevelUtils::NormalizeLevelPackagePath(Ctx.AssetPath);
+	for (ULevel* Level : World->GetLevels())
+		if (Level && Level->GetOutermost()->GetName() == Package) TargetLevel = Level;
+	if (!TargetLevel || FLevelUtils::IsLevelLocked(TargetLevel))
+	{ Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AssetPath must identify an unlocked loaded editor level from GetEditorContext.CurrentMap.Levels")); return; }
+	FVector Minimum, Maximum;
+	const auto ReadVector = [&](const TCHAR* Key, FVector& Value)
+	{
+		const TSharedPtr<FJsonObject>* Vector = nullptr;
+		double X = 0, Y = 0, Z = 0;
+		if (!Op->TryGetObjectField(Key, Vector) || !(*Vector)->TryGetNumberField(TEXT("X"), X)
+			|| !(*Vector)->TryGetNumberField(TEXT("Y"), Y) || !(*Vector)->TryGetNumberField(TEXT("Z"), Z)) return false;
+		Value = FVector(X, Y, Z);
+		return !Value.ContainsNaN();
+	};
+	if (!ReadVector(TEXT("BoundsMin"), Minimum) || !ReadVector(TEXT("BoundsMax"), Maximum)
+		|| Minimum.X >= Maximum.X || Minimum.Y >= Maximum.Y || Minimum.Z >= Maximum.Z)
+	{ Ctx.Entry->SetStringField(TEXT("Error"), TEXT("BoundsMin/BoundsMax require finite XYZ with positive size on every axis")); return; }
+	const FVector Size = Maximum - Minimum;
+	if (Size.GetMax() > 10000000 || Size.GetMin() < 1)
+	{ Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Bounds dimensions must be between 1 and 10000000 Unreal units")); return; }
+	TargetLevel->Modify();
+	UActorFactoryBoxVolume* Factory = NewObject<UActorFactoryBoxVolume>();
+	Factory->NewActorClass = ANavMeshBoundsVolume::StaticClass();
+	ANavMeshBoundsVolume* Volume = Cast<ANavMeshBoundsVolume>(Factory->CreateActor(nullptr, TargetLevel, FTransform((Minimum + Maximum) * 0.5)));
+	if (!Volume) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Volume actor factory failed")); return; }
+	const FVector BrushSize = Volume->GetComponentsBoundingBox(true).GetSize();
+	if (BrushSize.GetMin() <= 0)
+	{ World->EditorDestroyActor(Volume, true); Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Factory produced an empty brush; actor removed")); return; }
+	Volume->Modify();
+	Volume->SetActorScale3D(Size / BrushSize);
+	const FString Label = FNexusArgs(Op).Str(TEXT("ActorName"));
+	if (!Label.IsEmpty()) Volume->SetActorLabel(Label);
+	Volume->PostEditChange();
+	Volume->MarkPackageDirty();
+	const FBox ActualBounds = Volume->GetComponentsBoundingBox(true);
+	for (const auto& Pair : {TPair<FString, FVector>(TEXT("BoundsMin"), ActualBounds.Min), TPair<FString, FVector>(TEXT("BoundsMax"), ActualBounds.Max)})
+	{
+		auto Vector = MakeShared<FJsonObject>();
+		Vector->SetNumberField(TEXT("X"), Pair.Value.X); Vector->SetNumberField(TEXT("Y"), Pair.Value.Y); Vector->SetNumberField(TEXT("Z"), Pair.Value.Z);
+		Ctx.Entry->SetObjectField(Pair.Key, Vector);
+	}
+	Ctx.Entry->SetStringField(TEXT("ActorName"), Volume->GetName());
+	Ctx.Entry->SetStringField(TEXT("ActorPath"), Volume->GetPathName());
+	Ctx.Entry->SetStringField(TEXT("LevelPath"), Package);
+	Ctx.Entry->SetBoolField(TEXT("bBrushCreated"), true);
+	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("Save this level, then ControlEditorScene Action=BuildNavigation; creation does not build navigation"));
 }
 
 static void HandleLevel_SpawnActor(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -339,6 +400,7 @@ void FNexusManageAssetLevelCapability::FinalizeTarget(void* Target) const
 void FNexusManageAssetLevelCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
 	OutHandlers.Add(TEXT("SpawnActor"),         &HandleLevel_SpawnActor);
+	OutHandlers.Add(TEXT("CreateNavMeshBoundsVolume"), &HandleLevel_CreateNavBounds);
 	OutHandlers.Add(TEXT("RemoveActor"),        &HandleLevel_RemoveActor);
 	OutHandlers.Add(TEXT("SetActorProperty"),  &HandleLevel_SetActorProperty);
 	OutHandlers.Add(TEXT("ResetActorPropertyToDefault"), &HandleLevel_ResetActorPropertyToDefault);

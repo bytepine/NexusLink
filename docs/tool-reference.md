@@ -269,11 +269,11 @@ Spawn/execute PCG instances or edit node settings, graph parameters, instance ov
 
 ### `ControlEditorScene`
 
-Organize editor actors/folders, merge meshes and edit level instances.
+Organize actors/folders, merge meshes, edit level instances and build navigation asynchronously.
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `Action` | `string (enum)` | ★ | Scene write enum: `CreateFolder` / `RenameFolder` / `DeleteFolder` / `SetActorFolder` / `SetSelection` / `MergeActors` / `CreateLevelInstance` / `EditLevelInstance` / `CommitLevelInstance` |
+| `Action` | `string (enum)` | ★ | Scene write enum: `CreateFolder` / `RenameFolder` / `DeleteFolder` / `SetActorFolder` / `SetSelection` / `MergeActors` / `CreateLevelInstance` / `EditLevelInstance` / `CommitLevelInstance` / `BuildNavigation` |
 | `FolderPath` | `string` |  | World Outliner folder path |
 | `NewFolderPath` | `string` |  | Rename destination |
 | `ActorPath` | `string` |  | Actor object path from discovery |
@@ -286,6 +286,7 @@ Organize editor actors/folders, merge meshes and edit level instances.
 | `bRecursive` | `boolean` |  | Include subfolder actors |
 | `bDestroySourceActors` | `boolean` |  | Remove actors after a successful mesh merge |
 | `bDiscard` | `boolean` |  | Discard LevelInstance edits |
+| `bSaveToDisk` | `boolean` |  | BuildNavigation: save generated loaded-level packages after completion; requires all loaded levels clean before starting |
 | `Limit` | `integer` |  | Maximum query results |
 | `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
@@ -2331,7 +2332,7 @@ Batch edit level WorldSettings and Actors. Action=spawn/remove/SetProperty/Reset
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | Level asset path (e.g. /Game/Maps/MyLevel) |
 | `bVerify` | `boolean` |  | Verify scalar SetActorProperty operations before saving |
-| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetProperty/SpawnActor/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetProperty/SpawnActor/CreateNavMeshBoundsVolume/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `X`, `Y`, `Z`, `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetLevel`, `SearchAsset`
@@ -2886,7 +2887,7 @@ Batch edit BP graphs, variables/types, inheritance, defaults and components. Com
 | `ExpectedStructureHash` | `string` |  | Precondition hash from GetAssetEditPreview |
 | `bVerifyStructure` | `boolean` |  | Verify RemoveNode/Disconnect/DisconnectAll against an isolated structural plan |
 | `bVerify` | `boolean` |  | Verify scalar SetDefaults/SetComponentProperty before saving; bCompile controls a single final compilation |
-| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddVariable/RemoveVariable/RenameVariable/RenameLocalVariable/ChangeVariableType/Reparent/AddFunction/RemoveFunction…), `Code`, `GraphNodes`, `GraphLinks`, `ParameterName`, `bInput`, `Category`, `bEditable`, `GraphName`, `VariableName`, `VariableType`, `NewVariableName`, `ParentClass`, `bAllowPotentialDataLoss`, `DefaultValue`, `bIsPublic`, `bIsLocal`, `NodeId`, `NodeClass`, `FunctionName`, `FunctionClass`, `InterfaceName`, `PosX`, `PosY`, `Comment`, `PinName`, `PinDefaultValue`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `ComponentClass`, `Baseline`(ParentTemplate/ClassDefault), `ComponentName`, `AttachTo`, `SourceAssetPath`, `SourceComponentName`, `PropertyPath`, `Value`, `ExpectedValue` |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddVariable/RemoveVariable/RenameVariable/RenameLocalVariable/ChangeVariableType/SetVariableMetadata/SetVariableReplication/SetFunctionCallInEditor…), `Code`, `GraphNodes`, `GraphLinks`, `ParameterName`, `bInput`, `Category`, `bEditable`, `ToolTip`, `Replication`(None/Replicated/RepNotify), `RepNotifyFunction`, `bCallInEditor`, `GraphName`, `VariableName`, `VariableType`, `NewVariableName`, `ParentClass`, `bAllowPotentialDataLoss`, `DefaultValue`, `bIsPublic`, `bIsLocal`, `NodeId`, `NodeClass`, `FunctionName`, `FunctionClass`, `InterfaceName`, `PosX`, `PosY`, `Comment`, `PinName`, `PinDefaultValue`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `ComponentClass`, `Baseline`(ParentTemplate/ClassDefault), `ComponentName`, `AttachTo`, `SourceAssetPath`, `SourceComponentName`, `PropertyPath`, `Value`, `ExpectedValue` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 | `bCompile` | `boolean` |  | Compile blueprint if needed (BP/ABP/WBP only) |
 
@@ -3084,7 +3085,7 @@ Command runtime animation. play/stop/JumpToSection/SetAnimClass/SetAnimVariable.
 
 ### `ManageAssetAnimBlueprint`
 
-Batch edit ABP. State machines and AnimGraph nodes; avoid K2.
+Edit state machines/AnimGraph and retarget one ABP Skeleton with explicit animation remaps; K2 edits use ManageAssetBlueprint.
 
 **When to use**: State machine and AnimGraph node CRUD; do not use ManageAssetBlueprint for AnimGraph
 
@@ -3131,7 +3132,7 @@ Batch edit Montage structure. persist with SaveAsset.
 
 ### `ManageAssetAnimSequence`
 
-Batch edit AnimSequence: notify/frame rate/root motion/curve keys.
+Edit notifies, curves, timing and retarget one sequence to another Skeleton with explicit reference remaps.
 
 **Prerequisites**: `EditorOnly`
 
@@ -3140,7 +3141,7 @@ Batch edit AnimSequence: notify/frame rate/root motion/curve keys.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | AnimSequence asset path |
-| `Operations` | `object[]` | ★ | Batch edit ops (at least one); item: `Action`(AddNotify/RemoveNotify/SetFrameRate/SetRootMotion/AddFloatCurve/SetCurveKey/RemoveCurve), `NotifyName`, `NotifyClass`, `NotifyIndex`, `Time`, `Duration`, `FrameRate`, `RootMotion`, `CurveName`, `Value` |
+| `Operations` | `object[]` | ★ | Batch edit ops (at least one); item: `Action`(AddNotify/RemoveNotify/SetFrameRate/SetRootMotion/AddFloatCurve/SetCurveKey/RemoveCurve/Retarget), `NotifyName`, `NotifyClass`, `NotifyIndex`, `Time`, `Duration`, `FrameRate`, `RootMotion`, `CurveName`, `Value` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetAnimSequence`, `GetAssetAnimMontage`

@@ -10,6 +10,11 @@
 #include "NexusMcpTool.h"
 #include "Editor.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Engine/World.h"
+#include "Engine/Level.h"
+#include "GameFramework/Actor.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
+#include "LevelUtils.h"
 
 void FNexusGetEditorContextCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -68,6 +73,7 @@ void FNexusGetEditorContextCapability::ExecuteSection(const FString&            
 		InOutDetail->SetArrayField(TEXT("Actors"), Actors);
 		InOutDetail->SetNumberField(TEXT("Count"), Actors.Num());
 		InOutDetail->SetBoolField(TEXT("bIsEditorWorld"), true);
+
 	}
 	else if (SectionName == TEXT("SelectionAssets"))
 	{
@@ -119,6 +125,39 @@ void FNexusGetEditorContextCapability::ExecuteSection(const FString&            
 		InOutDetail->SetStringField(TEXT("AssetPath"), AssetPath);
 		InOutDetail->SetStringField(TEXT("MapName"), MapName);
 		InOutDetail->SetBoolField(TEXT("bIsEditorWorld"), true);
+		UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+		TArray<TSharedPtr<FJsonValue>> Levels;
+		if (World) for (ULevel* Level : World->GetLevels())
+		{
+			if (!Level || Levels.Num() >= 256) continue;
+			auto Item = MakeShared<FJsonObject>();
+			Item->SetStringField(TEXT("AssetPath"), Level->GetOutermost()->GetName());
+			Item->SetBoolField(TEXT("bCurrent"), Level == World->GetCurrentLevel());
+			Item->SetBoolField(TEXT("bSelected"), World->GetSelectedLevels().Contains(Level));
+			Item->SetBoolField(TEXT("bLocked"), FLevelUtils::IsLevelLocked(Level));
+			Item->SetBoolField(TEXT("bVisible"), Level->bIsVisible);
+			FBox Bounds(ForceInit);
+			TArray<TSharedPtr<FJsonValue>> Volumes;
+			for (AActor* Actor : Level->Actors)
+			{
+				if (!Actor || Actor == World->GetDefaultBrush()) continue;
+				if (Actor->IsA(ANavMeshBoundsVolume::StaticClass()))
+				{ if (Volumes.Num() < 128) Volumes.Add(MakeShared<FJsonValueString>(Actor->GetPathName())); }
+				else Bounds += Actor->GetComponentsBoundingBox(true);
+			}
+			if (Bounds.IsValid)
+			{
+				for (const auto& Pair : {TPair<FString, FVector>(TEXT("BoundsMin"), Bounds.Min), TPair<FString, FVector>(TEXT("BoundsMax"), Bounds.Max)})
+				{
+					auto Vector = MakeShared<FJsonObject>();
+					Vector->SetNumberField(TEXT("X"), Pair.Value.X); Vector->SetNumberField(TEXT("Y"), Pair.Value.Y); Vector->SetNumberField(TEXT("Z"), Pair.Value.Z);
+					Item->SetObjectField(Pair.Key, Vector);
+				}
+			}
+			Item->SetArrayField(TEXT("NavMeshBoundsVolumes"), Volumes);
+			Levels.Add(MakeShared<FJsonValueObject>(Item));
+		}
+		InOutDetail->SetArrayField(TEXT("Levels"), Levels);
 	}
 	else
 	{

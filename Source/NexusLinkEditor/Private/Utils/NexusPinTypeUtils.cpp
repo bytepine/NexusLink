@@ -11,7 +11,8 @@
 
 static FString PinAtomName(const FName& Category, const FName& Subcategory, UObject* TypeObject)
 {
-	if (TypeObject) return TypeObject->GetPathName();
+	if (TypeObject) return Category == UEdGraphSchema_K2::PC_Class
+		? TEXT("ClassReference<") + TypeObject->GetPathName() + TEXT(">") : TypeObject->GetPathName();
 	if (Category == UEdGraphSchema_K2::PC_Boolean) return TEXT("bool");
 	if (Category == UEdGraphSchema_K2::PC_String) return TEXT("string");
 #if NX_UE_HAS_K2_PIN_REAL
@@ -27,6 +28,15 @@ TSharedRef<FJsonObject> FNexusPinTypeUtils::DescribePinType(const FEdGraphPinTyp
 	if (!PinType.PinSubCategory.IsNone()) Result->SetStringField(TEXT("SubType"), PinType.PinSubCategory.ToString());
 	Result->SetBoolField(TEXT("bIsReference"), PinType.bIsReference);
 	Result->SetBoolField(TEXT("bIsConst"), PinType.bIsConst);
+	if (PinType.PinCategory == UEdGraphSchema_K2::PC_Object)
+	{
+		UClass* Class = Cast<UClass>(PinType.PinSubCategoryObject.Get());
+		if (Class && Class->IsChildOf(UClass::StaticClass()))
+		{
+			Result->SetBoolField(TEXT("bUnsafeClassObject"), true);
+			Result->SetStringField(TEXT("Warning"), TEXT("UClass object reference can crash reflection consumers; migrate to ClassReference<BaseClass> after reviewing defaults and references"));
+		}
+	}
 	const FString Element = PinAtomName(PinType.PinCategory, PinType.PinSubCategory, PinType.PinSubCategoryObject.Get());
 	FString Canonical = Element;
 	const TCHAR* Container = TEXT("None");
@@ -53,6 +63,16 @@ TSharedRef<FJsonObject> FNexusPinTypeUtils::DescribePinType(const FEdGraphPinTyp
 
 static bool ParseScalarPinType(const FString& TypeStr, FEdGraphPinType& OutPinType, FString& OutError)
 {
+	if (TypeStr.StartsWith(TEXT("ClassReference<")) && TypeStr.EndsWith(TEXT(">")))
+	{
+		const FString ClassName = TypeStr.Mid(15, TypeStr.Len() - 16).TrimStartAndEnd();
+		UClass* Class = !ClassName.Contains(TEXT("<")) && !ClassName.Contains(TEXT(">"))
+			? FNexusAssetUtils::FindClassWithUPrefix(ClassName) : nullptr;
+		if (!Class) { OutError = TEXT("ClassReference requires a valid base class: ") + ClassName; return false; }
+		OutPinType.PinCategory = UEdGraphSchema_K2::PC_Class;
+		OutPinType.PinSubCategoryObject = Class;
+		return true;
+	}
 	const FString T = TypeStr.ToLower();
 	if      (T == TEXT("bool"))      OutPinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
 	else if (T == TEXT("int"))       OutPinType.PinCategory = UEdGraphSchema_K2::PC_Int;
@@ -95,6 +115,11 @@ static bool ParseScalarPinType(const FString& TypeStr, FEdGraphPinType& OutPinTy
 			OutError = FString::Printf(TEXT("Unsupported variable type: %s"), *TypeStr);
 			return false;
 		}
+		if (Cls->IsChildOf(UClass::StaticClass()))
+		{
+			OutError = TEXT("UClass object pins are unsafe; use ClassReference<BaseClass> (or Array<ClassReference<BaseClass>>) instead");
+			return false;
+		}
 		OutPinType.PinCategory          = UEdGraphSchema_K2::PC_Object;
 		OutPinType.PinSubCategoryObject = Cls;
 	}
@@ -128,7 +153,8 @@ bool FNexusPinTypeUtils::ParsePinType(const FString& TypeStr, FEdGraphPinType& O
 	// 蓝图不支持嵌套容器；先拒绝语法错误，不能递归解析后产生无效 PinType。
 	for (const FString& Part : {ElementType, ValueType})
 	{
-		if (Part.Contains(TEXT("<")) || Part.Contains(TEXT(">")) || Part.Contains(TEXT("[")) || Part.Contains(TEXT("]")) || Part.Contains(TEXT(",")))
+		const bool bClassReference = Part.StartsWith(TEXT("ClassReference<")) && Part.EndsWith(TEXT(">"));
+		if ((!bClassReference && (Part.Contains(TEXT("<")) || Part.Contains(TEXT(">")))) || Part.Contains(TEXT("[")) || Part.Contains(TEXT("]")) || Part.Contains(TEXT(",")))
 		{ OutError = TEXT("Malformed type or nested containers are unsupported"); return false; }
 	}
 	FEdGraphPinType Parsed;

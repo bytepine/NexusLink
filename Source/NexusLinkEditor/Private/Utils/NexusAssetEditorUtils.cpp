@@ -9,6 +9,7 @@
 #include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
@@ -175,12 +176,53 @@ bool FNexusAssetEditorUtils::CompileWithDiagnostics(UBlueprint* Blueprint, const
 {
 #if WITH_EDITOR
 	if (!Blueprint || !Result) return false;
+	TArray<FName> NewDefaults;
+	if (Blueprint->GeneratedClass) for (const FBPVariableDescription& Variable : Blueprint->NewVariables)
+		if (!Variable.DefaultValue.IsEmpty() && !Blueprint->GeneratedClass->FindPropertyByName(Variable.VarName)) NewDefaults.Add(Variable.VarName);
 	FCompilerResultsLog Log;
 	Log.bSilentMode = true;
 	const EBlueprintCompileOptions Options = FNexusEditorTransaction::IsTransactionActive()
 		? EBlueprintCompileOptions::SkipGarbageCollection : EBlueprintCompileOptions::None;
 	FKismetEditorUtilities::CompileBlueprint(Blueprint, Options, &Log);
 	const bool bSucceeded = Blueprint->Status != BS_Error && Log.NumErrors == 0;
+	if (bSucceeded && NewDefaults.Num() > 0 && Blueprint->GeneratedClass)
+	{
+		// UE4 重建已有子类时可能给新字段留下类型初始值。仅补新字段的初始值，不覆盖已有字段或非默认值。
+		UObject* Defaults = Blueprint->GeneratedClass->GetDefaultObject();
+		TArray<UObject*> Instances;
+		GetObjectsOfClass(Blueprint->GeneratedClass, Instances, true, RF_NoFlags);
+		TSet<UBlueprintGeneratedClass*> ChangedClasses;
+		TSet<FString> DirtyPackages;
+		int32 Changed = 0;
+		for (const FName& Name : NewDefaults)
+		{
+			FProperty* Property = Blueprint->GeneratedClass->FindPropertyByName(Name);
+			if (!Property) continue;
+			FDefaultConstructedPropertyElement Initial(Property);
+			void* Value = Property->ContainerPtrToValuePtr<void>(Defaults);
+			if (Property->Identical(Value, Initial.GetObjAddress(), PPF_None)) continue;
+			for (UObject* Instance : Instances)
+			{
+				if (!IsValid(Instance) || Instance == Defaults || Instance->GetClass()->FindPropertyByName(Name) != Property) continue;
+				void* InstanceValue = Property->ContainerPtrToValuePtr<void>(Instance);
+				if (!Property->Identical(InstanceValue, Initial.GetObjAddress(), PPF_None)) continue;
+				Instance->SetFlags(RF_Transactional); Instance->Modify();
+				Property->CopyCompleteValue(InstanceValue, Value);
+				Instance->MarkPackageDirty(); DirtyPackages.Add(Instance->GetOutermost()->GetName()); ++Changed;
+				if (Instance->HasAnyFlags(RF_ClassDefaultObject))
+					if (UBlueprintGeneratedClass* Class = Cast<UBlueprintGeneratedClass>(Instance->GetClass())) ChangedClasses.Add(Class);
+			}
+		}
+		for (UBlueprintGeneratedClass* Class : ChangedClasses) Class->UpdateCustomPropertyListForPostConstruction();
+		if (Changed > 0)
+		{
+			Result->SetNumberField(TEXT("NewVariableDefaultPropagations"), Changed);
+			TArray<TSharedPtr<FJsonValue>> Packages;
+			for (const FString& Package : DirtyPackages) if (Packages.Num() < 32) Packages.Add(MakeShared<FJsonValueString>(Package));
+			Result->SetArrayField(TEXT("NewVariableDefaultPackages"), Packages);
+			Result->SetStringField(TEXT("DefaultPropagationNote"), TEXT("New inherited fields updated in loaded defaults/instances; child/level packages remain dirty and require explicit SaveAsset. Package list is bounded to 32."));
+		}
+	}
 	Result->SetBoolField(TEXT("bCompiled"), bSucceeded);
 	Result->SetBoolField(TEXT("bHasCompilerErrors"), !bSucceeded);
 	Result->SetNumberField(TEXT("CompilerErrorCount"), Log.NumErrors);

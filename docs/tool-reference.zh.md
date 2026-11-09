@@ -281,7 +281,7 @@ UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data I
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `CreateFolder` / `RenameFolder` / `DeleteFolder` / `SetActorFolder` / `SetSelection` / `MergeActors` / `CreateLevelInstance` / `EditLevelInstance` / `CommitLevelInstance` |
+| `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `CreateFolder` / `RenameFolder` / `DeleteFolder` / `SetActorFolder` / `SetSelection` / `MergeActors` / `CreateLevelInstance` / `EditLevelInstance` / `CommitLevelInstance` / `BuildNavigation` |
 | `FolderPath` | `string` |  | World Outliner folder 路径 |
 | `NewFolderPath` | `string` |  | Rename destination |
 | `ActorPath` | `string` |  | Actor object path from discovery |
@@ -294,6 +294,7 @@ UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data I
 | `bRecursive` | `boolean` |  | Include subfolder actors |
 | `bDestroySourceActors` | `boolean` |  | Remove actors after a successful mesh merge |
 | `bDiscard` | `boolean` |  | Discard LevelInstance edits |
+| `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `Limit` | `integer` |  | 每页最大条数 |
 | `Reason` | `string` |  | 编辑器确认弹窗用的目的说明；Confirm 模式必填 |
 
@@ -2365,7 +2366,7 @@ UE 5.8 官方语义/相似资产搜索，ClassPaths 必填；依赖索引和嵌�
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `bVerify` | `boolean` |  | Verify scalar SetActorProperty operations before saving |
-| `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(SetProperty/SpawnActor/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
+| `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(SetProperty/SpawnActor/CreateNavMeshBoundsVolume/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `X`, `Y`, `Z`, `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**: `GetAssetLevel`, `SearchAsset`
@@ -2920,7 +2921,7 @@ UE 5.8 官方语义/相似资产搜索，ClassPaths 必填；依赖索引和嵌�
 | `ExpectedStructureHash` | `string` |  | Precondition hash from GetAssetEditPreview |
 | `bVerifyStructure` | `boolean` |  | Verify RemoveNode/Disconnect/DisconnectAll against an isolated structural plan |
 | `bVerify` | `boolean` |  | Verify scalar SetDefaults/SetComponentProperty before saving; bCompile controls a single final compilation |
-| `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(AddVariable/RemoveVariable/RenameVariable/RenameLocalVariable/ChangeVariableType/Reparent/AddFunction/RemoveFunction…), `Code`, `GraphNodes`, `GraphLinks`, `ParameterName`, `bInput`, `Category`, `bEditable`, `GraphName`, `VariableName`, `VariableType`, `NewVariableName`, `ParentClass`, `bAllowPotentialDataLoss`, `DefaultValue`, `bIsPublic`, `bIsLocal`, `NodeId`, `NodeClass`, `FunctionName`, `FunctionClass`, `InterfaceName`, `PosX`, `PosY`, `Comment`, `PinName`, `PinDefaultValue`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `ComponentClass`, `Baseline`(ParentTemplate/ClassDefault), `ComponentName`, `AttachTo`, `SourceAssetPath`, `SourceComponentName`, `PropertyPath`, `Value`, `ExpectedValue` |
+| `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(AddVariable/RemoveVariable/RenameVariable/RenameLocalVariable/ChangeVariableType/SetVariableMetadata/SetVariableReplication/SetFunctionCallInEditor…), `Code`, `GraphNodes`, `GraphLinks`, `ParameterName`, `bInput`, `Category`, `bEditable`, `ToolTip`, `Replication`(None/Replicated/RepNotify), `RepNotifyFunction`, `bCallInEditor`, `GraphName`, `VariableName`, `VariableType`, `NewVariableName`, `ParentClass`, `bAllowPotentialDataLoss`, `DefaultValue`, `bIsPublic`, `bIsLocal`, `NodeId`, `NodeClass`, `FunctionName`, `FunctionClass`, `InterfaceName`, `PosX`, `PosY`, `Comment`, `PinName`, `PinDefaultValue`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `ComponentClass`, `Baseline`(ParentTemplate/ClassDefault), `ComponentName`, `AttachTo`, `SourceAssetPath`, `SourceComponentName`, `PropertyPath`, `Value`, `ExpectedValue` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `bCompile` | `boolean` |  | 需要时编译蓝图（仅 BP/ABP/WBP） |
 
@@ -3174,7 +3175,7 @@ UE 5.8 官方语义/相似资产搜索，ClassPaths 必填；依赖索引和嵌�
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `Operations` | `object[]` | ★ | 批量编辑操作（至少一项）; 条目: `Action`(AddNotify/RemoveNotify/SetFrameRate/SetRootMotion/AddFloatCurve/SetCurveKey/RemoveCurve), `NotifyName`, `NotifyClass`, `NotifyIndex`, `Time`, `Duration`, `FrameRate`, `RootMotion`, `CurveName`, `Value` |
+| `Operations` | `object[]` | ★ | 批量编辑操作（至少一项）; 条目: `Action`(AddNotify/RemoveNotify/SetFrameRate/SetRootMotion/AddFloatCurve/SetCurveKey/RemoveCurve/Retarget), `NotifyName`, `NotifyClass`, `NotifyIndex`, `Time`, `Duration`, `FrameRate`, `RootMotion`, `CurveName`, `Value` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**: `GetAssetAnimSequence`, `GetAssetAnimMontage`

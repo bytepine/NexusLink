@@ -679,7 +679,7 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 			{
 				FNexusBPEntryLocal E;
 			E.Name = Var.VarName.ToString(); E.Kind = TEXT("variable");
-			E.Type = Var.VarType.PinCategory.ToString(); E.bIsPublic = (Var.PropertyFlags & CPF_Edit) != 0;
+			E.Type = Var.VarType.PinCategory.ToString(); E.bIsPublic = (Var.PropertyFlags & CPF_Edit) != 0 && (Var.PropertyFlags & CPF_DisableEditOnInstance) == 0;
 			E.TypeInfo = FNexusPinTypeUtils::DescribePinType(Var.VarType);
 			E.Guid = Var.VarGuid.ToString(EGuidFormats::DigitsWithHyphens);
 			if (!Var.VarType.PinSubCategory.IsNone()) E.SubType = Var.VarType.PinSubCategory.ToString();
