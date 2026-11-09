@@ -924,7 +924,7 @@ static FString BuildMarkdown(const TArray<TSharedPtr<FJsonObject>>& Records,
 		for (const auto& R : Records)
 		{
 			const FString Cat = GetStr(R, TEXT("Category"));
-			if (!Cat.StartsWith(TEXT("proxy_"))) continue;
+			if (!Cat.StartsWith(TEXT("Proxy"))) continue;
 			const FString Proxy = GetStr(R, TEXT("Proxy"));
 			const FString Key = (Proxy.IsEmpty() ? FString(TEXT("(unknown)")) : Proxy) + TEXT("|") + Cat;
 			int32& V = ProxyCatCount.FindOrAdd(Key);

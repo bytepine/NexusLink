@@ -684,7 +684,7 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 			E.Guid = Var.VarGuid.ToString(EGuidFormats::DigitsWithHyphens);
 			if (!Var.VarType.PinSubCategory.IsNone()) E.SubType = Var.VarType.PinSubCategory.ToString();
 			if (Var.VarType.PinSubCategoryObject.IsValid()) E.SubTypeObject = Var.VarType.PinSubCategoryObject->GetName();
-			if (Var.HasMetaData(TEXT("Category"))) E.Category = Var.GetMetaData(TEXT("Category"));
+			E.Category = Var.Category.ToString();
 				All.Add(E);
 			}
 		}
@@ -720,12 +720,24 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 			if (!E.SubTypeObject.IsEmpty()) { Obj->SetStringField(TEXT("SubTypeObject"), E.SubTypeObject); }
 			if (!E.Category.IsEmpty())      { Obj->SetStringField(TEXT("Category"),      E.Category); }
 			if (E.Kind == TEXT("variable") && E.bIsPublic) { Obj->SetBoolField(TEXT("bIsPublic"), true); }
+			if (E.Kind == TEXT("variable"))
+			{
+				const FBPVariableDescription* Variable = BP->NewVariables.FindByPredicate([&](const FBPVariableDescription& Candidate) { return Candidate.VarName == FName(*E.Name); });
+				if (Variable)
+				{
+					Obj->SetStringField(TEXT("ToolTip"), Variable->HasMetaData(TEXT("ToolTip")) ? Variable->GetMetaData(TEXT("ToolTip")) : TEXT(""));
+					Obj->SetStringField(TEXT("Replication"), (Variable->PropertyFlags & CPF_RepNotify) ? TEXT("RepNotify") : (Variable->PropertyFlags & CPF_Net) ? TEXT("Replicated") : TEXT("None"));
+					Obj->SetStringField(TEXT("RepNotifyFunction"), Variable->RepNotifyFunc.IsNone() ? TEXT("") : Variable->RepNotifyFunc.ToString());
+				}
+			}
 			// 函数节：从 GeneratedClass 提取签名
 			if (E.Kind == TEXT("Function") && BP->GeneratedClass)
 			{
 				TArray<TSharedPtr<FJsonValue>> Locals;
 				if (UEdGraph* FunctionGraph = FNexusBlueprintGraphUtils::FindBPGraph(BP, E.Name))
 					for (UEdGraphNode* Node : FunctionGraph->Nodes) if (auto* FunctionEntry = Cast<UK2Node_FunctionEntry>(Node))
+					{
+						Obj->SetBoolField(TEXT("bCallInEditor"), FunctionEntry->MetaData.bCallInEditor);
 						for (const auto& Variable : FunctionEntry->LocalVariables)
 						{
 							auto Local = FNexusPinTypeUtils::DescribePinType(Variable.VarType);
@@ -733,6 +745,7 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 							Local->SetStringField(TEXT("Guid"), Variable.VarGuid.ToString(EGuidFormats::DigitsWithHyphens));
 							Locals.Add(MakeShared<FJsonValueObject>(Local));
 						}
+					}
 				Obj->SetArrayField(TEXT("LocalVariables"), Locals);
 				UFunction* Func = BP->GeneratedClass->FindFunctionByName(*E.Name);
 				if (Func)

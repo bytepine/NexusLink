@@ -87,7 +87,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 	Out.Description = TEXT("Batch edit BP graphs, variables/types, inheritance, defaults and components. Compile/save explicitly.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"),          FNexusSchema::Enum(TEXT("Operation type"), {
-			TEXT("AddVariable"), TEXT("RemoveVariable"), TEXT("RenameVariable"), TEXT("RenameLocalVariable"), TEXT("ChangeVariableType"), TEXT("Reparent"),
+			TEXT("AddVariable"), TEXT("RemoveVariable"), TEXT("RenameVariable"), TEXT("RenameLocalVariable"), TEXT("ChangeVariableType"), TEXT("SetVariableMetadata"), TEXT("SetVariableReplication"), TEXT("SetFunctionCallInEditor"), TEXT("Reparent"),
 			TEXT("AddFunction"), TEXT("RemoveFunction"),
 			TEXT("AddMacro"), TEXT("AddTimeline"), TEXT("AddDispatcher"), TEXT("AddLocalVariable"),
 			TEXT("AddInterface"), TEXT("RemoveInterface"),
@@ -101,6 +101,10 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
         .Prop(TEXT("bInput"), FNexusSchema::Bool(TEXT("Function input rather than output"), true, true))
         .Prop(TEXT("Category"), FNexusSchema::Str(TEXT("Blueprint variable category")))
         .Prop(TEXT("bEditable"), FNexusSchema::Bool(TEXT("Expose variable on instances")))
+		.Prop(TEXT("ToolTip"), FNexusSchema::Str(TEXT("SetVariableMetadata: variable tooltip; empty clears it")))
+		.Prop(TEXT("Replication"), FNexusSchema::Enum(TEXT("SetVariableReplication: does not enable replication on the owning actor/component"), {TEXT("None"), TEXT("Replicated"), TEXT("RepNotify")}))
+		.Prop(TEXT("RepNotifyFunction"), FNexusSchema::Str(TEXT("RepNotify: existing owned function with no inputs/outputs; create with AddFunction first")))
+		.Prop(TEXT("bCallInEditor"), FNexusSchema::Bool(TEXT("SetFunctionCallInEditor: expose an owned parameterless function as an editor button")))
 		.Prop(TEXT("GraphName"),       FNexusSchema::Str(TEXT("Graph name (nodes/wires/PromotePin)")))
 		.Prop(TEXT("VariableName"),    FNexusSchema::Str(TEXT("Variable name (AddVariable/PromotePin; auto if omitted)")))
 		.Prop(TEXT("VariableType"),    FNexusSchema::Str(TEXT("Basic, object or BlueprintType struct name/path; T[], Array<T>, Set<T>, Map<K,V> (no nested containers)")))
@@ -148,7 +152,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 	Out.ExtraSearchKeywords = {
 		TEXT("variable"), TEXT("rename"), TEXT("reparent"), TEXT("parent"), TEXT("Node"), TEXT("Component"), TEXT("wire"), TEXT("Connect"),
 		TEXT("Disconnect"), TEXT("link"), TEXT("scs"), TEXT("Function"), TEXT("interface"), TEXT("bpi"),
-		TEXT("promote"), TEXT("pin")
+		TEXT("promote"), TEXT("pin"), TEXT("metadata"), TEXT("tooltip"), TEXT("replication"), TEXT("replicated"), TEXT("repnotify"), TEXT("CallInEditor")
 	};
 	Out.RelatedCapabilities = { TEXT("GetAssetBlueprint"), TEXT("CreateAssetBlueprint"), TEXT("SaveAsset"), TEXT("GetAssetEditPreview"), TEXT("CompileBlueprint"), TEXT("ControlEditorAssetEditor") };
 	Out.WhenToUse = TEXT("Write Blueprint graphs/variables, reparent specialized Blueprints, or edit component defaults; preview first");
@@ -168,6 +172,72 @@ static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	UBlueprint* BP = static_cast<UBlueprint*>(Ctx.Target);
 	TSharedPtr<FJsonObject>& Entry = Ctx.Entry;
 	const FString& Action = Ctx.Action;
+	if (Action == TEXT("SetFunctionCallInEditor"))
+	{
+		UEdGraph* Graph = FNexusBlueprintGraphUtils::FindBPGraph(BP, FNexusArgs(Op).Str(TEXT("FunctionName")));
+		if (!Graph || !BP->FunctionGraphs.Contains(Graph) || !Op->HasTypedField<EJson::Boolean>(TEXT("bCallInEditor")))
+		{ Entry->SetStringField(TEXT("Error"), TEXT("SetFunctionCallInEditor requires an owned FunctionName and bCallInEditor")); return; }
+		UK2Node_FunctionEntry* FunctionEntry = nullptr;
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			if (auto* Terminal = Cast<UK2Node_EditablePinBase>(Node))
+				if (Terminal->UserDefinedPins.Num() > 0)
+				{ Entry->SetStringField(TEXT("Error"), TEXT("CallInEditor requires a function without inputs/outputs")); return; }
+			if (auto* Candidate = Cast<UK2Node_FunctionEntry>(Node)) FunctionEntry = Candidate;
+		}
+		if (!FunctionEntry) { Entry->SetStringField(TEXT("Error"), TEXT("Function entry is missing")); return; }
+		FunctionEntry->Modify();
+		FunctionEntry->MetaData.bCallInEditor = FNexusArgs(Op).Bool(TEXT("bCallInEditor"));
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+		Entry->SetBoolField(TEXT("bCallInEditor"), FunctionEntry->MetaData.bCallInEditor);
+		return;
+	}
+	if (Action == TEXT("SetVariableMetadata") || Action == TEXT("SetVariableReplication"))
+	{
+		const FNexusArgs Args(Op);
+		const FName Name(*Args.Str(TEXT("VariableName")));
+		const int32 VariableIndex = FBlueprintEditorUtils::FindNewVariableIndex(BP, Name);
+		if (VariableIndex == INDEX_NONE)
+		{ Entry->SetStringField(TEXT("Error"), TEXT("Variable must be owned by this Blueprint")); return; }
+		FBPVariableDescription& Variable = BP->NewVariables[VariableIndex];
+		if (Action == TEXT("SetVariableMetadata"))
+		{
+			if (!Op->HasTypedField<EJson::String>(TEXT("ToolTip")))
+			{ Entry->SetStringField(TEXT("Error"), TEXT("SetVariableMetadata requires ToolTip")); return; }
+			BP->Modify();
+			Variable.SetMetaData(TEXT("ToolTip"), Args.Str(TEXT("ToolTip")));
+			Entry->SetStringField(TEXT("ToolTip"), Args.Str(TEXT("ToolTip")));
+		}
+		else
+		{
+			const FString Mode = Args.Str(TEXT("Replication"));
+			const bool bReplicated = Mode.Equals(TEXT("Replicated"), ESearchCase::IgnoreCase);
+			const bool bNotify = Mode.Equals(TEXT("RepNotify"), ESearchCase::IgnoreCase);
+			if (!bReplicated && !bNotify && !Mode.Equals(TEXT("None"), ESearchCase::IgnoreCase))
+			{ Entry->SetStringField(TEXT("Error"), TEXT("Replication must be None, Replicated or RepNotify")); return; }
+			if (!BP->ParentClass || (!BP->ParentClass->IsChildOf(AActor::StaticClass()) && !BP->ParentClass->IsChildOf(UActorComponent::StaticClass()))
+				|| ((bReplicated || bNotify) && (Variable.VarType.ContainerType == EPinContainerType::Set || Variable.VarType.ContainerType == EPinContainerType::Map)))
+			{ Entry->SetStringField(TEXT("Error"), TEXT("Replication requires Actor/ActorComponent members and does not support Set/Map variables")); return; }
+			const FName NotifyName = bNotify ? FName(*Args.Str(TEXT("RepNotifyFunction"))) : NAME_None;
+			UFunction* Notify = bNotify && BP->SkeletonGeneratedClass ? BP->SkeletonGeneratedClass->FindFunctionByName(NotifyName) : nullptr;
+			UEdGraph* NotifyGraph = bNotify ? FNexusBlueprintGraphUtils::FindBPGraph(BP, NotifyName.ToString()) : nullptr;
+			if (bNotify && (!Notify || Notify->NumParms != 0 || !NotifyGraph || !BP->FunctionGraphs.Contains(NotifyGraph)
+				|| Notify->HasAnyFunctionFlags(FUNC_Net | FUNC_Static | FUNC_BlueprintPure)))
+			{ Entry->SetStringField(TEXT("Error"), TEXT("RepNotifyFunction must name an existing owned non-pure function without inputs/outputs or RPC flags")); return; }
+			BP->Modify();
+			Variable.PropertyFlags &= ~(CPF_Net | CPF_RepNotify);
+			if (bReplicated || bNotify) Variable.PropertyFlags |= CPF_Net;
+			if (bNotify) Variable.PropertyFlags |= CPF_RepNotify;
+			Variable.RepNotifyFunc = NotifyName;
+			if (!bReplicated && !bNotify) Variable.ReplicationCondition = COND_None;
+			Entry->SetStringField(TEXT("Replication"), bNotify ? TEXT("RepNotify") : bReplicated ? TEXT("Replicated") : TEXT("None"));
+			Entry->SetStringField(TEXT("RepNotifyFunction"), NotifyName.IsNone() ? TEXT("") : NotifyName.ToString());
+			Entry->SetStringField(TEXT("Note"), TEXT("Owning actor/component replication must be enabled separately; existing notify graphs are preserved."));
+		}
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+		Entry->SetStringField(TEXT("VariableName"), Name.ToString());
+		return;
+	}
 	if (Action == TEXT("ChangeVariableType"))
 	{
 		const FNexusArgs Args(Op);
@@ -1103,6 +1173,7 @@ bool FNexusManageAssetBlueprintCapability::PrepareTarget(
 
 void FNexusManageAssetBlueprintCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
+    for (const FString& Action : {TEXT("SetVariableMetadata"),TEXT("SetVariableReplication"),TEXT("SetFunctionCallInEditor")}) OutHandlers.Add(Action, &HandleBP_Variable);
     for (const FString& Action : {TEXT("ArrangeNodes"),TEXT("WriteGraphDSL"),TEXT("WriteGraphPlan"),TEXT("AddFunctionParameter"),TEXT("RemoveFunctionParameter"),TEXT("SetVariableCategory"),TEXT("SetVariableEditable")}) OutHandlers.Add(Action, &FNexusBlueprintGraphEnhancements::Write);
 	OutHandlers.Add(TEXT("AddVariable"), &HandleBP_Variable);
 	OutHandlers.Add(TEXT("RemoveVariable"), &HandleBP_Variable);

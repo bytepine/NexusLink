@@ -57,7 +57,7 @@ void FNexusBlueprintGraphEnhancements::Read(UBlueprint* Blueprint, const FString
         if (!Function) { Error=TEXT("Compatibility NodeTypePins requires a callable FunctionName/FunctionClass from discovery"); return; }
         auto* Node=NewObject<UK2Node_CallFunction>(GetTransientPackage()); Node->SetFromFunction(Function); Node->AllocateDefaultPins();
         for (auto* Pin : Node->Pins) if (Pin) Items.Add(MakeShared<FJsonValueObject>(FNexusBlueprintGraphUtils::SerializeBPPin(Pin)));
-    } else { Error=TEXT("Native text GraphDSL requires EditorToolset; compatibility graphs use GraphPlan/WriteGraphPlan"); return; }
+    } else { Error=TEXT("Native text GraphDSL requires EditorToolset. Read nodes/pins with GetAssetBlueprint Sections=[Graph]; append nodes with ManageAssetBlueprint Action=WriteGraphPlan."); return; }
     Result->SetStringField(TEXT("Backend"),TEXT("EngineCompatibility")); Result->SetArrayField(Section,Items);
 }
 
@@ -66,18 +66,20 @@ void FNexusBlueprintGraphEnhancements::Write(const TSharedPtr<FJsonObject>& Op, 
     UBlueprint* Blueprint=static_cast<UBlueprint*>(Context.Target); const FNexusArgs A(Op);
     if (!Blueprint) { Context.Entry->SetStringField(TEXT("Error"),TEXT("Blueprint is missing")); return; }
     const auto Fail=[&](const FString& Error){Context.Entry->SetStringField(TEXT("Error"),Error);};
-    UEdGraph* Graph=FNexusBlueprintGraphUtils::FindBPGraph(Blueprint,A.Str(TEXT("GraphName")));
     if (Context.Action==TEXT("SetVariableCategory") || Context.Action==TEXT("SetVariableEditable")) {
         const FName Name(*A.Str(TEXT("VariableName"))); const bool bExists=Blueprint->NewVariables.ContainsByPredicate([&](const FBPVariableDescription& Variable){return Variable.VarName==Name;});
         if (!bExists) { Fail(TEXT("Variable must be owned by this Blueprint")); return; }
         auto Input=MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("blueprint"),FNexusNativeEditorTools::Reference(Blueprint->GetPathName())); Input->SetStringField(TEXT("variable_name"),Name.ToString());
         const bool bCategory=Context.Action==TEXT("SetVariableCategory");
+        if (bCategory && !Op->HasTypedField<EJson::String>(TEXT("Category"))) { Fail(TEXT("SetVariableCategory requires Category")); return; }
         if (!bCategory && !Op->HasTypedField<EJson::Boolean>(TEXT("bEditable"))) { Fail(TEXT("SetVariableEditable requires bEditable")); return; }
         if (bCategory) Input->SetStringField(TEXT("category"),A.Str(TEXT("Category"))); else Input->SetBoolField(TEXT("instance_editable"),A.Bool(TEXT("bEditable")));
         if (FNexusNativeEditorTools::EditSync(GNexusBlueprintNativeDomain,bCategory?TEXT("set_variable_category"):TEXT("set_variable_instance_editable"),Input,Context.Entry)) return;
-        Blueprint->Modify(); if (bCategory) FBlueprintEditorUtils::SetBlueprintVariableCategory(Blueprint,Name,nullptr,FText::FromString(A.Str(TEXT("Category")))); else FBlueprintEditorUtils::SetBlueprintOnlyEditableFlag(Blueprint,Name,!A.Bool(TEXT("bEditable")));
-        FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint); return;
+        // 类别只改编辑器元数据，避免每个操作都重建骨架；编译仍由调用末尾统一执行。
+        Blueprint->Modify(); if (bCategory) FBlueprintEditorUtils::SetBlueprintVariableCategory(Blueprint,Name,nullptr,FText::FromString(A.Str(TEXT("Category"))),true); else FBlueprintEditorUtils::SetBlueprintOnlyEditableFlag(Blueprint,Name,!A.Bool(TEXT("bEditable")));
+        FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint); return;
     }
+    UEdGraph* Graph=FNexusBlueprintGraphUtils::FindBPGraph(Blueprint,A.Str(TEXT("GraphName")));
     if (!Graph) { Fail(TEXT("GraphName must resolve to a graph in this Blueprint")); return; }
     auto Input=MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("graph"),FNexusNativeEditorTools::Reference(Graph->GetPathName()));
     if (Context.Action==TEXT("WriteGraphDSL")) {

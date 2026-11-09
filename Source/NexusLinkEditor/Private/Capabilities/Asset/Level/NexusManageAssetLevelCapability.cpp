@@ -1,6 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Level/NexusManageAssetLevelCapability.h"
+#include "Utils/NexusBlueprintEditUtils.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
@@ -249,18 +250,12 @@ static void HandleLevel_ResetActorPropertyToDefault(const TSharedPtr<FJsonObject
 		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 		return;
 	}
-	UObject* CDO = Actor->GetClass()->GetDefaultObject();
-	if (!CDO)
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Actor class has no CDO"));
-		return;
-	}
 	TArray<FString> Segments;
 	PropPath.ParseIntoArray(Segments, TEXT("."), true);
 	FProperty* Prop = nullptr;
 	void* ValPtr = nullptr;
 	FString PropErr;
-	if (!FNexusPropertyUtils::ResolvePropertyWrite(CDO, Segments, 0, Prop, ValPtr, PropErr))
+	if (!FNexusBlueprintEditUtils::ResolveActorDefaultProperty(Actor, Segments, Prop, ValPtr, PropErr))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), PropErr);
 		return;

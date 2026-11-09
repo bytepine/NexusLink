@@ -3,6 +3,7 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusPinTypeUtils.h"
+#include "Utils/NexusPropertyUtils.h"
 #include "K2Node_Variable.h"
 #include "EdGraphSchema_K2.h"
 #include "Engine/Blueprint.h"
@@ -238,6 +239,25 @@ UActorComponent* FNexusBlueprintEditUtils::FindComponent(UBlueprint* Blueprint, 
 	}
 	Error = TEXT("Component template not found in the target Blueprint");
 	return nullptr;
+}
+
+bool FNexusBlueprintEditUtils::ResolveActorDefaultProperty(AActor* Actor, const TArray<FString>& Segments, FProperty*& Property, void*& Value, FString& Error)
+{
+	if (!Actor) { Error = TEXT("Actor is required"); return false; }
+	if (Segments.Num() > 1)
+	{
+		FObjectPropertyBase* Member = FindFProperty<FObjectPropertyBase>(Actor->GetClass(), *Segments[0]);
+		UBlueprint* Blueprint = Cast<UBlueprint>(Actor->GetClass()->ClassGeneratedBy);
+		if (Blueprint && Member && Member->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
+		{
+			UActorComponent* Template = FindComponent(Blueprint, Segments[0], false, Error);
+			if (!Template) return false;
+			return FNexusPropertyUtils::ResolvePropertyWrite(Template, Segments, 1, Property, Value, Error);
+		}
+	}
+	UObject* Defaults = Actor->GetClass()->GetDefaultObject(false);
+	if (!Defaults) { Error = TEXT("Actor class has no CDO"); return false; }
+	return FNexusPropertyUtils::ResolvePropertyWrite(Defaults, Segments, 0, Property, Value, Error);
 }
 
 UActorComponent* FNexusBlueprintEditUtils::FindComponentBaseline(UBlueprint* Blueprint, UActorComponent* Component, const FString& Name, const FString& Baseline, FString& Error)

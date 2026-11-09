@@ -38,6 +38,8 @@ UE 5.8 的文件夹、Trace、合并和实例创建/编辑复用 SceneTools。�
 
 `ManageAssetBlueprint` 新增 ArrangeNodes、AddFunctionParameter、RemoveFunctionParameter、SetVariableCategory、SetVariableEditable、WriteGraphPlan、WriteGraphDSL。可映射的 5.8 布局、参数与变量属性操作复用 BlueprintTools；低版本通过已有 BlueprintGraph/BlueprintEditorUtils 接口执行。
 
+变量元数据通过 `SetVariableMetadata(VariableName, ToolTip)` 修改，空 ToolTip 清除提示；类别仍使用 `SetVariableCategory`，批量修改不逐项重建骨架。`SetVariableReplication(VariableName, Replication=None|Replicated|RepNotify)` 支持 Actor/ActorComponent 自有成员，拒绝复制 Set/Map；RepNotify 还需 `RepNotifyFunction` 指定已有、无输入输出且非纯函数/RPC 的通知函数（可先 AddFunction）。不会启用所属 Actor/组件的复制，也不会删除已有通知图。`SetFunctionCallInEditor(FunctionName, bCallInEditor)` 配置自有无参函数的编辑器按钮。上述操作均由显式 `bCompile` / `bSaveToDisk` 控制编译和保存；Variable / Function 分段回读 ToolTip、Category、Replication、RepNotifyFunction 和 bCallInEditor。
+
 WriteGraphPlan 在现有图追加 1–64 个节点、至多 128 条连接。GraphNodes 的每项包含 Id 及既有 AddNode 字段，支持 K2Node_CallFunction、K2Node_VariableGet、K2Node_VariableSet；GraphLinks 使用 From/FromPin/To/ToPin，且只能连接本次计划创建的节点。连接失败会移除本次计划节点，返回错误。成功返回 Id→NodeId 映射，可用既有 graph 分段和新增 Subgraph 回读。
 
-WriteGraphDSL/GraphDSL 使用 UE 5.8 原生 S-expression 协议；低版本使用结构化 GraphPlan。两种格式分别保留各自语义，不执行任意 Python。参数与图结构更改沿用现有编译、保存选项。
+WriteGraphDSL/GraphDSL 使用 UE 5.8 原生 S-expression 协议；低版本使用 `Sections=[Graph]` 读取节点/引脚，用 WriteGraphPlan 追加结构化节点计划，没有 GraphPlan 读取分段。两种格式分别保留各自语义，不执行任意 Python。参数与图结构更改沿用现有编译、保存选项。

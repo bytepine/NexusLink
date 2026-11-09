@@ -320,6 +320,7 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		// 明确的操作意图直接返回专用接口，避免 asset/editor 等分类词产生搜索过载。
 		FString LookupName = QueryTrimmed;
 		if (QueryTrimmed.Equals(TEXT("reparent"), ESearchCase::IgnoreCase)) LookupName = TEXT("ManageAssetBlueprint");
+		else if (QueryTrimmed.Equals(TEXT("FindAsset"), ESearchCase::IgnoreCase)) LookupName = TEXT("SearchAsset");
 		else if (QueryTrimmed.Equals(TEXT("navigation path"), ESearchCase::IgnoreCase)) LookupName = TEXT("GetNavigationPath");
 		else if (QueryTrimmed.Equals(TEXT("asset editor"), ESearchCase::IgnoreCase)) LookupName = TEXT("ControlEditorAssetEditor");
 		const FCapRecord* Record = nullptr;

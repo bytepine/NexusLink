@@ -6,6 +6,7 @@
 #include "Utils/NexusEditorLevelUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusArgs.h"
+#include "Utils/NexusBlueprintEditUtils.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
@@ -139,7 +140,7 @@ void FNexusGetAssetLevelCapability::ExecuteSection(const FString&               
 				Property->SetStringField(TEXT("Value"), Text);
 				FProperty* DefaultField = nullptr;
 				void* DefaultValue = nullptr;
-				if (Defaults && FNexusPropertyUtils::ResolvePropertyWrite(Defaults, Segments, 0, DefaultField, DefaultValue, Error)
+				if (FNexusBlueprintEditUtils::ResolveActorDefaultProperty(Actor, Segments, DefaultField, DefaultValue, Error)
 					&& DefaultField == Field)
 				{
 					Text.Reset();

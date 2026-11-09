@@ -7,6 +7,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- `ManageAssetBlueprint` 支持成员变量 ToolTip、Replication/RepNotify 与无参函数 CallInEditor 配置；`GetAssetBlueprint` 回读对应字段，RepNotify 使用显式已有通知函数，所属 Actor/组件复制开关保持独立。
+
+### Fixed
+
+- 关卡 Actor 的 SCS/继承组件默认值比较与恢复使用实际蓝图组件模板，避免 CDO 空引用导致整批读取失败。
+- 蓝图变量类别批量写入不再逐项重建骨架或遍历图对象；修正类别回读来源。
+- `FindAsset` 搜索意图指向 `SearchAsset`；低版本 GraphDSL 错误明确使用 Graph 分段读取、WriteGraphPlan 追加节点。
+- 反馈报告的代理错误小节按规范化后的 Proxy 分类统计，修复概览有代理错误而明细显示无数据的问题。
+
 ### Changed
 
 - 插件安装包不再附带仓库根目录 `tools/` 下的 Python 复测、性能对比工具及其测试和示例，保留完整 C++ 源码；需要命令行工具时获取对应版本源码使用。
