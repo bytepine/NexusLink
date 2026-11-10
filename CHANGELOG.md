@@ -13,6 +13,10 @@
 - `GetProjectToolsets` 改为发现 NexusLink 自有能力分组与动作 Schema；`GetProjectSkills` 直接发现项目及启用插件中的 `SKILL.md`；`SearchAssetsSemantic` 直接使用可选 SemanticSearch 领域服务，仍需配置 Embedding provider。
 - 蓝图 `GraphDSL` / `WriteGraphDSL` 改为 UE 原生 `UnrealGraphText` 节点文本，支持预验证后追加可复制节点；原官方 Toolset S-expression 方言不再接受，结构化编辑继续使用 `WriteGraphPlan`。
 
+### Fixed
+
+- 补充静态网格 LOD 参数、场景 Actor 与 Slate 窗口在使用前的空指针检查，避免异常状态下解引用空指针。
+
 ## [2.3.4] - 2026-11-10
 
 ### Added

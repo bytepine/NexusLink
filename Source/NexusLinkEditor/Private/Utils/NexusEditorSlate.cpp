@@ -383,6 +383,9 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Slate(const FStri
 		if (!Target.IsValid() || !Target->IsEnabled() || !Target->GetVisibility().IsVisible())
 		{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("A visible enabled Ref is required")); return Operation; }
 		auto Window = NexusSlateWindow(Target.ToSharedRef());
+        if (!Window.IsValid()) {
+            FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Target no longer belongs to a visible window")); return Operation;
+        }
         if (!NexusSlateInTree(Window.ToSharedRef(), Target.ToSharedRef(), 0, true)) {
             FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Target has a hidden or disabled ancestor")); return Operation;
         }

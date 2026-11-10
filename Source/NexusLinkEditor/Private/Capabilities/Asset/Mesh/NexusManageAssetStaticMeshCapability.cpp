@@ -436,7 +436,7 @@ static void HandleSM_Generate(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
     const FNexusArgs A(Op);
     const TArray<TSharedPtr<FJsonValue>>* Percents = nullptr;
     if (Ctx.Action == TEXT("GenerateLODs")) {
-        if (!Op->TryGetArrayField(TEXT("TrianglePercents"), Percents) || Percents->Num() < 1 || Percents->Num() > 7) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("GenerateLODs requires 1-7 retention fractions")); return; }
+        if (!Op->TryGetArrayField(TEXT("TrianglePercents"), Percents) || !Percents || Percents->Num() < 1 || Percents->Num() > 7) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("GenerateLODs requires 1-7 retention fractions")); return; }
         double Previous = 1;
         for (const auto& Value : *Percents) { double Percent = 0; if (!Value->TryGetNumber(Percent) || !FMath::IsFinite(Percent) || Percent <= 0 || Percent > Previous) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LOD retention must decrease within (0,1]")); return; } Previous = Percent; }
     } else if (Ctx.Action == TEXT("RemoveLODs")) {}
@@ -459,6 +459,7 @@ static void HandleSM_Generate(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
         if (!Editor) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Static mesh editor subsystem is unavailable")); return; }
 #endif
         if (Ctx.Action == TEXT("GenerateLODs")) {
+            if (!Percents) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("GenerateLODs requires 1-7 retention fractions")); return; }
 #if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
             FStaticMeshReductionOptions Options;
 #else

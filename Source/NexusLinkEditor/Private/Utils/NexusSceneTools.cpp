@@ -159,7 +159,10 @@ FCapabilityResult FNexusSceneTools::Execute(bool bWrite, const TSharedPtr<FJsonO
         for (TActorIterator<AActor> It(World);It && Items.Num()<Limit;++It) { const FString Path=It->GetFolderPath().ToString(); if (Path==FolderPath || (A.Bool(TEXT("bRecursive")) && Path.StartsWith(FolderPath+TEXT("/")))) Items.Add(MakeShared<FJsonValueObject>(FNexusEditorDomainTools::Reference(It->GetPathName()))); }
     } else if (Action==TEXT("SetSelection")) { GEditor->SelectNone(false,true,false); for (auto* Item : Actors) GEditor->SelectActor(Item,true,false,true); GEditor->NoteSelectionChange(); }
     else if (Action==TEXT("Trace")) { FHitResult Hit; const bool bHit=World->LineTraceSingleByChannel(Hit,Start,End,ECC_Visibility); Data->SetBoolField(TEXT("bHit"),bHit); if (Hit.GetActor()) Data->SetStringField(TEXT("ActorPath"),Hit.GetActor()->GetPathName()); Data->SetNumberField(TEXT("Distance"),Hit.Distance); }
-    else if (Action==TEXT("SetActorFolder")) { Actor->Modify(); Actor->SetFolderPath(FName(*FolderPath)); Actor->MarkPackageDirty(); }
+    else if (Action==TEXT("SetActorFolder")) {
+        if (!Actor) Error=TEXT("ActorPath is required");
+        else { Actor->Modify(); Actor->SetFolderPath(FName(*FolderPath)); Actor->MarkPackageDirty(); }
+    }
     else if (Action==TEXT("CreateFolder") || Action==TEXT("DeleteFolder") || Action==TEXT("RenameFolder")) {
         World->Modify();
 #if NX_UE_HAS_EDITOR_FOLDER_OBJECT
