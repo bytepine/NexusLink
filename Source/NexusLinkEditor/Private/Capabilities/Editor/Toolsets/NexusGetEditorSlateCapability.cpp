@@ -9,7 +9,9 @@ void FNexusGetEditorSlateCapability::BuildDefinition(FNexusCapabilityDefinition&
 	Out.Description = TEXT("Inspect visible windows or UI tree. Returns refs; query again after rebuilds.");
 	Out.InputSchema = FNexusSchema::Object().Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Inspection kind"), {TEXT("Windows"), TEXT("Snapshot"), TEXT("WaitFor")}, TEXT("Snapshot")))
 		.Prop(TEXT("Ref"), FNexusSchema::Str(TEXT("Subtree ref; WaitFor checks all visible windows")))
-		.Prop(TEXT("MaxDepth"), FNexusSchema::Int(TEXT("Tree depth"),20,0,30))
+		.Prop(TEXT("MaxDepth"), FNexusSchema::Int(TEXT("Tree depth; filtered snapshots can inspect deeper subtrees"),20,0,100))
+		.Prop(TEXT("TextFilter"), FNexusSchema::Str(TEXT("Snapshot: match visible text or tooltip; nonmatching containers are traversed")))
+		.Prop(TEXT("TypeFilter"), FNexusSchema::Str(TEXT("Snapshot: widget type substring, e.g. SSearchBox")))
 		.Prop(TEXT("Text"), FNexusSchema::Str(TEXT("WaitFor text to appear")))
 		.Prop(TEXT("TextGone"), FNexusSchema::Str(TEXT("WaitFor text to disappear")))
 		.Prop(TEXT("TimeoutSeconds"), FNexusSchema::Int(TEXT("Bounded condition wait"),5,0,30)).Build();

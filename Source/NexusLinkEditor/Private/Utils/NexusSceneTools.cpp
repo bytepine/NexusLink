@@ -65,8 +65,17 @@ static FCapabilityResult NexusBuildNavigation(UWorld* World, bool bSave)
     bool bHasBounds = false;
     for (TActorIterator<ANavMeshBoundsVolume> It(World); It; ++It) { bHasBounds = true; break; }
     if (!bHasBounds) return FCapabilityResult::MakeArgInvalid(TEXT("Create a NavMeshBoundsVolume with ManageAssetLevel first"));
-    if (bSave) for (ULevel* Level : World->GetLevels())
-        if (Level && Level->GetOutermost()->IsDirty()) return FCapabilityResult::MakeArgInvalid(TEXT("Save loaded levels explicitly before BuildNavigation with bSaveToDisk=true; unrelated unsaved edits are not saved implicitly"));
+    if (bSave) {
+        TArray<TSharedPtr<FJsonValue>> DirtyPaths;
+        for (ULevel* Level : World->GetLevels())
+            if (Level && Level->GetOutermost()->IsDirty()) DirtyPaths.Add(MakeShared<FJsonValueString>(Level->GetOutermost()->GetName()));
+        if (DirtyPaths.Num()) {
+            auto Result = FCapabilityResult::MakeArgInvalid(TEXT("Save loaded levels explicitly before BuildNavigation with bSaveToDisk=true; unrelated unsaved edits are not saved implicitly"));
+            if (!Result.TopFields.IsValid()) Result.TopFields = MakeShared<FJsonObject>();
+            Result.TopFields->SetArrayField(TEXT("DirtyLevelPaths"), DirtyPaths);
+            return Result;
+        }
+    }
     UNavigationSystemV1* Navigation = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
     if (!Navigation) {
         FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);

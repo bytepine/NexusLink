@@ -179,13 +179,14 @@ struct FNexusCapResultAdapter final
 				Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
 				return Result;
 			}
-			if (CapResult.bIsArgInvalid && CapResult.bSkipFeedback)
+			if (CapResult.bIsArgInvalid)
 			{
 				TSharedPtr<FJsonObject> Err = MakeShared<FJsonObject>();
+				if (CapResult.TopFields.IsValid()) Err->Values.Append(CapResult.TopFields->Values);
 				Err->SetStringField(TEXT("ErrorKind"), TEXT("ArgInvalid"));
 				Err->SetStringField(TEXT("Error"), CapResult.FatalError);
 				Err->SetStringField(TEXT("Capability"), CapName);
-				Err->SetStringField(TEXT("Hint"),
+				if (CapResult.bSkipFeedback) Err->SetStringField(TEXT("Hint"),
 					TEXT("Pass reason (purpose, expected effect, why no safer dedicated capability) and retry once."));
 				Result.StructuredContent = Err;
 				Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);

@@ -157,7 +157,7 @@ bool FNexusAssetEditorUtils::SaveDirtyPackage(UPackage* Package, const FString& 
 	{
 		Asset->MarkPackageDirty();
 	}
-	return FNexusAssetUtils::SaveNewAsset(Package, Asset, PackagePath);
+	return FNexusAssetUtils::SaveNewAsset(Package, Asset, PackagePath, &OutNote);
 #endif
 }
 

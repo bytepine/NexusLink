@@ -138,7 +138,9 @@ bool FNexusEditorDomainTools::Animation(const FString& Domain, const FString& To
         if (Blend == TEXT("absolute")) Value = EMovieSceneBlendType::Absolute;
         else if (Blend == TEXT("additive")) Value = EMovieSceneBlendType::Additive;
         else if (Blend == TEXT("relative")) Value = EMovieSceneBlendType::Relative;
+#if NX_UE_AT_LEAST(5, 5)
         else if (Blend == TEXT("override")) Value = EMovieSceneBlendType::Override;
+#endif
         else { Error = TEXT("Blend type must be Absolute, Additive, Relative or Override"); return false; }
         if (!Section->GetSupportedBlendTypes().Contains(Value)) { Error = TEXT("Section does not support this blend type"); return false; }
         Section->Modify(); Section->SetBlendType(Value); Section->MarkPackageDirty(); return true;

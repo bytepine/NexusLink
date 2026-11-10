@@ -12,18 +12,23 @@
 #include "Editor.h"
 #include "FileHelpers.h"
 #include "Engine/World.h"
+#include "Engine/Level.h"
+#include "Engine/LevelStreaming.h"
+#include "EditorLevelUtils.h"
+#include "LevelUtils.h"
 #include "Misc/PackageName.h"
 
 void FNexusControlEditorLevelCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("ControlEditorLevel");
-	Out.Description = TEXT("Open an editor map by asset path. Rejects unsaved levels/external Actors unless bDiscardUnsaved. Does not start PIE.");
+	Out.Description = TEXT("Open a map or load/show/hide/make current an existing streaming sublevel. Open rejects unsaved changes unless bDiscardUnsaved.");
 	Out.InputSchema = FNexusSchema::Object()
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Editor level operation; Open switches the entire map"), {TEXT("Open"), TEXT("LoadStreaming"), TEXT("Show"), TEXT("Hide"), TEXT("MakeCurrent")}, TEXT("Open")))
 		.Required(TEXT("AssetPath"), FNexusSchema::Str(TEXT("Map asset path, e.g. /Game/Maps/Main")))
 		.Prop(TEXT("bDiscardUnsaved"), FNexusSchema::Bool(TEXT("Discard unsaved changes to the current map"), true, false))
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("open"), TEXT("level"), TEXT("map"), TEXT("switch"), TEXT("load") };
+	Out.ExtraSearchKeywords = { TEXT("open"), TEXT("level"), TEXT("map"), TEXT("switch"), TEXT("load"), TEXT("streaming"), TEXT("sublevel"), TEXT("visible"), TEXT("current") };
 	Out.RelatedCapabilities = { TEXT("GetEditorContext"), TEXT("ManageAssetLevel") };
 	Out.WhenToUse = TEXT("Switch the editor's open map without starting PIE");
 }
@@ -33,6 +38,7 @@ FCapabilityResult FNexusControlEditorLevelCapability::Execute(const TSharedPtr<F
 	const FNexusArgs A(Arguments);
 	FString AssetPath = A.Str(TEXT("AssetPath"));
 	const bool bDiscardUnsaved = A.Bool(TEXT("bDiscardUnsaved"), false);
+	const FString Action = A.Str(TEXT("Action"), TEXT("Open"));
 	int32 DotIdx = INDEX_NONE;
 	if (AssetPath.FindLastChar(TEXT('.'), DotIdx))
 	{
@@ -42,7 +48,7 @@ FCapabilityResult FNexusControlEditorLevelCapability::Execute(const TSharedPtr<F
 	{
 		return FCapabilityResult::MakeArgInvalid(FString::Printf(TEXT("Invalid map path: %s"), *AssetPath));
 	}
-	if (!FPackageName::DoesPackageExist(AssetPath))
+	if (Action == TEXT("Open") && !FPackageName::DoesPackageExist(AssetPath))
 	{
 		return FCapabilityResult::MakeFatal(FString::Printf(TEXT("Map package not found: %s"), *AssetPath));
 	}
@@ -61,6 +67,47 @@ FCapabilityResult FNexusControlEditorLevelCapability::Execute(const TSharedPtr<F
 	}
 
 	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+	if (Action != TEXT("Open"))
+	{
+		if (!EditorWorld) return FCapabilityResult::MakeArgInvalid(TEXT("Editor world is unavailable"));
+		if (Action != TEXT("LoadStreaming") && Action != TEXT("Show") && Action != TEXT("Hide") && Action != TEXT("MakeCurrent"))
+			return FCapabilityResult::MakeArgInvalid(TEXT("Unknown level Action"));
+		ULevel* TargetLevel = nullptr;
+		for (ULevel* Level : EditorWorld->GetLevels())
+			if (Level && Level->GetOutermost()->GetName() == AssetPath) TargetLevel = Level;
+		ULevelStreaming* Streaming = nullptr;
+		for (ULevelStreaming* Candidate : EditorWorld->GetStreamingLevels())
+			if (Candidate && Candidate->GetWorldAssetPackageName() == AssetPath) Streaming = Candidate;
+		if (!TargetLevel && Action == TEXT("LoadStreaming") && Streaming)
+		{
+			Streaming->SetShouldBeLoaded(true);
+			EditorWorld->FlushLevelStreaming();
+			TargetLevel = Streaming->GetLoadedLevel();
+		}
+		if (!TargetLevel) return FCapabilityResult::MakeArgInvalid(TEXT("AssetPath must identify an existing sublevel of the open map; use LoadStreaming for an unloaded reference"));
+		if (FLevelUtils::IsLevelLocked(TargetLevel)) return FCapabilityResult::MakeArgInvalid(TEXT("Target level is locked"));
+		if (Action == TEXT("Show") || Action == TEXT("Hide"))
+			EditorLevelUtils::SetLevelVisibility(TargetLevel, Action == TEXT("Show"), false);
+		if (Action == TEXT("MakeCurrent"))
+		{
+			EditorLevelUtils::SetLevelVisibility(TargetLevel, true, false);
+			EditorLevelUtils::MakeLevelCurrent(TargetLevel);
+		}
+		return FNexusCapabilityResultBuilder::Build([&](auto& Entries, auto&, auto& Error)
+		{
+			auto Entry = MakeShared<FJsonObject>();
+			Entry->SetStringField(TEXT("AssetPath"), AssetPath);
+			Entry->SetStringField(TEXT("Action"), Action);
+			Entry->SetBoolField(TEXT("bLoaded"), true);
+			Entry->SetBoolField(TEXT("bVisible"), TargetLevel->bIsVisible);
+			Entry->SetBoolField(TEXT("bCurrent"), TargetLevel == EditorWorld->GetCurrentLevel());
+			Entry->SetBoolField(TEXT("bDirty"), TargetLevel->GetOutermost()->IsDirty());
+			if ((Action == TEXT("MakeCurrent") && TargetLevel != EditorWorld->GetCurrentLevel())
+				|| (Action == TEXT("Show") && !TargetLevel->bIsVisible) || (Action == TEXT("Hide") && TargetLevel->bIsVisible))
+				Error = TEXT("Editor did not apply the requested level state");
+			Entries.Add(MakeShared<FJsonValueObject>(Entry));
+		});
+	}
 	UPackage* EditorPackage = EditorWorld ? EditorWorld->GetOutermost() : nullptr;
 	// LoadMap 会卸载关卡及外部对象，不能只检查主 World 包。
 	TArray<UPackage*> DirtyWorldPackages;

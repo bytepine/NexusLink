@@ -85,6 +85,16 @@ static void EmitCapabilityLookupError(FNexusCapabilityLookup::EStatus Status, co
 	}
 	Output->SetStringField(TEXT("ErrorKind"), TEXT("disabled"));
 	Output->SetStringField(TEXT("CapabilityName"), Record->Def.Name);
+	const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
+	if (Settings)
+	{
+		Output->SetStringField(TEXT("AccessStateSource"), TEXT("UE"));
+		Output->SetBoolField(TEXT("bSessionDisabled"), Settings->SessionDisabledCapabilities.Contains(Record->Def.Name));
+		Output->SetBoolField(TEXT("bExplicitlyDisabled"), Settings->DisabledCapabilities.Contains(Record->Def.Name));
+		Output->SetBoolField(TEXT("bDangerous"), Record->Def.HasTag(FNexusMcpTags::Dangerous));
+		Output->SetStringField(TEXT("DangerousCapAccess"), Settings->DangerousCapAccess == ENexusDangerousCapAccess::Disabled ? TEXT("Disabled")
+			: Settings->DangerousCapAccess == ENexusDangerousCapAccess::Confirm ? TEXT("Confirm") : TEXT("Custom"));
+	}
 	Output->SetStringField(TEXT("Error"),
 			FString::Printf(TEXT("Capability '%s' is disabled in settings."), *Record->Def.Name));
 		if (Record->Def.HasTag(FNexusMcpTags::Dangerous))
@@ -272,6 +282,8 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 
 	const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
 	TSharedPtr<FJsonObject> Output = MakeShared<FJsonObject>();
+	// 设置可在两次发现之间变化；代理不得缓存目录、精确查询或禁用状态。
+	Output->SetNumberField(TEXT("TtlSeconds"), 0);
 
 	if (!Settings)
 	{

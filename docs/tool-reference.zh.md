@@ -219,12 +219,13 @@
 
 ### `ControlEditorLevel`
 
-按资产路径打开编辑器地图。关卡或外部 Actor 有未保存修改时拒绝，除非指定 bDiscardUnsaved；不启动 PIE。
+打开地图或加载、显示、隐藏已有流送子关卡并设为当前关卡；Open 保护未保存修改，MakeCurrent 同时显示目标。
 
 **适用场景**: Switch the editor's open map without starting PIE
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
+| `Action` | `string (enum)` |  | 操作名（见各 cap 的枚举说明） 枚举: `Open` / `LoadStreaming` / `Show` / `Hide` / `MakeCurrent` |
 | `AssetPath` | `string` | ★ | Map 资产路径, e.g. /Game/Maps/Main |
 | `bDiscardUnsaved` | `boolean` |  | Discard unsaved changes to the current map |
 
@@ -510,7 +511,9 @@
 |------|------|:----:|------|
 | `Action` | `string (enum)` |  | 操作名（见各 cap 的枚举说明） 枚举: `Windows` / `Snapshot` / `WaitFor` |
 | `Ref` | `string` |  | Subtree ref; WaitFor checks all visible windows |
-| `MaxDepth` | `integer` |  | Tree depth |
+| `MaxDepth` | `integer` |  | Tree depth; filtered snapshots can inspect deeper subtrees |
+| `TextFilter` | `string` |  | Snapshot: match visible text or tooltip; nonmatching containers are traversed |
+| `TypeFilter` | `string` |  | Snapshot: widget type 子串, e.g. SSearchBox |
 | `Text` | `string` |  | WaitFor text to appear |
 | `TextGone` | `string` |  | WaitFor text to disappear |
 | `TimeoutSeconds` | `integer` |  | Bounded condition wait |
@@ -2394,7 +2397,7 @@
 
 ### `ManageAssetLevel`
 
-批量编辑关卡 WorldSettings 与 Actor。Action=spawn/remove/SetProperty。
+按所属关卡包批量编辑 WorldSettings 与 Actor；创建或调整原生导航体积几何，显式保存。
 
 **前置条件**: `EditorOnly`
 
@@ -2404,7 +2407,7 @@
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `bVerify` | `boolean` |  | Verify scalar SetActorProperty operations before saving |
-| `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(SetProperty/SpawnActor/CreateNavMeshBoundsVolume/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `X`, `Y`, `Z`, `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
+| `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(SetProperty/SpawnActor/CreateNavMeshBoundsVolume/ResizeNavMeshBoundsVolume/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `X`, `Y`, `Z`, `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**: `GetAssetLevel`, `SearchAsset`

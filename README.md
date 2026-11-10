@@ -11,7 +11,7 @@
 ## 能做什么
 
 - **功能补充**：[动作级发现、结构预览、首次导入、多人 PIE、PCG 输出、骨骼采样、任务历史、性能预算与源控预检](docs/feature-followups.md)。
-- **编辑器与资产**：查询项目上下文，读写蓝图、材质、动画、音频、DataTable、Widget 和 Niagara 等资产；蓝图批量编辑按 `bCompile` 集中编译，支持普通/专用蓝图重设父类预检、成员/局部变量重命名、带前置条件的类型变更、ClassReference 及完整容器类型回读、旧式动画/动画蓝图目标 Skeleton 重定向及组件继承覆盖比较/恢复；可列出、打开/聚焦和安全关闭资产编辑器，或打开编辑器地图（地图未保存时拒绝），读取关卡 Actor 属性与类默认值，按 AssetRegistry 查询包的 pak chunk，可创建带几何边界的 NavMeshBoundsVolume 并异步构建/保存导航，投影导航坐标、按 Agent/Filter 查询已有路径，查询 AI 移动结果或停止移动。支持[修改前预览与写后校验](docs/asset-edit-preview.md)，结构/编译校验失败时阻止自动保存，导出支持格式发现与只验证，FBX 动画导入逐 take 保护已有资产。
+- **编辑器与资产**：查询项目上下文，读写蓝图、材质、动画、音频、DataTable、Widget 和 Niagara 等资产；蓝图批量编辑按 `bCompile` 集中编译，支持普通/专用蓝图重设父类预检、成员/局部变量重命名、带前置条件的类型变更、ClassReference 及完整容器类型回读、旧式动画/动画蓝图目标 Skeleton 重定向及组件继承覆盖比较/恢复；可列出、打开/聚焦和安全关闭资产编辑器，或打开编辑器地图（地图未保存时拒绝）、加载/显示/隐藏并切换已有子关卡，按所属关卡包读取/预览/修改 Actor 属性与类默认值，按 AssetRegistry 查询包的 pak chunk，可创建和调整原生几何尺寸的 NavMeshBoundsVolume 并异步构建/保存导航，投影导航坐标、按 Agent/Filter 查询已有路径，查询 AI 移动结果或停止移动。支持[修改前预览与写后校验](docs/asset-edit-preview.md)，结构/编译校验失败时阻止自动保存，导出支持格式发现与只验证，FBX 动画导入逐 take 保护已有资产。
 - **运行时调试**：在 PIE、独立 Game 和 Dedicated Server 中检查日志、Actor、动画、AI / EQS 和 GAS；可用原生变换接口移动 Actor。有视口的 Game / PIE 还支持 [UMG 控件交互](docs/runtime-widgets.md)，可按实例路径读取、修改和交互 Actor 上 WidgetComponent 的控件树。
 - **复测与性能分析**：[GAS 技能激活诊断](docs/gas-retest.md)、[行为树 / Blackboard 条件复测](docs/bt-retest.md)、[已停录 Trace 的同条件性能对比](docs/trace-compare.md)。
 - **编辑器自动化**：[Slate 界面查询与交互、Automation 测试、非阻塞 Live Coding](docs/editor-toolsets.md)。

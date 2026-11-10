@@ -215,12 +215,13 @@ Activate/deactivate a discovered built-in Game Feature plugin for this editor se
 
 ### `ControlEditorLevel`
 
-Open an editor map by asset path. Rejects unsaved levels/external Actors unless bDiscardUnsaved. Does not start PIE.
+Open a map or load/show/hide/make current an existing streaming sublevel. Open rejects unsaved changes unless bDiscardUnsaved.
 
 **When to use**: Switch the editor's open map without starting PIE
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
+| `Action` | `string (enum)` |  | Editor level operation; Open switches the entire map enum: `Open` / `LoadStreaming` / `Show` / `Hide` / `MakeCurrent` |
 | `AssetPath` | `string` | ★ | Map asset path, e.g. /Game/Maps/Main |
 | `bDiscardUnsaved` | `boolean` |  | Discard unsaved changes to the current map |
 
@@ -494,7 +495,9 @@ Inspect visible windows or UI tree. Returns refs; query again after rebuilds.
 |------|------|:----:|------|
 | `Action` | `string (enum)` |  | Inspection kind enum: `Windows` / `Snapshot` / `WaitFor` |
 | `Ref` | `string` |  | Subtree ref; WaitFor checks all visible windows |
-| `MaxDepth` | `integer` |  | Tree depth |
+| `MaxDepth` | `integer` |  | Tree depth; filtered snapshots can inspect deeper subtrees |
+| `TextFilter` | `string` |  | Snapshot: match visible text or tooltip; nonmatching containers are traversed |
+| `TypeFilter` | `string` |  | Snapshot: widget type substring, e.g. SSearchBox |
 | `Text` | `string` |  | WaitFor text to appear |
 | `TextGone` | `string` |  | WaitFor text to disappear |
 | `TimeoutSeconds` | `integer` |  | Bounded condition wait |
@@ -2370,7 +2373,7 @@ Batch edit level WorldSettings and Actors. Action=spawn/remove/SetProperty/Reset
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | Level asset path (e.g. /Game/Maps/MyLevel) |
 | `bVerify` | `boolean` |  | Verify scalar SetActorProperty operations before saving |
-| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetProperty/SpawnActor/CreateNavMeshBoundsVolume/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `X`, `Y`, `Z`, `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetProperty/SpawnActor/CreateNavMeshBoundsVolume/ResizeNavMeshBoundsVolume/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `X`, `Y`, `Z`, `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetLevel`, `SearchAsset`

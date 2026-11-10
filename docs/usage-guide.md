@@ -408,6 +408,8 @@ Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可�
 
 确认模式要求 AI 传 `Reason`，说明目的、预期效果，以及为何没有更安全的专用能力。允许仅针对本次请求；拒绝返回 `ErrorKind=UserDenied`，不要重试。默认 90 秒超时后自动拒绝；全屏 PIE 下若看不到弹窗，先退出沉浸模式。独立 Game / DS 没有编辑器确认窗，Confirm 模式会拒绝执行。
 
+`SearchCapabilities` 返回 `TtlSeconds=0`，发现结果始终重新查询 UE。精确查询仍报 `disabled` 时，查看 `AccessStateSource=UE`、`DangerousCapAccess`、`bExplicitlyDisabled`、`bSessionDisabled`，区分危险访问模式、逐项关闭与会话临时关闭。
+
 启动参数 `-NexusEnableDangerousCaps` 会在本会话中允许当前已注册的全部危险能力，覆盖访问模式但不写入设置。调试面板也可临时允许单条能力，见 [§2.4](#24-游戏内调试面板pie--独立包)。
 
 ![危险 Capability 的全部禁用、每次手动确认和自定义开启模式](images/dangerous-capability-mode.png)

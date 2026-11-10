@@ -8,6 +8,8 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Engine/World.h"
+#include "Engine/Level.h"
+#include "Components/SceneComponent.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/WorldSettings.h"
 #include "EngineUtils.h"
@@ -44,10 +46,13 @@ UWorld* FNexusEditorLevelUtils::LoadLevelWorldForRead(const FString& AssetPath, 
 	{
 		if (UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
 		{
-			if (EditorWorld->GetOutermost() && EditorWorld->GetOutermost()->GetName() == PackagePath)
+			for (ULevel* Level : EditorWorld->GetLevels())
 			{
+				if (!Level || Level->GetOutermost()->GetName() != PackagePath) continue;
+				UWorld* AssetWorld = UWorld::FindWorldInPackage(Level->GetOutermost());
+				if (!AssetWorld) continue;
 				bOutIsEditorWorld = true;
-				return EditorWorld;
+				return AssetWorld;
 			}
 		}
 	}
@@ -78,7 +83,28 @@ UWorld* FNexusEditorLevelUtils::LoadLevelWorldForWrite(const FString& AssetPath,
 	return LoadLevelWorldForRead(AssetPath, bOutIsEditorWorld, OutError);
 }
 
-AActor* FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(UWorld* World, const FString& ActorNameOrLabel)
+ULevel* FNexusEditorLevelUtils::ResolveLevel(UWorld* World)
+{
+	if (!World) return nullptr;
+	if (GEditor)
+		if (UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
+			for (ULevel* Level : EditorWorld->GetLevels())
+				if (Level && Level->GetOutermost() == World->GetOutermost()) return Level;
+	return World->PersistentLevel;
+}
+
+void FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(AActor* Actor)
+{
+	if (!Actor) return;
+	TInlineComponentArray<USceneComponent*> Components(Actor);
+	for (USceneComponent* Component : Components)
+		if (Component) Component->UpdateComponentToWorld();
+	Actor->PostEditChange();
+	Actor->PostEditMove(true);
+	Actor->MarkPackageDirty();
+}
+
+AActor* FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(UWorld* World, const FString& ActorNameOrLabel, bool bAllowLabel)
 {
 #if !WITH_EDITOR
 	return nullptr;
@@ -87,16 +113,19 @@ AActor* FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(UWorld* World, const
 	{
 		return nullptr;
 	}
-	for (TActorIterator<AActor> It(World); It; ++It)
+	ULevel* Level = ResolveLevel(World);
+	if (!Level) return nullptr;
+	AActor* Found = nullptr;
+	for (AActor* Actor : Level->Actors)
 	{
-		AActor* Actor = *It;
-		if (!Actor) continue;
-		if (Actor->GetName() == ActorNameOrLabel || Actor->GetActorLabel() == ActorNameOrLabel)
+		if (!IsValid(Actor) || Actor->GetLevel() != Level) continue;
+		if (Actor->GetName() == ActorNameOrLabel || (bAllowLabel && Actor->GetActorLabel() == ActorNameOrLabel))
 		{
-			return Actor;
+			if (Found) return nullptr;
+			Found = Actor;
 		}
 	}
-	return nullptr;
+	return Found;
 #endif
 }
 
@@ -114,14 +143,16 @@ bool FNexusEditorLevelUtils::SpawnActorInLevelWorld(UWorld* World, UClass* Class
 		return false;
 	}
 	FActorSpawnParameters Params;
-	Params.OverrideLevel = World->PersistentLevel;
-	OutActor = World->SpawnActor<AActor>(Class, Location, Rotation, Params);
+	Params.OverrideLevel = ResolveLevel(World);
+	UWorld* OwningWorld = Params.OverrideLevel ? Params.OverrideLevel->GetWorld() : nullptr;
+	if (!OwningWorld) { OutError = TEXT("Level has no owning world"); return false; }
+	OutActor = OwningWorld->SpawnActor<AActor>(Class, Location, Rotation, Params);
 	if (!OutActor)
 	{
 		OutError = TEXT("SpawnActor failed");
 		return false;
 	}
-	World->MarkPackageDirty();
+	OutActor->MarkPackageDirty();
 	return true;
 #endif
 }
@@ -137,13 +168,16 @@ bool FNexusEditorLevelUtils::RemoveLevelActor(UWorld* World, AActor* Actor, FStr
 		OutError = TEXT("Invalid World or Actor");
 		return false;
 	}
-	const bool bDestroyed = World->EditorDestroyActor(Actor, true);
+	ULevel* Level = ResolveLevel(World);
+	if (!Level || Actor->GetLevel() != Level || !Actor->GetWorld())
+	{ OutError = TEXT("Actor does not belong to the requested level"); return false; }
+	const bool bDestroyed = Actor->GetWorld()->EditorDestroyActor(Actor, true);
 	if (!bDestroyed)
 	{
 		OutError = TEXT("EditorDestroyActor failed");
 		return false;
 	}
-	World->MarkPackageDirty();
+	Level->MarkPackageDirty();
 	return true;
 #endif
 }
@@ -182,13 +216,16 @@ void FNexusEditorLevelUtils::AppendLevelActorsSection(UWorld* World, const TShar
 		FString Label;
 		FString Class;
 		FString Location;
+		FString Path;
+		FString LevelPath;
 	};
 
 	TArray<FActorRow> All;
-	for (TActorIterator<AActor> It(World); It; ++It)
+	ULevel* Level = ResolveLevel(World);
+	if (!Level) return;
+	for (AActor* Actor : Level->Actors)
 	{
-		AActor* Actor = *It;
-		if (!Actor) continue;
+		if (!IsValid(Actor) || Actor->GetLevel() != Level) continue;
 
 		const FString ClassName = Actor->GetClass()->GetName();
 		const FString ActorName = Actor->GetName();
@@ -219,6 +256,8 @@ void FNexusEditorLevelUtils::AppendLevelActorsSection(UWorld* World, const TShar
 		Row.Name = ActorName;
 		Row.Label = ActorLabel;
 		Row.Class = ClassName;
+		Row.Path = Actor->GetPathName();
+		Row.LevelPath = Level->GetOutermost()->GetName();
 		const FVector Loc = Actor->GetActorLocation();
 		Row.Location = FString::Printf(TEXT("%.1f, %.1f, %.1f"), Loc.X, Loc.Y, Loc.Z);
 		All.Add(Row);
@@ -239,6 +278,8 @@ void FNexusEditorLevelUtils::AppendLevelActorsSection(UWorld* World, const TShar
 			O->SetStringField(TEXT("Label"), All[i].Label);
 		}
 		O->SetStringField(TEXT("Class"), All[i].Class);
+		O->SetStringField(TEXT("ActorPath"), All[i].Path);
+		O->SetStringField(TEXT("LevelPath"), All[i].LevelPath);
 		O->SetStringField(TEXT("Location"), All[i].Location);
 		Page.Add(MakeShared<FJsonValueObject>(O));
 	}
@@ -261,7 +302,8 @@ void FNexusEditorLevelUtils::AppendLevelSettingsSection(UWorld* World, TSharedPt
 	}
 
 	TSharedPtr<FJsonObject> SettingsObj = MakeShared<FJsonObject>();
-	AWorldSettings* WS = World->GetWorldSettings();
+	ULevel* Level = ResolveLevel(World);
+	AWorldSettings* WS = Level ? Level->GetWorldSettings() : nullptr;
 	if (WS)
 	{
 		SettingsObj->SetNumberField(TEXT("GravityZ"), WS->GetGravityZ());

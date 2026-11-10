@@ -1,5 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
 #include "Utils/NexusAssetEditUtils.h"
+#include "Utils/NexusEditorLevelUtils.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusJsonUtils.h"
@@ -91,12 +92,7 @@ static bool ResolveEditProperty(UObject* Asset, const FString& Capability, const
 	else if (Capability == TEXT("ManageAssetLevel"))
 	{
 		UWorld* World = Cast<UWorld>(Asset);
-		if (World) for (TActorIterator<AActor> Actor(World); Actor; ++Actor)
-			if (Actor->GetName() == Args.Str(TEXT("ActorName")))
-			{
-				if (Resolved.Owner) { Error = TEXT("ActorName is ambiguous; use an exact actor from GetAssetLevel"); return false; }
-				Resolved.Owner = *Actor;
-			}
+		Resolved.Owner = FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(World, Args.Str(TEXT("ActorName")), false);
 	}
 	else if (bComponent)
 	{
@@ -184,6 +180,13 @@ static bool PrepareEdit(UObject* Asset, const FString& Capability, const TShared
 		if (Operation->TryGetStringField(Field, Value)) Entry->SetStringField(Field, Value);
 	}
 	if (!ResolveEditProperty(Asset, Capability, Operation, Resolved, Error)) return false;
+	if (Capability == TEXT("ManageAssetLevel"))
+	{
+		AActor* Actor = FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(Cast<UWorld>(Asset), FNexusArgs(Operation).Str(TEXT("ActorName")), false);
+		if (!Actor) { Error = TEXT("Actor is unavailable in the requested level"); return false; }
+		Entry->SetStringField(TEXT("ActorPath"), Actor->GetPathName());
+		Entry->SetStringField(TEXT("LevelPath"), Actor->GetOutermost()->GetName());
+	}
 	Entry->SetStringField(TEXT("PropertyType"), Resolved.Property->GetCPPType());
 	FString Current;
 	FNexusPropertyUtils::ExportText(Resolved.Property, Current, Resolved.Value);
@@ -247,6 +250,8 @@ void FNexusAssetEditUtils::Apply(UObject* Asset, const FString& Capability, cons
 	Entry->SetBoolField(TEXT("bWritten"), true);
 	Entry->SetStringField(TEXT("NewValue"), Expected);
 	Asset->MarkPackageDirty();
+	if (Capability == TEXT("ManageAssetLevel"))
+		FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(Cast<UWorld>(Asset), FNexusArgs(Operation).Str(TEXT("ActorName")), false));
 	UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
 	if (Blueprint)
 	{

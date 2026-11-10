@@ -293,6 +293,7 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 			}
 
 			TSharedPtr<FJsonObject> ErrObj = MakeShared<FJsonObject>();
+			if (CapResult.TopFields.IsValid()) ErrObj->Values.Append(CapResult.TopFields->Values);
 			ErrObj->SetStringField(TEXT("Error"),      CapResult.FatalError);
 			ErrObj->SetStringField(TEXT("ErrorKind"),  TEXT("ArgInvalid"));
 			ErrObj->SetStringField(TEXT("Capability"), Record->Def.Name);

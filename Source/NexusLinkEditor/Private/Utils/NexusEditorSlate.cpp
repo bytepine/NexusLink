@@ -5,6 +5,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/SWidget.h"
+#include "Widgets/IToolTip.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
@@ -100,7 +101,7 @@ static bool NexusSlateParseKey(const FString& Text, FKey& OutKey, FModifierKeysS
 static bool NexusSlateEditableText(const TSharedRef<SWidget>& Widget, FString& Text, FString& Selected)
 {
 	const FName Type = Widget->GetType();
-	if (Type == FName(TEXT("SEditableTextBox"))) { auto Input = StaticCastSharedRef<SEditableTextBox>(Widget); Text = Input->GetText().ToString(); Selected = Input->GetSelectedText().ToString(); }
+	if (Type == FName(TEXT("SEditableTextBox")) || Type == FName(TEXT("SSearchBox"))) { auto Input = StaticCastSharedRef<SEditableTextBox>(Widget); Text = Input->GetText().ToString(); Selected = Input->GetSelectedText().ToString(); }
 	else if (Type == FName(TEXT("SEditableText"))) { auto Input = StaticCastSharedRef<SEditableText>(Widget); Text = Input->GetText().ToString(); Selected = Input->GetSelectedText().ToString(); }
 	else if (Type == FName(TEXT("SMultiLineEditableTextBox"))) { auto Input = StaticCastSharedRef<SMultiLineEditableTextBox>(Widget); Text = Input->GetText().ToString(); Selected = Input->GetSelectedText().ToString(); }
 	else if (Type == FName(TEXT("SMultiLineEditableText"))) { auto Input = StaticCastSharedRef<SMultiLineEditableText>(Widget); Text = Input->GetText().ToString(); Selected = Input->GetSelectedText().ToString(); }
@@ -193,31 +194,63 @@ static TSharedPtr<SMenuAnchor> NexusSlateMenuAnchor(const TSharedRef<SWidget>& W
 
 
 
-static void NexusSlateSnapshot(const TSharedRef<SWidget>& Widget, int32 Depth, int32 MaxDepth,
-	TArray<TSharedPtr<FJsonValue>>& Nodes, bool& bTruncated)
+static FString NexusSlateTooltipText(const TSharedRef<SWidget>& Widget, int32 Depth = 0)
 {
-	if (Nodes.Num() >= 2000) { bTruncated = true; return; }
+	if (Widget->GetType() == FName(TEXT("STextBlock"))) return StaticCastSharedRef<STextBlock>(Widget)->GetText().ToString();
+	if (Depth >= 8) return FString();
+	if (FChildren* Children = Widget->GetChildren())
+		for (int32 ChildIndex = 0; ChildIndex < Children->Num(); ++ChildIndex)
+		{
+			const FString Text = NexusSlateTooltipText(Children->GetChildAt(ChildIndex), Depth + 1);
+			if (!Text.IsEmpty()) return Text;
+		}
+	return FString();
+}
+
+static void NexusSlateSnapshot(const TSharedRef<SWidget>& Widget, int32 Depth, int32 MaxDepth,
+	TArray<TSharedPtr<FJsonValue>>& Nodes, bool& bTruncated, const FString& TextFilter, const FString& TypeFilter, int32& Visited)
+{
+	if (Nodes.Num() >= 2000 || ++Visited > 20000) { bTruncated = true; return; }
 	if (!Widget->GetVisibility().IsVisible()) return;
 	auto Node = MakeShared<FJsonObject>();
-	const FString Ref = NexusSlateRef(Widget);
-    if (Ref.IsEmpty()) { bTruncated = true; return; }
-    Node->SetStringField(TEXT("Ref"), Ref);
 	Node->SetStringField(TEXT("Type"), Widget->GetTypeAsString());
 	FString Text = Widget->GetAccessibleText(EAccessibleType::Main).ToString();
     if (Widget->GetType() == FName(TEXT("SWindow"))) Text = StaticCastSharedRef<SWindow>(Widget)->GetTitle().ToString();
     else if (Widget->GetType() == FName(TEXT("STextBlock"))) Text = StaticCastSharedRef<STextBlock>(Widget)->GetText().ToString();
-    else if (Widget->GetType() == FName(TEXT("SEditableTextBox"))) {
+    else if (Widget->GetType() == FName(TEXT("SEditableTextBox")) || Widget->GetType() == FName(TEXT("SSearchBox"))) {
         const auto Input = StaticCastSharedRef<SEditableTextBox>(Widget);
         Text = Input->IsPassword() ? TEXT("(password)") : Input->GetText().ToString();
     }
     Node->SetStringField(TEXT("Text"), Text.Left(512));
+	const auto Tooltip = Widget->GetToolTip();
+	const FString TooltipText = Tooltip.IsValid() ? NexusSlateTooltipText(Tooltip->GetContentWidget()).Left(512) : FString();
+	if (!TooltipText.IsEmpty()) Node->SetStringField(TEXT("Tooltip"), TooltipText);
 	Node->SetBoolField(TEXT("bEnabled"), Widget->IsEnabled());
 	Node->SetNumberField(TEXT("Depth"), Depth);
-	Nodes.Add(MakeShared<FJsonValueObject>(Node));
+	if ((TextFilter.IsEmpty() || Text.Contains(TextFilter) || TooltipText.Contains(TextFilter))
+		&& (TypeFilter.IsEmpty() || Widget->GetTypeAsString().Contains(TypeFilter)))
+	{
+		const FString Ref = NexusSlateRef(Widget);
+		if (Ref.IsEmpty()) { bTruncated = true; return; }
+		Node->SetStringField(TEXT("Ref"), Ref);
+		FString Editable, Selected;
+		const bool bEditable = NexusSlateEditableText(Widget, Editable, Selected);
+		const bool bCheckbox = Widget->GetType() == FName(TEXT("SCheckBox"));
+		Node->SetStringField(TEXT("Role"), bEditable ? TEXT("TextBox") : bCheckbox ? TEXT("CheckBox") : Widget->GetTypeAsString());
+		Node->SetBoolField(TEXT("bFocused"), NexusSlateHasFocus(Widget));
+		TArray<TSharedPtr<FJsonValue>> Actions = {MakeShared<FJsonValueString>(TEXT("Click")), MakeShared<FJsonValueString>(TEXT("Focus")), MakeShared<FJsonValueString>(TEXT("Hover"))};
+		if (bEditable) Actions.Add(MakeShared<FJsonValueString>(TEXT("Type")));
+		if (bCheckbox) { Actions.Add(MakeShared<FJsonValueString>(TEXT("SetChecked"))); Node->SetBoolField(TEXT("bChecked"), StaticCastSharedRef<SCheckBox>(Widget)->IsChecked()); }
+		Node->SetArrayField(TEXT("Actions"), Actions);
+		Nodes.Add(MakeShared<FJsonValueObject>(Node));
+	}
 	FChildren* Children = Widget->GetChildren();
 	if (Depth >= MaxDepth) { if (Children && Children->Num()) bTruncated = true; return; }
 	if (Children) for (int32 Index = 0; Index < Children->Num(); ++Index)
-		NexusSlateSnapshot(Children->GetChildAt(Index), Depth + 1, MaxDepth, Nodes, bTruncated);
+	{
+		NexusSlateSnapshot(Children->GetChildAt(Index), Depth + 1, MaxDepth, Nodes, bTruncated, TextFilter, TypeFilter, Visited);
+		if (Nodes.Num() >= 2000 || Visited >= 20000) { bTruncated = true; break; }
+	}
 }
 
 static FString NexusSlateString(const TSharedPtr<FJsonObject>& Args, const TCHAR* Key)
@@ -267,7 +300,7 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Slate(const FStri
 		return Operation;
 	}
 	double MaxDepthValue = 20; Args->TryGetNumberField(TEXT("MaxDepth"), MaxDepthValue);
-	const int32 MaxDepth = FMath::Clamp(static_cast<int32>(MaxDepthValue), 0, 30);
+	const int32 MaxDepth = FMath::Clamp(static_cast<int32>(MaxDepthValue), 0, 100);
     TSharedPtr<SWidget> Target;
     if (!Ref.IsEmpty()) {
         const auto* Found = GNexusSlateRefs.Find(Ref); if (Found) Target = Found->Pin();
@@ -363,8 +396,10 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Slate(const FStri
 	else if (Action == TEXT("Snapshot"))
 	{
 		TArray<TSharedPtr<FJsonValue>> Nodes; bool bTruncated = false;
-		if (Target.IsValid()) NexusSlateSnapshot(Target.ToSharedRef(), 0, MaxDepth, Nodes, bTruncated);
-		else { TArray<TSharedRef<SWindow>> Windows; FSlateApplication::Get().GetAllVisibleWindowsOrdered(Windows); for (const auto& Window : Windows) NexusSlateSnapshot(Window, 0, MaxDepth, Nodes, bTruncated); }
+		int32 Visited = 0;
+		const FString TextFilter = NexusSlateString(Args, TEXT("TextFilter")), TypeFilter = NexusSlateString(Args, TEXT("TypeFilter"));
+		if (Target.IsValid()) NexusSlateSnapshot(Target.ToSharedRef(), 0, MaxDepth, Nodes, bTruncated, TextFilter, TypeFilter, Visited);
+		else { TArray<TSharedRef<SWindow>> Windows; FSlateApplication::Get().GetAllVisibleWindowsOrdered(Windows); for (const auto& Window : Windows) NexusSlateSnapshot(Window, 0, MaxDepth, Nodes, bTruncated, TextFilter, TypeFilter, Visited); }
 		Result->SetArrayField(TEXT("Nodes"), Nodes); Result->SetBoolField(TEXT("bTruncated"), bTruncated);
 	}
 	else if (Action == TEXT("Capture"))

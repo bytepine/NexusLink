@@ -11,6 +11,7 @@
 #include "Utils/NexusEditorLevelUtils.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
+#include "Model.h"
 #include "GameFramework/WorldSettings.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Blueprint.h"
@@ -19,6 +20,8 @@
 #include "LevelUtils.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "ActorFactories/ActorFactoryBoxVolume.h"
+#include "Builders/CubeBuilder.h"
+#include "Components/SceneComponent.h"
 
 /** 解析 "x,y,z" 或 "x y z" 为 FVector。 */
 static bool NxParseVector3Text(const FString& Text, FVector& OutVec)
@@ -95,7 +98,7 @@ void FNexusManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinitio
 	Out.Description = TEXT("Batch edit level WorldSettings and Actors. Action=spawn/remove/SetProperty/ResetActorPropertyToDefault.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"),       FNexusSchema::Enum(TEXT("Action"),
-			{ TEXT("SetProperty"), TEXT("SpawnActor"), TEXT("CreateNavMeshBoundsVolume"), TEXT("RemoveActor"), TEXT("SetActorProperty"), TEXT("ResetActorPropertyToDefault") }))
+			{ TEXT("SetProperty"), TEXT("SpawnActor"), TEXT("CreateNavMeshBoundsVolume"), TEXT("ResizeNavMeshBoundsVolume"), TEXT("RemoveActor"), TEXT("SetActorProperty"), TEXT("ResetActorPropertyToDefault") }))
 		.Prop(TEXT("BoundsMin"), FNexusSchema::Object().Required(TEXT("X"), FNexusSchema::Num(TEXT("Minimum X"))).Required(TEXT("Y"), FNexusSchema::Num(TEXT("Minimum Y"))).Required(TEXT("Z"), FNexusSchema::Num(TEXT("Minimum Z"))).Build().ToSharedRef())
 		.Prop(TEXT("BoundsMax"), FNexusSchema::Object().Required(TEXT("X"), FNexusSchema::Num(TEXT("Maximum X"))).Required(TEXT("Y"), FNexusSchema::Num(TEXT("Maximum Y"))).Required(TEXT("Z"), FNexusSchema::Num(TEXT("Maximum Z"))).Build().ToSharedRef())
 		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("WorldSettings propertypath (SetProperty)")))
@@ -115,7 +118,7 @@ void FNexusManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("Level"), TEXT("map"), TEXT("World"), TEXT("worldsettings"), TEXT("spawn"), TEXT("navigation"), TEXT("navmesh"), TEXT("bounds volume") };
+	Out.ExtraSearchKeywords = { TEXT("Level"), TEXT("map"), TEXT("World"), TEXT("worldsettings"), TEXT("spawn"), TEXT("navigation"), TEXT("navmesh"), TEXT("bounds volume"), TEXT("brush"), TEXT("rebuild"), TEXT("resize") };
 	Out.RelatedCapabilities = { TEXT("GetAssetLevel"), TEXT("SearchAsset") };
 	Out.Prerequisites = { TEXT("EditorOnly") };
 	Out.WhenToUse = TEXT("Edit WorldSettings or level Actors; persist with SaveAsset");
@@ -164,20 +167,41 @@ static void HandleLevel_CreateNavBounds(const TSharedPtr<FJsonObject>& Op, FNexu
 	const FVector Size = Maximum - Minimum;
 	if (Size.GetMax() > 10000000 || Size.GetMin() < 1)
 	{ Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Bounds dimensions must be between 1 and 10000000 Unreal units")); return; }
+	const bool bResize = FNexusArgs(Op).Str(TEXT("Action")) == TEXT("ResizeNavMeshBoundsVolume");
+	ANavMeshBoundsVolume* Volume = nullptr;
+	if (bResize)
+	{
+		FLevelActionState* State = LevelFrom(Ctx);
+		Volume = State ? Cast<ANavMeshBoundsVolume>(FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(State->World, FNexusArgs(Op).Str(TEXT("ActorName")), false)) : nullptr;
+		if (!Volume) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Resize requires an exact NavMeshBoundsVolume ActorName in the requested level")); return; }
+	}
 	TargetLevel->Modify();
-	UActorFactoryBoxVolume* Factory = NewObject<UActorFactoryBoxVolume>();
-	Factory->NewActorClass = ANavMeshBoundsVolume::StaticClass();
-	ANavMeshBoundsVolume* Volume = Cast<ANavMeshBoundsVolume>(Factory->CreateActor(nullptr, TargetLevel, FTransform((Minimum + Maximum) * 0.5)));
+	if (!bResize)
+	{
+		UActorFactoryBoxVolume* Factory = NewObject<UActorFactoryBoxVolume>();
+		Factory->NewActorClass = ANavMeshBoundsVolume::StaticClass();
+		Volume = Cast<ANavMeshBoundsVolume>(Factory->CreateActor(nullptr, TargetLevel, FTransform((Minimum + Maximum) * 0.5)));
+	}
 	if (!Volume) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Volume actor factory failed")); return; }
-	const FVector BrushSize = Volume->GetComponentsBoundingBox(true).GetSize();
-	if (BrushSize.GetMin() <= 0)
-	{ World->EditorDestroyActor(Volume, true); Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Factory produced an empty brush; actor removed")); return; }
+	if (!Volume->Brush)
+	{
+		if (!bResize) World->EditorDestroyActor(Volume, true);
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Target volume has no brush model to rebuild")); return;
+	}
 	Volume->Modify();
-	Volume->SetActorScale3D(Size / BrushSize);
+	Volume->Brush->Modify();
+	UCubeBuilder* Builder = NewObject<UCubeBuilder>(Volume, NAME_None, RF_Transactional);
+	Builder->X = Size.X; Builder->Y = Size.Y; Builder->Z = Size.Z;
+	Volume->BrushBuilder = Builder;
+	if (!Builder->Build(World, Volume))
+	{
+		if (!bResize) World->EditorDestroyActor(Volume, true);
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Cube brush geometry build failed")); return;
+	}
+	Volume->SetActorTransform(FTransform(FQuat::Identity, (Minimum + Maximum) * 0.5, FVector::OneVector));
 	const FString Label = FNexusArgs(Op).Str(TEXT("ActorName"));
-	if (!Label.IsEmpty()) Volume->SetActorLabel(Label);
-	Volume->PostEditChange();
-	Volume->MarkPackageDirty();
+	if (!bResize && !Label.IsEmpty()) Volume->SetActorLabel(Label);
+	FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(Volume);
 	const FBox ActualBounds = Volume->GetComponentsBoundingBox(true);
 	for (const auto& Pair : {TPair<FString, FVector>(TEXT("BoundsMin"), ActualBounds.Min), TPair<FString, FVector>(TEXT("BoundsMax"), ActualBounds.Max)})
 	{
@@ -280,6 +304,8 @@ static void HandleLevel_SetActorProperty(const TSharedPtr<FJsonObject>& Op, FNex
 		return;
 	}
 	Actor->Modify();
+	TInlineComponentArray<UActorComponent*> Components(Actor);
+	for (UActorComponent* Component : Components) if (Component) Component->Modify();
 	FString OldVal, ActualVal, PropErr;
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(Actor, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
 	{
@@ -287,6 +313,7 @@ static void HandleLevel_SetActorProperty(const TSharedPtr<FJsonObject>& Op, FNex
 		return;
 	}
 	S->World->MarkPackageDirty();
+	FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(Actor);
 	Ctx.Entry->SetStringField(TEXT("ActorName"), ActorName);
 	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
 	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
@@ -324,6 +351,8 @@ static void HandleLevel_ResetActorPropertyToDefault(const TSharedPtr<FJsonObject
 	FString CdoText;
 	FNexusPropertyUtils::ExportText(Prop, CdoText, ValPtr);
 	Actor->Modify();
+	TInlineComponentArray<UActorComponent*> Components(Actor);
+	for (UActorComponent* Component : Components) if (Component) Component->Modify();
 	FString OldVal, ActualVal;
 	if (!FNexusPropertyUtils::WritePropertyAndEcho(Actor, Segments, 0, CdoText, OldVal, ActualVal, PropErr))
 	{
@@ -331,6 +360,7 @@ static void HandleLevel_ResetActorPropertyToDefault(const TSharedPtr<FJsonObject
 		return;
 	}
 	S->World->MarkPackageDirty();
+	FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(Actor);
 	Ctx.Entry->SetStringField(TEXT("ActorName"), ActorName);
 	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
 	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
@@ -341,7 +371,8 @@ static void HandleLevel_ResetActorPropertyToDefault(const TSharedPtr<FJsonObject
 static void HandleLevel_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	FLevelActionState* S = LevelFrom(Ctx);
-	AWorldSettings* WorldSettings = S->World->GetWorldSettings();
+	ULevel* Level = FNexusEditorLevelUtils::ResolveLevel(S->World);
+	AWorldSettings* WorldSettings = Level ? Level->GetWorldSettings() : nullptr;
 	if (!WorldSettings)
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Level has no WorldSettings"));
@@ -385,6 +416,9 @@ bool FNexusManageAssetLevelCapability::PrepareTarget(
 		OutError = LoadErr;
 		return false;
 	}
+	ULevel* Level = FNexusEditorLevelUtils::ResolveLevel(World);
+	if (!Level || FLevelUtils::IsLevelLocked(Level))
+	{ OutError = TEXT("Requested level is unavailable or locked"); return false; }
 	FLevelActionState* State = new FLevelActionState();
 	State->World = World;
 	State->bEditorWorld = bEditorWorld;
@@ -401,6 +435,7 @@ void FNexusManageAssetLevelCapability::RegisterActions(TMap<FString, FNexusActio
 {
 	OutHandlers.Add(TEXT("SpawnActor"),         &HandleLevel_SpawnActor);
 	OutHandlers.Add(TEXT("CreateNavMeshBoundsVolume"), &HandleLevel_CreateNavBounds);
+	OutHandlers.Add(TEXT("ResizeNavMeshBoundsVolume"), &HandleLevel_CreateNavBounds);
 	OutHandlers.Add(TEXT("RemoveActor"),        &HandleLevel_RemoveActor);
 	OutHandlers.Add(TEXT("SetActorProperty"),  &HandleLevel_SetActorProperty);
 	OutHandlers.Add(TEXT("ResetActorPropertyToDefault"), &HandleLevel_ResetActorPropertyToDefault);

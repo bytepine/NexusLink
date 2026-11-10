@@ -26,6 +26,15 @@ DEFINE_LOG_CATEGORY_STATIC(LogNexusAssetUtils, Log, All);
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
 #include "UObject/SavePackage.h"
+#include "UObject/Linker.h"
+#include "HAL/FileManager.h"
+#include "Misc/OutputDevice.h"
+#if __has_include("Misc/StringOutputDevice.h")
+#include "Misc/StringOutputDevice.h"
+#endif
+#if PLATFORM_WINDOWS
+#include "Windows/WindowsHWrapper.h"
+#endif
 #include "UObject/UObjectIterator.h"
 #if NX_UE_HAS_STRUCT_UTILS_HEADER
 #include "StructUtils/UserDefinedStruct.h"
@@ -283,25 +292,49 @@ UClass* FNexusAssetUtils::FindClassWithUPrefix(const FString& ClassName)
 	return Cls;
 }
 
-bool FNexusAssetUtils::SaveNewAsset(UPackage* Package, UObject* Asset, const FString& PackagePath)
+bool FNexusAssetUtils::SaveNewAsset(UPackage* Package, UObject* Asset, const FString& PackagePath, FString* OutError)
 {
-	if (!Package) return false;
-
-	const FString FilePath = FPackageName::LongPackageNameToFilename(
-		PackagePath, GetPackageFileExtension(Package, Asset));
+	if (OutError) OutError->Reset();
+	FString FilePath;
+	const auto Fail = [&](const FString& Message)
+	{
+		if (OutError) *OutError = Message;
+		if (Package) Package->MarkPackageDirty();
+		UE_LOG(LogNexusAssetUtils, Warning, TEXT("[NexusLink] SaveNewAsset failed: %s"), *Message);
+		return false;
+	};
+	if (!Package) return Fail(TEXT("Package is null"));
+	if (!FPackageName::TryConvertLongPackageNameToFilename(PackagePath, FilePath, GetPackageFileExtension(Package, Asset)))
+		return Fail(TEXT("Invalid package path: ") + PackagePath);
+	FilePath = FPaths::ConvertRelativePathToFull(FilePath);
+	IFileManager& Files = IFileManager::Get();
+	if (!Files.MakeDirectory(*FPaths::GetPath(FilePath), true)) return Fail(TEXT("Cannot create save directory: ") + FilePath);
+	if (Files.FileExists(*FilePath))
+	{
+		if (Files.IsReadOnly(*FilePath)) return Fail(TEXT("Destination is read-only: ") + FilePath);
+		// 先释放本包的加载句柄，再检查外部进程是否允许替换；不删除或截断原文件。
+		Package->FullyLoad();
+		ResetLoadersForSave(Package, *FilePath);
+#if PLATFORM_WINDOWS
+		HANDLE Probe = ::CreateFileW(*FilePath, GENERIC_WRITE | DELETE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+		if (Probe == INVALID_HANDLE_VALUE)
+			return Fail(FString::Printf(TEXT("Destination is locked or cannot be replaced (Windows error %lu): %s"), ::GetLastError(), *FilePath));
+		::CloseHandle(Probe);
+#endif
+	}
+	FStringOutputDevice SaveErrors;
 	bool bSaved = false;
 #if NX_UE_HAS_SAVE_PACKAGE_ARGS
 	FSavePackageArgs SaveArgs;
 	SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
-	SaveArgs.Error = GError;
+	SaveArgs.Error = &SaveErrors;
+	SaveArgs.SaveFlags = SAVE_NoError;
 	bSaved = UPackage::SavePackage(Package, Asset, *FilePath, SaveArgs);
 #else
-	bSaved = UPackage::SavePackage(Package, Asset, RF_Public | RF_Standalone, *FilePath, GError);
+	bSaved = UPackage::SavePackage(Package, Asset, RF_Public | RF_Standalone, *FilePath, &SaveErrors, nullptr, false, false, SAVE_NoError);
 #endif
-	if (!bSaved)
-	{
-		UE_LOG(LogNexusAssetUtils, Warning, TEXT("[NexusLink] SaveNewAsset failed: %s"), *FilePath);
-	}
+	if (!bSaved) return Fail(FString::Printf(TEXT("Could not save %s: %s"), *FilePath, *SaveErrors));
 	return bSaved;
 }
 

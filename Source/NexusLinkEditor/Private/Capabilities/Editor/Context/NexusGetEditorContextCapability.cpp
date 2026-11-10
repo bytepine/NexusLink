@@ -136,6 +136,7 @@ void FNexusGetEditorContextCapability::ExecuteSection(const FString&            
 			Item->SetBoolField(TEXT("bSelected"), World->GetSelectedLevels().Contains(Level));
 			Item->SetBoolField(TEXT("bLocked"), FLevelUtils::IsLevelLocked(Level));
 			Item->SetBoolField(TEXT("bVisible"), Level->bIsVisible);
+			Item->SetBoolField(TEXT("bDirty"), Level->GetOutermost()->IsDirty());
 			FBox Bounds(ForceInit);
 			TArray<TSharedPtr<FJsonValue>> Volumes;
 			for (AActor* Actor : Level->Actors)

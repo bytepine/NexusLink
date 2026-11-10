@@ -225,7 +225,13 @@ static bool NexusAnimationInvoke(UObject* Target,const FString& FunctionName,con
     FStructOnScope Storage(Function);
     for (TFieldIterator<FProperty> Parameter(Function); Parameter && Parameter->HasAnyPropertyFlags(CPF_Parm); ++Parameter) {
         const FString Default = Function->GetMetaData(*FString::Printf(TEXT("CPP_Default_%s"), *Parameter->GetName()));
-        if (!Default.IsEmpty()) Parameter->ImportText_Direct(*Default, Parameter->ContainerPtrToValuePtr<void>(Storage.GetStructMemory()), Target, PPF_None);
+        if (!Default.IsEmpty()) {
+#if NX_UE_HAS_IMPORT_TEXT_DIRECT
+            Parameter->ImportText_Direct(*Default, Parameter->ContainerPtrToValuePtr<void>(Storage.GetStructMemory()), Target, PPF_None);
+#else
+            Parameter->ImportText(*Default, Parameter->ContainerPtrToValuePtr<void>(Storage.GetStructMemory()), PPF_None, Target);
+#endif
+        }
     }
     for (const auto& Pair : Parameters->Values) {
         FProperty* Parameter=nullptr; const FString Key=NexusAnimationFieldKey(FString(*Pair.Key));

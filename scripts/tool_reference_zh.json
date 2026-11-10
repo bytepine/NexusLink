@@ -2,7 +2,7 @@
   "descriptions": {
     "GetNavigationPath": "在 Editor/PIE/Game 中只读查询已有导航路径，支持坐标投影、Agent、Filter 和精确世界选择；不移动 Actor、不重建导航。",
     "ControlEditorAssetEditor": "打开、聚焦、查询或安全关闭单个资产编辑器；关闭拒绝脏资产和共享编辑器实例，地图使用 ControlEditorLevel。",
-    "ControlEditorLevel": "按资产路径打开编辑器地图。关卡或外部 Actor 有未保存修改时拒绝，除非指定 bDiscardUnsaved；不启动 PIE。",
+    "ControlEditorLevel": "打开地图或加载、显示、隐藏已有流送子关卡并设为当前关卡；Open 保护未保存修改，MakeCurrent 同时显示目标。",
     "SetRuntimeActorTransform": "使用原生变换接口移动、旋转或缩放运行时 Actor，返回修改前的变换；写入前校验全部参数。",
     "GetAssetPackageChunks": "读取 AssetRegistry 中的包分块 ID，或在指定 PathFilter 下按 ChunkId 列包。",
     "GetAssetEditPreview": "预览 BP/UMG/PCG 结构、专用蓝图重设父类、变量类型及 BP/DataTable/DataAsset/关卡标量编辑；不修改源资产、不编译、不保存。",
@@ -186,7 +186,7 @@
     "ManageAssetIKRig": "编辑 IKRig：预览网格/solver/chain/goal。",
     "ManageAssetInputAction": "编辑 InputAction：SetValueType/增删 trigger/modifier/SetFlags。",
     "ManageAssetInputMappingContext": "编辑 IMC：AddMapping/RemoveMapping/ClearMappings。",
-    "ManageAssetLevel": "批量编辑关卡 WorldSettings 与 Actor。Action=spawn/remove/SetProperty。",
+    "ManageAssetLevel": "按所属关卡包批量编辑 WorldSettings 与 Actor；创建或调整原生导航体积几何，显式保存。",
     "ManageAssetLevelSequence": "编辑 LevelSequence：速率/范围/绑定/轨道/关键帧。",
     "ManageAssetMaterial": "批量编辑 Mat/MI/MF。MF 禁止 SetParam/recompile；勿用 TargetNodeId=material。",
     "ManageAssetMaterialParameterCollection": "增删改 MPC 标量/向量参数（AddScalar/AddVector/remove/set_default）。",

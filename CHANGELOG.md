@@ -9,12 +9,18 @@
 
 ### Changed
 
+- `SearchCapabilities` 的目录、精确查询与禁用状态不再由代理缓存；禁用响应附 UE 端危险访问模式、逐项及会话门控状态。
 - 移除 NexusLink 自身对官方 Toolset / ToolsetRegistry 的直接构建依赖和运行路由，编辑器、Slate、Automation、资产编辑、Sequencer / ControlRig、PCG 与 Niagara 统一由 NexusLink 直接调用引擎领域 API，报告 `Backend=Independent`；以插件模块声明、执行引用及 Windows DLL 常规/延迟直接导入均为 0 验收，提供源码与产物门禁；标准领域模块的传递依赖遵循官方引擎要求，按引擎版本与领域插件开放能力。
 - `GetProjectToolsets` 改为发现 NexusLink 自有能力分组与动作 Schema；`GetProjectSkills` 直接发现项目及启用插件中的 `SKILL.md`；`SearchAssetsSemantic` 直接使用可选 SemanticSearch 领域服务，仍需配置 Embedding provider。
 - 蓝图 `GraphDSL` / `WriteGraphDSL` 改为 UE 原生 `UnrealGraphText` 节点文本，支持预验证后追加可复制节点；原官方 Toolset S-expression 方言不再接受，结构化编辑继续使用 `WriteGraphPlan`。
 
 ### Fixed
 
+- 关卡 Actor 读取、预览、修改、生成和删除按实际 `ULevel` 限定所属包，正确处理已加载流送子关卡；返回实际 Actor/关卡路径，默认对象缺少实例化子对象时保留有效属性值并标记 `bDefaultUnavailable`，属性写入刷新组件变换及导航边界。
+- 导航体积使用原生 CubeBuilder 建立实际尺寸、保持单位缩放，支持 `ResizeNavMeshBoundsVolume`；`ControlEditorLevel` 增加已有子关卡加载、显示、隐藏及设为当前关卡，导航保存预检返回 `DirtyLevelPaths`，关卡上下文附 `bDirty`。
+- 资产保存先检查只读及 Windows 文件替换权限，释放本包加载句柄；错误使用非致命输出及结构化诊断，失败保留脏标记，文件占用时不删除或截断已有资产。
+- Slate 快照支持文本/控件类型筛选，附角色、提示、支持动作和焦点/勾选状态；修复 `SSearchBox` 替换输入失败。
+- 修复 UE 4.26 的动画默认参数文本导入与旧版 Sequencer 不支持 Override 混合类型导致的编译错误。
 - 补充静态网格 LOD 参数、场景 Actor 与 Slate 窗口在使用前的空指针检查，避免异常状态下解引用空指针。
 
 ## [2.3.4] - 2026-11-10

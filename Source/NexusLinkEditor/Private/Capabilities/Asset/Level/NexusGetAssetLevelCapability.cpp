@@ -8,6 +8,7 @@
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusBlueprintEditUtils.h"
 #include "Engine/World.h"
+#include "Engine/Level.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "NexusMcpTool.h"
@@ -108,17 +109,13 @@ void FNexusGetAssetLevelCapability::ExecuteSection(const FString&               
 		{ InOutDetail->SetStringField(TEXT("Note"), TEXT("Provide ActorName and PropertyPaths for actor/default property values")); return; }
 		if (ActorName.IsEmpty() || Paths.Num() == 0 || Paths.Num() > 32)
 		{ OutError = TEXT("ActorProperties requires ActorName and 1..32 PropertyPaths"); return; }
-		AActor* Actor = nullptr;
-		for (TActorIterator<AActor> ActorIt(World); ActorIt; ++ActorIt)
-		{
-			if (ActorIt->GetName() != ActorName) continue;
-			if (Actor) { OutError = TEXT("ActorName is ambiguous across loaded levels"); return; }
-			Actor = *ActorIt;
-		}
+		AActor* Actor = FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(World, ActorName, false);
 		if (!Actor)
 		{ OutError = TEXT("Exact actor name not found; read Actors first"); return; }
 		UObject* Defaults = Actor->GetClass()->GetDefaultObject(false);
 		InOutDetail->SetStringField(TEXT("ActorName"), ActorName);
+		InOutDetail->SetStringField(TEXT("ActorPath"), Actor->GetPathName());
+		InOutDetail->SetStringField(TEXT("LevelPath"), Actor->GetLevel()->GetOutermost()->GetName());
 		if (Defaults) InOutDetail->SetStringField(TEXT("DefaultObjectPath"), Defaults->GetPathName());
 		TArray<TSharedPtr<FJsonValue>> Properties;
 		for (const FString& Path : Paths)
@@ -151,7 +148,7 @@ void FNexusGetAssetLevelCapability::ExecuteSection(const FString&               
 				else
 				{
 					Property->SetStringField(TEXT("DefaultError"), Error.IsEmpty() ? TEXT("Matching class default is unavailable") : Error);
-					OutError = TEXT("One or more class default properties could not be read");
+					Property->SetBoolField(TEXT("bDefaultUnavailable"), true);
 				}
 			}
 			Properties.Add(MakeShared<FJsonValueObject>(Property));

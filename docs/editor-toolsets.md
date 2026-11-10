@@ -6,9 +6,11 @@ Slate UI、Automation 测试和非阻塞 Live Coding 都属于引擎能力，由
 
 ## 接口
 
-- `GetEditorSlate`：`Action=Windows|Snapshot|WaitFor`，可传 `Ref`、`MaxDepth`。独立实现返回结构化 `Nodes`，Ref 由 NexusLink 自行管理。快照包含截断标记。
+- `GetEditorSlate`：`Action=Windows|Snapshot|WaitFor`，可传 `Ref`、`MaxDepth`（0–100）。Snapshot 可用 `TextFilter`（文本/提示）与 `TypeFilter`（控件类型）筛选，继续遍历不匹配的容器；最多扫描 20000 个节点、返回 2000 个匹配项。`Nodes` 包含 Ref、Role、Tooltip、Actions 和焦点/勾选状态，Ref 由 NexusLink 自行管理。快照包含截断标记。
 - `CaptureEditorSlate`：可传快照中的 `Ref`，空值选择活动窗口；返回本地 `FilePath` 及标准 MCP 图片内容。
 - `InteractEditorSlate`：`Action=Click|Type|PressKey|Focus|Hover|Drag|SelectOption|SetChecked|FillForm`，传已查询的 `Ref`。窗口聚焦使用 Windows 查询中的窗口 Ref。
+
+`Type/bReplace=true` 支持 `SSearchBox` 及普通编辑框。子关卡操作可直接用 `ControlEditorLevel(Action=LoadStreaming|Show|Hide|MakeCurrent, AssetPath=...)`，目标必须是当前地图已有的子关卡引用；LoadStreaming 加载现有引用，MakeCurrent 同时显示并切换当前关卡。
 - `ControlEditorAutomation`：`Action=Discover|Run|Stop`。发现完成后用 `ListEditorAutomationTests(NameFilter, Limit)` 获取完整名称，运行传 `TestNames[]`，停止传所属运行的 `OperationId`。只使用当前编辑器的本地测试会话。
 - `CompileEditorLiveCoding`：启动非等待编译，要求 Windows、构建支持 Live Coding，且用户已启用当前会话。不自动开关，不替代全量编译或编辑器重启。
 - `GetEditorOperation(OperationId, WaitSeconds)`：查询本 MCP 会话的操作。默认立即返回，可等待 0–30 秒；未完成仍返回 Running，可继续查询。
