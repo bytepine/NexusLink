@@ -7,6 +7,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- `InteractRuntimeInput`／`GetRuntimeInput` 支持精确 Play World 和本地玩家的 Key／Enhanced Input Action 注入、定时及显式释放、所属任务查询和世界／服务停止清理。
+- `GetRuntimePerformance` 查询最新帧和线程／可用 GPU 耗时；`GetProfilerCsv` 使用 CSVUtils 读取有界文本快照，支持发现、帧区间聚合、指标排序与事件查询。
+- `GetAssetUserWidget` 增加 `PropertyOverrides`／`Connections`，报告静态默认值、继承 archetype、旧式及 MVVM 绑定方向、直接图节点证据与不确定性。
+- UE 5.9+ 可选 `GetCommonUIInfo`／`ControlCommonUIDiagnostics` 直接使用 CommonUIDebugging，查询激活树、焦点与路由，支持有界、所属会话的事件采集及 Epoch 游标。
+
 ### Changed
 
 - `SearchCapabilities` 的目录、精确查询与禁用状态不再由代理缓存；禁用响应附 UE 端危险访问模式、逐项及会话门控状态。
@@ -16,6 +23,7 @@
 
 ### Fixed
 
+- 编辑器模态窗口／慢任务期间拒绝普通请求并返回 `EditorBusy` 与 `bExecuted=false`；UE 5.9 通过本端口服务模态循环、慢任务进度及 Windows 原生对话框，保留 ping／状态响应，不自动重放写入。
 - 关卡 Actor 读取、预览、修改、生成和删除按实际 `ULevel` 限定所属包，正确处理已加载流送子关卡；返回实际 Actor/关卡路径，默认对象缺少实例化子对象时保留有效属性值并标记 `bDefaultUnavailable`，属性写入刷新组件变换及导航边界。
 - 导航体积使用原生 CubeBuilder 建立实际尺寸、保持单位缩放，支持 `ResizeNavMeshBoundsVolume`；`ControlEditorLevel` 增加已有子关卡加载、显示、隐藏及设为当前关卡，导航保存预检返回 `DirtyLevelPaths`，关卡上下文附 `bDirty`。
 - 资产保存先检查只读及 Windows 文件替换权限，释放本包加载句柄；错误使用非致命输出及结构化诊断，失败保留脏标记，文件占用时不删除或截断已有资产。

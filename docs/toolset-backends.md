@@ -22,7 +22,7 @@ py scripts/audit_binary_dependencies.py Binaries/Win64/UnrealEditor-NexusLink.dl
 
 ## 领域插件与自有实现
 
-领域插件提供实际的数据类型及引擎功能，仍须按需启用并重新编译。例如 Niagara、PCG、ControlRig、GameFeatures、DataRegistry、ModelViewViewModel 和 SemanticSearch。可选领域插件不等于官方 Toolset 依赖。
+领域插件提供实际的数据类型及引擎功能，仍须按需启用并重新编译。输入、性能与 UI 诊断直接使用 PlayerInput／EnhancedInput、RHI、CSVUtils 和可选 CommonUIDebugging，同样不通过官方工具集。例如 Niagara、PCG、ControlRig、GameFeatures、DataRegistry、ModelViewViewModel 和 SemanticSearch。可选领域插件不等于官方 Toolset 依赖。
 
 - 设置和插件发现直接读取 ISettingsModule / IPluginManager；持久化使用对应引擎编辑器 API。
 - GameplayTags、PhysicsAsset、PCG、Niagara、材质、网格、MVVM、UMG、Sequencer 和 Control Rig 操作使用各自的引擎 API，并保留 NexusLink 的参数校验、版本限制、编译及保存流程。

@@ -19,7 +19,7 @@ public class NexusLink : ModuleRules
 		{
 			"CoreUObject", "Engine", "Projects", "Sockets", "Networking", "Json", "JsonUtilities",
 			"AssetRegistry", "UMG", "GameplayTags", "AIModule", "GameplayTasks", "NavigationSystem",
-			"ImageWrapper", "AnimGraphRuntime", "RenderCore", "PhysicsCore",
+			"ImageWrapper", "AnimGraphRuntime", "RenderCore", "RHI", "PhysicsCore",
 			"LevelSequence", "MovieScene", "MovieSceneTracks", "Foliage", "MediaAssets",
 			"Slate", "SlateCore", "ApplicationCore", "InputCore",
 		});
@@ -46,13 +46,13 @@ public class NexusLink : ModuleRules
 		string ProjectRoot = NexusLinkOptionalPlugins.FindProjectRoot(ModuleDirectory);
 		var SearchDirs = NexusLinkOptionalPlugins.CollectPluginSearchDirs(ProjectRoot, this);
 
-		// Runtime 模块只消费 GAS / Niagara 的运行时部分；不链接任何 EditorModules
+		// Runtime 模块只消费 GAS / Niagara / EnhancedInput 的运行时部分；不链接任何 EditorModules
 		// （即便当前 Target 是 NexusEditor，也不允许 ed: 部分进入本模块）。
 		// 其余可选插件只被 Editor 域 cap 使用，
 		// 宏由 NexusLinkEditor.Build.cs 定义，本模块不重复 Add（避免 C4005 重定义）。
 		foreach (var C in NexusLinkOptionalPlugins.BuildFullTable())
 		{
-			if (C.Define != "WITH_GAS" && C.Define != "WITH_NIAGARA")
+			if (C.Define != "WITH_GAS" && C.Define != "WITH_NIAGARA" && C.Define != "WITH_ENHANCED_INPUT")
 			{
 				continue;
 			}
@@ -90,7 +90,7 @@ public static class NexusLinkOptionalPlugins
 			Opt(new[] { "Niagara.uplugin" }, "WITH_NIAGARA", "WITH_NIAGARA", rt: new[] { "Niagara" }, ed: new[] { "NiagaraEditor" }, uproj: "Niagara"),
 			Opt(new[] { "StateTree.uplugin" }, "WITH_STATETREE", "WITH_STATETREE", 5, 5, new[] { "StateTreeModule" }, new[] { "StateTreeEditorModule" }),
 			Opt(new[] { "ModelViewViewModel.uplugin" }, "WITH_MVVM", "WITH_MVVM", 5, 5, new[] { "ModelViewViewModel" }, new[] { "ModelViewViewModelBlueprint", "ModelViewViewModelEditor" }),
-			Opt(new[] { "EnhancedInput.uplugin" }, "WITH_ENHANCED_INPUT", "WITH_ENHANCED_INPUT", 5, 0, new[] { "EnhancedInput" }, new[] { "InputEditor" }),
+			Opt(new[] { "EnhancedInput.uplugin" }, "WITH_ENHANCED_INPUT", "WITH_ENHANCED_INPUT", 5, 0, new[] { "EnhancedInput" }, new[] { "InputEditor" }, uproj: "EnhancedInput"),
 			Opt(new[] { "ControlRig.uplugin" }, "WITH_CONTROL_RIG", "WITH_CONTROL_RIG", 5, 0, new[] { "ControlRig", "RigVM" }, new[] { "ControlRigDeveloper", "RigVMDeveloper" }),
 			Opt(new[] { "IKRig.uplugin" }, "WITH_IK_RIG", "WITH_IK_RIG", 5, 0, new[] { "IKRig" }, new[] { "IKRigEditor", "IKRigDeveloper" }),
 			Opt(new[] { "Metasound.uplugin" }, "WITH_METASOUND", "WITH_METASOUND", 5, 0, new[] { "MetasoundEngine", "MetasoundFrontend", "MetasoundGraphCore" }, new[] { "MetasoundEditor" }),

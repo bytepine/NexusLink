@@ -68,6 +68,7 @@ FCapabilityResult FNexusControlPieCapability::Execute(const TSharedPtr<FJsonObje
 				const ENetMode NetMode = World->GetNetMode();
 				Item->SetNumberField(TEXT("PieInstance"), Context.PIEInstance);
 				Item->SetStringField(TEXT("WorldPath"), World->GetPathName());
+				Item->SetStringField(TEXT("WorldName"), World->GetName());
 				Item->SetStringField(TEXT("NetMode"), NetMode == NM_Client ? TEXT("Client") : NetMode == NM_ListenServer ? TEXT("ListenServer") : NetMode == NM_DedicatedServer ? TEXT("DedicatedServer") : TEXT("Standalone"));
 				Worlds.Add(MakeShared<FJsonValueObject>(Item));
 			}

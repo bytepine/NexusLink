@@ -11,9 +11,11 @@
 
 #include "Utils/NexusVersionCompat.h"
 #include "Containers/Ticker.h"
+#include "Containers/Queue.h"
 #include "HttpRouteHandle.h"
 // 前向声明（完整定义由 .cpp 引入）
 class FNexusMcpDispatcher;
+class FNexusMcpBusyPump;
 #include "Containers/Set.h"
 
 class IHttpRouter;
@@ -65,8 +67,16 @@ private:
 	/** 收包回切只入队；在帧起点、World Tick 之外派发，避免等待 TaskGraph 时重入编辑。 */
 	static void QueueRequest(const TWeakPtr<FNexusMcpServer>& WeakSelf, TFunction<void()> Request);
 	void ProcessPendingRequests();
-	TArray<TFunction<void()>> PendingRequests;
+	struct FQueuedRequest
+	{
+		uint64 Sequence = 0;
+		TFunction<void()> Callback;
+	};
+	TQueue<FQueuedRequest> PendingRequests;
+	uint64 LastQueuedSequence = 0;
+	bool bDispatchingRequests = false;
 	FDelegateHandle RequestFrameHandle;
+	TUniquePtr<FNexusMcpBusyPump> BusyPump;
 
 	/** 注册 HTTP 路由。 */
 	void RegisterRoutes();

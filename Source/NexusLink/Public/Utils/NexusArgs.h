@@ -35,6 +35,14 @@ struct FNexusArgs
 		return FNexusJsonUtils::GetBoolSafe(Obj, Key, Default);
 	}
 
+	/** 有界整数读取；非法或越界值返回 MIN_int32，调用方仍须校验业务范围。 */
+	int32 Int(const TCHAR* Key, int32 Default = 0) const
+	{
+		const double Value = Num(Key, Default);
+		return FMath::IsFinite(Value) && Value >= MIN_int32 && Value <= MAX_int32 && FMath::TruncToDouble(Value) == Value
+			? static_cast<int32>(Value) : MIN_int32;
+	}
+
 	TArray<FString> StrArr(const TCHAR* Key) const
 	{
 		return FNexusJsonUtils::GetStringArray(Obj, Key);

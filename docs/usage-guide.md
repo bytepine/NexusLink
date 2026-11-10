@@ -1,5 +1,7 @@
 # NexusLink 使用指南
 
+[输入、性能与 UI 诊断](runtime-diagnostics.md)说明忙碌拒绝、玩家输入、实时耗时、CSV、UMG 属性来源与可选 CommonUI。
+
 [独立引擎后端](toolset-backends.md)说明各接口如何直接调用引擎 API；NexusLink 自身不直接链接或调用官方 Toolset/Registry，无需启动官方 MCP 服务。标准领域插件依赖遵循引擎要求，例如 UE 5.9 PCG 须保留 Registry。
 
 [编辑器兼容扩展](editor-compatibility.md)列出参数/UMG、网格生成、场景整理和蓝图图编辑的版本边界与调用方式。

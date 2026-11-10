@@ -134,7 +134,7 @@
     "GetAssetStringTable": "读取 StringTable：namespace/键/源字符串摘要。",
     "GetAssetStruct": "检查 UDS 字段定义。可选 PropertyPaths 过滤。",
     "GetAssetTexture": "检查 Texture2D 快照。写入走 ManageAssetTexture。",
-    "GetAssetUserWidget": "从编辑器读 WBP 树、动画、graphOverview。图细节走 blueprint cap。",
+    "GetAssetUserWidget": "读取控件树、动画、图概览、UIComponents，以及静态属性来源和绑定连接证据；不推断最终运行值。",
     "GetAssetViewModel": "检查 WBP 数据绑定：上下文、路径、方向与可选单输入转换发现。UE 5.5+。",
     "GetEditorContext": "读取编辑器选择、内容浏览器路径、当前地图与已打开资产编辑器；编辑器世界与 PIE 分开。",
     "GetEditorInfo": "返回 UE 版本、项目名、平台与构建配置。无参数。",
@@ -260,7 +260,13 @@
     "ManageProjectPlugin": "创建工程内容插件、修改描述符元数据与依赖，或设置下次启动的启用状态。",
     "GetNavigationPoint": "把坐标投影到现有导航面，报告世界、Agent、Filter 与导航可用性；不移动 Actor、不创建导航。",
     "GetRuntimeActorAI": "查询 AIController 的移动状态、当前目标及本工具捕获的请求结果；请求接受不等于到达。",
-    "GetAssetExportOptions": "查询资产已登记的导出格式、导出器与目标文件存在状态；不弹框、不写文件。"
+    "GetAssetExportOptions": "查询资产已登记的导出格式、导出器与目标文件存在状态；不弹框、不写文件。",
+    "InteractRuntimeInput": "向指定世界的本地玩家注入 Key 或 InputAction，定时或显式释放；返回当前会话所属 OperationId，不保证游戏业务成功。",
+    "GetRuntimeInput": "只读查询当前会话的输入操作与是否仍在注入；区别于物理输入与游戏响应。",
+    "GetRuntimePerformance": "只读查询进程最新可用的帧、Game、Render、RHI 和 GPU 耗时，单位毫秒；不启动采集。",
+    "GetProfilerCsv": "发现并读取 Saved 下的文本 CSV 性能捕获，支持帧区间聚合、指标排序和事件查询；UE 5.7+。",
+    "GetCommonUIInfo": "查询 PIE 玩家、CommonUI 激活树、焦点、输入路由、Action 绑定与有界事件日志；UE 5.9+ 可选领域模块。",
+    "ControlCommonUIDiagnostics": "启动或停止当前会话所属 CommonUI 有界事件采集，不采调用栈、不替换其他消费者的日志；UE 5.9+。"
   },
   "when_to_use": {
     "CaptureEditorPanel": "截编辑器面板/关卡视口，或按固定视角拍 Actor",

@@ -7,6 +7,7 @@
 #include "Log/NexusLogCapture.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusAIUtils.h"
+#include "Utils/NexusRuntimeInputUtils.h"
 #include "Server/NexusMcpServer.h"
 #include "NexusLinkSettings.h"
 #include "NexusMcpActivation.h"
@@ -112,6 +113,7 @@ void FNexusLinkModule::ShutdownModule()
 
 void FNexusLinkModule::StopMcpServer()
 {
+	FNexusRuntimeInputUtils::Shutdown();
 #if WITH_GAS
 	FNexusGasDiagnostics::Shutdown();
 #endif

@@ -44,3 +44,5 @@ Most guides are in Chinese. English readers can start with the [English quick st
 - [编辑器兼容扩展](editor-compatibility.md)：参数与 UMG、网格生成、场景整理、蓝图图编辑及各版本支持范围。
 - [动画与领域动作](animation-niagara-gamefeatures-toolsets.md)：Sequencer / Control Rig、Niagara 深层写入、Game Features 与自有 Capability/动作发现。
 - [参数与项目数据](pcg-physics-tags-dataregistry.md)：PCG 调参、物理资产、Tag 配置与 DataRegistry。
+
+- [输入、性能与 UI 诊断](runtime-diagnostics.md)：忙碌拒绝、玩家输入、实时耗时、CSV、UMG 来源和 CommonUI 路由。

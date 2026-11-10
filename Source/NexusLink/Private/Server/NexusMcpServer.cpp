@@ -8,6 +8,7 @@
 #if NEXUSLINK_WITH_SERVER
 
 #include "Server/NexusMcpDispatcher.h"
+#include "Server/NexusMcpBusyPump.h"
 #include "NexusLinkSettings.h"
 #include "NexusMcpActivation.h"
 #include "Utils/NexusVersionCompat.h"
@@ -229,6 +230,20 @@ bool FNexusMcpServer::Start(int32 InMcpPort, int32 InWsPort)
 
 	bRunning = true;
 	const TWeakPtr<FNexusMcpServer> WeakSelf = AsShared();
+	BusyPump = MakeUnique<FNexusMcpBusyPump>([WeakSelf](float DeltaTime)
+	{
+#if NX_UE_HAS_HTTP_LISTENER_TICK
+		if (const auto Server = WeakSelf.Pin())
+		{
+			if (!Server->IsRunning()) return;
+			// 不驱动全局 HTTP 服务、世界或核心 Ticker。
+			FHttpServerModule::Get().TickListener(Server->McpPort, DeltaTime);
+			Server->TickWebSocket(DeltaTime);
+			Server->ProcessPendingRequests();
+			FHttpServerModule::Get().TickListener(Server->McpPort, 0.0f);
+		}
+#endif
+	});
 	RequestFrameHandle = FCoreDelegates::OnBeginFrame.AddLambda([WeakSelf]()
 	{
 		if (const TSharedPtr<FNexusMcpServer> Server = WeakSelf.Pin())
@@ -260,6 +275,7 @@ void FNexusMcpServer::Stop()
 	}
 
 	bRunning = false;
+	BusyPump.Reset();
 	bLanBound = false;
 	FCoreDelegates::OnBeginFrame.Remove(RequestFrameHandle);
 	RequestFrameHandle.Reset();
@@ -295,12 +311,19 @@ void FNexusMcpServer::Stop()
 
 void FNexusMcpServer::QueueRequest(const TWeakPtr<FNexusMcpServer>& WeakSelf, TFunction<void()> Request)
 {
+	// 模态泵已经在游戏线程上，不能依赖被阻塞的 TaskGraph 才入队。
+	if (IsInGameThread())
+	{
+		if (const auto Server = WeakSelf.Pin()) { if (Server->IsRunning()) { Server->PendingRequests.Enqueue({++Server->LastQueuedSequence, MoveTemp(Request)}); return; } }
+		Request();
+		return;
+	}
 	AsyncTask(ENamedThreads::GameThread, [WeakSelf, Request = MoveTemp(Request)]() mutable
 	{
 		const TSharedPtr<FNexusMcpServer> Server = WeakSelf.Pin();
 		if (Server.IsValid() && Server->IsRunning())
 		{
-			Server->PendingRequests.Add(MoveTemp(Request));
+			Server->PendingRequests.Enqueue({++Server->LastQueuedSequence, MoveTemp(Request)});
 		}
 		else
 		{
@@ -312,11 +335,16 @@ void FNexusMcpServer::QueueRequest(const TWeakPtr<FNexusMcpServer>& WeakSelf, TF
 void FNexusMcpServer::ProcessPendingRequests()
 {
 	check(IsInGameThread());
-	// 编译/渲染等待可能处理 TaskGraph；新到请求留在成员队列，下一帧才执行。
-	TArray<TFunction<void()>> Requests = MoveTemp(PendingRequests);
-	for (TFunction<void()>& Request : Requests)
+	if (bDispatchingRequests && bRunning && FNexusMcpBusyPump::GetReason().IsEmpty()) return;
+	TGuardValue<bool> DispatchGuard(bDispatchingRequests, true);
+	// 保留接受序号的帧边界；模态重入可拒绝外层尚未执行的请求，不能把它们藏在局部快照里。
+	const uint64 FrameLastSequence = LastQueuedSequence;
+	while (const FQueuedRequest* Next = PendingRequests.Peek())
 	{
-		Request();
+		if (Next->Sequence > FrameLastSequence) break;
+		FQueuedRequest Request;
+		if (!PendingRequests.Dequeue(Request)) break;
+		Request.Callback();
 	}
 }
 
@@ -487,6 +515,7 @@ void FNexusMcpServer::RegisterRoutes()
 				Obj->SetStringField(TEXT("hostKind"), FNexusHostUtils::GetHostKind());
 				Obj->SetBoolField(TEXT("hasPlayWorld"), FNexusRuntimeUtils::HasPlayWorld());
 				Obj->SetBoolField(TEXT("authRequired"), UNexusLinkSettings::IsMcpAuthRequired());
+				Obj->SetStringField(TEXT("BusyReason"), FNexusMcpBusyPump::GetReason());
 				ReplyJson(Complete, FNexusJsonUtils::SerializeCondensed(Obj));
 			});
 			return true;

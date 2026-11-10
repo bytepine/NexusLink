@@ -2,6 +2,7 @@
 
 #include "Capabilities/Asset/UMG/NexusGetAssetUserWidgetCapability.h"
 #include "Utils/NexusWidgetLayoutUtils.h"
+#include "Utils/NexusWidgetDiagnostics.h"
 #include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
 #include "Utils/NexusVersionCompat.h"
@@ -50,12 +51,13 @@ void FNexusGetAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefinit
 {
 	Out.Name = TEXT("GetAssetUserWidget");
 	Out.SearchAssetTypes = {TEXT("Widget")};
-	Out.Description = TEXT("Read WBP tree, animations, graphOverview from editor. Graph details via blueprint cap.");
+	Out.Description = TEXT("Read WBP tree, animations, graphOverview, static PropertyOverrides and Connections. Diagnostics report evidence and uncertainty; not runtime execution proof.");
 	Out.InputSchema = BuildSchemaWithSections();
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = {
 		TEXT("wbp"), TEXT("umg"), TEXT("Hierarchy"), TEXT("Children"), TEXT("Layout"),
 		TEXT("Animation"), TEXT("animate"), TEXT("Transition"), TEXT("graph")
+		, TEXT("binding"), TEXT("override"), TEXT("provenance"), TEXT("connections")
 	};
 	Out.RelatedCapabilities = {
 		TEXT("ManageAssetUserWidget"), TEXT("CreateAssetUserWidget"),
@@ -69,6 +71,7 @@ TSharedPtr<FJsonObject> FNexusGetAssetUserWidgetCapability::BuildCapabilitySchem
 	return FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Widget Blueprint asset path")))
 		.Prop(TEXT("NameFilter"), FNexusSchema::Str(TEXT("Widget/animation name substring (optional)")))
+		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("PropertyOverrides: up to 32 widget property paths; defaults Visibility,RenderOpacity,bIsEnabled")))
 		.Prop(TEXT("TypeFilter"), FNexusSchema::Str(TEXT("Widget class substring (widgets section only)")))
 		.Prop(TEXT("Offset"),     FNexusSchema::Int(TEXT("Widget paginationoffset (default 0)"), 0, 0))
 		.Prop(TEXT("Limit"),      FNexusSchema::Int(TEXT("Max widgets per page 1-500 (default 100)"), 100, 1, 500))
@@ -78,7 +81,7 @@ TSharedPtr<FJsonObject> FNexusGetAssetUserWidgetCapability::BuildCapabilitySchem
 
 TArray<FString> FNexusGetAssetUserWidgetCapability::GetSectionNames() const
 {
-	return { TEXT("Widgets"), TEXT("Animations"), TEXT("graphOverview"), TEXT("UIComponents") };
+	return { TEXT("Widgets"), TEXT("Animations"), TEXT("graphOverview"), TEXT("UIComponents"), TEXT("PropertyOverrides"), TEXT("Connections") };
 }
 
 TArray<FString> FNexusGetAssetUserWidgetCapability::GetDefaultSectionNames() const
@@ -133,6 +136,11 @@ void FNexusGetAssetUserWidgetCapability::ExecuteSection(const FString&          
 	}
 
 	FString NameFilter, TypeFilter;
+	if (SectionName == TEXT("PropertyOverrides") || SectionName == TEXT("Connections"))
+	{
+		FNexusWidgetDiagnostics::Read(WBP, SectionName, Args, InOutDetail, OutError);
+		return;
+	}
 	int32 Offset = 0, Limit = 100;
 	if (Args.IsValid())
 	{

@@ -1,6 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Server/NexusMcpDispatcher.h"
+#include "Server/NexusMcpBusyPump.h"
 #include "Server/NexusToolsListCache.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Server/NexusProxyConfig.h"
@@ -113,6 +114,29 @@ FNexusMcpDispatcher::FNexusMcpDispatcher(FOnSendResponse InSendCallback)
 {
 }
 
+bool FNexusMcpDispatcher::RejectWhileBusy(const FString& Method, const TSharedPtr<FJsonValue>& Id)
+{
+	if (Method == TEXT("ping") || Method == TEXT("status") || Method == TEXT("notifications/initialized") || Method == TEXT("notifications/cancelled")) return false;
+	const FString Reason = FNexusMcpBusyPump::GetReason();
+	if (Reason.IsEmpty()) return false;
+	if (!Id.IsValid()) return true;
+	auto Data = MakeShared<FJsonObject>();
+	Data->SetStringField(TEXT("ErrorKind"), TEXT("EditorBusy"));
+	Data->SetStringField(TEXT("Reason"), Reason);
+	Data->SetBoolField(TEXT("bExecuted"), false);
+	Data->SetNumberField(TEXT("RetryAfterSeconds"), 0.5);
+	auto Error = MakeShared<FJsonObject>();
+	Error->SetNumberField(TEXT("code"), -32002);
+	Error->SetStringField(TEXT("message"), TEXT("EditorBusy: request was not executed; retry after the editor is ready"));
+	Error->SetObjectField(TEXT("data"), Data);
+	auto Response = MakeShared<FJsonObject>();
+	Response->SetStringField(TEXT("jsonrpc"), TEXT("2.0"));
+	Response->SetField(TEXT("id"), Id);
+	Response->SetObjectField(TEXT("error"), Error);
+	SendCallback(FNexusJsonUtils::SerializeCondensed(Response));
+	return true;
+}
+
 void FNexusMcpDispatcher::Dispatch(const FString& JsonLine, FOnSendResponse PerRequestSend)
 {
 	LastActivityAt = FDateTime::UtcNow();
@@ -152,6 +176,7 @@ void FNexusMcpDispatcher::Dispatch(const FString& JsonLine, FOnSendResponse PerR
 
 	TSharedPtr<FJsonObject> Params = TryGetJsonObject(JsonMsg, TEXT("params"));
 
+	if (RejectWhileBusy(Method, Id)) return;
 	// 方法路由
 	if (Method == TEXT("initialize"))
 	{
@@ -823,6 +848,7 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 
 	TSharedPtr<FJsonObject> Params = TryGetJsonObject(JsonMsg, TEXT("params"));
 
+	if (RejectWhileBusy(Method, Id)) return;
 	// 无状态路由：直接处理，无需 MCP 握手
 	if (Method == TEXT("ping"))
 	{
@@ -850,6 +876,7 @@ void FNexusMcpDispatcher::DispatchDirect(const FString& JsonLine, FOnSendRespons
 			ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION));
 		StatusObj->SetStringField(TEXT("projectName"), FApp::GetProjectName());
 		StatusObj->SetBoolField(TEXT("authRequired"), UNexusLinkSettings::IsMcpAuthRequired());
+		StatusObj->SetStringField(TEXT("BusyReason"), FNexusMcpBusyPump::GetReason());
 		SendResult(Id, StatusObj);
 	}
 	else if (Method == TEXT("nexus/instructions"))

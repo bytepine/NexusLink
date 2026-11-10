@@ -35,7 +35,7 @@ TYPE_PREFIXES = frozenset("UAFETI")
 # JSON Schema 关键字 + MCP 信封。协议原样，不套 PascalCase / b 前缀。
 # 序列化字段仍可能是 Schema；builder 声明的属性和 Args 读取不使用此例外。
 ALLOW_KEYS = frozenset({
-    "jsonrpc", "method", "params", "id", "result", "error",
+    "jsonrpc", "method", "params", "id", "result", "error", "data",
     "isError", "structuredContent", "content", "text",
     "type", "properties", "required", "enum", "items", "description",
     "additionalProperties", "default", "minimum", "maximum",

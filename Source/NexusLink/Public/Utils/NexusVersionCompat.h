@@ -287,3 +287,7 @@
 #define NX_UE_HAS_RIG_CONTROL_SETTINGS_TOPOLOGY NX_UE_AT_LEAST(5, 9) // FRigControlElement::Settings 拆分为 Hierarchy 拓扑与元数据访问器。
 #define NX_UE_HAS_RIG_HIERARCHY_ELEMENT_VIEWS NX_UE_AT_LEAST(5, 9) // 存储顺序视图替代 GetBones/GetControls/GetNulls 的默认遍历。
 #define NX_UE_HAS_RIG_CONTROL_SHAPE_DATA NX_UE_AT_LEAST(5, 9) // 控件形状设置通过 Hierarchy 持有的可写引用修改。
+#define NX_UE_HAS_HTTP_LISTENER_TICK NX_UE_AT_LEAST(5, 9) // 仅 Tick 本服务端口；同时提供 SlowTask 进度委托。
+#define NX_UE_HAS_INPUT_KEY_EVENT_ARGS NX_UE_AT_LEAST(5, 6)
+#define NX_UE_HAS_CONTINUOUS_INPUT_INJECTION NX_UE_AT_LEAST(5, 7) // 持续注入须同时具备公开占用查询，避免覆盖其他来源。
+#define NX_UE_HAS_CSV_PROFILER_UTILS NX_UE_AT_LEAST(5, 7)

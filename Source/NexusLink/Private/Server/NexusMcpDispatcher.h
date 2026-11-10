@@ -72,6 +72,7 @@ public:
 	static FString MakeJsonRpcError(const TSharedPtr<FJsonValue>& Id, int32 Code, const FString& Message);
 
 private:
+	bool RejectWhileBusy(const FString& Method, const TSharedPtr<FJsonValue>& Id);
 	void SendResult(const TSharedPtr<FJsonValue>& Id, const TSharedPtr<FJsonObject>& Result);
 	void SendError(const TSharedPtr<FJsonValue>& Id, int32 Code, const FString& Message);
 
