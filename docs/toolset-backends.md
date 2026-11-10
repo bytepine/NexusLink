@@ -2,9 +2,23 @@
 
 [文档导航](README.md) · [编辑器能力范围](editor-compatibility.md)
 
-NexusLink 自行实现编辑器操作、动作发现和参数转换，直接调用 Unreal Engine 及相应领域插件的 API。本插件不直接链接或调用官方 Toolset 插件、ToolsetCore 或 ToolsetRegistry，也不加载官方 Python toolset 包。启用或禁用官方 Toolset 插件不会改变 NexusLink 的执行路径，也不需要启动官方 MCP 服务。
+NexusLink 自行实现编辑器操作、动作发现和参数转换，直接调用 Unreal Engine 及相应领域插件的 API。本插件不直接链接或调用官方 Toolset 插件、ToolsetCore 或 ToolsetRegistry，也不加载官方 Python toolset 包。可分离的官方 Toolset 适配插件不参与 NexusLink 的执行路径，也不需要启动官方 MCP 服务。
 
-UE 5.9 的标准编辑器模块（如 UMGEditor）在引擎内部依赖 ToolsetCore；标准 PCG 插件在 Editor 目标启用 ToolsetRegistry，PCGEditor 模块也依赖 ToolsetCore、ToolsetRegistry 和 ToolsetRegistryEditor。因此保留标准 PCG 领域功能时，UE 5.9 编辑器宿主须保留引擎要求的 Registry 依赖，可分离的官方 Toolset 插件仍可关闭。这些传递依赖无法由 NexusLink 从插件侧移除；上述独立实现约束指 NexusLink 自身的直接依赖和调用，不表示物理传递依赖为零。
+保留官方 UE 5.9 时，“0 依赖”按 NexusLink 自身边界验收：
+
+- `NexusLink.uplugin` 和构建规则中，官方 Toolset / ToolsetCore / ToolsetRegistry 的直接依赖声明为 0。
+- 插件源码中，通过官方 Toolset、Registry 或其 Python 包执行功能的引用和转发为 0。
+- Windows 构建产物 `NexusLink` 与 `NexusLinkEditor` DLL 中，官方 Toolset DLL 的常规及延迟直接导入为 0。
+
+官方编辑器本身具有 `UnrealEd → SourceControl → ToolsetCore` 的硬依赖，UMGEditor 也依赖 ToolsetCore；标准 PCG 在 Editor 目标启用 ToolsetRegistry，PCGEditor 同时依赖 ToolsetCore、ToolsetRegistry 和 ToolsetRegistryEditor。保留这些官方引擎模块和领域功能时，须保留引擎要求的传递依赖，可分离的官方 Toolset 插件仍可关闭。该边界不表示整个编辑器进程或引擎模块的物理传递依赖归零。
+
+源码门禁使用 `py -m pytest scripts/tests/test_no_toolset_dependencies.py`。在 VS Native Tools 命令行检查已编译的两个 DLL：
+
+```powershell
+py scripts/audit_binary_dependencies.py Binaries/Win64/UnrealEditor-NexusLink.dll Binaries/Win64/UnrealEditor-NexusLinkEditor.dll
+```
+
+未将 MSVC 工具加入 PATH 时，显式传 `--dumpbin <dumpbin.exe路径>`。检查包含延迟导入；工具缺失、文件不存在或输出无法解析均失败，不视为通过。此检查不递归检查官方引擎 DLL；源码 CI 没有 DLL 产物时，只能证明源码门禁和解析器测试通过，不能代替构建产物检查。
 
 ## 领域插件与自有实现
 

@@ -40,7 +40,10 @@ py scripts/audit_capability_params.py
 py scripts/audit_capability_naming.py
 py scripts/audit_doc_sync.py   # 报告：代码 vs tool-reference / 中文 overlay
 py scripts/audit_cpp_naming.py  # 报告：类型前缀/文件名、布尔 b、k 前缀、协议 PascalCase
+py -m pytest scripts/tests/test_no_toolset_dependencies.py  # 自身 Toolset 直接依赖与调用须为 0
 ```
+
+有 Windows 编译产物时，在 VS Native Tools 命令行运行 `py scripts/audit_binary_dependencies.py <NexusLink.dll> <NexusLinkEditor.dll>`；也可用 `--dumpbin <路径>` 指定工具。常规和延迟导入均不得包含官方 Toolset DLL，无法检查时按失败处理。官方引擎内部的传递依赖不计入插件边界，具体[验收定义](docs/toolset-backends.md)必须与验证报告一同保留。
 
 ## 测试
 
