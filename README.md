@@ -50,6 +50,8 @@
 
 核对返回的工程、引擎版本和运行状态。默认 **SearchMode** 通过 `SearchCapabilities`、`CallCapability`、`SubmitFeedback` 三个元工具按需发现和调用能力；NexusDesktop 另外提供两个实例工具。
 
+查询 `GetAsset` 会提示按资产类型选择能力（如 `GetAssetBlueprint`）；查找资产路径使用 `SearchAsset`。
+
 连接失败时，先检查 UE 和中转两端的开关，再看[常见问题](docs/usage-guide.md#6-常见问题)。
 
 ## 连接方式

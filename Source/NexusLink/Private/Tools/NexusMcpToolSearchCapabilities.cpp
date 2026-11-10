@@ -384,9 +384,12 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 	};
 	TArray<FScored> Scored;
 	bool bRelaxedMatch = false;
+	const bool bAssetAggregateQuery = QueryTrimmed.Equals(TEXT("GetAsset"), ESearchCase::IgnoreCase);
 
 	for (const FCapRecord& Record : FNexusCapabilityRegistry::Get().GetAllRecords())
 	{
+		// 聚合资产查询固定返回路由提示，避免偶然命中某个能力的描述文本。
+		if (bAssetAggregateQuery) break;
 		if (!Settings->IsCapabilityEnabled(Record.Def.Name)) continue;
 		if (!FNexusHostUtils::IsCapabilityVisibleOnHost(Record)) continue;
 		const int32 Score = FNexusCapabilityIndexUtils::ScoreCapability(Tokens, Record.Keywords);
@@ -401,7 +404,7 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 	}
 
 	// AND 零命中 → OR 部分匹配降级（Top 3）
-	if (Scored.Num() == 0 && Tokens.Num() > 0)
+	if (!bAssetAggregateQuery && Scored.Num() == 0 && Tokens.Num() > 0)
 	{
 		bRelaxedMatch = true;
 		for (const FCapRecord& Record : FNexusCapabilityRegistry::Get().GetAllRecords())
@@ -500,7 +503,8 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 	if (CapArr.Num() == 0 && Tokens.Num() > 0)
 	{
 		TArray<TSharedPtr<FJsonValue>> DisabledArr;
-		AppendDisabledCapabilityMatches(Tokens, bRelaxedMatch, Settings, DisabledArr);
+		if (!bAssetAggregateQuery)
+			AppendDisabledCapabilityMatches(Tokens, bRelaxedMatch, Settings, DisabledArr);
 		if (DisabledArr.Num() > 0)
 		{
 			Output->SetStringField(TEXT("ErrorKind"), TEXT("DisabledOnly"));
@@ -511,9 +515,9 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		else
 		{
 			FString Hint = TEXT("No matching capability. Try Query=\"\" for the full catalog, or CapabilityName=<exact name>.");
-			if (QueryRaw.Equals(TEXT("GetAsset"), ESearchCase::IgnoreCase))
+			if (bAssetAggregateQuery)
 			{
-				Hint = TEXT("No GetAsset aggregate tool; use get_asset_<type> (e.g. GetAssetBlueprint) or SearchAsset for paths.");
+				Hint = TEXT("No GetAsset aggregate tool; use a typed capability (e.g. GetAssetBlueprint) or SearchAsset for paths.");
 			}
 			else
 			{

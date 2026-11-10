@@ -17,10 +17,11 @@
 
 - 关卡 Actor 的 SCS/继承组件默认值比较与恢复使用实际蓝图组件模板，避免 CDO 空引用导致整批读取失败。
 - 蓝图变量类别批量写入不再逐项重建骨架或遍历图对象；修正类别回读来源、`AddVariable/bIsPublic` 的实例可编辑标志，以及已有子类/实例继承新变量默认值的问题，仅补新字段并保留已有覆盖值。
-- `FindAsset` 搜索意图指向 `SearchAsset`；补充 `actor collision` 搜索关键字；低版本 GraphDSL 错误明确使用 Graph 分段读取、WriteGraphPlan 追加节点。
+- `FindAsset` 搜索意图指向 `SearchAsset`，`GetAsset` 聚合查询稳定返回类型化工具与资产搜索提示；补充 `actor collision` 搜索关键字；低版本 GraphDSL 错误明确使用 Graph 分段读取、WriteGraphPlan 追加节点。
 - 属性预览及 ExpectedValue/写后校验支持对象和类引用，保留类型约束并拒绝沿外部引用写入。
 - `DeleteAsset` 失败时返回有界磁盘/内存引用、Undo、资产编辑器占用和只读文件诊断；部分删除不再误报完整成功。
 - 反馈报告的代理错误小节按规范化后的 Proxy 分类统计，修复概览有代理错误而明细显示无数据的问题。
+- 截图历史按文件时间清理，避免混用 Slate 与 Editor 截图时删除刚生成的文件，恢复 PNG/JPEG 及批次的内联图片返回。
 
 ### Changed
 

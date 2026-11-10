@@ -74,6 +74,8 @@
 #define NX_UE_HAS_SKELETAL_MATERIAL_COMMON_HEADER NX_UE_AT_LEAST(5, 2) // FSkeletalMaterial 完整定义在 SkinnedAssetCommon.h；5.2+ SkeletalMesh.h 仅前向声明
 #define NX_UE_HAS_ANIM_SEQUENCE_LOOP_FIELD NX_UE_AT_LEAST(5, 1) // UAnimSequence::bLoop（UE5.0 无此公开字段）
 #define NX_UE_HAS_ANIM_SEQUENCE_DATA_MODEL  NX_UE_AT_LEAST(5, 6) // 帧数/帧率走 IAnimationDataModel
+#define NX_UE_HAS_ANIM_DATA_CONTROLLER     NX_UE_AT_LEAST(5, 0) // UE5 动画原始数据通过 IAnimationDataController 写入
+#define NX_UE_HAS_ANIM_CONTROLLER_MODEL_INIT NX_UE_AT_LEAST(5, 2) // InitializeModel / SetNumberOfFrames / AddBoneCurve
 // UE 5.5+ RawCurveData 移至 protected，需通过反射访问
 #define NX_UE_HAS_RAW_CURVE_DATA_PUBLIC    (!NX_UE_AT_LEAST(5, 5))
 // UE 5.3+ FAnimCurveBase::Name (FSmartName) → CurveName (FName)

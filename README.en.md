@@ -50,6 +50,8 @@ Restart the MCP session and ask the AI:
 
 Check the returned project, engine version, and runtime state. Default **SearchMode** discovers and calls capabilities through three meta-tools: `SearchCapabilities`, `CallCapability`, and `SubmitFeedback`. NexusDesktop adds two instance tools.
 
+A `GetAsset` query points to a capability for the asset type, such as `GetAssetBlueprint`; use `SearchAsset` to find asset paths.
+
 If the connection fails, check the UE and relay switches first, then see [troubleshooting](docs/usage-guide.md#6-常见问题) (Chinese).
 
 ## Connection options

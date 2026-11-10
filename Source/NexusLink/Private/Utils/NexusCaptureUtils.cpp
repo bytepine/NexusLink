@@ -313,7 +313,12 @@ void FNexusCaptureUtils::CleanupOldCaptures(const FString& OutputDir, int32 MaxK
 	IFileManager::Get().FindFiles(Files, *(OutputDir / TEXT("NexusCapture_*")), true, false);
 	if (Files.Num() > MaxKeep)
 	{
-		Files.Sort();
+		Files.Sort([&OutputDir](const FString& FirstFile, const FString& SecondFile)
+		{
+			const FDateTime FirstTime = IFileManager::Get().GetTimeStamp(*(OutputDir / FirstFile));
+			const FDateTime SecondTime = IFileManager::Get().GetTimeStamp(*(OutputDir / SecondFile));
+			return FirstTime == SecondTime ? FirstFile < SecondFile : FirstTime < SecondTime;
+		});
 		const int32 ToDelete = Files.Num() - MaxKeep;
 		for (int32 i = 0; i < ToDelete; ++i)
 			IFileManager::Get().Delete(*(OutputDir / Files[i]), false, true, true);
