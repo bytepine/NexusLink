@@ -226,6 +226,8 @@
 #define NX_UE_HAS_MOVIE_SCENE_FLOAT_CHANNEL  1
 // UE5+ UMovieSceneVectorTrack → UMovieSceneFloatVectorTrack / UMovieSceneDoubleVectorTrack
 #define NX_UE_HAS_MOVIE_SCENE_FLOAT_VECTOR_TRACK  NX_UE_AT_LEAST(5, 0)
+// UE 5.5+ EMovieSceneBlendType 新增 Override 混合类型。
+#define NX_UE_HAS_MOVIE_SCENE_OVERRIDE_BLEND  NX_UE_AT_LEAST(5, 5)
 // UWidgetAnimation 全版本均公开 MovieScene 字段，无 SetMovieScene
 #define NX_UE_HAS_WIDGET_ANIM_SET_MOVIE_SCENE  0
 
