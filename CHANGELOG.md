@@ -7,25 +7,27 @@
 
 ## [Unreleased]
 
+## [2.3.4] - 2026-11-10
+
 ### Added
 
-- `ManageAssetBlueprint` 支持成员变量 ToolTip、Replication/RepNotify 与无参函数 CallInEditor 配置；`GetAssetBlueprint` 回读对应字段，RepNotify 使用显式已有通知函数，所属 Actor/组件复制开关保持独立；变量类型支持 `ClassReference<BaseClass>` 及其容器，拒绝危险的 UClass 对象类型并诊断已有不安全配置。
-- `ManageAssetLevel/CreateNavMeshBoundsVolume` 通过原生 Actor Factory 创建带几何边界的导航体积；`GetEditorContext/CurrentMap` 返回已加载关卡、当前/选中状态、场景边界与导航体积，`ControlEditorScene/BuildNavigation` 异步构建导航并按请求保存。
-- `ManageAssetAnimSequence` / `ManageAssetAnimBlueprint` 增加 `Retarget`，支持旧式目标 Skeleton 更换、只验证预检、显式动画引用替换与受保护的序列引用重定向，返回影响资产和缺失骨骼。
+- `ManageAssetBlueprint` 支持变量 ToolTip、Replication/RepNotify、无参函数 CallInEditor，以及 `ClassReference<BaseClass>` 和容器类型；支持配置回读与危险类引用诊断，RepNotify 使用已有通知函数。
+- `ManageAssetLevel` 支持创建 NavMesh Bounds Volume；`GetEditorContext/CurrentMap` 返回关卡状态、场景边界和导航体积；`ControlEditorScene/BuildNavigation` 支持异步导航构建及保存。
+- `ManageAssetAnimSequence`、`ManageAssetAnimBlueprint` 支持旧式 Skeleton 重定向、只验证预检、动画引用重映射及关联序列保护，返回影响资产和缺失骨骼。
 
 ### Fixed
 
-- 关卡 Actor 的 SCS/继承组件默认值比较与恢复使用实际蓝图组件模板，避免 CDO 空引用导致整批读取失败。
-- 蓝图变量类别批量写入不再逐项重建骨架或遍历图对象；修正类别回读来源、`AddVariable/bIsPublic` 的实例可编辑标志，以及已有子类/实例继承新变量默认值的问题，仅补新字段并保留已有覆盖值。
-- `FindAsset` 搜索意图指向 `SearchAsset`，`GetAsset` 聚合查询稳定返回类型化工具与资产搜索提示；补充 `actor collision` 搜索关键字；低版本 GraphDSL 错误明确使用 Graph 分段读取、WriteGraphPlan 追加节点。
-- 属性预览及 ExpectedValue/写后校验支持对象和类引用，保留类型约束并拒绝沿外部引用写入。
-- `DeleteAsset` 失败时返回有界磁盘/内存引用、Undo、资产编辑器占用和只读文件诊断；部分删除不再误报完整成功。
-- 反馈报告的代理错误小节按规范化后的 Proxy 分类统计，修复概览有代理错误而明细显示无数据的问题。
-- 截图历史按文件时间清理，避免混用 Slate 与 Editor 截图时删除刚生成的文件，恢复 PNG/JPEG 及批次的内联图片返回。
+- 修复关卡 Actor 的 SCS/继承组件默认值比较、恢复及空引用导致的整批读取失败。
+- 提升蓝图变量类别批量写入性能，修正类别回读和实例可编辑标志；已有子类与实例正确继承新增变量默认值，保留已有覆盖值。
+- `FindAsset` 路由到 `SearchAsset`，`GetAsset` 返回类型化资产工具提示；补充 `actor collision` 关键字及低版本 GraphDSL 操作提示。
+- 属性预览、`ExpectedValue` 与写后校验支持对象及类引用，保留类型约束和外部引用写入保护。
+- `DeleteAsset` 提供引用、Undo、编辑器占用和只读文件诊断，准确报告部分删除。
+- 反馈报告的代理错误概览与明细统计保持一致。
+- 修复混用 Slate/Editor 截图时删除新生成文件、导致 PNG/JPEG 及批次内联图片缺失的问题。
 
 ### Changed
 
-- 插件安装包不再附带仓库根目录 `tools/` 下的 Python 复测、性能对比工具及其测试和示例，保留完整 C++ 源码；需要命令行工具时获取对应版本源码使用。
+- 安装包不再附带根目录 `tools/` 下的 Python 复测及性能工具；完整 C++ 源码保留，需要命令行工具时从对应版本源码获取。
 
 ## [2.3.3] - 2026-11-07
 
