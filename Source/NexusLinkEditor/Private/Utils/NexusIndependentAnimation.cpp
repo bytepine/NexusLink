@@ -1,8 +1,8 @@
 // Copyright byteyang. All Rights Reserved.
-#include "Utils/NexusLegacyToolsets.h"
+#include "Utils/NexusEditorDomainTools.h"
 #include "Utils/NexusAnimationAdvancedTools.h"
 #include "Utils/NexusArgs.h"
-#include "Utils/NexusEditorToolsets.h"
+#include "Utils/NexusEditorControlServices.h"
 #include "Utils/NexusVersionCompat.h"
 #include "LevelSequence.h"
 #include "MovieScene.h"
@@ -16,6 +16,8 @@
 #include "Channels/MovieSceneBoolChannel.h"
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneStringChannel.h"
+#include "Sections/MovieSceneSkeletalAnimationSection.h"
+#include "Animation/AnimSequenceBase.h"
 
 template<typename TChannel>
 static TChannel* NexusAnimationChannel(UMovieSceneSection* Section, const FString& Name)
@@ -34,13 +36,18 @@ static TSharedPtr<FJsonValue> NexusAnimationValue(const FMovieSceneDoubleValue& 
 static TSharedPtr<FJsonValue> NexusAnimationValue(int32 Value) { return MakeShared<FJsonValueNumber>(Value); }
 static TSharedPtr<FJsonValue> NexusAnimationValue(bool Value) { return MakeShared<FJsonValueBoolean>(Value); }
 static TSharedPtr<FJsonValue> NexusAnimationValue(const FString& Value) { return MakeShared<FJsonValueString>(Value); }
+static TSharedPtr<FJsonValue> NexusAnimationValue(float Value) { return MakeShared<FJsonValueNumber>(Value); }
+static TSharedPtr<FJsonValue> NexusAnimationValue(double Value) { return MakeShared<FJsonValueNumber>(Value); }
 
 template<typename TChannel>
 static bool NexusAnimationReadChannel(TChannel* Channel, UMovieScene* Scene, const FString& Tool, TSharedPtr<FJsonObject>& Result)
 {
     if (!Channel) return false;
     TArray<TSharedPtr<FJsonValue>> Keys; auto Data = Channel->GetData();
-    if (Tool == TEXT("get_keys")) {
+    if (Tool == TEXT("get_default_value")) {
+        const auto Default = Channel->GetDefault();
+        Result->SetField(TEXT("Value"), Default.IsSet() ? NexusAnimationValue(Default.GetValue()) : MakeShared<FJsonValueNull>());
+    } else if (Tool == TEXT("get_keys")) {
         const auto Times = Data.GetTimes(); const auto Values = Data.GetValues();
         for (int32 Index = 0; Index < Times.Num(); ++Index) {
             auto Key = MakeShared<FJsonObject>();
@@ -52,7 +59,7 @@ static bool NexusAnimationReadChannel(TChannel* Channel, UMovieScene* Scene, con
     return true;
 }
 
-bool FNexusLegacyToolsets::Animation(const FString& Domain, const FString& Tool, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Result, FString& Error)
+bool FNexusEditorDomainTools::Animation(const FString& Domain, const FString& Tool, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Result, FString& Error)
 {
     if (FNexusAnimationAdvancedTools::Handles(Domain,Tool)) return FNexusAnimationAdvancedTools::Call(Domain,Tool,Args,Result,Error);
     const FNexusArgs A(Args);
@@ -70,13 +77,16 @@ bool FNexusLegacyToolsets::Animation(const FString& Domain, const FString& Tool,
         UMovieSceneTrack* Added=Scene->AddTrack(Class);
 #endif
         if (!Added) { Error=TEXT("Sequence rejected track class"); return false; }
-        Scene->MarkPackageDirty(); Result=FNexusNativeEditorTools::Reference(Added->GetPathName()); return true;
+        Scene->MarkPackageDirty(); Result=FNexusEditorDomainTools::Reference(Added->GetPathName()); return true;
     }
     if (Tool == TEXT("get_bindings") && Scene) {
         TArray<TSharedPtr<FJsonValue>> Bindings;
         for (const auto& Binding : static_cast<const UMovieScene*>(Scene)->GetBindings()) {
-            auto Item = MakeShared<FJsonObject>(); Item->SetStringField(TEXT("Id"), Binding.GetObjectGuid().ToString(EGuidFormats::DigitsWithHyphens)); const auto* Possessable=Scene->FindPossessable(Binding.GetObjectGuid()); const auto* Spawnable=Scene->FindSpawnable(Binding.GetObjectGuid()); Item->SetStringField(TEXT("Name"),Possessable?Possessable->GetName():Spawnable?Spawnable->GetName():Binding.GetObjectGuid().ToString());
-            TArray<TSharedPtr<FJsonValue>> Tracks; for (UMovieSceneTrack* BindingTrack : Binding.GetTracks()) if (BindingTrack) Tracks.Add(MakeShared<FJsonValueObject>(FNexusNativeEditorTools::Reference(BindingTrack->GetPathName())));
+            auto Item = MakeShared<FJsonObject>(); Item->SetStringField(TEXT("Id"), Binding.GetObjectGuid().ToString(EGuidFormats::DigitsWithHyphens));
+            Item->SetStringField(TEXT("BindingId"), Binding.GetObjectGuid().ToString(EGuidFormats::DigitsWithHyphens));
+            if (Sequence) Item->SetObjectField(TEXT("Sequence"), Reference(Sequence->GetPathName()));
+            const auto* Possessable=Scene->FindPossessable(Binding.GetObjectGuid()); const auto* Spawnable=Scene->FindSpawnable(Binding.GetObjectGuid()); Item->SetStringField(TEXT("Name"),Possessable?Possessable->GetName():Spawnable?Spawnable->GetName():Binding.GetObjectGuid().ToString());
+            TArray<TSharedPtr<FJsonValue>> Tracks; for (UMovieSceneTrack* BindingTrack : Binding.GetTracks()) if (BindingTrack) Tracks.Add(MakeShared<FJsonValueObject>(FNexusEditorDomainTools::Reference(BindingTrack->GetPathName())));
             Item->SetArrayField(TEXT("Tracks"), Tracks); Bindings.Add(MakeShared<FJsonValueObject>(Item));
         }
         Result->SetArrayField(TEXT("Items"), Bindings); return true;
@@ -88,16 +98,16 @@ bool FNexusLegacyToolsets::Animation(const FString& Domain, const FString& Tool,
 #else
         for (auto* Item : Scene->GetTracks())
 #endif
-            if (Item) Tracks.Add(MakeShared<FJsonValueObject>(FNexusNativeEditorTools::Reference(Item->GetPathName())));
+            if (Item) Tracks.Add(MakeShared<FJsonValueObject>(FNexusEditorDomainTools::Reference(Item->GetPathName())));
         Result->SetArrayField(TEXT("Items"), Tracks); return true;
     }
     if (Tool == TEXT("get_sections") && Track) {
-        TArray<TSharedPtr<FJsonValue>> Sections; for (auto* Item : Track->GetAllSections()) if (Item) Sections.Add(MakeShared<FJsonValueObject>(FNexusNativeEditorTools::Reference(Item->GetPathName())));
+        TArray<TSharedPtr<FJsonValue>> Sections; for (auto* Item : Track->GetAllSections()) if (Item) Sections.Add(MakeShared<FJsonValueObject>(FNexusEditorDomainTools::Reference(Item->GetPathName())));
         Result->SetArrayField(TEXT("Items"), Sections); return true;
     }
     if (Tool == TEXT("add_section") && Track) {
         UMovieSceneSection* Added = Track->CreateNewSection(); if (!Added) { Error = TEXT("Track cannot create sections"); return false; }
-        Track->Modify(); Added->SetFlags(RF_Transactional); Track->AddSection(*Added); Track->MarkPackageDirty(); Result = FNexusNativeEditorTools::Reference(Added->GetPathName()); return true;
+        Track->Modify(); Added->SetFlags(RF_Transactional); Track->AddSection(*Added); Track->MarkPackageDirty(); Result = FNexusEditorDomainTools::Reference(Added->GetPathName()); return true;
     }
     if (Tool == TEXT("remove_section") && Track && Section) {
         if (!Track->GetAllSections().Contains(Section)) { Error = TEXT("Section does not belong to track"); return false; }
@@ -122,6 +132,33 @@ bool FNexusLegacyToolsets::Animation(const FString& Domain, const FString& Tool,
         else { Section->Easing.bManualEaseOut = true; Section->Easing.ManualEaseOutDuration = ToTicks(static_cast<int32>(Duration)).Value; }
         Section->MarkPackageDirty(); return true;
     }
+    if (Tool == TEXT("set_section_blend_type")) {
+        const FString Blend = A.Str(TEXT("blend_type")).ToLower();
+        EMovieSceneBlendType Value;
+        if (Blend == TEXT("absolute")) Value = EMovieSceneBlendType::Absolute;
+        else if (Blend == TEXT("additive")) Value = EMovieSceneBlendType::Additive;
+        else if (Blend == TEXT("relative")) Value = EMovieSceneBlendType::Relative;
+        else if (Blend == TEXT("override")) Value = EMovieSceneBlendType::Override;
+        else { Error = TEXT("Blend type must be Absolute, Additive, Relative or Override"); return false; }
+        if (!Section->GetSupportedBlendTypes().Contains(Value)) { Error = TEXT("Section does not support this blend type"); return false; }
+        Section->Modify(); Section->SetBlendType(Value); Section->MarkPackageDirty(); return true;
+    }
+    if (Tool == TEXT("set_section_completion_mode")) {
+        FString Mode = A.Str(TEXT("completion_mode")).ToLower(); Mode.ReplaceInline(TEXT("_"),TEXT(""));
+        EMovieSceneCompletionMode Value;
+        if (Mode == TEXT("keepstate")) Value = EMovieSceneCompletionMode::KeepState;
+        else if (Mode == TEXT("restorestate")) Value = EMovieSceneCompletionMode::RestoreState;
+        else if (Mode == TEXT("projectdefault")) Value = EMovieSceneCompletionMode::ProjectDefault;
+        else { Error = TEXT("Completion mode must be KeepState, RestoreState or ProjectDefault"); return false; }
+        Section->Modify(); Section->SetCompletionMode(Value); Section->MarkPackageDirty(); return true;
+    }
+    if (Tool == TEXT("set_section_animation")) {
+        auto Ref = MakeShared<FJsonObject>(); Ref->SetStringField(TEXT("animation"), A.Str(TEXT("anim_sequence_path")));
+        UAnimSequenceBase* Animation = Cast<UAnimSequenceBase>(Resolve(Ref, TEXT("animation")));
+        auto* AnimationSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
+        if (!Animation || !AnimationSection) { Error = TEXT("Animation assignment requires an AnimSequence and a skeletal animation section"); return false; }
+        AnimationSection->Modify(); AnimationSection->Params.Animation = Animation; AnimationSection->MarkPackageDirty(); return true;
+    }
     if (Tool == TEXT("get_channel_names")) {
         TArray<TSharedPtr<FJsonValue>> Names;
         for (const auto& Entry : Section->GetChannelProxy().GetAllEntries()) for (const auto& Metadata : Entry.GetMetaData()) Names.Add(MakeShared<FJsonValueString>(Metadata.Name.ToString()));
@@ -133,11 +170,47 @@ bool FNexusLegacyToolsets::Animation(const FString& Domain, const FString& Tool,
 #if NX_UE_HAS_MOVIE_SCENE_DOUBLE_CHANNEL
     auto* Double = NexusAnimationChannel<FMovieSceneDoubleChannel>(Section, Name);
 #endif
-    if (Tool == TEXT("get_keys")) {
+    if (Tool == TEXT("get_keys") || Tool == TEXT("get_default_value")) {
         if (NexusAnimationReadChannel(Float, Scene, Tool, Result) || NexusAnimationReadChannel(Bool, Scene, Tool, Result) || NexusAnimationReadChannel(Integer, Scene, Tool, Result) || NexusAnimationReadChannel(String, Scene, Tool, Result)) return true;
 #if NX_UE_HAS_MOVIE_SCENE_DOUBLE_CHANNEL
         if (NexusAnimationReadChannel(Double, Scene, Tool, Result)) return true;
 #endif
+    }
+    if (Tool == TEXT("set_default_value")) {
+        const TSharedPtr<FJsonValue>* Value = Args->Values.Find(TEXT("value"));
+        if (!Value || !Value->IsValid()) { Error = TEXT("Channel default requires value"); return false; }
+        if (Float && (*Value)->Type == EJson::Number && FMath::IsFinite((*Value)->AsNumber())) { Section->Modify(); Float->SetDefault(static_cast<float>((*Value)->AsNumber())); }
+#if NX_UE_HAS_MOVIE_SCENE_DOUBLE_CHANNEL
+        else if (Double && (*Value)->Type == EJson::Number && FMath::IsFinite((*Value)->AsNumber())) { Section->Modify(); Double->SetDefault((*Value)->AsNumber()); }
+#endif
+        else if (Bool && (*Value)->Type == EJson::Boolean) { Section->Modify(); Bool->SetDefault((*Value)->AsBool()); }
+        else if (Integer && (*Value)->Type == EJson::Number && (*Value)->AsNumber() >= MIN_int32 && (*Value)->AsNumber() <= MAX_int32 && FMath::FloorToDouble((*Value)->AsNumber()) == (*Value)->AsNumber()) { Section->Modify(); Integer->SetDefault(static_cast<int32>((*Value)->AsNumber())); }
+        else if (String && (*Value)->Type == EJson::String) { Section->Modify(); String->SetDefault((*Value)->AsString()); }
+        else { Error = TEXT("Channel default has the wrong type or channel was not found"); return false; }
+        Section->MarkPackageDirty(); return true;
+    }
+    if (Tool == TEXT("bake_channel_keys")) {
+        const double Start = A.Num(TEXT("start_frame")), End = A.Num(TEXT("end_frame"));
+        if (!Args->HasTypedField<EJson::Number>(TEXT("start_frame")) || !Args->HasTypedField<EJson::Number>(TEXT("end_frame")) || !FMath::IsFinite(Start) || !FMath::IsFinite(End) || Start < MIN_int32 || End > MAX_int32 || End <= Start || End - Start > 4096 || FMath::FloorToDouble(Start) != Start || FMath::FloorToDouble(End) != End) { Error = TEXT("Channel sampling requires an ordered int32 range of at most 4096 display frames"); return false; }
+        if (!Float && !Bool && !Integer && !String
+#if NX_UE_HAS_MOVIE_SCENE_DOUBLE_CHANNEL
+            && !Double
+#endif
+        ) { Error = TEXT("Named channel was not found"); return false; }
+        TArray<TSharedPtr<FJsonValue>> Values;
+        for (int32 Frame = static_cast<int32>(Start); Frame < static_cast<int32>(End); ++Frame) {
+            const FFrameTime Time(ToTicks(Frame));
+            float FloatValue = 0; bool BoolValue = false; int32 IntegerValue = 0; const FString* StringValue = nullptr;
+            if (Float && Float->Evaluate(Time, FloatValue)) Values.Add(NexusAnimationValue(FloatValue));
+#if NX_UE_HAS_MOVIE_SCENE_DOUBLE_CHANNEL
+            else if (Double) { double DoubleValue = 0; Values.Add(Double->Evaluate(Time, DoubleValue) ? NexusAnimationValue(DoubleValue) : MakeShared<FJsonValueNull>()); }
+#endif
+            else if (Bool && Bool->Evaluate(Time, BoolValue)) Values.Add(NexusAnimationValue(BoolValue));
+            else if (Integer && Integer->Evaluate(Time, IntegerValue)) Values.Add(NexusAnimationValue(IntegerValue));
+            else if (String && (StringValue = String->Evaluate(Time)) != nullptr) Values.Add(NexusAnimationValue(*StringValue));
+            else Values.Add(MakeShared<FJsonValueNull>());
+        }
+        Result->SetArrayField(TEXT("Items"), Values); return true;
     }
     const double Frame = A.Num(TEXT("frame"));
     if (!Args->HasTypedField<EJson::Number>(TEXT("frame")) || !FMath::IsFinite(Frame) || Frame < MIN_int32 || Frame > MAX_int32 || FMath::FloorToDouble(Frame)!=Frame) { Error = TEXT("Key requires an int32 display frame"); return false; }

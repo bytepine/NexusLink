@@ -4,6 +4,8 @@
 
 > 新增或修改 Capability 时，必须全部遵循本规范。注册期有自动校验兜底，但提交前请先过自检清单。
 
+**独立实现约束**：NexusLink 自身不得直接链接或调用官方 Toolset / ToolsetCore / ToolsetRegistry 模块，不得导入其 Python 包或通过官方注册表执行功能。直接使用引擎及领域插件 API，并由本插件维护动作路由、参数契约和版本门控。引擎标准模块及领域插件可能保留其自身的传递依赖，详见[独立后端的依赖边界](../docs/toolset-backends.md)。`scripts/tests/test_no_toolset_dependencies.py` 检查本插件的直接依赖和调用边界。
+
 ---
 
 ## 1. 描述格式（四段式）

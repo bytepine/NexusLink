@@ -4,7 +4,7 @@
 
 ## 动作级发现
 
-`GetProjectToolsets(Sections=["Actions"], Capability="ControlEditorAnimation", Action="AddFloatKey")` 返回 bSupported、Backend、MinimumVersion、Prerequisites、Reason 与 InputSchema。支持 Animation、Niagara、PCG 六个编辑器读写入口；省略筛选可分页列举。旧版不依赖原生 Registry，原生后端遵守 Registry 禁用与过滤，不自动启用插件。
+`GetProjectToolsets(Sections=["Actions"], Capability="ControlEditorAnimation", Action="AddFloatKey")` 返回 bSupported、Backend、MinimumVersion、Prerequisites、Reason 与 InputSchema。支持 Animation、Niagara、PCG 六个编辑器读写入口；省略筛选可分页列举。所有版本均使用独立实现；发现结果基于当前引擎 API 和领域插件，不读取官方 Registry，也不自动启用插件。
 
 透传入口的 Schema 描述 Parameters 内部参数；扁平入口返回完整客户端输入契约。路径来自实际发现。接口可用仍需满足目标对象、属性类型等约束，不能据此推断所有原生参数类型在兼容层可用。
 
@@ -39,7 +39,7 @@ ControlPie Start 新增 NetMode=Standalone|ListenServer|Client、NumberOfClients
 
 兼容后端的 ControlEditorPCG 支持 Spawn 与异步 Execute。通过所属 GetEditorOperation 等待，拒绝对正在生成的组件重复启动，支持取消及 120 秒超时。生成结束不等于业务成功，检查日志与输出数据。
 
-GetEditorPCG NodeData 支持单执行栈的点数据（Transform、Density、Seed），Offset/Limit 分页最多 1000 项。Execute 自动启用检查，无数据时重新执行。非点数据、多循环栈、任意 Metadata 属性返回明确错误。深层 Niagara 动态输入和 Rig 烘焙仍按现有原生支持范围。
+GetEditorPCG NodeData 支持单执行栈的点数据（Transform、Density、Seed），Offset/Limit 分页最多 1000 项。Execute 自动启用检查，无数据时重新执行。非点数据、多循环栈、任意 Metadata 属性返回明确错误。深层 Niagara 动态输入和 Rig 烘焙按当前引擎公开 API 及动作发现结果裁剪。
 
 ## 骨骼姿态采样
 

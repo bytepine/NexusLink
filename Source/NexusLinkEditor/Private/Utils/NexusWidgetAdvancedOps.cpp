@@ -2,7 +2,6 @@
 #include "Utils/NexusWidgetAdvancedOps.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusAssetUtils.h"
-#include "Utils/NexusEditorToolsets.h"
 #include "Utils/NexusVersionCompat.h"
 #include "WidgetBlueprint.h"
 #include "Blueprint/WidgetTree.h"
@@ -51,7 +50,7 @@ static bool NexusMoveLegacyUIComponent(UUIComponentWidgetBlueprintExtension* Ext
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusLegacyUIComponentMoveTest, "NexusLink.Toolsets.Compatibility.UIComponentMove", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusLegacyUIComponentMoveTest, "NexusLink.Independent.UIComponentMove", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FNexusLegacyUIComponentMoveTest::RunTest(const FString&)
 {
     // 用真实生成类提供两个具体组件类型，不修改原生抽象类标志。
@@ -96,23 +95,18 @@ bool FNexusWidgetAdvancedOps::Apply(UWidgetBlueprint* Blueprint, const FString& 
     const FNexusArgs Arguments(Args);
     UWidget* Widget=Blueprint && Blueprint->WidgetTree?Blueprint->WidgetTree->FindWidget(FName(*Arguments.Str(TEXT("WidgetName")))):nullptr;
     if (!Widget) { Error=TEXT("WidgetName must identify a widget in this blueprint"); return false; }
-    auto Input=MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("WidgetBlueprint"),FNexusNativeEditorTools::Reference(Blueprint->GetPathName()));
-    Input->SetObjectField(TEXT("Widget"),FNexusNativeEditorTools::Reference(Widget->GetPathName())); FString Tool;
     UClass* ComponentClass=nullptr; UClass* RelativeClass=nullptr;
     FMulticastDelegateProperty* Delegate=nullptr; FObjectProperty* Variable=nullptr;
     const FName OldName=Widget->GetFName(),NewName(*Arguments.Str(TEXT("NewWidgetName")));
     if (Action==TEXT("Rename")) {
         FText NameError; FKismetNameValidator Validator(Blueprint,OldName);
         if (NewName.IsNone() || !NewName.IsValidObjectName(NameError) || (NewName!=OldName && (Blueprint->WidgetTree->FindWidget(NewName) || Validator.IsValid(NewName)!=EValidatorResult::Ok))) { Error=TEXT("NewWidgetName must be a unique valid Blueprint member name"); return false; }
-        Tool=TEXT("RenameWidget"); Input->SetStringField(TEXT("NewDisplayName"),NewName.ToString());
     } else if (Action==TEXT("SetVariable")) {
         if (!Args->HasTypedField<EJson::Boolean>(TEXT("bIsVariable"))) { Error=TEXT("SetVariable requires bIsVariable"); return false; }
-        Tool=TEXT("ToggleWidgetAsVariable"); Input->SetBoolField(TEXT("bIsVariable"),Arguments.Bool(TEXT("bIsVariable")));
     } else if (Action==TEXT("BindEvent")) {
         Delegate=FindFProperty<FMulticastDelegateProperty>(Widget->GetClass(),*Arguments.Str(TEXT("EventName")));
         Variable=Blueprint->SkeletonGeneratedClass?FindFProperty<FObjectProperty>(Blueprint->SkeletonGeneratedClass,OldName):nullptr;
         if (!Delegate || !Delegate->HasAnyPropertyFlags(CPF_BlueprintAssignable) || !Widget->bIsVariable || !Variable || Blueprint->UbergraphPages.Num()==0) { Error=TEXT("BindEvent requires an exposed widget variable, assignable event and EventGraph; compile SetVariable first"); return false; }
-        Tool=TEXT("BindToEventProperty"); Input->SetStringField(TEXT("EventName"),Delegate->GetName()); Input->SetStringField(TEXT("PropertyName"),OldName.ToString()); Input->SetObjectField(TEXT("PropertyClass"),FNexusNativeEditorTools::Reference(Widget->GetClass()->GetPathName()));
     } else {
 #if NX_UE_HAS_UI_COMPONENTS
         ComponentClass=FNexusAssetUtils::FindClassWithUPrefix(Arguments.Str(TEXT("ComponentClass")));
@@ -120,17 +114,14 @@ bool FNexusWidgetAdvancedOps::Apply(UWidgetBlueprint* Blueprint, const FString& 
         auto* Extension=UWidgetBlueprintExtension::GetExtension<UUIComponentWidgetBlueprintExtension>(Blueprint);
         UUIComponent* Existing=Extension?Extension->GetComponent(ComponentClass,OldName):nullptr;
         if ((Action==TEXT("AddUIComponent") && Existing) || (Action!=TEXT("AddUIComponent") && !Existing)) { Error=TEXT("Component already exists or cannot be found on this widget"); return false; }
-        Tool=Action; Input->SetStringField(TEXT("WidgetName"),OldName.ToString()); Input->SetObjectField(Action==TEXT("MoveUIComponent")?TEXT("ComponentClassToMove"):TEXT("ComponentClass"),FNexusNativeEditorTools::Reference(ComponentClass->GetPathName()));
         if (Action==TEXT("MoveUIComponent")) {
             RelativeClass=FNexusAssetUtils::FindClassWithUPrefix(Arguments.Str(TEXT("RelativeComponentClass")));
             if (!RelativeClass || RelativeClass==ComponentClass || !Extension->GetComponent(RelativeClass,OldName)) { Error=TEXT("RelativeComponentClass must identify a different component on the same widget"); return false; }
-            Input->SetObjectField(TEXT("RelativeToComponentClass"),FNexusNativeEditorTools::Reference(RelativeClass->GetPathName())); Input->SetBoolField(TEXT("bMoveAfter"),Arguments.Bool(TEXT("bMoveAfter"),true));
         }
 #else
         Error=TEXT("UIComponent editing requires UE 5.6 or newer"); return false;
 #endif
     }
-    if (FNexusNativeEditorTools::EditSync(TEXT("UMGToolSet"),Tool,Input,Entry)) return !Entry->HasField(TEXT("Error"));
     Blueprint->Modify(); Widget->Modify();
     if (Action==TEXT("Rename")) {
         if (NewName==OldName) return true;
@@ -178,5 +169,5 @@ bool FNexusWidgetAdvancedOps::Apply(UWidgetBlueprint* Blueprint, const FString& 
         }
     }
 #endif
-    FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint); Entry->SetStringField(TEXT("Backend"),TEXT("EngineCompatibility")); return true;
+    FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint); Entry->SetStringField(TEXT("Backend"),TEXT("Independent")); return true;
 }

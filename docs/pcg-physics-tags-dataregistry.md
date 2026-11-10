@@ -4,7 +4,7 @@
 
 ## PCG 参数闭环（UE 5.8+）
 
-启用宿主的 PCGToolset 并重新编译后，`GetEditorPCG` / `ControlEditorPCG` 沿用官方 Registry 的启用及过滤规则，结果位于 `Result.OfficialResult`。启动一次后按 OperationId 查询 GetEditorOperation；Completed 是调用结束，还需检查 bApplied、Error 等业务字段。写入不提供事务回滚，避免在断连后自动重放。
+启用宿主的 PCG 领域插件并重新编译后，`GetEditorPCG` / `ControlEditorPCG` 直接调用 PCG 引擎 API，不通过 PCGToolset 或官方 Registry 派发；UE 5.9 的 PCG 引擎插件内部仍需 Registry，见[传递依赖边界](toolset-backends.md)。Backend 为 Independent；结果容器以输出 Schema 为准。启动一次后按 OperationId 查询 GetEditorOperation；Completed 是调用结束，还需检查 bApplied、Error 等业务字段。写入不提供事务回滚，避免在断连后自动重放。
 
 先通过资产搜索与 GetAssetPCGGraph / GraphStructure 取得 object path 和节点 refPath，再调用：
 
@@ -14,7 +14,7 @@
 - `SetInstanceParameters`：ActorPath、非空 Parameters；`ResetInstanceParameters`：ActorPath、ParameterNames。使用 `GetEditorPCG(Action=InstanceParameters)` 读回，Execute 后再读取 NodeData 验证生成结果。
 - `GetEditorPCG(Action=AvailableSubgraphs)` 发现子图；`ControlEditorPCG(Action=AddSubgraph)` 指定 AssetPath、SubgraphPath、唯一 NodeName，可选 Parameters / NodeTitle。拒绝自身、递归子图和已有节点名。
 
-Spawn 也接受可选 Parameters 作为新实例初值。图资产写后显式 SaveAsset；实例变化属于编辑器关卡状态，按项目流程保存关卡。UE 5.4–5.7 保留基础 ManageAssetPCGGraph 节点/连线操作，新增官方参数命令只在 5.8 对应插件可用时注册。
+Spawn 也接受可选 Parameters 作为新实例初值。图资产写后显式 SaveAsset；实例变化属于编辑器关卡状态，按项目流程保存关卡。UE 5.4–5.7 保留基础 ManageAssetPCGGraph 节点/连线操作，具体参数类型和动作由当前引擎 API 支持范围决定，可用性及输入通过 GetProjectToolsets 的 Actions 查询。
 
 ## PhysicsAsset 精细编辑
 

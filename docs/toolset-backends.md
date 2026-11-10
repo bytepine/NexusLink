@@ -1,35 +1,35 @@
-# 既有接口的官方 Toolset 后端
+# 独立引擎后端与版本适配
 
-Capability 名称、输入参数与返回结构保持原有契约。UE 5.8+ 宿主明确启用对应官方插件并重新编译后，以下等价操作通过 Registry 执行；旧版本或宿主未选择该官方后端时，继续使用原有引擎 API。最低支持版本仍由各 Capability 自身决定。
+[文档导航](README.md) · [编辑器能力范围](editor-compatibility.md)
 
-## 当前接入
+NexusLink 自行实现编辑器操作、动作发现和参数转换，直接调用 Unreal Engine 及相应领域插件的 API。本插件不直接链接或调用官方 Toolset 插件、ToolsetCore 或 ToolsetRegistry，也不加载官方 Python toolset 包。启用或禁用官方 Toolset 插件不会改变 NexusLink 的执行路径，也不需要启动官方 MCP 服务。
 
-- `GetProjectSettings` 的 Containers / Categories / Sections 使用 `ConfigSettingsToolset`；仍保留原有显示名、过滤和分页。Properties / Values 维持现有属性类型及文本值格式。
-- `GetProjectPlugins` 的 Plugins 列表使用 `PluginToolset`，再补齐既有元数据、名称过滤和分页；其余分段保留现有格式实现。
-- `GetProjectDataRegistry` 的 Items / Values 使用 `DataRegistryToolset`；缓存值继续转为原有行格式，未缓存条目仍逐项返回 `bCached=false`，不会 Acquire。
-- `ManageGameplayTags` 的 Add / Rename / Remove 使用 `GameplayTagsToolset`；保留 INI 来源校验、子标签/资产引用保护、写入后读回及即时落盘标记。新 INI 来源仍由引擎编辑器 API 创建，并先检查原生写入权限。
-- `ManageAssetPhysicsAsset` 的 AddBody / RemoveBody / SetMassScale 使用 `PhysicsToolsets`；保留骨骼、重复 Body、质量范围验证及原有返回字段。
-- `ManageAssetPCGGraph` 的 RemoveNode / AddEdge / RemoveEdge 使用 `PCGToolset`；保留内置节点保护、Pin 校验、默认 Pin 选择和删除边的幂等行为。
-- `ManageAssetLevelSequence.SetDisplayRate` 的有效正数帧率使用官方动画 Sequencer 工具。PlaybackRange 使用现有 tick resolution 帧单位，保持原实现。
-- `ManageAssetControlRig.SetPinDefault` 使用官方 ControlRig 工具，保留空值与 Pin 定位保护。
-- `ManageAssetNiagaraSystem.RemoveEmitter` 使用 `NiagaraToolsets`，并保持原有删除结果与保存提示。
-- `ManageAssetViewModel.RemoveBinding` 使用 `MVVMToolset`；BindingIndex / BindingId 预检仍在现有入口完成。
-- `ManageAssetStaticMesh.SetMaterialSlot` 对唯一具名材质槽使用 `EditorToolset`。重名/无名槽和无法等价映射的情况保留索引实现；`ManageAssetMaterial.Recompile` 使用官方 Material 工具。
+UE 5.9 的标准编辑器模块（如 UMGEditor）在引擎内部依赖 ToolsetCore；标准 PCG 插件在 Editor 目标启用 ToolsetRegistry，PCGEditor 模块也依赖 ToolsetCore、ToolsetRegistry 和 ToolsetRegistryEditor。因此保留标准 PCG 领域功能时，UE 5.9 编辑器宿主须保留引擎要求的 Registry 依赖，可分离的官方 Toolset 插件仍可关闭。这些传递依赖无法由 NexusLink 从插件侧移除；上述独立实现约束指 NexusLink 自身的直接依赖和调用，不表示物理传递依赖为零。
 
-实际使用官方分支的查询分段或写操作返回 `Backend=OfficialToolset`。仅部分操作可等价映射，不能把该字段理解为整个 Capability 的所有操作都改用了 Toolset。
+## 领域插件与自有实现
 
-## 调用与权限
+领域插件提供实际的数据类型及引擎功能，仍须按需启用并重新编译。例如 Niagara、PCG、ControlRig、GameFeatures、DataRegistry、ModelViewViewModel 和 SemanticSearch。可选领域插件不等于官方 Toolset 依赖。
 
-同步桥接只允许固定的、已批准同步执行的方法。它通过 Registry 检查 Toolset 与工具的启用及过滤规则，捕获原生脚本错误；不等待、不泵送游戏线程，不改变为 `OperationId` 返回。长操作继续使用既有 `GetEditorOperation` 模式。
+- 设置和插件发现直接读取 ISettingsModule / IPluginManager；持久化使用对应引擎编辑器 API。
+- GameplayTags、PhysicsAsset、PCG、Niagara、材质、网格、MVVM、UMG、Sequencer 和 Control Rig 操作使用各自的引擎 API，并保留 NexusLink 的参数校验、版本限制、编译及保存流程。
+- Slate 使用自有会话 Ref 缓存与可见控件树；Automation 使用本地 AutomationController；Live Coding 使用非等待底层入口。
+- `GetProjectToolsets` 保留历史名称与分段参数，但现查询 NexusLink 自有 Capability 分组及动作 Schema，不读取外部 Toolset 注册表。
+- `GetProjectSkills` 扫描项目、启用插件及引擎 AgentTools 目录下的 SKILL.md；Details 只读 List 返回的精确文件路径。
+- `SearchAssetsSemantic` 直接使用 SemanticSearch 领域插件的索引和 Embedding Provider，保留真正的混合向量/BM25 与相似资产检索；模型或索引缺失时明确报错。
 
-官方后端的缺失方法、禁用、过滤或执行错误直接返回失败，不自动执行兼容写入。后端选择与原生方法是否被过滤分开判断，避免绕过原生权限；对于本来不能等价映射的子操作，明确保留既有后端。
+## 返回值与长操作
 
-插件无需被自动启用。桥接编译门控识别已支持领域的显式启用项，也支持显式启用 `ToolsetRegistry` 或 `AllToolsets`。读取注册列表和 Schema 仍可使用 `GetProjectToolsets`。
+编辑器操作报告 `Backend=Independent`。通过 `OperationId` 查询 `GetEditorOperation`；`Completed` 只表示执行结束，仍须检查测试、编译和领域数据中的业务结果。
 
-## 保留的兼容语义
+既有 `Result.CompatibilityResult` / `Result.OfficialResult` 键可作为兼容的数据容器保留，名字不再表示执行后端。UI、编译等接口也可直接在 `Result` 中返回结构化数据，以各能力的输出 Schema 为准。
 
-参数/UMG、网格生成、场景整理与蓝图图编辑的新增路由和低版本动作范围见[编辑器兼容扩展](editor-compatibility.md)。UMG 的 FWidgetBlueprintOperationUtils 仅用于具备该 API 的 UE 5.8；更低版本通过 WidgetTree 实现受限结构编辑。
+保存、权限、事务和批次边界沿用各 Capability 的约定；断连或等待取消不能触发自动重放写入。版本适配根据底层引擎实际 API 裁剪，不把不存在的类型或功能伪造成可用操作。
 
-PhysicsAsset 的形状按类型和索引定位，官方形状编辑使用名称并可能改变数组顺序；创建资产的指定目标路径也不同。因此这些操作继续使用既有实现。MVVM 的自定义 ViewModel 名称、创建策略、绑定方向及双向转换保持现有实现。UMG 结构操作已经复用与官方 Toolset 相同的 `FWidgetBlueprintOperationUtils`。
+## 从官方 Toolset 后端迁移
 
-Game Features 的完成回调、Live Coding 的非阻塞编译、运行时 Game/DS 与 UnLua 等能力保持各自后端。写入后的保存、事务及批次边界仍遵循原 Capability，原生 Toolset 的存在不额外提供回滚保证。
+1. 保留实际使用的领域插件及引擎要求的依赖后重新编译 NexusLink；UE 5.9 标准 PCG 须保留 Registry。NexusLink 自身无需额外启用可分离的官方 Toolset 插件或官方 MCP 服务。
+2. 使用 `GetProjectToolsets(Sections=["Actions"])` 获取动作级 InputSchema、版本要求及支持状态。`Toolsets/Tools/Schema` 现返回 NexusLink 自有分组和 Capability Schema；旧外部 Toolset 名称不再可查询。
+3. `GraphDSL` / `WriteGraphDSL` 现使用 `UnrealGraphText` 原生节点文本。先读取本工具返回的 Code；旧官方 S-expression 文档不能直接作为 Code 传入。结构化 `WriteGraphPlan` 保持其节点计划契约。
+4. 项目技能改用 SKILL.md 文件；先 List，再按返回的 SkillPath 读取，旧 AgentSkill 类路径不再是 Details 输入。
+
+具体调用范围见[编辑器工具](editor-toolsets.md)、[蓝图与场景操作](editor-compatibility.md)及[动画与领域动作](animation-niagara-gamefeatures-toolsets.md)。

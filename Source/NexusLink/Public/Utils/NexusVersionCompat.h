@@ -86,6 +86,8 @@
 #define NX_UE_HAS_SOUND_NODE_WAVE_ACCESSOR NX_UE_AT_LEAST(4, 27) // USoundNodeWavePlayer::SoundWave → GetSoundWave()
 #define NX_UE_HAS_NIAGARA_EMITTER_HANDLES_API NX_UE_AT_LEAST(5, 0) // UNiagaraSystem::GetNumEmitters/GetEmitterHandle → GetEmitterHandles()
 #define NX_UE_HAS_NIAGARA_EXPOSED_PARAMETERS NX_UE_AT_LEAST(5, 0) // UNiagaraSystem::GetExposedParameters() 用户参数 Store
+#define NX_UE_HAS_NIAGARA_EXTERNAL_EDIT NX_UE_AT_LEAST(5, 8) // NiagaraEditor 领域编辑 API
+#define NX_UE_HAS_PCG_DATA_VIEW_JSON NX_UE_AT_LEAST(5, 8) // PCG 数据视图 JSON 转换
 #define NX_UE_HAS_NIAGARA_REMOVE_EMITTER_BY_ID NX_UE_AT_LEAST(5, 0) // RemoveEmitterHandlesById
 #define NX_UE_HAS_NIAGARA_ADD_EMITTER_VERSION NX_UE_AT_LEAST(5, 1) // AddEmitterHandle 第三参 FGuid EmitterVersion
 #define NX_UE_HAS_NIAGARA_VERSIONED_EMITTER NX_UE_AT_LEAST(5, 1) // GraphSource/脚本属性迁入 FVersionedNiagaraEmitterData；SetSource→SetLatestSource
@@ -101,6 +103,7 @@
 #define NX_UE_HAS_TAG_SEARCHABLE_REFERENCERS NX_UE_AT_LEAST(5, 0) // AssetRegistry GetReferencers(SearchableName) 按 GameplayTag 查引用
 #define NX_UE_HAS_K2_PIN_REAL              NX_UE_AT_LEAST(5, 0) // UEdGraphSchema_K2::PC_Real（UE4 仅 PC_Float）
 #define NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS NX_UE_AT_LEAST(5, 8) // 无需打开设计器的 UMG 结构编辑公共 API
+#define NX_UE_HAS_WIDGET_BLUEPRINT_EDITOR_SUBSYSTEM NX_UE_AT_LEAST(5, 9) // UMG 结构操作迁移到编辑器子系统
 
 // ── SoundSubmix 版本兼容 ──
 // UE5.1 移除 OutputVolume/WetLevel/DryLevel 直接字段，改用 OutputVolumeModulation/WetLevelModulation/DryLevelModulation
@@ -279,3 +282,6 @@
 #define NX_UE_HAS_PCG_EXECUTION_STATE NX_UE_AT_LEAST(5, 6)
 #define NX_UE_HAS_PCG_SHARED_INSPECTION_DATA NX_UE_AT_LEAST(5, 8)
 #define NX_UE_HAS_PACKAGE_EXISTS_WITHOUT_GUID NX_UE_AT_LEAST(5, 0)
+#define NX_UE_HAS_RIG_CONTROL_SETTINGS_TOPOLOGY NX_UE_AT_LEAST(5, 9) // FRigControlElement::Settings 拆分为 Hierarchy 拓扑与元数据访问器。
+#define NX_UE_HAS_RIG_HIERARCHY_ELEMENT_VIEWS NX_UE_AT_LEAST(5, 9) // 存储顺序视图替代 GetBones/GetControls/GetNulls 的默认遍历。
+#define NX_UE_HAS_RIG_CONTROL_SHAPE_DATA NX_UE_AT_LEAST(5, 9) // 控件形状设置通过 Hierarchy 持有的可写引用修改。

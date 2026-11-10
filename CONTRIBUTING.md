@@ -1,12 +1,12 @@
 # 为 NexusLink 做贡献
 
-[版本后端复用](docs/toolset-backends.md)说明既有接口如何选择官方 Toolset 与兼容引擎后端。
+[独立引擎后端](docs/toolset-backends.md)说明直接调用引擎 API 的实现及版本适配。禁止 NexusLink 自身直接链接或调用官方 Toolset、ToolsetCore、ToolsetRegistry，或导入官方 Python toolset 包。引擎及领域插件可能保留其自身的传递依赖，边界见该说明。
 
-[动画与原生 Toolset 专题](docs/animation-niagara-gamefeatures-toolsets.md)覆盖 Sequencer / Control Rig、Niagara 深层写入、Game Features 和项目自定义 Toolset 发现。
+[动画与领域动作专题](docs/animation-niagara-gamefeatures-toolsets.md)覆盖 Sequencer / Control Rig、Niagara 深层写入、Game Features 和 NexusLink 自有动作发现。
 
 [文档导航](docs/README.md) · [项目首页](README.md)
 
-引擎本体及引擎自带插件（含 UE 官方 Toolset）的能力归属 `NexusLink` / `NexusLinkEditor`；只有第三方插件能力归属 `NexusLinkExt` / `NexusLinkExtEditor`。可选启用不等于第三方。
+引擎本体及引擎自带领域插件的能力归属 `NexusLink` / `NexusLinkEditor`；只有第三方插件能力归属 `NexusLinkExt` / `NexusLinkExtEditor`。可选启用不等于第三方。
 
 面向插件维护者与 Capability 作者。用户安装与四端接入见 [docs/usage-guide.md](docs/usage-guide.md)；架构见 [docs/architecture.md](docs/architecture.md)；代理会话层约定见 [docs/proxy-session.md](docs/proxy-session.md)。
 
@@ -14,7 +14,7 @@
 
 后续 UMG、材质、配置与 Sequencer 的接口范围见 [专题](docs/editor-remaining-toolsets.md)。
 
-扩展编辑器操作时，先检查 [原生与兼容接口范围](docs/editor-compatibility.md)。可等价的 UE 5.8 调用加入固定 Toolset 白名单，旧版通过引擎公开接口实现；原生执行失败不得重试兼容写入。兼容路径必须有读写回环和失败输入验证，声明版本下限及受限动作；结构化蓝图计划只连接本次创建的节点，以便失败时清理。
+扩展编辑器操作时，先检查 [独立接口范围](docs/editor-compatibility.md)，复用已有 NexusLink 实现或直接调用引擎公开 API，不路由到官方 Toolset。版本适配必须有读写回环和失败输入验证，声明版本下限及受限动作；结构化蓝图计划只连接本次创建的节点，以便失败时清理。
 
 **路径 A — 纯 Tool**（轻量、无 section，直接重写 `ExecuteImpl`）
 

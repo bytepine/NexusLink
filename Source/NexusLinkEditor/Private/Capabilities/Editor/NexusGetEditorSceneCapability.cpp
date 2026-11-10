@@ -6,7 +6,7 @@
 void FNexusGetEditorSceneCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
     Out.Name = TEXT("GetEditorScene"); Out.Description = TEXT("Inspect editor folders, selection, folder actors and visibility traces.");
-    Out.InputSchema = FNexusSceneTools::Schema(false); FNexusEditorToolSchema::ConfigureCompatible(Out, false, TEXT("editor_toolset.toolsets.scene.SceneTools"));
+    Out.InputSchema = FNexusSceneTools::Schema(false); FNexusEditorToolSchema::ConfigureIndependent(Out, false, TEXT("NexusScene"));
     Out.ExtraSearchKeywords = {TEXT("scene"),TEXT("folder"),TEXT("selection"),TEXT("trace")};
 }
 FCapabilityResult FNexusGetEditorSceneCapability::Execute(const TSharedPtr<FJsonObject>& Args) const { return FNexusSceneTools::Execute(false, Args); }

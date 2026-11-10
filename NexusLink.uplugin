@@ -127,6 +127,12 @@
 			"Optional": true
 		},
 		{
+            "Name": "SemanticSearch",
+            "Enabled": false,
+            "Optional": true,
+            "WhitelistTargets": [ "Editor" ]
+        },
+		{
 			"Name": "DataRegistry",
 			"Enabled": false,
 			"Optional": true

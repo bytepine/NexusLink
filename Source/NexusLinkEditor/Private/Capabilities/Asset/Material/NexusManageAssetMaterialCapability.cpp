@@ -1,4 +1,4 @@
-﻿// Copyright byteyang. All Rights Reserved.
+// Copyright byteyang. All Rights Reserved.
 
 #include "Capabilities/Asset/Material/NexusManageAssetMaterialCapability.h"
 #include "Capabilities/Asset/Material/NexusManageAssetMaterialGraph.h"
@@ -8,7 +8,6 @@
 #include "Utils/NexusCapabilityResultBuilder.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
-#include "Utils/NexusEditorToolsets.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusMaterialUtils.h"
 #include "Utils/NexusAssetUtils.h"
@@ -83,8 +82,6 @@ static void HandleMaterialRecompile(const TSharedPtr<FJsonObject>& Op, FNexusAct
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("recompile only for UMaterial; MaterialFunction need not recompile"));
 		return;
 	}
-    auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("material_or_function"), FNexusNativeEditorTools::Reference(Mat->GetPathName()));
-    if (FNexusNativeEditorTools::EditSync(TEXT("editor_toolset.toolsets.material.MaterialTools"), TEXT("recompile"), Input, Ctx.Entry)) return;
 	UMaterialEditingLibrary::RecompileMaterial(Mat);
 }
 
@@ -145,7 +142,6 @@ static void HandleMaterialOrganize(const TSharedPtr<FJsonObject>& Op, FNexusActi
 {
     UObject* Target=MaterialTargetFromContext(Context); UMaterial* Material=Cast<UMaterial>(Target); UMaterialFunction* Function=Cast<UMaterialFunction>(Target); const FNexusArgs Arguments(Op);
     if (!Material && !Function) { Context.Entry->SetStringField(TEXT("Error"),TEXT("Graph organization requires Material or MaterialFunction")); return; }
-    auto Input=MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("material_or_function"),FNexusNativeEditorTools::Reference(Target->GetPathName())); FString Tool;
     TArray<UMaterialExpression*> Expressions; if (Material) for (UMaterialExpression* Expression : FNexusMaterialUtils::GetExpressions(Material)) Expressions.Add(Expression); else for (UMaterialExpression* Expression : FNexusMaterialUtils::GetExpressions(Function)) Expressions.Add(Expression);
     const bool bGroup=Context.Action==TEXT("RenameParameterGroup") || Context.Action==TEXT("UngroupParameters"); TArray<UMaterialExpression*> GroupMembers;
     if (bGroup) {
@@ -153,12 +149,7 @@ static void HandleMaterialOrganize(const TSharedPtr<FJsonObject>& Op, FNexusActi
         if (!Op->HasTypedField<EJson::String>(TEXT("GroupName")) || (Context.Action==TEXT("RenameParameterGroup") && NewGroup.IsNone())) { Context.Entry->SetStringField(TEXT("Error"),TEXT("Explicit GroupName and a nonempty NewGroupName are required for rename")); return; }
         for (UMaterialExpression* Expression : Expressions) if (Expression) if (auto* Property=FindFProperty<FNameProperty>(Expression->GetClass(),TEXT("Group"))) if (Property->GetPropertyValue_InContainer(Expression)==Group) GroupMembers.Add(Expression);
         if (!GroupMembers.Num()) { Context.Entry->SetStringField(TEXT("Error"),TEXT("Parameter group not found")); return; }
-        if (Context.Action==TEXT("RenameParameterGroup")) { Tool=TEXT("rename_parameter_group"); Input->SetStringField(TEXT("old_name"),Group.ToString()); Input->SetStringField(TEXT("new_name"),NewGroup.ToString()); }
-        else { Tool=TEXT("delete_parameter_group"); Input->SetStringField(TEXT("group_name"),Group.ToString()); }
-    } else if (Context.Action==TEXT("Layout")) Tool=TEXT("layout_expressions");
-    else { Tool=TEXT("delete_unused_expressions"); Input->RemoveField(TEXT("material_or_function")); Input->SetObjectField(TEXT("material"),FNexusNativeEditorTools::Reference(Target->GetPathName())); }
-    // 原生清理仅支持 Material；函数图仍使用相同的兼容图遍历。
-    if ((Material || Context.Action!=TEXT("DeleteUnused")) && FNexusNativeEditorTools::EditSync(TEXT("editor_toolset.toolsets.material.MaterialTools"),Tool,Input,Context.Entry)) return;
+    }
     Target->Modify();
     if (Context.Action==TEXT("Layout")) { if (Material) UMaterialEditingLibrary::LayoutMaterialExpressions(Material); else UMaterialEditingLibrary::LayoutMaterialFunctionExpressions(Function); }
     else if (bGroup) {
@@ -169,11 +160,15 @@ static void HandleMaterialOrganize(const TSharedPtr<FJsonObject>& Op, FNexusActi
         TArray<UMaterialExpression*> Pending; TSet<UMaterialExpression*> Reachable;
         if (Material) for (int32 Property=0;Property<MP_MAX;++Property) { auto* InputPin=Material->GetExpressionInputForProperty(static_cast<EMaterialProperty>(Property)); if (InputPin && InputPin->Expression) Pending.Add(InputPin->Expression); }
         for (auto* Expression : Expressions) if (Expression && (Expression->IsA(UMaterialExpressionFunctionOutput::StaticClass()) || Expression->IsA(UMaterialExpressionCustomOutput::StaticClass()))) Pending.Add(Expression);
-        while (Pending.Num()) { UMaterialExpression* Expression=Pending.Pop(); if (!Expression || Reachable.Contains(Expression)) continue; Reachable.Add(Expression); for (int32 PinIndex=0;;++PinIndex) { auto* Pin=Expression->GetInput(PinIndex); if (!Pin) break; if (Pin->Expression) Pending.Add(Pin->Expression); } }
+        while (Pending.Num()) { UMaterialExpression* Expression=Pending.Pop(); if (!Expression || Reachable.Contains(Expression)) continue; Reachable.Add(Expression);
+            // Named Reroute 的声明通过对象属性连接，必须保留声明及其上游节点。
+            if (auto* Declaration=FindFProperty<FObjectPropertyBase>(Expression->GetClass(),TEXT("Declaration")))
+                if (auto* Dependency=Cast<UMaterialExpression>(Declaration->GetObjectPropertyValue_InContainer(Expression))) Pending.Add(Dependency);
+            for (int32 PinIndex=0;;++PinIndex) { auto* Pin=Expression->GetInput(PinIndex); if (!Pin) break; if (Pin->Expression) Pending.Add(Pin->Expression); } }
         int32 Removed=0; for (auto* Expression : Expressions) if (Expression && !Reachable.Contains(Expression)) { if (Material) UMaterialEditingLibrary::DeleteMaterialExpression(Material,Expression); else UMaterialEditingLibrary::DeleteMaterialExpressionInFunction(Function,Expression); ++Removed; }
         Context.Entry->SetNumberField(TEXT("RemovedCount"),Removed);
     }
-    Target->MarkPackageDirty(); Context.Entry->SetStringField(TEXT("Backend"),TEXT("EngineCompatibility"));
+    Target->MarkPackageDirty(); Context.Entry->SetStringField(TEXT("Backend"),TEXT("Independent"));
 }
 
 void FNexusManageAssetMaterialCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const

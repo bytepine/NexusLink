@@ -1,6 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
-#include "Utils/NexusLegacyToolsets.h"
-#include "Utils/NexusEditorToolsets.h"
+#include "Utils/NexusEditorDomainTools.h"
+#include "Utils/NexusEditorControlServices.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusPropertyUtils.h"
@@ -29,7 +29,7 @@ static bool NexusNiagaraExportProperties(UObject* Target, TSharedPtr<FJsonObject
 }
 #endif
 
-bool FNexusLegacyToolsets::Niagara(const FString& Tool, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Result, FString& Error)
+bool FNexusEditorDomainTools::Niagara(const FString& Tool, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Result, FString& Error)
 {
 #if WITH_NIAGARA
     const FNexusArgs A(Args);
@@ -78,11 +78,11 @@ bool FNexusLegacyToolsets::Niagara(const FString& Tool, const TSharedPtr<FJsonOb
             auto Item = MakeShared<FJsonObject>(); Item->SetStringField(TEXT("name"), Variable.GetName().ToString());
             UScriptStruct* Struct = Variable.GetType().GetScriptStruct();
             if (Struct) {
-                auto Type = MakeShared<FJsonObject>(); Type->SetObjectField(TEXT("classStructOrEnum"), FNexusNativeEditorTools::Reference(Struct->GetPathName())); Item->SetObjectField(TEXT("type"), Type);
+                auto Type = MakeShared<FJsonObject>(); Type->SetObjectField(TEXT("classStructOrEnum"), FNexusEditorDomainTools::Reference(Struct->GetPathName())); Item->SetObjectField(TEXT("type"), Type);
                 auto Default = MakeShared<FJsonObject>(), Value = MakeShared<FJsonObject>();
                 const uint8* Data = System->GetExposedParameters().GetParameterData(Variable);
                 if (Data) FJsonObjectConverter::UStructToJsonObject(Struct, Data, Value, 0, 0);
-                Default->SetObjectField(TEXT("struct"), FNexusNativeEditorTools::Reference(Struct->GetPathName())); Default->SetObjectField(TEXT("value"), Value); Item->SetObjectField(TEXT("defaultValue"), Default);
+                Default->SetObjectField(TEXT("struct"), FNexusEditorDomainTools::Reference(Struct->GetPathName())); Default->SetObjectField(TEXT("value"), Value); Item->SetObjectField(TEXT("defaultValue"), Default);
             }
             Items.Add(MakeShared<FJsonValueObject>(Item));
         }

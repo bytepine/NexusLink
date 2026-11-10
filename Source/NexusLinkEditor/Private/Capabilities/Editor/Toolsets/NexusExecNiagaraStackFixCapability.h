@@ -1,6 +1,7 @@
-// Copyright byteyang. All Rights Reserved.
+﻿// Copyright byteyang. All Rights Reserved.
 #pragma once
-#if WITH_NEXUS_TOOLSETS
+#include "Utils/NexusVersionCompat.h"
+#if WITH_NIAGARA && NX_UE_HAS_NIAGARA_EXTERNAL_EDIT
 #include "NexusCapability.h"
 class FNexusExecNiagaraStackFixCapability : public FNexusCapability
 {

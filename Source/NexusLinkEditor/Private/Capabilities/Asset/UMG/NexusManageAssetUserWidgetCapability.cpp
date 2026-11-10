@@ -19,7 +19,13 @@
 #include "Blueprint/WidgetTree.h"
 #include "Animation/WidgetAnimation.h"
 #if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
+#if NX_UE_HAS_WIDGET_BLUEPRINT_EDITOR_SUBSYSTEM
+#include "WidgetBlueprintEditorSubsystem.h"
+using FNexusWidgetBlueprintOperations = UWidgetBlueprintEditorSubsystem;
+#else
 #include "WidgetBlueprintOperationUtils.h"
+using FNexusWidgetBlueprintOperations = FWidgetBlueprintOperationUtils;
+#endif
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/NamedSlotInterface.h"
@@ -188,17 +194,26 @@ static void HandleWBP_Structure(const TSharedPtr<FJsonObject>& Op, FNexusActionC
 				BP->Modify(); BP->WidgetTree->Modify(); Parent->Modify(); Widget->Modify();
 				Parent->ShiftChild(Destination, Widget); bDone = Parent->GetChildIndex(Widget) == Destination;
 			}
-			else bDone = FWidgetBlueprintOperationUtils::MoveWidget(BP, Widget, Parent, Index, Error);
+			else bDone = FNexusWidgetBlueprintOperations::MoveWidget(BP, Widget, Parent, Index, Error);
 		}
 		else if (Action == TEXT("Wrap"))
 		{
 			if (!Class->IsChildOf(UPanelWidget::StaticClass())) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Wrap requires a panel WidgetClass")); return; }
-			const TArray<UWidget*> Wrappers = FWidgetBlueprintOperationUtils::WrapWidgets(BP, {Widget}, Class);
-			bDone = Wrappers.Num() > 0;
-			if (bDone) Ctx.Entry->SetStringField(TEXT("WrapperName"), Wrappers[0]->GetName());
+			UWidget* Wrapper = nullptr;
+#if NX_UE_HAS_WIDGET_BLUEPRINT_EDITOR_SUBSYSTEM
+			UWidgetBlueprintEditorSubsystem* Subsystem = UWidgetBlueprintEditorSubsystem::Get();
+			if (!Subsystem) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Widget blueprint editor subsystem is unavailable")); return; }
+			const TArray<FUMGWidgetInfo> Wrappers = Subsystem->WrapWidgets(BP, {Widget}, Class);
+			if (Wrappers.Num() > 0) Wrapper = Wrappers[0].Widget.Get();
+#else
+			const TArray<UWidget*> Wrappers = FNexusWidgetBlueprintOperations::WrapWidgets(BP, {Widget}, Class);
+			if (Wrappers.Num() > 0) Wrapper = Wrappers[0];
+#endif
+			bDone = Wrapper != nullptr;
+			if (bDone) Ctx.Entry->SetStringField(TEXT("WrapperName"), Wrapper->GetName());
 		}
-		else if (Action == TEXT("ReplaceWithTemplate")) bDone = FWidgetBlueprintOperationUtils::ReplaceWidgetWithTemplate(BP, Widget, Class, Error);
-		else if (Action == TEXT("ReplaceWithChild")) bDone = FWidgetBlueprintOperationUtils::ReplaceWidgetWithChild(BP, Widget, Error);
+		else if (Action == TEXT("ReplaceWithTemplate")) bDone = FNexusWidgetBlueprintOperations::ReplaceWidgetWithTemplate(BP, Widget, Class, Error);
+		else if (Action == TEXT("ReplaceWithChild")) bDone = FNexusWidgetBlueprintOperations::ReplaceWidgetWithChild(BP, Widget, Error);
 	}
 	if (!bDone) { Ctx.Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Widget structure operation failed") : Error.ToString()); return; }
 	Ctx.Entry->SetStringField(TEXT("WidgetName"), Name);
@@ -230,7 +245,7 @@ static void HandleWBP_Remove(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 	}
 #if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
 	FText Error;
-	if (!FWidgetBlueprintOperationUtils::RemoveWidget(WBP, Target, Error)) { Ctx.Entry->SetStringField(TEXT("Error"), Error.ToString()); return; }
+	if (!FNexusWidgetBlueprintOperations::RemoveWidget(WBP, Target, Error)) { Ctx.Entry->SetStringField(TEXT("Error"), Error.ToString()); return; }
 #else
 	WBP->WidgetTree->Modify();
 #if NX_UE_HAS_WIDGET_VARIABLE_GUIDS

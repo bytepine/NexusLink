@@ -14,6 +14,6 @@ void FNexusListEditorAutomationTestsCapability::BuildDefinition(FNexusCapability
 
 FCapabilityResult FNexusListEditorAutomationTestsCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
-	return FNexusEditorToolSchema::Result(FNexusEditorToolsets::Automation(TEXT("List"), Arguments));
+	return FNexusEditorToolSchema::Result(FNexusEditorControlServices::Automation(TEXT("List"), Arguments));
 }
 REGISTER_MCP_CAPABILITY(FNexusListEditorAutomationTestsCapability)

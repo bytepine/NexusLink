@@ -4,7 +4,6 @@
 #include "NexusMcpTool.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusArgs.h"
-#include "Utils/NexusEditorToolsets.h"
 #include "JsonObjectConverter.h"
 #include "Serialization/JsonSerializer.h"
 #include "ISettingsModule.h"
@@ -17,15 +16,13 @@ struct FNexusSettingsEditTarget final
 {
     TSharedPtr<ISettingsSection> Section;
     UObject* Object=nullptr;
-    TSharedPtr<FJsonObject> NativeSelector;
 };
 
 static void NexusEditSettings(const TSharedPtr<FJsonObject>& Operation,FNexusActionContext& Context)
 {
     auto* Target=static_cast<FNexusSettingsEditTarget*>(Context.Target); const auto Fail=[&](const FString& Error){Context.Entry->SetStringField(TEXT("Error"),Error);};
     if (!Target || !Target->Object || !Target->Section.IsValid()) { Fail(TEXT("Settings target is unavailable")); return; }
-    auto Input=MakeShared<FJsonObject>(); Input->Values=Target->NativeSelector->Values; TArray<FProperty*> Properties; UObject* Candidate=nullptr; bool bRestart=false;
-    FString Tool;
+    TArray<FProperty*> Properties; UObject* Candidate=nullptr; bool bRestart=false;
     if (Context.Action==TEXT("SetProperties")) {
         const TSharedPtr<FJsonObject>* Values=nullptr;
         if (!Target->Section->CanEdit() || !Target->Section->CanSave() || !Operation->TryGetObjectField(TEXT("Properties"),Values) || (*Values)->Values.Num()==0 || (*Values)->Values.Num()>64) { Fail(TEXT("SetProperties requires an editable/saveable section and 1-64 typed Properties")); return; }
@@ -36,10 +33,9 @@ static void NexusEditSettings(const TSharedPtr<FJsonObject>& Operation,FNexusAct
             if (!Candidate || !Property || !Property->HasAllPropertyFlags(CPF_Edit|CPF_Config) || Property->HasAnyPropertyFlags(CPF_EditConst|CPF_Transient) || !FJsonObjectConverter::JsonValueToUProperty(Pair.Value,Property,Property->ContainerPtrToValuePtr<void>(Candidate),0,0)) { Fail(FString(TEXT("Invalid editable config property: "))+*Pair.Key); return; }
             Properties.Add(Property); bRestart|=Property->HasMetaData(TEXT("ConfigRestartRequired")) || Property->HasMetaData(TEXT("RestartRequired"));
         }
-        FString Encoded; FJsonSerializer::Serialize((*Values).ToSharedRef(),TJsonWriterFactory<>::Create(&Encoded)); Input->SetStringField(TEXT("PropertiesJson"),Encoded); Tool=TEXT("SetSectionProperties");
-    } else if (Context.Action==TEXT("Save")) { if (!Target->Section->CanSave()) { Fail(TEXT("Section cannot be saved")); return; } Tool=TEXT("SaveSection"); }
-    else { if (!Target->Section->CanResetDefaults()) { Fail(TEXT("Section does not support resetting defaults")); return; } Tool=TEXT("ResetSectionToDefaults"); bRestart=true; }
-    if (!FNexusNativeEditorTools::EditSync(TEXT("ConfigSettingsToolset"),Tool,Input,Context.Entry)) {
+    } else if (Context.Action==TEXT("Save")) { if (!Target->Section->CanSave()) { Fail(TEXT("Section cannot be saved")); return; } }
+    else { if (!Target->Section->CanResetDefaults()) { Fail(TEXT("Section does not support resetting defaults")); return; } bRestart=true; }
+    {
         bool bSuccess=false;
         if (Context.Action==TEXT("SetProperties")) {
             Target->Object->Modify();
@@ -49,7 +45,7 @@ static void NexusEditSettings(const TSharedPtr<FJsonObject>& Operation,FNexusAct
             bSuccess=Target->Section->Save();
         } else bSuccess=Context.Action==TEXT("Save")?Target->Section->Save():Target->Section->ResetDefaults();
         if (!bSuccess) { Fail(TEXT("Settings operation failed; in-memory values may already have changed")); return; }
-        Context.Entry->SetStringField(TEXT("Backend"),TEXT("EngineCompatibility"));
+        Context.Entry->SetStringField(TEXT("Backend"),TEXT("Independent"));
     }
     if (!Context.Entry->HasField(TEXT("Error"))) { Context.Entry->SetBoolField(TEXT("bSavedToDisk"),true); Context.Entry->SetBoolField(TEXT("bRestartRequired"),bRestart); }
 }
@@ -68,8 +64,8 @@ bool FNexusManageProjectSettingsCapability::PrepareTarget(const TSharedPtr<FJson
     auto Category=Container.IsValid()?Container->GetCategory(FName(*Arguments.Str(TEXT("Category")))):nullptr; auto Section=Category.IsValid()?Category->GetSection(FName(*Arguments.Str(TEXT("Section")))):nullptr;
     UObject* Object=Section.IsValid()?Section->GetSettingsObject().Get():nullptr;
     if (!Object) { Error=TEXT("Discover a registered UObject settings section with GetProjectSettings first"); return false; }
-    auto* State=new FNexusSettingsEditTarget(); State->Object=Object; State->Section=Section; State->NativeSelector=MakeShared<FJsonObject>();
-    State->NativeSelector->SetStringField(TEXT("ContainerName"),Arguments.Str(TEXT("Container"),TEXT("Project"))); State->NativeSelector->SetStringField(TEXT("CategoryName"),Arguments.Str(TEXT("Category"))); State->NativeSelector->SetStringField(TEXT("SectionName"),Arguments.Str(TEXT("Section"))); Target=State; Entry->SetStringField(TEXT("SettingsClass"),Object->GetClass()->GetPathName()); return true;
+    auto* State=new FNexusSettingsEditTarget(); State->Object=Object; State->Section=Section;
+    Target=State; Entry->SetStringField(TEXT("SettingsClass"),Object->GetClass()->GetPathName()); return true;
 }
 void FNexusManageProjectSettingsCapability::FinalizeTarget(void* Target) const { delete static_cast<FNexusSettingsEditTarget*>(Target); }
 REGISTER_MCP_CAPABILITY(FNexusManageProjectSettingsCapability)

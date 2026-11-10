@@ -15,10 +15,10 @@ Start with [NexusDesktop](https://github.com/bytepine/NexusDesktop), or use the 
 - **Runtime debugging**: inspect logs, Actors, animation, AI / EQS, and GAS in PIE, standalone Game, and Dedicated Server; move an Actor with the native transform setters, request or stop AI movement, and distinguish request acceptance from arrival. Game / PIE with a viewport also supports [UMG interaction](docs/runtime-widgets.md), with instance paths for reading, writing, and interacting with WidgetComponent trees on an Actor.
 - **Diagnostics and comparison**: [GAS activation diagnostics](docs/gas-retest.md), [behavior-tree / Blackboard condition replay](docs/bt-retest.md), and [performance comparison from stopped Traces](docs/trace-compare.md).
 - **Editor automation**: [Slate inspection and interaction, Automation tests, and nonblocking Live Coding](docs/editor-toolsets.md).
-- **Project discovery and UE 5.8 domains**: [settings/plugins, skills, semantic search, PCG execution and sampling, Niagara diagnostics/fixes, UMG structure, and inline screenshots](docs/editor-toolsets.md).
-- **Version-aware backends**: [official UE 5.8 Toolsets behind existing interfaces and older-engine compatibility](docs/toolset-backends.md).
+- **Project discovery and domain diagnostics**: [settings/plugins, skills, semantic search, PCG execution and sampling, Niagara diagnostics/fixes, UMG structure, and inline screenshots](docs/editor-toolsets.md).
+- **Independent engine backends**: [direct engine APIs without direct official Toolset or Registry dependencies; engine dependency boundaries](docs/toolset-backends.md).
 - **Editor compatibility**: [advanced parameters/UMG, mesh generation, scene organization, and Blueprint graph editing](docs/editor-compatibility.md), including variable tooltips, Replicated/RepNotify settings and parameterless function CallInEditor flags with readback; [UMG, materials, project settings/plugins, and Sequencer extensions](docs/editor-remaining-toolsets.md). Level component default comparison and reset resolve inherited SCS templates.
-- **Animation and native Toolsets**: [Sequencer / Control Rig, deep Niagara editing, Game Features, and custom Toolset discovery](docs/animation-niagara-gamefeatures-toolsets.md).
+- **Animation and domain actions**: [Sequencer / Control Rig, deep Niagara editing, Game Features, and independent action discovery](docs/animation-niagara-gamefeatures-toolsets.md).
 - **Parameters and project data**: [PCG parameter editing, detailed PhysicsAsset edits, GameplayTags configuration, and DataRegistry queries](docs/pcg-physics-tags-dataregistry.md).
 - **MVVM data binding**: [ViewModel / widget / WBP property paths, binding directions, and unary conversions](docs/mvvm-bindings.md) (UE 5.5+).
 

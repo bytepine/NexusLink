@@ -5,7 +5,6 @@
 #include "NexusMcpTool.h"
 #include "Utils/NexusArgs.h"
 #include "JsonObjectConverter.h"
-#include "Utils/NexusEditorToolsets.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusStringMatchUtils.h"
 #include "ISettingsModule.h"
@@ -42,21 +41,10 @@ void FNexusGetProjectSettingsCapability::ExecuteSection(const FString& SectionNa
 	const FNexusArgs A(Args);
 	ISettingsModule& Settings = FModuleManager::LoadModuleChecked<ISettingsModule>(TEXT("Settings"));
 	TArray<TSharedPtr<FJsonValue>> Items;
-    const bool bNativeListing = FNexusNativeEditorTools::UseNative(TEXT("ConfigSettingsToolset")) && (SectionName == TEXT("Containers") || SectionName == TEXT("Categories") || SectionName == TEXT("Sections"));
-    TSet<FString> NativeNames;
-    if (bNativeListing) {
-        auto Input = MakeShared<FJsonObject>(); Input->SetStringField(TEXT("ContainerName"), A.Str(TEXT("Container"), TEXT("Project"))); Input->SetStringField(TEXT("CategoryName"), A.Str(TEXT("Category")));
-        // 原生函数拒绝多余字段之前，按具体签名只传所需参数。
-        if (SectionName == TEXT("Containers")) Input->Values.Empty(); else if (SectionName == TEXT("Categories")) Input->RemoveField(TEXT("CategoryName"));
-        TSharedPtr<FJsonValue> Value; if (!FNexusNativeEditorTools::InvokeSync(TEXT("ConfigSettingsToolset"), TEXT("List") + SectionName, Input, Value, Error)) return;
-        if (Value->Type != EJson::Array) { Error = TEXT("Expected native settings name array"); return; }
-        for (const auto& Name : Value->AsArray()) NativeNames.Add(Name->AsString());
-        Out->SetStringField(TEXT("Backend"), TEXT("OfficialToolset"));
-    }
+    Out->SetStringField(TEXT("Backend"), TEXT("Independent"));
 
 	auto Add = [&](const FString& Name, const FString& Label)
 	{
-		if (bNativeListing && !NativeNames.Contains(Name)) return;
 		const FString Filter = A.Str(TEXT("NameFilter"));
 		if (!Filter.IsEmpty() && !FNexusStringMatchUtils::Matches(Name, Filter)) return;
 		auto Item = MakeShared<FJsonObject>(); Item->SetStringField(TEXT("Name"), Name);

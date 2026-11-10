@@ -14,6 +14,6 @@ void FNexusCompileEditorLiveCodingCapability::BuildDefinition(FNexusCapabilityDe
 
 FCapabilityResult FNexusCompileEditorLiveCodingCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
-	return FNexusEditorToolSchema::Result(FNexusEditorToolsets::Compile());
+	return FNexusEditorToolSchema::Result(FNexusEditorControlServices::Compile());
 }
 REGISTER_MCP_CAPABILITY(FNexusCompileEditorLiveCodingCapability)

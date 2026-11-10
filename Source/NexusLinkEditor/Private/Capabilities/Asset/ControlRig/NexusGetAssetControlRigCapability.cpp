@@ -79,7 +79,11 @@ FCapabilityResult FNexusGetAssetControlRigCapability::Execute(const TSharedPtr<F
 
 		// 骨骼
 		TArray<TSharedPtr<FJsonValue>> BonesArr;
+#if NX_UE_HAS_RIG_HIERARCHY_ELEMENT_VIEWS
+		for (FRigBoneElement* Bone : Hier->GetBoneElements())
+#else
 		for (FRigBoneElement* Bone : Hier->GetBones())
+#endif
 		{
 			if (!Bone) continue;
 			TSharedPtr<FJsonObject> BObj = MakeShared<FJsonObject>();
@@ -90,19 +94,31 @@ FCapabilityResult FNexusGetAssetControlRigCapability::Execute(const TSharedPtr<F
 
 		// 控件
 		TArray<TSharedPtr<FJsonValue>> CtrlsArr;
+#if NX_UE_HAS_RIG_HIERARCHY_ELEMENT_VIEWS
+		for (FRigControlElement* Ctrl : Hier->GetControlElements())
+#else
 		for (FRigControlElement* Ctrl : Hier->GetControls())
+#endif
 		{
 			if (!Ctrl) continue;
 			TSharedPtr<FJsonObject> CObj = MakeShared<FJsonObject>();
 			CObj->SetStringField(TEXT("Name"), RigElementName(Ctrl));
+#if NX_UE_HAS_RIG_CONTROL_SETTINGS_TOPOLOGY
+			CObj->SetNumberField(TEXT("ControlType"), static_cast<int32>(Hier->GetControlSettingsTopology(Ctrl).ControlType));
+#else
 			CObj->SetNumberField(TEXT("ControlType"), static_cast<int32>(Ctrl->Settings.ControlType));
+#endif
 			CtrlsArr.Add(MakeShared<FJsonValueObject>(CObj));
 		}
 		Entry->SetArrayField(TEXT("Controls"), CtrlsArr);
 
 		// Null
 		TArray<TSharedPtr<FJsonValue>> NullsArr;
+#if NX_UE_HAS_RIG_HIERARCHY_ELEMENT_VIEWS
+		for (FRigNullElement* Null : Hier->GetNullElements())
+#else
 		for (FRigNullElement* Null : Hier->GetNulls())
+#endif
 		{
 			if (!Null) continue;
 			TSharedPtr<FJsonObject> NObj = MakeShared<FJsonObject>();

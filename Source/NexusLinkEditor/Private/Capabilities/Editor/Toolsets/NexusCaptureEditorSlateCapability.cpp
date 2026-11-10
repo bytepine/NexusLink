@@ -15,6 +15,6 @@ void FNexusCaptureEditorSlateCapability::BuildDefinition(FNexusCapabilityDefinit
 
 FCapabilityResult FNexusCaptureEditorSlateCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
-	return FNexusEditorToolSchema::Result(FNexusEditorToolsets::Slate(TEXT("Capture"), Arguments));
+	return FNexusEditorToolSchema::Result(FNexusEditorControlServices::Slate(TEXT("Capture"), Arguments));
 }
 REGISTER_MCP_CAPABILITY(FNexusCaptureEditorSlateCapability)

@@ -1,6 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
 #pragma once
-#if WITH_NEXUS_TOOLSETS
+#if WITH_NEXUS_SEMANTIC_SEARCH
 #include "NexusCapability.h"
 class FNexusSearchAssetsSemanticCapability : public FNexusCapability
 {

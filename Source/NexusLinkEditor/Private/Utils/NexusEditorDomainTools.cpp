@@ -1,16 +1,17 @@
 // Copyright byteyang. All Rights Reserved.
-#include "Utils/NexusLegacyToolsets.h"
+#include "Utils/NexusEditorDomainTools.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusAnimationToolActions.h"
 #include "JsonObjectConverter.h"
 #include "Misc/Paths.h"
 
-bool FNexusLegacyToolsets::Handles(const FString& Domain)
+bool FNexusEditorDomainTools::Handles(const FString& Domain)
 {
-    return Domain == TEXT("PCGToolset") || Domain == TEXT("NiagaraToolsets") || Domain.StartsWith(TEXT("animation_toolset.toolsets.")) || Domain.StartsWith(TEXT("sequencer_animmixer_toolset.")) || Domain==TEXT("NexusSequenceFolders");
+    return Domain == TEXT("NexusPCG") || Domain == TEXT("NexusNiagara") || Domain.StartsWith(TEXT("NexusAnimation.")) || Domain==TEXT("NexusSequenceFolders");
 }
 
-UObject* FNexusLegacyToolsets::Resolve(const TSharedPtr<FJsonObject>& Args, const TCHAR* Key)
+UObject* FNexusEditorDomainTools::Resolve(const TSharedPtr<FJsonObject>& Args, const TCHAR* Key)
 {
     FString Path;
     if (!Args.IsValid()) return nullptr;
@@ -24,7 +25,7 @@ UObject* FNexusLegacyToolsets::Resolve(const TSharedPtr<FJsonObject>& Args, cons
     return FNexusAssetUtils::LoadAssetWithFallback<UObject>(Path);
 }
 
-bool FNexusLegacyToolsets::SetProperties(UObject* Target, const TSharedPtr<FJsonObject>& Values, FString& Error)
+bool FNexusEditorDomainTools::SetProperties(UObject* Target, const TSharedPtr<FJsonObject>& Values, FString& Error)
 {
     if (!Target || !Values.IsValid() || Values->Values.Num() == 0) { Error = TEXT("Target and nonempty property data are required"); return false; }
     // 在副本上完整转换和验证，再修改对象，避免非法输入留下半次写入。
@@ -45,17 +46,27 @@ bool FNexusLegacyToolsets::SetProperties(UObject* Target, const TSharedPtr<FJson
     return true;
 }
 
-void FNexusLegacyToolsets::Call(const FString& Domain, const FString& Tool, const TSharedPtr<FJsonObject>& Args,
+void FNexusEditorDomainTools::Call(const FString& Domain, const FString& Tool, const TSharedPtr<FJsonObject>& Args,
     const TSharedPtr<FNexusEditorOperation>& Operation)
 {
-    Operation->Backend = TEXT("EngineCompatibility");
+    Operation->Backend = TEXT("Independent");
     auto Input = MakeShared<FJsonObject>();
     for (const auto& Pair : Args->Values) { FString Key(*Pair.Key); if (!Key.IsEmpty()) Key[0] = FChar::ToLower(Key[0]); Input->SetField(Key, Pair.Value); }
-    if (Domain == TEXT("PCGToolset") && Tool == TEXT("ExecuteGraphInstance")) { ExecutePCG(Input, Operation); return; }
+    if (Domain == TEXT("NexusPCG") && Tool == TEXT("ExecuteGraphInstance")) { ExecutePCG(Input, Operation); return; }
     TSharedPtr<FJsonObject> Data = MakeShared<FJsonObject>(); FString Error;
-    const bool bOk = Domain == TEXT("PCGToolset") ? PCG(Tool, Input, Data, Error)
-        : Domain == TEXT("NiagaraToolsets") ? Niagara(Tool, Input, Data, Error) : Animation(Domain, Tool, Input, Data, Error);
-    if (!bOk) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, Error.IsEmpty() ? TEXT("Action is not supported by this engine compatibility backend") : Error); return; }
+    const bool bOk = Domain == TEXT("NexusPCG") ? PCG(Tool, Input, Data, Error)
+        : Domain == TEXT("NexusNiagara") ? Niagara(Tool, Input, Data, Error) : Animation(Domain, Tool, Input, Data, Error);
+    if (!bOk) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, Error.IsEmpty() ? TEXT("Action is unavailable in the current engine domain API") : Error); return; }
+    // 仅已登记且执行成功的动画写动作提供应用标记，保留查询 false 的真实含义。
+    if (Domain.StartsWith(TEXT("NexusAnimation."))) {
+        const FString Route = Domain + TEXT(".") + Tool;
+        bool bWrite = false;
+        for (const auto& Action : FNexusAnimationToolActions::Get(true)) if (Action.Value == Route) { bWrite = true; break; }
+        if (bWrite) {
+            if ((Data->HasTypedField<EJson::Boolean>(TEXT("Value")) && !Data->GetBoolField(TEXT("Value"))) || (Data->HasTypedField<EJson::Boolean>(TEXT("bApplied")) && !Data->GetBoolField(TEXT("bApplied")))) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Animation API reported that the write was not applied")); return; }
+            Data->SetBoolField(TEXT("bApplied"), true);
+        }
+    }
     auto Result = MakeShared<FJsonObject>(); Result->SetObjectField(TEXT("CompatibilityResult"), Data);
     FNexusEditorOperations::Finish(Operation, TEXT("Completed"), Result);
 }

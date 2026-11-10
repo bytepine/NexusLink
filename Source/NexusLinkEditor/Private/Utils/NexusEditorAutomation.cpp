@@ -1,5 +1,5 @@
 // Copyright byteyang. All Rights Reserved.
-#include "Utils/NexusEditorToolsets.h"
+#include "Utils/NexusEditorControlServices.h"
 #include "Utils/NexusVersionCompat.h"
 #include "IAutomationControllerModule.h"
 #include "IAutomationControllerManager.h"
@@ -67,10 +67,9 @@ static TSharedPtr<FJsonObject> NexusAutomationResults(const TSet<FString>* Evide
 	Result->SetArrayField(TEXT("Tests"), Tests); return Result;
 }
 
-TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Automation(const FString& Action, const TSharedPtr<FJsonObject>& Args)
+TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Automation(const FString& Action, const TSharedPtr<FJsonObject>& Args)
 {
-	const bool bNative = FNexusNativeEditorTools::UseNative(TEXT("AutomationTestToolset"));
-	auto Operation = FNexusEditorOperations::Create(bNative ? TEXT("OfficialToolset") : TEXT("EngineAutomation"));
+	auto Operation = FNexusEditorOperations::Create(TEXT("Independent"));
 	if (!Operation.IsValid()) return nullptr;
 	auto& ControllerModule = FModuleManager::LoadModuleChecked<IAutomationControllerModule>(TEXT("AutomationController"));
 	if (!GNexusAutomation.IsValid())
@@ -91,7 +90,7 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Automation(const FString
                 Target->State == TEXT("Cancelled") ? TEXT("Stopped this adapter run") : TEXT("Run ended before stop confirmation; inspect the target operation"));
         };
         if (!Target->IsRunning()) CompleteStop();
-        else FNexusEditorToolsets::AddTicker(FTickerDelegate::CreateLambda([Operation, Target, CompleteStop](float) {
+        else FNexusEditorControlServices::AddTicker(FTickerDelegate::CreateLambda([Operation, Target, CompleteStop](float) {
             if (!Target->IsRunning()) { CompleteStop(); return false; }
             if (FPlatformTime::Seconds() - Operation->StartedAt > 5) {
                 FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Stop was not confirmed; target remains queryable and may still be running")); return false;
@@ -104,7 +103,7 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Automation(const FString
 		return Fail(TEXT("Busy: an adapter operation is active"));
 	if (GNexusAutomation->GetTestState() == EAutomationControllerModuleState::Running)
 		return Fail(TEXT("Busy: automation is already running outside this adapter"));
-	// 官方 Subsystem 会使用所选会话。拒绝外部会话，不能悄悄切换 Session Frontend。
+	// 拒绝外部会话，避免悄悄切换 Session Frontend。
 	auto SessionManager = FModuleManager::LoadModuleChecked<ISessionServicesModule>(TEXT("SessionServices")).GetSessionManager();
 	if (SessionManager.IsValid() && SessionManager->GetSelectedSession().IsValid()
 		&& SessionManager->GetSelectedSession()->GetSessionId() != FApp::GetSessionId())
@@ -112,15 +111,7 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Automation(const FString
 	if (Action == TEXT("List"))
 	{
 		if (!bNexusAutomationReady) return Fail(TEXT("Discover tests first and wait for completion"));
-		if (bNative)
-		{
-			auto Input = MakeShared<FJsonObject>();
-			FString Filter; Args->TryGetStringField(TEXT("NameFilter"), Filter); Input->SetStringField(TEXT("NameFilter"), Filter);
-			double Limit = 200; Args->TryGetNumberField(TEXT("Limit"), Limit); Limit = FMath::Clamp(Limit, 1.0, 2000.0); Input->SetNumberField(TEXT("Limit"), Limit);
-			FNexusNativeEditorTools::Call(TEXT("AutomationTestToolset"), TEXT("ListTests"), Input, Operation);
-		}
-		else
-		{
+
 			FString Filter; Args->TryGetStringField(TEXT("NameFilter"), Filter);
 			double Limit = 200; Args->TryGetNumberField(TEXT("Limit"), Limit); Limit = FMath::Clamp(Limit, 1.0, 2000.0);
 			TArray<TSharedPtr<FJsonValue>> Tests; int32 Total = 0;
@@ -128,7 +119,7 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Automation(const FString
 				if (Filter.IsEmpty() || Test->GetFullTestPath().Contains(Filter)) { ++Total; if (Tests.Num() < Limit) Tests.Add(MakeShared<FJsonValueString>(Test->GetFullTestPath())); }
 			auto Result = MakeShared<FJsonObject>(); Result->SetArrayField(TEXT("Tests"), Tests); Result->SetNumberField(TEXT("Total"), Total);
 			FNexusEditorOperations::Finish(Operation, TEXT("Completed"), Result);
-		}
+
 		return Operation;
 	}
 	if (Action != TEXT("Discover") && Action != TEXT("Run")) return Fail(TEXT("Unknown automation action"));
@@ -146,37 +137,17 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Automation(const FString
 			GNexusAutomationSelection.AddUnique(Path);
 		}
 	}
-    auto NativeOperation = bNative ? FNexusNativeEditorTools::Scratch() : Operation;
-    auto StopPending = MakeShared<bool>(false);
-    auto ResetEvidence = MakeShared<TSet<FString>>();
 	GNexusAutomationActive = Operation;
 	Operation->Message = Action == TEXT("Discover") ? TEXT("Discovering local editor tests") : TEXT("Running selected tests");
-	if (Action == TEXT("Run")) Operation->Stop = [Operation, bNative, StopPending]()
+	if (Action == TEXT("Run")) Operation->Stop = [Operation]()
 	{
-		if (GNexusAutomationActive != Operation || !Operation->IsRunning() || *StopPending || !NexusOwnsAutomationSelection()) return false;
-		if (bNative)
-		{
-            if (!FNexusNativeEditorTools::CanCall(TEXT("AutomationTestToolset"), TEXT("StopTests"))) return false;
-			auto Stop = FNexusNativeEditorTools::Scratch();
-            *StopPending = true;
-            FNexusNativeEditorTools::Call(TEXT("AutomationTestToolset"), TEXT("StopTests"), MakeShared<FJsonObject>(), Stop);
-            FNexusEditorToolsets::AddTicker(FTickerDelegate::CreateLambda([Stop, Operation, StopPending](float) {
-                if (Stop->IsRunning()) return true;
-                if (Stop->State == TEXT("Completed")) FNexusEditorOperations::Finish(Operation, TEXT("Cancelled"), NexusAutomationResults(), TEXT("Stopped this adapter run"));
-                else { *StopPending = false; Operation->Message = TEXT("Stop failed: ") + Stop->Message; }
-                return false;
-            }), 0.05f);
-        }
-        else { GNexusAutomation->StopTests(); FNexusEditorOperations::Finish(Operation, TEXT("Cancelled"), NexusAutomationResults(), TEXT("Stopped this adapter run")); }
+		if (GNexusAutomationActive != Operation || !Operation->IsRunning() || !NexusOwnsAutomationSelection()) return false;
+		GNexusAutomation->StopTests();
+		FNexusEditorOperations::Finish(Operation, TEXT("Cancelled"), NexusAutomationResults(), TEXT("Stopped this adapter run"));
         return true;
 	};
-	if (bNative)
-	{
-		auto Input = MakeShared<FJsonObject>();
-		if (Action == TEXT("Run")) Input->SetArrayField(TEXT("TestNames"), Args->GetArrayField(TEXT("TestNames")));
-		FNexusNativeEditorTools::Call(TEXT("AutomationTestToolset"), Action == TEXT("Discover") ? TEXT("DiscoverTests") : TEXT("RunTests"), Input, NativeOperation);
-	}
-	else if (Action == TEXT("Discover"))
+
+	if (Action == TEXT("Discover"))
 	{
 		bNexusAutomationReady = false; bNexusAutomationRefreshed = false;
 		GNexusAutomation->RequestAvailableWorkers(FApp::GetSessionId());
@@ -187,31 +158,25 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Automation(const FString
 		bNexusAutomationSawRunning = false;
 		GNexusAutomation->RunTests(true);
 	}
-    // A terminal cached report can belong to a previous run. Record the controller reset
-    // before accepting its result as supplemental evidence for a native response.
-    for (const auto& Test : GNexusAutomationTests) if (GNexusAutomationSelection.Contains(Test->GetFullTestPath())) {
-        const auto State = Test->GetState(0, 0);
-        if (State != EAutomationState::Success && State != EAutomationState::Fail) ResetEvidence->Add(Test->GetFullTestPath());
-    }
 	const uint32 Generation = GNexusAutomationGeneration;
-	auto Tick = FTickerDelegate::CreateLambda([Operation, NativeOperation, StopPending, ResetEvidence, bNative, Action, Generation](float)
+	auto Tick = FTickerDelegate::CreateLambda([Operation, Action, Generation](float)
 	{
 		if (Generation != GNexusAutomationGeneration) return false;
-        if (Action == TEXT("Run") && Operation->IsRunning() && (!bNative || NativeOperation->IsRunning())
+        if (Action == TEXT("Run") && Operation->IsRunning()
             && GNexusAutomation->GetTestState() == EAutomationControllerModuleState::Running && !NexusOwnsAutomationSelection()) {
             FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Automation session or test selection changed outside the adapter; result ownership lost, no stop attempted")); return false;
         }
-        if (!bNative) {
+
             IAutomationControllerModule::Get().Tick(); GNexusAutomation->Tick();
-        }
+
 		if (Action == TEXT("Discover"))
 		{
-			if ((bNative && !NativeOperation->IsRunning() && NativeOperation->State == TEXT("Completed")) || (!bNative && bNexusAutomationRefreshed))
+			if (bNexusAutomationRefreshed)
 			{
-                if (!bNative) {
+
                     GNexusAutomation->SetFilter(MakeShared<AutomationFilterCollection>());
                     GNexusAutomation->SetVisibleTestsEnabled(true);
-                }
+
 				GNexusAutomationTests.Empty();
 #if NX_UE_HAS_AUTOMATION_FILTERED_REPORTS
                 NexusCollectAutomation(GNexusAutomation->GetFilteredReports(), GNexusAutomationTests);
@@ -223,23 +188,11 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Automation(const FString
 				FNexusEditorOperations::Finish(Operation, TEXT("Completed"), Result);
 				return false;
 			}
-            if (bNative && !NativeOperation->IsRunning() && NativeOperation->State != TEXT("Completed"))
-                FNexusEditorOperations::Finish(Operation, NativeOperation->State, nullptr, NativeOperation->Message);
 			if (Operation->IsRunning() && FPlatformTime::Seconds() - Operation->StartedAt > 60)
 				FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Local test discovery timed out"));
 		}
-        else if (bNative && !*StopPending && !NativeOperation->IsRunning()) {
-            auto Result = NativeOperation->Result;
-            const TArray<TSharedPtr<FJsonValue>>* Tests = nullptr;
-            if (NativeOperation->State == TEXT("Completed") && (!Result.IsValid() || !Result->TryGetArrayField(TEXT("Tests"), Tests) || Tests->Num() != GNexusAutomationSelection.Num())) {
-                // Official filtered reports can omit a selected leaf (e.g. a test under a
-                // runnable parent). Read this run's retained controller records; never run again.
-                Result = NexusAutomationResults(&ResetEvidence.Get());
-                Operation->Message = TEXT("Official response omitted selected tests; using this run's controller records, unknown where evidence is absent");
-            }
-            FNexusEditorOperations::Finish(Operation, NativeOperation->State, Result, Operation->Message);
-        }
-		else if (!bNative && Operation->IsRunning())
+
+		else if (Operation->IsRunning())
 		{
 			if (GNexusAutomation->GetTestState() == EAutomationControllerModuleState::Running) bNexusAutomationSawRunning = true;
             else {
@@ -253,20 +206,20 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Automation(const FString
 		}
 		return Operation->IsRunning();
 	});
-FNexusEditorToolsets::AddTicker(Tick, 0.1f);
+FNexusEditorControlServices::AddTicker(Tick, 0.1f);
 	return Operation;
 }
 
 static void NexusRemoveEditorToolTicks();
 
-void FNexusEditorToolsets::Shutdown()
+void FNexusEditorControlServices::Shutdown()
 {
 	NexusRemoveEditorToolTicks();
 	ShutdownLiveCoding();
 	++GNexusAutomationGeneration;
 	if (GNexusAutomation.IsValid()) GNexusAutomation->OnTestsRefreshed().Remove(GNexusAutomationRefreshHandle);
 	GNexusAutomation.Reset(); GNexusAutomationActive.Reset(); GNexusAutomationTests.Empty(); bNexusAutomationReady = false;
-	FNexusNativeEditorTools::Shutdown(); FNexusEditorOperations::Reset();
+	FNexusEditorOperations::Reset();
 }
 
 #if NX_UE_HAS_FTSTICKER
@@ -274,7 +227,7 @@ static TArray<FTSTicker::FDelegateHandle> GNexusEditorToolTicks;
 #else
 static TArray<FDelegateHandle> GNexusEditorToolTicks;
 #endif
-void FNexusEditorToolsets::AddTicker(const FTickerDelegate& Delegate, float Interval)
+void FNexusEditorControlServices::AddTicker(const FTickerDelegate& Delegate, float Interval)
 {
 #if NX_UE_HAS_FTSTICKER
  GNexusEditorToolTicks.Add(FTSTicker::GetCoreTicker().AddTicker(Delegate, Interval));

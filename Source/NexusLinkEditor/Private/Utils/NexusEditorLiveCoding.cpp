@@ -1,5 +1,5 @@
 // Copyright byteyang. All Rights Reserved.
-#include "Utils/NexusEditorToolsets.h"
+#include "Utils/NexusEditorControlServices.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/OutputDevice.h"
@@ -29,7 +29,7 @@ struct FNexusCompileLog final : FOutputDevice
 
 static TSharedPtr<FNexusCompileLog> GNexusCompileCapture;
 static FDelegateHandle GNexusCompilePatchHandle;
-void FNexusEditorToolsets::ShutdownLiveCoding()
+void FNexusEditorControlServices::ShutdownLiveCoding()
 {
 #if PLATFORM_WINDOWS && WITH_LIVE_CODING
  if (GNexusCompileCapture.IsValid()) GLog->RemoveOutputDevice(GNexusCompileCapture.Get());
@@ -39,9 +39,9 @@ void FNexusEditorToolsets::ShutdownLiveCoding()
  GNexusCompileCapture.Reset();
 }
 
-TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Compile()
+TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Compile()
 {
-	auto Operation = FNexusEditorOperations::Create(TEXT("EngineLiveCoding"));
+	auto Operation = FNexusEditorOperations::Create(TEXT("Independent"));
 	if (!Operation.IsValid()) return nullptr;
 #if PLATFORM_WINDOWS && WITH_LIVE_CODING
 	auto* Module = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
@@ -79,7 +79,7 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Compile()
 		FNexusEditorOperations::Finish(Operation, TEXT("Completed"), Result);
 		return false;
 	});
-FNexusEditorToolsets::AddTicker(Tick, 0.2f);
+FNexusEditorControlServices::AddTicker(Tick, 0.2f);
 #else
 	FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Live Coding is unavailable on this platform/build"));
 #endif

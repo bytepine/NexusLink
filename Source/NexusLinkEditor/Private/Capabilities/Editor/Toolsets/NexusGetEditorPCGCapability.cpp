@@ -2,6 +2,7 @@
 #include "Capabilities/Editor/Toolsets/NexusGetEditorPCGCapability.h"
 #if WITH_PCG
 #include "Utils/NexusEditorToolSchema.h"
+#include "Utils/NexusEditorDomainTools.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
 
@@ -20,7 +21,7 @@ void FNexusGetEditorPCGCapability::BuildDefinition(FNexusCapabilityDefinition& O
 		.Prop(TEXT("AttributeName"), FNexusSchema::Str(TEXT("Optional node attribute/property filter")))
 		.Prop(TEXT("Offset"), FNexusSchema::Int(TEXT("Node data element offset"), 0, 0, 1000000000))
 		.Prop(TEXT("Limit"), FNexusSchema::Int(TEXT("Node data element count"), 100, 1, 1000)).Build();
-	FNexusEditorToolSchema::ConfigureCompatible(Out, false, TEXT("PCGToolset"));
+	FNexusEditorToolSchema::ConfigureIndependent(Out, false, TEXT("NexusPCG"));
 	Out.ExtraSearchKeywords = {TEXT("pcg"), TEXT("procedural"), TEXT("inspection"), TEXT("points"), TEXT("attributes")};
 	Out.RelatedCapabilities = {TEXT("ControlEditorPCG"), TEXT("GetAssetPCGGraph"), TEXT("GetEditorOperation")};
 }
@@ -33,11 +34,11 @@ FCapabilityResult FNexusGetEditorPCGCapability::Execute(const TSharedPtr<FJsonOb
 	else if (Action == TEXT("AvailableSubgraphs")) Tool = TEXT("ListAvailableSubgraphs");
 	else if (Action == TEXT("NodeInfo")) {
 		if (A.Str(TEXT("NodePath")).IsEmpty()) return FCapabilityResult::MakeArgInvalid(TEXT("NodeInfo requires NodePath"));
-		Tool = TEXT("GetNodeInfo"); Input->SetObjectField(TEXT("Node"), FNexusNativeEditorTools::Reference(A.Str(TEXT("NodePath"))));
+		Tool = TEXT("GetNodeInfo"); Input->SetObjectField(TEXT("Node"), FNexusEditorDomainTools::Reference(A.Str(TEXT("NodePath"))));
 	}
 	else if (Action == TEXT("InstanceParameters")) {
 		if (A.Str(TEXT("ActorPath")).IsEmpty()) return FCapabilityResult::MakeArgInvalid(TEXT("InstanceParameters requires ActorPath"));
-		Tool = TEXT("GetGraphInstanceParams"); Input->SetObjectField(TEXT("PCGVolume"), FNexusNativeEditorTools::Reference(A.Str(TEXT("ActorPath"))));
+		Tool = TEXT("GetGraphInstanceParams"); Input->SetObjectField(TEXT("PCGVolume"), FNexusEditorDomainTools::Reference(A.Str(TEXT("ActorPath"))));
 	}
 	else if (Action == TEXT("NativeNodeSchema"))
 	{
@@ -47,19 +48,19 @@ FCapabilityResult FNexusGetEditorPCGCapability::Execute(const TSharedPtr<FJsonOb
 	else if (Action == TEXT("GraphStructure") || Action == TEXT("GraphSchema"))
 	{
 		if (A.Str(TEXT("AssetPath")).IsEmpty()) return FCapabilityResult::MakeArgInvalid(TEXT("Graph inspection requires AssetPath"));
-		Tool = TEXT("Get") + Action; Input->SetObjectField(TEXT("Graph"), FNexusNativeEditorTools::Reference(A.Str(TEXT("AssetPath"))));
+		Tool = TEXT("Get") + Action; Input->SetObjectField(TEXT("Graph"), FNexusEditorDomainTools::Reference(A.Str(TEXT("AssetPath"))));
 	}
 	else
 	{
 		if (A.Str(TEXT("ActorPath")).IsEmpty() || A.Str(TEXT("NodePath")).IsEmpty()) return FCapabilityResult::MakeArgInvalid(TEXT("NodeData requires ActorPath and NodePath from discovery"));
 		Tool = TEXT("GetNodeDataView");
-		Input->SetObjectField(TEXT("PCGVolume"), FNexusNativeEditorTools::Reference(A.Str(TEXT("ActorPath"))));
-		Input->SetObjectField(TEXT("Node"), FNexusNativeEditorTools::Reference(A.Str(TEXT("NodePath"))));
+		Input->SetObjectField(TEXT("PCGVolume"), FNexusEditorDomainTools::Reference(A.Str(TEXT("ActorPath"))));
+		Input->SetObjectField(TEXT("Node"), FNexusEditorDomainTools::Reference(A.Str(TEXT("NodePath"))));
 		Input->SetStringField(TEXT("PinLabel"), A.Str(TEXT("PinLabel"), TEXT("Out"))); Input->SetStringField(TEXT("AttributeName"), A.Str(TEXT("AttributeName")));
 		Input->SetNumberField(TEXT("StartIndex"), A.Num(TEXT("Offset"))); Input->SetNumberField(TEXT("EndIndex"), A.Num(TEXT("Offset")) + A.Num(TEXT("Limit"), 100));
 	}
-	auto Operation = FNexusEditorOperations::Create(TEXT("OfficialToolset"));
-	FNexusNativeEditorTools::Call(TEXT("PCGToolset"), Tool, Input, Operation);
+	auto Operation = FNexusEditorOperations::Create(TEXT("EngineAPI"));
+	FNexusEditorDomainTools::Call(TEXT("NexusPCG"), Tool, Input, Operation);
 	return FNexusEditorToolSchema::Result(Operation);
 }
 REGISTER_MCP_CAPABILITY(FNexusGetEditorPCGCapability)

@@ -1,10 +1,10 @@
 // Copyright byteyang. All Rights Reserved.
-#include "Utils/NexusLegacyToolsets.h"
+#include "Utils/NexusEditorDomainTools.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusPropertyUtils.h"
-#include "Utils/NexusEditorToolsets.h"
+#include "Utils/NexusEditorControlServices.h"
 #include "JsonObjectConverter.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -15,7 +15,18 @@
 #include "PCGComponent.h"
 #include "PCGVolume.h"
 #include "PCGPin.h"
+#include "PCGEdge.h"
+#include "PCGSubgraph.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Utils/NexusAssetUtils.h"
+#include "UObject/UObjectIterator.h"
 #include "Data/PCGPointData.h"
+#if NX_UE_HAS_PCG_DATA_VIEW_JSON
+#include "Data/DataView/PCGDataView.h"
+#include "Data/DataView/PCGDataViewData.h"
+#include "Data/DataView/PCGDataViewNativeJsonConverters.h"
+#include "Helpers/PCGHelpers.h"
+#endif
 #if NX_UE_HAS_PCG_BASE_POINT_DATA
 #include "Data/PCGBasePointData.h"
 #endif
@@ -27,7 +38,7 @@
 #include "Components/BrushComponent.h"
 #endif
 
-void FNexusLegacyToolsets::ExecutePCG(const TSharedPtr<FJsonObject>& Args, const TSharedPtr<FNexusEditorOperation>& Operation)
+void FNexusEditorDomainTools::ExecutePCG(const TSharedPtr<FJsonObject>& Args, const TSharedPtr<FNexusEditorOperation>& Operation)
 {
 #if WITH_PCG
 	APCGVolume* Volume = Cast<APCGVolume>(Resolve(Args, TEXT("pCGVolume")));
@@ -46,7 +57,7 @@ void FNexusLegacyToolsets::ExecutePCG(const TSharedPtr<FJsonObject>& Args, const
 	const TWeakObjectPtr<UPCGComponent> Weak(Component);
 	Operation->Stop = [Weak, Operation]() { if (!Weak.IsValid()) return false; Weak->CancelGeneration(); FNexusEditorOperations::Finish(Operation, TEXT("Cancelled"), nullptr); return true; };
 	const double Deadline = FPlatformTime::Seconds() + 120;
-	FNexusEditorToolsets::AddTicker(FTickerDelegate::CreateLambda([Weak, Operation, Deadline](float)
+	FNexusEditorControlServices::AddTicker(FTickerDelegate::CreateLambda([Weak, Operation, Deadline](float)
 	{
 		if (!Operation->IsRunning()) return false;
 		if (!Weak.IsValid()) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("PCG component was destroyed")); return false; }
@@ -88,33 +99,50 @@ static bool NexusPCGSetInstance(UPCGGraphInstance* Instance, const TSharedPtr<FJ
     if (!Instance || !Instance->GetUserParametersStruct()) { Error = TEXT("PCG instance has no parameters"); return false; }
     FInstancedPropertyBag Candidate = *Instance->GetUserParametersStruct();
     if (!NexusPCGImportBag(Candidate, Values, Error)) return false;
-    // 实例 setter 负责覆盖标志和传播通知；不直接写引擎的只读参数指针。
-    for (const auto& Pair : Values->Values) {
-        const auto* Desc = Candidate.FindPropertyDescByName(FName(*Pair.Key));
-        const FProperty* Property = Desc->CachedProperty;
-        if (!CastField<FNumericProperty>(Property) && !CastField<FBoolProperty>(Property) && !CastField<FStrProperty>(Property) && !CastField<FNameProperty>(Property)) {
-            Error = TEXT("This engine compatibility backend currently supports scalar instance overrides: ") + FString(*Pair.Key); return false;
-        }
-    }
+    // 完整验证参数包后统一写入，所有反射属性类型都保留实例覆盖标记和传播通知。
     Instance->Modify();
     for (const auto& Pair : Values->Values) {
         const FName Name(*Pair.Key); const auto* Desc = Candidate.FindPropertyDescByName(Name); const FProperty* Property = Desc->CachedProperty;
-        const void* Data = Property->ContainerPtrToValuePtr<void>(Candidate.GetValue().GetMemory());
-        if (const auto* Number = CastField<FNumericProperty>(Property)) {
-            if (Number->IsFloatingPoint()) {
-                if (CastField<FFloatProperty>(Property)) Instance->SetGraphParameter<float>(Name, static_cast<float>(Number->GetFloatingPointPropertyValue(Data)));
-                else Instance->SetGraphParameter<double>(Name, Number->GetFloatingPointPropertyValue(Data));
-            } else if (Property->GetSize() == sizeof(int32)) Instance->SetGraphParameter<int32>(Name, static_cast<int32>(Number->GetSignedIntPropertyValue(Data)));
-            else Instance->SetGraphParameter<int64>(Name, Number->GetSignedIntPropertyValue(Data));
-        } else if (const auto* Bool = CastField<FBoolProperty>(Property)) Instance->SetGraphParameter<bool>(Name, Bool->GetPropertyValue(Data));
-        else if (const auto* String = CastField<FStrProperty>(Property)) Instance->SetGraphParameter<FString>(Name, String->GetPropertyValue(Data));
-        else if (const auto* NameProperty = CastField<FNameProperty>(Property)) Instance->SetGraphParameter<FName>(Name, NameProperty->GetPropertyValue(Data));
+        Instance->UpdatePropertyOverride(Property, true);
+        FInstancedPropertyBag* Target = Instance->GetMutableUserParametersStruct_Unsafe();
+        const auto* TargetDesc = Target->FindPropertyDescByName(Name);
+        if (!TargetDesc || !TargetDesc->CachedProperty) { Error = TEXT("PCG instance parameter disappeared during update"); return false; }
+        TargetDesc->CachedProperty->CopyCompleteValue(
+            TargetDesc->CachedProperty->ContainerPtrToValuePtr<void>(Target->GetMutableValue().GetMemory()),
+            Property->ContainerPtrToValuePtr<void>(Candidate.GetValue().GetMemory()));
+        Instance->OnGraphParametersChanged(EPCGGraphParameterEvent::ValueModifiedLocally, Name);
     }
     Instance->MarkPackageDirty(); return true;
 }
+
+static TArray<TSharedPtr<FJsonValue>> NexusPCGPinDescriptions(const TArray<FPCGPinProperties>& Pins)
+{
+    TArray<TSharedPtr<FJsonValue>> Result;
+    for (const auto& Pin : Pins)
+    {
+        auto Item = MakeShared<FJsonObject>();
+        Item->SetStringField(TEXT("Label"), Pin.Label.ToString());
+        Item->SetBoolField(TEXT("bAllowMultipleConnections"), Pin.AllowsMultipleConnections());
+        Item->SetBoolField(TEXT("bAllowMultipleData"), Pin.bAllowMultipleData);
+        Result.Add(MakeShared<FJsonValueObject>(Item));
+    }
+    return Result;
+}
+
+static TMap<FString, UPCGSettings*> NexusPCGNativeSettings()
+{
+    TMap<FString, UPCGSettings*> Result;
+    for (TObjectIterator<UClass> Class; Class; ++Class)
+    {
+        if (!Class->IsChildOf(UPCGSettings::StaticClass()) || Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists) || Class->ClassGeneratedBy) continue;
+        auto* Settings = Cast<UPCGSettings>(Class->GetDefaultObject());
+        if (Settings && !Settings->GetDefaultNodeName().IsNone()) Result.Add(Settings->GetDefaultNodeName().ToString(), Settings);
+    }
+    return Result;
+}
 #endif
 
-bool FNexusLegacyToolsets::PCG(const FString& Tool, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Result, FString& Error)
+bool FNexusEditorDomainTools::PCG(const FString& Tool, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Result, FString& Error)
 {
 #if WITH_PCG
     const FNexusArgs A(Args);
@@ -131,6 +159,33 @@ bool FNexusLegacyToolsets::PCG(const FString& Tool, const TSharedPtr<FJsonObject
         if (GEditor && GEditor->GetEditorWorldContext().World()) for (TActorIterator<APCGVolume> It(GEditor->GetEditorWorldContext().World()); It; ++It) {
             auto Item = MakeShared<FJsonObject>(); Item->SetStringField(TEXT("Path"), It->GetPathName()); Item->SetStringField(TEXT("Name"), It->GetName()); Items.Add(MakeShared<FJsonValueObject>(Item));
         }
+        Result->SetArrayField(TEXT("Items"), Items); return true;
+    }
+    if (Tool == TEXT("ListNativeNodes"))
+    {
+        const TSet<FString> Common = {TEXT("SurfaceSampler"), TEXT("VolumeSampler"), TEXT("TransformPoints"), TEXT("StaticMeshSpawner"), TEXT("DensityFilter"), TEXT("PointFilter"), TEXT("GetActorData"), TEXT("GetLandscapeData"), TEXT("Projection"), TEXT("Union"), TEXT("Difference"), TEXT("Intersection"), TEXT("MergePoints"), TEXT("CopyPoints"), TEXT("SplineSampler"), TEXT("BoundsModifier")};
+        TArray<FString> Names;
+        for (const auto& Pair : NexusPCGNativeSettings()) if (!A.Bool(TEXT("bCommonOnly"), true) || Common.Contains(Pair.Key)) Names.Add(Pair.Key);
+        Names.Sort(); TArray<TSharedPtr<FJsonValue>> Items;
+        for (const auto& Name : Names) Items.Add(MakeShared<FJsonValueString>(Name));
+        Result->SetArrayField(TEXT("Items"), Items); return true;
+    }
+    if (Tool == TEXT("GetNativeNodeSchema"))
+    {
+        const auto Settings = NexusPCGNativeSettings(); UPCGSettings* const* Found = Settings.Find(A.Str(TEXT("nodeName")));
+        if (!Found || !*Found) { Error = TEXT("NodeName must come from NativeNodes discovery"); return false; }
+        Result->SetStringField(TEXT("Name"), A.Str(TEXT("nodeName"))); Result->SetStringField(TEXT("ClassPath"), (*Found)->GetClass()->GetPathName());
+        Result->SetStringField(TEXT("Description"), (*Found)->GetNodeTooltipText().ToString());
+        TArray<TSharedPtr<FJsonValue>> Properties; FNexusPropertyUtils::CollectEditableProperties(*Found, Properties); Result->SetArrayField(TEXT("Properties"), Properties);
+        Result->SetArrayField(TEXT("InputPins"), NexusPCGPinDescriptions((*Found)->InputPinProperties())); Result->SetArrayField(TEXT("OutputPins"), NexusPCGPinDescriptions((*Found)->OutputPinProperties()));
+        return true;
+    }
+    if (Tool == TEXT("ListAvailableSubgraphs"))
+    {
+        FARFilter Filter; Filter.ClassPaths.Add(UPCGGraph::StaticClass()->GetClassPathName()); Filter.bRecursiveClasses = true;
+        TArray<FAssetData> Assets; FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get().GetAssets(Filter, Assets);
+        TArray<FString> Paths; for (const auto& Asset : Assets) Paths.Add(Asset.GetSoftObjectPath().ToString()); Paths.Sort();
+        TArray<TSharedPtr<FJsonValue>> Items; for (const auto& Path : Paths) Items.Add(MakeShared<FJsonValueString>(Path));
         Result->SetArrayField(TEXT("Items"), Items); return true;
     }
     if (Tool == TEXT("SpawnGraphInstance"))
@@ -161,7 +216,9 @@ bool FNexusLegacyToolsets::PCG(const FString& Tool, const TSharedPtr<FJsonObject
         if (!Component || !Node || Node->GetGraph() != Component->GetGraph()) { Error = TEXT("Node must belong to the selected PCG instance graph"); return false; }
         if (Component->IsGenerating()) { Error = TEXT("Wait for graph execution to finish before reading node data"); return false; }
         const FString Attribute = A.Str(TEXT("attributeName"));
-        if (!Attribute.IsEmpty() && Attribute != TEXT("Transform") && Attribute != TEXT("Density") && Attribute != TEXT("Seed")) { Error = TEXT("Compatibility node data currently exposes Transform, Density and Seed only"); return false; }
+#if !NX_UE_HAS_PCG_DATA_VIEW_JSON
+        if (!Attribute.IsEmpty() && Attribute != TEXT("Transform") && Attribute != TEXT("Density") && Attribute != TEXT("Seed")) { Error = TEXT("This engine node-data API exposes Transform, Density and Seed only"); return false; }
+#endif
         const UPCGPin* Pin = Node->GetOutputPin(FName(*A.Str(TEXT("pinLabel"), TEXT("Out"))));
         if (!Pin) { Error = TEXT("Output pin not found"); return false; }
 #if NX_UE_HAS_PCG_EXECUTION_STATE
@@ -193,6 +250,34 @@ bool FNexusLegacyToolsets::PCG(const FString& Tool, const TSharedPtr<FJsonObject
 #endif
         if (!Collection) { Error = TEXT("No captured output data; execute after enabling inspection"); return false; }
         const int32 Offset = FMath::Max(0, static_cast<int32>(A.Num(TEXT("startIndex")))), End = FMath::Clamp(static_cast<int32>(A.Num(TEXT("endIndex"), 100)), Offset, Offset + 1000);
+#if NX_UE_HAS_PCG_DATA_VIEW_JSON
+        FInstancedStruct ConverterParameters; ConverterParameters.InitializeAs<FPCGDataViewJsonParameters>();
+        TArray<TSharedPtr<FJsonValue>> Datasets; int32 TotalElements = 0;
+        const UPCGDataViewJsonConverter* Converter = GetDefault<UPCGDataViewJsonConverter>();
+        for (const auto& Tagged : Collection->TaggedData)
+        {
+            const UPCGData* Data = Tagged.Data;
+            if (!Data) continue;
+            FPCGDataView View;
+            if (const auto* ExistingView = Cast<UPCGDataViewData>(Data)) View = ExistingView->GetDataView();
+            else View.ViewedData = Data;
+            View.Selection.bAllAttributes = Attribute.IsEmpty();
+            if (!Attribute.IsEmpty()) { View.Selection.Attributes.Reset(); View.Selection.Attributes.Add(FPCGAttributePropertySelector::CreateSelectorFromString<FPCGAttributePropertySelector>(Attribute)); }
+            auto Encoded = Converter->SerializeToString(View, ConverterParameters);
+            if (Encoded.HasError()) { Error = Encoded.GetError().ToString(); return false; }
+            const FString DatasetJson = Encoded.StealValue();
+            if (DatasetJson.Len() > 16 * 1024 * 1024) { Error = TEXT("PCG dataset exceeds the inspection limit; select an attribute or reduce generated data"); return false; }
+            TSharedPtr<FJsonObject> Dataset;
+            if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(DatasetJson), Dataset)) { Error = TEXT("PCG data converter returned invalid JSON"); return false; }
+            const int32 Count = PCGHelpers::GetNumberOfElements(Data);
+            for (int32 ElementIndex = 0; ElementIndex < Count; ++ElementIndex)
+                if (TotalElements + ElementIndex < Offset || TotalElements + ElementIndex >= End) Dataset->RemoveField(FString::Printf(TEXT("element_%d"), ElementIndex));
+            Dataset->SetNumberField(TEXT("TotalElements"), Count); Dataset->SetNumberField(TEXT("DatasetOffset"), TotalElements);
+            Datasets.Add(MakeShared<FJsonValueObject>(Dataset)); TotalElements += Count;
+        }
+        Result->SetArrayField(TEXT("Datasets"), Datasets); Result->SetNumberField(TEXT("Total"), TotalElements);
+        Result->SetNumberField(TEXT("Returned"), FMath::Max(0, FMath::Min(End, TotalElements) - Offset)); return true;
+#endif
         TArray<TSharedPtr<FJsonValue>> Items; int32 Total = 0;
         for (const auto& Tagged : Collection->TaggedData)
         {
@@ -244,9 +329,57 @@ bool FNexusLegacyToolsets::PCG(const FString& Tool, const TSharedPtr<FJsonObject
         UPCGNode* Node = Cast<UPCGNode>(Resolve(Args, TEXT("node")));
         if (!Node || !Node->GetSettings()) { Error = TEXT("PCG node/settings not found"); return false; }
         Result->SetStringField(TEXT("Path"), Node->GetPathName()); Result->SetStringField(TEXT("ClassPath"), Node->GetSettings()->GetClass()->GetPathName());
-        TArray<TSharedPtr<FJsonValue>> Properties; FNexusPropertyUtils::CollectEditableProperties(Node->GetSettings(), Properties); Result->SetArrayField(TEXT("Properties"), Properties); return true;
+        TArray<TSharedPtr<FJsonValue>> Properties;
+        for (TFieldIterator<FProperty> Property(Node->GetSettings()->GetClass()); Property; ++Property)
+        {
+            if (!Property->HasAnyPropertyFlags(CPF_Edit)) continue;
+            auto Item = MakeShared<FJsonObject>(); Item->SetStringField(TEXT("Name"), Property->GetName()); Item->SetStringField(TEXT("Type"), Property->GetCPPType());
+            const void* ValueAddress = Property->ContainerPtrToValuePtr<void>(Node->GetSettings());
+            TSharedPtr<FJsonValue> Value = FJsonObjectConverter::UPropertyToJsonValue(*Property, ValueAddress);
+            if (!Value.IsValid())
+            {
+                FString ValueText; FNexusPropertyUtils::ExportText(*Property, ValueText, ValueAddress); Value = MakeShared<FJsonValueString>(ValueText);
+            }
+            Item->SetField(TEXT("Value"), Value); Properties.Add(MakeShared<FJsonValueObject>(Item));
+        }
+        Result->SetArrayField(TEXT("Properties"), Properties); return true;
     }
     if (!Graph) { Error = TEXT("Graph reference is required"); return false; }
+    if (Tool == TEXT("GetGraphStructure"))
+    {
+        TArray<TSharedPtr<FJsonValue>> Nodes, Edges;
+        TArray<UPCGNode*> AllNodes = Graph->GetNodes(); AllNodes.Insert(Graph->GetInputNode(), 0); AllNodes.Add(Graph->GetOutputNode());
+        for (UPCGNode* Node : AllNodes)
+        {
+            if (!Node) continue;
+            auto Item = MakeShared<FJsonObject>(); Item->SetStringField(TEXT("Path"), Node->GetPathName()); Item->SetStringField(TEXT("Name"), Node->GetName());
+            Item->SetStringField(TEXT("Title"), Node->GetNodeTitle(EPCGNodeTitleType::FullTitle).ToString());
+            if (Node->GetSettings()) Item->SetStringField(TEXT("SettingsClass"), Node->GetSettings()->GetClass()->GetPathName());
+            Item->SetArrayField(TEXT("InputPins"), NexusPCGPinDescriptions(Node->InputPinProperties())); Item->SetArrayField(TEXT("OutputPins"), NexusPCGPinDescriptions(Node->OutputPinProperties())); Nodes.Add(MakeShared<FJsonValueObject>(Item));
+            for (const UPCGPin* Pin : Node->GetOutputPins()) if (Pin) for (const UPCGEdge* Edge : Pin->Edges)
+            {
+                const UPCGPin* Other = Edge ? Edge->GetOtherPin(Pin) : nullptr;
+                if (!Other || !Other->Node) continue;
+                auto Link = MakeShared<FJsonObject>(); Link->SetStringField(TEXT("FromNode"), Node->GetPathName()); Link->SetStringField(TEXT("FromPin"), Pin->Properties.Label.ToString());
+                Link->SetStringField(TEXT("ToNode"), Other->Node->GetPathName()); Link->SetStringField(TEXT("ToPin"), Other->Properties.Label.ToString()); Edges.Add(MakeShared<FJsonValueObject>(Link));
+            }
+        }
+        Result->SetStringField(TEXT("Name"), Graph->GetName()); Result->SetArrayField(TEXT("Nodes"), Nodes); Result->SetArrayField(TEXT("Edges"), Edges); return true;
+    }
+    if (Tool == TEXT("AddSubgraphNode"))
+    {
+        UPCGGraph* Subgraph = Cast<UPCGGraph>(Resolve(Args, TEXT("subGraphForNode")));
+        const FString Name = A.Str(TEXT("nodeName"));
+        if (!Subgraph || Subgraph == Graph || Subgraph->Contains(Graph) || Name.IsEmpty() || StaticFindObject(UObject::StaticClass(), Graph, *Name)) { Error = TEXT("Invalid subgraph, cycle or duplicate NodeName"); return false; }
+        Graph->Modify(); UPCGSubgraphSettings* Settings = nullptr; UPCGNode* Node = Graph->AddNodeOfType(Settings);
+        if (!Node || !Settings) { if (Node) Graph->RemoveNode(Node); Error = TEXT("Could not create PCG subgraph node"); return false; }
+        if (!Node->Rename(*Name, nullptr, REN_Test) || !Node->Rename(*Name)) { Graph->RemoveNode(Node); Error = TEXT("Could not assign the requested NodeName"); return false; }
+        Settings->SetSubgraph(Subgraph);
+        auto* SubgraphInstance = Cast<UPCGGraphInstance>(Settings->GetSubgraphInterface());
+        if (Values->Values.Num() && !NexusPCGSetInstance(SubgraphInstance, Values, Error)) { Graph->RemoveNode(Node); return false; }
+        Node->NodeTitle = FName(*A.Str(TEXT("nodeTitle"))); Graph->MarkPackageDirty();
+        Result->SetStringField(TEXT("NodePath"), Node->GetPathName()); Result->SetStringField(TEXT("Name"), Name); return true;
+    }
     if (Tool == TEXT("GetGraphSchema")) {
         Result=NexusPCGBagJson(Graph->GetUserParametersStruct()); TArray<TSharedPtr<FJsonValue>> Parameters;
         if (const auto* Bag=Graph->GetUserParametersStruct()) if (Bag->IsValid()) for (const auto& Desc : Bag->GetPropertyBagStruct()->GetPropertyDescs()) {
@@ -264,7 +397,7 @@ bool FNexusLegacyToolsets::PCG(const FString& Tool, const TSharedPtr<FJsonObject
             if (!Args->TryGetArrayField(TEXT("params"), Definitions)) { Error = TEXT("Parameter definitions required"); return false; }
             for (const auto& Item : *Definitions) {
                 const FNexusArgs D(Item->AsObject()); const FName Name(*D.Str(TEXT("name"))); const FString Type = D.Str(TEXT("type"));
-                EPropertyBagPropertyType Kind = EPropertyBagPropertyType::None;
+                EPropertyBagPropertyType Kind = EPropertyBagPropertyType::None; UObject* TypeObject = nullptr;
                 if (Type == TEXT("Float")) Kind = EPropertyBagPropertyType::Float;
                 else if (Type == TEXT("Double")) Kind = EPropertyBagPropertyType::Double;
                 else if (Type == TEXT("Integer32")) Kind = EPropertyBagPropertyType::Int32;
@@ -272,10 +405,21 @@ bool FNexusLegacyToolsets::PCG(const FString& Tool, const TSharedPtr<FJsonObject
                 else if (Type == TEXT("Boolean")) Kind = EPropertyBagPropertyType::Bool;
                 else if (Type == TEXT("String")) Kind = EPropertyBagPropertyType::String;
                 else if (Type == TEXT("Name")) Kind = EPropertyBagPropertyType::Name;
-                if (Kind == EPropertyBagPropertyType::None || D.Str(TEXT("containerType")) == TEXT("Array")) { Error = TEXT("Compatibility graph definitions currently require scalar numeric/bool/string/name types"); return false; }
+                else if (Type == TEXT("Vector2")) { Kind = EPropertyBagPropertyType::Struct; TypeObject = TBaseStructure<FVector2D>::Get(); }
+                else if (Type == TEXT("Vector")) { Kind = EPropertyBagPropertyType::Struct; TypeObject = TBaseStructure<FVector>::Get(); }
+                else if (Type == TEXT("Vector4")) { Kind = EPropertyBagPropertyType::Struct; TypeObject = TBaseStructure<FVector4>::Get(); }
+                else if (Type == TEXT("Quaternion")) { Kind = EPropertyBagPropertyType::Struct; TypeObject = TBaseStructure<FQuat>::Get(); }
+                else if (Type == TEXT("Transform")) { Kind = EPropertyBagPropertyType::Struct; TypeObject = TBaseStructure<FTransform>::Get(); }
+                else if (Type == TEXT("Rotator")) { Kind = EPropertyBagPropertyType::Struct; TypeObject = TBaseStructure<FRotator>::Get(); }
+                if (Kind == EPropertyBagPropertyType::None) { Error = TEXT("Unknown PCG parameter type"); return false; }
+                const bool bArray = D.Str(TEXT("containerType")) == TEXT("Array");
+                FPropertyBagPropertyDesc Description(Name, bArray ? EPropertyBagContainerType::Array : EPropertyBagContainerType::None, Kind, TypeObject);
+#if WITH_EDITORONLY_DATA
+                Description.MetaData.Emplace(TEXT("ToolTip"), D.Str(TEXT("description")));
+#endif
                 const auto* Existing = Candidate.FindPropertyDescByName(Name);
-                if (Existing && Existing->ValueType != Kind) { Error = TEXT("Changing an existing parameter type is not supported"); return false; }
-                if (!Existing) Candidate.AddProperty(Name, Kind);
+                if (Existing && !Existing->CompatibleType(Description)) { Error = TEXT("Changing an existing parameter type is not supported"); return false; }
+                if (!Existing) Candidate.AddProperties({Description});
                 const FString Default = D.Str(TEXT("defaultValueJson"));
                 if (!Default.IsEmpty()) {
                     TArray<TSharedPtr<FJsonValue>> Parsed;
@@ -296,7 +440,7 @@ bool FNexusLegacyToolsets::PCG(const FString& Tool, const TSharedPtr<FJsonObject
 #endif
         Graph->MarkPackageDirty(); return true;
     }
-    Error = TEXT("This PCG action is not supported by this engine compatibility backend"); return false;
+    Error = TEXT("This PCG action is unavailable in the current engine domain API"); return false;
 #else
     Error = TEXT("PCG compatibility requires the PCG plugin and supported engine APIs"); return false;
 #endif

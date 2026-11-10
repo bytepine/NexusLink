@@ -72,6 +72,11 @@ RE_NAME         = re.compile(r'Out\.Name\s*=\s*TEXT\("([^"]+)"\)')
 RE_DESC         = re.compile(r'Out\.Description\s*=\s*TEXT\("([^"]+)"\)')
 RE_RELATED      = re.compile(r'Out\.RelatedCapabilities\s*=\s*\{([^}]+)\}')
 RE_PREREQ       = re.compile(r'Out\.Prerequisites\s*=\s*\{([^}]+)\}')
+RE_PREREQ_ADD   = re.compile(r'Out\.Prerequisites\s*\.Add\s*\(\s*TEXT\("([^"]+)"\)\s*\)')
+RE_EDITOR_CONFIG = re.compile(
+    r'FNexusEditorToolSchema::Configure\w*\s*\(\s*Out\s*,\s*'
+    r'(?:true|false|[A-Za-z_]\w*)\s*(?:,\s*TEXT\("([^"]+)"\)\s*)?\)'
+)
 RE_WHEN         = re.compile(r'Out\.WhenToUse\s*=\s*TEXT\("([^"]+)"\)')
 RE_TEXT_VALUES  = re.compile(r'TEXT\("([^"]+)"\)')
 RE_USE_SECTIONS = re.compile(r'BuildSchemaWithSections\(\)')
@@ -436,6 +441,14 @@ def _parse_tool_file(cpp_path: Path, *, kind: str) -> dict[str, Any] | None:
         m_pre = RE_PREREQ.search(text)
         if m_pre:
             cap["prerequisites"] = extract_text_values(m_pre.group(1))
+        # 编辑器信封 helper 统一要求 EditorOnly，领域依赖与运行时 ConfigureIndependent 对齐。
+        for configured in RE_EDITOR_CONFIG.finditer(text):
+            cap["prerequisites"].append("EditorOnly")
+            domain_plugin = {"NexusPCG": "PCG", "NexusNiagara": "Niagara"}.get(configured.group(1))
+            if domain_plugin:
+                cap["prerequisites"].append("PluginEnabled:" + domain_plugin)
+        cap["prerequisites"].extend(RE_PREREQ_ADD.findall(text))
+        cap["prerequisites"] = list(dict.fromkeys(cap["prerequisites"]))
         m_when = RE_WHEN.search(text)
         if m_when:
             cap["when_to_use"] = m_when.group(1)

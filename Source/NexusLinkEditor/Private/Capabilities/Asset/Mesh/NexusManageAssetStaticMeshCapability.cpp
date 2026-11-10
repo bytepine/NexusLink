@@ -3,7 +3,6 @@
 #include "Capabilities/Asset/Mesh/NexusManageAssetStaticMeshCapability.h"
 #include "Utils/NexusArgs.h"
 #include "NexusCapabilityRegistry.h"
-#include "Utils/NexusEditorToolsets.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusPropertyUtils.h"
@@ -182,22 +181,18 @@ static void HandleSM_SetMaterialSlot(const TSharedPtr<FJsonObject>& Op, FNexusAc
 		Material = FNexusAssetUtils::LoadAssetWithFallback<UMaterialInterface>(MaterialPath);
 	}
 	const TArray<FStaticMaterial>& Materials = FNexusAssetUtils::GetStaticMeshMaterials(*Mesh);
+	if (!Material)
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("MaterialPath must resolve to a material; the existing slot was not changed"));
+		return;
+	}
 	if (!Materials.IsValidIndex(SlotIndex))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Material slot index %d out of range [0, %d)"), SlotIndex, Materials.Num()));
 		return;
 	}
 #if WITH_EDITOR
-    // 原生按槽名定位；仅唯一具名槽可与现有索引契约等价。
-    const FName SlotName = Materials[SlotIndex].MaterialSlotName;
-    int32 SameNameCount = 0; for (const auto& Slot : Materials) if (Slot.MaterialSlotName == SlotName) ++SameNameCount;
-    bool bNative = false;
-    if (Material && !SlotName.IsNone() && SameNameCount == 1) {
-        auto Input = MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("mesh"), FNexusNativeEditorTools::Reference(Mesh->GetPathName())); Input->SetStringField(TEXT("slot_name"), SlotName.ToString()); Input->SetObjectField(TEXT("material"), FNexusNativeEditorTools::Reference(Material->GetPathName()));
-        bNative = FNexusNativeEditorTools::EditSync(TEXT("editor_toolset.toolsets.static_mesh.StaticMeshTools"), TEXT("set_material"), Input, Ctx.Entry);
-        if (Ctx.Entry->HasField(TEXT("Error"))) return;
-    }
-    if (!bNative) Mesh->SetMaterial(SlotIndex, Material);
+    Mesh->SetMaterial(SlotIndex, Material);
 	MarkMeshDirty(Ctx);
 	Ctx.Entry->SetNumberField(TEXT("SlotIndex"), SlotIndex);
 	Ctx.Entry->SetStringField(TEXT("MaterialClass"), Material ? Material->GetClass()->GetName() : TEXT("None"));
@@ -438,30 +433,26 @@ static void HandleSM_SetLodScreenSize(const TSharedPtr<FJsonObject>& Op, FNexusA
 static void HandleSM_Generate(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
     UStaticMesh* Mesh = MeshFrom(Ctx); if (!Mesh) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Static mesh is missing")); return; }
-    const FNexusArgs A(Op); auto Input = MakeShared<FJsonObject>();
-    Input->SetObjectField(TEXT("mesh"), FNexusNativeEditorTools::Reference(Mesh->GetPathName())); FString Tool;
+    const FNexusArgs A(Op);
     const TArray<TSharedPtr<FJsonValue>>* Percents = nullptr;
     if (Ctx.Action == TEXT("GenerateLODs")) {
         if (!Op->TryGetArrayField(TEXT("TrianglePercents"), Percents) || Percents->Num() < 1 || Percents->Num() > 7) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("GenerateLODs requires 1-7 retention fractions")); return; }
         double Previous = 1;
         for (const auto& Value : *Percents) { double Percent = 0; if (!Value->TryGetNumber(Percent) || !FMath::IsFinite(Percent) || Percent <= 0 || Percent > Previous) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("LOD retention must decrease within (0,1]")); return; } Previous = Percent; }
-        Tool = TEXT("generate_lods"); Input->SetArrayField(TEXT("triangle_percents"), *Percents);
-    } else if (Ctx.Action == TEXT("RemoveLODs")) Tool = TEXT("remove_lods");
+    } else if (Ctx.Action == TEXT("RemoveLODs")) {}
     else if (Ctx.Action == TEXT("GenerateConvexCollision")) {
         for (const FString& Key : {TEXT("HullCount"),TEXT("MaxHullVertices"),TEXT("HullPrecision")}) if (Op->HasField(Key)) {
             const double Value=A.Num(*Key,-1); if (!FMath::IsFinite(Value) || Value<0 || Value>1000000 || Value!=static_cast<int32>(Value)) { Ctx.Entry->SetStringField(TEXT("Error"),TEXT("Convex limits must be bounded integers")); return; }
         }
         const int32 Count = static_cast<int32>(A.Num(TEXT("HullCount"),4)), Vertices = static_cast<int32>(A.Num(TEXT("MaxHullVertices"),16)), Precision = static_cast<int32>(A.Num(TEXT("HullPrecision"),100000));
         if (Count < 1 || Count > 64 || Vertices < 4 || Vertices > 64 || Precision < 10000 || Precision > 1000000) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Convex decomposition limits are invalid")); return; }
-        Tool = TEXT("generate_convex_collisions"); Input->SetNumberField(TEXT("hull_count"),Count); Input->SetNumberField(TEXT("max_hull_verts"),Vertices); Input->SetNumberField(TEXT("hull_precision"),Precision);
     } else {
 #if !NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
         Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Nanite requires UE5")); return;
 #endif
         if (!Op->HasTypedField<EJson::Boolean>(TEXT("bEnabled"))) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetNaniteEnabled requires bEnabled")); return; }
-        Tool = TEXT("set_nanite_enabled"); Input->SetBoolField(TEXT("enabled"),A.Bool(TEXT("bEnabled")));
     }
-    if (!FNexusNativeEditorTools::EditSync(TEXT("editor_toolset.toolsets.static_mesh.StaticMeshTools"), Tool, Input, Ctx.Entry)) {
+    {
         bool bOk = false;
 #if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
         UStaticMeshEditorSubsystem* Editor = GEditor ? GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>() : nullptr;
@@ -508,7 +499,7 @@ static void HandleSM_Generate(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 #endif
         }
         if (!bOk) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Mesh generation failed; inspect editor diagnostics")); return; }
-        Ctx.Entry->SetStringField(TEXT("Backend"), TEXT("EngineCompatibility"));
+        Ctx.Entry->SetStringField(TEXT("Backend"), TEXT("Independent"));
     }
     if (Ctx.Entry->HasField(TEXT("Error"))) return;
     MarkMeshDirty(Ctx); Ctx.Entry->SetNumberField(TEXT("LODCount"), Mesh->GetNumLODs());

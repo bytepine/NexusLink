@@ -3,7 +3,7 @@
 #include "Utils/NexusVersionCompat.h"
 
 #if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
-#include "Utils/NexusLegacyToolsets.h"
+#include "Utils/NexusEditorDomainTools.h"
 #include "UObject/UnrealType.h"
 #include "LevelSequence.h"
 #include "MovieScene.h"
@@ -17,7 +17,7 @@
 #include "PCGGraph.h"
 #endif
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusLegacyTransformKeysTest, "NexusLink.Toolsets.Compatibility.TransformKeys", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusLegacyTransformKeysTest, "NexusLink.Independent.TransformKeys", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FNexusLegacyTransformKeysTest::RunTest(const FString&)
 {
     ULevelSequence* Sequence = NewObject<ULevelSequence>();
@@ -38,13 +38,13 @@ bool FNexusLegacyTransformKeysTest::RunTest(const FString&)
     auto Arguments = MakeShared<FJsonObject>();
     Arguments->SetStringField(TEXT("section"), Section->GetPathName());
     Arguments->SetStringField(TEXT("channel_name"), TEXT("Location.X"));
-    const FString Domain = TEXT("animation_toolset.toolsets.keyframing.SequencerKeyframingTools");
+    const FString Domain = TEXT("NexusAnimation.Keyframing");
     TSharedPtr<FJsonObject> Result;
     FString Error;
     const auto Call = [&](const TCHAR* Tool)
     {
         Result = MakeShared<FJsonObject>(); Error.Empty();
-        const bool bSucceeded = FNexusLegacyToolsets::Animation(Domain, Tool, Arguments, Result, Error);
+        const bool bSucceeded = FNexusEditorDomainTools::Animation(Domain, Tool, Arguments, Result, Error);
         TestTrue(FString(Tool) + TEXT(": ") + Error, bSucceeded);
         return bSucceeded;
     };
@@ -80,7 +80,7 @@ bool FNexusLegacyTransformKeysTest::RunTest(const FString&)
 }
 
 #if WITH_NIAGARA
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusLegacyNiagaraValueTypesTest, "NexusLink.Toolsets.Compatibility.NiagaraValueTypes", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusLegacyNiagaraValueTypesTest, "NexusLink.Independent.NiagaraValueTypes", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FNexusLegacyNiagaraValueTypesTest::RunTest(const FString&)
 {
     UNiagaraSystem* System = NewObject<UNiagaraSystem>();
@@ -100,7 +100,7 @@ bool FNexusLegacyNiagaraValueTypesTest::RunTest(const FString&)
     const auto Call = [&](const TCHAR* Tool)
     {
         Result = MakeShared<FJsonObject>(); Error.Empty();
-        const bool bSucceeded = FNexusLegacyToolsets::Niagara(Tool, Arguments, Result, Error);
+        const bool bSucceeded = FNexusEditorDomainTools::Niagara(Tool, Arguments, Result, Error);
         TestTrue(FString(Tool) + TEXT(": ") + Error, bSucceeded);
         return bSucceeded;
     };
@@ -127,7 +127,7 @@ bool FNexusLegacyNiagaraValueTypesTest::RunTest(const FString&)
 #endif
 
 #if WITH_PCG
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusLegacyPCGParameterPropagationTest, "NexusLink.Toolsets.Compatibility.PCGParameterPropagation", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusLegacyPCGParameterPropagationTest, "NexusLink.Independent.PCGParameterPropagation", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FNexusLegacyPCGParameterPropagationTest::RunTest(const FString&)
 {
     UPCGGraph* Graph = NewObject<UPCGGraph>();
@@ -144,7 +144,7 @@ bool FNexusLegacyPCGParameterPropagationTest::RunTest(const FString&)
         Definition->SetStringField(TEXT("defaultValueJson"), DefaultValue);
         Arguments->SetArrayField(TEXT("params"), {MakeShared<FJsonValueObject>(Definition)});
         TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>(); FString Error;
-        const bool bSucceeded = FNexusLegacyToolsets::PCG(TEXT("SetGraphParams"), Arguments, Result, Error);
+        const bool bSucceeded = FNexusEditorDomainTools::PCG(TEXT("SetGraphParams"), Arguments, Result, Error);
         TestTrue(TEXT("Set graph parameter: ") + Error, bSucceeded);
         return bSucceeded;
     };
@@ -168,7 +168,7 @@ bool FNexusLegacyPCGParameterPropagationTest::RunTest(const FString&)
     if (!CheckDensity(Overridden, 7.0)) return false;
     Arguments->SetArrayField(TEXT("paramNames"), {MakeShared<FJsonValueString>(TEXT("Density")), MakeShared<FJsonValueString>(TEXT("Count"))});
     TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>(); FString Error;
-    const bool bRemoved = FNexusLegacyToolsets::PCG(TEXT("RemoveGraphParams"), Arguments, Result, Error);
+    const bool bRemoved = FNexusEditorDomainTools::PCG(TEXT("RemoveGraphParams"), Arguments, Result, Error);
     if (!TestTrue(TEXT("Remove graph parameters: ") + Error, bRemoved)) return false;
     for (UPCGGraphInstance* Instance : {Inherited, Overridden})
         TestEqual(TEXT("Removed parameters disappear from existing instances"), Instance->GetUserParametersStruct()->GetNumPropertiesInBag(), 0);

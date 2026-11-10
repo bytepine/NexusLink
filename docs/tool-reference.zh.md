@@ -127,6 +127,8 @@
 
 按窗口/控件 Ref 截图，默认附带标准 MCP PNG 图片和 FilePath；bIncludeImage=false 只返回路径。
 
+**前置条件**: `EditorOnly`
+
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Ref` | `string` |  | Widget ref; empty selects active window |
@@ -140,6 +142,8 @@
 
 非阻塞启动 C++ 热编译；限 Windows，用户须先启用 Live Coding。
 
+**前置条件**: `EditorOnly`
+
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Reason` | `string` |  | 编辑器确认弹窗用的目的说明；Confirm 模式必填 |
@@ -150,13 +154,15 @@
 
 ### `ControlEditorAnimation`
 
-通过固定动作编辑 Sequencer 分段与关键帧、Control Rig 控件、烘焙和动画层；UE 5.8+，原生参数 Schema 可发现。
+通过独立引擎 API 编辑 Sequencer 分段与关键帧、Control Rig 控件、烘焙和动画层；动作级 Schema 和版本支持可发现。
 
-**适用场景**: 通过固定动作编辑 Sequencer 分段与关键帧、Control Rig 控件、烘焙和动画层；UE 5.8+，原生参数 Schema 可发现。
+**前置条件**: `EditorOnly`
+
+**适用场景**: 通过独立引擎 API 编辑 Sequencer 分段与关键帧、Control Rig 控件、烘焙和动画层；动作级 Schema 和版本支持可发现。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Parameters` | `object` | ★ | Exact native inputSchema fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths. |
+| `Parameters` | `object` | ★ | Independent animation input fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths. |
 
 **相关 Capability**: `GetProjectToolsets`, `GetEditorAnimation`, `ControlEditorAnimation`, `GetEditorOperation`
 
@@ -181,6 +187,8 @@
 ### `ControlEditorAutomation`
 
 发现、运行本地编辑器测试或停止所属运行；不覆盖外部测试。
+
+**前置条件**: `EditorOnly`
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -226,13 +234,15 @@
 
 ### `ControlEditorNiagara`
 
-UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data Interface、用户变量和 Set Parameters。
+通过独立引擎 API 编辑 Niagara 系统/发射器、渲染器、嵌套输入/Data Interface、用户变量和 Set Parameters。
 
-**适用场景**: UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data Interface、用户变量和 Set Parameters。
+**前置条件**: `EditorOnly` / `PluginEnabled:Niagara`
+
+**适用场景**: 通过独立引擎 API 编辑 Niagara 系统/发射器、渲染器、嵌套输入/Data Interface、用户变量和 Set Parameters。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Parameters` | `object` | ★ | Exact native inputSchema fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths. |
+| `Parameters` | `object` | ★ | Independent action schema fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths. |
 
 **相关 Capability**: `GetProjectToolsets`, `GetEditorNiagara`, `ManageAssetNiagaraSystem`, `GetEditorOperation`
 
@@ -241,6 +251,8 @@ UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data I
 ### `ControlEditorOperation`
 
 请求取消当前会话所属任务，仅支持暴露停止回调的运行任务。
+
+**前置条件**: `EditorOnly`
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -252,9 +264,11 @@ UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data I
 
 ### `ControlEditorPCG`
 
-使用 UE 5.8 官方 Toolset 创建/执行实例，修改节点设置、图参数、实例覆盖和子图；异步危险写入，无事务回滚，图资产需显式保存。
+独立创建/执行 PCG 实例，修改节点设置、图参数、实例覆盖和子图；异步危险写入，无事务回滚，图资产需显式保存。
 
-**适用场景**: 先发现路径/Schema，再调参或执行；按 OperationId 查询，读回业务结果，图资产显式保存。
+**前置条件**: `EditorOnly` / `PluginEnabled:PCG`
+
+**适用场景**: 独立创建/执行 PCG 实例，修改节点设置、图参数、实例覆盖和子图；异步危险写入，无事务回滚，图资产需显式保存。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -278,6 +292,8 @@ UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data I
 ### `ControlEditorScene`
 
 整理当前编辑器场景的文件夹、选择集、合并静态网格 Actor，并编辑 UE5 Level Instance。
+
+**前置条件**: `EditorOnly`
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -318,9 +334,11 @@ UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data I
 
 ### `ExecNiagaraStackFix`
 
-应用同一系统最新诊断返回的明确 IssueId/FixId；UE 5.8 官方危险写操作，不自动选择修复。
+独立应用同一系统最新诊断返回的明确 IssueId/FixId；危险写入，不自动选择修复。
 
-**适用场景**: 仅在最新 StackIssues 已给出目标 IssueId 和 FixId 时应用该修复。
+**前置条件**: `EditorOnly` / `PluginEnabled:Niagara`
+
+**适用场景**: 独立应用同一系统最新诊断返回的明确 IssueId/FixId；危险写入，不自动选择修复。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -353,13 +371,15 @@ UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data I
 
 ### `GetEditorAnimation`
 
-通过 UE 5.8 官方动画工具查询轨道、绑定、分段、通道关键帧和 Control Rig 控件/动画层；参数按原生 Schema 传递。
+通过独立引擎 API 查询轨道、绑定、分段、通道关键帧、Control Rig 控件和动画层；先发现动作参数与版本支持。
 
-**适用场景**: 通过 UE 5.8 官方动画工具查询轨道、绑定、分段、通道关键帧和 Control Rig 控件/动画层；参数按原生 Schema 传递。
+**前置条件**: `EditorOnly`
+
+**适用场景**: 通过独立引擎 API 查询轨道、绑定、分段、通道关键帧、Control Rig 控件和动画层；先发现动作参数与版本支持。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Parameters` | `object` | ★ | Exact native inputSchema fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths. |
+| `Parameters` | `object` | ★ | Independent animation input fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths. |
 
 **相关 Capability**: `GetProjectToolsets`, `GetEditorAnimation`, `ControlEditorAnimation`, `GetEditorOperation`
 
@@ -392,9 +412,11 @@ UE 5.8 Niagara 深层写入：系统/发射器、渲染器、嵌套输入/Data I
 
 ### `GetEditorNiagara`
 
-UE 5.8 Niagara 深层查询：系统/发射器/脚本堆栈拓扑、编译诊断、属性与用户变量、输入/渲染器/Data Interface Schema 及动态输入链。
+独立查询 Niagara 拓扑、编译诊断、属性、用户变量、模块/渲染器/输入 Schema 和动态输入链；动作范围按引擎 API 裁剪。
 
-**适用场景**: 定位系统编译、StackIssues、模块/输入/渲染器及动态输入链问题。
+**前置条件**: `EditorOnly` / `PluginEnabled:Niagara`
+
+**适用场景**: 独立查询 Niagara 拓扑、编译诊断、属性、用户变量、模块/渲染器/输入 Schema 和动态输入链；动作范围按引擎 API 裁剪。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -415,6 +437,8 @@ UE 5.8 Niagara 深层查询：系统/发射器/脚本堆栈拓扑、编译诊断
 
 读取所属会话的操作状态和结果；可有界等待，不缓存。
 
+**前置条件**: `EditorOnly`
+
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `OperationId` | `string` |  | Owned 操作; omit to list recent owned tasks |
@@ -429,6 +453,8 @@ UE 5.8 Niagara 深层查询：系统/发射器/脚本堆栈拓扑、编译诊断
 ### `GetEditorPCG`
 
 查询 PCG 图、节点 Schema/设置、实例参数、可用子图及有界输出数据；NodeData 首次检查可能要求执行后重读。
+
+**前置条件**: `EditorOnly` / `PluginEnabled:PCG`
 
 **适用场景**: 先发现实例、节点路径与引脚，再执行有界的节点数据采样。
 
@@ -453,6 +479,8 @@ UE 5.8 Niagara 深层查询：系统/发射器/脚本堆栈拓扑、编译诊断
 
 读取当前编辑器场景的文件夹、Actor、选择集和 Visibility 射线命中。
 
+**前置条件**: `EditorOnly`
+
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `Folders` / `FolderActors` / `Selection` / `Trace` |
@@ -475,6 +503,8 @@ UE 5.8 Niagara 深层查询：系统/发射器/脚本堆栈拓扑、编译诊断
 ### `GetEditorSlate`
 
 读取窗口/控件快照，或有界等待可见文本出现/消失；异步结果用 GetEditorOperation 查询。
+
+**前置条件**: `EditorOnly`
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -586,32 +616,34 @@ UE 5.8 Niagara 深层查询：系统/发射器/脚本堆栈拓扑、编译诊断
 
 ### `GetProjectSkills`
 
-读取 UE 5.8 注册 AgentSkill 类的列表或详情，包含项目蓝图及插件 Python 类；不自动应用 Instructions。
+只读扫描项目、启用插件和引擎 AgentTools 的 SKILL.md，按已发现路径读取说明；不自动应用 Instructions。
 
-**适用场景**: 发现宿主已注册的项目或插件技能，按 SkillPath 获取说明；读取不代表执行。
+**前置条件**: `EditorOnly`
+
+**适用场景**: 只读扫描项目、启用插件和引擎 AgentTools 的 SKILL.md，按已发现路径读取说明；不自动应用 Instructions。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` |  | 操作名（见各 cap 的枚举说明） 枚举: `List` / `Details` |
-| `SkillPath` | `string` |  | One generated AgentSkill class path from List; 必填 for Details |
+| `SkillPath` | `string` |  | Exact SKILL.md path from List; 必填 for Details |
 
-**相关 Capability**: `GetEditorOperation`, `GetProjectPlugins`
+**相关 Capability**: `GetProjectPlugins`, `GetProjectToolsets`
 
 ---
 
 ### `GetProjectToolsets`
 
-发现启用的原生/自定义 C++、Blueprint、Python Toolset、分页工具和精确 Schema，遵循 Registry 过滤；不提供任意执行。
+发现 NexusLink 自有 Capability 分组、输入/输出 Schema 和动作级支持状态；不读取外部 Registry，不提供任意执行。
 
 **前置条件**: `EditorOnly`
 
-**适用场景**: 发现启用的原生/自定义 C++、Blueprint、Python Toolset、分页工具和精确 Schema，遵循 Registry 过滤；不提供任意执行。
+**适用场景**: 发现 NexusLink 自有 Capability 分组、输入/输出 Schema 和动作级支持状态；不读取外部 Registry，不提供任意执行。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Sections` | `string[]` |  | 查询段（可多选）: `Toolsets` / `Tools` / `Schema` / `AnimationRoutes` / `Actions` |
-| `ToolsetName` | `string` |  | Exact Toolset name from Toolsets; 必填 for Tools/Schema |
-| `ToolName` | `string` |  | Exact fully qualified tool name from Tools; 必填 for Schema |
+| `ToolsetName` | `string` |  | Exact independent group from Toolsets; 必填 for Tools/Schema |
+| `ToolName` | `string` |  | Capability 精确名称 from Tools; 必填 for Schema |
 | `NameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `Capability` | `string` |  | Capability 精确名称 |
 | `Action` | `string` |  | 操作名（见各 cap 的枚举说明） |
@@ -666,6 +698,8 @@ UE 5.8 Niagara 深层查询：系统/发射器/脚本堆栈拓扑、编译诊断
 
 按有效 Slate Ref 点击、替换/输入、组合按键、聚焦、悬停、拖拽、选择组合框、设置复选框或填充表单；中途失败保留成功项。
 
+**前置条件**: `EditorOnly`
+
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `Click` / `Type` / `PressKey` / `Focus` / `Hover` / `Drag` / `SelectOption` / `SetChecked` / `FillForm` |
@@ -685,6 +719,8 @@ UE 5.8 Niagara 深层查询：系统/发射器/脚本堆栈拓扑、编译诊断
 ### `ListEditorAutomationTests`
 
 枚举已发现的完整测试名，支持名称子串筛选；须先完成发现。
+
+**前置条件**: `EditorOnly`
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
@@ -754,9 +790,11 @@ UE 5.8 Niagara 深层查询：系统/发射器/脚本堆栈拓扑、编译诊断
 
 ### `SearchAssetsSemantic`
 
-UE 5.8 官方语义/相似资产搜索，ClassPaths 必填；依赖索引和嵌入提供器，无名称搜索降级。
+直接调用 SemanticSearch 领域服务进行语义/相似资产搜索；ClassPaths 必填，需要索引与 Embedding Provider，不降级为名称匹配。
 
-**适用场景**: 按含义查找已索引资产或寻找相似资产；必须限定 ClassPaths。
+**前置条件**: `EditorOnly` / `PluginEnabled:SemanticSearch`
+
+**适用场景**: 直接调用 SemanticSearch 领域服务进行语义/相似资产搜索；ClassPaths 必填，需要索引与 Embedding Provider，不降级为名称匹配。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|

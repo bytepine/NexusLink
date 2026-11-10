@@ -15,6 +15,6 @@ void FNexusControlEditorAutomationCapability::BuildDefinition(FNexusCapabilityDe
 FCapabilityResult FNexusControlEditorAutomationCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	FString Action; Arguments->TryGetStringField(TEXT("Action"), Action);
-	return FNexusEditorToolSchema::Result(FNexusEditorToolsets::Automation(Action, Arguments));
+	return FNexusEditorToolSchema::Result(FNexusEditorControlServices::Automation(Action, Arguments));
 }
 REGISTER_MCP_CAPABILITY(FNexusControlEditorAutomationCapability)

@@ -94,7 +94,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 			TEXT("AddNode"), TEXT("RemoveNode"), TEXT("SetNode"), TEXT("PromotePin"),
 			TEXT("Connect"), TEXT("Disconnect"), TEXT("DisconnectAll"),
 			TEXT("AddComponent"), TEXT("RemoveComponent"), TEXT("SetComponentProperty"), TEXT("ResetComponentPropertyToDefault"), TEXT("CopyComponent"), TEXT("ReattachComponent"), TEXT("SetDefaults"), TEXT("ArrangeNodes"), TEXT("WriteGraphDSL"), TEXT("WriteGraphPlan"), TEXT("AddFunctionParameter"), TEXT("RemoveFunctionParameter"), TEXT("SetVariableCategory"), TEXT("SetVariableEditable") }))
-        .Prop(TEXT("Code"), FNexusSchema::Str(TEXT("UE5.8 native Blueprint S-expression DSL")))
+        .Prop(TEXT("Code"), FNexusSchema::Str(TEXT("UnrealGraphText node text from GetAssetBlueprint GraphDSL; append-only, 1-500 duplicable nodes; old Toolset Lisp syntax is not accepted")))
         .Prop(TEXT("GraphNodes"), FNexusSchema::ArrayOf(TEXT("Append-only plan nodes with Id and existing AddNode fields"), FNexusSchema::AnyObject(TEXT("Plan node"))))
         .Prop(TEXT("GraphLinks"), FNexusSchema::ArrayOf(TEXT("Plan links with From/FromPin/To/ToPin"), FNexusSchema::AnyObject(TEXT("Plan link"))))
         .Prop(TEXT("ParameterName"), FNexusSchema::Str(TEXT("Function parameter name")))

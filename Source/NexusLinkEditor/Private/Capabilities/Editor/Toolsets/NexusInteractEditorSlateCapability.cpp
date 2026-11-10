@@ -30,6 +30,6 @@ FCapabilityResult FNexusInteractEditorSlateCapability::Execute(const TSharedPtr<
 	if ((Action == TEXT("Type") && !Arguments->HasField(TEXT("Text"))) || (Action == TEXT("PressKey") && !Arguments->HasField(TEXT("Key")))) return FCapabilityResult::MakeArgInvalid(TEXT("Type requires Text; PressKey requires Key"));
 	if (Action == TEXT("Drag") && !Arguments->HasField(TEXT("EndRef"))) return FCapabilityResult::MakeArgInvalid(TEXT("Drag requires EndRef"));
 	if ((Action == TEXT("SelectOption") || Action == TEXT("SetChecked")) && !Arguments->HasField(TEXT("Value"))) return FCapabilityResult::MakeArgInvalid(TEXT("Selection requires Value"));
-	return FNexusEditorToolSchema::Result(FNexusEditorToolsets::Slate(Action, Arguments));
+	return FNexusEditorToolSchema::Result(FNexusEditorControlServices::Slate(Action, Arguments));
 }
 REGISTER_MCP_CAPABILITY(FNexusInteractEditorSlateCapability)

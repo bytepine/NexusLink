@@ -26,7 +26,7 @@ public class NexusLinkEditor : ModuleRules
 			"HTTP",
 			// EditorStyle：UE 4.26–5.0 的 FEditorStyle::GetBrush/GetFontStyle 符号（NX_UE_HAS_APP_STYLE 判定为 false
 			// 时走这条路径）；5.0 本身部分引擎 Slate 头仍内联引用该符号，即便本插件代码已切到 FAppStyle 也需要链接
-			"Settings", "UnrealEd", "LevelEditor", "EditorStyle",
+			"Settings", "UnrealEd", "LevelEditor", "EditorStyle", "EditorSubsystem",
 			"KismetCompiler", "Kismet", "BlueprintGraph", "AnimGraph", "UMGEditor", "AssetTools",
 			"MaterialEditor", "PropertyEditor", "ContentBrowser", "ContentBrowserData",
 			"SourceControl", "AudioEditor",
@@ -57,41 +57,11 @@ public class NexusLinkEditor : ModuleRules
 		var SearchDirs = NexusLinkOptionalPlugins.CollectPluginSearchDirs(ProjectRoot, this);
 
 		PrivateDependencyModuleNames.AddRange(new[] { "AutomationController", "SessionServices" });
-		// 官方 Registry 仅在宿主明确启用官方 Toolset 时链接，旧版完全不解析其类型。
-		bool bNativeTools = false;
-        bool bNativeSlate = false;
-		if (NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 8) && ProjectRoot != null)
-		{
-			foreach (string File in System.IO.Directory.GetFiles(ProjectRoot, "*.uproject"))
-			{
-				string Descriptor = System.IO.File.ReadAllText(File);
-				foreach (string Name in new[] { "SlateInspectorToolset", "AutomationTestToolset", "ToolsetRegistry", "SemanticSearchToolset", "PCGToolset", "NiagaraToolsets", "AnimationAssistantToolset", "SequencerAnimMixerToolset", "GameFeaturesToolset", "PhysicsToolsets", "GameplayTagsToolset", "DataRegistryToolset", "ConfigSettingsToolset", "PluginToolset", "MVVMToolset", "EditorToolset", "UMGToolSet", "AllToolsets" })
-				{
-					int NameIndex = Descriptor.IndexOf("\"" + Name + "\"", System.StringComparison.Ordinal);
-                    if (NameIndex >= 0)
-                    {
-                        int Start = Descriptor.LastIndexOf('{', NameIndex);
-                        int End = Descriptor.IndexOf('}', NameIndex);
-                        if (Start >= 0 && End > Start && NexusLinkOptionalPlugins.JsonHasEnabledLiteral(Descriptor.Substring(Start, End - Start + 1), "true")) {
-                            bNativeTools = true;
-                            if (Name == "SlateInspectorToolset" || Name == "AllToolsets") bNativeSlate = true;
-                        }
-                    }
-				}
-			}
-		}
-		if (bNativeTools)
-		{
-			var Registry = NexusLinkOptionalPlugins.Opt(new[] { "ToolsetRegistry.uplugin" }, "WITH_NEXUS_TOOLSETS", "NEXUS_NATIVE_TOOLSETS", 5, 8,
-				rt: new[] { "ToolsetRegistry" }, uproj: "ToolsetRegistry");
-			NexusLinkOptionalPlugins.Apply(this, Target, Registry, SearchDirs, ProjectRoot, false);
-		}
-		else PrivateDefinitions.Add("WITH_NEXUS_TOOLSETS=0");
-        if (bNativeSlate) {
-            var SlateRefs = NexusLinkOptionalPlugins.Opt(new[] { "SlateInspectorToolset.uplugin" }, "WITH_NEXUS_SLATE_REFS", "NEXUS_NATIVE_SLATE_REFS", 5, 8,
-                rt: new[] { "SlateInspectorToolset" }, uproj: "SlateInspectorToolset");
-            NexusLinkOptionalPlugins.Apply(this, Target, SlateRefs, SearchDirs, ProjectRoot, false);
-        } else PrivateDefinitions.Add("WITH_NEXUS_SLATE_REFS=0");
+		// 语义检索直接链接领域服务，不加载官方工具注册表。
+        var SemanticSearch = NexusLinkOptionalPlugins.Opt(new[] { "SemanticSearch.uplugin" }, "WITH_NEXUS_SEMANTIC_SEARCH", "NEXUS_SEMANTIC_SEARCH", 5, 8,
+            rt: new[] { "SemanticSearch" }, uproj: "SemanticSearch", requireProjectEnable: true);
+        if (NexusLinkOptionalPlugins.Apply(this, Target, SemanticSearch, SearchDirs, ProjectRoot, false))
+            PrivateDependencyModuleNames.Add("DerivedDataCache");
 
 		// Editor 模块覆盖全量可选插件表：190 个 EditorOnly cap 里用到的资产编辑/图编辑功能
 		// 需要各插件的 Runtime 模块（资产数据类型）与 EditorModules（编译器/图编辑器）两部分。

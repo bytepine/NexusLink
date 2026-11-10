@@ -4,9 +4,10 @@
 #include "Dom/JsonObject.h"
 #include "NexusEditorOperation.h"
 
-/** 仅在宿主未选择官方后端时执行固定的兼容动作。 */
-struct FNexusLegacyToolsets final
+/** 直接调用引擎领域 API，不经过官方工具注册表。 */
+struct FNexusEditorDomainTools final
 {
+    static TSharedRef<FJsonObject> Reference(const FString& Path) { auto Ref = MakeShared<FJsonObject>(); Ref->SetStringField(TEXT("refPath"), Path); return Ref; }
     static bool Handles(const FString& Domain);
     static void Call(const FString& Domain, const FString& Tool, const TSharedPtr<FJsonObject>& Args,
         const TSharedPtr<FNexusEditorOperation>& Operation);

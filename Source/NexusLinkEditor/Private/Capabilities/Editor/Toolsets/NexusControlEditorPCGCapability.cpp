@@ -2,6 +2,7 @@
 #include "Capabilities/Editor/Toolsets/NexusControlEditorPCGCapability.h"
 #if WITH_PCG
 #include "Utils/NexusEditorToolSchema.h"
+#include "Utils/NexusEditorDomainTools.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusJsonUtils.h"
 #include "NexusCapabilityRegistry.h"
@@ -16,7 +17,7 @@
 void FNexusControlEditorPCGCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
     Out.Name = TEXT("ControlEditorPCG");
-    Out.Description = TEXT("Spawn/execute PCG instances or edit node settings, graph parameters, instance overrides and subgraphs through the official UE 5.8 Toolset or supported engine compatibility actions. Writes are not transactionally rolled back; save graph assets explicitly.");
+    Out.Description = TEXT("Spawn/execute PCG instances or edit node settings, graph parameters, instance overrides and subgraphs through independent engine APIs. Writes are not transactionally rolled back; save graph assets explicitly.");
     auto Vector = FNexusSchema::Object().Required(TEXT("X"), FNexusSchema::Num(TEXT("X"))).Required(TEXT("Y"), FNexusSchema::Num(TEXT("Y"))).Required(TEXT("Z"), FNexusSchema::Num(TEXT("Z"))).Build();
     auto Parameter = FNexusSchema::Object()
         .Required(TEXT("Name"), FNexusSchema::Str(TEXT("Unique graph parameter name")))
@@ -38,7 +39,7 @@ void FNexusControlEditorPCGCapability::BuildDefinition(FNexusCapabilityDefinitio
         .Prop(TEXT("NodeName"), FNexusSchema::Str(TEXT("Unique new subgraph node object name")))
         .Prop(TEXT("NodeTitle"), FNexusSchema::Str(TEXT("Optional node display title")))
         .Build();
-    FNexusEditorToolSchema::ConfigureCompatible(Out, true, TEXT("PCGToolset"));
+    FNexusEditorToolSchema::ConfigureIndependent(Out, true, TEXT("NexusPCG"));
     Out.RelatedCapabilities = {TEXT("GetEditorPCG"), TEXT("GetEditorOperation"), TEXT("SaveAsset")};
 }
 FCapabilityResult FNexusControlEditorPCGCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
@@ -54,7 +55,7 @@ FCapabilityResult FNexusControlEditorPCGCapability::Execute(const TSharedPtr<FJs
     {
         if (A.Str(TEXT("AssetPath")).IsEmpty() || A.Str(TEXT("ActorName")).IsEmpty()) return Invalid(TEXT("Spawn requires AssetPath and ActorName"));
         Tool = TEXT("SpawnGraphInstance");
-        Input->SetObjectField(TEXT("Graph"), FNexusNativeEditorTools::Reference(A.Str(TEXT("AssetPath"))));
+        Input->SetObjectField(TEXT("Graph"), FNexusEditorDomainTools::Reference(A.Str(TEXT("AssetPath"))));
         Input->SetStringField(TEXT("Name"), A.Str(TEXT("ActorName"))); Input->SetStringField(TEXT("JsonParams"), JsonParameters);
         auto Location = MakeShared<FJsonObject>(), Rotation = MakeShared<FJsonObject>(), Scale = MakeShared<FJsonObject>(), Transform = MakeShared<FJsonObject>();
         const TSharedPtr<FJsonObject>* Position = nullptr; Arguments->TryGetObjectField(TEXT("Location"), Position); const FNexusArgs PositionArgs(Position ? *Position : nullptr);
@@ -65,13 +66,13 @@ FCapabilityResult FNexusControlEditorPCGCapability::Execute(const TSharedPtr<FJs
     else if (Action == TEXT("UpdateNode"))
     {
         if (A.Str(TEXT("NodePath")).IsEmpty() || !Parameters || (*Parameters)->Values.Num() == 0) return Invalid(TEXT("UpdateNode requires NodePath and nonempty Parameters"));
-        Tool = TEXT("UpdateNode"); Input->SetObjectField(TEXT("Node"), FNexusNativeEditorTools::Reference(A.Str(TEXT("NodePath"))));
+        Tool = TEXT("UpdateNode"); Input->SetObjectField(TEXT("Node"), FNexusEditorDomainTools::Reference(A.Str(TEXT("NodePath"))));
         Input->SetStringField(TEXT("JsonParams"), JsonParameters); Input->SetStringField(TEXT("NodeTitle"), A.Str(TEXT("NodeTitle")));
     }
     else if (Action == TEXT("Execute") || Action == TEXT("SetInstanceParameters") || Action == TEXT("ResetInstanceParameters"))
     {
         if (A.Str(TEXT("ActorPath")).IsEmpty()) return Invalid(TEXT("Instance actions require ActorPath"));
-        Input->SetObjectField(TEXT("PCGVolume"), FNexusNativeEditorTools::Reference(A.Str(TEXT("ActorPath"))));
+        Input->SetObjectField(TEXT("PCGVolume"), FNexusEditorDomainTools::Reference(A.Str(TEXT("ActorPath"))));
         if (Action == TEXT("Execute")) Tool = TEXT("ExecuteGraphInstance");
         else if (Action == TEXT("SetInstanceParameters")) {
             if (!Parameters || (*Parameters)->Values.Num() == 0) return Invalid(TEXT("SetInstanceParameters requires nonempty Parameters"));
@@ -81,7 +82,7 @@ FCapabilityResult FNexusControlEditorPCGCapability::Execute(const TSharedPtr<FJs
     else
     {
         if (A.Str(TEXT("AssetPath")).IsEmpty()) return Invalid(TEXT("Graph actions require AssetPath"));
-        Input->SetObjectField(TEXT("Graph"), FNexusNativeEditorTools::Reference(A.Str(TEXT("AssetPath"))));
+        Input->SetObjectField(TEXT("Graph"), FNexusEditorDomainTools::Reference(A.Str(TEXT("AssetPath"))));
         if (Action == TEXT("SetGraphParameters")) {
             const TArray<TSharedPtr<FJsonValue>>* Definitions = nullptr;
             if (!Arguments->TryGetArrayField(TEXT("ParameterDefinitions"), Definitions) || Definitions->Num() == 0 || Definitions->Num() > 64) return Invalid(TEXT("SetGraphParameters requires 1-64 ParameterDefinitions"));
@@ -107,7 +108,7 @@ FCapabilityResult FNexusControlEditorPCGCapability::Execute(const TSharedPtr<FJs
             if (StaticFindObject(UObject::StaticClass(), Graph, *A.Str(TEXT("NodeName")))) return Invalid(TEXT("NodeName already exists in the graph"));
 #endif
             FText NameError; if (!FName(*A.Str(TEXT("NodeName"))).IsValidObjectName(NameError)) return Invalid(TEXT("NodeName is not a valid object name"));
-            Tool = TEXT("AddSubgraphNode"); Input->SetObjectField(TEXT("SubGraphForNode"), FNexusNativeEditorTools::Reference(A.Str(TEXT("SubgraphPath"))));
+            Tool = TEXT("AddSubgraphNode"); Input->SetObjectField(TEXT("SubGraphForNode"), FNexusEditorDomainTools::Reference(A.Str(TEXT("SubgraphPath"))));
             Input->SetStringField(TEXT("NodeName"), A.Str(TEXT("NodeName"))); Input->SetStringField(TEXT("JsonParams"), JsonParameters);
             Input->SetStringField(TEXT("NodeTitle"), A.Str(TEXT("NodeTitle"))); Input->SetStringField(TEXT("NodeComment"), TEXT(""));
             Input->SetNumberField(TEXT("XPositionIdx"), 0); Input->SetNumberField(TEXT("YPositionIdx"), 0);
@@ -119,8 +120,8 @@ FCapabilityResult FNexusControlEditorPCGCapability::Execute(const TSharedPtr<FJs
         TArray<TSharedPtr<FJsonValue>> Values; for (const FString& Name : Names) { if (Name.IsEmpty()) return Invalid(TEXT("ParameterNames cannot contain empty names")); Values.Add(MakeShared<FJsonValueString>(Name)); }
         Input->SetArrayField(TEXT("ParamNames"), Values);
     }
-    auto Operation = FNexusEditorOperations::Create(TEXT("OfficialToolset"));
-    FNexusNativeEditorTools::Call(TEXT("PCGToolset"), Tool, Input, Operation);
+    auto Operation = FNexusEditorOperations::Create(TEXT("EngineAPI"));
+    FNexusEditorDomainTools::Call(TEXT("NexusPCG"), Tool, Input, Operation);
     return FNexusEditorToolSchema::Result(Operation);
 }
 REGISTER_MCP_CAPABILITY(FNexusControlEditorPCGCapability)

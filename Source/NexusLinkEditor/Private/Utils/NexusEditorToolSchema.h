@@ -3,7 +3,7 @@
 #include "NexusCapability.h"
 #include "NexusMcpTool.h"
 #include "NexusMcpSchemaBuilder.h"
-#include "Utils/NexusEditorToolsets.h"
+#include "Utils/NexusEditorControlServices.h"
 #include "Dom/JsonValue.h"
 
 struct FNexusEditorToolSchema final
@@ -37,22 +37,22 @@ struct FNexusEditorToolSchema final
             .Prop(TEXT("Windows_defaults"), Defaults(Window))
             .Prop(TEXT("Nodes"), FNexusSchema::ArrayOf(TEXT("Compatibility widget snapshot"), Node.ToSharedRef()))
             .Prop(TEXT("Nodes_defaults"), Defaults(Node))
-            .Prop(TEXT("Snapshot"), FNexusSchema::Str(TEXT("Official accessibility snapshot")))
+            .Prop(TEXT("Snapshot"), FNexusSchema::Str(TEXT("Accessibility snapshot")))
             .Prop(TEXT("bTruncated"), FNexusSchema::Bool(TEXT("Snapshot was bounded")))
             .Prop(TEXT("bApplied"), FNexusSchema::Bool(TEXT("Single interaction accepted")))
             .Prop(TEXT("AppliedCount"), FNexusSchema::Int(TEXT("Completed form fields before failure")))
             .Prop(TEXT("FailedFieldIndex"), FNexusSchema::Int(TEXT("Zero-based failed form field")))
             .Prop(TEXT("bConditionMet"), FNexusSchema::Bool(TEXT("WaitFor condition matched")))
             .Prop(TEXT("bTimedOut"), FNexusSchema::Bool(TEXT("WaitFor reached its deadline")))
-            .Prop(TEXT("OfficialResult"), FNexusSchema::AnyObject(TEXT("Official domain result; arrays use Items, scalar values use bApplied or Snapshot. Inspect business outcome separately from operation State.")))
-            .Prop(TEXT("CompatibilityResult"), FNexusSchema::AnyObject(TEXT("Engine compatibility data; unsupported actions fail explicitly.")))
+            .Prop(TEXT("OfficialResult"), FNexusSchema::AnyObject(TEXT("Domain result; inspect business outcome separately from operation State.")))
+            .Prop(TEXT("CompatibilityResult"), FNexusSchema::AnyObject(TEXT("Independent domain data; unavailable engine features fail explicitly.")))
             .Prop(TEXT("FilePath"), FNexusSchema::Str(TEXT("Saved screenshot path")))
             .Prop(TEXT("Format"), FNexusSchema::Str(TEXT("Screenshot format")))
             .Prop(TEXT("Width"), FNexusSchema::Int(TEXT("Screenshot width")))
             .Prop(TEXT("Height"), FNexusSchema::Int(TEXT("Screenshot height")))
             .Prop(TEXT("Tests"), FNexusSchema::ArrayOf(TEXT("Test names or result records"), Test.ToSharedRef()))
             .Prop(TEXT("Tests_defaults"), Defaults(Test))
-            .Prop(TEXT("Status"), FNexusSchema::Str(TEXT("Official discovery state")))
+            .Prop(TEXT("Status"), FNexusSchema::Str(TEXT("Test discovery state")))
             .Prop(TEXT("Total"), FNexusSchema::Int(TEXT("Total matching tests")))
             .Prop(TEXT("Returned"), FNexusSchema::Int(TEXT("Number returned")))
             .Prop(TEXT("Passed"), FNexusSchema::Int(TEXT("Passed count")))
@@ -69,8 +69,7 @@ struct FNexusEditorToolSchema final
 		Out.Tags = bWrite ? TArray<FString>{ FNexusMcpTags::Write, FNexusMcpTags::Dangerous, FNexusMcpTags::Editor }
 			: TArray<FString>{ FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 		Out.Prerequisites = { TEXT("EditorOnly") };
-        const FString Name = Out.Name;
-        Out.ExecutionInfo = [Name]() { return FNexusNativeEditorTools::Describe(Name); };
+        Out.ExecutionInfo = []() { auto Info = MakeShared<FJsonObject>(); Info->SetStringField(TEXT("Backend"), TEXT("Independent")); Info->SetStringField(TEXT("Reason"), TEXT("Implemented by NexusLink using engine domain APIs")); return Info; };
 		Out.bAutoTransaction = false; Out.bAllowBatch = false; Out.bCacheable = false;
 		Out.OutputSchema = FNexusSchema::Object()
 			.Required(TEXT("OperationId"), FNexusSchema::Str(TEXT("Editor-session operation identifier")))
@@ -85,26 +84,11 @@ struct FNexusEditorToolSchema final
 			.Prop(TEXT("TtlSeconds"), FNexusSchema::Int(TEXT("Cache lifetime")))
 			.Prop(TEXT("Error"), FNexusSchema::Str(TEXT("Operation failure"))).Build();
 	}
-	static void ConfigureNative(FNexusCapabilityDefinition& Out, bool bWrite, const FString& Domain)
-	{
-		Configure(Out, bWrite);
-		Out.Prerequisites.Add(TEXT("PluginEnabled:") + Domain);
-		Out.ExecutionInfo = [Domain]()
-		{
-			auto Info = MakeShared<FJsonObject>(); Info->SetStringField(TEXT("Backend"), TEXT("OfficialToolset"));
-			Info->SetStringField(TEXT("Reason"), FNexusNativeEditorTools::UseNative(Domain) ? TEXT("Host enabled the official domain; Registry enable and filter rules apply") : TEXT("Requires UE 5.8+ and enabled plugin: ") + Domain);
-			return Info;
-		};
-	}
-    static void ConfigureCompatible(FNexusCapabilityDefinition& Out, bool bWrite, const FString& Domain)
+    static void ConfigureIndependent(FNexusCapabilityDefinition& Out, bool bWrite, const FString& Domain)
     {
         Configure(Out, bWrite);
-        Out.ExecutionInfo = [Domain]() {
-            auto Info = MakeShared<FJsonObject>();
-            Info->SetStringField(TEXT("Backend"), FNexusNativeEditorTools::UseNative(Domain) ? TEXT("OfficialToolset") : TEXT("EngineCompatibility"));
-            Info->SetStringField(TEXT("Reason"), TEXT("Fixed session backend; compatibility actions depend on engine APIs. Native failures never retry a compatibility write."));
-            return Info;
-        };
+        if (Domain == TEXT("NexusPCG")) Out.Prerequisites.Add(TEXT("PluginEnabled:PCG"));
+        else if (Domain == TEXT("NexusNiagara")) Out.Prerequisites.Add(TEXT("PluginEnabled:Niagara"));
     }
 	static FCapabilityResult Result(const TSharedPtr<FNexusEditorOperation>& Operation)
 	{

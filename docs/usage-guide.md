@@ -1,12 +1,12 @@
 # NexusLink 使用指南
 
-[版本后端复用](toolset-backends.md)说明既有接口如何选择官方 Toolset 与兼容引擎后端。
+[独立引擎后端](toolset-backends.md)说明各接口如何直接调用引擎 API；NexusLink 自身不直接链接或调用官方 Toolset/Registry，无需启动官方 MCP 服务。标准领域插件依赖遵循引擎要求，例如 UE 5.9 PCG 须保留 Registry。
 
 [编辑器兼容扩展](editor-compatibility.md)列出参数/UMG、网格生成、场景整理和蓝图图编辑的版本边界与调用方式。
 
-[动画与原生 Toolset 专题](animation-niagara-gamefeatures-toolsets.md)覆盖 Sequencer / Control Rig、Niagara 深层写入、Game Features 和项目自定义 Toolset 发现。
+[动画与领域动作专题](animation-niagara-gamefeatures-toolsets.md)覆盖 Sequencer / Control Rig、Niagara 深层写入、Game Features 和 NexusLink 自有动作发现。
 
-[编辑器工具专题](editor-toolsets.md)还覆盖 Slate 进阶操作、UE 5.8 UMG 结构、PCG 执行采样、Niagara 诊断与明确修复、语义搜索、项目技能、设置与插件发现。截图默认携带标准 MCP 图片块；仅需磁盘路径时传 `bIncludeImage=false`。5.8 专用领域需在宿主工程启用对应 Toolset 插件并重新编译。
+[编辑器工具专题](editor-toolsets.md)还覆盖 Slate 进阶操作、UMG 结构、PCG 执行采样、Niagara 诊断与明确修复、语义搜索、项目技能、设置与插件发现。截图默认携带标准 MCP 图片块；仅需磁盘路径时传 `bIncludeImage=false`。领域能力只需启用其实际领域插件并重新编译；语义检索需要 SemanticSearch 索引与 Embedding 配置。
 
 [文档导航](README.md) · [项目首页](../README.md)
 

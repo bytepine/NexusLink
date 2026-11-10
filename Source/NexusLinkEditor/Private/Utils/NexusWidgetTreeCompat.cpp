@@ -90,6 +90,6 @@ bool FNexusWidgetTreeCompat::Apply(UWidgetBlueprint* Blueprint, const TSharedPtr
 #endif
         }
     } else { Error = TEXT("Unknown widget structure action"); return false; }
-    Entry->SetStringField(TEXT("Backend"), TEXT("EngineCompatibility")); Entry->SetStringField(TEXT("WidgetName"), Name);
+    Entry->SetStringField(TEXT("Backend"), TEXT("Independent")); Entry->SetStringField(TEXT("WidgetName"), Name);
     FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint); return true;
 }

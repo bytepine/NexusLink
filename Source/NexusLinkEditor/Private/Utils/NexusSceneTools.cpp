@@ -1,5 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
 #include "Utils/NexusSceneTools.h"
+#include "Utils/NexusEditorDomainTools.h"
 #include "Utils/NexusEditorToolSchema.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusAssetUtils.h"
@@ -80,7 +81,7 @@ static FCapabilityResult NexusBuildNavigation(UWorld* World, bool bSave)
     if (!Operation) return FNexusEditorToolSchema::Result(Operation);
     const TWeakObjectPtr<UWorld> WeakWorld(World);
     const TWeakObjectPtr<UNavigationSystemV1> WeakNavigation(Navigation);
-    FNexusEditorToolsets::AddTicker(FTickerDelegate::CreateLambda([Operation, WeakWorld, WeakNavigation, bSave, bStarted = false](float) mutable {
+    FNexusEditorControlServices::AddTicker(FTickerDelegate::CreateLambda([Operation, WeakWorld, WeakNavigation, bSave, bStarted = false](float) mutable {
         UWorld* CurrentWorld = WeakWorld.Get(); UNavigationSystemV1* CurrentNavigation = WeakNavigation.Get();
         if (!Operation->IsRunning()) return false;
         if (!CurrentWorld || !CurrentNavigation || !GEditor || GEditor->GetEditorWorldContext().World() != CurrentWorld || GEditor->IsPlayingSessionInEditor()) {
@@ -129,40 +130,21 @@ FCapabilityResult FNexusSceneTools::Execute(bool bWrite, const TSharedPtr<FJsonO
     if ((Action.Contains(TEXT("Folder")) && Action!=TEXT("Folders")) && !NexusSceneFolderValid(FolderPath)) return FCapabilityResult::MakeArgInvalid(TEXT("Expected a relative World Outliner folder path"));
     if (Action==TEXT("RenameFolder") && (!NexusSceneFolderValid(A.Str(TEXT("NewFolderPath"))) || A.Str(TEXT("NewFolderPath")).StartsWith(FolderPath+TEXT("/")))) return FCapabilityResult::MakeArgInvalid(TEXT("Invalid folder rename destination"));
     if ((Action==TEXT("SetActorFolder") || Action==TEXT("EditLevelInstance") || Action==TEXT("CommitLevelInstance")) && !Actor) return FCapabilityResult::MakeArgInvalid(TEXT("ActorPath is required"));
-    auto Input=MakeShared<FJsonObject>(); FString Tool;
-    if (Action==TEXT("Folders")) Tool=TEXT("get_folders");
-    else if (Action==TEXT("FolderActors")) { Tool=TEXT("get_actors_in_folder"); Input->SetStringField(TEXT("folder_path"),FolderPath); Input->SetBoolField(TEXT("recursive"),A.Bool(TEXT("bRecursive"))); }
-    else if (Action==TEXT("SetActorFolder")) { Tool=TEXT("set_actor_folder"); Input->SetObjectField(TEXT("actor"),FNexusNativeEditorTools::Reference(Actor->GetPathName())); Input->SetStringField(TEXT("folder_path"),FolderPath); }
-    else if (Action==TEXT("RenameFolder")) { Tool=TEXT("rename_folder"); Input->SetStringField(TEXT("old_path"),FolderPath); Input->SetStringField(TEXT("new_path"),A.Str(TEXT("NewFolderPath"))); }
-    else if (Action==TEXT("DeleteFolder")) { Tool=TEXT("delete_folder"); Input->SetStringField(TEXT("folder_path"),FolderPath); }
     FVector Start=FVector::ZeroVector,End=FVector::ZeroVector,Location=FVector::ZeroVector;
-    if (Action==TEXT("Trace")) {
-        if (!NexusSceneVector(Args,TEXT("Start"),Start) || !NexusSceneVector(Args,TEXT("End"),End)) return FCapabilityResult::MakeArgInvalid(TEXT("Trace requires finite Start/End vectors"));
-        Tool=TEXT("trace_world");
-        for (const auto& Pair : {TPair<FString,FVector>(TEXT("start"),Start),TPair<FString,FVector>(TEXT("end"),End)}) { auto Value=MakeShared<FJsonObject>(); Value->SetNumberField(TEXT("x"),Pair.Value.X); Value->SetNumberField(TEXT("y"),Pair.Value.Y); Value->SetNumberField(TEXT("z"),Pair.Value.Z); Input->SetObjectField(Pair.Key,Value); }
-    }
+    if (Action==TEXT("Trace") && (!NexusSceneVector(Args,TEXT("Start"),Start) || !NexusSceneVector(Args,TEXT("End"),End))) return FCapabilityResult::MakeArgInvalid(TEXT("Trace requires finite Start/End vectors"));
     TArray<AStaticMeshActor*> MeshActors;
     if (Action==TEXT("MergeActors")) {
         if (Actors.Num()<2 || !FPackageName::IsValidLongPackageName(A.Str(TEXT("AssetPath"))) || FPackageName::DoesPackageExist(A.Str(TEXT("AssetPath")))) return FCapabilityResult::MakeArgInvalid(TEXT("Merge requires at least two meshes and an unused output package"));
         for (AActor* Item : Actors) { auto* MeshActor=Cast<AStaticMeshActor>(Item); if (!MeshActor) return FCapabilityResult::MakeArgInvalid(TEXT("Merge inputs must be StaticMeshActors")); MeshActors.Add(MeshActor); }
-        Tool=TEXT("merge_actors"); TArray<TSharedPtr<FJsonValue>> Refs; for (AActor* Item : Actors) Refs.Add(MakeShared<FJsonValueObject>(FNexusNativeEditorTools::Reference(Item->GetPathName())));
-        Input->SetArrayField(TEXT("actors"),Refs); Input->SetStringField(TEXT("output_path"),A.Str(TEXT("AssetPath"))); Input->SetStringField(TEXT("name"),A.Str(TEXT("ActorName"))); Input->SetBoolField(TEXT("destroy_source_actors"),A.Bool(TEXT("bDestroySourceActors")));
+
     }
     UWorld* LevelAsset=nullptr;
     if (Action==TEXT("CreateLevelInstance")) {
         LevelAsset=FNexusAssetUtils::LoadAssetWithFallback<UWorld>(A.Str(TEXT("AssetPath")));
         if (!LevelAsset || LevelAsset==World || (Args->HasField(TEXT("Location")) && !NexusSceneVector(Args,TEXT("Location"),Location))) return FCapabilityResult::MakeArgInvalid(TEXT("An existing different level and finite location are required"));
-        Tool=TEXT("create_level_instance"); Input->SetStringField(TEXT("level_path"),A.Str(TEXT("AssetPath"))); Input->SetStringField(TEXT("name"),A.Str(TEXT("ActorName")));
-        auto Transform=MakeShared<FJsonObject>(),Position=MakeShared<FJsonObject>(),Rotation=MakeShared<FJsonObject>(),Scale=MakeShared<FJsonObject>();
-        Position->SetNumberField(TEXT("x"),Location.X); Position->SetNumberField(TEXT("y"),Location.Y); Position->SetNumberField(TEXT("z"),Location.Z);
-        for (const auto& Key : {TEXT("pitch"),TEXT("yaw"),TEXT("roll")}) Rotation->SetNumberField(Key,0);
-        for (const auto& Key : {TEXT("x"),TEXT("y"),TEXT("z")}) Scale->SetNumberField(Key,1);
-        Transform->SetObjectField(TEXT("location"),Position); Transform->SetObjectField(TEXT("rotation"),Rotation); Transform->SetObjectField(TEXT("scale"),Scale); Input->SetObjectField(TEXT("xform"),Transform);
     }
-    if (Action==TEXT("EditLevelInstance")) { Tool=TEXT("edit_level_instance"); Input->SetObjectField(TEXT("level_instance"),FNexusNativeEditorTools::Reference(Actor->GetPathName())); }
-    // 原生 commit 会保存所有脏包，局部提交始终使用下方的引擎接口。
-    auto Operation=FNexusEditorOperations::Create(TEXT("EngineCompatibility")); if (!Operation) return FNexusEditorToolSchema::Result(Operation);
-    if (!Tool.IsEmpty() && FNexusNativeEditorTools::UseNative(TEXT("editor_toolset.toolsets.scene.SceneTools"))) { Operation->Backend=TEXT("OfficialToolset"); FNexusNativeEditorTools::Call(TEXT("editor_toolset.toolsets.scene.SceneTools"),Tool,Input,Operation); return FNexusEditorToolSchema::Result(Operation); }
+
+    auto Operation=FNexusEditorOperations::Create(TEXT("Independent")); if (!Operation) return FNexusEditorToolSchema::Result(Operation);
     auto Data=MakeShared<FJsonObject>(); TArray<TSharedPtr<FJsonValue>> Items; FString Error;
     const int32 Limit=FMath::Clamp(static_cast<int32>(A.Num(TEXT("Limit"),100)),1,500);
     if (Action==TEXT("Folders")) {
@@ -172,9 +154,9 @@ FCapabilityResult FNexusSceneTools::Execute(bool bWrite, const TSharedPtr<FJsonO
         for (const auto& Pair : FActorFolders::Get().GetFolderPropertiesForWorld(*World)) if (Items.Num()<Limit) Items.Add(MakeShared<FJsonValueString>(Pair.Key.ToString()));
 #endif
     } else if (Action==TEXT("Selection")) {
-        for (FSelectionIterator It(*GEditor->GetSelectedActors());It && Items.Num()<Limit;++It) if (auto* Selected=Cast<AActor>(*It)) Items.Add(MakeShared<FJsonValueObject>(FNexusNativeEditorTools::Reference(Selected->GetPathName())));
+        for (FSelectionIterator It(*GEditor->GetSelectedActors());It && Items.Num()<Limit;++It) if (auto* Selected=Cast<AActor>(*It)) Items.Add(MakeShared<FJsonValueObject>(FNexusEditorDomainTools::Reference(Selected->GetPathName())));
     } else if (Action==TEXT("FolderActors")) {
-        for (TActorIterator<AActor> It(World);It && Items.Num()<Limit;++It) { const FString Path=It->GetFolderPath().ToString(); if (Path==FolderPath || (A.Bool(TEXT("bRecursive")) && Path.StartsWith(FolderPath+TEXT("/")))) Items.Add(MakeShared<FJsonValueObject>(FNexusNativeEditorTools::Reference(It->GetPathName()))); }
+        for (TActorIterator<AActor> It(World);It && Items.Num()<Limit;++It) { const FString Path=It->GetFolderPath().ToString(); if (Path==FolderPath || (A.Bool(TEXT("bRecursive")) && Path.StartsWith(FolderPath+TEXT("/")))) Items.Add(MakeShared<FJsonValueObject>(FNexusEditorDomainTools::Reference(It->GetPathName()))); }
     } else if (Action==TEXT("SetSelection")) { GEditor->SelectNone(false,true,false); for (auto* Item : Actors) GEditor->SelectActor(Item,true,false,true); GEditor->NoteSelectionChange(); }
     else if (Action==TEXT("Trace")) { FHitResult Hit; const bool bHit=World->LineTraceSingleByChannel(Hit,Start,End,ECC_Visibility); Data->SetBoolField(TEXT("bHit"),bHit); if (Hit.GetActor()) Data->SetStringField(TEXT("ActorPath"),Hit.GetActor()->GetPathName()); Data->SetNumberField(TEXT("Distance"),Hit.Distance); }
     else if (Action==TEXT("SetActorFolder")) { Actor->Modify(); Actor->SetFolderPath(FName(*FolderPath)); Actor->MarkPackageDirty(); }
@@ -206,7 +188,9 @@ FCapabilityResult FNexusSceneTools::Execute(bool bWrite, const TSharedPtr<FJsonO
 #endif
         Options.BasePackageName=A.Str(TEXT("AssetPath")); Options.NewActorLabel=A.Str(TEXT("ActorName")); Options.bDestroySourceActors=A.Bool(TEXT("bDestroySourceActors"));
 #if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
-        const bool bMerged=GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>()->MergeStaticMeshActors(MeshActors,Options,Merged);
+        UStaticMeshEditorSubsystem* MeshEditor=GEditor?GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>():nullptr;
+        if (!MeshEditor) return FCapabilityResult::MakeFatal(TEXT("Static mesh editor subsystem is unavailable"));
+        const bool bMerged=MeshEditor->MergeStaticMeshActors(MeshActors,Options,Merged);
 #else
         const bool bMerged=UEditorLevelLibrary::MergeStaticMeshActors(MeshActors,Options,Merged);
 #endif

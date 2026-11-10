@@ -111,3 +111,26 @@ def test_pascal_manage_names_receive_framework_parameters_once(monkeypatch):
     create = {"name": "CreateAssetBlueprint", "params": []}
     reference.inject_manage_finalize_params(create)
     assert create["params"] == []
+
+
+def test_editor_helpers_and_added_prerequisites_are_documented(tmp_path, monkeypatch):
+    import build_tool_reference as reference
+
+    monkeypatch.setattr(reference, "load_capability_schemas", lambda: {})
+    source = tmp_path / "NexusGetIndependentCapability.cpp"
+    cases = [
+        ('Configure(Out, false)', []),
+        ('ConfigureIndependent(Out, false, TEXT("NexusScene"))', []),
+        ('ConfigureIndependent(Out, true, TEXT("NexusPCG"))', ["PluginEnabled:PCG"]),
+        ('ConfigureIndependent(Out, true, TEXT("NexusNiagara"))', ["PluginEnabled:Niagara"]),
+    ]
+    for call, domain in cases:
+        source.write_text(
+            'Out.Name = TEXT("GetIndependent");\n'
+            'Out.Description = TEXT("Read independent data.");\n'
+            'Out.Prerequisites = {TEXT("EditorOnly")};\n'
+            'FNexusEditorToolSchema::' + call + ';\n'
+            'Out.Prerequisites.Add(TEXT("PluginEnabled:SemanticSearch"));\n'
+            'Out.Prerequisites.Add(TEXT("EditorOnly"));\n', encoding="utf-8")
+        parsed = reference.parse_capability(source)
+        assert parsed["prerequisites"] == ["EditorOnly", *domain, "PluginEnabled:SemanticSearch"], (call, parsed)

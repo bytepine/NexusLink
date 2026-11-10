@@ -20,6 +20,6 @@ void FNexusGetEditorSlateCapability::BuildDefinition(FNexusCapabilityDefinition&
 FCapabilityResult FNexusGetEditorSlateCapability::Execute(const TSharedPtr<FJsonObject>& Arguments) const
 {
 	FString Action = TEXT("Snapshot"); Arguments->TryGetStringField(TEXT("Action"), Action);
-	return FNexusEditorToolSchema::Result(FNexusEditorToolsets::Slate(Action, Arguments));
+	return FNexusEditorToolSchema::Result(FNexusEditorControlServices::Slate(Action, Arguments));
 }
 REGISTER_MCP_CAPABILITY(FNexusGetEditorSlateCapability)

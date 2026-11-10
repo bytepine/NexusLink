@@ -1,7 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 #include "Utils/NexusBlueprintGraphEnhancements.h"
 #include "Utils/NexusBlueprintGraphUtils.h"
-#include "Utils/NexusEditorToolsets.h"
+#include "EdGraphUtilities.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusPinTypeUtils.h"
@@ -16,23 +16,32 @@
 #include "K2Node_FunctionResult.h"
 #include "UObject/UObjectIterator.h"
 
-static const FString GNexusBlueprintNativeDomain = TEXT("editor_toolset.toolsets.blueprint.BlueprintTools");
 
 void FNexusBlueprintGraphEnhancements::Read(UBlueprint* Blueprint, const FString& Section, const TSharedPtr<FJsonObject>& Args, TSharedPtr<FJsonObject>& Result, FString& Error)
 {
     const FNexusArgs A(Args); UEdGraph* Graph = FNexusBlueprintGraphUtils::FindBPGraph(Blueprint,A.Str(TEXT("GraphName")));
     if (!Graph) { Error=TEXT("GraphName must resolve to a graph in this Blueprint"); return; }
     const int32 Limit=FMath::Clamp(static_cast<int32>(A.Num(TEXT("Limit"),100)),1,500);
-    auto Input=MakeShared<FJsonObject>(); FString Tool;
-    Input->SetObjectField(TEXT("graph"),FNexusNativeEditorTools::Reference(Graph->GetPathName()));
     UEdGraphNode* Start=nullptr;
-    if (Section==TEXT("Subgraph")) { Start=FNexusBlueprintGraphUtils::FindBPNode(Graph,A.Str(TEXT("NodeId"))); if (!Start) { Error=TEXT("Subgraph requires a NodeId in the selected graph"); return; } Tool=TEXT("get_connected_subgraph"); Input->SetObjectField(TEXT("node"),FNexusNativeEditorTools::Reference(Start->GetPathName())); }
-    else if (Section==TEXT("NodeTypes")) { if (A.Str(TEXT("NameFilter")).Len()<2) { Error=TEXT("NodeTypes requires a narrow NameFilter"); return; } Tool=TEXT("find_node_types"); Input->SetStringField(TEXT("type_id_filter"),A.Str(TEXT("NameFilter"))); }
-    else if (Section==TEXT("NodeTypePins") && !A.Str(TEXT("NodeTypeId")).IsEmpty()) { Tool=TEXT("get_node_type_pins"); Input->SetStringField(TEXT("type_id"),A.Str(TEXT("NodeTypeId"))); }
-    else if (Section==TEXT("GraphDSL")) Tool=TEXT("read_graph_dsl");
-    if (!Tool.IsEmpty() && FNexusNativeEditorTools::UseNative(GNexusBlueprintNativeDomain)) {
-        TSharedPtr<FJsonValue> Value; if (!FNexusNativeEditorTools::InvokeSync(GNexusBlueprintNativeDomain,Tool,Input,Value,Error)) return;
-        Result->SetStringField(TEXT("Backend"),TEXT("OfficialToolset")); if (Value) Result->SetField(Section,Value); return;
+    if (Section==TEXT("Subgraph")) {
+        Start=FNexusBlueprintGraphUtils::FindBPNode(Graph,A.Str(TEXT("NodeId")));
+        if (!Start) { Error=TEXT("Subgraph requires a NodeId in the selected graph"); return; }
+    }
+    if (Section==TEXT("NodeTypes") && A.Str(TEXT("NameFilter")).Len()<2) { Error=TEXT("NodeTypes requires a narrow NameFilter"); return; }
+    if (Section==TEXT("GraphDSL")) {
+        TSet<UObject*> Nodes;
+        TArray<TSharedPtr<FJsonValue>> Skipped;
+        for (UEdGraphNode* Node : Graph->Nodes) if (Node) {
+            if (Node->CanDuplicateNode() && !Node->IsA(UK2Node_FunctionEntry::StaticClass()) && !Node->IsA(UK2Node_FunctionResult::StaticClass())) Nodes.Add(Node);
+            else Skipped.Add(MakeShared<FJsonValueString>(Node->NodeGuid.ToString()));
+        }
+        if (Nodes.Num()>500) { Error=TEXT("Graph text export is limited to 500 duplicable nodes"); return; }
+        FString Code; FEdGraphUtilities::ExportNodesToText(Nodes,Code);
+        Result->SetStringField(TEXT("Backend"),TEXT("Independent"));
+        auto Text=MakeShared<FJsonObject>(); Text->SetStringField(TEXT("Format"),TEXT("UnrealGraphText"));
+        Text->SetStringField(TEXT("Code"),Code); Text->SetNumberField(TEXT("NodeCount"),Nodes.Num());
+        Text->SetArrayField(TEXT("SkippedNodeIds"),Skipped); Text->SetBoolField(TEXT("bAppendOnly"),true);
+        Result->SetObjectField(Section,Text); return;
     }
     TArray<TSharedPtr<FJsonValue>> Items;
     if (Section==TEXT("Subgraph")) {
@@ -54,11 +63,11 @@ void FNexusBlueprintGraphEnhancements::Read(UBlueprint* Blueprint, const FString
         }
     } else if (Section==TEXT("NodeTypePins")) {
         UFunction* Function=FNexusBlueprintGraphUtils::ResolveGraphFunction(A.Str(TEXT("FunctionName")),A.Str(TEXT("FunctionClass")));
-        if (!Function) { Error=TEXT("Compatibility NodeTypePins requires a callable FunctionName/FunctionClass from discovery"); return; }
+        if (!Function) { Error=TEXT("NodeTypePins requires a callable FunctionName/FunctionClass from discovery"); return; }
         auto* Node=NewObject<UK2Node_CallFunction>(GetTransientPackage()); Node->SetFromFunction(Function); Node->AllocateDefaultPins();
         for (auto* Pin : Node->Pins) if (Pin) Items.Add(MakeShared<FJsonValueObject>(FNexusBlueprintGraphUtils::SerializeBPPin(Pin)));
-    } else { Error=TEXT("Native text GraphDSL requires EditorToolset. Read nodes/pins with GetAssetBlueprint Sections=[Graph]; append nodes with ManageAssetBlueprint Action=WriteGraphPlan."); return; }
-    Result->SetStringField(TEXT("Backend"),TEXT("EngineCompatibility")); Result->SetArrayField(Section,Items);
+    } else { Error=TEXT("Unknown Blueprint graph section"); return; }
+    Result->SetStringField(TEXT("Backend"),TEXT("Independent")); Result->SetArrayField(Section,Items);
 }
 
 void FNexusBlueprintGraphEnhancements::Write(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Context)
@@ -69,28 +78,38 @@ void FNexusBlueprintGraphEnhancements::Write(const TSharedPtr<FJsonObject>& Op, 
     if (Context.Action==TEXT("SetVariableCategory") || Context.Action==TEXT("SetVariableEditable")) {
         const FName Name(*A.Str(TEXT("VariableName"))); const bool bExists=Blueprint->NewVariables.ContainsByPredicate([&](const FBPVariableDescription& Variable){return Variable.VarName==Name;});
         if (!bExists) { Fail(TEXT("Variable must be owned by this Blueprint")); return; }
-        auto Input=MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("blueprint"),FNexusNativeEditorTools::Reference(Blueprint->GetPathName())); Input->SetStringField(TEXT("variable_name"),Name.ToString());
         const bool bCategory=Context.Action==TEXT("SetVariableCategory");
         if (bCategory && !Op->HasTypedField<EJson::String>(TEXT("Category"))) { Fail(TEXT("SetVariableCategory requires Category")); return; }
         if (!bCategory && !Op->HasTypedField<EJson::Boolean>(TEXT("bEditable"))) { Fail(TEXT("SetVariableEditable requires bEditable")); return; }
-        if (bCategory) Input->SetStringField(TEXT("category"),A.Str(TEXT("Category"))); else Input->SetBoolField(TEXT("instance_editable"),A.Bool(TEXT("bEditable")));
-        if (FNexusNativeEditorTools::EditSync(GNexusBlueprintNativeDomain,bCategory?TEXT("set_variable_category"):TEXT("set_variable_instance_editable"),Input,Context.Entry)) return;
         // 类别只改编辑器元数据，避免每个操作都重建骨架；编译仍由调用末尾统一执行。
         Blueprint->Modify(); if (bCategory) FBlueprintEditorUtils::SetBlueprintVariableCategory(Blueprint,Name,nullptr,FText::FromString(A.Str(TEXT("Category"))),true); else FBlueprintEditorUtils::SetBlueprintOnlyEditableFlag(Blueprint,Name,!A.Bool(TEXT("bEditable")));
         FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint); return;
     }
     UEdGraph* Graph=FNexusBlueprintGraphUtils::FindBPGraph(Blueprint,A.Str(TEXT("GraphName")));
     if (!Graph) { Fail(TEXT("GraphName must resolve to a graph in this Blueprint")); return; }
-    auto Input=MakeShared<FJsonObject>(); Input->SetObjectField(TEXT("graph"),FNexusNativeEditorTools::Reference(Graph->GetPathName()));
     if (Context.Action==TEXT("WriteGraphDSL")) {
-        if (A.Str(TEXT("Code")).IsEmpty() || A.Str(TEXT("Code")).Len()>65536) { Fail(TEXT("Graph DSL must contain 1-65536 characters")); return; }
-        if (!FNexusNativeEditorTools::UseNative(GNexusBlueprintNativeDomain)) { Fail(TEXT("Text GraphDSL requires EditorToolset; use WriteGraphPlan for engine compatibility")); return; }
-        Input->SetStringField(TEXT("code"),A.Str(TEXT("Code"))); FNexusNativeEditorTools::EditSync(GNexusBlueprintNativeDomain,TEXT("write_graph_dsl"),Input,Context.Entry); return;
+        const FString Code=A.Str(TEXT("Code"));
+        if (Code.IsEmpty() || Code.Len()>2*1024*1024 || !Code.TrimStartAndEnd().StartsWith(TEXT("Begin Object"))) { Fail(TEXT("Code must be UnrealGraphText from GetAssetBlueprint GraphDSL (1 byte to 2 MiB); imports append duplicable nodes")); return; }
+        // 在完整临时蓝图中试导入，保留图所属蓝图上下文；通过后才接触目标图。
+        UBlueprint* Preview=DuplicateObject(Blueprint,GetTransientPackage(),MakeUniqueObjectName(GetTransientPackage(),Blueprint->GetClass(),TEXT("NexusGraphTextPreview")));
+        UEdGraph* PreviewGraph=Preview?FNexusBlueprintGraphUtils::FindBPGraph(Preview,Graph->GetName()):nullptr;
+        if (!PreviewGraph || !FEdGraphUtilities::CanImportNodesFromText(PreviewGraph,Code)) { Fail(TEXT("Graph text cannot be imported into this graph")); return; }
+        TSet<UEdGraphNode*> PreviewNodes; FEdGraphUtilities::ImportNodesFromText(PreviewGraph,Code,PreviewNodes);
+        if (!PreviewNodes.Num() || PreviewNodes.Num()>500) { Fail(TEXT("Graph text must import 1-500 compatible duplicable nodes")); return; }
+        for (UEdGraphNode* Node : PreviewNodes) if (!Node || Node->IsA(UK2Node_FunctionEntry::StaticClass()) || Node->IsA(UK2Node_FunctionResult::StaticClass())) { Fail(TEXT("Graph text cannot append function entry or result boundary nodes")); return; }
+        Graph->Modify(); Blueprint->Modify();
+        TSet<UEdGraphNode*> Imported; FEdGraphUtilities::ImportNodesFromText(Graph,Code,Imported);
+        if (Imported.Num()!=PreviewNodes.Num()) {
+            for (UEdGraphNode* Node : Imported) if (Node) { Graph->GetSchema()->BreakNodeLinks(*Node); Graph->RemoveNode(Node); }
+            Fail(TEXT("Graph text import differed from preview; imported nodes removed")); return;
+        }
+        TArray<TSharedPtr<FJsonValue>> Nodes;
+        for (UEdGraphNode* Node : Imported) if (Node) { Node->CreateNewGuid(); Nodes.Add(MakeShared<FJsonValueObject>(FNexusBlueprintGraphUtils::SerializeBPNode(Node))); }
+        FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+        Context.Entry->SetArrayField(TEXT("Nodes"),Nodes); Context.Entry->SetStringField(TEXT("Format"),TEXT("UnrealGraphText")); Context.Entry->SetStringField(TEXT("Backend"),TEXT("Independent")); return;
     }
     if (Context.Action==TEXT("ArrangeNodes")) {
         if (Graph->Nodes.Num()>500) { Fail(TEXT("ArrangeNodes is limited to 500 nodes")); return; }
-        TArray<TSharedPtr<FJsonValue>> Nodes; for (UEdGraphNode* Node : Graph->Nodes) if (Node) Nodes.Add(MakeShared<FJsonValueObject>(FNexusNativeEditorTools::Reference(Node->GetPathName()))); Input->SetArrayField(TEXT("nodes"),Nodes);
-        if (FNexusNativeEditorTools::EditSync(GNexusBlueprintNativeDomain,TEXT("arrange_nodes"),Input,Context.Entry)) return;
         // 确定性拓扑层布局；有环的节点留在最后一列，不无限递归。
         TMap<UEdGraphNode*,int32> Columns; TSet<UEdGraphNode*> Pending; for (UEdGraphNode* Node : Graph->Nodes) if (Node) Pending.Add(Node);
         int32 Column=0;
@@ -112,8 +131,6 @@ void FNexusBlueprintGraphEnhancements::Write(const TSharedPtr<FJsonObject>& Op, 
         if (bAdd && !FNexusPinTypeUtils::ParsePinType(A.Str(TEXT("VariableType")),Type,Error)) { Fail(Error); return; }
         if (Terminal && (bAdd ? Terminal->FindPin(FName(*Name))!=nullptr : Terminal->FindPin(FName(*Name))==nullptr)) { Fail(TEXT("Parameter already exists or cannot be found")); return; }
         if (!Terminal && !bAdd) { Fail(TEXT("Function terminal is missing")); return; }
-        Input->SetStringField(TEXT("param_name"),Name); Input->SetBoolField(TEXT("input_param"),bInput); if (bAdd) Input->SetStringField(TEXT("param_type"),A.Str(TEXT("VariableType")));
-        if (FNexusNativeEditorTools::EditSync(GNexusBlueprintNativeDomain,bAdd?TEXT("add_function_param"):TEXT("remove_function_param"),Input,Context.Entry)) return;
         Graph->Modify();
         if (!Terminal) { auto* Result=NewObject<UK2Node_FunctionResult>(Graph,NAME_None,RF_Transactional); Graph->AddNode(Result,true,false); Result->CreateNewGuid(); Result->PostPlacedNewNode(); Result->AllocateDefaultPins(); Terminal=Result; }
         Terminal->Modify();

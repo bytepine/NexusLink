@@ -1,5 +1,5 @@
 // Copyright byteyang. All Rights Reserved.
-#include "Utils/NexusEditorToolsets.h"
+#include "Utils/NexusEditorControlServices.h"
 #include "Utils/NexusCaptureUtils.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Framework/Application/SlateApplication.h"
@@ -19,9 +19,6 @@
 #include "Misc/Paths.h"
 #include "Dom/JsonValue.h"
 #include "Containers/Ticker.h"
-#if WITH_NEXUS_SLATE_REFS
-#include "SlateInspectorToolsetRefCache.h"
-#endif
 
 static TMap<FString, TWeakPtr<SWidget>> GNexusSlateRefs;
 static const FString GNexusSlateSession = FGuid::NewGuid().ToString(EGuidFormats::Digits);
@@ -35,34 +32,14 @@ static FString NexusSlateRef(const TSharedRef<SWidget>& Widget)
 		if (Current == Widget) return It.Key();
 	}
 	if (GNexusSlateRefs.Num() >= 10000) return FString();
-	const FString Ref = GNexusSlateSession + (FNexusNativeEditorTools::UseNative(TEXT("SlateInspectorToolset")) ? TEXT(":official:") : TEXT(":engine:")) + FGuid::NewGuid().ToString(EGuidFormats::Digits);
+	const FString Ref = GNexusSlateSession + TEXT(":independent:") + FGuid::NewGuid().ToString(EGuidFormats::Digits);
 	GNexusSlateRefs.Add(Ref, Widget);
 	return Ref;
 }
 
-FString FNexusEditorToolsets::BindNativeSnapshot(const FString& Snapshot, bool& bTruncated)
-{
-#if WITH_NEXUS_SLATE_REFS
-    TArray<FString> Lines; Snapshot.ParseIntoArrayLines(Lines, false);
-    FString Result; Result.Reserve(Snapshot.Len() * 2);
-    for (auto& Line : Lines) {
-        const int32 Start = Line.Find(TEXT("[ref="), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-        if (Start != INDEX_NONE && Line.EndsWith(TEXT("]"))) {
-            const FString Raw = Line.Mid(Start + 5, Line.Len() - Start - 6);
-            const auto Widget = FSlateInspectorToolsetRefCache::Get().ResolveRef(Raw);
-            const FString Ref = Widget.IsValid() ? NexusSlateRef(Widget.ToSharedRef()) : FString();
-            Line = Line.Left(Start) + (Ref.IsEmpty() ? TEXT("[unavailable-ref]") : TEXT("[ref=") + Ref + TEXT("]"));
-            if (Ref.IsEmpty()) bTruncated = true;
-        }
-        Result += Line + TEXT("\n");
-    }
-    return Result;
-#else
-    return Snapshot;
-#endif
-}
 
-TArray<TSharedPtr<FJsonValue>> FNexusEditorToolsets::WindowRefs()
+
+TArray<TSharedPtr<FJsonValue>> FNexusEditorControlServices::WindowRefs()
 {
  TArray<TSharedPtr<FJsonValue>> Result;
  TArray<TSharedRef<SWindow>> Windows;
@@ -214,15 +191,7 @@ static TSharedPtr<SMenuAnchor> NexusSlateMenuAnchor(const TSharedRef<SWidget>& W
 	return nullptr;
 }
 
-static void NexusNativeSlateClick(const TSharedRef<SWidget>& Widget, const TSharedPtr<FNexusEditorOperation>& Operation)
-{
-#if WITH_NEXUS_SLATE_REFS
-	auto Input = MakeShared<FJsonObject>(); Input->SetStringField(TEXT("Ref"), FSlateInspectorToolsetRefCache::Get().GetOrAssignRef(Widget, TEXT("nexus")));
-	FNexusNativeEditorTools::Call(TEXT("SlateInspectorToolset"), TEXT("Click"), Input, Operation);
-#else
-	FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Native Slate references were not compiled"));
-#endif
-}
+
 
 static void NexusSlateSnapshot(const TSharedRef<SWidget>& Widget, int32 Depth, int32 MaxDepth,
 	TArray<TSharedPtr<FJsonValue>>& Nodes, bool& bTruncated)
@@ -256,10 +225,9 @@ static FString NexusSlateString(const TSharedPtr<FJsonObject>& Args, const TCHAR
 	FString Value; Args->TryGetStringField(Key, Value); return Value;
 }
 
-TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Slate(const FString& Action, const TSharedPtr<FJsonObject>& Args)
+TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Slate(const FString& Action, const TSharedPtr<FJsonObject>& Args)
 {
-	const bool bNative = FNexusNativeEditorTools::UseNative(TEXT("SlateInspectorToolset"));
-	auto Operation = FNexusEditorOperations::Create(bNative ? TEXT("OfficialToolset") : TEXT("EngineSlate"));
+	auto Operation = FNexusEditorOperations::Create(TEXT("Independent"));
 	if (!Operation.IsValid()) return nullptr;
 	if (Action == TEXT("Capture")) { Operation->bIncludeImage = true; Args->TryGetBoolField(TEXT("bIncludeImage"), Operation->bIncludeImage); }
 	if (!FSlateApplication::IsInitialized() || IsRunningCommandlet())
@@ -275,25 +243,14 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Slate(const FString& Act
 		if (!Ref.IsEmpty()) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("WaitFor checks all windows; omit Ref")); return Operation; }
 		double Timeout = 5; Args->TryGetNumberField(TEXT("TimeoutSeconds"), Timeout);
 		const double Deadline = FPlatformTime::Seconds() + FMath::Clamp(Timeout, 0.0, 30.0);
-		auto Pending = MakeShared<TSharedPtr<FNexusEditorOperation>>();
 		TWeakPtr<FNexusEditorOperation> WeakOperation = Operation;
 		Operation->Stop = [WeakOperation]() { auto Current = WeakOperation.Pin(); if (!Current.IsValid()) return false; FNexusEditorOperations::Finish(Current, TEXT("Cancelled"), nullptr); return true; };
-		AddTicker(FTickerDelegate::CreateLambda([Operation, Pending, Text, TextGone, Deadline, bNative](float)
+		AddTicker(FTickerDelegate::CreateLambda([Operation, Text, TextGone, Deadline](float)
 		{
 			if (!Operation->IsRunning()) return false;
 			bool bMatched = false;
-			if (bNative)
-			{
-				if (!Pending->IsValid())
-				{
-					auto Input = MakeShared<FJsonObject>(); Input->SetStringField(TEXT("Text"), Text); Input->SetStringField(TEXT("TextGone"), TextGone);
-					*Pending = FNexusNativeEditorTools::Scratch(); FNexusNativeEditorTools::Call(TEXT("SlateInspectorToolset"), TEXT("WaitFor"), Input, *Pending); return true;
-				}
-				if ((*Pending)->IsRunning()) return true;
-				if ((*Pending)->State != TEXT("Completed")) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, (*Pending)->Message); return false; }
-				Pending->Reset();
-			}
-			// 原生 WaitFor 会遍历隐藏子树；统一按可见文本复核，并且不向 Ref 缓存写入轮询结果。
+
+			// 只检查可见文本，轮询不向 Ref 缓存写入中间结果。
 			int32 Count = 0; bool bTruncated = false, bFound = Text.IsEmpty(), bFoundGone = false;
 			TArray<TSharedRef<SWindow>> Windows; FSlateApplication::Get().GetAllVisibleWindowsOrdered(Windows);
 			for (const auto& Window : Windows)
@@ -353,7 +310,7 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Slate(const FString& Act
 			auto Input = MakeShared<FJsonObject>(); Input->SetStringField(TEXT("Ref"), FieldRef); Input->SetStringField(TEXT("Value"), NexusSlateString(Field, TEXT("Value"))); Input->SetStringField(TEXT("Text"), NexusSlateString(Field, TEXT("Value"))); Input->SetBoolField(TEXT("bReplace"), true);
 			const FString Type = NexusSlateString(Field, TEXT("FieldType"));
 			TGuardValue<FString> Owner(FNexusEditorOperations::RequestOwner(), Operation->Owner);
-			*Pending = FNexusEditorToolsets::Slate(Type == TEXT("textbox") ? TEXT("Type") : Type == TEXT("checkbox") ? TEXT("SetChecked") : TEXT("SelectOption"), Input);
+			*Pending = FNexusEditorControlServices::Slate(Type == TEXT("textbox") ? TEXT("Type") : Type == TEXT("checkbox") ? TEXT("SetChecked") : TEXT("SelectOption"), Input);
 			return true;
 		}), 0.05f);
 		return Operation;
@@ -362,24 +319,20 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Slate(const FString& Act
 	{
 		Target = NexusSlateInputTarget(Ref);
 		const auto Anchor = Target.IsValid() && Target->GetTypeAsString().Contains(TEXT("Combo")) ? NexusSlateMenuAnchor(Target.ToSharedRef()) : nullptr;
-		const bool bNativeAllowed = !bNative || FNexusNativeEditorTools::CanCall(TEXT("SlateInspectorToolset"), TEXT("SelectOption"));
-		if (!Anchor.IsValid() || !bNativeAllowed)
-		{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, FString::Printf(TEXT("SelectOption requires an enabled combo Ref and native tool (Type=%s, MenuAnchor=%d, ToolEnabled=%d)"), Target.IsValid() ? *Target->GetTypeAsString() : TEXT("expired"), Anchor.IsValid(), bNativeAllowed)); return Operation; }
-		TSharedPtr<FNexusEditorOperation> Opened;
+		if (!Anchor.IsValid())
+		{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, FString::Printf(TEXT("SelectOption requires an enabled combo Ref (Type=%s, MenuAnchor=%d)"), Target.IsValid() ? *Target->GetTypeAsString() : TEXT("expired"), Anchor.IsValid())); return Operation; }
 		if (!Anchor->IsOpen())
 		{
-			if (bNative) { Opened = FNexusNativeEditorTools::Scratch(); NexusNativeSlateClick(Target.ToSharedRef(), Opened); }
-			else if (!NexusSlateClick(Target.ToSharedRef())) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Combo is not hit-testable")); return Operation; }
+			if (!NexusSlateClick(Target.ToSharedRef())) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Combo is not hit-testable")); return Operation; }
 		}
 		TWeakPtr<SMenuAnchor> WeakAnchor = Anchor;
 		const FString Value = NexusSlateString(Args, TEXT("Value")); const double Deadline = FPlatformTime::Seconds() + 2;
-		AddTicker(FTickerDelegate::CreateLambda([Operation, Opened, WeakAnchor, Ref, Value, Deadline, bNative](float)
+		AddTicker(FTickerDelegate::CreateLambda([Operation, WeakAnchor, Ref, Value, Deadline](float)
 		{
 			if (!Operation->IsRunning()) return false;
-			if (Opened.IsValid() && Opened->IsRunning()) return true;
 			const auto Current = NexusSlateInputTarget(Ref); const auto Menu = WeakAnchor.Pin();
-			if ((Opened.IsValid() && Opened->State != TEXT("Completed")) || !Current.IsValid() || !Menu.IsValid() || !NexusSlateInTree(Current.ToSharedRef(), Menu.ToSharedRef()) || (bNative && !FNexusNativeEditorTools::CanCall(TEXT("SlateInspectorToolset"), TEXT("SelectOption"))))
-			{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Combo expired, failed to open or its native tool was disabled")); return false; }
+			if (!Current.IsValid() || !Menu.IsValid() || !NexusSlateInTree(Current.ToSharedRef(), Menu.ToSharedRef()))
+			{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Combo expired or failed to open")); return false; }
 			const auto Popup = Menu->GetMenuWindow();
 			if (Popup.IsValid() && Popup == NexusSlateWindow(Current.ToSharedRef())) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("SelectOption requires a separate popup window; use focused key navigation for hosted menus")); return false; }
 			const auto Option = Menu->IsOpen() && Popup.IsValid() ? NexusSlateOption(Popup.ToSharedRef(), Value) : nullptr;
@@ -387,8 +340,7 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Slate(const FString& Act
 			{
 				FVector2D Point;
 				if (!NexusSlatePoint(Option.ToSharedRef(), Point)) { if (FPlatformTime::Seconds() < Deadline) return true; FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Dropdown option is not hit-testable")); return false; }
-				if (bNative) NexusNativeSlateClick(Option.ToSharedRef(), Operation);
-				else { const bool bClicked = NexusSlateClick(Option.ToSharedRef()); auto Result = MakeShared<FJsonObject>(); Result->SetBoolField(TEXT("bApplied"), bClicked); FNexusEditorOperations::Finish(Operation, bClicked ? TEXT("Completed") : TEXT("Failed"), Result); }
+				{ const bool bClicked = NexusSlateClick(Option.ToSharedRef()); auto Result = MakeShared<FJsonObject>(); Result->SetBoolField(TEXT("bApplied"), bClicked); FNexusEditorOperations::Finish(Operation, bClicked ? TEXT("Completed") : TEXT("Failed"), Result); }
 				return false;
 			}
 			if (FPlatformTime::Seconds() < Deadline) return true;
@@ -402,120 +354,7 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorToolsets::Slate(const FString& Act
 		EndTarget = NexusSlateInputTarget(NexusSlateString(Args, TEXT("EndRef")));
 		if (!EndTarget.IsValid()) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Drag requires a live enabled EndRef")); return Operation; }
 	}
-	if (bNative)
-	{
-        FString NativeRef;
-#if WITH_NEXUS_SLATE_REFS
-        if (Target.IsValid() && Action != TEXT("Focus")) {
-            // Public cache manages identifiers only; every tool action still goes through Registry.
-            NativeRef = FSlateInspectorToolsetRefCache::Get().GetOrAssignRef(Target.ToSharedRef(), TEXT("nexus"));
-            if (NativeRef.IsEmpty() || FSlateInspectorToolsetRefCache::Get().ResolveRef(NativeRef) != Target) {
-                FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Native Ref expired; query Snapshot again")); return Operation;
-            }
-        }
-#endif
-        if (Target.IsValid() && Action != TEXT("Capture") && Action != TEXT("Snapshot") && Action != TEXT("Windows")
-            && !NexusSlateInTree(NexusSlateWindow(Target.ToSharedRef()).ToSharedRef(), Target.ToSharedRef(), 0, true)) {
-            FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Target has a hidden or disabled ancestor")); return Operation;
-        }
-		auto Input = MakeShared<FJsonObject>();
-		FString Tool = Action;
-		if (Action == TEXT("Windows")) Input->SetStringField(TEXT("Action"), TEXT("list"));
-		else if (Action == TEXT("Focus"))
-		{
-            const auto* Entry = GNexusSlateRefs.Find(Ref);
-            const auto TargetWindow = Entry ? Entry->Pin() : TSharedPtr<SWidget>();
-            TArray<TSharedRef<SWindow>> Windows; FSlateApplication::Get().GetAllVisibleWindowsOrdered(Windows);
-            const int32 Index = Windows.IndexOfByPredicate([TargetWindow](const TSharedRef<SWindow>& Window) { return Window == TargetWindow; });
-            if (Index == INDEX_NONE) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Use a live window Ref from Windows query")); return Operation; }
-            Input->SetStringField(TEXT("Action"), TEXT("select")); Input->SetNumberField(TEXT("Index"), Index);
-            FNexusNativeEditorTools::Call(TEXT("SlateInspectorToolset"), TEXT("Windows"), Input, Operation);
-            return Operation;
-		}
-		else if (Action == TEXT("Snapshot"))
-        {
-            Input->SetStringField(TEXT("Ref"), NativeRef); Input->SetNumberField(TEXT("MaxDepth"), MaxDepth);
-            // Force a fresh render. Reusing an observer could return stale data and
-            // unobserving its shared identifier could remove another client's observer.
-            Input->SetBoolField(TEXT("bIncludeSourceLocations"), true);
-        }
-		else
-		{
-			if (Action == TEXT("Capture")) Tool = TEXT("Screenshot");
-			if (Action == TEXT("SetChecked")) Tool = TEXT("FillForm");
-			if (Tool != TEXT("PressKey") && Tool != TEXT("FillForm") && Tool != TEXT("Drag")) Input->SetStringField(TEXT("Ref"), NativeRef);
-			if (Action == TEXT("Type")) Input->SetStringField(TEXT("Text"), NexusSlateString(Args, TEXT("Text")));
-			if (Action == TEXT("PressKey")) Input->SetStringField(TEXT("Key"), NexusSlateString(Args, TEXT("Key")));
-			if (Action == TEXT("SetChecked"))
-			{
-				const FString Value = NexusSlateString(Args, TEXT("Value"));
-				if (!Target.IsValid() || Target->GetType() != FName(TEXT("SCheckBox")) || (Value != TEXT("true") && Value != TEXT("false")))
-				{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("SetChecked requires SCheckBox and true/false")); return Operation; }
-				auto Field = MakeShared<FJsonObject>(); Field->SetStringField(TEXT("ref"), NativeRef); Field->SetStringField(TEXT("value"), Value); Field->SetStringField(TEXT("fieldType"), TEXT("checkbox"));
-				Input->SetArrayField(TEXT("Fields"), {MakeShared<FJsonValueObject>(Field)});
-			}
-			if (Action == TEXT("Drag"))
-			{
-#if WITH_NEXUS_SLATE_REFS
-				const FString EndRef = FSlateInspectorToolsetRefCache::Get().GetOrAssignRef(EndTarget.ToSharedRef(), TEXT("nexus"));
-				Input->SetStringField(TEXT("StartRef"), NativeRef); Input->SetStringField(TEXT("EndRef"), EndRef);
-#endif
-			}
-		}
-		bool bReplace = false; Args->TryGetBoolField(TEXT("bReplace"), bReplace);
-		if (Action == TEXT("Type") && bReplace)
-		{
-			FString Text, Selection;
-			if (!NexusSlateEditableText(Target.ToSharedRef(), Text, Selection) || !FNexusNativeEditorTools::CanCall(TEXT("SlateInspectorToolset"), TEXT("Type")))
-			{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Replacement requires an editable text widget and enabled Type tool")); return Operation; }
-			auto SelectArgs = MakeShared<FJsonObject>(); SelectArgs->SetStringField(TEXT("Ref"), Ref); SelectArgs->SetStringField(TEXT("Key"), NexusSlateSelectAllKey());
-			auto Pending = MakeShared<TSharedPtr<FNexusEditorOperation>>(FNexusEditorToolsets::Slate(TEXT("PressKey"), SelectArgs));
-			auto bClearing = MakeShared<bool>(false); TWeakPtr<SWidget> WeakTarget = Target;
-			AddTicker(FTickerDelegate::CreateLambda([Pending, bClearing, Operation, Input, WeakTarget](float)
-			{
-				if (!Operation->IsRunning()) return false;
-				if ((*Pending)->IsRunning()) return true;
-				const auto Current = WeakTarget.Pin();
-				const auto Window = Current.IsValid() ? NexusSlateWindow(Current.ToSharedRef()) : TSharedPtr<SWindow>();
-				FString Text, Selection;
-				if ((*Pending)->State != TEXT("Completed") || !Window.IsValid() || !NexusSlateInTree(Window.ToSharedRef(), Current.ToSharedRef(), 0, true) || !NexusSlateHasFocus(Current.ToSharedRef()) || !NexusSlateEditableText(Current.ToSharedRef(), Text, Selection))
-				{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Text target expired, lost focus or could not select its contents")); return false; }
-				if (!*bClearing)
-				{
-					if (Selection != Text) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Could not select all text; replacement stopped before deleting")); return false; }
-					// 原生 Type 再聚焦会丢失选区，先通过 Registry 清除已验证的完整选区。
-					auto Delete = MakeShared<FJsonObject>(); Delete->SetStringField(TEXT("Key"), TEXT("BackSpace"));
-					*Pending = FNexusNativeEditorTools::Scratch(); *bClearing = true;
-					FNexusNativeEditorTools::Call(TEXT("SlateInspectorToolset"), TEXT("PressKey"), Delete, *Pending); return true;
-				}
-				if (!Text.IsEmpty()) FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Target changed or could not clear text; replacement stopped"));
-				else FNexusNativeEditorTools::Call(TEXT("SlateInspectorToolset"), TEXT("Type"), Input, Operation);
-				return false;
-			}), 0.05f);
-			return Operation;
-		}
-        if (Action == TEXT("Click") || Action == TEXT("Type") || Action == TEXT("PressKey")) {
-			FKey ParsedKey; FModifierKeysState ParsedModifiers;
-            if (Action == TEXT("PressKey") && !NexusSlateParseKey(NexusSlateString(Args, TEXT("Key")), ParsedKey, ParsedModifiers)) {
-                FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Unknown Unreal key name")); return Operation;
-            }
-            if (Action == TEXT("PressKey")) {
-                auto Focus = FNexusNativeEditorTools::Scratch();
-                auto FocusArgs = MakeShared<FJsonObject>(); FocusArgs->SetStringField(TEXT("Ref"), NativeRef); FocusArgs->SetStringField(TEXT("Text"), TEXT(""));
-                FNexusNativeEditorTools::Call(TEXT("SlateInspectorToolset"), TEXT("Type"), FocusArgs, Focus);
-                TWeakPtr<SWidget> WeakTarget = Target;
-                FNexusEditorToolsets::AddTicker(FTickerDelegate::CreateLambda([Focus, Operation, Input, WeakTarget](float) {
-                    if (Focus->IsRunning()) return true;
-                    const auto Current = WeakTarget.Pin(); const auto Window = Current.IsValid() ? NexusSlateWindow(Current.ToSharedRef()) : TSharedPtr<SWindow>();
-                    if (Focus->State != TEXT("Completed") || !Window.IsValid() || !NexusSlateInTree(Window.ToSharedRef(), Current.ToSharedRef(), 0, true) || !NexusSlateHasFocus(Current.ToSharedRef()))
-                        FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Target expired or could not be focused"));
-                    else FNexusNativeEditorTools::Call(TEXT("SlateInspectorToolset"), TEXT("PressKey"), Input, Operation);
-                    return false;
-                }), 0.05f);
-            } else FNexusNativeEditorTools::Call(TEXT("SlateInspectorToolset"), Tool, Input, Operation);
-        } else FNexusNativeEditorTools::Call(TEXT("SlateInspectorToolset"), Tool, Input, Operation);
-		return Operation;
-	}
+
 	TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
 	if (Action == TEXT("Windows"))
 	{

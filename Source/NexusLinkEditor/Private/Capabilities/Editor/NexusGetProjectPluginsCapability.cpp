@@ -4,7 +4,6 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpTool.h"
 #include "Utils/NexusArgs.h"
-#include "Utils/NexusEditorToolsets.h"
 #include "Utils/NexusStringMatchUtils.h"
 #include "Interfaces/IPluginManager.h"
 #include "PluginDescriptor.h"
@@ -50,13 +49,7 @@ void FNexusGetProjectPluginsCapability::ExecuteSection(const FString& SectionNam
 {
 	const FNexusArgs A(Args);
 	auto Plugins = IPluginManager::Get().GetDiscoveredPlugins();
-    if (FNexusNativeEditorTools::UseNative(TEXT("PluginToolset")) && SectionName == TEXT("Plugins")) {
-        TSharedPtr<FJsonValue> Value;
-        if (!FNexusNativeEditorTools::InvokeSync(TEXT("PluginToolset"), A.Bool(TEXT("bEnabledOnly")) ? TEXT("ListEnabledPlugins") : TEXT("ListDiscoveredPlugins"), MakeShared<FJsonObject>(), Value, Error)) return;
-        if (Value->Type != EJson::Array) { Error = TEXT("Expected native plugin name array"); return; }
-        Plugins.Empty(); for (const auto& Name : Value->AsArray()) { auto Plugin = IPluginManager::Get().FindPlugin(Name->AsString()); if (Plugin.IsValid()) Plugins.Add(Plugin.ToSharedRef()); }
-        Out->SetStringField(TEXT("Backend"), TEXT("OfficialToolset"));
-    }
+
 	if (SectionName == TEXT("AssetOwner"))
 	{
 		const FString Path = A.Str(TEXT("AssetPath"));
@@ -76,6 +69,7 @@ void FNexusGetProjectPluginsCapability::ExecuteSection(const FString& SectionNam
 		Info->SetArrayField(TEXT("Modules"), Modules); Out->SetObjectField(TEXT("Info"), Info); return;
 	}
 	TArray<TSharedPtr<FJsonValue>> Items;
+    Out->SetStringField(TEXT("Backend"), TEXT("Independent"));
 	auto AddDependency = [&](const FPluginReferenceDescriptor& Reference, const FString& Name)
 	{
 		auto Item = MakeShared<FJsonObject>(); Item->SetStringField(TEXT("Name"), Name);

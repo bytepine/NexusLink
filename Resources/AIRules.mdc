@@ -28,6 +28,8 @@ For UE assets / PIE / blueprints / Widget / material / behavior tree / GAS, **ca
 
 Editor UI uses `GetEditorSlate` / `CaptureEditorSlate` / `InteractEditorSlate`; use only returned `Ref` identifiers. Local tests use `ControlEditorAutomation` / `ListEditorAutomationTests`; compile uses `CompileEditorLiveCoding`. Start once, then query `GetEditorOperation` with `OperationId`; `WaitSeconds` is capped at 30. `State=Completed` describes execution, so inspect `Result.Outcome` or per-test outcomes. Cancelling a request ends its wait; explicitly stop supported operations. Never retry writes after disconnect or timeout. These operations cannot join `Calls[]` atomic batches. Discovery publishes `Execution` backend reasons and `outputSchema`.
 
+NexusLink itself does not directly link or call official Toolset/ToolsetCore/ToolsetRegistry or import their Python packages. Engine/domain plugins may retain their own transitive dependencies; keep those required by the engine. See [the dependency boundary](../docs/toolset-backends.md).
+
 ---
 
 ## 2. Prohibitions
