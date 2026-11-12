@@ -13,6 +13,7 @@ struct FNexusBlueprintEditUtils final
 	static bool ValidateLeaf(UBlueprint* Blueprint, FString& Error);
 	static bool PreviewReparent(UBlueprint* Blueprint, const FString& ParentClass, const TSharedPtr<FJsonObject>& Result, FString& Error);
 	static bool Reparent(UBlueprint* Blueprint, const FString& ParentClass, bool bAllowPotentialDataLoss, const TSharedPtr<FJsonObject>& Result, FString& Error);
+	static bool RemapMemberReferences(UBlueprint* Blueprint, const FString& OldName, const FString& NewName, bool bValidateOnly, const TSharedPtr<FJsonObject>& Result, FString& Error);
 	static bool ChangeVariableType(UBlueprint* Blueprint, const FString& Name, const FString& Type, bool bAllowPotentialDataLoss, bool bPreviewOnly, const TSharedPtr<FJsonObject>& Result, FString& Error);
 	static UActorComponent* FindComponent(UBlueprint* Blueprint, const FString& Name, bool bForWrite, FString& Error);
 	static UActorComponent* FindComponentBaseline(UBlueprint* Blueprint, UActorComponent* Component, const FString& Name, const FString& Baseline, FString& Error);

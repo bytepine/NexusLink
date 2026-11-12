@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Dom/JsonObject.h"
 
-/** 首批标量资产编辑。预览只操作临时属性存储，写入与预览共用解析逻辑。 */
+/** 反射属性资产编辑。预览只操作临时属性存储，写入与预览共用解析逻辑。 */
 struct FNexusAssetEditUtils final
 {
 	static bool IsVerified(const TSharedPtr<FJsonObject>& Args);

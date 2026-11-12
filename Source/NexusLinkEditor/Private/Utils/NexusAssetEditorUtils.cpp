@@ -115,7 +115,7 @@ UWidget* FNexusAssetEditorUtils::FindWidgetByName(UWidgetBlueprint* WBP, const F
 #endif
 }
 
-bool FNexusAssetEditorUtils::SaveDirtyPackage(UPackage* Package, const FString& PackagePath, const FString& AssetPathHint, bool& bOutDeferred, FString& OutNote)
+bool FNexusAssetEditorUtils::SaveDirtyPackage(UPackage* Package, const FString& PackagePath, const FString& AssetPathHint, bool& bOutDeferred, FString& OutNote, TArray<TSharedPtr<FJsonValue>>* OutDiagnostics)
 {
 #if !WITH_EDITOR
 	(void)Package;
@@ -159,7 +159,7 @@ bool FNexusAssetEditorUtils::SaveDirtyPackage(UPackage* Package, const FString& 
 	{
 		Asset->MarkPackageDirty();
 	}
-	return FNexusAssetUtils::SaveNewAsset(Package, Asset, PackagePath, &OutNote);
+	return FNexusAssetUtils::SaveNewAsset(Package, Asset, PackagePath, &OutNote, OutDiagnostics);
 #endif
 }
 
@@ -314,7 +314,9 @@ void FNexusAssetEditorUtils::ApplyManageFinalize(
 		{
 			bool bDeferred = false;
 			FString Note;
-			const bool bOk = SaveDirtyPackage(Pkg, PackagePath, AssetPath, bDeferred, Note);
+			TArray<TSharedPtr<FJsonValue>> Diagnostics;
+			const bool bOk = SaveDirtyPackage(Pkg, PackagePath, AssetPath, bDeferred, Note, &Diagnostics);
+			if (Diagnostics.Num()) OutTop->SetArrayField(TEXT("SaveDiagnostics"), Diagnostics);
 			if (bDeferred)
 			{
 				OutTop->SetBoolField(TEXT("bDeferred"), true);

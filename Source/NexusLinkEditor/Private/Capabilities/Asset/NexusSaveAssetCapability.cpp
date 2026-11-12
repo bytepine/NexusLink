@@ -67,7 +67,9 @@ FCapabilityResult FNexusSaveAssetCapability::Execute(const TSharedPtr<FJsonObjec
 		{
 			bool bDeferred = false;
 			FString Note;
-			const bool bOk = FNexusAssetEditorUtils::SaveDirtyPackage(Pkg, PackagePath, OrigPath, bDeferred, Note);
+			TArray<TSharedPtr<FJsonValue>> Diagnostics;
+			const bool bOk = FNexusAssetEditorUtils::SaveDirtyPackage(Pkg, PackagePath, OrigPath, bDeferred, Note, &Diagnostics);
+			if (Diagnostics.Num()) Entry->SetArrayField(TEXT("SaveDiagnostics"), Diagnostics);
 
 			if (bDeferred)
 			{

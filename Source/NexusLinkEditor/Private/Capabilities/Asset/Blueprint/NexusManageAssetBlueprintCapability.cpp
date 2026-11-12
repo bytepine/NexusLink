@@ -87,13 +87,13 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 	Out.Description = TEXT("Batch edit BP graphs, variables/types, inheritance, defaults and components. Compile/save explicitly.");
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"),          FNexusSchema::Enum(TEXT("Operation type"), {
-			TEXT("AddVariable"), TEXT("RemoveVariable"), TEXT("RenameVariable"), TEXT("RenameLocalVariable"), TEXT("ChangeVariableType"), TEXT("SetVariableMetadata"), TEXT("SetVariableReplication"), TEXT("SetFunctionCallInEditor"), TEXT("Reparent"),
+			TEXT("AddVariable"), TEXT("RemoveVariable"), TEXT("RenameVariable"), TEXT("RenameLocalVariable"), TEXT("ChangeVariableType"), TEXT("SetVariableMetadata"), TEXT("SetVariableReplication"), TEXT("SetFunctionCallInEditor"), TEXT("Reparent"), TEXT("RemapMemberReferences"),
 			TEXT("AddFunction"), TEXT("RemoveFunction"),
 			TEXT("AddMacro"), TEXT("AddTimeline"), TEXT("AddDispatcher"), TEXT("AddLocalVariable"),
 			TEXT("AddInterface"), TEXT("RemoveInterface"),
 			TEXT("AddNode"), TEXT("RemoveNode"), TEXT("SetNode"), TEXT("PromotePin"),
 			TEXT("Connect"), TEXT("Disconnect"), TEXT("DisconnectAll"),
-			TEXT("AddComponent"), TEXT("RemoveComponent"), TEXT("SetComponentProperty"), TEXT("ResetComponentPropertyToDefault"), TEXT("CopyComponent"), TEXT("ReattachComponent"), TEXT("SetDefaults"), TEXT("ArrangeNodes"), TEXT("WriteGraphDSL"), TEXT("WriteGraphPlan"), TEXT("AddFunctionParameter"), TEXT("RemoveFunctionParameter"), TEXT("SetVariableCategory"), TEXT("SetVariableEditable") }))
+			TEXT("AddComponent"), TEXT("RemoveComponent"), TEXT("SetComponentProperty"), TEXT("ResetComponentPropertyToDefault"), TEXT("CopyComponent"), TEXT("ReattachComponent"), TEXT("SetDefaults"), TEXT("SetArray"), TEXT("ClearArray"), TEXT("ArrangeNodes"), TEXT("WriteGraphDSL"), TEXT("WriteGraphPlan"), TEXT("AddFunctionParameter"), TEXT("RemoveFunctionParameter"), TEXT("SetVariableCategory"), TEXT("SetVariableEditable") }))
         .Prop(TEXT("Code"), FNexusSchema::Str(TEXT("UnrealGraphText node text from GetAssetBlueprint GraphDSL; append-only, 1-500 duplicable nodes; old Toolset Lisp syntax is not accepted")))
         .Prop(TEXT("GraphNodes"), FNexusSchema::ArrayOf(TEXT("Append-only plan nodes with Id and existing AddNode fields"), FNexusSchema::AnyObject(TEXT("Plan node"))))
         .Prop(TEXT("GraphLinks"), FNexusSchema::ArrayOf(TEXT("Plan links with From/FromPin/To/ToPin"), FNexusSchema::AnyObject(TEXT("Plan link"))))
@@ -110,6 +110,9 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("VariableType"),    FNexusSchema::Str(TEXT("Basic, object, ClassReference<BaseClass> or BlueprintType struct; T[], Array<T>, Set<T>, Map<K,V> (no nested containers)")))
 		.Prop(TEXT("NewVariableName"), FNexusSchema::Str(TEXT("New member name (RenameVariable); leaf Blueprint only, preserves GUID and references; descendants/RepNotify are rejected")))
 		.Prop(TEXT("ParentClass"), FNexusSchema::Str(TEXT("Reparent: new native class name or Blueprint/generated class path; normal, Widget, Anim and GameplayAbility Blueprints")))
+		.Prop(TEXT("OldMemberName"), FNexusSchema::Str(TEXT("RemapMemberReferences: inherited self-member name in existing variable getter/setter nodes")))
+		.Prop(TEXT("NewMemberName"), FNexusSchema::Str(TEXT("RemapMemberReferences: exactly matching property type on the current parent; preserves existing pins and wiring")))
+		.Prop(TEXT("bValidateOnly"), FNexusSchema::Bool(TEXT("RemapMemberReferences: inspect matched nodes and type checks without changing nodes"), true, false))
 		.Prop(TEXT("bAllowPotentialDataLoss"), FNexusSchema::Bool(TEXT("Reparent/ChangeVariableType: explicitly allow losing defaults or breaking graph references"), true, false))
 		.Prop(TEXT("DefaultValue"),    FNexusSchema::Str(TEXT("Default value (AddVariable)")))
 		.Prop(TEXT("Category"),        FNexusSchema::Str(TEXT("Editor category (AddVariable)")))
@@ -118,6 +121,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("NodeId"),          FNexusSchema::Str(TEXT("node GUID (remove/SetNode/PromotePin)")))
 		.Prop(TEXT("NodeClass"),       FNexusSchema::Str(TEXT("K2Node class (AddNode)")))
 		.Prop(TEXT("FunctionName"),    FNexusSchema::Str(TEXT("Function name (AddFunction/CallFunction)")))
+		.Prop(TEXT("CustomEventName"), FNexusSchema::Str(TEXT("AddNode K2Node_CustomEvent / SetNode: exact event name, validated against Blueprint member conflicts; final name is returned")))
 		.Prop(TEXT("FunctionClass"),   FNexusSchema::Str(TEXT("CallFunction: owner class")))
 		.Prop(TEXT("InterfaceName"),   FNexusSchema::Str(TEXT("Interface class or BPI path (add/RemoveInterface)")))
 		.Prop(TEXT("PosX"),            FNexusSchema::Num(TEXT("Node X position")))
@@ -136,7 +140,8 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("SourceAssetPath"), FNexusSchema::Str(TEXT("Source Blueprint (CopyComponent)")))
 		.Prop(TEXT("SourceComponentName"), FNexusSchema::Str(TEXT("Source SCS variable (CopyComponent)")))
 		.Prop(TEXT("PropertyPath"),    FNexusSchema::Str(TEXT("Property path, dot notation e.g. RelativeLocation.X")))
-		.Prop(TEXT("Value"),           FNexusSchema::Str(TEXT("String value e.g. (X=100,Y=0,Z=50) or true")))
+		.Prop(TEXT("Value"),           FNexusSchema::Str(TEXT("Unreal import text; omitted struct fields preserve their previous values. UE4 arrays: empty string clears, () may create a default element; prefer ClearArray/SetArray")))
+		.Prop(TEXT("Values"), FNexusSchema::ArrayOf(TEXT("SetArray: typed JSON elements; [] clears. Optional ComponentName selects an owned component template"), MakeShared<FJsonObject>()))
 		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous scalar value (SetDefaults only)")))
 		.Required({ TEXT("Action") })
 		.Build();
@@ -144,7 +149,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
 		.Prop(TEXT("ExpectedStructureHash"), FNexusSchema::Str(TEXT("Precondition hash from GetAssetEditPreview")))
 		.Prop(TEXT("bVerifyStructure"), FNexusSchema::Bool(TEXT("Verify RemoveNode/Disconnect/DisconnectAll against an isolated structural plan"), true, false))
-		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar SetDefaults/SetComponentProperty before saving; bCompile controls one final compilation; component resets may share the batch without ExpectedValue"), true, false))
+		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify reflected scalar/struct/container property writes and array edits before saving; instanced reference values return Unsupported. Resets verify their complete baseline; bCompile remains explicit"), true, false))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
@@ -164,6 +169,13 @@ static void HandleBP_Reparent(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
     const FNexusArgs Args(Op);
     if (!FNexusBlueprintEditUtils::Reparent(static_cast<UBlueprint*>(Ctx.Target), Args.Str(TEXT("ParentClass")), Args.Bool(TEXT("bAllowPotentialDataLoss")), Ctx.Entry, Error))
         Ctx.Entry->SetStringField(TEXT("Error"), Error);
+}
+
+static void HandleBP_RemapMemberReferences(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
+{
+	const FNexusArgs Args(Op); FString Error;
+	if (!FNexusBlueprintEditUtils::RemapMemberReferences(static_cast<UBlueprint*>(Ctx.Target), Args.Str(TEXT("OldMemberName")),
+		Args.Str(TEXT("NewMemberName")), Args.Bool(TEXT("bValidateOnly")), Ctx.Entry, Error)) Ctx.Entry->SetStringField(TEXT("Error"), Error);
 }
 
 static void HandleBP_Variable(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -811,11 +823,24 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 		TargetOwner->SetFlags(RF_Transactional);
 		TargetOwner->Modify();
 		Property->CopyCompleteValue(Target, Source);
+		const bool bVerified = Property->Identical(Target, Source, PPF_None);
+		Entry->SetBoolField(TEXT("bVerified"), bVerified);
+		Entry->SetStringField(TEXT("Verification"), bVerified ? TEXT("Passed") : TEXT("Failed"));
+		Entry->SetStringField(TEXT("VerificationSupport"), TEXT("CompleteDefaultValue"));
+		Entry->SetStringField(TEXT("PropertyType"), Property->GetCPPType());
+		Entry->SetStringField(TEXT("ComponentName"), Args.Str(TEXT("ComponentName")));
+		Entry->SetStringField(TEXT("PropertyPath"), Args.Str(TEXT("PropertyPath")));
+		if (!bVerified) Entry->SetStringField(TEXT("Error"), TEXT("Component reset differs from the complete baseline"));
 		FNexusPropertyUtils::ExportText(Property, Actual, Target);
 		Entry->SetStringField(TEXT("OldValue"), Previous);
 		Entry->SetStringField(TEXT("NewValue"), Actual);
 		Entry->SetStringField(TEXT("BaselinePath"), Baseline->GetPathName());
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+		return;
+	}
+	if (Action == TEXT("SetArray") || Action == TEXT("ClearArray"))
+	{
+		FNexusAssetEditUtils::Apply(BP, TEXT("ManageAssetBlueprint"), Op, FNexusAssetEditUtils::IsVerified(Ctx.Args), Entry);
 		return;
 	}
 
@@ -845,23 +870,24 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 
 		FProperty* Prop   = nullptr;
 		void*      ValPtr = nullptr;
+		UObject* PropertyOwner = nullptr;
 		FString    PropErr;
-		if (!FNexusPropertyUtils::ResolvePropertyWrite(CDO, Segments, 0, Prop, ValPtr, PropErr)) { Entry->SetStringField(TEXT("Error"), PropErr);
+		if (!FNexusPropertyUtils::ResolvePropertyWrite(CDO, Segments, 0, Prop, ValPtr, PropErr, &PropertyOwner)) { Entry->SetStringField(TEXT("Error"), PropErr);
 	return; }
-		FString OldValue;
-		FNexusPropertyUtils::ExportText(Prop, OldValue, ValPtr);
+		if (!PropertyOwner || (PropertyOwner != CDO && !PropertyOwner->IsIn(CDO)))
+		{ Entry->SetStringField(TEXT("Error"), TEXT("SetDefaults can only traverse owned subobjects")); return; }
+		FString OldValue, ActualValue;
 		BP->Modify();
 		CDO->SetFlags(RF_Transactional);
 		CDO->Modify();
-		if (!FNexusPropertyUtils::ImportTextFromString(Prop, Value, ValPtr, CDO))
+		PropertyOwner->SetFlags(RF_Transactional); PropertyOwner->Modify();
+		if (!FNexusPropertyUtils::WritePropertyAndEcho(CDO, Segments, 0, Value, OldValue, ActualValue, PropErr))
 		{
-			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Failed to set '%s' = '%s'"), *PropPath, *Value));
+			Entry->SetStringField(TEXT("Error"), PropErr);
 	return;
 		}
 
 		Entry->SetStringField(TEXT("PropertyPath"), PropPath);
-		FString ActualValue;
-		FNexusPropertyUtils::ExportText(Prop, ActualValue, ValPtr);
 		Entry->SetStringField(TEXT("OldValue"), OldValue);
 		Entry->SetStringField(TEXT("NewValue"), ActualValue);
 		Entry->SetStringField(TEXT("Verification"), TEXT("NotRequested"));
@@ -1177,6 +1203,7 @@ void FNexusManageAssetBlueprintCapability::RegisterActions(TMap<FString, FNexusA
 	OutHandlers.Add(TEXT("RenameLocalVariable"), &HandleBP_Variable);
 	OutHandlers.Add(TEXT("ChangeVariableType"), &HandleBP_Variable);
 	OutHandlers.Add(TEXT("Reparent"), &HandleBP_Reparent);
+	OutHandlers.Add(TEXT("RemapMemberReferences"), &HandleBP_RemapMemberReferences);
 	OutHandlers.Add(TEXT("AddFunction"), &HandleBP_FunctionGraph);
 	OutHandlers.Add(TEXT("RemoveFunction"), &HandleBP_FunctionGraph);
 	OutHandlers.Add(TEXT("AddMacro"), &HandleBP_FunctionGraph);
@@ -1192,6 +1219,8 @@ void FNexusManageAssetBlueprintCapability::RegisterActions(TMap<FString, FNexusA
 	OutHandlers.Add(TEXT("CopyComponent"), &HandleBP_SCS);
 	OutHandlers.Add(TEXT("ReattachComponent"), &HandleBP_SCS);
 	OutHandlers.Add(TEXT("SetDefaults"), &HandleBP_SCS);
+	OutHandlers.Add(TEXT("SetArray"), &HandleBP_SCS);
+	OutHandlers.Add(TEXT("ClearArray"), &HandleBP_SCS);
 	OutHandlers.Add(TEXT("AddNode"), &FNexusBlueprintGraphOps::HandleGraphNode);
 	OutHandlers.Add(TEXT("RemoveNode"), &FNexusBlueprintGraphOps::HandleGraphNode);
 	OutHandlers.Add(TEXT("SetNode"), &FNexusBlueprintGraphOps::HandleGraphNode);
@@ -1204,6 +1233,8 @@ void FNexusManageAssetBlueprintCapability::RegisterActions(TMap<FString, FNexusA
 
 void FNexusManageAssetBlueprintCapability::Finalize(const TSharedPtr<FJsonObject>& Arguments, FCapabilityResult& Result) const
 {
+	[&]()
+	{
 	if (!FNexusAssetEditUtils::IsVerified(Arguments))
 	{ FNexusCapability::Finalize(Arguments, Result); return; }
 	if (Result.HasErrors()) return;
@@ -1231,6 +1262,17 @@ void FNexusManageAssetBlueprintCapability::Finalize(const TSharedPtr<FJsonObject
 	SaveArgs->SetBoolField(TEXT("bVerify"), false);
 	SaveArgs->SetBoolField(TEXT("bCompile"), false);
 	FNexusCapability::Finalize(SaveArgs, Result);
+	}();
+	UBlueprint* Blueprint = FNexusAssetUtils::LoadAssetWithFallback<UBlueprint>(FNexusArgs(Arguments).Str(TEXT("AssetPath")));
+	if (Blueprint)
+	{
+		const bool bMissing = !Blueprint->GeneratedClass;
+		const bool bRequiresCompile = bMissing || Blueprint->Status == BS_Dirty || Blueprint->Status == BS_Error
+			|| Blueprint->GeneratedClass->GetSuperClass() != Blueprint->ParentClass;
+		if (!Result.TopFields.IsValid()) Result.TopFields = MakeShared<FJsonObject>();
+		Result.TopFields->SetBoolField(TEXT("bRequiresCompile"), bRequiresCompile);
+		Result.TopFields->SetStringField(TEXT("GeneratedClassState"), bMissing ? TEXT("Missing") : Blueprint->Status == BS_Error ? TEXT("CompileError") : bRequiresCompile ? TEXT("Stale") : TEXT("Current"));
+	}
 }
 
 REGISTER_MCP_CAPABILITY(FNexusManageAssetBlueprintCapability)

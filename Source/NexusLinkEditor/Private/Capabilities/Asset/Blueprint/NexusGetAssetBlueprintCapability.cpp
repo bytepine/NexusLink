@@ -123,6 +123,41 @@ static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FNexusBPQu
 
 	UObject* CDO = BP->GeneratedClass ? BP->GeneratedClass->GetDefaultObject(false) : nullptr;
 	if (!CDO) { Info->SetStringField(TEXT("Error"), TEXT("Blueprint has no compiled CDO; compile first")); return Info; }
+	Info->SetBoolField(TEXT("bRequiresCompile"), BP->Status == BS_Dirty || BP->Status == BS_Error);
+	if (Q.PropertyPaths.Num() > 0)
+	{
+		TArray<TSharedPtr<FJsonValue>> Properties, Missing;
+		const int32 End = FMath::Min(Q.PropertyPaths.Num(), Q.Offset + Q.Limit);
+		for (int32 PathIndex = 0; PathIndex < Q.PropertyPaths.Num(); ++PathIndex)
+		{
+			const FString& Path = Q.PropertyPaths[PathIndex];
+			// 与 SetDefaults 采用同一反射路径解析；支持组件和结构体叶子。
+			FProperty* Field = nullptr; void* Value = nullptr; UObject* Owner = nullptr; FString Error;
+			TArray<FString> Parts; Path.ParseIntoArray(Parts, TEXT("."), false);
+			const bool bResolved = FNexusPropertyUtils::ResolvePropertyWrite(CDO, Parts, 0, Field, Value, Error, &Owner);
+			const bool bOwned = bResolved && Owner && (Owner == CDO || Owner->IsIn(CDO));
+			auto Property = MakeShared<FJsonObject>(); Property->SetStringField(TEXT("Path"), Path);
+			if (!bOwned)
+			{
+				Property->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Only owned subobject paths can be read as defaults") : Error);
+				Missing.Add(MakeShared<FJsonValueString>(Path));
+			}
+			else
+			{
+				FString Text; FNexusPropertyUtils::ExportText(Field, Text, Value);
+				Property->SetStringField(TEXT("Type"), Field->GetCPPType());
+				Property->SetStringField(TEXT("Value"), Text);
+			}
+			if (PathIndex >= Q.Offset && PathIndex < End) Properties.Add(MakeShared<FJsonValueObject>(Property));
+		}
+		Info->SetArrayField(TEXT("Defaults"), Properties);
+		Info->SetArrayField(TEXT("MissingPropertyPaths"), Missing);
+		Info->SetNumberField(TEXT("TotalCount"), Q.PropertyPaths.Num());
+		Info->SetNumberField(TEXT("Offset"), FMath::Min(Q.Offset, Q.PropertyPaths.Num()));
+		Info->SetNumberField(TEXT("Limit"), Q.Limit);
+		if (Missing.Num()) Info->SetStringField(TEXT("Error"), TEXT("One or more requested default paths could not be read; see MissingPropertyPaths"));
+		return Info;
+	}
 
 	// BP 自有变量集合，用于 inherited 标记的反向判断
 	TSet<FString> BPVarNames;
@@ -440,7 +475,7 @@ TSharedPtr<FJsonObject> FNexusGetAssetBlueprintCapability::BuildCapabilitySchema
 		.Prop(TEXT("NameFilter"),     FNexusSchema::Str(TEXT("Item name filter (/regex/ ^prefix suffix$)")))
 		.Prop(TEXT("ComponentName"), FNexusSchema::Str(TEXT("Exact component name for explicit baseline/property comparison")))
 		.Prop(TEXT("Baseline"), FNexusSchema::Enum(TEXT("Component comparison baseline"), {TEXT("ClassDefault"), TEXT("ParentTemplate")}, TEXT("ClassDefault")))
-		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("Exact property name filter for defaults, e.g. [\"bUseBuffClass\",\"Scale\"]")))
+		.Prop(TEXT("PropertyPaths"), FNexusSchema::StrArr(TEXT("Defaults: exact reflected paths, including owned components/struct fields such as Mesh.RelativeRotation; missing paths return individual errors and MissingPropertyPaths")))
         .Prop(TEXT("NodeId"), FNexusSchema::Str(TEXT("Subgraph starting node GUID")))
         .Prop(TEXT("MaxDepth"), FNexusSchema::Int(TEXT("Connected subgraph traversal depth"), 8, 0, 64))
         .Prop(TEXT("NodeTypeId"), FNexusSchema::Str(TEXT("Native node type from NodeTypes (UE5.8)")))

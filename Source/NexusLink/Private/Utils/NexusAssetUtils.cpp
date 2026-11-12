@@ -38,6 +38,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogNexusAssetUtils, Log, All);
 #include "Windows/WindowsHWrapper.h"
 #endif
 #include "UObject/UObjectIterator.h"
+#include "UObject/UObjectHash.h"
+#include "Dom/JsonObject.h"
 #if NX_UE_HAS_STRUCT_UTILS_HEADER
 #include "StructUtils/UserDefinedStruct.h"
 #else
@@ -294,9 +296,10 @@ UClass* FNexusAssetUtils::FindClassWithUPrefix(const FString& ClassName)
 	return Cls;
 }
 
-bool FNexusAssetUtils::SaveNewAsset(UPackage* Package, UObject* Asset, const FString& PackagePath, FString* OutError)
+bool FNexusAssetUtils::SaveNewAsset(UPackage* Package, UObject* Asset, const FString& PackagePath, FString* OutError, TArray<TSharedPtr<FJsonValue>>* OutDiagnostics)
 {
 	if (OutError) OutError->Reset();
+	if (OutDiagnostics) OutDiagnostics->Reset();
 	FString FilePath;
 	const auto Fail = [&](const FString& Message)
 	{
@@ -306,6 +309,42 @@ bool FNexusAssetUtils::SaveNewAsset(UPackage* Package, UObject* Asset, const FSt
 		return false;
 	};
 	if (!Package) return Fail(TEXT("Package is null"));
+	Package->FullyLoad();
+	// Lua 等运行时插件可把临时 UFunction 放进父类函数映射；编译通过不代表该 super 可以序列化。
+	TArray<TSharedPtr<FJsonValue>> Diagnostics;
+	ForEachObjectWithPackage(Package, [&](UObject* Object)
+	{
+		UFunction* Function = Cast<UFunction>(Object);
+		if (!Function || Function->HasAnyFlags(RF_Transient) || Function->GetOuter()->HasAnyFlags(RF_Transient)) return true;
+		TSet<const UStruct*> Visited;
+		Visited.Add(Function);
+		for (const UStruct* Super = Function->GetSuperStruct(); Super; Super = Super->GetSuperStruct())
+		{
+			const bool bCycle = Visited.Contains(Super);
+			Visited.Add(Super);
+			const UClass* OwnerClass = Cast<UClass>(Super->GetOuter());
+			if (bCycle || !Super->IsA(UFunction::StaticClass()) || Super->HasAnyFlags(RF_Transient)
+				|| Super->GetOutermost() == GetTransientPackage() || Super->GetOuter()->HasAnyFlags(RF_Transient)
+				|| (OwnerClass && (OwnerClass->HasAnyClassFlags(CLASS_NewerVersionExists)
+					|| OwnerClass->GetName().StartsWith(TEXT("SKEL_")) || OwnerClass->GetName().StartsWith(TEXT("REINST_")))))
+			{
+				auto Diagnostic = MakeShared<FJsonObject>();
+				Diagnostic->SetStringField(TEXT("ErrorKind"), TEXT("InvalidSuperFunction"));
+				Diagnostic->SetStringField(TEXT("FunctionPath"), Function->GetPathName());
+				Diagnostic->SetStringField(TEXT("SuperFunctionPath"), Super->GetPathName());
+				Diagnostic->SetStringField(TEXT("Reason"), bCycle ? TEXT("Cyclic super reference") : TEXT("Super function is transient, replaced or not serializable"));
+				Diagnostics.Add(MakeShared<FJsonValueObject>(Diagnostic));
+				break;
+			}
+		}
+		return Diagnostics.Num() < 32;
+	});
+	if (Diagnostics.Num())
+	{
+		if (OutDiagnostics) *OutDiagnostics = Diagnostics;
+		return Fail(TEXT("InvalidSuperFunction: save was not attempted; ") + Diagnostics[0]->AsObject()->GetStringField(TEXT("FunctionPath"))
+			+ TEXT(" -> ") + Diagnostics[0]->AsObject()->GetStringField(TEXT("SuperFunctionPath")));
+	}
 	UWorld* MapWorld = nullptr;
 	if (Package->ContainsMap() || (Asset && Asset->IsA(UWorld::StaticClass())))
 	{

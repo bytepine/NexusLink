@@ -671,6 +671,8 @@ void FNexusMcpServer::StopWebSocket()
 		WebSocketTickHandle.Reset();
 	}
 	ConnectedClients.Empty();
+	ClientIds.Empty();
+	ClientMessageBuffers.Empty();
 	AuthenticatedWsClients.Empty();
 	WebSocketServer.Reset();
 }
@@ -714,28 +716,34 @@ void FNexusMcpServer::OnWebSocketMessage(void* Data, int32 DataSize, INetworking
 		return;
 	}
 
-	// 与 HTTP 通道同一上限，避免超大帧在 GameThread 上解析
-	if (DataSize > MaxMcpBodyBytes)
+	TArray<TArray<uint8>> Messages;
+	const bool bAccepted = ClientMessageBuffers.FindOrAdd(ClientWebSocket).Append(
+		static_cast<const uint8*>(Data), DataSize, MaxMcpBodyBytes, Messages);
+	UE_LOG(LogNexusMcpServer, Verbose, TEXT("WS input: %d bytes, %d complete JSON messages"), DataSize, Messages.Num());
+	for (const TArray<uint8>& Message : Messages)
+		DispatchWebSocketMessage(Utf8BytesToString(Message.GetData(), Message.Num()), ClientWebSocket);
+	if (!bAccepted)
 	{
-		UE_LOG(LogNexusMcpServer, Warning, TEXT("WebSocket 帧超过 1MB（%d 字节），已丢弃"), DataSize);
-		SendWsText(ClientWebSocket, FNexusMcpDispatcher::MakeJsonRpcError(nullptr, -32600, TEXT("PayloadTooLarge")));
-		return;
+		UE_LOG(LogNexusMcpServer, Warning, TEXT("WebSocket 消息超过 1MB，已拒绝该连接后续请求"));
+		SendWsText(ClientWebSocket, FNexusMcpDispatcher::MakeJsonRpcError(nullptr, -32600, TEXT("PayloadTooLargeOrTooManyMessages; reconnect before sending another request")));
 	}
+}
 
-	FString JsonLine = Utf8BytesToString(static_cast<const uint8*>(Data), DataSize);
-
+void FNexusMcpServer::DispatchWebSocketMessage(FString JsonLine, INetworkingWebSocket* ClientWebSocket)
+{
 	// 勿在 WebSocket 收包回调里同步执行 tools/call：SearchAsset 等会阻塞 GameThread 数秒～数十秒，
 	// 同帧内无法继续 TickWebSocket，代理侧长连接易被判定超时/断开。统一延至下一次帧起点。
 	// 与 HTTP 路径一致用弱引用：任务跨帧执行，期间服务器可能已被停掉/析构
 	const TWeakPtr<FNexusMcpServer> WeakSelf = AsShared();
-	QueueRequest(WeakSelf, [WeakSelf, ClientWebSocket, JsonLine = MoveTemp(JsonLine)]()
+	const FString ExpectedConnectionId = ClientIds.FindRef(ClientWebSocket);
+	QueueRequest(WeakSelf, [WeakSelf, ClientWebSocket, ExpectedConnectionId, JsonLine = MoveTemp(JsonLine)]()
 	{
 		const TSharedPtr<FNexusMcpServer> Self = WeakSelf.Pin();
 		if (!Self.IsValid() || !Self->IsRunning())
 		{
 			return;
 		}
-		if (!Self->ConnectedClients.Contains(ClientWebSocket) || !Self->WsDispatcher.IsValid())
+		if (!Self->ConnectedClients.Contains(ClientWebSocket) || Self->ClientIds.FindRef(ClientWebSocket) != ExpectedConnectionId || !Self->WsDispatcher.IsValid())
 		{
 			return;
 		}
@@ -807,6 +815,7 @@ void FNexusMcpServer::OnWebSocketClientDisconnected(INetworkingWebSocket* Client
 	AuthenticatedWsClients.Remove(ClientWebSocket);
 	ConnectedClients.Remove(ClientWebSocket);
 	ClientIds.Remove(ClientWebSocket);
+	ClientMessageBuffers.Remove(ClientWebSocket);
 }
 
 bool FNexusMcpServer::TickWebSocket(float DeltaTime)

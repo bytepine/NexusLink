@@ -568,6 +568,13 @@ void FNexusPropertyUtils::CollectEditableProperties(UObject* Obj, TArray<TShared
 
 bool FNexusPropertyUtils::ParsePropertyValue(const FProperty* Property, const FString& Text, void* Storage, UObject* Owner, FString& OutError)
 {
+	if (CastField<FArrayProperty>(Property) || CastField<FSetProperty>(Property) || CastField<FMapProperty>(Property))
+	{
+		const FString ContainerText = Text.TrimStartAndEnd();
+		// 部分引擎会把缺少括号的容器文本当作成功导入；统一在修改临时存储前拒绝。
+		if (!ContainerText.IsEmpty() && (!ContainerText.StartsWith(TEXT("(")) || !ContainerText.EndsWith(TEXT(")"))))
+		{ OutError = TEXT("Container import text requires (...) or an empty string; prefer typed array operations for clearing"); return false; }
+	}
 	if (const FNumericProperty* Number = CastField<FNumericProperty>(Property))
 	{
 		if (Number->IsFloatingPoint())

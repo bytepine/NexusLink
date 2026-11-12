@@ -103,7 +103,7 @@ void FNexusManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Prop(TEXT("BoundsMax"), FNexusSchema::Object().Required(TEXT("X"), FNexusSchema::Num(TEXT("Maximum X"))).Required(TEXT("Y"), FNexusSchema::Num(TEXT("Maximum Y"))).Required(TEXT("Z"), FNexusSchema::Num(TEXT("Maximum Z"))).Build().ToSharedRef())
 		.Prop(TEXT("PropertyPath"), FNexusSchema::Str(TEXT("WorldSettings propertypath (SetProperty)")))
 		.Prop(TEXT("Value"),        FNexusSchema::Str(TEXT("New property value string")))
-		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous scalar Actor property value")))
+		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous reflected Actor property value")))
 		.Prop(TEXT("ClassName"),    FNexusSchema::Str(TEXT("Actor class name (SpawnActor)")))
 		.Prop(TEXT("AssetPath"),    FNexusSchema::Str(TEXT("Blueprint path (SpawnActor)")))
 		.Prop(TEXT("Location"),     FNexusSchema::Str(TEXT("Spawn location x,y,z (SpawnActor)")))
@@ -113,7 +113,7 @@ void FNexusManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Level asset path (e.g. /Game/Maps/MyLevel)")))
-		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar SetActorProperty before saving; ResetActorPropertyToDefault may share the batch without ExpectedValue"), true, false))
+		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify reflected scalar/struct/container SetActorProperty before saving; resets verify the complete default and do not accept ExpectedValue"), true, false))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
@@ -348,19 +348,33 @@ static void HandleLevel_ResetActorPropertyToDefault(const TSharedPtr<FJsonObject
 		Ctx.Entry->SetStringField(TEXT("Error"), PropErr);
 		return;
 	}
-	FString CdoText;
-	FNexusPropertyUtils::ExportText(Prop, CdoText, ValPtr);
+	FProperty* TargetProperty = nullptr;
+	void* TargetValue = nullptr;
+	UObject* TargetOwner = nullptr;
+	if (!FNexusPropertyUtils::ResolvePropertyWrite(Actor, Segments, 0, TargetProperty, TargetValue, PropErr, &TargetOwner)
+		|| TargetProperty != Prop || !TargetOwner || (TargetOwner != Actor && !TargetOwner->IsIn(Actor)))
+	{ Ctx.Entry->SetStringField(TEXT("Error"), PropErr.IsEmpty() ? TEXT("Reset requires a matching property on the actor or an owned subobject") : PropErr); return; }
+	if (Prop->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference))
+	{ Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Reset cannot copy instanced subobject references from the default object")); return; }
+	if (FObjectPropertyBase* Reference = CastField<FObjectPropertyBase>(Prop))
+		if (UObject* Object = Reference->GetObjectPropertyValue(ValPtr))
+			if (Object->IsIn(Actor->GetClass()->GetDefaultObject()))
+			{ Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Reset cannot copy a default subobject reference into an actor instance")); return; }
 	Actor->Modify();
-	TInlineComponentArray<UActorComponent*> Components(Actor);
-	for (UActorComponent* Component : Components) if (Component) Component->Modify();
+	TargetOwner->SetFlags(RF_Transactional);
+	TargetOwner->Modify();
 	FString OldVal, ActualVal;
-	if (!FNexusPropertyUtils::WritePropertyAndEcho(Actor, Segments, 0, CdoText, OldVal, ActualVal, PropErr))
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), PropErr);
-		return;
-	}
+	FNexusPropertyUtils::ExportText(Prop, OldVal, TargetValue);
+	// ExportText 会省略零值字段；完整反射复制才能真正恢复结构体和容器。
+	Prop->CopyCompleteValue(TargetValue, ValPtr);
 	S->World->MarkPackageDirty();
 	FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(Actor);
+	FNexusPropertyUtils::ExportText(Prop, ActualVal, TargetValue);
+	const bool bVerified = Prop->Identical(TargetValue, ValPtr, PPF_None);
+	Ctx.Entry->SetBoolField(TEXT("bVerified"), bVerified);
+	Ctx.Entry->SetStringField(TEXT("Verification"), bVerified ? TEXT("Passed") : TEXT("Failed"));
+	Ctx.Entry->SetStringField(TEXT("VerificationSupport"), TEXT("CompleteDefaultValue"));
+	if (!bVerified) Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Reset differs from the complete reflected default value"));
 	Ctx.Entry->SetStringField(TEXT("ActorName"), ActorName);
 	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
 	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);

@@ -1590,7 +1590,7 @@
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 单个资产路径 |
 | `Capability` | `string (enum)` | ★ | Capability 精确名称 枚举: `ManageAssetBlueprint` / `ManageAssetDataTable` / `ManageAssetDataAsset` / `ManageAssetLevel` / `ManageAssetUserWidget` / `ManageAssetPCGGraph` |
-| `Operations` | `object[]` | ★ | 批量操作：`[{action, ...}, ...]`; 条目: `Action`(SetDefaults/Set/SetProperty/SetActorProperty/SetComponentProperty/Reparent/ChangeVariableType/Add…), `ParentClass`, `VariableName`, `VariableType`, `ActorName`, `ComponentName`, `PropertyName`, `ParentWidget`, `WidgetClass`, `ChildIndex`, `GraphName`, `NodeId`, `SettingsClass`, `FromNodeId`, `ToNodeId`, `FromPin`, `ToPin`, `SourceNodeId`, `TargetNodeId`, `SourcePinName`, `TargetPinName`, `PropertyPath`, `WidgetName`, `RowName`, `FieldName`, `Value`, `ExpectedValue` |
+| `Operations` | `object[]` | ★ | 批量操作：`[{action, ...}, ...]`; 条目: `Action`(SetDefaults/SetArray/ClearArray/Set/SetProperty/SetActorProperty/SetComponentProperty/Reparent…), `ParentClass`, `OldMemberName`, `NewMemberName`, `VariableName`, `VariableType`, `ActorName`, `ComponentName`, `PropertyName`, `ParentWidget`, `WidgetClass`, `ChildIndex`, `GraphName`, `NodeId`, `SettingsClass`, `FromNodeId`, `ToNodeId`, `FromPin`, `ToPin`, `SourceNodeId`, `TargetNodeId`, `SourcePinName`, `TargetPinName`, `PropertyPath`, `WidgetName`, `RowName`, `FieldName`, `Value`, `Values`, `ExpectedValue` |
 
 **相关 Capability**: `ManageAssetBlueprint`, `ManageAssetDataTable`, `ManageAssetUserWidget`
 
@@ -1765,13 +1765,15 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Sections` | `string[]` |  | 查询段（可多选）: `Actors` / `Settings` / `ActorProperties` / `Navigation` |
+| `Sections` | `string[]` |  | 查询段（可多选）: `Actors` / `Settings` / `ActorProperties` / `ActorPropertySchema` / `Navigation` |
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `ClassFilter` | `string` |  | Actor 类名过滤（可选） |
 | `NameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `TagFilter` | `string` |  | Actor 标签精确匹配（可选） |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `PropertyPaths` | `string[]` |  | 反射属性路径（点分，如 `Health` / `Mesh.RelativeLocation`） |
+| `SchemaDepth` | `integer` |  | ActorPropertySchema: child depth, owned subobjects/structs only |
+| `MaxSchemaProperties` | `integer` |  | ActorPropertySchema: total field budget across all requested roots |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
 | `Limit` | `integer` |  | 每页最大条数 |
 
@@ -2452,7 +2454,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `bVerify` | `boolean` |  | 保存前校验 SetActorProperty 标量写入；可同批恢复默认值，恢复操作不接受 ExpectedValue |
+| `bVerify` | `boolean` |  | Verify reflected scalar/struct/container SetActorProperty before saving; resets verify the complete 默认 and do not accept ExpectedValue |
 | `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(SetProperty/SpawnActor/CreateNavMeshBoundsVolume/ResizeNavMeshBoundsVolume/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `X`, `Y`, `Z`, `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -3007,8 +3009,8 @@
 | `AssetPath` | `string` | ★ | 蓝图资产路径 |
 | `ExpectedStructureHash` | `string` |  | Precondition hash from GetAssetEditPreview |
 | `bVerifyStructure` | `boolean` |  | Verify RemoveNode/Disconnect/DisconnectAll against an isolated structural plan |
-| `bVerify` | `boolean` |  | 保存前校验 SetDefaults/SetComponentProperty 标量写入；bCompile 控制一次收尾编译；可同批恢复组件默认值，恢复操作不接受 ExpectedValue |
-| `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(AddVariable/RemoveVariable/RenameVariable/RenameLocalVariable/ChangeVariableType/SetVariableMetadata/SetVariableReplication/SetFunctionCallInEditor…), `Code`, `GraphNodes`, `GraphLinks`, `ParameterName`, `bInput`, `Category`, `bEditable`, `ToolTip`, `Replication`(None/Replicated/RepNotify), `RepNotifyFunction`, `bCallInEditor`, `GraphName`, `VariableName`, `VariableType`, `NewVariableName`, `ParentClass`, `bAllowPotentialDataLoss`, `DefaultValue`, `bIsPublic`, `bIsLocal`, `NodeId`, `NodeClass`, `FunctionName`, `FunctionClass`, `InterfaceName`, `PosX`, `PosY`, `Comment`, `PinName`, `PinDefaultValue`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `ComponentClass`, `Baseline`(ParentTemplate/ClassDefault), `ComponentName`, `AttachTo`, `SourceAssetPath`, `SourceComponentName`, `PropertyPath`, `Value`, `ExpectedValue` |
+| `bVerify` | `boolean` |  | Verify reflected scalar/struct/container property writes and array edits before saving; instanced reference values return Unsupported. Resets verify their complete baseline; bCompile remains explicit |
+| `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(AddVariable/RemoveVariable/RenameVariable/RenameLocalVariable/ChangeVariableType/SetVariableMetadata/SetVariableReplication/SetFunctionCallInEditor…), `Code`, `GraphNodes`, `GraphLinks`, `ParameterName`, `bInput`, `Category`, `bEditable`, `ToolTip`, `Replication`(None/Replicated/RepNotify), `RepNotifyFunction`, `bCallInEditor`, `GraphName`, `VariableName`, `VariableType`, `NewVariableName`, `ParentClass`, `OldMemberName`, `NewMemberName`, `bValidateOnly`, `bAllowPotentialDataLoss`, `DefaultValue`, `bIsPublic`, `bIsLocal`, `NodeId`, `NodeClass`, `FunctionName`, `CustomEventName`, `FunctionClass`, `InterfaceName`, `PosX`, `PosY`, `Comment`, `PinName`, `PinDefaultValue`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `ComponentClass`, `Baseline`(ParentTemplate/ClassDefault), `ComponentName`, `AttachTo`, `SourceAssetPath`, `SourceComponentName`, `PropertyPath`, `Value`, `Values`, `ExpectedValue` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `bCompile` | `boolean` |  | 需要时编译蓝图（仅 BP/ABP/WBP） |
 

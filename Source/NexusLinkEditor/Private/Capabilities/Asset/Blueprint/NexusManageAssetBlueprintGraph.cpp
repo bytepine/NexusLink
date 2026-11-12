@@ -25,6 +25,8 @@
 #include "EdGraphSchema_K2.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_Event.h"
+#include "K2Node_CustomEvent.h"
+#include "Kismet2/Kismet2NameValidators.h"
 #include "K2Node_Variable.h"
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
@@ -86,8 +88,22 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 		const int32 PosY = Op->HasField(TEXT("PosY")) ? static_cast<int32>(Op->GetNumberField(TEXT("PosY"))) : 0;
 
 		UEdGraphNode* NewNode = nullptr;
+		if (NodeClass == TEXT("K2Node_CustomEvent") && Op->HasField(TEXT("FunctionName")))
+		{ Entry->SetStringField(TEXT("Error"), TEXT("K2Node_CustomEvent requires CustomEventName; FunctionName is not supported for custom events")); return; }
 
-		if (NodeClass == TEXT("K2Node_CallFunction"))
+		if (NodeClass == TEXT("K2Node_CustomEvent"))
+		{
+			const FString Name = FNexusArgs(Op).Str(TEXT("CustomEventName"));
+			FKismetNameValidator Validator(BP);
+			if (Name.IsEmpty() || Name.Equals(TEXT("None"), ESearchCase::IgnoreCase) || Validator.IsValid(Name) != EValidatorResult::Ok)
+			{ Entry->SetStringField(TEXT("Error"), TEXT("CustomEventName is empty, invalid or conflicts with an existing Blueprint member")); return; }
+			if (BP->FunctionGraphs.Contains(Graph) || BP->MacroGraphs.Contains(Graph))
+			{ Entry->SetStringField(TEXT("Error"), TEXT("Custom events require an event graph")); return; }
+			UK2Node_CustomEvent* Event = Cast<UK2Node_CustomEvent>(FNexusBlueprintGraphUtils::MakeGenericNode(Graph, UK2Node_CustomEvent::StaticClass(), PosX, PosY));
+			if (Event) { Event->OnRenameNode(Name); Entry->SetStringField(TEXT("CustomEventName"), Event->CustomFunctionName.ToString()); }
+			NewNode = Event;
+		}
+		else if (NodeClass == TEXT("K2Node_CallFunction"))
 		{
 			const FString FuncName = FNexusArgs(Op).Str(TEXT("FunctionName"));
 			if (FuncName.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("K2Node_CallFunction requires FunctionName"));
@@ -164,6 +180,17 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 		if (!Node) { Entry->SetStringField(TEXT("Error"), TEXT("Node not found"));
 	return; }
 
+		if (Op->HasField(TEXT("CustomEventName")) || Op->HasField(TEXT("FunctionName")))
+		{
+			UK2Node_CustomEvent* Event = Cast<UK2Node_CustomEvent>(Node);
+			const FString Name = FNexusArgs(Op).Str(TEXT("CustomEventName"));
+			if (!Event || Op->HasField(TEXT("FunctionName")) || Name.IsEmpty() || Name.Equals(TEXT("None"), ESearchCase::IgnoreCase))
+			{ Entry->SetStringField(TEXT("Error"), TEXT("SetNode naming requires a custom event and CustomEventName; FunctionName is unsupported")); return; }
+			if (Name != Event->CustomFunctionName.ToString() && Event->MakeNameValidator()->IsValid(Name) != EValidatorResult::Ok)
+			{ Entry->SetStringField(TEXT("Error"), TEXT("CustomEventName is invalid or conflicts with an existing Blueprint member")); return; }
+			Event->Modify(); Event->OnRenameNode(Name);
+			Entry->SetStringField(TEXT("CustomEventName"), Event->CustomFunctionName.ToString());
+		}
 		Node->Modify();
 		if (Op->HasField(TEXT("PosX")))    Node->NodePosX = static_cast<int32>(Op->GetNumberField(TEXT("PosX")));
 		if (Op->HasField(TEXT("PosY")))    Node->NodePosY = static_cast<int32>(Op->GetNumberField(TEXT("PosY")));

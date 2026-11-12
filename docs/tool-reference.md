@@ -1556,7 +1556,7 @@ Plan scalar values and bounded BP/UMG/PCG structural edits in temporary storage.
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | Single asset path |
 | `Capability` | `string (enum)` | ★ | Target write capability enum: `ManageAssetBlueprint` / `ManageAssetDataTable` / `ManageAssetDataAsset` / `ManageAssetLevel` / `ManageAssetUserWidget` / `ManageAssetPCGGraph` |
-| `Operations` | `object[]` | ★ | Scalar edits to validate; item: `Action`(SetDefaults/Set/SetProperty/SetActorProperty/SetComponentProperty/Reparent/ChangeVariableType/Add…), `ParentClass`, `VariableName`, `VariableType`, `ActorName`, `ComponentName`, `PropertyName`, `ParentWidget`, `WidgetClass`, `ChildIndex`, `GraphName`, `NodeId`, `SettingsClass`, `FromNodeId`, `ToNodeId`, `FromPin`, `ToPin`, `SourceNodeId`, `TargetNodeId`, `SourcePinName`, `TargetPinName`, `PropertyPath`, `WidgetName`, `RowName`, `FieldName`, `Value`, `ExpectedValue` |
+| `Operations` | `object[]` | ★ | Scalar edits to validate; item: `Action`(SetDefaults/SetArray/ClearArray/Set/SetProperty/SetActorProperty/SetComponentProperty/Reparent…), `ParentClass`, `OldMemberName`, `NewMemberName`, `VariableName`, `VariableType`, `ActorName`, `ComponentName`, `PropertyName`, `ParentWidget`, `WidgetClass`, `ChildIndex`, `GraphName`, `NodeId`, `SettingsClass`, `FromNodeId`, `ToNodeId`, `FromPin`, `ToPin`, `SourceNodeId`, `TargetNodeId`, `SourcePinName`, `TargetPinName`, `PropertyPath`, `WidgetName`, `RowName`, `FieldName`, `Value`, `Values`, `ExpectedValue` |
 
 **Related capabilities**: `ManageAssetBlueprint`, `ManageAssetDataTable`, `ManageAssetUserWidget`
 
@@ -1731,13 +1731,15 @@ Inspect level actors, settings and object property values versus class defaults;
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `Sections` | `string[]` |  | Sections (multi-select): `Actors` / `Settings` / `ActorProperties` / `Navigation` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Actors` / `Settings` / `ActorProperties` / `ActorPropertySchema` / `Navigation` |
 | `AssetPath` | `string` | ★ | Level asset path (/Game/.../*.umap package path) |
 | `ClassFilter` | `string` |  | Actor class name filter (optional) |
 | `NameFilter` | `string` |  | Actor name/tag filter (optional) |
 | `TagFilter` | `string` |  | Actor Tag exact match (optional) |
 | `ActorName` | `string` |  | Exact actor name from Actors for ActorProperties |
 | `PropertyPaths` | `string[]` |  | ActorProperties: explicit reflected property paths (max 32); returns Value, DefaultValue and bDiffersFromDefault |
+| `SchemaDepth` | `integer` |  | ActorPropertySchema: child depth, owned subobjects/structs only |
+| `MaxSchemaProperties` | `integer` |  | ActorPropertySchema: total field budget across all requested roots |
 | `Offset` | `integer` |  | actors section pagination offset |
 | `Limit` | `integer` |  | actors section page size |
 
@@ -2418,7 +2420,7 @@ Batch edit level WorldSettings and Actors. Action=spawn/remove/SetProperty/Reset
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | Level asset path (e.g. /Game/Maps/MyLevel) |
-| `bVerify` | `boolean` |  | Verify scalar SetActorProperty before saving; ResetActorPropertyToDefault may share the batch without ExpectedValue |
+| `bVerify` | `boolean` |  | Verify reflected scalar/struct/container SetActorProperty before saving; resets verify the complete default and do not accept ExpectedValue |
 | `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetProperty/SpawnActor/CreateNavMeshBoundsVolume/ResizeNavMeshBoundsVolume/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `X`, `Y`, `Z`, `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
@@ -2947,7 +2949,7 @@ Read BP from editor. CompileStatus/orphaned/ExecPaths. Must call before answerin
 | `NameFilter` | `string` |  | Item name filter (/regex/ ^prefix suffix$) |
 | `ComponentName` | `string` |  | Exact component name for explicit baseline/property comparison |
 | `Baseline` | `string (enum)` |  | Component comparison baseline enum: `ClassDefault` / `ParentTemplate` |
-| `PropertyPaths` | `string[]` |  | Exact property name filter for defaults, e.g. [\"bUseBuffClass\",\"Scale\"] |
+| `PropertyPaths` | `string[]` |  | Defaults: exact reflected paths, including owned components/struct fields such as Mesh.RelativeRotation; missing paths return individual errors and MissingPropertyPaths |
 | `NodeId` | `string` |  | Subgraph starting node GUID |
 | `MaxDepth` | `integer` |  | Connected subgraph traversal depth |
 | `NodeTypeId` | `string` |  | Native node type from NodeTypes (UE5.8) |
@@ -2973,8 +2975,8 @@ Batch edit BP graphs, variables/types, inheritance, defaults and components. Com
 | `AssetPath` | `string` | ★ | Blueprint asset path |
 | `ExpectedStructureHash` | `string` |  | Precondition hash from GetAssetEditPreview |
 | `bVerifyStructure` | `boolean` |  | Verify RemoveNode/Disconnect/DisconnectAll against an isolated structural plan |
-| `bVerify` | `boolean` |  | Verify scalar SetDefaults/SetComponentProperty before saving; bCompile controls one final compilation; component resets may share the batch without ExpectedValue |
-| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddVariable/RemoveVariable/RenameVariable/RenameLocalVariable/ChangeVariableType/SetVariableMetadata/SetVariableReplication/SetFunctionCallInEditor…), `Code`, `GraphNodes`, `GraphLinks`, `ParameterName`, `bInput`, `Category`, `bEditable`, `ToolTip`, `Replication`(None/Replicated/RepNotify), `RepNotifyFunction`, `bCallInEditor`, `GraphName`, `VariableName`, `VariableType`, `NewVariableName`, `ParentClass`, `bAllowPotentialDataLoss`, `DefaultValue`, `bIsPublic`, `bIsLocal`, `NodeId`, `NodeClass`, `FunctionName`, `FunctionClass`, `InterfaceName`, `PosX`, `PosY`, `Comment`, `PinName`, `PinDefaultValue`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `ComponentClass`, `Baseline`(ParentTemplate/ClassDefault), `ComponentName`, `AttachTo`, `SourceAssetPath`, `SourceComponentName`, `PropertyPath`, `Value`, `ExpectedValue` |
+| `bVerify` | `boolean` |  | Verify reflected scalar/struct/container property writes and array edits before saving; instanced reference values return Unsupported. Resets verify their complete baseline; bCompile remains explicit |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddVariable/RemoveVariable/RenameVariable/RenameLocalVariable/ChangeVariableType/SetVariableMetadata/SetVariableReplication/SetFunctionCallInEditor…), `Code`, `GraphNodes`, `GraphLinks`, `ParameterName`, `bInput`, `Category`, `bEditable`, `ToolTip`, `Replication`(None/Replicated/RepNotify), `RepNotifyFunction`, `bCallInEditor`, `GraphName`, `VariableName`, `VariableType`, `NewVariableName`, `ParentClass`, `OldMemberName`, `NewMemberName`, `bValidateOnly`, `bAllowPotentialDataLoss`, `DefaultValue`, `bIsPublic`, `bIsLocal`, `NodeId`, `NodeClass`, `FunctionName`, `CustomEventName`, `FunctionClass`, `InterfaceName`, `PosX`, `PosY`, `Comment`, `PinName`, `PinDefaultValue`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `ComponentClass`, `Baseline`(ParentTemplate/ClassDefault), `ComponentName`, `AttachTo`, `SourceAssetPath`, `SourceComponentName`, `PropertyPath`, `Value`, `Values`, `ExpectedValue` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 | `bCompile` | `boolean` |  | Compile blueprint if needed (BP/ABP/WBP only) |
 

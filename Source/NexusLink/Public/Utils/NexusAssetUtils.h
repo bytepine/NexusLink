@@ -154,7 +154,7 @@ public:
 	 * @param PackagePath  包路径（如 "/Game/AI/BT_Attack"），用于推算磁盘文件路径
 	 * @return 是否保存成功
 	 */
-	static bool SaveNewAsset(UPackage* Package, UObject* Asset, const FString& PackagePath, FString* OutError = nullptr);
+	static bool SaveNewAsset(UPackage* Package, UObject* Asset, const FString& PackagePath, FString* OutError = nullptr, TArray<TSharedPtr<FJsonValue>>* OutDiagnostics = nullptr);
 
 	/** 地图包用 .umap，其余用 .uasset。Asset 是 UWorld，或包带 ContainsMap 时视为地图。 */
 	static FString GetPackageFileExtension(const UPackage* Package, const UObject* Asset);

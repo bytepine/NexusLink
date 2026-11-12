@@ -2,7 +2,7 @@
 
 [文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
 
-节点/连线及控件树的首批结构计划、StructureHash 前置条件和 bVerifyStructure 回读见[功能补充](feature-followups.md#结构预览与回读)。下文介绍原有标量模式。
+节点/连线及控件树的首批结构计划、StructureHash 前置条件和 bVerifyStructure 回读见[功能补充](feature-followups.md#结构预览与回读)。下文介绍属性值预览与验证。
 
 `GetAssetEditPreview` 在临时属性存储中解析值，返回 `PropertyType`、`CurrentValue`、规范化的 `TargetValue`、`bValid` 与逐项 `Error`。它不写入真实属性、不编译、不保存、不创建 Undo。请求包含单个 `AssetPath`、目标 `Capability` 和 `Operations`，参数保持原有写操作格式：
 
@@ -14,7 +14,7 @@
 }
 ```
 
-路径、行和字段名须先通过读取工具确认。首批支持 `ManageAssetBlueprint/SetDefaults`、`ManageAssetDataTable/Set`、`ManageAssetUserWidget/SetProperty`。叶子类型支持 bool、数值、枚举、字符串、Name、Text，以及满足属性类型约束的对象/类引用（含 None）；支持结构体中的标量字段及目标拥有的子对象，例如 `Mesh.RelativeLocation.Z`。引用本身可以赋值，继续沿引用跳转时仅允许目标持有的子对象；拒绝空指针或外部对象跳转、容器、固定数组及经容器跳转的路径。BP 必须已有可用的生成类和 CDO；预览不会为缺失的目标编译或创建 CDO。每条预览读取当前真实值，不模拟前序预览的写入。
+路径、行和字段名须先通过读取工具确认。支持 `ManageAssetBlueprint/SetDefaults`、`ManageAssetDataTable/Set`、`ManageAssetUserWidget/SetProperty` 等下文列出的属性操作。叶子类型支持 bool、数值、枚举、字符串、Name、Text、满足类型约束的对象/类引用（含 None），以及完整结构体、数组、Set、Map。引用本身可以赋值，继续沿引用跳转时仅允许目标持有的子对象；拒绝空指针或外部对象跳转、固定数组及经容器跳转的路径。含实例化对象引用的整个值返回 `Verification=Unsupported`，须改用所属子对象叶子路径。BP 必须已有可用的生成类和 CDO；预览不会为缺失的目标编译或创建 CDO。每条预览读取当前真实值，不模拟前序预览的写入。
 
 写入时在 operation 中传入 `ExpectedValue`（建议使用预览的 `CurrentValue`），在顶层设置 `bVerify=true`。`ExpectedValue` 按相同类型规范化后比较，空字符串也是有效前值。前值不匹配时不写入。
 
@@ -27,7 +27,7 @@
 }
 ```
 
-`bVerify` 默认关闭；启用后校验上述对应的标量操作。关卡及蓝图组件批次允许混入 `ResetActorPropertyToDefault` / `ResetComponentPropertyToDefault`（含数组恢复），恢复操作不接受 `ExpectedValue`，仍走自身的默认值检查；其他不支持的操作在任何写入前拒绝。蓝图 `SetDefaults` 先检查前值、在 Undo 记录后写入并即时回读；整批完成后，仅在 `bCompile=true` 时编译一次，再重新定位最终属性并回读，验证成功后按 `bSaveToDisk` 保存。`bCompile=false`（默认）只验证当前内存中的值，`ExpectedValue` 与 `bVerify` 均不会触发完整蓝图编译。同一属性顺序写多次时，收尾验证最后一次写入；此前各项保留即时回读结果。WBP `SetProperty` 的验证仍会编译后回读。结果提供 `OldValue`、`NewValue`、`ReadbackValue`、`bWritten`、`bVerified`、`Verification`；编译错误、读取不一致及保存错误分别报告。未请求验证时为 `Verification=NotRequested`。
+`bVerify` 默认关闭；启用后校验上述对应的反射属性操作和蓝图 `SetArray` / `ClearArray`。关卡及蓝图组件批次允许混入 `ResetActorPropertyToDefault` / `ResetComponentPropertyToDefault`（含数组恢复），恢复操作不接受 `ExpectedValue`，以完整反射复制和比较恢复默认值，包括文本导出中省略的零值字段；其他不支持的操作在任何写入前拒绝。蓝图 `SetDefaults` 先检查前值、在 Undo 记录后写入并即时回读；整批完成后，仅在 `bCompile=true` 时编译一次，再重新定位最终属性并回读，验证成功后按 `bSaveToDisk` 保存。`bCompile=false`（默认）只验证当前内存中的值，`ExpectedValue` 与 `bVerify` 均不会触发完整蓝图编译。同一属性顺序写多次时，收尾验证最后一次写入；此前各项保留即时回读结果。WBP `SetProperty` 的验证仍会编译后回读。结果提供 `OldValue`、`NewValue`、`ReadbackValue`、`bWritten`、`bVerified`、`Verification` 和 `VerificationSupport`；不支持的属性类型明确返回 Unsupported，编译错误、读取不一致及保存错误分别报告。未请求验证时为 `Verification=NotRequested`。
 
 单次 Manage 保持部分成功：前项成功的修改保留，任何验证失败阻止该调用自动保存，不能描述为资产已还原。跨调用 `CallCapability.Calls` 批次沿用事务回滚，保存在内存事务完成后进行，保存失败不宣称磁盘整体回滚。失败写入不自动重试。
 
@@ -48,7 +48,18 @@ Scalar preview uses temporary property storage and never mutates, compiles, save
 
 变量类型回读同时提供 `ContainerType`、`CanonicalType`、`ElementType`、Map 的 `KeyType` / `ValueType`、类型对象完整路径和 `Guid`；函数列表提供局部变量类型及 GUID。`RenameLocalVariable` 使用 `FunctionName`、`VariableName`、`NewVariableName`。成员重命名、局部重命名和 `ChangeVariableType` 均保护子蓝图，等待资产注册表扫描完成；类型变更还拒绝隐式改变 RepNotify 或 Set/Map 复制设置。先用 `GetAssetEditPreview` 预检 `ChangeVariableType`，确认后显式 `bAllowPotentialDataLoss=true`；它保留 GUID、清空旧默认值并重建本蓝图引用节点，不保证旧连接或外部依赖仍可编译。
 
-标量预览及写后校验新增 `ManageAssetDataAsset/Set`（`PropertyName`）、`ManageAssetLevel/SetActorProperty`（精确 `ActorName` 和 `PropertyPath`）、`ManageAssetBlueprint/SetComponentProperty`（`ComponentName` 和 `PropertyPath`），均可用 `ExpectedValue` 防止过期写入。仍只支持 bool/数值/枚举/String/Name/Text 叶子及结构体/目标拥有子对象路径，拒绝容器和外部对象遍历。浮点值接受 `1e3` 等科学计数法，普通写入、预览、前值检查和写后验证保持一致，非法或非有限值不写入。关卡普通属性写入统一支持点分路径、空字符串和解析失败前置拒绝。
+属性预览及写后校验支持 `ManageAssetDataAsset/Set`（`PropertyName`）、`ManageAssetLevel/SetActorProperty`（精确 `ActorName` 和 `PropertyPath`）、`ManageAssetBlueprint/SetComponentProperty`（`ComponentName` 和 `PropertyPath`），均可用 `ExpectedValue` 防止过期写入。支持上述反射叶子、完整结构体/容器及目标拥有子对象路径，拒绝外部对象遍历。浮点值接受 `1e3` 等科学计数法，普通写入、预览、前值检查和写后验证保持一致，非法或非有限值不写入。关卡普通属性写入统一支持点分路径、空字符串和解析失败前置拒绝。
+
+## 批量蓝图迁移
+
+- `GetAssetBlueprint(Sections=["Defaults"], PropertyPaths=["Mesh.SkeletalMesh","Mesh.RelativeRotation"])` 精确读取嵌套默认值。每个请求路径返回值或错误，并用 `MissingPropertyPaths` 列出缺失项。
+- `AddNode` 的 `K2Node_CustomEvent` 使用 `CustomEventName`；`SetNode` 使用同名字段重命名。名称冲突提前拒绝并返回最终名称；对自定义事件传 `FunctionName` 会明确报错。
+- `Reparent` 预检返回有界的 `AffectedGraphReferences`（变量、事件覆盖及父函数调用）。Manage 结果的 `bRequiresCompile` 与 `GeneratedClassState=Missing|Stale|CompileError|Current` 表示当前生成类状态；`bChanged=true` 不表示生成类已编译。新父类字段须在显式编译后写入。
+- `RemapMemberReferences` 使用 `OldMemberName`、`NewMemberName`，仅迁移本蓝图中的继承 self 属性 getter/setter。目标须是当前父类的 Blueprint-visible 属性，值 pin 类型须精确一致，setter 还要求属性可写；修改成员引用与值 pin 名，保留 pin GUID、默认值及连线。`bValidateOnly=true` 或 `GetAssetEditPreview` 可先检查目标与匹配节点。函数/事件及外部对象引用不属于此动作。
+- `SetArray` 使用类型化 JSON `Values`，`[]` 清空；`ClearArray` 无需 `Value`，两者均使用 `PropertyPath`，可通过 `ComponentName` 指定组件模板。通用字符串 `Value` 沿用 Unreal import-text：容器须用括号包围或传空字符串；在 UE4，空字符串清空数组，`()` 可能生成一个默认元素；结构体未指定字段保留前值。混合的属性/数组/恢复批次可统一设置 `bVerify=true`。
+- `GetAssetLevel(Sections=["ActorPropertySchema"])` 使用精确 `ActorName`，可用 `PropertyPaths` 指定结构体/所属子对象根路径；省略时从 Actor 开始。`SchemaDepth=0..3`、`MaxSchemaProperties=1..256` 限制递归与整批字段总量。返回字段名、类型、可编辑性、子字段及截断标志，不跟随外部对象；实例非空而 CDO 为空仍可发现。
+
+`SaveAsset`、`CompileBlueprint(bSaveToDisk=true)` 和 manage 自动保存会在进入 SavePackage 前检查 UFunction super 链。临时对象、被替换类及循环引用返回 `SaveDiagnostics`（`ErrorKind=InvalidSuperFunction`、`FunctionPath`、`SuperFunctionPath`、`Reason`），不尝试保存并保留脏标记。成功编译与安全保存是两个独立结果；本检查不修改第三方插件的运行时函数绑定。
 
 组件查询在 `GetAssetBlueprint(Sections=["Component"])` 中指定 `ComponentName`、最多 32 个 `PropertyPaths` 和 `Baseline=ClassDefault|ParentTemplate`，返回 `Value`、`DefaultValue`、`bDiffersFromDefault` 及 `BaselinePath`。不指定路径时有界列出可编辑字段。原有组件摘要保持组件类 CDO 基准；显式 ParentTemplate 比较目标父蓝图的实际模板。`ResetComponentPropertyToDefault` 使用相同基准，默认 ParentTemplate；自有组件无父模板时须明确选 ClassDefault。恢复仅限组件及其拥有的子对象，基准和目标的实际属性 Owner 均须在相应组件范围内；修改记录在实际属性 Owner 上，普通继承组件写入和恢复支持 Undo。拒绝通过复制父模板恢复实例化子对象或组件引用。
 

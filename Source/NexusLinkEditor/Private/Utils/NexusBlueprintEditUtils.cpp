@@ -5,6 +5,11 @@
 #include "Utils/NexusPinTypeUtils.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "K2Node_Variable.h"
+#include "K2Node_VariableSet.h"
+#include "K2Node_Event.h"
+#include "K2Node_CallParentFunction.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
 #include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
@@ -117,6 +122,33 @@ bool FNexusBlueprintEditUtils::PreviewReparent(UBlueprint* Blueprint, const FStr
 	}
 	Result->SetArrayField(TEXT("Conflicts"), Conflicts);
 	Result->SetArrayField(TEXT("InheritedMembersAtRisk"), AtRisk);
+	TArray<TSharedPtr<FJsonValue>> References;
+	TArray<UEdGraph*> Graphs; Blueprint->GetAllGraphs(Graphs);
+	int32 ReferenceCount = 0;
+	for (UEdGraph* Graph : Graphs) if (Graph) for (UEdGraphNode* Node : Graph->Nodes)
+	{
+		FName Member; FString Kind;
+		if (UK2Node_Variable* Variable = Cast<UK2Node_Variable>(Node))
+		{
+			if (!Variable->VariableReference.IsSelfContext() || FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, Variable->GetVarName()) != INDEX_NONE) continue;
+			Member = Variable->GetVarName(); Kind = TEXT("Variable");
+		}
+		else if (UK2Node_CallParentFunction* Call = Cast<UK2Node_CallParentFunction>(Node)) { Member = Call->FunctionReference.GetMemberName(); Kind = TEXT("ParentCall"); }
+		else if (UK2Node_Event* Event = Cast<UK2Node_Event>(Node)) { if (!Event->bOverrideFunction) continue; Member = Event->EventReference.GetMemberName(); Kind = TEXT("EventOverride"); }
+		else continue;
+		++ReferenceCount;
+		if (References.Num() >= 64) continue;
+		auto Reference = MakeShared<FJsonObject>();
+		Reference->SetStringField(TEXT("GraphName"), Graph->GetName());
+		Reference->SetStringField(TEXT("NodeId"), Node->NodeGuid.ToString());
+		Reference->SetStringField(TEXT("MemberName"), Member.ToString());
+		Reference->SetStringField(TEXT("Kind"), Kind);
+		Reference->SetBoolField(TEXT("bNewParentHasMember"), Kind == TEXT("Variable") ? Parent->FindPropertyByName(Member) != nullptr : Parent->FindFunctionByName(Member) != nullptr);
+		References.Add(MakeShared<FJsonValueObject>(Reference));
+	}
+	Result->SetArrayField(TEXT("AffectedGraphReferences"), References);
+	Result->SetNumberField(TEXT("AffectedGraphReferenceCount"), ReferenceCount);
+	Result->SetBoolField(TEXT("bGraphReferencesTruncated"), ReferenceCount > References.Num());
 	const bool bScanning = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get().IsLoadingAssets();
 	Result->SetBoolField(TEXT("bDependencyScanComplete"), !bScanning);
 	TArray<FAssetData> Descendants;
@@ -198,6 +230,54 @@ bool FNexusBlueprintEditUtils::Reparent(UBlueprint* Blueprint, const FString& Pa
 	if (Blueprint->SimpleConstructionScript) Blueprint->SimpleConstructionScript->ValidateSceneRootNodes();
 	FBlueprintEditorUtils::RefreshAllNodes(Blueprint);
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+	Result->SetBoolField(TEXT("bRequiresCompile"), true);
+	Result->SetStringField(TEXT("GeneratedClassState"), TEXT("Stale"));
+	return true;
+}
+
+bool FNexusBlueprintEditUtils::RemapMemberReferences(UBlueprint* Blueprint, const FString& OldName, const FString& NewName,
+	bool bValidateOnly, const TSharedPtr<FJsonObject>& Result, FString& Error)
+{
+	if (!Blueprint || !Blueprint->ParentClass || OldName.IsEmpty() || NewName.IsEmpty() || OldName == NewName)
+	{ Error = TEXT("RemapMemberReferences requires distinct OldMemberName and NewMemberName on a class Blueprint"); return false; }
+	if (GEditor && GEditor->IsPlayingSessionInEditor()) { Error = TEXT("Stop PIE before remapping references"); return false; }
+	if (FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, FName(*OldName)) != INDEX_NONE)
+	{ Error = TEXT("RemapMemberReferences only targets inherited self-member references; use RenameVariable for owned members"); return false; }
+	FProperty* Target = Blueprint->ParentClass->FindPropertyByName(FName(*NewName));
+	FEdGraphPinType TargetType;
+	if (!Target || !Target->HasAnyPropertyFlags(CPF_BlueprintVisible) || !GetDefault<UEdGraphSchema_K2>()->ConvertPropertyToPinType(Target, TargetType))
+	{ Error = TEXT("NewMemberName must resolve to a Blueprint-visible property on the current parent"); return false; }
+	TArray<UK2Node_Variable*> Nodes, Matches;
+	FBlueprintEditorUtils::GetAllNodesOfClass(Blueprint, Nodes);
+	TArray<TSharedPtr<FJsonValue>> References;
+	for (UK2Node_Variable* Node : Nodes)
+	{
+		if (!Node || !Node->VariableReference.IsSelfContext() || Node->GetVarName() != FName(*OldName)) continue;
+		UEdGraphPin* ValuePin = Node->FindPin(FName(*OldName));
+		FEdGraphPinType OldType = ValuePin ? ValuePin->PinType : FEdGraphPinType();
+		OldType.bIsReference = TargetType.bIsReference; OldType.bIsConst = TargetType.bIsConst;
+		if (!ValuePin || OldType != TargetType || (Node->IsA(UK2Node_VariableSet::StaticClass()) && Target->HasAnyPropertyFlags(CPF_BlueprintReadOnly)))
+		{ Error = TEXT("Member pin types must match exactly and setters require a writable target; no nodes were changed"); return false; }
+		Matches.Add(Node);
+		auto Reference = MakeShared<FJsonObject>(); Reference->SetStringField(TEXT("GraphName"), Node->GetGraph()->GetName());
+		Reference->SetStringField(TEXT("NodeId"), Node->NodeGuid.ToString()); References.Add(MakeShared<FJsonValueObject>(Reference));
+	}
+	Result->SetArrayField(TEXT("References"), References);
+	Result->SetNumberField(TEXT("ReferenceCount"), Matches.Num());
+	Result->SetBoolField(TEXT("bValidateOnly"), bValidateOnly);
+	Result->SetBoolField(TEXT("bChanged"), !bValidateOnly && Matches.Num() > 0);
+	if (bValidateOnly || Matches.Num() == 0) return true;
+	Blueprint->Modify();
+	for (UK2Node_Variable* Node : Matches)
+	{
+		Node->Modify();
+		// 精确同型迁移只更新 member reference 和值 pin 名；保留 pin GUID、连线及默认值。
+		Node->VariableReference.SetFromField<FProperty>(Target, true);
+		Node->FindPin(FName(*OldName))->PinName = FName(*NewName);
+		Node->GetGraph()->NotifyGraphChanged();
+	}
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+	Result->SetBoolField(TEXT("bRequiresCompile"), true);
 	return true;
 }
 

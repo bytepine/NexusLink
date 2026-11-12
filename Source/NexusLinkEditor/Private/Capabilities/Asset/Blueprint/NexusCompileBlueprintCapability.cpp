@@ -71,7 +71,9 @@ FCapabilityResult FNexusCompileBlueprintCapability::Execute(const TSharedPtr<FJs
 			const FString PkgPath = FNexusAssetUtils::PackagePathOf(BP);
 			bool bDeferred = false;
 			FString Note;
-			const bool bSaved = FNexusAssetEditorUtils::SaveDirtyPackage(Pkg, PkgPath, Path, bDeferred, Note);
+			TArray<TSharedPtr<FJsonValue>> Diagnostics;
+			const bool bSaved = FNexusAssetEditorUtils::SaveDirtyPackage(Pkg, PkgPath, Path, bDeferred, Note, &Diagnostics);
+			if (Diagnostics.Num()) Entry->SetArrayField(TEXT("SaveDiagnostics"), Diagnostics);
 			Entry->SetBoolField(TEXT("bSaved"), bSaved);
 			Entry->SetBoolField(TEXT("bDeferred"), bDeferred);
 			if (!Note.IsEmpty()) Entry->SetStringField(TEXT("Note"), Note);

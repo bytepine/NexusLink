@@ -167,25 +167,35 @@ static bool IsOverBroadCapabilityQuery(const FString& TokenLower, TArray<FString
 		};
 		return true;
 	}
-	if (TokenLower == TEXT("Asset"))
+	if (TokenLower == TEXT("asset"))
 	{
 		OutSuggested = {
 			TEXT("search asset"), TEXT("get asset"), TEXT("manage asset")
 		};
 		return true;
 	}
-	if (TokenLower == TEXT("Runtime"))
+	if (TokenLower == TEXT("runtime"))
 	{
 		OutSuggested = {
 			TEXT("runtime actor"), TEXT("runtime widget"), TEXT("runtime niagara")
 		};
 		return true;
 	}
-	if (TokenLower == TEXT("Animation"))
+	if (TokenLower == TEXT("animation"))
 	{
 		OutSuggested = {
 			TEXT("runtime animation"), TEXT("anim montage"), TEXT("anim blueprint")
 		};
+		return true;
+	}
+	if (TokenLower == TEXT("property"))
+	{
+		OutSuggested = { TEXT("actor property"), TEXT("blueprint defaults"), TEXT("component property") };
+		return true;
+	}
+	if (TokenLower == TEXT("lua"))
+	{
+		OutSuggested = { TEXT("lua binding"), TEXT("lua value"), TEXT("lua stack") };
 		return true;
 	}
 	return false;

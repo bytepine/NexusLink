@@ -36,7 +36,7 @@ public:
 	 * Live Coding 开启时改为 MarkPackageDirty，bOutDeferred=true。
 	 * @return 是否已成功写入磁盘
 	 */
-	static bool SaveDirtyPackage(UPackage* Package, const FString& PackagePath, const FString& AssetPathHint, bool& bOutDeferred, FString& OutNote);
+	static bool SaveDirtyPackage(UPackage* Package, const FString& PackagePath, const FString& AssetPathHint, bool& bOutDeferred, FString& OutNote, TArray<TSharedPtr<FJsonValue>>* OutDiagnostics = nullptr);
 
 	/**
 	 * 编译蓝图并保存到磁盘（Blueprint / AnimBlueprint / WidgetBlueprint 通用）。

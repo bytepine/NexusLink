@@ -19,8 +19,10 @@ void FNexusGetAssetEditPreviewCapability::BuildDefinition(FNexusCapabilityDefini
 	Out.Name = TEXT("GetAssetEditPreview");
 	Out.Description = TEXT("Plan scalar values and bounded BP/UMG/PCG structural edits in temporary storage. No source writes, compilation or save.");
 	const TSharedRef<FJsonObject> Operation = FNexusSchema::Object()
-		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Matching operation"), {TEXT("SetDefaults"), TEXT("Set"), TEXT("SetProperty"), TEXT("SetActorProperty"), TEXT("SetComponentProperty"), TEXT("Reparent"), TEXT("ChangeVariableType"), TEXT("Add"), TEXT("Remove"), TEXT("Move"), TEXT("AddNode"), TEXT("RemoveNode"), TEXT("AddEdge"), TEXT("RemoveEdge"), TEXT("Disconnect"), TEXT("DisconnectAll")}))
+		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Matching operation"), {TEXT("SetDefaults"), TEXT("SetArray"), TEXT("ClearArray"), TEXT("Set"), TEXT("SetProperty"), TEXT("SetActorProperty"), TEXT("SetComponentProperty"), TEXT("Reparent"), TEXT("RemapMemberReferences"), TEXT("ChangeVariableType"), TEXT("Add"), TEXT("Remove"), TEXT("Move"), TEXT("AddNode"), TEXT("RemoveNode"), TEXT("AddEdge"), TEXT("RemoveEdge"), TEXT("Disconnect"), TEXT("DisconnectAll")}))
 		.Prop(TEXT("ParentClass"), FNexusSchema::Str(TEXT("Reparent target class or Blueprint path")))
+		.Prop(TEXT("OldMemberName"), FNexusSchema::Str(TEXT("RemapMemberReferences: old inherited member name")))
+		.Prop(TEXT("NewMemberName"), FNexusSchema::Str(TEXT("RemapMemberReferences: exactly typed current parent property")))
 		.Prop(TEXT("VariableName"), FNexusSchema::Str(TEXT("Owned variable for ChangeVariableType")))
 		.Prop(TEXT("VariableType"), FNexusSchema::Str(TEXT("Proposed Blueprint variable type")))
 		.Prop(TEXT("ActorName"), FNexusSchema::Str(TEXT("Exact level Actor name for SetActorProperty")))
@@ -45,6 +47,7 @@ void FNexusGetAssetEditPreviewCapability::BuildDefinition(FNexusCapabilityDefini
 		.Prop(TEXT("RowName"), FNexusSchema::Str(TEXT("DataTable row for Set")))
 		.Prop(TEXT("FieldName"), FNexusSchema::Str(TEXT("DataTable scalar field for Set")))
 		.Prop(TEXT("Value"), FNexusSchema::Str(TEXT("Proposed value as ImportText text")))
+		.Prop(TEXT("Values"), FNexusSchema::ArrayOf(TEXT("SetArray: typed JSON elements"), MakeShared<FJsonObject>()))
 		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Optional expected current value")))
 		.Required({TEXT("Action")}).Build().ToSharedRef();
 	Out.InputSchema = FNexusSchema::Object()
@@ -81,6 +84,14 @@ FCapabilityResult FNexusGetAssetEditPreviewCapability::Execute(const TSharedPtr<
 			TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 			Entry->SetStringField(TEXT("Path"), Path);
 			const FNexusArgs Operation(Value->AsObject());
+			if (Capability == TEXT("ManageAssetBlueprint") && Operation.Str(TEXT("Action")) == TEXT("RemapMemberReferences"))
+			{
+				FString PreviewError;
+				const bool bValid = FNexusBlueprintEditUtils::RemapMemberReferences(Cast<UBlueprint>(Asset), Operation.Str(TEXT("OldMemberName")), Operation.Str(TEXT("NewMemberName")), true, Entry, PreviewError);
+				Entry->SetBoolField(TEXT("bValid"), bValid);
+				if (!bValid) Entry->SetStringField(TEXT("Error"), PreviewError);
+				Entries.Add(MakeShared<FJsonValueObject>(Entry)); continue;
+			}
 			if (Capability == TEXT("ManageAssetBlueprint") && (Operation.Str(TEXT("Action")) == TEXT("Reparent") || Operation.Str(TEXT("Action")) == TEXT("ChangeVariableType")))
 			{
 				FString PreviewError;

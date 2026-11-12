@@ -17,6 +17,7 @@
 #include "Components/Widget.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "JsonObjectConverter.h"
 
 static FString SupportedEditAction(const FString& Capability)
 {
@@ -43,13 +44,13 @@ bool FNexusAssetEditUtils::ValidateOperations(const FString& Capability, const T
 		const TSharedPtr<FJsonObject> Operation = Value->AsObject();
 		const FString Action = FNexusArgs(Operation).Str(TEXT("Action"));
 		const bool bScalarSet = Action.Equals(SupportedEditAction(Capability), ESearchCase::IgnoreCase)
-			|| (Capability == TEXT("ManageAssetBlueprint") && Action == TEXT("SetComponentProperty"));
-		// bVerify 只作用于标量 Set；同批 Reset 走自身的默认值校验，不接受 ExpectedValue。
+			|| (Capability == TEXT("ManageAssetBlueprint") && (Action == TEXT("SetComponentProperty") || Action == TEXT("SetArray") || Action == TEXT("ClearArray")));
+		// Set 支持完整反射值；同批 Reset 自行比较默认值，不接受 ExpectedValue。
 		const bool bReset = (Capability == TEXT("ManageAssetLevel") && Action == TEXT("ResetActorPropertyToDefault"))
 			|| (Capability == TEXT("ManageAssetBlueprint") && Action == TEXT("ResetComponentPropertyToDefault"));
 		if (!bScalarSet && (Operation->HasField(TEXT("ExpectedValue")) || (IsVerified(Args) && !bReset)))
 		{
-			Error = TEXT("ExpectedValue requires a supported scalar set; bVerify batches support scalar sets and resets only");
+			Error = TEXT("Verification=Unsupported: ExpectedValue/bVerify supports reflected property sets, array edits and resets only");
 			return false;
 		}
 	}
@@ -68,9 +69,10 @@ static bool ResolveEditProperty(UObject* Asset, const FString& Capability, const
 {
 	const FNexusArgs Args(Operation);
 	const FString Action = SupportedEditAction(Capability);
-	const bool bComponent = Capability == TEXT("ManageAssetBlueprint") && Args.Str(TEXT("Action")) == TEXT("SetComponentProperty");
-	if (!Asset || Action.IsEmpty() || (!bComponent && !Args.Str(TEXT("Action")).Equals(Action, ESearchCase::IgnoreCase)))
-	{ Error = TEXT("Unsupported asset or operation for scalar preview/verification"); return false; }
+	const bool bArray = Capability == TEXT("ManageAssetBlueprint") && (Args.Str(TEXT("Action")) == TEXT("SetArray") || Args.Str(TEXT("Action")) == TEXT("ClearArray"));
+	const bool bComponent = Capability == TEXT("ManageAssetBlueprint") && (Args.Str(TEXT("Action")) == TEXT("SetComponentProperty") || Args.Str(TEXT("Action")) == TEXT("ResetComponentPropertyToDefault") || (bArray && !Args.Str(TEXT("ComponentName")).IsEmpty()));
+	if (!Asset || Action.IsEmpty() || (!bComponent && !bArray && !Args.Str(TEXT("Action")).Equals(Action, ESearchCase::IgnoreCase)))
+	{ Error = TEXT("Unsupported asset or operation for property preview/verification"); return false; }
 	FString Path = Args.Str(TEXT("PropertyPath"));
 	const UStruct* Struct = nullptr;
 	void* Container = nullptr;
@@ -139,8 +141,13 @@ static bool ResolveEditProperty(UObject* Asset, const FString& Capability, const
 	FProperty* Property = Resolved.Property;
 	if (!CastField<FBoolProperty>(Property) && !CastField<FNumericProperty>(Property) && !CastField<FEnumProperty>(Property)
 		&& !CastField<FStrProperty>(Property) && !CastField<FNameProperty>(Property) && !CastField<FTextProperty>(Property)
-		&& !CastField<FObjectProperty>(Property))
-	{ Error = TEXT("Unsupported property type; only bool, number, enum, string, Name, Text and object/class references are supported"); return false; }
+		&& !CastField<FObjectProperty>(Property) && !CastField<FStructProperty>(Property)
+		&& !CastField<FArrayProperty>(Property) && !CastField<FSetProperty>(Property) && !CastField<FMapProperty>(Property))
+	{ Error = TEXT("Verification=Unsupported: this property type cannot be compared"); return false; }
+	if (Property->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference))
+	{ Error = TEXT("Verification=Unsupported: instanced reference values require explicit subobject leaf paths"); return false; }
+	if (bArray && !CastField<FArrayProperty>(Property))
+	{ Error = TEXT("SetArray/ClearArray requires an array property"); return false; }
 	return true;
 }
 
@@ -175,6 +182,35 @@ static bool ParseEditValue(const FAssetEditProperty& Resolved, const FString& In
 	return true;
 }
 
+static bool ParseOperationValue(const FAssetEditProperty& Resolved, const TSharedPtr<FJsonObject>& Operation,
+	void* Storage, FString& Normalized, FString& Error)
+{
+	Resolved.Property->CopyCompleteValue(Storage, Resolved.Value);
+	const FString Action = FNexusArgs(Operation).Str(TEXT("Action"));
+	if (Action == TEXT("ClearArray") || Action == TEXT("SetArray"))
+	{
+		FArrayProperty* Array = CastField<FArrayProperty>(Resolved.Property);
+		if (!Array) { Error = TEXT("Array operation requires an array property"); return false; }
+		FScriptArrayHelper Helper(Array, Storage);
+		Helper.EmptyValues();
+		if (Action == TEXT("SetArray"))
+		{
+			const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
+			if (!Operation->TryGetArrayField(TEXT("Values"), Values) || Values->Num() > 4096)
+			{ Error = TEXT("SetArray requires typed JSON Values (max 4096 elements); [] clears the array"); return false; }
+			for (const TSharedPtr<FJsonValue>& Value : *Values)
+			{
+				const int32 ElementIndex = Helper.AddValue();
+				if (!FJsonObjectConverter::JsonValueToUProperty(Value, Array->Inner, Helper.GetRawPtr(ElementIndex), 0, 0))
+				{ Error = FString::Printf(TEXT("Values[%d] does not match the array element type"), ElementIndex); return false; }
+			}
+		}
+		FNexusPropertyUtils::ExportText(Resolved.Property, Normalized, Storage);
+		return true;
+	}
+	return ParseEditValue(Resolved, FNexusArgs(Operation).Str(TEXT("Value")), Storage, Normalized, Error);
+}
+
 static bool PrepareEdit(UObject* Asset, const FString& Capability, const TSharedPtr<FJsonObject>& Operation,
 	FAssetEditProperty& Resolved, TSharedPtr<FJsonObject>& Entry, FString& Error)
 {
@@ -192,6 +228,7 @@ static bool PrepareEdit(UObject* Asset, const FString& Capability, const TShared
 		Entry->SetStringField(TEXT("LevelPath"), Actor->GetOutermost()->GetName());
 	}
 	Entry->SetStringField(TEXT("PropertyType"), Resolved.Property->GetCPPType());
+	Entry->SetStringField(TEXT("VerificationSupport"), TEXT("ReflectedValue"));
 	FString Current;
 	FNexusPropertyUtils::ExportText(Resolved.Property, Current, Resolved.Value);
 	Entry->SetStringField(TEXT("CurrentValue"), Current);
@@ -204,7 +241,9 @@ static bool PrepareEdit(UObject* Asset, const FString& Capability, const TShared
 		if (!Resolved.Property->Identical(Resolved.Value, Expected.GetObjAddress(), PPF_None))
 		{ Error = TEXT("ExpectedValue mismatch: target changed after preview"); return false; }
 	}
-	if (!Operation->HasTypedField<EJson::String>(TEXT("Value"))) { Error = TEXT("Value is required and must be a string"); return false; }
+	const FString Action = FNexusArgs(Operation).Str(TEXT("Action"));
+	if (Action != TEXT("SetArray") && Action != TEXT("ClearArray") && !Operation->HasTypedField<EJson::String>(TEXT("Value")))
+	{ Error = TEXT("Value is required and must be a string"); return false; }
 	return true;
 }
 
@@ -216,11 +255,16 @@ void FNexusAssetEditUtils::Preview(UObject* Asset, const FString& Capability, co
 	if (PrepareEdit(Asset, Capability, Operation, Resolved, Entry, Error))
 	{
 		FDefaultConstructedPropertyElement Storage(Resolved.Property);
-		if (ParseEditValue(Resolved, FNexusArgs(Operation).Str(TEXT("Value")), Storage.GetObjAddress(), Normalized, Error))
+		if (ParseOperationValue(Resolved, Operation, Storage.GetObjAddress(), Normalized, Error))
 			Entry->SetStringField(TEXT("TargetValue"), Normalized);
 	}
 	Entry->SetBoolField(TEXT("bValid"), Error.IsEmpty());
 	if (!Error.IsEmpty()) Entry->SetStringField(TEXT("Error"), Error);
+	if (Error.StartsWith(TEXT("Verification=Unsupported")))
+	{
+		Entry->SetStringField(TEXT("Verification"), TEXT("Unsupported"));
+		Entry->SetStringField(TEXT("VerificationSupport"), TEXT("Unsupported"));
+	}
 }
 
 void FNexusAssetEditUtils::Apply(UObject* Asset, const FString& Capability, const TSharedPtr<FJsonObject>& Operation,
@@ -232,14 +276,14 @@ void FNexusAssetEditUtils::Apply(UObject* Asset, const FString& Capability, cons
 	Entry->SetStringField(TEXT("Verification"), bVerify ? TEXT("Failed") : TEXT("NotRequested"));
 	if (bVerify) Entry->SetBoolField(TEXT("bVerified"), false);
 	if (!PrepareEdit(Asset, Capability, Operation, Resolved, Entry, Error))
-	{ Entry->SetStringField(TEXT("Error"), Error); return; }
+	{ Entry->SetStringField(TEXT("Error"), Error); if (Error.StartsWith(TEXT("Verification=Unsupported"))) { Entry->SetStringField(TEXT("Verification"), TEXT("Unsupported")); Entry->SetStringField(TEXT("VerificationSupport"), TEXT("Unsupported")); } return; }
 	Entry->SetStringField(TEXT("OldValue"), Entry->GetStringField(TEXT("CurrentValue")));
 	const FString PropertyType = Resolved.Property->GetCPPType();
 	{
 		FDefaultConstructedPropertyElement Storage(Resolved.Property);
-		if (!ParseEditValue(Resolved, FNexusArgs(Operation).Str(TEXT("Value")), Storage.GetObjAddress(), Expected, Error))
+		if (!ParseOperationValue(Resolved, Operation, Storage.GetObjAddress(), Expected, Error))
 		{ Entry->SetStringField(TEXT("Error"), Error); return; }
-		if (Capability == TEXT("ManageAssetBlueprint") && FNexusArgs(Operation).Str(TEXT("Action")) == TEXT("SetComponentProperty"))
+		if (Capability == TEXT("ManageAssetBlueprint") && !FNexusArgs(Operation).Str(TEXT("ComponentName")).IsEmpty())
 		{
 			if (!FNexusBlueprintEditUtils::FindComponent(Cast<UBlueprint>(Asset), FNexusArgs(Operation).Str(TEXT("ComponentName")), true, Error)
 				|| !ResolveEditProperty(Asset, Capability, Operation, Resolved, Error))

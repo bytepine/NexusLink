@@ -12,6 +12,7 @@
 #include "Utils/NexusVersionCompat.h"
 #include "Containers/Ticker.h"
 #include "Containers/Queue.h"
+#include "Server/NexusJsonMessageBuffer.h"
 #include "HttpRouteHandle.h"
 // 前向声明（完整定义由 .cpp 引入）
 class FNexusMcpDispatcher;
@@ -95,6 +96,7 @@ private:
 	/** WebSocket 事件回调。 */
 	void OnWebSocketClientConnected(INetworkingWebSocket* ClientWebSocket);
 	void OnWebSocketMessage(void* Data, int32 DataSize, INetworkingWebSocket* ClientWebSocket);
+	void DispatchWebSocketMessage(FString JsonLine, INetworkingWebSocket* ClientWebSocket);
 	void OnWebSocketClientDisconnected(INetworkingWebSocket* ClientWebSocket);
 
 	/**
@@ -121,6 +123,7 @@ private:
 	TUniquePtr<IWebSocketServer> WebSocketServer;
 	TArray<INetworkingWebSocket*> ConnectedClients;
 	TMap<INetworkingWebSocket*, FString> ClientIds;
+	TMap<INetworkingWebSocket*, FNexusJsonMessageBuffer> ClientMessageBuffers;
 	/** 已通过 WS 首帧 auth 的客户端。 */
 	TSet<INetworkingWebSocket*> AuthenticatedWsClients;
 	FString AuthToken;

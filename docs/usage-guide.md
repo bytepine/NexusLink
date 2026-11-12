@@ -589,6 +589,8 @@ Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性�
 
 ### 修改了属性但 UE 中没有生效 / 磁盘未变化
 
+批量蓝图迁移可用嵌套默认值读取、自定义事件命名、继承成员引用重映射及类型化数组操作，见[迁移约束](asset-edit-preview.md#批量蓝图迁移)。`bRequiresCompile` / `GeneratedClassState` 区分源蓝图已修改与生成类已可用。保存前发现临时或无效 UFunction super 引用时，返回 `SaveDiagnostics` 并保留脏标记，不进入可能触发断言的 SavePackage；成功编译不保证第三方运行时函数绑定可序列化。
+
 `set_*_property` 改的是内存；须 `SaveAsset` 或 manage 传 `bSaveToDisk=true`。BP/ABP/WBP 可再传 `bCompile=true`。
 
 地图和已加载流送子关卡保存会验证包内的 `UWorld/PersistentLevel`，再走原生 `SaveLevel/SaveWorld`；无有效地图对象时返回结构化错误。`GetAssetLevel(Sections=["Navigation"])` 只读返回目标关卡的可见性、导航数据块数量及有界路径/类型列表，不加载或显示关卡。
