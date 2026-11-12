@@ -55,7 +55,7 @@ void FNexusManageProjectSettingsCapability::BuildDefinition(FNexusCapabilityDefi
     Out.Name=TEXT("ManageProjectSettings"); Out.Description=TEXT("Set typed registered settings, save or reset a section; reports persistence and restart requirements.");
     auto Operation=FNexusSchema::Object().Required(TEXT("Action"),FNexusSchema::Enum(TEXT("Settings operation"),{TEXT("SetProperties"),TEXT("Save"),TEXT("Reset")})).Prop(TEXT("Properties"),FNexusSchema::AnyObject(TEXT("Exact editable config property names and typed JSON values"))).Build();
     Out.InputSchema=FNexusSchema::Object().Prop(TEXT("Container"),FNexusSchema::Str(TEXT("Settings container"),TEXT("Project"))).Required(TEXT("Category"),FNexusSchema::Str(TEXT("Registered settings category"))).Required(TEXT("Section"),FNexusSchema::Str(TEXT("Registered settings section"))).Required(TEXT("Operations"),FNexusSchema::ArrayOf(TEXT("Settings operations; SetProperties persists values"),Operation.ToSharedRef())).Build();
-    Out.Tags={FNexusMcpTags::Write,FNexusMcpTags::Editor,FNexusMcpTags::Dangerous}; Out.RelatedCapabilities={TEXT("GetProjectSettings")};
+    Out.Tags={FNexusMcpTags::Write,FNexusMcpTags::Editor}; Out.RelatedCapabilities={TEXT("GetProjectSettings")};
 }
 void FNexusManageProjectSettingsCapability::RegisterActions(TMap<FString,FNexusActionHandler>& Handlers) const { for (const FString& Action : {TEXT("SetProperties"),TEXT("Save"),TEXT("Reset")}) Handlers.Add(Action,&NexusEditSettings); }
 bool FNexusManageProjectSettingsCapability::PrepareTarget(const TSharedPtr<FJsonObject>& Args,TSharedPtr<FJsonObject>& Entry,void*& Target,FString& Error) const

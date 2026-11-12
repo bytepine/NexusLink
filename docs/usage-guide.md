@@ -400,7 +400,7 @@ Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可�
 
 ### 2.10 危险 Capability 与脚本执行
 
-带 `dangerous` 标签的能力**默认全部禁用**。在 **Editor Preferences → Plugins → NexusLink → 危险 Capability → 访问模式** 中管理：
+**仅能执行任意代码的 capability 才标记 `Dangerous`**，包括任意控制台命令和脚本执行入口。带此标签的能力**默认全部禁用**。在 **Editor Preferences → Plugins → NexusLink → 危险 Capability → 访问模式** 中管理：
 
 | 模式 | 行为 |
 |------|------|
@@ -421,7 +421,8 @@ Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可�
 - `ExecCommand`：执行 UE 控制台命令并捕获输出。
 - `ExecPython`：在编辑器中执行 Python（`Exec` / `File` / `Eval`），返回 stdout 与 traceback；宿主须启用 **Python Editor Script Plugin**。
 - NexusLinkExt 的 `EvalRuntimeLua` / `DofileRuntimeLua`：同样默认禁用，安装前提见 [§2.1](#可选安装-nexuslinkextunlua)。
-- 编辑器 UI 输入、测试控制和编译也属于危险能力；宿主、长操作和副作用边界见[编辑器工具](editor-toolsets.md)。
+
+编辑器 UI 输入、测试控制、编译及配置修改等专用能力，不因写入或不可撤销而列为危险能力；其参数、宿主、事务和长操作限制仍然适用，见[编辑器工具](editor-toolsets.md)。已有逐项禁用记录仍然保留。
 
 只查询 `unreal.*` API 是否存在时，优先使用默认开启的只读 `GetPythonApi`。它同样需要 Python 插件，但只将白名单校验后的参数嵌入固定 `inspect` 脚本，不接受用户代码。
 

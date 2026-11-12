@@ -39,7 +39,7 @@ Spawn 也接受可选 Parameters 作为新实例初值。图资产写后显式 S
 - Rename：NewTag 必填，使用引擎重命名和 Redirect 机制；同次调用后续操作跟随新名。目标不能已存在或位于旧标签子树。
 - Remove：仅普通 INI 来源中的显式叶标签，存在子标签或资产引用时拒绝；先通过 Referencers 检查并处理引用。
 
-这是危险配置写入能力，沿用 Confirm / Custom 权限。引擎会立即写 Config，不受 bSaveToDisk 或 SaveAsset 控制，不支持 CallCapability.calls[] 或事务回滚；前面成功的操作不会因后续失败而撤销。原生代码标签和受限来源不接受写入。修改后查询 Info / Hierarchy 验证。
+这是专用配置写入能力，不带 `Dangerous` 标签。引擎会立即写 Config，不受 bSaveToDisk 或 SaveAsset 控制，不支持 CallCapability.calls[] 或事务回滚；前面成功的操作不会因后续失败而撤销。原生代码标签和受限来源不接受写入。修改后查询 Info / Hierarchy 验证。
 
 ## DataRegistry 查询（UE 5.0+）
 

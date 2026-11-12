@@ -66,7 +66,8 @@ struct FNexusEditorToolSchema final
     }
 	static void Configure(FNexusCapabilityDefinition& Out, bool bWrite)
 	{
-		Out.Tags = bWrite ? TArray<FString>{ FNexusMcpTags::Write, FNexusMcpTags::Dangerous, FNexusMcpTags::Editor }
+		// 写操作不等于任意代码执行；Dangerous 仅由代码执行入口显式添加。
+		Out.Tags = bWrite ? TArray<FString>{ FNexusMcpTags::Write, FNexusMcpTags::Editor }
 			: TArray<FString>{ FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
 		Out.Prerequisites = { TEXT("EditorOnly") };
         Out.ExecutionInfo = []() { auto Info = MakeShared<FJsonObject>(); Info->SetStringField(TEXT("Backend"), TEXT("Independent")); Info->SetStringField(TEXT("Reason"), TEXT("Implemented by NexusLink using engine domain APIs")); return Info; };

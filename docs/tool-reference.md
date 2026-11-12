@@ -144,10 +144,6 @@ Start nonblocking C++ patch build. Windows only; Live Coding must already be ena
 
 **Prerequisites**: `EditorOnly`
 
-| Parameter | Type | Required | Description |
-|------|------|:----:|------|
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
-
 **Related capabilities**: `GetEditorOperation`
 
 ---
@@ -320,7 +316,6 @@ Organize actors/folders, merge meshes, edit level instances and build navigation
 | `bDiscard` | `boolean` |  | Discard LevelInstance edits |
 | `bSaveToDisk` | `boolean` |  | BuildNavigation: save generated loaded-level packages after completion; requires all loaded levels clean before starting |
 | `Limit` | `integer` |  | Maximum query results |
-| `Reason` | `string` |  | Purpose for the editor confirm dialog. Required in Confirm mode. |
 
 ---
 
@@ -722,7 +717,7 @@ Read a stopped .utrace: frame stats, hitches, CPU timers, bookmarks.
 
 ### `InteractEditorSlate`
 
-Send UI input to a discovered target. Non-transactional; requires confirmation.
+Send UI input to a discovered target. Non-transactional; validates visible, enabled targets.
 
 **Prerequisites**: `EditorOnly`
 

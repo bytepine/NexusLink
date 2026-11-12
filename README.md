@@ -78,7 +78,7 @@ UE 默认监听 HTTP `:45000` 和 WebSocket `:55000`；冲突时自动切换端�
 ## 安全与写入边界
 
 - **身份验证默认开启**。Token 是访问凭证，不要提交到仓库、写入公开文档或暴露在截图中。
-- **危险能力默认禁用**。`ExecCommand`、`ExecPython` 及编辑器 UI 输入、测试控制、编译等能力须显式授权；访问模式和脚本风险见[危险 Capability](docs/usage-guide.md#210-危险-capability-与脚本执行)。只查询 Python API 时优先用只读 `GetPythonApi`。
+- **仅任意代码执行入口列为危险能力，默认禁用**。包括 `ExecCommand`、`ExecPython` 及 NexusLinkExt 的 Lua 执行入口；访问模式和脚本风险见[危险 Capability](docs/usage-guide.md#210-危险-capability-与脚本执行)。只查询 Python API 时优先用只读 `GetPythonApi`。
 - **写操作会修改真实资产或运行状态**。Undo 和批次回滚不覆盖所有副作用；提交前检查版本管理差异，具体边界见[写入与回滚说明](docs/usage-guide.md#修改了属性但-ue-中没有生效--磁盘未变化)。
 
 从 1.x 升级时，插件与客户端须一起升至 2.x；身份验证和 MCP 文案变化见[升级指南](docs/usage-guide.md#0-从-1x-升级到-20)。

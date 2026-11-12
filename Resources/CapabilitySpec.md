@@ -105,7 +105,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | 模块 | 只用已有的 `NexusLinkExt`（Runtime）与 `NexusLinkExtEditor`（Editor）。新域放 `Capabilities/<域>/`，不为此再加模块 |
 | 基类 | 仍按 §2.1.1。`.cpp` 末尾 `REGISTER_MCP_CAPABILITY`，与主插件同一张注册表 |
 | 门控宏 | `WITH_*` 只由**首次**链接该可选插件的模块写入 `PublicDefinitions`。另一模块再链接时不要重定义（C4005） |
-| 危险 | 在该 cap 的 `Out.Tags` 加上 `FNexusMcpTags::Dangerous`，并带 `Write`。主插件按标签识别：默认禁用、确认框、`-NexusEnableDangerousCaps`。不要把名字写进 NexusLink |
+| 危险 | 仅任意代码执行入口（含任意控制台命令/脚本，判定见 §2.3）在 `Out.Tags` 加上 `FNexusMcpTags::Dangerous`，并带 `Write`。主插件按标签识别：默认禁用、确认框、`-NexusEnableDangerousCaps`。不要把名字写进 NexusLink |
 | 握手说明 | 扩展插件 `StartupModule` 读取自己的 `Resources/InitializeInstructions.SearchMode.md` 与 `InitializeInstructions.MultiTool.md`，调用 `FNexusInstructionRegistry::Get().Register(插件名, …)`。`ShutdownModule` 里 `Unregister`。片段只写本插件的 cap。主插件把已注册片段按名称接在自己的说明后面 |
 | 测试 | L1 放示例工程 `Plugins/NexusLinkExtTestSuite`（前缀 `NexusLinkExt.`），不进扩展插件仓 |
 
@@ -147,7 +147,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 |---|---|---|
 | `readonly` | 访问级别 | 只读标记，**不是沙箱**；禁用写类 cap 仍可能通过其它 cap 改工程 |
 | `Write` | 访问级别 | 会修改数据/状态 |
-| `Dangerous` | 访问级别 | 脚本逃生舱（任意代码/控制台）；**不进分类树、不进 search 关键词**。带此标签必须同时带 `Write`。默认全部禁用；访问模式 Confirm/Custom 见设置面板 |
+| `Dangerous` | 访问级别 | **仅任意代码执行入口**（含任意控制台命令/脚本）；**不进分类树、不进 search 关键词**。带此标签必须同时带 `Write`。默认全部禁用；访问模式 Confirm/Custom 见设置面板 |
 | `Editor` | 分类 | 通用/仅编辑器 |
 | `blueprint` | 分类 | Blueprint 资产 |
 | `Material` | 分类 | Material / MaterialInstance 资产 |
@@ -156,6 +156,8 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | `Widget` | 分类 | UMG / WidgetBlueprint |
 | `Runtime` | 分类 | 运行时（PIE/Game）操作；Runtime 基类会自动补上，亦可手写 |
 | `gas` | 分类 | GameplayAbility System（`WITH_GAS=1` 时注册） |
+
+**危险判定（主插件与扩展插件统一）**：仅能执行任意代码的 capability 才可带 `Dangerous`，例如 `ExecCommand`、`ExecPython`、`EvalRuntimeLua`、`DofileRuntimeLua`。专用能力不得仅因写入、不可撤销、修改配置、UI 交互、运行测试或触发编译而标为危险；共享写操作 helper 不得自动添加 `Dangerous`。
 
 > **宿主过滤不看 Tags**：DS/Game 可见性由 `GetHostScope()`（基类）决定，勿再靠手写 `Runtime`/`Editor` 标签做门控。
 

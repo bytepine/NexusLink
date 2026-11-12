@@ -6,7 +6,7 @@
 void FNexusInteractEditorSlateCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("InteractEditorSlate");
-	Out.Description = TEXT("Send UI input to a discovered target. Non-transactional; requires confirmation.");
+	Out.Description = TEXT("Send UI input to a discovered target. Non-transactional; validates visible, enabled targets.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("Action"), FNexusSchema::Enum(TEXT("Input action"), {TEXT("Click"),TEXT("Type"),TEXT("PressKey"),TEXT("Focus"),TEXT("Hover"),TEXT("Drag"),TEXT("SelectOption"),TEXT("SetChecked"),TEXT("FillForm")}))
 		.Required(TEXT("Ref"), FNexusSchema::Str(TEXT("Visible target or form root from UI snapshot")))

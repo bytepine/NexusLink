@@ -16,6 +16,7 @@
 
 ### Changed
 
+- `Dangerous` 标签仅用于任意代码执行入口（含任意控制台命令及脚本）；编辑器 UI、测试、编译、领域控制、项目设置、插件与 Gameplay Tags 管理等专用写能力移除危险标记，保留各自执行限制及逐项禁用记录。
 - `SearchCapabilities` 的目录、精确查询与禁用状态不再由代理缓存；禁用响应附 UE 端危险访问模式、逐项及会话门控状态。
 - 移除 NexusLink 自身对官方 Toolset / ToolsetRegistry 的直接构建依赖和运行路由，编辑器、Slate、Automation、资产编辑、Sequencer / ControlRig、PCG 与 Niagara 统一由 NexusLink 直接调用引擎领域 API，报告 `Backend=Independent`；以插件模块声明、执行引用及 Windows DLL 常规/延迟直接导入均为 0 验收，提供源码与产物门禁；标准领域模块的传递依赖遵循官方引擎要求，按引擎版本与领域插件开放能力。
 - `GetProjectToolsets` 改为发现 NexusLink 自有能力分组与动作 Schema；`GetProjectSkills` 直接发现项目及启用插件中的 `SKILL.md`；`SearchAssetsSemantic` 直接使用可选 SemanticSearch 领域服务，仍需配置 Embedding provider。

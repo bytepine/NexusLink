@@ -21,7 +21,7 @@ void FNexusManageGameplayTagsCapability::BuildDefinition(FNexusCapabilityDefinit
         .Prop(TEXT("Comment"), FNexusSchema::Str(TEXT("Add developer comment"))).Build();
     Out.InputSchema = FNexusSchema::Object().Required(TEXT("Tag"), FNexusSchema::Str(TEXT("Single target tag; subsequent operations follow the renamed name")))
         .Required(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Ordered edits; prior successful config writes are retained after failure"), Operation.ToSharedRef())).Build();
-    Out.Tags = {FNexusMcpTags::Editor, FNexusMcpTags::Write, FNexusMcpTags::Dangerous};
+    Out.Tags = {FNexusMcpTags::Editor, FNexusMcpTags::Write};
     Out.bAutoTransaction = false; Out.bAllowBatch = false; Out.bCacheable = false;
     Out.RelatedCapabilities = {TEXT("GetGameplayTags")}; Out.ExtraSearchKeywords = {TEXT("tag"), TEXT("gameplaytags"), TEXT("rename"), TEXT("source")};
 }
