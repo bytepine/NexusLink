@@ -13,6 +13,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
+#include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusAssetEditorUtils, Log, All);
 
@@ -25,6 +26,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogNexusAssetEditorUtils, Log, All);
 #include "Components/Widget.h"
 #include "HAL/FileManager.h"
 #include "UObject/UObjectHash.h"
+#include "FileHelpers.h"
 #if PLATFORM_WINDOWS
 #include "ILiveCodingModule.h"
 #endif
@@ -459,6 +461,10 @@ FNexusAssetEditorUtils::FAssetCreateOutcome FNexusAssetEditorUtils::CreateBluepr
 void NexusInstallAssetEditorUtilsHooks()
 {
 	FNexusEditorServices::ApplyManageFinalize = &FNexusAssetEditorUtils::ApplyManageFinalize;
+	FNexusEditorServices::SaveMapPackage = [](UWorld* World, const FString& Filename)
+	{
+		return World && World->PersistentLevel && FEditorFileUtils::SaveLevel(World->PersistentLevel, Filename);
+	};
 }
 #else
 void NexusInstallAssetEditorUtilsHooks() {}

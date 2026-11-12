@@ -9,6 +9,7 @@
 #include "Utils/NexusBlueprintEditUtils.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
+#include "AI/Navigation/NavigationDataChunk.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "NexusMcpTool.h"
@@ -43,7 +44,7 @@ TSharedPtr<FJsonObject> FNexusGetAssetLevelCapability::BuildCapabilitySchema() c
 
 TArray<FString> FNexusGetAssetLevelCapability::GetSectionNames() const
 {
-	return { TEXT("Actors"), TEXT("Settings"), TEXT("ActorProperties") };
+	return { TEXT("Actors"), TEXT("Settings"), TEXT("ActorProperties"), TEXT("Navigation") };
 }
 
 TArray<FString> FNexusGetAssetLevelCapability::GetDefaultSectionNames() const
@@ -95,6 +96,24 @@ void FNexusGetAssetLevelCapability::ExecuteSection(const FString&               
 	if (SectionName == TEXT("Actors"))
 	{
 		FNexusEditorLevelUtils::AppendLevelActorsSection(World, Args, InOutDetail);
+	}
+	else if (SectionName == TEXT("Navigation"))
+	{
+		ULevel* Level = FNexusEditorLevelUtils::ResolveLevel(World);
+		if (!Level) { OutError = TEXT("Requested level is unavailable"); return; }
+		InOutDetail->SetStringField(TEXT("LevelPath"), Level->GetOutermost()->GetName());
+		InOutDetail->SetBoolField(TEXT("bVisible"), Level->bIsVisible);
+		InOutDetail->SetNumberField(TEXT("NavDataChunkCount"), Level->NavDataChunks.Num());
+		TArray<TSharedPtr<FJsonValue>> Chunks;
+		for (UNavigationDataChunk* Chunk : Level->NavDataChunks)
+		{
+			if (!Chunk || Chunks.Num() >= 100) continue;
+			auto Item = MakeShared<FJsonObject>();
+			Item->SetStringField(TEXT("Path"), Chunk->GetPathName());
+			Item->SetStringField(TEXT("Class"), Chunk->GetClass()->GetPathName());
+			Chunks.Add(MakeShared<FJsonValueObject>(Item));
+		}
+		InOutDetail->SetArrayField(TEXT("NavDataChunks"), Chunks);
 	}
 	else if (SectionName == TEXT("Settings"))
 	{

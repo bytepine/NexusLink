@@ -6,6 +6,7 @@
 #include "NexusCapabilityRegistry.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusBlendSpaceCompat.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Animation/Skeleton.h"
 #include "Animation/AnimSequence.h"
@@ -51,7 +52,7 @@ FCapabilityResult FNexusGetAssetBlendSpaceCapability::Execute(const TSharedPtr<F
 		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
 		Entry->SetStringField(TEXT("Path"), Path);
 
-		UBlendSpace* BS = FNexusAssetUtils::LoadAssetWithFallback<UBlendSpace>(Path);
+		FNexusBlendSpaceAsset* BS = FNexusAssetUtils::LoadAssetWithFallback<FNexusBlendSpaceAsset>(Path);
 		if (!BS)
 		{
 			Entry->SetStringField(TEXT("Error"),

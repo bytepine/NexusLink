@@ -20,6 +20,7 @@
 - **独立引擎后端**：[官方 Toolset 直接依赖及调用为 0，支持 Windows DLL 导入检查；引擎传递依赖边界](docs/toolset-backends.md)。
 - **编辑器兼容扩展**：[参数/UMG、网格生成、场景整理与蓝图图编辑](docs/editor-compatibility.md)，含变量 ToolTip、Replication/RepNotify 与无参函数 CallInEditor 的配置和回读；[UMG、材质、项目配置与 Sequencer 扩展](docs/editor-remaining-toolsets.md)。关卡组件默认值比较和恢复支持 SCS 继承覆盖模板。
 - **动画与领域动作**：[Sequencer / Control Rig、Niagara 深层写入、Game Features 与自有动作发现](docs/animation-niagara-gamefeatures-toolsets.md)。
+- **动画与关卡检查**：UE4 BlendSpace1D 读写与 1D 插值重建、UE 4.26+ 骨骼采样、嵌套状态图路径、隐藏关卡导航数据块及原生流送地图保存；约束见[功能补充](docs/feature-followups.md)与[保存说明](docs/usage-guide.md#修改了属性但-ue-中没有生效--磁盘未变化)。
 - **参数与项目数据编辑**：[PCG 参数闭环、PhysicsAsset 精细编辑、GameplayTags 配置与 DataRegistry 查询](docs/pcg-physics-tags-dataregistry.md)。
 - **MVVM 数据绑定**：[ViewModel / 控件 / WBP 属性路径、绑定方向和单输入转换函数](docs/mvvm-bindings.md)（UE 5.5+）。
 

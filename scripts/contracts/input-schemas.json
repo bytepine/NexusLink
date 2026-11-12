@@ -3551,10 +3551,10 @@
             "SampleIndex": {
               "type": "integer"
             },
-            "x": {
+            "X": {
               "type": "number"
             },
-            "y": {
+            "Y": {
               "type": "number"
             }
           },

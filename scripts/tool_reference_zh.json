@@ -439,6 +439,12 @@
     "GetProjectToolsets": "发现 NexusLink 自有 Capability 分组、输入/输出 Schema 和动作级支持状态；不读取外部 Registry，不提供任意执行。"
   },
   "param_text": {
+    "AnimGraph or nested state graph name/path from GraphOverview; default AnimGraph": "GraphOverview 返回的动画图或嵌套状态图名称/完整路径；默认 AnimGraph",
+    "Axis index: 0 for 1D; 0=horizontal, 1=vertical for 2D (SetAxis)": "轴索引：1D 仅 0；2D 的 0 为横轴、1 为纵轴（SetAxis）",
+    "Axis grid divisions, 1-256 (SetAxis)": "轴网格分段数，1–256（SetAxis）",
+    "Verify scalar SetActorProperty before saving; ResetActorPropertyToDefault may share the batch without ExpectedValue": "保存前校验 SetActorProperty 标量写入；可同批恢复默认值，恢复操作不接受 ExpectedValue",
+    "Verify scalar SetDefaults/SetComponentProperty before saving; bCompile controls one final compilation; component resets may share the batch without ExpectedValue": "保存前校验 SetDefaults/SetComponentProperty 标量写入；bCompile 控制一次收尾编译；可同批恢复组件默认值，恢复操作不接受 ExpectedValue",
+    "SCS variable name or native component object/member name for property edits; native defaults also support SetDefaults with a member path such as Mesh.bHiddenInGame": "SCS 变量名或原生组件对象/成员名；原生默认值也可用 SetDefaults 成员路径（如 Mesh.bHiddenInGame）修改",
     "Child Widget name substring; must match exactly one active widget. Required unless WidgetPath is provided": "子控件名称子串；必须唯一命中活动控件。未提供 WidgetPath 时必填",
     "Exact live instance Path from ListRuntimeWidgets; never falls back to name. If WidgetName/OwnerClass are also supplied they must match": "ListRuntimeWidgets 返回的完整实例 Path；精确匹配，不回退名称。同时提供 WidgetName/OwnerClass 时也必须匹配",
     "Bookmarks to return": "返回的 Bookmark 条数",

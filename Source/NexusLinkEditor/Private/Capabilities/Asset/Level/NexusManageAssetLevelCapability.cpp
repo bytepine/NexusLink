@@ -113,7 +113,7 @@ void FNexusManageAssetLevelCapability::BuildDefinition(FNexusCapabilityDefinitio
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Level asset path (e.g. /Game/Maps/MyLevel)")))
-		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar SetActorProperty operations before saving"), true, false))
+		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar SetActorProperty before saving; ResetActorPropertyToDefault may share the batch without ExpectedValue"), true, false))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();

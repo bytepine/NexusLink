@@ -176,6 +176,7 @@ TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::BuildBPGraphSummary(const UEd
 {
 	TSharedPtr<FJsonObject> GObj = MakeShared<FJsonObject>();
 	GObj->SetStringField(TEXT("GraphName"), Graph->GetName());
+	GObj->SetStringField(TEXT("GraphPath"), Graph->GetPathName());
 	GObj->SetStringField(TEXT("GraphType"), GetBPGraphType(Graph));
 	int32 En = 0, Dis = 0;
 	for (const UEdGraphNode* Node : Graph->Nodes)

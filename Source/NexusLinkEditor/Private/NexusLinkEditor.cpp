@@ -91,6 +91,7 @@ void FNexusLinkEditorModule::StartupModule()
 
 void FNexusLinkEditorModule::ShutdownModule()
 {
+	FNexusEditorServices::SaveMapPackage = [](UWorld*, const FString&) { return false; };
 	FNexusCommonUIDiagnostics::Shutdown();
 	FNexusEditorControlServices::Shutdown();
 #if NX_UE_HAS_POST_ENGINE_INIT_ACCESSOR

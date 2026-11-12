@@ -4,6 +4,8 @@ NexusLink MCP: Unreal Editor + runtime control (assets / PIE / UMG / animation /
 
 ## Tool model
 
+`GetEditorInfo` is Editor-only. After switching to Game/DS, use instance discovery metadata (projectName/engineVersion/hostKind/netRole/hasPlayWorld) or the host `/status` endpoint for identity; do not reuse Editor-only calls on that process.
+
 Meta-tools: `SearchCapabilities`, `CallCapability`, `SubmitFeedback` (direct `tools/call`). Everything else is a capability via `CallCapability(Capability, Arguments)`; `Arguments` must be a nested object.
 
 ## First action

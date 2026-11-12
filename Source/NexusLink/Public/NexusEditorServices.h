@@ -7,6 +7,7 @@
 struct FCapabilityResult;
 class FJsonObject;
 class UPackage;
+class UWorld;
 
 /**
  * FNexusEditorTransaction::Begin() 返回的不透明事务句柄。
@@ -45,6 +46,8 @@ struct NEXUSLINK_API FNexusEditorServices
 	FNexusEditorServices() = delete;
 
 	static TFunction<void(const FString& AssetPath, bool bCompile, bool bSaveToDisk, TSharedPtr<FJsonObject>& OutTop)> ApplyManageFinalize;
+	/** 地图在文件权限预检后交给编辑器原生 SaveLevel/SaveWorld，避免通用资产保存选错对象。 */
+	static TFunction<bool(UWorld* World, const FString& Filename)> SaveMapPackage;
 	static TFunction<TUniquePtr<INexusTransactionHandle>(const FString& Title)> BeginTransaction;
 	static TFunction<bool()> IsTransactionActive;
 	static TFunction<int32()> GetActiveTransactionRecordCount;

@@ -41,11 +41,15 @@ bool FNexusAssetEditUtils::ValidateOperations(const FString& Capability, const T
 	{
 		if (!Value.IsValid() || Value->Type != EJson::Object) continue;
 		const TSharedPtr<FJsonObject> Operation = Value->AsObject();
-		if ((IsVerified(Args) || Operation->HasField(TEXT("ExpectedValue")))
-			&& !FNexusArgs(Operation).Str(TEXT("Action")).Equals(SupportedEditAction(Capability), ESearchCase::IgnoreCase)
-			&& !(Capability == TEXT("ManageAssetBlueprint") && FNexusArgs(Operation).Str(TEXT("Action")) == TEXT("SetComponentProperty")))
+		const FString Action = FNexusArgs(Operation).Str(TEXT("Action"));
+		const bool bScalarSet = Action.Equals(SupportedEditAction(Capability), ESearchCase::IgnoreCase)
+			|| (Capability == TEXT("ManageAssetBlueprint") && Action == TEXT("SetComponentProperty"));
+		// bVerify 只作用于标量 Set；同批 Reset 走自身的默认值校验，不接受 ExpectedValue。
+		const bool bReset = (Capability == TEXT("ManageAssetLevel") && Action == TEXT("ResetActorPropertyToDefault"))
+			|| (Capability == TEXT("ManageAssetBlueprint") && Action == TEXT("ResetComponentPropertyToDefault"));
+		if (!bScalarSet && (Operation->HasField(TEXT("ExpectedValue")) || (IsVerified(Args) && !bReset)))
 		{
-			Error = TEXT("bVerify / ExpectedValue require a supported scalar set operation");
+			Error = TEXT("ExpectedValue requires a supported scalar set; bVerify batches support scalar sets and resets only");
 			return false;
 		}
 	}

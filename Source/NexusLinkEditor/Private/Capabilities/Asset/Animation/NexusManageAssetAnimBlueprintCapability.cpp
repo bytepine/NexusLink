@@ -27,7 +27,9 @@
 #include "AnimationGraph.h"
 #include "AnimationGraphSchema.h"
 #include "AnimationStateGraph.h"
+#include "AnimationStateGraphSchema.h"
 #include "AnimationTransitionGraph.h"
+#include "AnimationTransitionSchema.h"
 #include "AnimStateNode.h"
 #include "AnimStateNodeBase.h"
 #include "AnimStateTransitionNode.h"
@@ -83,7 +85,7 @@ void FNexusManageAssetAnimBlueprintCapability::BuildDefinition(FNexusCapabilityD
 			  TEXT("AddTransition"),    TEXT("RemoveTransition"),
 			  TEXT("AddNode"), TEXT("RemoveNode"), TEXT("SetNode"),
 			  TEXT("Connect"), TEXT("Disconnect"), TEXT("Retarget") }))
-		.Prop(TEXT("GraphName"),        FNexusSchema::Str(TEXT("Owning AnimGraph name (default AnimGraph)")))
+		.Prop(TEXT("GraphName"),        FNexusSchema::Str(TEXT("AnimGraph or nested state graph name/path from GraphOverview; default AnimGraph")))
 		.Prop(TEXT("StateMachineName"), FNexusSchema::Str(TEXT("State machine name (bound graph)")))
 		.Prop(TEXT("StateName"),        FNexusSchema::Str(TEXT("State name (add/RemoveState, transition source)")))
 		.Prop(TEXT("TargetStateName"),  FNexusSchema::Str(TEXT("Transition target state name")))
@@ -283,7 +285,7 @@ static void HandleABP_AddState(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 	UEdGraph* StateGraph = FBlueprintEditorUtils::CreateNewGraph(
 		StateNode, FName(*StateName),
 		UAnimationStateGraph::StaticClass(),
-		UAnimationGraphSchema::StaticClass());
+		UAnimationStateGraphSchema::StaticClass());
 	if (StateGraph)
 	{
 		const UEdGraphSchema* Schema = StateGraph->GetSchema();
@@ -409,7 +411,7 @@ static void HandleABP_AddTransition(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	UEdGraph* RuleGraph = FBlueprintEditorUtils::CreateNewGraph(
 		Trans, FName(*FString::Printf(TEXT("Trans_%s_to_%s"), *SourceName, *TargetName)),
 		UAnimationTransitionGraph::StaticClass(),
-		UAnimationGraphSchema::StaticClass());
+		UAnimationTransitionSchema::StaticClass());
 	if (RuleGraph)
 	{
 		const UEdGraphSchema* Schema = RuleGraph->GetSchema();
@@ -681,7 +683,6 @@ void FNexusManageAssetAnimBlueprintCapability::FinalizeTarget(void* Target) cons
 	if (State->bModified && State->AnimBP)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsModified(State->AnimBP);
-		FKismetEditorUtilities::CompileBlueprint(State->AnimBP);
 	}
 	delete State;
 #else

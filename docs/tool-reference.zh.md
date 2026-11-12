@@ -1765,7 +1765,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Sections` | `string[]` |  | 查询段（可多选）: `Actors` / `Settings` / `ActorProperties` |
+| `Sections` | `string[]` |  | 查询段（可多选）: `Actors` / `Settings` / `ActorProperties` / `Navigation` |
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `ClassFilter` | `string` |  | Actor 类名过滤（可选） |
 | `NameFilter` | `string` |  | 名称或标签过滤（可选） |
@@ -2452,7 +2452,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `bVerify` | `boolean` |  | Verify scalar SetActorProperty operations before saving |
+| `bVerify` | `boolean` |  | 保存前校验 SetActorProperty 标量写入；可同批恢复默认值，恢复操作不接受 ExpectedValue |
 | `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(SetProperty/SpawnActor/CreateNavMeshBoundsVolume/ResizeNavMeshBoundsVolume/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `X`, `Y`, `Z`, `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -3007,7 +3007,7 @@
 | `AssetPath` | `string` | ★ | 蓝图资产路径 |
 | `ExpectedStructureHash` | `string` |  | Precondition hash from GetAssetEditPreview |
 | `bVerifyStructure` | `boolean` |  | Verify RemoveNode/Disconnect/DisconnectAll against an isolated structural plan |
-| `bVerify` | `boolean` |  | Verify scalar SetDefaults/SetComponentProperty before saving; bCompile controls a single final compilation |
+| `bVerify` | `boolean` |  | 保存前校验 SetDefaults/SetComponentProperty 标量写入；bCompile 控制一次收尾编译；可同批恢复组件默认值，恢复操作不接受 ExpectedValue |
 | `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(AddVariable/RemoveVariable/RenameVariable/RenameLocalVariable/ChangeVariableType/SetVariableMetadata/SetVariableReplication/SetFunctionCallInEditor…), `Code`, `GraphNodes`, `GraphLinks`, `ParameterName`, `bInput`, `Category`, `bEditable`, `ToolTip`, `Replication`(None/Replicated/RepNotify), `RepNotifyFunction`, `bCallInEditor`, `GraphName`, `VariableName`, `VariableType`, `NewVariableName`, `ParentClass`, `bAllowPotentialDataLoss`, `DefaultValue`, `bIsPublic`, `bIsLocal`, `NodeId`, `NodeClass`, `FunctionName`, `FunctionClass`, `InterfaceName`, `PosX`, `PosY`, `Comment`, `PinName`, `PinDefaultValue`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `ComponentClass`, `Baseline`(ParentTemplate/ClassDefault), `ComponentName`, `AttachTo`, `SourceAssetPath`, `SourceComponentName`, `PropertyPath`, `Value`, `ExpectedValue` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `bCompile` | `boolean` |  | 需要时编译蓝图（仅 BP/ABP/WBP） |
@@ -3089,6 +3089,7 @@
 |------|------|:----:|------|
 | `Sections` | `string[]` |  | 查询段（可多选）: `Variables` / `statemachines` / `Defaults` / `graphOverview` / `graph` |
 | `AssetPath` | `string` |  | 动画蓝图资产路径 |
+| `GraphName` | `string` |  | GraphOverview 返回的动画图或嵌套状态图名称/完整路径；默认 AnimGraph |
 | `NameFilter` | `string` |  | 变量/默认值名称过滤 |
 
 **相关 Capability**: `ManageAssetAnimBlueprint`, `CreateAssetAnimBlueprint`

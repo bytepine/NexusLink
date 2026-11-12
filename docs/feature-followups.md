@@ -43,7 +43,9 @@ GetEditorPCG NodeData 支持单执行栈的点数据（Transform、Density、See
 
 ## 骨骼姿态采样
 
-GetAssetAnimSequence 在 UE 5.2+ 可传 BoneNames（1–32 个实际骨架名称）与 SampleTimes（1–128 个片段内秒数），返回本地空间 BoneSamples：Translation、XYZW 顺序的 RotationQuaternion 与 Scale。未传采样参数时保持元数据查询。此批不含骨骼轨道写入、裁剪或重采样。
+GetAssetAnimSequence 在 UE 4.26+ 可传 BoneNames（1–32 个实际骨架名称）与 SampleTimes（1–128 个片段内秒数），返回本地空间 BoneSamples：Translation、XYZW 顺序的 RotationQuaternion 与 Scale。未传采样参数时保持元数据查询。此批不含骨骼轨道写入、裁剪或重采样。
+
+GetAssetBlendSpace / ManageAssetBlendSpace 同时支持 1D 与 2D。1D 仅允许 AxisIndex=0，修改后自动重建插值网格；UE4 的 2D 修改仍需在 BlendSpace 编辑器重建网格，响应提供 RebuildNote。SetAxis 要求有限且 Max > Min，GridNum 为 1–256；AddSample 使用引擎的坐标、重复样本及动画兼容性校验。动画蓝图的 GraphName 可使用 GraphOverview 返回的嵌套状态图名称或 GraphPath；同名图必须用完整路径。状态和过渡使用对应的原生图 Schema，中间编辑不隐式编译，完成连接后显式传 bCompile=true 验证和保存。
 
 ## 所属任务历史与取消
 

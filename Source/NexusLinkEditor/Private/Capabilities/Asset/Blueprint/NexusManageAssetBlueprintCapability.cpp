@@ -131,7 +131,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("TargetPinName"),   FNexusSchema::Str(TEXT("Target pin name")))
 		.Prop(TEXT("ComponentClass"),  FNexusSchema::Str(TEXT("Component class (AddComponent), e.g. StaticMeshComponent")))
 		.Prop(TEXT("Baseline"), FNexusSchema::Enum(TEXT("Component reset baseline"), {TEXT("ParentTemplate"), TEXT("ClassDefault")}, TEXT("ParentTemplate")))
-		.Prop(TEXT("ComponentName"),   FNexusSchema::Str(TEXT("SCS variable name (add/remove/SetComponentProperty/CopyComponent/ReattachComponent)")))
+		.Prop(TEXT("ComponentName"),   FNexusSchema::Str(TEXT("SCS variable name or native component object/member name for property edits; native defaults also support SetDefaults with a member path such as Mesh.bHiddenInGame")))
 		.Prop(TEXT("AttachTo"),        FNexusSchema::Str(TEXT("Parent component. Current SCS, inherited SCS, or a native component. AddComponent defaults to the scene root.")))
 		.Prop(TEXT("SourceAssetPath"), FNexusSchema::Str(TEXT("Source Blueprint (CopyComponent)")))
 		.Prop(TEXT("SourceComponentName"), FNexusSchema::Str(TEXT("Source SCS variable (CopyComponent)")))
@@ -144,7 +144,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("Blueprint asset path")))
 		.Prop(TEXT("ExpectedStructureHash"), FNexusSchema::Str(TEXT("Precondition hash from GetAssetEditPreview")))
 		.Prop(TEXT("bVerifyStructure"), FNexusSchema::Bool(TEXT("Verify RemoveNode/Disconnect/DisconnectAll against an isolated structural plan"), true, false))
-		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar SetDefaults/SetComponentProperty before saving; bCompile controls a single final compilation"), true, false))
+		.Prop(TEXT("bVerify"), FNexusSchema::Bool(TEXT("Verify scalar SetDefaults/SetComponentProperty before saving; bCompile controls one final compilation; component resets may share the batch without ExpectedValue"), true, false))
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
@@ -1219,6 +1219,7 @@ void FNexusManageAssetBlueprintCapability::Finalize(const TSharedPtr<FJsonObject
 	for (int32 EntryIndex = Result.Entries.Num() - 1; EntryIndex >= 0; --EntryIndex)
 	{
 		TSharedPtr<FJsonObject> Entry = Result.Entries[EntryIndex]->AsObject();
+		if (!Entry->HasField(TEXT("bVerified"))) continue;
 		const FString PropertyPath = FNexusArgs(Entry).Str(TEXT("ComponentName")) + TEXT(":") + FNexusArgs(Entry).Str(TEXT("PropertyPath"));
 		// 同一属性可顺序写多次：前项已做即时回读，收尾只验证最后一次写入。
 		if (VerifiedPaths.Contains(PropertyPath)) continue;

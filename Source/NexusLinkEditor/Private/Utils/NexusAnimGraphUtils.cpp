@@ -1,6 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 
 #include "Utils/NexusAnimGraphUtils.h"
+#include "Utils/NexusBlueprintGraphUtils.h"
 
 #if WITH_EDITOR
 
@@ -18,14 +19,20 @@ UEdGraph* FNexusAnimGraphUtils::FindAnimGraph(UAnimBlueprint* BP, const FString&
 	if (!BP) return nullptr;
 
 	const FString WantName = GraphName.IsEmpty() ? TEXT("AnimGraph") : GraphName;
-	for (UEdGraph* G : BP->FunctionGraphs)
+	TArray<UEdGraph*> Graphs;
+	FNexusBlueprintGraphUtils::CollectAllGraphs(BP, Graphs);
+	UEdGraph* Found = nullptr;
+	for (UEdGraph* G : Graphs)
 	{
+		if (G && G->GetPathName() == WantName) return G;
 		if (G && G->GetName() == WantName)
 		{
-			return G;
+			// 重名子图必须提供 GraphOverview 中的完整路径，避免改错状态。
+			if (Found) return nullptr;
+			Found = G;
 		}
 	}
-	return nullptr;
+	return Found;
 }
 
 UAnimGraphNode_StateMachineBase* FNexusAnimGraphUtils::FindStateMachineNode(UEdGraph* AnimGraph, const FString& NodeName)

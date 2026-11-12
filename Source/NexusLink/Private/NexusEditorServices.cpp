@@ -10,6 +10,9 @@
 TFunction<void(const FString&, bool, bool, TSharedPtr<FJsonObject>&)> FNexusEditorServices::ApplyManageFinalize =
 	[](const FString&, bool, bool, TSharedPtr<FJsonObject>&) {};
 
+TFunction<bool(UWorld*, const FString&)> FNexusEditorServices::SaveMapPackage =
+	[](UWorld*, const FString&) { return false; };
+
 TFunction<TUniquePtr<INexusTransactionHandle>(const FString&)> FNexusEditorServices::BeginTransaction =
 	[](const FString&) -> TUniquePtr<INexusTransactionHandle> { return nullptr; };
 

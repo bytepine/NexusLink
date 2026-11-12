@@ -38,6 +38,7 @@ TSharedPtr<FJsonObject> FNexusGetAssetAnimBlueprintCapability::BuildCapabilitySc
 {
 	return FNexusSchema::Object()
 		.Prop(TEXT("AssetPath"),  FNexusSchema::Str(TEXT("AnimBlueprint asset path")))
+		.Prop(TEXT("GraphName"), FNexusSchema::Str(TEXT("AnimGraph or nested state graph name/path from GraphOverview; default AnimGraph")))
 		.Prop(TEXT("NameFilter"), FNexusSchema::Str(TEXT("Variable/default name filter")))
 		.Build();
 }

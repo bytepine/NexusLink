@@ -27,7 +27,7 @@
 }
 ```
 
-`bVerify` 默认关闭；启用后仅接受上述对应操作。蓝图 `SetDefaults` 先检查前值、在 Undo 记录后写入并即时回读；整批完成后，仅在 `bCompile=true` 时编译一次，再重新定位最终属性并回读，验证成功后按 `bSaveToDisk` 保存。`bCompile=false`（默认）只验证当前内存中的值，`ExpectedValue` 与 `bVerify` 均不会触发完整蓝图编译。同一属性顺序写多次时，收尾验证最后一次写入；此前各项保留即时回读结果。WBP `SetProperty` 的验证仍会编译后回读。结果提供 `OldValue`、`NewValue`、`ReadbackValue`、`bWritten`、`bVerified`、`Verification`；编译错误、读取不一致及保存错误分别报告。未请求验证时为 `Verification=NotRequested`。
+`bVerify` 默认关闭；启用后校验上述对应的标量操作。关卡及蓝图组件批次允许混入 `ResetActorPropertyToDefault` / `ResetComponentPropertyToDefault`（含数组恢复），恢复操作不接受 `ExpectedValue`，仍走自身的默认值检查；其他不支持的操作在任何写入前拒绝。蓝图 `SetDefaults` 先检查前值、在 Undo 记录后写入并即时回读；整批完成后，仅在 `bCompile=true` 时编译一次，再重新定位最终属性并回读，验证成功后按 `bSaveToDisk` 保存。`bCompile=false`（默认）只验证当前内存中的值，`ExpectedValue` 与 `bVerify` 均不会触发完整蓝图编译。同一属性顺序写多次时，收尾验证最后一次写入；此前各项保留即时回读结果。WBP `SetProperty` 的验证仍会编译后回读。结果提供 `OldValue`、`NewValue`、`ReadbackValue`、`bWritten`、`bVerified`、`Verification`；编译错误、读取不一致及保存错误分别报告。未请求验证时为 `Verification=NotRequested`。
 
 单次 Manage 保持部分成功：前项成功的修改保留，任何验证失败阻止该调用自动保存，不能描述为资产已还原。跨调用 `CallCapability.Calls` 批次沿用事务回滚，保存在内存事务完成后进行，保存失败不宣称磁盘整体回滚。失败写入不自动重试。
 

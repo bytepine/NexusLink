@@ -1731,7 +1731,7 @@ Inspect level actors, settings and object property values versus class defaults;
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `Sections` | `string[]` |  | Sections (multi-select): `Actors` / `Settings` / `ActorProperties` |
+| `Sections` | `string[]` |  | Sections (multi-select): `Actors` / `Settings` / `ActorProperties` / `Navigation` |
 | `AssetPath` | `string` | ★ | Level asset path (/Game/.../*.umap package path) |
 | `ClassFilter` | `string` |  | Actor class name filter (optional) |
 | `NameFilter` | `string` |  | Actor name/tag filter (optional) |
@@ -2418,7 +2418,7 @@ Batch edit level WorldSettings and Actors. Action=spawn/remove/SetProperty/Reset
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | Level asset path (e.g. /Game/Maps/MyLevel) |
-| `bVerify` | `boolean` |  | Verify scalar SetActorProperty operations before saving |
+| `bVerify` | `boolean` |  | Verify scalar SetActorProperty before saving; ResetActorPropertyToDefault may share the batch without ExpectedValue |
 | `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetProperty/SpawnActor/CreateNavMeshBoundsVolume/ResizeNavMeshBoundsVolume/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `X`, `Y`, `Z`, `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
@@ -2973,7 +2973,7 @@ Batch edit BP graphs, variables/types, inheritance, defaults and components. Com
 | `AssetPath` | `string` | ★ | Blueprint asset path |
 | `ExpectedStructureHash` | `string` |  | Precondition hash from GetAssetEditPreview |
 | `bVerifyStructure` | `boolean` |  | Verify RemoveNode/Disconnect/DisconnectAll against an isolated structural plan |
-| `bVerify` | `boolean` |  | Verify scalar SetDefaults/SetComponentProperty before saving; bCompile controls a single final compilation |
+| `bVerify` | `boolean` |  | Verify scalar SetDefaults/SetComponentProperty before saving; bCompile controls one final compilation; component resets may share the batch without ExpectedValue |
 | `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(AddVariable/RemoveVariable/RenameVariable/RenameLocalVariable/ChangeVariableType/SetVariableMetadata/SetVariableReplication/SetFunctionCallInEditor…), `Code`, `GraphNodes`, `GraphLinks`, `ParameterName`, `bInput`, `Category`, `bEditable`, `ToolTip`, `Replication`(None/Replicated/RepNotify), `RepNotifyFunction`, `bCallInEditor`, `GraphName`, `VariableName`, `VariableType`, `NewVariableName`, `ParentClass`, `bAllowPotentialDataLoss`, `DefaultValue`, `bIsPublic`, `bIsLocal`, `NodeId`, `NodeClass`, `FunctionName`, `FunctionClass`, `InterfaceName`, `PosX`, `PosY`, `Comment`, `PinName`, `PinDefaultValue`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `ComponentClass`, `Baseline`(ParentTemplate/ClassDefault), `ComponentName`, `AttachTo`, `SourceAssetPath`, `SourceComponentName`, `PropertyPath`, `Value`, `ExpectedValue` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 | `bCompile` | `boolean` |  | Compile blueprint if needed (BP/ABP/WBP only) |
@@ -3055,6 +3055,7 @@ Inspect ABP structure. Sections=variables|statemachines|defaults|graphOverview|g
 |------|------|:----:|------|
 | `Sections` | `string[]` |  | Sections (multi-select): `Variables` / `statemachines` / `Defaults` / `graphOverview` / `graph` |
 | `AssetPath` | `string` |  | AnimBlueprint asset path |
+| `GraphName` | `string` |  | AnimGraph or nested state graph name/path from GraphOverview; default AnimGraph |
 | `NameFilter` | `string` |  | Variable/default name filter |
 
 **Related capabilities**: `ManageAssetAnimBlueprint`, `CreateAssetAnimBlueprint`

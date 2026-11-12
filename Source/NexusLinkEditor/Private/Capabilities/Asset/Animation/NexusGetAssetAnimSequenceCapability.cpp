@@ -9,6 +9,9 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
 #include "Utils/NexusVersionCompat.h"
+#if !NX_UE_HAS_ANIM_SKELETON_BONE_TRANSFORM
+#include "AnimationBlueprintLibrary.h"
+#endif
 #include "NexusMcpTool.h"
 
 void FNexusGetAssetAnimSequenceCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -78,7 +81,7 @@ FCapabilityResult FNexusGetAssetAnimSequenceCapability::Execute(const TSharedPtr
 #elif NX_UE_HAS_ANIM_SKELETON_BONE_TRANSFORM
 				Seq->GetBoneTransform(Transform, FSkeletonPoseBoneIndex(BoneIndex), Time->AsNumber(), true);
 #else
-				OutError = TEXT("Bone pose sampling requires UE 5.2+; metadata remains available"); return;
+				UAnimationBlueprintLibrary::GetBonePoseForTime(Seq, FName(*Name), static_cast<float>(Time->AsNumber()), false, Transform);
 #endif
 				auto Sample = MakeShared<FJsonObject>(); Sample->SetStringField(TEXT("BoneName"), Name); Sample->SetNumberField(TEXT("TimeSeconds"), Time->AsNumber());
 				const FVector Position = Transform.GetTranslation(), Scale = Transform.GetScale3D(); const FQuat Rotation = Transform.GetRotation();

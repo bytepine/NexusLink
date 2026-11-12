@@ -25,11 +25,13 @@
 ### Fixed
 
 - 编辑器模态窗口／慢任务期间拒绝普通请求并返回 `EditorBusy` 与 `bExecuted=false`；UE 5.9 通过本端口服务模态循环、慢任务进度及 Windows 原生对话框，保留 ping／状态响应，不自动重放写入。
-- 关卡 Actor 读取、预览、修改、生成和删除按实际 `ULevel` 限定所属包，正确处理已加载流送子关卡；返回实际 Actor/关卡路径，默认对象缺少实例化子对象时保留有效属性值并标记 `bDefaultUnavailable`，属性写入刷新组件变换及导航边界。
+- 关卡 Actor 读取、预览、修改、生成和删除按实际 `ULevel` 限定所属包，正确处理已加载流送子关卡；返回实际 Actor/关卡路径，默认对象缺少实例化子对象时保留有效属性值并标记 `bDefaultUnavailable`，属性写入刷新组件变换及导航边界；`GetAssetLevel/Navigation` 可读取隐藏关卡的导航数据块元信息。
 - 导航体积使用原生 CubeBuilder 建立实际尺寸、保持单位缩放，支持 `ResizeNavMeshBoundsVolume`；`ControlEditorLevel` 增加已有子关卡加载、显示、隐藏及设为当前关卡，导航保存预检返回 `DirtyLevelPaths`，关卡上下文附 `bDirty`。
-- 资产保存先检查只读及 Windows 文件替换权限，释放本包加载句柄；错误使用非致命输出及结构化诊断，失败保留脏标记，文件占用时不删除或截断已有资产。
+- 资产保存先检查只读及 Windows 文件替换权限，释放本包加载句柄；地图包验证实际 `UWorld/PersistentLevel` 后使用原生 `SaveLevel/SaveWorld`，避免流送子关卡走通用资产保存触发地图对象检查；错误使用非致命输出及结构化诊断，失败保留脏标记，文件占用时不删除或截断已有资产。
 - Slate 快照支持文本/控件类型筛选，附角色、提示、支持动作和焦点/勾选状态；修复 `SSearchBox` 替换输入失败。
-- 修复 UE 4.26 的动画默认参数文本导入与旧版 Sequencer 不支持 Override 混合类型导致的编译错误。
+- 修复 UE 4.26 的动画默认参数文本导入与旧版 Sequencer 不支持 Override 混合类型导致的编译错误；`GetAssetAnimSequence` 的骨骼姿态采样支持 UE 4.26–5.1。
+- 修复 UE4 `BlendSpace1D` 读取和编辑被误判为不存在，1D 修改自动重建插值网格；样本写入使用引擎校验，拒绝无效坐标、重复样本、骨架不兼容及无效轴范围。
+- 动画蓝图图读写支持嵌套状态图及完整 `GraphPath`，重名图要求完整路径，状态/过渡图使用对应原生 Schema，编辑后按显式 `bCompile` 收尾；关卡及蓝图组件的标量校验批次允许混入默认值恢复，恢复操作仍不接受 `ExpectedValue`。
 - 补充静态网格 LOD 参数、场景 Actor 与 Slate 窗口在使用前的空指针检查，避免异常状态下解引用空指针。
 
 ## [2.3.4] - 2026-11-10

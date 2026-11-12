@@ -591,6 +591,10 @@ Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性�
 
 `set_*_property` 改的是内存；须 `SaveAsset` 或 manage 传 `bSaveToDisk=true`。BP/ABP/WBP 可再传 `bCompile=true`。
 
+地图和已加载流送子关卡保存会验证包内的 `UWorld/PersistentLevel`，再走原生 `SaveLevel/SaveWorld`；无有效地图对象时返回结构化错误。`GetAssetLevel(Sections=["Navigation"])` 只读返回目标关卡的可见性、导航数据块数量及有界路径/类型列表，不加载或显示关卡。
+
+蓝图原生组件可用 `SetComponentProperty` 的实际组件对象名或反射成员名定位。若复杂组件写入超时，先回读确认状态；可改用 `SetDefaults` 的成员路径（如 `Mesh.SkeletalMesh`、`Mesh.AnimClass`、`CapsuleComponent.BodyInstance`），不要自动重放整批写入。
+
 `CallCapability.Calls[]`（≥2）把自动编译和保存延迟到全部业务操作完成后；任一操作或自动编译失败会尝试回滚记录过的内存修改，并跳过自动保存。条目错误、section 错误、编译/保存错误均会返回 `isError=true`，详情保留在 `structuredContent`。`bRolledBack` / `UndoNote` 说明是否执行了内存回滚；保存阶段不保证磁盘原子性，显式 `SaveAsset` / 创建 / 删除 / 重命名以及运行时副作用也不在该回滚范围内。单次 manage 的部分成功操作仍保留，不要把整条请求盲目重试。
 
 ### MCP 搜不到 GAS / Niagara 等能力

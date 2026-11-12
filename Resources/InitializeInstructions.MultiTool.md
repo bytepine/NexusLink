@@ -6,6 +6,8 @@ GAS: GetRuntimeActorAbilitySystem adds Context/Tags/ActivationDiagnostics/Activa
 
 ## Tool model
 
+`GetEditorInfo` is Editor-only. After switching to Game/DS, use instance discovery metadata (projectName/engineVersion/hostKind/netRole/hasPlayWorld) or the host `/status` endpoint for identity; do not reuse Editor-only calls on that process.
+
 `tools/list` exposes **all enabled capabilities** as separate MCP tools (name = capability name).
 
 - **Direct** `tools/call` — **do not** wrap with `CallCapability(Capability=...)`.

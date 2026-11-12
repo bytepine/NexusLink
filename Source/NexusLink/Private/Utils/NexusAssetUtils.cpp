@@ -2,12 +2,14 @@
 
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusPackageLedger.h"
+#include "NexusEditorServices.h"
 #include "Logging/LogMacros.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusAssetUtils, Log, All);
 
 #include "Engine/Blueprint.h"
 #include "Engine/World.h"
+#include "Engine/Level.h"
 #include "UObject/UObjectGlobals.h"
 #include "Engine/Texture2D.h"
 #include "Animation/AnimSequence.h"
@@ -304,6 +306,14 @@ bool FNexusAssetUtils::SaveNewAsset(UPackage* Package, UObject* Asset, const FSt
 		return false;
 	};
 	if (!Package) return Fail(TEXT("Package is null"));
+	UWorld* MapWorld = nullptr;
+	if (Package->ContainsMap() || (Asset && Asset->IsA(UWorld::StaticClass())))
+	{
+		MapWorld = UWorld::FindWorldInPackage(Package);
+		if (!MapWorld || !MapWorld->PersistentLevel || MapWorld->PersistentLevel->GetOuter() != MapWorld)
+			return Fail(TEXT("Map package has no valid UWorld/PersistentLevel; save was not attempted"));
+		Asset = MapWorld;
+	}
 	if (!FPackageName::TryConvertLongPackageNameToFilename(PackagePath, FilePath, GetPackageFileExtension(Package, Asset)))
 		return Fail(TEXT("Invalid package path: ") + PackagePath);
 	FilePath = FPaths::ConvertRelativePathToFull(FilePath);
@@ -322,6 +332,12 @@ bool FNexusAssetUtils::SaveNewAsset(UPackage* Package, UObject* Asset, const FSt
 			return Fail(FString::Printf(TEXT("Destination is locked or cannot be replaced (Windows error %lu): %s"), ::GetLastError(), *FilePath));
 		::CloseHandle(Probe);
 #endif
+	}
+	if (MapWorld)
+	{
+		if (!FNexusEditorServices::SaveMapPackage(MapWorld, FilePath))
+			return Fail(TEXT("Native map save failed or editor map-save service is unavailable: ") + FilePath);
+		return true;
 	}
 	FStringOutputDevice SaveErrors;
 	bool bSaved = false;
