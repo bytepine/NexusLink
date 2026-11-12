@@ -38,7 +38,7 @@ GPU 有有效已完成样本时返回 `GpuMs`；否则返回 `bGpuTimingAvailabl
 
 ## CSV 性能查询
 
-`GetProfilerCsv` 在 UE 5.7+ 编辑器可用，直接使用 CSVUtils：
+`GetProfilerCsv` 在 UE 5.7+ 编辑器可用：
 
 1. `Action=Files` 列出项目 Saved/Profiling 中的 CSV，返回 `CapturePath`。
 2. `Action=Summary` 读取该 `CapturePath` 的帧数、指标名与事件数量。
@@ -47,7 +47,7 @@ GPU 有有效已完成样本时返回 `GpuMs`；否则返回 `bGpuTimingAvailabl
 
 区间为半开 [FrameStart, FrameEnd)，FrameEnd=-1 表示末尾；非法或空区间明确拒绝。Offset／Limit 负责分页。不同指标的单位由捕获文件定义，不能把计数、字节都当作毫秒；非有限样本不参加聚合，返回实际 SampleCount。
 
-仅接受项目 Saved 下的文本 .csv，最多 16 MiB、50 万帧、8192 列、400 万样本。读取前检查矩形数据并建立内部临时快照，分析后清理，避免录制文件变化或损坏列导致原生读取器越界。Binary CSV 本版明确不支持；查询不启动录制，也不回传可能包含命令行等信息的全量 Metadata。
+仅接受项目 Saved 下的文本 .csv，最多 16 MiB、50 万帧、8192 列、400 万样本。在有界内存快照上使用引擎 CSV 解析器，保留空 `EVENTS` 列、引号及逗号，避免统计列错位；支持尾部完整表头，流式捕获早期尚未出现的尾列按零处理。列数超出表头、重复统计名及无效帧区间明确拒绝。Binary CSV 本版明确不支持；查询不启动录制，也不回传可能包含命令行等信息的全量 Metadata。
 
 ## UMG 属性来源与连接
 

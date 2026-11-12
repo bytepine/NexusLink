@@ -9,14 +9,12 @@
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
-#include "Misc/ScopeExit.h"
-#include "Misc/Parse.h"
 #include "Serialization/Csv/CsvParser.h"
 #if NX_UE_HAS_CSV_PROFILER_UTILS
 #include "CSVProfilerUtils.h"
 
-/** 原生读取器假设矩形数据；先检查有界快照，避免坏 CSV 的列越界或过大分配。 */
-static bool NexusValidateProfilerCsv(const TArray<FString>& Lines, FString& Error)
+/** 原生读取器的分词器会吞掉空列；用 CSV 解析器读取有界快照并保留事件/统计值列位置。 */
+static bool NexusReadProfilerCsv(const TArray<FString>& Lines, CsvUtils::FCsvProfilerCapture& Capture, FString& Error)
 {
 	int32 End = Lines.Num(); bool bHeaderAtEnd = false;
 	if (End < 2) { Error = TEXT("CSV requires a header and frame rows"); return false; }
@@ -33,14 +31,44 @@ static bool NexusValidateProfilerCsv(const TArray<FString>& Lines, FString& Erro
 	}
 	if (bHeaderAtEnd) --End;
 	if (End < 2 || End > 500001) { Error = TEXT("CSV requires 1-500000 complete frame rows"); return false; }
-	TArray<FString> Headers; Lines[bHeaderAtEnd ? End : 0].ParseIntoArray(Headers, TEXT(","), false);
+	FCsvParser HeaderParser(Lines[bHeaderAtEnd ? End : 0]);
+	if (HeaderParser.GetRows().Num() != 1) { Error = TEXT("CSV requires one header row"); return false; }
+	const auto& HeaderCells = HeaderParser.GetRows()[0];
+	TArray<FString> Headers;
+	for (const TCHAR* Cell : HeaderCells) Headers.Add(Cell);
 	if (Headers.Num() < 1 || Headers.Num() > 8192 || static_cast<int64>(Headers.Num()) * (End - 1) > 4000000)
 	{ Error = TEXT("CSV exceeds 8192 columns or 4 million samples"); return false; }
+	int32 EventsColumn = INDEX_NONE;
+	for (int32 Column = 0; Column < Headers.Num(); ++Column)
+	{
+		if (Headers[Column].Equals(TEXT("events"), ESearchCase::IgnoreCase))
+		{
+			if (EventsColumn != INDEX_NONE) { Error = TEXT("CSV has duplicate EVENTS columns"); return false; }
+			EventsColumn = Column;
+			continue;
+		}
+		if (Headers[Column].IsEmpty() || Capture.Samples.Contains(Headers[Column]))
+		{ Error = TEXT("CSV stat names must be nonempty and unique"); return false; }
+		auto& Sample = Capture.Samples.Add(Headers[Column]);
+		Sample.Name = Headers[Column]; Sample.Values.SetNumZeroed(End - 1);
+	}
 	for (int32 Row = 1; Row < End; ++Row)
 	{
-		const TCHAR* Cursor = *Lines[Row]; FString Token; int32 Count = 0;
-		while (FParse::Token(Cursor, Token, false, TEXT(','))) ++Count;
-		if (Count != Headers.Num()) { Error = FString::Printf(TEXT("CSV row %d has %d cells; expected %d"), Row, Count, Headers.Num()); return false; }
+		FCsvParser RowParser(Lines[Row]);
+		if (RowParser.GetRows().Num() != 1) { Error = FString::Printf(TEXT("CSV row %d is invalid"), Row); return false; }
+		const auto& Cells = RowParser.GetRows()[0];
+		if (Cells.Num() > Headers.Num() || (!bHeaderAtEnd && Cells.Num() != Headers.Num()))
+		{ Error = FString::Printf(TEXT("CSV row %d has %d cells; expected %d"), Row, Cells.Num(), Headers.Num()); return false; }
+		// 流式捕获新增统计项后，尾部表头比早期帧长；未出现的尾列保持零值。
+		for (int32 Column = 0; Column < Cells.Num(); ++Column)
+		{
+			if (Column == EventsColumn)
+			{
+				TArray<FString> Events; FString(Cells[Column]).ParseIntoArray(Events, TEXT(";"), true);
+				for (const FString& Name : Events) { auto& Event = Capture.Events.AddDefaulted_GetRef(); Event.Name = Name; Event.Frame = Row - 1; }
+			}
+			else Capture.Samples.FindChecked(Headers[Column]).Values[Row - 1] = FCString::Atof(Cells[Column]);
+		}
 	}
 	return true;
 }
@@ -105,20 +133,8 @@ FCapabilityResult FNexusGetProfilerCsvCapability::Execute(const TSharedPtr<FJson
 			Reader.Reset();
 			if (FMemory::Memcmp(Magic, "CSVBIN", 6) == 0) { Error = TEXT("Binary CSV capture is not supported by this text-only query"); return; }
 			CsvUtils::FCsvProfilerCapture Capture;
-			TArray<FText> ParseErrors;
 			TArray<FString> Lines;
-			if (!FFileHelper::LoadFileToStringArray(Lines, *FilePath) || !NexusValidateProfilerCsv(Lines, Error)) { if (Error.IsEmpty()) Error = TEXT("Cannot read CSV snapshot"); return; }
-			const FString SnapshotDir = SavedRoot / TEXT("NexusLink/Temp");
-			IFileManager::Get().MakeDirectory(*SnapshotDir, true);
-			const FString SnapshotPath = SnapshotDir / (FGuid::NewGuid().ToString(EGuidFormats::Digits) + TEXT(".csv"));
-			ON_SCOPE_EXIT { IFileManager::Get().Delete(*SnapshotPath); };
-			if (!FFileHelper::SaveStringArrayToFile(Lines, *SnapshotPath)) { Error = TEXT("Cannot create bounded CSV snapshot"); return; }
-			if (!CsvUtils::ReadFromCsv(Capture, *SnapshotPath, &ParseErrors))
-			{
-				Error = TEXT("Cannot parse CSV profiler capture");
-				for (const auto& ParseError : ParseErrors) Error += TEXT("; ") + ParseError.ToString();
-				return;
-			}
+			if (!FFileHelper::LoadFileToStringArray(Lines, *FilePath) || !NexusReadProfilerCsv(Lines, Capture, Error)) { if (Error.IsEmpty()) Error = TEXT("Cannot read CSV snapshot"); return; }
 			int32 FrameCount = 0;
 			for (const auto& Sample : Capture.Samples) FrameCount = FMath::Max(FrameCount, Sample.Value.Values.Num());
 			const int32 Start = Args.Int(TEXT("FrameStart"), 0), RequestedEnd = Args.Int(TEXT("FrameEnd"), -1);

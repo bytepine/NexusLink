@@ -10,10 +10,10 @@
 ### Added
 
 - `InteractRuntimeInput`／`GetRuntimeInput` 支持精确 Play World 和本地玩家的 Key／Enhanced Input Action 注入、定时及显式释放、所属任务查询和世界／服务停止清理。
-- `GetRuntimePerformance` 查询最新帧和线程／可用 GPU 耗时；`GetProfilerCsv` 使用 CSVUtils 读取有界文本快照，支持发现、帧区间聚合、指标排序与事件查询。
+- `GetRuntimePerformance` 查询最新帧和线程／可用 GPU 耗时；`GetProfilerCsv` 读取有界文本快照，支持发现、帧区间聚合、指标排序与事件查询，保留空事件列、CSV 引号及尾部完整表头的统计值对齐。
 - `GetAssetUserWidget` 增加 `PropertyOverrides`／`Connections`，报告静态默认值、继承 archetype、旧式及 MVVM 绑定方向、直接图节点证据与不确定性。
 - UE 5.9+ 可选 `GetCommonUIInfo`／`ControlCommonUIDiagnostics` 直接使用 CommonUIDebugging，查询激活树、焦点与路由，支持有界、所属会话的事件采集及 Epoch 游标。
-- 蓝图迁移支持命名/重命名自定义事件、继承成员引用的同型重映射与只验证、显式生成类编译状态、嵌套默认值读取及缺失路径诊断；属性校验扩展至结构体与容器，提供 `SetArray` / `ClearArray`，拒绝缺少括号的容器文本，明确报告不支持的验证类型。
+- 蓝图迁移支持命名/重命名自定义事件、继承成员引用的同型重映射与只验证、显式生成类编译状态、嵌套默认值读取及缺失路径诊断；属性校验扩展至结构体与容器，提供 `SetArray` / `ClearArray`，数组及嵌套数值在写入前拒绝类型不匹配、整数截断与数值溢出；拒绝缺少括号的容器文本，明确报告不支持的验证类型。
 - `GetAssetLevel/ActorPropertySchema` 有界列出 Actor 实例实际持有的子对象及结构体反射字段，不要求 CDO 中已有对应对象。
 
 ### Changed
@@ -21,7 +21,7 @@
 - `Dangerous` 标签仅用于任意代码执行入口（含任意控制台命令及脚本）；编辑器 UI、测试、编译、领域控制、项目设置、插件与 Gameplay Tags 管理等专用写能力移除危险标记，保留各自执行限制及逐项禁用记录。
 - `SearchCapabilities` 的目录、精确查询与禁用状态不再由代理缓存；禁用响应附 UE 端危险访问模式、逐项及会话门控状态；统一单词查询大小写判断，对 `property` / `Lua` 等过宽查询返回收窄建议。
 - 移除 NexusLink 自身对官方 Toolset / ToolsetRegistry 的直接构建依赖和运行路由，编辑器、Slate、Automation、资产编辑、Sequencer / ControlRig、PCG 与 Niagara 统一由 NexusLink 直接调用引擎领域 API，报告 `Backend=Independent`；以插件模块声明、执行引用及 Windows DLL 常规/延迟直接导入均为 0 验收，提供源码与产物门禁；标准领域模块的传递依赖遵循官方引擎要求，按引擎版本与领域插件开放能力。
-- `GetProjectToolsets` 改为发现 NexusLink 自有能力分组与动作 Schema；`GetProjectSkills` 直接发现项目及启用插件中的 `SKILL.md`；`SearchAssetsSemantic` 直接使用可选 SemanticSearch 领域服务，仍需配置 Embedding provider。
+- `GetProjectToolsets` 改为发现 NexusLink 自有能力分组与动作 Schema，UE4 空名称过滤器保留全部结果；`GetProjectSkills` 直接发现项目及启用插件中的 `SKILL.md`；`SearchAssetsSemantic` 直接使用可选 SemanticSearch 领域服务，仍需配置 Embedding provider。
 - 蓝图 `GraphDSL` / `WriteGraphDSL` 改为 UE 原生 `UnrealGraphText` 节点文本，支持预验证后追加可复制节点；原官方 Toolset S-expression 方言不再接受，结构化编辑继续使用 `WriteGraphPlan`。
 
 ### Fixed
@@ -34,7 +34,7 @@
 - 修复 UE 4.26 的动画默认参数文本导入与旧版 Sequencer 不支持 Override 混合类型导致的编译错误；`GetAssetAnimSequence` 的骨骼姿态采样支持 UE 4.26–5.1。
 - 修复 UE4 `BlendSpace1D` 读取和编辑被误判为不存在，1D 修改自动重建插值网格；样本写入使用引擎校验，拒绝无效坐标、重复样本、骨架不兼容及无效轴范围。
 - 动画蓝图图读写支持嵌套状态图及完整 `GraphPath`，重名图要求完整路径，状态/过渡图使用对应原生 Schema，编辑后按显式 `bCompile` 收尾；关卡及蓝图组件的标量校验批次允许混入默认值恢复，恢复操作仍不接受 `ExpectedValue`。
-- 补充静态网格 LOD 参数、场景 Actor 与 Slate 窗口在使用前的空指针检查，避免异常状态下解引用空指针。
+- 补充静态网格 LOD 参数、场景 Actor 与 Slate 窗口在使用前的空指针检查，避免异常状态下解引用空指针；动画、PCG 与 Niagara 在操作队列满载时安全返回容量错误。
 - WebSocket 按连接拼接原始 UTF-8 JSON 分片后再派发，修复 UE4 大请求被当成多个残缺 JSON 导致代理超时；限制累计消息大小并在断开时释放缓存。
 
 ## [2.3.4] - 2026-11-10

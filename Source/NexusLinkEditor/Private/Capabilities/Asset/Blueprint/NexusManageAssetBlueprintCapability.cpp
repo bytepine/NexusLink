@@ -85,6 +85,8 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 	Out.bInjectCompile = true;
 	Out.SearchAssetTypes = {TEXT("Blueprint")};
 	Out.Description = TEXT("Batch edit BP graphs, variables/types, inheritance, defaults and components. Compile/save explicitly.");
+	auto ArrayValueSchema = MakeShared<FJsonObject>();
+	ArrayValueSchema->SetBoolField(TEXT("additionalProperties"), true);
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"),          FNexusSchema::Enum(TEXT("Operation type"), {
 			TEXT("AddVariable"), TEXT("RemoveVariable"), TEXT("RenameVariable"), TEXT("RenameLocalVariable"), TEXT("ChangeVariableType"), TEXT("SetVariableMetadata"), TEXT("SetVariableReplication"), TEXT("SetFunctionCallInEditor"), TEXT("Reparent"), TEXT("RemapMemberReferences"),
@@ -141,7 +143,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("SourceComponentName"), FNexusSchema::Str(TEXT("Source SCS variable (CopyComponent)")))
 		.Prop(TEXT("PropertyPath"),    FNexusSchema::Str(TEXT("Property path, dot notation e.g. RelativeLocation.X")))
 		.Prop(TEXT("Value"),           FNexusSchema::Str(TEXT("Unreal import text; omitted struct fields preserve their previous values. UE4 arrays: empty string clears, () may create a default element; prefer ClearArray/SetArray")))
-		.Prop(TEXT("Values"), FNexusSchema::ArrayOf(TEXT("SetArray: typed JSON elements; [] clears. Optional ComponentName selects an owned component template"), MakeShared<FJsonObject>()))
+		.Prop(TEXT("Values"), FNexusSchema::ArrayOf(TEXT("SetArray: typed JSON elements; [] clears. Optional ComponentName selects an owned component template"), ArrayValueSchema))
 		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous scalar value (SetDefaults only)")))
 		.Required({ TEXT("Action") })
 		.Build();

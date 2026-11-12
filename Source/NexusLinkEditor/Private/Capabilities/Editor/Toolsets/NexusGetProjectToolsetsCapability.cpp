@@ -127,9 +127,10 @@ void FNexusGetProjectToolsetsCapability::ExecuteSection(const FString& SectionNa
             return;
         }
     }
-    Items.RemoveAll([&](const TSharedPtr<FJsonValue>& Value)
+    const FString NameFilter = Arguments.Str(TEXT("NameFilter"));
+    if (!NameFilter.IsEmpty()) Items.RemoveAll([&](const TSharedPtr<FJsonValue>& Value)
     {
-        return !Value->AsObject()->GetStringField(TEXT("Name")).Contains(Arguments.Str(TEXT("NameFilter")));
+        return !Value->AsObject()->GetStringField(TEXT("Name")).Contains(NameFilter);
     });
     Items.Sort([](const TSharedPtr<FJsonValue>& Left, const TSharedPtr<FJsonValue>& Right)
     {

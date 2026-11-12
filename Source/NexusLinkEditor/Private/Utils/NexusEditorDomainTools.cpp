@@ -49,6 +49,7 @@ bool FNexusEditorDomainTools::SetProperties(UObject* Target, const TSharedPtr<FJ
 void FNexusEditorDomainTools::Call(const FString& Domain, const FString& Tool, const TSharedPtr<FJsonObject>& Args,
     const TSharedPtr<FNexusEditorOperation>& Operation)
 {
+    if (!Operation.IsValid()) return;
     Operation->Backend = TEXT("Independent");
     auto Input = MakeShared<FJsonObject>();
     for (const auto& Pair : Args->Values) { FString Key(*Pair.Key); if (!Key.IsEmpty()) Key[0] = FChar::ToLower(Key[0]); Input->SetField(Key, Pair.Value); }

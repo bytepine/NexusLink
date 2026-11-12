@@ -4,6 +4,36 @@
 #include "Utils/NexusEditorActionSchema.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/ScopeExit.h"
+#include "Utils/NexusEditorToolSchema.h"
+
+#if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusIndependentOperationCapacityTest, "NexusLink.Independent.OperationCapacity", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FNexusIndependentOperationCapacityTest::RunTest(const FString&)
+{
+    TArray<TSharedPtr<FNexusEditorOperation>> Operations;
+    ON_SCOPE_EXIT { for (const auto& Operation : Operations) FNexusEditorOperations::Finish(Operation, TEXT("Cancelled"), nullptr); };
+    for (int32 Index = 0; Index < 128; ++Index)
+    {
+        auto Operation = FNexusEditorOperations::Create(TEXT("CapacityTest"));
+        if (!Operation.IsValid()) break;
+        Operations.Add(Operation);
+    }
+    const auto Rejected = FNexusEditorOperations::Create(TEXT("CapacityTest"));
+    if (!TestFalse(TEXT("All running slots reject the next operation"), Rejected.IsValid())) return false;
+    auto Args = MakeShared<FJsonObject>();
+    // 直接覆盖三个共享入口；满队列不得继续分派或解引用空句柄。
+    FNexusEditorDomainTools::Call(TEXT("NexusPCG"), TEXT("GetGraphSchema"), Args, Rejected);
+    FNexusEditorDomainTools::Call(TEXT("NexusAnimation.Sequencer"), TEXT("get_display_rate"), Args, Rejected);
+    FNexusNiagaraEditorTools::Call(TEXT("GetSystemSchema"), Args, Rejected);
+    TestTrue(TEXT("Capacity exhaustion returns a structured error"), FNexusEditorToolSchema::Result(Rejected).HasErrors());
+    for (const auto& Operation : Operations) FNexusEditorOperations::Finish(Operation, TEXT("Cancelled"), nullptr);
+    const auto Recovered = FNexusEditorOperations::Create(TEXT("CapacityTest"));
+    TestTrue(TEXT("Releasing slots allows the next operation"), Recovered.IsValid());
+    FNexusEditorOperations::Finish(Recovered, TEXT("Completed"), nullptr);
+    return true;
+}
+#endif
 
 #if WITH_DEV_AUTOMATION_TESTS && WITH_NIAGARA
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusIndependentNiagaraDiscoveryTest, "NexusLink.Independent.Niagara.ActionDiscovery", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

@@ -298,6 +298,7 @@ bool FNexusNiagaraEditorTools::Execute(const FString& Tool, const TSharedPtr<FJs
 
 void FNexusNiagaraEditorTools::Call(const FString& Tool, const TSharedPtr<FJsonObject>& Args, const TSharedPtr<FNexusEditorOperation>& Operation)
 {
+    if (!Operation.IsValid()) return;
     auto Input = MakeShared<FJsonObject>();
     for (const auto& Pair : Args->Values) { FString Key(*Pair.Key); if (!Key.IsEmpty()) Key[0] = FChar::ToLower(Key[0]); Input->SetField(Key, Pair.Value); }
     Operation->Backend = TEXT("Independent");

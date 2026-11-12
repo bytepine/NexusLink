@@ -56,7 +56,7 @@ Scalar preview uses temporary property storage and never mutates, compiles, save
 - `AddNode` 的 `K2Node_CustomEvent` 使用 `CustomEventName`；`SetNode` 使用同名字段重命名。名称冲突提前拒绝并返回最终名称；对自定义事件传 `FunctionName` 会明确报错。
 - `Reparent` 预检返回有界的 `AffectedGraphReferences`（变量、事件覆盖及父函数调用）。Manage 结果的 `bRequiresCompile` 与 `GeneratedClassState=Missing|Stale|CompileError|Current` 表示当前生成类状态；`bChanged=true` 不表示生成类已编译。新父类字段须在显式编译后写入。
 - `RemapMemberReferences` 使用 `OldMemberName`、`NewMemberName`，仅迁移本蓝图中的继承 self 属性 getter/setter。目标须是当前父类的 Blueprint-visible 属性，值 pin 类型须精确一致，setter 还要求属性可写；修改成员引用与值 pin 名，保留 pin GUID、默认值及连线。`bValidateOnly=true` 或 `GetAssetEditPreview` 可先检查目标与匹配节点。函数/事件及外部对象引用不属于此动作。
-- `SetArray` 使用类型化 JSON `Values`，`[]` 清空；`ClearArray` 无需 `Value`，两者均使用 `PropertyPath`，可通过 `ComponentName` 指定组件模板。通用字符串 `Value` 沿用 Unreal import-text：容器须用括号包围或传空字符串；在 UE4，空字符串清空数组，`()` 可能生成一个默认元素；结构体未指定字段保留前值。混合的属性/数组/恢复批次可统一设置 `bVerify=true`。
+- `SetArray` 使用类型化 JSON `Values`，`[]` 清空；数值元素及嵌套数值字段必须使用有限 JSON number，整数不得包含小数或超出属性／原生转换器范围，非法数组在任何元素写入前拒绝。`ClearArray` 无需 `Value`，两者均使用 `PropertyPath`，可通过 `ComponentName` 指定组件模板。通用字符串 `Value` 沿用 Unreal import-text：容器须用括号包围或传空字符串；在 UE4，空字符串清空数组，`()` 可能生成一个默认元素；结构体未指定字段保留前值。混合的属性/数组/恢复批次可统一设置 `bVerify=true`。
 - `GetAssetLevel(Sections=["ActorPropertySchema"])` 使用精确 `ActorName`，可用 `PropertyPaths` 指定结构体/所属子对象根路径；省略时从 Actor 开始。`SchemaDepth=0..3`、`MaxSchemaProperties=1..256` 限制递归与整批字段总量。返回字段名、类型、可编辑性、子字段及截断标志，不跟随外部对象；实例非空而 CDO 为空仍可发现。
 
 `SaveAsset`、`CompileBlueprint(bSaveToDisk=true)` 和 manage 自动保存会在进入 SavePackage 前检查 UFunction super 链。临时对象、被替换类及循环引用返回 `SaveDiagnostics`（`ErrorKind=InvalidSuperFunction`、`FunctionPath`、`SuperFunctionPath`、`Reason`），不尝试保存并保留脏标记。成功编译与安全保存是两个独立结果；本检查不修改第三方插件的运行时函数绑定。

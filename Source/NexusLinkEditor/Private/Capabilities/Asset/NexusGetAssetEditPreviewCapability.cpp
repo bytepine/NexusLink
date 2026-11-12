@@ -18,6 +18,8 @@ void FNexusGetAssetEditPreviewCapability::BuildDefinition(FNexusCapabilityDefini
 {
 	Out.Name = TEXT("GetAssetEditPreview");
 	Out.Description = TEXT("Plan scalar values and bounded BP/UMG/PCG structural edits in temporary storage. No source writes, compilation or save.");
+	auto ArrayValueSchema = MakeShared<FJsonObject>();
+	ArrayValueSchema->SetBoolField(TEXT("additionalProperties"), true);
 	const TSharedRef<FJsonObject> Operation = FNexusSchema::Object()
 		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Matching operation"), {TEXT("SetDefaults"), TEXT("SetArray"), TEXT("ClearArray"), TEXT("Set"), TEXT("SetProperty"), TEXT("SetActorProperty"), TEXT("SetComponentProperty"), TEXT("Reparent"), TEXT("RemapMemberReferences"), TEXT("ChangeVariableType"), TEXT("Add"), TEXT("Remove"), TEXT("Move"), TEXT("AddNode"), TEXT("RemoveNode"), TEXT("AddEdge"), TEXT("RemoveEdge"), TEXT("Disconnect"), TEXT("DisconnectAll")}))
 		.Prop(TEXT("ParentClass"), FNexusSchema::Str(TEXT("Reparent target class or Blueprint path")))
@@ -47,7 +49,7 @@ void FNexusGetAssetEditPreviewCapability::BuildDefinition(FNexusCapabilityDefini
 		.Prop(TEXT("RowName"), FNexusSchema::Str(TEXT("DataTable row for Set")))
 		.Prop(TEXT("FieldName"), FNexusSchema::Str(TEXT("DataTable scalar field for Set")))
 		.Prop(TEXT("Value"), FNexusSchema::Str(TEXT("Proposed value as ImportText text")))
-		.Prop(TEXT("Values"), FNexusSchema::ArrayOf(TEXT("SetArray: typed JSON elements"), MakeShared<FJsonObject>()))
+		.Prop(TEXT("Values"), FNexusSchema::ArrayOf(TEXT("SetArray: typed JSON elements"), ArrayValueSchema))
 		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Optional expected current value")))
 		.Required({TEXT("Action")}).Build().ToSharedRef();
 	Out.InputSchema = FNexusSchema::Object()

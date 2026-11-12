@@ -182,6 +182,57 @@ static bool ParseEditValue(const FAssetEditProperty& Resolved, const FString& In
 	return true;
 }
 
+/** 原生 JSON 转换会截断整数、溢出窄类型，且错误类型可能被转成零；转换前递归检查数值叶子。 */
+static bool ValidateArrayJsonValue(FProperty* Property, const TSharedPtr<FJsonValue>& Value, FString& Error, bool bFixedElement = false)
+{
+	if (!Value.IsValid()) { Error = TEXT("Invalid JSON array value"); return false; }
+	FProperty* Element = nullptr;
+	if (FArrayProperty* Array = CastField<FArrayProperty>(Property)) Element = Array->Inner;
+	else if (FSetProperty* Set = CastField<FSetProperty>(Property)) Element = Set->ElementProp;
+	else if (Property->ArrayDim > 1 && !bFixedElement) Element = Property;
+	if (Element && Value->Type == EJson::Array)
+	{
+		for (const auto& Child : Value->AsArray())
+			if (!ValidateArrayJsonValue(Element, Child, Error, Element == Property)) return false;
+		return true;
+	}
+	if (FMapProperty* Map = CastField<FMapProperty>(Property))
+	{
+		if (Value->Type == EJson::Object)
+			for (const auto& Pair : Value->AsObject()->Values)
+				if (!ValidateArrayJsonValue(Map->ValueProp, Pair.Value, Error)) return false;
+	}
+	else if (FStructProperty* Struct = CastField<FStructProperty>(Property))
+	{
+		if (Value->Type == EJson::Object)
+			for (TFieldIterator<FProperty> Field(Struct->Struct); Field; ++Field)
+				for (const auto& Pair : Value->AsObject()->Values)
+					if (Pair.Key.Equals(Field->GetAuthoredName(), ESearchCase::IgnoreCase)
+						&& !ValidateArrayJsonValue(*Field, Pair.Value, Error)) return false;
+	}
+	FNumericProperty* Numeric = CastField<FNumericProperty>(Property);
+	if (FEnumProperty* Enum = CastField<FEnumProperty>(Property)) Numeric = Enum->GetUnderlyingProperty();
+	if (!Numeric || (Numeric->IsEnum() && Value->Type == EJson::String)
+		|| (CastField<FEnumProperty>(Property) && Value->Type == EJson::String)) return true;
+	double Number = 0;
+	if (Value->Type != EJson::Number || !Value->TryGetNumber(Number) || !FMath::IsFinite(Number))
+	{ Error = TEXT("Expected a finite JSON number for ") + Property->GetName(); return false; }
+	const int32 ElementSize = Numeric->GetSize() / Numeric->ArrayDim;
+	if (Numeric->IsInteger())
+	{
+		const bool bUnsigned = CastField<FByteProperty>(Numeric) || CastField<FUInt16Property>(Numeric)
+			|| CastField<FUInt32Property>(Numeric) || CastField<FUInt64Property>(Numeric);
+		const double Upper = FMath::Pow(2.0f, static_cast<float>(ElementSize * 8 - (bUnsigned ? 0 : 1)));
+		// JsonObjectConverter 先转 int64，再写入目标；用排他上界避免 double(MAX_int64) 向上舍入。
+		if (FMath::FloorToDouble(Number) != Number || Number < (bUnsigned ? 0.0 : -Upper)
+			|| Number >= Upper || Number >= 9223372036854775808.0)
+		{ Error = TEXT("Integer is fractional or outside the property/converter range: ") + Property->GetName(); return false; }
+	}
+	else if (ElementSize == sizeof(float) && FMath::Abs(Number) > MAX_flt)
+	{ Error = TEXT("Number is outside the float range: ") + Property->GetName(); return false; }
+	return true;
+}
+
 static bool ParseOperationValue(const FAssetEditProperty& Resolved, const TSharedPtr<FJsonObject>& Operation,
 	void* Storage, FString& Normalized, FString& Error)
 {
@@ -201,6 +252,8 @@ static bool ParseOperationValue(const FAssetEditProperty& Resolved, const TShare
 			for (const TSharedPtr<FJsonValue>& Value : *Values)
 			{
 				const int32 ElementIndex = Helper.AddValue();
+				if (!ValidateArrayJsonValue(Array->Inner, Value, Error))
+				{ Error = FString::Printf(TEXT("Values[%d]: %s"), ElementIndex, *Error); return false; }
 				if (!FJsonObjectConverter::JsonValueToUProperty(Value, Array->Inner, Helper.GetRawPtr(ElementIndex), 0, 0))
 				{ Error = FString::Printf(TEXT("Values[%d] does not match the array element type"), ElementIndex); return false; }
 			}
