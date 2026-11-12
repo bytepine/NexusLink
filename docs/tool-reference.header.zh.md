@@ -17,8 +17,10 @@
 > - `disabled`：精确 `CapabilityName` / cap 名 `Query` 命中设置中已禁用的 cap
 > - `DisabledOnly`：模糊 `Query` 只匹配到**已禁用**的 cap（见 `DisabledCapabilities[]`）
 > - `CallCapability` 另有 `UserDenied`：编辑器用户拒绝危险 cap（不要重试）
+> - `StateConflict` 表示编辑器状态阻止执行，附 `bExecuted=false`；先查看导航状态或返回的脏包列表。
 
 > **通用约定**
+> - `Calls` 接受 1–64 项；编辑器中 `bAsyncReadOnly=true` 逐帧执行只读批次，通过 `GetEditorOperation` 查询进度和部分结果，`ControlEditorOperation` 取消剩余项。`TimeoutSeconds` 在条目之间检查，不能中断正在执行的引擎调用。
 > - MCP / JSON-RPC 标准键保留协议拼写（`capabilities`、`instructions`、`inputSchema`、`annotations`、`code`、`message`）；PascalCase 用于 Capability 业务数据。
 > - 操作、section、编译或保存错误返回 `isError=true` 并保留结构化详情。`Calls[]`（≥2 项）全部业务操作及自动编译通过后才自动保存，检查 `bRolledBack` / `UndoNote`；磁盘写入、显式包级操作及运行时副作用不保证原子性，也不整体回滚。单次 manage 部分失败仍保留成功操作。
 > - 所有 `AssetPath` 均为 UE 内容路径，例如 `/Game/Blueprints/BP_Player`

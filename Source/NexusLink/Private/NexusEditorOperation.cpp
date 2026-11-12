@@ -119,10 +119,15 @@ void FNexusEditorOperations::Wait(const FString& Id, double Seconds, const FStri
 		if (Progress) Progress(Operation->Message);
 		return true;
 	});
+	AddTicker(Tick, 1.0f);
+}
+
+void FNexusEditorOperations::AddTicker(const FTickerDelegate& Tick, float Interval)
+{
 #if NX_UE_HAS_FTSTICKER_HANDLE
-	GNexusOperationWaitHandles.Add(FTSTicker::GetCoreTicker().AddTicker(Tick, 1.0f));
+	GNexusOperationWaitHandles.Add(FTSTicker::GetCoreTicker().AddTicker(Tick, Interval));
 #else
-	GNexusOperationWaitHandles.Add(FTicker::GetCoreTicker().AddTicker(Tick, 1.0f));
+	GNexusOperationWaitHandles.Add(FTicker::GetCoreTicker().AddTicker(Tick, Interval));
 #endif
 }
 

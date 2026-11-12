@@ -114,7 +114,12 @@ FCapabilityResult FNexusControlEditorLevelCapability::Execute(const TSharedPtr<F
 	FEditorFileUtils::GetDirtyWorldPackages(DirtyWorldPackages);
 	if (DirtyWorldPackages.Num() > 0 && !bDiscardUnsaved)
 	{
-		return FCapabilityResult::MakeFatal(TEXT("Current levels or external Actors have unsaved changes. Save them, or pass bDiscardUnsaved=true."));
+		auto Result = FCapabilityResult::MakeStateConflict(TEXT("Current levels or external Actors have unsaved changes. Save the listed packages explicitly, or pass bDiscardUnsaved=true."));
+		Result.TopFields = MakeShared<FJsonObject>();
+		TArray<TSharedPtr<FJsonValue>> Paths;
+		for (UPackage* Package : DirtyWorldPackages) if (Package) Paths.Add(MakeShared<FJsonValueString>(Package->GetName()));
+		Result.TopFields->SetArrayField(TEXT("DirtyWorldPackages"), Paths);
+		return Result;
 	}
 	TWeakObjectPtr<UPackage> ClearedPackage;
 	if (EditorPackage && EditorPackage->IsDirty())

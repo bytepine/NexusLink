@@ -6331,16 +6331,16 @@
             "Value": {
               "type": "string"
             },
+            "X": {
+              "type": "number"
+            },
+            "Y": {
+              "type": "number"
+            },
             "Yaw": {
               "type": "number"
             },
-            "x": {
-              "type": "number"
-            },
-            "y": {
-              "type": "number"
-            },
-            "z": {
+            "Z": {
               "type": "number"
             }
           },

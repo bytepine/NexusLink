@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Dom/JsonObject.h"
+#include "Containers/Ticker.h"
 
 /** 游戏线程上的长操作。操作与等待请求分开存活；终态不等于业务成功。 */
 struct NEXUSLINK_API FNexusEditorOperation
@@ -33,4 +34,6 @@ struct NEXUSLINK_API FNexusEditorOperations final
 	static void CancelWait(const FString& RequestKey);
 	static void ShutdownOwner(const FString& Owner);
 	static void Reset();
+	/** 注册随服务停机清理的游戏线程工作；每次回调处理有界工作。 */
+	static void AddTicker(const FTickerDelegate& Tick, float Interval);
 };

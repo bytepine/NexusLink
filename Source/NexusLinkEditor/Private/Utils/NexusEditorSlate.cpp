@@ -12,6 +12,7 @@
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SMenuAnchor.h"
+#include "SSearchableComboBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Input/Events.h"
 #include "InputCoreTypes.h"
@@ -130,7 +131,8 @@ static void NexusSlateWaitText(const TSharedRef<SWidget>& Widget, const FString&
 	if (!Widget->GetVisibility().IsVisible()) return;
 	if (++Count > 2000 || Depth > 100) { bTruncated = true; return; }
 	FString Label, Selection;
-	if (Widget->GetType() == FName(TEXT("STextBlock"))) Label = StaticCastSharedRef<STextBlock>(Widget)->GetText().ToString();
+	if (Widget->GetType() == FName(TEXT("SWindow"))) Label = StaticCastSharedRef<SWindow>(Widget)->GetTitle().ToString();
+	else if (Widget->GetType() == FName(TEXT("STextBlock"))) Label = StaticCastSharedRef<STextBlock>(Widget)->GetText().ToString();
 	else if (!NexusSlateEditableText(Widget, Label, Selection))
 	{
 #if WITH_ACCESSIBILITY
@@ -186,6 +188,8 @@ static TSharedPtr<SMenuAnchor> NexusSlateMenuAnchor(const TSharedRef<SWidget>& W
 {
 	if (Depth > 100) return nullptr;
 	const FString Type = Widget->GetTypeAsString();
+	// 属性编辑器派生控件保留自身类型名，但公开基类仍是 SComboButton。
+	if (Type == TEXT("SPropertyComboBox") || Type == TEXT("SSearchableComboBox")) return StaticCastSharedRef<SSearchableComboBox>(Widget);
 	if (Type == TEXT("SComboButton") || Type == TEXT("SMenuAnchor") || Type == TEXT("SComboBox") || Type.StartsWith(TEXT("SComboBox<"))) return StaticCastSharedRef<SMenuAnchor>(Widget);
 	if (FChildren* Children = Widget->GetChildren()) for (int32 I = 0; I < Children->Num(); ++I)
 		if (auto Anchor = NexusSlateMenuAnchor(Children->GetChildAt(I), Depth + 1)) return Anchor;
@@ -288,8 +292,10 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Slate(const FStri
 			TArray<TSharedRef<SWindow>> Windows; FSlateApplication::Get().GetAllVisibleWindowsOrdered(Windows);
 			for (const auto& Window : Windows)
 			{
+				const FString Title=Window->GetTitle().ToString();
+				bFound |= !Text.IsEmpty() && Title.Contains(Text); bFoundGone |= !TextGone.IsEmpty() && Title.Contains(TextGone);
 				NexusSlateWaitText(Window, Text, TextGone, Count, bTruncated, bFound, bFoundGone);
-				if ((bFound && TextGone.IsEmpty()) || bFoundGone || Count > 2000) break;
+				if ((bFound && TextGone.IsEmpty()) || bFoundGone) break;
 			}
 			bMatched = bFound && (TextGone.IsEmpty() || (!bFoundGone && !bTruncated));
 			const bool bTimedOut = FPlatformTime::Seconds() >= Deadline;

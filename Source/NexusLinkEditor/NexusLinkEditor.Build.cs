@@ -15,6 +15,8 @@ public class NexusLinkEditor : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new[] { "Core", "DeveloperSettings" });
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "FBX");
+		if (Target.bCompileRecast) PrivateDependencyModuleNames.Add("Navmesh");
+		PrivateDependencyModuleNames.Add(NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target,5,0) ? "ToolWidgets" : "EditorWidgets");
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
 			"NexusLink",

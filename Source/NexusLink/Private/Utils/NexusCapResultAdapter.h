@@ -168,6 +168,17 @@ struct FNexusCapResultAdapter final
 		if (!CapResult.FatalError.IsEmpty())
 		{
 			Result.bIsError  = true;
+			if (CapResult.bIsStateConflict)
+			{
+				auto Err = CapResult.TopFields.IsValid() ? MakeShared<FJsonObject>(*CapResult.TopFields) : MakeShared<FJsonObject>();
+				Err->SetStringField(TEXT("ErrorKind"), TEXT("StateConflict"));
+				Err->SetStringField(TEXT("Error"), CapResult.FatalError);
+				Err->SetStringField(TEXT("Capability"), CapName);
+				Err->SetBoolField(TEXT("bExecuted"), false);
+				Result.StructuredContent = Err;
+				Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Err);
+				return Result;
+			}
 			if (CapResult.bIsUserDenied)
 			{
 				TSharedPtr<FJsonObject> Err = MakeShared<FJsonObject>();

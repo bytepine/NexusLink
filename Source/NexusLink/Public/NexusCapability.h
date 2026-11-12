@@ -25,6 +25,8 @@ struct FCapabilityResult
 	bool                           bIsArgInvalid = false;
 	/** 用户在编辑器确认框拒绝（或超时/无 UI）；映射 ErrorKind=UserDenied，不记 CallFatal。 */
 	bool                           bIsUserDenied = false;
+	/** 当前编辑器状态阻止执行，不能当作参数错误或工具误用。 */
+	bool                           bIsStateConflict = false;
 	/** 为 true 时 CallCapability 不 RecordAuto（如 Confirm 模式缺 reason，避免污染 CallArgInvalid）。 */
 	bool                           bSkipFeedback = false;
 	/** 仅由截图实现附加本次生成的图片；与结构化数据分离，不从客户端 FilePath 推断。 */
@@ -38,6 +40,14 @@ struct FCapabilityResult
 	{
 		FCapabilityResult R;
 		R.FatalError = Error;
+		return R;
+	}
+
+	static FCapabilityResult MakeStateConflict(const FString& Error)
+	{
+		FCapabilityResult R;
+		R.FatalError = Error;
+		R.bIsStateConflict = true;
 		return R;
 	}
 

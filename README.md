@@ -16,6 +16,7 @@
 - **运行时调试**：在 PIE、独立 Game 和 Dedicated Server 中检查日志、Actor、动画、AI / EQS 和 GAS；可用原生变换接口移动 Actor。有视口的 Game / PIE 还支持 [UMG 控件交互](docs/runtime-widgets.md)，可按实例路径读取、修改和交互 Actor 上 WidgetComponent 的控件树。
 - **复测与性能分析**：[GAS 技能激活诊断](docs/gas-retest.md)、[行为树 / Blackboard 条件复测](docs/bt-retest.md)、[已停录 Trace 的同条件性能对比](docs/trace-compare.md)。
 - **编辑器自动化**：[Slate 界面查询与交互、Automation 测试、非阻塞 Live Coding](docs/editor-toolsets.md)。
+- **导航与碰撞诊断**：[构建状态与只读等待、空间贡献者/瓦片、关卡 BSP、网格分段/三角形及实时组件物理状态](docs/editor-compatibility.md#导航与碰撞诊断)；只读批次可逐帧执行并查询进度、超时和部分结果。
 - **项目发现与领域诊断**：[设置/插件、技能、语义搜索、PCG 执行采样、Niagara 诊断/修复、UMG 结构与标准截图图片](docs/editor-toolsets.md)。
 - **独立引擎后端**：[官方 Toolset 直接依赖及调用为 0，支持 Windows DLL 导入检查；引擎传递依赖边界](docs/toolset-backends.md)。
 - **编辑器兼容扩展**：[参数/UMG、网格生成、场景整理与蓝图图编辑](docs/editor-compatibility.md)，含变量 ToolTip、Replication/RepNotify 与无参函数 CallInEditor 的配置和回读；[UMG、材质、项目配置与 Sequencer 扩展](docs/editor-remaining-toolsets.md)。关卡组件默认值比较和恢复支持 SCS 继承覆盖模板。

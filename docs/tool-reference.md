@@ -17,8 +17,10 @@ This document lists all MCP tools and capabilities exposed by NexusLink with det
 > - `disabled`: exact `CapabilityName` / cap-name `Query` hit a cap disabled in settings
 > - `DisabledOnly`: fuzzy `Query` matched only **disabled** caps (see `DisabledCapabilities[]`)
 > - `CallCapability` also uses `UserDenied` when the editor user rejects a dangerous cap (do not retry)
+> - `StateConflict` means editor state prevents execution, with `bExecuted=false`; inspect navigation status or the returned dirty package list before deciding what to do.
 
 > **General conventions**
+> - `Calls` accepts 1–64 items. Editor-only `bAsyncReadOnly=true` schedules a read-only batch one item per tick; use `GetEditorOperation` for progress/partial results and `ControlEditorOperation` to cancel remaining items. `TimeoutSeconds` is checked between items and cannot interrupt an engine call already running.
 > - MCP / JSON-RPC standard keys retain their standard spelling (`capabilities`, `instructions`, `inputSchema`, `annotations`, `code`, `message`); PascalCase applies to capability payloads.
 > - Operation, section, compile and save errors return `isError=true` with structured details. `Calls[]` (2+ items) checks all operations and automatic compiles before automatic saves; inspect `bRolledBack` / `UndoNote`. Disk writes and explicit package/runtime side effects are not atomic or reverted. A single manage call retains successful operations after partial failure.
 > - All `AssetPath` values are UE content paths, e.g. `/Game/Blueprints/BP_Player`
@@ -72,7 +74,9 @@ Execute a capability (after SearchAsset / get_asset_*). On failure check ErrorKi
 |------|------|:----:|------|
 | `Capability` | `string` |  | Capability name for a single call |
 | `Arguments` | `object` |  | Nested arguments for a single call |
-| `Calls` | `object[]` |  | Batch: ordered list [{capability,arguments?},...]; item: `Capability`, `Arguments` |
+| `Calls` | `object[]` |  | Batch: 1-64 ordered calls [{capability,arguments?}]; item: `Capability`, `Arguments` |
+| `bAsyncReadOnly` | `boolean` |  | Editor-only: schedule a fully read-only batch one item per tick; poll GetEditorOperation for progress/partial results |
+| `TimeoutSeconds` | `number` |  | Async read-only batch deadline [0.01,120] checked between items; cannot interrupt an in-flight engine call |
 | `bKeepLoaded` | `boolean` |  | When true, do not auto-unload packages introduced by this call (single or batch); default false |
 
 ---
@@ -301,10 +305,17 @@ Organize actors/folders, merge meshes, edit level instances and build navigation
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `Action` | `string (enum)` | ★ | Scene write enum: `CreateFolder` / `RenameFolder` / `DeleteFolder` / `SetActorFolder` / `SetSelection` / `MergeActors` / `CreateLevelInstance` / `EditLevelInstance` / `CommitLevelInstance` / `BuildNavigation` |
+| `Action` | `string (enum)` | ★ | Scene write enum: `CreateFolder` / `RenameFolder` / `DeleteFolder` / `SetActorFolder` / `SetSelection` / `MergeActors` / `CreateLevelInstance` / `EditLevelInstance` / `CommitLevelInstance` / `BuildNavigation` / `RefreshComponentPhysics` |
 | `FolderPath` | `string` |  | World Outliner folder path |
 | `NewFolderPath` | `string` |  | Rename destination |
 | `ActorPath` | `string` |  | Actor object path from discovery |
+| `ComponentPath` | `string` |  | Exact loaded primitive component path; required for RefreshComponentPhysics |
+| `BoundsMin` | `object` |  |  |
+| `BoundsMax` | `object` |  |  |
+| `Offset` | `integer` |  | Contributors pagination or tile slot scan offset |
+| `ScanLimit` | `integer` |  | Maximum tile slots inspected per query |
+| `WaitSeconds` | `number` |  | NavigationStatus: observe existing work for up to 30 seconds, never starts a build |
+| `bTraceComplex` | `boolean` |  | Trace triangle geometry instead of simple collision |
 | `ActorPaths` | `string[]` |  | Selection or mesh-merge inputs |
 | `AssetPath` | `string` |  | Merge output package or existing level asset |
 | `ActorName` | `string` |  | New actor label |
@@ -489,16 +500,23 @@ Inspect PCG graph schemas, native nodes, graph instances and bounded node output
 
 ### `GetEditorScene`
 
-Inspect editor folders, selection, folder actors and visibility traces.
+Inspect folders, collision, BSP and navigation status/octree/tiles. Bounded read-only diagnostics.
 
 **Prerequisites**: `EditorOnly`
 
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
-| `Action` | `string (enum)` | ★ | Scene query enum: `Folders` / `FolderActors` / `Selection` / `Trace` |
+| `Action` | `string (enum)` | ★ | Scene query enum: `Folders` / `FolderActors` / `Selection` / `Trace` / `NavigationStatus` / `NavigationContributors` / `NavigationTiles` / `LevelGeometry` / `Collision` |
 | `FolderPath` | `string` |  | World Outliner folder path |
 | `NewFolderPath` | `string` |  | Rename destination |
 | `ActorPath` | `string` |  | Actor object path from discovery |
+| `ComponentPath` | `string` |  | Exact loaded primitive component path; required for RefreshComponentPhysics |
+| `BoundsMin` | `object` |  |  |
+| `BoundsMax` | `object` |  |  |
+| `Offset` | `integer` |  | Contributors pagination or tile slot scan offset |
+| `ScanLimit` | `integer` |  | Maximum tile slots inspected per query |
+| `WaitSeconds` | `number` |  | NavigationStatus: observe existing work for up to 30 seconds, never starts a build |
+| `bTraceComplex` | `boolean` |  | Trace triangle geometry instead of simple collision |
 | `ActorPaths` | `string[]` |  | Selection or mesh-merge inputs |
 | `AssetPath` | `string` |  | Merge output package or existing level asset |
 | `ActorName` | `string` |  | New actor label |
@@ -508,6 +526,7 @@ Inspect editor folders, selection, folder actors and visibility traces.
 | `bRecursive` | `boolean` |  | Include subfolder actors |
 | `bDestroySourceActors` | `boolean` |  | Remove actors after a successful mesh merge |
 | `bDiscard` | `boolean` |  | Discard LevelInstance edits |
+| `bSaveToDisk` | `boolean` |  | BuildNavigation: save generated loaded-level packages after completion; requires all loaded levels clean before starting |
 | `Limit` | `integer` |  | Maximum query results |
 
 ---
@@ -2083,6 +2102,9 @@ Inspect StaticMesh snapshot. Writes via ManageAssetStaticMesh.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | StaticMesh asset path |
+| `LODIndex` | `integer` |  | Render LOD for bounded triangle samples |
+| `TriangleOffset` | `integer` |  | First render triangle for samples |
+| `MaxTriangles` | `integer` |  | Optional local-space render triangle samples, not proof of cooked/live collision |
 
 **Related capabilities**: `ManageAssetStaticMesh`, `SearchAsset`, `GetAssetRefs`, `SaveAsset`
 
@@ -2774,7 +2796,7 @@ Batch edit StaticMesh. Material/collision/Socket/LOD ScreenSize.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | StaticMesh asset path |
-| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetMaterialSlot/SetProperty/SetCollisionTraceFlag/AddBoxCollision/AddSphereCollision/ClearSimpleCollision/AddSocket/RemoveSocket…), `SlotIndex`, `MaterialPath`, `PropertyPath`, `Value`, `CollisionTraceFlag`(UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple), `X`, `Y`, `Z`, `ExtentX`, `ExtentY`, `ExtentZ`, `Radius`, `SocketName`, `LocX`, `LocY`, `LocZ`, `Pitch`, `Yaw`, `Roll`, `ScaleX`, `ScaleY`, `ScaleZ`, `LODIndex`, `TrianglePercents`, `HullCount`, `MaxHullVertices`, `HullPrecision`, `bEnabled`, `ScreenSize` |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetMaterialSlot/SetProperty/SetCollisionTraceFlag/AddBoxCollision/AddSphereCollision/ClearSimpleCollision/RefreshCollision/AddSocket…), `SlotIndex`, `MaterialPath`, `PropertyPath`, `Value`, `CollisionTraceFlag`(UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple), `X`, `Y`, `Z`, `ExtentX`, `ExtentY`, `ExtentZ`, `Radius`, `SocketName`, `LocX`, `LocY`, `LocZ`, `Pitch`, `Yaw`, `Roll`, `ScaleX`, `ScaleY`, `ScaleZ`, `LODIndex`, `TrianglePercents`, `HullCount`, `MaxHullVertices`, `HullPrecision`, `bEnabled`, `ScreenSize` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetStaticMesh`, `SearchAsset`, `SaveAsset`

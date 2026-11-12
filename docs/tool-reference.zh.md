@@ -17,8 +17,10 @@
 > - `disabled`：精确 `CapabilityName` / cap 名 `Query` 命中设置中已禁用的 cap
 > - `DisabledOnly`：模糊 `Query` 只匹配到**已禁用**的 cap（见 `DisabledCapabilities[]`）
 > - `CallCapability` 另有 `UserDenied`：编辑器用户拒绝危险 cap（不要重试）
+> - `StateConflict` 表示编辑器状态阻止执行，附 `bExecuted=false`；先查看导航状态或返回的脏包列表。
 
 > **通用约定**
+> - `Calls` 接受 1–64 项；编辑器中 `bAsyncReadOnly=true` 逐帧执行只读批次，通过 `GetEditorOperation` 查询进度和部分结果，`ControlEditorOperation` 取消剩余项。`TimeoutSeconds` 在条目之间检查，不能中断正在执行的引擎调用。
 > - MCP / JSON-RPC 标准键保留协议拼写（`capabilities`、`instructions`、`inputSchema`、`annotations`、`code`、`message`）；PascalCase 用于 Capability 业务数据。
 > - 操作、section、编译或保存错误返回 `isError=true` 并保留结构化详情。`Calls[]`（≥2 项）全部业务操作及自动编译通过后才自动保存，检查 `bRolledBack` / `UndoNote`；磁盘写入、显式包级操作及运行时副作用不保证原子性，也不整体回滚。单次 manage 部分失败仍保留成功操作。
 > - 所有 `AssetPath` 均为 UE 内容路径，例如 `/Game/Blueprints/BP_Player`
@@ -66,13 +68,15 @@
 
 ### `CallCapability`
 
-执行 Capability（在 SearchAsset / get_asset_* 之后）。失败时检查 ErrorKind：unknown/disabled/unavailable/ArgInvalid/UserDenied；disabled 与 UserDenied 不要重试。Confirm 模式危险 cap 须传 reason。旧名（如 create_blackboard）映射到规范名。批量 calls[] 与单条形式互斥。
+执行单项能力或最多 64 项批次；支持逐帧只读异步批次、进度、截止时间和取消。状态冲突返回 StateConflict。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Capability` | `string` |  | Capability 精确名称 |
 | `Arguments` | `object` |  | 单次调用的嵌套参数 |
 | `Calls` | `object[]` |  | 批量调用列表：`[{capability, arguments}, ...]`; 条目: `Capability`, `Arguments` |
+| `bAsyncReadOnly` | `boolean` |  | Editor-only: schedule a fully 只读 batch one item per tick; poll GetEditorOperation for progress/partial results |
+| `TimeoutSeconds` | `number` |  | Async 只读 batch deadline [0.01,120] checked between items; cannot interrupt an in-flight engine call |
 | `bKeepLoaded` | `boolean` |  | 为 true 时不自动卸载本次调用引入的包 |
 
 ---
@@ -303,16 +307,23 @@
 
 ### `ControlEditorScene`
 
-整理当前编辑器场景的文件夹、选择集、合并静态网格 Actor，并编辑 UE5 Level Instance。
+整理场景、合并网格、编辑 Level Instance、异步构建导航，或刷新指定组件物理状态。
 
 **前置条件**: `EditorOnly`
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `CreateFolder` / `RenameFolder` / `DeleteFolder` / `SetActorFolder` / `SetSelection` / `MergeActors` / `CreateLevelInstance` / `EditLevelInstance` / `CommitLevelInstance` / `BuildNavigation` |
+| `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `CreateFolder` / `RenameFolder` / `DeleteFolder` / `SetActorFolder` / `SetSelection` / `MergeActors` / `CreateLevelInstance` / `EditLevelInstance` / `CommitLevelInstance` / `BuildNavigation` / `RefreshComponentPhysics` |
 | `FolderPath` | `string` |  | World Outliner folder 路径 |
 | `NewFolderPath` | `string` |  | Rename destination |
 | `ActorPath` | `string` |  | Actor object path from discovery |
+| `ComponentPath` | `string` |  | Exact loaded primitive component path; 必填 for RefreshComponentPhysics |
+| `BoundsMin` | `object` |  |  |
+| `BoundsMax` | `object` |  |  |
+| `Offset` | `integer` |  | 分页偏移（从 0 起） |
+| `ScanLimit` | `integer` |  | Maximum tile slots inspected per query |
+| `WaitSeconds` | `number` |  | NavigationStatus: observe existing work for up to 30 seconds, never starts a build |
+| `bTraceComplex` | `boolean` |  | Trace triangle geometry instead of simple collision |
 | `ActorPaths` | `string[]` |  | Selection or mesh-merge inputs |
 | `AssetPath` | `string` |  | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
@@ -505,16 +516,23 @@
 
 ### `GetEditorScene`
 
-读取当前编辑器场景的文件夹、Actor、选择集和 Visibility 射线命中。
+只读查询文件夹、选择、碰撞、BSP，以及导航状态、空间贡献者和瓦片；支持有界等待。
 
 **前置条件**: `EditorOnly`
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `Folders` / `FolderActors` / `Selection` / `Trace` |
+| `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `Folders` / `FolderActors` / `Selection` / `Trace` / `NavigationStatus` / `NavigationContributors` / `NavigationTiles` / `LevelGeometry` / `Collision` |
 | `FolderPath` | `string` |  | World Outliner folder 路径 |
 | `NewFolderPath` | `string` |  | Rename destination |
 | `ActorPath` | `string` |  | Actor object path from discovery |
+| `ComponentPath` | `string` |  | Exact loaded primitive component path; 必填 for RefreshComponentPhysics |
+| `BoundsMin` | `object` |  |  |
+| `BoundsMax` | `object` |  |  |
+| `Offset` | `integer` |  | 分页偏移（从 0 起） |
+| `ScanLimit` | `integer` |  | Maximum tile slots inspected per query |
+| `WaitSeconds` | `number` |  | NavigationStatus: observe existing work for up to 30 seconds, never starts a build |
+| `bTraceComplex` | `boolean` |  | Trace triangle geometry instead of simple collision |
 | `ActorPaths` | `string[]` |  | Selection or mesh-merge inputs |
 | `AssetPath` | `string` |  | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
@@ -524,6 +542,7 @@
 | `bRecursive` | `boolean` |  | Include subfolder actors |
 | `bDestroySourceActors` | `boolean` |  | Remove actors after a successful mesh merge |
 | `bDiscard` | `boolean` |  | Discard LevelInstance edits |
+| `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `Limit` | `integer` |  | 每页最大条数 |
 
 ---
@@ -1487,7 +1506,7 @@
 
 ### `ExportAsset`
 
-按扩展名自动化导出，支持只验证和主输出路径 Fail/Unique/Replace 冲突策略。
+按扩展名自动化导出，支持只验证、冲突策略、原生诊断和持久层 BSP 摘要。
 
 **前置条件**: `EditorOnly`
 
@@ -2110,13 +2129,16 @@
 
 ### `GetAssetStaticMesh`
 
-检查 StaticMesh 快照。写入走 ManageAssetStaticMesh。
+检查网格元数据、NavCollision、分段碰撞开关及有界本地三角形采样。
 
 **适用场景**: 读网格元数据；写入用 ManageAssetStaticMesh
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
+| `LODIndex` | `integer` |  | Render LOD for bounded triangle samples |
+| `TriangleOffset` | `integer` |  | First render triangle for samples |
+| `MaxTriangles` | `integer` |  | 可选 local-space render triangle samples, not proof of cooked/live collision |
 
 **相关 Capability**: `ManageAssetStaticMesh`, `SearchAsset`, `GetAssetRefs`, `SaveAsset`
 
@@ -2808,7 +2830,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(SetMaterialSlot/SetProperty/SetCollisionTraceFlag/AddBoxCollision/AddSphereCollision/ClearSimpleCollision/AddSocket/RemoveSocket…), `SlotIndex`, `MaterialPath`, `PropertyPath`, `Value`, `CollisionTraceFlag`(UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple), `X`, `Y`, `Z`, `ExtentX`, `ExtentY`, `ExtentZ`, `Radius`, `SocketName`, `LocX`, `LocY`, `LocZ`, `Pitch`, `Yaw`, `Roll`, `ScaleX`, `ScaleY`, `ScaleZ`, `LODIndex`, `TrianglePercents`, `HullCount`, `MaxHullVertices`, `HullPrecision`, `bEnabled`, `ScreenSize` |
+| `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(SetMaterialSlot/SetProperty/SetCollisionTraceFlag/AddBoxCollision/AddSphereCollision/ClearSimpleCollision/RefreshCollision/AddSocket…), `SlotIndex`, `MaterialPath`, `PropertyPath`, `Value`, `CollisionTraceFlag`(UseDefault/UseSimpleAndComplex/UseSimpleAsComplex/UseComplexAsSimple), `X`, `Y`, `Z`, `ExtentX`, `ExtentY`, `ExtentZ`, `Radius`, `SocketName`, `LocX`, `LocY`, `LocZ`, `Pitch`, `Yaw`, `Roll`, `ScaleX`, `ScaleY`, `ScaleZ`, `LODIndex`, `TrianglePercents`, `HullCount`, `MaxHullVertices`, `HullPrecision`, `bEnabled`, `ScreenSize` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**: `GetAssetStaticMesh`, `SearchAsset`, `SaveAsset`

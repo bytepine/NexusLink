@@ -20,6 +20,7 @@
 #include "Utils/NexusHostUtils.h"
 #include "Utils/NexusEditorTransaction.h"
 #include "Utils/NexusDangerousCapGate.h"
+#include "NexusEditorOperation.h"
 
 // ── 进程内 RedundantCall LRU 表 ──────────────────────────────────────────────
 struct FNexusCallCapabilityRedundantEntry
@@ -148,6 +149,7 @@ struct FNexusCallCore final
 		Disabled,
 		Unavailable,
 		ArgInvalid,
+		StateConflict,
 		UserDenied,
 		Fatal
 	};
@@ -265,6 +267,12 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 
 	if (!CapResult.FatalError.IsEmpty())
 	{
+		if (CapResult.bIsStateConflict)
+		{
+			R.Status = FNexusCallCore::EStatus::StateConflict;
+			R.ArgInvalidErr = FNexusCapResultAdapter::Convert(CapResult, Record->Def.Name).StructuredContent;
+			return R;
+		}
 		const FString Digest = FNexusFeedback::BuildRedactedArgsSnapshot(Inner);
 
 		if (CapResult.bIsUserDenied)
@@ -365,7 +373,9 @@ void FNexusMcpToolCallCapability::BuildDefinition(FNexusMcpToolDefinition& Out) 
 		.Prop(TEXT("Arguments"),
 		      FNexusSchema::AnyObject(TEXT("Nested arguments for a single call")))
 		.Prop(TEXT("Calls"),
-		      FNexusSchema::ArrayOf(TEXT("Batch: ordered list [{capability,arguments?},...]"), CallItemSchema.ToSharedRef()))
+		      FNexusSchema::ArrayOf(TEXT("Batch: 1-64 ordered calls [{capability,arguments?}]"), CallItemSchema.ToSharedRef()))
+		.Prop(TEXT("bAsyncReadOnly"),FNexusSchema::Bool(TEXT("Editor-only: schedule a fully read-only batch one item per tick; poll GetEditorOperation for progress/partial results"),true,false))
+		.Prop(TEXT("TimeoutSeconds"),FNexusSchema::Num(TEXT("Async read-only batch deadline [0.01,120] checked between items; cannot interrupt an in-flight engine call"),30))
 		.Prop(TEXT("bKeepLoaded"),
 		      FNexusSchema::Bool(TEXT("When true, do not auto-unload packages introduced by this call (single or batch); default false"), true, false))
 		.Build();
@@ -395,11 +405,51 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 
 	if (bHasCallsKey && CallsArr)
 	{
-		if (CallsArr->Num() == 0)
+		if (CallsArr->Num() == 0 || CallsArr->Num() > 64)
 		{
 			Result.bIsError  = true;
-			Result.ErrorText = TEXT("calls array must contain at least one item");
+			Result.ErrorText = TEXT("Calls must contain 1-64 items; split larger read batches before retrying");
 			return Result;
+		}
+		if (!Parsed.Str(TEXT("Capability")).IsEmpty()) { Result.bIsError=true; Result.ErrorText=TEXT("Cannot pass both Capability and Calls"); return Result; }
+		if (Parsed.Bool(TEXT("bAsyncReadOnly")))
+		{
+			const double Timeout=Parsed.Num(TEXT("TimeoutSeconds"),30);
+			if (!GIsEditor || !FMath::IsFinite(Timeout) || Timeout<0.01 || Timeout>120) { Result.bIsError=true; Result.ErrorText=TEXT("Async batches require an Editor host and TimeoutSeconds within [0.01,120]"); return Result; }
+			// 完整预检后才调度：不能让写入或长操作混入逐帧读取。
+			for (const auto& Call : *CallsArr) {
+				const auto Object=Call.IsValid() && Call->Type==EJson::Object ? Call->AsObject() : nullptr;
+				const FCapRecord* Record=Object.IsValid() ? FNexusCapabilityRegistry::Get().FindRecordByName(FNexusArgs(Object).Str(TEXT("Capability"))) : nullptr;
+				if (!Record || !Record->Def.HasTag(FNexusMcpTags::Readonly) || Record->Def.HasTag(FNexusMcpTags::Write) || !Record->Def.bAllowBatch) {
+					Result.bIsError=true; Result.ErrorText=TEXT("bAsyncReadOnly requires only known, batchable read-only capabilities; no calls were executed"); return Result;
+				}
+			}
+			auto Operation=FNexusEditorOperations::Create(TEXT("ReadOnlyBatch"));
+			if (!Operation) { Result.bIsError=true; Result.ErrorText=TEXT("Operation capacity reached; no calls were executed"); return Result; }
+			const auto Calls=*CallsArr; const double Deadline=FPlatformTime::Seconds()+Timeout;
+			auto Data=MakeShared<FJsonObject>(); Data->SetArrayField(TEXT("Results"),{}); Data->SetNumberField(TEXT("TotalCount"),Calls.Num()); Data->SetNumberField(TEXT("CompletedCount"),0); Data->SetNumberField(TEXT("FailureCount"),0); Data->SetBoolField(TEXT("bTimedOut"),false);
+			Operation->Result=MakeShared<FJsonObject>(); Operation->Result->SetObjectField(TEXT("CompatibilityResult"),Data);
+			TWeakPtr<FNexusEditorOperation> WeakOperation=Operation;
+			Operation->Stop=[WeakOperation]() { const auto Current=WeakOperation.Pin(); if (!Current.IsValid()) return false; FNexusEditorOperations::Finish(Current,TEXT("Cancelled"),Current->Result,TEXT("Remaining read-only calls cancelled")); return true; };
+			FNexusEditorOperations::AddTicker(FTickerDelegate::CreateLambda([Operation,Data,Calls,Deadline,bKeepLoaded](float) {
+				if (!Operation->IsRunning()) return false;
+				const int32 Completed=static_cast<int32>(Data->GetNumberField(TEXT("CompletedCount")));
+				if (FPlatformTime::Seconds()>=Deadline) { Data->SetBoolField(TEXT("bTimedOut"),true); FNexusEditorOperations::Finish(Operation,TEXT("Failed"),Operation->Result,TEXT("Read-only batch deadline reached; completed results retained")); return false; }
+				TGuardValue<FString> OwnerGuard(FNexusEditorOperations::RequestOwner(),Operation->Owner);
+				auto Single=MakeShared<FJsonObject>(); Single->SetStringField(TEXT("Capability"),FNexusArgs(Calls[Completed]->AsObject()).Str(TEXT("Capability")));
+				Single->SetObjectField(TEXT("Arguments"),MergeNestedArguments(Calls[Completed]->AsObject())); Single->SetBoolField(TEXT("bKeepLoaded"),bKeepLoaded);
+				const FString Name=FNexusArgs(Single).Str(TEXT("Capability")); Operation->Message=FString::Printf(TEXT("Read-only batch %d/%d: %s"),Completed,Calls.Num(),*Name);
+				FNexusMcpToolCallCapability Tool; const auto Read=Tool.Execute(Single);
+				Operation->ImageFiles.Append(Read.ImageFiles);
+				auto Item=MakeShared<FJsonObject>(); Item->SetStringField(TEXT("Capability"),Name);
+				if (Read.StructuredContent.IsValid()) Item->SetObjectField(TEXT("Data"),Read.StructuredContent);
+				if (Read.bIsError) { Item->SetStringField(TEXT("Error"),Read.ErrorText); Data->SetNumberField(TEXT("FailureCount"),Data->GetNumberField(TEXT("FailureCount"))+1); }
+				auto Results=Data->GetArrayField(TEXT("Results")); Results.Add(MakeShared<FJsonValueObject>(Item)); Data->SetArrayField(TEXT("Results"),Results); Data->SetNumberField(TEXT("CompletedCount"),Completed+1);
+				Operation->Message=FString::Printf(TEXT("Read-only batch %d/%d completed"),Completed+1,Calls.Num());
+				if (Completed+1<Calls.Num()) return true;
+				FNexusEditorOperations::Finish(Operation,Data->GetNumberField(TEXT("FailureCount"))>0?TEXT("Failed"):TEXT("Completed"),Operation->Result,Operation->Message); return false;
+			}),0.01f);
+			Result.StructuredContent=Operation->Snapshot(); Result.OutputText=FNexusJsonUtils::SerializeCondensed(Result.StructuredContent); return Result;
 		}
 
 		FString SingleCap = Parsed.Str(TEXT("Capability"));
@@ -440,7 +490,13 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 		const bool bDeferFinalize = CallsArr->Num() >= 2;
 
 		TUniquePtr<INexusTransactionHandle> BatchTx;
-		if (CallsArr->Num() >= 2)
+		bool bHasWrites=false;
+		for (const auto& Call : *CallsArr) {
+			if (!Call.IsValid() || Call->Type!=EJson::Object) continue;
+			const auto* Record=FNexusCapabilityRegistry::Get().FindRecordByName(FNexusArgs(Call->AsObject()).Str(TEXT("Capability")));
+			if (Record && Record->Def.HasTag(FNexusMcpTags::Write)) bHasWrites=true;
+		}
+		if (CallsArr->Num() >= 2 && bHasWrites)
 		{
 			BatchTx = FNexusEditorTransaction::Begin(TEXT("CallCapability.calls"));
 		}
@@ -549,6 +605,10 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			}
 			++FailureCount;
 			break;
+			case FNexusCallCore::EStatus::StateConflict:
+				Item->Values.Append(Core.ArgInvalidErr->Values);
+				++FailureCount;
+				break;
 			case FNexusCallCore::EStatus::UserDenied:
 				{
 					FString ErrMsg;
@@ -632,6 +692,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 	}
 
 	// ── 单条形态（与历史响应兼容）────────────────────────────────────────────
+	if (Parsed.Bool(TEXT("bAsyncReadOnly"))) { Result.bIsError=true; Result.ErrorText=TEXT("bAsyncReadOnly requires Calls[]"); return Result; }
 	const FString CapName = Parsed.Str(TEXT("Capability"));
 	if (CapName.IsEmpty())
 	{
@@ -710,6 +771,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Core.ArgInvalidErr);
 		}
 		return Result;
+	case FNexusCallCore::EStatus::StateConflict:
 	case FNexusCallCore::EStatus::UserDenied:
 		{
 			Result.bIsError = true;

@@ -13,6 +13,24 @@
 
 这些操作沿用现有字段，不接受调用者指定工具类或执行路径。异步接口使用 `GetEditorOperation` 查询并返回 Backend=Independent。`Result.CompatibilityResult` / `Result.OfficialResult` 可作为历史数据容器保留，具体以输出 Schema 为准。当前引擎不存在的底层动作明确返回版本或类型限制。
 
+## 导航与碰撞诊断
+
+`GetEditorScene` 在当前编辑器世界提供只读动作，结果位于 `Result.CompatibilityResult`：
+
+- `NavigationStatus` 返回 `bNavigationAvailable`、`bNavigationBuilding`、`bBuildingLocked`、`RemainingTasks` 和 `RunningTasks`。可传 `WaitSeconds`（0–30）观察已有构建；返回 `OperationId`，通过 `GetEditorOperation` 查询。超时返回 `bTimedOut=true`，不会发起、停止或重建导航。
+- `NavigationContributors` 必须传有限的 `BoundsMin` / `BoundsMax`，查询已存在的导航八叉树，返回所有者/Actor 路径、实际边界、几何与修饰器标记、延迟收集状态及区域类。`Offset` / `Limit` 控制返回条目；不触发延迟几何收集，未建八叉树以 `bOctreeAvailable=false` 表示。
+- `NavigationTiles` 使用同样空间范围，查询默认 Recast 导航数据；`ScanLimit` 每次最多检查 65536 个瓦片槽，`NextOffset` 是下次扫描位置，`Limit` 最多返回 500 条。`bTruncated` 表示还有槽未扫描；没有 Recast 数据时返回 `bRecastAvailable=false`。
+- `LevelGeometry` 默认读取持久层 `Level.Model` 的 BSP 节点、表面、点和多边形计数、整体及有界节点边界；可用 `AssetPath` 选已有加载关卡包。不会切图、导出或加载隐藏引用。
+- `Collision` 要求精确的 `ActorPath` 或 `ComponentPath`，返回组件注册状态、`bPhysicsStateCreated`、`bValidBodyInstance`、碰撞/Visibility 响应及导航标记。`Trace` 可传 `bTraceComplex`，返回命中组件、`FaceIndex`、位置与法线。
+
+`ControlEditorScene.RefreshComponentPhysics` 要求一个精确 `ComponentPath` 和已停止 PIE，调用组件 `RecreatePhysicsState`，不会更改或保存资产属性。导航已经构建或锁定时，`BuildNavigation` 返回 `ErrorKind=StateConflict`；切图因脏包被拒绝时返回同类错误及 `DirtyWorldPackages`，应显式处理所列包。
+
+`GetAssetStaticMesh` 增加 `Navigation`、`Sections`、`LODForCollision` 与 `bContainsPhysicsTriMeshData`。`MaxTriangles`（默认 0，最多 128）、`TriangleOffset`、`LODIndex` 可读取渲染网格的本地三角形和质心；渲染面索引与物理后端的面索引不保证一致，这些字段不能单独证明当前组件的物理状态。`ManageAssetStaticMesh.RefreshCollision` 重建已有 BodySetup 并刷新已注册的网格实例；碰撞复杂度及简单碰撞修改也会同步刷新物理状态和导航组件数据。资产仍由显式保存操作落盘。
+
+`CallCapability(Calls=[...], bAsyncReadOnly=true, TimeoutSeconds=30)` 仅接受编辑器宿主中已注册、允许批量的只读能力，一次 1–64 项，每帧执行一项。`OperationId` 可查询 `CompletedCount`、`TotalCount`、`FailureCount`、`Results` 与进度消息；`ControlEditorOperation(OperationId=...)` 取消尚未执行的读取。截止时间范围为 0.01–120 秒，在条目之间检查，不能中断正在执行的引擎调用。失败、取消和超时保留已完成结果，不重试写入。普通同步 `Calls` 也限制为 64 项。
+
+`ExportAsset` 返回 `ExporterDiagnostics`（最多 32 条原生警告/错误）、`ExporterErrors` 与 World 的 `LevelGeometry` 摘要；无诊断时列表为空，保留导出器、输出路径和 `bWritten` 供核对。`bValidateOnly` 保持不落盘。
+
 ## 静态网格生成
 
 `ManageAssetStaticMesh` 新增：
@@ -23,6 +41,8 @@
 - `SetNaniteEnabled(bEnabled)`：UE 5+；UE4 明确返回不支持。
 
 UE5 使用 StaticMeshEditorSubsystem，UE4 使用 EditorStaticMeshLibrary；均由 NexusLink 直接调用。写入沿用已有资产保存流程，不自动保存其他脏资产。
+
+碰撞几何坐标使用 Schema 声明的 `X/Y/Z`，或明确的 `ExtentX/Y/Z`、`LocX/Y/Z`。旧参考清单中的小写 `x/y/z` 已纠正；客户端应按 `SearchCapabilities` 返回的字段拼写调用。
 
 ## 编辑器场景
 

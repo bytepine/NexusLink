@@ -15,6 +15,8 @@
 #include "PhysicsEngine/SphereElem.h"
 #include "NexusMcpTool.h"
 #include "Editor.h"
+#include "Components/StaticMeshComponent.h"
+#include "AI/NavigationSystemBase.h"
 #if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
 #include "StaticMeshEditorSubsystem.h"
 #else
@@ -79,9 +81,9 @@ static UBodySetup* EnsureBodySetup(UStaticMesh* Mesh)
 	return Body;
 }
 
-static void InvalidateCollision(UStaticMesh* Mesh, UBodySetup* Body)
+static int32 InvalidateCollision(UStaticMesh* Mesh, UBodySetup* Body)
 {
-	if (!Mesh || !Body) return;
+	if (!Mesh || !Body) return 0;
 	Body->InvalidatePhysicsData();
 	Body->CreatePhysicsMeshes();
 #if WITH_EDITORONLY_DATA
@@ -91,6 +93,16 @@ static void InvalidateCollision(UStaticMesh* Mesh, UBodySetup* Body)
 	Mesh->bCustomizedCollision = true;
 #endif
 #endif
+	int32 Refreshed = 0;
+	// 重建共享资产的数据后，同步已注册的实例，避免编辑器仍查询旧物理形状。
+	for (TObjectIterator<UStaticMeshComponent> It; It; ++It)
+	{
+		if (It->GetStaticMesh() != Mesh || !It->IsRegistered() || It->IsTemplate()) continue;
+		It->RecreatePhysicsState();
+		FNavigationSystem::UpdateComponentData(**It);
+		++Refreshed;
+	}
+	return Refreshed;
 }
 
 void FNexusManageAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
@@ -102,7 +114,7 @@ void FNexusManageAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefi
 		.Prop(TEXT("Action"), FNexusSchema::Enum(TEXT("Action"), {
 			TEXT("SetMaterialSlot"), TEXT("SetProperty"),
 			TEXT("SetCollisionTraceFlag"), TEXT("AddBoxCollision"), TEXT("AddSphereCollision"),
-			TEXT("ClearSimpleCollision"),
+			TEXT("ClearSimpleCollision"), TEXT("RefreshCollision"),
 			TEXT("AddSocket"), TEXT("RemoveSocket"), TEXT("SetSocket"),
 			TEXT("SetLODScreenSize"), TEXT("GenerateLODs"), TEXT("RemoveLODs"), TEXT("GenerateConvexCollision"), TEXT("SetNaniteEnabled")
 		}))
@@ -145,7 +157,7 @@ void FNexusManageAssetStaticMeshCapability::BuildDefinition(FNexusCapabilityDefi
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Editor };
-	Out.ExtraSearchKeywords = { TEXT("mesh"), TEXT("Material"), TEXT("Collision"), TEXT("socket"), TEXT("lod"), TEXT("Static") };
+	Out.ExtraSearchKeywords = { TEXT("mesh"), TEXT("Material"), TEXT("Collision"), TEXT("socket"), TEXT("lod"), TEXT("Static"), TEXT("collision refresh"), TEXT("physics") };
 	Out.RelatedCapabilities = { TEXT("GetAssetStaticMesh"), TEXT("SearchAsset"), TEXT("SaveAsset") };
 	Out.Prerequisites = { TEXT("EditorOnly") };
 	Out.WhenToUse = TEXT("Edit StaticMesh material/collision/Socket/LOD; persist with SaveAsset");
@@ -245,11 +257,21 @@ static void HandleSM_SetCollisionTraceFlag(const TSharedPtr<FJsonObject>& Op, FN
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Unable to create BodySetup"));
 		return;
 	}
-	Body->CollisionTraceFlag = Flag;
-	InvalidateCollision(Mesh, Body);
+	Body->Modify(); Body->CollisionTraceFlag = Flag;
+	Ctx.Entry->SetNumberField(TEXT("RefreshedComponentCount"),InvalidateCollision(Mesh, Body));
 	MarkMeshDirty(Ctx);
 	Ctx.Entry->SetStringField(TEXT("CollisionTraceFlag"), FlagText.IsEmpty() ? TEXT("UseDefault") : FlagText);
 	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset"));
+}
+
+static void HandleSM_RefreshCollision(const TSharedPtr<FJsonObject>&, FNexusActionContext& Ctx)
+{
+	UStaticMesh* Mesh=MeshFrom(Ctx);
+	UBodySetup* Body=Mesh ? FNexusAssetUtils::GetStaticMeshBodySetup(Mesh) : nullptr;
+	if (!Body) { Ctx.Entry->SetStringField(TEXT("Error"),TEXT("Existing BodySetup is required")); return; }
+	Body->Modify();
+	Ctx.Entry->SetNumberField(TEXT("RefreshedComponentCount"),InvalidateCollision(Mesh,Body));
+	MarkMeshDirty(Ctx);
 }
 
 static void HandleSM_AddBoxCollision(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
@@ -530,6 +552,7 @@ void FNexusManageAssetStaticMeshCapability::RegisterActions(TMap<FString, FNexus
 	OutHandlers.Add(TEXT("SetMaterialSlot"),        &HandleSM_SetMaterialSlot);
 	OutHandlers.Add(TEXT("SetProperty"),             &HandleSM_SetProperty);
 	OutHandlers.Add(TEXT("SetCollisionTraceFlag"), &HandleSM_SetCollisionTraceFlag);
+	OutHandlers.Add(TEXT("RefreshCollision"), &HandleSM_RefreshCollision);
 	OutHandlers.Add(TEXT("AddBoxCollision"),        &HandleSM_AddBoxCollision);
 	OutHandlers.Add(TEXT("AddSphereCollision"),     &HandleSM_AddSphereCollision);
 	OutHandlers.Add(TEXT("ClearSimpleCollision"),   &HandleSM_ClearSimpleCollision);

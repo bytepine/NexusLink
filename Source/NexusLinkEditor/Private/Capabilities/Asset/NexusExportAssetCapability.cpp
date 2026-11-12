@@ -12,6 +12,22 @@
 #include "Exporters/Exporter.h"
 #include "AssetExportTask.h"
 #include "NexusMcpTool.h"
+#include "Misc/OutputDeviceRedirector.h"
+#include "Misc/ScopeExit.h"
+#include "Engine/World.h"
+#include "Engine/Level.h"
+#include "Model.h"
+
+struct FNexusExportFeedback final : FOutputDevice
+{
+	TArray<TSharedPtr<FJsonValue>> Messages;
+	void Serialize(const TCHAR* Message, ELogVerbosity::Type Verbosity, const FName& Category) override
+	{
+		if (Verbosity<=ELogVerbosity::Warning && Messages.Num()<32) {
+			auto Item=MakeShared<FJsonObject>(); Item->SetStringField(TEXT("Category"),Category.ToString()); Item->SetStringField(TEXT("Message"),FString(Message).Left(2048)); Messages.Add(MakeShared<FJsonValueObject>(Item));
+		}
+	}
+};
 
 void FNexusExportAssetCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
@@ -118,6 +134,12 @@ FCapabilityResult FNexusExportAssetCapability::Execute(const TSharedPtr<FJsonObj
 		Entry->SetBoolField(TEXT("bDestinationExisted"), bExisted);
 		Entry->SetBoolField(TEXT("bValidateOnly"), Args.Bool(TEXT("bValidateOnly")));
 		Entry->SetBoolField(TEXT("bAutomated"), true);
+		if (const UWorld* World=Cast<UWorld>(Asset)) {
+			const UModel* Model=World->PersistentLevel ? World->PersistentLevel->Model : nullptr;
+			auto Geometry=MakeShared<FJsonObject>(); Geometry->SetBoolField(TEXT("bHasPersistentLevel"),World->PersistentLevel!=nullptr);
+			Geometry->SetNumberField(TEXT("BspNodeCount"),Model?Model->Nodes.Num():0); Geometry->SetNumberField(TEXT("BspSurfaceCount"),Model?Model->Surfs.Num():0);
+			Entry->SetObjectField(TEXT("LevelGeometry"),Geometry);
+		}
 		if (Args.Bool(TEXT("bValidateOnly"))) { Entry->SetBoolField(TEXT("bWritten"), false); OutEntries.Add(MakeShared<FJsonValueObject>(Entry)); return; }
 		// 确保目录存在
 		{
@@ -132,9 +154,20 @@ FCapabilityResult FNexusExportAssetCapability::Execute(const TSharedPtr<FJsonObj
 		Task->bAutomated = true;
 		Task->bPrompt = false;
 		Task->bReplaceIdentical = Policy == TEXT("Replace");
-		const bool bSuccess = UExporter::RunAssetExportTask(Task);
+		FNexusExportFeedback Feedback;
+		bool bSuccess=false;
+		{
+			// GWarn 也转发到日志；保留原生进度上下文，同时收集直接 UE_LOG 的诊断。
+			if (GLog) GLog->AddOutputDevice(&Feedback);
+			ON_SCOPE_EXIT { if (GLog) GLog->RemoveOutputDevice(&Feedback); };
+			bSuccess=UExporter::RunAssetExportTask(Task);
+			if (GLog) GLog->FlushThreadedLogs();
+		}
 
 		Entry->SetBoolField(TEXT("bWritten"), bSuccess);
+		Entry->SetArrayField(TEXT("ExporterDiagnostics"),Feedback.Messages);
+		TArray<TSharedPtr<FJsonValue>> TaskErrors; for (const FString& Error : Task->Errors) TaskErrors.Add(MakeShared<FJsonValueString>(Error));
+		Entry->SetArrayField(TEXT("ExporterErrors"),TaskErrors);
 		if (!bSuccess) Entry->SetStringField(TEXT("Error"), Task->Errors.Num() > 0 ? FString::Join(Task->Errors, TEXT("; ")) : TEXT("Export failed"));
 
 		OutEntries.Add(MakeShared<FJsonValueObject>(Entry));

@@ -9,6 +9,9 @@
 
 ### Added
 
+- 场景只读诊断支持导航构建状态、剩余/运行任务与有界等待、指定空间的八叉树贡献者及区域修饰器、Recast 瓦片和已加载关卡 BSP 节点；碰撞查询附组件物理状态，射线可选复杂碰撞并返回组件、命中面与位置。
+- 静态网格快照增加 NavCollision、分段碰撞开关、碰撞 LOD 与有界本地三角形采样；支持明确刷新指定组件物理状态或重建网格碰撞并刷新已加载实例。
+- `CallCapability` 支持最多 64 项的逐帧只读异步批次，通过 `GetEditorOperation` 查询进度和已完成结果，支持批次截止时间及取消剩余读取；只读同步批次不创建编辑器事务。
 - `InteractRuntimeInput`／`GetRuntimeInput` 支持精确 Play World 和本地玩家的 Key／Enhanced Input Action 注入、定时及显式释放、所属任务查询和世界／服务停止清理。
 - `GetRuntimePerformance` 查询最新帧和线程／可用 GPU 耗时；`GetProfilerCsv` 读取有界文本快照，支持发现、帧区间聚合、指标排序与事件查询，保留空事件列、CSV 引号及尾部完整表头的统计值对齐。
 - `GetAssetUserWidget` 增加 `PropertyOverrides`／`Connections`，报告静态默认值、继承 archetype、旧式及 MVVM 绑定方向、直接图节点证据与不确定性。
@@ -18,6 +21,7 @@
 
 ### Changed
 
+- 静态网格碰撞坐标的参考文档与兼容基线对齐源码已有的 `X/Y/Z` 声明，纠正旧清单遗留的 `x/y/z` 记录。
 - `Dangerous` 标签仅用于任意代码执行入口（含任意控制台命令及脚本）；编辑器 UI、测试、编译、领域控制、项目设置、插件与 Gameplay Tags 管理等专用写能力移除危险标记，保留各自执行限制及逐项禁用记录。
 - `SearchCapabilities` 的目录、精确查询与禁用状态不再由代理缓存；禁用响应附 UE 端危险访问模式、逐项及会话门控状态；统一单词查询大小写判断，对 `property` / `Lua` 等过宽查询返回收窄建议。
 - 移除 NexusLink 自身对官方 Toolset / ToolsetRegistry 的直接构建依赖和运行路由，编辑器、Slate、Automation、资产编辑、Sequencer / ControlRig、PCG 与 Niagara 统一由 NexusLink 直接调用引擎领域 API，报告 `Backend=Independent`；以插件模块声明、执行引用及 Windows DLL 常规/延迟直接导入均为 0 验收，提供源码与产物门禁；标准领域模块的传递依赖遵循官方引擎要求，按引擎版本与领域插件开放能力。
@@ -28,9 +32,11 @@
 
 - 编辑器模态窗口／慢任务期间拒绝普通请求并返回 `EditorBusy` 与 `bExecuted=false`；UE 5.9 通过本端口服务模态循环、慢任务进度及 Windows 原生对话框，保留 ping／状态响应，不自动重放写入。
 - 关卡 Actor 读取、预览、修改、生成和删除按实际 `ULevel` 限定所属包，正确处理已加载流送子关卡；返回实际 Actor/关卡路径，默认对象缺少实例化子对象时保留有效属性值并标记 `bDefaultUnavailable`，属性写入刷新组件变换及导航边界；恢复默认值使用完整反射复制及比较，避免遗漏结构体中的零值字段；`GetAssetLevel/Navigation` 可读取隐藏关卡的导航数据块元信息。
-- 导航体积使用原生 CubeBuilder 建立实际尺寸、保持单位缩放，支持 `ResizeNavMeshBoundsVolume`；`ControlEditorLevel` 增加已有子关卡加载、显示、隐藏及设为当前关卡，导航保存预检返回 `DirtyLevelPaths`，关卡上下文附 `bDirty`。
+- 导航体积使用原生 CubeBuilder 建立实际尺寸、保持单位缩放，支持 `ResizeNavMeshBoundsVolume`；`ControlEditorLevel` 增加已有子关卡加载、显示、隐藏及设为当前关卡，导航保存预检返回 `DirtyLevelPaths`，关卡上下文附 `bDirty`；导航忙碌/锁定及脏关卡切换返回 `StateConflict`，切换拒绝附 `DirtyWorldPackages`，不再提示参数猜测或工具误用。
 - 资产保存先检查只读及 Windows 文件替换权限，释放本包加载句柄；地图包验证实际 `UWorld/PersistentLevel` 后使用原生 `SaveLevel/SaveWorld`，避免流送子关卡走通用资产保存触发地图对象检查；保存前拒绝临时、已替换或循环的 UFunction super 引用，返回 `SaveDiagnostics`，防止运行时生成函数引起 SavePackage 断言；错误使用非致命输出及结构化诊断，失败保留脏标记，文件占用时不删除或截断已有资产。
-- Slate 快照支持文本/控件类型筛选，附角色、提示、支持动作和焦点/勾选状态；修复 `SSearchBox` 替换输入失败。
+- Slate 快照支持文本/控件类型筛选，附角色、提示、支持动作和焦点/勾选状态；修复 `SSearchBox` 替换输入失败，并识别 UE4 `SPropertyComboBox` / `SSearchableComboBox` 的原生菜单锚点以选择选项；可见文本等待同时识别窗口标题。
+- 静态网格碰撞修改同步刷新已注册实例的物理状态及导航组件数据，避免只更新 BodySetup 后仍查询旧碰撞。
+- 导出结果附有界原生警告/错误、导出任务错误列表及 World 的持久层 BSP 计数，保留失败输出路径与导出器身份以辅助定位空几何或后端拒绝。
 - 修复 UE 4.26 的动画默认参数文本导入与旧版 Sequencer 不支持 Override 混合类型导致的编译错误；`GetAssetAnimSequence` 的骨骼姿态采样支持 UE 4.26–5.1。
 - 修复 UE4 `BlendSpace1D` 读取和编辑被误判为不存在，1D 修改自动重建插值网格；样本写入使用引擎校验，拒绝无效坐标、重复样本、骨架不兼容及无效轴范围。
 - 动画蓝图图读写支持嵌套状态图及完整 `GraphPath`，重名图要求完整路径，状态/过渡图使用对应原生 Schema，编辑后按显式 `bCompile` 收尾；关卡及蓝图组件的标量校验批次允许混入默认值恢复，恢复操作仍不接受 `ExpectedValue`。
