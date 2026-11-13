@@ -14,7 +14,7 @@ Start with [NexusDesktop](https://github.com/bytepine/NexusDesktop), or use the 
 - **Scenes and projects**: manage levels, Actors, [navigation and collision](docs/editor-compatibility.md#导航与碰撞诊断); edit project settings and [PCG, PhysicsAsset, GameplayTags, and other data](docs/pcg-physics-tags-dataregistry.md).
 - **Runtime debugging**: inspect logs, Actors, animation, AI, and GAS in PIE, Game, and DS, with [input injection and UI diagnostics](docs/runtime-diagnostics.md) and [UMG interaction](docs/runtime-widgets.md).
 - **Diagnostics and performance**: [GAS activation diagnostics](docs/gas-retest.md), [behavior-tree condition replay](docs/bt-retest.md), and [Trace performance comparison](docs/trace-compare.md).
-- **Editor automation**: [Slate interaction, Automation tests, and Live Coding](docs/editor-toolsets.md).
+- **Editor automation**: [graph discovery, node selection and navigation, view controls, Slate UI fallback, Automation tests, and Live Coding](docs/editor-toolsets.md). Prefer dedicated domain and graph MCP tools.
 
 Supports **UE 4.26+ (including UE5)**. MCP runs in the editor and Development / DebugGame Game / DS builds; **Shipping builds strip the MCP server at compile time**. Available capabilities depend on the engine version, host type, and enabled plugins.
 
