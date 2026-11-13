@@ -1,5 +1,7 @@
 {
   "descriptions": {
+    "GetEditorGraph": "只读发现资产所属图表，读取节点布局、选择与原生视图；不发送界面输入。",
+    "ControlEditorGraph": "通过原生图编辑器 API 打开、定位和选择节点，并平移或缩放视图；不改写图结构。",
     "GetNavigationPath": "在 Editor/PIE/Game 中只读查询已有导航路径，支持坐标投影、Agent、Filter 和精确世界选择；不移动 Actor、不重建导航。",
     "ControlEditorAssetEditor": "打开、聚焦、查询或安全关闭单个资产编辑器；关闭拒绝脏资产和共享编辑器实例，地图使用 ControlEditorLevel。",
     "ControlEditorLevel": "打开地图或加载、显示、隐藏已有流送子关卡并设为当前关卡；Open 保护未保存修改，MakeCurrent 同时显示目标。",
@@ -439,6 +441,22 @@
     "GetProjectToolsets": "发现 NexusLink 自有 Capability 分组、输入/输出 Schema 和动作级支持状态；不读取外部 Registry，不提供任意执行。"
   },
   "param_text": {
+    "Asset discovered via SearchAsset": "SearchAsset 返回的资产路径",
+    "Relative graph path returned by GetEditorGraph; required except graph listing/Open": "GetEditorGraph 返回的相对图路径；列图与 Open 以外的操作必填",
+    "Node GUID from this graph snapshot; Get filter or FocusNode target": "当前图快照返回的节点 GUID；用于读取筛选或 FocusNode 目标",
+    "Native view command": "原生图视图操作",
+    "SelectNodes: 1-256 GUIDs, all validated before selection changes": "SelectNodes 的 1–256 个节点 GUID；全部验证后再改变选择",
+    "SelectNodes mode": "SelectNodes 选择模式",
+    "Graph-space left offset": "图坐标左偏移",
+    "Graph-space top offset": "图坐标上偏移",
+    "Positive scale up to 10; engine snaps/clamps to supported levels": "缩放值范围 (0,10]；引擎量化或限制到支持的级别",
+    "ZoomToFit selected nodes only": "ZoomToFit 仅适配已选节点",
+    "Graph path or node title/class substring": "图路径或节点标题/类名子串",
+    "Node page offset": "节点分页偏移",
+    "Node page size": "节点每页数量",
+    "DuplicateNodes: selected node GUIDs in this graph": "DuplicateNodes 的同图节点 GUID 集合",
+    "DuplicateNodes: X position offset": "DuplicateNodes 的 X 坐标偏移",
+    "DuplicateNodes: Y position offset": "DuplicateNodes 的 Y 坐标偏移",
     "AnimGraph or nested state graph name/path from GraphOverview; default AnimGraph": "GraphOverview 返回的动画图或嵌套状态图名称/完整路径；默认 AnimGraph",
     "Axis index: 0 for 1D; 0=horizontal, 1=vertical for 2D (SetAxis)": "轴索引：1D 仅 0；2D 的 0 为横轴、1 为纵轴（SetAxis）",
     "Axis grid divisions, 1-256 (SetAxis)": "轴网格分段数，1–256（SetAxis）",

@@ -18,13 +18,14 @@
 - UE 5.9+ 可选用 `GetCommonUIInfo` / `ControlCommonUIDiagnostics` 查询激活树、焦点和路由，并采集有界事件。
 - 蓝图迁移支持自定义事件命名、继承成员同型重映射与只验证、嵌套默认值和缺失路径诊断。`SetArray` / `ClearArray` 在写入前拒绝类型不匹配、整数截断和数值溢出。
 - `GetAssetLevel` 的 `ActorPropertySchema` 列出实例实际持有的子对象和结构体字段。
+- 图表操作新增 `GetEditorGraph` / `ControlEditorGraph`，通过原生接口发现图表、读取布局与选择、打开、定位和选择节点、设置视图及缩放适配；蓝图专用操作新增结构体引脚拆分/合并和有界节点复制，回读包含布局、注释、引脚层级及新旧节点 ID 映射。图表数据编辑继续使用各领域专用工具。
 - Slate 快照可按文本和控件类型筛选，并返回父控件 Ref、本地尺寸、提示、角色、焦点、勾选状态和可用动作。交互支持右键/中键、双击、滚轮、事件修饰键及控件内归一化坐标，拖动可在同一控件内指定起止位置；`SSearchBox` 可以替换输入。输入前复检悬停后目标，拒绝失效控件；模态窗口仍遵循 `EditorBusy` 限制。
 
 ### Changed
 
 - 只有任意代码执行入口仍标记为 `Dangerous`。编辑器 UI、测试、编译和领域写入不再因此默认禁用；过去仅因该标记被自动关闭的能力会重新启用。
 - `SearchCapabilities` 不再缓存目录、精确查询和禁用状态。过宽的单词查询会返回收窄建议。
-- 编辑器、Slate、Automation、资产、Sequencer、Control Rig、PCG 与 Niagara 由 NexusLink 直接调用引擎接口，并报告 `Backend=Independent`；编辑器操作优先领域 MCP，再用 Slate 查询、截图与交互，缺口提交反馈，仅在确无 MCP 路径时回退到电脑控制。
+- 编辑器、Slate、Automation、资产、Sequencer、Control Rig、PCG 与 Niagara 由 NexusLink 直接调用引擎接口，并报告 `Backend=Independent`；图表操作优先领域数据工具及专用图编辑器工具，Slate 仅作缺少专用接口时的界面兜底，缺口提交反馈，仅在确无 MCP 路径时回退到电脑控制。
 - `GetProjectToolsets` 列出 NexusLink 自己的能力分组和动作 Schema。`GetProjectSkills` 发现项目及已启用插件中的 `SKILL.md`。`SearchAssetsSemantic` 使用可选的 SemanticSearch 服务。
 - 蓝图 `GraphDSL` / `WriteGraphDSL` 使用 `UnrealGraphText`。旧的 Toolset S-expression 不再接受；结构化编辑仍用 `WriteGraphPlan`。
 

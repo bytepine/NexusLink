@@ -36,9 +36,17 @@ UEdGraph* FNexusBlueprintGraphUtils::FindBPGraph(UBlueprint* BP, const FString& 
 {
 	TArray<UEdGraph*> AllGraphs;
 	CollectAllGraphs(BP, AllGraphs);
+	UEdGraph* NameMatch = nullptr;
 	for (UEdGraph* G : AllGraphs)
-		if (G && G->GetName() == GraphName) return G;
-	return nullptr;
+		if (G && (G->GetPathName() == GraphName || G->GetPathName(BP) == GraphName)) return G;
+	for (UEdGraph* G : AllGraphs)
+		if (G && G->GetName() == GraphName)
+		{
+			// 嵌套图允许同名；有歧义时要求调用者使用完整或相对路径。
+			if (NameMatch) return nullptr;
+			NameMatch = G;
+		}
+	return NameMatch;
 }
 
 UEdGraphNode* FNexusBlueprintGraphUtils::FindBPNode(UEdGraph* Graph, const FString& NodeIdStr)
@@ -117,6 +125,12 @@ TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::SerializeBPPin(const UEdGraph
 	if (!Pin->DefaultValue.IsEmpty()) P->SetStringField(TEXT("DefaultValue"), Pin->DefaultValue);
 	if (Pin->DefaultObject) P->SetStringField(TEXT("DefaultObject"), Pin->DefaultObject->GetPathName());
 	P->SetBoolField(TEXT("bOrphan"), Pin->bOrphanedPin);
+	P->SetBoolField(TEXT("bHidden"), Pin->bHidden);
+	if (Pin->ParentPin) P->SetStringField(TEXT("ParentPin"), Pin->ParentPin->PinName.ToString());
+	TArray<TSharedPtr<FJsonValue>> SubPins;
+	for (const UEdGraphPin* SubPin : Pin->SubPins)
+		if (SubPin) SubPins.Add(MakeShared<FJsonValueString>(SubPin->PinName.ToString()));
+	P->SetArrayField(TEXT("SubPins"), SubPins);
 	if (Pin->LinkedTo.Num() > 0)
 	{
 		TArray<TSharedPtr<FJsonValue>> Links;
@@ -140,7 +154,11 @@ TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::SerializeBPNode(const UEdGrap
 	N->SetStringField(TEXT("NodeId"),    Node->NodeGuid.ToString());
 	N->SetStringField(TEXT("NodeClass"), Node->GetClass()->GetName());
 	N->SetStringField(TEXT("NodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
-	if (!Node->NodeComment.IsEmpty()) N->SetStringField(TEXT("Comment"), Node->NodeComment);
+	N->SetNumberField(TEXT("PosX"), Node->NodePosX);
+	N->SetNumberField(TEXT("PosY"), Node->NodePosY);
+	N->SetNumberField(TEXT("Width"), Node->NodeWidth);
+	N->SetNumberField(TEXT("Height"), Node->NodeHeight);
+	N->SetStringField(TEXT("Comment"), Node->NodeComment);
 	N->SetBoolField(TEXT("bIsNodeEnabled"), Node->IsNodeEnabled());
 	TArray<TSharedPtr<FJsonValue>> Pins;
 	for (const UEdGraphPin* Pin : Node->Pins)

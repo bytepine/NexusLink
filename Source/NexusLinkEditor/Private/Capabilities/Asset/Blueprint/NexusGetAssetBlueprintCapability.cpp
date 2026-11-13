@@ -75,8 +75,8 @@ static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FNexusBPQuery
 		return Root;
 	}
 
-	UEdGraph* Target = nullptr;
-	for (UEdGraph* G : AllGraphs) { if (G->GetName() == Q.GraphName) { Target = G; break; } }
+	UEdGraph* Target = FNexusBlueprintGraphUtils::FindBPGraph(BP, Q.GraphName);
+	if (Target && !AllGraphs.Contains(Target)) Target = nullptr;
 	if (!Target)
 	{
 		TArray<FString> Avail;

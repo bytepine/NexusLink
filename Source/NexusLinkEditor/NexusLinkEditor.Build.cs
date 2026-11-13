@@ -63,6 +63,8 @@ public class NexusLinkEditor : ModuleRules
 			PrivateDependencyModuleNames.Add("TraceAnalysis");
 		}
 		if (NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 7)) PrivateDependencyModuleNames.Add("CSVUtils");
+		if (NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 3))
+			PrivateDependencyModuleNames.AddRange(new[] { "BehaviorTreeEditor", "AIGraph" });
 
 		string ProjectRoot = NexusLinkOptionalPlugins.FindProjectRoot(ModuleDirectory);
 		var SearchDirs = NexusLinkOptionalPlugins.CollectPluginSearchDirs(ProjectRoot, this);
@@ -94,6 +96,8 @@ public class NexusLinkEditor : ModuleRules
         // Before UE 5.5 property bags lived in the StructUtils plugin module.
         if (PrivateDependencyModuleNames.Contains("PCGEditor") && !NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 5))
             PrivateDependencyModuleNames.Add("StructUtils");
+		if (PrivateDependencyModuleNames.Contains("PCGEditor") && NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 7))
+			PrivateDependencyModuleNames.Add("AssetDefinition");
 
 	}
 }

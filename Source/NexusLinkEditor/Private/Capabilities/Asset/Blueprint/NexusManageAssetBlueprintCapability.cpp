@@ -87,13 +87,17 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 	Out.Description = TEXT("Batch edit BP graphs, variables/types, inheritance, defaults and components. Compile/save explicitly.");
 	auto ArrayValueSchema = MakeShared<FJsonObject>();
 	ArrayValueSchema->SetBoolField(TEXT("additionalProperties"), true);
+	auto NodeIdsSchema = FNexusSchema::StrArr(TEXT("DuplicateNodes: selected node GUIDs in this graph"));
+	NodeIdsSchema->SetNumberField(TEXT("minItems"), 1);
+	NodeIdsSchema->SetNumberField(TEXT("maxItems"), 64);
+	NodeIdsSchema->SetBoolField(TEXT("uniqueItems"), true);
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"),          FNexusSchema::Enum(TEXT("Operation type"), {
 			TEXT("AddVariable"), TEXT("RemoveVariable"), TEXT("RenameVariable"), TEXT("RenameLocalVariable"), TEXT("ChangeVariableType"), TEXT("SetVariableMetadata"), TEXT("SetVariableReplication"), TEXT("SetFunctionCallInEditor"), TEXT("Reparent"), TEXT("RemapMemberReferences"),
 			TEXT("AddFunction"), TEXT("RemoveFunction"),
 			TEXT("AddMacro"), TEXT("AddTimeline"), TEXT("AddDispatcher"), TEXT("AddLocalVariable"),
 			TEXT("AddInterface"), TEXT("RemoveInterface"),
-			TEXT("AddNode"), TEXT("RemoveNode"), TEXT("SetNode"), TEXT("PromotePin"),
+			TEXT("AddNode"), TEXT("RemoveNode"), TEXT("SetNode"), TEXT("PromotePin"), TEXT("SplitPin"), TEXT("RecombinePin"), TEXT("DuplicateNodes"),
 			TEXT("Connect"), TEXT("Disconnect"), TEXT("DisconnectAll"),
 			TEXT("AddComponent"), TEXT("RemoveComponent"), TEXT("SetComponentProperty"), TEXT("ResetComponentPropertyToDefault"), TEXT("CopyComponent"), TEXT("ReattachComponent"), TEXT("SetDefaults"), TEXT("SetArray"), TEXT("ClearArray"), TEXT("ArrangeNodes"), TEXT("WriteGraphDSL"), TEXT("WriteGraphPlan"), TEXT("AddFunctionParameter"), TEXT("RemoveFunctionParameter"), TEXT("SetVariableCategory"), TEXT("SetVariableEditable") }))
         .Prop(TEXT("Code"), FNexusSchema::Str(TEXT("UnrealGraphText node text from GetAssetBlueprint GraphDSL; append-only, 1-500 duplicable nodes; old Toolset Lisp syntax is not accepted")))
@@ -107,7 +111,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("Replication"), FNexusSchema::Enum(TEXT("SetVariableReplication: does not enable replication on the owning actor/component"), {TEXT("None"), TEXT("Replicated"), TEXT("RepNotify")}))
 		.Prop(TEXT("RepNotifyFunction"), FNexusSchema::Str(TEXT("RepNotify: existing owned function with no inputs/outputs; create with AddFunction first")))
 		.Prop(TEXT("bCallInEditor"), FNexusSchema::Bool(TEXT("SetFunctionCallInEditor: expose an owned parameterless function as an editor button")))
-		.Prop(TEXT("GraphName"),       FNexusSchema::Str(TEXT("Graph name (nodes/wires/PromotePin)")))
+		.Prop(TEXT("GraphName"),       FNexusSchema::Str(TEXT("Owned graph name, full or relative object path")))
 		.Prop(TEXT("VariableName"),    FNexusSchema::Str(TEXT("Variable name (AddVariable/PromotePin; auto if omitted)")))
 		.Prop(TEXT("VariableType"),    FNexusSchema::Str(TEXT("Basic, object, ClassReference<BaseClass> or BlueprintType struct; T[], Array<T>, Set<T>, Map<K,V> (no nested containers)")))
 		.Prop(TEXT("NewVariableName"), FNexusSchema::Str(TEXT("New member name (RenameVariable); leaf Blueprint only, preserves GUID and references; descendants/RepNotify are rejected")))
@@ -120,7 +124,10 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("Category"),        FNexusSchema::Str(TEXT("Editor category (AddVariable)")))
 		.Prop(TEXT("bIsPublic"),        FNexusSchema::Bool(TEXT("Instance editable (AddVariable)"), true, false))
 		.Prop(TEXT("bIsLocal"),         FNexusSchema::Bool(TEXT("PromotePin: local var (default member var)"), true, false))
-		.Prop(TEXT("NodeId"),          FNexusSchema::Str(TEXT("node GUID (remove/SetNode/PromotePin)")))
+		.Prop(TEXT("NodeId"),          FNexusSchema::Str(TEXT("Node GUID for node and struct pin edits")))
+		.Prop(TEXT("NodeIds"),         NodeIdsSchema)
+		.Prop(TEXT("OffsetX"),         FNexusSchema::Int(TEXT("DuplicateNodes: X position offset"), 64, MIN_int32, MAX_int32))
+		.Prop(TEXT("OffsetY"),         FNexusSchema::Int(TEXT("DuplicateNodes: Y position offset"), 64, MIN_int32, MAX_int32))
 		.Prop(TEXT("NodeClass"),       FNexusSchema::Str(TEXT("K2Node class (AddNode)")))
 		.Prop(TEXT("FunctionName"),    FNexusSchema::Str(TEXT("Function name (AddFunction/CallFunction)")))
 		.Prop(TEXT("CustomEventName"), FNexusSchema::Str(TEXT("AddNode K2Node_CustomEvent / SetNode: exact event name, validated against Blueprint member conflicts; final name is returned")))
@@ -129,7 +136,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("PosX"),            FNexusSchema::Num(TEXT("Node X position")))
 		.Prop(TEXT("PosY"),            FNexusSchema::Num(TEXT("Node Y position")))
 		.Prop(TEXT("Comment"),         FNexusSchema::Str(TEXT("Node comment (SetNode)")))
-		.Prop(TEXT("PinName"),         FNexusSchema::Str(TEXT("Pin name (SetNode/PromotePin)")))
+		.Prop(TEXT("PinName"),         FNexusSchema::Str(TEXT("Pin name for defaults, promote, split or recombine")))
 		.Prop(TEXT("PinDefaultValue"), FNexusSchema::Str(TEXT("New pin default value")))
 		.Prop(TEXT("SourceNodeId"),    FNexusSchema::Str(TEXT("Source node GUID (wire ops)")))
 		.Prop(TEXT("SourcePinName"),   FNexusSchema::Str(TEXT("Source pin name")))
@@ -159,7 +166,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 	Out.ExtraSearchKeywords = {
 		TEXT("variable"), TEXT("rename"), TEXT("reparent"), TEXT("parent"), TEXT("Node"), TEXT("Component"), TEXT("wire"), TEXT("Connect"),
 		TEXT("Disconnect"), TEXT("link"), TEXT("scs"), TEXT("Function"), TEXT("interface"), TEXT("bpi"),
-		TEXT("promote"), TEXT("pin"), TEXT("metadata"), TEXT("tooltip"), TEXT("replication"), TEXT("replicated"), TEXT("repnotify"), TEXT("CallInEditor")
+		TEXT("promote"), TEXT("pin"), TEXT("split"), TEXT("recombine"), TEXT("duplicate"), TEXT("copy"), TEXT("metadata"), TEXT("tooltip"), TEXT("replication"), TEXT("replicated"), TEXT("repnotify"), TEXT("CallInEditor")
 	};
 	Out.RelatedCapabilities = { TEXT("GetAssetBlueprint"), TEXT("CreateAssetBlueprint"), TEXT("SaveAsset"), TEXT("GetAssetEditPreview"), TEXT("CompileBlueprint"), TEXT("ControlEditorAssetEditor") };
 	Out.WhenToUse = TEXT("Write Blueprint graphs/variables, reparent specialized Blueprints, or edit component defaults; preview first");
@@ -1198,7 +1205,7 @@ bool FNexusManageAssetBlueprintCapability::PrepareTarget(
 void FNexusManageAssetBlueprintCapability::RegisterActions(TMap<FString, FNexusActionHandler>& OutHandlers) const
 {
     for (const FString& Action : {TEXT("SetVariableMetadata"),TEXT("SetVariableReplication"),TEXT("SetFunctionCallInEditor")}) OutHandlers.Add(Action, &HandleBP_Variable);
-    for (const FString& Action : {TEXT("ArrangeNodes"),TEXT("WriteGraphDSL"),TEXT("WriteGraphPlan"),TEXT("AddFunctionParameter"),TEXT("RemoveFunctionParameter"),TEXT("SetVariableCategory"),TEXT("SetVariableEditable")}) OutHandlers.Add(Action, &FNexusBlueprintGraphEnhancements::Write);
+    for (const FString& Action : {TEXT("ArrangeNodes"),TEXT("WriteGraphDSL"),TEXT("WriteGraphPlan"),TEXT("AddFunctionParameter"),TEXT("RemoveFunctionParameter"),TEXT("SetVariableCategory"),TEXT("SetVariableEditable"),TEXT("SplitPin"),TEXT("RecombinePin"),TEXT("DuplicateNodes")}) OutHandlers.Add(Action, &FNexusBlueprintGraphEnhancements::Write);
 	OutHandlers.Add(TEXT("AddVariable"), &HandleBP_Variable);
 	OutHandlers.Add(TEXT("RemoveVariable"), &HandleBP_Variable);
 	OutHandlers.Add(TEXT("RenameVariable"), &HandleBP_Variable);

@@ -67,6 +67,11 @@
 #define NX_UE_HAS_NAV_TILE_REF             NX_UE_AT_LEAST(5, 5) // Recast 瓦片查询改用 FNavTileRef
 #define NX_UE_HAS_NAV_SOURCE_ELEMENT       NX_UE_AT_LEAST(5, 5) // 导航八叉树所有者改为 FNavigationElement
 #define NX_UE_HAS_EDGRAPH_PERFORM_ACTION_VECTOR2F  NX_UE_AT_LEAST(5, 6) // FEdGraphSchemaAction::PerformAction(FVector2D) C4996 → FVector2f
+#define NX_UE_HAS_GRAPH_EDITOR_VIEW_VECTOR2F NX_UE_AT_LEAST(5, 6) // SGraphEditor 视图位置改用 FVector2f
+#define NX_UE_HAS_MATERIAL_GRAPH_HYPERLINK NX_UE_AT_LEAST(5, 0) // IMaterialEditor::JumpToHyperlink 可打开材质子图
+#define NX_UE_HAS_BEHAVIOR_TREE_EDITOR_VIEW NX_UE_AT_LEAST(5, 3) // 行为树编辑器公开所属图视图
+#define NX_UE_HAS_PCG_EDITOR_VIEW NX_UE_AT_LEAST(5, 7) // PCG 编辑器公开所属图页签
+#define NX_UE_HAS_PCG_EDITOR_DOCUMENT_TABS NX_UE_AT_LEAST(5, 8) // PCG 多文档改用公开页签标识
 #define NX_UE_HAS_STATIC_MESH_CUSTOM_COLLISION_ACCESSOR NX_UE_AT_LEAST(5, 7) // bCustomizedCollision → SetCustomizedCollision
 #define NX_UE_HAS_STATIC_MESH_AUTO_LOD_SCREENSIZE_ACCESSOR NX_UE_AT_LEAST(5, 7) // bAutoComputeLODScreenSize → SetAutoComputeLODScreenSize
 #define NX_UE_HAS_SKELETAL_MESH_ACCESSORS  NX_UE_HAS_STATIC_MESH_ACCESSORS // USkeletalMesh::Materials/PhysicsAsset → GetMaterials()/GetPhysicsAsset()

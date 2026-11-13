@@ -2,10 +2,12 @@
 
 [文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
 
-Slate UI、Automation 测试和非阻塞 Live Coding 都属于引擎能力，由 NexusLinkEditor 提供，不要求 NexusLinkExt 或第二个官方 MCP 服务。
+专用图编辑器操作、Slate UI、Automation 测试和非阻塞 Live Coding 都属于引擎能力，由 NexusLinkEditor 提供，不要求 NexusLinkExt 或第二个官方 MCP 服务。
 
 ## 接口
 
+- `GetEditorGraph`：传 `AssetPath`，省略 `GraphName` 时发现图表；指定返回的 `GraphName` 后读取节点布局、注释、`SelectedNodeIds` 和可用的视图状态。可用 `NodeId`、`NameFilter`、`Offset`、`Limit` 缩小读取范围。
+- `ControlEditorGraph`：`Action=Open|SetView|ZoomToFit|FocusNode|SelectNodes|ClearSelection`，通过原生图编辑器 API 操作指定图，不发送鼠标或按键事件，不接收 Slate Ref。节点、引脚和连接的数据修改继续使用各领域 `ManageAsset*`。
 - `GetEditorSlate`：`Action=Windows|Snapshot|WaitFor`，可传 `Ref`、`MaxDepth`（0–100）。Snapshot 可用 `TextFilter`（文本/提示）与 `TypeFilter`（控件类型）筛选，继续遍历不匹配的容器；最多扫描 20000 个节点、返回 2000 个匹配项。`Nodes` 包含 Ref、ParentRef、LocalSize、Role、Tooltip、Actions 和焦点/勾选状态，Ref 由 NexusLink 自行管理。`ParentRef` 标识父控件，`LocalSize={X,Y}` 是控件本地尺寸；父项可能被筛选或截断，可按 Ref 查询子树。快照包含截断标记。
 - `CaptureEditorSlate`：可传快照中的 `Ref`，空值选择活动窗口；返回本地 `FilePath` 及标准 MCP 图片内容。
 - `InteractEditorSlate`：`Action=Click|DoubleClick|Scroll|Type|PressKey|Focus|Hover|Drag|SelectOption|SetChecked|FillForm`，传已查询的 `Ref`。窗口聚焦使用 Windows 查询中的窗口 Ref。快照的通用 `Actions` 包括 Click、DoubleClick、Scroll、Drag、PressKey、Focus 和 Hover，文本框与复选框另提供对应动作；具体结果仍取决于控件是否处理输入。
@@ -33,21 +35,47 @@ Desktop、VSCode、Rider 的等待请求支持 MCP `notifications/progress`；�
 
 标准 `notifications/cancelled` 结束等待，底层操作仍可查询。停止测试须显式请求 Stop，Live Coding 不保证可停止。超时或断连不能作为重新执行写操作的依据。
 
-新增能力声明操作信封的输出 Schema，搜索详情通过 `outputSchema` 公布，MultiTool 的工具定义也公布。输出在适配和压缩后校验；旧能力未声明时保持既有行为。
+上述长操作能力声明操作信封的输出 Schema，搜索详情通过 `outputSchema` 公布，MultiTool 的工具定义也公布。输出在适配和压缩后校验；旧能力未声明时保持既有行为。
 
 发现结果的 `Execution` 包含固定后端及选择原因。输出 Schema 声明窗口、快照节点、截图、逐项测试结果和编译诊断；同时声明 `Nodes_defaults` / `Windows_defaults` / `Tests_defaults`，以便验证最终压缩结果。空窗口标题合法，未知字段或不匹配的嵌套类型会被拒绝。
 
 Slate Ref 绑定到 NexusLink 会话及弱控件引用，快照从当前可见控件树重新读取。界面重建、窗口关闭或控件失效后重新查询 Ref；拒绝隐藏、禁用祖先下的输入目标及断开的窗口控件。
 
-编辑器操作先使用对应领域 MCP；缺少专用能力时，继续通过 `GetEditorSlate` 查询、`CaptureEditorSlate` 截图和 `InteractEditorSlate` 交互。仍无法完成时提交 `SubmitFeedback`，记录缺口及实际错误。只有原生系统对话框、编辑器外 UI 等确无 MCP 路径的操作才回退到电脑控制；不要仅因缺少领域能力就直接回退。编辑器模态窗口或慢任务仍受忙碌门控限制，可能返回 `EditorBusy`；这些 Slate 接口不提供模态窗口控制保证。
+编辑器操作先使用对应领域 MCP。图表结构和数据使用各领域 `GetAsset*` / `ManageAsset*`，打开、定位、选择及视图操作使用 `GetEditorGraph` / `ControlEditorGraph`。缺少某个图编辑动作时先发现对应专用工具并用 `SubmitFeedback` 记录缺口，不能直接转为鼠标拖线、右键菜单或其他通用 Slate 输入。只有确实没有领域或图表专用接口的界面操作才使用 Slate 兜底；原生系统对话框、编辑器外 UI 等确无 MCP 路径的操作才回退电脑控制。模态窗口或慢任务仍受 `EditorBusy` 门控限制，不保证模态窗口控制。断连或超时后不自动重试写入。
+
+## 专用图表操作
+
+先用 `SearchAsset` 获取资产路径，再用 `GetEditorGraph(AssetPath)` 发现图表。`GraphName` 使用返回的相对路径，不能猜测；同名图存在歧义时会拒绝，改用完整的返回路径。普通蓝图、控件蓝图、动画蓝图及行为树、PCG 等资产内已有的 `UEdGraph` 使用资产所属图；材质和材质函数的已打开编辑器使用其当前预览图，避免把源资产与预览副本混淆。具体可用图以发现结果为准。
+
+指定 `GraphName` 后，`GetEditorGraph` 返回节点标识、坐标、记录的尺寸与注释，可按 `NodeId` 或 `NameFilter` 筛选，并用 `Offset` / `Limit` 分页。`SelectedNodeIds`、`ViewLocation` 和 `Zoom` 描述已存在原生图编辑器的状态；未打开图编辑器时视图不可用，不会为了读取而模拟界面输入。蓝图视图从目标编辑器的唯一图文档取得，避免误读或控制同资产的 Diff 窗口。行为树在 UE 5.3+ 使用所属编辑器的当前图视图，UE 4.26–5.2 仅提供结构读取；PCG 在 UE 5.7+ 使用所属编辑器的图标签，UE 5.4–5.6 仅提供结构读取。具体视图可用性以 `bViewAvailable` 为准。先发现图表和节点，再把返回的 `GraphName`、`NodeId` 或 `NodeIds[]` 交给控制工具。
+
+`ControlEditorGraph` 的 `AssetPath` 必填，除 `Open` 外还需 `GraphName`。动作如下：
+
+- `Open`：省略 `GraphName` 时打开或聚焦资产编辑器并返回图表清单；指定已发现的 `GraphName` 时尝试打开该图。
+- `SetView`：至少传 `ViewLocation` 或 `Zoom`。`ViewLocation={X,Y}` 是图坐标的左上偏移，不是视图中心；`Zoom` 范围为 (0,10]，引擎可能将其量化到支持的缩放级别。以再次查询返回的实际值为准。
+- `ZoomToFit`：适配全图，`bOnlySelection=true` 时适配当前选择。
+- `FocusNode`：用 `NodeId` 定位已发现节点。
+- `SelectNodes`：传 1–256 项 `NodeIds[]`，`SelectionMode=Replace|Add|Remove` 指定替换、追加或移除选择，默认 Replace；全部目标验证后再改变选择。
+- `ClearSelection`：清空指定图的节点选择。
+
+这两个工具同步返回，不创建 `OperationId`；`bRequestAccepted` / `bViewDeferred` 区分请求已接受与视图仍需延迟更新。视图和选择操作需要 GUI 与可用的原生图编辑器。`FocusNode` / `ZoomToFit` 由引擎延迟移动视图，后续用 `GetEditorGraph` 读回，不把同步返回当作动画已完成。这些工具不执行任意脚本，不改写图结构，不代替各领域的编译、保存和 Undo 契约；仍需修改节点、引脚、连接或布局数据时使用相应 `ManageAsset*`。
+
+### 蓝图结构与布局
+
+蓝图数据先用 `GetAssetBlueprint(Sections=["graph"], GraphName=...)` 读取；节点包含 `PosX` / `PosY` / `Width` / `Height` / `Comment`，引脚包含 `bHidden`、子引脚的 `ParentPin` 和父引脚的 `SubPins[]`。以当前回读的节点与引脚标识调用 `ManageAssetBlueprint.Operations[]`：
+
+- `SplitPin` / `RecombinePin`：必填 `GraphName`、`NodeId`、`PinName`。按 K2 schema 拆分或合并结构体引脚；输入结构体仅支持能保留默认值的 Vector / Rotator / Vector2D / LinearColor，其他输入类型在修改前拒绝，输出结构体仍按 schema 支持范围处理。拆分拒绝已拆分、连线或不可拆分的引脚，并在修改前拒绝非法或非有限的输入默认值；合并可传父或子引脚名，但其后代有连接时拒绝。返回父引脚名及更新后的完整 `Node`，继续编辑前使用新引脚列表。
+- `DuplicateNodes`：必填 `GraphName` 与同图 1–64 个唯一 `NodeIds[]`；`OffsetX` / `OffsetY` 默认为 64，可为 0 或负数，位置超出 int32 范围时拒绝。支持原生 CallFunction、VariableGet、VariableSet、Knot 和 Comment 节点；事件、图边界、Timeline、Composite 等资源或结构节点不支持。保留复制集合内部连接，外部连接不复制；新节点使用新 GUID，返回 `NodeIdMap={旧GUID:新GUID}` 与 `Nodes[]`。
+
+连接、断开、节点属性和位置继续使用已有领域操作，例如 `Connect` / `Disconnect`、`SetNode` 与 `ArrangeNodes`。编译与落盘仍须显式传 `bCompile` / `bSaveToDisk`，或调用 `CompileBlueprint` / `SaveAsset`。
 
 ## Slate 进阶操作
 
 `Type(Text, bReplace=true)` 替换文本，空串可清空。`PressKey` 支持 `Ctrl+`、`Shift+`、`Alt+`、`Cmd+` 组合及 Unreal Key 名。替换仅接受标准可编辑文本控件，清除前验证焦点和完整选区，通过引擎按键事件验证完整选区后再清空、输入。
 
-`Click` 单击，`DoubleClick` 双击，二者和 `Drag` 均可用 `Button=Left|Right|Middle`（默认 Left）。`Modifiers[]` 可组合 Ctrl、Shift、Alt、Cmd，仅注入事件，不改变系统按键状态；少数通过 `FSlateApplication::GetModifierKeys()` 读取全局状态的控件可能不响应，例如某些图编辑器的 Alt+右键缩放，须执行后读回或截图验证。`Position={X,Y}` 使用目标控件内的归一化坐标，X/Y 均在 [0,1]，默认中心；`Hover` 和 `Scroll` 也可指定该位置。坐标由控件当前几何换算，仍检查目标是否可见、启用和可命中。
+`Click` 单击，`DoubleClick` 双击，二者和 `Drag` 均可用 `Button=Left|Right|Middle`（默认 Left）。`Modifiers[]` 可组合 Ctrl、Shift、Alt、Cmd，仅注入事件，不改变系统按键状态；少数通过 `FSlateApplication::GetModifierKeys()` 读取全局状态的控件可能不响应，须执行后读回或截图验证。`Position={X,Y}` 使用目标控件内的归一化坐标，X/Y 均在 [0,1]，默认中心；`Hover` 和 `Scroll` 也可指定该位置。坐标由控件当前几何换算，仍检查目标是否可见、启用和可命中。
 
-`Scroll` 必须传非零 `WheelDelta`，范围 [-20,20]，正值向上、负值向下。`Drag` 必须传起点 `Ref` 与终点 `EndRef`，终点可用 `EndPosition={X,Y}`，范围与默认值同 Position；两个 Ref 可以相同，用于图表平移或控件内拖动。输入接受不表示控件已经完成预期操作，执行后重新查询或截图核对。
+`Scroll` 必须传非零 `WheelDelta`，范围 [-20,20]，正值向上、负值向下。`Drag` 必须传起点 `Ref` 与终点 `EndRef`，终点可用 `EndPosition={X,Y}`，范围与默认值同 Position；两个 Ref 可以相同，用于控件内拖动。图表平移和缩放使用 `ControlEditorGraph(SetView)`。输入接受不表示控件已经完成预期操作，执行后重新查询或截图核对。
 
 `SetChecked(Value="true"|"false")` 接受复选框 Ref。`SelectOption(Value)` 只在该组合框自己的独立弹出窗口内精确匹配可见选项，找不到时不会点击其他同名文字；复用宿主窗口的菜单请用聚焦后的按键导航。所有输入仍通过 NexusLink 的权限检查。
 
