@@ -10,21 +10,11 @@
 
 ## 能做什么
 
-- **输入、性能与 UI 诊断**：[玩家输入注入、实时帧耗时、CSV 查询、UMG 属性来源，以及可选 CommonUI 焦点与路由](docs/runtime-diagnostics.md)。
-- **功能补充**：[动作级发现、结构预览、首次导入、多人 PIE、PCG 输出、骨骼采样、任务历史、性能预算与源控预检](docs/feature-followups.md)。
-- **编辑器与资产**：查询项目上下文，读写蓝图、材质、动画、音频、DataTable、Widget 和 Niagara 等资产；蓝图批量编辑按 `bCompile` 集中编译，支持普通/专用蓝图重设父类预检、成员/局部变量重命名、带前置条件的类型变更、ClassReference 及完整容器类型回读、旧式动画/动画蓝图目标 Skeleton 重定向及组件继承覆盖比较/恢复；可列出、打开/聚焦和安全关闭资产编辑器，或打开编辑器地图（地图未保存时拒绝）、加载/显示/隐藏并切换已有子关卡，按所属关卡包读取/预览/修改 Actor 属性与类默认值，按 AssetRegistry 查询包的 pak chunk，可创建和调整原生几何尺寸的 NavMeshBoundsVolume 并异步构建/保存导航，投影导航坐标、按 Agent/Filter 查询已有路径，查询 AI 移动结果或停止移动。支持[修改前预览与写后校验](docs/asset-edit-preview.md)，结构/编译校验失败时阻止自动保存，导出支持格式发现与只验证，FBX 动画导入逐 take 保护已有资产。
-- **运行时调试**：在 PIE、独立 Game 和 Dedicated Server 中检查日志、Actor、动画、AI / EQS 和 GAS；可用原生变换接口移动 Actor。有视口的 Game / PIE 还支持 [UMG 控件交互](docs/runtime-widgets.md)，可按实例路径读取、修改和交互 Actor 上 WidgetComponent 的控件树。
-- **复测与性能分析**：[GAS 技能激活诊断](docs/gas-retest.md)、[行为树 / Blackboard 条件复测](docs/bt-retest.md)、[已停录 Trace 的同条件性能对比](docs/trace-compare.md)。
-- **编辑器自动化**：[Slate 界面查询与交互、Automation 测试、非阻塞 Live Coding](docs/editor-toolsets.md)。
-- **导航与碰撞诊断**：[构建状态与只读等待、空间贡献者/瓦片、关卡 BSP、网格分段/三角形及实时组件物理状态](docs/editor-compatibility.md#导航与碰撞诊断)；只读批次可逐帧执行并查询进度、超时和部分结果。
-- **项目发现与领域诊断**：[设置/插件、技能、语义搜索、PCG 执行采样、Niagara 诊断/修复、UMG 结构与标准截图图片](docs/editor-toolsets.md)。
-- **独立引擎后端**：[官方 Toolset 直接依赖及调用为 0，支持 Windows DLL 导入检查；引擎传递依赖边界](docs/toolset-backends.md)。
-- **编辑器兼容扩展**：[参数/UMG、网格生成、场景整理与蓝图图编辑](docs/editor-compatibility.md)，含变量 ToolTip、Replication/RepNotify 与无参函数 CallInEditor 的配置和回读；[UMG、材质、项目配置与 Sequencer 扩展](docs/editor-remaining-toolsets.md)。关卡组件默认值比较和恢复支持 SCS 继承覆盖模板。
-- **动画与领域动作**：[Sequencer / Control Rig、Niagara 深层写入、Game Features 与自有动作发现](docs/animation-niagara-gamefeatures-toolsets.md)。
-- **动画与关卡检查**：UE4 BlendSpace1D 读写与 1D 插值重建、UE 4.26+ 骨骼采样、嵌套状态图路径、隐藏关卡导航数据块及原生流送地图保存；约束见[功能补充](docs/feature-followups.md)与[保存说明](docs/usage-guide.md#修改了属性但-ue-中没有生效--磁盘未变化)。
-- **批量蓝图迁移**：自定义事件命名、同型继承成员引用重映射、嵌套默认值与缺失路径诊断、类型化数组设置/清空、结构体/容器校验及实例所属子对象 Schema；见[迁移约束](docs/asset-edit-preview.md#批量蓝图迁移)。保存前拦截不可序列化的 SuperFunction 引用并报告位置。
-- **参数与项目数据编辑**：[PCG 参数闭环、PhysicsAsset 精细编辑、GameplayTags 配置与 DataRegistry 查询](docs/pcg-physics-tags-dataregistry.md)。
-- **MVVM 数据绑定**：[ViewModel / 控件 / WBP 属性路径、绑定方向和单输入转换函数](docs/mvvm-bindings.md)（UE 5.5+）。
+- **资产编辑**：读写蓝图、材质、动画、音频、UMG、Niagara 等资产，支持[修改预览、批量编辑与写后校验](docs/asset-edit-preview.md)。
+- **场景与项目**：管理关卡、Actor、[导航与碰撞](docs/editor-compatibility.md#导航与碰撞诊断)，编辑项目设置及 [PCG、PhysicsAsset、GameplayTags 等数据](docs/pcg-physics-tags-dataregistry.md)。
+- **运行时调试**：在 PIE、Game 和 DS 中检查日志、Actor、动画、AI 与 GAS，支持[输入注入与 UI 诊断](docs/runtime-diagnostics.md)、[UMG 交互](docs/runtime-widgets.md)。
+- **复测与性能分析**：[GAS 技能诊断](docs/gas-retest.md)、[行为树条件复测](docs/bt-retest.md)、[Trace 性能对比](docs/trace-compare.md)。
+- **编辑器自动化**：[Slate 界面操作、Automation 测试与 Live Coding](docs/editor-toolsets.md)。
 
 支持 **UE 4.26+（含 UE5）**。MCP 可运行于编辑器及 Development / DebugGame 的 Game / DS；**Shipping 在编译期剔除 MCP 服务器**。具体能力随引擎版本、宿主类型和已启用插件裁剪。
 
