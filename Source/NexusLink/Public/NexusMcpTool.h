@@ -6,7 +6,7 @@
 #include "Dom/JsonObject.h"
 
 /** 预定义标签常量，避免手写字符串导致拼写不一致。 */
-struct FNexusMcpTags
+struct NEXUSLINK_API FNexusMcpTags
 {
 	static constexpr const TCHAR* Readonly  = TEXT("Readonly");
 	static constexpr const TCHAR* Write     = TEXT("Write");

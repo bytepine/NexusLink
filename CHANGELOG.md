@@ -30,6 +30,7 @@
 
 ### Fixed
 
+- 为 MCP 标签常量补齐类外定义与模块导出，修复 C++14 下按引用使用标签导致的 Linux Game / DS 链接缺失符号。
 - 编辑器模态窗口或慢任务期间，普通请求返回 `EditorBusy` 且不执行。UE 5.9 在此期间仍响应 ping 和状态。
 - 关卡 Actor 读写限定在所属已加载关卡，流送子关卡返回实际路径。缺少默认子对象时保留有效值并标记 `bDefaultUnavailable`。属性写入会刷新变换和导航边界。
 - 导航体积按给定尺寸生成，并支持 `ResizeNavMeshBoundsVolume`。`ControlEditorLevel` 可加载、显示、隐藏和切换已有子关卡。脏关卡或导航忙碌时返回 `StateConflict`。
