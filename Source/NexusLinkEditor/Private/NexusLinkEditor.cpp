@@ -91,6 +91,7 @@ void FNexusLinkEditorModule::StartupModule()
 
 void FNexusLinkEditorModule::ShutdownModule()
 {
+	NexusShutdownEditorTransactionHooks();
 	FNexusEditorServices::SaveMapPackage = [](UWorld*, const FString&) { return false; };
 	FNexusCommonUIDiagnostics::Shutdown();
 	FNexusEditorControlServices::Shutdown();

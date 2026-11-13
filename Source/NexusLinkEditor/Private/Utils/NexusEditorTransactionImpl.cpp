@@ -7,6 +7,7 @@
 #include "Editor.h"
 #include "ScopedTransaction.h"
 #include "Editor/Transactor.h"
+#include "Engine/World.h"
 #include "Misc/ITransaction.h"
 
 namespace
@@ -74,6 +75,15 @@ namespace
 		}
 		return MakeUnique<FNexusScopedTransactionHandle>(MoveTemp(Tx));
 	}
+
+	FDelegateHandle GNexusTransientWorldUndoHandle;
+
+	/** 临时预览世界里的控件实例会被撤销记录抓住，紧接着的强制 GC 会变成致命世界泄漏。 */
+	void DropUndoHoldingTransientWorld(UWorld* World, bool, bool)
+	{
+		if (!GEditor || !World || World->GetOutermost() != GetTransientPackage()) return;
+		GEditor->ResetTransaction(FText::FromString(TEXT("NexusLink released undo records in a transient preview world")));
+	}
 }
 
 void NexusInstallEditorTransactionHooks()
@@ -81,6 +91,19 @@ void NexusInstallEditorTransactionHooks()
 	FNexusEditorServices::IsTransactionActive = &ImplIsTransactionActive;
 	FNexusEditorServices::GetActiveTransactionRecordCount = &ImplGetActiveRecordCount;
 	FNexusEditorServices::BeginTransaction = &ImplBeginTransaction;
+	if (!GNexusTransientWorldUndoHandle.IsValid())
+	{
+		GNexusTransientWorldUndoHandle = FWorldDelegates::OnWorldCleanup.AddStatic(&DropUndoHoldingTransientWorld);
+	}
+}
+
+void NexusShutdownEditorTransactionHooks()
+{
+	if (GNexusTransientWorldUndoHandle.IsValid())
+	{
+		FWorldDelegates::OnWorldCleanup.Remove(GNexusTransientWorldUndoHandle);
+		GNexusTransientWorldUndoHandle.Reset();
+	}
 }
 
 #else // !WITH_EDITOR

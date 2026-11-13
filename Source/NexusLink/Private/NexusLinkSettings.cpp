@@ -229,6 +229,21 @@ void UNexusLinkSettings::EnsureDangerousCapsDefaultOff()
 		DisabledCapabilities.Add(Name);
 		bChanged = true;
 	}
+	// 不再属于危险入口的能力，撤销当初的自动禁用，避免升级后仍被关着。
+	TArray<FString> RetiredAutoDisables;
+	for (const FString& Name : DangerousCapsDefaultOffApplied)
+	{
+		if (!DangerousNames.Contains(Name))
+		{
+			RetiredAutoDisables.Add(Name);
+		}
+	}
+	for (const FString& Name : RetiredAutoDisables)
+	{
+		DangerousCapsDefaultOffApplied.Remove(Name);
+		DisabledCapabilities.Remove(Name);
+		bChanged = true;
+	}
 
 	bDangerousCapsDefaultOffApplied = true;
 

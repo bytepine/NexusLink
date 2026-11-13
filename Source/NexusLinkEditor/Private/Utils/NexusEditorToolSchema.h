@@ -20,10 +20,15 @@ struct FNexusEditorToolSchema final
             .Required(TEXT("Title"), FNexusSchema::Str(TEXT("Window title")))
             .Prop(TEXT("Index"), FNexusSchema::Int(TEXT("Current backend window index"))).Build();
         auto Node = FNexusSchema::Object().Required(TEXT("Ref"), FNexusSchema::Str(TEXT("Opaque widget reference")))
-            .Prop(TEXT("Type"), FNexusSchema::Str(TEXT("Slate widget type")))
-            .Prop(TEXT("Text"), FNexusSchema::Str(TEXT("Visible label or editable text")))
-            .Prop(TEXT("bEnabled"), FNexusSchema::Bool(TEXT("Widget enabled state")))
-            .Prop(TEXT("Depth"), FNexusSchema::Int(TEXT("Depth from snapshot root"))).Build();
+			.Prop(TEXT("Type"), FNexusSchema::Str(TEXT("Slate widget type")))
+			.Prop(TEXT("Text"), FNexusSchema::Str(TEXT("Visible label or editable text")))
+			.Prop(TEXT("Tooltip"), FNexusSchema::Str(TEXT("Visible tooltip text")))
+			.Prop(TEXT("Role"), FNexusSchema::Str(TEXT("Interaction role: TextBox, CheckBox, or the widget type")))
+			.Prop(TEXT("bEnabled"), FNexusSchema::Bool(TEXT("Widget enabled state")))
+			.Prop(TEXT("bFocused"), FNexusSchema::Bool(TEXT("Widget or a descendant has keyboard focus")))
+			.Prop(TEXT("bChecked"), FNexusSchema::Bool(TEXT("Check box state")))
+			.Prop(TEXT("Actions"), FNexusSchema::StrArr(TEXT("Supported interactions")))
+			.Prop(TEXT("Depth"), FNexusSchema::Int(TEXT("Depth from snapshot root"))).Build();
         auto Test = FNexusSchema::Object().Required(TEXT("Name"), FNexusSchema::Str(TEXT("Full test name")))
             .Prop(TEXT("Outcome"), FNexusSchema::Str(TEXT("Test business outcome")))
             .Prop(TEXT("DurationSeconds"), FNexusSchema::Num(TEXT("Test duration")))

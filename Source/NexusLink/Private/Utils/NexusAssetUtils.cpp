@@ -322,9 +322,12 @@ bool FNexusAssetUtils::SaveNewAsset(UPackage* Package, UObject* Asset, const FSt
 		{
 			const bool bCycle = Visited.Contains(Super);
 			Visited.Add(Super);
+			// 引擎原生函数（如 Actor::ReceiveBeginPlay）可以安全作为蓝图事件的 super。
+			if (!bCycle && Super->GetOutermost() && Super->GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn))
+				continue;
 			const UClass* OwnerClass = Cast<UClass>(Super->GetOuter());
 			if (bCycle || !Super->IsA(UFunction::StaticClass()) || Super->HasAnyFlags(RF_Transient)
-				|| Super->GetOutermost() == GetTransientPackage() || Super->GetOuter()->HasAnyFlags(RF_Transient)
+				|| Super->GetOutermost() == GetTransientPackage() || !Super->GetOuter() || Super->GetOuter()->HasAnyFlags(RF_Transient)
 				|| (OwnerClass && (OwnerClass->HasAnyClassFlags(CLASS_NewerVersionExists)
 					|| OwnerClass->GetName().StartsWith(TEXT("SKEL_")) || OwnerClass->GetName().StartsWith(TEXT("REINST_")))))
 			{

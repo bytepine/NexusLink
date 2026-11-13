@@ -39,8 +39,13 @@ public class NexusLinkEditor : ModuleRules
 			PrivateDependencyModuleNames.Add("PhysicsUtilities");
 		PrivateDependencyModuleNames.Add(NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 0) ? "StaticMeshEditor" : "EditorScriptingUtilities");
 		// 低版本通过官方动画库按骨骼名采样，避免把 Skeleton 索引误当作 Track 索引。
+		// 4.x 的接口在 AnimationModifiers；5.0/5.1 拆到 AnimationBlueprintLibrary。
 		if (!NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 2))
+		{
 			PrivateDependencyModuleNames.Add("AnimationModifiers");
+			if (NexusLinkOptionalPlugins.MeetsMinEngineVersion(Target, 5, 0))
+				PrivateDependencyModuleNames.Add("AnimationBlueprintLibrary");
+		}
 
 		// NexusLink（Runtime）里 NexusMcpAuth / NexusLanHost 仍是 Private 头（无 UnrealEd 依赖，
 		// 无需为区区两个设置面板要用的静态工具类整体提升为 Public API），设置定制面板需要直接

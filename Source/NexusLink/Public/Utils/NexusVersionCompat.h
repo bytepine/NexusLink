@@ -201,6 +201,8 @@
 // ── PCG 版本兼容 ──
 // PCG 插件 UE 5.2+ 存在；5.4+ API 趋稳
 #define NX_UE_HAS_PCG_STABLE  NX_UE_AT_LEAST(5, 4)
+// 5.5 起 UPCGSettings 的 Input/OutputPinProperties 重新公开；更早只能走 All*。
+#define NX_UE_HAS_PCG_PUBLIC_PIN_PROPERTIES NX_UE_AT_LEAST(5, 5)
 // UE 5.5+ UPCGGraph 节点列表 API 变更
 #define NX_UE_HAS_PCG_GRAPH_NODES_ARRAY  (!NX_UE_AT_LEAST(5, 5))
 
@@ -290,6 +292,7 @@
 #define NX_UE_HAS_RIG_HIERARCHY_ELEMENT_VIEWS NX_UE_AT_LEAST(5, 9) // 存储顺序视图替代 GetBones/GetControls/GetNulls 的默认遍历。
 #define NX_UE_HAS_RIG_CONTROL_SHAPE_DATA NX_UE_AT_LEAST(5, 9) // 控件形状设置通过 Hierarchy 持有的可写引用修改。
 #define NX_UE_HAS_HTTP_LISTENER_TICK NX_UE_AT_LEAST(5, 9) // 仅 Tick 本服务端口；同时提供 SlowTask 进度委托。
+#define NX_UE_HAS_INPUT_KEY_PARAMS NX_UE_AT_LEAST(5, 0) // FInputKeyParams；5.0 起旧 InputKey/InputAxis 已废弃。
 #define NX_UE_HAS_INPUT_KEY_EVENT_ARGS NX_UE_AT_LEAST(5, 6)
 #define NX_UE_HAS_CONTINUOUS_INPUT_INJECTION NX_UE_AT_LEAST(5, 7) // 持续注入须同时具备公开占用查询，避免覆盖其他来源。
 #define NX_UE_HAS_CSV_PROFILER_UTILS NX_UE_AT_LEAST(5, 7)

@@ -19,6 +19,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogNexusAssetEditorUtils, Log, All);
 
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Editor.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "EdGraph/EdGraph.h"
 #include "WidgetBlueprint.h"
@@ -253,6 +254,11 @@ bool FNexusAssetEditorUtils::CompileWithDiagnostics(UBlueprint* Blueprint, const
 	Result->SetArrayField(TEXT("CompilerMessages"), Messages);
 	Result->SetBoolField(TEXT("bCompilerMessagesTruncated"), Log.Messages.Num() > Messages.Num());
 	if (!bSucceeded) Result->SetStringField(TEXT("CompileError"), TEXT("Blueprint compilation failed; package was not saved"));
+	// 控件编译会把预览实例写进已提交的撤销记录。记录还在时回收预览世界会致命退出。
+	if (Blueprint->IsA(UWidgetBlueprint::StaticClass()) && GEditor)
+	{
+		GEditor->ResetTransaction(FText::FromString(TEXT("NexusLink released undo records after widget compile")));
+	}
 	return bSucceeded;
 #else
 	return false;
@@ -439,6 +445,11 @@ FNexusAssetEditorUtils::FAssetCreateOutcome FNexusAssetEditorUtils::CreateBluepr
 	}
 
 	const FString AssetName = FPaths::GetBaseFilename(AssetPath);
+	if (FindObject<UObject>(Package, *AssetName))
+	{
+		Out.Error = FString::Printf(TEXT("Asset already exists in package: %s"), *AssetPath);
+		return Out;
+	}
 	const bool bIsInterface = ParentClass->HasAnyClassFlags(CLASS_Interface);
 	UBlueprint* NewBP = FKismetEditorUtilities::CreateBlueprint(
 		ParentClass, Package, *AssetName,

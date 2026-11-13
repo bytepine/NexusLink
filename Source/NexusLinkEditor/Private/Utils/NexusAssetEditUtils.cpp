@@ -4,6 +4,7 @@
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusPropertyUtils.h"
 #include "Utils/NexusJsonUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusEditorTransaction.h"
 #include "Utils/NexusBlueprintEditUtils.h"
 #include "Engine/World.h"
@@ -207,8 +208,15 @@ static bool ValidateArrayJsonValue(FProperty* Property, const TSharedPtr<FJsonVa
 		if (Value->Type == EJson::Object)
 			for (TFieldIterator<FProperty> Field(Struct->Struct); Field; ++Field)
 				for (const auto& Pair : Value->AsObject()->Values)
-					if (Pair.Key.Equals(Field->GetAuthoredName(), ESearchCase::IgnoreCase)
+				{
+#if NX_UE_HAS_JSON_TSHAREDSTRING_KEY
+					const FString FieldKey(*Pair.Key);
+#else
+					const FString& FieldKey = Pair.Key;
+#endif
+					if (FieldKey.Equals(Field->GetAuthoredName(), ESearchCase::IgnoreCase)
 						&& !ValidateArrayJsonValue(*Field, Pair.Value, Error)) return false;
+				}
 	}
 	FNumericProperty* Numeric = CastField<FNumericProperty>(Property);
 	if (FEnumProperty* Enum = CastField<FEnumProperty>(Property)) Numeric = Enum->GetUnderlyingProperty();

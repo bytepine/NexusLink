@@ -71,7 +71,7 @@ UE defaults to HTTP `:45000` and WebSocket `:55000`; it advances to available po
 ## Security and write boundaries
 
 - **Authentication is on by default**. Treat tokens as credentials: never commit them, publish them in documentation, or expose them in screenshots.
-- **Dangerous capabilities are disabled by default**. `ExecCommand`, `ExecPython`, and editor UI input, test control, and compilation require explicit authorization. See [access modes and script risks](docs/usage-guide.md#210-危险-capability-与脚本执行) (Chinese). Prefer read-only `GetPythonApi` for API inspection.
+- **Only arbitrary code-execution entry points are dangerous capabilities, and they are disabled by default**. That set is `ExecCommand`, `ExecPython`, and NexusLinkExt Lua execution. See [access modes and script risks](docs/usage-guide.md#210-危险-capability-与脚本执行) (Chinese). Prefer read-only `GetPythonApi` for API inspection.
 - **Writes change real assets or runtime state**. Undo and batch rollback do not cover every side effect. Review version-control changes before committing; see [write and rollback boundaries](docs/usage-guide.md#修改了属性但-ue-中没有生效--磁盘未变化) (Chinese).
 
 When upgrading from 1.x, upgrade the plugin and clients to 2.x together. See the [migration guide](docs/usage-guide.md#0-从-1x-升级到-20) for authentication and MCP text changes (Chinese).

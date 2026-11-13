@@ -55,9 +55,19 @@ static void NexusInjectKey(APlayerController* Controller, const FKey& Key, EInpu
 	auto Params = FInputKeyEventArgs::CreateSimulated(Key, Event, Value, Key.IsAnalog() ? 1 : 0, Device);
 	Params.DeltaTime = Controller->GetWorld() ? Controller->GetWorld()->GetDeltaSeconds() : 0.016f;
 	Controller->PlayerInput->InputKey(Params);
-#elif NX_UE_HAS_FIND_FIRST_OBJECT
-	if (Key.IsAnalog()) Controller->PlayerInput->InputKey(FInputKeyParams(Key, Value, Controller->GetWorld()->GetDeltaSeconds(), 1, Key.IsGamepadKey()));
-	else Controller->PlayerInput->InputKey(FInputKeyParams(Key, Event, Value, Key.IsGamepadKey()));
+#elif NX_UE_HAS_INPUT_KEY_PARAMS
+	// double 与 FVector 构造重载在 float 实参上决议失败，改为直接写字段。
+	FInputKeyParams Params;
+	Params.Key = Key;
+	Params.Delta = FVector(static_cast<double>(Value), 0.0, 0.0);
+	Params.bIsGamepadOverride = Key.IsGamepadKey();
+	if (Key.IsAnalog())
+	{
+		Params.DeltaTime = Controller->GetWorld() ? Controller->GetWorld()->GetDeltaSeconds() : 0.016f;
+		Params.NumSamples = 1;
+	}
+	else Params.Event = Event;
+	Controller->PlayerInput->InputKey(Params);
 #else
 	if (Key.IsAnalog()) Controller->PlayerInput->InputAxis(Key, Value, Controller->GetWorld()->GetDeltaSeconds(), 1, Key.IsGamepadKey());
 	else Controller->PlayerInput->InputKey(Key, Event, Value, Key.IsGamepadKey());
@@ -145,7 +155,15 @@ FCapabilityResult FNexusRuntimeInputUtils::Apply(const TSharedPtr<FJsonObject>& 
 			if (World) { Error = TEXT("Multiple play worlds: specify exact WorldPath from ControlPie Status"); return; }
 			World = Context.World();
 		}
-		if (!World || World->IsPaused()) { Error = TEXT("An unpaused play world with a local player is required"); return; }
+		if (!World)
+		{
+			FString Available;
+			if (GEngine) for (const auto& Context : GEngine->GetWorldContexts())
+				if (Context.World() && (Context.WorldType == EWorldType::PIE || Context.WorldType == EWorldType::Game))
+					Available += Context.World()->GetPathName() + TEXT(" | ");
+			Error = FString::Printf(TEXT("Play world not found. Requested '%s'. Available: %s"), *Args.Str(TEXT("WorldPath")), *Available);
+			return;
+		}
 		auto* Instance = World->GetGameInstance();
 		if (!Instance) { Error = TEXT("Play world has no GameInstance"); return; }
 		const auto& Players = Instance->GetLocalPlayers();

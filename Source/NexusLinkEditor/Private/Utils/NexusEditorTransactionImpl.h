@@ -7,3 +7,5 @@
 
 /** 把真实事务实现安装进 FNexusEditorServices 钩子表；仅编辑器宿主调用。 */
 void NexusInstallEditorTransactionHooks();
+/** 卸下世界回收时的撤销清理。 */
+void NexusShutdownEditorTransactionHooks();

@@ -177,7 +177,12 @@ bool FNexusEditorDomainTools::PCG(const FString& Tool, const TSharedPtr<FJsonObj
         Result->SetStringField(TEXT("Name"), A.Str(TEXT("nodeName"))); Result->SetStringField(TEXT("ClassPath"), (*Found)->GetClass()->GetPathName());
         Result->SetStringField(TEXT("Description"), (*Found)->GetNodeTooltipText().ToString());
         TArray<TSharedPtr<FJsonValue>> Properties; FNexusPropertyUtils::CollectEditableProperties(*Found, Properties); Result->SetArrayField(TEXT("Properties"), Properties);
+#if NX_UE_HAS_PCG_PUBLIC_PIN_PROPERTIES
         Result->SetArrayField(TEXT("InputPins"), NexusPCGPinDescriptions((*Found)->InputPinProperties())); Result->SetArrayField(TEXT("OutputPins"), NexusPCGPinDescriptions((*Found)->OutputPinProperties()));
+#else
+        // 5.4 及更早将这两个方法设为 protected，公开入口会多带自动 Params 引脚。
+        Result->SetArrayField(TEXT("InputPins"), NexusPCGPinDescriptions((*Found)->AllInputPinProperties())); Result->SetArrayField(TEXT("OutputPins"), NexusPCGPinDescriptions((*Found)->AllOutputPinProperties()));
+#endif
         return true;
     }
     if (Tool == TEXT("ListAvailableSubgraphs"))
