@@ -126,6 +126,17 @@ static bool NexusResolveGraphTarget(const FString& AssetPath, FNexusGraphTarget&
 	return true;
 }
 
+#if WITH_PCG && NX_UE_HAS_PCG_EDITOR_DOCUMENT_TABS
+static UPCGGraph* NexusGetPCGSourceGraph(const FNexusGraphTarget& Target, UEdGraph* Graph)
+{
+	UPCGGraph* PCGGraph = Graph ? Graph->GetTypedOuter<UPCGGraph>() : nullptr;
+	if (!PCGGraph || (PCGGraph != Target.Asset && !PCGGraph->IsIn(Target.Asset))) return nullptr;
+	// 公开接口返回不透明的 UPCGEditorGraph 指针，仅比对身份，不依赖私有引擎头。
+	if (static_cast<const void*>(PCGGraph->GetEditorGraph()) != static_cast<const void*>(Graph)) return nullptr;
+	return PCGGraph;
+}
+#endif
+
 static TSharedPtr<SGraphEditor> NexusFindGraphView(const FNexusGraphTarget& Target, UEdGraph* Graph)
 {
 #if WITH_PCG
@@ -134,19 +145,22 @@ static TSharedPtr<SGraphEditor> NexusFindGraphView(const FNexusGraphTarget& Targ
 #if NX_UE_HAS_PCG_EDITOR_VIEW
 		if (Target.AssetEditor && Target.AssetEditor->GetEditorName() == FName(TEXT("PCGEditor")))
 		{
+#if NX_UE_HAS_PCG_EDITOR_DOCUMENT_TABS
+			if (!NexusGetPCGSourceGraph(Target, Graph)) return nullptr;
+			// 多文档共享 GraphEditor 标签类型，直接按原生图对象查找，不能取通配标签首项。
+			const auto View = SGraphEditor::FindGraphEditorForGraph(Graph);
+			if (View.IsValid() && View->GetCurrentGraph() == Graph) return View;
+#else
 			auto* Editor = static_cast<FPCGEditor*>(Target.AssetEditor);
 			const auto Manager = Editor->GetTabManager();
-#if NX_UE_HAS_PCG_EDITOR_DOCUMENT_TABS
-			const FName TabId = PCGEditorTabs::GraphEditorID;
-#else
 			const FName TabId = Editor->GetPanelID(EPCGEditorPanel::GraphEditor);
-#endif
 			const auto Tab = Manager.IsValid() ? Manager->FindExistingLiveTab(TabId) : nullptr;
 			if (Tab.IsValid() && Tab->GetContent()->GetType() == FName(TEXT("SGraphEditor")))
 			{
 				const auto View = StaticCastSharedRef<SGraphEditor>(Tab->GetContent());
 				if (View->GetCurrentGraph() == Graph) return View;
 			}
+#endif
 		}
 #endif
 		return nullptr;
@@ -281,6 +295,21 @@ FCapabilityResult FNexusEditorGraphTools::Execute(const TSharedPtr<FJsonObject>&
 			const auto BlueprintEditor = FKismetEditorUtilities::GetIBlueprintEditorForObject(Graph, false);
 			if (BlueprintEditor.IsValid()) View = BlueprintEditor->OpenGraphAndBringToFront(Graph);
 		}
+#if WITH_PCG && NX_UE_HAS_PCG_EDITOR_DOCUMENT_TABS
+		else if (Target.Asset->IsA(UPCGGraph::StaticClass()) && Target.AssetEditor
+			&& Target.AssetEditor->GetEditorName() == FName(TEXT("PCGEditor")))
+		{
+			UPCGGraph* PCGGraph = NexusGetPCGSourceGraph(Target, Graph);
+			if (!PCGGraph) return FCapabilityResult::MakeArgInvalid(TEXT("GraphName must identify the current editor graph of an owned PCG graph"));
+			const auto Tab = static_cast<FPCGEditor*>(Target.AssetEditor)->OpenDocument(PCGGraph, FDocumentTracker::OpenNewDocument);
+			View.Reset();
+			if (Tab.IsValid() && Tab->GetContent()->GetType() == FName(TEXT("SGraphEditor")))
+			{
+				const auto OpenedView = StaticCastSharedRef<SGraphEditor>(Tab->GetContent());
+				if (OpenedView->GetCurrentGraph() == Graph) View = OpenedView;
+			}
+		}
+#endif
 #if NX_UE_HAS_MATERIAL_GRAPH_HYPERLINK
 		else if (Target.bPreview) { static_cast<IMaterialEditor*>(Target.AssetEditor)->JumpToHyperlink(Graph); View = SGraphEditor::FindGraphEditorForGraph(Graph); }
 #endif

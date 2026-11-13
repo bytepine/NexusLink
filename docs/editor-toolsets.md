@@ -47,7 +47,7 @@ Slate Ref 绑定到 NexusLink 会话及弱控件引用，快照从当前可见�
 
 先用 `SearchAsset` 获取资产路径，再用 `GetEditorGraph(AssetPath)` 发现图表。`GraphName` 使用返回的相对路径，不能猜测；同名图存在歧义时会拒绝，改用完整的返回路径。普通蓝图、控件蓝图、动画蓝图及行为树、PCG 等资产内已有的 `UEdGraph` 使用资产所属图；材质和材质函数的已打开编辑器使用其当前预览图，避免把源资产与预览副本混淆。具体可用图以发现结果为准。
 
-指定 `GraphName` 后，`GetEditorGraph` 返回节点标识、坐标、记录的尺寸与注释，可按 `NodeId` 或 `NameFilter` 筛选，并用 `Offset` / `Limit` 分页。`SelectedNodeIds`、`ViewLocation` 和 `Zoom` 描述已存在原生图编辑器的状态；未打开图编辑器时视图不可用，不会为了读取而模拟界面输入。蓝图视图从目标编辑器的唯一图文档取得，避免误读或控制同资产的 Diff 窗口。行为树在 UE 5.3+ 使用所属编辑器的当前图视图，UE 4.26–5.2 仅提供结构读取；PCG 在 UE 5.7+ 使用所属编辑器的图标签，UE 5.4–5.6 仅提供结构读取。具体视图可用性以 `bViewAvailable` 为准。先发现图表和节点，再把返回的 `GraphName`、`NodeId` 或 `NodeIds[]` 交给控制工具。
+指定 `GraphName` 后，`GetEditorGraph` 返回节点标识、坐标、记录的尺寸与注释，可按 `NodeId` 或 `NameFilter` 筛选，并用 `Offset` / `Limit` 分页。`SelectedNodeIds`、`ViewLocation` 和 `Zoom` 描述已存在原生图编辑器的状态；未打开图编辑器时视图不可用，查询不会自动打开图文档。蓝图视图从目标编辑器的唯一图文档取得，避免误读或控制同资产的 Diff 窗口。行为树在 UE 5.3+ 使用所属编辑器的当前图视图，UE 4.26–5.2 仅提供结构读取；PCG 在 UE 5.7 使用所属编辑器的单图标签，UE 5.8+ 按目标图匹配所属编辑器的原生文档，分别读写主图和嵌入子图的视图与选择，`Open` 可打开尚未打开的目标文档。PCG 在 UE 5.4–5.6 仅提供结构读取。具体视图可用性以 `bViewAvailable` 为准。先发现图表和节点，再把返回的 `GraphName`、`NodeId` 或 `NodeIds[]` 交给控制工具。
 
 `ControlEditorGraph` 的 `AssetPath` 必填，除 `Open` 外还需 `GraphName`。动作如下：
 
@@ -64,7 +64,7 @@ Slate Ref 绑定到 NexusLink 会话及弱控件引用，快照从当前可见�
 
 蓝图数据先用 `GetAssetBlueprint(Sections=["graph"], GraphName=...)` 读取；节点包含 `PosX` / `PosY` / `Width` / `Height` / `Comment`，引脚包含 `bHidden`、子引脚的 `ParentPin` 和父引脚的 `SubPins[]`。以当前回读的节点与引脚标识调用 `ManageAssetBlueprint.Operations[]`：
 
-- `SplitPin` / `RecombinePin`：必填 `GraphName`、`NodeId`、`PinName`。按 K2 schema 拆分或合并结构体引脚；输入结构体仅支持能保留默认值的 Vector / Rotator / Vector2D / LinearColor，其他输入类型在修改前拒绝，输出结构体仍按 schema 支持范围处理。拆分拒绝已拆分、连线或不可拆分的引脚，并在修改前拒绝非法或非有限的输入默认值；合并可传父或子引脚名，但其后代有连接时拒绝。返回父引脚名及更新后的完整 `Node`，继续编辑前使用新引脚列表。
+- `SplitPin` / `RecombinePin`：必填 `GraphName`、`NodeId`、`PinName`。按 K2 schema 拆分或合并结构体引脚；输入结构体仅支持能保留默认值的 Vector / Rotator / Vector2D / LinearColor，其他输入类型在修改前拒绝，输出结构体仍按 schema 支持范围处理。受支持输入保留合法数值原文，避免大坐标和微小小数被 float 转换或定长小数格式化截断；合并采用当前子引脚值。拆分拒绝已拆分、连线或不可拆分的引脚，拆分和合并都在修改前拒绝非法、非有限或超出对应数值类型范围的默认值；合并可传父或子引脚名，但其后代有连接时拒绝。返回父引脚名及更新后的完整 `Node`，继续编辑前使用新引脚列表。
 - `DuplicateNodes`：必填 `GraphName` 与同图 1–64 个唯一 `NodeIds[]`；`OffsetX` / `OffsetY` 默认为 64，可为 0 或负数，位置超出 int32 范围时拒绝。支持原生 CallFunction、VariableGet、VariableSet、Knot 和 Comment 节点；事件、图边界、Timeline、Composite 等资源或结构节点不支持。保留复制集合内部连接，外部连接不复制；新节点使用新 GUID，返回 `NodeIdMap={旧GUID:新GUID}` 与 `Nodes[]`。
 
 连接、断开、节点属性和位置继续使用已有领域操作，例如 `Connect` / `Disconnect`、`SetNode` 与 `ArrangeNodes`。编译与落盘仍须显式传 `bCompile` / `bSaveToDisk`，或调用 `CompileBlueprint` / `SaveAsset`。

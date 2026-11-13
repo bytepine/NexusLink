@@ -5,6 +5,7 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusArgs.h"
 #include "Utils/NexusPinTypeUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #include "Capabilities/Asset/Blueprint/NexusManageAssetBlueprintGraph.h"
 #include "Engine/Blueprint.h"
 #include "EdGraph/EdGraph.h"
@@ -12,6 +13,7 @@
 #include "EdGraphNode_Comment.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetDebugUtilities.h"
 #include "K2Node.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_FunctionEntry.h"
@@ -20,7 +22,86 @@
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
 #include "Misc/DefaultValueHelper.h"
+#include "Misc/Parse.h"
 #include "UObject/UObjectIterator.h"
+
+static bool PrepareBlueprintStructDefaults(const UEdGraphSchema_K2* Schema, UEdGraphPin* ParentPin, bool bSplit,
+    TArray<FString>& Components, FString& RecombinedDefault, FString& Error)
+{
+    const UScriptStruct* StructType = Cast<UScriptStruct>(ParentPin->PinType.PinSubCategoryObject.Get());
+    const bool bVector = StructType == TBaseStructure<FVector>::Get();
+    const bool bRotator = StructType == TBaseStructure<FRotator>::Get();
+    const bool bVector2D = StructType == TBaseStructure<FVector2D>::Get();
+    const bool bColor = StructType == TBaseStructure<FLinearColor>::Get();
+    if (!bVector && !bRotator && !bVector2D && !bColor)
+    {
+        Error = TEXT("Unsupported: K2 struct pin edits preserve input defaults only for Vector/Rotator/Vector2D/LinearColor");
+        return false;
+    }
+    const int32 ComponentCount = bColor ? 4 : (bVector2D ? 2 : 3);
+    const bool bFloatComponents = bColor
+        || (bVector && sizeof(decltype(FVector::X)) == sizeof(float))
+        || (bRotator && sizeof(decltype(FRotator::Pitch)) == sizeof(float))
+        || (bVector2D && sizeof(decltype(FVector2D::X)) == sizeof(float));
+    Error = TEXT("Struct pin edit rejected invalid or non-finite input default");
+    if (bSplit)
+    {
+        FString SchemaError;
+        if (!Schema->DefaultValueSimpleValidation(ParentPin->PinType, ParentPin->PinName, ParentPin->DefaultValue,
+            ParentPin->DefaultObject, ParentPin->DefaultTextValue, &SchemaError)) { Error += TEXT(": ") + SchemaError; return false; }
+        if (ParentPin->DefaultValue.IsEmpty())
+        {
+            for (int32 ComponentIndex = 0; ComponentIndex < ComponentCount; ++ComponentIndex) Components.Add(bColor && ComponentIndex == 3 ? TEXT("1") : TEXT("0"));
+        }
+        else if (bVector || bRotator)
+        {
+            ParentPin->DefaultValue.ParseIntoArray(Components, TEXT(","), false);
+        }
+        else
+        {
+            const TCHAR* Labels[] = {bColor ? TEXT("R=") : TEXT("X="), bColor ? TEXT("G=") : TEXT("Y="), TEXT("B="), TEXT("A=")};
+            for (int32 ComponentIndex = 0; ComponentIndex < ComponentCount; ++ComponentIndex)
+            {
+                FString Component;
+                if (!FParse::Value(*ParentPin->DefaultValue, Labels[ComponentIndex], Component))
+                {
+                    if (!bColor || ComponentIndex != 3) return false;
+                    Component = TEXT("1");
+                }
+                Components.Add(Component);
+            }
+        }
+    }
+    else
+    {
+        UEdGraphNode* Owner = ParentPin->GetOwningNode();
+        if (!Owner || ParentPin->SubPins.Num() != ComponentCount) return false;
+        for (UEdGraphPin* SubPin : ParentPin->SubPins)
+        {
+            if (!SubPin || SubPin->ParentPin != ParentPin || SubPin->GetOwningNode() != Owner || !Owner->Pins.Contains(SubPin)
+                || SubPin->Direction != EGPD_Input || SubPin->SubPins.Num() || SubPin->bOrphanedPin) return false;
+            Components.Add(SubPin->DefaultValue.IsEmpty() ? TEXT("0") : SubPin->DefaultValue);
+        }
+    }
+    if (Components.Num() != ComponentCount) return false;
+    for (FString& Component : Components)
+    {
+        Component.TrimStartAndEndInline();
+        double ParsedComponent = 0;
+        if (!FDefaultValueHelper::ParseDouble(Component, ParsedComponent) || !FMath::IsFinite(ParsedComponent)) return false;
+        // 按结构成员的实际标量精度校验范围；保留数值原文，避免 Atof/SanitizeFloat 的精度损失。
+        if (bFloatComponents && !FMath::IsFinite(static_cast<float>(ParsedComponent))) return false;
+    }
+    if (bSplit && bRotator) { Components.Swap(0, 2); Components.Swap(1, 2); }
+    if (!bSplit)
+    {
+        if (bVector) RecombinedDefault = FString::Join(Components, TEXT(","));
+        else if (bRotator) RecombinedDefault = Components[1] + TEXT(",") + Components[2] + TEXT(",") + Components[0];
+        else if (bVector2D) RecombinedDefault = TEXT("X=") + Components[0] + TEXT(" Y=") + Components[1];
+        else RecombinedDefault = TEXT("(R=") + Components[0] + TEXT(",G=") + Components[1] + TEXT(",B=") + Components[2] + TEXT(",A=") + Components[3] + TEXT(")");
+    }
+    return true;
+}
 
 static void EditBlueprintStructPin(UBlueprint* Blueprint, UEdGraph* Graph, const TSharedPtr<FJsonObject>& Operation, FNexusActionContext& Context)
 {
@@ -51,57 +132,48 @@ static void EditBlueprintStructPin(UBlueprint* Blueprint, UEdGraph* Graph, const
     }
     const FName ParentName = ParentPin->PinName;
     const EEdGraphPinDirection ParentDirection = ParentPin->Direction;
-    if (ParentDirection == EGPD_Input)
+    const bool bInput = ParentDirection == EGPD_Input;
+    TArray<FString> ComponentDefaults;
+    FString RecombinedDefault;
+    if (bInput)
     {
-        // K2 原生拆组仅为这四类传递默认值，其他输入结构体会静默丢失父值或子值。
-        const UScriptStruct* StructType = Cast<UScriptStruct>(ParentPin->PinType.PinSubCategoryObject.Get());
-        if (StructType != TBaseStructure<FVector>::Get() && StructType != TBaseStructure<FRotator>::Get()
-            && StructType != TBaseStructure<FVector2D>::Get() && StructType != TBaseStructure<FLinearColor>::Get())
+        FString DefaultError;
+        if (!PrepareBlueprintStructDefaults(Schema, ParentPin, bSplit, ComponentDefaults, RecombinedDefault, DefaultError))
         {
-            Context.Entry->SetStringField(TEXT("Error"), TEXT("Unsupported: K2 struct pin edits preserve input defaults only for Vector/Rotator/Vector2D/LinearColor"));
+            Context.Entry->SetStringField(TEXT("Error"), DefaultError);
             return;
-        }
-        if (bSplit)
-        {
-            FString DefaultError;
-            bool bValidDefault = Schema->DefaultValueSimpleValidation(ParentPin->PinType, ParentPin->PinName,
-                ParentPin->DefaultValue, ParentPin->DefaultObject, ParentPin->DefaultTextValue, &DefaultError);
-            if (bValidDefault && !ParentPin->DefaultValue.IsEmpty())
-            {
-                if (StructType == TBaseStructure<FVector>::Get() || StructType == TBaseStructure<FRotator>::Get())
-                {
-                    // 原生 SplitPin 对分量数使用 check，并以 float 解析；预先拒绝额外分量及非有限值。
-                    TArray<FString> Components;
-                    ParentPin->DefaultValue.ParseIntoArray(Components, TEXT(","), false);
-                    bValidDefault = Components.Num() == 3;
-                    for (const FString& Component : Components)
-                    {
-                        float ParsedComponent = 0;
-                        if (!FDefaultValueHelper::ParseFloat(Component, ParsedComponent) || !FMath::IsFinite(ParsedComponent)) bValidDefault = false;
-                    }
-                }
-                else if (StructType == TBaseStructure<FVector2D>::Get())
-                {
-                    FVector2D ParsedVector(ForceInit);
-                    bValidDefault = ParsedVector.InitFromString(ParentPin->DefaultValue) && FMath::IsFinite(ParsedVector.X) && FMath::IsFinite(ParsedVector.Y);
-                }
-                else
-                {
-                    FLinearColor ParsedColor(ForceInit);
-                    bValidDefault = ParsedColor.InitFromString(ParentPin->DefaultValue) && FMath::IsFinite(ParsedColor.R)
-                        && FMath::IsFinite(ParsedColor.G) && FMath::IsFinite(ParsedColor.B) && FMath::IsFinite(ParsedColor.A);
-                }
-            }
-            if (!bValidDefault)
-            {
-                Context.Entry->SetStringField(TEXT("Error"), TEXT("SplitPin rejected invalid or non-finite struct input default: ") + DefaultError);
-                return;
-            }
         }
     }
     Blueprint->Modify(); Graph->Modify(); Node->Modify(); ParentPin->Modify();
-    if (bSplit) Schema->SplitPin(Pin);
-    else Schema->RecombinePin(RecombineChild);
+    bool bNotifyGraph = true;
+    if (bSplit)
+    {
+        // 原生只创建引脚结构；暂用空默认值绕过 Atof，恢复精确分量后再统一通知。
+        const FString OriginalDefault = ParentPin->DefaultValue;
+        if (bInput) ParentPin->DefaultValue.Reset();
+        Schema->SplitPin(Pin, false);
+        if (bInput) ParentPin->DefaultValue = OriginalDefault;
+    }
+    else if (bInput)
+    {
+        // 原生 RecombinePin 不可禁用通知且会 float 格式化；按其清理流程保留数值原文。
+        ParentPin->DefaultValue = RecombinedDefault;
+        ParentPin->bHidden = false;
+        const TArray<UEdGraphPin*> SubPins = ParentPin->SubPins;
+        ParentPin->SubPins.Reset();
+        for (UEdGraphPin* SubPin : SubPins)
+        {
+            Node->Pins.Remove(SubPin);
+#if NX_UE_HAS_BLUEPRINT_PIN_WATCH_SETTINGS
+            FKismetDebugUtilities::RemovePinWatch(Blueprint, SubPin);
+#else
+            Blueprint->WatchedPins.Remove(SubPin);
+#endif
+            SubPin->ParentPin = nullptr;
+            UEdGraphNode::DestroyPin(SubPin);
+        }
+    }
+    else { Schema->RecombinePin(RecombineChild); bNotifyGraph = false; }
     // RecombinePin 会销毁子引脚，禁止在调用后继续使用原 Pin 指针。
     UEdGraphNode* UpdatedNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeId);
     UEdGraphPin* UpdatedPin = UpdatedNode ? UpdatedNode->FindPin(ParentName, ParentDirection) : nullptr;
@@ -111,7 +183,19 @@ static void EditBlueprintStructPin(UBlueprint* Blueprint, UEdGraph* Graph, const
         Context.Entry->SetStringField(TEXT("Error"), TEXT("Struct pin edit did not produce the expected pin hierarchy"));
         return;
     }
-    FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+    if (bSplit && bInput)
+    {
+        if (UpdatedPin->SubPins.Num() != ComponentDefaults.Num())
+        { Context.Entry->SetStringField(TEXT("Error"), TEXT("Struct split produced an unexpected number of components")); return; }
+        for (int32 ComponentIndex = 0; ComponentIndex < ComponentDefaults.Num(); ++ComponentIndex)
+        {
+            UEdGraphPin* SubPin = UpdatedPin->SubPins[ComponentIndex];
+            if (!SubPin || SubPin->ParentPin != UpdatedPin || !UpdatedNode->Pins.Contains(SubPin))
+            { Context.Entry->SetStringField(TEXT("Error"), TEXT("Struct split produced an invalid component pin")); return; }
+            SubPin->Modify(); SubPin->DefaultValue = ComponentDefaults[ComponentIndex];
+        }
+    }
+    if (bNotifyGraph) { Graph->NotifyGraphChanged(); FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint); }
     Context.Entry->SetStringField(TEXT("GraphName"), Graph->GetName());
     Context.Entry->SetStringField(TEXT("NodeId"), UpdatedNode->NodeGuid.ToString());
     Context.Entry->SetStringField(TEXT("PinName"), ParentName.ToString());

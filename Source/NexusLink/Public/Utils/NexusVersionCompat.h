@@ -68,6 +68,7 @@
 #define NX_UE_HAS_NAV_SOURCE_ELEMENT       NX_UE_AT_LEAST(5, 5) // 导航八叉树所有者改为 FNavigationElement
 #define NX_UE_HAS_EDGRAPH_PERFORM_ACTION_VECTOR2F  NX_UE_AT_LEAST(5, 6) // FEdGraphSchemaAction::PerformAction(FVector2D) C4996 → FVector2f
 #define NX_UE_HAS_GRAPH_EDITOR_VIEW_VECTOR2F NX_UE_AT_LEAST(5, 6) // SGraphEditor 视图位置改用 FVector2f
+#define NX_UE_HAS_BLUEPRINT_PIN_WATCH_SETTINGS NX_UE_AT_LEAST(5, 0) // UE5 引脚监视改存编辑器设置；UE4 由蓝图持有
 #define NX_UE_HAS_MATERIAL_GRAPH_HYPERLINK NX_UE_AT_LEAST(5, 0) // IMaterialEditor::JumpToHyperlink 可打开材质子图
 #define NX_UE_HAS_BEHAVIOR_TREE_EDITOR_VIEW NX_UE_AT_LEAST(5, 3) // 行为树编辑器公开所属图视图
 #define NX_UE_HAS_PCG_EDITOR_VIEW NX_UE_AT_LEAST(5, 7) // PCG 编辑器公开所属图页签
