@@ -533,7 +533,9 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Slate(const FStri
 				{
 					const FVector2D Position = FMath::Lerp(Start, End, static_cast<float>(Step) / 12.0f);
 					FSlateApplication::Get().SetCursorPos(Position);
-					FPointerEvent Drag(0, Position, Previous, Buttons, EKeys::Invalid, 0, PointerModifiers); FSlateApplication::Get().ProcessMouseMoveEvent(Drag, true); Previous = Position;
+					FPointerEvent Drag(0, Position, Previous, Buttons, EKeys::Invalid, 0, PointerModifiers);
+					// 持键移动不能标为 synthetic，否则 Slate 跳过鼠标捕获控件和拖放检测。
+					FSlateApplication::Get().ProcessMouseMoveEvent(Drag, false); Previous = Position;
 				}
 				FPointerEvent Up(0, End, End, TSet<FKey>(), Button, 0, PointerModifiers); FSlateApplication::Get().ProcessMouseButtonUpEvent(Up);
 			}
