@@ -1,0 +1,131 @@
+---
+description: NexusLink MCP 四步工作流与禁止事项（复制到工程 .cursor/rules/ 并填写项目定制段）
+alwaysApply: false
+---
+
+# NexusLink AI 工作流（IDE 侧规则）
+
+[English](AIRules.mdc) | 中文
+
+> **与 MCP 握手指令的分工**
+> - **InitializeInstructions**（UE 握手）：能力路由表、元工具约束、读写命名。
+> - **本规则**（IDE 侧）：强制先发现工具 → 查路径 → 读写；禁止猜测能力名/路径；填写项目级 `PathFilter` 前缀。
+>
+> 来源：`Plugins/NexusLink/Resources/AIRules.mdc`；升级插件后，将通用段变更合并到工程副本。
+
+---
+
+## 1. 四步流程（必遵）
+
+涉及 UE 资产 / PIE / 蓝图 / Widget / 材质 / 行为树 / GAS 时，**本轮先调用 MCP**，再回答。UnLua 属于 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)：加载该插件后，用 `SearchCapabilities` 发现对应能力。
+
+| 步骤 | 工具 | 说明 |
+|---|---|---|
+| 1 发现能力 | `SearchCapabilities` | 已知能力名可跳过；否则 `Query` 使用 1–2 个**精确**词，如 `blueprint variable`、`runtime actor`、`behavior tree`；**禁止**业务功能名、资产名或过宽单词（见 §2） |
+| 2 发现资产路径 | `SearchAsset` | 必须提供 `AssetType` 和功能目录 `PathFilter`；顶层 `Assets`；指定类型搜索会在顶层返回 `RecommendedGet`/`RecommendedManage`，步骤 3 优先采用 |
+| 3 读写 | `GetAsset*` / `ManageAsset*` / `ListRuntime*` 等 | `AssetPath` **只能**来自 `Assets[].Path`；优先 `RecommendedGet`/`RecommendedManage`；列表有 `<k>_defaults` 时，缺失字段等于对应默认值（`{**defaults,**entry}`） |
+| 4 持久化 | `SaveAsset` 或 manage `bSaveToDisk=true` | 磁盘资产修改后必须保存；BP/ABP/WBP 还可传 `bCompile=true` |
+
+**元工具** `SearchCapabilities`、`CallCapability`、`SubmitFeedback` 必须直接使用 **MCP `tools/call`**，不能包装为 `CallCapability(Capability="SearchCapabilities", …)`。
+
+图数据用领域 `GetAsset*` / `ManageAsset*`；图视图与选择用 `GetEditorGraph` / `ControlEditorGraph`。通用 UI 后备用 `GetEditorSlate` / `CaptureEditorSlate` / `InteractEditorSlate`，只使用返回的 `Ref`。本地测试用 `ControlEditorAutomation` / `ListEditorAutomationTests`；编译用 `CompileEditorLiveCoding`。长操作只启动一次，再凭 `OperationId` 查询 `GetEditorOperation`；`WaitSeconds` 上限 30。`State=Completed` 仅描述执行状态，还须检查 `Result.Outcome` 或逐测试结果。取消请求只结束等待；支持停止的操作须显式停止。断连或超时后不得重试写入。这些操作不能加入 `Calls[]` 原子批次。能力发现会提供 `Execution` 后端原因与 `outputSchema`。
+
+图操作优先专用 API。`GetEditorGraph(AssetPath)` 发现图；传回返回的 `GraphName` 查看节点、布局、`SelectedNodeIds` 和可用原生视图。使用返回的图相对路径与节点 ID，不用 Slate Ref 或猜测名称。`ControlEditorGraph` 支持 `Open`、`SetView`、`ZoomToFit`、`FocusNode`、`SelectNodes` 和 `ClearSelection`；除 `Open` 外都需要 `GraphName`。`ViewLocation={X,Y}` 是图空间左上偏移；正数 `Zoom` 由引擎量化。选择使用 `NodeIds[]` 和 `SelectionMode=Replace|Add|Remove`。两项能力同步返回，没有 `OperationId`；`bRequestAccepted` / `bViewDeferred` 区分接受请求与延迟视图动画。`FocusNode` / `ZoomToFit` 后要稍后回读，不能假定视图已稳定。结构写入、编译和保存仍由领域工具承担。缺少图动作时应发现领域工具并 `SubmitFeedback`，不能立即用 Slate 拖线或操作右键菜单。无领域或专用图 API 时，通用 Slate 才作为最后的 UI 后备，并通过重新查询/截图验证。仅无 MCP 路径时使用电脑控制，例如原生系统对话框或编辑器外 UI。模态窗口与慢任务仍受 `EditorBusy` 保护，Slate 请求也不例外；不能假定支持模态控制，也不能在断连/超时后重放写入。
+
+NexusLink 自身不直接链接或调用官方 Toolset/ToolsetCore/ToolsetRegistry，也不导入其 Python 包。引擎/领域插件可保留自身传递依赖；引擎要求的依赖必须保留。见[依赖边界](../docs/toolset-backends.md)。
+
+---
+
+## 2. 禁止事项
+
+- ❌ 虚构聚合工具 `GetAsset`（正确是 `GetAsset*`，如 `GetAssetBlueprint`）。
+- ❌ 用业务词搜索 `SearchCapabilities`（如 `ChestPVE`、`Dice`、`Attack`）。
+- ❌ `SearchCapabilities` 仅使用过宽单词：`blueprint` / `Asset` / `Runtime` / `Animation`（导致 `SearchOverflow`；加动作或子领域，如 `blueprint variable`、`runtime actor`）。
+- ❌ 猜测 `/Game/...` 路径；禁止 `AssetType=All` + 无过滤的 `/Game/`。
+- ❌ 未先 `SearchAsset` 就调用 `GetAsset*`（缺 `AssetPath`）。
+- ❌ 未提供 `ActorName` 就调用 `GetRuntimeActor*` / `SetRuntimeActor*`（先 `ListRuntimeActors`，并等待 `bHasPlayWorld`）。
+- ❌ 未提供非空 `Command` 就调用 `ExecCommand`。
+- ❌ Confirm 模式下无 `Reason` 就调用危险能力（`ExecCommand` / `ExecPython`，以及 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) 中标为 `Dangerous` 的能力）；Reason 说明目的、预期影响及为何无更安全专用能力。
+- ❌ `ErrorKind=UserDenied` 后重试（用户已拒绝该请求）。
+- ❌ PIE / UnLua 未就绪时调用 NexusLinkExt Lua 能力。
+- ❌ 猜测 `unreal.*` Python API（引擎版本间不同；`ExecPython` 前先 `GetPythonApi`）。
+- ❌ 假定 `ExecPython` 写入可 Undo（普通 `obj.foo = x` 不记录；使用 `obj.set_editor_property(...)` 或显式 `obj.modify()`，并检查返回的 `bUndoRecorded`）。
+- ❌ 忽略 `FeedbackHint`（必须调用 `SubmitFeedback`）。
+- ❌ 期待写成功返回 `success:true`（应检查 MCP `isError` 及结构化操作/section/编译/保存错误；部分修改可能残留，失败批次重试前检查 `bRolledBack` / `UndoNote`）。
+- ❌ 向能力传 `assetPaths` / `actorNames` / `widgetNames`（跨目标用 `CallCapability.Calls[]`）。
+- ❌ manage 顶层使用 `Fields`/`Rows`/`Keys`/`Widgets`/`ops` 或合成裸 `Action`（应使用 `Operations[]`）。
+- ❌ 旧键：`blueprintPath`/`newPath`/`ownerWidget`/`FilePath`/`classPath`（见 §3）。
+
+---
+
+## 3. 参数契约（破坏性变更）
+
+| 规范键 / 结构 | 说明 |
+|---|---|
+| 单目标 `AssetPath` / `ActorName` / `WidgetName` | 每次能力调用一个目标 |
+| `CallCapability.Calls[]` | 跨目标批次（SearchMode） |
+| manage → `Operations[{Action,…}]` | 唯一操作容器 |
+| get → `PropertyPaths[]`；set_* → `Updates[{PropertyPath,Value,…}]` | 读用复数；写在条目内用单数 |
+| `DestAssetPath` / `ScriptPath` / `OwnerClass` | 替代 `newPath` / `FilePath` / `ownerWidget` |
+| spawn `AssetPath` + `ClassName` | 替代 `blueprintPath` / `classPath` |
+
+旧键 → `ArgInvalid`。
+
+---
+
+## 4. 常见意图 → 工具链（示例）
+
+| 用户意图 | 流程 |
+|----------|------|
+| 蓝图变量/图 | `SearchAsset(Blueprint, …)` → 顶层 `RecommendedGet`（通常 `GetAssetBlueprint`）+ `Assets[].Path`；能力未知时 `SearchCapabilities(Query="blueprint variable")` |
+| 图视图 / 节点选择 / 导航 | `GetEditorGraph(AssetPath)` → 返回的 `GraphName` / `NodeId` → `ControlEditorGraph`；结构/数据编辑用领域 `ManageAsset*` |
+| 蓝图结构体引脚 / 节点复制 | `GetAssetBlueprint` 图回读 → `ManageAssetBlueprint.Operations[]` 的 `SplitPin` / `RecombinePin`（`GraphName`、`NodeId`、`PinName`）或 `DuplicateNodes`（`GraphName`、1–64 个唯一 `NodeIds[]`、可选 `OffsetX` / `OffsetY`）；检查最新引脚层级或 `NodeIdMap` |
+| 创建/编辑蓝图接口 | `CreateAssetBlueprint(ParentClass=Interface)` → `ManageAssetBlueprint` 的 `AddFunction` / `AddInterface` |
+| 行为树 / 装饰器 | `SearchAsset(BehaviorTree, …)` → 顶层 `RecommendedGet`（通常 `GetAssetBehaviorTree`） |
+| GA 配置 | `SearchAsset(GameplayAbility, …)` → 顶层 `RecommendedGet`（本地未启用 GAS 时跳过） |
+| 当前编辑器地图 / 已打开关卡 | `GetEditorContext(Sections=["CurrentMap"])`；不用需已知路径的 `GetAssetLevel`，也不用 `ListRuntimeActors` |
+| PIE Actor 属性 | 等待 `bHasPlayWorld` 后，`ListRuntimeActors` → `GetRuntimeActorProperty(ActorName=…, PropertyPaths=…)` |
+| PIE Blackboard / 活动节点 | `GetRuntimeActorBehaviorTree`（需要 PIE + `ActorName`） |
+| 控制台命令 | `ExecCommand(Command="…")`（`Command` 必填且非空；Confirm 模式还需 `Reason`） |
+| 截图 | Game/PIE 视口或整窗用 `CaptureViewport`；LevelEditor 面板标签和 Actor `ViewAngle` 截图用 `CaptureEditorPanel`（仅 Editor） |
+| Python 编辑器自动化 | `GetPythonApi(Target="unreal", Query="…")` 确认此引擎存在 API → `ExecPython`；均需 Python Editor Script Plugin，`ExecPython` 默认禁用 |
+| 错误 / 崩溃 / PIE / 打包 Game 日志 | 错误：`GetOutputLog(Preset="Diagnose")`。下一动作日志：`GetOutputLog(Watch={Categories,TextIncludes,TextExcludes,Verbosity})` 后 `bCollectWatch=true`（旁路缓冲；连续重复折叠为 `Repeat`）。`SetLogCaptureFilter` 是持久类别白名单（Warning/Error 总会捕获） |
+| Unreal Insights Trace | 仅 UE 4.26+ Editor。`ListTraces` → `GetTrace(Sections=["Summary","Frames"])` → 将卡顿帧的 `StartTime`/`EndTime` 传入 `Timers`、`Bookmarks`。UE4 Store 条目 `Path` 为空，改传 `TraceId`。只读已停录 `.utrace`；`bAnalysisComplete=false` 时再调用。不是 `GetOutputLog` |
+| 游戏设计文档 | 若项目有**知识库 MCP**，使用该服务；不用 NexusLink 资产搜索 |
+
+---
+
+资产编辑器：`GetEditorContext(Sections=["AssetEditors"])` → `ControlEditorAssetEditor` 的 Open/Focus/Status/Close。Close 拒绝脏资产与共享实例，须先显式保存。地图用 `ControlEditorLevel`。Slate 交互前仍须通过 `GetEditorSlate` 获得 Ref。
+
+导航：`GetNavigationPoint` 投影一个点；`GetNavigationPath` 查询既有导航数据，不移动也不重建。Agent/Filter/投影/部分路径设置须与 `InteractRuntimeActorAI` MoveTo 对齐；Stop 停止移动。通过 `GetRuntimeActorAI` 确认跟踪完成，接受请求不等于到达。使用 `GetAssetEditPreview` 预览蓝图重设父类/类型变化；标量 DataAsset/Level/BP 组件写入支持 ExpectedValue/bVerify。用 `GetAssetExportOptions` 发现导出格式；ExportAsset bValidateOnly 不写盘。
+
+## 5. 项目定制（复制到游戏工程后填写）
+
+> 仅在**游戏工程**规则副本保留本节，插件模板不放实际项目值。
+
+| 项目 | 值 |
+|----|------|
+| 默认 `PathFilter` 前缀 | `<!-- 例如 /Game/YourFeature/ -->` |
+| 模块/目录映射（可选） | `<!-- 例如 ChestPVE → /Game/Features/ChestPVE/ -->` |
+| 自定义能力名（可选） | `<!-- 没有则删除此行 -->` |
+| 知识库 MCP 名（可选） | `<!-- 例如 search_knowledge → 设计文档；NexusLink → UE 资产 -->` |
+
+---
+
+## 6. 接入方法
+
+### Cursor
+
+1. 将本文件复制到游戏工程：`.cursor/rules/nexuslink-workflow.mdc`。
+2. 填写 §5 项目定制。
+3. Cursor Settings → Rules：确保已启用（`alwaysApply: false`，按描述加载）。
+
+### Knot / 其他 IDE
+
+1. 将 §1–§4 粘贴为工程规则（补充 InitializeInstructions，不重复路由表）。
+2. 填写 §5 项目信息。
+
+### 维护
+
+- 插件升级后：对比 `Resources/AIRules.mdc` 与工程副本，合并通用更新（含 §3 参数契约）。
+- 能力路由变更：以 UE `InitializeInstructions.*.md` 为准；本规则仅覆盖流程与禁止事项。

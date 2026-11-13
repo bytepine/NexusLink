@@ -1,5 +1,7 @@
 # 独立引擎后端与版本适配
 
+中文 · [English](toolset-backends.en.md)
+
 [文档导航](README.md) · [编辑器能力范围](editor-compatibility.md)
 
 NexusLink 自行实现编辑器操作、动作发现和参数转换，直接调用 Unreal Engine 及相应领域插件的 API。本插件不直接链接或调用官方 Toolset 插件、ToolsetCore 或 ToolsetRegistry，也不加载官方 Python toolset 包。可分离的官方 Toolset 适配插件不参与 NexusLink 的执行路径，也不需要启动官方 MCP 服务。

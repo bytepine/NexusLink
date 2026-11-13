@@ -1,5 +1,7 @@
 # NexusLink Capability 元数据规范
 
+中文 · [English](CapabilitySpec.en.md)
+
 引擎本体及引擎自带插件（含 UE 官方 Toolset）的能力归属 `NexusLink` / `NexusLinkEditor`；只有第三方插件能力归属 `NexusLinkExt` / `NexusLinkExtEditor`。可选启用不等于第三方。
 
 > 新增或修改 Capability 时，必须全部遵循本规范。注册期有自动校验兜底，但提交前请先过自检清单。
@@ -10,7 +12,7 @@
 
 ## 1. 描述格式（四段式）
 
-> **权威语言**：`Out.Description` 以 **英文四段式** 为准（与实现及 MCP/AI 可见文案一致）；本节其余说明与示例保持中文便于内部阅读。
+> **权威语言**：`Out.Description` 以 **英文四段式** 为准（与实现及 MCP/AI 可见文案一致）；本规范分别维护中文与英文文件。
 
 ```
 [VERB] [TARGET]. [DIFFERENTIATOR]. [CONSTRAINT?]
@@ -113,7 +115,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 
 | 字段 | 赋值方式 | 约束 |
 |---|---|---|
-| `Out.Name` | 必填 | snake_case，全局唯一，`verb_noun` 命名 |
+| `Out.Name` | 必填 | PascalCase，全局唯一，遵循 §6 `{Verb}{Scope}{Target}{Aspect?}` 命名 |
 | `Out.Description` | 必填 | 四段式；建议 ≤100 字符（注册期不硬拦） |
 | `Out.InputSchema` | 必填 | `FNexusSchema::Object().Prop(...).Required({...}).Build()` |
 | `Out.Tags` | 必填 | 至少含 1 个访问标签（`readonly`/`Write`）+ 1 个分类标签 |
@@ -217,7 +219,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 
 ---
 
-## 4. 提交前自检清单（6 条）
+## 4. 提交前自检清单
 
 提交或 PR review 前，对每个新增/修改的 cap 逐项确认：
 
@@ -237,12 +239,12 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 ## 5. 新增 Capability 完整流程
 
 ```
-1. 确认 name 命名遵循 verb_noun，全局唯一
+1. 确认 name 遵循 §6 PascalCase `{Verb}{Scope}{Target}{Aspect?}`，全局唯一
 2. 实现 BuildDefinition(Out)：
    a. 按四段式写 Out.Description，对照同前缀 cap 检查 DIFFERENTIATOR
    b. Out.InputSchema = FNexusSchema::Object().Prop(...).Required({...}).Build()
       （继承 FNexusMultiSectionCapability 时用 BuildSchemaWithSections()）
-   c. Out.Tags 至少填 readonly/write + 分类标签
+   c. Out.Tags 至少填 readonly/Write + 分类标签
    d. 按需填 Out.ExtraSearchKeywords / Out.RelatedCapabilities / Out.WhenToUse / Out.Prerequisites
    e. 资产 get/manage：填 Out.SearchAssetTypes（如 `{"Blueprint"}`），SearchAsset 据此返回 RecommendedGet/Manage
 3. 实现 Execute(Arguments)
@@ -332,7 +334,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 
 ### 8.1 分层模型
 
-Utils 按依赖方向划分为 6 层，依赖只能从高层流向低层，**禁止反向**：
+Utils 按依赖方向划分为 7 层，依赖只能从高层流向低层，**禁止反向**：
 
 | 层 | 语义 | 文件（举例） |
 |---|---|---|

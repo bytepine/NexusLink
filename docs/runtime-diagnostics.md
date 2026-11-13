@@ -1,5 +1,7 @@
 # 输入、性能与 UI 诊断
 
+中文 · [English](runtime-diagnostics.en.md)
+
 这些能力直接使用 UE 领域 API，不依赖官方 Toolset 的注册或调用。可用性由引擎版本、宿主和领域插件决定。
 
 ## 编辑器忙碌状态

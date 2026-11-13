@@ -1,5 +1,7 @@
 # NexusLink 架构设计文档
 
+**语言 / Language**: **简体中文** · [English](architecture.en.md)
+
 [文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
 
 ## 系统总架构

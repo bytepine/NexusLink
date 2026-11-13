@@ -691,6 +691,7 @@ def write_locale_doc(
                 file=sys.stderr,
             )
 
+    header = header.replace("tool-reference.header.zh.md", "tool-reference.zh.md").replace("tool-reference.header.md", "tool-reference.md")
     content = render_markdown(categories, header, locale)
     output_path.write_text(content, encoding="utf-8")
     size_kb = output_path.stat().st_size // 1024

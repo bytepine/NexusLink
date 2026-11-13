@@ -1,8 +1,10 @@
 # NexusLink 工具参考手册
 
+简体中文 · [English](tool-reference.md)
+
 [文档导航](README.md) · [项目首页](../README.md)
 
-**语言 / Language**: **简体中文** · [English](tool-reference.md)
+**语言**： **简体中文** · [English](tool-reference.md)
 
 本文列出 NexusLink 暴露的全部 MCP 工具与 Capability，并附参数说明。
 
@@ -75,8 +77,8 @@
 | `Capability` | `string` |  | Capability 精确名称 |
 | `Arguments` | `object` |  | 单次调用的嵌套参数 |
 | `Calls` | `object[]` |  | 批量调用列表：`[{capability, arguments}, ...]`; 条目: `Capability`, `Arguments` |
-| `bAsyncReadOnly` | `boolean` |  | Editor-only: schedule a fully 只读 batch one item per tick; poll GetEditorOperation for progress/partial results |
-| `TimeoutSeconds` | `number` |  | Async 只读 batch deadline [0.01,120] checked between items; cannot interrupt an in-flight engine call |
+| `bAsyncReadOnly` | `boolean` |  | 仅编辑器：每个 Tick 执行一项完整只读批次；用 GetEditorOperation 查询进度和部分结果 |
+| `TimeoutSeconds` | `number` |  | 异步只读批次截止时间，范围 [0.01,120] 秒，在条目之间检查，不能中断正在执行的引擎调用 |
 | `bKeepLoaded` | `boolean` |  | 为 true 时不自动卸载本次调用引入的包 |
 
 ---
@@ -114,14 +116,14 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Target` | `string` |  | Panel name or Tab ID; 'list' enumerates |
+| `Target` | `string` |  | 面板名称或 Tab ID；list 枚举面板 |
 | `Format` | `string (enum)` |  | 图片格式 枚举: `png` / `jpg` |
 | `MaxSize` | `integer` |  | 最大边长像素（0=原生） |
-| `bIncludeImage` | `boolean` |  | Return standard MCP image content with FilePath metadata |
+| `bIncludeImage` | `boolean` |  | 返回标准 MCP 图片内容及 FilePath 元数据 |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `Padding` | `number` |  | Actor 包围盒留白比例 |
-| `ViewAngle` | `string (enum)` |  | Move editor camera to this angle; needs ActorName 枚举: `Front` / `Back` / `Left` / `Right` / `Top` / `Bottom` |
-| `bValidateOnly` | `boolean` |  | If true skip image; validate panel only |
+| `ViewAngle` | `string (enum)` |  | 将编辑器相机移到此角度；要求 ActorName 枚举: `Front` / `Back` / `Left` / `Right` / `Top` / `Bottom` |
+| `bValidateOnly` | `boolean` |  | 为 true 时跳过图片，仅验证面板 |
 
 **相关 Capability**: `CaptureViewport`, `GetEditorContext`
 
@@ -135,8 +137,8 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Ref` | `string` |  | Widget ref; empty selects active window |
-| `bIncludeImage` | `boolean` |  | Include standard MCP image content on completion |
+| `Ref` | `string` |  | 控件 Ref；空值选择活动窗口 |
+| `bIncludeImage` | `boolean` |  | 完成时包含标准 MCP 图片内容 |
 
 **相关 Capability**: `GetEditorOperation`
 
@@ -159,9 +161,9 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `Start` / `Stop` |
-| `DurationSeconds` | `number` |  | Automatic stop after 1-60 seconds, 默认 10 |
-| `BufferSize` | `integer` |  | Ring-buffer capacity |
-| `OperationId` | `string` |  | Owned 操作 to Stop |
+| `DurationSeconds` | `number` |  | 1–60 秒后自动停止，默认 10 秒 |
+| `BufferSize` | `integer` |  | 环形缓冲区容量 |
+| `OperationId` | `string` |  | 要停止的所属操作 |
 
 **相关 Capability**: `GetCommonUIInfo`, `GetEditorOperation`
 
@@ -177,7 +179,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Parameters` | `object` | ★ | Independent animation input fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths. |
+| `Parameters` | `object` | ★ | 独立动画输入字段；无参数动作使用空对象。对象引用须来自查询结果，禁止推测临时路径。 |
 
 **相关 Capability**: `GetProjectToolsets`, `GetEditorAnimation`, `ControlEditorAnimation`, `GetEditorOperation`
 
@@ -193,7 +195,7 @@
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `Action` | `string (enum)` |  | 操作名（见各 cap 的枚举说明） 枚举: `Open` / `Focus` / `Status` / `Close` |
-| `bValidateOnly` | `boolean` |  | Validate target and report current editor state without changing the interface |
+| `bValidateOnly` | `boolean` |  | 验证目标并报告当前编辑器状态，不改变界面 |
 
 **相关 Capability**: `SearchAsset`, `GetEditorSlate`, `GetEditorContext`, `SaveAsset`, `ControlEditorLevel`
 
@@ -208,8 +210,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `Discover` / `Run` / `Stop` |
-| `TestNames` | `object[]` |  | Full discovered names |
-| `OperationId` | `string` |  | Owned run to stop |
+| `TestNames` | `object[]` |  | 发现结果中的完整名称 |
+| `OperationId` | `string` |  | 要停止的所属运行任务 |
 
 **相关 Capability**: `GetEditorOperation`
 
@@ -226,7 +228,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `Activate` / `Deactivate` |
-| `PluginName` | `string` | ★ | Exact name from GetProjectGameFeatures.Plugins |
+| `PluginName` | `string` | ★ | GetProjectGameFeatures.Plugins 返回的精确名称 |
 
 **相关 Capability**: `GetProjectGameFeatures`, `GetEditorOperation`
 
@@ -260,7 +262,7 @@
 |------|------|:----:|------|
 | `Action` | `string (enum)` |  | 操作名（见各 cap 的枚举说明） 枚举: `Open` / `LoadStreaming` / `Show` / `Hide` / `MakeCurrent` |
 | `AssetPath` | `string` | ★ | Map 资产路径, e.g. /Game/Maps/Main |
-| `bDiscardUnsaved` | `boolean` |  | Discard unsaved changes to the current map |
+| `bDiscardUnsaved` | `boolean` |  | 丢弃当前地图未保存的修改 |
 
 **相关 Capability**: `GetEditorContext`, `ManageAssetLevel`
 
@@ -276,7 +278,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Parameters` | `object` | ★ | Independent action schema fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths. |
+| `Parameters` | `object` | ★ | 独立动作 Schema 字段；无参数动作使用空对象。对象引用须来自查询结果，禁止推测临时路径。 |
 
 **相关 Capability**: `GetProjectToolsets`, `GetEditorNiagara`, `ManageAssetNiagaraSystem`, `GetEditorOperation`
 
@@ -290,7 +292,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `OperationId` | `string` | ★ | Owned running 操作 with bCanCancel=true |
+| `OperationId` | `string` | ★ | 所属且正在运行、bCanCancel=true 的操作 |
 
 **相关 Capability**: `GetEditorOperation`
 
@@ -309,14 +311,14 @@
 | `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `Spawn` / `Execute` / `UpdateNode` / `SetGraphParameters` / `RemoveGraphParameters` / `SetInstanceParameters` / `ResetInstanceParameters` / `AddSubgraph` |
 | `AssetPath` | `string` |  | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
-| `ActorPath` | `string` |  | PCGVolume refPath from discovery |
-| `NodePath` | `string` |  | PCGNode refPath from discovery for UpdateNode |
-| `Parameters` | `object` |  | Native settings/instance property names and JSON values; inspect schema first |
-| `ParameterDefinitions` | `object[]` |  | 1-64 graph parameter definitions; adding an existing name follows native type checks; 条目: `Name`, `Type`(Float/Double/Integer32/Integer64/Vector2/Vector/Vector4/Quaternion…), `Description`, `ContainerType`(None/Array), `DefaultValueJson` |
-| `ParameterNames` | `string[]` |  | 1-64 existing parameter names to remove/reset |
-| `SubgraphPath` | `string` |  | Subgraph asset object path from AvailableSubgraphs or asset discovery |
-| `NodeName` | `string` |  | Unique new subgraph node object 名 |
-| `NodeTitle` | `string` |  | 可选 node display title |
+| `ActorPath` | `string` |  | 发现结果中的 PCGVolume refPath |
+| `NodePath` | `string` |  | 发现结果中的 PCGNode refPath，用于 UpdateNode |
+| `Parameters` | `object` |  | 原生设置或实例的属性名与 JSON 值；须先查询 Schema |
+| `ParameterDefinitions` | `object[]` |  | 1–64 个图参数定义；添加已有名称时遵循原生类型检查; 条目: `Name`, `Type`(Float/Double/Integer32/Integer64/Vector2/Vector/Vector4/Quaternion…), `Description`, `ContainerType`(None/Array), `DefaultValueJson` |
+| `ParameterNames` | `string[]` |  | 要删除或重置的 1–64 个已有参数名 |
+| `SubgraphPath` | `string` |  | AvailableSubgraphs 或资产发现返回的子图资产对象路径 |
+| `NodeName` | `string` |  | 新子图节点的唯一对象名 |
+| `NodeTitle` | `string` |  | 可选的节点显示标题 |
 | `Location` | `object` |  |  |
 
 **相关 Capability**: `GetEditorPCG`, `GetEditorOperation`, `SaveAsset`
@@ -332,25 +334,25 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `CreateFolder` / `RenameFolder` / `DeleteFolder` / `SetActorFolder` / `SetSelection` / `MergeActors` / `CreateLevelInstance` / `EditLevelInstance` / `CommitLevelInstance` / `BuildNavigation` / `RefreshComponentPhysics` |
-| `FolderPath` | `string` |  | World Outliner folder 路径 |
-| `NewFolderPath` | `string` |  | Rename destination |
-| `ActorPath` | `string` |  | Actor object path from discovery |
-| `ComponentPath` | `string` |  | Exact loaded primitive component path; 必填 for RefreshComponentPhysics |
+| `FolderPath` | `string` |  | World Outliner 文件夹路径 |
+| `NewFolderPath` | `string` |  | 重命名后的目标路径 |
+| `ActorPath` | `string` |  | 发现结果中的 Actor 对象路径 |
+| `ComponentPath` | `string` |  | 已加载 PrimitiveComponent 的精确路径；RefreshComponentPhysics 必填 |
 | `BoundsMin` | `object` |  |  |
 | `BoundsMax` | `object` |  |  |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
-| `ScanLimit` | `integer` |  | Maximum tile slots inspected per query |
-| `WaitSeconds` | `number` |  | NavigationStatus: observe existing work for up to 30 seconds, never starts a build |
-| `bTraceComplex` | `boolean` |  | Trace triangle geometry instead of simple collision |
-| `ActorPaths` | `string[]` |  | Selection or mesh-merge inputs |
+| `ScanLimit` | `integer` |  | 每次查询最多检查的瓦片槽数 |
+| `WaitSeconds` | `number` |  | NavigationStatus：观察已有任务，最多 30 秒，不启动构建 |
+| `bTraceComplex` | `boolean` |  | 检测三角形几何而非简单碰撞 |
+| `ActorPaths` | `string[]` |  | 选择集或网格合并的输入 |
 | `AssetPath` | `string` |  | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `Location` | `object` |  |  |
 | `Start` | `object` |  |  |
 | `End` | `object` |  |  |
-| `bRecursive` | `boolean` |  | Include subfolder actors |
-| `bDestroySourceActors` | `boolean` |  | Remove actors after a successful mesh merge |
-| `bDiscard` | `boolean` |  | Discard LevelInstance edits |
+| `bRecursive` | `boolean` |  | 包含子文件夹中的 Actor |
+| `bDestroySourceActors` | `boolean` |  | 网格合并成功后删除源 Actor |
+| `bDiscard` | `boolean` |  | 丢弃 LevelInstance 修改 |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `Limit` | `integer` |  | 每页最大条数 |
 
@@ -364,9 +366,9 @@
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | PIE 操作 枚举: `Start` / `Stop` / `Status` / `Pause` / `Resume` / `Step` |
 | `Mode` | `string (enum)` |  | 播放模式（仅 start） 枚举: `Viewport` / `Simulate` |
-| `NetMode` | `string (enum)` |  | Start networking topology 枚举: `Standalone` / `ListenServer` / `Client` |
-| `NumberOfClients` | `integer` |  | PIE player count, 1-8 |
-| `bRunUnderOneProcess` | `boolean` |  | Run PIE clients in one editor process |
+| `NetMode` | `string (enum)` |  | Start 的联网拓扑 枚举: `Standalone` / `ListenServer` / `Client` |
+| `NumberOfClients` | `integer` |  | PIE 玩家数量，1–8 |
+| `bRunUnderOneProcess` | `boolean` |  | 在同一编辑器进程中运行 PIE 客户端 |
 
 **相关 Capability**: `ExecCommand`
 
@@ -383,8 +385,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `IssueId` | `string` | ★ | IssueId from a fresh StackIssues query |
-| `FixId` | `string` | ★ | FixId belonging to that issue |
+| `IssueId` | `string` | ★ | 最近一次 StackIssues 查询返回的 IssueId |
+| `FixId` | `string` | ★ | 该问题所属的 FixId |
 
 **相关 Capability**: `GetEditorNiagara`, `GetEditorOperation`
 
@@ -416,11 +418,11 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Sections` | `string[]` |  | 查询段（可多选）: `Players` / `ActivatableTree` / `InputRouting` / `Focus` / `ActionBindings` / `EventLog` |
-| `LocalPlayerIndex` | `integer` |  | Session player index from Players; -1 allows EventLog across retained players |
+| `LocalPlayerIndex` | `integer` |  | Players 返回的会话玩家索引；-1 允许查询所有保留玩家的 EventLog |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
 | `Limit` | `integer` |  | 每页最大条数 |
-| `Epoch` | `number` |  | EventLog epoch from previous query; -1 starts a new cursor |
-| `AfterSeq` | `number` |  | EventLog entries strictly after this sequence; -1 reads from start |
+| `Epoch` | `number` |  | 上一次查询的 EventLog Epoch；-1 开始新游标 |
+| `AfterSeq` | `number` |  | 仅返回序号严格大于此值的 EventLog 条目；-1 从头读取 |
 
 **相关 Capability**: `ControlCommonUIDiagnostics`, `ListRuntimeWidgets`, `GetAssetUserWidget`
 
@@ -436,7 +438,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Parameters` | `object` | ★ | Independent animation input fields; empty object for parameterless actions. Use object references returned by inspection; never infer transient paths. |
+| `Parameters` | `object` | ★ | 独立动画输入字段；无参数动作使用空对象。对象引用须来自查询结果，禁止推测临时路径。 |
 
 **相关 Capability**: `GetProjectToolsets`, `GetEditorAnimation`, `ControlEditorAnimation`, `GetEditorOperation`
 
@@ -494,12 +496,12 @@
 |------|------|:----:|------|
 | `Action` | `string (enum)` |  | 操作名（见各 cap 的枚举说明） 枚举: `CompileState` / `StackIssues` / `Dependencies` / `SystemData` / `ModuleTopology` / `ModuleSchema` / `ModuleInputValues` / `RendererSchema` / `RendererData` / `InputSchema` / `InputData` / `DynamicInputChain` / `AvailableDynamicInputs` / `SystemSchema` / `EmitterSchema` / `EmitterData` / `UserVariables` / `DataInterfaceSchema` / `SystemSummary` / `EmitterTopology` / `ScriptTopology` |
 | `AssetPath` | `string` |  | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `EmitterName` | `string` |  | Emitter name from SystemSummary; omit for system script modules |
-| `ScriptName` | `string` |  | Script name from SystemSummary/EmitterTopology for module/input inspection |
-| `ModuleName` | `string` |  | Module name from ScriptTopology |
-| `RendererIndex` | `integer` |  | Emitter renderer index for RendererData |
-| `InputNameStack` | `string[]` |  | 1-32 input names, outermost to innermost, for InputSchema/InputData/DynamicInputChain |
-| `ClassPath` | `string` |  | Renderer class for RendererSchema, data interface class for DataInterfaceSchema, or Niagara type struct/class/enum for AvailableDynamicInputs |
+| `EmitterName` | `string` |  | SystemSummary 返回的发射器名称；系统脚本模块省略 |
+| `ScriptName` | `string` |  | SystemSummary/EmitterTopology 返回的脚本名称，用于模块或输入查询 |
+| `ModuleName` | `string` |  | ScriptTopology 返回的模块名称 |
+| `RendererIndex` | `integer` |  | 发射器的渲染器索引，用于 RendererData |
+| `InputNameStack` | `string[]` |  | 用于 InputSchema/InputData/DynamicInputChain 的 1–32 个输入名，从最外层到最内层排列 |
+| `ClassPath` | `string` |  | RendererSchema 使用渲染器类，DataInterfaceSchema 使用数据接口类，AvailableDynamicInputs 使用 Niagara 类型的结构体、类或枚举 |
 
 **相关 Capability**: `GetAssetNiagaraSystem`, `ExecNiagaraStackFix`, `ControlEditorNiagara`, `GetProjectToolsets`, `GetEditorOperation`
 
@@ -513,10 +515,10 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `OperationId` | `string` |  | Owned 操作; omit to list recent owned tasks |
-| `bRunningOnly` | `boolean` |  | Only running tasks when listing |
+| `OperationId` | `string` |  | 所属操作；省略时列出最近的所属任务 |
+| `bRunningOnly` | `boolean` |  | 列举时仅返回运行中的任务 |
 | `Limit` | `integer` |  | 每页最大条数 |
-| `WaitSeconds` | `integer` |  | Wait up to thirty seconds; requires OperationId |
+| `WaitSeconds` | `integer` |  | 最多等待 30 秒；要求 OperationId |
 
 **相关 Capability**: `ControlEditorAutomation`, `CompileEditorLiveCoding`, `GetEditorSlate`
 
@@ -534,12 +536,12 @@
 |------|------|:----:|------|
 | `Action` | `string (enum)` |  | 操作名（见各 cap 的枚举说明） 枚举: `Instances` / `GraphStructure` / `GraphSchema` / `NativeNodes` / `NativeNodeSchema` / `NodeData` / `NodeInfo` / `InstanceParameters` / `AvailableSubgraphs` |
 | `AssetPath` | `string` |  | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `ActorPath` | `string` |  | PCGVolume object refPath from Instances |
-| `NodePath` | `string` |  | PCGNode object refPath from GraphStructure |
-| `NodeName` | `string` |  | Native node name from NativeNodes |
-| `bCommonOnly` | `boolean` |  | List common native nodes; set false only when explicitly requested |
-| `PinLabel` | `string` |  | Node output pin |
-| `AttributeName` | `string` |  | 可选 node attribute/property filter |
+| `ActorPath` | `string` |  | Instances 返回的 PCGVolume 对象 refPath |
+| `NodePath` | `string` |  | GraphStructure 返回的 PCGNode 对象 refPath |
+| `NodeName` | `string` |  | NativeNodes 返回的原生节点名称 |
+| `bCommonOnly` | `boolean` |  | 列出常用原生节点；仅在明确要求时设为 false |
+| `PinLabel` | `string` |  | 节点输出引脚 |
+| `AttributeName` | `string` |  | 可选的节点特性或属性筛选 |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
 | `Limit` | `integer` |  | 每页最大条数 |
 
@@ -556,25 +558,25 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `Folders` / `FolderActors` / `Selection` / `Trace` / `NavigationStatus` / `NavigationContributors` / `NavigationTiles` / `LevelGeometry` / `Collision` |
-| `FolderPath` | `string` |  | World Outliner folder 路径 |
-| `NewFolderPath` | `string` |  | Rename destination |
-| `ActorPath` | `string` |  | Actor object path from discovery |
-| `ComponentPath` | `string` |  | Exact loaded primitive component path; 必填 for RefreshComponentPhysics |
+| `FolderPath` | `string` |  | World Outliner 文件夹路径 |
+| `NewFolderPath` | `string` |  | 重命名后的目标路径 |
+| `ActorPath` | `string` |  | 发现结果中的 Actor 对象路径 |
+| `ComponentPath` | `string` |  | 已加载 PrimitiveComponent 的精确路径；RefreshComponentPhysics 必填 |
 | `BoundsMin` | `object` |  |  |
 | `BoundsMax` | `object` |  |  |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
-| `ScanLimit` | `integer` |  | Maximum tile slots inspected per query |
-| `WaitSeconds` | `number` |  | NavigationStatus: observe existing work for up to 30 seconds, never starts a build |
-| `bTraceComplex` | `boolean` |  | Trace triangle geometry instead of simple collision |
-| `ActorPaths` | `string[]` |  | Selection or mesh-merge inputs |
+| `ScanLimit` | `integer` |  | 每次查询最多检查的瓦片槽数 |
+| `WaitSeconds` | `number` |  | NavigationStatus：观察已有任务，最多 30 秒，不启动构建 |
+| `bTraceComplex` | `boolean` |  | 检测三角形几何而非简单碰撞 |
+| `ActorPaths` | `string[]` |  | 选择集或网格合并的输入 |
 | `AssetPath` | `string` |  | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `Location` | `object` |  |  |
 | `Start` | `object` |  |  |
 | `End` | `object` |  |  |
-| `bRecursive` | `boolean` |  | Include subfolder actors |
-| `bDestroySourceActors` | `boolean` |  | Remove actors after a successful mesh merge |
-| `bDiscard` | `boolean` |  | Discard LevelInstance edits |
+| `bRecursive` | `boolean` |  | 包含子文件夹中的 Actor |
+| `bDestroySourceActors` | `boolean` |  | 网格合并成功后删除源 Actor |
+| `bDiscard` | `boolean` |  | 丢弃 LevelInstance 修改 |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `Limit` | `integer` |  | 每页最大条数 |
 
@@ -589,13 +591,13 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` |  | 操作名（见各 cap 的枚举说明） 枚举: `Windows` / `Snapshot` / `WaitFor` |
-| `Ref` | `string` |  | Subtree ref; WaitFor checks all visible windows |
-| `MaxDepth` | `integer` |  | Tree depth; filtered snapshots can inspect deeper subtrees |
-| `TextFilter` | `string` |  | Snapshot: match visible text or tooltip; nonmatching containers are traversed |
-| `TypeFilter` | `string` |  | Snapshot: widget type 子串, e.g. SSearchBox |
-| `Text` | `string` |  | WaitFor text to appear |
-| `TextGone` | `string` |  | WaitFor text to disappear |
-| `TimeoutSeconds` | `integer` |  | Bounded condition wait |
+| `Ref` | `string` |  | 子树 Ref；WaitFor 检查所有可见窗口 |
+| `MaxDepth` | `integer` |  | 树深度；筛选快照可检查更深子树 |
+| `TextFilter` | `string` |  | Snapshot：匹配可见文本或提示；继续遍历不匹配的容器 |
+| `TypeFilter` | `string` |  | Snapshot 的控件类型子串，例如 SSearchBox |
+| `Text` | `string` |  | WaitFor 等待出现的文本 |
+| `TextGone` | `string` |  | WaitFor 等待消失的文本 |
+| `TimeoutSeconds` | `integer` |  | 有界条件等待 |
 
 **相关 Capability**: `GetEditorOperation`, `ControlEditorAssetEditor`, `GetEditorContext`
 
@@ -608,10 +610,10 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Sections` | `string[]` |  | 查询段（可多选）: `Hierarchy` / `Actor` / `Asset` / `Referencers` / `Info` / `Sources` |
-| `ParentTag` | `string` |  | Root tag for subtree |
+| `ParentTag` | `string` |  | 子树的根标签 |
 | `ActorName` | `string` |  | 运行时 Actor 名（actor 段） |
 | `AssetPath` | `string` |  | 资产路径（asset 段） |
-| `Tag` | `string` |  | referencers section: GameplayTag full 名 |
+| `Tag` | `string` |  | referencers 分段的完整 GameplayTag 名 |
 | `NameFilter` | `string` |  | 标签名过滤 |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
 | `Limit` | `integer` |  | 最大条数 |
@@ -627,11 +629,11 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` |  | 操作名（见各 cap 的枚举说明） 枚举: `Files` / `Summary` / `Stats` / `Events` |
-| `CapturePath` | `string` |  | CSV path from Files; must be under project Saved |
-| `StatFilter` | `string` |  | Stat name 子串; empty matches all |
-| `FrameStart` | `integer` |  | Inclusive frame 索引 |
-| `FrameEnd` | `integer` |  | Exclusive frame index; -1 means end |
-| `SortBy` | `string (enum)` |  | Stats ranking 枚举: `Mean` / `Max` / `Total` / `Name` |
+| `CapturePath` | `string` |  | Files 返回的 CSV 路径，必须位于项目 Saved 下 |
+| `StatFilter` | `string` |  | 统计名子串；空值匹配全部 |
+| `FrameStart` | `integer` |  | 包含该索引的起始帧 |
+| `FrameEnd` | `integer` |  | 不包含该索引的结束帧；-1 表示末尾 |
+| `SortBy` | `string (enum)` |  | 统计结果排序 枚举: `Mean` / `Max` / `Total` / `Name` |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
 | `Limit` | `integer` |  | 每页最大条数 |
 
@@ -650,8 +652,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Sections` | `string[]` |  | 查询段（可多选）: `Registries` / `Info` / `Schema` / `Items` / `DataSources` / `RuntimeSources` / `Values` |
-| `RegistryName` | `string` |  | Registered type name from Registries; 必填 except for Registries |
-| `ItemNames` | `string[]` |  | Values requires 1-100 exact item names |
+| `RegistryName` | `string` |  | Registries 返回的已注册类型名；除 Registries 外均必填 |
+| `ItemNames` | `string[]` |  | Values 要求 1–100 个精确条目名 |
 | `NameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
 | `Limit` | `integer` |  | 每页最大条数 |
@@ -669,7 +671,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Sections` | `string[]` |  | 查询段（可多选）: `Plugins` / `State` |
-| `PluginName` | `string` |  | Exact built-in Game Feature plugin name for State |
+| `PluginName` | `string` |  | 用于 State 的精确内置 Game Feature 插件名称 |
 | `NameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `Offset` | `integer` |  | 分页偏移 |
 | `Limit` | `integer` |  | 每页最大条数 |
@@ -687,10 +689,10 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Sections` | `string[]` |  | 查询段（可多选）: `Plugins` / `Info` / `Dependencies` / `Dependents` / `AssetOwner` |
-| `PluginName` | `string` |  | Exact discovered plugin name for Info/Dependencies/Dependents |
+| `PluginName` | `string` |  | 发现结果中的精确插件名称，用于 Info/Dependencies/Dependents |
 | `AssetPath` | `string` |  | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `NameFilter` | `string` |  | 名称或标签过滤（可选） |
-| `bEnabledOnly` | `boolean` |  | List only enabled plugins |
+| `bEnabledOnly` | `boolean` |  | 仅列出已启用插件 |
 | `Offset` | `integer` |  | 分页偏移 |
 | `Limit` | `integer` |  | 每页最大条数 |
 
@@ -705,10 +707,10 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Sections` | `string[]` |  | 查询段（可多选）: `Containers` / `Categories` / `Sections` / `Properties` / `Values` |
-| `Container` | `string` |  | Registered container; discover Containers first |
+| `Container` | `string` |  | 已注册容器；须先发现 Containers |
 | `Category` | `string` |  | 反馈或日志分类 |
-| `Section` | `string` |  | Section name; 必填 for Properties/Values |
-| `PropertyNames` | `string[]` |  | Exact editable property names; 必填 for Values, maximum 100 |
+| `Section` | `string` |  | 设置节名称；Properties/Values 必填 |
+| `PropertyNames` | `string[]` |  | 精确的可编辑属性名；Values 必填，最多 100 个 |
 | `NameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `Offset` | `integer` |  | 分页偏移 |
 | `Limit` | `integer` |  | 每页最大条数 |
@@ -726,7 +728,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` |  | 操作名（见各 cap 的枚举说明） 枚举: `List` / `Details` |
-| `SkillPath` | `string` |  | Exact SKILL.md path from List; 必填 for Details |
+| `SkillPath` | `string` |  | List 返回的精确 SKILL.md 路径；Details 必填 |
 
 **相关 Capability**: `GetProjectPlugins`, `GetProjectToolsets`
 
@@ -743,8 +745,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Sections` | `string[]` |  | 查询段（可多选）: `Toolsets` / `Tools` / `Schema` / `AnimationRoutes` / `Actions` |
-| `ToolsetName` | `string` |  | Exact independent group from Toolsets; 必填 for Tools/Schema |
-| `ToolName` | `string` |  | Capability 精确名称 from Tools; 必填 for Schema |
+| `ToolsetName` | `string` |  | Toolsets 返回的精确独立分组；Tools/Schema 必填 |
+| `ToolName` | `string` |  | Tools 返回的精确能力名；Schema 必填 |
 | `NameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `Capability` | `string` |  | Capability 精确名称 |
 | `Action` | `string` |  | 操作名（见各 cap 的枚举说明） |
@@ -763,7 +765,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Target` | `string` |  | Dotted path starting with unreal, e.g. unreal.AssetData. A bare identifier is prefixed automatically. |
+| `Target` | `string` |  | 以 unreal 开头的点分路径，例如 unreal.AssetData；裸标识符会自动补前缀 |
 | `Query` | `string` |  | 成员名子串过滤 |
 | `bSearchDoc` | `boolean` |  | query 同时匹配 docstring |
 | `Offset` | `integer` |  | 分页偏移 |
@@ -783,7 +785,7 @@
 |------|------|:----:|------|
 | `Sections` | `string[]` |  | 查询段（可多选）: `Summary` / `Frames` / `Timers` / `Bookmarks` |
 | `TracePath` | `string` |  | 已停录 .utrace 的路径 |
-| `TraceId` | `integer` |  | 未给 TracePath 时的 Store id |
+| `TraceId` | `integer` |  | 省略 TracePath 时使用的 Store ID |
 | `StartTime` | `number` |  | 时间窗起点（秒） |
 | `EndTime` | `number` |  | 时间窗终点（秒） |
 | `FrameType` | `string (enum)` |  | 要统计的帧类型 枚举: `Game` / `Render` |
@@ -804,16 +806,16 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `Click` / `DoubleClick` / `Scroll` / `Type` / `PressKey` / `Focus` / `Hover` / `Drag` / `SelectOption` / `SetChecked` / `FillForm` |
-| `Ref` | `string` | ★ | Visible target or form root from UI snapshot |
-| `Button` | `string (enum)` |  | Click/DoubleClick/Drag mouse button 枚举: `Left` / `Right` / `Middle` |
-| `Modifiers` | `string[]` |  | Pointer-event modifiers; does not change platform key state 枚举: `Ctrl` / `Shift` / `Alt` / `Cmd` |
-| `Text` | `string` |  | Text to insert |
-| `bReplace` | `boolean` |  | Select all before Type |
-| `Key` | `string` |  | Unreal key with 可选 Ctrl+/Shift+/Alt+/Cmd+ |
-| `EndRef` | `string` |  | Discovered drag destination |
-| `Value` | `string` |  | Exact option label or checkbox true/false |
-| `Fields` | `object[]` |  | Ordered form fields; prevalidated, not atomic; 条目: `Ref`, `Value`, `FieldType`(TextBox/CheckBox/ComboBox) |
-| `FieldType` | `string (enum)` | ★ | Form field type 枚举: `TextBox` / `CheckBox` / `ComboBox` |
+| `Ref` | `string` | ★ | UI 快照中的可见目标或表单根 |
+| `Button` | `string (enum)` |  | Click/DoubleClick/Drag 使用的鼠标键 枚举: `Left` / `Right` / `Middle` |
+| `Modifiers` | `string[]` |  | 指针事件修饰键；不改变平台按键状态 枚举: `Ctrl` / `Shift` / `Alt` / `Cmd` |
+| `Text` | `string` |  | 要插入的文本 |
+| `bReplace` | `boolean` |  | Type 前先全选 |
+| `Key` | `string` |  | Unreal 按键，可带 Ctrl+/Shift+/Alt+/Cmd+ 修饰 |
+| `EndRef` | `string` |  | 发现结果中的拖动目标 |
+| `Value` | `string` |  | 精确的选项文本，或复选框的 true/false |
+| `Fields` | `object[]` |  | 有序表单字段；执行前验证，不保证原子性; 条目: `Ref`, `Value`, `FieldType`(TextBox/CheckBox/ComboBox) |
+| `FieldType` | `string (enum)` | ★ | 表单字段类型 枚举: `TextBox` / `CheckBox` / `ComboBox` |
 
 **相关 Capability**: `GetEditorSlate`, `CaptureEditorSlate`, `GetEditorOperation`
 
@@ -856,7 +858,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Tag` | `string` | ★ | Single target tag; subsequent operations follow the renamed 名 |
+| `Tag` | `string` | ★ | 单个目标标签；重命名后的后续操作跟随新名称 |
 | `Operations` | `object[]` | ★ | 批量操作：`[{action, ...}, ...]`; 条目: `Action`(Add/Rename/Remove), `NewTag`, `TagSource`, `Comment` |
 
 **相关 Capability**: `GetGameplayTags`
@@ -869,7 +871,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `PluginName` | `string` | ★ | Plugin identifier; creation only under project Plugins |
+| `PluginName` | `string` | ★ | 插件标识；仅允许在项目 Plugins 下创建 |
 | `Operations` | `object[]` | ★ | 批量操作：`[{action, ...}, ...]`; 条目: `Action`(Create/SetEnabled/UpdateDescriptor/AddDependency/RemoveDependency), `Description`, `bEnabled`, `bOptional`, `DependencyName`, `Properties` |
 
 **相关 Capability**: `GetProjectPlugins`
@@ -882,9 +884,9 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Container` | `string` |  | Settings container |
+| `Container` | `string` |  | 设置容器 |
 | `Category` | `string` | ★ | 反馈或日志分类 |
-| `Section` | `string` | ★ | Registered settings section |
+| `Section` | `string` | ★ | 已注册的设置节 |
 | `Operations` | `object[]` | ★ | 批量操作：`[{action, ...}, ...]`; 条目: `Action`(SetProperties/Save/Reset), `Properties` |
 
 **相关 Capability**: `GetProjectSettings`
@@ -904,8 +906,8 @@
 | `Action` | `string (enum)` |  | 操作名（见各 cap 的枚举说明） 枚举: `Search` / `FindSimilar` |
 | `Query` | `string` |  | 搜索关键词（1–2 词，AND 匹配） |
 | `AssetPath` | `string` |  | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `ClassPaths` | `string[]` | ★ | 1-32 indexed asset class paths; e.g. /Script/Engine.Material |
-| `PathRegexes` | `string[]` |  | 可选 资产路径 regular expressions, maximum 32 |
+| `ClassPaths` | `string[]` | ★ | 1–32 个已索引资产类路径，例如 /Script/Engine.Material |
+| `PathRegexes` | `string[]` |  | 可选的资产路径正则表达式，最多 32 个 |
 | `Limit` | `integer` |  | 每页最大条数 |
 
 **相关 Capability**: `SearchAsset`, `GetEditorOperation`
@@ -938,7 +940,7 @@
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | 队列操作 枚举: `Enqueue` / `Status` / `Cancel` |
 | `AssetPath` | `string` |  | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `SequencePath` | `string` |  | LevelSequence path (enqueue) |
+| `SequencePath` | `string` |  | LevelSequence 路径，用于 enqueue |
 
 **相关 Capability**: `GetAssetMoviePipelineConfig`, `ManageAssetMoviePipelineConfig`, `CreateAssetMoviePipelineConfig`
 
@@ -953,7 +955,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `ParentClass` | `string` |  | Parent class (默认 AttributeSet) |
+| `ParentClass` | `string` |  | 父类，默认 AttributeSet |
 
 **相关 Capability**: `GetAssetAttributeSet`, `ManageAssetAttributeSet`, `ManageAssetBlueprint`
 
@@ -1021,8 +1023,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `Type` | `string` |  | Runtime or Editor (默认 Runtime) |
-| `DebugColor` | `string` |  | Debug color (#RRGGBB or color name, 可选) |
+| `Type` | `string` |  | Runtime 或 Editor，默认 Runtime |
+| `DebugColor` | `string` |  | 调试颜色，可选十六进制 #RRGGBB 或颜色名 |
 
 **相关 Capability**: `GetAssetDataLayer`, `ManageAssetDataLayer`, `SearchAsset`
 
@@ -1051,7 +1053,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径 |
-| `MeshPath` | `string` |  | StaticMesh path (可选) |
+| `MeshPath` | `string` |  | StaticMesh 路径，可选 |
 
 **相关 Capability**: `GetAssetFoliageType`, `ManageAssetFoliageType`
 
@@ -1080,7 +1082,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `ParentClass` | `string` |  | Parent class (默认 GameplayAbility) |
+| `ParentClass` | `string` |  | 父类，默认 GameplayAbility |
 
 **相关 Capability**: `GetAssetGameplayAbility`, `ManageAssetGameplayAbility`, `ManageAssetBlueprint`
 
@@ -1096,7 +1098,7 @@
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径 |
 | `Kind` | `string (enum)` |  | Kind 枚举: `Static` / `Actor` |
-| `CueName` | `string` |  | GameplayCue Tag (可选) |
+| `CueName` | `string` |  | GameplayCue Tag，可选 |
 
 **相关 Capability**: `GetAssetGameplayCueNotify`, `ManageAssetGameplayCueNotify`, `CreateAssetBlueprint`
 
@@ -1111,7 +1113,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `ParentClass` | `string` |  | Parent class (默认 GameplayEffect) |
+| `ParentClass` | `string` |  | 父类，默认 GameplayEffect |
 
 **相关 Capability**: `GetAssetGameplayEffect`, `ManageAssetGameplayEffect`
 
@@ -1138,8 +1140,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径 |
-| `SourceRigPath` | `string` |  | Source IKRig 路径 |
-| `TargetRigPath` | `string` |  | Target IKRig 路径 |
+| `SourceRigPath` | `string` |  | 源 IKRig 路径 |
+| `TargetRigPath` | `string` |  | 目标 IKRig 路径 |
 
 **相关 Capability**: `GetAssetIKRetargeter`, `ManageAssetIKRetargeter`, `CreateAssetIKRig`
 
@@ -1154,7 +1156,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产路径（包路径） |
-| `MeshPath` | `string` |  | 可选 preview SkeletalMesh path |
+| `MeshPath` | `string` |  | 可选的预览 SkeletalMesh 路径 |
 
 **相关 Capability**: `GetAssetIKRig`, `ManageAssetIKRig`, `GetAssetIKRetargeter`
 
@@ -1169,7 +1171,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径 (/Game/…/IA_Jump) |
-| `ValueType` | `string (enum)` |  | Value type 枚举: `Boolean` / `Axis1D` / `Axis2D` / `Axis3D` |
+| `ValueType` | `string (enum)` |  | 值类型 枚举: `Boolean` / `Axis1D` / `Axis2D` / `Axis3D` |
 
 **相关 Capability**: `GetAssetInputAction`, `ManageAssetInputAction`, `CreateAssetInputMappingContext`
 
@@ -1228,7 +1230,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径 |
-| `MediaPath` | `string` |  | Media file path (可选) |
+| `MediaPath` | `string` |  | 媒体文件路径，可选 |
 
 **相关 Capability**: `GetAssetMediaSource`, `ManageAssetMediaSource`
 
@@ -1321,7 +1323,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径 |
-| `SourceTexturePath` | `string` |  | Source Texture2D path (可选) |
+| `SourceTexturePath` | `string` |  | 源 Texture2D 路径，可选 |
 
 **相关 Capability**: `GetAssetPaperSprite`, `ManageAssetPaperSprite`
 
@@ -1336,11 +1338,11 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径 |
-| `MapWidth` | `integer` |  | Map width (cells, engine 默认) |
-| `MapHeight` | `integer` |  | Map height (cells) |
-| `TileWidth` | `integer` |  | Tile pixel width |
-| `TileHeight` | `integer` |  | Tile pixel height |
-| `TileSetPath` | `string` |  | 默认 PaperTileSet path (可选) |
+| `MapWidth` | `integer` |  | 地图宽度，单位为单元格，默认由引擎决定 |
+| `MapHeight` | `integer` |  | 地图高度，单位为单元格 |
+| `TileWidth` | `integer` |  | 瓦片像素宽度 |
+| `TileHeight` | `integer` |  | 瓦片像素高度 |
+| `TileSetPath` | `string` |  | 默认 PaperTileSet 路径，可选 |
 
 **相关 Capability**: `GetAssetPaperTileMap`, `ManageAssetPaperTileMap`, `SearchAsset`
 
@@ -1355,8 +1357,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径 |
-| `Friction` | `number` |  | Friction |
-| `Restitution` | `number` |  | Restitution |
+| `Friction` | `number` |  | 摩擦系数 |
+| `Restitution` | `number` |  | 恢复系数 |
 
 **相关 Capability**: `GetAssetPhysicalMaterial`, `ManageAssetPhysicalMaterial`
 
@@ -1371,8 +1373,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `SkeletalMeshPath` | `string` | ★ | SkeletalMesh path from asset discovery |
-| `bAssignToMesh` | `boolean` |  | Assign and save the new physics asset on the source mesh |
+| `SkeletalMeshPath` | `string` | ★ | 资产发现返回的 SkeletalMesh 路径 |
+| `bAssignToMesh` | `boolean` |  | 将新物理资产赋给源网格并保存源网格 |
 
 **相关 Capability**: `GetAssetPhysicsAsset`, `ManageAssetPhysicsAsset`, `GetAssetSkeletalMesh`
 
@@ -1388,7 +1390,7 @@
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径 |
 | `AssetKind` | `string (enum)` |  | 资产种类 枚举: `Database` / `Schema` |
-| `SchemaPath` | `string` |  | 可选 Schema path when creating Database |
+| `SchemaPath` | `string` |  | 创建 Database 时可选的 Schema 路径 |
 
 **相关 Capability**: `GetAssetPoseSearch`, `ManageAssetPoseSearch`
 
@@ -1419,8 +1421,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `InnerRadius` | `number` |  | Inner attenuation sphere radius (默认 400) |
-| `FalloffDistance` | `number` |  | Attenuation distance (默认 3600) |
+| `InnerRadius` | `number` |  | 内部衰减球半径，默认 400 |
+| `FalloffDistance` | `number` |  | 衰减距离，默认 3600 |
 
 **相关 Capability**: `GetAssetSoundAttenuation`, `ManageAssetSoundAttenuation`
 
@@ -1435,8 +1437,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `Volume` | `number` |  | Volume multiplier (默认 1.0) |
-| `Pitch` | `number` |  | Pitch multiplier (默认 1.0) |
+| `Volume` | `number` |  | 音量倍率，默认 1.0 |
+| `Pitch` | `number` |  | 音高倍率，默认 1.0 |
 
 **相关 Capability**: `GetAssetSoundClass`, `ManageAssetSoundClass`
 
@@ -1550,9 +1552,9 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产路径 |
-| `OutputPath` | `string` |  | Export 文件路径 (ext included; empty auto-exports to Saved/Exported/) |
-| `ConflictPolicy` | `string (enum)` |  | Primary output path conflict policy; sidecar files are exporter-specific 枚举: `Fail` / `Unique` / `Replace` |
-| `bValidateOnly` | `boolean` |  | Inspect exporter and destination without creating directories or writing files |
+| `OutputPath` | `string` |  | 包含扩展名的导出文件路径；空值自动导出到 Saved/Exported/ |
+| `ConflictPolicy` | `string (enum)` |  | 主输出路径的冲突策略；附属文件行为由导出器决定 枚举: `Fail` / `Unique` / `Replace` |
+| `bValidateOnly` | `boolean` |  | 检查导出器和目标，不创建目录或写入文件 |
 
 **相关 Capability**: `SearchAsset`, `DuplicateAsset`, `GetAssetExportOptions`
 
@@ -1669,7 +1671,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `OutputPath` | `string` |  | 可选 primary output path to inspect |
+| `OutputPath` | `string` |  | 可选的待检查主输出路径 |
 
 **相关 Capability**: `ExportAsset`, `SearchAsset`
 
@@ -1826,8 +1828,8 @@
 | `TagFilter` | `string` |  | Actor 标签精确匹配（可选） |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `PropertyPaths` | `string[]` |  | 反射属性路径（点分，如 `Health` / `Mesh.RelativeLocation`） |
-| `SchemaDepth` | `integer` |  | ActorPropertySchema: child depth, owned subobjects/structs only |
-| `MaxSchemaProperties` | `integer` |  | ActorPropertySchema: total field budget across all requested roots |
+| `SchemaDepth` | `integer` |  | ActorPropertySchema 的子字段深度，仅遍历所属子对象和结构体 |
+| `MaxSchemaProperties` | `integer` |  | ActorPropertySchema 在所有请求根路径间共享的字段总预算 |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
 | `Limit` | `integer` |  | 每页最大条数 |
 
@@ -1926,7 +1928,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` |  | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `ChunkId` | `integer` |  | When set without AssetPath, list packages in this chunk. PathFilter is 必填. |
+| `ChunkId` | `integer` |  | 未传 AssetPath 时按此值列出分块中的包；PathFilter 必填 |
 | `PathFilter` | `string` |  | 内容路径前缀（如 `/Game/Feature/`） |
 | `Offset` | `integer` |  | 分页偏移 |
 | `Limit` | `integer` |  | 每页最大条数 |
@@ -2023,9 +2025,9 @@
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 要查询的资产路径 |
 | `Direction` | `string (enum)` |  | 依赖方向：`Dependencies` / `Referencers` 枚举: `Dependencies` / `Referencers` / `Children` / `Descendants` / `Parent` / `Ancestors` |
-| `bRecursive` | `boolean` |  | Recursive package deps/refs; children equivalent to descendants |
+| `bRecursive` | `boolean` |  | 递归查询包依赖或引用；children 等价于 descendants |
 | `NameFilter` | `string` |  | 名称或标签过滤（可选） |
-| `AssetTypeFilter` | `string` |  | Filter by AssetType 子串, e.g. Blueprint/MaterialInstance |
+| `AssetTypeFilter` | `string` |  | 按 AssetType 子串筛选，例如 Blueprint/MaterialInstance |
 | `Offset` | `integer` |  | 分页偏移 |
 | `Limit` | `integer` |  | 每页最大条数 |
 
@@ -2141,8 +2143,8 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `AssetPaths` | `string[]` | ★ | 1-128 saved asset package/object paths |
-| `bRefresh` | `boolean` |  | Ask the configured source-control provider to update status |
+| `AssetPaths` | `string[]` | ★ | 1–128 个已保存资产的包路径或对象路径 |
+| `bRefresh` | `boolean` |  | 请求已配置的源控 Provider 更新状态 |
 
 **相关 Capability**: `SaveAsset`, `GetAssetRefs`
 
@@ -2171,9 +2173,9 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `LODIndex` | `integer` |  | Render LOD for bounded triangle samples |
-| `TriangleOffset` | `integer` |  | First render triangle for samples |
-| `MaxTriangles` | `integer` |  | 可选 local-space render triangle samples, not proof of cooked/live collision |
+| `LODIndex` | `integer` |  | 有界三角形采样使用的渲染 LOD |
+| `TriangleOffset` | `integer` |  | 采样的首个渲染三角形 |
+| `MaxTriangles` | `integer` |  | 可选的本地空间渲染三角形采样，不能证明烘焙或实时碰撞状态 |
 
 **相关 Capability**: `ManageAssetStaticMesh`, `SearchAsset`, `GetAssetRefs`, `SaveAsset`
 
@@ -2215,9 +2217,9 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `bIncludeConversionFunctions` | `boolean` |  | List available unary UFunctions (bounded) |
-| `ConversionFilter` | `string` |  | Conversion path 子串 filter |
-| `ConversionLimit` | `integer` |  | Maximum conversion functions to return |
+| `bIncludeConversionFunctions` | `boolean` |  | 有界列出可用的单输入 UFunction |
+| `ConversionFilter` | `string` |  | 转换路径的子串筛选 |
+| `ConversionLimit` | `integer` |  | 最多返回的转换函数数量 |
 
 **相关 Capability**: `GetAssetUserWidget`, `ManageAssetUserWidget`, `SearchAsset`, `GetAssetBlueprint`, `ManageAssetViewModel`
 
@@ -2231,14 +2233,14 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `SourceFile` | `string` | ★ | Absolute local 文件路径 |
-| `DestinationPath` | `string` | ★ | Content folder, e.g. /Game/Imported |
-| `AssetName` | `string` |  | Valid object name; defaults to source basename |
+| `SourceFile` | `string` | ★ | 本地绝对文件路径 |
+| `DestinationPath` | `string` | ★ | 内容目录，例如 /Game/Imported |
+| `AssetName` | `string` |  | 合法对象名，默认源文件基础名 |
 | `AssetType` | `string (enum)` | ★ | 资产类型（如 Blueprint、Widget、World）；不要裸用 `All` 全扫 枚举: `Texture` / `SoundWave` / `StaticMesh` / `SkeletalMesh` / `AnimSequence` |
-| `ConflictPolicy` | `string (enum)` |  | Existing destination policy 枚举: `Fail` / `Unique` / `Replace` |
-| `SkeletonPath` | `string` |  | Existing skeleton; 必填 for SkeletalMesh/AnimSequence |
-| `bSRGB` | `boolean` |  | Texture sRGB |
-| `bGenerateCollision` | `boolean` |  | StaticMesh auto collision |
+| `ConflictPolicy` | `string (enum)` |  | 已有目标的处理策略 枚举: `Fail` / `Unique` / `Replace` |
+| `SkeletonPath` | `string` |  | 已有骨架；SkeletalMesh/AnimSequence 必填 |
+| `bSRGB` | `boolean` |  | 纹理 sRGB |
+| `bGenerateCollision` | `boolean` |  | 静态网格自动碰撞 |
 
 **相关 Capability**: `ReimportAsset`, `ExportAsset`, `SaveAsset`
 
@@ -2511,7 +2513,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `bVerify` | `boolean` |  | Verify reflected scalar/struct/container SetActorProperty before saving; resets verify the complete 默认 and do not accept ExpectedValue |
+| `bVerify` | `boolean` |  | 保存前校验反射标量、结构体、容器的 SetActorProperty；恢复操作校验完整默认值且不接受 ExpectedValue |
 | `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(SetProperty/SpawnActor/CreateNavMeshBoundsVolume/ResizeNavMeshBoundsVolume/RemoveActor/SetActorProperty/ResetActorPropertyToDefault), `X`, `Y`, `Z`, `PropertyPath`, `Value`, `ExpectedValue`, `ClassName`, `AssetPath`, `Location`, `Rotation`, `ActorName` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -2608,16 +2610,16 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `ExpectedStructureHash` | `string` |  | Precondition hash from GetAssetEditPreview |
-| `bVerifyStructure` | `boolean` |  | Verify node/edge changes against an isolated structural plan |
+| `ExpectedStructureHash` | `string` |  | GetAssetEditPreview 返回的结构前置条件 Hash |
+| `bVerifyStructure` | `boolean` |  | 按隔离结构计划校验节点和连线变化 |
 | `Operations` | `object[]` | ★ | 操作列表; 条目: `Action`(AddNode/RemoveNode/AddEdge/RemoveEdge), `SettingsClass`, `NodeId`, `FromNodeId`, `ToNodeId`, `FromPin`, `ToPin` |
 | `Action` | `string (enum)` | ★ | 操作 枚举: `AddNode` / `RemoveNode` / `AddEdge` / `RemoveEdge` |
-| `SettingsClass` | `string` |  | UPCGSettings subclass name (AddNode) |
+| `SettingsClass` | `string` |  | UPCGSettings 子类名称，用于 AddNode |
 | `NodeId` | `string` |  | 节点 id (RemoveNode) |
-| `FromNodeId` | `string` |  | Edge source 节点 id (add/RemoveEdge) |
-| `ToNodeId` | `string` |  | Edge target 节点 id (add/RemoveEdge) |
-| `FromPin` | `string` |  | Edge source 引脚名, 默认 first output pin |
-| `ToPin` | `string` |  | Edge target 引脚名, 默认 first input pin |
+| `FromNodeId` | `string` |  | 连线源节点 ID，用于 add/RemoveEdge |
+| `ToNodeId` | `string` |  | 连线目标节点 ID，用于 add/RemoveEdge |
+| `FromPin` | `string` |  | 连线源引脚名，默认首个输出引脚 |
+| `ToPin` | `string` |  | 连线目标引脚名，默认首个输入引脚 |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**: `GetAssetPCGGraph`, `CreateAssetPCGGraph`
@@ -2989,7 +2991,7 @@
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 单个资产路径 |
 | `bSkipDirty` | `boolean` |  | 为 true 时跳过脏包（默认 true，推荐） |
-| `bForceGC` | `boolean` |  | 卸载后触发 KEEPFLAGS GC（默认 true） |
+| `bForceGC` | `boolean` |  | 卸载后触发 KEEPFLAGS GC，默认 true |
 
 **相关 Capability**: `SaveAsset`, `GetAssetBlueprint`
 
@@ -3038,15 +3040,15 @@
 | `Sections` | `string[]` |  | 查询段（可多选）: `variable` / `Function` / `Component` / `graph` / `graphOverview` / `Defaults` / `orphaned` / `ExecPaths` / `Subgraph` / `NodeTypes` / `NodeTypePins` / `GraphDSL` |
 | `AssetPath` | `string` | ★ | 蓝图资产路径 |
 | `NameFilter` | `string` |  | 项名称过滤（/regex/ ^前缀 后缀$） |
-| `ComponentName` | `string` |  | Exact component name for explicit baseline/property comparison |
-| `Baseline` | `string (enum)` |  | Component comparison baseline 枚举: `ClassDefault` / `ParentTemplate` |
+| `ComponentName` | `string` |  | 精确组件名，用于显式基准或属性比较 |
+| `Baseline` | `string (enum)` |  | 组件比较基准 枚举: `ClassDefault` / `ParentTemplate` |
 | `PropertyPaths` | `string[]` |  | 反射属性路径（点分，如 `Health` / `Mesh.RelativeLocation`） |
-| `NodeId` | `string` |  | Subgraph starting 节点 GUID |
-| `MaxDepth` | `integer` |  | Connected subgraph traversal depth |
-| `NodeTypeId` | `string` |  | Native node type from NodeTypes (UE5.8) |
-| `FunctionName` | `string` |  | Compatibility callable for pin discovery |
-| `FunctionClass` | `string` |  | Compatibility callable owner |
-| `GraphName` | `string` |  | Graph name (graph / ExecPaths) |
+| `NodeId` | `string` |  | 子图遍历的起始节点 GUID |
+| `MaxDepth` | `integer` |  | 已连接子图的遍历深度 |
+| `NodeTypeId` | `string` |  | NodeTypes 返回的原生节点类型，UE 5.8 |
+| `FunctionName` | `string` |  | 用于引脚发现的兼容可调用函数 |
+| `FunctionClass` | `string` |  | 兼容可调用函数的所属类 |
+| `GraphName` | `string` |  | 图表名称，用于 graph / ExecPaths |
 | `GraphType` | `string (enum)` |  | 图类型过滤 枚举: `Event` / `Function` / `Macro` / `Animgraph` / `Statemachine` / `State` / `Transition` / `Conduit` / `All` |
 | `Offset` | `integer` |  | 分页偏移 |
 | `Limit` | `integer` |  | 每页最大条数 |
@@ -3064,9 +3066,9 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 蓝图资产路径 |
-| `ExpectedStructureHash` | `string` |  | Precondition hash from GetAssetEditPreview |
-| `bVerifyStructure` | `boolean` |  | Verify RemoveNode/Disconnect/DisconnectAll against an isolated structural plan |
-| `bVerify` | `boolean` |  | Verify reflected scalar/struct/container property writes and array edits before saving; instanced reference values return Unsupported. Resets verify their complete baseline; bCompile remains explicit |
+| `ExpectedStructureHash` | `string` |  | GetAssetEditPreview 返回的结构前置条件 Hash |
+| `bVerifyStructure` | `boolean` |  | 按隔离结构计划校验 RemoveNode/Disconnect/DisconnectAll |
+| `bVerify` | `boolean` |  | 保存前校验反射标量、结构体、容器属性写入及数组编辑；实例化引用值返回 Unsupported。恢复操作校验完整基准；bCompile 仍须显式设置 |
 | `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(AddVariable/RemoveVariable/RenameVariable/RenameLocalVariable/ChangeVariableType/SetVariableMetadata/SetVariableReplication/SetFunctionCallInEditor…), `Code`, `GraphNodes`, `GraphLinks`, `ParameterName`, `bInput`, `Category`, `bEditable`, `ToolTip`, `Replication`(None/Replicated/RepNotify), `RepNotifyFunction`, `bCallInEditor`, `GraphName`, `VariableName`, `VariableType`, `NewVariableName`, `ParentClass`, `OldMemberName`, `NewMemberName`, `bValidateOnly`, `bAllowPotentialDataLoss`, `DefaultValue`, `bIsPublic`, `bIsLocal`, `NodeId`, `OffsetX`, `OffsetY`, `NodeClass`, `FunctionName`, `CustomEventName`, `FunctionClass`, `InterfaceName`, `PosX`, `PosY`, `Comment`, `PinName`, `PinDefaultValue`, `SourceNodeId`, `SourcePinName`, `TargetNodeId`, `TargetPinName`, `ComponentClass`, `Baseline`(ParentTemplate/ClassDefault), `ComponentName`, `AttachTo`, `SourceAssetPath`, `SourceComponentName`, `PropertyPath`, `Value`, `Values`, `ExpectedValue` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `bCompile` | `boolean` |  | 需要时编译蓝图（仅 BP/ABP/WBP） |
@@ -3101,7 +3103,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `SkeletonPath` | `string` |  | Skeleton asset path (可选) |
+| `SkeletonPath` | `string` |  | Skeleton 资产路径，可选 |
 
 **相关 Capability**: `GetAssetAnimComposite`, `ManageAssetAnimComposite`
 
@@ -3131,8 +3133,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产路径（包路径） |
-| `SkeletonPath` | `string` | ★ | Linked skeleton 路径 |
-| `BlendSpaceType` | `string (enum)` |  | Type: BlendSpace (2D, 默认) or BlendSpace1D 枚举: `BlendSpace` / `BlendSpace1D` |
+| `SkeletonPath` | `string` | ★ | 关联骨架路径 |
+| `BlendSpaceType` | `string (enum)` |  | 类型：BlendSpace 为 2D 且是默认值，或 BlendSpace1D 枚举: `BlendSpace` / `BlendSpace1D` |
 
 **相关 Capability**: `GetAssetBlendSpace`, `ManageAssetBlendSpace`
 
@@ -3190,8 +3192,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `BoneNames` | `string[]` |  | 可选 1-32 skeleton bone names to sample in local space |
-| `SampleTimes` | `object[]` |  | 1-128 times in seconds within the clip; 必填 with BoneNames |
+| `BoneNames` | `string[]` |  | 可选的 1–32 个骨架骨骼名，在本地空间采样 |
+| `SampleTimes` | `object[]` |  | 片段内以秒为单位的 1–128 个采样时刻；传 BoneNames 时必填 |
 
 **相关 Capability**: `ManageAssetAnimSequence`, `SearchAsset`, `GetAssetSkeleton`, `GetAssetAnimMontage`, `GetAssetRefs`
 
@@ -3254,11 +3256,11 @@
 | `Action` | `string (enum)` | ★ | 动画命令 枚举: `PlayMontage` / `StopMontage` / `StopAll` / `SetAnimVariable` / `JumpToSection` / `SetAnimClass` |
 | `ActorName` | `string` | ★ | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `MontagePath` | `string` |  | Montage 资产路径 (play/stop/jump) |
-| `PlayRate` | `number` |  | Play rate |
-| `StartSection` | `string` |  | Section name (PlayMontage/JumpToSection) |
+| `PlayRate` | `number` |  | 播放速率 |
+| `StartSection` | `string` |  | 片段名称，用于 PlayMontage/JumpToSection |
 | `VariableName` | `string` |  | AnimInstance 变量名 (SetAnimVariable) |
-| `Value` | `string` |  | New variable value string (SetAnimVariable) |
-| `AnimClassPath` | `string` |  | AnimBlueprint GeneratedClass path (SetAnimClass) |
+| `Value` | `string` |  | 新变量值的字符串，用于 SetAnimVariable |
+| `AnimClassPath` | `string` |  | 动画蓝图 GeneratedClass 路径，用于 SetAnimClass |
 
 **相关 Capability**: `GetRuntimeActorAnimation`, `GetAssetAnimMontage`
 
@@ -3375,7 +3377,7 @@
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 新资产完整包路径 (e.g. /Game/Mats/M1.M1) |
 | `Type` | `string (enum)` |  | 资产种类 枚举: `Material` / `MaterialInstance` |
-| `ParentMaterial` | `string` |  | Parent material path (必填 for MaterialInstance) |
+| `ParentMaterial` | `string` |  | 父材质路径；MaterialInstance 必填 |
 | `MaterialDomain` | `string (enum)` |  | 材质域（仅 Material） 枚举: `Surface` / `DeferredDecal` / `LightFunction` / `Volume` / `PostProcess` / `UI` / `RuntimeVirtualTexture` |
 
 **相关 Capability**: `ManageAssetMaterial`, `GetAssetMaterial`
@@ -3391,8 +3393,8 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径 (/Game/…/MF_MyFunc) |
-| `Description` | `string` |  | Function description (可选) |
-| `bExposeToLibrary` | `boolean` |  | Show in material function library |
+| `Description` | `string` |  | 函数说明，可选 |
+| `bExposeToLibrary` | `boolean` |  | 在材质函数库中显示 |
 
 **相关 Capability**: `GetAssetMaterial`, `ManageAssetMaterial`, `CreateAssetMaterial`
 
@@ -3424,7 +3426,7 @@
 | `AssetPath` | `string` |  | Material/MI/MaterialFunction 资产路径 |
 | `NameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `bIncludePins` | `boolean` |  | 包含引脚详情（graph） |
-| `bIncludeWires` | `boolean` |  | Include connection info (graph) |
+| `bIncludeWires` | `boolean` |  | 包含连接信息，用于 graph |
 | `Offset` | `integer` |  | 分页偏移 |
 | `Limit` | `integer` |  | 每页最大条数 |
 
@@ -3585,7 +3587,7 @@
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `Mode` | `string (enum)` |  | 模式（见各 cap 的枚举说明） 枚举: `Auto` / `Schema` / `Rows` |
-| `RowNames` | `string[]` |  | 行名 (rows mode or auto with non-empty RowNames); paginated by offset/limit |
+| `RowNames` | `string[]` |  | 行名，用于 rows 模式或 RowNames 非空的 auto 模式；按 offset/limit 分页 |
 | `NameFilter` | `string` |  | 名称或标签过滤（可选） |
 | `PropertyPaths` | `string[]` |  | 反射属性路径（点分，如 `Health` / `Mesh.RelativeLocation`） |
 | `Offset` | `integer` |  | 分页偏移 |
@@ -3604,7 +3606,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `bVerify` | `boolean` |  | Verify scalar Set operations before saving |
+| `bVerify` | `boolean` |  | 保存前校验标量 Set 操作 |
 | `Operations` | `object[]` | ★ | 批量属性操作（至少一项）; 条目: `Action`(Set/Reset), `PropertyName`, `Value`, `ExpectedValue` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -3621,7 +3623,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | DataTable 资产路径（共用） |
-| `bVerify` | `boolean` |  | Verify scalar Set readback before saving; rejects other actions |
+| `bVerify` | `boolean` |  | 保存前校验标量 Set 回读值；拒绝其他动作 |
 | `Operations` | `object[]` | ★ | 批量行操作（至少一项）; 条目: `Action`(Add/Remove/Set), `RowName`, `FieldName`, `Value`, `ExpectedValue` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
@@ -3640,7 +3642,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 新 WidgetBlueprint 包路径 |
-| `ParentClass` | `string` |  | Parent class (默认 UserWidget) |
+| `ParentClass` | `string` |  | 父类，默认 UserWidget |
 
 **相关 Capability**: `ManageAssetUserWidget`, `GetAssetUserWidget`
 
@@ -3658,7 +3660,7 @@
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
 | `NameFilter` | `string` |  | Widget/动画名子串（可选） |
 | `PropertyPaths` | `string[]` |  | 反射属性路径（点分，如 `Health` / `Mesh.RelativeLocation`） |
-| `TypeFilter` | `string` |  | Widget class 子串 (widgets section only) |
+| `TypeFilter` | `string` |  | 控件类子串，仅用于 widgets 分段 |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
 | `Limit` | `integer` |  | 每页最大条数 |
 
@@ -3675,9 +3677,9 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | WidgetBlueprint 资产路径（共用） |
-| `ExpectedStructureHash` | `string` |  | Precondition hash from GetAssetEditPreview |
-| `bVerifyStructure` | `boolean` |  | Verify Add/Remove/Move against an isolated widget-tree plan |
-| `bVerify` | `boolean` |  | Verify scalar SetProperty after compilation before saving; rejects other actions |
+| `ExpectedStructureHash` | `string` |  | GetAssetEditPreview 返回的结构前置条件 Hash |
+| `bVerifyStructure` | `boolean` |  | 按隔离控件树计划校验 Add/Remove/Move |
+| `bVerify` | `boolean` |  | 编译后、保存前校验标量 SetProperty；拒绝其他动作 |
 | `Operations` | `object[]` | ★ | 批量操作：`[{action, ...}, ...]`; 条目: `Action`(Add/Remove/SetSlot/SetProperty/AddAnimation/RemoveAnimation/AddTrack/AddKey…), `WidgetClass`, `WidgetName`, `ParentWidget`, `ChildIndex`, `SlotName`, `NewWidgetName`, `bIsVariable`, `EventName`, `ComponentClass`, `RelativeComponentClass`, `bMoveAfter`, `AnimationName`, `TrackName`, `PropertyPath`, `Time`, `KeyValue`, `Value`, `ExpectedValue`, `AnchorMinX`, `AnchorMinY`, `AnchorMaxX`, `AnchorMaxY`, `AlignmentX`, `AlignmentY`, `OffsetLeft`, `OffsetTop`, `OffsetRight`, `OffsetBottom` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 | `bCompile` | `boolean` |  | 需要时编译蓝图（仅 BP/ABP/WBP） |
@@ -3699,12 +3701,12 @@
 | `Target` | `string` |  | editor|EditorDesktop|viewport|pie|list |
 | `Format` | `string (enum)` |  | 图片格式 枚举: `png` / `jpg` |
 | `MaxSize` | `integer` |  | 最大边长像素（0=原生） |
-| `bIncludeImage` | `boolean` |  | Return standard MCP image content with FilePath metadata |
+| `bIncludeImage` | `boolean` |  | 返回标准 MCP 图片内容及 FilePath 元数据 |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
-| `WidgetName` | `string` |  | 运行时 UMG Widget；走 Game 视口 |
+| `WidgetName` | `string` |  | 运行时 UMG 控件，使用 Game 视口 |
 | `OwnerClass` | `string` |  | UserWidget 类过滤 |
 | `Padding` | `number` |  | Actor 包围盒留白比例 |
-| `WindowIndex` | `integer` |  | Top-level window index; omit for first/active |
+| `WindowIndex` | `integer` |  | 顶层窗口索引；省略时选择首个或活动窗口 |
 | `bValidateOnly` | `boolean` |  | 为 true 时跳过截图，仅校验 target/视口 |
 
 **相关 Capability**: `CaptureEditorPanel`, `ListRuntimeWidgets`, `ListRuntimeActors`
@@ -3766,7 +3768,7 @@
 |------|------|:----:|------|
 | `Command` | `string` | ★ | 要执行的控制台命令 |
 | `bSilent` | `boolean` |  | 跳过输出捕获 |
-| `Reason` | `string` |  | Purpose for Confirm-mode gate. 必填 in Confirm mode. |
+| `Reason` | `string` |  | Confirm 模式门控的用途说明；Confirm 模式必填 |
 
 **相关 Capability**: `GetOutputLog`
 
@@ -3782,9 +3784,9 @@
 |------|------|:----:|------|
 | `Offset` | `integer` |  | 分页偏移（沿排序方向） |
 | `Limit` | `integer` |  | 每页最大条数 |
-| `Order` | `string (enum)` |  | Sort: Newest=latest first (diagnostic 默认), Oldest=ascending 枚举: `Newest` / `Oldest` |
+| `Order` | `string (enum)` |  | 排序：Newest 为最新优先且是诊断默认值；Oldest 为升序 枚举: `Newest` / `Oldest` |
 | `SinceSequence` | `integer` |  | 返回 Sequence 大于此值的日志（增量；传入上次 LatestSequence） |
-| `Preset` | `string (enum)` |  | Diagnostic preset: Diagnose=newest+verbosity≥warning+bIncludeSummary+limit≤50 枚举: `None` / `Diagnose` |
+| `Preset` | `string (enum)` |  | 诊断预设：Diagnose 使用最新优先、级别不低于 warning、bIncludeSummary 且 limit≤50 枚举: `None` / `Diagnose` |
 | `bIncludeSummary` | `boolean` |  | 附加 SummaryByCategory/SummaryByVerbosity（完整过滤集，非本页） |
 | `bSummaryOnly` | `boolean` |  | 仅摘要；entries 为空（仍返回 TotalCount/LatestSequence） |
 | `CategoryFilter` | `string` |  | 日志分类子串（不区分大小写） |
@@ -3811,9 +3813,9 @@
 |------|------|:----:|------|
 | `Sections` | `string[]` |  | 查询段（可多选）: `Abilities` / `Effects` / `Attributes` / `Context` / `Tags` / `ActivationDiagnostics` / `ActivationEvents` |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
-| `SpecHandle` | `string` |  | Granted ability handle from Abilities; exclusive with AbilityPath |
-| `AbilityPath` | `string` |  | Exact ability class path; exclusive with SpecHandle |
-| `CaptureId` | `string` |  | Activation capture returned by StartActivationCapture |
+| `SpecHandle` | `string` |  | Abilities 返回的已授予技能句柄，与 AbilityPath 互斥 |
+| `AbilityPath` | `string` |  | 精确技能类路径，与 SpecHandle 互斥 |
+| `CaptureId` | `string` |  | StartActivationCapture 返回的激活采集 |
 
 **相关 Capability**: `InteractRuntimeActorAbilitySystem`, `GetGameplayTags`, `GetRuntimeActorProperty`
 
@@ -3832,8 +3834,8 @@
 | `Target` | `string (enum)` |  | 分发目标（自动推断） 枚举: `Actor` / `Widget` / `Asset` |
 | `ActorName` | `string` | ★ | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `PropertyPaths` | `string[]` |  | 点分路径（批量） |
-| `View` | `string (enum)` |  | Actor view; Context returns lifecycle identity and authority 枚举: `Components` / `AttachHierarchy` / `All` / `Context` |
-| `Diagnose` | `string (enum)` |  | Actor diagnostic preset 枚举: `Visibility` / `Transform` / `WorldTransform` / `RotationChain` / `Defaults` |
+| `View` | `string (enum)` |  | Actor 视图；Context 返回生命周期身份和权限 枚举: `Components` / `AttachHierarchy` / `All` / `Context` |
+| `Diagnose` | `string (enum)` |  | Actor 诊断预设 枚举: `Visibility` / `Transform` / `WorldTransform` / `RotationChain` / `Defaults` |
 
 **相关 Capability**: `SetRuntimeActorProperty`, `ListRuntimeActors`
 
@@ -3845,7 +3847,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `OperationId` | `string` | ★ | OperationId returned by InteractRuntimeInput |
+| `OperationId` | `string` | ★ | InteractRuntimeInput 返回的 OperationId |
 
 **相关 Capability**: `InteractRuntimeInput`
 
@@ -3869,7 +3871,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `Address` | `string` | ★ | Widget Reflector 提供的十六进制地址 |
+| `Address` | `string` | ★ | Widget Reflector 返回的十六进制地址 |
 
 **相关 Capability**: `ListRuntimeWidgets`
 
@@ -3886,7 +3888,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `WidgetName` | `string` |  | 运行时 Widget 名 |
-| `WidgetPath` | `string` |  | Exact Path from ListRuntimeWidgets; never falls back to 名 |
+| `WidgetPath` | `string` |  | ListRuntimeWidgets 返回的精确 Path；不会回退到名称匹配 |
 | `OwnerClass` | `string` |  | UserWidget 过滤 |
 | `PropertyPaths` | `string[]` |  | 点分路径（批量） |
 
@@ -3907,13 +3909,13 @@
 | `Action` | `string (enum)` | ★ | 写操作 枚举: `ActivateAbility` / `CancelAbility` / `ApplyEffect` / `RemoveEffect` / `SetAttribute` / `GiveAbility` / `ClearAbility` / `ExecuteCue` / `AddLooseTag` / `RemoveLooseTag` / `TryActivateGrantedAbility` / `StartActivationCapture` / `StopActivationCapture` |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `AbilityPath` | `string` |  | GameplayAbility 资产路径 |
-| `SpecHandle` | `string` |  | Granted ability handle; exclusive with AbilityPath for TryActivateGrantedAbility |
-| `CaptureId` | `string` |  | Capture to stop; bound to ActorName |
+| `SpecHandle` | `string` |  | 已授予技能句柄；TryActivateGrantedAbility 中与 AbilityPath 互斥 |
+| `CaptureId` | `string` |  | 要停止的采集，绑定 ActorName |
 | `EffectPath` | `string` |  | GameplayEffect 资产路径 (apply/remove) |
-| `AttributeName` | `string` |  | Attribute name: AttributeSetName.AttributeName (SetAttribute) |
-| `Value` | `number` |  | New attribute base value (SetAttribute) |
-| `Level` | `number` |  | Ability/Effect level (默认 1) |
-| `Tag` | `string` |  | GameplayTag（ExecuteCue / loose tag） |
+| `AttributeName` | `string` |  | 属性名称，格式 AttributeSetName.AttributeName，用于 SetAttribute |
+| `Value` | `number` |  | 新属性基础值，用于 SetAttribute |
+| `Level` | `number` |  | Ability/Effect 等级，默认 1 |
+| `Tag` | `string` |  | GameplayTag，用于 ExecuteCue 或松散标签 |
 
 **相关 Capability**: `GetRuntimeActorAbilitySystem`, `GetGameplayTags`
 
@@ -3962,12 +3964,12 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `Apply` / `Release` |
-| `Inputs` | `object[]` |  | 1-16 simultaneous inputs for Apply; 条目: `Key`, `AssetPath`, `X`, `Y`, `Z` |
-| `DurationSeconds` | `number` |  | Hold 0-30 real seconds; 0 means one actual game tick |
-| `WorldPath` | `string` |  | Exact play world object path from ControlPie Status; 必填 for ambiguous worlds |
-| `WorldName` | `string` |  | 可选 exact world object name; may be ambiguous across PIE clients |
-| `LocalPlayerIndex` | `integer` |  | Index within selected world's local players |
-| `OperationId` | `string` |  | Input 操作 to Release |
+| `Inputs` | `object[]` |  | Apply 同时施加的 1–16 项输入; 条目: `Key`, `AssetPath`, `X`, `Y`, `Z` |
+| `DurationSeconds` | `number` |  | 保持 0–30 个真实秒；0 表示一个实际游戏 Tick |
+| `WorldPath` | `string` |  | ControlPie Status 返回的精确游玩世界对象路径；世界多义时必填 |
+| `WorldName` | `string` |  | 可选的精确世界对象名；多个 PIE 客户端间可能多义 |
+| `LocalPlayerIndex` | `integer` |  | 所选世界内的本地玩家索引 |
+| `OperationId` | `string` |  | 要释放的输入操作 |
 
 **相关 Capability**: `GetRuntimeInput`, `ControlPie`, `CaptureViewport`
 
@@ -3984,8 +3986,8 @@
 | `WidgetName` | `string` |  | 子控件名称子串；必须唯一命中活动控件。未提供 WidgetPath 时必填 |
 | `WidgetPath` | `string` |  | ListRuntimeWidgets 返回的完整实例 Path；精确匹配，不回退名称。同时提供 WidgetName/OwnerClass 时也必须匹配 |
 | `Action` | `string (enum)` | ★ | 交互操作 枚举: `Click` / `Check` / `Uncheck` / `Toggle` / `Set` / `Read` |
-| `Value` | `string` |  | New value when Action=set |
-| `OwnerClass` | `string` |  | Owner UserWidget 类/名过滤 |
+| `Value` | `string` |  | Action=set 时的新值 |
+| `OwnerClass` | `string` |  | 所属 UserWidget 的类或名称筛选 |
 
 **相关 Capability**: `ListRuntimeWidgets`, `GetRuntimeWidgetProperty`
 
@@ -4069,11 +4071,11 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `ActorName` | `string` | ★ | 运行时 Actor 名（PIE 世界 `GetName()`） |
-| `Location` | `string` |  | World location x,y,z |
-| `Rotation` | `string` |  | World rotation pitch,yaw,roll |
-| `Scale` | `string` |  | Actor scale x,y,z |
-| `bSweep` | `boolean` |  | Sweep when setting location |
-| `bTeleport` | `boolean` |  | Teleport physics instead of sweeping it |
+| `Location` | `string` |  | 世界位置 x,y,z |
+| `Rotation` | `string` |  | 世界旋转 pitch,yaw,roll |
+| `Scale` | `string` |  | Actor 缩放 x,y,z |
+| `bSweep` | `boolean` |  | 设置位置时执行 Sweep |
+| `bTeleport` | `boolean` |  | 传送物理状态而非执行 Sweep |
 
 **相关 Capability**: `GetRuntimeActorProperty`, `SetRuntimeActorProperty`
 
@@ -4108,9 +4110,9 @@
 | `LocationX` | `number` |  | 生成 X |
 | `LocationY` | `number` |  | 生成 Y |
 | `LocationZ` | `number` |  | 生成 Z |
-| `RotationPitch` | `number` |  | Pitch (degrees) |
-| `RotationYaw` | `number` |  | Yaw (degrees) |
-| `RotationRoll` | `number` |  | Roll (degrees) |
+| `RotationPitch` | `number` |  | Pitch，单位为度 |
+| `RotationYaw` | `number` |  | Yaw，单位为度 |
+| `RotationRoll` | `number` |  | Roll，单位为度 |
 
 **相关 Capability**: `DestroyRuntimeActor`, `ListRuntimeActors`
 
@@ -4224,16 +4226,16 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `World` | `string (enum)` |  | World selection; Auto prefers PIE/Game, otherwise Editor 枚举: `Auto` / `Editor` / `Play` |
-| `WorldName` | `string` |  | 可选 exact world name; disambiguates multiple PIE worlds |
-| `FilterClass` | `string` |  | 可选 NavigationQueryFilter class name/path |
-| `AgentRadius` | `number` |  | 可选 navigation-agent radius override |
-| `AgentHeight` | `number` |  | 可选 navigation-agent height override |
-| `bProjectStart` | `boolean` |  | Project Start onto existing navigation before querying |
-| `bProjectEnd` | `boolean` |  | Project End onto existing navigation before querying |
+| `World` | `string (enum)` |  | 世界选择；Auto 优先 PIE/Game，否则 Editor 枚举: `Auto` / `Editor` / `Play` |
+| `WorldName` | `string` |  | 可选的精确世界名，用于区分多个 PIE 世界 |
+| `FilterClass` | `string` |  | 可选的 NavigationQueryFilter 类名或路径 |
+| `AgentRadius` | `number` |  | 可选的导航 Agent 半径覆盖 |
+| `AgentHeight` | `number` |  | 可选的导航 Agent 高度覆盖 |
+| `bProjectStart` | `boolean` |  | 查询前将 Start 投影到现有导航 |
+| `bProjectEnd` | `boolean` |  | 查询前将 End 投影到现有导航 |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
-| `bAllowPartialPath` | `boolean` |  | Allow a path that does not reach End |
-| `MaxPoints` | `integer` |  | Maximum returned path points; 完整路径 length/cost are retained |
+| `bAllowPartialPath` | `boolean` |  | 允许未到达 End 的部分路径 |
+| `MaxPoints` | `integer` |  | 最多返回的路径点数；保留完整路径的长度和代价 |
 | `Start` | `object` | ★ | 字段: `X`, `Y`, `Z` |
 | `End` | `object` | ★ | 字段: `X`, `Y`, `Z` |
 | `ProjectionExtent` | `object` |  | 字段: `X`, `Y`, `Z` |
@@ -4248,12 +4250,12 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| `World` | `string (enum)` |  | World selection 枚举: `Auto` / `Editor` / `Play` |
-| `WorldName` | `string` |  | 可选 exact world name for multiple PIE worlds |
+| `World` | `string (enum)` |  | 世界选择 枚举: `Auto` / `Editor` / `Play` |
+| `WorldName` | `string` |  | 多个 PIE 世界时可选的精确世界名 |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
-| `AgentRadius` | `number` |  | 可选 positive agent radius override |
-| `AgentHeight` | `number` |  | 可选 positive agent height override |
-| `FilterClass` | `string` |  | 可选 NavigationQueryFilter class name/path |
+| `AgentRadius` | `number` |  | 可选的正值 Agent 半径覆盖 |
+| `AgentHeight` | `number` |  | 可选的正值 Agent 高度覆盖 |
+| `FilterClass` | `string` |  | 可选的 NavigationQueryFilter 类名或路径 |
 | `Point` | `object` | ★ | 字段: `X`, `Y`, `Z` |
 | `ProjectionExtent` | `object` |  | 字段: `X`, `Y`, `Z` |
 
@@ -4302,13 +4304,13 @@
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `MoveTo` / `Stop` |
 | `ActorName` | `string` | ★ | 运行时 Actor 名（PIE 世界 `GetName()`） |
-| `X` | `number` |  | MoveTo destination X |
-| `Y` | `number` |  | MoveTo destination Y |
-| `Z` | `number` |  | MoveTo destination Z |
-| `AcceptanceRadius` | `number` |  | MoveTo acceptance radius; -1 uses the controller 默认 |
-| `FilterClass` | `string` |  | NavigationQueryFilter class; align with GetNavigationPath |
-| `bAllowPartialPath` | `boolean` |  | Allow partial movement paths; explicitly align this with path queries |
-| `bProjectEnd` | `boolean` |  | Project destination onto navigation |
+| `X` | `number` |  | MoveTo 目标 X |
+| `Y` | `number` |  | MoveTo 目标 Y |
+| `Z` | `number` |  | MoveTo 目标 Z |
+| `AcceptanceRadius` | `number` |  | MoveTo 接受半径；-1 使用控制器默认值 |
+| `FilterClass` | `string` |  | NavigationQueryFilter 类；与 GetNavigationPath 保持一致 |
+| `bAllowPartialPath` | `boolean` |  | 允许部分移动路径；须显式与路径查询策略保持一致 |
+| `bProjectEnd` | `boolean` |  | 将目标投影到导航 |
 
 **相关 Capability**: `GetRuntimeActorAI`, `GetNavigationPath`, `GetNavigationPoint`, `GetRuntimeActorBehaviorTree`, `ListRuntimeActors`
 
@@ -4327,8 +4329,8 @@
 | `Action` | `string (enum)` | ★ | 写操作 枚举: `SetBlackboard` / `RestartTree` / `StopTree` |
 | `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
 | `KeyName` | `string` |  | Blackboard 键名 (SetBlackboard) |
-| `Value` | `string` |  | Key value string (SetBlackboard) |
-| `TreePath` | `string` |  | BT asset path (RestartTree 可选; restarts current if omitted) |
+| `Value` | `string` |  | 键值字符串，用于 SetBlackboard |
+| `TreePath` | `string` |  | BT 资产路径；RestartTree 时可选，省略则重新启动当前树 |
 
 **相关 Capability**: `GetRuntimeActorBehaviorTree`, `GetAssetBehaviorTree`
 

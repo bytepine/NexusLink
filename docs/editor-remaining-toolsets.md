@@ -1,5 +1,7 @@
 # UMG、材质、项目配置与 Sequencer 扩展
 
+中文 · [English](editor-remaining-toolsets.en.md)
+
 [文档导航](README.md) · [前四组编辑器兼容能力](editor-compatibility.md) · [独立后端](toolset-backends.md)
 
 所有操作由 NexusLink 直接使用引擎公开 API 实现，本插件自身不直接链接或调用官方 Toolset、Registry 和官方 Python toolset 包。标准模块的[传递依赖遵循引擎要求](toolset-backends.md)。可用性取决于底层 API、领域插件与 NexusLink 权限；不会为一次请求自动启用插件。
@@ -34,7 +36,7 @@ Operations[] 支持：
 
 成功返回 bSavedToDisk；bRestartRequired 根据属性重启元数据判定，Reset 保守标记需要重启。缺少重启元数据并不能证明任意设置都会立即生效。保存失败时可能留下已变更的内存值，失败信息会明确说明；不会自动重试写入。
 
-各版本直接使用 ISettingsModule/ISettingsSection 和编辑器属性变更生命周期。SetProperties 本身会持久化，不是临时预览；该 Capability 标记为危险写操作。
+各版本直接使用 ISettingsModule/ISettingsSection 和编辑器属性变更生命周期。SetProperties 本身会持久化，不是临时预览；该 Capability 是专用配置写入，不带 Dangerous 标签；仅任意代码执行入口标记为危险。
 
 ## 项目插件
 

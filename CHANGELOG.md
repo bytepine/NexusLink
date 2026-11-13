@@ -1,4 +1,6 @@
-# Changelog — NexusLink
+# 更新日志 — NexusLink
+
+**语言 / Language**: **简体中文** · [English](CHANGELOG.en.md)
 
 所有变更记录遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 格式。
 版本号遵循 [语义化版本控制](https://semver.org/lang/zh-CN/)。
@@ -336,7 +338,7 @@
 - fix(runtime): 未开 PIE 时 runtime 写路径不再落到编辑器关卡 Actor
 - fix(mcp): `set_runtime_lua` 的 `value` 接受标量；`dofile_runtime_lua` 缺文件改为条目级错误
 - fix(compat): 可选插件 Capability 补齐 UE 4.26–5.8
-- fix(asset): 缺失包不再二次加 `/Game/` 前缀崩编辑器；Niagara / CommonUI Style 创建；ViewModel 首次建 View；PCG / ControlRig schema
+- fix(asset): 缺失包不再二次加 `/Game/` 前缀崩编辑器；Niagara / CommonUI Style 创建；ViewModel 首次建 View；PCG
 
 ## [2.1.0-beta.2] - 2026-09-15
 
@@ -371,7 +373,7 @@
 
 - fix(mcp): `set_runtime_lua` 的 `value` 接受标量；`dofile_runtime_lua` 缺文件改为条目级错误
 - fix(compat): 可选插件 Capability 补齐 UE 4.26–5.8
-- fix(asset): 缺失包不再二次加 `/Game/` 前缀崩编辑器；Niagara / CommonUI Style 创建；ViewModel 首次建 View；PCG / ControlRig schema
+- fix(asset): 缺失包不再二次加 `/Game/` 前缀崩编辑器；Niagara / CommonUI Style 创建；ViewModel 首次建 View；PCG
 
 ## [2.0.2] - 2026-09-04
 
@@ -494,7 +496,7 @@
 
 ### Added
 
-- feat(mcp): BlendSpace / AnimSequence 关键帧与曲线；ControlRig / IKRig / IKRetargeter；MetaSound / MetaSoundPatch；PCG；PoseSearch
+- feat(mcp): BlendSpace / AnimSequence 关键帧与曲线；ControlRig
 - feat(mcp): Enhanced Input、MaterialFunction、MPC、StateTree 写、LevelSequence、PhysicsAsset、EQS、DataLayer
 - feat(mcp): `get_asset_behavior_tree` 节点 `flatIndex`；子对象属性可展开
 
@@ -830,4 +832,4 @@
 
 ### Added
 
-- feat(mcp): MCP 服务器（HTTP Streamable + WS + `/status`）；实例注册；端口冲突切换；47 个工具（蓝图 / DataTable / DataAsset / Struct / Widget / Actor / PIE）
+- feat(mcp): MCP 服务器（HTTP Streamable + WS + `/status`）；实例注册；端口冲突切换；47 个工具（蓝图

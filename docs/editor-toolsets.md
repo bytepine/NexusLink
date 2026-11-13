@@ -1,6 +1,8 @@
 # 独立编辑器工具与领域能力
 
-[文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
+中文 · [English](editor-toolsets.en.md)
+
+[文档导航](README.md) · [项目首页](../README.md)
 
 专用图编辑器操作、Slate UI、Automation 测试和非阻塞 Live Coding 都属于引擎能力，由 NexusLinkEditor 提供，不要求 NexusLinkExt 或第二个官方 MCP 服务。
 

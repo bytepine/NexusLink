@@ -1,5 +1,7 @@
 # 独立编辑器能力与版本范围
 
+中文 · [English](editor-compatibility.en.md)
+
 [文档导航](README.md) · [独立后端说明](toolset-backends.md)
 
 这些能力由 NexusLink 自行实现，直接使用引擎编辑器及领域插件 API；本插件自身不直接链接或调用官方 Toolset、Registry 或官方 Python toolset 包。标准模块的[传递依赖遵循引擎要求](toolset-backends.md)。版本限制来自底层引擎 API，动作和参数可通过 `GetProjectToolsets.Sections=["Actions"]` 发现。

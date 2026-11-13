@@ -1,5 +1,7 @@
 # NexusLink 使用指南
 
+**语言 / Language**: **简体中文** · [English](usage-guide.en.md)
+
 [输入、性能与 UI 诊断](runtime-diagnostics.md)说明忙碌拒绝、玩家输入、实时耗时、CSV、UMG 属性来源与可选 CommonUI。
 
 [独立引擎后端](toolset-backends.md)说明各接口如何直接调用引擎 API；NexusLink 自身不直接链接或调用官方 Toolset/Registry，无需启动官方 MCP 服务。标准领域插件依赖遵循引擎要求，例如 UE 5.9 PCG 须保留 Registry。
@@ -32,7 +34,7 @@ PCG 调参、物理资产编辑、GameplayTags 配置和 DataRegistry 接入条�
 
 > **安全**：Token 是访问凭证，不要提交到仓库、贴到公开文档或暴露在截图中。写操作会真实修改资产或运行状态，提交前请检查版本管理差异。
 
-编辑器 / PIE 与独立 Game / DS 的启用方式不同，见 [§2.2](#22-启用-mcp-服务器必做)。连接后需要资产预览、UMG 交互、编辑器自动化或诊断复测时，转到[专题文档](README.md#日常操作--workflows)。
+编辑器 / PIE 与独立 Game / DS 的启用方式不同，见 [§2.2](#22-启用-mcp-服务器必做)。连接后需要资产预览、UMG 交互、编辑器自动化或诊断复测时，转到[专题文档](README.md#日常操作)。
 
 ---
 

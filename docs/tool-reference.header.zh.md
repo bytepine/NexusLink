@@ -1,8 +1,10 @@
 # NexusLink 工具参考手册
 
+简体中文 · [English](tool-reference.header.md)
+
 [文档导航](README.md) · [项目首页](../README.md)
 
-**语言 / Language**: **简体中文** · [English](tool-reference.md)
+**语言**： **简体中文** · [English](tool-reference.md)
 
 本文列出 NexusLink 暴露的全部 MCP 工具与 Capability，并附参数说明。
 

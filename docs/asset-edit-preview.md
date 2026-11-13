@@ -1,6 +1,8 @@
-# Asset edit preview / 资产修改预览
+# 资产修改预览
 
-[文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
+中文 · [English](asset-edit-preview.en.md)
+
+[文档导航](README.md) · [项目首页](../README.md)
 
 节点/连线及控件树的首批结构计划、StructureHash 前置条件和 bVerifyStructure 回读见[功能补充](feature-followups.md#结构预览与回读)。下文介绍属性值预览与验证。
 
@@ -31,7 +33,6 @@
 
 单次 Manage 保持部分成功：前项成功的修改保留，任何验证失败阻止该调用自动保存，不能描述为资产已还原。跨调用 `CallCapability.Calls` 批次沿用事务回滚，保存在内存事务完成后进行，保存失败不宣称磁盘整体回滚。失败写入不自动重试。
 
-Scalar preview uses temporary property storage and never mutates, compiles, saves or records Undo. Object/class reference values are supported with native type checks; traversal is limited to owned subobjects, so external objects cannot be edited through a reference. ExpectedValue is an optional optimistic precondition. Blueprint bVerify respects bCompile: false verifies memory only; true compiles once after the operations and verifies final values before saving. Widget verification still compiles and reads back. Structural plans and bVerifyStructure cover the bounded operations linked above. Existing partial-success and batch rollback boundaries remain in effect.
 
 `ManageAssetBlueprint/RenameVariable` 使用 `VariableName` 与 `NewVariableName`，调用引擎原生成员重命名并保留变量 GUID 与引用。仅允许无子蓝图的叶子蓝图；资产注册表仍在扫描、存在已登记或已加载的子蓝图、变量带 RepNotify、成员继承或名称冲突时均提前拒绝。部分引擎的原生重命名会重置子类默认值，因此当前接口不提供带子蓝图的安全重命名。`VariableType` 支持基本类型、对象类、`ClassReference<BaseClass>`、BlueprintType 结构体名/路径，以及 `T[]`、`Array<T>`、`Set<T>`、`Map<K,V>`；不支持嵌套容器，Set 元素和 Map 键须可哈希。
 

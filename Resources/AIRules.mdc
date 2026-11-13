@@ -5,6 +5,8 @@ alwaysApply: false
 
 # NexusLink AI Workflow (IDE-side Rule)
 
+English | [中文](AIRules.zh.mdc)
+
 > **Division of labor with MCP handshake instructions**
 > - **InitializeInstructions** (UE handshake): capability routing table, meta-tool constraints, read/write naming.
 > - **This Rule** (IDE-side): enforce discover tools → find paths → read/write; forbid guessing cap names/paths; fill project-level `PathFilter` prefixes.

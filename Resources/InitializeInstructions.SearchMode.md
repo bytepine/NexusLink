@@ -1,5 +1,7 @@
 NexusLink MCP: Unreal Editor + runtime control (assets / PIE / UMG / animation / AI / editor). Registered extension fragments are appended after this text.
 
+English | [中文](InitializeInstructions.SearchMode.zh.md)
+
 > Host note: **MCP runs in the Editor binary, and in Development/DebugGame standalone Game/DS builds** (`NexusLink` module is `Type: Runtime`; `NexusLinkEditor` is `Type: Editor`; Shipping strips the server at compile time). Trigger keywords are in the proxy `InitializePrefix`.
 
 ## Tool model

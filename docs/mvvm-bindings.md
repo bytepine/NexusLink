@@ -1,5 +1,7 @@
 # MVVM 数据绑定
 
+中文 · [English](mvvm-bindings.en.md)
+
 [文档导航](README.md) · [项目首页](../README.md)
 
 UE 5.5+ 且宿主启用引擎 ModelViewViewModel 插件时可用。实现位于 NexusLinkEditor，不需要 NexusLinkExt 或官方 MCP 服务。
@@ -49,5 +51,3 @@ UE 5.5+ 且宿主启用引擎 ModelViewViewModel 插件时可用。实现位于 
 新增返回 `BindingId`、`BindingIndex` 和 `BindingsCount`。读回包含上下文、方向、启用/编译标记及两个方向的转换函数。历史 `SourcePath` / `DestinationPath` 展示文本保留；重新创建时，将 `SourcePropertyPath` / `DestinationPropertyPath` 用作输入的路径。ViewModel 列表还包含 Id 与完整 ClassPath。读取压缩列表时，将 `Bindings_defaults` / `ViewModels_defaults` 与单项合并。
 
 `RemoveBinding` 优先传读回的 `BindingId`，也兼容显式 `BindingIndex`；两者只传其一。缺少或无效标识不会删除第一项。编辑纳入现有 Undo 事务；批次不保证所有操作同时成功，须检查逐项 Error。
-
-English: use explicit Self / ViewModel:name / Widget:name contexts and dotted property paths. BindingType controls direction; unary conversion UFunctions are discovered through GetAssetViewModel. Top-level bCompile compiles the WBP; per-operation bCompile controls binding inclusion. Read back contexts, property paths and conversion references after compilation. Remove by BindingId to avoid index changes.

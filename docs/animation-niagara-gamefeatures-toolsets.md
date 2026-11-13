@@ -1,5 +1,7 @@
 # 动画、Niagara、Game Features 与自有动作发现
 
+中文 · [English](animation-niagara-gamefeatures-toolsets.en.md)
+
 [文档导航](README.md) · [独立后端](toolset-backends.md)
 
 这些能力用于已有资产和编辑器会话。NexusLink 自身直接调用引擎公开 API，不直接链接或调用官方 Toolset、ToolsetRegistry 或官方 Python toolset 包。具体动作由引擎版本及相应领域插件支持范围决定，标准模块的[传递依赖遵循引擎要求](toolset-backends.md)。

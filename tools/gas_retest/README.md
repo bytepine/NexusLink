@@ -1,4 +1,6 @@
-# GAS retest / 联机复测
+# GAS 联机复测
+
+中文 · [English](README.en.md)
 
 Python 3.10+，仅使用标准库。在插件的 `tools` 目录运行：
 
@@ -35,6 +37,5 @@ python -m gas_retest current/results.json --compare gas-retest-results/baselines
 
 用户可在公开 NexusUnreal 示例工程手动运行 `python Script/gas_regression.py --ue-root <UE-directory>`。它先核对受版本控制的基线及用例签名，再运行固定的 `PredictionRejected` / `Success`，生成汇总 HTML / JSON / JUnit、逐项对比及包含日志的 `reports.zip`；失败和未执行用例同样进入归档与门禁，不自动更新基线。GitHub CI 仅在云端执行无需 UE 的工具检查，不调度本机运行 UE，详见示例工程测试指南。
 
-Python 3.10+, standard library only. Run from the plugin's `tools` directory. Configure explicit direct UE endpoints for server, owning client and observer. Tokens come from an environment variable or the local shared token file. Examples require the opt-in diagnostic GameMode from the public NexusUnreal sample. They modify only the selected test character's runtime state. Writes are never retried; missing authority evidence remains unconfirmed.
 
-完整格式与限制 / Full format and limitations: [GAS diagnostics and replay](https://github.com/bytepine/NexusLink/blob/master/docs/gas-retest.md).
+完整格式与限制： [GAS diagnostics and replay](https://github.com/bytepine/NexusLink/blob/master/docs/gas-retest.md).

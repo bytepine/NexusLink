@@ -1,32 +1,34 @@
-# GAS activation diagnostics / 技能激活诊断
+# GAS 技能激活诊断
 
-[文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
+中文 · [English](gas-retest.en.md)
+
+[文档导航](README.md) · [项目首页](../README.md)
 
 执行器、HTML 布局与基线代码已提取到 `tools/retest`，`gas_retest` 的 CLI、Python 导入路径和旧报告继续可用。新报告标注 `Domain=GAS`；缺少 Domain 的历史报告按 GAS 解释，不能与 BT 报告比较。
 
-Read-only snapshots, bounded activation event capture, and a standard-library Python replay tool.
+
 只读快照、限量事件捕获，以及仅依赖 Python 标准库的复测工具。
 
 命令行工具随源码提供，插件安装包不附带；先获取对应版本源码并进入 `tools/` 目录，见[安装说明](usage-guide.md#21-安装)。
 
-## Runtime capabilities / 运行时工具
+## 运行时工具
 
-`GetRuntimeActorAbilitySystem` keeps its default `Abilities`, `Effects`, `Attributes` sections. Explicit diagnostic sections require `ActorName`:
+GetRuntimeActorAbilitySystem 保留默认的 Abilities、Effects、Attributes 分段。显式诊断分段要求 ActorName：
 
-Existing `All` queries still work without skill selectors or a capture: optional activation sections are omitted until their selector/`CaptureId` is provided.
+已有 All 查询无需技能选择器或采集仍可使用；可选激活分段在提供相应选择器或 CaptureId 后才返回。
 
-- `Context`: process/World identity, Owner/Avatar, PlayerId, authority and local-control state.
-- `Tags`: owned tags and blocked ability tags.
-- `ActivationDiagnostics`: exactly one of `SpecHandle` (string from `Abilities`) or `AbilityPath` (full class path). Reports grant visibility, missing/blocked tags and configured cooldown GE remaining time. Does not invoke custom activation checks. Cost and custom rules remain unknown until reproduced.
-- `ActivationEvents`: `CaptureId`; returns `Events`, `EventTypes`, `FailureTags`, `Dropped`, `LatestSequence`.
+- Context：进程与 World 身份、Owner/Avatar、PlayerId、权限和本地控制状态。
+- Tags：已拥有标签和阻止技能的标签。
+- ActivationDiagnostics：SpecHandle（Abilities 返回的字符串）与 AbilityPath（完整类路径）恰选其一。报告技能授予可见性、缺失/阻止标签及配置的冷却 GE 剩余时间；不调用自定义激活检查。消耗与自定义规则在实际复现前仍未知。
+- ActivationEvents：传 CaptureId，返回 Events、EventTypes、FailureTags、Dropped、LatestSequence。
 
-`InteractRuntimeActorAbilitySystem` adds:
+InteractRuntimeActorAbilitySystem 新增：
 
-- `TryActivateGrantedAbility`: explicit `ActorName` and exactly one selector above. Does not grant an ability. `bRequestAccepted` describes the local request only; inspect the server capture to determine the authority outcome. The existing `ActivateAbility` still grants before activating.
-- `StartActivationCapture`: explicit `ActorName`; returns `CaptureId`.
-- `StopActivationCapture`: matching `ActorName` and `CaptureId`; releases subscriptions and events.
+- TryActivateGrantedAbility：明确 ActorName，并恰选上述一个技能标识；不会授予技能。bRequestAccepted 仅表示本地请求，权威端结果应检查服务器采集。原 ActivateAbility 仍先授予再激活。
+- StartActivationCapture：明确 ActorName，返回 CaptureId。
+- StopActivationCapture：传匹配的 ActorName 与 CaptureId，释放订阅和事件。
 
-Captures expire after 120 seconds, retain 256 events, and report dropped records. At most 16 captures may be active per process. Captures are removed on World destruction or MCP shutdown; destroyed ASCs are pruned. Capture before the attempt on each endpoint. `Activated`, `Committed`, `Failed`, and `Ended` are distinct events. A prediction is not a server confirmation. A missing server event is unconfirmed, not a proven rejection. Non-instanced/ambiguous identities are explicitly marked `bIdentityKnown=false`; do not attribute them to a specific attempt.
+采集 120 秒后过期，保留 256 个事件并报告丢弃数量；每进程最多同时 16 个采集。World 销毁或 MCP 关闭会移除采集，失效 ASC 会被清理。每个端点都须在尝试前开始采集。Activated、Committed、Failed、Ended 是不同事件；预测不是服务器确认。服务器事件缺失表示未确认，不是已证明拒绝。非实例化或身份不明确时显式标记 bIdentityKnown=false，不能归因于某次尝试。
 
 诊断不授予或激活技能，也不调用项目自定义检查。冷却只按配置的 GE 类匹配，不能证明自定义冷却逻辑允许激活；消耗、自定义规则应结合真实失败事件。其他玩家的技能可能只对所属客户端可见，未看到技能不等于服务器未授予。采集溢出、超时、身份不明确时，结果应标记为未确认。
 
@@ -61,11 +63,11 @@ Context 新增 `ActorId`、`AscId`、`OwnerId`、`AvatarId`、`WorldIdentity`、
 
 采集从每次尝试前开始，步骤串行；只读诊断不调用项目 `CanActivateAbility`。只记录快照与真实激活事件，缺少服务器事件、身份未知、溢出或观察到其他技能时显示未确认。模板及报告完全独立于 `NexusDiagnosticGameMode`。
 
-The GenericActivation template accepts explicit endpoint/Actor mappings, ability class, activation/authority endpoints, expected server event, and optional observed failure-tag explanations. It supports component-owned ASCs on ordinary actors, pawns and player states. Binding declarations are not automatic cross-process identity proofs. Each attempt uses a fresh capture; only InstancedPerActor is supported. Existing templates, CLI and reports remain usable.
+GenericActivation 模板接受显式端点/Actor 映射、技能类、发起/权威端点、预期服务器事件及可选失败标签说明，支持普通 Actor、Pawn、PlayerState 的组件 ASC。绑定声明不自动证明跨进程身份。每次尝试独立采集，仅支持 InstancedPerActor；已有模板、CLI 和报告继续可用。
 
-## Replay / 复测
+## 复测
 
-From the source repository's `tools` directory (download the matching release's source code; the plugin installation archive does not include these tools):
+在对应版本源码仓库的 tools 目录执行；插件安装包不包含这些工具：
 
 ```sh
 python -m gas_retest case.json --output results
@@ -73,9 +75,9 @@ python -m gas_retest case.json --preflight --output preflight-results
 python -m unittest gas_retest.test_runner gas_retest.test_report gas_retest.test_compare
 ```
 
-### First connection / 首次接入
+### 首次接入
 
-With the public NexusUnreal example compiled, run `python Script/gas_network_retest.py --ue-root <UE-directory> --quickstart` from that project. It starts one server and two clients, performs read-only binding/ability checks, reproduces prediction rejection, restores the condition, and verifies a successful activation. Open `Saved/GasRetest/index.html` to compare reports. Existing runs without `--quickstart` retain all eight scenarios and their configured repeat count.
+编译公开 NexusUnreal 示例后，在该工程运行 python Script/gas_network_retest.py --ue-root <UE-directory> --quickstart。它启动一服两客户端，只读检查绑定/技能，复现预测拒绝，恢复条件并验证成功激活。打开 Saved/GasRetest/index.html 比较报告。不带 --quickstart 的既有方式仍保留全部八个场景及配置的重复次数。
 
 已有三个运行中的诊断进程时，可从源码仓库 `tools/` 目录生成端口已填写的用例；URL 必须是发现后确认的 UE 直连端点。模板生成不连接 UE，也不覆盖现有文件：
 
@@ -85,15 +87,15 @@ python -m gas_retest rejected.json --preflight --output preflight-results
 python -m gas_retest rejected.json --output rejected-results
 ```
 
-The example endpoints above must be replaced with the actual discovered addresses. `--template Success` creates the repaired-case template. Templates depend on `NexusDiagnosticGameMode` and are not generic production skill definitions.
+上述端点必须替换成真实发现的地址。--template Success 创建修复后的用例模板。模板依赖 NexusDiagnosticGameMode，不是通用生产技能定义。
 
-`--preflight` initializes MCP and reads actor identity, ownership, process/World, and any explicit `RequiredAbilities`. It never executes `Setup`, `Steps`, or `Teardown`. Without `Actors` it can only check MCP initialization; role/World identity remains unverified. A replay runs the same checks before any scenario writes. If a binding or required ability fails, scenario cleanup is also skipped because the scenario has not started.
+--preflight 初始化 MCP，只读 Actor 身份、所属关系、进程/World 与显式 RequiredAbilities，不执行 Setup、Steps、Teardown。没有 Actors 时只能检查 MCP 初始化，角色/World 身份仍未验证。正式复测在任何场景写入前做相同检查；绑定或必需技能失败时也跳过清理，因为场景尚未开始。
 
-Only explicit **direct UE** `/stream` endpoints are supported in v1. One process must host one play World. Credentials come from the endpoint's `TokenEnv` environment variable (default `NEXUS_MCP_TOKEN`) or the shared local NexusLink token file; never put tokens in the case JSON.
+首版仅支持明确的 **UE 直连** /stream 端点，每进程只承载一个游玩 World。凭证取端点 TokenEnv 环境变量（默认 NEXUS_MCP_TOKEN）或本机共享 NexusLink token 文件；禁止把 token 写入用例 JSON。
 
-For multiplayer cases set endpoint `bAuthority=true` for the server and `false` for clients. Actor binding verifies this expectation and rejects duplicate processes, preventing a client-side event from being mistaken for server evidence.
+联机用例服务器设 bAuthority=true、客户端 false。Actor 绑定检查此预期并拒绝重复进程，避免把客户端事件误当成服务器证据。
 
-Minimal read-only example (replace the endpoint and Actor name with discovered values):
+最小只读示例，端点和 Actor 名须替换成已发现值：
 
 ```json
 {
@@ -108,51 +110,51 @@ Minimal read-only example (replace the endpoint and Actor name with discovered v
 }
 ```
 
-Cases have optional `Actors`, `Setup`, and `Teardown`. Actor bindings use `ClassFilter` and `OwnerEndpoint` to find the owning client's unique locally controlled Pawn, then match its replicated `PlayerId` on other endpoints. Alternatively supply a `PlayerId`. Missing or ambiguous matches fail before scenario writes. Reference an endpoint's Actor with `{"Ref":"/Actors/Hero/Server"}`; actual names are resolved separately per process.
+用例可选 Actors、Setup、Teardown。Actor 绑定用 ClassFilter 和 OwnerEndpoint 找到所属客户端唯一的本地受控 Pawn，再以复制的 PlayerId 匹配其他端点；也可显式 PlayerId。缺失或多义匹配在写入前失败。用 {"Ref":"/Actors/Hero/Server"} 引用端点 Actor，实际名称在各进程分别解析。
 
-`RequiredAbilities` is an optional array of `{"Actor":"Hero","Endpoint":"Server","AbilityPath":"/Script/Nexus.NexusDiagnosticAbility"}`. Each item must match exactly one granted InstancedPerActor spec on that bound Actor/endpoint. It reads `Abilities`, never grants or activates anything. List only prerequisites that should exist: an intentionally ungranted skill used in a negative test must not be a requirement. Other players' skill visibility on an observer is not required.
+RequiredAbilities 可选数组形如 {"Actor":"Hero","Endpoint":"Server","AbilityPath":"/Script/Nexus.NexusDiagnosticAbility"}。每项须在绑定 Actor/端点恰好匹配一个已授予的 InstancedPerActor spec；只读 Abilities，不授予或激活。仅列应当存在的前提，负向用例故意未授予的技能不能列入；不要求观察端看得到其他玩家技能。
 
-Steps:
+步骤：
 
-- `Call`: `Id`, `Endpoint`, `Capability`, `Arguments`; `ExpectError=true` permits an expected MCP tool error while preserving its structured payload.
-- `Assert`: `Actual`, `Op` (`Equal`, `Contains`, `Exists`, `Approx`), `Value`; numeric `Approx` accepts `Tolerance` (default 0.0001).
-- `Await`: same call fields plus `Check` containing `Path` (JSON Pointer into the response), `Op`, `Value`. Only `GetRuntimeActorAbilitySystem`, `GetRuntimeActorProperty`, and `ListRuntimeActors` are permitted. Default timeout 10 seconds, interval 0.1 seconds; configurable maximum timeout 120 seconds.
+- Call：Id、Endpoint、Capability、Arguments；ExpectError=true 允许预期 MCP 工具错误，并保留结构化数据。
+- Assert：Actual、Op（Equal、Contains、Exists、Approx）、Value；数值 Approx 可指定 Tolerance，默认 0.0001。
+- Await：相同调用字段，并附 Check 的 Path（响应内 JSON Pointer）、Op、Value。仅允许 GetRuntimeActorAbilitySystem、GetRuntimeActorProperty、ListRuntimeActors。默认超时 10 秒、间隔 0.1 秒；可配置的最大超时为 120 秒。
 
-A complete `{"Ref":"/Steps/context/Payload/Context/ProcessId"}` object resolves a prior response without converting its type. No expressions, loops, or scripts are evaluated. List `*_defaults` are restored before checks. Reports retain each endpoint, raw structured evidence and assertion result.
+完整 {"Ref":"/Steps/context/Payload/Context/ProcessId"} 对象解析前序响应且保留类型，不执行表达式、循环或脚本。断言前恢复列表 *_defaults。报告保留各端点、原始结构化证据和断言结果。
 
-No writes are retried. Process/World changes abort replay. `Teardown` runs best-effort after failures, and cleanup failures are reported separately. Supply explicit cleanup for runtime modifications; this runner does not roll back arbitrary gameplay side effects. Captures expire even if cleanup cannot reach the process.
+写入不重试。进程/World 变化中止复测。失败后尽力执行 Teardown，清理失败单独报告。运行时修改须显式提供清理；执行器不回滚任意玩法副作用。即使无法连接进程完成清理，采集仍会到期。
 
-Output: offline `report.html`, `results.json`, `junit.xml`, terminal summary. Exit `0`: passed; `1`: assertion failed; `2`: configuration, transport, or incomplete evidence. An Await timeout keeps its final observation and reports the authority outcome as unconfirmed.
+输出离线 report.html、results.json、junit.xml 和终端摘要。退出码 0 通过，1 断言失败，2 配置/传输错误或证据不完整。Await 超时保留末次观测，权威结果标为未确认。
 
-HTML reports show endpoint roles, the first failing steps, activation snapshots, deduplicated per-endpoint events, next checks, and expandable raw evidence. Case pass/fail is separate from the observed gameplay outcome: an expected rejection may pass its test. Missing authority events, dropped events, unknown identity or conflicting activations remain unconfirmed. Events stay in each capture's observed order; clocks across processes do not establish causation. Reports work offline with no external scripts or assets.
+HTML 报告展示端点角色、首个失败步骤、激活快照、按端去重事件、后续检查和可展开原始证据。用例通过/失败与实际玩法结果分开，预期拒绝也可通过。缺失权威事件、事件丢失、身份未知或冲突激活均保持未确认。事件按每次采集的观测顺序保留，跨进程时钟不能证明因果。报告离线可用，无外部脚本或资源。
 
-### Baselines and comparison / 保存基线与前后对比
+### 保存基线与前后对比
 
-Both operations consume recorded results offline; they never initialize MCP, activate skills, or rerun case steps:
+两项操作均离线读取已记录结果，不初始化 MCP、不激活技能、不重新运行步骤：
 
 ```sh
 python -m gas_retest previous/results.json --save-baseline gas-retest-results/baselines/Success.json
 python -m gas_retest current/results.json --compare gas-retest-results/baselines/Success.json --output gas-retest-results/comparison-01
 ```
 
-Save one baseline per case, such as `Success` and `PredictionRejected`. A baseline preserves the full report and UTC save time, requires a passed replay without dropped/unidentified events, and refuses to overwrite an existing file. A passed rejection case is a valid baseline: it asserts expected rejection and does not claim successful gameplay. Preflight cannot be saved as a replay baseline. Read-only cases with no authority activation evidence retain their unconfirmed outcome.
+每个用例单独保存基线，例如 Success、PredictionRejected。基线保留完整报告和 UTC 保存时间，要求复测通过且无丢失/身份未知事件，拒绝覆盖已有文件。预期拒绝用例通过可作为基线，但不宣称玩法成功。预检不能保存为复测基线；没有权威激活证据的只读用例保持未确认。
 
-Compare runs of the same case. Name, mode, endpoint aliases and configured authority roles must agree. New reports carry a `CaseSignature` of the case definition, including steps, assertions and expected roles while excluding deployment URLs and token environment variable names. Different signatures are rejected, so weakening an assertion cannot masquerade as recovery. Legacy reports without signatures remain readable but prominently warn that the original assertion definition cannot be verified.
+仅比较同一用例；名称、模式、端点别名及配置权威角色须一致。新报告用 CaseSignature 签名覆盖用例步骤、断言和预期角色，排除部署 URL、token 变量名。签名不同会拒绝，削弱断言不能冒充恢复。无签名旧报告仍可读取，但醒目提示无法核对原始断言定义。
 
-`comparison.html` and `comparison.json` distinguish newly failed checks, recovered checks, added checks and missing/unexecuted checks, including setup and cleanup. Missing checks are not treated as successful. The report separately compares authority conclusions, observed roles, event order/count, capture boundaries, ability paths and failure tags. Process/World IDs, URLs, timing, capture IDs, SpecHandle and PredictionKey are excluded from semantic event comparison; raw values remain in the evidence. Repeated capture snapshots are deduplicated. Event changes alone are observations, not proof of regression or repair; incomplete/ambiguous evidence remains unconfirmed.
+comparison.html 和 comparison.json 区分新增失败、恢复、新增检查和缺失/未执行检查，含设置与清理；缺失不算成功。报告另比权威结论、观测角色、事件顺序/数量、采集边界、技能路径、失败标签。进程/World ID、URL、耗时、采集 ID、SpecHandle、PredictionKey 不参与语义事件比较，原值仍保留。重复采集快照去重；单纯事件变化仅为观测，不证明回归或修复，不完整/多义证据保持未确认。
 
-The comparison directory must not already exist. `before/` and `after/` contain independent HTML, JSON and JUnit reports, so the comparison remains navigable offline after moving the directory. No original input or existing baseline is overwritten. To inspect recovery from a failed run, use `--compare failed/results.json` instead of saving that failed run as a baseline.
+比较目录须不存在。before/ 与 after/ 各含独立 HTML、JSON、JUnit，移动目录后仍可离线浏览，不覆盖原输入或已有基线。查看失败后恢复可用 --compare failed/results.json，不要把失败结果保存为基线。
 
-Comparison exit codes: `0` current case passed with no missing checks; `1` current case failed/errored or checks are missing; `2` invalid/incompatible input or an output error. These describe the comparison operation; the original replay exit codes remain visible in each side's report.
+对比退出码：0 当前用例通过且无缺失检查；1 当前失败/错误或缺失检查；2 输入无效/不兼容或输出错误。它们描述比较操作，原始复测退出码仍在两侧报告保留。
 
 这两个模式的首个参数为已保存的结果文件，而非用例定义；与 `--preflight` / `--template` 互斥。固定用例的修改前、修改后结果分别对比；不要用预期不同的 `PredictionRejected` 和 `Success` 相互替代。基线和对比记录保留完整原始证据，步骤状态与实际技能结果分别展示。
 
 用例中的 `Setup` / `Steps` / `Teardown` 顺序执行；不自动重试写操作。JSON Pointer 引用保留原始类型；遇到响应默认值压缩会先还原再断言。执行前后检查进程与 World，换图或重启后不继续写入。失败和清理失败分别进入报告。
 
-## Multiplayer example / 联机示例
+## 联机示例
 
-The public [NexusUnreal example project](https://github.com/bytepine/NexusUnreal) provides the opt-in `NexusDiagnosticGameMode` and `Script/gas_network_retest.py`. It starts independent server/owner/observer processes and saves runnable cases plus reports for missing grants, required/blocked tags, cost, cooldown, prediction rejection, and successful LocalPredicted/ServerOnly activation. It does not change the default game mode. Use the example project's test guide for build and execution instructions.
+公开 [NexusUnreal 示例工程](https://github.com/bytepine/NexusUnreal) 提供可选 NexusDiagnosticGameMode 与 Script/gas_network_retest.py，启动独立服务器/所属客户端/观察端进程，并保存技能未授予、必需/阻止标签、消耗、冷却、预测拒绝、LocalPredicted/ServerOnly 成功激活的可运行用例和报告；不修改默认 GameMode。编译运行见示例测试指南。
 
-To manually start fixed-case regression, run `python Script/gas_regression.py --ue-root <UE-directory>` in NexusUnreal. It validates both reviewed, signed baselines before starting UE, runs `PredictionRejected` and `Success`, compares each result, and archives the full HTML/JSON/JUnit/log evidence in `reports.zip`. Missing or changed baselines fail instead of being regenerated; unexecuted cases and child-process errors cannot pass the gate. The GitHub workflow only runs tool checks on GitHub-hosted Ubuntu machines. UE compilation and multiplayer regression require an explicit user command and are not scheduled onto a local runner. See [the sample test guide](https://github.com/bytepine/NexusUnreal/blob/master/Tests/README.md) for manual execution and baseline review.
+在 NexusUnreal 手动运行 python Script/gas_regression.py --ue-root <UE-directory> 开始固定用例回归。启动 UE 前核对两份经审阅签名的基线，再执行 PredictionRejected、Success，分别比较并把完整 HTML/JSON/JUnit/日志归档到 reports.zip。基线缺失/变更会失败而非重建，未执行用例与子进程错误不能通过门禁。GitHub 工作流只在 GitHub 托管 Ubuntu 执行工具检查；UE 编译和联机回归需用户明确命令，不调度本地 runner。手动执行和基线复核见[示例测试指南](https://github.com/bytepine/NexusUnreal/blob/master/Tests/README.md)。
 
-The first release validates InstancedPerActor abilities. Serialize attempts for each ASC/skill and start a fresh capture per attempt. For unrelated concurrent gameplay, class/handle or PredictionKey conflicts must be treated as ambiguous; wall clocks across machines do not establish causation.
+首版验证 InstancedPerActor 技能。同一 ASC/技能的尝试须串行，每次新建采集。无关并发玩法引发类/handle 或 PredictionKey 冲突时按多义处理；跨机器墙钟不证明因果。

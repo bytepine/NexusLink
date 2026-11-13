@@ -1,5 +1,7 @@
 # PCG 参数、PhysicsAsset、GameplayTags 与 DataRegistry
 
+中文 · [English](pcg-physics-tags-dataregistry.en.md)
+
 [文档导航](README.md) · [参数参考](tool-reference.zh.md)
 
 ## PCG 参数闭环（UE 5.8+）

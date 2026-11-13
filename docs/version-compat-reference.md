@@ -1,6 +1,8 @@
 # NexusLink 版本兼容宏参考
 
-[文档导航 / Documentation](README.md) · [项目首页 / Home](../README.md)
+中文 · [English](version-compat-reference.en.md)
+
+[文档导航](README.md) · [项目首页](../README.md)
 
 > 源文件：`NexusLink/Public/Utils/NexusVersionCompat.h`
 

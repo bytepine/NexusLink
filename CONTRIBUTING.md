@@ -1,5 +1,7 @@
 # 为 NexusLink 做贡献
 
+**语言 / Language**: **简体中文** · [English](CONTRIBUTING.en.md)
+
 [独立引擎后端](docs/toolset-backends.md)说明直接调用引擎 API 的实现及版本适配。禁止 NexusLink 自身直接链接或调用官方 Toolset、ToolsetCore、ToolsetRegistry，或导入官方 Python toolset 包。引擎及领域插件可能保留其自身的传递依赖，边界见该说明。
 
 [动画与领域动作专题](docs/animation-niagara-gamefeatures-toolsets.md)覆盖 Sequencer / Control Rig、Niagara 深层写入、Game Features 和 NexusLink 自有动作发现。
@@ -9,6 +11,10 @@
 引擎本体及引擎自带领域插件的能力归属 `NexusLink` / `NexusLinkEditor`；只有第三方插件能力归属 `NexusLinkExt` / `NexusLinkExtEditor`。可选启用不等于第三方。
 
 面向插件维护者与 Capability 作者。用户安装与四端接入见 [docs/usage-guide.md](docs/usage-guide.md)；架构见 [docs/architecture.md](docs/architecture.md)；代理会话层约定见 [docs/proxy-session.md](docs/proxy-session.md)。
+
+## 文档语言
+
+所有维护中的项目文档必须提供内容等价的中文和英文，必须采用中文、英文独立配对文件，并在顶部提供双向语言切换链接；范围包含 README、指南、规范、贡献与测试说明及 CHANGELOG 的全部条目。新增或修改内容时同步两种语言，仅翻译标题或摘要不算完成。命令、标识符、版本标题和链接目标保持有效；生成文档从源数据同时重生两种语言。
 
 ## 新增 Tool / Capability
 
