@@ -43,7 +43,7 @@ When degraded, **do not** loop list_unreal_instances. Example Note:
 
 `UE editor unreachable (compile/restart?). Serving last snapshot. Do not loop list_unreal_instances.`
 
-Writes during disconnection still return existing ErrorKind: proxy_not_connected without a degraded snapshot.
+Disconnected writes retain the existing JSON-RPC `error.data.errorKind: "proxy_not_connected"` without a degraded snapshot; section 4 defines additional fields for uncertain execution outcomes.
 
 ---
 
@@ -84,6 +84,10 @@ For tools/call reads with disconnected WS, return a capability snapshot when ava
 Expired volatile runtime/log snapshots do **not** serve degraded results and return proxy_not_connected.
 
 After reconnection, existing tools/list_changed refreshes the catalog. Read caches remain until write invalidation or LRU eviction.
+
+Ordinary reads may retry once after reconnecting; writes, batches, and editor operations are not automatically resent. A disconnection or timeout after sending a write cannot establish that UE did not execute it. Keep `error.data.errorKind` (`proxy_not_connected` or `proxy_timeout`) and also return `executionStatus: "unknown"` and `retryable: false`. These fields belong to JSON-RPC `error.data`, not the successful `_proxy` result, and do not change UE Capability parameters or error semantics.
+
+An unknown write outcome also invalidates old read caches and disconnected snapshots for the affected instance so pre-write evidence does not conceal a potentially applied change. Query actual asset/runtime state first. When an existing long operation returned an `OperationId`, use `GetEditorOperation` from the owning session while it still has access to obtain its terminal state. Attempt `ControlEditorOperation` cancellation only when `bCanCancel=true`; a cancellation request or client timeout does not mean an engine call rolled back. Preserve the unknown outcome when it cannot be verified instead of automatically writing again. Synchronous capabilities without an `OperationId` do not automatically become asynchronous tasks.
 
 ---
 

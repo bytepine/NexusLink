@@ -8,6 +8,8 @@
 
 L2 通过 MCP HTTP 协议对 3 个元工具及已注册 Capability 做真实端到端验证（宿主插件门控会裁剪集合）。L1（C++ Automation）在宿主工程插件 `Plugins/NexusLinkTestSuite/`（**不**在本仓）。
 
+公开示例工程提供可选的 [UE 5.7 受控验证工作流](https://github.com/bytepine/NexusUnreal/blob/master/.github/workflows/ue-validation.yml)：手动指定默认分支中已有的完整提交 SHA，在自行配置的 Windows Runner 上编译 Editor/Game 并运行 MCP 用例。报告门禁要求基础探活及五项原生 Automation 实际通过，不接受关键用例缺失或跳过；headless/GUI 范围、Environment 审批与 Runner 前置条件见[宿主测试指南](https://github.com/bytepine/NexusUnreal/blob/master/Tests/README.md#ue-57-受控验证)。插件仓普通脚本 CI 通过不代表引擎验证已执行；未配置或未运行的工作流也不能作为通过证据。
+
 ## 工具模型说明
 
 NexusLink 默认工作在 **SearchMode**（仅暴露 3 个元工具）；全量回归时建议使用 **MultiTool** 模式（见 UE 插件设置）。

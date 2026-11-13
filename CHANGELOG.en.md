@@ -9,6 +9,10 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Clarify uncertain write outcomes after proxy disconnections/timeouts, no automatic resend, cache invalidation, and existing long-operation polling/cancellation boundaries; link the sample's controlled UE 5.7 validation entry point and its evidence scope.
+
 ## [2.3.6] - 2026-11-13
 
 ### Added

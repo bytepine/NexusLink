@@ -8,6 +8,8 @@
 
 L2 performs real end-to-end checks of the three meta-tools and registered Capabilities over MCP HTTP; host plugin gates trim the set. L1 C++ Automation belongs in the host plugin Plugins/NexusLinkTestSuite/, **outside this repository**.
 
+The public sample provides an optional [controlled UE 5.7 validation workflow](https://github.com/bytepine/NexusUnreal/blob/master/.github/workflows/ue-validation.yml). Manually select a full commit SHA already on the default branch to build Editor/Game targets and run MCP cases on a separately configured Windows runner. The report gate requires actual smoke and five native Automation passes, rejecting missing/skipped baseline cases. See the [host test guide](https://github.com/bytepine/NexusUnreal/blob/master/Tests/README.en.md#controlled-ue-57-validation) for headless/GUI scope, Environment approvals, and runner prerequisites. Passing ordinary plugin script CI does not establish engine validation; an unconfigured or unexecuted workflow is not passing evidence either.
+
 <a id="工具模型说明"></a>
 ## Tool model
 

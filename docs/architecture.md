@@ -206,9 +206,11 @@ HTTP 收包线程只拷贝请求体与 header，然后 `AsyncTask` 回切 GameTh
 
 `tools/call` 从 `Dispatch`/`DispatchDirect` 到 `EmitToolResult` 同步跑在 GameThread；引擎等待期间可能处理其他 TaskGraph 任务，但不会从请求队列重入另一次派发。蓝图编译、资产保存、`FlushRenderingCommands` 截图及全表资产扫描仍可能让编辑器同帧掉帧；需要分步执行的能力应使用已有的编辑器长操作接口。
 
-HTTP `/stream` 是无状态 request-response，没有 SSE/chunked 等推送通道；WebSocket 虽可 `BroadcastNotification` 推送，但三个代理目前只识别 `notifications/tools/list_changed`，其余通知一律丢弃。因此长任务无法用「返回 pending + 事后推送」的方式实现——唯一现实路径是让请求原样挂着，直到 capability 跑完。
+HTTP `/stream` 是无状态 request-response，没有 SSE/chunked 等推送通道；WebSocket 虽可 `BroadcastNotification` 推送，但三个代理的普通长连接主要处理 `notifications/tools/list_changed`；编辑器操作的独立请求通道另支持 `notifications/progress` 及取消通知。已实现的编辑器长操作会返回 `OperationId`，调用者通过 `GetEditorOperation` 轮询状态与结果，不依赖完成通知；仍同步执行的能力则保持请求挂起直到执行结束，不能仅给外层请求加异步包装就消除 GameThread 内的引擎阻塞。
 
 代理里（Desktop/Rider/VSCode）对 `tools/call` 统一 120s 超时且超时不重试；同一长连接上的请求还会串行排队，一个慢调用会连带堵塞同会话的后续请求。
+
+超时或发出后的断线不代表 UE 未执行，也不等于取消或回滚。代理对结果未知的写入返回 `error.data.executionStatus="unknown"`、`retryable=false`，保留原 `errorKind` 并失效旧读缓存，详见[代理会话约定](proxy-session.md#4-断线-continuity)。已取得 `OperationId` 时先查询所属操作终态，再决定后续动作；取消仅在操作允许时请求。没有操作 ID 的写调用应先回读实际状态，不自动重发。本约定不把所有能力改为异步，分帧执行仍需能力本身采用受支持的长操作接口。
 
 可观测点：传输层耗时超过 `SlowCallThresholdMs`（§2.6）时，`NexusMcpDispatcher.cpp` 的 `LogToolCallDuration` 会打 Warning 级日志（覆盖压缩/TTL注入/序列化的端到端耗时）；capability 层的 `SlowCall` feedback category 同阈值触发，现在也覆盖「慢且最终报错」的调用（Note 标 `(error)`）。代理里超时另有 `ProxyTimeout` category。
 

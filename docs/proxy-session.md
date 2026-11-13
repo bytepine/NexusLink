@@ -41,7 +41,7 @@ Desktop / Rider / VSCode 夹在 AI 客户端与 UE WebSocket 之间。本文是�
 
 `UE editor unreachable (compile/restart?). Serving last snapshot. Do not loop list_unreal_instances.`
 
-写操作在断线时仍返回既有 `ErrorKind: proxy_not_connected`，不提供 degraded 快照。
+写操作在断线时保留既有 JSON-RPC `error.data.errorKind: "proxy_not_connected"`，不提供 degraded 快照；执行结果不确定时的附加字段见第 4 节。
 
 ---
 
@@ -80,6 +80,10 @@ TTL：
 运行时/日志等易过期 cap 过期后 **不** 提供 degraded，走 `proxy_not_connected`。
 
 重连后既有 `tools/list_changed` 刷新清单；读缓存保留直到被写失效或 LRU 淘汰。
+
+普通读取可在重连后重试一次；写入、批量调用和编辑器操作不自动重发。写请求发出后发生断线或超时，代理不能据此断言 UE 未执行：保留 `error.data.errorKind`（`proxy_not_connected` 或 `proxy_timeout`），同时返回 `executionStatus: "unknown"`、`retryable: false`。这些字段属于 JSON-RPC `error.data`，不放入 `_proxy` 成功结果，也不改变 UE Capability 的参数或错误语义。
+
+结果未知的写入同时失效对应实例的旧读缓存和断线快照，避免用写前证据掩盖可能已生效的更改。调用者应先查询实际资产/运行状态；已有长操作返回 `OperationId` 时，在仍具有访问权限的所属会话中通过 `GetEditorOperation` 查询终态。`ControlEditorOperation` 仅在 `bCanCancel=true` 时尝试取消，取消请求或客户端超时不等于引擎调用已回滚。无法核实结果时保留未知状态，不自动重复写入；没有返回 `OperationId` 的同步能力也不会因此自动变成异步任务。
 
 ---
 
