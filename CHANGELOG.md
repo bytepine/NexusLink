@@ -18,12 +18,13 @@
 - UE 5.9+ 可选用 `GetCommonUIInfo` / `ControlCommonUIDiagnostics` 查询激活树、焦点和路由，并采集有界事件。
 - 蓝图迁移支持自定义事件命名、继承成员同型重映射与只验证、嵌套默认值和缺失路径诊断。`SetArray` / `ClearArray` 在写入前拒绝类型不匹配、整数截断和数值溢出。
 - `GetAssetLevel` 的 `ActorPropertySchema` 列出实例实际持有的子对象和结构体字段。
+- Slate 快照可按文本和控件类型筛选，并返回父控件 Ref、本地尺寸、提示、角色、焦点、勾选状态和可用动作。交互支持右键/中键、双击、滚轮、事件修饰键及控件内归一化坐标，拖动可在同一控件内指定起止位置；`SSearchBox` 可以替换输入。输入前复检悬停后目标，拒绝失效控件；模态窗口仍遵循 `EditorBusy` 限制。
 
 ### Changed
 
 - 只有任意代码执行入口仍标记为 `Dangerous`。编辑器 UI、测试、编译和领域写入不再因此默认禁用；过去仅因该标记被自动关闭的能力会重新启用。
 - `SearchCapabilities` 不再缓存目录、精确查询和禁用状态。过宽的单词查询会返回收窄建议。
-- 编辑器、Slate、Automation、资产、Sequencer、Control Rig、PCG 与 Niagara 由 NexusLink 直接调用引擎接口，并报告 `Backend=Independent`。
+- 编辑器、Slate、Automation、资产、Sequencer、Control Rig、PCG 与 Niagara 由 NexusLink 直接调用引擎接口，并报告 `Backend=Independent`；编辑器操作优先领域 MCP，再用 Slate 查询、截图与交互，缺口提交反馈，仅在确无 MCP 路径时回退到电脑控制。
 - `GetProjectToolsets` 列出 NexusLink 自己的能力分组和动作 Schema。`GetProjectSkills` 发现项目及已启用插件中的 `SKILL.md`。`SearchAssetsSemantic` 使用可选的 SemanticSearch 服务。
 - 蓝图 `GraphDSL` / `WriteGraphDSL` 使用 `UnrealGraphText`。旧的 Toolset S-expression 不再接受；结构化编辑仍用 `WriteGraphPlan`。
 
@@ -33,7 +34,6 @@
 - 关卡 Actor 读写限定在所属已加载关卡，流送子关卡返回实际路径。缺少默认子对象时保留有效值并标记 `bDefaultUnavailable`。属性写入会刷新变换和导航边界。
 - 导航体积按给定尺寸生成，并支持 `ResizeNavMeshBoundsVolume`。`ControlEditorLevel` 可加载、显示、隐藏和切换已有子关卡。脏关卡或导航忙碌时返回 `StateConflict`。
 - 保存会先检查只读和文件占用；失败时保留原文件和脏标记。地图使用原生关卡保存。不可序列化的函数父级引用会在保存前拒绝。引擎原生函数父级仍可保存。
-- Slate 快照可按文本和控件类型筛选，并返回提示、角色、焦点、勾选状态和可用动作。`SSearchBox` 可以替换输入。
 - 导出结果包含有界警告、错误和持久层 BSP 计数。
 - UE 4.26 动画参数导入和旧 Sequencer 的 Override 混合可以编译。骨骼姿态采样覆盖 UE 4.26–5.1。UE4 BlendSpace1D 可以读写，无效样本会被拒绝。
 - 动画蓝图可按完整路径读写嵌套状态图。操作队列满时返回容量错误。请求指定的 Play World 不存在时，会返回当前可用世界路径。

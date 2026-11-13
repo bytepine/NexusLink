@@ -145,11 +145,11 @@ static void NexusSlateWaitText(const TSharedRef<SWidget>& Widget, const FString&
 		NexusSlateWaitText(Children->GetChildAt(I), Text, Gone, Count, bTruncated, bFound, bFoundGone, Depth + 1);
 }
 
-static bool NexusSlatePoint(const TSharedRef<SWidget>& Widget, FVector2D& OutPoint)
+static bool NexusSlatePoint(const TSharedRef<SWidget>& Widget, FVector2D& OutPoint, const FVector2D& Position = FVector2D(0.5f, 0.5f))
 {
 	const auto& Geometry = Widget->GetTickSpaceGeometry();
 	if (Geometry.GetLocalSize().X <= 0 || Geometry.GetLocalSize().Y <= 0) return false;
-	OutPoint = Geometry.LocalToAbsolute(Geometry.GetLocalSize() * 0.5f);
+	OutPoint = Geometry.LocalToAbsolute(Geometry.GetLocalSize() * Position);
 	TArray<TSharedRef<SWindow>> Windows; FSlateApplication::Get().GetAllVisibleWindowsOrdered(Windows);
 	const auto Hit = FSlateApplication::Get().LocateWindowUnderMouse(OutPoint, Windows);
 #if NX_UE_HAS_WIDGET_PATH_POINTER_CONTAINS
@@ -159,18 +159,30 @@ static bool NexusSlatePoint(const TSharedRef<SWidget>& Widget, FVector2D& OutPoi
 #endif
 }
 
-static bool NexusSlateClick(const TSharedRef<SWidget>& Widget)
+static bool NexusSlateClick(const TSharedRef<SWidget>& Widget, const FVector2D& Position = FVector2D(0.5f, 0.5f),
+	const FKey& Button = EKeys::LeftMouseButton, const FModifierKeysState& Modifiers = FModifierKeysState(), bool bDoubleClick = false)
 {
 	const auto Window = NexusSlateWindow(Widget);
 	FVector2D Point;
-	if (!Window.IsValid() || !NexusSlatePoint(Widget, Point)) return false;
-	FPointerEvent Move(0, Point, Point, TSet<FKey>(), EKeys::Invalid, 0, FModifierKeysState());
+	if (!Window.IsValid() || !NexusSlatePoint(Widget, Point, Position)) return false;
+	FPointerEvent Move(0, Point, Point, TSet<FKey>(), EKeys::Invalid, 0, Modifiers);
 	FSlateApplication::Get().ProcessMouseMoveEvent(Move, true);
-	TSet<FKey> Buttons; Buttons.Add(EKeys::LeftMouseButton);
-	FPointerEvent Down(0, Point, Point, Buttons, EKeys::LeftMouseButton, 0, FModifierKeysState());
+	// 悬停回调也可能重建控件；按下前必须仍命中原目标。
+	if (NexusSlateWindow(Widget) != Window || !NexusSlateInTree(Window.ToSharedRef(), Widget, 0, true) || !NexusSlatePoint(Widget, Point, Position)) return false;
+	TSet<FKey> Buttons; Buttons.Add(Button);
+	FPointerEvent Down(0, Point, Point, Buttons, Button, 0, Modifiers);
 	FSlateApplication::Get().ProcessMouseButtonDownEvent(Window->GetNativeWindow(), Down);
-	FPointerEvent Up(0, Point, Point, TSet<FKey>(), EKeys::LeftMouseButton, 0, FModifierKeysState());
+	FPointerEvent Up(0, Point, Point, TSet<FKey>(), Button, 0, Modifiers);
 	FSlateApplication::Get().ProcessMouseButtonUpEvent(Up);
+	if (bDoubleClick)
+	{
+		// 首次点击可能重建界面；第二次按下前复检，失败后不自动重放。
+		if (NexusSlateWindow(Widget) != Window || !NexusSlateInTree(Window.ToSharedRef(), Widget, 0, true) || !NexusSlatePoint(Widget, Point, Position)) return false;
+		FPointerEvent SecondDown(0, Point, Point, Buttons, Button, 0, Modifiers);
+		FSlateApplication::Get().ProcessMouseButtonDoubleClickEvent(Window->GetNativeWindow(), SecondDown);
+		FPointerEvent SecondUp(0, Point, Point, TSet<FKey>(), Button, 0, Modifiers);
+		FSlateApplication::Get().ProcessMouseButtonUpEvent(SecondUp);
+	}
 	return true;
 }
 
@@ -212,7 +224,7 @@ static FString NexusSlateTooltipText(const TSharedRef<SWidget>& Widget, int32 De
 }
 
 static void NexusSlateSnapshot(const TSharedRef<SWidget>& Widget, int32 Depth, int32 MaxDepth,
-	TArray<TSharedPtr<FJsonValue>>& Nodes, bool& bTruncated, const FString& TextFilter, const FString& TypeFilter, int32& Visited)
+	TArray<TSharedPtr<FJsonValue>>& Nodes, bool& bTruncated, const FString& TextFilter, const FString& TypeFilter, int32& Visited, const TSharedPtr<SWidget>& Parent = nullptr)
 {
 	if (Nodes.Num() >= 2000 || ++Visited > 20000) { bTruncated = true; return; }
 	if (!Widget->GetVisibility().IsVisible()) return;
@@ -235,14 +247,20 @@ static void NexusSlateSnapshot(const TSharedRef<SWidget>& Widget, int32 Depth, i
 		&& (TypeFilter.IsEmpty() || Widget->GetTypeAsString().Contains(TypeFilter)))
 	{
 		const FString Ref = NexusSlateRef(Widget);
-		if (Ref.IsEmpty()) { bTruncated = true; return; }
+		const FString ParentRef = Parent.IsValid() ? NexusSlateRef(Parent.ToSharedRef()) : FString();
+		if (Ref.IsEmpty() || (Parent.IsValid() && ParentRef.IsEmpty())) { bTruncated = true; return; }
 		Node->SetStringField(TEXT("Ref"), Ref);
+		Node->SetStringField(TEXT("ParentRef"), ParentRef);
+		const FVector2D LocalSize = Widget->GetTickSpaceGeometry().GetLocalSize();
+		auto Size = MakeShared<FJsonObject>(); Size->SetNumberField(TEXT("X"), LocalSize.X); Size->SetNumberField(TEXT("Y"), LocalSize.Y);
+		Node->SetObjectField(TEXT("LocalSize"), Size);
 		FString Editable, Selected;
 		const bool bEditable = NexusSlateEditableText(Widget, Editable, Selected);
 		const bool bCheckbox = Widget->GetType() == FName(TEXT("SCheckBox"));
 		Node->SetStringField(TEXT("Role"), bEditable ? TEXT("TextBox") : bCheckbox ? TEXT("CheckBox") : Widget->GetTypeAsString());
 		Node->SetBoolField(TEXT("bFocused"), NexusSlateHasFocus(Widget));
-		TArray<TSharedPtr<FJsonValue>> Actions = {MakeShared<FJsonValueString>(TEXT("Click")), MakeShared<FJsonValueString>(TEXT("Focus")), MakeShared<FJsonValueString>(TEXT("Hover"))};
+		TArray<TSharedPtr<FJsonValue>> Actions;
+		for (const TCHAR* Action : {TEXT("Click"), TEXT("DoubleClick"), TEXT("Scroll"), TEXT("Drag"), TEXT("PressKey"), TEXT("Focus"), TEXT("Hover")}) Actions.Add(MakeShared<FJsonValueString>(Action));
 		if (bEditable) Actions.Add(MakeShared<FJsonValueString>(TEXT("Type")));
 		if (bCheckbox) { Actions.Add(MakeShared<FJsonValueString>(TEXT("SetChecked"))); Node->SetBoolField(TEXT("bChecked"), StaticCastSharedRef<SCheckBox>(Widget)->IsChecked()); }
 		Node->SetArrayField(TEXT("Actions"), Actions);
@@ -252,7 +270,7 @@ static void NexusSlateSnapshot(const TSharedRef<SWidget>& Widget, int32 Depth, i
 	if (Depth >= MaxDepth) { if (Children && Children->Num()) bTruncated = true; return; }
 	if (Children) for (int32 Index = 0; Index < Children->Num(); ++Index)
 	{
-		NexusSlateSnapshot(Children->GetChildAt(Index), Depth + 1, MaxDepth, Nodes, bTruncated, TextFilter, TypeFilter, Visited);
+		NexusSlateSnapshot(Children->GetChildAt(Index), Depth + 1, MaxDepth, Nodes, bTruncated, TextFilter, TypeFilter, Visited, Widget);
 		if (Nodes.Num() >= 2000 || Visited >= 20000) { bTruncated = true; break; }
 	}
 }
@@ -260,6 +278,18 @@ static void NexusSlateSnapshot(const TSharedRef<SWidget>& Widget, int32 Depth, i
 static FString NexusSlateString(const TSharedPtr<FJsonObject>& Args, const TCHAR* Key)
 {
 	FString Value; Args->TryGetStringField(Key, Value); return Value;
+}
+
+static bool NexusSlatePosition(const TSharedPtr<FJsonObject>& Args, const TCHAR* Key, FVector2D& Position)
+{
+	Position = FVector2D(0.5f, 0.5f);
+	if (!Args->HasField(Key)) return true;
+	const TSharedPtr<FJsonObject>* Value = nullptr;
+	double X = 0, Y = 0;
+	if (!Args->TryGetObjectField(Key, Value) || !Value->IsValid() || !(*Value)->TryGetNumberField(TEXT("X"), X) || !(*Value)->TryGetNumberField(TEXT("Y"), Y)
+		|| !FMath::IsFinite(X) || !FMath::IsFinite(Y) || X < 0 || X > 1 || Y < 0 || Y > 1) return false;
+	Position = FVector2D(X, Y);
+	return true;
 }
 
 TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Slate(const FString& Action, const TSharedPtr<FJsonObject>& Args)
@@ -421,6 +451,15 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Slate(const FStri
 	}
 	else
 	{
+		FVector2D LocalPosition, EndLocalPosition;
+		if (!NexusSlatePosition(Args, TEXT("Position"), LocalPosition) || !NexusSlatePosition(Args, TEXT("EndPosition"), EndLocalPosition))
+		{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Position/EndPosition require finite X,Y in [0,1]")); return Operation; }
+		const FString ButtonName = NexusSlateString(Args, TEXT("Button"));
+		const FKey Button = ButtonName == TEXT("Right") ? EKeys::RightMouseButton : ButtonName == TEXT("Middle") ? EKeys::MiddleMouseButton : EKeys::LeftMouseButton;
+		TArray<FString> ModifierNames;
+		Args->TryGetStringArrayField(TEXT("Modifiers"), ModifierNames);
+		const bool bCtrl = ModifierNames.Contains(TEXT("Ctrl")), bShift = ModifierNames.Contains(TEXT("Shift")), bAlt = ModifierNames.Contains(TEXT("Alt")), bCmd = ModifierNames.Contains(TEXT("Cmd"));
+		const FModifierKeysState PointerModifiers(bShift, bShift, bCtrl, bCtrl, bAlt, bAlt, bCmd, bCmd, false);
 		if (!Target.IsValid() || !Target->IsEnabled() || !Target->GetVisibility().IsVisible())
 		{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("A visible enabled Ref is required")); return Operation; }
 		auto Window = NexusSlateWindow(Target.ToSharedRef());
@@ -432,31 +471,10 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Slate(const FStri
         }
 		Window->BringToFront(true);
 		if (Action == TEXT("Focus")) FSlateApplication::Get().SetKeyboardFocus(Target, EFocusCause::SetDirectly);
-		else if (Action == TEXT("Click"))
+		else if (Action == TEXT("Click") || Action == TEXT("DoubleClick"))
 		{
-			const auto& Geometry = Target->GetTickSpaceGeometry();
-			const FVector2D Position = Geometry.LocalToAbsolute(Geometry.GetLocalSize() * 0.5f);
-            if (Geometry.GetLocalSize().X <= 0 || Geometry.GetLocalSize().Y <= 0) {
-                FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Target has no laid out geometry")); return Operation;
-            }
-            TArray<TSharedRef<SWindow>> Windows; FSlateApplication::Get().GetAllVisibleWindowsOrdered(Windows);
-            const auto Hit = FSlateApplication::Get().LocateWindowUnderMouse(Position, Windows);
-#if NX_UE_HAS_WIDGET_PATH_POINTER_CONTAINS
-            const bool bHitTarget = Hit.ContainsWidget(Target.Get());
-#else
-            const bool bHitTarget = Hit.ContainsWidget(Target.ToSharedRef());
-#endif
-            if (!Hit.IsValid() || !bHitTarget) {
-                FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Target is obscured or not hit-testable")); return Operation;
-            }
-			TSet<FKey> Buttons; Buttons.Add(EKeys::LeftMouseButton);
-			FModifierKeysState Modifiers;
-			FPointerEvent Move(0, Position, Position, TSet<FKey>(), EKeys::Invalid, 0, Modifiers);
-			FSlateApplication::Get().ProcessMouseMoveEvent(Move, true);
-			FPointerEvent Down(0, Position, Position, Buttons, EKeys::LeftMouseButton, 0, Modifiers);
-			FSlateApplication::Get().ProcessMouseButtonDownEvent(Window->GetNativeWindow(), Down);
-			FPointerEvent Up(0, Position, Position, TSet<FKey>(), EKeys::LeftMouseButton, 0, Modifiers);
-			FSlateApplication::Get().ProcessMouseButtonUpEvent(Up);
+			if (!NexusSlateClick(Target.ToSharedRef(), LocalPosition, Button, PointerModifiers, Action == TEXT("DoubleClick")))
+			{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Target is obscured, unlaid out or changed during input; do not replay automatically")); return Operation; }
 		}
 		else if (Action == TEXT("Type"))
 		{
@@ -488,25 +506,36 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Slate(const FStri
 			const FKeyEvent Event(Key, Modifiers, 0, false, 0, 0);
 			FSlateApplication::Get().ProcessKeyDownEvent(Event); FSlateApplication::Get().ProcessKeyUpEvent(Event);
 		}
-		else if (Action == TEXT("Hover") || Action == TEXT("Drag"))
+		else if (Action == TEXT("Hover") || Action == TEXT("Drag") || Action == TEXT("Scroll"))
 		{
 			FVector2D Start, End;
-			if (!NexusSlatePoint(Target.ToSharedRef(), Start) || (Action == TEXT("Drag") && !NexusSlatePoint(EndTarget.ToSharedRef(), End)))
+			if (!NexusSlatePoint(Target.ToSharedRef(), Start, LocalPosition) || (Action == TEXT("Drag") && !NexusSlatePoint(EndTarget.ToSharedRef(), End, EndLocalPosition)))
 			{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Target is obscured, unlaid out or not hit-testable")); return Operation; }
 			FSlateApplication::Get().SetCursorPos(Start);
-			FPointerEvent Move(0, Start, Start, TSet<FKey>(), EKeys::Invalid, 0, FModifierKeysState()); FSlateApplication::Get().ProcessMouseMoveEvent(Move, true);
+			FPointerEvent Move(0, Start, Start, TSet<FKey>(), EKeys::Invalid, 0, PointerModifiers); FSlateApplication::Get().ProcessMouseMoveEvent(Move, true);
+			if (Action == TEXT("Scroll"))
+			{
+				if (NexusSlateInputTarget(Ref) != Target || NexusSlateWindow(Target.ToSharedRef()) != Window || !NexusSlatePoint(Target.ToSharedRef(), Start, LocalPosition))
+				{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Scroll target changed during hover; query Slate again")); return Operation; }
+				double WheelDelta = 0; Args->TryGetNumberField(TEXT("WheelDelta"), WheelDelta);
+				FPointerEvent Wheel(0, Start, Start, TSet<FKey>(), EKeys::Invalid, static_cast<float>(WheelDelta), PointerModifiers);
+				FSlateApplication::Get().ProcessMouseWheelOrGestureEvent(Wheel, nullptr);
+			}
 			if (Action == TEXT("Drag"))
 			{
-				TSet<FKey> Buttons; Buttons.Add(EKeys::LeftMouseButton);
-				FPointerEvent Down(0, Start, Start, Buttons, EKeys::LeftMouseButton, 0, FModifierKeysState()); FSlateApplication::Get().ProcessMouseButtonDownEvent(Window->GetNativeWindow(), Down);
+				if (NexusSlateInputTarget(Ref) != Target || NexusSlateInputTarget(NexusSlateString(Args, TEXT("EndRef"))) != EndTarget
+					|| NexusSlateWindow(Target.ToSharedRef()) != Window || !NexusSlatePoint(Target.ToSharedRef(), Start, LocalPosition) || !NexusSlatePoint(EndTarget.ToSharedRef(), End, EndLocalPosition))
+				{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Drag targets changed during hover; query Slate again")); return Operation; }
+				TSet<FKey> Buttons; Buttons.Add(Button);
+				FPointerEvent Down(0, Start, Start, Buttons, Button, 0, PointerModifiers); FSlateApplication::Get().ProcessMouseButtonDownEvent(Window->GetNativeWindow(), Down);
 				FVector2D Previous = Start;
 				for (int32 Step = 1; Step <= 12; ++Step)
 				{
 					const FVector2D Position = FMath::Lerp(Start, End, static_cast<float>(Step) / 12.0f);
 					FSlateApplication::Get().SetCursorPos(Position);
-					FPointerEvent Drag(0, Position, Previous, Buttons, EKeys::Invalid, 0, FModifierKeysState()); FSlateApplication::Get().ProcessMouseMoveEvent(Drag, true); Previous = Position;
+					FPointerEvent Drag(0, Position, Previous, Buttons, EKeys::Invalid, 0, PointerModifiers); FSlateApplication::Get().ProcessMouseMoveEvent(Drag, true); Previous = Position;
 				}
-				FPointerEvent Up(0, End, End, TSet<FKey>(), EKeys::LeftMouseButton, 0, FModifierKeysState()); FSlateApplication::Get().ProcessMouseButtonUpEvent(Up);
+				FPointerEvent Up(0, End, End, TSet<FKey>(), Button, 0, PointerModifiers); FSlateApplication::Get().ProcessMouseButtonUpEvent(Up);
 			}
 		}
 		else if (Action == TEXT("SetChecked"))

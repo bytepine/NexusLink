@@ -14,7 +14,7 @@
 - **场景与项目**：管理关卡、Actor、[导航与碰撞](docs/editor-compatibility.md#导航与碰撞诊断)，编辑项目设置及 [PCG、PhysicsAsset、GameplayTags 等数据](docs/pcg-physics-tags-dataregistry.md)。
 - **运行时调试**：在 PIE、Game 和 DS 中检查日志、Actor、动画、AI 与 GAS，支持[输入注入与 UI 诊断](docs/runtime-diagnostics.md)、[UMG 交互](docs/runtime-widgets.md)。
 - **复测与性能分析**：[GAS 技能诊断](docs/gas-retest.md)、[行为树条件复测](docs/bt-retest.md)、[Trace 性能对比](docs/trace-compare.md)。
-- **编辑器自动化**：[Slate 界面操作、Automation 测试与 Live Coding](docs/editor-toolsets.md)。
+- **编辑器自动化**：[Slate 界面查询、截图、右键/双击/滚轮/拖动、Automation 测试与 Live Coding](docs/editor-toolsets.md)，优先通过 MCP 完成编辑器操作。
 
 支持 **UE 4.26+（含 UE5）**。MCP 可运行于编辑器及 Development / DebugGame 的 Game / DS；**Shipping 在编译期剔除 MCP 服务器**。具体能力随引擎版本、宿主类型和已启用插件裁剪。
 

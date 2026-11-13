@@ -6,9 +6,9 @@ Slate UI、Automation 测试和非阻塞 Live Coding 都属于引擎能力，由
 
 ## 接口
 
-- `GetEditorSlate`：`Action=Windows|Snapshot|WaitFor`，可传 `Ref`、`MaxDepth`（0–100）。Snapshot 可用 `TextFilter`（文本/提示）与 `TypeFilter`（控件类型）筛选，继续遍历不匹配的容器；最多扫描 20000 个节点、返回 2000 个匹配项。`Nodes` 包含 Ref、Role、Tooltip、Actions 和焦点/勾选状态，Ref 由 NexusLink 自行管理。快照包含截断标记。
+- `GetEditorSlate`：`Action=Windows|Snapshot|WaitFor`，可传 `Ref`、`MaxDepth`（0–100）。Snapshot 可用 `TextFilter`（文本/提示）与 `TypeFilter`（控件类型）筛选，继续遍历不匹配的容器；最多扫描 20000 个节点、返回 2000 个匹配项。`Nodes` 包含 Ref、ParentRef、LocalSize、Role、Tooltip、Actions 和焦点/勾选状态，Ref 由 NexusLink 自行管理。`ParentRef` 标识父控件，`LocalSize={X,Y}` 是控件本地尺寸；父项可能被筛选或截断，可按 Ref 查询子树。快照包含截断标记。
 - `CaptureEditorSlate`：可传快照中的 `Ref`，空值选择活动窗口；返回本地 `FilePath` 及标准 MCP 图片内容。
-- `InteractEditorSlate`：`Action=Click|Type|PressKey|Focus|Hover|Drag|SelectOption|SetChecked|FillForm`，传已查询的 `Ref`。窗口聚焦使用 Windows 查询中的窗口 Ref。
+- `InteractEditorSlate`：`Action=Click|DoubleClick|Scroll|Type|PressKey|Focus|Hover|Drag|SelectOption|SetChecked|FillForm`，传已查询的 `Ref`。窗口聚焦使用 Windows 查询中的窗口 Ref。快照的通用 `Actions` 包括 Click、DoubleClick、Scroll、Drag、PressKey、Focus 和 Hover，文本框与复选框另提供对应动作；具体结果仍取决于控件是否处理输入。
 
 `Type/bReplace=true` 支持 `SSearchBox` 及普通编辑框。子关卡操作可直接用 `ControlEditorLevel(Action=LoadStreaming|Show|Hide|MakeCurrent, AssetPath=...)`，目标必须是当前地图已有的子关卡引用；LoadStreaming 加载现有引用，MakeCurrent 同时显示并切换当前关卡。
 - `ControlEditorAutomation`：`Action=Discover|Run|Stop`。发现完成后用 `ListEditorAutomationTests(NameFilter, Limit)` 获取完整名称，运行传 `TestNames[]`，停止传所属运行的 `OperationId`。只使用当前编辑器的本地测试会话。
@@ -39,11 +39,17 @@ Desktop、VSCode、Rider 的等待请求支持 MCP `notifications/progress`；�
 
 Slate Ref 绑定到 NexusLink 会话及弱控件引用，快照从当前可见控件树重新读取。界面重建、窗口关闭或控件失效后重新查询 Ref；拒绝隐藏、禁用祖先下的输入目标及断开的窗口控件。
 
+编辑器操作先使用对应领域 MCP；缺少专用能力时，继续通过 `GetEditorSlate` 查询、`CaptureEditorSlate` 截图和 `InteractEditorSlate` 交互。仍无法完成时提交 `SubmitFeedback`，记录缺口及实际错误。只有原生系统对话框、编辑器外 UI 等确无 MCP 路径的操作才回退到电脑控制；不要仅因缺少领域能力就直接回退。编辑器模态窗口或慢任务仍受忙碌门控限制，可能返回 `EditorBusy`；这些 Slate 接口不提供模态窗口控制保证。
+
 ## Slate 进阶操作
 
 `Type(Text, bReplace=true)` 替换文本，空串可清空。`PressKey` 支持 `Ctrl+`、`Shift+`、`Alt+`、`Cmd+` 组合及 Unreal Key 名。替换仅接受标准可编辑文本控件，清除前验证焦点和完整选区，通过引擎按键事件验证完整选区后再清空、输入。
 
-`Hover` 悬停；`Drag` 使用起点 `Ref` 与终点 `EndRef`。`SetChecked(Value="true"|"false")` 接受复选框 Ref。`SelectOption(Value)` 只在该组合框自己的独立弹出窗口内精确匹配可见选项，找不到时不会点击其他同名文字；复用宿主窗口的菜单请用聚焦后的按键导航。所有输入仍通过 NexusLink 的权限检查。
+`Click` 单击，`DoubleClick` 双击，二者和 `Drag` 均可用 `Button=Left|Right|Middle`（默认 Left）。`Modifiers[]` 可组合 Ctrl、Shift、Alt、Cmd，仅注入事件，不改变系统按键状态；少数通过 `FSlateApplication::GetModifierKeys()` 读取全局状态的控件可能不响应，例如某些图编辑器的 Alt+右键缩放，须执行后读回或截图验证。`Position={X,Y}` 使用目标控件内的归一化坐标，X/Y 均在 [0,1]，默认中心；`Hover` 和 `Scroll` 也可指定该位置。坐标由控件当前几何换算，仍检查目标是否可见、启用和可命中。
+
+`Scroll` 必须传非零 `WheelDelta`，范围 [-20,20]，正值向上、负值向下。`Drag` 必须传起点 `Ref` 与终点 `EndRef`，终点可用 `EndPosition={X,Y}`，范围与默认值同 Position；两个 Ref 可以相同，用于图表平移或控件内拖动。输入接受不表示控件已经完成预期操作，执行后重新查询或截图核对。
+
+`SetChecked(Value="true"|"false")` 接受复选框 Ref。`SelectOption(Value)` 只在该组合框自己的独立弹出窗口内精确匹配可见选项，找不到时不会点击其他同名文字；复用宿主窗口的菜单请用聚焦后的按键导航。所有输入仍通过 NexusLink 的权限检查。
 
 `FillForm` 的 `Ref` 指定根，`Fields[]` 每项为 `Ref`、`Value`、`FieldType=textbox|checkbox|combobox`。写入前验证全部字段均为根的可见、启用后代；执行时逐项复检。文本框采用替换。中途失效返回 `AppliedCount`、`FailedFieldIndex`，先前成功项保留，不自动重试。
 

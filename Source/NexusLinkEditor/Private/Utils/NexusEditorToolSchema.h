@@ -28,6 +28,8 @@ struct FNexusEditorToolSchema final
 			.Prop(TEXT("bFocused"), FNexusSchema::Bool(TEXT("Widget or a descendant has keyboard focus")))
 			.Prop(TEXT("bChecked"), FNexusSchema::Bool(TEXT("Check box state")))
 			.Prop(TEXT("Actions"), FNexusSchema::StrArr(TEXT("Supported interactions")))
+			.Prop(TEXT("ParentRef"), FNexusSchema::Str(TEXT("Parent in the inspected subtree; empty for the root")))
+			.Prop(TEXT("LocalSize"), FNexusSchema::Object().Required(TEXT("X"), FNexusSchema::Num(TEXT("Local width"))).Required(TEXT("Y"), FNexusSchema::Num(TEXT("Local height"))).Build().ToSharedRef())
 			.Prop(TEXT("Depth"), FNexusSchema::Int(TEXT("Depth from snapshot root"))).Build();
         auto Test = FNexusSchema::Object().Required(TEXT("Name"), FNexusSchema::Str(TEXT("Full test name")))
             .Prop(TEXT("Outcome"), FNexusSchema::Str(TEXT("Test business outcome")))
