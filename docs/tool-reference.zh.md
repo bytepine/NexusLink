@@ -338,8 +338,8 @@
 | `NewFolderPath` | `string` |  | 重命名后的目标路径 |
 | `ActorPath` | `string` |  | 发现结果中的 Actor 对象路径 |
 | `ComponentPath` | `string` |  | 已加载 PrimitiveComponent 的精确路径；RefreshComponentPhysics 必填 |
-| `BoundsMin` | `object` |  |  |
-| `BoundsMax` | `object` |  |  |
+| `BoundsMin` | `object` |  | NavigationContributors/NavigationTiles 必填；BoundsMin 和 BoundsMax 必须有限，且每个轴的 BoundsMin 均小于 BoundsMax |
+| `BoundsMax` | `object` |  | NavigationContributors/NavigationTiles 必填；BoundsMin 和 BoundsMax 必须有限，且每个轴的 BoundsMin 均小于 BoundsMax |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
 | `ScanLimit` | `integer` |  | 每次查询最多检查的瓦片槽数 |
 | `WaitSeconds` | `number` |  | NavigationStatus：观察已有任务，最多 30 秒，不启动构建 |
@@ -551,7 +551,7 @@
 
 ### `GetEditorScene`
 
-只读查询文件夹、选择、碰撞、BSP，以及导航状态、空间贡献者和瓦片；支持有界等待。
+只读查询文件夹、选择、碰撞、BSP，以及导航状态、空间贡献者和瓦片；支持有界等待，须单独调用，不接受 Calls[] 批次。
 
 **前置条件**: `EditorOnly`
 
@@ -562,8 +562,8 @@
 | `NewFolderPath` | `string` |  | 重命名后的目标路径 |
 | `ActorPath` | `string` |  | 发现结果中的 Actor 对象路径 |
 | `ComponentPath` | `string` |  | 已加载 PrimitiveComponent 的精确路径；RefreshComponentPhysics 必填 |
-| `BoundsMin` | `object` |  |  |
-| `BoundsMax` | `object` |  |  |
+| `BoundsMin` | `object` |  | NavigationContributors/NavigationTiles 必填；BoundsMin 和 BoundsMax 必须有限，且每个轴的 BoundsMin 均小于 BoundsMax |
+| `BoundsMax` | `object` |  | NavigationContributors/NavigationTiles 必填；BoundsMin 和 BoundsMax 必须有限，且每个轴的 BoundsMin 均小于 BoundsMax |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
 | `ScanLimit` | `integer` |  | 每次查询最多检查的瓦片槽数 |
 | `WaitSeconds` | `number` |  | NavigationStatus：观察已有任务，最多 30 秒，不启动构建 |
@@ -3046,9 +3046,9 @@
 | `NodeId` | `string` |  | 子图遍历的起始节点 GUID |
 | `MaxDepth` | `integer` |  | 已连接子图的遍历深度 |
 | `NodeTypeId` | `string` |  | NodeTypes 返回的原生节点类型，UE 5.8 |
-| `FunctionName` | `string` |  | 用于引脚发现的兼容可调用函数 |
-| `FunctionClass` | `string` |  | 兼容可调用函数的所属类 |
-| `GraphName` | `string` |  | 图表名称，用于 graph / ExecPaths |
+| `FunctionName` | `string` |  | NodeTypePins：NodeTypes 发现结果中的可调用函数名 |
+| `FunctionClass` | `string` |  | NodeTypePins：NodeTypes 发现结果中的函数所属类 |
+| `GraphName` | `string` |  | graph / ExecPaths 的图表名称或路径；Subgraph、NodeTypes、NodeTypePins 和 GraphDSL 必填 |
 | `GraphType` | `string (enum)` |  | 图类型过滤 枚举: `Event` / `Function` / `Macro` / `Animgraph` / `Statemachine` / `State` / `Transition` / `Conduit` / `All` |
 | `Offset` | `integer` |  | 分页偏移 |
 | `Limit` | `integer` |  | 每页最大条数 |

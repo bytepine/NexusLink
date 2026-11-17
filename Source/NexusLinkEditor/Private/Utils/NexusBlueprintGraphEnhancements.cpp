@@ -374,7 +374,10 @@ void FNexusBlueprintGraphEnhancements::Read(UBlueprint* Blueprint, const FString
     } else if (Section==TEXT("NodeTypePins")) {
         UFunction* Function=FNexusBlueprintGraphUtils::ResolveGraphFunction(A.Str(TEXT("FunctionName")),A.Str(TEXT("FunctionClass")));
         if (!Function) { Error=TEXT("NodeTypePins requires a callable FunctionName/FunctionClass from discovery"); return; }
-        auto* Node=NewObject<UK2Node_CallFunction>(GetTransientPackage()); Node->SetFromFunction(Function); Node->AllocateDefaultPins();
+        if (FBlueprintEditorUtils::FindBlueprintForGraph(Graph)!=Blueprint || !Cast<UEdGraphSchema_K2>(Graph->GetSchema()))
+        { Error=TEXT("NodeTypePins requires a Blueprint-owned K2 graph"); return; }
+        // 引脚分配依赖 Blueprint 上下文；瞬态节点不加入 Nodes，也不修改或标脏目标图。
+        auto* Node=NewObject<UK2Node_CallFunction>(Graph,NAME_None,RF_Transient); Node->SetFromFunction(Function); Node->AllocateDefaultPins();
         for (auto* Pin : Node->Pins) if (Pin) Items.Add(MakeShared<FJsonValueObject>(FNexusBlueprintGraphUtils::SerializeBPPin(Pin)));
     } else { Error=TEXT("Unknown Blueprint graph section"); return; }
     Result->SetStringField(TEXT("Backend"),TEXT("Independent")); Result->SetArrayField(Section,Items);

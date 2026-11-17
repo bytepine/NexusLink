@@ -41,6 +41,8 @@
 TSharedPtr<FJsonObject> FNexusSceneTools::Schema(bool bWrite)
 {
     auto Vector = FNexusSchema::Object().Required(TEXT("X"),FNexusSchema::Num(TEXT("X"))).Required(TEXT("Y"),FNexusSchema::Num(TEXT("Y"))).Required(TEXT("Z"),FNexusSchema::Num(TEXT("Z"))).Build();
+    auto BoundsVector = MakeShared<FJsonObject>(); BoundsVector->Values = Vector->Values;
+    BoundsVector->SetStringField(TEXT("description"), TEXT("Required for NavigationContributors/NavigationTiles; finite BoundsMin must be less than BoundsMax on every axis"));
     auto Action = bWrite ? FNexusSchema::Enum(TEXT("Scene write"),{TEXT("CreateFolder"),TEXT("RenameFolder"),TEXT("DeleteFolder"),TEXT("SetActorFolder"),TEXT("SetSelection"),TEXT("MergeActors"),TEXT("CreateLevelInstance"),TEXT("EditLevelInstance"),TEXT("CommitLevelInstance"),TEXT("BuildNavigation"),TEXT("RefreshComponentPhysics")})
         : FNexusSchema::Enum(TEXT("Scene query"),{TEXT("Folders"),TEXT("FolderActors"),TEXT("Selection"),TEXT("Trace"),TEXT("NavigationStatus"),TEXT("NavigationContributors"),TEXT("NavigationTiles"),TEXT("LevelGeometry"),TEXT("Collision")});
     return FNexusSchema::Object().Required(TEXT("Action"), Action)
@@ -48,7 +50,7 @@ TSharedPtr<FJsonObject> FNexusSceneTools::Schema(bool bWrite)
         .Prop(TEXT("NewFolderPath"),FNexusSchema::Str(TEXT("Rename destination")))
         .Prop(TEXT("ActorPath"),FNexusSchema::Str(TEXT("Actor object path from discovery")))
         .Prop(TEXT("ComponentPath"),FNexusSchema::Str(TEXT("Exact loaded primitive component path; required for RefreshComponentPhysics")))
-        .Prop(TEXT("BoundsMin"),Vector.ToSharedRef()).Prop(TEXT("BoundsMax"),Vector.ToSharedRef())
+        .Prop(TEXT("BoundsMin"),BoundsVector).Prop(TEXT("BoundsMax"),BoundsVector)
         .Prop(TEXT("Offset"),FNexusSchema::Int(TEXT("Contributors pagination or tile slot scan offset"),0,0,MAX_int32))
         .Prop(TEXT("ScanLimit"),FNexusSchema::Int(TEXT("Maximum tile slots inspected per query"),4096,1,65536))
         .Prop(TEXT("WaitSeconds"),FNexusSchema::Num(TEXT("NavigationStatus: observe existing work for up to 30 seconds, never starts a build"),0))

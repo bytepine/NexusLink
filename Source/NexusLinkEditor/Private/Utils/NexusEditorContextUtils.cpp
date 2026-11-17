@@ -8,8 +8,11 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Engine/Selection.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "Misc/PackageName.h"
+#include "UObject/Package.h"
 #include "Modules/ModuleManager.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -48,9 +51,10 @@ void FNexusEditorContextUtils::CollectSelectionActors(
 		Obj->SetStringField(TEXT("Name"), Actor->GetName());
 		Obj->SetStringField(TEXT("Label"), Actor->GetActorLabel());
 		Obj->SetStringField(TEXT("Class"), Actor->GetClass()->GetName());
-		if (EditorWorld && Actor->GetWorld() == EditorWorld)
+		const ULevel* Level = Actor->GetLevel();
+		if (EditorWorld && Actor->GetWorld() == EditorWorld && Level)
 		{
-			Obj->SetStringField(TEXT("Level"), EditorWorld->GetName());
+			Obj->SetStringField(TEXT("Level"), FPackageName::GetShortName(Level->GetOutermost()->GetName()));
 		}
 		OutActors.Add(MakeShared<FJsonValueObject>(Obj));
 		++OutCount;

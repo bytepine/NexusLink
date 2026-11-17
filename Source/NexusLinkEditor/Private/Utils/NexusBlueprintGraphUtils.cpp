@@ -303,7 +303,10 @@ UFunction* FNexusBlueprintGraphUtils::ResolveGraphFunction(const FString& FuncNa
 			{
 				return Func;
 			}
+			return Owner->FindFunctionByName(*(TEXT("K2_") + FuncName));
 		}
+		// 显式所属类必须精确匹配，禁止退回全局同名函数。
+		return nullptr;
 	}
 	for (TObjectIterator<UClass> It; It; ++It)
 	{

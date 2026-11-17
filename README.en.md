@@ -10,7 +10,7 @@ Start with [NexusDesktop](https://github.com/bytepine/NexusDesktop), or use the 
 
 ## What you can do
 
-- **Asset editing**: read and modify Blueprints, materials, animation, audio, UMG, Niagara, and more, with [edit previews, batch changes, and write verification](docs/asset-edit-preview.en.md).
+- **Asset editing**: read and modify Blueprints, materials, animation, audio, UMG, Niagara, and more, with read-only Blueprint function-pin queries and [edit previews, batch changes, and write verification](docs/asset-edit-preview.en.md).
 - **Scenes and projects**: manage levels, Actors, [navigation and collision](docs/editor-compatibility.en.md#导航与碰撞诊断); edit project settings and [PCG, PhysicsAsset, GameplayTags, and other data](docs/pcg-physics-tags-dataregistry.en.md).
 - **Runtime debugging**: inspect logs, Actors, animation, AI, and GAS in PIE, Game, and DS, with [input injection and UI diagnostics](docs/runtime-diagnostics.en.md) and [UMG interaction](docs/runtime-widgets.en.md).
 - **Diagnostics and performance**: [GAS activation diagnostics](docs/gas-retest.en.md), [behavior-tree condition replay](docs/bt-retest.en.md), and [Trace performance comparison](docs/trace-compare.en.md).

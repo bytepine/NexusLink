@@ -13,6 +13,14 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 - Clarify uncertain write outcomes after proxy disconnections/timeouts, no automatic resend, cache invalidation, and existing long-operation polling/cancellation boundaries; link the sample's controlled UE 5.7 validation entry point and its evidence scope.
 
+### Fixed
+
+- Fix editor crashes in `GetAssetBlueprint/NodeTypePins` when allocating pins on a temporary node without Blueprint ownership. Queries preserve source graphs, compilation status, and dirty flags, document the required graph context, and no longer substitute another class's same-name function when an owner is explicit.
+- `GetEditorContext/SelectionActors` reports the Actor's owning streamed sublevel instead of the current main map.
+- Slate text input validates editable focus and reads back the result, avoiding success reports when no text was inserted.
+- Clarify `GraphName` requirements for Blueprint function-parameter operations, explicit navigation-diagnostic bounds, and the single-call restriction for scene queries.
+- Reject invalid or transient worlds and persistent levels before native map saving to avoid save assertions, while retaining host save validation.
+
 ## [2.3.6] - 2026-11-13
 
 ### Added

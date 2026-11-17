@@ -352,7 +352,11 @@ bool FNexusAssetUtils::SaveNewAsset(UPackage* Package, UObject* Asset, const FSt
 	if (Package->ContainsMap() || (Asset && Asset->IsA(UWorld::StaticClass())))
 	{
 		MapWorld = UWorld::FindWorldInPackage(Package);
-		if (!MapWorld || !MapWorld->PersistentLevel || MapWorld->PersistentLevel->GetOuter() != MapWorld)
+		// 重载失败后被引用保留的旧世界可能仍标记为 Transient；原生保存会把它排除并触发地图对象 ensure。
+		if (!IsValid(MapWorld) || !IsValid(MapWorld->PersistentLevel)
+			|| MapWorld->HasAnyFlags(RF_Transient) || MapWorld->PersistentLevel->HasAnyFlags(RF_Transient))
+			return Fail(TEXT("Map package has an invalid or transient UWorld/PersistentLevel and cannot be saved; resolve world leaks, then restart the editor or safely reload the map. Save was not attempted"));
+		if (MapWorld->PersistentLevel->GetOuter() != MapWorld)
 			return Fail(TEXT("Map package has no valid UWorld/PersistentLevel; save was not attempted"));
 		Asset = MapWorld;
 	}

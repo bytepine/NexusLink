@@ -110,6 +110,16 @@ static bool NexusSlateEditableText(const TSharedRef<SWidget>& Widget, FString& T
 	return true;
 }
 
+static TSharedPtr<SWidget> NexusSlateEditableLeaf(const TSharedRef<SWidget>& Widget, int32 Depth = 0)
+{
+	if (Depth > 100 || !Widget->IsEnabled() || !Widget->GetVisibility().IsVisible()) return nullptr;
+	if (Widget->GetType() == FName(TEXT("SEditableText")) || Widget->GetType() == FName(TEXT("SMultiLineEditableText"))) return Widget;
+	if (FChildren* Children = Widget->GetChildren())
+		for (int32 ChildIndex = 0; ChildIndex < Children->Num(); ++ChildIndex)
+			if (auto Input = NexusSlateEditableLeaf(Children->GetChildAt(ChildIndex), Depth + 1)) return Input;
+	return nullptr;
+}
+
 static FString NexusSlateSelectAllKey()
 {
 #if PLATFORM_MAC
@@ -478,24 +488,38 @@ TSharedPtr<FNexusEditorOperation> FNexusEditorControlServices::Slate(const FStri
 		}
 		else if (Action == TEXT("Type"))
 		{
-			FSlateApplication::Get().SetKeyboardFocus(Target, EFocusCause::SetDirectly);
+			FString Before, Selection;
+			const auto Input = NexusSlateEditableText(Target.ToSharedRef(), Before, Selection) ? NexusSlateEditableLeaf(Target.ToSharedRef()) : nullptr;
+			if (!Input.IsValid()) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Type requires a native editable text target")); return Operation; }
+			FSlateApplication::Get().SetKeyboardFocus(Input, EFocusCause::SetDirectly);
+			const auto Focused = FSlateApplication::Get().GetKeyboardFocusedWidget();
+			if (Focused != Input || !NexusSlateEditableText(Focused.ToSharedRef(), Before, Selection))
+			{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Type could not focus the editable text target")); return Operation; }
 			bool bReplace = false; Args->TryGetBoolField(TEXT("bReplace"), bReplace);
 			if (bReplace)
 			{
-				FString Text, Selection;
-				if (!NexusSlateEditableText(Target.ToSharedRef(), Text, Selection) || !NexusSlateHasFocus(Target.ToSharedRef())) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Replacement requires focused editable text")); return Operation; }
+				FString Text, ReplacementSelection;
 				FKey Key; FModifierKeysState Modifiers; NexusSlateParseKey(NexusSlateSelectAllKey(), Key, Modifiers);
 				FKeyEvent Event(Key, Modifiers, 0, false, 0, 0); FSlateApplication::Get().ProcessKeyDownEvent(Event); FSlateApplication::Get().ProcessKeyUpEvent(Event);
-				NexusSlateEditableText(Target.ToSharedRef(), Text, Selection);
-				if (Text != Selection) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Could not select all text")); return Operation; }
+				NexusSlateEditableText(Focused.ToSharedRef(), Text, ReplacementSelection);
+				if (FSlateApplication::Get().GetKeyboardFocusedWidget() != Focused || Text != ReplacementSelection) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Could not select all text")); return Operation; }
 				const FKeyEvent Delete(EKeys::BackSpace, FModifierKeysState(), 0, false, 0, 0);
 				FSlateApplication::Get().ProcessKeyDownEvent(Delete); FSlateApplication::Get().ProcessKeyUpEvent(Delete);
 				FSlateApplication::Get().ProcessKeyCharEvent(FCharacterEvent(TEXT('\b'), FModifierKeysState(), 0, false));
-				NexusSlateEditableText(Target.ToSharedRef(), Text, Selection);
+				NexusSlateEditableText(Focused.ToSharedRef(), Text, ReplacementSelection);
 				if (!Text.IsEmpty()) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Could not clear text")); return Operation; }
 			}
 			const FString Text = NexusSlateString(Args, TEXT("Text"));
-			for (TCHAR Character : Text) FSlateApplication::Get().ProcessKeyCharEvent(FCharacterEvent(Character, FModifierKeysState(), 0, false));
+			bool bHandled = true;
+			for (TCHAR Character : Text)
+				if (FSlateApplication::Get().GetKeyboardFocusedWidget() != Focused || !FSlateApplication::Get().ProcessKeyCharEvent(FCharacterEvent(Character, FModifierKeysState(), 0, false))) { bHandled = false; break; }
+			FString After, AfterSelection;
+			const bool bReadBack = FSlateApplication::Get().GetKeyboardFocusedWidget() == Focused && NexusSlateInputTarget(Ref) == Target
+				&& NexusSlateInTree(Target.ToSharedRef(), Focused.ToSharedRef()) && NexusSlateEditableText(Focused.ToSharedRef(), After, AfterSelection);
+			const bool bMatches = bReplace ? After == Text : After.Len() == Before.Len() - Selection.Len() + Text.Len()
+				&& (Text.IsEmpty() || (After.Contains(Text, ESearchCase::CaseSensitive) && (After != Before || Text == Selection)));
+			if (!bHandled || !bReadBack || !bMatches)
+			{ FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Typed text was not applied to the focused target; inspect current text before retrying")); return Operation; }
 		}
 		else if (Action == TEXT("PressKey"))
 		{

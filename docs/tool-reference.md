@@ -330,8 +330,8 @@ Organize actors/folders, merge meshes, edit level instances and build navigation
 | `NewFolderPath` | `string` |  | Rename destination |
 | `ActorPath` | `string` |  | Actor object path from discovery |
 | `ComponentPath` | `string` |  | Exact loaded primitive component path; required for RefreshComponentPhysics |
-| `BoundsMin` | `object` |  |  |
-| `BoundsMax` | `object` |  |  |
+| `BoundsMin` | `object` |  | Required for NavigationContributors/NavigationTiles; finite BoundsMin must be less than BoundsMax on every axis |
+| `BoundsMax` | `object` |  | Required for NavigationContributors/NavigationTiles; finite BoundsMin must be less than BoundsMax on every axis |
 | `Offset` | `integer` |  | Contributors pagination or tile slot scan offset |
 | `ScanLimit` | `integer` |  | Maximum tile slots inspected per query |
 | `WaitSeconds` | `number` |  | NavigationStatus: observe existing work for up to 30 seconds, never starts a build |
@@ -535,7 +535,7 @@ Inspect PCG graph schemas, native nodes, graph instances and bounded node output
 
 ### `GetEditorScene`
 
-Inspect folders, collision, BSP and navigation status/octree/tiles. Bounded read-only diagnostics.
+Inspect folders, collision, BSP and navigation status/octree/tiles. Bounded read-only diagnostics; requires a single call, not Calls[].
 
 **Prerequisites**: `EditorOnly`
 
@@ -546,8 +546,8 @@ Inspect folders, collision, BSP and navigation status/octree/tiles. Bounded read
 | `NewFolderPath` | `string` |  | Rename destination |
 | `ActorPath` | `string` |  | Actor object path from discovery |
 | `ComponentPath` | `string` |  | Exact loaded primitive component path; required for RefreshComponentPhysics |
-| `BoundsMin` | `object` |  |  |
-| `BoundsMax` | `object` |  |  |
+| `BoundsMin` | `object` |  | Required for NavigationContributors/NavigationTiles; finite BoundsMin must be less than BoundsMax on every axis |
+| `BoundsMax` | `object` |  | Required for NavigationContributors/NavigationTiles; finite BoundsMin must be less than BoundsMax on every axis |
 | `Offset` | `integer` |  | Contributors pagination or tile slot scan offset |
 | `ScanLimit` | `integer` |  | Maximum tile slots inspected per query |
 | `WaitSeconds` | `number` |  | NavigationStatus: observe existing work for up to 30 seconds, never starts a build |
@@ -3012,9 +3012,9 @@ Read BP from editor. CompileStatus/orphaned/ExecPaths. Must call before answerin
 | `NodeId` | `string` |  | Subgraph starting node GUID |
 | `MaxDepth` | `integer` |  | Connected subgraph traversal depth |
 | `NodeTypeId` | `string` |  | Native node type from NodeTypes (UE5.8) |
-| `FunctionName` | `string` |  | Compatibility callable for pin discovery |
-| `FunctionClass` | `string` |  | Compatibility callable owner |
-| `GraphName` | `string` |  | Graph name (graph / ExecPaths) |
+| `FunctionName` | `string` |  | NodeTypePins: callable function name from NodeTypes discovery |
+| `FunctionClass` | `string` |  | NodeTypePins: callable owner class from NodeTypes discovery |
+| `GraphName` | `string` |  | Graph name/path for graph / ExecPaths; required for Subgraph, NodeTypes, NodeTypePins and GraphDSL |
 | `GraphType` | `string (enum)` |  | Graph type filter enum: `Event` / `Function` / `Macro` / `Animgraph` / `Statemachine` / `State` / `Transition` / `Conduit` / `All` |
 | `Offset` | `integer` |  | Pagination offset |
 | `Limit` | `integer` |  | Max items per page |

@@ -10,7 +10,7 @@
 
 ## 能做什么
 
-- **资产编辑**：读写蓝图、材质、动画、音频、UMG、Niagara 等资产，支持[修改预览、批量编辑与写后校验](docs/asset-edit-preview.md)。
+- **资产编辑**：读写蓝图、材质、动画、音频、UMG、Niagara 等资产，支持蓝图函数引脚只读查询及[修改预览、批量编辑与写后校验](docs/asset-edit-preview.md)。
 - **场景与项目**：管理关卡、Actor、[导航与碰撞](docs/editor-compatibility.md#导航与碰撞诊断)，编辑项目设置及 [PCG、PhysicsAsset、GameplayTags 等数据](docs/pcg-physics-tags-dataregistry.md)。
 - **运行时调试**：在 PIE、Game 和 DS 中检查日志、Actor、动画、AI 与 GAS，支持[输入注入与 UI 诊断](docs/runtime-diagnostics.md)、[UMG 交互](docs/runtime-widgets.md)。
 - **复测与性能分析**：[GAS 技能诊断](docs/gas-retest.md)、[行为树条件复测](docs/bt-retest.md)、[Trace 性能对比](docs/trace-compare.md)。

@@ -111,7 +111,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("Replication"), FNexusSchema::Enum(TEXT("SetVariableReplication: does not enable replication on the owning actor/component"), {TEXT("None"), TEXT("Replicated"), TEXT("RepNotify")}))
 		.Prop(TEXT("RepNotifyFunction"), FNexusSchema::Str(TEXT("RepNotify: existing owned function with no inputs/outputs; create with AddFunction first")))
 		.Prop(TEXT("bCallInEditor"), FNexusSchema::Bool(TEXT("SetFunctionCallInEditor: expose an owned parameterless function as an editor button")))
-		.Prop(TEXT("GraphName"),       FNexusSchema::Str(TEXT("Owned graph name, full or relative object path")))
+		.Prop(TEXT("GraphName"),       FNexusSchema::Str(TEXT("Owned graph name, full or relative object path; required for AddFunctionParameter/RemoveFunctionParameter, not FunctionName")))
 		.Prop(TEXT("VariableName"),    FNexusSchema::Str(TEXT("Variable name (AddVariable/PromotePin; auto if omitted)")))
 		.Prop(TEXT("VariableType"),    FNexusSchema::Str(TEXT("Basic, object, ClassReference<BaseClass> or BlueprintType struct; T[], Array<T>, Set<T>, Map<K,V> (no nested containers)")))
 		.Prop(TEXT("NewVariableName"), FNexusSchema::Str(TEXT("New member name (RenameVariable); leaf Blueprint only, preserves GUID and references; descendants/RepNotify are rejected")))

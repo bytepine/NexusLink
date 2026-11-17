@@ -479,9 +479,9 @@ TSharedPtr<FJsonObject> FNexusGetAssetBlueprintCapability::BuildCapabilitySchema
         .Prop(TEXT("NodeId"), FNexusSchema::Str(TEXT("Subgraph starting node GUID")))
         .Prop(TEXT("MaxDepth"), FNexusSchema::Int(TEXT("Connected subgraph traversal depth"), 8, 0, 64))
         .Prop(TEXT("NodeTypeId"), FNexusSchema::Str(TEXT("Native node type from NodeTypes (UE5.8)")))
-        .Prop(TEXT("FunctionName"), FNexusSchema::Str(TEXT("Compatibility callable for pin discovery")))
-        .Prop(TEXT("FunctionClass"), FNexusSchema::Str(TEXT("Compatibility callable owner")))
-		.Prop(TEXT("GraphName"),     FNexusSchema::Str(TEXT("Graph name (graph / ExecPaths)")))
+        .Prop(TEXT("FunctionName"), FNexusSchema::Str(TEXT("NodeTypePins: callable function name from NodeTypes discovery")))
+        .Prop(TEXT("FunctionClass"), FNexusSchema::Str(TEXT("NodeTypePins: callable owner class from NodeTypes discovery")))
+		.Prop(TEXT("GraphName"),     FNexusSchema::Str(TEXT("Graph name/path for graph / ExecPaths; required for Subgraph, NodeTypes, NodeTypePins and GraphDSL")))
 		.Prop(TEXT("GraphType"),  FNexusSchema::Enum(TEXT("Graph type filter"),
 			{ TEXT("Event"), TEXT("Function"), TEXT("Macro"), TEXT("Animgraph"),
 			  TEXT("Statemachine"), TEXT("State"), TEXT("Transition"), TEXT("Conduit"), TEXT("All") }))
