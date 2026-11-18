@@ -91,6 +91,10 @@ The GAS retest tools under `tools/gas_retest` use only the Python standard libra
 
 The **only source of GitHub Release notes** is the matching `CHANGELOG.md` version section, extracted by CI through `scripts/extract_release_notes.py --verify`. Do not handwrite notes on GitHub or use `gh release create`.
 
+Before tagging a release or pre-release, run `py scripts/check_schema_compatibility.py scripts/generated/capability_schemas.json --release`. The tag workflow runs this check before packaging. For each new public capability, export the engine registry with its plugin enabled, review its accepted inputs, and add the capability to the release snapshot and reviewed baseline while preserving existing contracts. The release check compares the source inventory, snapshot and baseline. Regular compatibility checks still allow additions, and host-specific checks still accept `--enabled`.
+
+The v2.3.6 release snapshot omitted the optional `CreateAssetGeometryCollection`, `GetAssetGeometryCollection` and `ManageAssetGeometryCollection` capabilities. Once a GeometryCollection-enabled engine export is available, add those schemas to the snapshot and baseline and remove the three exceptions from the checker.
+
 **Choose L2 E2E mode from the release changes** before tagging. Daily runs remain headless by default; do not blindly use `--gui` for every release. Review `[Unreleased]`, the diff from the previous tag, and proposed release files. Run inside the **host game project**, which contains `Tests/` and `Script/run_e2e.py`:
 
 | Release contents | Test mode | Command |

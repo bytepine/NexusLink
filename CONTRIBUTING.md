@@ -92,6 +92,10 @@ GAS 复测工具位于 `tools/gas_retest`，仅依赖 Python 标准库。修改�
 
 GitHub Release **正文唯一来源**为 `CHANGELOG.md` 对应版本段落（CI 经 `scripts/extract_release_notes.py --verify` 提取）。禁止网页手写 Release 说明或 `gh release create`。
 
+正式版和预发布打 tag 前，运行 `py scripts/check_schema_compatibility.py scripts/generated/capability_schemas.json --release`。该检查也在 tag 工作流打包前执行。新增公开能力时，从启用对应插件的引擎取得注册表导出，核对实际输入并将新能力加入发布快照及受审基线，保留已有契约。发布检查比对源码能力名、快照与基线。日常兼容检查仍允许添加能力，特定宿主继续用 `--enabled` 校验。
+
+v2.3.6 发布快照未包含可选的 `CreateAssetGeometryCollection`、`GetAssetGeometryCollection` 和 `ManageAssetGeometryCollection`。取得启用 GeometryCollection 的实际导出后，将三项合入快照和基线，并从检查脚本的例外清单移除。
+
 **L2 E2E 按本次变更选模式**（打 tag 前；日常默认仍是 headless，**不要**发版时一律 `--gui`）。判定材料：本仓 `[Unreleased]`、相对上一 tag 的 `git diff`、拟发版文件。在**宿主游戏工程**（含 `Tests/` 与 `Script/run_e2e.py`）执行：
 
 | 本次发版内容 | 测试模式 | 命令 |

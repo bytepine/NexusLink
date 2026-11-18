@@ -43,6 +43,19 @@
     },
     "type": "object"
   },
+  "CaptureEditorSlate": {
+    "additionalProperties": false,
+    "properties": {
+      "Ref": {
+        "type": "string"
+      },
+      "bIncludeImage": {
+        "default": true,
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
   "CaptureViewport": {
     "additionalProperties": false,
     "properties": {
@@ -97,6 +110,651 @@
     },
     "required": [
       "AssetPath"
+    ],
+    "type": "object"
+  },
+  "CompileEditorLiveCoding": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object"
+  },
+  "ControlCommonUIDiagnostics": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "Start",
+          "Stop"
+        ],
+        "type": "string"
+      },
+      "BufferSize": {
+        "default": 512,
+        "maximum": 4096,
+        "minimum": 64,
+        "type": "integer"
+      },
+      "DurationSeconds": {
+        "type": "number"
+      },
+      "OperationId": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Action"
+    ],
+    "type": "object"
+  },
+  "ControlEditorAnimation": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "AddAnimationLayer",
+          "AddBindingTrack",
+          "AddBoolKey",
+          "AddFloatKey",
+          "AddIntegerKey",
+          "AddSection",
+          "AddSequenceFolder",
+          "AddSequenceTrack",
+          "AddStringKey",
+          "BakeChannelKeys",
+          "BakeRigSpace",
+          "BakeToControlRig",
+          "BakeTransform",
+          "ChangeActorTemplateClass",
+          "ClearSectionCondition",
+          "ClearTrackCondition",
+          "ClearTrackRowCondition",
+          "CloseSequence",
+          "CollapseRigLayers",
+          "ConvertToCustomBinding",
+          "ConvertToPossessable",
+          "ConvertToSpawnable",
+          "CreateRigTrack",
+          "DeleteAnimationLayer",
+          "DuplicateAnimationLayer",
+          "ExportAnimation",
+          "ExportFbx",
+          "ImportFbx",
+          "KeyRigControls",
+          "KeyRigControlsAtFrames",
+          "LinkAnimSequence",
+          "MergeAnimationLayers",
+          "MixerAddAnimationToMixer",
+          "MixerAddChildTrackToLayer",
+          "MixerAddDecoration",
+          "MixerAddMixerLayer",
+          "MixerChangeTransitionType",
+          "MixerInsertMixerLayer",
+          "MixerRemoveDecoration",
+          "MixerSetLayerName",
+          "OpenSequence",
+          "RemoveKey",
+          "RemoveSection",
+          "RemoveSequenceFolder",
+          "ReorderAnimationLayers",
+          "SaveDefaultSpawnableState",
+          "SetChannelDefault",
+          "SetNodeDeactivated",
+          "SetNodeExpanded",
+          "SetNodeLocked",
+          "SetNodeMuted",
+          "SetNodePinned",
+          "SetNodeSolo",
+          "SetOutlinerSelection",
+          "SetRigBool",
+          "SetRigEulerTransform",
+          "SetRigFloat",
+          "SetRigGlobalTransform",
+          "SetRigInteger",
+          "SetRigLocalTransform",
+          "SetRigTransform",
+          "SetRigWorldTransform",
+          "SetSectionAnimation",
+          "SetSectionBlendType",
+          "SetSectionCompletionMode",
+          "SetSectionCondition",
+          "SetSectionEaseIn",
+          "SetSectionEaseOut",
+          "SetSectionRange",
+          "SetTrackCondition",
+          "SetTrackRowCondition"
+        ],
+        "type": "string"
+      },
+      "Parameters": {
+        "additionalProperties": true,
+        "type": "object"
+      }
+    },
+    "required": [
+      "Action",
+      "Parameters"
+    ],
+    "type": "object"
+  },
+  "ControlEditorAssetEditor": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "default": "Open",
+        "enum": [
+          "Open",
+          "Focus",
+          "Status",
+          "Close"
+        ],
+        "type": "string"
+      },
+      "AssetPath": {
+        "type": "string"
+      },
+      "bValidateOnly": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "ControlEditorAutomation": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "Discover",
+          "Run",
+          "Stop"
+        ],
+        "type": "string"
+      },
+      "OperationId": {
+        "type": "string"
+      },
+      "TestNames": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "Action"
+    ],
+    "type": "object"
+  },
+  "ControlEditorGameFeature": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "Activate",
+          "Deactivate"
+        ],
+        "type": "string"
+      },
+      "PluginName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Action",
+      "PluginName"
+    ],
+    "type": "object"
+  },
+  "ControlEditorGraph": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "Open",
+          "SetView",
+          "ZoomToFit",
+          "FocusNode",
+          "SelectNodes",
+          "ClearSelection"
+        ],
+        "type": "string"
+      },
+      "AssetPath": {
+        "type": "string"
+      },
+      "GraphName": {
+        "type": "string"
+      },
+      "NodeId": {
+        "type": "string"
+      },
+      "NodeIds": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "SelectionMode": {
+        "default": "Replace",
+        "enum": [
+          "Replace",
+          "Add",
+          "Remove"
+        ],
+        "type": "string"
+      },
+      "ViewLocation": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y"
+        ],
+        "type": "object"
+      },
+      "Zoom": {
+        "type": "number"
+      },
+      "bOnlySelection": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Action"
+    ],
+    "type": "object"
+  },
+  "ControlEditorLevel": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "default": "Open",
+        "enum": [
+          "Open",
+          "LoadStreaming",
+          "Show",
+          "Hide",
+          "MakeCurrent"
+        ],
+        "type": "string"
+      },
+      "AssetPath": {
+        "type": "string"
+      },
+      "bDiscardUnsaved": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "ControlEditorNiagara": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "SetSystemData",
+          "SetEmitterData",
+          "AddRenderer",
+          "SetRendererData",
+          "RemoveRenderer",
+          "SetStackInputData",
+          "AddUserVariables",
+          "RemoveUserVariables",
+          "SetModuleEnabled",
+          "AddSetParametersModule",
+          "AddSetParameterEntry",
+          "RemoveSetParameterEntry"
+        ],
+        "type": "string"
+      },
+      "Parameters": {
+        "additionalProperties": true,
+        "type": "object"
+      }
+    },
+    "required": [
+      "Action",
+      "Parameters"
+    ],
+    "type": "object"
+  },
+  "ControlEditorOperation": {
+    "additionalProperties": false,
+    "properties": {
+      "OperationId": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "OperationId"
+    ],
+    "type": "object"
+  },
+  "ControlEditorPCG": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "Spawn",
+          "Execute",
+          "UpdateNode",
+          "SetGraphParameters",
+          "RemoveGraphParameters",
+          "SetInstanceParameters",
+          "ResetInstanceParameters",
+          "AddSubgraph"
+        ],
+        "type": "string"
+      },
+      "ActorName": {
+        "type": "string"
+      },
+      "ActorPath": {
+        "type": "string"
+      },
+      "AssetPath": {
+        "type": "string"
+      },
+      "Location": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "NodeName": {
+        "type": "string"
+      },
+      "NodePath": {
+        "type": "string"
+      },
+      "NodeTitle": {
+        "type": "string"
+      },
+      "ParameterDefinitions": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "ContainerType": {
+              "default": "None",
+              "enum": [
+                "None",
+                "Array"
+              ],
+              "type": "string"
+            },
+            "DefaultValueJson": {
+              "type": "string"
+            },
+            "Description": {
+              "type": "string"
+            },
+            "Name": {
+              "type": "string"
+            },
+            "Type": {
+              "enum": [
+                "Float",
+                "Double",
+                "Integer32",
+                "Integer64",
+                "Vector2",
+                "Vector",
+                "Vector4",
+                "Quaternion",
+                "Transform",
+                "String",
+                "Boolean",
+                "Rotator",
+                "Name"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "Name",
+            "Type"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "ParameterNames": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "Parameters": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "SubgraphPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Action"
+    ],
+    "type": "object"
+  },
+  "ControlEditorScene": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "CreateFolder",
+          "RenameFolder",
+          "DeleteFolder",
+          "SetActorFolder",
+          "SetSelection",
+          "MergeActors",
+          "CreateLevelInstance",
+          "EditLevelInstance",
+          "CommitLevelInstance",
+          "BuildNavigation",
+          "RefreshComponentPhysics"
+        ],
+        "type": "string"
+      },
+      "ActorName": {
+        "type": "string"
+      },
+      "ActorPath": {
+        "type": "string"
+      },
+      "ActorPaths": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "AssetPath": {
+        "type": "string"
+      },
+      "BoundsMax": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "BoundsMin": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "ComponentPath": {
+        "type": "string"
+      },
+      "End": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "FolderPath": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Location": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "NewFolderPath": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "maximum": 2147483647,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "ScanLimit": {
+        "default": 4096,
+        "maximum": 65536,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Start": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "WaitSeconds": {
+        "default": 0,
+        "type": "number"
+      },
+      "bDestroySourceActors": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bDiscard": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bRecursive": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bTraceComplex": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "Action"
     ],
     "type": "object"
   },
@@ -783,6 +1441,26 @@
     ],
     "type": "object"
   },
+  "CreateAssetPhysicsAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "SkeletalMeshPath": {
+        "type": "string"
+      },
+      "bAssignToMesh": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "SkeletalMeshPath"
+    ],
+    "type": "object"
+  },
   "CreateAssetPoseSearch": {
     "additionalProperties": false,
     "properties": {
@@ -1080,6 +1758,26 @@
     },
     "required": [
       "Command"
+    ],
+    "type": "object"
+  },
+  "ExecNiagaraStackFix": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "FixId": {
+        "type": "string"
+      },
+      "IssueId": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "IssueId",
+      "FixId"
     ],
     "type": "object"
   },
@@ -1470,10 +2168,178 @@
     ],
     "type": "object"
   },
+  "GetAssetEditPreview": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Capability": {
+        "enum": [
+          "ManageAssetBlueprint",
+          "ManageAssetDataTable",
+          "ManageAssetDataAsset",
+          "ManageAssetLevel",
+          "ManageAssetUserWidget",
+          "ManageAssetPCGGraph"
+        ],
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetDefaults",
+                "SetArray",
+                "ClearArray",
+                "Set",
+                "SetProperty",
+                "SetActorProperty",
+                "SetComponentProperty",
+                "Reparent",
+                "RemapMemberReferences",
+                "ChangeVariableType",
+                "Add",
+                "Remove",
+                "Move",
+                "AddNode",
+                "RemoveNode",
+                "AddEdge",
+                "RemoveEdge",
+                "Disconnect",
+                "DisconnectAll"
+              ],
+              "type": "string"
+            },
+            "ActorName": {
+              "type": "string"
+            },
+            "ChildIndex": {
+              "default": -1,
+              "minimum": -1,
+              "type": "integer"
+            },
+            "ComponentName": {
+              "type": "string"
+            },
+            "ExpectedValue": {
+              "type": "string"
+            },
+            "FieldName": {
+              "type": "string"
+            },
+            "FromNodeId": {
+              "type": "string"
+            },
+            "FromPin": {
+              "type": "string"
+            },
+            "GraphName": {
+              "type": "string"
+            },
+            "NewMemberName": {
+              "type": "string"
+            },
+            "NodeId": {
+              "type": "string"
+            },
+            "OldMemberName": {
+              "type": "string"
+            },
+            "ParentClass": {
+              "type": "string"
+            },
+            "ParentWidget": {
+              "type": "string"
+            },
+            "PropertyName": {
+              "type": "string"
+            },
+            "PropertyPath": {
+              "type": "string"
+            },
+            "RowName": {
+              "type": "string"
+            },
+            "SettingsClass": {
+              "type": "string"
+            },
+            "SourceNodeId": {
+              "type": "string"
+            },
+            "SourcePinName": {
+              "type": "string"
+            },
+            "TargetNodeId": {
+              "type": "string"
+            },
+            "TargetPinName": {
+              "type": "string"
+            },
+            "ToNodeId": {
+              "type": "string"
+            },
+            "ToPin": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            },
+            "Values": {
+              "items": {
+                "additionalProperties": true
+              },
+              "type": "array"
+            },
+            "VariableName": {
+              "type": "string"
+            },
+            "VariableType": {
+              "type": "string"
+            },
+            "WidgetClass": {
+              "type": "string"
+            },
+            "WidgetName": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "AssetPath",
+      "Capability",
+      "Operations"
+    ],
+    "type": "object"
+  },
   "GetAssetEnum": {
     "additionalProperties": false,
     "properties": {
       "AssetPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
+  "GetAssetExportOptions": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "OutputPath": {
         "type": "string"
       }
     },
@@ -1798,6 +2664,32 @@
     ],
     "type": "object"
   },
+  "GetAssetPackageChunks": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "ChunkId": {
+        "type": "integer"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "PathFilter": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
   "GetAssetPaperFlipbook": {
     "additionalProperties": false,
     "properties": {
@@ -2032,6 +2924,25 @@
     ],
     "type": "object"
   },
+  "GetAssetSourceControl": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPaths": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "bRefresh": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "AssetPaths"
+    ],
+    "type": "object"
+  },
   "GetAssetStateTree": {
     "additionalProperties": false,
     "properties": {
@@ -2155,6 +3066,120 @@
     ],
     "type": "object"
   },
+  "GetCommonUIInfo": {
+    "additionalProperties": false,
+    "properties": {
+      "AfterSeq": {
+        "type": "number"
+      },
+      "Epoch": {
+        "type": "number"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "LocalPlayerIndex": {
+        "default": 0,
+        "minimum": -1,
+        "type": "integer"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "Players",
+            "ActivatableTree",
+            "InputRouting",
+            "Focus",
+            "ActionBindings",
+            "EventLog",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "type": "object"
+  },
+  "GetEditorAnimation": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "AnimationLayers",
+          "Bindings",
+          "BindingTracks",
+          "ChannelDefault",
+          "ChannelNames",
+          "ControlRigs",
+          "Controls",
+          "CurrentSequence",
+          "FocusedSequence",
+          "GetCustomBindingObjects",
+          "GetCustomBindingsOfType",
+          "GetCustomBindingType",
+          "GetDeactivatedNodes",
+          "GetLinkedAnimSequences",
+          "GetLinkedLevelSequence",
+          "GetLockedNodes",
+          "GetMutedNodes",
+          "GetNodeLabel",
+          "GetOutlinerChildren",
+          "GetOutlinerSelection",
+          "GetOutlinerTree",
+          "GetPinnedNodes",
+          "GetSectionCondition",
+          "GetSectionsForNodes",
+          "GetSoloedNodes",
+          "GetTrackCondition",
+          "GetTrackRowCondition",
+          "IsNodeExpanded",
+          "Keys",
+          "MixerFindDecoration",
+          "MixerGetCompatibleDecorations",
+          "MixerGetDecorations",
+          "MixerGetLayerIndex",
+          "MixerGetLayerName",
+          "MixerGetLayerSections",
+          "MixerGetMixerLayerCount",
+          "MixerGetMixerLayers",
+          "MixerGetTransitionBetween",
+          "MixerGetTransitionInfo",
+          "MixerGetTransitionName",
+          "MixerGetTransitionsForSection",
+          "MixerIsLayerEmpty",
+          "RigBool",
+          "RigFloat",
+          "RigGlobalTransform",
+          "RigLocalTransform",
+          "RigTransform",
+          "SectionProperties",
+          "SectionRange",
+          "Sections",
+          "SequenceFolders",
+          "SequenceTracks"
+        ],
+        "type": "string"
+      },
+      "Parameters": {
+        "additionalProperties": true,
+        "type": "object"
+      }
+    },
+    "required": [
+      "Action",
+      "Parameters"
+    ],
+    "type": "object"
+  },
   "GetEditorContext": {
     "additionalProperties": false,
     "properties": {
@@ -2180,9 +3205,412 @@
     },
     "type": "object"
   },
+  "GetEditorGraph": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "GraphName": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "NodeId": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "AssetPath"
+    ],
+    "type": "object"
+  },
   "GetEditorInfo": {
     "additionalProperties": false,
     "properties": {},
+    "type": "object"
+  },
+  "GetEditorNiagara": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "default": "CompileState",
+        "enum": [
+          "CompileState",
+          "StackIssues",
+          "Dependencies",
+          "SystemData",
+          "ModuleTopology",
+          "ModuleSchema",
+          "ModuleInputValues",
+          "RendererSchema",
+          "RendererData",
+          "InputSchema",
+          "InputData",
+          "DynamicInputChain",
+          "AvailableDynamicInputs",
+          "SystemSchema",
+          "EmitterSchema",
+          "EmitterData",
+          "UserVariables",
+          "DataInterfaceSchema",
+          "SystemSummary",
+          "EmitterTopology",
+          "ScriptTopology"
+        ],
+        "type": "string"
+      },
+      "AssetPath": {
+        "type": "string"
+      },
+      "ClassPath": {
+        "type": "string"
+      },
+      "EmitterName": {
+        "type": "string"
+      },
+      "InputNameStack": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "ModuleName": {
+        "type": "string"
+      },
+      "RendererIndex": {
+        "default": -1,
+        "minimum": -1,
+        "type": "integer"
+      },
+      "ScriptName": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetEditorOperation": {
+    "additionalProperties": false,
+    "properties": {
+      "Limit": {
+        "default": 50,
+        "maximum": 128,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "OperationId": {
+        "type": "string"
+      },
+      "WaitSeconds": {
+        "default": 0,
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "bRunningOnly": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  "GetEditorPCG": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "default": "Instances",
+        "enum": [
+          "Instances",
+          "GraphStructure",
+          "GraphSchema",
+          "NativeNodes",
+          "NativeNodeSchema",
+          "NodeData",
+          "NodeInfo",
+          "InstanceParameters",
+          "AvailableSubgraphs"
+        ],
+        "type": "string"
+      },
+      "ActorPath": {
+        "type": "string"
+      },
+      "AssetPath": {
+        "type": "string"
+      },
+      "AttributeName": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 1000,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NodeName": {
+        "type": "string"
+      },
+      "NodePath": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "maximum": 1000000000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "PinLabel": {
+        "default": "Out",
+        "type": "string"
+      },
+      "bCommonOnly": {
+        "default": true,
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  "GetEditorScene": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "Folders",
+          "FolderActors",
+          "Selection",
+          "Trace",
+          "NavigationStatus",
+          "NavigationContributors",
+          "NavigationTiles",
+          "LevelGeometry",
+          "Collision"
+        ],
+        "type": "string"
+      },
+      "ActorName": {
+        "type": "string"
+      },
+      "ActorPath": {
+        "type": "string"
+      },
+      "ActorPaths": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "AssetPath": {
+        "type": "string"
+      },
+      "BoundsMax": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "BoundsMin": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "ComponentPath": {
+        "type": "string"
+      },
+      "End": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "FolderPath": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Location": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "NewFolderPath": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "maximum": 2147483647,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "ScanLimit": {
+        "default": 4096,
+        "maximum": 65536,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Start": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "WaitSeconds": {
+        "default": 0,
+        "type": "number"
+      },
+      "bDestroySourceActors": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bDiscard": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bRecursive": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bSaveToDisk": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bTraceComplex": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "Action"
+    ],
+    "type": "object"
+  },
+  "GetEditorSlate": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "default": "Snapshot",
+        "enum": [
+          "Windows",
+          "Snapshot",
+          "WaitFor"
+        ],
+        "type": "string"
+      },
+      "MaxDepth": {
+        "default": 20,
+        "maximum": 100,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "Ref": {
+        "type": "string"
+      },
+      "Text": {
+        "type": "string"
+      },
+      "TextFilter": {
+        "type": "string"
+      },
+      "TextGone": {
+        "type": "string"
+      },
+      "TimeoutSeconds": {
+        "default": 5,
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "TypeFilter": {
+        "type": "string"
+      }
+    },
     "type": "object"
   },
   "GetGameplayTags": {
@@ -2228,6 +3656,191 @@
         "type": "string"
       }
     },
+    "type": "object"
+  },
+  "GetNavigationPath": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorName": {
+        "type": "string"
+      },
+      "AgentHeight": {
+        "type": "number"
+      },
+      "AgentRadius": {
+        "type": "number"
+      },
+      "End": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "FilterClass": {
+        "type": "string"
+      },
+      "MaxPoints": {
+        "default": 256,
+        "maximum": 2048,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "ProjectionExtent": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "Start": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "World": {
+        "default": "Auto",
+        "enum": [
+          "Auto",
+          "Editor",
+          "Play"
+        ],
+        "type": "string"
+      },
+      "WorldName": {
+        "type": "string"
+      },
+      "bAllowPartialPath": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bProjectEnd": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bProjectStart": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "Start",
+      "End"
+    ],
+    "type": "object"
+  },
+  "GetNavigationPoint": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorName": {
+        "type": "string"
+      },
+      "AgentHeight": {
+        "type": "number"
+      },
+      "AgentRadius": {
+        "type": "number"
+      },
+      "FilterClass": {
+        "type": "string"
+      },
+      "Point": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "ProjectionExtent": {
+        "additionalProperties": false,
+        "properties": {
+          "X": {
+            "type": "number"
+          },
+          "Y": {
+            "type": "number"
+          },
+          "Z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "type": "object"
+      },
+      "World": {
+        "default": "Auto",
+        "enum": [
+          "Auto",
+          "Editor",
+          "Play"
+        ],
+        "type": "string"
+      },
+      "WorldName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Point"
+    ],
     "type": "object"
   },
   "GetOutputLog": {
@@ -2346,6 +3959,295 @@
     },
     "type": "object"
   },
+  "GetProfilerCsv": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "default": "Files",
+        "enum": [
+          "Files",
+          "Summary",
+          "Stats",
+          "Events"
+        ],
+        "type": "string"
+      },
+      "CapturePath": {
+        "type": "string"
+      },
+      "FrameEnd": {
+        "default": -1,
+        "minimum": -1,
+        "type": "integer"
+      },
+      "FrameStart": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "Limit": {
+        "default": 50,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "SortBy": {
+        "default": "Mean",
+        "enum": [
+          "Mean",
+          "Max",
+          "Total",
+          "Name"
+        ],
+        "type": "string"
+      },
+      "StatFilter": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetProjectDataRegistry": {
+    "additionalProperties": false,
+    "properties": {
+      "ItemNames": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "RegistryName": {
+        "type": "string"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "Registries",
+            "Info",
+            "Schema",
+            "Items",
+            "DataSources",
+            "RuntimeSources",
+            "Values",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "type": "object"
+  },
+  "GetProjectGameFeatures": {
+    "additionalProperties": false,
+    "properties": {
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "PluginName": {
+        "type": "string"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "Plugins",
+            "State",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "type": "object"
+  },
+  "GetProjectPlugins": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetPath": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "PluginName": {
+        "type": "string"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "Plugins",
+            "Info",
+            "Dependencies",
+            "Dependents",
+            "AssetOwner",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "bEnabledOnly": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  "GetProjectSettings": {
+    "additionalProperties": false,
+    "properties": {
+      "Category": {
+        "type": "string"
+      },
+      "Container": {
+        "default": "Project",
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "PropertyNames": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "Section": {
+        "type": "string"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "Containers",
+            "Categories",
+            "Sections",
+            "Properties",
+            "Values",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "type": "object"
+  },
+  "GetProjectSkills": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "default": "List",
+        "enum": [
+          "List",
+          "Details"
+        ],
+        "type": "string"
+      },
+      "SkillPath": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "GetProjectToolsets": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "type": "string"
+      },
+      "Capability": {
+        "type": "string"
+      },
+      "Limit": {
+        "default": 100,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      },
+      "Offset": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "Sections": {
+        "items": {
+          "enum": [
+            "Toolsets",
+            "Tools",
+            "Schema",
+            "AnimationRoutes",
+            "Actions",
+            "All"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "ToolName": {
+        "type": "string"
+      },
+      "ToolsetName": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
   "GetPythonApi": {
     "additionalProperties": false,
     "properties": {
@@ -2372,6 +4274,18 @@
         "type": "boolean"
       }
     },
+    "type": "object"
+  },
+  "GetRuntimeActorAI": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "ActorName"
+    ],
     "type": "object"
   },
   "GetRuntimeActorAbilitySystem": {
@@ -2488,6 +4402,18 @@
     },
     "required": [
       "ActorName"
+    ],
+    "type": "object"
+  },
+  "GetRuntimeInput": {
+    "additionalProperties": false,
+    "properties": {
+      "OperationId": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "OperationId"
     ],
     "type": "object"
   },
@@ -2619,6 +4545,11 @@
     ],
     "type": "object"
   },
+  "GetRuntimePerformance": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object"
+  },
   "GetRuntimeSlateWidget": {
     "additionalProperties": false,
     "properties": {
@@ -2708,6 +4639,127 @@
   },
   "HotReloadRuntimeLua": {
     "additionalProperties": false,
+    "type": "object"
+  },
+  "ImportAsset": {
+    "additionalProperties": false,
+    "properties": {
+      "AssetName": {
+        "type": "string"
+      },
+      "AssetType": {
+        "enum": [
+          "Texture",
+          "SoundWave",
+          "StaticMesh",
+          "SkeletalMesh",
+          "AnimSequence"
+        ],
+        "type": "string"
+      },
+      "ConflictPolicy": {
+        "default": "Fail",
+        "enum": [
+          "Fail",
+          "Unique",
+          "Replace"
+        ],
+        "type": "string"
+      },
+      "DestinationPath": {
+        "type": "string"
+      },
+      "SkeletonPath": {
+        "type": "string"
+      },
+      "SourceFile": {
+        "type": "string"
+      },
+      "bGenerateCollision": {
+        "default": true,
+        "type": "boolean"
+      },
+      "bSRGB": {
+        "default": true,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "SourceFile",
+      "DestinationPath",
+      "AssetType"
+    ],
+    "type": "object"
+  },
+  "InteractEditorSlate": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "Click",
+          "Type",
+          "PressKey",
+          "Focus",
+          "Hover",
+          "Drag",
+          "SelectOption",
+          "SetChecked",
+          "FillForm"
+        ],
+        "type": "string"
+      },
+      "EndRef": {
+        "type": "string"
+      },
+      "Fields": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "FieldType": {
+              "enum": [
+                "textbox",
+                "checkbox",
+                "combobox"
+              ],
+              "type": "string"
+            },
+            "Ref": {
+              "type": "string"
+            },
+            "Value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Ref",
+            "Value",
+            "FieldType"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "Key": {
+        "type": "string"
+      },
+      "Ref": {
+        "type": "string"
+      },
+      "Text": {
+        "type": "string"
+      },
+      "Value": {
+        "type": "string"
+      },
+      "bReplace": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "Action",
+      "Ref"
+    ],
     "type": "object"
   },
   "InteractRuntimeActorAI": {
@@ -2909,6 +4961,63 @@
     ],
     "type": "object"
   },
+  "InteractRuntimeInput": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "enum": [
+          "Apply",
+          "Release"
+        ],
+        "type": "string"
+      },
+      "DurationSeconds": {
+        "type": "number"
+      },
+      "Inputs": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "AssetPath": {
+              "type": "string"
+            },
+            "Key": {
+              "type": "string"
+            },
+            "X": {
+              "type": "number"
+            },
+            "Y": {
+              "type": "number"
+            },
+            "Z": {
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "LocalPlayerIndex": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "OperationId": {
+        "type": "string"
+      },
+      "WorldName": {
+        "type": "string"
+      },
+      "WorldPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Action"
+    ],
+    "type": "object"
+  },
   "InteractRuntimeWidget": {
     "additionalProperties": false,
     "properties": {
@@ -2937,6 +5046,21 @@
       "WidgetName",
       "Action"
     ],
+    "type": "object"
+  },
+  "ListEditorAutomationTests": {
+    "additionalProperties": false,
+    "properties": {
+      "Limit": {
+        "default": 200,
+        "maximum": 2000,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "NameFilter": {
+        "type": "string"
+      }
+    },
     "type": "object"
   },
   "ListRuntimeActors": {
@@ -6651,6 +8775,144 @@
     ],
     "type": "object"
   },
+  "ManageGameplayTags": {
+    "additionalProperties": false,
+    "properties": {
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Add",
+                "Rename",
+                "Remove"
+              ],
+              "type": "string"
+            },
+            "Comment": {
+              "type": "string"
+            },
+            "NewTag": {
+              "type": "string"
+            },
+            "TagSource": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "Tag": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Tag",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageProjectPlugin": {
+    "additionalProperties": false,
+    "properties": {
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "Create",
+                "SetEnabled",
+                "UpdateDescriptor",
+                "AddDependency",
+                "RemoveDependency"
+              ],
+              "type": "string"
+            },
+            "DependencyName": {
+              "type": "string"
+            },
+            "Description": {
+              "type": "string"
+            },
+            "Properties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "bEnabled": {
+              "type": "boolean"
+            },
+            "bOptional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "PluginName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "PluginName",
+      "Operations"
+    ],
+    "type": "object"
+  },
+  "ManageProjectSettings": {
+    "additionalProperties": false,
+    "properties": {
+      "Category": {
+        "type": "string"
+      },
+      "Container": {
+        "default": "Project",
+        "type": "string"
+      },
+      "Operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "Action": {
+              "enum": [
+                "SetProperties",
+                "Save",
+                "Reset"
+              ],
+              "type": "string"
+            },
+            "Properties": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "Section": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "Category",
+      "Section",
+      "Operations"
+    ],
+    "type": "object"
+  },
   "ReimportAsset": {
     "additionalProperties": false,
     "properties": {
@@ -6721,6 +8983,47 @@
         "type": "string"
       }
     },
+    "type": "object"
+  },
+  "SearchAssetsSemantic": {
+    "additionalProperties": false,
+    "properties": {
+      "Action": {
+        "default": "Search",
+        "enum": [
+          "Search",
+          "FindSimilar"
+        ],
+        "type": "string"
+      },
+      "AssetPath": {
+        "type": "string"
+      },
+      "ClassPaths": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "Limit": {
+        "default": 10,
+        "maximum": 100,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "PathRegexes": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "Query": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "ClassPaths"
+    ],
     "type": "object"
   },
   "SearchConsoleVariables": {
@@ -6800,6 +9103,35 @@
         "type": "array"
       }
     },
+    "type": "object"
+  },
+  "SetRuntimeActorTransform": {
+    "additionalProperties": false,
+    "properties": {
+      "ActorName": {
+        "type": "string"
+      },
+      "Location": {
+        "type": "string"
+      },
+      "Rotation": {
+        "type": "string"
+      },
+      "Scale": {
+        "type": "string"
+      },
+      "bSweep": {
+        "default": false,
+        "type": "boolean"
+      },
+      "bTeleport": {
+        "default": true,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "ActorName"
+    ],
     "type": "object"
   },
   "SetRuntimeLua": {

@@ -44,6 +44,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Verify released input contracts
+        run: python scripts/check_schema_compatibility.py scripts/generated/capability_schemas.json --release
+
       - name: Build plugin zip
         run: |
           VERSION="${{ steps.meta.outputs.version }}"

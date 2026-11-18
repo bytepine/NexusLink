@@ -8,6 +8,10 @@ from pathlib import Path
 
 ANNOTATIONS = {"description", "title", "examples", "$comment"}
 BASELINE = Path(__file__).with_name("contracts") / "input-schemas.json"
+# v2.3.6 的注册表导出未启用 GeometryCollection；取得该组合的引擎导出后移除豁免。
+OPTIONAL_OUTSIDE_RELEASE_EXPORT = {
+    "CreateAssetGeometryCollection", "GetAssetGeometryCollection", "ManageAssetGeometryCollection",
+}
 
 
 def json_equal(left, right):
@@ -106,21 +110,35 @@ def compare(baseline, current, enabled=None):
     return errors
 
 
+def release_coverage_errors(baseline, current, source_names):
+    errors = [f"{name}: release export has no reviewed baseline"
+              for name in sorted(current.keys() - baseline.keys())]
+    for name in sorted(set(source_names) - current.keys() - OPTIONAL_OUTSIDE_RELEASE_EXPORT):
+        errors.append(f"{name}: public capability missing from release export")
+    return errors
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("current", type=Path)
     parser.add_argument("--baseline", type=Path, default=BASELINE)
-    parser.add_argument("--enabled", type=Path, help="Reviewed enabled-capability manifest for a specific host/plugin set")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--enabled", type=Path, help="Reviewed enabled-capability manifest for a specific host/plugin set")
+    mode.add_argument("--release", action="store_true", help="Require reviewed coverage for the full release export and public source inventory")
     args = parser.parse_args(argv)
     try:
         read = lambda path: json.loads(path.read_text(encoding="utf-8-sig"))
-        errors = compare(read(args.baseline), read(args.current), read(args.enabled) if args.enabled else None)
+        baseline, current = read(args.baseline), read(args.current)
+        errors = compare(baseline, current, read(args.enabled) if args.enabled else None)
+        if args.release:
+            from audit_doc_sync import load_caps
+            errors.extend(release_coverage_errors(baseline, current, load_caps()))
     except (OSError, ValueError, TypeError) as exc:
         print(f"Invalid schema input: {exc}")
         return 2
     for error in errors:
         print(error)
-    print(f"Schema compatibility: {len(errors)} breaking changes")
+    print(f"Schema compatibility: {len(errors)} {'release check errors' if args.release else 'breaking changes'}")
     return int(bool(errors))
 
 

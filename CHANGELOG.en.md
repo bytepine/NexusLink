@@ -20,6 +20,7 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 - Slate text input validates editable focus and reads back the result, avoiding success reports when no text was inserted.
 - Clarify `GraphName` requirements for Blueprint function-parameter operations, explicit navigation-diagnostic bounds, and the single-call restriction for scene queries.
 - Reject invalid or transient worlds and persistent levels before native map saving to avoid save assertions, while retaining host save validation.
+- Input compatibility checks now cover 48 additional capabilities shipped by v2.3.6, including `GetNavigationPath` and `GetEditorGraph`. Release checks report exported capabilities missing a reviewed baseline and public capabilities missing from the release snapshot.
 
 ## [2.3.6] - 2026-11-13
 

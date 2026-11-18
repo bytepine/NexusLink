@@ -14,6 +14,26 @@ def test_existing_exports_remain_compatible():
                           json.loads((root / "generated/capability_schemas.json").read_text(encoding="utf-8-sig"))) == []
 
 
+def test_released_navigation_contract_detects_removal_and_narrowing():
+    baseline = json.loads(compat.BASELINE.read_text(encoding="utf-8"))
+    current = json.loads((Path(__file__).parents[1] / "generated/capability_schemas.json").read_text(encoding="utf-8-sig"))
+    narrowed = copy.deepcopy(current)
+    narrowed["GetNavigationPath"]["properties"]["World"]["enum"].remove("Editor")
+    assert "GetNavigationPath.World: enum narrowed" in compat.compare(baseline, narrowed)
+    del current["GetNavigationPath"]
+    assert "GetNavigationPath: enabled capability removed" in compat.compare(baseline, current)
+
+
+def test_release_checks_new_exports_and_capabilities_missing_from_the_export():
+    baseline = {"Old": {}}
+    current = {"Old": {}, "New": {}}
+    assert compat.compare(baseline, current) == []
+    public = {"Old", "New", "Unexported", "GetAssetGeometryCollection"}
+    assert compat.release_coverage_errors(baseline, current, public) == [
+        "New: release export has no reviewed baseline", "Unexported: public capability missing from release export"]
+    assert compat.release_coverage_errors(current, current, public - {"Unexported"}) == []
+
+
 def test_additions_and_breaking_changes():
     before = {"Read": {"type": "object", "additionalProperties": False, "properties": {
         "Target": {"type": "string"}, "Values": {"type": "array", "items": {
