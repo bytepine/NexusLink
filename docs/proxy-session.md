@@ -115,7 +115,7 @@ TTL：
 
 ## 7. 大包保存到磁盘
 
-`content[0].text` 超过 **48000** 字符时写入系统临时目录 `nexus-mcp-offload/`，结果 JSON 改为摘要 + `_proxy.offloaded` / `path` / `bytes`。Agent 可用 Read 工具打开该路径。
+错误响应、编辑器操作响应和含图片响应保持内联。其余响应的 `content[0].text` 超过 **48000 个 Unicode 码点**时，代理尝试将完整响应写入系统临时目录。纯文本与 JSON 文本使用相同阈值。成功时返回摘要及 `_proxy.offloaded` / `path` / `bytes`，其中 `bytes` 是文件的 UTF-8 字节数。Agent 可用 Read 工具打开该路径。落盘失败时保留原响应。
 
 ---
 

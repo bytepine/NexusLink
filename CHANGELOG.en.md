@@ -12,6 +12,8 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Clarify uncertain write outcomes after proxy disconnections/timeouts, no automatic resend, cache invalidation, and existing long-operation polling/cancellation boundaries; link the sample's controlled UE 5.7 validation entry point and its evidence scope.
+- Share Capability access checks across exact lookup, `CallCapability`, and direct `MultiTool` calls, including registry lookup, host visibility, and enabled settings.
+- Define the 18 Sequencer Outliner animation actions in one place, with each action’s read/write category, engine function, parameters, and minimum UE version kept together.
 
 ### Fixed
 

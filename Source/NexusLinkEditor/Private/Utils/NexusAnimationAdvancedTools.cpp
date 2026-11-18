@@ -1,5 +1,6 @@
 // Copyright byteyang. All Rights Reserved.
 #include "Utils/NexusAnimationAdvancedTools.h"
+#include "Utils/NexusAnimationToolActions.h"
 #include "Utils/NexusEditorDomainTools.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusArgs.h"
@@ -65,7 +66,7 @@ static TMap<FString, TSharedPtr<FStructOnScope>> GNexusAnimationViewModels;
 static TArray<FString> GNexusAnimationViewModelOrder;
 static const TMap<FString,FString>& NexusAnimationScriptRoutes()
 {
-    static const TMap<FString,FString> Routes = {
+    static const TMap<FString,FString> Routes = FNexusAnimationToolActions::WithOutlinerMetadata({
         {TEXT("NexusAnimation.Sequencer.get_current_sequence"),TEXT("LevelSequenceEditorBlueprintLibrary.GetCurrentLevelSequence")},
         {TEXT("NexusAnimation.Sequencer.get_focused_sequence"),TEXT("LevelSequenceEditorBlueprintLibrary.GetFocusedLevelSequence")},
         {TEXT("NexusAnimation.Sequencer.open_sequence"),TEXT("LevelSequenceEditorBlueprintLibrary.OpenLevelSequence")},
@@ -73,24 +74,6 @@ static const TMap<FString,FString>& NexusAnimationScriptRoutes()
         {TEXT("NexusAnimation.Sequencer.get_tracks_on_binding"),TEXT("MovieSceneBindingExtensions.GetTracks")},
         {TEXT("NexusAnimation.Sequencer.add_track_to_binding"),TEXT("MovieSceneBindingExtensions.AddTrack")},
         {TEXT("NexusAnimation.Sequencer.bake_transform"),TEXT("LevelSequenceEditorSubsystem.BakeTransformWithSettings")},
-        {TEXT("NexusAnimation.Outliner.get_outliner_tree"),TEXT("SequencerOutlinerScriptingObject.GetRootNode")},
-        {TEXT("NexusAnimation.Outliner.get_outliner_children"),TEXT("SequencerOutlinerScriptingObject.GetChildren")},
-        {TEXT("NexusAnimation.Outliner.get_outliner_selection"),TEXT("SequencerOutlinerScriptingObject.GetSelection")},
-        {TEXT("NexusAnimation.Outliner.set_outliner_selection"),TEXT("SequencerOutlinerScriptingObject.SetSelection")},
-        {TEXT("NexusAnimation.Outliner.get_node_label"),TEXT("SequencerViewModelStructExtensions.GetLabel")},
-        {TEXT("NexusAnimation.Outliner.set_node_expanded"),TEXT("SequencerOutlinerScriptingObject.SetExpansion")},
-        {TEXT("NexusAnimation.Outliner.is_node_expanded"),TEXT("SequencerOutlinerScriptingObject.IsExpanded")},
-        {TEXT("NexusAnimation.Outliner.set_node_muted"),TEXT("SequencerOutlinerScriptingObject.SetMuteNodes")},
-        {TEXT("NexusAnimation.Outliner.get_muted_nodes"),TEXT("SequencerOutlinerScriptingObject.GetMuteNodes")},
-        {TEXT("NexusAnimation.Outliner.set_node_solo"),TEXT("SequencerOutlinerScriptingObject.SetSoloNodes")},
-        {TEXT("NexusAnimation.Outliner.get_soloed_nodes"),TEXT("SequencerOutlinerScriptingObject.GetSoloNodes")},
-        {TEXT("NexusAnimation.Outliner.set_node_deactivated"),TEXT("SequencerOutlinerScriptingObject.SetDeactivatedNodes")},
-        {TEXT("NexusAnimation.Outliner.get_deactivated_nodes"),TEXT("SequencerOutlinerScriptingObject.GetDeactivatedNodes")},
-        {TEXT("NexusAnimation.Outliner.set_node_locked"),TEXT("SequencerOutlinerScriptingObject.SetLockedNodes")},
-        {TEXT("NexusAnimation.Outliner.get_locked_nodes"),TEXT("SequencerOutlinerScriptingObject.GetLockedNodes")},
-        {TEXT("NexusAnimation.Outliner.set_node_pinned"),TEXT("SequencerOutlinerScriptingObject.SetPinnedNodes")},
-        {TEXT("NexusAnimation.Outliner.get_pinned_nodes"),TEXT("SequencerOutlinerScriptingObject.GetPinnedNodes")},
-        {TEXT("NexusAnimation.Outliner.get_sections_for_nodes"),TEXT("SequencerModuleOutlinerScriptingObject.GetSections")},
         {TEXT("NexusAnimation.CustomBindings.convert_to_spawnable"),TEXT("LevelSequenceEditorSubsystem.ConvertToSpawnable")},
         {TEXT("NexusAnimation.CustomBindings.convert_to_possessable"),TEXT("LevelSequenceEditorSubsystem.ConvertToPossessable")},
         {TEXT("NexusAnimation.CustomBindings.convert_to_custom_binding"),TEXT("LevelSequenceEditorSubsystem.ConvertToCustomBinding")},
@@ -130,7 +113,7 @@ static const TMap<FString,FString>& NexusAnimationScriptRoutes()
         {TEXT("NexusAnimation.ControlRig.get_global_transform"),TEXT("RigHierarchy.GetGlobalTransform")},
         {TEXT("NexusAnimation.ControlRig.set_local_transform"),TEXT("RigHierarchy.SetLocalTransform")},
         {TEXT("NexusAnimation.ControlRig.set_global_transform"),TEXT("RigHierarchy.SetGlobalTransform")}
-    };
+    }, &FNexusAnimationOutlinerAction::Function);
     return Routes;
 }
 static bool NexusAnimationScriptCall(const FString& Domain,const FString& Tool,const TSharedPtr<FJsonObject>& Args,TSharedPtr<FJsonObject>& Result,FString& Error);
@@ -678,21 +661,10 @@ bool FNexusAnimationAdvancedTools::Call(const FString& Domain,const FString& Too
 TSharedPtr<FJsonObject> FNexusAnimationAdvancedTools::InputSchema(const FString& Domain,const FString& Tool)
 {
     // 参数契约由 NexusLink 自己持有，不读取引擎 Toolset Registry。
-    static const TMap<FString,FString> Contracts = {
+    static const TMap<FString,FString> Contracts = FNexusAnimationToolActions::WithOutlinerMetadata({
         {TEXT("NexusAnimation.Conditions.get_section_condition"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"section":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."}},"required":["section"]})schema")},
         {TEXT("NexusAnimation.Conditions.get_track_condition"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"track":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."}},"required":["track"]})schema")},
         {TEXT("NexusAnimation.Conditions.get_track_row_condition"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"track":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"row_index":{"type":"integer"}},"required":["track","row_index"]})schema")},
-        {TEXT("NexusAnimation.Outliner.get_outliner_tree"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{},"required":[]})schema")},
-        {TEXT("NexusAnimation.Outliner.get_outliner_children"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"node":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"type_filter":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["node"]})schema")},
-        {TEXT("NexusAnimation.Outliner.get_outliner_selection"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{},"required":[]})schema")},
-        {TEXT("NexusAnimation.Outliner.get_node_label"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"node":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."}},"required":["node"]})schema")},
-        {TEXT("NexusAnimation.Outliner.is_node_expanded"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"node":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."}},"required":["node"]})schema")},
-        {TEXT("NexusAnimation.Outliner.get_muted_nodes"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{},"required":[]})schema")},
-        {TEXT("NexusAnimation.Outliner.get_soloed_nodes"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{},"required":[]})schema")},
-        {TEXT("NexusAnimation.Outliner.get_deactivated_nodes"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{},"required":[]})schema")},
-        {TEXT("NexusAnimation.Outliner.get_locked_nodes"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{},"required":[]})schema")},
-        {TEXT("NexusAnimation.Outliner.get_pinned_nodes"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{},"required":[]})schema")},
-        {TEXT("NexusAnimation.Outliner.get_sections_for_nodes"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"nodes":{"type":"array","items":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"maxItems":128}},"required":["nodes"]})schema")},
         {TEXT("NexusAnimation.CustomBindings.get_custom_binding_type"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"binding":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."}},"required":["binding"]})schema")},
         {TEXT("NexusAnimation.CustomBindings.get_custom_binding_objects"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"binding":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."}},"required":["binding"]})schema")},
         {TEXT("NexusAnimation.CustomBindings.get_custom_bindings_of_type"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"binding_type_class":{"type":"string"}},"required":["binding_type_class"]})schema")},
@@ -737,13 +709,6 @@ TSharedPtr<FJsonObject> FNexusAnimationAdvancedTools::InputSchema(const FString&
         {TEXT("NexusAnimation.Conditions.clear_track_condition"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"track":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."}},"required":["track"]})schema")},
         {TEXT("NexusAnimation.Conditions.set_track_row_condition"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"track":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"row_index":{"type":"integer"},"condition_class":{"type":"string"}},"required":["track","row_index","condition_class"]})schema")},
         {TEXT("NexusAnimation.Conditions.clear_track_row_condition"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"track":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"row_index":{"type":"integer"}},"required":["track","row_index"]})schema")},
-        {TEXT("NexusAnimation.Outliner.set_outliner_selection"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"nodes":{"type":"array","items":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"maxItems":128}},"required":["nodes"]})schema")},
-        {TEXT("NexusAnimation.Outliner.set_node_expanded"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"nodes":{"type":"array","items":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"maxItems":128},"expanded":{"type":"boolean"}},"required":["nodes","expanded"]})schema")},
-        {TEXT("NexusAnimation.Outliner.set_node_muted"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"nodes":{"type":"array","items":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"maxItems":128},"muted":{"type":"boolean"}},"required":["nodes","muted"]})schema")},
-        {TEXT("NexusAnimation.Outliner.set_node_solo"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"nodes":{"type":"array","items":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"maxItems":128},"soloed":{"type":"boolean"}},"required":["nodes","soloed"]})schema")},
-        {TEXT("NexusAnimation.Outliner.set_node_deactivated"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"nodes":{"type":"array","items":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"maxItems":128},"deactivated":{"type":"boolean"}},"required":["nodes","deactivated"]})schema")},
-        {TEXT("NexusAnimation.Outliner.set_node_locked"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"nodes":{"type":"array","items":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"maxItems":128},"locked":{"type":"boolean"}},"required":["nodes","locked"]})schema")},
-        {TEXT("NexusAnimation.Outliner.set_node_pinned"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"nodes":{"type":"array","items":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"maxItems":128},"pinned":{"type":"boolean"}},"required":["nodes","pinned"]})schema")},
         {TEXT("NexusAnimation.CustomBindings.convert_to_spawnable"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"binding":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."}},"required":["binding"]})schema")},
         {TEXT("NexusAnimation.CustomBindings.convert_to_possessable"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"binding":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."}},"required":["binding"]})schema")},
         {TEXT("NexusAnimation.CustomBindings.convert_to_custom_binding"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"binding":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"binding_type_class":{"type":"string"}},"required":["binding","binding_type_class"]})schema")},
@@ -802,7 +767,7 @@ TSharedPtr<FJsonObject> FNexusAnimationAdvancedTools::InputSchema(const FString&
         {TEXT("NexusAnimation.ControlRig.set_local_transform"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"control_rig":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"item":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"transform":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"initial":{"type":"boolean","default":false}},"required":["control_rig","item","transform"]})schema")},
         {TEXT("NexusAnimation.ControlRig.set_global_transform"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"control_rig":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"item":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"transform":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"initial":{"type":"boolean","default":false}},"required":["control_rig","item","transform"]})schema")},
         {TEXT("NexusAnimation.ImportExport.export_anim_sequence"), TEXT(R"schema({"type":"object","additionalProperties":false,"properties":{"world":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"sequence":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"anim_sequence":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"binding":{"type":"object","description":"Use a returned refPath object for UObject/class, a returned StructRef for Outliner nodes, or reflected struct fields."},"create_link":{"type":"boolean","default":false}},"required":["world","sequence","anim_sequence","binding"]})schema")},
-    };
+    }, &FNexusAnimationOutlinerAction::Schema);
     const FString* Json = Contracts.Find(Domain + TEXT(".") + Tool);
     TSharedPtr<FJsonObject> Schema;
     if (Json) FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(*Json), Schema);
@@ -814,7 +779,7 @@ FString FNexusAnimationAdvancedTools::MinimumVersion(const FString& Domain,const
 {
     if (Domain == TEXT("NexusAnimation.Mixer")) return TEXT("5.8");
     if (Domain == TEXT("NexusAnimation.Conditions")) return TEXT("5.5");
-    static const TMap<FString,FString> Versions = {
+    static const TMap<FString,FString> Versions = FNexusAnimationToolActions::WithOutlinerMetadata({
         {TEXT("NexusAnimation.ControlRig.get_global_transform"),TEXT("5.0")},
         {TEXT("NexusAnimation.ControlRig.get_local_transform"),TEXT("5.0")},
         {TEXT("NexusAnimation.ControlRig.set_global_transform"),TEXT("5.0")},
@@ -853,27 +818,9 @@ FString FNexusAnimationAdvancedTools::MinimumVersion(const FString& Domain,const
         {TEXT("NexusAnimation.ImportExport.get_linked_anim_sequences"),TEXT("5.1")},
         {TEXT("NexusAnimation.ImportExport.get_linked_level_sequence"),TEXT("5.1")},
         {TEXT("NexusAnimation.ImportExport.link_anim_sequence"),TEXT("5.1")},
-        {TEXT("NexusAnimation.Outliner.get_deactivated_nodes"),TEXT("5.7")},
-        {TEXT("NexusAnimation.Outliner.get_locked_nodes"),TEXT("5.7")},
-        {TEXT("NexusAnimation.Outliner.get_muted_nodes"),TEXT("5.7")},
-        {TEXT("NexusAnimation.Outliner.get_node_label"),TEXT("5.3")},
-        {TEXT("NexusAnimation.Outliner.get_outliner_children"),TEXT("5.3")},
-        {TEXT("NexusAnimation.Outliner.get_outliner_selection"),TEXT("5.3")},
-        {TEXT("NexusAnimation.Outliner.get_outliner_tree"),TEXT("5.3")},
-        {TEXT("NexusAnimation.Outliner.get_pinned_nodes"),TEXT("5.7")},
-        {TEXT("NexusAnimation.Outliner.get_sections_for_nodes"),TEXT("5.6")},
-        {TEXT("NexusAnimation.Outliner.get_soloed_nodes"),TEXT("5.7")},
-        {TEXT("NexusAnimation.Outliner.is_node_expanded"),TEXT("5.8")},
-        {TEXT("NexusAnimation.Outliner.set_node_deactivated"),TEXT("5.7")},
-        {TEXT("NexusAnimation.Outliner.set_node_expanded"),TEXT("5.8")},
-        {TEXT("NexusAnimation.Outliner.set_node_locked"),TEXT("5.7")},
-        {TEXT("NexusAnimation.Outliner.set_node_muted"),TEXT("5.7")},
-        {TEXT("NexusAnimation.Outliner.set_node_pinned"),TEXT("5.7")},
-        {TEXT("NexusAnimation.Outliner.set_node_solo"),TEXT("5.7")},
-        {TEXT("NexusAnimation.Outliner.set_outliner_selection"),TEXT("5.3")},
         {TEXT("NexusAnimation.Sequencer.bake_transform"),TEXT("5.3")},
         {TEXT("NexusAnimation.Sequencer.get_focused_sequence"),TEXT("4.27")},
-    };
+    }, &FNexusAnimationOutlinerAction::MinimumVersion);
     const FString* Version = Versions.Find(Domain + TEXT(".") + Tool);
     return Version ? *Version : TEXT("4.26");
 }

@@ -122,7 +122,7 @@ The status bar/tray displays the current or most recent remote call: Capability 
 <a id="7-大包保存到磁盘"></a>
 ## 7. Large payload offloading
 
-When content[0].text exceeds **48000** characters, write it under the system temporary nexus-mcp-offload/ directory and replace result JSON with a summary plus _proxy.offloaded / path / bytes. Agents can open the path with a Read tool.
+Error responses, editor operation responses, and responses containing images stay inline. For other responses, when `content[0].text` exceeds **48,000 Unicode code points**, the proxy tries to write the full response to the system temporary directory. The same limit applies to plain text and JSON text. On success, it returns a summary with `_proxy.offloaded` / `path` / `bytes`, where `bytes` is the file's UTF-8 byte count. Agents can open the path with a Read tool. A failed write preserves the original response.
 
 ---
 

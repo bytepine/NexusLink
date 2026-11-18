@@ -176,8 +176,9 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 	R.RequestedCapName = CapName.TrimStartAndEnd();
 	R.CapName          = FNexusCapabilityLegacyNames::Resolve(R.RequestedCapName);
 
-	const FCapRecord* Record = FNexusCapabilityRegistry::Get().FindRecordByName(R.CapName);
-	if (!Record)
+	const FCapRecord* Record = nullptr;
+	const auto Access = FNexusCapabilityIndexUtils::ResolveByName(R.CapName, UNexusLinkSettings::Get(), Record);
+	if (Access == ENexusCapabilityLookupStatus::NotFound)
 	{
 		R.Status = FNexusCallCore::EStatus::Unknown;
 		{
@@ -191,7 +192,7 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 	}
 	R.Record = Record;
 
-	if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*Record))
+	if (Access == ENexusCapabilityLookupStatus::Unavailable)
 	{
 		R.Status = FNexusCallCore::EStatus::Unavailable;
 		{
@@ -204,8 +205,7 @@ static FNexusCallCore::FResult RunCapabilityCore(const FString& CapName, const T
 		return R;
 	}
 
-	const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
-	if (!Settings->IsCapabilityEnabled(Record->Def.Name))
+	if (Access == ENexusCapabilityLookupStatus::Disabled)
 	{
 		R.Status = FNexusCallCore::EStatus::Disabled;
 		{

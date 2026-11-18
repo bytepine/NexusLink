@@ -9,6 +9,15 @@
 
 class UNexusLinkSettings;
 struct FNexusCapabilityDefinition;
+struct FCapRecord;
+
+enum class ENexusCapabilityLookupStatus : uint8
+{
+	Enabled,
+	NotFound,
+	Disabled,
+	Unavailable
+};
 
 /**
  * SearchCapabilities 与 tools/list 的评分/目录/Related 过滤辅助。
@@ -18,6 +27,10 @@ class FNexusCapabilityIndexUtils final
 {
 public:
 	FNexusCapabilityIndexUtils() = delete;
+
+	/** 精确发现和调用共用的准入判断，按宿主可见性、设置启用状态的顺序判定。 */
+	static ENexusCapabilityLookupStatus ResolveByName(
+		const FString& Name, const UNexusLinkSettings* Settings, const FCapRecord*& OutRecord);
 
 	/**
 	 * 从 capability InputSchema 的 properties 提取参数列表。

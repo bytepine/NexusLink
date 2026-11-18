@@ -2,26 +2,25 @@
 #pragma once
 #include "CoreMinimal.h"
 
+struct FNexusAnimationOutlinerAction
+{
+	const TCHAR* PublicName;
+	bool bWrite;
+	const TCHAR* Route;
+	const TCHAR* Function;
+	const TCHAR* MinimumVersion;
+	const TCHAR* Schema;
+};
+
 /** 固定动画动作到自有领域执行器的映射；不接受调用者指定执行路径。 */
 struct FNexusAnimationToolActions final
 {
     static const TMap<FString, FString>& Get(bool bWrite)
     {
-        static const TMap<FString, FString> Read = {
+        static const TMap<FString, FString> Read = WithOutlinerActions({
             {TEXT("GetSectionCondition"), TEXT("NexusAnimation.Conditions.get_section_condition")},
             {TEXT("GetTrackCondition"), TEXT("NexusAnimation.Conditions.get_track_condition")},
             {TEXT("GetTrackRowCondition"), TEXT("NexusAnimation.Conditions.get_track_row_condition")},
-            {TEXT("GetOutlinerTree"), TEXT("NexusAnimation.Outliner.get_outliner_tree")},
-            {TEXT("GetOutlinerChildren"), TEXT("NexusAnimation.Outliner.get_outliner_children")},
-            {TEXT("GetOutlinerSelection"), TEXT("NexusAnimation.Outliner.get_outliner_selection")},
-            {TEXT("GetNodeLabel"), TEXT("NexusAnimation.Outliner.get_node_label")},
-            {TEXT("IsNodeExpanded"), TEXT("NexusAnimation.Outliner.is_node_expanded")},
-            {TEXT("GetMutedNodes"), TEXT("NexusAnimation.Outliner.get_muted_nodes")},
-            {TEXT("GetSoloedNodes"), TEXT("NexusAnimation.Outliner.get_soloed_nodes")},
-            {TEXT("GetDeactivatedNodes"), TEXT("NexusAnimation.Outliner.get_deactivated_nodes")},
-            {TEXT("GetLockedNodes"), TEXT("NexusAnimation.Outliner.get_locked_nodes")},
-            {TEXT("GetPinnedNodes"), TEXT("NexusAnimation.Outliner.get_pinned_nodes")},
-            {TEXT("GetSectionsForNodes"), TEXT("NexusAnimation.Outliner.get_sections_for_nodes")},
             {TEXT("GetCustomBindingType"), TEXT("NexusAnimation.CustomBindings.get_custom_binding_type")},
             {TEXT("GetCustomBindingObjects"), TEXT("NexusAnimation.CustomBindings.get_custom_binding_objects")},
             {TEXT("GetCustomBindingsOfType"), TEXT("NexusAnimation.CustomBindings.get_custom_bindings_of_type")},
@@ -60,21 +59,14 @@ struct FNexusAnimationToolActions final
             {TEXT("AnimationLayers"), TEXT("NexusAnimation.ControlRigSequencer.get_anim_layers")},
             {TEXT("RigLocalTransform"), TEXT("NexusAnimation.ControlRig.get_local_transform")},
             {TEXT("RigGlobalTransform"), TEXT("NexusAnimation.ControlRig.get_global_transform")},
-        };
-        static const TMap<FString, FString> Write = {
+        }, false);
+        static const TMap<FString, FString> Write = WithOutlinerActions({
             {TEXT("SetSectionCondition"), TEXT("NexusAnimation.Conditions.set_section_condition")},
             {TEXT("ClearSectionCondition"), TEXT("NexusAnimation.Conditions.clear_section_condition")},
             {TEXT("SetTrackCondition"), TEXT("NexusAnimation.Conditions.set_track_condition")},
             {TEXT("ClearTrackCondition"), TEXT("NexusAnimation.Conditions.clear_track_condition")},
             {TEXT("SetTrackRowCondition"), TEXT("NexusAnimation.Conditions.set_track_row_condition")},
             {TEXT("ClearTrackRowCondition"), TEXT("NexusAnimation.Conditions.clear_track_row_condition")},
-            {TEXT("SetOutlinerSelection"), TEXT("NexusAnimation.Outliner.set_outliner_selection")},
-            {TEXT("SetNodeExpanded"), TEXT("NexusAnimation.Outliner.set_node_expanded")},
-            {TEXT("SetNodeMuted"), TEXT("NexusAnimation.Outliner.set_node_muted")},
-            {TEXT("SetNodeSolo"), TEXT("NexusAnimation.Outliner.set_node_solo")},
-            {TEXT("SetNodeDeactivated"), TEXT("NexusAnimation.Outliner.set_node_deactivated")},
-            {TEXT("SetNodeLocked"), TEXT("NexusAnimation.Outliner.set_node_locked")},
-            {TEXT("SetNodePinned"), TEXT("NexusAnimation.Outliner.set_node_pinned")},
             {TEXT("ConvertToSpawnable"), TEXT("NexusAnimation.CustomBindings.convert_to_spawnable")},
             {TEXT("ConvertToPossessable"), TEXT("NexusAnimation.CustomBindings.convert_to_possessable")},
             {TEXT("ConvertToCustomBinding"), TEXT("NexusAnimation.CustomBindings.convert_to_custom_binding")},
@@ -133,7 +125,13 @@ struct FNexusAnimationToolActions final
             {TEXT("SetRigLocalTransform"), TEXT("NexusAnimation.ControlRig.set_local_transform")},
             {TEXT("SetRigGlobalTransform"), TEXT("NexusAnimation.ControlRig.set_global_transform")},
             {TEXT("ExportAnimation"), TEXT("NexusAnimation.ImportExport.export_anim_sequence")},
-        };
+        }, true);
         return bWrite ? Write : Read;
     }
+
+    static TMap<FString, FString> WithOutlinerMetadata(
+        TMap<FString, FString> Entries, const TCHAR* FNexusAnimationOutlinerAction::* Field);
+
+private:
+    static TMap<FString, FString> WithOutlinerActions(TMap<FString, FString> Entries, bool bWrite);
 };

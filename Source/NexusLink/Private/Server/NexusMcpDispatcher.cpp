@@ -672,8 +672,9 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 		const UNexusLinkSettings* Settings = UNexusLinkSettings::Get();
 		if (Settings->ToolsListMode == ENexusToolsListMode::MultiTool)
 		{
-			const FCapRecord* Record = FNexusCapabilityRegistry::Get().FindRecordByName(ToolName);
-			if (!Record)
+			const FCapRecord* Record = nullptr;
+			const auto Access = FNexusCapabilityIndexUtils::ResolveByName(ToolName, Settings, Record);
+			if (Access == ENexusCapabilityLookupStatus::NotFound)
 			{
 				// AI 直接把未注册/拼错的名字当 MCP 工具调用（MultiTool 模式下每个 capability 即为独立 Tool）。
 				FNexusFeedback::FFields F;
@@ -685,7 +686,7 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 				SendError(Id, JsonRpcMethodNotFound, FString::Printf(TEXT("Tool not found: %s"), *ToolName));
 				return;
 			}
-			if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*Record))
+			if (Access == ENexusCapabilityLookupStatus::Unavailable)
 			{
 				FNexusFeedback::FFields F;
 				F.Tool       = ToolName;
@@ -697,7 +698,7 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 					TEXT("Capability '%s' is unavailable on current host (runtime only)."), *Record->Def.Name));
 				return;
 			}
-			if (!Settings->IsCapabilityEnabled(Record->Def.Name))
+			if (Access == ENexusCapabilityLookupStatus::Disabled)
 			{
 				FNexusFeedback::FFields F;
 				F.Tool       = ToolName;

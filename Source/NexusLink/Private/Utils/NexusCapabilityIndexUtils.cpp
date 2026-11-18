@@ -10,6 +10,25 @@
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 
+ENexusCapabilityLookupStatus FNexusCapabilityIndexUtils::ResolveByName(
+	const FString& Name, const UNexusLinkSettings* Settings, const FCapRecord*& OutRecord)
+{
+	OutRecord = Settings ? FNexusCapabilityRegistry::Get().FindRecordByName(Name) : nullptr;
+	if (!OutRecord)
+	{
+		return ENexusCapabilityLookupStatus::NotFound;
+	}
+	if (!FNexusHostUtils::IsCapabilityVisibleOnHost(*OutRecord))
+	{
+		return ENexusCapabilityLookupStatus::Unavailable;
+	}
+	if (!Settings->IsCapabilityEnabled(OutRecord->Def.Name))
+	{
+		return ENexusCapabilityLookupStatus::Disabled;
+	}
+	return ENexusCapabilityLookupStatus::Enabled;
+}
+
 static void CollectRequiredNames(const TSharedPtr<FJsonObject>& ObjectSchema, TSet<FString>& OutRequired)
 {
 	OutRequired.Reset();
