@@ -85,7 +85,7 @@
 
 ### `SearchCapabilities`
 
-**首要入口** — 回答蓝图/Widget/材质/资产问题前先调。优先 `CapabilityName=<精确名>`；`Query` 用 1–2 词 AND 匹配。失败：`ErrorKind` 为 `NotFound` / `disabled` / `DisabledOnly`（见 `DisabledCapabilities[]`）；`Query=GetAsset` 零命中时提示改走 `get_asset_<type>`。匹配≤2 返回完整 `parameters[]`。
+**首要入口**。向可访问的 UE 实例查询蓝图、Widget、材质和资产相关能力。已知名称时用 `CapabilityName=<精确名>`，否则用 `Query` 传 1–2 个关键词。匹配不超过两项时返回 `Parameters[]`，包含已声明的数值上下限。失败时查看 `ErrorKind`。
 
 ---
 
@@ -338,8 +338,8 @@
 | `NewFolderPath` | `string` |  | 重命名后的目标路径 |
 | `ActorPath` | `string` |  | 发现结果中的 Actor 对象路径 |
 | `ComponentPath` | `string` |  | 已加载 PrimitiveComponent 的精确路径；RefreshComponentPhysics 必填 |
-| `BoundsMin` | `object` |  | NavigationContributors/NavigationTiles 必填；BoundsMin 和 BoundsMax 必须有限，且每个轴的 BoundsMin 均小于 BoundsMax |
-| `BoundsMax` | `object` |  | NavigationContributors/NavigationTiles 必填；BoundsMin 和 BoundsMax 必须有限，且每个轴的 BoundsMin 均小于 BoundsMax |
+| `BoundsMin` | `object` |  | NavigationContributors/NavigationTiles 必须同时传入 BoundsMin 和 BoundsMax，且 X、Y、Z 均为有限数值。每个轴上的 BoundsMin 均须小于 BoundsMax。 |
+| `BoundsMax` | `object` |  | NavigationContributors/NavigationTiles 必须同时传入 BoundsMin 和 BoundsMax，且 X、Y、Z 均为有限数值。每个轴上的 BoundsMin 均须小于 BoundsMax。 |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
 | `ScanLimit` | `integer` |  | 每次查询最多检查的瓦片槽数 |
 | `WaitSeconds` | `number` |  | NavigationStatus：观察已有任务，最多 30 秒，不启动构建 |
@@ -560,10 +560,10 @@
 | `Action` | `string (enum)` | ★ | 操作名（见各 cap 的枚举说明） 枚举: `Folders` / `FolderActors` / `Selection` / `Trace` / `NavigationStatus` / `NavigationContributors` / `NavigationTiles` / `LevelGeometry` / `Collision` |
 | `FolderPath` | `string` |  | World Outliner 文件夹路径 |
 | `NewFolderPath` | `string` |  | 重命名后的目标路径 |
-| `ActorPath` | `string` |  | 发现结果中的 Actor 对象路径 |
+| `ActorPath` | `string` |  | Collision 使用发现结果中已加载的精确编辑器 Actor 对象路径，也可改传 ComponentPath。NavigationContributors 仅按空间边界筛选。 |
 | `ComponentPath` | `string` |  | 已加载 PrimitiveComponent 的精确路径；RefreshComponentPhysics 必填 |
-| `BoundsMin` | `object` |  | NavigationContributors/NavigationTiles 必填；BoundsMin 和 BoundsMax 必须有限，且每个轴的 BoundsMin 均小于 BoundsMax |
-| `BoundsMax` | `object` |  | NavigationContributors/NavigationTiles 必填；BoundsMin 和 BoundsMax 必须有限，且每个轴的 BoundsMin 均小于 BoundsMax |
+| `BoundsMin` | `object` |  | NavigationContributors/NavigationTiles 必须同时传入 BoundsMin 和 BoundsMax，且 X、Y、Z 均为有限数值。每个轴上的 BoundsMin 均须小于 BoundsMax。 |
+| `BoundsMax` | `object` |  | NavigationContributors/NavigationTiles 必须同时传入 BoundsMin 和 BoundsMax，且 X、Y、Z 均为有限数值。每个轴上的 BoundsMin 均须小于 BoundsMax。 |
 | `Offset` | `integer` |  | 分页偏移（从 0 起） |
 | `ScanLimit` | `integer` |  | 每次查询最多检查的瓦片槽数 |
 | `WaitSeconds` | `number` |  | NavigationStatus：观察已有任务，最多 30 秒，不启动构建 |
@@ -799,7 +799,7 @@
 
 ### `InteractEditorSlate`
 
-按有效 Slate Ref 点击、替换/输入、组合按键、聚焦、悬停、拖拽、选择组合框、设置复选框或填充表单；中途失败保留成功项。
+按 `Ref` 向可见且启用的 Slate 目标发送输入。输入不具备事务性。`Scroll` 必须传入 [-20, 20] 内的非零 `WheelDelta`。正值向上滚动，负值向下滚动。
 
 **前置条件**: `EditorOnly`
 

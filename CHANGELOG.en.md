@@ -19,10 +19,11 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 - Fix editor crashes in `GetAssetBlueprint/NodeTypePins` when allocating pins on a temporary node without Blueprint ownership. Queries preserve source graphs, compilation status, and dirty flags, document the required graph context, and no longer substitute another class's same-name function when an owner is explicit.
 - `GetEditorContext/SelectionActors` reports the Actor's owning streamed sublevel instead of the current main map.
-- Slate text input validates editable focus and reads back the result, avoiding success reports when no text was inserted.
-- Clarify `GraphName` requirements for Blueprint function-parameter operations, explicit navigation-diagnostic bounds, and the single-call restriction for scene queries.
+- Slate text input validates editable focus and reads back the result, avoiding success reports when no text was inserted. Discovery documents the required `WheelDelta` and its nonzero range for `Scroll`.
+- Clarify `GraphName` requirements for Blueprint function-parameter operations, both bounds and spatial filtering for navigation diagnostics, object paths for collision diagnostics, and the single-call restriction for scene queries.
 - Reject invalid or transient worlds and persistent levels before native map saving to avoid save assertions, while retaining host save validation.
 - Input compatibility checks now cover 48 additional capabilities shipped by v2.3.6, including `GetNavigationPath` and `GetEditorGraph`. Release checks report exported capabilities missing a reviewed baseline and public capabilities missing from the release snapshot.
+- `SearchCapabilities` returns declared numeric bounds, states that it requires a reachable UE instance, and returns the corresponding read-only capabilities for `project info`, `selected actor`, and `staticmesh bodysetup`.
 
 ## [2.3.6] - 2026-11-13
 

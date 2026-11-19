@@ -218,7 +218,7 @@ static void EmitSuggestedQueries(TSharedPtr<FJsonObject>& Output, const TArray<F
 void FNexusMcpToolSearchCapabilities::BuildDefinition(FNexusMcpToolDefinition& Out) const
 {
 	Out.Name        = TEXT("SearchCapabilities");
-	Out.Description = TEXT("[Stage 3 - Discover] Find available capabilities—the first step for any UE operation.\nTrigger: user mentions UE/Blueprint/Widget/UMG/Material/Asset/BehaviorTree/ABP/DataAsset/GAS/Niagara/Level/PIE/Actor; call after instance discovery (read-only, no connect required).\nUsage: known name → CapabilityName=<exact>; unknown → Query=<narrow 1-2 words, e.g. blueprint variable>. Do not use blueprint/asset/runtime/animation alone. <=2 matches return full parameters[].\nConstraints: on failure check ErrorKind (NotFound/disabled/unavailable/QueryTooBroad); FeedbackHint requires immediate SubmitFeedback.");
+	Out.Description = TEXT("[Stage 3 - Discover] Find available capabilities—the first step for any UE operation.\nTrigger: user mentions UE/Blueprint/Widget/UMG/Material/Asset/BehaviorTree/ABP/DataAsset/GAS/Niagara/Level/PIE/Actor. This read-only query requires a reachable UE instance.\nUsage: known name → CapabilityName=<exact>; unknown → Query=<narrow 1-2 words, e.g. blueprint variable>. Do not use blueprint/asset/runtime/animation alone. <=2 matches return full parameters[].\nConstraints: on failure check ErrorKind (NotFound/disabled/unavailable/QueryTooBroad); FeedbackHint requires immediate SubmitFeedback.");
 
 	TSharedPtr<FJsonObject> Schema = MakeShared<FJsonObject>();
 	Schema->SetStringField(TEXT("type"), TEXT("object"));
@@ -308,6 +308,9 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		else if (QueryTrimmed.Equals(TEXT("FindAsset"), ESearchCase::IgnoreCase)) LookupName = TEXT("SearchAsset");
 		else if (QueryTrimmed.Equals(TEXT("navigation path"), ESearchCase::IgnoreCase)) LookupName = TEXT("GetNavigationPath");
 		else if (QueryTrimmed.Equals(TEXT("asset editor"), ESearchCase::IgnoreCase)) LookupName = TEXT("ControlEditorAssetEditor");
+		else if (QueryTrimmed.Equals(TEXT("project info"), ESearchCase::IgnoreCase)) LookupName = TEXT("GetEditorInfo");
+		else if (QueryTrimmed.Equals(TEXT("selected actor"), ESearchCase::IgnoreCase)) LookupName = TEXT("GetEditorContext");
+		else if (QueryTrimmed.Equals(TEXT("staticmesh bodysetup"), ESearchCase::IgnoreCase)) LookupName = TEXT("GetAssetStaticMesh");
 		const FCapRecord* Record = nullptr;
 		const ENexusCapabilityLookupStatus Status = FNexusCapabilityIndexUtils::ResolveByName(LookupName, Settings, Record);
 		if (Status == ENexusCapabilityLookupStatus::Enabled)

@@ -42,13 +42,14 @@ TSharedPtr<FJsonObject> FNexusSceneTools::Schema(bool bWrite)
 {
     auto Vector = FNexusSchema::Object().Required(TEXT("X"),FNexusSchema::Num(TEXT("X"))).Required(TEXT("Y"),FNexusSchema::Num(TEXT("Y"))).Required(TEXT("Z"),FNexusSchema::Num(TEXT("Z"))).Build();
     auto BoundsVector = MakeShared<FJsonObject>(); BoundsVector->Values = Vector->Values;
-    BoundsVector->SetStringField(TEXT("description"), TEXT("Required for NavigationContributors/NavigationTiles; finite BoundsMin must be less than BoundsMax on every axis"));
+    BoundsVector->SetStringField(TEXT("description"), TEXT("NavigationContributors/NavigationTiles require both BoundsMin and BoundsMax with finite X, Y, Z. On each axis BoundsMin must be less than BoundsMax."));
     auto Action = bWrite ? FNexusSchema::Enum(TEXT("Scene write"),{TEXT("CreateFolder"),TEXT("RenameFolder"),TEXT("DeleteFolder"),TEXT("SetActorFolder"),TEXT("SetSelection"),TEXT("MergeActors"),TEXT("CreateLevelInstance"),TEXT("EditLevelInstance"),TEXT("CommitLevelInstance"),TEXT("BuildNavigation"),TEXT("RefreshComponentPhysics")})
         : FNexusSchema::Enum(TEXT("Scene query"),{TEXT("Folders"),TEXT("FolderActors"),TEXT("Selection"),TEXT("Trace"),TEXT("NavigationStatus"),TEXT("NavigationContributors"),TEXT("NavigationTiles"),TEXT("LevelGeometry"),TEXT("Collision")});
     return FNexusSchema::Object().Required(TEXT("Action"), Action)
         .Prop(TEXT("FolderPath"),FNexusSchema::Str(TEXT("World Outliner folder path")))
         .Prop(TEXT("NewFolderPath"),FNexusSchema::Str(TEXT("Rename destination")))
-        .Prop(TEXT("ActorPath"),FNexusSchema::Str(TEXT("Actor object path from discovery")))
+        .Prop(TEXT("ActorPath"), FNexusSchema::Str(bWrite ? TEXT("Actor object path from discovery")
+            : TEXT("Collision: exact loaded editor actor object path from discovery, or use ComponentPath. NavigationContributors uses the bounds only.")))
         .Prop(TEXT("ComponentPath"),FNexusSchema::Str(TEXT("Exact loaded primitive component path; required for RefreshComponentPhysics")))
         .Prop(TEXT("BoundsMin"),BoundsVector).Prop(TEXT("BoundsMax"),BoundsVector)
         .Prop(TEXT("Offset"),FNexusSchema::Int(TEXT("Contributors pagination or tile slot scan offset"),0,0,MAX_int32))

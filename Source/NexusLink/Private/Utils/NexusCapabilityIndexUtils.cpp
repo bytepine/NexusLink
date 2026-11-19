@@ -105,6 +105,15 @@ static void AppendParamFromProp(const FString& QualifiedName, const TSharedPtr<F
 		Param->SetStringField(TEXT("description"), Desc);
 	}
 
+	for (const TCHAR* Bound : {TEXT("minimum"), TEXT("maximum")})
+	{
+		double Value = 0;
+		if (PropDef->TryGetNumberField(Bound, Value))
+		{
+			Param->SetNumberField(Bound, Value);
+		}
+	}
+
 	if (Type == TEXT("array"))
 	{
 		AppendArrayItemEnumField(PropDef, Param);

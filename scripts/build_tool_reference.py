@@ -62,8 +62,9 @@ CATEGORY_ORDER: list[str] = _DOC_CAT["category_order"]
 DOC_DESCRIPTIONS: dict[str, str] = {
     # Meta
     "CallCapability": "Execute a capability (after SearchAsset / get_asset_*). On failure check ErrorKind: unknown/disabled/unavailable/ArgInvalid/UserDenied; do not retry disabled or UserDenied. Confirm-mode dangerous caps need reason. Legacy names (e.g. create_blackboard) map to canonical names. Batch calls[] and single form are mutually exclusive.",
-    "SearchCapabilities": "**Primary entry** — call before any blueprint/Widget/material/asset question. Prefer `CapabilityName=<exact>`; `query` uses 1-2 word AND match. Failures: `ErrorKind` `NotFound` / `disabled` / `DisabledOnly` (see `DisabledCapabilities[]`); `query=GetAsset` zero-hit hints route to `get_asset_<type>`. ≤2 matches return full `parameters[]`.",
+    "SearchCapabilities": "**Primary entry.** Query a reachable UE instance for Blueprint, Widget, material, and asset capabilities. Use `CapabilityName=<exact>` when known, or pass 1–2 keywords in `Query`. Up to two matches include `Parameters[]` with declared numeric bounds. Check `ErrorKind` on failure.",
     "SubmitFeedback":    "Report capability/tool friction. Trigger: retry ≥2 with no progress, no suitable capability, schema guessing, or forced serial calls ≥3. `category`: `WrongTool` / `misuse` / `SchemaGuess` / `SearchZero` / `SearchOverflow` / `other`. Prefer structured fields (`AttemptedArgs`, `ActualError`, `ExpectedField`) over long `note`.",
+    "InteractEditorSlate": "Send UI input to a visible, enabled Slate target by `Ref`. Input is non-transactional. `Scroll` requires a nonzero `WheelDelta` in [-20, 20]. Positive values scroll up and negative values scroll down.",
 }
 
 # ── Regex 模式 ─────────────────────────────────────────────────────────────────

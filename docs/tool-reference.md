@@ -85,7 +85,7 @@ Execute a capability (after SearchAsset / get_asset_*). On failure check ErrorKi
 
 ### `SearchCapabilities`
 
-**Primary entry** — call before any blueprint/Widget/material/asset question. Prefer `CapabilityName=<exact>`; `query` uses 1-2 word AND match. Failures: `ErrorKind` `NotFound` / `disabled` / `DisabledOnly` (see `DisabledCapabilities[]`); `query=GetAsset` zero-hit hints route to `get_asset_<type>`. ≤2 matches return full `parameters[]`.
+**Primary entry.** Query a reachable UE instance for Blueprint, Widget, material, and asset capabilities. Use `CapabilityName=<exact>` when known, or pass 1–2 keywords in `Query`. Up to two matches include `Parameters[]` with declared numeric bounds. Check `ErrorKind` on failure.
 
 ---
 
@@ -330,8 +330,8 @@ Organize actors/folders, merge meshes, edit level instances and build navigation
 | `NewFolderPath` | `string` |  | Rename destination |
 | `ActorPath` | `string` |  | Actor object path from discovery |
 | `ComponentPath` | `string` |  | Exact loaded primitive component path; required for RefreshComponentPhysics |
-| `BoundsMin` | `object` |  | Required for NavigationContributors/NavigationTiles; finite BoundsMin must be less than BoundsMax on every axis |
-| `BoundsMax` | `object` |  | Required for NavigationContributors/NavigationTiles; finite BoundsMin must be less than BoundsMax on every axis |
+| `BoundsMin` | `object` |  | NavigationContributors/NavigationTiles require both BoundsMin and BoundsMax with finite X, Y, Z. On each axis BoundsMin must be less than BoundsMax. |
+| `BoundsMax` | `object` |  | NavigationContributors/NavigationTiles require both BoundsMin and BoundsMax with finite X, Y, Z. On each axis BoundsMin must be less than BoundsMax. |
 | `Offset` | `integer` |  | Contributors pagination or tile slot scan offset |
 | `ScanLimit` | `integer` |  | Maximum tile slots inspected per query |
 | `WaitSeconds` | `number` |  | NavigationStatus: observe existing work for up to 30 seconds, never starts a build |
@@ -544,10 +544,10 @@ Inspect folders, collision, BSP and navigation status/octree/tiles. Bounded read
 | `Action` | `string (enum)` | ★ | Scene query enum: `Folders` / `FolderActors` / `Selection` / `Trace` / `NavigationStatus` / `NavigationContributors` / `NavigationTiles` / `LevelGeometry` / `Collision` |
 | `FolderPath` | `string` |  | World Outliner folder path |
 | `NewFolderPath` | `string` |  | Rename destination |
-| `ActorPath` | `string` |  | Actor object path from discovery |
+| `ActorPath` | `string` |  | Collision: exact loaded editor actor object path from discovery, or use ComponentPath. NavigationContributors uses the bounds only. |
 | `ComponentPath` | `string` |  | Exact loaded primitive component path; required for RefreshComponentPhysics |
-| `BoundsMin` | `object` |  | Required for NavigationContributors/NavigationTiles; finite BoundsMin must be less than BoundsMax on every axis |
-| `BoundsMax` | `object` |  | Required for NavigationContributors/NavigationTiles; finite BoundsMin must be less than BoundsMax on every axis |
+| `BoundsMin` | `object` |  | NavigationContributors/NavigationTiles require both BoundsMin and BoundsMax with finite X, Y, Z. On each axis BoundsMin must be less than BoundsMax. |
+| `BoundsMax` | `object` |  | NavigationContributors/NavigationTiles require both BoundsMin and BoundsMax with finite X, Y, Z. On each axis BoundsMin must be less than BoundsMax. |
 | `Offset` | `integer` |  | Contributors pagination or tile slot scan offset |
 | `ScanLimit` | `integer` |  | Maximum tile slots inspected per query |
 | `WaitSeconds` | `number` |  | NavigationStatus: observe existing work for up to 30 seconds, never starts a build |
@@ -771,7 +771,7 @@ Read a stopped .utrace: frame stats, hitches, CPU timers, bookmarks.
 
 ### `InteractEditorSlate`
 
-Send UI input to a discovered target. Non-transactional; validates visible, enabled targets.
+Send UI input to a visible, enabled Slate target by `Ref`. Input is non-transactional. `Scroll` requires a nonzero `WheelDelta` in [-20, 20]. Positive values scroll up and negative values scroll down.
 
 **Prerequisites**: `EditorOnly`
 

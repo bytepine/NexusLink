@@ -10,7 +10,7 @@ void FNexusInteractEditorSlateCapability::BuildDefinition(FNexusCapabilityDefini
 	auto Axis = FNexusSchema::Num(TEXT("Normalized local coordinate, 0 to 1"));
 	Axis->SetNumberField(TEXT("minimum"), 0); Axis->SetNumberField(TEXT("maximum"), 1);
 	const auto Position = FNexusSchema::Object().Required(TEXT("X"), Axis).Required(TEXT("Y"), Axis).Build().ToSharedRef();
-	auto WheelDelta = FNexusSchema::Num(TEXT("Scroll wheel steps; nonzero, positive scrolls up"));
+	auto WheelDelta = FNexusSchema::Num(TEXT("Required for Scroll: nonzero wheel steps in [-20, 20]. Positive scrolls up and negative scrolls down."));
 	WheelDelta->SetNumberField(TEXT("minimum"), -20); WheelDelta->SetNumberField(TEXT("maximum"), 20);
 	Out.InputSchema = FNexusSchema::Object()
 		.Required(TEXT("Action"), FNexusSchema::Enum(TEXT("Input action"), {TEXT("Click"),TEXT("DoubleClick"),TEXT("Scroll"),TEXT("Type"),TEXT("PressKey"),TEXT("Focus"),TEXT("Hover"),TEXT("Drag"),TEXT("SelectOption"),TEXT("SetChecked"),TEXT("FillForm")}))
