@@ -42,7 +42,7 @@
 
 > 使用 MCP 告诉我当前 UE 编辑器信息。
 
-核对返回的工程、引擎版本和运行状态。默认 **SearchMode** 通过 `SearchCapabilities`、`CallCapability`、`SubmitFeedback` 三个元工具按需发现和调用能力；NexusDesktop 另外提供两个实例工具。
+核对返回的工程、引擎版本和运行状态。默认 **SearchMode** 通过 `SearchCapabilities`、`CallCapability`、`SubmitFeedback` 三个元工具按需发现和调用能力。使用精确能力名查询时，参数表会列出 Schema 声明的数值上下限。NexusDesktop 另外提供两个实例工具。
 
 查询 `GetAsset` 会提示按资产类型选择能力（如 `GetAssetBlueprint`）；查找资产路径使用 `SearchAsset`。
 

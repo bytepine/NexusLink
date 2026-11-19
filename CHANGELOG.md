@@ -9,21 +9,20 @@
 
 ## [Unreleased]
 
+## [2.3.7] - 2026-11-19
+
 ### Changed
 
-- 明确代理写调用断线/超时后的结果未知字段、禁止自动重发与缓存失效约定，以及已有长操作的状态回读和取消边界；补充示例工程受控 UE 5.7 验证入口及通过证据的范围。
-- 精确查找、`CallCapability` 和 `MultiTool` 直接调用共用 Capability 准入判断，包括注册查找、宿主可见性和设置启用状态。
-- 将 Sequencer Outliner 的 18 个动画动作集中定义，每个动作的读写类别、引擎函数、参数和最低 UE 版本只需维护一处。
+- 补齐中英文文档与语言导航，说明代理断线或超时后的写入结果状态以及长操作的查询和取消方式。
 
 ### Fixed
 
-- 修复 `GetAssetBlueprint/NodeTypePins` 在缺失蓝图归属的临时节点上分配引脚导致的编辑器崩溃；查询保留源图、编译状态和脏标记，明确所需图上下文，显式函数所属类不再误匹配其他类的同名函数。
-- `GetEditorContext/SelectionActors` 正确返回 Actor 所属流送子关卡，而非当前主地图。
-- Slate 文本输入校验可编辑焦点并读回结果，避免文字未写入却返回成功。滚轮发现说明列出 `Scroll` 必填的 `WheelDelta` 及其非零范围。
-- 补充蓝图函数参数操作的 `GraphName` 要求、导航诊断的双边界与空间筛选规则、碰撞诊断的对象路径要求，以及场景查询的单调用限制。
-- 地图保存预检拒绝已失效或带瞬态标记的世界及持久关卡，避免原生保存断言；保留宿主保存校验。
-- 输入兼容检查补齐 v2.3.6 已发布的 48 项能力，包括 `GetNavigationPath` 和 `GetEditorGraph`。发布检查会报告缺少受审基线的导出项，以及公开能力与发布快照间的缺口。
-- `SearchCapabilities` 返回参数 Schema 声明的数值上下限，明确需要可访问的 UE 实例，并为 `project info`、`selected actor` 和 `staticmesh bodysetup` 返回对应的只读能力。
+- 修复 `GetAssetBlueprint/NodeTypePins` 查询导致的编辑器崩溃，并按指定的函数所属类解析引脚。
+- `GetEditorContext/SelectionActors` 返回 Actor 所属的流送子关卡。
+- Slate 文本输入校验焦点并读回结果。`Scroll` 的发现说明标明 `WheelDelta` 须为 `[-20, 20]` 内的非零值。
+- 明确蓝图函数参数操作的 `GraphName` 要求，以及 `GetEditorScene` 导航边界、碰撞对象路径和单调用限制。
+- 保存地图前拒绝失效或带瞬态标记的世界及持久关卡。
+- `SearchCapabilities` 返回已声明的数值上下限，并为 `project info`、`selected actor` 和 `staticmesh bodysetup` 返回对应的只读能力。精确发现和调用共用宿主可见性与启用状态检查。
 
 ## [2.3.6] - 2026-11-13
 

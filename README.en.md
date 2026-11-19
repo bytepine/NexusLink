@@ -42,7 +42,7 @@ Restart the MCP session and ask the AI:
 
 > Use MCP to report the current UE editor information.
 
-Check the returned project, engine version, and runtime state. Default **SearchMode** discovers and calls capabilities through three meta-tools: `SearchCapabilities`, `CallCapability`, and `SubmitFeedback`. NexusDesktop adds two instance tools.
+Check the returned project, engine version, and runtime state. Default **SearchMode** discovers and calls capabilities through the `SearchCapabilities`, `CallCapability`, and `SubmitFeedback` meta-tools. Exact capability lookups include the numeric bounds declared in the schema. NexusDesktop adds two instance tools.
 
 A `GetAsset` query points to a capability for the asset type, such as `GetAssetBlueprint`; use `SearchAsset` to find asset paths.
 

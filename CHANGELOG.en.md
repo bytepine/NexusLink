@@ -9,21 +9,20 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.3.7] - 2026-11-19
+
 ### Changed
 
-- Clarify uncertain write outcomes after proxy disconnections/timeouts, no automatic resend, cache invalidation, and existing long-operation polling/cancellation boundaries; link the sample's controlled UE 5.7 validation entry point and its evidence scope.
-- Share Capability access checks across exact lookup, `CallCapability`, and direct `MultiTool` calls, including registry lookup, host visibility, and enabled settings.
-- Define the 18 Sequencer Outliner animation actions in one place, with each action’s read/write category, engine function, parameters, and minimum UE version kept together.
+- Complete the Chinese and English documentation and language navigation. Explain write outcomes after proxy disconnection or timeout and how to check or cancel long-running operations.
 
 ### Fixed
 
-- Fix editor crashes in `GetAssetBlueprint/NodeTypePins` when allocating pins on a temporary node without Blueprint ownership. Queries preserve source graphs, compilation status, and dirty flags, document the required graph context, and no longer substitute another class's same-name function when an owner is explicit.
-- `GetEditorContext/SelectionActors` reports the Actor's owning streamed sublevel instead of the current main map.
-- Slate text input validates editable focus and reads back the result, avoiding success reports when no text was inserted. Discovery documents the required `WheelDelta` and its nonzero range for `Scroll`.
-- Clarify `GraphName` requirements for Blueprint function-parameter operations, both bounds and spatial filtering for navigation diagnostics, object paths for collision diagnostics, and the single-call restriction for scene queries.
-- Reject invalid or transient worlds and persistent levels before native map saving to avoid save assertions, while retaining host save validation.
-- Input compatibility checks now cover 48 additional capabilities shipped by v2.3.6, including `GetNavigationPath` and `GetEditorGraph`. Release checks report exported capabilities missing a reviewed baseline and public capabilities missing from the release snapshot.
-- `SearchCapabilities` returns declared numeric bounds, states that it requires a reachable UE instance, and returns the corresponding read-only capabilities for `project info`, `selected actor`, and `staticmesh bodysetup`.
+- Fix editor crashes in `GetAssetBlueprint/NodeTypePins` and resolve pins using the specified function owner.
+- `GetEditorContext/SelectionActors` reports the Actor's owning streamed sublevel.
+- Slate text input verifies focus and reads back the applied text. Discovery documents that `Scroll` requires a nonzero `WheelDelta` in `[-20, 20]`.
+- Clarify `GraphName` for Blueprint function-parameter operations and the navigation bounds, collision object paths, and single-call restriction for `GetEditorScene`.
+- Reject invalid or transient worlds and persistent levels before saving maps.
+- `SearchCapabilities` returns declared numeric bounds and finds the matching read-only capabilities for `project info`, `selected actor`, and `staticmesh bodysetup`. Exact discovery and invocation share host-visibility and enablement checks.
 
 ## [2.3.6] - 2026-11-13
 
