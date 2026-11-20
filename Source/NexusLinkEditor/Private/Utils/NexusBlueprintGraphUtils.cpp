@@ -9,6 +9,9 @@
 #include "AnimationCustomTransitionGraph.h"
 #include "AnimationStateGraph.h"
 #include "AnimationTransitionGraph.h"
+#include "AnimStateTransitionNode.h"
+#include "Kismet2/KismetDebugUtilities.h"
+#include "Utils/NexusEditorTransactionImpl.h"
 #include "Engine/Blueprint.h"
 #include "UObject/UObjectIterator.h"
 #include "EdGraphSchema_K2.h"
@@ -75,6 +78,36 @@ UEdGraphNode* FNexusBlueprintGraphUtils::FindBPNode(UEdGraph* Graph, const FStri
 	for (UEdGraphNode* N : Graph->Nodes)
 		if (N && N->NodeGuid == Guid) return N;
 	return nullptr;
+}
+
+void FNexusBlueprintGraphUtils::RemoveNode(UBlueprint* Blueprint, UEdGraphNode* Node)
+{
+	if (Blueprint)
+	{
+		NexusRecordBlueprintDebugSettings(Blueprint);
+		Blueprint->Modify();
+		Node->SetFlags(RF_Transactional);
+	}
+	if (UAnimStateTransitionNode* Transition = Cast<UAnimStateTransitionNode>(Node))
+	{
+		// Omit schema pin notifications: disconnecting either end already calls DestroyNode.
+		// Let the transition release its shared rule and private custom blend graph exactly once.
+		if (Blueprint)
+		{
+#if NX_UE_HAS_BLUEPRINT_PIN_WATCH_SETTINGS
+			FKismetDebugUtilities::RemoveBreakpointFromNode(Node, Blueprint);
+#else
+			if (auto* Breakpoint = FKismetDebugUtilities::FindBreakpointForNode(Blueprint, Node))
+				FKismetDebugUtilities::StartDeletingBreakpoint(Breakpoint, Blueprint);
+#endif
+			for (UEdGraphPin* Pin : Node->Pins) FKismetDebugUtilities::RemovePinWatch(Blueprint, Pin);
+		}
+		Node->GetGraph()->Modify();
+		Node->Modify();
+		Transition->DestroyNode();
+		return;
+	}
+	FBlueprintEditorUtils::RemoveNode(Blueprint, Node, /*bDontRecompile=*/true);
 }
 
 const TCHAR* FNexusBlueprintGraphUtils::GetGraphEditError(UEdGraph* Graph)
@@ -152,6 +185,7 @@ TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::SerializeBPPin(const UEdGraph
 	P->SetBoolField(TEXT("bIsReference"), Pin->PinType.bIsReference);
 	P->SetBoolField(TEXT("bIsConst"),     Pin->PinType.bIsConst);
 	if (!Pin->DefaultValue.IsEmpty()) P->SetStringField(TEXT("DefaultValue"), Pin->DefaultValue);
+	else if (!Pin->DefaultTextValue.IsEmpty()) P->SetStringField(TEXT("DefaultValue"), Pin->GetDefaultAsString());
 	if (Pin->DefaultObject) P->SetStringField(TEXT("DefaultObject"), Pin->DefaultObject->GetPathName());
 	P->SetBoolField(TEXT("bOrphan"), Pin->bOrphanedPin);
 	P->SetBoolField(TEXT("bHidden"), Pin->bHidden);

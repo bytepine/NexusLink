@@ -15,6 +15,7 @@
 #include "Capabilities/Asset/StateTree/NexusStateTreeTraversal.h"
 #include "StateTreeConditionBase.h"
 #include "StateTreeEditorNode.h"
+#include "StateTreeSchema.h"
 #include "StateTreeTaskBase.h"
 #endif
 
@@ -250,6 +251,18 @@ static void AddStateTreeEditorNode(const TSharedPtr<FJsonObject>& Op, FNexusActi
 		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("%s is not a StateTree %s"), *NodeType, bTask ? TEXT("task") : TEXT("condition")));
 		return;
 	}
+	const UStateTreeSchema* Schema = EdFrom(Ctx)->Schema;
+	if (Schema && (!Schema->IsStructAllowed(Struct) || (!bTask && !Schema->AllowEnterConditions())))
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("%s is not allowed in this slot by schema %s"), *NodeType, *Schema->GetClass()->GetName()));
+		return;
+	}
+	const bool bSingleTask = bTask && Schema && !Schema->AllowMultipleTasks();
+	if (bSingleTask && Target->SingleTask.Node.IsValid())
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("The schema's single task slot is occupied"));
+		return;
+	}
 	FStateTreeEditorNode NewNode;
 	NewNode.ID = FGuid::NewGuid();
 	NewNode.Node.InitializeAs(Struct);
@@ -280,9 +293,19 @@ static void AddStateTreeEditorNode(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	}
 #endif
 	ModifyStateTreeObject(*Target);
-	TArray<FStateTreeEditorNode>& Nodes = bTask ? Target->Tasks : Target->EnterConditions;
-	Nodes.Add(MoveTemp(NewNode));
-	Ctx.Entry->SetNumberField(bTask ? TEXT("TasksCount") : TEXT("EnterConditionsCount"), Nodes.Num());
+	int32 Count = 1;
+	if (bSingleTask)
+	{
+		NewNode.Node.GetMutable<FStateTreeTaskBase>().Name = Target->Name;
+		Target->SingleTask = MoveTemp(NewNode);
+	}
+	else
+	{
+		TArray<FStateTreeEditorNode>& Nodes = bTask ? Target->Tasks : Target->EnterConditions;
+		Nodes.Add(MoveTemp(NewNode));
+		Count = Nodes.Num();
+	}
+	Ctx.Entry->SetNumberField(bTask ? TEXT("TasksCount") : TEXT("EnterConditionsCount"), Count);
 	Ctx.Entry->SetStringField(TEXT("NodeType"), Struct->GetName());
 	MarkSTDirty(Ctx);
 }
@@ -304,6 +327,19 @@ static void RemoveStateTreeIndexed(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	const int32 Idx = Op->HasField(TEXT("Index")) ? static_cast<int32>(A.Num(TEXT("Index"))) : 0;
 	UStateTreeState* Target = FindStateByName(Ctx, StateName);
 	if (!Target) return;
+	const UStateTreeSchema* Schema = EdFrom(Ctx)->Schema;
+	if (bTask && Schema && !Schema->AllowMultipleTasks())
+	{
+		if (Idx != 0 || !Target->SingleTask.Node.IsValid())
+		{
+			Ctx.Entry->SetStringField(TEXT("Error"), TEXT("index out of bounds"));
+			return;
+		}
+		ModifyStateTreeObject(*Target);
+		Target->SingleTask.Reset();
+		MarkSTDirty(Ctx);
+		return;
+	}
 	TArray<FStateTreeEditorNode>& Arr = bTask ? Target->Tasks : Target->EnterConditions;
 	if (!Arr.IsValidIndex(Idx))
 	{

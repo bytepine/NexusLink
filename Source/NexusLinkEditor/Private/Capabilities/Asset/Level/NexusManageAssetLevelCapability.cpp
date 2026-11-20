@@ -22,6 +22,7 @@
 #include "ActorFactories/ActorFactoryBoxVolume.h"
 #include "Builders/CubeBuilder.h"
 #include "Components/SceneComponent.h"
+#include "Serialization/Archive.h"
 
 /** 解析 "x,y,z" 或 "x y z" 为 FVector。 */
 static bool NxParseVector3Text(const FString& Text, FVector& OutVec)
@@ -425,7 +426,9 @@ static void HandleLevel_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusAct
 	void* Storage = nullptr;
 	UObject* Owner = nullptr;
 	FString OldVal, ActualVal, PropErr;
-	if (!FNexusPropertyUtils::ResolvePropertyWrite(WorldSettings, Segments, 0, Field, Storage, PropErr, &Owner, FNexusEditorLevelUtils::CanEditInstanceMember))
+	TArray<FProperty*> OwnerFields;
+	if (!FNexusPropertyUtils::ResolvePropertyWrite(WorldSettings, Segments, 0, Field, Storage, PropErr, &Owner,
+		FNexusEditorLevelUtils::CanEditInstanceMember, OwnerFields))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), PropErr);
 		return;
@@ -435,6 +438,21 @@ static void HandleLevel_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusAct
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("WorldSettings writes can only traverse owned subobjects"));
 		return;
 	}
+	FArchive TransactionArchive;
+	TransactionArchive.SetIsSaving(true);
+	TransactionArchive.SetIsTransacting(true);
+	FEditPropertyChain Chain;
+	for (FProperty* Member : OwnerFields)
+	{
+		if (!Member->ShouldSerializeValue(TransactionArchive))
+		{
+			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Property '%s' is excluded from editor transactions"), *Member->GetName()));
+			return;
+		}
+		Chain.AddTail(Member);
+	}
+	Chain.SetActiveMemberPropertyNode(OwnerFields[0]);
+	Chain.SetActivePropertyNode(OwnerFields.Last());
 	FDefaultConstructedPropertyElement Parsed(Field);
 	Field->CopyCompleteValue(Parsed.GetObjAddress(), Storage);
 	if (!FNexusPropertyUtils::ParsePropertyValue(Field, Value, Parsed.GetObjAddress(), Owner, PropErr))
@@ -443,11 +461,30 @@ static void HandleLevel_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusAct
 		return;
 	}
 	FNexusPropertyUtils::ExportText(Field, OldVal, Storage);
-	Owner->SetFlags(RF_Transactional);
-	Owner->Modify();
-	Field->CopyCompleteValue(Storage, Parsed.GetObjAddress());
+	if (!Field->Identical(Storage, Parsed.GetObjAddress()))
+	{
+		Owner->SetFlags(RF_Transactional);
+		if (GUndo && !Owner->Modify(false))
+		{
+			Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Cannot record the property owner in the editor transaction"));
+			return;
+		}
+		Owner->PreEditChange(Chain);
+		Field->CopyCompleteValue(Storage, Parsed.GetObjAddress());
+		FPropertyChangedEvent Event(OwnerFields.Last(), EPropertyChangeType::ValueSet);
+		Event.SetActiveMemberProperty(OwnerFields[0]);
+		FPropertyChangedChainEvent ChainEvent(Chain, Event);
+		Owner->PostEditChangeChainProperty(ChainEvent);
+		S->World->MarkPackageDirty();
+		// 通知可能重建子对象或容器；从关卡重新定位，回显编辑器校正后的值。
+		WorldSettings = Level->GetWorldSettings();
+		if (!IsValid(WorldSettings) || !FNexusPropertyUtils::ResolvePropertyAddress(WorldSettings, Segments, 0, Field, Storage, PropErr))
+		{
+			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Cannot read '%s' after editor change: %s"), *PropPath, *PropErr));
+			return;
+		}
+	}
 	FNexusPropertyUtils::ExportText(Field, ActualVal, Storage);
-	S->World->MarkPackageDirty();
 	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
 	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
 	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);

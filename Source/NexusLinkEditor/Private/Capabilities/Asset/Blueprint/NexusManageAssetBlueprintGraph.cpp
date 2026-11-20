@@ -23,6 +23,7 @@
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
+#include "Misc/PackageName.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_Event.h"
 #include "K2Node_CustomEvent.h"
@@ -37,6 +38,30 @@
 #include "UObject/UObjectIterator.h"
 #include "NexusMcpTool.h"
 
+#if WITH_EDITOR
+static FString ValidatePinDefault(UEdGraphPin& Pin, const FString& Input)
+{
+	const UEdGraphSchema* Schema = Pin.GetSchema();
+	if (!Schema || Pin.Direction != EGPD_Input || Pin.bDefaultValueIsReadOnly || Pin.bDefaultValueIsIgnored)
+		return TEXT("Pin has no editable input default");
+	FString Literal = Input;
+	decltype(Pin.DefaultObject) Object = nullptr;
+	FText Text;
+	if (const UEdGraphSchema_K2* K2 = Cast<UEdGraphSchema_K2>(Schema))
+	{
+		K2->GetPinDefaultValuesFromString(Pin.PinType, Pin.GetOwningNode(), Input, Literal, Object, Text);
+		// 对象路径加载失败也会被 K2 解析为空引用；只有显式清空才能覆盖旧引用。
+		const FName Category = Pin.PinType.PinCategory;
+		if ((Category == K2->PC_Object || Category == K2->PC_Class || Category == K2->PC_Interface)
+			&& Literal.IsEmpty() && !Object)
+		{
+			const FString ObjectPath = FPackageName::ExportTextPathToObjectPath(Input);
+			if (!ObjectPath.IsEmpty() && ObjectPath != TEXT("None")) return TEXT("Pin default object could not be loaded");
+		}
+	}
+	return Schema->IsPinDefaultValid(&Pin, Literal, Object, Text);
+}
+#endif
 
 void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
@@ -89,8 +114,7 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 			return;
 		}
 		Entry->SetStringField(TEXT("NodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
-		BP->Modify();
-		FBlueprintEditorUtils::RemoveNode(BP, Node, /*bDontRecompile=*/true);
+		FNexusBlueprintGraphUtils::RemoveNode(BP, Node);
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 		return;
 	}
@@ -201,6 +225,8 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 			{ Entry->SetStringField(TEXT("Error"), TEXT("SetNode requires PinName and PinDefaultValue together")); return; }
 			Pin = Node->FindPin(FName(*PinName));
 			if (!Pin) { Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Pin '%s' not found"), *PinName)); return; }
+			const FString PinError = ValidatePinDefault(*Pin, PinValue);
+			if (!PinError.IsEmpty()) { Entry->SetStringField(TEXT("Error"), PinError); return; }
 		}
 
 		BP->Modify();
@@ -209,7 +235,7 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 		if (Op->HasField(TEXT("PosX"))) Node->NodePosX = static_cast<int32>(Args.Num(TEXT("PosX")));
 		if (Op->HasField(TEXT("PosY"))) Node->NodePosY = static_cast<int32>(Args.Num(TEXT("PosY")));
 		if (Op->HasField(TEXT("Comment"))) Node->NodeComment = Args.Str(TEXT("Comment"));
-		if (Pin) Pin->DefaultValue = PinValue;
+		if (Pin) Pin->GetSchema()->TrySetDefaultValue(*Pin, PinValue, /*bMarkAsModified=*/false);
 		if (Event)
 		{
 			Event->OnRenameNode(EventName);

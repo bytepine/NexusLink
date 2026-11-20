@@ -18,6 +18,7 @@
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "K2Node_ActorBoundEvent.h"
 #if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
 #include "K2Node_Variable.h"
 #include "WidgetBlueprintEditorUtils.h"
@@ -141,7 +142,12 @@ UObject* FNexusAssetStructureUtils::Copy(UObject* Asset)
 	}
 	else Result = DuplicateObject(Asset, GetTransientPackage());
 	if (Result) Result->ClearFlags(RF_Public | RF_Standalone | RF_Transactional);
-	if (Result) ForEachObjectWithOuter(Result, [](UObject* Child) { Child->ClearFlags(RF_Public | RF_Standalone | RF_Transactional); });
+	if (Result) ForEachObjectWithOuter(Result, [](UObject* Child)
+	{
+		Child->ClearFlags(RF_Public | RF_Standalone | RF_Transactional);
+		// DestroyNode 会解除 EventOwner 上的真实关卡委托，结构副本只需要节点和连线。
+		if (UK2Node_ActorBoundEvent* Event = Cast<UK2Node_ActorBoundEvent>(Child)) Event->EventOwner = nullptr;
+	});
 	if (UBlueprint* Blueprint = Cast<UBlueprint>(Result))
 	{
 		// 结构预览从不编译；隔离副本持有的生成类，避免触及原资产 CDO。
@@ -232,7 +238,7 @@ bool FNexusAssetStructureUtils::ApplyPreview(UObject* Asset, const FString& Capa
 			UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, A.Str(TEXT("NodeId")));
 			if (!Node) { Error = TEXT("NodeId not found"); return false; }
 			if (const TCHAR* Reason = FNexusBlueprintGraphUtils::GetNodeDeletionError(*Node)) { Error = Reason; return false; }
-			FBlueprintEditorUtils::RemoveNode(nullptr, Node, /*bDontRecompile=*/true);
+			FNexusBlueprintGraphUtils::RemoveNode(nullptr, Node);
 			return true;
 		}
 		UEdGraphNode* SourceNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, A.Str(TEXT("SourceNodeId")));

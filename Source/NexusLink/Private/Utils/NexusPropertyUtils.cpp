@@ -442,9 +442,10 @@ bool FNexusPropertyUtils::ResolvePropertyRead(
 
 static bool ResolvePropertyPath(UObject* Owner, const TArray<FString>& Segments, int32 Index,
 	FProperty*& OutProp, void*& OutValue, FString& Error, UObject** OutOwner, bool bForWrite,
-	FNexusPropertyUtils::FValidateMember ValidateMember)
+	FNexusPropertyUtils::FValidateMember ValidateMember, TArray<FProperty*>* OutOwnerFields = nullptr)
 {
 	if (OutOwner) *OutOwner = nullptr;
+	if (OutOwnerFields) OutOwnerFields->Reset();
 	if (!Owner || !Segments.IsValidIndex(Index)) { Error = TEXT("Invalid path resolution state"); return false; }
 	const UStruct* Type = Owner->GetClass();
 	void* Container = Owner;
@@ -460,6 +461,7 @@ static bool ResolvePropertyPath(UObject* Owner, const TArray<FString>& Segments,
 			return false;
 		}
 		if (ValidateMember && Type == Owner->GetClass() && !ValidateMember(Owner, Field, Error)) return false;
+		if (OutOwnerFields) OutOwnerFields->Add(Field);
 		void* Value = Field->ContainerPtrToValuePtr<void>(Container);
 		if (!ApplyAccessors(Field, Value, Accessors, Error, bForWrite)) return false;
 		if (Index + 1 == Segments.Num())
@@ -484,6 +486,7 @@ static bool ResolvePropertyPath(UObject* Owner, const TArray<FString>& Segments,
 			}
 			Type = Owner->GetClass();
 			Container = Owner;
+			if (OutOwnerFields) OutOwnerFields->Reset();
 		}
 		else
 		{
@@ -510,6 +513,13 @@ bool FNexusPropertyUtils::ResolvePropertyWrite(UObject* Obj, const TArray<FStrin
 	FProperty*& OutProp, void*& OutValue, FString& Error, UObject** OutOwner, FValidateMember ValidateMember)
 {
 	return ResolvePropertyPath(Obj, Segments, Index, OutProp, OutValue, Error, OutOwner, true, ValidateMember);
+}
+
+bool FNexusPropertyUtils::ResolvePropertyWrite(UObject* Obj, const TArray<FString>& Segments, int32 Index,
+	FProperty*& OutProp, void*& OutValue, FString& Error, UObject** OutOwner, FValidateMember ValidateMember,
+	TArray<FProperty*>& OutOwnerFields)
+{
+	return ResolvePropertyPath(Obj, Segments, Index, OutProp, OutValue, Error, OutOwner, true, ValidateMember, &OutOwnerFields);
 }
 
 // --- 列出可编辑属性 ---

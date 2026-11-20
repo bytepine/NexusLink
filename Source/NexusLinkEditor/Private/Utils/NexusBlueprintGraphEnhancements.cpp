@@ -1,6 +1,7 @@
 // Copyright byteyang. All Rights Reserved.
 #include "Utils/NexusBlueprintGraphEnhancements.h"
 #include "Utils/NexusBlueprintGraphUtils.h"
+#include "Utils/NexusEditorTransactionImpl.h"
 #include "EdGraphUtilities.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusArgs.h"
@@ -144,6 +145,7 @@ static void EditBlueprintStructPin(UBlueprint* Blueprint, UEdGraph* Graph, const
             return;
         }
     }
+    if (!bSplit) NexusRecordBlueprintDebugSettings(Blueprint);
     Blueprint->Modify(); Graph->Modify(); Node->Modify(); ParentPin->Modify();
     bool bNotifyGraph = true;
     if (bSplit)

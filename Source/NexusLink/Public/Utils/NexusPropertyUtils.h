@@ -48,6 +48,10 @@ public:
 		UObject** OutOwner = nullptr);
 	static bool ResolvePropertyWrite(UObject* Obj, const TArray<FString>& PathSegments, int32 SegmentIdx,
 		FProperty*& OutProp, void*& OutValuePtr, FString& OutError, UObject** OutOwner, FValidateMember ValidateMember);
+	/** 返回最终对象上从顶层成员到叶子的具名属性，用于编辑器链式属性通知。 */
+	static bool ResolvePropertyWrite(UObject* Obj, const TArray<FString>& PathSegments, int32 SegmentIdx,
+		FProperty*& OutProp, void*& OutValuePtr, FString& OutError, UObject** OutOwner, FValidateMember ValidateMember,
+		TArray<FProperty*>& OutOwnerFields);
 
 	/** 在调用方提供的临时存储中完整解析属性文本；浮点数支持科学计数法并拒绝非有限值。 */
 	static bool ParsePropertyValue(const FProperty* Property, const FString& Text, void* Storage, UObject* Owner, FString& OutError);

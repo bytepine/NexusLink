@@ -37,6 +37,8 @@ public:
 	static UEdGraphNode* FindBPNode(UEdGraph* Graph, const FString& NodeIdStr);
 	static const TCHAR* GetGraphEditError(UEdGraph* Graph);
 	static const TCHAR* GetNodeDeletionError(const UEdGraphNode& Node);
+	/** 删除节点及其拥有的图。结构预览传入空 Blueprint，跳过真实资产的调试配置。 */
+	static void RemoveNode(UBlueprint* Blueprint, UEdGraphNode* Node);
 
 	/**
 	 * 按 Pin 名称查找节点上的 Pin：PinName 精确 → PinName 忽略大小写 → PinFriendlyName 忽略大小写。

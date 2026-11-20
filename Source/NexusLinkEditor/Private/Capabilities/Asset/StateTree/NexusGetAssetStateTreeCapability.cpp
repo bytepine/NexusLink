@@ -14,6 +14,7 @@
 #include "NexusMcpTool.h"
 #if WITH_EDITOR
 #include "Capabilities/Asset/StateTree/NexusStateTreeTraversal.h"
+#include "StateTreeSchema.h"
 #endif
 
 // ── 辅助：枚举 EStateTreeStateType → 字符串 ──────────────────────────────────
@@ -28,7 +29,7 @@ static FString StateTypeToStr(EStateTreeStateType Type)
 
 // ── 辅助：从 FStateTreeEditorNode 数组生成节点摘要列表 ────────────────────────
 
-static TArray<TSharedPtr<FJsonValue>> BuildEditorNodeArray(const TArray<FStateTreeEditorNode>& Nodes)
+static TArray<TSharedPtr<FJsonValue>> BuildEditorNodeArray(TConstArrayView<FStateTreeEditorNode> Nodes)
 {
 	TArray<TSharedPtr<FJsonValue>> Result;
 	for (const FStateTreeEditorNode& EdNode : Nodes)
@@ -52,7 +53,7 @@ static TArray<TSharedPtr<FJsonValue>> BuildEditorNodeArray(const TArray<FStateTr
 
 // ── 辅助：递归构建 UStateTreeState JSON ──────────────────────────────────────
 
-static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, const TMap<FGuid, FName>& StateNames, int32 Depth = 0)
+static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, const TMap<FGuid, FName>& StateNames, bool bSingleTask, int32 Depth = 0)
 {
 	if (!State || Depth > 32)
 	{
@@ -72,10 +73,13 @@ static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, cons
 	}
 
 	// 任务节点
-	if (State->Tasks.Num() > 0)
+	const TConstArrayView<FStateTreeEditorNode> Tasks = bSingleTask
+		? MakeArrayView(&State->SingleTask, State->SingleTask.Node.IsValid() ? 1 : 0)
+		: MakeArrayView(State->Tasks);
+	if (!Tasks.IsEmpty())
 	{
-		Obj->SetNumberField(TEXT("TasksCount"), State->Tasks.Num());
-		Obj->SetArrayField(TEXT("Tasks"), BuildEditorNodeArray(State->Tasks));
+		Obj->SetNumberField(TEXT("TasksCount"), Tasks.Num());
+		Obj->SetArrayField(TEXT("Tasks"), BuildEditorNodeArray(Tasks));
 	}
 
 	// 迁移摘要（迁移数量 + 触发器 + 目标名）
@@ -103,7 +107,7 @@ static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, cons
 		TArray<TSharedPtr<FJsonValue>> ChildArr;
 		for (const UStateTreeState* Child : State->Children)
 		{
-			TSharedPtr<FJsonObject> ChildObj = BuildStateInfo(Child, StateNames, Depth + 1);
+			TSharedPtr<FJsonObject> ChildObj = BuildStateInfo(Child, StateNames, bSingleTask, Depth + 1);
 			if (ChildObj.IsValid())
 			{
 				ChildArr.Add(MakeShared<FJsonValueObject>(ChildObj));
@@ -200,9 +204,10 @@ FCapabilityResult FNexusGetAssetStateTreeCapability::Execute(const TSharedPtr<FJ
 				return EStateTreeVisitor::Continue;
 			});
 			TArray<TSharedPtr<FJsonValue>> SubTreeArr;
+			const bool bSingleTask = EdData->Schema && !EdData->Schema->AllowMultipleTasks();
 			for (const UStateTreeState* SubTree : EdData->SubTrees)
 			{
-				TSharedPtr<FJsonObject> SubObj = BuildStateInfo(SubTree, StateNames);
+				TSharedPtr<FJsonObject> SubObj = BuildStateInfo(SubTree, StateNames, bSingleTask);
 				if (SubObj.IsValid())
 				{
 					SubTreeArr.Add(MakeShared<FJsonValueObject>(SubObj));
