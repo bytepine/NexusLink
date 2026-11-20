@@ -144,6 +144,8 @@ static bool ResolveEditProperty(UObject* Asset, const FString& Capability, const
 		Resolved.Property = Struct->FindPropertyByName(FName(*Segments[SegmentIndex]));
 		if (!Resolved.Property || Resolved.Property->ArrayDim != 1)
 		{ Error = TEXT("Property not found or fixed-size array is unsupported"); return false; }
+		if (Capability == TEXT("ManageAssetLevel") && Struct == Resolved.Owner->GetClass()
+			&& !FNexusEditorLevelUtils::CanEditInstanceMember(Resolved.Owner, Resolved.Property, Error)) return false;
 		Resolved.Value = Resolved.Property->ContainerPtrToValuePtr<void>(Container);
 		if (SegmentIndex + 1 < Segments.Num())
 		{
@@ -368,9 +370,17 @@ void FNexusAssetEditUtils::Apply(UObject* Asset, const FString& Capability, cons
 		{ Entry->SetStringField(TEXT("Error"), Error); return; }
 		if (Capability == TEXT("ManageAssetBlueprint") && !FNexusArgs(Operation).Str(TEXT("ComponentName")).IsEmpty())
 		{
-			if (!FNexusBlueprintEditUtils::FindComponent(Cast<UBlueprint>(Asset), FNexusArgs(Operation).Str(TEXT("ComponentName")), true, Error)
-				|| !ResolveEditProperty(Asset, Capability, Operation, Resolved, Error))
-			{ Entry->SetStringField(TEXT("Error"), Error); return; }
+			UBlueprint* Blueprint = CastChecked<UBlueprint>(Asset);
+			const bool bWasDirty = Blueprint->GetOutermost()->IsDirty();
+			bool bCreatedOverride = false;
+			FProperty* SourceProperty = Resolved.Property;
+			UActorComponent* Target = FNexusBlueprintEditUtils::FindComponent(Blueprint, FNexusArgs(Operation).Str(TEXT("ComponentName")), true, Error, &bCreatedOverride);
+			if (!Target || !ResolveEditProperty(Asset, Capability, Operation, Resolved, Error) || Resolved.Property != SourceProperty)
+			{
+				FNexusBlueprintEditUtils::DiscardFailedComponentOverride(Blueprint, bCreatedOverride ? Target : nullptr, bWasDirty);
+				Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Property differs on the inherited component override") : Error);
+				return;
+			}
 		}
 		// 先记 Undo，再写入。临时属性存储必须在蓝图编译/重建类型前销毁。
 		Asset->SetFlags(RF_Transactional); Asset->Modify();
@@ -382,7 +392,7 @@ void FNexusAssetEditUtils::Apply(UObject* Asset, const FString& Capability, cons
 	Entry->SetStringField(TEXT("NewValue"), Expected);
 	Asset->MarkPackageDirty();
 	if (Capability == TEXT("ManageAssetLevel"))
-		FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(Cast<UWorld>(Asset), FNexusArgs(Operation).Str(TEXT("ActorName")), false));
+		FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(Cast<UWorld>(Asset), FNexusArgs(Operation).Str(TEXT("ActorName")), false), Resolved.Owner);
 	UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
 	if (Blueprint)
 	{

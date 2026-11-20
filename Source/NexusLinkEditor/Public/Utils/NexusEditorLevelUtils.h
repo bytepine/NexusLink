@@ -7,6 +7,7 @@
 class UWorld;
 class ULevel;
 class FJsonObject;
+class FProperty;
 class AActor;
 class UClass;
 
@@ -32,8 +33,12 @@ public:
 	/** 按 Actor 名或 Editor Label 查找关卡内 Actor。 */
 	static AActor* FindLevelActorByNameOrLabel(UWorld* World, const FString& ActorNameOrLabel, bool bAllowLabel = true);
 
+	/** 与关卡详情面板一致，构造脚本生成的组件或控制的 SCS 属性不能写入实例覆盖。 */
+	static bool CanEditInstanceMember(const UObject* Owner, const FProperty* Member, FString& Error);
+
 	/** 通知编辑器刷新组件变换、包围盒及导航；由写入方先记录 Undo。 */
 	static void RefreshActorAfterPropertyEdit(AActor* Actor);
+	static void RefreshActorAfterPropertyEdit(AActor* Actor, UObject* PropertyOwner);
 
 	/** 在关卡持久层生成 Actor。 */
 	static bool SpawnActorInLevelWorld(UWorld* World, UClass* Class, const FVector& Location, const FRotator& Rotation,

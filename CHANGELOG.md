@@ -15,14 +15,17 @@
 
 ### Changed
 
-- 普通蓝图、Widget 蓝图和动画蓝图共用图表摘要实现。GameplayAbility 的实例化策略和网络执行策略通过 UE 枚举反射读写。
+- 普通蓝图、Widget 蓝图和动画蓝图共用图表摘要实现。`GetAssetBlueprint` 列出函数时直接复用对应的函数图，省去逐个函数扫描整个蓝图的开销。GameplayAbility 的实例化策略和网络执行策略通过 UE 枚举反射读写。
 - Texture、SoundWave、Font、CommonButtonStyle 和 CommonTextStyle 的 `SetProperty` 共用属性路径校验和写入结果处理。成功时返回 `PropertyPath`，旧值和实际新值的文本非空时分别返回 `OldValue`、`NewValue`。
 
 ### Fixed
 
-- 蓝图默认值的 `Defaults` 读取和普通 `SetDefaults` 写入能正确定位带点的 Map 键，例如 `Values["a.b"]`。
+- 蓝图默认值的 `Defaults` 读取和普通 `SetDefaults` 写入能正确定位带点的 Map 键，例如 `Values["a.b"]`。关卡 Actor 和蓝图组件的属性比较、默认值恢复也接受该路径。
+- 关卡组件属性写入及恢复默认值会检查构造脚本对属性的控制，允许修改的值从当前实例回读，撤销恢复操作可找回编辑前的值。反射属性写入会在修改前拒绝 Set 元素路径，仍可读取单个元素或写入整个 Set。
+- `SetComponentProperty` 允许编辑组件及其自有子对象。撤销首次写入会移除新建的继承覆盖，重新使用父模板的值。沿组件引用修改共享资产会在创建继承覆盖前被拒绝，写入失败会清理本次新建的覆盖模板。
+- 蓝图图表摘要和 `GraphType` 过滤正确识别宏、动画状态、过渡和 Conduit。普通蓝图与动画蓝图的 `RemoveNode` 先检查只读图和必需节点，拒绝时保留连线及资产原有的脏标记。结构预览与验证写入接受源蓝图的完整 `GraphPath`。
 - 动画蓝图工具支持按资产相对路径读写嵌套图。短名匹配多张图时会报错，可用 `GetEditorGraph` 返回的完整 `GraphPath` 指定目标。
-- `GetAssetStateTree` 正确返回已有外部链接状态的类型 `LinkedAsset`。
+- `GetAssetStateTree` 返回外部链接状态的类型 `LinkedAsset`，并按 GUID 读取改名后转移目标的当前名称。`AddTransition` 在源状态完成时跳转到指定状态，支持撤销与失败批次回滚。按名称操作 StateTree 时要求状态名在树内唯一。
 
 ## [2.3.7] - 2026-11-19
 

@@ -31,7 +31,13 @@ public:
 		TSharedPtr<FJsonObject>& OutResult,
 		FString& OutError);
 
-	/** 从 UObject 上递归定位属性指针；OutOwner 可回读叶子实际所属对象（结构体沿用其宿主）。 */
+	/** 只读定位，允许按元素值读取 Set。 */
+	static bool ResolvePropertyAddress(UObject* Obj, const TArray<FString>& PathSegments, int32 SegmentIdx,
+		FProperty*& OutProp, void*& OutValuePtr, FString& OutError, UObject** OutOwner = nullptr);
+
+	using FValidateMember = bool (*)(const UObject*, const FProperty*, FString&);
+
+	/** 写入定位禁止穿过 Set 下标；可在进入每一级对象成员前校验该成员。 */
 	static bool ResolvePropertyWrite(
 		UObject* Obj,
 		const TArray<FString>& PathSegments,
@@ -40,6 +46,8 @@ public:
 		void*& OutValuePtr,
 		FString& OutError,
 		UObject** OutOwner = nullptr);
+	static bool ResolvePropertyWrite(UObject* Obj, const TArray<FString>& PathSegments, int32 SegmentIdx,
+		FProperty*& OutProp, void*& OutValuePtr, FString& OutError, UObject** OutOwner, FValidateMember ValidateMember);
 
 	/** 在调用方提供的临时存储中完整解析属性文本；浮点数支持科学计数法并拒绝非有限值。 */
 	static bool ParsePropertyValue(const FProperty* Property, const FString& Text, void* Storage, UObject* Owner, FString& OutError);
@@ -129,6 +137,8 @@ public:
 		FString&               OutOldValue,
 		FString&               OutActualValue,
 		FString&               OutError);
+	static bool WriteResolvedPropertyAndEcho(UObject* Target, FProperty* Prop, void* Ptr, const FString& NewValue,
+		FString& OutOldValue, FString& OutActualValue, FString& OutError);
 };
 
 // ── 跨版本 AssetRegistry 兼容 ──

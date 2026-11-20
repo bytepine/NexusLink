@@ -13,8 +13,7 @@
 #include "StateTree.h"
 #include "NexusMcpTool.h"
 #if WITH_EDITOR
-#include "StateTreeEditorData.h"
-#include "StateTreeState.h"
+#include "Capabilities/Asset/StateTree/NexusStateTreeTraversal.h"
 #endif
 
 // ── 辅助：枚举 EStateTreeStateType → 字符串 ──────────────────────────────────
@@ -54,7 +53,7 @@ static TArray<TSharedPtr<FJsonValue>> BuildEditorNodeArray(const TArray<FStateTr
 
 // ── 辅助：递归构建 UStateTreeState JSON ──────────────────────────────────────
 
-static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, int32 Depth = 0)
+static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, const TMap<FGuid, FName>& StateNames, int32 Depth = 0)
 {
 	if (!State || Depth > 32)
 	{
@@ -87,12 +86,11 @@ static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, int3
 		for (const FStateTreeTransition& T : State->Transitions)
 		{
 			TSharedPtr<FJsonObject> TObj = MakeShared<FJsonObject>();
-			// 目标状态名：若 State 指针有效取名字，否则记录类型
 			TObj->SetStringField(TEXT("Trigger"), UEnum::GetValueAsString(T.Trigger));
 #if WITH_EDITORONLY_DATA
-			if (T.State.ID.IsValid())
+			if (const FName* TargetName = StateNames.Find(T.State.ID))
 			{
-				TObj->SetStringField(TEXT("Target"), T.State.Name.ToString());
+				TObj->SetStringField(TEXT("Target"), TargetName->ToString());
 			}
 #endif
 			TransArr.Add(MakeShared<FJsonValueObject>(TObj));
@@ -106,7 +104,7 @@ static TSharedPtr<FJsonObject> BuildStateInfo(const UStateTreeState* State, int3
 		TArray<TSharedPtr<FJsonValue>> ChildArr;
 		for (const UStateTreeState* Child : State->Children)
 		{
-			TSharedPtr<FJsonObject> ChildObj = BuildStateInfo(Child, Depth + 1);
+			TSharedPtr<FJsonObject> ChildObj = BuildStateInfo(Child, StateNames, Depth + 1);
 			if (ChildObj.IsValid())
 			{
 				ChildArr.Add(MakeShared<FJsonValueObject>(ChildObj));
@@ -196,10 +194,16 @@ FCapabilityResult FNexusGetAssetStateTreeCapability::Execute(const TSharedPtr<FJ
 			}
 
 			// SubTrees（根状态树递归）
+			TMap<FGuid, FName> StateNames;
+			VisitNexusStateTreeStates(*EdData, [&](const UStateTreeState& State)
+			{
+				if (State.ID.IsValid()) StateNames.Add(State.ID, State.Name);
+				return EStateTreeVisitor::Continue;
+			});
 			TArray<TSharedPtr<FJsonValue>> SubTreeArr;
 			for (const UStateTreeState* SubTree : EdData->SubTrees)
 			{
-				TSharedPtr<FJsonObject> SubObj = BuildStateInfo(SubTree);
+				TSharedPtr<FJsonObject> SubObj = BuildStateInfo(SubTree, StateNames);
 				if (SubObj.IsValid())
 				{
 					SubTreeArr.Add(MakeShared<FJsonValueObject>(SubObj));

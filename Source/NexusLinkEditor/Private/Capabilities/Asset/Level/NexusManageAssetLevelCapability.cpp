@@ -303,17 +303,30 @@ static void HandleLevel_SetActorProperty(const TSharedPtr<FJsonObject>& Op, FNex
 		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 		return;
 	}
-	Actor->Modify();
-	TInlineComponentArray<UActorComponent*> Components(Actor);
-	for (UActorComponent* Component : Components) if (Component) Component->Modify();
+	TArray<FString> Segments;
+	FNexusPropertyUtils::AppendPropertyPathSegments(PropPath, Segments);
+	FProperty* Field = nullptr;
+	void* Storage = nullptr;
+	UObject* Owner = nullptr;
 	FString OldVal, ActualVal, PropErr;
-	if (!FNexusPropertyUtils::WritePropertyAndEcho(Actor, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
+	if (!FNexusPropertyUtils::ResolvePropertyWrite(Actor, Segments, 0, Field, Storage, PropErr, &Owner, FNexusEditorLevelUtils::CanEditInstanceMember))
+	{ Ctx.Entry->SetStringField(TEXT("Error"), PropErr); return; }
+	if (Owner != Actor && !Owner->IsIn(Actor))
+	{ Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Actor property writes can only traverse owned subobjects")); return; }
+	Actor->SetFlags(RF_Transactional);
+	Actor->Modify();
+	if (Owner != Actor) { Owner->SetFlags(RF_Transactional); Owner->Modify(); }
+	if (!FNexusPropertyUtils::WriteResolvedPropertyAndEcho(Actor, Field, Storage, Value, OldVal, ActualVal, PropErr))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), PropErr);
 		return;
 	}
 	S->World->MarkPackageDirty();
-	FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(Actor);
+	FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(Actor, Owner);
+	if (!IsValid(Actor) || !FNexusPropertyUtils::ResolvePropertyAddress(Actor, Segments, 0, Field, Storage, PropErr))
+	{ Ctx.Entry->SetStringField(TEXT("Error"), PropErr.IsEmpty() ? TEXT("Actor property unavailable after editor refresh") : PropErr); return; }
+	ActualVal.Reset();
+	FNexusPropertyUtils::ExportText(Field, ActualVal, Storage);
 	Ctx.Entry->SetStringField(TEXT("ActorName"), ActorName);
 	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
 	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
@@ -339,7 +352,8 @@ static void HandleLevel_ResetActorPropertyToDefault(const TSharedPtr<FJsonObject
 		return;
 	}
 	TArray<FString> Segments;
-	PropPath.ParseIntoArray(Segments, TEXT("."), true);
+	FNexusPropertyUtils::AppendPropertyPathSegments(PropPath, Segments);
+	Segments.Remove(FString()); // 兼容既有关卡恢复操作忽略空段的行为。
 	FProperty* Prop = nullptr;
 	void* ValPtr = nullptr;
 	FString PropErr;
@@ -351,7 +365,7 @@ static void HandleLevel_ResetActorPropertyToDefault(const TSharedPtr<FJsonObject
 	FProperty* TargetProperty = nullptr;
 	void* TargetValue = nullptr;
 	UObject* TargetOwner = nullptr;
-	if (!FNexusPropertyUtils::ResolvePropertyWrite(Actor, Segments, 0, TargetProperty, TargetValue, PropErr, &TargetOwner)
+	if (!FNexusPropertyUtils::ResolvePropertyWrite(Actor, Segments, 0, TargetProperty, TargetValue, PropErr, &TargetOwner, FNexusEditorLevelUtils::CanEditInstanceMember)
 		|| TargetProperty != Prop || !TargetOwner || (TargetOwner != Actor && !TargetOwner->IsIn(Actor)))
 	{ Ctx.Entry->SetStringField(TEXT("Error"), PropErr.IsEmpty() ? TEXT("Reset requires a matching property on the actor or an owned subobject") : PropErr); return; }
 	if (Prop->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference))
@@ -360,6 +374,7 @@ static void HandleLevel_ResetActorPropertyToDefault(const TSharedPtr<FJsonObject
 		if (UObject* Object = Reference->GetObjectPropertyValue(ValPtr))
 			if (Object->IsIn(Actor->GetClass()->GetDefaultObject()))
 			{ Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Reset cannot copy a default subobject reference into an actor instance")); return; }
+	Actor->SetFlags(RF_Transactional);
 	Actor->Modify();
 	TargetOwner->SetFlags(RF_Transactional);
 	TargetOwner->Modify();
@@ -368,8 +383,12 @@ static void HandleLevel_ResetActorPropertyToDefault(const TSharedPtr<FJsonObject
 	// ExportText 会省略零值字段；完整反射复制才能真正恢复结构体和容器。
 	Prop->CopyCompleteValue(TargetValue, ValPtr);
 	S->World->MarkPackageDirty();
-	FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(Actor);
-	FNexusPropertyUtils::ExportText(Prop, ActualVal, TargetValue);
+	FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(Actor, TargetOwner);
+	// 刷新可能重建组件，写后核验必须重新获取当前实例和当前默认值。
+	if (!IsValid(Actor) || !FNexusPropertyUtils::ResolvePropertyAddress(Actor, Segments, 0, TargetProperty, TargetValue, PropErr)
+		|| !FNexusBlueprintEditUtils::ResolveActorDefaultProperty(Actor, Segments, Prop, ValPtr, PropErr) || TargetProperty != Prop)
+	{ Ctx.Entry->SetStringField(TEXT("Error"), PropErr.IsEmpty() ? TEXT("Matching actor/default property unavailable after editor refresh") : PropErr); return; }
+	FNexusPropertyUtils::ExportText(TargetProperty, ActualVal, TargetValue);
 	const bool bVerified = Prop->Identical(TargetValue, ValPtr, PPF_None);
 	Ctx.Entry->SetBoolField(TEXT("bVerified"), bVerified);
 	Ctx.Entry->SetStringField(TEXT("Verification"), bVerified ? TEXT("Passed") : TEXT("Failed"));

@@ -396,6 +396,8 @@ Read assets through SearchAsset with AssetType + PathFilter, then use returned a
 
 When an Animation Blueprint contains graphs with the same name, list them with `GetEditorGraph(AssetPath)`. Pass the nested graph’s relative `GraphName` or any graph’s full `GraphPath` as the `GraphName` argument to `GetAssetAnimBlueprint` or `ManageAssetAnimBlueprint`. When a root graph shares its name with a nested graph, use the full path to select the root.
 
+Use the `GraphType` filter in `GetAssetBlueprint` to find graphs such as `Macro`, `State`, `Transition`, or `Conduit`. Pass the full `GraphPath` from `GraphOverview` as `GraphName` to preview or verify a deletion. In Blueprints and Animation Blueprints, `RemoveNode` rejects edits to read-only graphs and deletion of required nodes such as function entries and animation output roots. Rejection preserves connections and the asset's dirty flag.
+
 <a id="29-挂载-airules"></a>
 ### 2.9 Install AIRules
 
@@ -608,7 +610,11 @@ Map and loaded-streaming-sublevel saves validate UWorld/PersistentLevel in the p
 
 Blueprint native components accept actual component-object names or reflected member names in SetComponentProperty. After a complex write times out, read back first. Alternatively use SetDefaults member paths such as Mesh.SkeletalMesh, Mesh.AnimClass, or CapsuleComponent.BodyInstance; do not replay the entire write batch automatically.
 
-For Map keys containing dots in Blueprint defaults, use a property path such as `Values["a.b"]`. Pass it in `PropertyPaths` for the `Defaults` section of `GetAssetBlueprint`, or as `PropertyPath` for an ordinary `SetDefaults` write. Previews and writes using `bVerify=true` or `ExpectedValue` reject these container element paths.
+For Map keys containing dots, use a property path such as `Values["a.b"]`. Pass it in `PropertyPaths` when reading Blueprint `Defaults` or comparing properties in the Blueprint `Component` or level `ActorProperties` sections. Ordinary `SetDefaults` writes, `ResetComponentPropertyToDefault`, and `ResetActorPropertyToDefault` take a single `PropertyPath`. Previewing `SetDefaults` or using it with `bVerify=true` or `ExpectedValue` still rejects these container element paths.
+
+Set elements are addressed by value. For example, read an element with `Ids[1]` and write the whole `Ids` Set to change it. `SetComponentProperty` edits the component and its owned subobjects. It can replace a reference to a shared material or another asset. Edit the shared asset's own properties through its asset tools. Adjust level component values controlled by a construction script through the Blueprint or the script's inputs.
+
+StateTree `AddTransition` requires each source and target name to identify a single state in the tree. After a target is renamed, `GetAssetStateTree` uses the link GUID to display its new name.
 
 CallCapability.Calls[] with at least two entries defers automatic compilation/saving until every business operation completes. Operation or compile failure attempts rollback of recorded in-memory changes and skips autosave. Item, section, compile, and save errors return isError=true while preserving structuredContent details. bRolledBack / UndoNote describe in-memory rollback. Saving does not promise disk atomicity; explicit SaveAsset/create/delete/rename and runtime side effects are outside rollback. A single manage call retains partially successful operations; never blindly retry the entire request.
 

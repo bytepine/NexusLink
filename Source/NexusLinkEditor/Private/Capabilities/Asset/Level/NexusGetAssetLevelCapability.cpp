@@ -172,9 +172,10 @@ void FNexusGetAssetLevelCapability::ExecuteSection(const FString&               
 			const UStruct* Struct = Actor->GetClass(); void* Container = Actor;
 			if (!Path.IsEmpty())
 			{
-				TArray<FString> Parts; Path.ParseIntoArray(Parts, TEXT("."), false);
+				TArray<FString> Parts;
+				FNexusPropertyUtils::AppendPropertyPathSegments(Path, Parts);
 				FProperty* Field = nullptr; void* Value = nullptr; UObject* Owner = nullptr; FString Error;
-				if (!FNexusPropertyUtils::ResolvePropertyWrite(Actor, Parts, 0, Field, Value, Error, &Owner)
+				if (!FNexusPropertyUtils::ResolvePropertyAddress(Actor, Parts, 0, Field, Value, Error, &Owner)
 					|| !Owner || (Owner != Actor && !Owner->IsIn(Actor)))
 				{ Schema->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Schema path must remain within owned subobjects") : Error); Struct = nullptr; }
 				else if (FStructProperty* StructField = CastField<FStructProperty>(Field)) { Struct = StructField->Struct; Container = Value; }
@@ -216,11 +217,11 @@ void FNexusGetAssetLevelCapability::ExecuteSection(const FString&               
 			TSharedPtr<FJsonObject> Property = MakeShared<FJsonObject>();
 			Property->SetStringField(TEXT("PropertyPath"), Path);
 			TArray<FString> Segments;
-			Path.ParseIntoArray(Segments, TEXT("."), false);
+			FNexusPropertyUtils::AppendPropertyPathSegments(Path, Segments);
 			FProperty* Field = nullptr;
 			void* Value = nullptr;
 			FString Error;
-			if (!FNexusPropertyUtils::ResolvePropertyWrite(Actor, Segments, 0, Field, Value, Error))
+			if (!FNexusPropertyUtils::ResolvePropertyAddress(Actor, Segments, 0, Field, Value, Error))
 			{ Property->SetStringField(TEXT("Error"), Error); OutError = TEXT("One or more actor properties could not be read"); }
 			else
 			{

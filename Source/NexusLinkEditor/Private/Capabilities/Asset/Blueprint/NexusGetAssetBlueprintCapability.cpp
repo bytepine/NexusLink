@@ -133,7 +133,7 @@ static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FNexusBPQu
 			FProperty* Field = nullptr; void* Value = nullptr; UObject* Owner = nullptr; FString Error;
 			TArray<FString> Parts;
 			FNexusPropertyUtils::AppendPropertyPathSegments(Path, Parts);
-			const bool bResolved = FNexusPropertyUtils::ResolvePropertyWrite(CDO, Parts, 0, Field, Value, Error, &Owner);
+			const bool bResolved = FNexusPropertyUtils::ResolvePropertyAddress(CDO, Parts, 0, Field, Value, Error, &Owner);
 			const bool bOwned = bResolved && Owner && (Owner == CDO || Owner->IsIn(CDO));
 			auto Property = MakeShared<FJsonObject>(); Property->SetStringField(TEXT("Path"), Path);
 			if (!bOwned)
@@ -448,7 +448,13 @@ static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FNexusBP
 	return Info;
 }
 
-struct FNexusBPEntryLocal { FString Name; FString Kind; FString Type; FString SubType; FString SubTypeObject; FString Category; bool bIsPublic = false; TSharedPtr<FJsonObject> TypeInfo; FString Guid; };
+struct FNexusBPEntryLocal
+{
+	FString Name, Kind, Type, SubType, SubTypeObject, Category, Guid;
+	bool bIsPublic = false;
+	TSharedPtr<FJsonObject> TypeInfo;
+	const UEdGraph* FunctionGraph = nullptr;
+};
 
 // ── FNexusCapability 基础钩子 ──────────────────────────────────────────────────
 
@@ -627,11 +633,12 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 			{
 				auto Entry = MakeShared<FJsonObject>();
 				Entry->SetStringField(TEXT("PropertyPath"), Path);
-				TArray<FString> Segments; Path.ParseIntoArray(Segments, TEXT("."), false);
+				TArray<FString> Segments;
+				FNexusPropertyUtils::AppendPropertyPathSegments(Path, Segments);
 				FProperty* Property = nullptr; FProperty* DefaultProperty = nullptr;
 				void* Value = nullptr; void* DefaultValue = nullptr;
-				if (!FNexusPropertyUtils::ResolvePropertyWrite(Component, Segments, 0, Property, Value, Error)
-					|| !FNexusPropertyUtils::ResolvePropertyWrite(Baseline, Segments, 0, DefaultProperty, DefaultValue, Error) || Property != DefaultProperty)
+				if (!FNexusPropertyUtils::ResolvePropertyAddress(Component, Segments, 0, Property, Value, Error)
+					|| !FNexusPropertyUtils::ResolvePropertyAddress(Baseline, Segments, 0, DefaultProperty, DefaultValue, Error) || Property != DefaultProperty)
 				{ Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Baseline property type differs") : Error); OutError = TEXT("One or more component properties could not be compared"); }
 				else
 				{
@@ -728,6 +735,7 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 			{
 				if (!Graph) continue;
 				FNexusBPEntryLocal E; E.Name = Graph->GetName(); E.Kind = TEXT("Function");
+				E.FunctionGraph = Graph;
 				All.Add(E);
 			}
 		}
@@ -765,21 +773,22 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 				}
 			}
 			// 函数节：从 GeneratedClass 提取签名
-			if (E.Kind == TEXT("Function") && BP->GeneratedClass)
+			if (E.FunctionGraph && BP->GeneratedClass)
 			{
 				TArray<TSharedPtr<FJsonValue>> Locals;
-				if (UEdGraph* FunctionGraph = FNexusBlueprintGraphUtils::FindBPGraph(BP, E.Name))
-					for (UEdGraphNode* Node : FunctionGraph->Nodes) if (auto* FunctionEntry = Cast<UK2Node_FunctionEntry>(Node))
+				for (const UEdGraphNode* Node : E.FunctionGraph->Nodes)
+				{
+					const auto* FunctionEntry = Cast<UK2Node_FunctionEntry>(Node);
+					if (!FunctionEntry) continue;
+					Obj->SetBoolField(TEXT("bCallInEditor"), FunctionEntry->MetaData.bCallInEditor);
+					for (const auto& Variable : FunctionEntry->LocalVariables)
 					{
-						Obj->SetBoolField(TEXT("bCallInEditor"), FunctionEntry->MetaData.bCallInEditor);
-						for (const auto& Variable : FunctionEntry->LocalVariables)
-						{
-							auto Local = FNexusPinTypeUtils::DescribePinType(Variable.VarType);
-							Local->SetStringField(TEXT("Name"), Variable.VarName.ToString());
-							Local->SetStringField(TEXT("Guid"), Variable.VarGuid.ToString(EGuidFormats::DigitsWithHyphens));
-							Locals.Add(MakeShared<FJsonValueObject>(Local));
-						}
+						auto Local = FNexusPinTypeUtils::DescribePinType(Variable.VarType);
+						Local->SetStringField(TEXT("Name"), Variable.VarName.ToString());
+						Local->SetStringField(TEXT("Guid"), Variable.VarGuid.ToString(EGuidFormats::DigitsWithHyphens));
+						Locals.Add(MakeShared<FJsonValueObject>(Local));
 					}
+				}
 				Obj->SetArrayField(TEXT("LocalVariables"), Locals);
 				UFunction* Func = BP->GeneratedClass->FindFunctionByName(*E.Name);
 				if (Func)

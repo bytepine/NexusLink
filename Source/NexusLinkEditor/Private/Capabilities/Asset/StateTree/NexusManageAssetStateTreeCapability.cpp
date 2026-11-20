@@ -12,8 +12,7 @@
 #include "NexusMcpTool.h"
 #include "StateTree.h"
 #if WITH_EDITOR
-#include "StateTreeEditorData.h"
-#include "StateTreeState.h"
+#include "Capabilities/Asset/StateTree/NexusStateTreeTraversal.h"
 #include "StateTreeEditorNode.h"
 #endif
 
@@ -66,27 +65,37 @@ static UStateTreeEditorData* EdFrom(FNexusActionContext& Ctx)
 	return ST ? Cast<UStateTreeEditorData>(ST->EditorData) : nullptr;
 }
 
-static UStateTreeState* FindStateByName(UStateTreeEditorData* EdData, const FString& Name)
+static UStateTreeState* FindStateByName(FNexusActionContext& Ctx, const FString& Name)
 {
-	if (!EdData || Name.IsEmpty()) return nullptr;
-	TArray<UStateTreeState*> Stack;
-	for (UStateTreeState* Root : EdData->SubTrees)
+	UStateTreeEditorData* EdData = EdFrom(Ctx);
+	if (!EdData || Name.IsEmpty())
 	{
-		if (Root) Stack.Add(Root);
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("A state name and StateTree editor data are required"));
+		return nullptr;
 	}
-	while (Stack.Num() > 0)
+	const FName RequestedName(*Name);
+	UStateTreeState* Match = nullptr;
+	bool bAmbiguous = false;
+	VisitNexusStateTreeStates(*EdData, [&](UStateTreeState& State)
 	{
-		UStateTreeState* S = Stack.Pop();
-		if (S->Name.ToString().Equals(Name, ESearchCase::IgnoreCase))
+		if (State.Name == RequestedName)
 		{
-			return S;
+			if (Match)
+			{
+				bAmbiguous = true;
+				return EStateTreeVisitor::Break;
+			}
+			Match = &State;
 		}
-		for (UStateTreeState* Child : S->Children)
-		{
-			if (Child) Stack.Add(Child);
-		}
+		return EStateTreeVisitor::Continue;
+	});
+	if (bAmbiguous)
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Ambiguous state name: %s"), *Name));
+		return nullptr;
 	}
-	return nullptr;
+	if (!Match) Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State not found: %s"), *Name));
+	return Match;
 }
 
 static void MarkSTDirty(FNexusActionContext& Ctx)
@@ -132,19 +141,15 @@ static void HandleST_AddState(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	else if (TypeStr == TEXT("Linked"))  StateType = EStateTreeStateType::Linked;
 	else if (TypeStr == TEXT("Subtree")) StateType = EStateTreeStateType::Subtree;
 
+	const FString ParentName = A.Str(TEXT("ParentState"));
+	UStateTreeState* ParentState = ParentName.IsEmpty() ? nullptr : FindStateByName(Ctx, ParentName);
+	if (!ParentName.IsEmpty() && !ParentState) return;
 	UStateTreeState* NewState = NewObject<UStateTreeState>(EdData, NAME_None, RF_Transactional);
 	NewState->Name = *StateName;
 	NewState->Type = StateType;
 
-	const FString ParentName = A.Str(TEXT("ParentState"));
-	if (!ParentName.IsEmpty())
+	if (ParentState)
 	{
-		UStateTreeState* ParentState = FindStateByName(EdData, ParentName);
-		if (!ParentState)
-		{
-			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Parent State not found: %s"), *ParentName));
-			return;
-		}
 		NewState->Rename(nullptr, ParentState);
 		ParentState->Children.Add(NewState);
 	}
@@ -171,12 +176,8 @@ static void HandleST_RemoveState(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveState requires StateName"));
 		return;
 	}
-	UStateTreeState* Target = FindStateByName(EdData, StateName);
-	if (!Target)
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State not found: %s"), *StateName));
-		return;
-	}
+	UStateTreeState* Target = FindStateByName(Ctx, StateName);
+	if (!Target) return;
 	bool bRemoved = false;
 	if (EdData->SubTrees.Remove(Target) > 0)
 	{
@@ -209,7 +210,6 @@ static void HandleST_RemoveState(const TSharedPtr<FJsonObject>& Op, FNexusAction
 
 static void HandleST_RenameState(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UStateTreeEditorData* EdData = EdFrom(Ctx);
 	const FNexusArgs A(Op);
 	const FString StateName = A.Str(TEXT("StateName"));
 	const FString NewName = A.Str(TEXT("NewName"));
@@ -218,12 +218,10 @@ static void HandleST_RenameState(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RenameState requires StateName and NewName"));
 		return;
 	}
-	UStateTreeState* Target = FindStateByName(EdData, StateName);
-	if (!Target)
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State not found: %s"), *StateName));
-		return;
-	}
+	UStateTreeState* Target = FindStateByName(Ctx, StateName);
+	if (!Target) return;
+	Target->SetFlags(RF_Transactional);
+	Target->Modify();
 	Target->Name = *NewName;
 	MarkSTDirty(Ctx);
 }
@@ -237,12 +235,12 @@ static void HandleST_Recompile(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 
 static void AddStateTreeEditorNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, bool bTask)
 {
-	UStateTreeEditorData* EdData = EdFrom(Ctx);
 	const FNexusArgs A(Op);
 	const FString StateName = A.Str(TEXT("StateName"));
 	const FString NodeType = A.Str(TEXT("NodeType"));
-	UStateTreeState* Target = FindStateByName(EdData, StateName);
-	if (!Target || NodeType.IsEmpty())
+	UStateTreeState* Target = FindStateByName(Ctx, StateName);
+	if (!Target) return;
+	if (NodeType.IsEmpty())
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("StateName and NodeType required"));
 		return;
@@ -282,16 +280,11 @@ static void HandleST_AddEnterCondition(const TSharedPtr<FJsonObject>& Op, FNexus
 
 static void RemoveStateTreeIndexed(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, bool bTask)
 {
-	UStateTreeEditorData* EdData = EdFrom(Ctx);
 	const FNexusArgs A(Op);
 	const FString StateName = A.Str(TEXT("StateName"));
 	const int32 Idx = Op->HasField(TEXT("Index")) ? static_cast<int32>(A.Num(TEXT("Index"))) : 0;
-	UStateTreeState* Target = FindStateByName(EdData, StateName);
-	if (!Target)
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Valid StateName required"));
-		return;
-	}
+	UStateTreeState* Target = FindStateByName(Ctx, StateName);
+	if (!Target) return;
 	TArray<FStateTreeEditorNode>& Arr = bTask ? Target->Tasks : Target->EnterConditions;
 	if (!Arr.IsValidIndex(Idx))
 	{
@@ -314,37 +307,34 @@ static void HandleST_RemoveEnterCondition(const TSharedPtr<FJsonObject>& Op, FNe
 
 static void HandleST_AddTransition(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UStateTreeEditorData* EdData = EdFrom(Ctx);
 	const FNexusArgs A(Op);
 	const FString StateName = A.Str(TEXT("StateName"));
 	const FString TargetName = A.Str(TEXT("TargetState"));
-	UStateTreeState* Source = FindStateByName(EdData, StateName);
-	UStateTreeState* Dest = FindStateByName(EdData, TargetName);
-	if (!Source || !Dest)
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddTransition requires valid StateName and TargetState"));
-		return;
-	}
-	FStateTreeTransition Trans;
-	Trans.Trigger = EStateTreeTransitionTrigger::OnStateCompleted;
-	Trans.State.ID = Dest->ID;
-	Source->Transitions.Add(Trans);
+	UStateTreeState* Source = FindStateByName(Ctx, StateName);
+	if (!Source) return;
+	UStateTreeState* Dest = FindStateByName(Ctx, TargetName);
+	if (!Dest) return;
+	Source->SetFlags(RF_Transactional);
+	Source->Modify();
+	Source->AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, Dest);
 	Ctx.Entry->SetStringField(TEXT("TargetState"), TargetName);
 	MarkSTDirty(Ctx);
 }
 
 static void HandleST_RemoveTransition(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UStateTreeEditorData* EdData = EdFrom(Ctx);
 	const FNexusArgs A(Op);
 	const FString StateName = A.Str(TEXT("StateName"));
 	const int32 Idx = Op->HasField(TEXT("Index")) ? static_cast<int32>(A.Num(TEXT("Index"))) : 0;
-	UStateTreeState* Source = FindStateByName(EdData, StateName);
-	if (!Source || !Source->Transitions.IsValidIndex(Idx))
+	UStateTreeState* Source = FindStateByName(Ctx, StateName);
+	if (!Source) return;
+	if (!Source->Transitions.IsValidIndex(Idx))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveTransition requires valid StateName and index"));
 		return;
 	}
+	Source->SetFlags(RF_Transactional);
+	Source->Modify();
 	Source->Transitions.RemoveAt(Idx);
 	MarkSTDirty(Ctx);
 }

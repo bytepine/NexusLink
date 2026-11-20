@@ -215,12 +215,20 @@ bool FNexusAssetStructureUtils::ApplyPreview(UObject* Asset, const FString& Capa
 	if (Capability == TEXT("ManageAssetBlueprint"))
 	{
 		UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
-		UEdGraph* Graph = Blueprint ? FNexusBlueprintGraphUtils::FindBPGraph(Blueprint, A.Str(TEXT("GraphName"))) : nullptr;
+		FString GraphName = A.Str(TEXT("GraphName"));
+		if (GraphName.StartsWith(TEXT("/")))
+		{
+			UEdGraph* SourceGraph = FNexusBlueprintGraphUtils::FindBPGraph(Cast<UBlueprint>(Source), GraphName);
+			if (!SourceGraph) { Error = TEXT("GraphName not found"); return false; }
+			GraphName = SourceGraph->GetPathName(Source);
+		}
+		UEdGraph* Graph = FNexusBlueprintGraphUtils::FindBPGraph(Blueprint, GraphName);
 		if (!Graph || !Graph->GetSchema()) { Error = TEXT("GraphName not found"); return false; }
 		if (Action == TEXT("RemoveNode"))
 		{
 			UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, A.Str(TEXT("NodeId")));
 			if (!Node) { Error = TEXT("NodeId not found"); return false; }
+			if (const TCHAR* Reason = FNexusBlueprintGraphUtils::GetNodeDeletionError(*Node)) { Error = Reason; return false; }
 			Graph->GetSchema()->BreakNodeLinks(*Node); Graph->RemoveNode(Node); return true;
 		}
 		UEdGraphNode* SourceNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, A.Str(TEXT("SourceNodeId")));

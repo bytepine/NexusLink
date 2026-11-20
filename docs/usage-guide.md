@@ -392,6 +392,8 @@ Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可�
 
 动画蓝图含有重名图表时，先用 `GetEditorGraph(AssetPath)` 列出图表。将嵌套图的相对 `GraphName` 或任一图的完整 `GraphPath` 传给 `GetAssetAnimBlueprint` 或 `ManageAssetAnimBlueprint` 的 `GraphName`。根图与嵌套图重名时，用根图的完整路径选择根图。
 
+用 `GetAssetBlueprint` 的 `GraphType` 筛选图表，例如 `Macro`、`State`、`Transition` 或 `Conduit`。将 `GraphOverview` 返回的完整 `GraphPath` 作为 `GraphName`，即可预览或验证删除。普通蓝图与动画蓝图的 `RemoveNode` 会拒绝修改只读图和删除必需节点（如函数入口、动画输出根节点），保留连线及原有脏标记。
+
 ### 2.9 挂载 AIRules
 
 插件 [`AIRules.mdc`](../Resources/AIRules.mdc) **不**经 MCP 注入，需复制到游戏项目 IDE Rules，与握手 Instructions 互补。
@@ -601,7 +603,11 @@ Desktop / Rider / VSCode 默认对删除、重命名、停止 PIE 等破坏性�
 
 蓝图原生组件可用 `SetComponentProperty` 的实际组件对象名或反射成员名定位。若复杂组件写入超时，先回读确认状态；可改用 `SetDefaults` 的成员路径（如 `Mesh.SkeletalMesh`、`Mesh.AnimClass`、`CapsuleComponent.BodyInstance`），不要自动重放整批写入。
 
-蓝图默认值的 Map 键含点时，使用形如 `Values["a.b"]` 的属性路径。`GetAssetBlueprint` 的 `Defaults` section 接受 `PropertyPaths`，普通 `SetDefaults` 写入接受 `PropertyPath`。预览、启用 `bVerify=true` 的写入及带 `ExpectedValue` 的写入均会拒绝此类容器元素路径。
+Map 键含点时，使用形如 `Values["a.b"]` 的属性路径。读取蓝图 `Defaults`、比较蓝图 `Component` 或关卡 `ActorProperties` 时，将路径放进 `PropertyPaths`。普通 `SetDefaults` 写入、`ResetComponentPropertyToDefault` 和 `ResetActorPropertyToDefault` 使用单个 `PropertyPath`。对 `SetDefaults` 使用预览、`bVerify=true` 或 `ExpectedValue` 时仍会拒绝此类容器元素路径。
+
+Set 元素按值定位。例如可用 `Ids[1]` 读取元素，修改时写入整个 `Ids`。`SetComponentProperty` 可修改组件和它拥有的子对象；指向共享材质等资产的引用可以替换，共享资产本身的属性须通过该资产的工具编辑。关卡组件中由构造脚本控制的值，应在蓝图或构造脚本的输入上调整。
+
+StateTree 的 `AddTransition` 要求源、目标状态名在树内分别唯一。目标改名后，`GetAssetStateTree` 按链接 GUID 显示新名称。
 
 `CallCapability.Calls[]`（≥2）把自动编译和保存延迟到全部业务操作完成后；任一操作或自动编译失败会尝试回滚记录过的内存修改，并跳过自动保存。条目错误、section 错误、编译/保存错误均会返回 `isError=true`，详情保留在 `structuredContent`。`bRolledBack` / `UndoNote` 说明是否执行了内存回滚；保存阶段不保证磁盘原子性，显式 `SaveAsset` / 创建 / 删除 / 重命名以及运行时副作用也不在该回滚范围内。单次 manage 的部分成功操作仍保留，不要把整条请求盲目重试。
 

@@ -5,6 +5,10 @@
 #include "Utils/NexusAssetUtils.h"
 
 #if WITH_EDITOR
+#include "AnimationConduitGraphSchema.h"
+#include "AnimationCustomTransitionGraph.h"
+#include "AnimationStateGraph.h"
+#include "AnimationTransitionGraph.h"
 #include "Engine/Blueprint.h"
 #include "UObject/UObjectIterator.h"
 #include "EdGraphSchema_K2.h"
@@ -66,6 +70,12 @@ UEdGraphNode* FNexusBlueprintGraphUtils::FindBPNode(UEdGraph* Graph, const FStri
 	for (UEdGraphNode* N : Graph->Nodes)
 		if (N && N->NodeGuid == Guid) return N;
 	return nullptr;
+}
+
+const TCHAR* FNexusBlueprintGraphUtils::GetNodeDeletionError(const UEdGraphNode& Node)
+{
+	if (FBlueprintEditorUtils::IsGraphReadOnly(Node.GetGraph())) return TEXT("Cannot delete nodes from a read-only graph");
+	return Node.CanUserDeleteNode() ? nullptr : TEXT("This node cannot be deleted");
 }
 
 UEdGraphPin* FNexusBlueprintGraphUtils::FindBPPin(UEdGraphNode* Node, const FString& PinName)
@@ -179,15 +189,20 @@ TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::SerializeBPNode(const UEdGrap
 FString FNexusBlueprintGraphUtils::GetBPGraphType(const UEdGraph* Graph)
 {
 	if (!Graph) return TEXT("unknown");
-	const FString CN = Graph->GetClass()->GetName();
-	if (CN.Contains(TEXT("AnimationStateMachineGraph"))) return TEXT("Statemachine");
-	if (CN.Contains(TEXT("AnimStateTransitionGraph")))   return TEXT("Transition");
-	if (CN.Contains(TEXT("AnimStateGraph")))             return TEXT("State");
-	if (CN.Contains(TEXT("AnimationConduitGraph")))      return TEXT("Conduit");
-	if (CN.Contains(TEXT("AnimationGraph")))             return TEXT("Animgraph");
-	if (CN.Contains(TEXT("EventGraph")) || Graph->GetName() == TEXT("EventGraph")) return TEXT("Event");
-	if (CN.Contains(TEXT("MacroGraph")))                 return TEXT("Macro");
-	return TEXT("Function");
+	const UEdGraphSchema* Schema = Graph->GetSchema();
+	// Conduit 和普通过渡使用同一种图类，由 Schema 区分。
+	if (Schema && Schema->IsA(UAnimationConduitGraphSchema::StaticClass())) return TEXT("Conduit");
+	if (Graph->IsA(UAnimationStateGraph::StaticClass())) return TEXT("State");
+	if (Graph->IsA(UAnimationTransitionGraph::StaticClass()) || Graph->IsA(UAnimationCustomTransitionGraph::StaticClass())) return TEXT("Transition");
+	switch (Schema ? Schema->GetGraphType(Graph) : GT_MAX)
+	{
+	case GT_Ubergraph:     return TEXT("Event");
+	case GT_Function:      return TEXT("Function");
+	case GT_Macro:         return TEXT("Macro");
+	case GT_Animation:     return TEXT("Animgraph");
+	case GT_StateMachine:  return TEXT("Statemachine");
+	default:               return Graph->GetFName() == TEXT("EventGraph") ? TEXT("Event") : TEXT("Function");
+	}
 }
 
 FString FNexusBlueprintGraphUtils::GetBPParentGraphName(const UEdGraph* Graph)

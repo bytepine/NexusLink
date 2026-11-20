@@ -79,7 +79,7 @@ static FString ExportMapKeyAsString(const FProperty* KeyProp, const void* KeyDat
  *   - FMapProperty    → 与 KeyProp ExportText 后的字符串匹配 → ValueProp 元素
  *   - FSetProperty    → 按元素 ExportText 匹配 → Inner 元素
  *   其他类型属性不可下标。每一步结束后 (Prop, ValuePtr) 表示该元素自身。 */
-static bool ApplyAccessors(FProperty*& InOutProp, void*& InOutPtr, const TArray<FString>& Accessors, FString& OutError)
+static bool ApplyAccessors(FProperty*& InOutProp, void*& InOutPtr, const TArray<FString>& Accessors, FString& OutError, bool bForWrite = false)
 {
 	for (const FString& Acc : Accessors)
 	{
@@ -130,6 +130,8 @@ static bool ApplyAccessors(FProperty*& InOutProp, void*& InOutPtr, const TArray<
 
 		if (FSetProperty* Set = CastField<FSetProperty>(InOutProp))
 		{
+			// Set 元素本身就是哈希键，修改其存储会破坏查找和唯一性。
+			if (bForWrite) { OutError = TEXT("Set elements cannot be edited in place; write the whole Set property"); return false; }
 			FScriptSetHelper Helper(Set, InOutPtr);
 			int32 FoundIdx = INDEX_NONE;
 			for (int32 i = 0; i < Helper.GetMaxIndex(); ++i)
@@ -436,119 +438,78 @@ bool FNexusPropertyUtils::ResolvePropertyRead(
 	return true;
 }
 
-// --- 结构体内写入路径解析 ---
+// --- 对象、结构体和容器内的属性定位 ---
 
-static bool ResolveStructWrite(
-	UScriptStruct* Struct,
-	void* StructPtr,
-	UObject* Owner,
-	const TArray<FString>& PathSegments,
-	int32 SegmentIdx,
-	FProperty*& OutProp,
-	void*& OutValuePtr,
-	FString& OutError,
-	UObject** OutOwner)
+static bool ResolvePropertyPath(UObject* Owner, const TArray<FString>& Segments, int32 Index,
+	FProperty*& OutProp, void*& OutValue, FString& Error, UObject** OutOwner, bool bForWrite,
+	FNexusPropertyUtils::FValidateMember ValidateMember)
 {
-	FString SegName;
-	TArray<FString> Accessors;
-	if (!ParseSegment(PathSegments[SegmentIdx], SegName, Accessors, OutError)) return false;
-
-	FProperty* P = Struct->FindPropertyByName(*SegName);
-	if (!P)
+	if (OutOwner) *OutOwner = nullptr;
+	if (!Owner || !Segments.IsValidIndex(Index)) { Error = TEXT("Invalid path resolution state"); return false; }
+	const UStruct* Type = Owner->GetClass();
+	void* Container = Owner;
+	for (; Index < Segments.Num(); ++Index)
 	{
-		OutError = FString::Printf(TEXT("Property '%s' not found on struct %s"), *SegName, *Struct->GetName());
-		return false;
-	}
-	void* VP = P->ContainerPtrToValuePtr<void>(StructPtr);
-	if (!ApplyAccessors(P, VP, Accessors, OutError)) return false;
-
-	if (SegmentIdx + 1 >= PathSegments.Num())
-	{
-		OutProp = P;
-		OutValuePtr = VP;
-		if (OutOwner) *OutOwner = Owner;
-		return true;
-	}
-
-	if (FStructProperty* SubStruct = CastField<FStructProperty>(P))
-	{
-		return ResolveStructWrite(SubStruct->Struct, VP, Owner, PathSegments, SegmentIdx + 1, OutProp, OutValuePtr, OutError, OutOwner);
-	}
-
-	if (FObjectProperty* ObjProp = CastField<FObjectProperty>(P))
-	{
-		UObject* SubObj = ObjProp->GetObjectPropertyValue(VP);
-		if (!SubObj)
+		FString Name;
+		TArray<FString> Accessors;
+		if (!ParseSegment(Segments[Index], Name, Accessors, Error)) return false;
+		FProperty* Field = Type->FindPropertyByName(*Name);
+		if (!Field)
 		{
-			OutError = FString::Printf(TEXT("Property '%s' has null object reference"), *PathSegments[SegmentIdx]);
+			Error = FString::Printf(TEXT("Property '%s' not found on %s"), *Name, *Type->GetName());
 			return false;
 		}
-		return FNexusPropertyUtils::ResolvePropertyWrite(SubObj, PathSegments, SegmentIdx + 1, OutProp, OutValuePtr, OutError, OutOwner);
+		if (ValidateMember && Type == Owner->GetClass() && !ValidateMember(Owner, Field, Error)) return false;
+		void* Value = Field->ContainerPtrToValuePtr<void>(Container);
+		if (!ApplyAccessors(Field, Value, Accessors, Error, bForWrite)) return false;
+		if (Index + 1 == Segments.Num())
+		{
+			OutProp = Field;
+			OutValue = Value;
+			if (OutOwner) *OutOwner = Owner;
+			return true;
+		}
+		if (const FStructProperty* Struct = CastField<FStructProperty>(Field))
+		{
+			Type = Struct->Struct;
+			Container = Value;
+		}
+		else if (const FObjectProperty* Obj = CastField<FObjectProperty>(Field))
+		{
+			Owner = Obj->GetObjectPropertyValue(Value);
+			if (!Owner)
+			{
+				Error = FString::Printf(TEXT("Property '%s' has null object reference"), *Segments[Index]);
+				return false;
+			}
+			Type = Owner->GetClass();
+			Container = Owner;
+		}
+		else
+		{
+			Error = FString::Printf(TEXT("Property '%s' does not support nested access"), *Segments[Index]);
+			return false;
+		}
 	}
-
-	OutError = FString::Printf(TEXT("Property '%s' is neither struct nor object reference; cannot descend"), *PathSegments[SegmentIdx]);
 	return false;
 }
 
-// --- 公共 API：写入 ---
-
-bool FNexusPropertyUtils::ResolvePropertyWrite(
-	UObject* Obj,
-	const TArray<FString>& PathSegments,
-	int32 SegmentIdx,
-	FProperty*& OutProp,
-	void*& OutValuePtr,
-	FString& OutError,
-	UObject** OutOwner)
+bool FNexusPropertyUtils::ResolvePropertyAddress(UObject* Obj, const TArray<FString>& Segments, int32 Index,
+	FProperty*& OutProp, void*& OutValue, FString& Error, UObject** OutOwner)
 {
-	if (OutOwner) *OutOwner = nullptr;
-	if (!Obj || SegmentIdx >= PathSegments.Num())
-	{
-		OutError = TEXT("Invalid path resolution state");
-		return false;
-	}
+	return ResolvePropertyPath(Obj, Segments, Index, OutProp, OutValue, Error, OutOwner, false, nullptr);
+}
 
-	FString SegName;
-	TArray<FString> Accessors;
-	if (!ParseSegment(PathSegments[SegmentIdx], SegName, Accessors, OutError)) return false;
+bool FNexusPropertyUtils::ResolvePropertyWrite(UObject* Obj, const TArray<FString>& Segments, int32 Index,
+	FProperty*& OutProp, void*& OutValue, FString& Error, UObject** OutOwner)
+{
+	return ResolvePropertyWrite(Obj, Segments, Index, OutProp, OutValue, Error, OutOwner, nullptr);
+}
 
-	FProperty* P = Obj->GetClass()->FindPropertyByName(*SegName);
-	if (!P)
-	{
-		OutError = FString::Printf(TEXT("Property '%s' not found on %s"), *SegName, *Obj->GetClass()->GetName());
-		return false;
-	}
-	void* VP = P->ContainerPtrToValuePtr<void>(Obj);
-	if (!ApplyAccessors(P, VP, Accessors, OutError)) return false;
-
-	if (SegmentIdx + 1 >= PathSegments.Num())
-	{
-		OutProp = P;
-		OutValuePtr = VP;
-		if (OutOwner) *OutOwner = Obj;
-		return true;
-	}
-
-	// 对象引用
-	if (FObjectProperty* ObjProp = CastField<FObjectProperty>(P))
-	{
-		UObject* SubObj = ObjProp->GetObjectPropertyValue(VP);
-		if (!SubObj)
-		{
-			OutError = FString::Printf(TEXT("Property '%s' has null object reference"), *PathSegments[SegmentIdx]);
-			return false;
-		}
-		return FNexusPropertyUtils::ResolvePropertyWrite(SubObj, PathSegments, SegmentIdx + 1, OutProp, OutValuePtr, OutError, OutOwner);
-	}
-
-	// 结构体
-	if (FStructProperty* StructProp = CastField<FStructProperty>(P))
-	{
-		return ResolveStructWrite(StructProp->Struct, VP, Obj, PathSegments, SegmentIdx + 1, OutProp, OutValuePtr, OutError, OutOwner);
-	}
-
-	OutError = FString::Printf(TEXT("Property '%s' does not support nested access"), *PathSegments[SegmentIdx]);
-	return false;
+bool FNexusPropertyUtils::ResolvePropertyWrite(UObject* Obj, const TArray<FString>& Segments, int32 Index,
+	FProperty*& OutProp, void*& OutValue, FString& Error, UObject** OutOwner, FValidateMember ValidateMember)
+{
+	return ResolvePropertyPath(Obj, Segments, Index, OutProp, OutValue, Error, OutOwner, true, ValidateMember);
 }
 
 // --- 列出可编辑属性 ---
@@ -649,6 +610,12 @@ bool FNexusPropertyUtils::WritePropertyAndEcho(
 	if (!ResolvePropertyWrite(Target, Segments, 0, Prop, Ptr, OutError))
 		return false;
 
+	return WriteResolvedPropertyAndEcho(Target, Prop, Ptr, NewValue, OutOldValue, OutActualValue, OutError);
+}
+
+bool FNexusPropertyUtils::WriteResolvedPropertyAndEcho(UObject* Target, FProperty* Prop, void* Ptr, const FString& NewValue,
+	FString& OutOldValue, FString& OutActualValue, FString& OutError)
+{
 	// 写入前导出旧值
 	ExportText(Prop, OutOldValue, Ptr);
 	// 先在临时存储解析，拒绝解析失败和残余文本，防止错误输入产生部分写入。

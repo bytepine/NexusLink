@@ -7,6 +7,7 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "EdGraphSchema_K2.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
 #include "Components/SceneComponent.h"
@@ -15,6 +16,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "UObject/Package.h"
+#include "UObject/UnrealType.h"
 #endif
 
 FString FNexusEditorLevelUtils::NormalizeLevelPackagePath(const FString& AssetPath)
@@ -93,6 +95,24 @@ ULevel* FNexusEditorLevelUtils::ResolveLevel(UWorld* World)
 	return World->PersistentLevel;
 }
 
+bool FNexusEditorLevelUtils::CanEditInstanceMember(const UObject* Owner, const FProperty* Member, FString& Error)
+{
+	const UActorComponent* Component = Cast<UActorComponent>(Owner);
+	if (!Component || !Component->IsCreatedByConstructionScript()) return true;
+	if (Component->CreationMethod == EComponentCreationMethod::SimpleConstructionScript)
+	{
+		// UE 也会把组件注册时产生的属性差异记入 UCS 列表。只有实际执行的蓝图构造函数才能控制写入。
+		const AActor* Actor = Component->GetOwner();
+		const UFunction* Script = Actor ? Actor->FindFunction(UEdGraphSchema_K2::FN_UserConstructionScript) : nullptr;
+		if (!Script || Script->Script.Num() == 0) return true;
+		TSet<const FProperty*> ModifiedProperties;
+		Component->GetUCSModifiedProperties(ModifiedProperties);
+		if (!ModifiedProperties.Contains(Member)) return true;
+	}
+	Error = FString::Printf(TEXT("Component property '%s' is controlled by the construction script"), *Member->GetName());
+	return false;
+}
+
 void FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(AActor* Actor)
 {
 	if (!Actor) return;
@@ -102,6 +122,21 @@ void FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(AActor* Actor)
 	Actor->PostEditChange();
 	Actor->PostEditMove(true);
 	Actor->MarkPackageDirty();
+}
+
+void FNexusEditorLevelUtils::RefreshActorAfterPropertyEdit(AActor* Actor, UObject* PropertyOwner)
+{
+	UActorComponent* Component = Cast<UActorComponent>(PropertyOwner);
+	if (!Component && PropertyOwner) Component = PropertyOwner->GetTypedOuter<UActorComponent>();
+	if (Actor && Component && Component->GetOwner() == Actor && Component->IsCreatedByConstructionScript())
+	{
+		// 重跑 Actor 构造脚本会替换 SCS 实例并可能覆盖刚写入的属性，只刷新所属组件。
+		if (Component->IsRegistered()) Component->ReregisterComponent();
+		if (USceneComponent* Scene = Cast<USceneComponent>(Component)) Scene->UpdateComponentToWorld();
+		Actor->MarkPackageDirty();
+		return;
+	}
+	RefreshActorAfterPropertyEdit(Actor);
 }
 
 AActor* FNexusEditorLevelUtils::FindLevelActorByNameOrLabel(UWorld* World, const FString& ActorNameOrLabel, bool bAllowLabel)

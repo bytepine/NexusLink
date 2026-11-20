@@ -805,18 +805,11 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 		UActorComponent* Component = FNexusBlueprintEditUtils::FindComponent(BP, Args.Str(TEXT("ComponentName")), false, Error);
 		UActorComponent* Baseline = Component ? FNexusBlueprintEditUtils::FindComponentBaseline(BP, Component, Args.Str(TEXT("ComponentName")), Args.Str(TEXT("Baseline"), TEXT("ParentTemplate")), Error) : nullptr;
 		TArray<FString> Segments;
-		Args.Str(TEXT("PropertyPath")).ParseIntoArray(Segments, TEXT("."), false);
-		auto ResolveOwned = [&](UActorComponent* Root, FProperty*& Property, void*& Value, UObject*& Owner)
-		{
-			if (!Root || !FNexusPropertyUtils::ResolvePropertyWrite(Root, Segments, 0, Property, Value, Error, &Owner)) return false;
-			if (Owner != Root && !Owner->IsIn(Root))
-			{ Error = TEXT("Component reset cannot traverse external object or asset references"); return false; }
-			return true;
-		};
+		FNexusPropertyUtils::AppendPropertyPathSegments(Args.Str(TEXT("PropertyPath")), Segments);
 		FProperty* SourceProperty = nullptr;
 		void* Source = nullptr;
 		UObject* SourceOwner = nullptr;
-		if (!ResolveOwned(Baseline, SourceProperty, Source, SourceOwner)) { Entry->SetStringField(TEXT("Error"), Error); return; }
+		if (!FNexusBlueprintEditUtils::ResolveOwnedComponentProperty(Baseline, Segments, SourceProperty, Source, SourceOwner, Error)) { Entry->SetStringField(TEXT("Error"), Error); return; }
 		if (SourceProperty->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference)) { Entry->SetStringField(TEXT("Error"), TEXT("Instanced subobjects cannot be reset by copying a parent reference")); return; }
 		if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(SourceProperty))
 			if (Cast<UActorComponent>(ObjectProperty->GetObjectPropertyValue(Source))) { Entry->SetStringField(TEXT("Error"), TEXT("Component references must be remapped explicitly")); return; }
@@ -824,9 +817,16 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 		void* Target = nullptr;
 		UObject* TargetOwner = nullptr;
 		// 先验证当前目标，避免错误路径先创建继承覆盖模板。
-		if (!ResolveOwned(Component, Property, Target, TargetOwner) || Property != SourceProperty) { Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Baseline property type differs") : Error); return; }
-		Component = FNexusBlueprintEditUtils::FindComponent(BP, Args.Str(TEXT("ComponentName")), true, Error);
-		if (!ResolveOwned(Component, Property, Target, TargetOwner) || Property != SourceProperty) { Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Baseline property type differs") : Error); return; }
+		if (!FNexusBlueprintEditUtils::ResolveOwnedComponentProperty(Component, Segments, Property, Target, TargetOwner, Error) || Property != SourceProperty) { Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Baseline property type differs") : Error); return; }
+		const bool bWasDirty = BP->GetOutermost()->IsDirty();
+		bool bCreatedOverride = false;
+		Component = FNexusBlueprintEditUtils::FindComponent(BP, Args.Str(TEXT("ComponentName")), true, Error, &bCreatedOverride);
+		if (!FNexusBlueprintEditUtils::ResolveOwnedComponentProperty(Component, Segments, Property, Target, TargetOwner, Error) || Property != SourceProperty)
+		{
+			FNexusBlueprintEditUtils::DiscardFailedComponentOverride(BP, bCreatedOverride ? Component : nullptr, bWasDirty);
+			Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Baseline property type differs") : Error);
+			return;
+		}
 		FString Previous, Actual;
 		FNexusPropertyUtils::ExportText(Property, Previous, Target);
 		TargetOwner->SetFlags(RF_Transactional);
@@ -1009,19 +1009,14 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
                 FNexusAssetEditUtils::Apply(BP, TEXT("ManageAssetBlueprint"), Op, FNexusAssetEditUtils::IsVerified(Ctx.Args), Entry);
                 return;
             }
-            FString Error;
-            UActorComponent* Component = FNexusBlueprintEditUtils::FindComponent(BP, Args.Str(TEXT("ComponentName")), true, Error);
-            if (!Component || !Op->HasTypedField<EJson::String>(TEXT("Value"))) { Entry->SetStringField(TEXT("Error"), Error.IsEmpty() ? TEXT("Value is required") : Error); return; }
-            Component->SetFlags(RF_Transactional);
-            Component->Modify();
-            FString Previous, Actual;
-            if (!FNexusPropertyUtils::WritePropertyAndEcho(Component, {Args.Str(TEXT("PropertyPath"))}, 0, Args.Str(TEXT("Value")), Previous, Actual, Error)) { Entry->SetStringField(TEXT("Error"), Error); return; }
+            if (!Op->HasTypedField<EJson::String>(TEXT("Value"))) { Entry->SetStringField(TEXT("Error"), TEXT("Value is required")); return; }
+            FString Previous, Actual, Error;
+            if (!FNexusBlueprintEditUtils::SetComponentProperty(BP, Args.Str(TEXT("ComponentName")), Args.Str(TEXT("PropertyPath")), Args.Str(TEXT("Value")), Previous, Actual, Error))
+            { Entry->SetStringField(TEXT("Error"), Error); return; }
             Entry->SetStringField(TEXT("OldValue"), Previous);
             Entry->SetStringField(TEXT("NewValue"), Actual);
             Entry->SetStringField(TEXT("ComponentName"), Args.Str(TEXT("ComponentName")));
             Entry->SetStringField(TEXT("PropertyPath"), Args.Str(TEXT("PropertyPath")));
-            Component->MarkPackageDirty();
-            FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
             return;
         }
 

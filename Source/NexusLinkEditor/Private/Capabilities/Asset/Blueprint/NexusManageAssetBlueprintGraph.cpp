@@ -75,6 +75,26 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 	}
 
 	Entry->SetStringField(TEXT("GraphName"), GraphName);
+	if (Action == TEXT("RemoveNode"))
+	{
+		const FString NodeId = FNexusArgs(Op).Str(TEXT("NodeId"));
+		if (NodeId.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("RemoveNode requires NodeId")); return; }
+		UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeId);
+		if (!Node) { Entry->SetStringField(TEXT("Error"), TEXT("Node not found")); return; }
+		if (const TCHAR* Error = FNexusBlueprintGraphUtils::GetNodeDeletionError(*Node))
+		{
+			Entry->SetStringField(TEXT("Error"), Error);
+			return;
+		}
+		Entry->SetStringField(TEXT("NodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+		BP->Modify();
+		Graph->Modify();
+		Node->Modify();
+		Graph->GetSchema()->BreakNodeLinks(*Node);
+		Graph->RemoveNode(Node);
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+		return;
+	}
 	BP->Modify();
 	Graph->Modify();
 
@@ -152,22 +172,6 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 	Entry->SetStringField(TEXT("NodeClass"), NewNode->GetClass()->GetName());
 	Entry->SetStringField(TEXT("NodeTitle"), NewNode->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
 	FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-	return;
-	}
-
-	if (Action == TEXT("RemoveNode"))
-	{
-		const FString NodeIdStr = FNexusArgs(Op).Str(TEXT("NodeId"));
-		if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("RemoveNode requires NodeId"));
-	return; }
-		UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
-		if (!Node) { Entry->SetStringField(TEXT("Error"), TEXT("Node not found"));
-	return; }
-		Entry->SetStringField(TEXT("NodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
-		Node->Modify();
-		Graph->GetSchema()->BreakNodeLinks(*Node);
-		Graph->RemoveNode(Node);
-		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 	return;
 	}
 

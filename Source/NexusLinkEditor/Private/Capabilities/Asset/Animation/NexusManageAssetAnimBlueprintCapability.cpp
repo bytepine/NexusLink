@@ -6,6 +6,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusAnimGraphUtils.h"
+#include "Utils/NexusBlueprintGraphUtils.h"
 #include "Utils/NexusAnimationRetargetUtils.h"
 #include "Animation/AnimBlueprint.h"
 #if WITH_EDITOR
@@ -557,6 +558,11 @@ static void HandleABP_RemoveNode(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	if (!Node)
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveNode requires existing NodeId"));
+		return;
+	}
+	if (const TCHAR* Error = FNexusBlueprintGraphUtils::GetNodeDeletionError(*Node))
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), Error);
 		return;
 	}
 	DestroyGraphNode(Node);

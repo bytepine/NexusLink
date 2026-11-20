@@ -281,8 +281,9 @@ bool FNexusBlueprintEditUtils::RemapMemberReferences(UBlueprint* Blueprint, cons
 	return true;
 }
 
-UActorComponent* FNexusBlueprintEditUtils::FindComponent(UBlueprint* Blueprint, const FString& Name, bool bForWrite, FString& Error)
+UActorComponent* FNexusBlueprintEditUtils::FindComponent(UBlueprint* Blueprint, const FString& Name, bool bForWrite, FString& Error, bool* bCreatedOverride)
 {
+	if (bCreatedOverride) *bCreatedOverride = false;
 	if (!Blueprint || Name.IsEmpty()) { Error = TEXT("ComponentName is required"); return nullptr; }
 	if (Blueprint->SimpleConstructionScript)
 		if (USCS_Node* Node = Blueprint->SimpleConstructionScript->FindSCSNode(*Name)) return Node->ComponentTemplate;
@@ -302,9 +303,14 @@ UActorComponent* FNexusBlueprintEditUtils::FindComponent(UBlueprint* Blueprint, 
 			{
 				const FComponentKey Key(Node);
 				if (UActorComponent* Existing = Handler->GetOverridenComponentTemplate(Key)) return Existing;
+				Handler->SetFlags(RF_Transactional);
 				Handler->Modify();
-				return Handler->CreateOverridenComponentTemplate(Key);
+				UActorComponent* Created = Handler->CreateOverridenComponentTemplate(Key);
+				if (bCreatedOverride) *bCreatedOverride = Created != nullptr;
+				if (Created) return Created;
 			}
+			Error = TEXT("Cannot create an override for the inherited component");
+			return nullptr;
 		}
 		return Node->GetActualComponentTemplate(Generated);
 	}
@@ -312,13 +318,74 @@ UActorComponent* FNexusBlueprintEditUtils::FindComponent(UBlueprint* Blueprint, 
 	if (Defaults)
 	{
 		if (FObjectPropertyBase* Property = FindFProperty<FObjectPropertyBase>(Defaults->GetClass(), *Name))
-			if (UActorComponent* Component = Cast<UActorComponent>(Property->GetObjectPropertyValue_InContainer(Defaults))) return Component;
+			if (UActorComponent* Component = Cast<UActorComponent>(Property->GetObjectPropertyValue_InContainer(Defaults)))
+				if (Component->IsIn(Defaults)) return Component;
 		TInlineComponentArray<UActorComponent*> Components;
 		Defaults->GetComponents(Components);
 		for (UActorComponent* Component : Components) if (Component && Component->GetName() == Name) return Component;
 	}
 	Error = TEXT("Component template not found in the target Blueprint");
 	return nullptr;
+}
+
+bool FNexusBlueprintEditUtils::ResolveOwnedComponentProperty(UActorComponent* Component, const TArray<FString>& Segments, FProperty*& Property, void*& Value, UObject*& Owner, FString& Error)
+{
+	if (!Component || !FNexusPropertyUtils::ResolvePropertyWrite(Component, Segments, 0, Property, Value, Error, &Owner)) return false;
+	if (Owner && (Owner == Component || Owner->IsIn(Component))) return true;
+	Error = TEXT("Component edits cannot traverse external object or asset references");
+	return false;
+}
+
+void FNexusBlueprintEditUtils::DiscardFailedComponentOverride(UBlueprint* Blueprint, UActorComponent* CreatedOverride, bool bWasDirty)
+{
+	if (CreatedOverride)
+	{
+		UInheritableComponentHandler* Handler = Blueprint->GetInheritableComponentHandler(false);
+		Handler->RemoveOverridenComponentTemplate(Handler->FindKey(CreatedOverride));
+	}
+	if (!bWasDirty) Blueprint->GetOutermost()->SetDirtyFlag(false);
+}
+
+bool FNexusBlueprintEditUtils::SetComponentProperty(UBlueprint* Blueprint, const FString& Name, const FString& Path, const FString& Text, FString& Previous, FString& Actual, FString& Error)
+{
+	UActorComponent* Source = FindComponent(Blueprint, Name, false, Error);
+	if (!Source) return false;
+	TArray<FString> Segments;
+	FNexusPropertyUtils::AppendPropertyPathSegments(Path, Segments);
+	FProperty* Field = nullptr;
+	void* Value = nullptr;
+	UObject* Owner = nullptr;
+	if (!ResolveOwnedComponentProperty(Source, Segments, Field, Value, Owner, Error)) return false;
+	FDefaultConstructedPropertyElement Parsed(Field);
+	auto ParseValue = [&]()
+	{
+		Field->CopyCompleteValue(Parsed.GetObjAddress(), Value);
+		return FNexusPropertyUtils::ParsePropertyValue(Field, Text, Parsed.GetObjAddress(), Owner, Error);
+	};
+	if (!ParseValue()) return false;
+
+	// 路径和值均有效后才创建继承覆盖。新模板有自己的子对象，须按实际模板重新解析。
+	const bool bWasDirty = Blueprint->GetOutermost()->IsDirty();
+	bool bCreatedOverride = false;
+	UActorComponent* Target = FindComponent(Blueprint, Name, true, Error, &bCreatedOverride);
+	if (Target != Source)
+	{
+		FProperty* OverrideField = nullptr;
+		if (!ResolveOwnedComponentProperty(Target, Segments, OverrideField, Value, Owner, Error) || OverrideField != Field || !ParseValue())
+		{
+			if (Error.IsEmpty()) Error = TEXT("Property differs on the inherited component override");
+			DiscardFailedComponentOverride(Blueprint, bCreatedOverride ? Target : nullptr, bWasDirty);
+			return false;
+		}
+	}
+	Owner->SetFlags(RF_Transactional);
+	Owner->Modify();
+	FNexusPropertyUtils::ExportText(Field, Previous, Value);
+	Field->CopyCompleteValue(Value, Parsed.GetObjAddress());
+	FNexusPropertyUtils::ExportText(Field, Actual, Value);
+	Target->MarkPackageDirty();
+	FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+	return true;
 }
 
 bool FNexusBlueprintEditUtils::ResolveActorDefaultProperty(AActor* Actor, const TArray<FString>& Segments, FProperty*& Property, void*& Value, FString& Error)
@@ -332,12 +399,12 @@ bool FNexusBlueprintEditUtils::ResolveActorDefaultProperty(AActor* Actor, const 
 		{
 			UActorComponent* Template = FindComponent(Blueprint, Segments[0], false, Error);
 			if (!Template) return false;
-			return FNexusPropertyUtils::ResolvePropertyWrite(Template, Segments, 1, Property, Value, Error);
+			return FNexusPropertyUtils::ResolvePropertyAddress(Template, Segments, 1, Property, Value, Error);
 		}
 	}
 	UObject* Defaults = Actor->GetClass()->GetDefaultObject(false);
 	if (!Defaults) { Error = TEXT("Actor class has no CDO"); return false; }
-	return FNexusPropertyUtils::ResolvePropertyWrite(Defaults, Segments, 0, Property, Value, Error);
+	return FNexusPropertyUtils::ResolvePropertyAddress(Defaults, Segments, 0, Property, Value, Error);
 }
 
 UActorComponent* FNexusBlueprintEditUtils::FindComponentBaseline(UBlueprint* Blueprint, UActorComponent* Component, const FString& Name, const FString& Baseline, FString& Error)

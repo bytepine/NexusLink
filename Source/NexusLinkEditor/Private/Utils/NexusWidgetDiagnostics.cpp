@@ -133,7 +133,7 @@ static TSharedPtr<FJsonObject> NexusWidgetPropertySource(UObject* Object, const 
 	if (!Object || !Segments.Num()) return nullptr;
 	FProperty* Property = nullptr; void* Storage = nullptr; FString Error;
 	// 只定位反射存储并导出，不能使用会回退执行 Getter 的通用读取器。
-	if (!FNexusPropertyUtils::ResolvePropertyWrite(Object, Segments, 0, Property, Storage, Error) || !Property || !Storage) return nullptr;
+	if (!FNexusPropertyUtils::ResolvePropertyAddress(Object, Segments, 0, Property, Storage, Error) || !Property || !Storage) return nullptr;
 	FString Text; FNexusPropertyUtils::ExportText(Property, Text, Storage);
 	auto Value = MakeShared<FJsonObject>();
 	Value->SetStringField(TEXT("Name"), Path); Value->SetStringField(TEXT("Type"), Property->GetCPPType()); Value->SetStringField(TEXT("Value"), Text);
