@@ -16,23 +16,8 @@
 
 UEdGraph* FNexusAnimGraphUtils::FindAnimGraph(UAnimBlueprint* BP, const FString& GraphName)
 {
-	if (!BP) return nullptr;
-
 	const FString WantName = GraphName.IsEmpty() ? TEXT("AnimGraph") : GraphName;
-	TArray<UEdGraph*> Graphs;
-	FNexusBlueprintGraphUtils::CollectAllGraphs(BP, Graphs);
-	UEdGraph* Found = nullptr;
-	for (UEdGraph* G : Graphs)
-	{
-		if (G && G->GetPathName() == WantName) return G;
-		if (G && G->GetName() == WantName)
-		{
-			// 重名子图必须提供 GraphOverview 中的完整路径，避免改错状态。
-			if (Found) return nullptr;
-			Found = G;
-		}
-	}
-	return Found;
+	return FNexusBlueprintGraphUtils::FindBPGraph(BP, WantName, /*bRequireUniqueShortName=*/true);
 }
 
 UAnimGraphNode_StateMachineBase* FNexusAnimGraphUtils::FindStateMachineNode(UEdGraph* AnimGraph, const FString& NodeName)

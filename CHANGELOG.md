@@ -9,6 +9,21 @@
 
 ## [Unreleased]
 
+### Added
+
+- UE 5.5 及以上的 GameplayEffect 支持读取和添加 `MultiplyCompound`、`AddFinal` 修改器。`AddModifier` 的 `ModifierOp` 参数列出当前引擎支持的操作，保留 `Add`、`Multiply`、`Divide`、`Override` 四个名称。
+
+### Changed
+
+- 普通蓝图、Widget 蓝图和动画蓝图共用图表摘要实现。GameplayAbility 的实例化策略和网络执行策略通过 UE 枚举反射读写。
+- Texture、SoundWave、Font、CommonButtonStyle 和 CommonTextStyle 的 `SetProperty` 共用属性路径校验和写入结果处理。成功时返回 `PropertyPath`，旧值和实际新值的文本非空时分别返回 `OldValue`、`NewValue`。
+
+### Fixed
+
+- 蓝图默认值的 `Defaults` 读取和普通 `SetDefaults` 写入能正确定位带点的 Map 键，例如 `Values["a.b"]`。
+- 动画蓝图工具支持按资产相对路径读写嵌套图。短名匹配多张图时会报错，可用 `GetEditorGraph` 返回的完整 `GraphPath` 指定目标。
+- `GetAssetStateTree` 正确返回已有外部链接状态的类型 `LinkedAsset`。
+
 ## [2.3.7] - 2026-11-19
 
 ### Changed

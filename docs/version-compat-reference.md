@@ -38,6 +38,7 @@
 | `NX_UE_HAS_EXPORT_TEXT_DIRECT` | 5.5 | `ExportTextItem_Direct` → `ExportText_Direct` |
 | `NX_UE_HAS_STRUCT_UTILS_HEADER` | 5.5 | `Engine/UserDefinedStruct.h` → `StructUtils/` |
 | `NX_UE_HAS_ALLOW_SHRINKING_ENUM` | 5.5 | `TArray::Pop(bool)` → `Pop(EAllowShrinking)` |
+| `NX_UE_HAS_EXTENDED_GE_MODIFIER_OPS` | 5.5 | GameplayEffect 支持 `MultiplyCompound` 和 `AddFinal` 修改器 |
 | `NX_UE_HAS_EDGRAPH_PERFORM_ACTION_VECTOR2F` | 5.6 | `FEdGraphSchemaAction::PerformAction` 改 `FVector2f`（`FVector2D`  overload C4996） |
 | `NX_UE_HAS_IK_RIG_SOLVER_STRUCTS` | 5.6 | `UIKRigDefinition::GetSolverArray()` → `GetSolverStructs()`（`FIKRigSolverBase`） |
 | `NX_UE_HAS_IK_RIG_ADD_CHAIN_GOAL` | 5.2 | `AddRetargetChain(..., GoalName)`；5.0 三参无 Goal |

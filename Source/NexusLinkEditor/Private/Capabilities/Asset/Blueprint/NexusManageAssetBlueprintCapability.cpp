@@ -875,7 +875,8 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 	return; }
 
 		TArray<FString> Segments;
-		PropPath.ParseIntoArray(Segments, TEXT("."), true);
+		FNexusPropertyUtils::AppendPropertyPathSegments(PropPath, Segments);
+		Segments.Remove(FString()); // 普通 SetDefaults 兼容历史调用中的空段。
 
 		FProperty* Prop   = nullptr;
 		void*      ValPtr = nullptr;

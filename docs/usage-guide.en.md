@@ -394,6 +394,8 @@ If ports advance automatically, use the editor title bar/settings value.
 
 Read assets through SearchAsset with AssetType + PathFilter, then use returned assets[].path and RecommendedGet / RecommendedManage. [InitializeInstructions.SearchMode](../Resources/InitializeInstructions.SearchMode.md) and [CapabilitySpec](../Resources/CapabilitySpec.en.md) define arguments and breaking key changes.
 
+When an Animation Blueprint contains graphs with the same name, list them with `GetEditorGraph(AssetPath)`. Pass the nested graph’s relative `GraphName` or any graph’s full `GraphPath` as the `GraphName` argument to `GetAssetAnimBlueprint` or `ManageAssetAnimBlueprint`. When a root graph shares its name with a nested graph, use the full path to select the root.
+
 <a id="29-挂载-airules"></a>
 ### 2.9 Install AIRules
 
@@ -605,6 +607,8 @@ set_*_property changes memory. Use SaveAsset or manage bSaveToDisk=true for disk
 Map and loaded-streaming-sublevel saves validate UWorld/PersistentLevel in the package, then call native SaveLevel/SaveWorld. Missing valid map objects return structured errors. GetAssetLevel(Sections=["Navigation"]) reads visibility, navigation-chunk counts, and bounded path/type lists without loading or showing the level.
 
 Blueprint native components accept actual component-object names or reflected member names in SetComponentProperty. After a complex write times out, read back first. Alternatively use SetDefaults member paths such as Mesh.SkeletalMesh, Mesh.AnimClass, or CapsuleComponent.BodyInstance; do not replay the entire write batch automatically.
+
+For Map keys containing dots in Blueprint defaults, use a property path such as `Values["a.b"]`. Pass it in `PropertyPaths` for the `Defaults` section of `GetAssetBlueprint`, or as `PropertyPath` for an ordinary `SetDefaults` write. Previews and writes using `bVerify=true` or `ExpectedValue` reject these container element paths.
 
 CallCapability.Calls[] with at least two entries defers automatic compilation/saving until every business operation completes. Operation or compile failure attempts rollback of recorded in-memory changes and skips autosave. Item, section, compile, and save errors return isError=true while preserving structuredContent details. bRolledBack / UndoNote describe in-memory rollback. Saving does not promise disk atomicity; explicit SaveAsset/create/delete/rename and runtime side effects are outside rollback. A single manage call retains partially successful operations; never blindly retry the entire request.
 

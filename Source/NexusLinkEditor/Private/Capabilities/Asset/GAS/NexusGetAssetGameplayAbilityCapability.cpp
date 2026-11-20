@@ -9,36 +9,8 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusGasUtils.h"
 #include "Utils/NexusBlueprintGraphUtils.h"
-#include "Abilities/GameplayAbility.h"
 #include "Engine/Blueprint.h"
 #include "NexusMcpTool.h"
-
-// ── 枚举 → 字符串 ─────────────────────────────────────────────────────────────
-
-static FString GA_InstancingPolicyToStr(uint8 V)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	switch ((EGameplayAbilityInstancingPolicy::Type)V)
-	{
-		case EGameplayAbilityInstancingPolicy::NonInstanced:          return TEXT("NonInstanced");
-		case EGameplayAbilityInstancingPolicy::InstancedPerActor:     return TEXT("InstancedPerActor");
-		case EGameplayAbilityInstancingPolicy::InstancedPerExecution: return TEXT("InstancedPerExecution");
-		default: return TEXT("Unknown");
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-static FString GA_NetExecPolicyToStr(uint8 V)
-{
-	switch ((EGameplayAbilityNetExecutionPolicy::Type)V)
-	{
-		case EGameplayAbilityNetExecutionPolicy::LocalPredicted:  return TEXT("LocalPredicted");
-		case EGameplayAbilityNetExecutionPolicy::LocalOnly:       return TEXT("LocalOnly");
-		case EGameplayAbilityNetExecutionPolicy::ServerInitiated: return TEXT("ServerInitiated");
-		case EGameplayAbilityNetExecutionPolicy::ServerOnly:      return TEXT("ServerOnly");
-		default: return TEXT("Unknown");
-	}
-}
 
 // ── Capability 元数据 ─────────────────────────────────────────────────────────
 
@@ -109,8 +81,15 @@ void FNexusGetAssetGameplayAbilityCapability::ExecuteSection(
 
 	if (SectionName == TEXT("metadata"))
 	{
-		InOutDetail->SetStringField(TEXT("InstancingPolicy"),   GA_InstancingPolicyToStr(NxGasGetEnumByte(CDO, TEXT("InstancingPolicy"))));
-		InOutDetail->SetStringField(TEXT("NetExecutionPolicy"), GA_NetExecPolicyToStr(NxGasGetEnumByte(CDO, TEXT("NetExecutionPolicy"))));
+		for (const TCHAR* PolicyName : { TEXT("InstancingPolicy"), TEXT("NetExecutionPolicy") })
+		{
+			const FByteProperty* Property = FindFProperty<FByteProperty>(CDO->GetClass(), PolicyName);
+			const UEnum* Enum = Property ? Property->GetIntPropertyEnum() : nullptr;
+			const int32 Index = Enum ? Enum->GetIndexByValue(Property->GetPropertyValue_InContainer(CDO)) : INDEX_NONE;
+			// UHT 生成的末项 _MAX 也按未知值报告。
+			InOutDetail->SetStringField(PolicyName, Index != INDEX_NONE && Index < Enum->NumEnums() - 1
+				? Enum->GetNameStringByIndex(Index) : TEXT("Unknown"));
+		}
 		// bReplicateInputDirectly 是 bitfield，FBoolProperty 专用读法
 		FBoolProperty* BoolProp = FindFProperty<FBoolProperty>(CDO->GetClass(), TEXT("bReplicateInputDirectly"));
 		if (BoolProp)

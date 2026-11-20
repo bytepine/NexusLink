@@ -54,6 +54,9 @@ public:
 
 	// ── GE Modifier 序列化 ───────────────────────────────────────────────────
 
+	/** 当前引擎支持的 GE 修改器操作，按公开协议的名称返回。 */
+	static const TMap<FString, EGameplayModOp::Type>& GetGEModifierOperations();
+
 	/**
 	 * 将 UGameplayEffect CDO 的 Modifiers 数组序列化为 JSON 数组。
 	 * 每项含 attribute / ModifierOp / MagnitudeType / magnitude（标量值或 "curve"）。

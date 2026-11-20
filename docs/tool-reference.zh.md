@@ -2417,7 +2417,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | 资产包路径（来自 `SearchAsset`，格式 `/Game/...`） |
-| `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(SetPolicy/SetTags/AddModifier/RemoveModifier/SetModifier), `DurationPolicy`(Instant/Infinite/HasDuration), `Duration`, `Period`, `TagContainer`(GameplayEffectTags/GrantedTags/BlockedAbilityTags), `Tags`, `Mode`(Set/Add/Remove), `Attribute`, `ModifierOp`(Add/Multiply/Divide/Override), `Magnitude`, `Index` |
+| `Operations` | `object[]` | ★ | 批量操作（至少一项）; 条目: `Action`(SetPolicy/SetTags/AddModifier/RemoveModifier/SetModifier), `DurationPolicy`(Instant/Infinite/HasDuration), `Duration`, `Period`, `TagContainer`(GameplayEffectTags/GrantedTags/BlockedAbilityTags), `Tags`, `Mode`(Set/Add/Remove), `Attribute`, `Magnitude`, `Index` |
 | `bSaveToDisk` | `boolean` |  | 成功后将包保存到磁盘 |
 
 **相关 Capability**: `GetAssetGameplayEffect`, `SaveAsset`, `CreateAssetGameplayEffect`

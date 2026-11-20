@@ -34,11 +34,20 @@ void FNexusBlueprintGraphUtils::CollectAllGraphs(UBlueprint* BP, TArray<UEdGraph
 
 UEdGraph* FNexusBlueprintGraphUtils::FindBPGraph(UBlueprint* BP, const FString& GraphName)
 {
+	return FindBPGraph(BP, GraphName, false);
+}
+
+UEdGraph* FNexusBlueprintGraphUtils::FindBPGraph(UBlueprint* BP, const FString& GraphName, bool bRequireUniqueShortName)
+{
 	TArray<UEdGraph*> AllGraphs;
 	CollectAllGraphs(BP, AllGraphs);
 	UEdGraph* NameMatch = nullptr;
 	for (UEdGraph* G : AllGraphs)
-		if (G && (G->GetPathName() == GraphName || G->GetPathName(BP) == GraphName)) return G;
+	{
+		if (!G) continue;
+		if (G->GetPathName() == GraphName) return G;
+		if ((!bRequireUniqueShortName || G->GetOuter() != BP) && G->GetPathName(BP) == GraphName) return G;
+	}
 	for (UEdGraph* G : AllGraphs)
 		if (G && G->GetName() == GraphName)
 		{
@@ -207,6 +216,17 @@ TSharedPtr<FJsonObject> FNexusBlueprintGraphUtils::BuildBPGraphSummary(const UEd
 	const FString Parent = GetBPParentGraphName(Graph);
 	if (!Parent.IsEmpty()) GObj->SetStringField(TEXT("ParentGraph"), Parent);
 	return GObj;
+}
+
+TArray<TSharedPtr<FJsonValue>> FNexusBlueprintGraphUtils::BuildBPGraphSummaries(const TArray<UEdGraph*>& Graphs)
+{
+	TArray<TSharedPtr<FJsonValue>> Summaries;
+	Summaries.Reserve(Graphs.Num());
+	for (const UEdGraph* Graph : Graphs)
+	{
+		if (Graph) Summaries.Add(MakeShared<FJsonValueObject>(BuildBPGraphSummary(Graph)));
+	}
+	return Summaries;
 }
 
 void FNexusBlueprintGraphUtils::CollectOrphanedPins(UBlueprint* BP, TArray<TSharedPtr<FJsonObject>>& OutPins, int32 MaxCount)

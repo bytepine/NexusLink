@@ -2383,7 +2383,7 @@ Batch edit GE CDO: SetPolicy/SetTags/add/remove/set modifier.
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `AssetPath` | `string` | ★ | GameplayEffect Blueprint path |
-| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetPolicy/SetTags/AddModifier/RemoveModifier/SetModifier), `DurationPolicy`(Instant/Infinite/HasDuration), `Duration`, `Period`, `TagContainer`(GameplayEffectTags/GrantedTags/BlockedAbilityTags), `Tags`, `Mode`(Set/Add/Remove), `Attribute`, `ModifierOp`(Add/Multiply/Divide/Override), `Magnitude`, `Index` |
+| `Operations` | `object[]` | ★ | Batch ops (at least one); item: `Action`(SetPolicy/SetTags/AddModifier/RemoveModifier/SetModifier), `DurationPolicy`(Instant/Infinite/HasDuration), `Duration`, `Period`, `TagContainer`(GameplayEffectTags/GrantedTags/BlockedAbilityTags), `Tags`, `Mode`(Set/Add/Remove), `Attribute`, `Magnitude`, `Index` |
 | `bSaveToDisk` | `boolean` |  | Save the package to disk after success |
 
 **Related capabilities**: `GetAssetGameplayEffect`, `SaveAsset`, `CreateAssetGameplayEffect`

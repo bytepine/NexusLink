@@ -294,23 +294,9 @@ void FNexusGetAssetUserWidgetCapability::ExecuteSection(const FString&          
 
 	if (SectionName == TEXT("graphOverview"))
 	{
-		UBlueprint* BP = Cast<UBlueprint>(WBP);
-		if (!BP)
-		{
-			OutError = TEXT("Cannot cast WidgetBlueprint to Blueprint to enumerate graphs");
-			return;
-		}
 		TArray<UEdGraph*> AllGraphs;
-		FNexusBlueprintGraphUtils::CollectAllGraphs(BP, AllGraphs);
-		TArray<TSharedPtr<FJsonValue>> List;
-		for (const UEdGraph* G : AllGraphs)
-		{
-			if (G)
-			{
-				List.Add(MakeShared<FJsonValueObject>(FNexusBlueprintGraphUtils::BuildBPGraphSummary(G)));
-			}
-		}
-		InOutDetail->SetArrayField(TEXT("Graphs"), List);
+		FNexusBlueprintGraphUtils::CollectAllGraphs(WBP, AllGraphs);
+		InOutDetail->SetArrayField(TEXT("Graphs"), FNexusBlueprintGraphUtils::BuildBPGraphSummaries(AllGraphs));
 		InOutDetail->SetStringField(TEXT("Hint"), TEXT("Graph details via GetAssetBlueprint; EventGraph writes via ManageAssetBlueprint"));
 		return;
 	}

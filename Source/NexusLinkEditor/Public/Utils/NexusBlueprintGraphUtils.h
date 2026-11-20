@@ -29,6 +29,8 @@ public:
 
 	/** 按名称查找 BP 内的图（使用 CollectAllGraphs 后精确匹配），未找到返回 nullptr。 */
 	static UEdGraph* FindBPGraph(UBlueprint* BP, const FString& GraphName);
+	/** bRequireUniqueShortName 为真时，顶层图的短名与嵌套图重名也返回 nullptr。 */
+	static UEdGraph* FindBPGraph(UBlueprint* BP, const FString& GraphName, bool bRequireUniqueShortName);
 
 	/** 按 GUID 字符串查找图内节点，解析失败或不存在均返回 nullptr。 */
 	static UEdGraphNode* FindBPNode(UEdGraph* Graph, const FString& NodeIdStr);
@@ -62,6 +64,7 @@ public:
 
 	/** 构建图摘要 JSON（name / GraphType / EnabledNodeCount / DisabledNodeCount / ParentGraph）。 */
 	static TSharedPtr<FJsonObject> BuildBPGraphSummary(const UEdGraph* Graph);
+	static TArray<TSharedPtr<FJsonValue>> BuildBPGraphSummaries(const TArray<UEdGraph*>& Graphs);
 
 	/** 聚合 bOrphanedPin，上限 MaxCount 条：NodeId / PinName。 */
 	static void CollectOrphanedPins(UBlueprint* BP, TArray<TSharedPtr<FJsonObject>>& OutPins, int32 MaxCount = 32);

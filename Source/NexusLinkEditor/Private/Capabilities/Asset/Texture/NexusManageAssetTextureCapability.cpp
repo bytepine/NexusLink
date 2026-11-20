@@ -5,7 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusArgs.h"
-#include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusAssetEditUtils.h"
 #include "Engine/Texture2D.h"
 #include "NexusMcpTool.h"
 
@@ -38,34 +38,14 @@ struct FTextureActionState
 	bool bDirty = false;
 };
 
-static FTextureActionState* TexState(FNexusActionContext& Ctx)
-{
-	return static_cast<FTextureActionState*>(Ctx.Target);
-}
-
 static void HandleTex_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UTexture* Texture = TexState(Ctx)->Texture;
-	FString PropPath, Value;
-	Op->TryGetStringField(TEXT("PropertyPath"), PropPath);
-	Op->TryGetStringField(TEXT("Value"), Value);
-	if (PropPath.IsEmpty() || Value.IsEmpty())
+	auto* State = static_cast<FTextureActionState*>(Ctx.Target);
+	if (FNexusAssetEditUtils::SetProperty(State->Texture, Op, *Ctx.Entry))
 	{
-		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyPath and value"));
-		return;
+		State->bDirty = true;
+		Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset; compression changes need reimport"));
 	}
-	FString OldVal, ActualVal, Err;
-	if (!FNexusPropertyUtils::WritePropertyAndEcho(Texture, { PropPath }, 0, Value, OldVal, ActualVal, Err))
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), Err);
-		return;
-	}
-	TexState(Ctx)->bDirty = true;
-	// UpdateMips 仅 UE5+ 可用；UE4 通过编辑器重新导入刷新
-	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
-	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
-	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);
-	Ctx.Entry->SetStringField(TEXT("Note"), TEXT("persist with SaveAsset; compression changes need reimport"));
 }
 
 bool FNexusManageAssetTextureCapability::PrepareTarget(

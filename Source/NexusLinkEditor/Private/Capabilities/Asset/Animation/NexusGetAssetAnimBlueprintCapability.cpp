@@ -160,23 +160,9 @@ void FNexusGetAssetAnimBlueprintCapability::ExecuteSection(const FString&       
 #if WITH_EDITOR
 	else if (SectionName == TEXT("graphOverview"))
 	{
-		UBlueprint* BP = Cast<UBlueprint>(AnimBP);
-		if (!BP)
-		{
-			OutError = TEXT("Cannot cast AnimBlueprint to Blueprint to enumerate graphs");
-			return;
-		}
 		TArray<UEdGraph*> AllGraphs;
-		FNexusBlueprintGraphUtils::CollectAllGraphs(BP, AllGraphs);
-		TArray<TSharedPtr<FJsonValue>> List;
-		for (const UEdGraph* G : AllGraphs)
-		{
-			if (G)
-			{
-				List.Add(MakeShared<FJsonValueObject>(FNexusBlueprintGraphUtils::BuildBPGraphSummary(G)));
-			}
-		}
-		InOutDetail->SetArrayField(TEXT("Graphs"), List);
+		FNexusBlueprintGraphUtils::CollectAllGraphs(AnimBP, AllGraphs);
+		InOutDetail->SetArrayField(TEXT("Graphs"), FNexusBlueprintGraphUtils::BuildBPGraphSummaries(AllGraphs));
 	}
 	else if (SectionName == TEXT("graph"))
 	{

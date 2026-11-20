@@ -5,7 +5,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusArgs.h"
-#include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusAssetEditUtils.h"
 #include "Engine/Font.h"
 #include "NexusMcpTool.h"
 
@@ -36,32 +36,13 @@ struct FFontActionState
 	bool bDirty = false;
 };
 
-static FFontActionState* FontState(FNexusActionContext& Ctx)
-{
-	return static_cast<FFontActionState*>(Ctx.Target);
-}
-
 static void HandleFont_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UFont* Font = FontState(Ctx)->Font;
-	FString PropPath, Value;
-	Op->TryGetStringField(TEXT("PropertyPath"), PropPath);
-	Op->TryGetStringField(TEXT("Value"), Value);
-	if (PropPath.IsEmpty() || Value.IsEmpty())
+	auto* State = static_cast<FFontActionState*>(Ctx.Target);
+	if (FNexusAssetEditUtils::SetProperty(State->Font, Op, *Ctx.Entry))
 	{
-		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyPath and value"));
-		return;
+		State->bDirty = true;
 	}
-	FString OldVal, ActualVal, Err;
-	if (!FNexusPropertyUtils::WritePropertyAndEcho(Font, { PropPath }, 0, Value, OldVal, ActualVal, Err))
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), Err);
-		return;
-	}
-	FontState(Ctx)->bDirty = true;
-	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
-	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
-	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);
 }
 
 bool FNexusManageAssetFontCapability::PrepareTarget(

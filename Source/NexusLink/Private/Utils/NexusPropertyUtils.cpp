@@ -604,6 +604,25 @@ bool FNexusPropertyUtils::ParsePropertyValue(const FProperty* Property, const FS
 	return true;
 }
 
+void FNexusPropertyUtils::AppendPropertyPathSegments(const FString& Path, TArray<FString>& Segments)
+{
+	int32 Begin = 0;
+	bool bInAccessor = false;
+	for (int32 CharacterIndex = 0; CharacterIndex < Path.Len(); ++CharacterIndex)
+	{
+		const TCHAR Character = Path[CharacterIndex];
+		// 与 ParseSegment 一致，下标在首个 ] 结束，键内的引号或 [ 不开启嵌套。
+		if (Character == TEXT('[')) bInAccessor = true;
+		else if (Character == TEXT(']')) bInAccessor = false;
+		else if (Character == TEXT('.') && !bInAccessor)
+		{
+			Segments.Add(Path.Mid(Begin, CharacterIndex - Begin));
+			Begin = CharacterIndex + 1;
+		}
+	}
+	Segments.Add(Path.Mid(Begin));
+}
+
 bool FNexusPropertyUtils::WritePropertyAndEcho(
 	UObject*               Target,
 	const TArray<FString>& PathSegs,
@@ -625,19 +644,7 @@ bool FNexusPropertyUtils::WritePropertyAndEcho(
 	TArray<FString> Segments;
 	for (int32 SegmentIndex = StartIdx; SegmentIndex < PathSegs.Num(); ++SegmentIndex)
 	{
-		const FString& Path = PathSegs[SegmentIndex];
-		int32 Depth = 0, Begin = 0;
-		TCHAR Quote = 0;
-		for (int32 CharacterIndex = 0; CharacterIndex < Path.Len(); ++CharacterIndex)
-		{
-			const TCHAR Character = Path[CharacterIndex];
-			if (Quote) { if (Character == Quote && (CharacterIndex == 0 || Path[CharacterIndex - 1] != TEXT('\\'))) Quote = 0; continue; }
-			if (Character == TEXT('"') || Character == TEXT('\'')) { Quote = Character; continue; }
-			if (Character == TEXT('[')) ++Depth;
-			else if (Character == TEXT(']')) --Depth;
-			else if (Character == TEXT('.') && Depth == 0) { Segments.Add(Path.Mid(Begin, CharacterIndex - Begin)); Begin = CharacterIndex + 1; }
-		}
-		Segments.Add(Path.Mid(Begin));
+		AppendPropertyPathSegments(PathSegs[SegmentIndex], Segments);
 	}
 	if (!ResolvePropertyWrite(Target, Segments, 0, Prop, Ptr, OutError))
 		return false;

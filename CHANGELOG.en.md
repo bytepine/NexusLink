@@ -9,6 +9,21 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- On UE 5.5 and later, GameplayEffect tools read and add `MultiplyCompound` and `AddFinal` modifiers. The `ModifierOp` parameter for `AddModifier` lists the operations supported by the current engine and retains the names `Add`, `Multiply`, `Divide`, and `Override`.
+
+### Changed
+
+- Blueprints, Widget Blueprints, and Animation Blueprints share the graph summary implementation. GameplayAbility reads and writes its instancing and network execution policies through UE enum reflection.
+- `SetProperty` shares property-path validation and result handling across Texture, SoundWave, Font, CommonButtonStyle, and CommonTextStyle. Successful writes return `PropertyPath` and include `OldValue` and `NewValue` when the previous and actual new values respectively have nonempty text representations.
+
+### Fixed
+
+- Blueprint `Defaults` reads and ordinary `SetDefaults` writes resolve Map keys containing dots, such as `Values["a.b"]`.
+- Animation Blueprint tools accept asset-relative paths for reading and editing nested graphs. A short name that matches multiple graphs returns an error. Use the full `GraphPath` from `GetEditorGraph` to select a specific graph.
+- `GetAssetStateTree` reports `LinkedAsset` for an existing state that links to another StateTree asset.
+
 ## [2.3.7] - 2026-11-19
 
 ### Changed

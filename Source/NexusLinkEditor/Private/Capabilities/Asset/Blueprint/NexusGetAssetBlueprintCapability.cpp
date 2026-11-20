@@ -69,9 +69,7 @@ static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FNexusBPQuery
 
 	if (Q.GraphName.IsEmpty())
 	{
-		TArray<TSharedPtr<FJsonValue>> List;
-		for (const UEdGraph* G : AllGraphs) List.Add(MakeShared<FJsonValueObject>(FNexusBlueprintGraphUtils::BuildBPGraphSummary(G)));
-		Root->SetArrayField(TEXT("Graphs"), List);
+		Root->SetArrayField(TEXT("Graphs"), FNexusBlueprintGraphUtils::BuildBPGraphSummaries(AllGraphs));
 		return Root;
 	}
 
@@ -133,7 +131,8 @@ static TSharedPtr<FJsonObject> HandleBPDefaults(UBlueprint* BP, const FNexusBPQu
 			const FString& Path = Q.PropertyPaths[PathIndex];
 			// 与 SetDefaults 采用同一反射路径解析；支持组件和结构体叶子。
 			FProperty* Field = nullptr; void* Value = nullptr; UObject* Owner = nullptr; FString Error;
-			TArray<FString> Parts; Path.ParseIntoArray(Parts, TEXT("."), false);
+			TArray<FString> Parts;
+			FNexusPropertyUtils::AppendPropertyPathSegments(Path, Parts);
 			const bool bResolved = FNexusPropertyUtils::ResolvePropertyWrite(CDO, Parts, 0, Field, Value, Error, &Owner);
 			const bool bOwned = bResolved && Owner && (Owner == CDO || Owner->IsIn(CDO));
 			auto Property = MakeShared<FJsonObject>(); Property->SetStringField(TEXT("Path"), Path);

@@ -6,7 +6,7 @@
 #include "NexusMcpSchemaBuilder.h"
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusArgs.h"
-#include "Utils/NexusPropertyUtils.h"
+#include "Utils/NexusAssetEditUtils.h"
 #include "CommonTextBlock.h"
 #include "NexusMcpTool.h"
 
@@ -40,32 +40,13 @@ struct FCommonTextStyleState
 	bool bDirty = false;
 };
 
-static FCommonTextStyleState* CTSState(FNexusActionContext& Ctx)
-{
-	return static_cast<FCommonTextStyleState*>(Ctx.Target);
-}
-
 static void HandleCTS_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UCommonTextStyle* Style = CTSState(Ctx)->Style;
-	FString PropPath, Value;
-	Op->TryGetStringField(TEXT("PropertyPath"), PropPath);
-	Op->TryGetStringField(TEXT("Value"), Value);
-	if (PropPath.IsEmpty() || Value.IsEmpty())
+	auto* State = static_cast<FCommonTextStyleState*>(Ctx.Target);
+	if (FNexusAssetEditUtils::SetProperty(State->Style, Op, *Ctx.Entry))
 	{
-		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyPath and value"));
-		return;
+		State->bDirty = true;
 	}
-	FString OldVal, ActualVal, Err;
-	if (!FNexusPropertyUtils::WritePropertyAndEcho(Style, { PropPath }, 0, Value, OldVal, ActualVal, Err))
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), Err);
-		return;
-	}
-	CTSState(Ctx)->bDirty = true;
-	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
-	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
-	if (!ActualVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("NewValue"), ActualVal);
 }
 
 bool FNexusManageAssetCommonTextStyleCapability::PrepareTarget(

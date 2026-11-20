@@ -16,6 +16,9 @@
 class NEXUSLINK_API FNexusPropertyUtils
 {
 public:
+	/** 追加点分路径的各段，保留下标及引号中键名里的点。 */
+	static void AppendPropertyPathSegments(const FString& Path, TArray<FString>& Segments);
+
 	/**
 	 * 从 UObject 上按路径段（A.B.C）递归解析属性，用于读取。
 	 * - 叶子属性：填充 name/type/value/bIsLeaf=true

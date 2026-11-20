@@ -22,14 +22,9 @@
 #if WITH_EDITOR
 static FString StateTypeToStr(EStateTreeStateType Type)
 {
-	switch (Type)
-	{
-		case EStateTreeStateType::State:       return TEXT("State");
-		case EStateTreeStateType::Group:       return TEXT("Group");
-		case EStateTreeStateType::Linked:      return TEXT("Linked");
-		case EStateTreeStateType::Subtree:     return TEXT("Subtree");
-		default:                               return TEXT("Unknown");
-	}
+	const UEnum* StateType = StaticEnum<EStateTreeStateType>();
+	const int32 Index = StateType->GetIndexByValue(static_cast<int64>(Type));
+	return Index != INDEX_NONE && Index < StateType->NumEnums() - 1 ? StateType->GetNameStringByIndex(Index) : TEXT("Unknown");
 }
 
 // ── 辅助：从 FStateTreeEditorNode 数组生成节点摘要列表 ────────────────────────

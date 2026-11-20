@@ -40,6 +40,7 @@
 #define NX_UE_HAS_PHYSICS_ASSET_PROGRESS_ARG NX_UE_AT_LEAST(5, 4)  // CreateFromSkeletalMesh 新增 bShowProgress 参数
 #define NX_UE_HAS_DATA_REGISTRY_SOURCE_ASSET_PATH NX_UE_AT_LEAST(5, 5)  // UDataRegistrySource 新增来源资产路径 getter
 #define NX_UE_HAS_GAMEPLAY_TAG_SOURCE_CREATION NX_UE_AT_LEAST(4, 27)  // GameplayTagsEditor 新增显式 INI 来源创建接口
+#define NX_UE_HAS_EXTENDED_GE_MODIFIER_OPS NX_UE_AT_LEAST(5, 5) // GAS 新增 MultiplyCompound 和 AddFinal
 #define NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM NX_UE_AT_LEAST(5, 0) // UE5 网格编辑子系统；UE4 使用 EditorScriptingUtilities
 #define NX_UE_HAS_WORLD_FOLDER_ROOT_HELPER NX_UE_AT_LEAST(5, 1) // FFolder 根对象构造器与世界根查询
 #define NX_UE_HAS_EDITOR_FOLDER_OBJECT NX_UE_AT_LEAST(5, 0) // 编辑器文件夹路径增加根对象

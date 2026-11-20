@@ -18,8 +18,7 @@ class NEXUSLINKEDITOR_API FNexusAnimGraphUtils
 {
 public:
 	/**
-	 * 在 AnimBP 的 FunctionGraphs 中按名称定位 AnimGraph。
-	 * GraphName 为空时返回首个名为 "AnimGraph" 的图。
+	 * 支持完整路径、资产相对路径和唯一短名。空名称按 "AnimGraph" 查找。
 	 */
 	static UEdGraph* FindAnimGraph(UAnimBlueprint* BP, const FString& GraphName);
 

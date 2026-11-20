@@ -32,6 +32,13 @@ void FNexusManageAssetGameplayEffectCapability::BuildDefinition(FNexusCapability
 	Out.Name = TEXT("ManageAssetGameplayEffect");
 	Out.SearchAssetTypes = {TEXT("GameplayEffect")};
 	Out.Description = TEXT("Batch edit GE CDO: SetPolicy/SetTags/add/remove/set modifier.");
+	TSharedRef<FJsonObject> ModifierOpSchema = FNexusSchema::Str(TEXT("Modifier operation (AddModifier)"));
+	TArray<TSharedPtr<FJsonValue>> ModifierOpNames;
+	for (const auto& Operation : FNexusGasUtils::GetGEModifierOperations())
+	{
+		ModifierOpNames.Add(MakeShared<FJsonValueString>(Operation.Key));
+	}
+	ModifierOpSchema->SetArrayField(TEXT("enum"), ModifierOpNames);
 	TSharedPtr<FJsonObject> OpSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"),         FNexusSchema::Enum(TEXT("Operation type"),
 			{ TEXT("SetPolicy"), TEXT("SetTags"), TEXT("AddModifier"), TEXT("RemoveModifier"), TEXT("SetModifier") }))
@@ -44,8 +51,7 @@ void FNexusManageAssetGameplayEffectCapability::BuildDefinition(FNexusCapability
 		.Prop(TEXT("Tags"),           FNexusSchema::StrArr(TEXT("Tag string array (SetTags)")))
 		.Prop(TEXT("Mode"),           FNexusSchema::Enum(TEXT("set/add/remove"), { TEXT("Set"), TEXT("Add"), TEXT("Remove") }))
 		.Prop(TEXT("Attribute"),      FNexusSchema::Str(TEXT("Attribute name (AddModifier)")))
-		.Prop(TEXT("ModifierOp"),     FNexusSchema::Enum(TEXT("Modifier operation (AddModifier)"),
-			{ TEXT("Add"), TEXT("Multiply"), TEXT("Divide"), TEXT("Override") }))
+		.Prop(TEXT("ModifierOp"),     ModifierOpSchema)
 		.Prop(TEXT("Magnitude"),      FNexusSchema::Num(TEXT("Magnitude (AddModifier/SetModifier)")))
 		.Prop(TEXT("Index"),          FNexusSchema::Num(TEXT("Modifier index (RemoveModifier/SetModifier)")))
 		.Required({ TEXT("Action") })

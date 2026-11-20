@@ -9,7 +9,6 @@
 #include "Utils/NexusAssetUtils.h"
 #include "Utils/NexusGasUtils.h"
 #include "Utils/NexusArgs.h"
-#include "Abilities/GameplayAbility.h"
 #include "GameplayEffect.h"
 #include "Engine/Blueprint.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -116,38 +115,19 @@ static void HandleGA_SetTags(const TSharedPtr<FJsonObject>& Op, FNexusActionCont
 static void HandleGA_SetPolicy(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
 	UObject* CDO = GAState(Ctx)->CDO;
-	FString InstPolicyStr, NetPolicyStr;
-	if (Op->TryGetStringField(TEXT("InstancingPolicy"), InstPolicyStr) && !InstPolicyStr.IsEmpty())
+	for (const TCHAR* PolicyName : { TEXT("InstancingPolicy"), TEXT("NetExecutionPolicy") })
 	{
-		uint8 V = 0;
-		bool bParsed = true;
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if      (InstPolicyStr == TEXT("NonInstanced"))          V = (uint8)EGameplayAbilityInstancingPolicy::NonInstanced;
-		else if (InstPolicyStr == TEXT("InstancedPerActor"))     V = (uint8)EGameplayAbilityInstancingPolicy::InstancedPerActor;
-		else if (InstPolicyStr == TEXT("InstancedPerExecution")) V = (uint8)EGameplayAbilityInstancingPolicy::InstancedPerExecution;
-		else bParsed = false;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		if (!bParsed)
+		FString PolicyValue;
+		if (!Op->TryGetStringField(PolicyName, PolicyValue) || PolicyValue.IsEmpty()) continue;
+		const FByteProperty* Property = FindFProperty<FByteProperty>(CDO->GetClass(), PolicyName);
+		const UEnum* Enum = Property ? Property->GetIntPropertyEnum() : nullptr;
+		const int32 Index = Enum ? Enum->GetIndexByNameString(PolicyValue) : INDEX_NONE;
+		if (Index == INDEX_NONE || Index >= Enum->NumEnums() - 1 || Enum->GetNameStringByIndex(Index) != PolicyValue)
 		{
-			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Invalid InstancingPolicy: %s"), *InstPolicyStr));
+			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Invalid %s: %s"), PolicyName, *PolicyValue));
 			return;
 		}
-		NxGasSetEnumByte(CDO, TEXT("InstancingPolicy"), V);
-		MarkGADirty(Ctx);
-	}
-	if (Op->TryGetStringField(TEXT("NetExecutionPolicy"), NetPolicyStr) && !NetPolicyStr.IsEmpty())
-	{
-		uint8 V = 0;
-		if      (NetPolicyStr == TEXT("LocalPredicted"))  V = (uint8)EGameplayAbilityNetExecutionPolicy::LocalPredicted;
-		else if (NetPolicyStr == TEXT("LocalOnly"))       V = (uint8)EGameplayAbilityNetExecutionPolicy::LocalOnly;
-		else if (NetPolicyStr == TEXT("ServerInitiated")) V = (uint8)EGameplayAbilityNetExecutionPolicy::ServerInitiated;
-		else if (NetPolicyStr == TEXT("ServerOnly"))      V = (uint8)EGameplayAbilityNetExecutionPolicy::ServerOnly;
-		else
-		{
-			Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Invalid NetExecutionPolicy: %s"), *NetPolicyStr));
-			return;
-		}
-		NxGasSetEnumByte(CDO, TEXT("NetExecutionPolicy"), V);
+		Property->SetPropertyValue_InContainer(CDO, static_cast<uint8>(Enum->GetValueByIndex(Index)));
 		MarkGADirty(Ctx);
 	}
 }

@@ -20,6 +20,28 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "JsonObjectConverter.h"
 
+bool FNexusAssetEditUtils::SetProperty(UObject* Asset, const TSharedPtr<FJsonObject>& Operation, FJsonObject& Entry)
+{
+	const FNexusArgs Args(Operation);
+	const FString Path = Args.Str(TEXT("PropertyPath"));
+	const FString Value = Args.Str(TEXT("Value"));
+	if (Path.IsEmpty() || Value.IsEmpty())
+	{
+		Entry.SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyPath and value"));
+		return false;
+	}
+	FString Previous, Actual, Error;
+	if (!FNexusPropertyUtils::WritePropertyAndEcho(Asset, {Path}, 0, Value, Previous, Actual, Error))
+	{
+		Entry.SetStringField(TEXT("Error"), Error);
+		return false;
+	}
+	Entry.SetStringField(TEXT("PropertyPath"), Path);
+	if (!Previous.IsEmpty()) Entry.SetStringField(TEXT("OldValue"), Previous);
+	if (!Actual.IsEmpty()) Entry.SetStringField(TEXT("NewValue"), Actual);
+	return true;
+}
+
 static FString SupportedEditAction(const FString& Capability)
 {
 	if (Capability == TEXT("ManageAssetBlueprint")) return TEXT("SetDefaults");

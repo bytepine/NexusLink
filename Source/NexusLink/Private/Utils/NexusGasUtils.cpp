@@ -5,6 +5,7 @@
 #if WITH_GAS
 
 #include "Utils/NexusAssetUtils.h"
+#include "Utils/NexusVersionCompat.h"
 #include "Engine/Blueprint.h"
 #include "Abilities/GameplayAbility.h"
 #include "GameplayEffect.h"
@@ -116,6 +117,21 @@ bool FNexusGasUtils::ApplyTagContainer(
 
 // ── GE Modifier ───────────────────────────────────────────────────────────────
 
+const TMap<FString, EGameplayModOp::Type>& FNexusGasUtils::GetGEModifierOperations()
+{
+	static const TMap<FString, EGameplayModOp::Type> Operations = {
+		{TEXT("Add"), EGameplayModOp::Additive},
+		{TEXT("Multiply"), EGameplayModOp::Multiplicitive},
+		{TEXT("Divide"), EGameplayModOp::Division},
+		{TEXT("Override"), EGameplayModOp::Override},
+#if NX_UE_HAS_EXTENDED_GE_MODIFIER_OPS
+		{TEXT("MultiplyCompound"), EGameplayModOp::MultiplyCompound},
+		{TEXT("AddFinal"), EGameplayModOp::AddFinal},
+#endif
+	};
+	return Operations;
+}
+
 // GE->Modifiers 在 UE 4.26 是 protected，通过反射访问
 static TArray<FGameplayModifierInfo>* GetGEModifiersPtr(UGameplayEffect* GE)
 {
@@ -142,15 +158,8 @@ TArray<TSharedPtr<FJsonValue>> FNexusGasUtils::SerializeGEModifiers(const UGamep
 		Obj->SetNumberField(TEXT("Index"), i);
 		Obj->SetStringField(TEXT("Attribute"), Mod.Attribute.IsValid() ? Mod.Attribute.GetName() : TEXT(""));
 
-		// ModifierOp 枚举 → 字符串
-		switch (Mod.ModifierOp)
-		{
-			case EGameplayModOp::Additive:    Obj->SetStringField(TEXT("ModifierOp"), TEXT("Add"));       break;
-			case EGameplayModOp::Multiplicitive: Obj->SetStringField(TEXT("ModifierOp"), TEXT("Multiply")); break;
-			case EGameplayModOp::Division:    Obj->SetStringField(TEXT("ModifierOp"), TEXT("Divide"));    break;
-			case EGameplayModOp::Override:    Obj->SetStringField(TEXT("ModifierOp"), TEXT("Override"));  break;
-			default:                          Obj->SetStringField(TEXT("ModifierOp"), TEXT("Unknown"));   break;
-		}
+		const FString* OperationName = GetGEModifierOperations().FindKey(Mod.ModifierOp.GetValue());
+		Obj->SetStringField(TEXT("ModifierOp"), OperationName ? *OperationName : TEXT("Unknown"));
 
 		// Magnitude：只读出标量（ScalableFloat）；Curve 型输出类型说明
 		const FGameplayEffectModifierMagnitude& Mag = Mod.ModifierMagnitude;
@@ -199,7 +208,10 @@ bool FNexusGasUtils::ApplyGEModifierOp(
 		if (!OpArgs->TryGetStringField(TEXT("Attribute"), AttrName) || AttrName.IsEmpty())
 		{ OutError = TEXT("AddModifier requires attribute"); return false; }
 		if (!OpArgs->TryGetStringField(TEXT("ModifierOp"), OpStr) || OpStr.IsEmpty())
-		{ OutError = TEXT("AddModifier requires ModifierOp（Add/Multiply/Divide/Override）"); return false; }
+		{ OutError = TEXT("AddModifier requires ModifierOp"); return false; }
+		const EGameplayModOp::Type* ModifierOperation = GetGEModifierOperations().Find(OpStr);
+		if (!ModifierOperation)
+		{ OutError = FString::Printf(TEXT("Unsupported ModifierOp: %s"), *OpStr); return false; }
 		if (OpArgs->HasField(TEXT("Magnitude")))
 			Magnitude = (float)OpArgs->GetNumberField(TEXT("Magnitude"));
 
@@ -237,17 +249,12 @@ bool FNexusGasUtils::ApplyGEModifierOp(
 			return false;
 		}
 
-		EGameplayModOp::Type ModOp = EGameplayModOp::Additive;
-		if      (OpStr == TEXT("Multiply")) ModOp = EGameplayModOp::Multiplicitive;
-		else if (OpStr == TEXT("Divide"))   ModOp = EGameplayModOp::Division;
-		else if (OpStr == TEXT("Override")) ModOp = EGameplayModOp::Override;
-
 		TArray<FGameplayModifierInfo>* Mods = GetGEModifiersPtr(GE);
 		if (!Mods) { OutError = TEXT("Unable to access GE Modifiers array"); return false; }
 
 		FGameplayModifierInfo NewMod;
 		NewMod.Attribute = Attr;
-		NewMod.ModifierOp = ModOp;
+		NewMod.ModifierOp = *ModifierOperation;
 		FScalableFloat SF(Magnitude);
 		NewMod.ModifierMagnitude = FGameplayEffectModifierMagnitude(SF);
 		Mods->Add(NewMod);
