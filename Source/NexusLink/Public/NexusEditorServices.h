@@ -11,16 +11,15 @@ class UWorld;
 
 /**
  * FNexusEditorTransaction::Begin() 返回的不透明事务句柄。
- * Runtime 侧只认这个接口；NexusLinkEditor 内部实现里包一层 FScopedTransaction（UnrealEd 类型，
- * 不能出现在 Runtime 模块的公开签名里）。
+ * Runtime 侧通过此接口管理 NexusLinkEditor 创建的编辑器事务。
  */
 class INexusTransactionHandle
 {
 public:
 	virtual ~INexusTransactionHandle() = default;
 
-	/** 还原内存快照后丢弃这笔 undo 记录（引擎 Cancel 本身不还原对象）。 */
-	virtual void CancelAndRevert() = 0;
+	/** 回滚并丢弃本句柄的事务，成功或取消空事务时返回 true。 */
+	virtual bool CancelAndRevert() = 0;
 
 	/** 事务是否仍在栈顶未结束（供调用方判断是否真的回滚了）。 */
 	virtual bool IsOutstanding() const = 0;

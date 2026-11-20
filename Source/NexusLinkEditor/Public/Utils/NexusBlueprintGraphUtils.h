@@ -31,9 +31,11 @@ public:
 	static UEdGraph* FindBPGraph(UBlueprint* BP, const FString& GraphName);
 	/** bRequireUniqueShortName 为真时，顶层图的短名与嵌套图重名也返回 nullptr。 */
 	static UEdGraph* FindBPGraph(UBlueprint* BP, const FString& GraphName, bool bRequireUniqueShortName);
+	static UEdGraph* FindBPGraph(UBlueprint* BP, const FString& GraphName, const TArray<UEdGraph*>& AllGraphs, bool bRequireUniqueShortName = false);
 
 	/** 按 GUID 字符串查找图内节点，解析失败或不存在均返回 nullptr。 */
 	static UEdGraphNode* FindBPNode(UEdGraph* Graph, const FString& NodeIdStr);
+	static const TCHAR* GetGraphEditError(UEdGraph* Graph);
 	static const TCHAR* GetNodeDeletionError(const UEdGraphNode& Node);
 
 	/**

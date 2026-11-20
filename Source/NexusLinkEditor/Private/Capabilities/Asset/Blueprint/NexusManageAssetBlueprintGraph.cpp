@@ -74,6 +74,8 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 	return;
 	}
 
+	if (const TCHAR* Error = FNexusBlueprintGraphUtils::GetGraphEditError(Graph))
+	{ Entry->SetStringField(TEXT("Error"), Error); return; }
 	Entry->SetStringField(TEXT("GraphName"), GraphName);
 	if (Action == TEXT("RemoveNode"))
 	{
@@ -88,19 +90,15 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 		}
 		Entry->SetStringField(TEXT("NodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
 		BP->Modify();
-		Graph->Modify();
-		Node->Modify();
-		Graph->GetSchema()->BreakNodeLinks(*Node);
-		Graph->RemoveNode(Node);
+		FBlueprintEditorUtils::RemoveNode(BP, Node, /*bDontRecompile=*/true);
 		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
 		return;
 	}
-	BP->Modify();
-	Graph->Modify();
-
 	// ── Node actions ──────────────────────────────────────────────────────────
 	if (Action == TEXT("AddNode"))
 	{
+		BP->Modify();
+		Graph->Modify();
 		const FString NodeClass = FNexusArgs(Op).Str(TEXT("NodeClass"));
 		if (NodeClass.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("AddNode requires NodeClass"));
 	return; }
@@ -177,48 +175,56 @@ void FNexusBlueprintGraphOps::HandleGraphNode(const TSharedPtr<FJsonObject>& Op,
 
 	if (Action == TEXT("SetNode"))
 	{
-		const FString NodeIdStr = FNexusArgs(Op).Str(TEXT("NodeId"));
-		if (NodeIdStr.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("SetNode requires NodeId"));
-	return; }
-		UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeIdStr);
-		if (!Node) { Entry->SetStringField(TEXT("Error"), TEXT("Node not found"));
-	return; }
+		const FNexusArgs Args(Op);
+		const FString NodeId = Args.Str(TEXT("NodeId"));
+		if (NodeId.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("SetNode requires NodeId")); return; }
+		UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, NodeId);
+		if (!Node) { Entry->SetStringField(TEXT("Error"), TEXT("Node not found")); return; }
 
+		UK2Node_CustomEvent* Event = nullptr;
+		const FString EventName = Args.Str(TEXT("CustomEventName"));
 		if (Op->HasField(TEXT("CustomEventName")) || Op->HasField(TEXT("FunctionName")))
 		{
-			UK2Node_CustomEvent* Event = Cast<UK2Node_CustomEvent>(Node);
-			const FString Name = FNexusArgs(Op).Str(TEXT("CustomEventName"));
-			if (!Event || Op->HasField(TEXT("FunctionName")) || Name.IsEmpty() || Name.Equals(TEXT("None"), ESearchCase::IgnoreCase))
+			Event = Cast<UK2Node_CustomEvent>(Node);
+			if (!Event || Op->HasField(TEXT("FunctionName")) || EventName.IsEmpty() || EventName.Equals(TEXT("None"), ESearchCase::IgnoreCase))
 			{ Entry->SetStringField(TEXT("Error"), TEXT("SetNode naming requires a custom event and CustomEventName; FunctionName is unsupported")); return; }
-			if (Name != Event->CustomFunctionName.ToString() && Event->MakeNameValidator()->IsValid(Name) != EValidatorResult::Ok)
+			if (EventName != Event->CustomFunctionName.ToString() && Event->MakeNameValidator()->IsValid(EventName) != EValidatorResult::Ok)
 			{ Entry->SetStringField(TEXT("Error"), TEXT("CustomEventName is invalid or conflicts with an existing Blueprint member")); return; }
-			Event->Modify(); Event->OnRenameNode(Name);
+		}
+
+		UEdGraphPin* Pin = nullptr;
+		FString PinValue;
+		if (Op->HasField(TEXT("PinName")) || Op->HasField(TEXT("PinDefaultValue")))
+		{
+			FString PinName;
+			if (!Op->TryGetStringField(TEXT("PinName"), PinName) || !Op->TryGetStringField(TEXT("PinDefaultValue"), PinValue))
+			{ Entry->SetStringField(TEXT("Error"), TEXT("SetNode requires PinName and PinDefaultValue together")); return; }
+			Pin = Node->FindPin(FName(*PinName));
+			if (!Pin) { Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Pin '%s' not found"), *PinName)); return; }
+		}
+
+		BP->Modify();
+		Graph->Modify();
+		Node->Modify();
+		if (Op->HasField(TEXT("PosX"))) Node->NodePosX = static_cast<int32>(Args.Num(TEXT("PosX")));
+		if (Op->HasField(TEXT("PosY"))) Node->NodePosY = static_cast<int32>(Args.Num(TEXT("PosY")));
+		if (Op->HasField(TEXT("Comment"))) Node->NodeComment = Args.Str(TEXT("Comment"));
+		if (Pin) Pin->DefaultValue = PinValue;
+		if (Event)
+		{
+			Event->OnRenameNode(EventName);
 			Entry->SetStringField(TEXT("CustomEventName"), Event->CustomFunctionName.ToString());
 		}
-		Node->Modify();
-		if (Op->HasField(TEXT("PosX")))    Node->NodePosX = static_cast<int32>(Op->GetNumberField(TEXT("PosX")));
-		if (Op->HasField(TEXT("PosY")))    Node->NodePosY = static_cast<int32>(Op->GetNumberField(TEXT("PosY")));
-		if (Op->HasField(TEXT("Comment"))) Node->NodeComment = Op->GetStringField(TEXT("Comment"));
-
-		if (Op->HasField(TEXT("PinName")) && Op->HasField(TEXT("PinDefaultValue")))
-		{
-			const FString PinName = Op->GetStringField(TEXT("PinName"));
-			const FString PinVal  = Op->GetStringField(TEXT("PinDefaultValue"));
-			bool bFound = false;
-			for (UEdGraphPin* Pin : Node->Pins)
-			{ if (Pin && Pin->PinName.ToString() == PinName) { Pin->DefaultValue = PinVal; bFound = true; break; } }
-			if (!bFound) { Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Pin '%s' not found"), *PinName));
-	return; }
-		}
-
-	Entry->SetStringField(TEXT("NodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
-	FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
-	return;
+		Entry->SetStringField(TEXT("NodeTitle"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+		FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+		return;
 	}
 
 	// ── Promote pin → variable（对齐编辑器 DoPromoteToVariable）──────────────
 	if (Action == TEXT("PromotePin"))
 	{
+		BP->Modify();
+		Graph->Modify();
 		FString NodeIdStr, PinNameStr;
 		Op->TryGetStringField(TEXT("NodeId"), NodeIdStr);
 		Op->TryGetStringField(TEXT("PinName"), PinNameStr);
@@ -400,6 +406,8 @@ void FNexusBlueprintGraphOps::HandleWire(const TSharedPtr<FJsonObject>& Op, FNex
 		Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Graph '%s' not found"), *GraphName));
 		return;
 	}
+	if (const TCHAR* Error = FNexusBlueprintGraphUtils::GetGraphEditError(Graph))
+	{ Entry->SetStringField(TEXT("Error"), Error); return; }
 	Entry->SetStringField(TEXT("GraphName"), GraphName);
 	BP->Modify();
 	Graph->Modify();

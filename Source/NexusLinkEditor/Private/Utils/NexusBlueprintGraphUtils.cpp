@@ -45,6 +45,11 @@ UEdGraph* FNexusBlueprintGraphUtils::FindBPGraph(UBlueprint* BP, const FString& 
 {
 	TArray<UEdGraph*> AllGraphs;
 	CollectAllGraphs(BP, AllGraphs);
+	return FindBPGraph(BP, GraphName, AllGraphs, bRequireUniqueShortName);
+}
+
+UEdGraph* FNexusBlueprintGraphUtils::FindBPGraph(UBlueprint* BP, const FString& GraphName, const TArray<UEdGraph*>& AllGraphs, bool bRequireUniqueShortName)
+{
 	UEdGraph* NameMatch = nullptr;
 	for (UEdGraph* G : AllGraphs)
 	{
@@ -72,9 +77,14 @@ UEdGraphNode* FNexusBlueprintGraphUtils::FindBPNode(UEdGraph* Graph, const FStri
 	return nullptr;
 }
 
+const TCHAR* FNexusBlueprintGraphUtils::GetGraphEditError(UEdGraph* Graph)
+{
+	return FBlueprintEditorUtils::IsGraphReadOnly(Graph) ? TEXT("Cannot modify a read-only graph") : nullptr;
+}
+
 const TCHAR* FNexusBlueprintGraphUtils::GetNodeDeletionError(const UEdGraphNode& Node)
 {
-	if (FBlueprintEditorUtils::IsGraphReadOnly(Node.GetGraph())) return TEXT("Cannot delete nodes from a read-only graph");
+	if (const TCHAR* Error = GetGraphEditError(Node.GetGraph())) return Error;
 	return Node.CanUserDeleteNode() ? nullptr : TEXT("This node cannot be deleted");
 }
 

@@ -17,9 +17,9 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #if NX_UE_HAS_WIDGET_BLUEPRINT_OPERATIONS
 #include "K2Node_Variable.h"
-#include "Kismet2/BlueprintEditorUtils.h"
 #include "WidgetBlueprintEditorUtils.h"
 #endif
 #if WITH_PCG
@@ -112,6 +112,8 @@ UObject* FNexusAssetStructureUtils::Copy(UObject* Asset)
 	{
 		// 整体 DuplicateObject 会触发 Blueprint::PostDuplicate 编译；只复制拥有的结构对象。
 		UBlueprint* Blueprint = NewObject<UBlueprint>(GetTransientPackage(), Source->GetClass(), NAME_None, RF_Transient);
+		// 复合节点的 DestroyNode 会请求重编；结构副本不生成骨架类。
+		Blueprint->Status = BS_BeingCreated;
 		Blueprint->ParentClass = Source->ParentClass; Blueprint->BlueprintType = Source->BlueprintType;
 		Blueprint->NewVariables = Source->NewVariables;
 		const auto CopyGraphs = [Blueprint](const auto& Input, auto& Output)
@@ -224,12 +226,14 @@ bool FNexusAssetStructureUtils::ApplyPreview(UObject* Asset, const FString& Capa
 		}
 		UEdGraph* Graph = FNexusBlueprintGraphUtils::FindBPGraph(Blueprint, GraphName);
 		if (!Graph || !Graph->GetSchema()) { Error = TEXT("GraphName not found"); return false; }
+		if (const TCHAR* Reason = FNexusBlueprintGraphUtils::GetGraphEditError(Graph)) { Error = Reason; return false; }
 		if (Action == TEXT("RemoveNode"))
 		{
 			UEdGraphNode* Node = FNexusBlueprintGraphUtils::FindBPNode(Graph, A.Str(TEXT("NodeId")));
 			if (!Node) { Error = TEXT("NodeId not found"); return false; }
 			if (const TCHAR* Reason = FNexusBlueprintGraphUtils::GetNodeDeletionError(*Node)) { Error = Reason; return false; }
-			Graph->GetSchema()->BreakNodeLinks(*Node); Graph->RemoveNode(Node); return true;
+			FBlueprintEditorUtils::RemoveNode(nullptr, Node, /*bDontRecompile=*/true);
+			return true;
 		}
 		UEdGraphNode* SourceNode = FNexusBlueprintGraphUtils::FindBPNode(Graph, A.Str(TEXT("SourceNodeId")));
 		UEdGraphPin* Pin = SourceNode ? FNexusBlueprintGraphUtils::FindBPPin(SourceNode, A.Str(TEXT("SourcePinName"))) : nullptr;

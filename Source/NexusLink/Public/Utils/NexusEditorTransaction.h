@@ -10,7 +10,7 @@
  * 已在事务中则 Begin 返回空（供 calls[] 外层独占一笔 Ctrl+Z）。
  *
  * 本类驻留 NexusLink（Runtime）模块，供 FNexusCapability::Run / NexusMcpToolCallCapability
- * 共用；真正触碰 GEditor / FScopedTransaction 的实现经 FNexusEditorServices 钩子转发到
+ * 共用；编辑器事务的实现经 FNexusEditorServices 钩子转发到
  * NexusLinkEditor，避免 Runtime 模块链接 UnrealEd。未安装钩子（独立 Game/DS 包）时
  * Begin 返回空句柄、IsTransactionActive/GetActiveRecordCount 返回 false/0，行为等价于「无事务」。
  */
@@ -33,6 +33,6 @@ struct NEXUSLINK_API FNexusEditorTransaction final
 	/** 开启命名事务；未安装钩子、GEditor 不可用或已在事务中返回 nullptr。 */
 	static TUniquePtr<INexusTransactionHandle> Begin(const FString& Title);
 
-	/** 先还原内存快照再丢弃这笔 undo 记录。 */
-	static void CancelAndRevert(TUniquePtr<INexusTransactionHandle>& Tx);
+	/** 回滚并释放句柄，成功或取消空事务时返回 true，保留原有撤销与重做记录。 */
+	static bool CancelAndRevert(TUniquePtr<INexusTransactionHandle>& Tx);
 };

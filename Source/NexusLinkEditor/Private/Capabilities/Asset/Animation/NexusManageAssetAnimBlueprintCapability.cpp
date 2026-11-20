@@ -153,9 +153,40 @@ static void MarkAnimModified(FNexusActionContext& Ctx)
 	}
 }
 
-static FString GraphNameOf(const TSharedPtr<FJsonObject>& Op)
+static UEdGraph* FindWritableAnimGraph(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	return FNexusArgs(Op).Str(TEXT("GraphName"));
+	const FString Name = FNexusArgs(Op).Str(TEXT("GraphName"));
+	UEdGraph* Graph = FNexusAnimGraphUtils::FindAnimGraph(AnimBPFrom(Ctx), Name);
+	if (!Graph)
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("AnimGraph '%s' not found in AnimBlueprint"), Name.IsEmpty() ? TEXT("AnimGraph") : *Name));
+		return nullptr;
+	}
+	if (const TCHAR* Error = FNexusBlueprintGraphUtils::GetGraphEditError(Graph))
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), Error);
+		return nullptr;
+	}
+	return Graph;
+}
+
+static UAnimationStateMachineGraph* FindWritableStateMachineGraph(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx, const FString& Name)
+{
+	UEdGraph* Graph = FindWritableAnimGraph(Op, Ctx);
+	if (!Graph) return nullptr;
+	UAnimGraphNode_StateMachineBase* Machine = FNexusAnimGraphUtils::FindStateMachineNode(Graph, Name);
+	UAnimationStateMachineGraph* StateGraph = FNexusAnimGraphUtils::GetStateMachineGraph(Machine);
+	if (!StateGraph)
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State machine '%s' not found"), *Name));
+		return nullptr;
+	}
+	if (const TCHAR* Error = FNexusBlueprintGraphUtils::GetGraphEditError(StateGraph))
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), Error);
+		return nullptr;
+	}
+	return StateGraph;
 }
 
 static int32 PosXOf(const TSharedPtr<FJsonObject>& Op)
@@ -170,20 +201,14 @@ static int32 PosYOf(const TSharedPtr<FJsonObject>& Op)
 
 static void HandleABP_AddStateMachine(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UAnimBlueprint* AnimBP = AnimBPFrom(Ctx);
 	const FString SMName = FNexusArgs(Op).Str(TEXT("StateMachineName"));
 	if (SMName.IsEmpty())
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddStateMachine requires StateMachineName"));
 		return;
 	}
-	const FString GraphName = GraphNameOf(Op);
-	UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphName);
-	if (!AnimGraph)
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("AnimGraph '%s' not found in AnimBlueprint"), GraphName.IsEmpty() ? TEXT("AnimGraph") : *GraphName));
-		return;
-	}
+	UEdGraph* AnimGraph = FindWritableAnimGraph(Op, Ctx);
+	if (!AnimGraph) return;
 	if (FNexusAnimGraphUtils::FindStateMachineNode(AnimGraph, SMName))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State machine '%s' already exists"), *SMName));
@@ -227,9 +252,9 @@ static void HandleABP_RemoveStateMachine(const TSharedPtr<FJsonObject>& Op, FNex
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveStateMachine requires StateMachineName"));
 		return;
 	}
-	UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphNameOf(Op));
-	UAnimGraphNode_StateMachineBase* SMNode = AnimGraph
-		? FNexusAnimGraphUtils::FindStateMachineNode(AnimGraph, SMName) : nullptr;
+	UEdGraph* AnimGraph = FindWritableAnimGraph(Op, Ctx);
+	if (!AnimGraph) return;
+	UAnimGraphNode_StateMachineBase* SMNode = FNexusAnimGraphUtils::FindStateMachineNode(AnimGraph, SMName);
 	if (!SMNode)
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State machine '%s' not found"), *SMName));
@@ -250,7 +275,6 @@ static void HandleABP_RemoveStateMachine(const TSharedPtr<FJsonObject>& Op, FNex
 
 static void HandleABP_AddState(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UAnimBlueprint* AnimBP = AnimBPFrom(Ctx);
 	const FString SMName = FNexusArgs(Op).Str(TEXT("StateMachineName"));
 	const FString StateName = FNexusArgs(Op).Str(TEXT("StateName"));
 	if (SMName.IsEmpty())
@@ -263,15 +287,8 @@ static void HandleABP_AddState(const TSharedPtr<FJsonObject>& Op, FNexusActionCo
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddState requires StateName"));
 		return;
 	}
-	UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphNameOf(Op));
-	UAnimGraphNode_StateMachineBase* SMNode = AnimGraph
-		? FNexusAnimGraphUtils::FindStateMachineNode(AnimGraph, SMName) : nullptr;
-	UAnimationStateMachineGraph* SMGraph = FNexusAnimGraphUtils::GetStateMachineGraph(SMNode);
-	if (!SMGraph)
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State machine '%s' not found"), *SMName));
-		return;
-	}
+	UAnimationStateMachineGraph* SMGraph = FindWritableStateMachineGraph(Op, Ctx, SMName);
+	if (!SMGraph) return;
 	if (FNexusAnimGraphUtils::FindStateByName(SMGraph, StateName))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State '%s' already exists in '%s'"), *StateName, *SMName));
@@ -318,15 +335,8 @@ static void HandleABP_RemoveState(const TSharedPtr<FJsonObject>& Op, FNexusActio
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveState requires StateName"));
 		return;
 	}
-	UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphNameOf(Op));
-	UAnimGraphNode_StateMachineBase* SMNode = AnimGraph
-		? FNexusAnimGraphUtils::FindStateMachineNode(AnimGraph, SMName) : nullptr;
-	UAnimationStateMachineGraph* SMGraph = FNexusAnimGraphUtils::GetStateMachineGraph(SMNode);
-	if (!SMGraph)
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State machine '%s' not found"), *SMName));
-		return;
-	}
+	UAnimationStateMachineGraph* SMGraph = FindWritableStateMachineGraph(Op, Ctx, SMName);
+	if (!SMGraph) return;
 	UAnimStateNode* StateNode = FNexusAnimGraphUtils::FindStateByName(SMGraph, StateName);
 	if (!StateNode)
 	{
@@ -361,7 +371,6 @@ static void HandleABP_RemoveState(const TSharedPtr<FJsonObject>& Op, FNexusActio
 
 static void HandleABP_AddTransition(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UAnimBlueprint* AnimBP = AnimBPFrom(Ctx);
 	const FString SMName = FNexusArgs(Op).Str(TEXT("StateMachineName"));
 	const FString SourceName = FNexusArgs(Op).Str(TEXT("StateName"));
 	const FString TargetName = FNexusArgs(Op).Str(TEXT("TargetStateName"));
@@ -380,15 +389,8 @@ static void HandleABP_AddTransition(const TSharedPtr<FJsonObject>& Op, FNexusAct
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AddTransition requires TargetStateName"));
 		return;
 	}
-	UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphNameOf(Op));
-	UAnimGraphNode_StateMachineBase* SMNode = AnimGraph
-		? FNexusAnimGraphUtils::FindStateMachineNode(AnimGraph, SMName) : nullptr;
-	UAnimationStateMachineGraph* SMGraph = FNexusAnimGraphUtils::GetStateMachineGraph(SMNode);
-	if (!SMGraph)
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State machine '%s' not found"), *SMName));
-		return;
-	}
+	UAnimationStateMachineGraph* SMGraph = FindWritableStateMachineGraph(Op, Ctx, SMName);
+	if (!SMGraph) return;
 	UAnimStateNode* Source = FNexusAnimGraphUtils::FindStateByName(SMGraph, SourceName);
 	UAnimStateNode* Target = FNexusAnimGraphUtils::FindStateByName(SMGraph, TargetName);
 	if (!Source || !Target)
@@ -457,15 +459,8 @@ static void HandleABP_RemoveTransition(const TSharedPtr<FJsonObject>& Op, FNexus
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveTransition requires TargetStateName"));
 		return;
 	}
-	UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphNameOf(Op));
-	UAnimGraphNode_StateMachineBase* SMNode = AnimGraph
-		? FNexusAnimGraphUtils::FindStateMachineNode(AnimGraph, SMName) : nullptr;
-	UAnimationStateMachineGraph* SMGraph = FNexusAnimGraphUtils::GetStateMachineGraph(SMNode);
-	if (!SMGraph)
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("State machine '%s' not found"), *SMName));
-		return;
-	}
+	UAnimationStateMachineGraph* SMGraph = FindWritableStateMachineGraph(Op, Ctx, SMName);
+	if (!SMGraph) return;
 	UAnimStateTransitionNode* Trans = FNexusAnimGraphUtils::FindTransition(SMGraph, SourceName, TargetName);
 	if (!Trans)
 	{
@@ -490,21 +485,20 @@ static void ApplyOptionalNodeFields(UEdGraphNode* Node, const TSharedPtr<FJsonOb
 {
 	FString SeqPath = FNexusArgs(Op).Str(TEXT("SequencePath"));
 	if (SeqPath.IsEmpty()) SeqPath = FNexusArgs(Op).Str(TEXT("AssetPath"));
-	if (!SeqPath.IsEmpty())
+	UAnimGraphNode_AssetPlayerBase* Player = Cast<UAnimGraphNode_AssetPlayerBase>(Node);
+	UAnimationAsset* AnimAsset = nullptr;
+	if (Player && !SeqPath.IsEmpty())
 	{
-		if (UAnimGraphNode_AssetPlayerBase* Player = Cast<UAnimGraphNode_AssetPlayerBase>(Node))
+		AnimAsset = FNexusAssetUtils::LoadAssetWithFallback<UAnimationAsset>(SeqPath);
+		if (!AnimAsset && bFailIfAssetMissing)
 		{
-			UAnimationAsset* AnimAsset = FNexusAssetUtils::LoadAssetWithFallback<UAnimationAsset>(SeqPath);
-			if (AnimAsset)
-			{
-				Player->SetAnimationAsset(AnimAsset);
-			}
-			else if (bFailIfAssetMissing)
-			{
-				Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Animation asset not found: %s"), *SeqPath));
-			}
+			Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("Animation asset not found: %s"), *SeqPath));
+			return;
 		}
 	}
+	Node->SetFlags(RF_Transactional);
+	Node->Modify();
+	if (AnimAsset) Player->SetAnimationAsset(AnimAsset);
 	const FString SlotName = FNexusArgs(Op).Str(TEXT("SlotName"));
 	if (!SlotName.IsEmpty())
 	{
@@ -521,15 +515,10 @@ static void ApplyOptionalNodeFields(UEdGraphNode* Node, const TSharedPtr<FJsonOb
 
 static void HandleABP_AddNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UAnimBlueprint* AnimBP = AnimBPFrom(Ctx);
 	const FString NodeClassName = FNexusArgs(Op).Str(TEXT("NodeClass"));
 	UClass* NodeClass = FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(NodeClassName);
-	UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphNameOf(Op));
-	if (!AnimGraph)
-	{
-		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("AnimGraph not found"));
-		return;
-	}
+	UEdGraph* AnimGraph = FindWritableAnimGraph(Op, Ctx);
+	if (!AnimGraph) return;
 	if (!NodeClass)
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"),
@@ -553,8 +542,9 @@ static void HandleABP_RemoveNode(const TSharedPtr<FJsonObject>& Op, FNexusAction
 {
 	UAnimBlueprint* AnimBP = AnimBPFrom(Ctx);
 	const FString NodeId = FNexusArgs(Op).Str(TEXT("NodeId"));
-	UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphNameOf(Op));
-	UEdGraphNode* Node = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, NodeId) : nullptr;
+	UEdGraph* AnimGraph = FindWritableAnimGraph(Op, Ctx);
+	if (!AnimGraph) return;
+	UEdGraphNode* Node = FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, NodeId);
 	if (!Node)
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveNode requires existing NodeId"));
@@ -565,43 +555,45 @@ static void HandleABP_RemoveNode(const TSharedPtr<FJsonObject>& Op, FNexusAction
 		Ctx.Entry->SetStringField(TEXT("Error"), Error);
 		return;
 	}
-	DestroyGraphNode(Node);
+	AnimBP->Modify();
+	Node->SetFlags(RF_Transactional);
+	FBlueprintEditorUtils::RemoveNode(AnimBP, Node, /*bDontRecompile=*/true);
 	Ctx.Entry->SetStringField(TEXT("NodeId"), NodeId);
 	MarkAnimModified(Ctx);
 }
 
 static void HandleABP_SetNode(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UAnimBlueprint* AnimBP = AnimBPFrom(Ctx);
 	const FString NodeId = FNexusArgs(Op).Str(TEXT("NodeId"));
-	UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphNameOf(Op));
-	UEdGraphNode* Node = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, NodeId) : nullptr;
+	UEdGraph* AnimGraph = FindWritableAnimGraph(Op, Ctx);
+	if (!AnimGraph) return;
+	UEdGraphNode* Node = FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, NodeId);
 	if (!Node)
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetNode requires existing NodeId"));
 		return;
 	}
-	if (Op->HasField(TEXT("PosX"))) Node->NodePosX = PosXOf(Op);
-	if (Op->HasField(TEXT("PosY"))) Node->NodePosY = PosYOf(Op);
 	ApplyOptionalNodeFields(Node, Op, Ctx.Entry, /*bFailIfAssetMissing=*/true);
 	if (Ctx.Entry->HasField(TEXT("Error")))
 	{
 		return;
 	}
+	if (Op->HasField(TEXT("PosX"))) Node->NodePosX = PosXOf(Op);
+	if (Op->HasField(TEXT("PosY"))) Node->NodePosY = PosYOf(Op);
 	Ctx.Entry->SetStringField(TEXT("NodeId"), Node->NodeGuid.ToString());
 	MarkAnimModified(Ctx);
 }
 
 static void HandleABP_Connect(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UAnimBlueprint* AnimBP = AnimBPFrom(Ctx);
 	const FString SrcId = FNexusArgs(Op).Str(TEXT("SourceNodeId"));
 	const FString SrcPin = FNexusArgs(Op).Str(TEXT("SourcePinName"));
 	const FString DstId = FNexusArgs(Op).Str(TEXT("TargetNodeId"));
 	const FString DstPin = FNexusArgs(Op).Str(TEXT("TargetPinName"));
-	UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphNameOf(Op));
-	UEdGraphNode* SrcNode = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, SrcId) : nullptr;
-	UEdGraphNode* DstNode = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, DstId) : nullptr;
+	UEdGraph* AnimGraph = FindWritableAnimGraph(Op, Ctx);
+	if (!AnimGraph) return;
+	UEdGraphNode* SrcNode = FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, SrcId);
+	UEdGraphNode* DstNode = FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, DstId);
 	if (!SrcNode || !DstNode)
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("connect/disconnect requires valid SourceNodeId/TargetNodeId"));
@@ -618,14 +610,14 @@ static void HandleABP_Connect(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 
 static void HandleABP_Disconnect(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
-	UAnimBlueprint* AnimBP = AnimBPFrom(Ctx);
 	const FString SrcId = FNexusArgs(Op).Str(TEXT("SourceNodeId"));
 	const FString SrcPin = FNexusArgs(Op).Str(TEXT("SourcePinName"));
 	const FString DstId = FNexusArgs(Op).Str(TEXT("TargetNodeId"));
 	const FString DstPin = FNexusArgs(Op).Str(TEXT("TargetPinName"));
-	UEdGraph* AnimGraph = FNexusAnimGraphUtils::FindAnimGraph(AnimBP, GraphNameOf(Op));
-	UEdGraphNode* SrcNode = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, SrcId) : nullptr;
-	UEdGraphNode* DstNode = AnimGraph ? FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, DstId) : nullptr;
+	UEdGraph* AnimGraph = FindWritableAnimGraph(Op, Ctx);
+	if (!AnimGraph) return;
+	UEdGraphNode* SrcNode = FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, SrcId);
+	UEdGraphNode* DstNode = FNexusAnimGraphUtils::FindNodeByGuidOrTitle(AnimGraph, DstId);
 	if (!SrcNode || !DstNode)
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("connect/disconnect requires valid SourceNodeId/TargetNodeId"));

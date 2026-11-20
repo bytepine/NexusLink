@@ -42,12 +42,13 @@ TUniquePtr<INexusTransactionHandle> FNexusEditorTransaction::Begin(const FString
 	return FNexusEditorServices::BeginTransaction(Title);
 }
 
-void FNexusEditorTransaction::CancelAndRevert(TUniquePtr<INexusTransactionHandle>& Tx)
+bool FNexusEditorTransaction::CancelAndRevert(TUniquePtr<INexusTransactionHandle>& Tx)
 {
 	if (!Tx.IsValid())
 	{
-		return;
+		return false;
 	}
-	Tx->CancelAndRevert();
+	const bool bReverted = Tx->CancelAndRevert();
 	Tx.Reset();
+	return bReverted;
 }

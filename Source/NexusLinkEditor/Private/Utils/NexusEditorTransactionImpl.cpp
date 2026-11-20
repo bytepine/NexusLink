@@ -5,43 +5,56 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
-#include "ScopedTransaction.h"
-#include "Editor/Transactor.h"
+#include "Editor/TransBuffer.h"
 #include "Engine/World.h"
 #include "Misc/ITransaction.h"
 
 namespace
 {
-	/** FScopedTransaction 的不透明句柄包装：Runtime 侧只认 INexusTransactionHandle。 */
 	class FNexusScopedTransactionHandle final : public INexusTransactionHandle
 	{
 	public:
-		explicit FNexusScopedTransactionHandle(TUniquePtr<FScopedTransaction> InTx)
-			: Tx(MoveTemp(InTx))
+		FNexusScopedTransactionHandle(UTransBuffer* InBuffer, int32 InIndex)
+			: Buffer(InBuffer), Record(InBuffer->UndoBuffer.Last()), Index(InIndex)
 		{}
 
-		virtual void CancelAndRevert() override
+		virtual ~FNexusScopedTransactionHandle() override
 		{
-			if (!Tx.IsValid() || !Tx->IsOutstanding())
+			if (IsOutstanding())
 			{
-				return;
+				GEditor->EndTransaction();
 			}
-			// 视口 AbortTracking 同款：Apply 把对象拉回 Modify 快照，Cancel 只从 undo 栈丢掉该笔
-			if (GUndo)
-			{
-				GUndo->Apply();
-			}
-			Tx->Cancel();
-			Tx.Reset();
+		}
+
+		virtual bool CancelAndRevert() override
+		{
+			if (!IsOutstanding()) return false;
+			UTransBuffer* Trans = Buffer.Get();
+			GEditor->CancelTransaction(Index);
+			if (Record->GetRecordCount() == 0) return true;
+
+			// Cancel restores any redo entries UE set aside at Begin. Undo only our retained
+			// record so pin deserialization sees the engine's active undo context.
+			const int32 PreviousRedoCount = Trans->UndoCount;
+			Trans->UndoCount = 0;
+			Trans->SetUndoBarrier();
+			Trans->UndoBuffer.Add(Record);
+			const bool bReverted = Trans->Undo(false);
+			Trans->RemoveUndoBarrier();
+			Trans->UndoCount = PreviousRedoCount;
+			if (PreviousRedoCount > 0) Trans->OnUndoBufferChanged().Broadcast();
+			return bReverted;
 		}
 
 		virtual bool IsOutstanding() const override
 		{
-			return Tx.IsValid() && Tx->IsOutstanding();
+			return GEditor && Buffer.IsValid() && GEditor->Trans == Buffer.Get() && GUndo == &Record.Get();
 		}
 
 	private:
-		TUniquePtr<FScopedTransaction> Tx;
+		TWeakObjectPtr<UTransBuffer> Buffer;
+		TSharedRef<FTransaction> Record;
+		int32 Index;
 	};
 
 	bool ImplIsTransactionActive()
@@ -62,18 +75,18 @@ namespace
 
 	TUniquePtr<INexusTransactionHandle> ImplBeginTransaction(const FString& Title)
 	{
-		if (!GEditor || ImplIsTransactionActive())
+		UTransBuffer* Buffer = GEditor ? Cast<UTransBuffer>(GEditor->Trans) : nullptr;
+		if (!Buffer || GIsTransacting || !GEditor->CanTransact() || ImplIsTransactionActive())
 		{
 			return nullptr;
 		}
 		const FString Session = FString::Printf(TEXT("MCP: %s"), Title.IsEmpty() ? TEXT("Capability") : *Title);
-		TUniquePtr<FScopedTransaction> Tx = MakeUnique<FScopedTransaction>(FText::FromString(Session));
-		// Construct 在 GEditor->Trans 为空或 GIsTransacting 时 Index=-1，对象仍在但无法回滚
-		if (!Tx.IsValid() || !Tx->IsOutstanding())
+		const int32 Index = GEditor->BeginTransaction(FText::FromString(Session));
+		if (Index == INDEX_NONE || !GUndo || Buffer->UndoBuffer.Num() == 0 || GUndo != &Buffer->UndoBuffer.Last().Get())
 		{
 			return nullptr;
 		}
-		return MakeUnique<FNexusScopedTransactionHandle>(MoveTemp(Tx));
+		return MakeUnique<FNexusScopedTransactionHandle>(Buffer, Index);
 	}
 
 	FDelegateHandle GNexusTransientWorldUndoHandle;

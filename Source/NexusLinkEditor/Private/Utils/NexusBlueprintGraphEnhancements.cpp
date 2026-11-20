@@ -400,6 +400,12 @@ void FNexusBlueprintGraphEnhancements::Write(const TSharedPtr<FJsonObject>& Op, 
     }
     UEdGraph* Graph=FNexusBlueprintGraphUtils::FindBPGraph(Blueprint,A.Str(TEXT("GraphName")));
     if (!Graph) { Fail(TEXT("GraphName must resolve to a graph in this Blueprint")); return; }
+    // 接口的函数签名可在详情面板编辑，节点图本身仍是只读。
+    const bool bInterfaceSignature = Blueprint->BlueprintType == BPTYPE_Interface &&
+        (Context.Action == TEXT("AddFunctionParameter") || Context.Action == TEXT("RemoveFunctionParameter"));
+    if (!bInterfaceSignature) {
+        if (const TCHAR* Error = FNexusBlueprintGraphUtils::GetGraphEditError(Graph)) { Fail(Error); return; }
+    }
     if (Context.Action==TEXT("SplitPin") || Context.Action==TEXT("RecombinePin") || Context.Action==TEXT("DuplicateNodes")) {
         if (!Graph->IsIn(Blueprint) || FBlueprintEditorUtils::FindBlueprintForGraph(Graph)!=Blueprint) { Fail(TEXT("Graph must be owned by the target Blueprint")); return; }
         if (Context.Action==TEXT("DuplicateNodes")) DuplicateBlueprintNodes(Blueprint,Graph,Op,Context);

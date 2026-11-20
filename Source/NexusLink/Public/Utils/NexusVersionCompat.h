@@ -129,6 +129,7 @@
 // ── StateTree 版本兼容 ──
 // UE5.5 起 UStateTreeEditorData 新增 GlobalTasks 字段（全局任务节点列表）
 #define NX_UE_HAS_STATETREE_GLOBAL_TASKS       NX_UE_AT_LEAST(5, 5)
+#define NX_UE_HAS_STATETREE_EXECUTION_RUNTIME_DATA NX_UE_AT_LEAST(5, 7)
 // UE5.5 起 UMVVMBlueprintView 新增 Events/Conditions 字段
 #define NX_UE_HAS_MVVM_EVENTS_CONDITIONS       NX_UE_AT_LEAST(5, 5)
 

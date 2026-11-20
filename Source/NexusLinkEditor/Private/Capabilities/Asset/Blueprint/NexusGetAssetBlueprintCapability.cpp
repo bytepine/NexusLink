@@ -58,6 +58,7 @@ static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FNexusBPQuery
 {
 	TArray<UEdGraph*> AllGraphs;
 	FNexusBlueprintGraphUtils::CollectAllGraphs(BP, AllGraphs);
+	UEdGraph* Target = Q.GraphName.IsEmpty() ? nullptr : FNexusBlueprintGraphUtils::FindBPGraph(BP, Q.GraphName, AllGraphs);
 
 	const FString GType = Q.GraphType.IsEmpty() ? TEXT("All") : Q.GraphType;
 	if (GType != TEXT("All"))
@@ -73,7 +74,6 @@ static TSharedPtr<FJsonObject> HandleBPGraph(UBlueprint* BP, const FNexusBPQuery
 		return Root;
 	}
 
-	UEdGraph* Target = FNexusBlueprintGraphUtils::FindBPGraph(BP, Q.GraphName);
 	if (Target && !AllGraphs.Contains(Target)) Target = nullptr;
 	if (!Target)
 	{
@@ -450,10 +450,9 @@ static TSharedPtr<FJsonObject> HandleBPComponents(UBlueprint* BP, const FNexusBP
 
 struct FNexusBPEntryLocal
 {
-	FString Name, Kind, Type, SubType, SubTypeObject, Category, Guid;
-	bool bIsPublic = false;
-	TSharedPtr<FJsonObject> TypeInfo;
-	const UEdGraph* FunctionGraph = nullptr;
+	FString Name;
+	const FBPVariableDescription* Variable;
+	const UEdGraph* FunctionGraph;
 };
 
 // ── FNexusCapability 基础钩子 ──────────────────────────────────────────────────
@@ -713,20 +712,14 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 #if WITH_EDITOR
 		// variable / function 共享同一套 entry 列表，构建时按 SectionName 过滤
 		TArray<FNexusBPEntryLocal> All;
+		const FNexusCompiledStringPattern NameFilter(Q.NameFilter);
 
 		if (SectionName == TEXT("variable"))
 		{
 			for (const FBPVariableDescription& Var : BP->NewVariables)
 			{
-				FNexusBPEntryLocal E;
-			E.Name = Var.VarName.ToString(); E.Kind = TEXT("variable");
-			E.Type = Var.VarType.PinCategory.ToString(); E.bIsPublic = (Var.PropertyFlags & CPF_Edit) != 0 && (Var.PropertyFlags & CPF_DisableEditOnInstance) == 0;
-			E.TypeInfo = FNexusPinTypeUtils::DescribePinType(Var.VarType);
-			E.Guid = Var.VarGuid.ToString(EGuidFormats::DigitsWithHyphens);
-			if (!Var.VarType.PinSubCategory.IsNone()) E.SubType = Var.VarType.PinSubCategory.ToString();
-			if (Var.VarType.PinSubCategoryObject.IsValid()) E.SubTypeObject = Var.VarType.PinSubCategoryObject->GetName();
-			E.Category = Var.Category.ToString();
-				All.Add(E);
+				FString Name = Var.VarName.ToString();
+				if (NameFilter.Matches(Name)) All.Add({MoveTemp(Name), &Var, nullptr});
 			}
 		}
 		else // function
@@ -734,17 +727,10 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 			for (UEdGraph* Graph : BP->FunctionGraphs)
 			{
 				if (!Graph) continue;
-				FNexusBPEntryLocal E; E.Name = Graph->GetName(); E.Kind = TEXT("Function");
-				E.FunctionGraph = Graph;
-				All.Add(E);
+				FString Name = Graph->GetName();
+				if (NameFilter.Matches(Name)) All.Add({MoveTemp(Name), nullptr, Graph});
 			}
 		}
-
-		All = All.FilterByPredicate([&](const FNexusBPEntryLocal& E)
-		{
-			if (!Q.NameFilter.IsEmpty() && !FNexusStringMatchUtils::Matches(E.Name, Q.NameFilter)) return false;
-			return true;
-		});
 
 		const int32 Total = All.Num(); int32 Start, End; FNexusJsonUtils::ComputeSlice(Total, Q.Offset, Q.Limit, Start, End);
 
@@ -752,25 +738,19 @@ void FNexusGetAssetBlueprintCapability::ExecuteSection(const FString&           
 		for (int32 i = Start; i < End; ++i)
 		{
 			const FNexusBPEntryLocal& E = All[i];
-			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+			TSharedRef<FJsonObject> Obj = E.Variable ? FNexusPinTypeUtils::DescribePinType(E.Variable->VarType) : MakeShared<FJsonObject>();
 			Obj->SetStringField(TEXT("Name"), E.Name);
-			Obj->SetStringField(TEXT("Kind"), E.Kind);
-			if (E.TypeInfo) for (const auto& Field : E.TypeInfo->Values) Obj->SetField(Field.Key, Field.Value);
-			if (!E.Guid.IsEmpty()) { Obj->SetStringField(TEXT("Guid"), E.Guid); Obj->SetBoolField(TEXT("bInherited"), false); }
-			if (!E.Type.IsEmpty())          { Obj->SetStringField(TEXT("Type"),          E.Type); }
-			if (!E.SubType.IsEmpty())       { Obj->SetStringField(TEXT("SubType"),       E.SubType); }
-			if (!E.SubTypeObject.IsEmpty()) { Obj->SetStringField(TEXT("SubTypeObject"), E.SubTypeObject); }
-			if (!E.Category.IsEmpty())      { Obj->SetStringField(TEXT("Category"),      E.Category); }
-			if (E.Kind == TEXT("variable") && E.bIsPublic) { Obj->SetBoolField(TEXT("bIsPublic"), true); }
-			if (E.Kind == TEXT("variable"))
+			Obj->SetStringField(TEXT("Kind"), E.Variable ? TEXT("variable") : TEXT("Function"));
+			if (const FBPVariableDescription* Var = E.Variable)
 			{
-				const FBPVariableDescription* Variable = BP->NewVariables.FindByPredicate([&](const FBPVariableDescription& Candidate) { return Candidate.VarName == FName(*E.Name); });
-				if (Variable)
-				{
-					Obj->SetStringField(TEXT("ToolTip"), Variable->HasMetaData(TEXT("ToolTip")) ? Variable->GetMetaData(TEXT("ToolTip")) : TEXT(""));
-					Obj->SetStringField(TEXT("Replication"), (Variable->PropertyFlags & CPF_RepNotify) ? TEXT("RepNotify") : (Variable->PropertyFlags & CPF_Net) ? TEXT("Replicated") : TEXT("None"));
-					Obj->SetStringField(TEXT("RepNotifyFunction"), Variable->RepNotifyFunc.IsNone() ? TEXT("") : Variable->RepNotifyFunc.ToString());
-				}
+				Obj->SetStringField(TEXT("Guid"), Var->VarGuid.ToString(EGuidFormats::DigitsWithHyphens));
+				Obj->SetBoolField(TEXT("bInherited"), false);
+				if (Var->VarType.PinSubCategoryObject.IsValid()) Obj->SetStringField(TEXT("SubTypeObject"), Var->VarType.PinSubCategoryObject->GetName());
+				if (!Var->Category.IsEmpty()) Obj->SetStringField(TEXT("Category"), Var->Category.ToString());
+				if ((Var->PropertyFlags & CPF_Edit) && !(Var->PropertyFlags & CPF_DisableEditOnInstance)) Obj->SetBoolField(TEXT("bIsPublic"), true);
+				Obj->SetStringField(TEXT("ToolTip"), Var->HasMetaData(TEXT("ToolTip")) ? Var->GetMetaData(TEXT("ToolTip")) : TEXT(""));
+				Obj->SetStringField(TEXT("Replication"), (Var->PropertyFlags & CPF_RepNotify) ? TEXT("RepNotify") : (Var->PropertyFlags & CPF_Net) ? TEXT("Replicated") : TEXT("None"));
+				Obj->SetStringField(TEXT("RepNotifyFunction"), Var->RepNotifyFunc.IsNone() ? TEXT("") : Var->RepNotifyFunc.ToString());
 			}
 			// 函数节：从 GeneratedClass 提取签名
 			if (E.FunctionGraph && BP->GeneratedClass)

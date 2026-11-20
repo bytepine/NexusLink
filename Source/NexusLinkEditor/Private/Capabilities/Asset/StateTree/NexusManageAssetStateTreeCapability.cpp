@@ -13,7 +13,9 @@
 #include "StateTree.h"
 #if WITH_EDITOR
 #include "Capabilities/Asset/StateTree/NexusStateTreeTraversal.h"
+#include "StateTreeConditionBase.h"
 #include "StateTreeEditorNode.h"
+#include "StateTreeTaskBase.h"
 #endif
 
 // ── StateTree 编辑仅在编辑器可用 ─────────────────────────────────────────────
@@ -106,6 +108,12 @@ static void MarkSTDirty(FNexusActionContext& Ctx)
 	}
 }
 
+static void ModifyStateTreeObject(UObject& Owner)
+{
+	Owner.SetFlags(RF_Transactional);
+	Owner.Modify();
+}
+
 static UScriptStruct* FindStateTreeNodeStruct(const FString& NodeType)
 {
 	FString StructName = NodeType;
@@ -144,19 +152,15 @@ static void HandleST_AddState(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 	const FString ParentName = A.Str(TEXT("ParentState"));
 	UStateTreeState* ParentState = ParentName.IsEmpty() ? nullptr : FindStateByName(Ctx, ParentName);
 	if (!ParentName.IsEmpty() && !ParentState) return;
-	UStateTreeState* NewState = NewObject<UStateTreeState>(EdData, NAME_None, RF_Transactional);
-	NewState->Name = *StateName;
-	NewState->Type = StateType;
-
 	if (ParentState)
 	{
-		NewState->Rename(nullptr, ParentState);
-		ParentState->Children.Add(NewState);
+		ModifyStateTreeObject(*ParentState);
+		ParentState->AddChildState(*StateName, StateType);
 	}
 	else
 	{
-		NewState->Rename(nullptr, EdData);
-		EdData->SubTrees.Add(NewState);
+		ModifyStateTreeObject(*EdData);
+		EdData->AddSubTree(*StateName).Type = StateType;
 	}
 	Ctx.Entry->SetStringField(TEXT("AddedState"), StateName);
 	MarkSTDirty(Ctx);
@@ -178,31 +182,22 @@ static void HandleST_RemoveState(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	}
 	UStateTreeState* Target = FindStateByName(Ctx, StateName);
 	if (!Target) return;
-	bool bRemoved = false;
-	if (EdData->SubTrees.Remove(Target) > 0)
+	auto RemoveFrom = [Target](UObject& Owner, TArray<TObjectPtr<UStateTreeState>>& States)
 	{
-		bRemoved = true;
-	}
-	else
+		if (!States.Contains(Target)) return false;
+		ModifyStateTreeObject(Owner);
+		States.Remove(Target);
+		return true;
+	};
+	bool bRemoved = RemoveFrom(*EdData, EdData->SubTrees);
+	if (!bRemoved)
 	{
-		TArray<UStateTreeState*> Stack;
-		for (UStateTreeState* Root : EdData->SubTrees)
+		// 旧资产的 Parent 可能为空，以实际持有 Children 的状态为准。
+		VisitNexusStateTreeStates(*EdData, [&](UStateTreeState& State)
 		{
-			if (Root) Stack.Add(Root);
-		}
-		while (Stack.Num() > 0 && !bRemoved)
-		{
-			UStateTreeState* S = Stack.Pop();
-			if (S->Children.Remove(Target) > 0)
-			{
-				bRemoved = true;
-				break;
-			}
-			for (UStateTreeState* Child : S->Children)
-			{
-				if (Child) Stack.Add(Child);
-			}
-		}
+			bRemoved = RemoveFrom(State, State.Children);
+			return bRemoved ? EStateTreeVisitor::Break : EStateTreeVisitor::Continue;
+		});
 	}
 	if (bRemoved) MarkSTDirty(Ctx);
 	else Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveState failed"));
@@ -220,8 +215,7 @@ static void HandleST_RenameState(const TSharedPtr<FJsonObject>& Op, FNexusAction
 	}
 	UStateTreeState* Target = FindStateByName(Ctx, StateName);
 	if (!Target) return;
-	Target->SetFlags(RF_Transactional);
-	Target->Modify();
+	ModifyStateTreeObject(*Target);
 	Target->Name = *NewName;
 	MarkSTDirty(Ctx);
 }
@@ -251,19 +245,44 @@ static void AddStateTreeEditorNode(const TSharedPtr<FJsonObject>& Op, FNexusActi
 		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("struct not found: %s"), *NodeType));
 		return;
 	}
+	if (!Struct->IsChildOf(bTask ? FStateTreeTaskBase::StaticStruct() : FStateTreeConditionBase::StaticStruct()))
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("%s is not a StateTree %s"), *NodeType, bTask ? TEXT("task") : TEXT("condition")));
+		return;
+	}
 	FStateTreeEditorNode NewNode;
 	NewNode.ID = FGuid::NewGuid();
 	NewNode.Node.InitializeAs(Struct);
-	if (bTask)
+	auto InitializeData = [Target](const UStruct* Type, FInstancedStruct& Instance, TObjectPtr<UObject>& InstanceObject)
 	{
-		Target->Tasks.Add(NewNode);
-		Ctx.Entry->SetNumberField(TEXT("TasksCount"), Target->Tasks.Num());
-	}
-	else
+		if (const UScriptStruct* InstanceType = Cast<UScriptStruct>(Type))
+		{
+			Instance.InitializeAs(InstanceType);
+			return true;
+		}
+		const UClass* InstanceClass = Cast<UClass>(Type);
+		if (!InstanceClass || InstanceClass->HasAnyClassFlags(CLASS_Abstract)) return false;
+		InstanceObject = NewObject<UObject>(Target, InstanceClass, NAME_None, RF_Transactional);
+		return true;
+	};
+	const FStateTreeNodeBase& Node = NewNode.Node.Get<FStateTreeNodeBase>();
+	if (!InitializeData(Node.GetInstanceDataType(), NewNode.Instance, NewNode.InstanceObject))
 	{
-		Target->EnterConditions.Add(NewNode);
-		Ctx.Entry->SetNumberField(TEXT("EnterConditionsCount"), Target->EnterConditions.Num());
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("%s requires a concrete instance data type"), *NodeType));
+		return;
 	}
+#if NX_UE_HAS_STATETREE_EXECUTION_RUNTIME_DATA
+	const UStruct* RuntimeType = Node.GetExecutionRuntimeDataType();
+	if (RuntimeType && !InitializeData(RuntimeType, NewNode.ExecutionRuntimeData, NewNode.ExecutionRuntimeDataObject))
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), FString::Printf(TEXT("%s requires a concrete execution runtime data type"), *NodeType));
+		return;
+	}
+#endif
+	ModifyStateTreeObject(*Target);
+	TArray<FStateTreeEditorNode>& Nodes = bTask ? Target->Tasks : Target->EnterConditions;
+	Nodes.Add(MoveTemp(NewNode));
+	Ctx.Entry->SetNumberField(bTask ? TEXT("TasksCount") : TEXT("EnterConditionsCount"), Nodes.Num());
 	Ctx.Entry->SetStringField(TEXT("NodeType"), Struct->GetName());
 	MarkSTDirty(Ctx);
 }
@@ -291,6 +310,7 @@ static void RemoveStateTreeIndexed(const TSharedPtr<FJsonObject>& Op, FNexusActi
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("index out of bounds"));
 		return;
 	}
+	ModifyStateTreeObject(*Target);
 	Arr.RemoveAt(Idx);
 	MarkSTDirty(Ctx);
 }
@@ -314,8 +334,7 @@ static void HandleST_AddTransition(const TSharedPtr<FJsonObject>& Op, FNexusActi
 	if (!Source) return;
 	UStateTreeState* Dest = FindStateByName(Ctx, TargetName);
 	if (!Dest) return;
-	Source->SetFlags(RF_Transactional);
-	Source->Modify();
+	ModifyStateTreeObject(*Source);
 	Source->AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, Dest);
 	Ctx.Entry->SetStringField(TEXT("TargetState"), TargetName);
 	MarkSTDirty(Ctx);
@@ -333,8 +352,7 @@ static void HandleST_RemoveTransition(const TSharedPtr<FJsonObject>& Op, FNexusA
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("RemoveTransition requires valid StateName and index"));
 		return;
 	}
-	Source->SetFlags(RF_Transactional);
-	Source->Modify();
+	ModifyStateTreeObject(*Source);
 	Source->Transitions.RemoveAt(Idx);
 	MarkSTDirty(Ctx);
 }

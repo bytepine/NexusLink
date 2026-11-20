@@ -15,17 +15,19 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Blueprints, Widget Blueprints, and Animation Blueprints share the graph summary implementation. `GetAssetBlueprint` function listings use each function's graph directly to avoid scanning the entire Blueprint for every function. GameplayAbility reads and writes its instancing and network execution policies through UE enum reflection.
+- Blueprints, Widget Blueprints, and Animation Blueprints share the graph summary implementation. `GetAssetBlueprint` uses the source data for variables and functions on the requested page and collects the graph list once per named graph lookup. GameplayAbility reads and writes its instancing and network execution policies through UE enum reflection.
 - `SetProperty` shares property-path validation and result handling across Texture, SoundWave, Font, CommonButtonStyle, and CommonTextStyle. Successful writes return `PropertyPath` and include `OldValue` and `NewValue` when the previous and actual new values respectively have nonempty text representations.
 
 ### Fixed
 
-- Blueprint `Defaults` reads and ordinary `SetDefaults` writes resolve Map keys containing dots, such as `Values["a.b"]`. Property comparisons and resets to defaults for level Actors and Blueprint components also accept these paths.
+- Blueprint `Defaults` reads and ordinary `SetDefaults` writes resolve Map keys containing dots, such as `Values["a.b"]`. Property comparisons and resets to defaults for level Actors and Blueprint components also accept these paths. `SetDefaults` requires an explicit string `Value` and preserves the current value when it is omitted.
 - Level component property writes and resets check whether the construction script controls the property. Accepted edits read back the current instance value, and undoing a reset restores the previous value. Reflected property writes reject Set element paths before mutation. Individual elements remain readable and the entire Set can be replaced.
 - `SetComponentProperty` edits the component and its owned subobjects. Undoing the first write removes the new inherited override and restores the parent template's value. Traversal into a shared asset is rejected before creating an inherited override. Failed writes discard any override template created by that write.
-- Blueprint graph summaries and `GraphType` filters identify macros, animation states, transitions, and conduits. Blueprint and Animation Blueprint `RemoveNode` checks for read-only graphs and required nodes before editing, preserving connections and the asset's dirty flag on rejection. Structural previews and verified writes accept the source Blueprint's full `GraphPath`.
+- Level `SetProperty` supports undo and failed batch rollback. It can write to WorldSettings and its owned subobjects.
+- Failed `CallCapability` batches use editor undo to restore Blueprint pin links and preserve the undo and redo history from before the batch.
+- Blueprint graph summaries and `GraphType` filters identify macros, animation states, transitions, and conduits. Graph edits respect read-only graphs and protect required nodes. `SetNode` preserves layout and comments when pin validation fails. Removing a composite node also removes its child graph. Structural previews and verified writes accept the source Blueprint's full `GraphPath`.
 - Animation Blueprint tools accept asset-relative paths for reading and editing nested graphs. A short name that matches multiple graphs returns an error. Use the full `GraphPath` from `GetEditorGraph` to select a specific graph.
-- `GetAssetStateTree` reports the external state type `LinkedAsset` and resolves transition targets by GUID to show their current names after a rename. `AddTransition` jumps to the requested state when the source state completes and supports undo and failed batch rollback. Operations that look up an existing state by name require a unique match within the tree.
+- `GetAssetStateTree` reports the external state type `LinkedAsset` and resolves transition targets by GUID to show their current names after a rename. `AddTransition` jumps to the requested state when the source state completes. Adding or removing states, tasks, enter conditions, and transitions supports undo and failed batch rollback. New tasks and conditions initialize instance data using their declared type. Operations that look up an existing state by name require a unique match within the tree.
 
 ## [2.3.7] - 2026-11-19
 

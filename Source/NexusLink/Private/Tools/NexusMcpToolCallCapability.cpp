@@ -659,8 +659,7 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 		{
 			if (FailureCount > 0)
 			{
-				bRevertedBatch = BatchTx->IsOutstanding();
-				FNexusEditorTransaction::CancelAndRevert(BatchTx);
+				bRevertedBatch = FNexusEditorTransaction::CancelAndRevert(BatchTx);
 			}
 			BatchTx.Reset();
 		}

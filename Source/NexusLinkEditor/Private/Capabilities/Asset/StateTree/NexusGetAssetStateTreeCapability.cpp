@@ -39,10 +39,9 @@ static TArray<TSharedPtr<FJsonValue>> BuildEditorNodeArray(const TArray<FStateTr
 		{
 			NodeObj->SetStringField(TEXT("NodeType"), NodeStruct->GetName());
 		}
-		// Node.Instance 是实例数据的 FInstancedStruct
-		if (const UScriptStruct* InstStruct = EdNode.Instance.GetScriptStruct())
+		if (const UStruct* InstanceType = EdNode.GetInstance().GetStruct())
 		{
-			NodeObj->SetStringField(TEXT("InstanceType"), InstStruct->GetName());
+			NodeObj->SetStringField(TEXT("InstanceType"), InstanceType->GetName());
 		}
 		// 节点名（FStateTreeEditorNode 本身没有名字字段，由 UScriptStruct 提供）
 		NodeObj->SetStringField(TEXT("Id"), EdNode.ID.ToString());

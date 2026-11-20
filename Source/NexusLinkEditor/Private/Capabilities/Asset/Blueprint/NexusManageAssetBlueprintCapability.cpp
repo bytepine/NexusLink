@@ -864,9 +864,14 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 		}
 		FString PropPath, Value;
 		Op->TryGetStringField(TEXT("PropertyPath"), PropPath);
-		Op->TryGetStringField(TEXT("Value"),        Value);
 		if (PropPath.IsEmpty()) { Entry->SetStringField(TEXT("Error"), TEXT("SetDefaults requires PropertyPath"));
 	return; }
+		if (!Op->HasTypedField<EJson::String>(TEXT("Value")))
+		{
+			Entry->SetStringField(TEXT("Error"), TEXT("Value is required and must be a string"));
+			return;
+		}
+		Value = Op->GetStringField(TEXT("Value"));
 		if (!BP->GeneratedClass) { Entry->SetStringField(TEXT("Error"), TEXT("Blueprint has no generated class"));
 	return; }
 
@@ -891,7 +896,7 @@ static void HandleBP_SCS(const TSharedPtr<FJsonObject>& Op, FNexusActionContext&
 		CDO->SetFlags(RF_Transactional);
 		CDO->Modify();
 		PropertyOwner->SetFlags(RF_Transactional); PropertyOwner->Modify();
-		if (!FNexusPropertyUtils::WritePropertyAndEcho(CDO, Segments, 0, Value, OldValue, ActualValue, PropErr))
+		if (!FNexusPropertyUtils::WriteResolvedPropertyAndEcho(CDO, Prop, ValPtr, Value, OldValue, ActualValue, PropErr))
 		{
 			Entry->SetStringField(TEXT("Error"), PropErr);
 	return;

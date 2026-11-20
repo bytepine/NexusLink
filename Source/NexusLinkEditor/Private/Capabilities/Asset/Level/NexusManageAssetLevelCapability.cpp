@@ -419,12 +419,34 @@ static void HandleLevel_SetProperty(const TSharedPtr<FJsonObject>& Op, FNexusAct
 		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("SetProperty requires PropertyPath and value"));
 		return;
 	}
+	TArray<FString> Segments;
+	FNexusPropertyUtils::AppendPropertyPathSegments(PropPath, Segments);
+	FProperty* Field = nullptr;
+	void* Storage = nullptr;
+	UObject* Owner = nullptr;
 	FString OldVal, ActualVal, PropErr;
-	if (!FNexusPropertyUtils::WritePropertyAndEcho(WorldSettings, { PropPath }, 0, Value, OldVal, ActualVal, PropErr))
+	if (!FNexusPropertyUtils::ResolvePropertyWrite(WorldSettings, Segments, 0, Field, Storage, PropErr, &Owner, FNexusEditorLevelUtils::CanEditInstanceMember))
 	{
 		Ctx.Entry->SetStringField(TEXT("Error"), PropErr);
 		return;
 	}
+	if (!Owner || (Owner != WorldSettings && !Owner->IsIn(WorldSettings)))
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), TEXT("WorldSettings writes can only traverse owned subobjects"));
+		return;
+	}
+	FDefaultConstructedPropertyElement Parsed(Field);
+	Field->CopyCompleteValue(Parsed.GetObjAddress(), Storage);
+	if (!FNexusPropertyUtils::ParsePropertyValue(Field, Value, Parsed.GetObjAddress(), Owner, PropErr))
+	{
+		Ctx.Entry->SetStringField(TEXT("Error"), PropErr);
+		return;
+	}
+	FNexusPropertyUtils::ExportText(Field, OldVal, Storage);
+	Owner->SetFlags(RF_Transactional);
+	Owner->Modify();
+	Field->CopyCompleteValue(Storage, Parsed.GetObjAddress());
+	FNexusPropertyUtils::ExportText(Field, ActualVal, Storage);
 	S->World->MarkPackageDirty();
 	Ctx.Entry->SetStringField(TEXT("PropertyPath"), PropPath);
 	if (!OldVal.IsEmpty()) Ctx.Entry->SetStringField(TEXT("OldValue"), OldVal);
