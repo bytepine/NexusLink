@@ -25,7 +25,7 @@ Desktop / Rider / VSCode 夹在 AI 客户端与 UE WebSocket 之间。本文是�
 
 ## 2. `_proxy` 对象
 
-代理在 `tools/call` 的 MCP `Result` 上注入（优先写入 `content[0].text` 所解析 JSON 的顶层 `_proxy`；解析失败则挂在 `result._proxy`）：
+含 `structuredContent` 的结果始终内联。缓存命中或返回断线快照时，中转将 `_proxy` 放在响应外层；已有内容块时再追加元数据文本块，首个文本块与原生业务对象保持一致。 仅含文本时，代理优先把标记合并到首个 JSON 文本对象，纯文本则使用 `result._proxy`。
 
 | 字段 | 类型 | 何时出现 |
 |------|------|----------|
@@ -115,7 +115,7 @@ TTL：
 
 ## 7. 大包保存到磁盘
 
-错误响应、编辑器操作响应和含图片响应保持内联。其余响应的 `content[0].text` 超过 **48000 个 Unicode 码点**时，代理尝试将完整响应写入系统临时目录。纯文本与 JSON 文本使用相同阈值。成功时返回摘要及 `_proxy.offloaded` / `path` / `bytes`，其中 `bytes` 是文件的 UTF-8 字节数。Agent 可用 Read 工具打开该路径。落盘失败时保留原响应。
+错误、编辑器操作、含 `structuredContent` 或图片的响应保持内联。其余响应的 `content[0].text` 超过 **48000 个 Unicode 码点**时，代理尝试将完整响应写入系统临时目录。纯文本与 JSON 文本使用相同阈值。成功时返回摘要及 `_proxy.offloaded` / `path` / `bytes`，其中 `bytes` 是文件的 UTF-8 字节数。Agent 可用 Read 工具打开该路径。落盘失败时保留原响应。
 
 ---
 

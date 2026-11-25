@@ -53,13 +53,9 @@ struct FNexusMcpToolDefinition
 /**
  * MCP 工具执行结果。
  *
- * 成功路径：只填 StructuredContent，Dispatcher 统一把它序列化到 content[0].text
- *           并放到 result.StructuredContent。
- * 错误路径：bIsError = true + ErrorText；Dispatcher 把 ErrorText 放到 content[0].text。
- *
- * 极少数需要返回"预格式化文本"的工具可填
- * OutputText；非空时 Dispatcher 用它覆盖默认的 StructuredContent 序列化文本，但
- * StructuredContent 字段仍然会一并返回。常规工具**不要**使用 OutputText。
+ * 成功时填写 StructuredContent。Dispatcher 在压缩和校验后生成文本 JSON；
+ * 有输出契约或选择原生模式时，同时设置 result.structuredContent。
+ * 无契约的文本模式允许 OutputText 覆盖文本展示。失败时保留 ErrorText 和可用的结构化详情。
  */
 struct FNexusMcpToolResult
 {

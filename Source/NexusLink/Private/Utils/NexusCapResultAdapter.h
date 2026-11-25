@@ -210,9 +210,8 @@ struct FNexusCapResultAdapter final
 		TSharedPtr<FJsonObject> Top = AssembleStructuredContent(CapResult);
 		StripRedundantPathEcho(Top, Args, CapName);
 		Result.StructuredContent = Top;
-		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Top);
 		Result.bIsError = CapResult.HasErrors();
-		if (Result.bIsError) Result.ErrorText = Result.OutputText;
+		if (Result.bIsError) Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Top);
 		return Result;
 	}
 };

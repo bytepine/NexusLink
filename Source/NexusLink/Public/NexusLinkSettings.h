@@ -12,9 +12,9 @@
 UENUM()
 enum class ENexusContentMode : uint8
 {
-	/** content[0].text（完整 JSON 字符串），兼容所有客户端。 */
+	/** 文本 JSON；有输出契约时也返回原生对象。 */
 	Content,
-	/** StructuredContent（原生 JSON 对象），需客户端支持（如 Claude Desktop），省去文本序列化开销。 */
+	/** 原生 JSON 对象及等价的文本 JSON。 */
 	StructuredContent,
 };
 
@@ -171,12 +171,12 @@ public:
 
 	/**
 	 * 响应输出格式（下拉选择）。
-	 *   - Content（默认）：仅输出 content[0].text（完整 JSON 字符串），兼容所有客户端。
-	 *   - StructuredContent：仅输出 StructuredContent（原生 JSON 对象），需客户端支持。
+	 *   - Content（默认）：仅输出 文本 JSON；有输出契约时也返回原生对象。
+	 *   - StructuredContent：同时输出原生 JSON 对象及等价的文本 JSON。
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "服务器",
 		meta = (DisplayName = "响应输出格式",
-			ToolTip = "Content=兼容模式（默认）；StructuredContent=原生 JSON（需客户端支持）"))
+			ToolTip = "Content=兼容模式（默认）；StructuredContent=原生 JSON 和文本副本"))
 	ENexusContentMode ContentMode = ENexusContentMode::Content;
 
 	/**

@@ -4,7 +4,6 @@
 #include "NexusFeedback.h"
 #include "NexusMcpSchemaBuilder.h"
 #include "NexusMcpToolRegistry.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusArgs.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
@@ -74,7 +73,6 @@ FNexusMcpToolResult FNexusMcpToolSubmitFeedback::Execute(const TSharedPtr<FJsonO
 	Out->SetStringField(TEXT("Category"), Category);
 
 	Result.StructuredContent = Out;
-	Result.OutputText = FNexusJsonUtils::SerializeCondensed(Out);
 	return Result;
 }
 

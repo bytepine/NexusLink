@@ -20,6 +20,8 @@ GAS：GetRuntimeActorAbilitySystem 增加 Context/Tags/ActivationDiagnostics/Act
 
 连接 UE 后，回答蓝图/Widget/材质/资产问题前，**先调用 MCP**。流程：`SearchAsset`（顶层 `Assets`；指定类型时顶层返回 `RecommendedGet`）→ 再读写。
 
+按当前问题一次请求已知必需的字段。当前地图用 `GetEditorContext(Sections=["CurrentMap"])`，蓝图图表概况用 `Sections=["GraphOverview"]`，已知属性在支持的 section 传 `PropertyPaths`。资产搜索指定 `AssetType`、业务 `PathFilter` 和小 `Limit`。日志先按类别、级别或文本过滤，首轮最多 50 条。仅在结果不足时补查所缺 section 或下一页。
+
 ## 命名与读写（与 SearchMode 相同）
 
 - **Set**：只用于 `*Property`（如 `SetRuntimeActorProperty`）。

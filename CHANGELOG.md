@@ -32,6 +32,7 @@
 - Control Rig Sequencer 按名称读取或修改单个控件时要求启用 `NexusLinkControlRig`。扩展关闭时，动作发现标记为不可用，执行会返回明确错误。
 - 修复 GameplayAbility 专用蓝图重设父类时，预检误拒合法派生父类的问题。
 - 缺少 EditorScriptingUtilities 时 NexusLink 可正常加载。UE 4 项目的 LOD、凸包碰撞和网格 Actor 合并操作仅在该引擎插件可用时调用它。
+- 结构化结果和有输出契约的结果在压缩、校验后提供等价的 JSON 文本块。两种工具列表模式均引导客户端按任务选择 section、属性及筛选后的分页。
 
 ## [2.3.7] - 2026-11-19
 

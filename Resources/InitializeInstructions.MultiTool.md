@@ -20,6 +20,8 @@ GAS: GetRuntimeActorAbilitySystem adds Context/Tags/ActivationDiagnostics/Activa
 
 When connected to UE: **call MCP first** before answering blueprint/Widget/material/asset questions. Flow: `SearchAsset` (top-level `Assets`; typed `RecommendedGet` at top) → then read/write.
 
+Request the fields needed to answer the current question in one call. For the current map use `GetEditorContext(Sections=["CurrentMap"])`, for a Blueprint graph overview use `Sections=["GraphOverview"]`, and for known properties pass `PropertyPaths` on a section that supports it. Scope asset searches with `AssetType`, a project-specific `PathFilter`, and a small `Limit`. Filter logs by category, severity, or text and start with at most 50 entries. Fetch a missing section or the next page only when the first result is insufficient.
+
 ## Naming & read/write (same as SearchMode)
 
 - **Set** — only `*Property` (e.g. `SetRuntimeActorProperty`).

@@ -26,6 +26,8 @@ alwaysApply: false
 | 3 读写 | `GetAsset*` / `ManageAsset*` / `ListRuntime*` 等 | `AssetPath` **只能**来自 `Assets[].Path`；优先 `RecommendedGet`/`RecommendedManage`；列表有 `<k>_defaults` 时，缺失字段等于对应默认值（`{**defaults,**entry}`） |
 | 4 持久化 | `SaveAsset` 或 manage `bSaveToDisk=true` | 磁盘资产修改后必须保存；BP/ABP/WBP 还可传 `bCompile=true` |
 
+按当前问题一次请求已知必需的字段。当前地图用 `GetEditorContext(Sections=["CurrentMap"])`，蓝图图表概况用 `Sections=["GraphOverview"]`，已知属性在支持的 section 传 `PropertyPaths`。资产搜索指定 `AssetType`、业务 `PathFilter` 和小 `Limit`。日志先按类别、级别或文本过滤，首轮最多 50 条。仅在结果不足时补查所缺 section 或下一页。
+
 **元工具** `SearchCapabilities`、`CallCapability`、`SubmitFeedback` 必须直接使用 **MCP `tools/call`**，不能包装为 `CallCapability(Capability="SearchCapabilities", …)`。
 
 图数据用领域 `GetAsset*` / `ManageAsset*`；图视图与选择用 `GetEditorGraph` / `ControlEditorGraph`。通用 UI 后备用 `GetEditorSlate` / `CaptureEditorSlate` / `InteractEditorSlate`，只使用返回的 `Ref`。本地测试用 `ControlEditorAutomation` / `ListEditorAutomationTests`；编译用 `CompileEditorLiveCoding`。长操作只启动一次，再凭 `OperationId` 查询 `GetEditorOperation`；`WaitSeconds` 上限 30。`State=Completed` 仅描述执行状态，还须检查 `Result.Outcome` 或逐测试结果。取消请求只结束等待；支持停止的操作须显式停止。断连或超时后不得重试写入。这些操作不能加入 `Calls[]` 原子批次。能力发现会提供 `Execution` 后端原因与 `outputSchema`。

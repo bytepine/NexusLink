@@ -538,60 +538,40 @@ int32 FNexusMcpDispatcher::EmitToolResult(const TSharedPtr<FJsonValue>& Id, cons
 		Error.ErrorText = TEXT("OutputSchema violation: ") + ContractError;
 		return EmitToolResult(Id, Error);
 	}
-	// 统一序列化
+	// 结构化模式或有输出契约时，文本副本必须与最终校验过的对象一致。
+	const bool bIncludeStructured = ToolResult.StructuredContent.IsValid() &&
+		(ToolResult.bIsError || ToolResult.OutputSchema.IsValid() ||
+		 UNexusLinkSettings::Get()->ContentMode == ENexusContentMode::StructuredContent);
 	FString ResponseText;
 	if (ToolResult.bIsError)
 	{
 		ResponseText = ToolResult.ErrorText;
 	}
-	else if (!ToolResult.OutputText.IsEmpty() && !ToolResult.OutputSchema.IsValid() && ToolResult.ImageFiles.Num() == 0)
-	{
-		ResponseText = ToolResult.OutputText;
-	}
-	else if (ToolResult.StructuredContent.IsValid())
+	else if (ToolResult.StructuredContent.IsValid() &&
+		(bIncludeStructured || ToolResult.OutputText.IsEmpty() || ToolResult.ImageFiles.Num() > 0))
 	{
 		ResponseText = FNexusJsonUtils::SerializeCondensed(ToolResult.StructuredContent);
 	}
-
-	TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
-	Result->SetBoolField(TEXT("isError"), ToolResult.bIsError);
-
-	if (ToolResult.bIsError)
+	else
 	{
-		TArray<TSharedPtr<FJsonValue>> ContentArray;
-		TSharedPtr<FJsonObject> TextContent = MakeShared<FJsonObject>();
-		TextContent->SetStringField(TEXT("type"), TEXT("text"));
-		TextContent->SetStringField(TEXT("text"), ToolResult.ErrorText);
-		ContentArray.Add(MakeShared<FJsonValueObject>(TextContent));
-		Result->SetArrayField(TEXT("content"), ContentArray);
-		// 错误同样保留结构化详情，供客户端判断部分失败与回滚边界。
-		if (ToolResult.StructuredContent.IsValid())
-		{
-			Result->SetObjectField(TEXT("structuredContent"), ToolResult.StructuredContent);
-		}
+		ResponseText = ToolResult.OutputText;
 	}
-	else if (ToolResult.StructuredContent.IsValid() && UNexusLinkSettings::Get()->ContentMode == ENexusContentMode::StructuredContent)
+
+	auto Result = MakeShared<FJsonObject>();
+	Result->SetBoolField(TEXT("isError"), ToolResult.bIsError);
+	if (bIncludeStructured)
 	{
 		Result->SetObjectField(TEXT("structuredContent"), ToolResult.StructuredContent);
 	}
-	else if (!ToolResult.OutputText.IsEmpty() && !ToolResult.OutputSchema.IsValid() && ToolResult.ImageFiles.Num() == 0)
+	TArray<TSharedPtr<FJsonValue>> Content;
+	if (!ResponseText.IsEmpty() || ToolResult.bIsError)
 	{
-		TArray<TSharedPtr<FJsonValue>> ContentArray;
-		TSharedPtr<FJsonObject> TextContent = MakeShared<FJsonObject>();
-		TextContent->SetStringField(TEXT("type"), TEXT("text"));
-		TextContent->SetStringField(TEXT("text"), ToolResult.OutputText);
-		ContentArray.Add(MakeShared<FJsonValueObject>(TextContent));
-		Result->SetArrayField(TEXT("content"), ContentArray);
-	}
-	else if (ToolResult.StructuredContent.IsValid())
-	{
-		TArray<TSharedPtr<FJsonValue>> ContentArray;
-		TSharedPtr<FJsonObject> TextContent = MakeShared<FJsonObject>();
+		auto TextContent = MakeShared<FJsonObject>();
 		TextContent->SetStringField(TEXT("type"), TEXT("text"));
 		TextContent->SetStringField(TEXT("text"), ResponseText);
-		ContentArray.Add(MakeShared<FJsonValueObject>(TextContent));
-		Result->SetArrayField(TEXT("content"), ContentArray);
+		Content.Add(MakeShared<FJsonValueObject>(TextContent));
 	}
+	Result->SetArrayField(TEXT("content"), Content);
 
 	const int32 ImageCharacters = FNexusMcpImageUtils::AppendContent(ToolResult.ImageFiles, Result);
 	SendResult(Id, Result);
@@ -783,7 +763,15 @@ void FNexusMcpDispatcher::HandleToolsCall(const TSharedPtr<FJsonValue>& Id, cons
 		InjectTtlMetadata(ToolResult, EffectiveCapName);
 	}
 
-	// 统一序列化并发送（与 MultiTool 路径共用 EmitToolResult，避免重复维护 content/StructuredContent 分支）
+	for (const auto& Definition : FNexusMcpToolRegistry::Get().GetAllDefinitions())
+	{
+		if (Definition.Name == ToolName && Definition.OutputSchema.IsValid())
+		{
+			ToolResult.OutputSchema = Definition.OutputSchema;
+			break;
+		}
+	}
+	// 与 MultiTool 共用响应出口。
 	const int32 ResponseBytes = EmitToolResult(Id, ToolResult);
 	const double TotalDurationMs = (FPlatformTime::Seconds() - ExecStartSec) * 1000.0;
 	LogToolCallDuration(ToolName, ToolResult.bIsError, TotalDurationMs, ResponseBytes);

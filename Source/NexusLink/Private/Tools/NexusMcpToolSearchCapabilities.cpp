@@ -9,7 +9,6 @@
 #include "NexusMcpTool.h"
 #include "Utils/NexusCapabilityIndexUtils.h"
 #include "Utils/NexusHostUtils.h"
-#include "Utils/NexusJsonUtils.h"
 #include "Utils/NexusArgs.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
@@ -263,7 +262,6 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		Output->SetStringField(TEXT("ErrorKind"), TEXT("internal"));
 		Output->SetStringField(TEXT("Error"), TEXT("NexusLink settings unavailable (engine may be shutting down)."));
 		Result.StructuredContent = Output;
-		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 		return Result;
 	}
 
@@ -277,12 +275,10 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		{
 			EmitCapabilityDetailFromRecord(*Record, Output);
 			Result.StructuredContent = Output;
-			Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 			return Result;
 		}
 		EmitCapabilityLookupError(Status, CapabilityName, Record, Output);
 		Result.StructuredContent = Output;
-		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 		return Result;
 	}
 
@@ -295,7 +291,6 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 			TEXT("Capability catalog (names only). Use CapabilityName=<name> for description and parameter schema."));
 		Output->SetObjectField(TEXT("Directory"), FNexusCapabilityIndexUtils::BuildDirectory(Settings));
 		Result.StructuredContent = Output;
-		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 		return Result;
 	}
 
@@ -319,14 +314,12 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 			Output->SetStringField(TEXT("Hint"),
 				LookupName == QueryTrimmed ? TEXT("Exact capability name match; full parameter schema returned.") : TEXT("Intent match; full parameter schema returned."));
 			Result.StructuredContent = Output;
-			Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 			return Result;
 		}
 		if (Status == ENexusCapabilityLookupStatus::Disabled || Status == ENexusCapabilityLookupStatus::Unavailable)
 		{
 			EmitCapabilityLookupError(Status, LookupName, Record, Output);
 			Result.StructuredContent = Output;
-			Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 			return Result;
 		}
 	}
@@ -354,7 +347,6 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 			F.Note       = TEXT("QueryTooBroad");
 			FNexusFeedback::RecordAuto(TEXT("SearchOverflow"), F);
 			Result.StructuredContent = Output;
-			Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 			return Result;
 		}
 	}
@@ -601,7 +593,6 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 	}
 
 	Result.StructuredContent = Output;
-	Result.OutputText = FNexusJsonUtils::SerializeCondensed(Output);
 	return Result;
 }
 

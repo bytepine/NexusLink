@@ -449,7 +449,8 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 				if (Completed+1<Calls.Num()) return true;
 				FNexusEditorOperations::Finish(Operation,Data->GetNumberField(TEXT("FailureCount"))>0?TEXT("Failed"):TEXT("Completed"),Operation->Result,Operation->Message); return false;
 			}),0.01f);
-			Result.StructuredContent=Operation->Snapshot(); Result.OutputText=FNexusJsonUtils::SerializeCondensed(Result.StructuredContent); return Result;
+			Result.StructuredContent = Operation->Snapshot();
+			return Result;
 		}
 
 		FString SingleCap = Parsed.Str(TEXT("Capability"));
@@ -684,9 +685,8 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 			);
 		}
 		Result.StructuredContent = Top;
-		Result.OutputText = FNexusJsonUtils::SerializeCondensed(Top);
 		Result.bIsError = FailureCount > 0;
-		if (Result.bIsError) Result.ErrorText = Result.OutputText;
+		if (Result.bIsError) Result.ErrorText = FNexusJsonUtils::SerializeCondensed(Top);
 		return Result;
 	}
 
@@ -788,7 +788,6 @@ FNexusMcpToolResult FNexusMcpToolCallCapability::Execute(const TSharedPtr<FJsonO
 	}
 
 	Result.StructuredContent = Core.TopOrWarn;
-	Result.OutputText = FNexusJsonUtils::SerializeCondensed(Core.TopOrWarn);
 	return Result;
 }
 

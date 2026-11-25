@@ -253,6 +253,8 @@ NexusLink.Mcp panel on|off                    ; 显式打开/关闭
 
 控制台是最高优先级：`off` 会稳定压制后续任意 Preferences 改动重新拉起服务，直到再次 `on` 或用户在 Preferences 面板显式重新勾选。
 
+编辑器偏好设置 → NexusLink 的**响应输出格式**默认是 `Content`，普通查询在 `content[0].text` 中返回紧凑 JSON。选择 `StructuredContent` 可同时获取等价的原生 JSON 对象。有输出契约的工具成功时总是同时提供两者。图片使用独立内容块；错误保留提示和可用的结构化详情。
+
 ### 2.3 确认运行状态
 
 - **编辑器标题栏右侧**（与 FPS/内存/对象同一组）显示 MCP/WS 端口号（默认开启；关闭 MCP 后不显示）

@@ -16,7 +16,7 @@ NexusLink MCP：控制 Unreal Editor 与运行时（资产 / PIE / UMG / 动画 
 
 ## Token 预算
 
-- 响应正文是主要开销：收窄 `Sections`（避免 `All`），从较小 `Limit` 开始；日志用 `GetOutputLog` ≤50，结合 `CategoryFilter` / `Verbosity` / `TextFilter`，需要时用 `Offset` 分页。
+- 按当前问题一次请求已知必需的字段。当前地图用 `GetEditorContext(Sections=["CurrentMap"])`，蓝图图表概况用 `Sections=["GraphOverview"]`，已知属性在支持的 section 传 `PropertyPaths`。资产搜索指定 `AssetType`、业务 `PathFilter` 和小 `Limit`。日志先按类别、级别或文本过滤，首轮最多 50 条。仅在结果不足时补查所缺 section 或下一页。
 - 列表带 `<k>_defaults` 时，缺失字段等于默认值（`merged={**defaults,**entry}`）。
 - 诊断日志优先 `Preset=Diagnose`（最新 + ≥warning + `SummaryByCategory`/`ErrorCount` + limit≤50）；或手动 `Order=Newest` + `bIncludeSummary`。复现前记 `LatestSequence`，再用 `SinceSequence` 查增量。条目包含 UTC `Time`（ISO-8601）。只捕获下一动作：`GetOutputLog` 设置 `Watch`（Categories/TextIncludes/TextExcludes/Verbosity），执行动作后 `bCollectWatch=true`。连续重复折叠为 `Repeat`。
 - **单目标**：能力用 `AssetPath` / `ActorName` / `WidgetName`；`InteractRuntimeWidget` 也接受 `ListRuntimeWidgets` → `Path` 返回的精确 `WidgetPath`。名称有歧义则返回 `Candidates[].Path` 而不交互；脱离层级/隐藏控件会被拒绝。跨目标可一轮 `CallCapability(Calls=[{Capability,Arguments},…])` 批次；单目标内部保持 `Sections` / `PropertyPaths` / `Operations` / `Updates`。

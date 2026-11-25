@@ -27,7 +27,7 @@ Direct connections to :45000 have **none** of this layer. Agents must work witho
 <a id="2-_proxy-对象"></a>
 ## 2. The _proxy object
 
-The proxy injects this into the MCP Result of tools/call, preferably at top-level _proxy in JSON parsed from content[0].text; parsing failure uses result._proxy:
+Results with `structuredContent` stay inline. On cache hits and disconnected reads, the relay puts `_proxy` in the result envelope and appends a metadata text block when a content block is present. The first text block continues to match the structured payload. For text-only results, the relay merges metadata into the first JSON text object or falls back to `result._proxy` for plain text.
 
 | Field | Type | When present |
 |------|------|----------|
@@ -122,7 +122,7 @@ The status bar/tray displays the current or most recent remote call: Capability 
 <a id="7-大包保存到磁盘"></a>
 ## 7. Large payload offloading
 
-Error responses, editor operation responses, and responses containing images stay inline. For other responses, when `content[0].text` exceeds **48,000 Unicode code points**, the proxy tries to write the full response to the system temporary directory. The same limit applies to plain text and JSON text. On success, it returns a summary with `_proxy.offloaded` / `path` / `bytes`, where `bytes` is the file's UTF-8 byte count. Agents can open the path with a Read tool. A failed write preserves the original response.
+Errors, editor operations, and results containing `structuredContent` or images stay inline. For other responses, when `content[0].text` exceeds **48,000 Unicode code points**, the proxy tries to write the full response to the system temporary directory. The same limit applies to plain text and JSON text. On success, it returns a summary with `_proxy.offloaded` / `path` / `bytes`, where `bytes` is the file's UTF-8 byte count. Agents can open the path with a Read tool. A failed write preserves the original response.
 
 ---
 

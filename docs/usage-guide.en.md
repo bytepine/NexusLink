@@ -258,6 +258,8 @@ NexusLink.Mcp panel on|off                    ; Explicit panel state
 
 Console has highest precedence. off prevents later arbitrary Preferences changes from restarting the service until on is issued or the user explicitly rechecks the Preferences switch.
 
+In Editor Preferences → NexusLink, **Response output format** defaults to `Content`. Ordinary reads return compact JSON in `content[0].text`. Select `StructuredContent` for an equivalent native JSON object alongside the text. Successful tools with an output schema always provide both. Images are separate content blocks. Errors retain their message and available structured details.
+
 ### 2.3 Verify runtime state
 
 - **Editor title bar, right side**, beside FPS/memory/objects, displays MCP/WS ports by default while MCP runs.
