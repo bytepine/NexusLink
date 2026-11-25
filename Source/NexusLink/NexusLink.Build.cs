@@ -42,22 +42,6 @@ public class NexusLink : ModuleRules
 		{
 			PrivateDependencyModuleNames.Add("SlateRHIRenderer");
 		}
-
-		string ProjectRoot = NexusLinkOptionalPlugins.FindProjectRoot(ModuleDirectory);
-		var SearchDirs = NexusLinkOptionalPlugins.CollectPluginSearchDirs(ProjectRoot, this);
-
-		// Runtime 模块只消费 GAS / Niagara / EnhancedInput 的运行时部分；不链接任何 EditorModules
-		// （即便当前 Target 是 NexusEditor，也不允许 ed: 部分进入本模块）。
-		// 其余可选插件只被 Editor 域 cap 使用，
-		// 宏由 NexusLinkEditor.Build.cs 定义，本模块不重复 Add（避免 C4005 重定义）。
-		foreach (var C in NexusLinkOptionalPlugins.BuildFullTable())
-		{
-			if (C.Define != "WITH_GAS" && C.Define != "WITH_NIAGARA" && C.Define != "WITH_ENHANCED_INPUT")
-			{
-				continue;
-			}
-			NexusLinkOptionalPlugins.Apply(this, Target, C, SearchDirs, ProjectRoot, bAllowEditorModules: false);
-		}
 	}
 }
 
@@ -133,24 +117,25 @@ public static class NexusLinkOptionalPlugins
 	/// （用于 NexusLink Runtime 模块：不应再携带任何 UnrealEd 系依赖)。
 	/// </summary>
 	public static bool Apply(ModuleRules Module, ReadOnlyTargetRules Target, OptionalPluginConfig C,
-		List<string> SearchDirs, string ProjectRoot, bool bAllowEditorModules, bool bDefineMacro = true)
+		List<string> SearchDirs, string ProjectRoot, bool bAllowEditorModules, bool bDefineMacro = true,
+		bool bDeclaredDependency = false)
 	{
 		bool on = MeetsMinEngineVersion(Target, C.MinEngineMajor, C.MinEngineMinor)
 			&& DetectAnyEnginePlugin(SearchDirs, C.UpluginFiles);
-		if (on && C.bRequireProjectEnable && GetProjectPluginEnabled(ProjectRoot, C.UprojectPluginName) != true) on = false;
-		if (on && C.UprojectPluginName != null && ProjectRoot != null
+		if (!bDeclaredDependency && on && C.bRequireProjectEnable && GetProjectPluginEnabled(ProjectRoot, C.UprojectPluginName) != true) on = false;
+		if (!bDeclaredDependency && on && C.UprojectPluginName != null && ProjectRoot != null
 			&& IsPluginExplicitlyDisabledInUproject(ProjectRoot, C.UprojectPluginName))
 			on = false;
 		if (on && C.RuntimeModules != null)
 		{
 			foreach (string m in C.RuntimeModules)
 			{
-				if (!ModuleRulesFileExists(SearchDirs, m)) { on = false; break; }
+				if (m != "GeometryCollectionEngine" && !ModuleRulesFileExists(SearchDirs, m)) { on = false; break; }
 			}
 		}
 
 		string ev = System.Environment.GetEnvironmentVariable(C.EnvVar);
-		if (ev == "1") on = true;
+		if (!bDeclaredDependency && ev == "1") on = true;
 		if (C.EnvVarSupportsDisable && ev == "0") on = false;
 
 		if (on)
@@ -165,12 +150,30 @@ public static class NexusLinkOptionalPlugins
 						Module.PrivateDependencyModuleNames.Add(m);
 				}
 			}
-			if (bDefineMacro) Module.PublicDefinitions.Add(C.Define + "=1");
-			foreach (string file in C.UpluginFiles)
-				MarkOptionalPluginLinked(Module, System.IO.Path.GetFileNameWithoutExtension(file));
+			if (!bDeclaredDependency)
+				foreach (string file in C.UpluginFiles)
+					MarkOptionalPluginLinked(Module, System.IO.Path.GetFileNameWithoutExtension(file));
 		}
-		else if (bDefineMacro) Module.PublicDefinitions.Add(C.Define + "=0");
+		if (bDefineMacro)
+			(bDeclaredDependency ? Module.PrivateDefinitions : Module.PublicDefinitions).Add(C.Define + (on ? "=1" : "=0"));
 		return on;
+	}
+
+	public static bool ConfigureIntegration(ModuleRules Module, ReadOnlyTargetRules Target,
+		string Definition, bool bEditor)
+	{
+		var Config = System.Array.Find(BuildFullTable(), Item => Item.Define == Definition);
+		if (string.IsNullOrEmpty(Config.Define))
+			throw new BuildException("Unknown NexusLink integration definition: " + Definition);
+		return ConfigureIntegration(Module, Target, Config, bEditor);
+	}
+
+	public static bool ConfigureIntegration(ModuleRules Module, ReadOnlyTargetRules Target,
+		OptionalPluginConfig Config, bool bEditor)
+	{
+		string ProjectRoot = FindProjectRoot(Module.ModuleDirectory);
+		return Apply(Module, Target, Config, CollectPluginSearchDirs(ProjectRoot, Module), ProjectRoot,
+			bEditor, bDeclaredDependency: true);
 	}
 
 	/// <summary>

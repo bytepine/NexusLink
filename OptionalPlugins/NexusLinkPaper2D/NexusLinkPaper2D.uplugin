@@ -1,0 +1,27 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.0.0",
+	"FriendlyName": "NexusLink Paper2D",
+	"Description": "Adds Paper2D capabilities to NexusLink.",
+	"Category": "Developer Tools",
+	"EnabledByDefault": false,
+	"CanContainContent": false,
+	"Modules": [
+		{
+			"Name": "NexusLinkPaper2DEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "NexusLink",
+			"Enabled": true
+		},
+		{
+			"Name": "Paper2D",
+			"Enabled": true
+		}
+	]
+}

@@ -25,7 +25,8 @@ PLUGIN_ROOT = _SCRIPTS_DIR.parent
 # 双模块拆分：Runtime 系 cap 在 NexusLink，其余在 NexusLinkEditor
 NEXUSLINK_CAP_ROOT = PLUGIN_ROOT / "Source" / "NexusLink" / "Private" / "Capabilities"
 NEXUSLINKEDITOR_CAP_ROOT = PLUGIN_ROOT / "Source" / "NexusLinkEditor" / "Private" / "Capabilities"
-DEFAULT_CAP_ROOTS = [NEXUSLINK_CAP_ROOT, NEXUSLINKEDITOR_CAP_ROOT]
+OPTIONAL_CAP_ROOTS = sorted(PLUGIN_ROOT.glob("OptionalPlugins/*/Source/*/Private/Capabilities"))
+DEFAULT_CAP_ROOTS = [NEXUSLINK_CAP_ROOT, NEXUSLINKEDITOR_CAP_ROOT, *OPTIONAL_CAP_ROOTS]
 
 # §2.1.0 选模块判定：基类即模块。Runtime 系基类必须落在 Source/NexusLink/，其余落在
 # Source/NexusLinkEditor/（Resources/CapabilitySpec.md §2.1.0 / .cursor/rules/nexuslink-capability.mdc）。
@@ -339,6 +340,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.cap_root:
         errors.extend(audit_module_placement(NEXUSLINK_CAP_ROOT, expect_runtime=True))
         errors.extend(audit_module_placement(NEXUSLINKEDITOR_CAP_ROOT, expect_runtime=False))
+        for cap_root in OPTIONAL_CAP_ROOTS:
+            errors.extend(audit_module_placement(cap_root, expect_runtime=not cap_root.parents[1].name.endswith("Editor")))
 
     for e in errors:
         print(f"[error] {e.format(PLUGIN_ROOT)}", file=sys.stderr)

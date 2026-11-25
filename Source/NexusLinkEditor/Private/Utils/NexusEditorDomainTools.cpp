@@ -6,9 +6,14 @@
 #include "JsonObjectConverter.h"
 #include "Misc/Paths.h"
 
+TFunction<FNexusEditorDomainTools::FAction> FNexusEditorDomainTools::PCG;
+TFunction<FNexusEditorDomainTools::FAction> FNexusEditorDomainTools::Niagara;
+TFunction<void(const TSharedPtr<FJsonObject>&, const TSharedPtr<FNexusEditorOperation>&)> FNexusEditorDomainTools::ExecutePCG;
+TFunction<TSharedPtr<FJsonObject>(const FString&)> FNexusEditorDomainTools::NiagaraSchema;
+
 bool FNexusEditorDomainTools::Handles(const FString& Domain)
 {
-    return Domain == TEXT("NexusPCG") || Domain == TEXT("NexusNiagara") || Domain.StartsWith(TEXT("NexusAnimation.")) || Domain==TEXT("NexusSequenceFolders");
+    return (Domain == TEXT("NexusPCG") && PCG) || (Domain == TEXT("NexusNiagara") && Niagara) || Domain.StartsWith(TEXT("NexusAnimation.")) || Domain==TEXT("NexusSequenceFolders");
 }
 
 UObject* FNexusEditorDomainTools::Resolve(const TSharedPtr<FJsonObject>& Args, const TCHAR* Key)
@@ -50,10 +55,11 @@ void FNexusEditorDomainTools::Call(const FString& Domain, const FString& Tool, c
     const TSharedPtr<FNexusEditorOperation>& Operation)
 {
     if (!Operation.IsValid()) return;
+    if (!Handles(Domain)) { FNexusEditorOperations::Finish(Operation, TEXT("Failed"), nullptr, TEXT("Action is unavailable in the current engine domain API")); return; }
     Operation->Backend = TEXT("Independent");
     auto Input = MakeShared<FJsonObject>();
     for (const auto& Pair : Args->Values) { FString Key(*Pair.Key); if (!Key.IsEmpty()) Key[0] = FChar::ToLower(Key[0]); Input->SetField(Key, Pair.Value); }
-    if (Domain == TEXT("NexusPCG") && Tool == TEXT("ExecuteGraphInstance")) { ExecutePCG(Input, Operation); return; }
+    if (Domain == TEXT("NexusPCG") && Tool == TEXT("ExecuteGraphInstance") && ExecutePCG) { ExecutePCG(Input, Operation); return; }
     TSharedPtr<FJsonObject> Data = MakeShared<FJsonObject>(); FString Error;
     const bool bOk = Domain == TEXT("NexusPCG") ? PCG(Tool, Input, Data, Error)
         : Domain == TEXT("NexusNiagara") ? Niagara(Tool, Input, Data, Error) : Animation(Domain, Tool, Input, Data, Error);

@@ -26,11 +26,6 @@
 #include "MovieSceneFolder.h"
 #include "Engine/Blueprint.h"
 #include "Misc/Guid.h"
-#if WITH_CONTROL_RIG
-#include "ControlRig.h"
-#include "Rigs/RigHierarchy.h"
-#include "Rigs/RigHierarchyDefines.h"
-#endif
 
 static FString NexusAnimationFieldKey(FString Name)
 {
@@ -40,26 +35,8 @@ static FString NexusAnimationFieldKey(FString Name)
     return Name.ToLower();
 }
 
-static FString NexusAnimationControlTypeName(const FString& Name)
-{
-    FString Result;
-    for (int32 Index = 0; Index < Name.Len(); ++Index) {
-        if (Index > 0 && FChar::IsUpper(Name[Index]) && (FChar::IsLower(Name[Index - 1]) || (Index + 1 < Name.Len() && FChar::IsLower(Name[Index + 1])))) Result += TEXT('_');
-        Result += FChar::ToUpper(Name[Index]);
-    }
-    return Result;
-}
-
-#if WITH_CONTROL_RIG
-static ERigControlType NexusAnimationControlType(const URigHierarchy* Hierarchy, const FRigControlElement* Control)
-{
-#if NX_UE_HAS_RIG_CONTROL_SETTINGS_TOPOLOGY
-    return Hierarchy->GetControlSettingsTopology(Control).ControlType;
-#else
-    return Control->Settings.ControlType;
-#endif
-}
-#endif
+FNexusAnimationAdvancedTools::FReadRigControls FNexusAnimationAdvancedTools::ReadRigControls;
+FNexusAnimationAdvancedTools::FValidateRigControl FNexusAnimationAdvancedTools::ValidateRigControl;
 
 // Outliner 的结构包含不可反射的弱视图指针，只回传本进程生成的有界句柄，禁止凭空重建。
 static TMap<FString, TSharedPtr<FStructOnScope>> GNexusAnimationViewModels;
@@ -248,9 +225,17 @@ UFunction* FNexusAnimationAdvancedTools::FindFunction(const FString& Domain,cons
     return Class ? Class->FindFunctionByName(FName(*FunctionName)) : nullptr;
 }
 
+bool FNexusAnimationAdvancedTools::RequiresRigControlValidation(const FString& Domain, const TSharedPtr<FJsonObject>& Schema)
+{
+    const TSharedPtr<FJsonObject>* Properties = nullptr;
+    return Domain == TEXT("NexusAnimation.ControlRigSequencer") && Schema.IsValid()
+        && Schema->TryGetObjectField(TEXT("properties"), Properties) && (*Properties)->HasField(TEXT("control_name"));
+}
+
 bool FNexusAnimationAdvancedTools::Supports(const FString& Domain,const FString& Tool)
 {
-    if (!InputSchema(Domain, Tool).IsValid()) return false;
+    const auto Schema = InputSchema(Domain, Tool);
+    if (!Schema.IsValid() || (RequiresRigControlValidation(Domain, Schema) && !ValidateRigControl)) return false;
     if (Domain == TEXT("NexusAnimation.Folders") || Domain == TEXT("NexusAnimation.Keyframing")) return true;
     if (Domain == TEXT("NexusAnimation.Conditions")) {
         UClass* Class = NexusAnimationScriptClass(Tool.Contains(TEXT("section")) ? TEXT("MovieSceneSection") : TEXT("MovieSceneTrack"));
@@ -341,6 +326,22 @@ static TSharedPtr<FJsonValue> NexusAnimationArgument(const TSharedPtr<FJsonObjec
 
 static bool NexusAnimationScriptCall(const FString& Domain,const FString& Tool,const TSharedPtr<FJsonObject>& Args,TSharedPtr<FJsonObject>& Result,FString& Error)
 {
+    const bool bRequiresRigControlValidation = Domain == TEXT("NexusAnimation.ControlRigSequencer")
+        && FNexusAnimationAdvancedTools::RequiresRigControlValidation(Domain, FNexusAnimationAdvancedTools::InputSchema(Domain, Tool));
+    if (bRequiresRigControlValidation)
+    {
+        // 引擎 Setter 可能因控件类型不匹配而直接返回，需要先校验类型并选择正确的反射函数。
+        if (!FNexusAnimationAdvancedTools::ValidateRigControl)
+        {
+            Error = TEXT("This action requires the NexusLinkControlRig integration to validate the named control");
+            return false;
+        }
+        if (!Args.IsValid() || !Args->HasTypedField<EJson::String>(TEXT("control_name")))
+        {
+            Error = TEXT("control_name must be a string");
+            return false;
+        }
+    }
     UFunction* Function = FNexusAnimationAdvancedTools::FindFunction(Domain, Tool);
     if (!Function) { Error = TEXT("Required engine animation scripting API is not available: ") + Domain + TEXT(".") + Tool; return false; }
     UObject* Target = Function->GetOuterUClass()->GetDefaultObject();
@@ -355,46 +356,17 @@ static bool NexusAnimationScriptCall(const FString& Domain,const FString& Tool,c
     else if (Domain == TEXT("NexusAnimation.ControlRigSequencer") && Tool != TEXT("get_control_rigs") && Tool != TEXT("find_or_create_track") && Tool != TEXT("bake_to_control_rig") && Tool != TEXT("get_anim_layers") && Tool != TEXT("add_layer_from_selection") && Tool != TEXT("delete_anim_layer") && Tool != TEXT("duplicate_anim_layer") && Tool != TEXT("reorder_anim_layers") && Tool != TEXT("merge_anim_layers") && Tool != TEXT("key_controls") && Tool != TEXT("key_controls_at_frames") && Tool != TEXT("collapse_anim_layers")) {
         Rig = NexusAnimationRig(Args, Error, &RigTrack); if (!Rig) return false;
         if (Tool == TEXT("get_controls_info")) {
-#if WITH_CONTROL_RIG
-            if (UControlRig* ControlRig = Cast<UControlRig>(Rig)) {
-                URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
-                if (!Hierarchy) { Error = TEXT("Control Rig hierarchy is unavailable"); return false; }
-                TArray<TSharedPtr<FJsonValue>> Controls;
-                for (const auto& Key : Hierarchy->GetControlKeys()) if (const auto* Control = Hierarchy->Find<FRigControlElement>(Key)) {
-                    TSharedPtr<FJsonObject> Item = MakeShared<FJsonObject>(); Item->SetStringField(TEXT("name"), Key.Name.ToString());
-                    Item->SetStringField(TEXT("type"), NexusAnimationControlTypeName(StaticEnum<ERigControlType>()->GetNameStringByValue(static_cast<int64>(NexusAnimationControlType(Hierarchy, Control)))));
-                    Controls.Add(MakeShared<FJsonValueObject>(Item));
-                }
-                Result->SetArrayField(TEXT("Items"), Controls); return true;
+            if (FNexusAnimationAdvancedTools::ReadRigControls)
+            {
+                const TOptional<bool> Read = FNexusAnimationAdvancedTools::ReadRigControls(Rig, Result, Error);
+                if (Read.IsSet()) return Read.GetValue();
             }
-#endif
             UObject* Hierarchy = NexusAnimationObjectField(Rig, TEXT("DynamicHierarchy"));
             if (!Hierarchy) Hierarchy = NexusAnimationObjectField(Rig, TEXT("Hierarchy"));
             return NexusAnimationInvoke(Hierarchy, TEXT("GetControlKeys"), MakeShared<FJsonObject>(), Result, Error);
         }
     }
-#if WITH_CONTROL_RIG
-    if (Rig && Args->HasTypedField<EJson::String>(TEXT("control_name"))) {
-        UControlRig* ControlRig = Cast<UControlRig>(Rig); URigHierarchy* Hierarchy = ControlRig ? ControlRig->GetHierarchy() : nullptr;
-        const FRigElementKey Key(FName(*FNexusArgs(Args).Str(TEXT("control_name"))), ERigElementType::Control);
-        const auto* Control = Hierarchy ? Hierarchy->Find<FRigControlElement>(Key) : nullptr;
-        if (!Control) { Error = TEXT("Named control was not found in the bound Control Rig"); return false; }
-        const ERigControlType ControlType = NexusAnimationControlType(Hierarchy, Control);
-        if ((Tool == TEXT("get_transform") || Tool == TEXT("set_transform")) && ControlType == ERigControlType::EulerTransform) {
-            const FName Name(Tool == TEXT("get_transform") ? TEXT("GetLocalControlRigEulerTransform") : TEXT("SetLocalControlRigEulerTransform"));
-            Function = Function->GetOuterUClass()->FindFunctionByName(Name);
-            if (!Function) { Error = TEXT("Euler transform control scripting is unavailable"); return false; }
-        }
-        else if ((Tool == TEXT("get_transform") || Tool == TEXT("set_transform")) && ControlType != ERigControlType::Transform) { Error = TEXT("Named control is not a transform control"); return false; }
-        if ((Tool == TEXT("get_bool") || Tool == TEXT("set_bool")) && ControlType != ERigControlType::Bool) { Error = TEXT("Named control is not a Bool control"); return false; }
-        if (Tool == TEXT("set_int") && ControlType != ERigControlType::Integer) { Error = TEXT("Named control is not an Integer control"); return false; }
-        if (Tool == TEXT("get_float") || Tool == TEXT("set_float")) {
-            const FString TypeName = StaticEnum<ERigControlType>()->GetNameStringByValue(static_cast<int64>(ControlType));
-            if (TypeName != TEXT("Float") && TypeName != TEXT("ScaleFloat")) { Error = TEXT("Named control is not a Float control"); return false; }
-        }
-        if (Tool == TEXT("set_euler_transform") && ControlType != ERigControlType::EulerTransform) { Error = TEXT("Named control is not an Euler transform control"); return false; }
-    }
-#endif
+    if (bRequiresRigControlValidation && !FNexusAnimationAdvancedTools::ValidateRigControl(Rig, Args, Tool, Function, Error)) return false;
     if (Tool == TEXT("collapse_anim_layers")) { Rig = NexusAnimationRig(Args, Error, &RigTrack); if (!Rig || !RigTrack) return false; }
     if (!Target) { if (Error.IsEmpty()) Error = TEXT("Required animation editor target is unavailable"); return false; }
     if (Domain == TEXT("NexusAnimation.Outliner") && Tool == TEXT("get_outliner_tree")) {

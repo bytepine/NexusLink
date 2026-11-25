@@ -26,6 +26,7 @@ FBX export requires a nonempty sequence playback range with valid lower and uppe
 - Bindings, tracks, and sections: Bindings, SequenceTracks, BindingTracks, Sections, SectionProperties, SectionRange, plus addition/removal and range configuration.
 - Channels and keys: ChannelNames, Keys, ChannelDefault; writing, deleting, setting defaults, and baking Float / Bool / Integer / String keys.
 - Control Rig: Rig/control discovery, value reads and writes, transforms, keys, tracks, and baking and layer operations supported by the current engine.
+  Reading or editing an individual named control also requires the `NexusLinkControlRig` extension. When the extension is unavailable, discovery reports `bSupported=false` and the prerequisite `PluginEnabled:NexusLinkControlRig`.
 - Sequencer extensions: conditions, Outliner, binding conversion, FBX/animation import and export, sequence folders, and AnimMixer. Underlying APIs must exist; open the target Sequence and establish explicit selection first when necessary.
 
 Actions execute only NexusLink's predefined implementations and do not accept external tool class names or arbitrary Python paths. Animation reads/writes use Backend=Independent. Existing Result.CompatibilityResult / Result.OfficialResult fields remain historical data containers; read their fields according to the output Schema.

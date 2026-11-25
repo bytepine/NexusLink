@@ -17,6 +17,7 @@ PLUGIN = Path(__file__).resolve().parent.parent
 CAP_DIRS = [
     PLUGIN / "Source/NexusLink/Private/Capabilities",
     PLUGIN / "Source/NexusLinkEditor/Private/Capabilities",
+    *sorted(PLUGIN.glob("OptionalPlugins/*/Source/*/Private/Capabilities")),
 ]
 TOOL_REF = PLUGIN / "docs/tool-reference.md"
 TOOL_REF_ZH = PLUGIN / "docs/tool-reference.zh.md"
@@ -27,10 +28,7 @@ RE_DESC = re.compile(r'Out\.Description\s*=\s*TEXT\("([^"]+)"\)')
 RE_TOOL_HEAD = re.compile(r"^### `([^`]+)`", re.M)
 META = {"SearchCapabilities", "CallCapability", "SubmitFeedback"}
 
-CAP_DIR_PREFIXES = (
-    "Source/NexusLink/Private/Capabilities",
-    "Source/NexusLinkEditor/Private/Capabilities",
-)
+CAP_DIR_PREFIXES = tuple(path.relative_to(PLUGIN).as_posix() for path in CAP_DIRS)
 
 
 def load_caps() -> dict[str, dict]:

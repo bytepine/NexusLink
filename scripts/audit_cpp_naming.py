@@ -28,7 +28,7 @@ if sys.stderr.encoding and sys.stderr.encoding.lower() != "utf-8":
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLUGIN_ROOT = SCRIPT_DIR.parent
-DEFAULT_ROOTS = [PLUGIN_ROOT / "Source"]
+DEFAULT_ROOTS = [PLUGIN_ROOT / "Source", *sorted(PLUGIN_ROOT.glob("OptionalPlugins/*/Source"))]
 SKIP_DIRS = {"Intermediate", "Binaries", "ThirdParty"}
 TYPE_PREFIXES = frozenset("UAFETI")
 

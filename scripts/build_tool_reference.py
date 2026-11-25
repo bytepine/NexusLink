@@ -372,10 +372,7 @@ def load_manage_compile_caps() -> frozenset[str]:
     if _MANAGE_COMPILE_CAPS is not None:
         return _MANAGE_COMPILE_CAPS
     plugin_root = Path(__file__).resolve().parent.parent
-    cap_roots = [
-        plugin_root / "Source" / "NexusLink" / "Private" / "Capabilities",
-        plugin_root / "Source" / "NexusLinkEditor" / "Private" / "Capabilities",
-    ]
+    cap_roots, _, _ = resolve_source_paths(plugin_root)
     names: set[str] = set()
     for cap_root in cap_roots:
         for path in cap_root.rglob("*.cpp"):
@@ -657,11 +654,12 @@ def find_nexuslink_root(start: Path) -> Path:
 
 
 def resolve_source_paths(link_root: Path) -> tuple[list[Path], Path, Path]:
-    """返回 cap_roots（NexusLink + NexusLinkEditor 两个模块根）, tools_dir, docs_dir。"""
+    """返回主插件和可选扩展的 Capability 源码目录，以及工具和文档目录。"""
     plugin_src = link_root / "Source" / "NexusLink"
     cap_roots = [
         plugin_src / "Private" / "Capabilities",
         link_root / "Source" / "NexusLinkEditor" / "Private" / "Capabilities",
+        *sorted(link_root.glob("OptionalPlugins/*/Source/*/Private/Capabilities")),
     ]
     tools_dir = plugin_src / "Private" / "Tools"
     return cap_roots, tools_dir, link_root / "docs"

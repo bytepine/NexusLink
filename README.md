@@ -25,6 +25,7 @@
 ### 1. 安装并启用 UE 插件
 
 1. 从 [NexusLink Releases](https://github.com/bytepine/NexusLink/releases) 下载 `nexus-mcp-unreal-<version>.zip`，将其中的 `NexusLink/` 目录放入项目 `Plugins/`，确认文件位于 `Plugins/NexusLink/NexusLink.uplugin`。
+   需要 PCG、MVVM、GAS 等可选工具时，将扩展目录与 `NexusLink/` 同级放入项目 `Plugins/`，在 UE 插件窗口启用扩展，编译并重启。
 2. 在 **Edit → Plugins → Developer → NexusLink** 中启用插件，重启编辑器。
 3. 在 **Edit → Editor Preferences → Plugins → NexusLink** 中勾选 **启用 MCP 服务器**（默认关闭），确认运行状态与标题栏的 MCP / WS 端口。
 

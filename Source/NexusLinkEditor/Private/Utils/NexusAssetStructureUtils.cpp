@@ -23,13 +23,9 @@
 #include "K2Node_Variable.h"
 #include "WidgetBlueprintEditorUtils.h"
 #endif
-#if WITH_PCG
-#include "PCGGraph.h"
-#include "PCGNode.h"
-#include "PCGSettings.h"
-#include "PCGPin.h"
-#include "PCGEdge.h"
-#endif
+
+FNexusAssetStructureUtils::FSnapshotPCG FNexusAssetStructureUtils::SnapshotPCG;
+FNexusAssetStructureUtils::FApplyPCG FNexusAssetStructureUtils::ApplyPCG;
 
 TArray<FString> FNexusAssetStructureUtils::Snapshot(UObject* Asset, const FString& NormalizeNode)
 {
@@ -59,21 +55,7 @@ TArray<FString> FNexusAssetStructureUtils::Snapshot(UObject* Asset, const FStrin
 				Rows.Add(TEXT("Edge|") + Graph->GetName() + TEXT("|") + NodeId + TEXT("|") + Pin->PinName.ToString() + TEXT("|") + Id(Other->GetOwningNode()->NodeGuid.ToString()) + TEXT("|") + Other->PinName.ToString());
 		}
 	}
-#if WITH_PCG
-	else if (UPCGGraph* Graph = Cast<UPCGGraph>(Asset))
-	{
-		TArray<UPCGNode*> Nodes = Graph->GetNodes(); Nodes.Add(Graph->GetInputNode()); Nodes.Add(Graph->GetOutputNode());
-		for (const UPCGNode* Node : Nodes) if (Node)
-		{
-			Rows.Add(TEXT("Node|") + Id(Node->GetName()) + TEXT("|") + (Node->GetSettings() ? Node->GetSettings()->GetClass()->GetPathName() : TEXT("")));
-			for (const UPCGPin* Pin : Node->GetOutputPins()) if (Pin) for (const UPCGEdge* Edge : Pin->Edges) if (Edge)
-			{
-				const UPCGPin* Other = Edge->GetOtherPin(Pin);
-				if (Other && Other->Node) Rows.Add(TEXT("Edge|") + Id(Node->GetName()) + TEXT("|") + Pin->Properties.Label.ToString() + TEXT("|") + Id(Other->Node->GetName()) + TEXT("|") + Other->Properties.Label.ToString());
-			}
-		}
-	}
-#endif
+	else if (SnapshotPCG) SnapshotPCG(Asset, Id, Rows);
 	Rows.Sort(); return Rows;
 }
 
@@ -250,30 +232,11 @@ bool FNexusAssetStructureUtils::ApplyPreview(UObject* Asset, const FString& Capa
 		if (!Other) { Error = TEXT("Target pin not found"); return false; }
 		Graph->GetSchema()->BreakSinglePinLink(Pin, Other); return true;
 	}
-#if WITH_PCG
-	if (UPCGGraph* Graph = Cast<UPCGGraph>(Asset))
+	if (ApplyPCG)
 	{
-		const auto Find = [&](const FString& Name) -> UPCGNode* { if (Graph->GetInputNode() && Name == Graph->GetInputNode()->GetName()) return Graph->GetInputNode(); if (Graph->GetOutputNode() && Name == Graph->GetOutputNode()->GetName()) return Graph->GetOutputNode(); for (UPCGNode* Node : Graph->GetNodes()) if (Node && Name == Node->GetName()) return Node; return nullptr; };
-		if (Action == TEXT("AddNode"))
-		{
-			UClass* Class = FNexusAssetUtils::FindClassWithUPrefix(A.Str(TEXT("SettingsClass")));
-			if (!Class || !Class->IsChildOf(UPCGSettings::StaticClass()) || Class->HasAnyClassFlags(CLASS_Abstract)) { Error = TEXT("Concrete PCG SettingsClass is required"); return false; }
-			UPCGNode* Node = Graph->AddNode(NewObject<UPCGSettings>(Graph, Class));
-			if (!Node) { Error = TEXT("Could not add PCG node"); return false; }
-			Entry->SetStringField(TEXT("NodeId"), Node->GetName()); return true;
-		}
-		if (Action == TEXT("RemoveNode")) { UPCGNode* Node = Find(A.Str(TEXT("NodeId"))); if (!Node || Node == Graph->GetInputNode() || Node == Graph->GetOutputNode()) { Error = TEXT("Removable NodeId not found"); return false; } Graph->RemoveNode(Node); return true; }
-		UPCGNode* From = Find(A.Str(TEXT("FromNodeId"))); UPCGNode* To = Find(A.Str(TEXT("ToNodeId")));
-		if (!From || !To) { Error = TEXT("Edge endpoint not found"); return false; }
-		const auto Outputs = From->OutputPinProperties(), Inputs = To->InputPinProperties();
-		const FName FromLabel = A.Str(TEXT("FromPin")).IsEmpty() && Outputs.Num() ? Outputs[0].Label : FName(*A.Str(TEXT("FromPin")));
-		const FName ToLabel = A.Str(TEXT("ToPin")).IsEmpty() && Inputs.Num() ? Inputs[0].Label : FName(*A.Str(TEXT("ToPin")));
-		if (!From->GetOutputPin(FromLabel) || !To->GetInputPin(ToLabel)) { Error = TEXT("Edge pin not found"); return false; }
-		if (Action == TEXT("AddEdge")) { if (!Graph->AddEdge(From, FromLabel, To, ToLabel)) { Error = TEXT("PCG rejected edge"); return false; } }
-		else Graph->RemoveEdge(From, FromLabel, To, ToLabel);
-		return true;
+		const TOptional<bool> Applied = ApplyPCG(Asset, Action, A, Entry, Error);
+		if (Applied.IsSet()) return Applied.GetValue();
 	}
-#endif
 	Error = TEXT("Unsupported asset type"); return false;
 }
 

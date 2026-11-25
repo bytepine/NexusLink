@@ -53,28 +53,9 @@
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundConcurrency.h"
 #include "Sound/SoundSubmix.h"
-#if WITH_NIAGARA
-#include "NiagaraSystem.h"
-#endif
-#if WITH_STATETREE
-#include "StateTree.h"
-#endif
-#if WITH_METASOUND
-#include "MetasoundSource.h"
 #include "Utils/NexusVersionCompat.h"
-#if NX_UE_HAS_METASOUND_PATCH
-#include "Metasound.h"
-#endif
-#endif
 #if NX_UE_HAS_DATA_LAYER_ASSET
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
-#endif
-#if WITH_PCG
-#include "PCGGraph.h"
-#endif
-#if WITH_POSE_SEARCH
-#include "PoseSearch/PoseSearchDatabase.h"
-#include "PoseSearch/PoseSearchSchema.h"
 #endif
 #include "NexusMcpTool.h"
 
@@ -119,7 +100,6 @@ static FString NormalizeAssetTypeShortcut(const FString& TypeLower)
 	{
 		return TEXT("Widget");
 	}
-#if WITH_GAS
 	if (TypeLower == TEXT("ga"))
 	{
 		return TEXT("gameplayability");
@@ -128,13 +108,10 @@ static FString NormalizeAssetTypeShortcut(const FString& TypeLower)
 	{
 		return TEXT("gameplayeffect");
 	}
-#endif
-#if WITH_STATETREE
 	if (TypeLower == TEXT("st") || TypeLower == TEXT("StateTree"))
 	{
 		return TEXT("statetree");
 	}
-#endif
 	if (TypeLower == TEXT("viewmodel") || TypeLower == TEXT("mvvm"))
 	{
 		return TEXT("Widget");
@@ -184,9 +161,9 @@ static const TArray<FNexusSearchTypeEntry>& GetSearchTypeTableEarly()
 	return Table;
 }
 
-static const TArray<FNexusSearchTypeEntry>& GetSearchTypeTableMid()
+static TArray<FNexusSearchTypeEntry> GetSearchTypeTableMid()
 {
-	static const TArray<FNexusSearchTypeEntry> Table = []
+	const TArray<FNexusSearchTypeEntry> Table = []
 	{
 		TArray<FNexusSearchTypeEntry> T;
 		T.Add({ TEXT("Skeleton"), USkeleton::StaticClass(), true, { TEXT("Skeleton") } });
@@ -205,25 +182,18 @@ static const TArray<FNexusSearchTypeEntry>& GetSearchTypeTableMid()
 		T.Add({ TEXT("SoundConcurrency"), USoundConcurrency::StaticClass(), true, { TEXT("soundconcurrency"), TEXT("SoundConcurrency") } });
 		T.Add({ TEXT("SoundSubmix"), USoundSubmix::StaticClass(), true, { TEXT("soundsubmix"), TEXT("SoundSubmix") } });
 		T.Add({ TEXT("World"), UWorld::StaticClass(), true, { TEXT("World"), TEXT("Level"), TEXT("map") } });
-#if WITH_NIAGARA
-		T.Add({ TEXT("NiagaraSystem"), UNiagaraSystem::StaticClass(), true, { TEXT("niagarasystem"), TEXT("NiagaraSystem") } });
-#endif
-#if WITH_STATETREE
-		T.Add({ TEXT("StateTree"), UStateTree::StaticClass(), true, { TEXT("statetree"), TEXT("StateTree") } });
-#endif
-#if WITH_METASOUND
-		T.Add({ TEXT("MetaSoundSource"), UMetaSoundSource::StaticClass(), true, { TEXT("metasoundsource"), TEXT("MetaSoundSource"), TEXT("metasound") } });
-#if NX_UE_HAS_METASOUND_PATCH
-		T.Add({ TEXT("MetaSoundPatch"), UMetaSoundPatch::StaticClass(), true, { TEXT("metasoundpatch"), TEXT("MetaSoundPatch") } });
-#endif
-#endif
-#if WITH_PCG
-		T.Add({ TEXT("PCGGraph"), UPCGGraph::StaticClass(), true, { TEXT("pcggraph"), TEXT("PCGGraph"), TEXT("pcg") } });
-#endif
-#if WITH_POSE_SEARCH
-		T.Add({ TEXT("PoseSearchDatabase"), UPoseSearchDatabase::StaticClass(), true, { TEXT("posesearchdatabase"), TEXT("PoseSearchDatabase"), TEXT("posesearch") } });
-		T.Add({ TEXT("PoseSearchSchema"), UPoseSearchSchema::StaticClass(), true, { TEXT("posesearchschema"), TEXT("PoseSearchSchema") } });
-#endif
+		auto AddLoadedType = [&T](const TCHAR* Type, const TCHAR* ClassPath, TArray<FString> Aliases)
+		{
+			if (UClass* Class = FindObject<UClass>(nullptr, ClassPath))
+				T.Add({Type, Class, true, MoveTemp(Aliases)});
+		};
+		AddLoadedType(TEXT("NiagaraSystem"), TEXT("/Script/Niagara.NiagaraSystem"), {TEXT("niagarasystem")});
+		AddLoadedType(TEXT("StateTree"), TEXT("/Script/StateTreeModule.StateTree"), {TEXT("statetree")});
+		AddLoadedType(TEXT("MetaSoundSource"), TEXT("/Script/MetasoundEngine.MetaSoundSource"), {TEXT("metasoundsource"), TEXT("metasound")});
+		AddLoadedType(TEXT("MetaSoundPatch"), TEXT("/Script/MetasoundEngine.MetaSoundPatch"), {TEXT("metasoundpatch")});
+		AddLoadedType(TEXT("PCGGraph"), TEXT("/Script/PCG.PCGGraph"), {TEXT("pcggraph"), TEXT("pcg")});
+		AddLoadedType(TEXT("PoseSearchDatabase"), TEXT("/Script/PoseSearch.PoseSearchDatabase"), {TEXT("posesearchdatabase"), TEXT("posesearch")});
+		AddLoadedType(TEXT("PoseSearchSchema"), TEXT("/Script/PoseSearch.PoseSearchSchema"), {TEXT("posesearchschema")});
 		return T;
 	}();
 	return Table;
@@ -276,12 +246,11 @@ static bool IsKnownSearchAssetType(const FString& TypeLower)
 {
 	if (TypeLower == TEXT("blueprint")) return true;
 	if (TypeLower == TEXT("blendspace") || TypeLower == TEXT("BlendSpace")) return true;
-#if WITH_GAS
 	if (TypeLower == TEXT("gameplayability") || TypeLower == TEXT("GameplayAbility")) return true;
 	if (TypeLower == TEXT("gameplayeffect") || TypeLower == TEXT("GameplayEffect")) return true;
 	if (TypeLower == TEXT("attributeset") || TypeLower == TEXT("AttributeSet")) return true;
-#endif
-	for (const TArray<FNexusSearchTypeEntry>* Table : { &GetSearchTypeTableEarly(), &GetSearchTypeTableMid(), &GetSearchTypeTableLate() })
+	const auto Mid = GetSearchTypeTableMid();
+	for (const TArray<FNexusSearchTypeEntry>* Table : { &GetSearchTypeTableEarly(), &Mid, &GetSearchTypeTableLate() })
 	{
 		for (const FNexusSearchTypeEntry& Entry : *Table)
 		{
@@ -450,7 +419,6 @@ FCapabilityResult FNexusSearchAssetCapability::Execute(const TSharedPtr<FJsonObj
 			RunTypeEntry(Entry);
 		}
 
-#if WITH_GAS
 		auto AddGasBlueprintEntries = [&](const TCHAR* ParentSubstr, const TCHAR* OutType)
 		{
 			EnsureBlueprintAssets();
@@ -475,7 +443,6 @@ FCapabilityResult FNexusSearchAssetCapability::Execute(const TSharedPtr<FJsonObj
 		{
 			AddGasBlueprintEntries(TEXT("AttributeSet"), TEXT("AttributeSet"));
 		}
-#endif
 
 		// datalayerasset：表驱动（唯一项，含可选模块守卫）
 		for (const FNexusSearchTypeEntry& Entry : GetSearchTypeTableLate())

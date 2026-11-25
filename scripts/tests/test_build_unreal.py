@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -64,6 +65,46 @@ def test_is_lfs_pointer_true(tmp_path):
     p = tmp_path / "Icon128.png"
     p.write_bytes(_POINTER)
     assert is_lfs_pointer(str(p)) is True
+
+
+def test_optional_plugin_is_packaged_as_sibling(tmp_path):
+    import zipfile
+
+    plugin = tmp_path / "plugin"
+    extension = plugin / "OptionalPlugins" / "NexusLinkPCG"
+    extension.mkdir(parents=True)
+    (plugin / "NexusLink.uplugin").write_text("{}", encoding="utf-8")
+    (extension / "NexusLinkPCG.uplugin").write_text(
+        '{"EnabledByDefault":false,"Plugins":[{"Name":"NexusLink","Enabled":true},{"Name":"PCG","Enabled":true}]}',
+        encoding="utf-8",
+    )
+    archive = build_zip(str(plugin), "1.0.0", str(tmp_path / "out"))
+    with zipfile.ZipFile(archive) as result:
+        assert set(result.namelist()) == {"NexusLink/NexusLink.uplugin", "NexusLinkPCG/NexusLinkPCG.uplugin"}
+        core = json.loads(result.read("NexusLink/NexusLink.uplugin"))
+        addon = json.loads(result.read("NexusLinkPCG/NexusLinkPCG.uplugin"))
+        assert not core.get("Plugins")
+        assert addon["EnabledByDefault"] is False
+        assert addon["VersionName"] == "1.0.0"
+        assert addon["Plugins"] == [{"Name": "NexusLink", "Enabled": True}, {"Name": "PCG", "Enabled": True}]
+
+
+def test_bundled_extensions_are_opt_in_and_own_their_dependencies():
+    root = Path(__file__).resolve().parents[2]
+    core = json.loads((root / "NexusLink.uplugin").read_text(encoding="utf-8"))
+    core_names = {plugin["Name"] for plugin in core["Plugins"]}
+    extensions = list(root.glob("OptionalPlugins/*/*.uplugin"))
+    assert extensions
+    for path in extensions:
+        extension = json.loads(path.read_text(encoding="utf-8"))
+        assert extension["EnabledByDefault"] is False, path
+        required = {
+            plugin["Name"]
+            for plugin in extension["Plugins"]
+            if plugin["Enabled"] and not plugin.get("Optional", False)
+        }
+        assert "NexusLink" in required and len(required) > 1, path
+        assert (required - {"NexusLink"}).isdisjoint(core_names), path
 
 
 def test_is_lfs_pointer_false_for_real_bytes(tmp_path):

@@ -615,7 +615,7 @@ StateTree 的 `AddTransition` 要求源、目标状态名在树内分别唯一�
 
 ### MCP 搜不到 GAS / Niagara 等能力
 
-这些 Capability 在编译期按磁盘 `.uplugin` 探测（`WITH_GAS` 等），**不会**在插件浏览器里给 NexusLink 加依赖。自定义引擎若不在工程兄弟目录 `Engine/`，旧版会 miss；当前版本用 UBT 正在编译的引擎目录自动找 `Engine/Plugins`。确认：重编后 `Intermediate/.../Definitions.NexusLink.h` 中对应 `WITH_*` 为 `1`，并重启编辑器。真实工程 `.uproject` 对该插件显式 `Enabled: false` 仍会关掉；`build_test` Editor/`BuildPlugin` 按该引擎磁盘探测编进可选 cap（与宿主一致），Game 目标不编。环境变量 `WITH_GAS=1` / `=0` 可强制开/关。
+这些工具由默认关闭的独立扩展提供。安装发布包中对应扩展的目录到项目 `Plugins/`，与 `NexusLink/` 同级。在插件窗口启用扩展并重编。扩展声明其必需的引擎插件。`SearchCapabilities` 返回当前已注册的工具。
 
 ### `ExecPython` 报 Python plugin module not loaded
 

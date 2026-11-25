@@ -2,7 +2,6 @@
 
 #include "NexusLinkEditor.h"
 #include "Utils/NexusEditorControlServices.h"
-#include "Utils/NexusCommonUIDiagnostics.h"
 #include "NexusEditorServices.h"
 #include "NexusLinkSettings.h"
 #include "NexusUpdateChecker.h"
@@ -66,7 +65,6 @@ void FNexusLinkEditorModule::StartupModule()
 	};
 	FNexusEditorServices::NotifyServerStopped = []()
 	{
-		FNexusCommonUIDiagnostics::Shutdown();
 		if (GIsEditor)
 		{
 			FNexusEditorStatusBar::Unregister();
@@ -93,7 +91,6 @@ void FNexusLinkEditorModule::ShutdownModule()
 {
 	NexusShutdownEditorTransactionHooks();
 	FNexusEditorServices::SaveMapPackage = [](UWorld*, const FString&) { return false; };
-	FNexusCommonUIDiagnostics::Shutdown();
 	FNexusEditorControlServices::Shutdown();
 #if NX_UE_HAS_POST_ENGINE_INIT_ACCESSOR
 	FCoreDelegates::GetOnPostEngineInit().RemoveAll(this);

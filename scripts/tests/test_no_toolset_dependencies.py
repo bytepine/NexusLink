@@ -18,15 +18,16 @@ FORBIDDEN = re.compile(
 
 def test_official_toolsets_are_not_linked_or_called():
     errors = []
-    for root in (PLUGIN / "Source", PLUGIN / "Content"):
+    for root in (PLUGIN / "Source", PLUGIN / "Content", *PLUGIN.glob("OptionalPlugins/*/Source")):
         for path in root.rglob("*"):
             if path.suffix.lower() not in {".cpp", ".h", ".hpp", ".inl", ".cc", ".cxx", ".cs", ".py"}:
                 continue
             for number, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
                 if FORBIDDEN.search(line):
                     errors.append(f"{path.relative_to(PLUGIN)}:{number}: {line.strip()}")
-    descriptor = json.loads((PLUGIN / "NexusLink.uplugin").read_text(encoding="utf-8-sig"))
-    errors.extend(f"Plugin dependency: {item['Name']}" for item in descriptor["Plugins"] if "toolset" in item["Name"].lower())
+    for path in (PLUGIN / "NexusLink.uplugin", *PLUGIN.glob("OptionalPlugins/*/*.uplugin")):
+        descriptor = json.loads(path.read_text(encoding="utf-8-sig"))
+        errors.extend(f"{path.name} dependency: {item['Name']}" for item in descriptor["Plugins"] if "toolset" in item["Name"].lower())
     assert not errors, "\n".join(errors)
 
 

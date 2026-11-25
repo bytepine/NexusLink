@@ -23,6 +23,7 @@ NEXUSLINKEDITOR_SOURCE = NEXUSLINK_PLUGIN_SOURCE / "NexusLinkEditor"
 CAP_ROOTS = [
     NEXUSLINK_SOURCE / "Private/Capabilities",
     NEXUSLINKEDITOR_SOURCE / "Private/Capabilities",
+    *sorted(PLUGIN_ROOT.glob("OptionalPlugins/*/Source/*/Private/Capabilities")),
 ]
 VERSION_COMPAT_FILE = NEXUSLINK_SOURCE / "Public/Utils/NexusVersionCompat.h"
 
@@ -73,7 +74,8 @@ def _scan_nexuslink_sources_for_raw_at_least() -> list[tuple[Path, int]]:
     hits: list[tuple[Path, int]] = []
     if not NEXUSLINK_PLUGIN_SOURCE.is_dir():
         return hits
-    for path in sorted(NEXUSLINK_PLUGIN_SOURCE.rglob("*")):
+    roots = [NEXUSLINK_PLUGIN_SOURCE, *sorted(PLUGIN_ROOT.glob("OptionalPlugins/*/Source"))]
+    for path in (path for root in roots for path in sorted(root.rglob("*"))):
         if not path.is_file() or path.suffix not in {".cpp", ".h"}:
             continue
         if path.resolve() == VERSION_COMPAT_FILE.resolve():

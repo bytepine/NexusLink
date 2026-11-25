@@ -15,18 +15,16 @@
 #include "InputKeyEventArgs.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #endif
-#if WITH_ENHANCED_INPUT && NX_UE_HAS_CONTINUOUS_INPUT_INJECTION
-#include "EnhancedInputSubsystems.h"
-#include "InputAction.h"
-#endif
+FNexusRuntimeInputUtils::FResolveAction FNexusRuntimeInputUtils::ResolveAction;
+FNexusRuntimeInputUtils::FStartAction FNexusRuntimeInputUtils::StartAction;
+FNexusRuntimeInputUtils::FStopAction FNexusRuntimeInputUtils::StopAction;
+FNexusRuntimeInputUtils::FIsActionActive FNexusRuntimeInputUtils::IsActionActive;
 
 struct FNexusHeldInput final
 {
 	FKey Key;
 	FVector Value = FVector::ZeroVector;
-#if WITH_ENHANCED_INPUT && NX_UE_HAS_CONTINUOUS_INPUT_INJECTION
-	TWeakObjectPtr<UInputAction> InputAction;
-#endif
+	TWeakObjectPtr<UObject> InputAction;
 	FString Identity;
 };
 struct FNexusInputHold final
@@ -81,15 +79,9 @@ static void NexusFinishInput(const TSharedPtr<FNexusInputHold>& Hold, const FStr
 	APlayerController* Controller = Hold->Controller.Get();
 	for (const auto& Input : Hold->Inputs)
 	{
-#if WITH_ENHANCED_INPUT && NX_UE_HAS_CONTINUOUS_INPUT_INJECTION
-		if (Input.InputAction.IsValid())
-		{
-			ULocalPlayer* Player = Hold->Player.Get();
-			auto* Subsystem = Player ? Player->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
-			if (Subsystem) Subsystem->StopContinuousInputInjectionForAction(Input.InputAction.Get());
-		}
+		if (Input.InputAction.IsValid() && FNexusRuntimeInputUtils::StopAction)
+			FNexusRuntimeInputUtils::StopAction(Hold->Player.Get(), Input.InputAction.Get());
 		else
-#endif
 		if (Input.Key.IsValid()) NexusInjectKey(Controller, Input.Key, IE_Released, 0);
 	}
 	auto Result = MakeShared<FJsonObject>();
@@ -195,17 +187,10 @@ FCapabilityResult FNexusRuntimeInputUtils::Apply(const TSharedPtr<FJsonObject>& 
 			}
 			else
 			{
-#if WITH_ENHANCED_INPUT && NX_UE_HAS_CONTINUOUS_INPUT_INJECTION
-				auto* Subsystem = Player->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-				auto* InputAction = LoadObject<UInputAction>(nullptr, *ActionPath);
-				if (!Subsystem || !InputAction || Subsystem->HasContinuousInputInjectionForAction(InputAction))
-				{ Error = TEXT("InputAction unavailable or already injected by another source"); return; }
-				const int32 Dimensions = FMath::Max(1, static_cast<int32>(InputAction->ValueType));
-				if ((Dimensions < 3 && Z != 0) || (Dimensions < 2 && Y != 0)) { Error = TEXT("Input value dimensions exceed InputAction type"); return; }
-				Input.InputAction = InputAction; Input.Identity = InputAction->GetPathName();
-#else
-				Error = TEXT("InputAction injection requires enabled EnhancedInput and UE5.7+"); return;
-#endif
+				if (!ResolveAction) { Error = TEXT("InputAction injection requires the NexusLink EnhancedInput extension and UE5.7+"); return; }
+				Input.InputAction = ResolveAction(Player, ActionPath, Input.Value, Error);
+				if (!Input.InputAction.IsValid()) return;
+				Input.Identity = Input.InputAction->GetPathName();
 			}
 			if (Identities.Contains(Input.Identity)) { Error = TEXT("Duplicate input in this request"); return; }
 			for (const auto& Existing : GNexusInputHolds)
@@ -220,14 +205,9 @@ FCapabilityResult FNexusRuntimeInputUtils::Apply(const TSharedPtr<FJsonObject>& 
 		NexusInstallInputTicks();
 		for (const auto& Input : Hold->Inputs)
 		{
-#if WITH_ENHANCED_INPUT && NX_UE_HAS_CONTINUOUS_INPUT_INJECTION
-			if (Input.InputAction.IsValid())
-			{
-				auto* Action = Input.InputAction.Get();
-				Player->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>()->StartContinuousInputInjectionForAction(Action, FInputActionValue(Action->ValueType, Input.Value), {}, {});
-			}
+			if (Input.InputAction.IsValid() && StartAction)
+				StartAction(Player, Input.InputAction.Get(), Input.Value);
 			else
-#endif
 			if (!Input.Key.IsAnalog()) NexusInjectKey(Controller, Input.Key, IE_Pressed, Input.Value.X);
 		}
 		GNexusInputHolds.Add(Hold);
@@ -262,15 +242,9 @@ FCapabilityResult FNexusRuntimeInputUtils::Query(const TSharedPtr<FJsonObject>& 
 		{
 			auto State = MakeShared<FJsonObject>();
 			State->SetStringField(TEXT("Identity"), Input.Identity);
-#if WITH_ENHANCED_INPUT && NX_UE_HAS_CONTINUOUS_INPUT_INJECTION
-			if (Input.InputAction.IsValid())
-			{
-				ULocalPlayer* Player = Hold->Player.Get();
-				auto* Subsystem = Player ? Player->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
-				State->SetBoolField(TEXT("bActionInjectionActive"), Subsystem && Subsystem->HasContinuousInputInjectionForAction(Input.InputAction.Get()));
-			}
+			if (Input.InputAction.IsValid() && IsActionActive)
+				State->SetBoolField(TEXT("bActionInjectionActive"), IsActionActive(Hold->Player.Get(), Input.InputAction.Get()));
 			else
-#endif
 			{
 				APlayerController* Controller = Hold->Controller.Get();
 				State->SetBoolField(TEXT("bPlayerInputKeyDown"), Controller && Controller->PlayerInput && Controller->PlayerInput->IsPressed(Input.Key));

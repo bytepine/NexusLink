@@ -622,7 +622,7 @@ CallCapability.Calls[] with at least two entries defers automatic compilation/sa
 
 ### GAS / Niagara and other capabilities are missing
 
-Compile-time disk .uplugin detection controls these capabilities, including WITH_GAS; NexusLink does not add browser dependencies. Old versions missed custom engines outside the project's sibling Engine/ directory. Current versions find Engine/Plugins from UBT's active engine. After rebuilding, confirm the relevant WITH_* is 1 in Intermediate/.../Definitions.NexusLink.h and restart. Explicit Enabled:false in the real .uproject still disables a plugin. build_test Editor / BuildPlugin detect optional capabilities from that engine's disk like the host; Game targets exclude them. WITH_GAS=1 / =0 environment overrides can force enable/disable.
+These tools come from separate extensions that are disabled by default. Install the desired extension directories next to NexusLink under the project Plugins directory, enable the extensions in the plugin window, and rebuild. Each extension declares its required engine plugins. SearchCapabilities lists the tools registered in the current session.
 
 ### ExecPython reports Python plugin module not loaded
 

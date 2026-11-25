@@ -3,6 +3,8 @@
 #include "NexusLink.h"
 #include "NexusLinkBuildConfig.h"
 
+FNexusMcpServerStopped FNexusLinkModule::OnServerStopped;
+
 #if NEXUSLINK_WITH_SERVER
 #include "Log/NexusLogCapture.h"
 #include "Utils/NexusVersionCompat.h"
@@ -26,7 +28,6 @@
 #include "Engine/World.h"
 #include "NexusEditorServices.h"
 #include "UI/NexusMcpDebugOverlay.h"
-#include "Utils/NexusGasDiagnostics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNexusLink, Log, All);
 
@@ -114,9 +115,7 @@ void FNexusLinkModule::ShutdownModule()
 void FNexusLinkModule::StopMcpServer()
 {
 	FNexusRuntimeInputUtils::Shutdown();
-#if WITH_GAS
-	FNexusGasDiagnostics::Shutdown();
-#endif
+	OnServerStopped.Broadcast();
 	// 状态栏是编辑器专属 UI，通过钩子反向通知（Runtime 无钩子实现时为安全空操作）
 	FNexusEditorServices::NotifyServerStopped();
 

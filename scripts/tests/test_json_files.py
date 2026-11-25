@@ -48,6 +48,11 @@ def test_uplugin_editor_dependencies_remain_editor_only_on_ue4():
         assert plugins[name]["WhitelistTargets"] == ["Editor"], name
 
 
+def test_uplugin_allows_missing_editor_scripting_utilities():
+    plugins = {entry["Name"]: entry for entry in _load("NexusLink.uplugin")["Plugins"]}
+    assert plugins["EditorScriptingUtilities"]["Optional"] is True
+
+
 def test_uplugin_websocket_dependency_excludes_shipping_on_ue4():
     plugins = {entry["Name"]: entry for entry in _load("NexusLink.uplugin")["Plugins"]}
     assert plugins["WebSocketNetworking"]["BlacklistTargetConfigurations"] == ["Shipping"]

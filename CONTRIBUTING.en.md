@@ -12,6 +12,8 @@ Capabilities for the engine itself and engine-bundled domain plugins belong in `
 
 This guide is for plugin maintainers and Capability authors. For installation and all four connection routes, see [the usage guide](docs/usage-guide.en.md); also see [architecture](docs/architecture.en.md) and [the proxy session contract](docs/proxy-session.en.md).
 
+Optional engine extensions live in OptionalPlugins/. Development hosts discover them through AdditionalPluginDirectories. Release archives install extensions beside NexusLink/. Validate startup and DLL imports with only the main plugin enabled, then enable extensions and verify tool registration and calls.
+
 ## Documentation languages
 
 All maintained project documentation must provide equivalent Chinese and English content, in separate paired Chinese and English files with reciprocal language links at the top. This includes README, guides, specifications, contribution and testing instructions, and every CHANGELOG entry. Update both languages in the same change; titles or summaries alone do not count as a translation. Preserve commands, identifiers, version headings, and link targets; regenerate both languages of generated documentation from their sources.

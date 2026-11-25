@@ -14,14 +14,6 @@
 #include "K2Node_BaseMCDelegate.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
-#if WITH_MVVM
-#include "WidgetBlueprintExtension.h"
-#include "MVVMWidgetBlueprintExtension_View.h"
-#include "MVVMBlueprintView.h"
-#include "MVVMBlueprintViewBinding.h"
-#include "MVVMBlueprintViewModelContext.h"
-#include "Types/MVVMBindingMode.h"
-#endif
 
 struct FNexusWidgetConnection final
 {
@@ -41,6 +33,8 @@ static TArray<UWidgetBlueprint*> NexusWidgetBlueprintChain(UWidgetBlueprint* Blu
 	for (auto* Current = Blueprint; Current && Chain.Num() < 64 && !Chain.Contains(Current); Current = Current->ParentClass ? Cast<UWidgetBlueprint>(Current->ParentClass->ClassGeneratedBy) : nullptr) Chain.Insert(Current, 0);
 	return Chain;
 }
+FNexusWidgetDiagnostics::FMVVMBindings FNexusWidgetDiagnostics::GatherMVVMBindings;
+
 static void NexusGatherWidgetConnections(const TArray<UWidgetBlueprint*>& Chain, TArray<FNexusWidgetConnection>& Connections)
 {
 	for (auto* Blueprint : Chain)
@@ -60,37 +54,7 @@ static void NexusGatherWidgetConnections(const TArray<UWidgetBlueprint*>& Chain,
 			Evidence->SetStringField(TEXT("DelegateProperty"), DelegateProperty);
 			Append(TEXT("LegacyBinding"), Binding.ObjectName, DelegateProperty.EndsWith(TEXT("Delegate")) ? DelegateProperty.LeftChop(8) : DelegateProperty, Binding.FunctionName.ToString(), Evidence);
 		}
-#if WITH_MVVM
-		if (auto* Extension = UWidgetBlueprintExtension::GetExtension<UMVVMWidgetBlueprintExtension_View>(Blueprint))
-		{
-			if (const auto* View = Extension->GetBlueprintView())
-			for (int32 Index = 0; Index < View->GetNumBindings(); ++Index)
-			{
-				const auto* Binding = View->GetBindingAt(Index);
-				if (!Binding) continue;
-				auto AddDirection = [&](bool bReverse)
-				{
-					const auto& Target = bReverse ? Binding->SourcePath : Binding->DestinationPath;
-					const auto& Origin = bReverse ? Binding->DestinationPath : Binding->SourcePath;
-					auto Evidence = MakeShared<FJsonObject>();
-					Evidence->SetStringField(TEXT("BindingId"), Binding->BindingId.ToString());
-					Evidence->SetBoolField(TEXT("bEnabled"), Binding->bEnabled); Evidence->SetBoolField(TEXT("bCompile"), Binding->bCompile);
-					Evidence->SetBoolField(TEXT("bReverse"), bReverse);
-					Evidence->SetStringField(TEXT("SourceWidget"), Origin.GetWidgetName().ToString());
-					Evidence->SetStringField(TEXT("SourceViewModelId"), Origin.GetViewModelId().ToString());
-					Evidence->SetStringField(TEXT("TargetViewModelId"), Target.GetViewModelId().ToString());
-					Evidence->SetStringField(TEXT("BindingMode"), UEnum::GetValueAsString(Binding->BindingType));
-					const FString Source = Blueprint->GeneratedClass ? Origin.GetPropertyPath(Blueprint->GeneratedClass) : FString();
-					const FString Destination = Blueprint->GeneratedClass ? Target.GetPropertyPath(Blueprint->GeneratedClass) : FString();
-					const FString TargetWidget = !Target.GetWidgetName().IsNone() ? Target.GetWidgetName().ToString() : (Target.GetViewModelId().IsValid() ? TEXT("ViewModel:") + Target.GetViewModelId().ToString() : TEXT("Self"));
-					Append(TEXT("MVVMBinding"), TargetWidget, Destination, Source, Evidence);
-					if (!Binding->bCompile || !Binding->bEnabled) Evidence->SetStringField(TEXT("Status"), TEXT("KnownNotAppliedByDefault"));
-				};
-				if (Binding->BindingType != EMVVMBindingMode::OneWayToSource && Binding->BindingType != EMVVMBindingMode::OneTimeToSource) AddDirection(false);
-				if (Binding->BindingType == EMVVMBindingMode::TwoWay || Binding->BindingType == EMVVMBindingMode::OneWayToSource || Binding->BindingType == EMVVMBindingMode::OneTimeToSource) AddDirection(true);
-			}
-		}
-#endif
+		if (FNexusWidgetDiagnostics::GatherMVVMBindings) FNexusWidgetDiagnostics::GatherMVVMBindings(Blueprint, Append);
 		TArray<UEdGraph*> Graphs;
 		Blueprint->GetAllGraphs(Graphs);
 		for (auto* Graph : Graphs)

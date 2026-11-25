@@ -12,6 +12,8 @@
 
 面向插件维护者与 Capability 作者。用户安装与四端接入见 [docs/usage-guide.md](docs/usage-guide.md)；架构见 [docs/architecture.md](docs/architecture.md)；代理会话层约定见 [docs/proxy-session.md](docs/proxy-session.md)。
 
+可选引擎扩展位于 `OptionalPlugins/`。开发宿主通过 `AdditionalPluginDirectories` 发现扩展。发布归档将扩展安装为 `NexusLink/` 的同级插件。验证时用只启用主插件的宿主检查启动和 DLL 导入表，再启用扩展验证工具注册和调用。
+
 ## 文档语言
 
 所有维护中的项目文档必须提供内容等价的中文和英文，必须采用中文、英文独立配对文件，并在顶部提供双向语言切换链接；范围包含 README、指南、规范、贡献与测试说明及 CHANGELOG 的全部条目。新增或修改内容时同步两种语言，仅翻译标题或摘要不算完成。命令、标识符、版本标题和链接目标保持有效；生成文档从源数据同时重生两种语言。

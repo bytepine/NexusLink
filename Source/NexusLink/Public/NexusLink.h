@@ -6,6 +6,8 @@
 #include "NexusLinkBuildConfig.h"
 #include "Modules/ModuleManager.h"
 
+DECLARE_MULTICAST_DELEGATE(FNexusMcpServerStopped);
+
 class FNexusMcpServer;
 class FNexusLogCapture;
 
@@ -17,6 +19,8 @@ class FNexusLogCapture;
 class FNexusLinkModule : public IModuleInterface
 {
 public:
+	static NEXUSLINK_API FNexusMcpServerStopped OnServerStopped;
+
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 

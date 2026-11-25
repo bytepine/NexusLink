@@ -18,13 +18,6 @@
 #if NX_UE_HAS_BEHAVIOR_TREE_EDITOR_VIEW
 #include "BehaviorTreeEditor.h"
 #endif
-#if WITH_PCG
-#include "PCGGraph.h"
-#if NX_UE_HAS_PCG_EDITOR_VIEW
-#include "PCGEditor.h"
-#include "Framework/Docking/TabManager.h"
-#endif
-#endif
 #include "Engine/World.h"
 #include "Materials/Material.h"
 #include "IMaterialEditor.h"
@@ -34,6 +27,9 @@
 #include "Misc/App.h"
 #include "Dom/JsonValue.h"
 #include "Widgets/Docking/SDockTab.h"
+
+FNexusEditorGraphTools::FFindPCGView FNexusEditorGraphTools::FindPCGView;
+FNexusEditorGraphTools::FOpenPCGView FNexusEditorGraphTools::OpenPCGView;
 
 void FNexusEditorGraphTools::Define(FNexusCapabilityDefinition& Out, bool bWrite)
 {
@@ -126,46 +122,14 @@ static bool NexusResolveGraphTarget(const FString& AssetPath, FNexusGraphTarget&
 	return true;
 }
 
-#if WITH_PCG && NX_UE_HAS_PCG_EDITOR_DOCUMENT_TABS
-static UPCGGraph* NexusGetPCGSourceGraph(const FNexusGraphTarget& Target, UEdGraph* Graph)
-{
-	UPCGGraph* PCGGraph = Graph ? Graph->GetTypedOuter<UPCGGraph>() : nullptr;
-	if (!PCGGraph || (PCGGraph != Target.Asset && !PCGGraph->IsIn(Target.Asset))) return nullptr;
-	// 公开接口返回不透明的 UPCGEditorGraph 指针，仅比对身份，不依赖私有引擎头。
-	if (static_cast<const void*>(PCGGraph->GetEditorGraph()) != static_cast<const void*>(Graph)) return nullptr;
-	return PCGGraph;
-}
-#endif
 
 static TSharedPtr<SGraphEditor> NexusFindGraphView(const FNexusGraphTarget& Target, UEdGraph* Graph)
 {
-#if WITH_PCG
-	if (Target.Asset->IsA(UPCGGraph::StaticClass()))
+	if (FNexusEditorGraphTools::FindPCGView)
 	{
-#if NX_UE_HAS_PCG_EDITOR_VIEW
-		if (Target.AssetEditor && Target.AssetEditor->GetEditorName() == FName(TEXT("PCGEditor")))
-		{
-#if NX_UE_HAS_PCG_EDITOR_DOCUMENT_TABS
-			if (!NexusGetPCGSourceGraph(Target, Graph)) return nullptr;
-			// 多文档共享 GraphEditor 标签类型，直接按原生图对象查找，不能取通配标签首项。
-			const auto View = SGraphEditor::FindGraphEditorForGraph(Graph);
-			if (View.IsValid() && View->GetCurrentGraph() == Graph) return View;
-#else
-			auto* Editor = static_cast<FPCGEditor*>(Target.AssetEditor);
-			const auto Manager = Editor->GetTabManager();
-			const FName TabId = Editor->GetPanelID(EPCGEditorPanel::GraphEditor);
-			const auto Tab = Manager.IsValid() ? Manager->FindExistingLiveTab(TabId) : nullptr;
-			if (Tab.IsValid() && Tab->GetContent()->GetType() == FName(TEXT("SGraphEditor")))
-			{
-				const auto View = StaticCastSharedRef<SGraphEditor>(Tab->GetContent());
-				if (View->GetCurrentGraph() == Graph) return View;
-			}
-#endif
-		}
-#endif
-		return nullptr;
+		const auto PCGView = FNexusEditorGraphTools::FindPCGView(Target.Asset, Target.AssetEditor, Graph);
+		if (PCGView.IsSet()) return PCGView.GetValue();
 	}
-#endif
 	if (Target.Asset->IsA(UBehaviorTree::StaticClass()))
 	{
 #if NX_UE_HAS_BEHAVIOR_TREE_EDITOR_VIEW
@@ -295,21 +259,10 @@ FCapabilityResult FNexusEditorGraphTools::Execute(const TSharedPtr<FJsonObject>&
 			const auto BlueprintEditor = FKismetEditorUtilities::GetIBlueprintEditorForObject(Graph, false);
 			if (BlueprintEditor.IsValid()) View = BlueprintEditor->OpenGraphAndBringToFront(Graph);
 		}
-#if WITH_PCG && NX_UE_HAS_PCG_EDITOR_DOCUMENT_TABS
-		else if (Target.Asset->IsA(UPCGGraph::StaticClass()) && Target.AssetEditor
-			&& Target.AssetEditor->GetEditorName() == FName(TEXT("PCGEditor")))
+		else if (OpenPCGView && OpenPCGView(Target.Asset, Target.AssetEditor, Graph, View, Error))
 		{
-			UPCGGraph* PCGGraph = NexusGetPCGSourceGraph(Target, Graph);
-			if (!PCGGraph) return FCapabilityResult::MakeArgInvalid(TEXT("GraphName must identify the current editor graph of an owned PCG graph"));
-			const auto Tab = static_cast<FPCGEditor*>(Target.AssetEditor)->OpenDocument(PCGGraph, FDocumentTracker::OpenNewDocument);
-			View.Reset();
-			if (Tab.IsValid() && Tab->GetContent()->GetType() == FName(TEXT("SGraphEditor")))
-			{
-				const auto OpenedView = StaticCastSharedRef<SGraphEditor>(Tab->GetContent());
-				if (OpenedView->GetCurrentGraph() == Graph) View = OpenedView;
-			}
+			if (!Error.IsEmpty()) return FCapabilityResult::MakeArgInvalid(Error);
 		}
-#endif
 #if NX_UE_HAS_MATERIAL_GRAPH_HYPERLINK
 		else if (Target.bPreview) { static_cast<IMaterialEditor*>(Target.AssetEditor)->JumpToHyperlink(Graph); View = SGraphEditor::FindGraphEditorForGraph(Graph); }
 #endif

@@ -28,10 +28,6 @@
 #include "KismetCompilerModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor.h"
-#if WITH_GAS
-#include "GameplayAbilityBlueprint.h"
-#include "Abilities/GameplayAbility.h"
-#endif
 
 static UClass* ResolveReparentClass(const FString& Name)
 {
@@ -70,6 +66,7 @@ bool FNexusBlueprintEditUtils::PreviewReparent(UBlueprint* Blueprint, const FStr
 	{ Error = TEXT("ParentClass must resolve to a valid Blueprint parent class"); return false; }
 	if (Blueprint->GeneratedClass && Parent->IsChildOf(Blueprint->GeneratedClass))
 	{ Error = TEXT("Reparent would create an inheritance cycle"); return false; }
+	const UClass* AbilityBlueprint = FindObject<UClass>(nullptr, TEXT("/Script/GameplayAbilities.GameplayAbilityBlueprint"));
 	if (Blueprint->IsA(UWidgetBlueprint::StaticClass()))
 	{
 		if (!Parent->IsChildOf(UUserWidget::StaticClass())) { Error = TEXT("WidgetBlueprint parent must derive from UserWidget"); return false; }
@@ -85,12 +82,11 @@ bool FNexusBlueprintEditUtils::PreviewReparent(UBlueprint* Blueprint, const FStr
 			if (bDifferentSkeleton) { Error = TEXT("Animation parent must use the same skeleton"); return false; }
 		}
 	}
-#if WITH_GAS
-	else if (Blueprint->IsA(UGameplayAbilityBlueprint::StaticClass()))
+	else if (AbilityBlueprint && Blueprint->IsA(AbilityBlueprint))
 	{
-		if (!Parent->IsChildOf(UGameplayAbility::StaticClass())) { Error = TEXT("GameplayAbilityBlueprint parent must derive from GameplayAbility"); return false; }
+		const UClass* Ability = FindObject<UClass>(nullptr, TEXT("/Script/GameplayAbilities.GameplayAbility"));
+		if (!Ability || !Parent->IsChildOf(Ability)) { Error = TEXT("GameplayAbilityBlueprint parent must derive from GameplayAbility"); return false; }
 	}
-#endif
 	else
 	{
 		UClass* BlueprintType = nullptr;

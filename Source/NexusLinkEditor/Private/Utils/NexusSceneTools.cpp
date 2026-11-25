@@ -31,7 +31,8 @@
 #if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
 #include "StaticMeshEditorSubsystem.h"
 #else
-#include "EditorLevelLibrary.h"
+#include "UObject/StructOnScope.h"
+#include "UObject/UnrealType.h"
 #endif
 #if NX_UE_HAS_LEVEL_INSTANCE_EDITOR
 #include "LevelInstance/LevelInstanceActor.h"
@@ -306,6 +307,54 @@ static FCapabilityResult NexusBuildNavigation(UWorld* World, bool bSave)
     return FNexusEditorToolSchema::Result(Operation);
 }
 
+#if !NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
+static bool MergeLegacyStaticMeshActors(const TArray<AStaticMeshActor*>& Actors, const FNexusArgs& Args,
+	AStaticMeshActor*& OutMergedActor, FString& OutError)
+{
+	// UE4 的合并接口由可选且已加载的 EditorScriptingUtilities 提供。
+	UClass* LibraryClass = FindObject<UClass>(nullptr, TEXT("/Script/EditorScriptingUtilities.EditorLevelLibrary"));
+	UObject* Library = LibraryClass ? LibraryClass->GetDefaultObject() : nullptr;
+	if (!Library)
+	{
+		OutError = TEXT("Editor Scripting Utilities is unavailable; enable it to merge mesh actors on UE4");
+		return false;
+	}
+
+	UFunction* Function = Library->FindFunction(TEXT("MergeStaticMeshActors"));
+	const FArrayProperty* ActorArray = Function ? FindFProperty<FArrayProperty>(Function, TEXT("ActorsToMerge")) : nullptr;
+	const FObjectProperty* ActorElement = ActorArray ? CastField<FObjectProperty>(ActorArray->Inner) : nullptr;
+	const FStructProperty* Options = Function ? FindFProperty<FStructProperty>(Function, TEXT("MergeOptions")) : nullptr;
+	const FObjectProperty* MergedActor = Function ? FindFProperty<FObjectProperty>(Function, TEXT("OutMergedActor")) : nullptr;
+	const FBoolProperty* Success = Function ? CastField<FBoolProperty>(Function->GetReturnProperty()) : nullptr;
+	const FStrProperty* PackageName = Options ? FindFProperty<FStrProperty>(Options->Struct, TEXT("BasePackageName")) : nullptr;
+	const FStrProperty* ActorLabel = Options ? FindFProperty<FStrProperty>(Options->Struct, TEXT("NewActorLabel")) : nullptr;
+	const FBoolProperty* DestroySource = Options ? FindFProperty<FBoolProperty>(Options->Struct, TEXT("bDestroySourceActors")) : nullptr;
+	if (!Function || !Function->HasAllFunctionFlags(FUNC_Static | FUNC_Native) || !ActorElement || !MergedActor
+		|| ActorElement->PropertyClass != AStaticMeshActor::StaticClass() || MergedActor->PropertyClass != AStaticMeshActor::StaticClass()
+		|| !MergedActor->HasAnyPropertyFlags(CPF_OutParm) || !Success || !PackageName || !ActorLabel || !DestroySource)
+	{
+		OutError = TEXT("UE4 static mesh merge function is unavailable or has an incompatible signature");
+		return false;
+	}
+
+	FStructOnScope Storage(Function);
+	void* Parameters = Storage.GetStructMemory();
+	FScriptArrayHelper_InContainer Inputs(ActorArray, Parameters);
+	Inputs.AddValues(Actors.Num());
+	for (int32 Index = 0; Index < Actors.Num(); ++Index)
+	{
+		ActorElement->SetObjectPropertyValue(Inputs.GetRawPtr(Index), Actors[Index]);
+	}
+	void* OptionsValue = Options->ContainerPtrToValuePtr<void>(Parameters);
+	PackageName->SetPropertyValue_InContainer(OptionsValue, Args.Str(TEXT("AssetPath")));
+	ActorLabel->SetPropertyValue_InContainer(OptionsValue, Args.Str(TEXT("ActorName")));
+	DestroySource->SetPropertyValue_InContainer(OptionsValue, Args.Bool(TEXT("bDestroySourceActors")));
+	Library->ProcessEvent(Function, Parameters);
+	OutMergedActor = Cast<AStaticMeshActor>(MergedActor->GetObjectPropertyValue_InContainer(Parameters));
+	return Success->GetPropertyValue_InContainer(Parameters);
+}
+#endif
+
 FCapabilityResult FNexusSceneTools::Execute(bool bWrite, const TSharedPtr<FJsonObject>& Args)
 {
     const FNexusArgs A(Args); const FString Action = A.Str(TEXT("Action")), FolderPath = A.Str(TEXT("FolderPath"));
@@ -401,18 +450,15 @@ FCapabilityResult FNexusSceneTools::Execute(bool bWrite, const TSharedPtr<FJsonO
         AStaticMeshActor* Merged=nullptr;
 #if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
         FMergeStaticMeshActorsOptions Options;
-#else
-        FEditorScriptingMergeStaticMeshActorsOptions Options;
-#endif
         Options.BasePackageName=A.Str(TEXT("AssetPath")); Options.NewActorLabel=A.Str(TEXT("ActorName")); Options.bDestroySourceActors=A.Bool(TEXT("bDestroySourceActors"));
-#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
         UStaticMeshEditorSubsystem* MeshEditor=GEditor?GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>():nullptr;
         if (!MeshEditor) return FCapabilityResult::MakeFatal(TEXT("Static mesh editor subsystem is unavailable"));
         const bool bMerged=MeshEditor->MergeStaticMeshActors(MeshActors,Options,Merged);
 #else
-        const bool bMerged=UEditorLevelLibrary::MergeStaticMeshActors(MeshActors,Options,Merged);
+        const bool bMerged=MergeLegacyStaticMeshActors(MeshActors,A,Merged,Error);
 #endif
-        if (!bMerged || !Merged) Error=TEXT("Static mesh merge failed"); else Data->SetStringField(TEXT("ActorPath"),Merged->GetPathName());
+        if (bMerged && Merged) Data->SetStringField(TEXT("ActorPath"),Merged->GetPathName());
+        else if (Error.IsEmpty()) Error=TEXT("Static mesh merge failed");
     } else {
 #if NX_UE_HAS_LEVEL_INSTANCE_EDITOR
         ULevelInstanceSubsystem* Subsystem=World->GetSubsystem<ULevelInstanceSubsystem>();

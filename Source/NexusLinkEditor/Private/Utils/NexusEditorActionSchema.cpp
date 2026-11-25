@@ -1,6 +1,6 @@
-﻿// Copyright byteyang. All Rights Reserved.
+// Copyright byteyang. All Rights Reserved.
 #include "Utils/NexusEditorActionSchema.h"
-#include "Utils/NexusNiagaraEditorTools.h"
+#include "Utils/NexusEditorDomainTools.h"
 #include "Utils/NexusVersionCompat.h"
 #include "Utils/NexusAnimationToolActions.h"
 #include "Utils/NexusAnimationAdvancedTools.h"
@@ -13,7 +13,6 @@
 
 static TSharedPtr<FJsonObject> NexusNiagaraLegacyParameters(const FString& Tool)
 {
-#if WITH_NIAGARA
     auto Ref = FNexusSchema::Object().Required(TEXT("refPath"), FNexusSchema::Str(TEXT("Discovered object path"))).Build().ToSharedRef();
     auto Schema = FNexusSchema::Object();
 		if (Tool == TEXT("AddUserVariables") || Tool == TEXT("RemoveUserVariables"))
@@ -30,7 +29,6 @@ static TSharedPtr<FJsonObject> NexusNiagaraLegacyParameters(const FString& Tool)
 		if (Tool == TEXT("GetRendererData")) return Schema.Required(TEXT("renderer"), Emitter).Build();
 		if (Tool == TEXT("RemoveRenderer")) return Schema.Required(TEXT("rendererToRemove"), Emitter).Build();
 		if (Tool == TEXT("SetRendererData")) return Schema.Required(TEXT("renderer"), Emitter).Required(TEXT("rendererData"), FNexusSchema::Object().Required(TEXT("propertyValues"), FNexusSchema::Str(TEXT("JSON object of editable renderer properties"))).Build().ToSharedRef()).Build();
-#endif
 	return nullptr;
 }
 
@@ -99,7 +97,7 @@ TArray<TSharedPtr<FJsonValue>> FNexusEditorActionSchema::List(const FString& Cap
 				static const TMap<FString, FString> Mapping = {{TEXT("Instances"),TEXT("ListGraphInstances")},{TEXT("GraphStructure"),TEXT("GetGraphStructure")},{TEXT("GraphSchema"),TEXT("GetGraphSchema")},{TEXT("NativeNodes"),TEXT("ListNativeNodes")},{TEXT("NativeNodeSchema"),TEXT("GetNativeNodeSchema")},{TEXT("NodeData"),TEXT("GetNodeDataView")},{TEXT("NodeInfo"),TEXT("GetNodeInfo")},{TEXT("InstanceParameters"),TEXT("GetGraphInstanceParams")},{TEXT("AvailableSubgraphs"),TEXT("ListAvailableSubgraphs")},{TEXT("Spawn"),TEXT("SpawnGraphInstance")},{TEXT("Execute"),TEXT("ExecuteGraphInstance")},{TEXT("SetGraphParameters"),TEXT("SetGraphParams")},{TEXT("RemoveGraphParameters"),TEXT("RemoveGraphParams")},{TEXT("SetInstanceParameters"),TEXT("SetGraphInstanceParams")},{TEXT("ResetInstanceParameters"),TEXT("ResetGraphInstanceParams")},{TEXT("AddSubgraph"),TEXT("AddSubgraphNode")}};
 				if (const auto* Mapped = Mapping.Find(Pair.Key)) Tool = *Mapped;
 			}
-			auto Parameters = bAnimation ? FNexusAnimationAdvancedTools::InputSchema(Domain, Tool) : Domain == TEXT("NexusNiagara") ? FNexusNiagaraEditorTools::InputSchema(Tool) : nullptr;
+			auto Parameters = bAnimation ? FNexusAnimationAdvancedTools::InputSchema(Domain, Tool) : Domain == TEXT("NexusNiagara") && FNexusEditorDomainTools::NiagaraSchema ? FNexusEditorDomainTools::NiagaraSchema(Tool) : nullptr;
             if (!Parameters && Domain == TEXT("NexusNiagara")) Parameters = NexusNiagaraLegacyParameters(Tool);
 			bool bSupported = Parameters.IsValid() && (!bAnimation || FNexusAnimationAdvancedTools::Supports(Domain, Tool));
             if (Domain == TEXT("NexusPCG")) bSupported = true;
@@ -113,12 +111,15 @@ TArray<TSharedPtr<FJsonValue>> FNexusEditorActionSchema::List(const FString& Cap
             else if (Domain == TEXT("NexusNiagara")) Prerequisites.Add(MakeShared<FJsonValueString>(TEXT("PluginEnabled:Niagara")));
             else if (Domain == TEXT("NexusAnimation.Mixer")) Prerequisites.Add(MakeShared<FJsonValueString>(TEXT("PluginEnabled:MovieSceneAnimMixer")));
             else if (Domain.StartsWith(TEXT("NexusAnimation.ControlRig"))) Prerequisites.Add(MakeShared<FJsonValueString>(TEXT("PluginEnabled:ControlRig")));
+            const bool bRequiresRigControlValidation = FNexusAnimationAdvancedTools::RequiresRigControlValidation(Domain, Parameters);
+            if (bRequiresRigControlValidation) Prerequisites.Add(MakeShared<FJsonValueString>(TEXT("PluginEnabled:NexusLinkControlRig")));
             Row->SetArrayField(TEXT("Prerequisites"), Prerequisites);
             const FString MinimumVersion = bAnimation ? FNexusAnimationAdvancedTools::MinimumVersion(Domain,Tool)
                 : Domain == TEXT("NexusPCG") ? TEXT("5.4") : NexusNiagaraLegacyParameters(Tool).IsValid() ? TEXT("4.26") : TEXT("5.8");
 			Row->SetStringField(TEXT("MinimumVersion"), MinimumVersion);
 			Row->SetStringField(TEXT("Reason"), bSupported ? TEXT("Available on this host; discovered object references and target-specific prerequisites still apply") : TEXT("The required engine domain API is unavailable on this host"));
             if (!bSupported && Domain == TEXT("NexusAnimation.Mixer")) Row->SetStringField(TEXT("Reason"), TEXT("Enable MovieSceneAnimMixer and use an engine exposing the requested Mixer scripting API (UE 5.8+). No Toolset plugin is required."));
+            if (bRequiresRigControlValidation && !FNexusAnimationAdvancedTools::ValidateRigControl) Row->SetStringField(TEXT("Reason"), TEXT("Enable NexusLinkControlRig to validate the named Control Rig control"));
 			// 扁平入口返回客户端参数；透传入口返回 Parameters 内部契约。
 			if (!bAnimation && !(bWrite && Domain == TEXT("NexusNiagara"))) Row->SetObjectField(TEXT("InputSchema"), NexusFlatActionInput(*Record, Pair.Key));
 			else if (Parameters) Row->SetObjectField(TEXT("InputSchema"), Parameters);

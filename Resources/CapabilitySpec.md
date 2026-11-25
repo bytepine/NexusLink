@@ -2,7 +2,7 @@
 
 中文 · [English](CapabilitySpec.en.md)
 
-引擎本体及引擎自带插件（含 UE 官方 Toolset）的能力归属 `NexusLink` / `NexusLinkEditor`；只有第三方插件能力归属 `NexusLinkExt` / `NexusLinkExtEditor`。可选启用不等于第三方。
+引擎本体的能力归属 `NexusLink` / `NexusLinkEditor`。链接可选引擎插件的能力归属 `OptionalPlugins/` 下对应的独立扩展。第三方插件能力归属 `NexusLinkExt` / `NexusLinkExtEditor`。
 
 > 新增或修改 Capability 时，必须全部遵循本规范。注册期有自动校验兜底，但提交前请先过自检清单。
 
@@ -77,6 +77,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | 命中条件 | 落地模块 | 落地目录 |
 |------|------|------|
 | UnLua（Lua VM / 蓝图 `UnLuaInterface` 绑定） | `NexusLinkExt` / `NexusLinkExtEditor` | `Plugins/NexusLinkExt/Source/NexusLinkExt/Private/Capabilities/Lua/Runtime/` 与 `.../NexusLinkExtEditor/Private/Capabilities/Lua/Asset/` |
+| 依赖可选引擎插件的 API | 对应扩展的 Runtime 或 Editor 模块 | `OptionalPlugins/<扩展>/Source/<模块>/Private/Capabilities/` |
 | 操作对象是 **PIE/Game world 里的活对象**（Actor、Widget、ASC、Niagara 组件），只用引擎运行时 API 与反射，不落盘 | `NexusLink`（Runtime） | `Source/NexusLink/Private/Capabilities/Runtime/<域>/` |
 | 操作对象是**磁盘资产**，或需要 `UnrealEd` / `Kismet*` / `AssetTools` / `GEditor` / 编辑器事务 / 资产编译落盘 | `NexusLinkEditor`（Editor） | `Source/NexusLinkEditor/Private/Capabilities/<域>/` |
 | 两者都要 | 拆成两个 cap；确实无法拆时放 Editor 模块，并在描述里写明不支持独立 DS | 同上按拆分结果各自落位 |
@@ -98,17 +99,18 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 - 插件门控 cap：`#if WITH_*` 包 class + `REGISTER_MCP_CAPABILITY`
 - **插件加载范围**：`NexusLink` 主模块 `Type: Runtime`（可进 cooked Game/DS），`NexusLinkEditor` 子模块 `Type: Editor`（仅编辑器二进制加载）；`REGISTER_MCP_CAPABILITY` / `REGISTER_MCP_TOOL` 由 `NEXUSLINK_WITH_SERVER`（`!UE_BUILD_SHIPPING`）门控——MCP 跑在 Editor / PIE / 非 Shipping 的独立 Game/DS。平台门控须同时写 `PlatformAllowList`（UE5）与 `WhitelistPlatforms`（UE4.2x）
 
-#### 2.1.2 扩展插件（第三方插件 Capability）
+<a id="212-扩展插件第三方插件-capability"></a>
+#### 2.1.2 扩展插件
 
-依赖第三方插件的 Capability 放进扩展插件，不放进 `NexusLink` / `NexusLinkEditor`。当前扩展插件是 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)。主插件不扫描扩展插件目录，只认下面两种注册。
+每个可选引擎插件扩展使用独立的 `.uplugin`，默认关闭，并声明主 NexusLink 和所需引擎插件为必需依赖。打包时扩展与 NexusLink 并列安装。第三方插件能力继续由 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) 提供。
 
 | 事项 | 规则 |
 |------|------|
-| 模块 | 只用已有的 `NexusLinkExt`（Runtime）与 `NexusLinkExtEditor`（Editor）。新域放 `Capabilities/<域>/`，不为此再加模块 |
+| 模块 | 可选引擎扩展按需划分 Runtime / Editor。第三方域使用 `NexusLinkExt`（Runtime）与 `NexusLinkExtEditor`（Editor） |
 | 基类 | 仍按 §2.1.1。`.cpp` 末尾 `REGISTER_MCP_CAPABILITY`，与主插件同一张注册表 |
-| 门控宏 | `WITH_*` 只由**首次**链接该可选插件的模块写入 `PublicDefinitions`。另一模块再链接时不要重定义（C4005） |
+| 门控宏 | 可选引擎扩展用模块私有 `WITH_*` 处理引擎版本和 API 差异。扩展加载由描述符决定 |
 | 危险 | 仅任意代码执行入口（含任意控制台命令/脚本，判定见 §2.3）在 `Out.Tags` 加上 `FNexusMcpTags::Dangerous`，并带 `Write`。主插件按标签识别：默认禁用、确认框、`-NexusEnableDangerousCaps`。不要把名字写进 NexusLink |
-| 握手说明 | 扩展插件 `StartupModule` 读取自己的 `Resources/InitializeInstructions.SearchMode.md` 与 `InitializeInstructions.MultiTool.md`，调用 `FNexusInstructionRegistry::Get().Register(插件名, …)`。`ShutdownModule` 里 `Unregister`。片段只写本插件的 cap。主插件把已注册片段按名称接在自己的说明后面 |
+| 握手说明 | 提供握手片段的扩展在 `StartupModule` 读取自己的 `Resources/InitializeInstructions.SearchMode.md` 与 `InitializeInstructions.MultiTool.md`，调用 `FNexusInstructionRegistry::Get().Register(插件名, …)`。`ShutdownModule` 里 `Unregister`。片段只写本插件的 cap。主插件把已注册片段按名称接在自己的说明后面 |
 | 测试 | L1 放示例工程 `Plugins/NexusLinkExtTestSuite`（前缀 `NexusLinkExt.`），不进扩展插件仓 |
 
 `BuildDefinition` 中按需设置以下字段：
@@ -410,7 +412,7 @@ public:
 3. 逻辑下沉 Utils（≥2 调用点或单点 ≥3 行 `#if`）；资产只读字段优先 `FNexusAssetUtils`。
 4. `build_test`：兼容下限 `UE_4.26` 全量必过；日常冒烟 / 示例宿主默认 `UE_5.7`；触及引擎 API 时加 `UE_5.0`、`UE_5.6`；`audit_capability_naming.py` PASS。
 
-**可选插件**：`WITH_GAS` / `WITH_NIAGARA` / `WITH_STATETREE` / `WITH_MVVM` 等整 `.cpp` 文件守卫 + `Build.cs` 探测。`WITH_UNLUA` 在 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)。本插件探测范围：工程 `Plugins`、`{Project}/../Engine/Plugins`、以及 UBT `EngineDirectory` 下的 `Plugins`；真实工程 `.uproject` 显式 `Enabled: false` 则关。宿主 `build_test` 编整个 `Nexus.uproject`：`NexusEditor` 与宿主一样按**该引擎**磁盘探测编进可选 cap；`Nexus` Game 目标 `WITH_EDITOR=0`，`Type: Editor` 的 `NexusLinkEditor` 不进 cooked Game，`Type: Runtime` 的 `NexusLink` 会进。文件内仍禁止裸 `NX_UE_AT_LEAST`。
+**可选插件**：依赖可选引擎插件 SDK 的代码与注册入口放在扩展。扩展的 `.uplugin` 声明依赖。运行时扩展为 `Type: Runtime`，编辑器扩展为 `Type: Editor`。文件内仍禁止裸 `NX_UE_AT_LEAST`。
 
 **已登记宏（节选，完整列表以 `NexusVersionCompat.h` 为准）**
 

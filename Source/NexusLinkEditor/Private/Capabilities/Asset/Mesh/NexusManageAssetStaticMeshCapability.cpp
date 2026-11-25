@@ -20,7 +20,8 @@
 #if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
 #include "StaticMeshEditorSubsystem.h"
 #else
-#include "EditorStaticMeshLibrary.h"
+#include "UObject/StructOnScope.h"
+#include "UObject/UnrealType.h"
 #endif
 
 static bool ParseStaticMeshVec3(const TSharedPtr<FJsonObject>& Op, const TCHAR* XKey, const TCHAR* YKey, const TCHAR* ZKey,
@@ -452,6 +453,90 @@ static void HandleSM_SetLodScreenSize(const TSharedPtr<FJsonObject>& Op, FNexusA
 #endif
 }
 
+#if !NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
+static bool SetLegacyMeshReductionOptions(UFunction* Function, void* Parameters,
+	const TArray<TSharedPtr<FJsonValue>>& Percents)
+{
+	const FStructProperty* Options = FindFProperty<FStructProperty>(Function, TEXT("ReductionOptions"));
+	if (!Options) return false;
+
+	const FBoolProperty* AutoScreenSize = FindFProperty<FBoolProperty>(Options->Struct, TEXT("bAutoComputeLODScreenSize"));
+	const FArrayProperty* Settings = FindFProperty<FArrayProperty>(Options->Struct, TEXT("ReductionSettings"));
+	const FStructProperty* Setting = Settings ? CastField<FStructProperty>(Settings->Inner) : nullptr;
+	const FFloatProperty* Percent = Setting ? FindFProperty<FFloatProperty>(Setting->Struct, TEXT("PercentTriangles")) : nullptr;
+	if (!AutoScreenSize || !Percent) return false;
+
+	void* OptionsValue = Options->ContainerPtrToValuePtr<void>(Parameters);
+	AutoScreenSize->SetPropertyValue_InContainer(OptionsValue, true);
+	FScriptArrayHelper_InContainer ReductionSettings(Settings, OptionsValue);
+	ReductionSettings.AddValues(Percents.Num() + 1);
+	Percent->SetPropertyValue_InContainer(ReductionSettings.GetRawPtr(0), 1.0f);
+	for (int32 Index = 0; Index < Percents.Num(); ++Index)
+	{
+		Percent->SetPropertyValue_InContainer(ReductionSettings.GetRawPtr(Index + 1), static_cast<float>(Percents[Index]->AsNumber()));
+	}
+	return true;
+}
+
+static bool InvokeLegacyStaticMeshEditor(UStaticMesh* Mesh, const FString& Action, const FNexusArgs& Args,
+	const TArray<TSharedPtr<FJsonValue>>* Percents, FString& OutError)
+{
+	// 仅调用已加载的 UE4 可选插件，避免 NexusLinkEditor 产生对其 DLL 的导入。
+	UClass* LibraryClass = FindObject<UClass>(nullptr, TEXT("/Script/EditorScriptingUtilities.EditorStaticMeshLibrary"));
+	UObject* Library = LibraryClass ? LibraryClass->GetDefaultObject() : nullptr;
+	if (!Library)
+	{
+		OutError = TEXT("Editor Scripting Utilities is unavailable; enable it to use this mesh action on UE4");
+		return false;
+	}
+
+	const bool bGenerateLods = Action == TEXT("GenerateLODs");
+	const bool bGenerateConvex = Action == TEXT("GenerateConvexCollision");
+	const TCHAR* Name = TEXT("RemoveLods");
+	if (bGenerateLods) Name = TEXT("SetLods");
+	if (bGenerateConvex) Name = TEXT("SetConvexDecompositionCollisions");
+	const FName FunctionName(Name);
+	UFunction* Function = Library->FindFunction(FunctionName);
+	const FObjectProperty* MeshParameter = Function ? FindFProperty<FObjectProperty>(Function, TEXT("StaticMesh")) : nullptr;
+	const FProperty* ReturnProperty = Function ? Function->GetReturnProperty() : nullptr;
+	const FIntProperty* LodCount = bGenerateLods ? CastField<FIntProperty>(ReturnProperty) : nullptr;
+	const FBoolProperty* Success = bGenerateLods ? nullptr : CastField<FBoolProperty>(ReturnProperty);
+	if (!Function || !Function->HasAllFunctionFlags(FUNC_Static | FUNC_Native) || !MeshParameter
+		|| !Mesh->IsA(MeshParameter->PropertyClass) || (!LodCount && !Success))
+	{
+		OutError = TEXT("UE4 static mesh editor function is unavailable or has an incompatible signature");
+		return false;
+	}
+
+	FStructOnScope Storage(Function);
+	void* Parameters = Storage.GetStructMemory();
+	MeshParameter->SetObjectPropertyValue_InContainer(Parameters, Mesh);
+	if (bGenerateLods && (!Percents || !SetLegacyMeshReductionOptions(Function, Parameters, *Percents)))
+	{
+		OutError = TEXT("UE4 static mesh editor has incompatible LOD reduction settings");
+		return false;
+	}
+	if (bGenerateConvex)
+	{
+		const FIntProperty* HullCount = FindFProperty<FIntProperty>(Function, TEXT("HullCount"));
+		const FIntProperty* MaxHullVerts = FindFProperty<FIntProperty>(Function, TEXT("MaxHullVerts"));
+		const FIntProperty* HullPrecision = FindFProperty<FIntProperty>(Function, TEXT("HullPrecision"));
+		if (!HullCount || !MaxHullVerts || !HullPrecision)
+		{
+			OutError = TEXT("UE4 static mesh editor has incompatible convex collision parameters");
+			return false;
+		}
+		HullCount->SetPropertyValue_InContainer(Parameters, static_cast<int32>(Args.Num(TEXT("HullCount"), 4)));
+		MaxHullVerts->SetPropertyValue_InContainer(Parameters, static_cast<int32>(Args.Num(TEXT("MaxHullVertices"), 16)));
+		HullPrecision->SetPropertyValue_InContainer(Parameters, static_cast<int32>(Args.Num(TEXT("HullPrecision"), 100000)));
+	}
+
+	Mesh->Modify();
+	Library->ProcessEvent(Function, Parameters);
+	return LodCount ? LodCount->GetPropertyValue_InContainer(Parameters) > 0 : Success->GetPropertyValue_InContainer(Parameters);
+}
+#endif
+
 static void HandleSM_Generate(const TSharedPtr<FJsonObject>& Op, FNexusActionContext& Ctx)
 {
     UStaticMesh* Mesh = MeshFrom(Ctx); if (!Mesh) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Static mesh is missing")); return; }
@@ -479,48 +564,30 @@ static void HandleSM_Generate(const TSharedPtr<FJsonObject>& Op, FNexusActionCon
 #if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
         UStaticMeshEditorSubsystem* Editor = GEditor ? GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>() : nullptr;
         if (!Editor) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Static mesh editor subsystem is unavailable")); return; }
-#endif
         if (Ctx.Action == TEXT("GenerateLODs")) {
             if (!Percents) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("GenerateLODs requires 1-7 retention fractions")); return; }
-#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
             FStaticMeshReductionOptions Options;
-#else
-            FEditorScriptingMeshReductionOptions Options;
-#endif
             Options.bAutoComputeLODScreenSize = true;
             for (int32 Index = -1; Index < Percents->Num(); ++Index) {
-#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
                 FStaticMeshReductionSettings Setting;
-#else
-                FEditorScriptingMeshReductionSettings Setting;
-#endif
                 Setting.PercentTriangles = Index < 0 ? 1 : static_cast<float>((*Percents)[Index]->AsNumber()); Options.ReductionSettings.Add(Setting);
             }
             Mesh->Modify();
-#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
             bOk = Editor->SetLods(Mesh, Options) > 0;
-#else
-            bOk = UEditorStaticMeshLibrary::SetLods(Mesh, Options) > 0;
-#endif
         } else if (Ctx.Action == TEXT("RemoveLODs")) {
             Mesh->Modify();
-#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
             bOk = Editor->RemoveLods(Mesh);
-#else
-            bOk = UEditorStaticMeshLibrary::RemoveLods(Mesh);
-#endif
         } else if (Ctx.Action == TEXT("GenerateConvexCollision")) {
             Mesh->Modify();
-#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
             bOk = Editor->SetConvexDecompositionCollisions(Mesh, static_cast<int32>(A.Num(TEXT("HullCount"),4)), static_cast<int32>(A.Num(TEXT("MaxHullVertices"),16)), static_cast<int32>(A.Num(TEXT("HullPrecision"),100000)));
-#else
-            bOk = UEditorStaticMeshLibrary::SetConvexDecompositionCollisions(Mesh, static_cast<int32>(A.Num(TEXT("HullCount"),4)), static_cast<int32>(A.Num(TEXT("MaxHullVertices"),16)), static_cast<int32>(A.Num(TEXT("HullPrecision"),100000)));
-#endif
         } else {
-#if NX_UE_HAS_STATIC_MESH_EDITOR_SUBSYSTEM
             auto Settings = Editor->GetNaniteSettings(Mesh); Settings.bEnabled = A.Bool(TEXT("bEnabled")); Mesh->Modify(); Editor->SetNaniteSettings(Mesh, Settings); bOk = Editor->GetNaniteSettings(Mesh).bEnabled == Settings.bEnabled;
-#endif
         }
+#else
+        FString Error;
+        bOk = InvokeLegacyStaticMeshEditor(Mesh, Ctx.Action, A, Percents, Error);
+        if (!Error.IsEmpty()) { Ctx.Entry->SetStringField(TEXT("Error"), Error); return; }
+#endif
         if (!bOk) { Ctx.Entry->SetStringField(TEXT("Error"), TEXT("Mesh generation failed; inspect editor diagnostics")); return; }
         Ctx.Entry->SetStringField(TEXT("Backend"), TEXT("Independent"));
     }

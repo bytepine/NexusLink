@@ -137,23 +137,12 @@ UEdGraphPin* FNexusAnimGraphUtils::GetStateInputPin(UAnimStateNodeBase* StateNod
 #include "AnimGraphNode_RotationOffsetBlendSpace.h"
 #include "AnimGraphNode_AimOffsetLookAt.h"
 #include "AnimGraphNode_Base.h"
-#if WITH_CONTROL_RIG
-#include "AnimGraphNode_ControlRig.h"
-#endif
 
-#if WITH_CONTROL_RIG
-static const TCHAR* SupportedList =
-	TEXT("SequencePlayer/SequenceEvaluator/BlendSpacePlayer(=BlendSpace1D)/BlendSpaceEvaluator/RandomPlayer/"
-			 "PoseBlendNode/PoseByName/Slot/Blend/BlendListByEnum/BlendListByInt/MultiWayBlend/LayeredBoneBlend/"
-			 "ApplyAdditive/SaveCachedPose/UseCachedPose/Inertialization/ComponentToLocalSpace/LocalToComponentSpace/"
-			 "TwoBoneIK/FABRIK/CCDIK/LookAt/ModifyBone/CopyBone/HandIKRetargeting/AimOffset/AimOffsetLookAt/ControlRig");
-#else
 static const TCHAR* SupportedList =
 	TEXT("SequencePlayer/SequenceEvaluator/BlendSpacePlayer(=BlendSpace1D)/BlendSpaceEvaluator/RandomPlayer/"
 			 "PoseBlendNode/PoseByName/Slot/Blend/BlendListByEnum/BlendListByInt/MultiWayBlend/LayeredBoneBlend/"
 			 "ApplyAdditive/SaveCachedPose/UseCachedPose/Inertialization/ComponentToLocalSpace/LocalToComponentSpace/"
 			 "TwoBoneIK/FABRIK/CCDIK/LookAt/ModifyBone/CopyBone/HandIKRetargeting/AimOffset/AimOffsetLookAt");
-#endif
 
 UClass* FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(const FString& NodeClass)
 {
@@ -290,12 +279,10 @@ UClass* FNexusAnimGraphUtils::ResolveAnimGraphNodeClass(const FString& NodeClass
 	{
 		return UAnimGraphNode_AimOffsetLookAt::StaticClass();
 	}
-#if WITH_CONTROL_RIG
 	if (Name.Equals(TEXT("ControlRig"), ESearchCase::IgnoreCase))
 	{
-		return UAnimGraphNode_ControlRig::StaticClass();
+		return FindObject<UClass>(nullptr, TEXT("/Script/ControlRigDeveloper.AnimGraphNode_ControlRig"));
 	}
-#endif
 	return nullptr;
 }
 
@@ -319,7 +306,9 @@ UEdGraphNode* FNexusAnimGraphUtils::SpawnAnimGraphNode(UEdGraph* Graph, UClass* 
 	if (!Graph) { OutError = TEXT("Invalid AnimGraph"); return nullptr; }
 	if (!NodeClass || !NodeClass->IsChildOf(UAnimGraphNode_Base::StaticClass()))
 	{
-		OutError = FString::Printf(TEXT("Only supports AnimGraph nodes (%s)"), SupportedList);
+		const TCHAR* RigSuffix = FindObject<UClass>(nullptr, TEXT("/Script/ControlRigDeveloper.AnimGraphNode_ControlRig"))
+			? TEXT("/ControlRig") : TEXT("");
+		OutError = FString::Printf(TEXT("Only supports AnimGraph nodes (%s%s)"), SupportedList, RigSuffix);
 		return nullptr;
 	}
 	UEdGraphNode* Node = NewObject<UEdGraphNode>(Graph, NodeClass);

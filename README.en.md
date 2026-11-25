@@ -25,6 +25,7 @@ The recommended relay is [NexusDesktop](https://github.com/bytepine/NexusDesktop
 ### 1. Install and enable the UE plugin
 
 1. Download `nexus-mcp-unreal-<version>.zip` from [NexusLink Releases](https://github.com/bytepine/NexusLink/releases). Place its `NexusLink/` directory in your project's `Plugins/` folder and confirm the file is at `Plugins/NexusLink/NexusLink.uplugin`.
+   For optional tools such as PCG, MVVM, or GAS, place the extension directory beside NexusLink under the project Plugins folder. Enable the extension in the UE plugin window, build, and restart.
 2. Enable **Edit → Plugins → Developer → NexusLink**, then restart the editor.
 3. Open **Edit → Editor Preferences → Plugins → NexusLink**, check **Enable MCP Server** (off by default), and verify the runtime status and title-bar MCP / WS ports.
 

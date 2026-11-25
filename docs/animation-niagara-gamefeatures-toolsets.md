@@ -25,6 +25,7 @@ FBX 导出要求序列具有非空且上下界有效的播放范围，UE 5.9 起
 - 绑定、轨道和分段：Bindings、SequenceTracks、BindingTracks、Sections、SectionProperties、SectionRange，以及新增/删除和范围配置。
 - 通道与关键帧：ChannelNames、Keys、ChannelDefault；Float / Bool / Integer / String 关键帧写入、删除、默认值和烘焙。
 - Control Rig：Rig/控件发现与值读写、变换、关键帧、轨道及当前引擎支持的烘焙和层操作。
+  按名称读取或修改单个控件时，需要同时启用 `NexusLinkControlRig` 扩展。扩展不可用时，动作发现返回 `bSupported=false` 及前提 `PluginEnabled:NexusLinkControlRig`。
 - Sequencer 扩展：条件、Outliner、绑定转换、FBX/动画导入导出、序列文件夹及 AnimMixer；要求底层 API 存在，必要时先打开目标 Sequence 并建立明确选择。
 
 动作只执行 NexusLink 预定义实现，不接受外部工具类名或任意 Python 路径。动画读写使用 Backend=Independent；既有 Result.CompatibilityResult / Result.OfficialResult 只作为历史数据容器，具体字段按输出 Schema 读取。
