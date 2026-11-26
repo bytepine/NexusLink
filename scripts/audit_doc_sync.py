@@ -14,11 +14,7 @@ if sys.stderr.encoding and sys.stderr.encoding.lower() != "utf-8":
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 PLUGIN = Path(__file__).resolve().parent.parent
-CAP_DIRS = [
-    PLUGIN / "Source/NexusLink/Private/Capabilities",
-    PLUGIN / "Source/NexusLinkEditor/Private/Capabilities",
-    *sorted(PLUGIN.glob("OptionalPlugins/*/Source/*/Private/Capabilities")),
-]
+CAP_DIRS = sorted(PLUGIN.glob("Source/*/Private/Capabilities"))
 TOOL_REF = PLUGIN / "docs/tool-reference.md"
 TOOL_REF_ZH = PLUGIN / "docs/tool-reference.zh.md"
 ZH_JSON = PLUGIN / "scripts/tool_reference_zh.json"

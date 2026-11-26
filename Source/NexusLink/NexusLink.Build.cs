@@ -2,6 +2,12 @@
 
 using UnrealBuildTool;
 using System.Collections.Generic;
+using System.Linq;
+#if UE_5_0_OR_LATER
+using EpicGames.Core;
+#else
+using Tools.DotNETCommon;
+#endif
 
 /// <summary>
 /// NexusLink（Runtime 模块）：Server / Dispatcher / Auth / Registry / 元工具 / 26 个 Runtime cap /
@@ -120,6 +126,13 @@ public static class NexusLinkOptionalPlugins
 		List<string> SearchDirs, string ProjectRoot, bool bAllowEditorModules, bool bDefineMacro = true,
 		bool bDeclaredDependency = false)
 	{
+		return Apply(Module, Target, C, SearchDirs, ProjectRoot, bAllowEditorModules, bDefineMacro, bDeclaredDependency, true);
+	}
+
+	private static bool Apply(ModuleRules Module, ReadOnlyTargetRules Target, OptionalPluginConfig C,
+		List<string> SearchDirs, string ProjectRoot, bool bAllowEditorModules, bool bDefineMacro,
+		bool bDeclaredDependency, bool bLinkModules)
+	{
 		bool on = MeetsMinEngineVersion(Target, C.MinEngineMajor, C.MinEngineMinor)
 			&& DetectAnyEnginePlugin(SearchDirs, C.UpluginFiles);
 		if (!bDeclaredDependency && on && C.bRequireProjectEnable && GetProjectPluginEnabled(ProjectRoot, C.UprojectPluginName) != true) on = false;
@@ -138,7 +151,7 @@ public static class NexusLinkOptionalPlugins
 		if (!bDeclaredDependency && ev == "1") on = true;
 		if (C.EnvVarSupportsDisable && ev == "0") on = false;
 
-		if (on)
+		if (on && bLinkModules)
 		{
 			if (C.PublicRuntimeModules != null) Module.PublicDependencyModuleNames.AddRange(C.PublicRuntimeModules);
 			if (C.RuntimeModules != null) Module.PrivateDependencyModuleNames.AddRange(C.RuntimeModules);
@@ -171,9 +184,110 @@ public static class NexusLinkOptionalPlugins
 	public static bool ConfigureIntegration(ModuleRules Module, ReadOnlyTargetRules Target,
 		OptionalPluginConfig Config, bool bEditor)
 	{
-		string ProjectRoot = FindProjectRoot(Module.ModuleDirectory);
-		return Apply(Module, Target, Config, CollectPluginSearchDirs(ProjectRoot, Module), ProjectRoot,
-			bEditor, bDeclaredDependency: true);
+		return ConfigureIntegration(Module, Target, Config, bEditor, false);
+	}
+
+	public static bool ConfigureIntegration(ModuleRules Module, ReadOnlyTargetRules Target,
+		OptionalPluginConfig Config, bool bEditor, bool bRequireEnabledHost, bool bLinkModules = true)
+	{
+		var Project = Target.ProjectFile == null ? null : ProjectDescriptor.FromFile(Target.ProjectFile);
+		var PluginsByName = GetAvailablePlugins(Module, Target, Project);
+		var HostNames = new HashSet<string>(Config.UpluginFiles.Select(System.IO.Path.GetFileNameWithoutExtension), System.StringComparer.OrdinalIgnoreCase);
+		// Build.cs 只需查宿主和提供 SDK 模块的插件，避免每项集成都递归扫描整个引擎。
+		var Modules = new HashSet<string>(Config.RuntimeModules ?? new string[0], System.StringComparer.OrdinalIgnoreCase);
+		if (bEditor && Config.EditorModules != null) Modules.UnionWith(Config.EditorModules);
+		var Providers = PluginsByName.Values.Where(Info => HostNames.Contains(Info.Name)
+			|| (Info.Descriptor.Modules != null && Info.Descriptor.Modules.Any(Entry => Modules.Contains(Entry.Name)))).ToList();
+		bool bHasHost = Providers.Any(Info => HostNames.Contains(Info.Name) && Info.Descriptor.SupportsTargetPlatform(Target.Platform));
+		bool bSdkSupportsTarget = Providers.Where(Info => Info.Descriptor.Modules != null).SelectMany(Info => Info.Descriptor.Modules)
+			.Where(Entry => Modules.Contains(Entry.Name)).All(Entry => IsCompiledForTarget(Entry, Target));
+		// 模块化 Editor 的同一套 DLL 可以在不同项目间复用；Game 必须只链接宿主实际启用的插件。
+		bool bEditorDll = Target.Type == TargetType.Editor && Target.LinkType == TargetLinkType.Modular;
+		if (!bHasHost || !bSdkSupportsTarget || ((!bEditorDll || bRequireEnabledHost)
+			&& !IsIntegrationEnabledForTarget(HostNames, Target, Project, PluginsByName)))
+		{
+			Module.PrivateDefinitions.Add(Config.Define + "=0");
+			return false;
+		}
+		var SearchDirs = Providers.Select(Info => Info.Directory.FullName).ToList();
+		return Apply(Module, Target, Config, SearchDirs, Target.ProjectFile?.Directory.FullName, bEditor,
+			bDefineMacro: true, bDeclaredDependency: true, bLinkModules: bLinkModules);
+	}
+
+	private static bool IsCompiledForTarget(ModuleDescriptor Entry, ReadOnlyTargetRules Target)
+	{
+#if UE_5_7_OR_LATER
+		return Entry.IsCompiledInConfiguration(Target.Platform, Target.Configuration, Target.Name, Target.Type,
+			Target.bBuildDeveloperTools, Target.bBuildRequiresCookedData, Target.Architectures);
+#else
+		return Entry.IsCompiledInConfiguration(Target.Platform, Target.Configuration, Target.Name, Target.Type,
+			Target.bBuildDeveloperTools, Target.bBuildRequiresCookedData);
+#endif
+	}
+
+	private static Dictionary<string, PluginInfo> GetAvailablePlugins(ModuleRules Module, ReadOnlyTargetRules Target, ProjectDescriptor Project)
+	{
+#if UE_5_8_OR_LATER
+		var EngineDir = new DirectoryReference(ModuleRules.EngineDirectory);
+#else
+		var EngineDir = new DirectoryReference(Module.EngineDirectory);
+#endif
+		var Available = Plugins.ReadAvailablePlugins(EngineDir,
+			Target.ProjectFile?.Directory, Project?.AdditionalPluginDirectories);
+#if UE_5_1_OR_LATER
+		return Plugins.FilterPlugins(Available).Select(Set => Set.ChoiceVersion).Where(Info => Info != null)
+			.ToDictionary(Info => Info.Name, System.StringComparer.OrdinalIgnoreCase);
+#else
+		return Plugins.FilterPlugins(Available).ToDictionary(Info => Info.Name, System.StringComparer.OrdinalIgnoreCase);
+#endif
+	}
+
+	// UBT 构造 ModuleRules 时尚未发布 EnabledPlugins；沿目标、项目和默认插件的引用查找传递依赖。
+	private static bool IsIntegrationEnabledForTarget(HashSet<string> HostNames, ReadOnlyTargetRules Target, ProjectDescriptor Project,
+		Dictionary<string, PluginInfo> PluginsByName)
+	{
+		var Configured = new HashSet<string>(Target.DisablePlugins, System.StringComparer.OrdinalIgnoreCase);
+		var Pending = new Queue<string>(Target.EnablePlugins);
+		Configured.UnionWith(Target.EnablePlugins);
+#if UE_5_4_OR_LATER
+		foreach (string Name in Target.OptionalPlugins)
+			if (Configured.Add(Name)) Pending.Enqueue(Name);
+#endif
+		if (Project != null && Project.Plugins != null)
+			foreach (var Reference in Project.Plugins)
+				if (Configured.Add(Reference.Name) && ReferenceApplies(Reference, Target)) Pending.Enqueue(Reference.Name);
+
+		bool bAllowEngineDefaults = Project == null || !Project.DisableEnginePluginsByDefault;
+#if UE_5_5_OR_LATER
+		bAllowEngineDefaults &= Target.bAllowEnginePluginsEnabledByDefault;
+#endif
+		foreach (var Info in PluginsByName.Values)
+			if (!Configured.Contains(Info.Name) && Info.IsEnabledByDefault(bAllowEngineDefaults)) Pending.Enqueue(Info.Name);
+
+		var Visited = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+		while (Pending.Count > 0)
+		{
+			string Name = Pending.Dequeue();
+			PluginInfo Info;
+			if (!Visited.Add(Name) || !PluginsByName.TryGetValue(Name, out Info) || !Info.Descriptor.SupportsTargetPlatform(Target.Platform))
+				continue;
+			if (HostNames.Contains(Name)) return true;
+			if (Info.Descriptor.Plugins == null) continue;
+			foreach (var Reference in Info.Descriptor.Plugins)
+			{
+#if UE_5_4_OR_LATER
+				if (Target.ShouldIgnorePluginDependency(Info, Reference)) continue;
+#endif
+				if (ReferenceApplies(Reference, Target)) Pending.Enqueue(Reference.Name);
+			}
+		}
+		return false;
+	}
+
+	private static bool ReferenceApplies(PluginReferenceDescriptor Reference, ReadOnlyTargetRules Target)
+	{
+		return Reference.IsEnabledForPlatform(Target.Platform) && Reference.IsEnabledForTarget(Target.Type)
+			&& Reference.IsEnabledForTargetConfiguration(Target.Configuration) && Reference.IsSupportedTargetPlatform(Target.Platform);
 	}
 
 	/// <summary>

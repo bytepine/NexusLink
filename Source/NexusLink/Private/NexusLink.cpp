@@ -26,6 +26,8 @@ FNexusMcpServerStopped FNexusLinkModule::OnServerStopped;
 #include "HAL/IConsoleManager.h"
 #include "Misc/OutputDevice.h"
 #include "Engine/World.h"
+#include "Interfaces/IPluginManager.h"
+#include "PluginDescriptor.h"
 #include "NexusEditorServices.h"
 #include "UI/NexusMcpDebugOverlay.h"
 
@@ -241,8 +243,40 @@ bool FNexusLinkModule::TryStartMcpServer()
 #endif // NEXUSLINK_WITH_SERVER
 }
 
+static bool IsIntegrationHostEnabled(const FString& HostName)
+{
+	const auto IsEnabled = [](const FString& PluginName)
+	{
+		const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName);
+		return Plugin.IsValid() && Plugin->IsEnabled();
+	};
+	// GeometryCollection 的插件名随引擎版本变化。
+	if (HostName == TEXT("GeometryCollection"))
+		return IsEnabled(TEXT("GeometryCollectionPlugin")) || IsEnabled(TEXT("GeometryCollectionEngine"));
+	return IsEnabled(HostName);
+}
+
+static void LoadOptionalIntegrationModules()
+{
+	const TSharedPtr<IPlugin> NexusLink = IPluginManager::Get().FindPlugin(TEXT("NexusLink"));
+	if (!NexusLink.IsValid()) return;
+	for (const FModuleDescriptor& Module : NexusLink->GetDescriptor().Modules)
+	{
+		if (Module.LoadingPhase != ELoadingPhase::None || !Module.IsLoadedInCurrentConfiguration())
+			continue;
+		FString HostName = Module.Name.ToString();
+		HostName.RemoveFromStart(TEXT("NexusLink"));
+		if (Module.Type == EHostType::Editor)
+			HostName.RemoveFromEnd(TEXT("Editor"));
+		if (IsIntegrationHostEnabled(HostName) && !FModuleManager::Get().LoadModule(Module.Name))
+			UE_LOG(LogNexusLink, Warning, TEXT("无法加载 %s 的工具模块 %s"), *HostName, *Module.Name.ToString());
+	}
+}
+
 void FNexusLinkModule::OnPostEngineInit()
 {
+	// 宿主插件已由 UE 解析完毕，在初始化工具权限前完成注册。
+	LoadOptionalIntegrationModules();
 	// 把当前已注册的 Capability 全部纳入 KnownCapabilityKeys（首次启动默认全部启用）
 	UNexusLinkSettings::Get()->EnsureDefaultCapabilityMode();
 	UNexusLinkSettings::Get()->EnsureDangerousCapsDefaultOff();

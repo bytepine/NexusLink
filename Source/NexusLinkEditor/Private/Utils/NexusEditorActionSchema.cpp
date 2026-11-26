@@ -118,14 +118,13 @@ TArray<TSharedPtr<FJsonValue>> FNexusEditorActionSchema::List(const FString& Cap
             else if (Domain == TEXT("NexusAnimation.Mixer")) Prerequisites.Add(MakeShared<FJsonValueString>(TEXT("PluginEnabled:MovieSceneAnimMixer")));
             else if (Domain.StartsWith(TEXT("NexusAnimation.ControlRig"))) Prerequisites.Add(MakeShared<FJsonValueString>(TEXT("PluginEnabled:ControlRig")));
             const bool bRequiresRigControlValidation = FNexusAnimationAdvancedTools::RequiresRigControlValidation(Domain, Parameters);
-            if (bRequiresRigControlValidation) Prerequisites.Add(MakeShared<FJsonValueString>(TEXT("PluginEnabled:NexusLinkControlRig")));
             Row->SetArrayField(TEXT("Prerequisites"), Prerequisites);
             const FString MinimumVersion = bAnimation ? FNexusAnimationAdvancedTools::MinimumVersion(Domain,Tool)
                 : Domain == TEXT("NexusPCG") ? TEXT("5.4") : NexusNiagaraLegacyParameters(Tool).IsValid() ? TEXT("4.26") : TEXT("5.8");
 			Row->SetStringField(TEXT("MinimumVersion"), MinimumVersion);
 			Row->SetStringField(TEXT("Reason"), bSupported ? TEXT("Available on this host; discovered object references and target-specific prerequisites still apply") : TEXT("The required engine domain API is unavailable on this host"));
             if (!bSupported && Domain == TEXT("NexusAnimation.Mixer")) Row->SetStringField(TEXT("Reason"), TEXT("Enable MovieSceneAnimMixer and use an engine exposing the requested Mixer scripting API (UE 5.8+). No Toolset plugin is required."));
-            if (bRequiresRigControlValidation && !FNexusAnimationAdvancedTools::ValidateRigControl) Row->SetStringField(TEXT("Reason"), TEXT("Enable NexusLinkControlRig to validate the named Control Rig control"));
+            if (bRequiresRigControlValidation && !FNexusAnimationAdvancedTools::ValidateRigControl) Row->SetStringField(TEXT("Reason"), TEXT("Enable ControlRig to validate the named Control Rig control"));
 			// 扁平入口返回客户端参数；透传入口返回 Parameters 内部契约。
 			if (!NexusUsesNestedActionParameters(Name)) Row->SetObjectField(TEXT("InputSchema"), NexusFlatActionInput(*Record, Pair.Key));
 			else if (Parameters) Row->SetObjectField(TEXT("InputSchema"), Parameters);

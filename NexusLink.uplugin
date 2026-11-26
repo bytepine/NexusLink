@@ -25,20 +25,223 @@
 			"Name": "NexusLinkEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "NexusLinkCommonUIEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkControlRigEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkDataRegistryEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkEnhancedInput",
+			"Type": "Runtime",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkEnhancedInputEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkGameFeaturesEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkGameplayAbilities",
+			"Type": "Runtime",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkGameplayAbilitiesEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkGameplayTagsEditorEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkGeometryCollectionEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkIKRigEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkMetasoundEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkModelViewViewModelEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkMovieRenderPipelineEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkNiagara",
+			"Type": "Runtime",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkNiagaraEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkPaper2DEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkPCGEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkPoseSearchEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkPythonScriptPluginEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkSemanticSearchEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
+			"Name": "NexusLinkStateTreeEditor",
+			"Type": "Editor",
+			"LoadingPhase": "None"
 		}
 	],
 	"Plugins": [
 		{
-			"Name": "EditorScriptingUtilities",
-			"Enabled": true,
-			"Optional": true,
-			"WhitelistTargets": [ "Editor" ]
+			"Name": "CommonUI",
+			"Enabled": false,
+			"Optional": true
 		},
 		{
-			"Name": "SequencerScripting",
-			"Enabled": true,
-			"Optional": true,
-			"WhitelistTargets": [ "Editor" ]
+			"Name": "ControlRig",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "DataRegistry",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "EnhancedInput",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "GameFeatures",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "GameplayAbilities",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "GameplayTagsEditor",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "GeometryCollectionEngine",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "GeometryCollectionPlugin",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "IKRig",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "Metasound",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "ModelViewViewModel",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "MovieRenderPipeline",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "Niagara",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "PCG",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "Paper2D",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "PoseSearch",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "RigVM",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "SemanticSearch",
+			"Enabled": false,
+			"Optional": true
+		},
+		{
+			"Name": "StateTree",
+			"Enabled": false,
+			"Optional": true
 		},
 		{
 			"Name": "WebSocketNetworking",

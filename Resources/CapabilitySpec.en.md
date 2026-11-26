@@ -3,7 +3,7 @@
 
 [中文](CapabilitySpec.md) · English
 
-Capabilities using engine modules belong in NexusLink or NexusLinkEditor. Capabilities that link optional engine plugins belong in their own extension under OptionalPlugins/. Third-party plugin capabilities belong in NexusLinkExt or NexusLinkExtEditor.
+Core engine capabilities belong in `NexusLink` or `NexusLinkEditor`. Capabilities that use an optional engine plugin SDK belong in the corresponding integration module within NexusLink. Third-party capabilities belong in `NexusLinkExt` or `NexusLinkExtEditor`.
 
 > Follow this entire specification when adding/changing Capabilities. Registration provides automatic fallback validation, but run the checklist before submission.
 
@@ -79,12 +79,12 @@ First **choose a module** with §2.1.0, then **choose its base class** with §2.
 <a id="210-模块选择runtime--editor从上到下命中即停"></a>
 #### 2.1.0 Module selection: Runtime / Editor, first match wins
 
-NexusLink has NexusLink (Type: Runtime, eligible for cooked Game/DS) and NexusLinkEditor (Type: Editor, loaded only in Editor). **Base class determines module:** existing capabilities do not manually override GetHostScope(); inheritance determines host scope. Wrong bases break Game-target compilation.
+The core `NexusLink` module (Runtime) can ship in cooked Game and DS targets. `NexusLinkEditor` (Editor) loads only in the editor. Engine integration modules follow the same host split. The base class determines `GetHostScope()`. Choose one that matches the module so Game targets compile.
 
 | Condition | Module | Directory |
 |------|------|------|
 | UnLua: Lua VM / Blueprint UnLuaInterface binding | NexusLinkExt / NexusLinkExtEditor | Plugins/NexusLinkExt/Source/NexusLinkExt/Private/Capabilities/Lua/Runtime/ and .../NexusLinkExtEditor/Private/Capabilities/Lua/Asset/ |
-| Direct use of an optional engine plugin API | The extension Runtime or Editor module | OptionalPlugins/<extension>/Source/<module>/Private/Capabilities/ |
+| Direct use of an optional engine plugin API | Corresponding Runtime or Editor integration module | `Source/<integration-module>/Private/Capabilities/` |
 | **Live objects in PIE/Game Worlds**, such as Actors, Widgets, ASCs, Niagara components, using only runtime APIs/reflection without disk saving | NexusLink (Runtime) | Source/NexusLink/Private/Capabilities/Runtime/<domain>/ |
 | **Disk assets**, or UnrealEd / Kismet* / AssetTools / GEditor / editor transactions / asset compilation/persistence | NexusLinkEditor (Editor) | Source/NexusLinkEditor/Private/Capabilities/<domain>/ |
 | Both | Split into two capabilities; if inseparable, use Editor and state standalone DS is unsupported | Place each according to the split above |
@@ -110,16 +110,16 @@ Chosen modules restrict bases to the corresponding Runtime/other subset below. D
 <a id="212-扩展插件第三方插件-capability"></a>
 #### 2.1.2 Extension plugins
 
-Each optional engine extension has a separate .uplugin, starts disabled, and declares NexusLink and the required engine plugin. Install extensions next to NexusLink. [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) provides third-party integrations.
+Optional engine integrations ship inside `NexusLink`. List their Runtime and Editor modules in `NexusLink.uplugin` with `LoadingPhase: None`. NexusLink loads modules for engine plugins enabled in the host at startup. [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) provides third-party integrations.
 
 | Topic | Rule |
 |------|------|
-| Modules | Optional engine extensions use Runtime and Editor modules as needed. Third-party domains use NexusLinkExt (Runtime) and NexusLinkExtEditor (Editor) |
+| Modules | Only the integration module links the corresponding engine plugin SDK. Third-party domains use `NexusLinkExt` (Runtime) and `NexusLinkExtEditor` (Editor) |
 | Base classes | Follow §2.1.1. End .cpp with REGISTER_MCP_CAPABILITY, sharing the main registry |
-| Gate macros | Optional engine extensions keep WITH_* definitions private for engine and API compatibility. The extension descriptor controls activation |
+| Gate macros | Private `WITH_*` definitions guard SDK availability and engine version differences. Game builds select dependencies for the plugins enabled in the target |
 | Dangerous | Only arbitrary code-execution entry points, including arbitrary console commands/scripts (§2.3), add FNexusMcpTags::Dangerous to Out.Tags together with Write. The main plugin recognizes tags for default disablement, prompts, and -NexusEnableDangerousCaps; do not hardcode names into NexusLink |
 | Handshake instructions | An extension that provides handshake fragments reads them in StartupModule from its own Resources/InitializeInstructions.SearchMode.md and InitializeInstructions.MultiTool.md, calling FNexusInstructionRegistry::Get().Register(plugin-name, …); ShutdownModule calls Unregister. Fragments mention only that plugin's capabilities. The main plugin appends registered fragments by name |
-| Tests | L1 lives in example-project Plugins/NexusLinkExtTestSuite with prefix NexusLinkExt., not the extension repository |
+| Tests | Engine integration L1 tests live in the example project's `Plugins/NexusLinkTestSuite`. Third-party integration tests use `Plugins/NexusLinkExtTestSuite` and the `NexusLinkExt.` prefix |
 
 Set these fields in BuildDefinition as appropriate:
 
@@ -443,7 +443,7 @@ Constraints:
 3. Move logic into Utils for ≥2 callers or ≥3 #if lines at one caller; prefer FNexusAssetUtils for read-only asset fields.
 4. build_test must fully pass compatibility floor UE_4.26; daily smoke/example host defaults UE_5.7. Add UE_5.0 and UE_5.6 when changing engine APIs. audit_capability_naming.py must PASS.
 
-**Optional plugins:** Code and registrations that use optional engine plugin SDKs belong in extensions. Their .uplugin files declare dependencies. Runtime extensions use Type: Runtime and editor extensions use Type: Editor. Bare NX_UE_AT_LEAST remains forbidden.
+Keep optional engine SDK calls and registrations in the corresponding integration module. Runtime modules support Game/DS and Editor modules apply only to the editor. Use feature macros from `NexusVersionCompat.h` for version differences.
 
 **Registered macros, excerpt; NexusVersionCompat.h is authoritative**
 

@@ -654,13 +654,9 @@ def find_nexuslink_root(start: Path) -> Path:
 
 
 def resolve_source_paths(link_root: Path) -> tuple[list[Path], Path, Path]:
-    """返回主插件和可选扩展的 Capability 源码目录，以及工具和文档目录。"""
+    """返回各模块的 Capability 源码目录，以及工具和文档目录。"""
     plugin_src = link_root / "Source" / "NexusLink"
-    cap_roots = [
-        plugin_src / "Private" / "Capabilities",
-        link_root / "Source" / "NexusLinkEditor" / "Private" / "Capabilities",
-        *sorted(link_root.glob("OptionalPlugins/*/Source/*/Private/Capabilities")),
-    ]
+    cap_roots = sorted(link_root.glob("Source/*/Private/Capabilities"))
     tools_dir = plugin_src / "Private" / "Tools"
     return cap_roots, tools_dir, link_root / "docs"
 

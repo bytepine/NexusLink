@@ -18,13 +18,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PLUGIN_ROOT = SCRIPT_DIR.parent
 NEXUSLINK_PLUGIN_SOURCE = PLUGIN_ROOT / "Source"
 NEXUSLINK_SOURCE = NEXUSLINK_PLUGIN_SOURCE / "NexusLink"
-NEXUSLINKEDITOR_SOURCE = NEXUSLINK_PLUGIN_SOURCE / "NexusLinkEditor"
-# 双模块拆分后 cap 分散在两个模块根的 Private/Capabilities/ 下
-CAP_ROOTS = [
-    NEXUSLINK_SOURCE / "Private/Capabilities",
-    NEXUSLINKEDITOR_SOURCE / "Private/Capabilities",
-    *sorted(PLUGIN_ROOT.glob("OptionalPlugins/*/Source/*/Private/Capabilities")),
-]
+CAP_ROOTS = sorted(NEXUSLINK_PLUGIN_SOURCE.glob("*/Private/Capabilities"))
 VERSION_COMPAT_FILE = NEXUSLINK_SOURCE / "Public/Utils/NexusVersionCompat.h"
 
 RE_NAME = re.compile(r'Out\.Name\s*=\s*TEXT\("([^"]+)"\)')
@@ -58,8 +52,6 @@ META_TOOLS = frozenset({
 PLANNED_GAP_READ_CAPS = frozenset({
 })
 
-EXPECTED_CAP_COUNT = 266
-
 
 def _scan_capability_cpp_files() -> list[Path]:
     files: list[Path] = []
@@ -74,8 +66,7 @@ def _scan_nexuslink_sources_for_raw_at_least() -> list[tuple[Path, int]]:
     hits: list[tuple[Path, int]] = []
     if not NEXUSLINK_PLUGIN_SOURCE.is_dir():
         return hits
-    roots = [NEXUSLINK_PLUGIN_SOURCE, *sorted(PLUGIN_ROOT.glob("OptionalPlugins/*/Source"))]
-    for path in (path for root in roots for path in sorted(root.rglob("*"))):
+    for path in sorted(NEXUSLINK_PLUGIN_SOURCE.rglob("*")):
         if not path.is_file() or path.suffix not in {".cpp", ".h"}:
             continue
         if path.resolve() == VERSION_COMPAT_FILE.resolve():
@@ -151,11 +142,12 @@ def main() -> int:
             f"{_rel(path)}:{line}: 禁止裸 NX_UE_AT_LEAST；仅在 NexusVersionCompat.h 定义，业务代码用 NX_UE_HAS_*（§1 / CapabilitySpec §8.5）"
         )
 
-    cap_only = names - META_TOOLS
-    if len(cap_only) != EXPECTED_CAP_COUNT:
-        errors.append(
-            f"expected exactly {EXPECTED_CAP_COUNT} capability names under Capabilities/, found {len(cap_only)}"
-        )
+    reference = (PLUGIN_ROOT / "docs/tool-reference.md").read_text(encoding="utf-8")
+    documented = set(re.findall(r"^### `([^`]+)`", reference, re.MULTILINE))
+    for name in sorted(documented - names):
+        errors.append(f"documented tool missing from source: {name}")
+    for name in sorted(names - documented):
+        errors.append(f"tool missing from reference: {name}")
 
     for w in warnings:
         print(f"[warn] {w}", file=sys.stderr)

@@ -199,7 +199,7 @@ Rider / Desktop 远程列表每行：`192.168.1.30:45000` 或 `192.168.1.30:4500
 
 `HotReloadRuntimeLua` 需要 UnLua 2.x。`EvalRuntimeLua`、`DofileRuntimeLua` 默认禁用，访问模式统一在 NexusLink 的危险 Capability 设置中管理。
 
-插件拆两个模块：`NexusLink`（**`Type: Runtime`**）+ `NexusLinkEditor`（**`Type: Editor`**，仅编辑器二进制加载）——**MCP 跑在 Editor / PIE / editor-hosted `-server`，以及 Development/DebugGame 的独立 Game/DS**；Shipping 编译期整体剔除服务器。
+基础模块为 `NexusLink`（Runtime）和 `NexusLinkEditor`（Editor）。项目启用的引擎插件还可加载对应的 Runtime 或 Editor 集成。MCP 可在 Editor / PIE、编辑器托管的 `-server` 和 Development/DebugGame 独立 Game/DS 中运行。Shipping 构建在编译时剔除服务器。
 
 Shipping 中模块启动与退出不安装 MCP 日志捕获、控制台命令或初始化回调，不读写鉴权 token、不整理 token 配置、不枚举网卡；扩展插件也不读取指引文件。即使传入启用参数，也不会启动 MCP。
 
@@ -280,7 +280,7 @@ C++ 可包含 `NexusLinkSettings.h` 并调用 `UNexusLinkSettings::IsMcpEnabled(
 
 ### 2.4.1 独立 Game / DS MCP debug 清单
 
-Development/DebugGame 独立 Game 只加载 `NexusLink` Runtime 模块，catalog **没有** `ControlPie` / `GetEditorContext` / `SearchAsset` 等 Editor cap。现场排查用下面这些（均已在 Runtime 注册）：
+Development/DebugGame 独立 Game 加载 `NexusLink` 及目标启用的 Runtime 集成。`ControlPie`、`GetEditorContext` 和 `SearchAsset` 等工具限编辑器使用。下表列出现场排查可用的 Runtime 工具。
 
 Dedicated Server 同样可使用 Runtime Capability 调试日志、Actor、动画 / AI / GAS 等运行时内容，但没有视口和 UMG：不能使用 `panel`、视口截图或 Widget 工具，状态检查用 `NexusLink.Mcp status`。
 
@@ -619,7 +619,9 @@ StateTree 的 `AddTransition` 要求源、目标状态名在树内分别唯一�
 
 ### MCP 搜不到 GAS / Niagara 等能力
 
-这些工具由默认关闭的独立扩展提供。安装发布包中对应扩展的目录到项目 `Plugins/`，与 `NexusLink/` 同级。在插件窗口启用扩展并重编。扩展声明其必需的引擎插件。`SearchCapabilities` 返回当前已注册的工具。
+在 **编辑 → 插件** 中启用所需的引擎插件（如 `GameplayAbilities` 或 `Niagara`），重启编辑器后用 `SearchCapabilities` 查询对应工具。NexusLink 根据当前宿主实际启用的插件加载工具，版本和构建目标决定可用范围。
+
+从拆分插件的版本升级时，先移除 `.uproject` 中原有的独立集成条目（如 `NexusLinkNiagara`），清理项目 `Plugins/` 中对应的旧集成目录，再安装新的 `NexusLink/`。保留引擎插件的开关，以及项目在用的第三方扩展 `NexusLinkExt`。如果某个引擎插件以前只由旧集成间接启用，请在项目中启用该引擎插件，以继续使用对应工具。
 
 ### `ExecPython` 报 Python plugin module not loaded
 

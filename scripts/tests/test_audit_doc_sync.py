@@ -14,6 +14,7 @@ def test_load_caps_from_plugin_source():
     caps = load_caps()
     assert "SearchAsset" in caps
     assert caps["SearchAsset"]["file"].startswith("Source/")
+    assert caps["GetAssetNiagaraSystem"]["file"].startswith("Source/NexusLinkNiagaraEditor/")
 
 
 def test_report_runs():

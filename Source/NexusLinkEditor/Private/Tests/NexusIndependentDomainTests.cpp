@@ -6,8 +6,28 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "Utils/NexusEditorToolSchema.h"
+#include "Interfaces/IPluginManager.h"
+#include "Modules/ModuleManager.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusSequencerPluginAvailabilityTest, "NexusLink.Independent.Animation.SequencerPluginAvailability", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FNexusSequencerPluginAvailabilityTest::RunTest(const FString&)
+{
+    const auto Check = [this](const TCHAR* PluginName, const TCHAR* Tool)
+    {
+        const auto Plugin = IPluginManager::Get().FindPlugin(PluginName);
+        const bool bEnabled = Plugin.IsValid() && Plugin->IsEnabled();
+        const bool bWasLoaded = FModuleManager::Get().IsModuleLoaded(PluginName);
+        const bool bAvailable = FNexusAnimationAdvancedTools::FindFunction(TEXT("NexusAnimation.Sequencer"), Tool) != nullptr;
+        TestEqual(FString(Tool), bAvailable, bEnabled);
+        if (!bEnabled)
+            TestEqual(FString(PluginName), FModuleManager::Get().IsModuleLoaded(PluginName), bWasLoaded);
+    };
+    Check(TEXT("LevelSequenceEditor"), TEXT("get_current_sequence"));
+    Check(TEXT("SequencerScripting"), TEXT("get_tracks_on_binding"));
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNexusIndependentOperationCapacityTest, "NexusLink.Independent.OperationCapacity", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FNexusIndependentOperationCapacityTest::RunTest(const FString&)
 {
@@ -49,7 +69,7 @@ bool FNexusNamedRigControlAvailabilityTest::RunTest(const FString&)
     {
         const auto Row = Actions[0]->AsObject();
         TestFalse(TEXT("Discovery reports the unsupported action"), Row->GetBoolField(TEXT("bSupported")));
-        TestTrue(TEXT("Discovery names the required integration"), Row->GetStringField(TEXT("Reason")).Contains(TEXT("NexusLinkControlRig")));
+        TestTrue(TEXT("Discovery names the required integration"), Row->GetStringField(TEXT("Reason")).Contains(TEXT("ControlRig")));
     }
 
     auto Args = MakeShared<FJsonObject>();
@@ -57,7 +77,7 @@ bool FNexusNamedRigControlAvailabilityTest::RunTest(const FString&)
     TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
     FString Error;
     TestFalse(TEXT("Calling SetRigTransform fails without validation"), FNexusAnimationAdvancedTools::Call(Domain, Tool, Args, Result, Error));
-    TestTrue(TEXT("Execution explains the missing integration before resolving a target"), Error.Contains(TEXT("NexusLinkControlRig")));
+    TestTrue(TEXT("Execution explains the missing integration before resolving a target"), Error.Contains(TEXT("ControlRig")));
 
     const FString ListRigsTool = TEXT("get_control_rigs");
     TestEqual(TEXT("Listing rigs only requires the engine API"), FNexusAnimationAdvancedTools::Supports(Domain, ListRigsTool),

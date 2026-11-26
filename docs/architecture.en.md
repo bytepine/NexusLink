@@ -48,7 +48,7 @@ For ports and switch layers across all four routes, see [usage-guide §1](usage-
 
 `FNexusLinkModule::ApplyDesiredMcpState()` is the only application point that calls `TryStartMcpServer`/`StopMcpServer`, whether triggered by startup, Preferences changes, or console commands. It writes the result to transient read-only `UNexusLinkSettings::McpRuntimeStatus`, so the UI displays actual state/source instead of relying only on the checkbox. Cooked Game/DS additionally support **`-NexusMcpPort=`**, **`-NexusWsPort=`**, and **`-NexusAllowLan`** overrides.
 
-The plugin has two modules. `NexusLink` (**`Type: Runtime`**, usable in cooked Game/DS) contains Server, Dispatcher, Registry, three meta-tools, and Runtime capabilities. `NexusLinkEditor` (**`Type: Editor`**, loaded only in editor binaries) contains Editor capabilities and settings/status UI. **`NEXUSLINK_WITH_SERVER`** (`!UE_BUILD_SHIPPING`) gates `REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY`, removing the server and registries at compile time in Shipping. Platform gating uses both `PlatformAllowList` (UE5) and `WhitelistPlatforms` (UE4.2x). Settings/status UI register only when the editor module loads; MCP listeners can start in Development/DebugGame standalone Game/DS and editor-hosted `-server`. No `FNexusMcpServer` is created when disabled.
+The plugin has two core modules and separate modules for optional engine integrations. `NexusLink` (**`Type: Runtime`**, usable in cooked Game/DS) contains Server, Dispatcher, Registry, three meta-tools, and Runtime capabilities. `NexusLinkEditor` (**`Type: Editor`**, loaded only in editor binaries) contains Editor capabilities and settings/status UI. **`NEXUSLINK_WITH_SERVER`** (`!UE_BUILD_SHIPPING`) gates `REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY`, removing the server and registries at compile time in Shipping. Platform gating uses both `PlatformAllowList` (UE5) and `WhitelistPlatforms` (UE4.2x). Settings/status UI register only when the editor module loads; MCP listeners can start in Development/DebugGame standalone Game/DS and editor-hosted `-server`. No `FNexusMcpServer` is created when disabled.
 
 **Capability visibility:** full Editor hosts expose every enabled capability. Cooked Game/DS in Development/DebugGame expose only Runtime capabilities from `NexusLink` (`FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`). Editor capabilities in `NexusLinkEditor` are neither compiled nor registered. Shipping has no server and exposes no capabilities.
 
@@ -92,7 +92,7 @@ REGISTER_MCP_CAPABILITY(FNexusSearchAssetCapability);
 
 The macro uses C++ static initialization to register an instance globally when its module loads. Adding a Capability requires only:
 
-1. **Choose the module** using CapabilitySpec §2.1.0: live PIE/Game objects without disk saving use Runtime `NexusLink`; disk assets, editor APIs, and saving use `NexusLinkEditor`.
+1. **Choose the module** using CapabilitySpec §2.1.0: use the matching Runtime or Editor integration module for optional engine SDKs. For core engine APIs, live PIE/Game objects use `NexusLink`, while disk assets, editor APIs, and saving use `NexusLinkEditor`.
 2. Create `.h/.cpp` files in a domain directory under that module's `Source/<module>/Private/Capabilities/`.
 3. Select the base using CapabilitySpec §2.1.1. `manage_*` + `operations[]` uses `FNexusActionCapability`, with no `Execute` override; other cases follow the table. The selected module narrows the available bases. Implement the required hooks.
 4. Add `REGISTER_MCP_CAPABILITY(ClassName)` at the bottom of the file.
@@ -101,7 +101,7 @@ No existing code needs modification.
 
 ### Domain directories
 
-Both modules use the same `Private/Capabilities/` domain categories; grouping anchors omit module names. Optional-plugin capabilities live in [NexusLinkExt](https://github.com/bytepine/NexusLinkExt).
+All modules use the same `Private/Capabilities/` categories. At startup NexusLink selects integration modules for the engine plugins enabled in the host. These modules use `LoadingPhase: None` in `NexusLink.uplugin`. [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) provides third-party integrations.
 
 ```mermaid
 flowchart LR

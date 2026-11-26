@@ -7,7 +7,7 @@ build_unreal.py — NexusLink UE 插件打包（独立仓）
 说明:
     1. 基于插件源码生成安装包（排除根目录 tools/ 及 docs/、scripts/、release/ 等仓级文件）
     2. 注入 NexusLink.uplugin VersionName；可选 --engine-version 覆盖 EngineVersion（Fab 多引擎版本提交）
-    3. 输出 release/nexus-mcp-unreal-<ver>[-ue<engine>].zip（含 NexusLink 与同级的可选扩展）
+    3. 输出 release/nexus-mcp-unreal-<ver>[-ue<engine>].zip（顶层为 NexusLink/）
 """
 
 from __future__ import annotations
@@ -161,30 +161,15 @@ def build_zip(
             ignore=ignore,
         )
 
-        plugin_roots = [("NexusLink", tmp_plugin)]
-        optional_path = os.path.join(plugin_dir, "OptionalPlugins")
-        if os.path.isdir(optional_path):
-            for name in sorted(os.listdir(optional_path)):
-                source = os.path.join(optional_path, name)
-                if not os.path.isfile(os.path.join(source, f"{name}.uplugin")):
-                    continue
-                destination = os.path.join(tmpdir, name)
-                shutil.copytree(source, destination, ignore=ignore)
-                plugin_roots.append((name, destination))
-
+        patch_uplugin(os.path.join(tmp_plugin, "NexusLink.uplugin"), version, engine_version)
         with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for name, plugin_path in plugin_roots:
-                descriptor = os.path.join(plugin_path, f"{name}.uplugin")
-                if os.path.isfile(descriptor):
-                    patch_uplugin(descriptor, version, engine_version)
-                for root, dirs, files in os.walk(plugin_path):
-                    dirs[:] = [d for d in dirs if d.lower() not in EXCLUDE_DIRS]
-                    for filename in files:
-                        abs_file = os.path.join(root, filename)
-                        rel_in_plugin = os.path.relpath(abs_file, plugin_path).replace("\\", "/")
-                        if should_exclude(rel_in_plugin, "/" not in rel_in_plugin):
-                            continue
-                        zf.write(abs_file, f"{name}/{rel_in_plugin}")
+            for root, dirs, files in os.walk(tmp_plugin):
+                dirs[:] = [d for d in dirs if d.lower() not in EXCLUDE_DIRS]
+                for filename in files:
+                    abs_file = os.path.join(root, filename)
+                    rel_in_plugin = os.path.relpath(abs_file, tmp_plugin).replace("\\", "/")
+                    if not should_exclude(rel_in_plugin, "/" not in rel_in_plugin):
+                        zf.write(abs_file, f"NexusLink/{rel_in_plugin}")
 
     return output_path
 

@@ -209,9 +209,33 @@ static bool NexusAnimationInvoke(UObject* Target,const FString& FunctionName,con
 
 static UClass* NexusAnimationScriptClass(const FString& ClassName)
 {
-    for (const TCHAR* Module : {TEXT("LevelSequenceEditor"), TEXT("SequencerScripting"), TEXT("SequencerScriptingEditor")}) FModuleManager::Get().LoadModulePtr<IModuleInterface>(Module);
-    const auto RigPlugin = IPluginManager::Get().FindPlugin(TEXT("ControlRig"));
-    if (ClassName.Contains(TEXT("Rig")) && RigPlugin.IsValid() && RigPlugin->IsEnabled()) FModuleManager::Get().LoadModulePtr<IModuleInterface>(TEXT("ControlRigEditor"));
+    const TCHAR* PluginName = nullptr;
+    const TCHAR* ModuleName = nullptr;
+    if (ClassName.StartsWith(TEXT("LevelSequenceEditor")))
+    {
+        PluginName = ModuleName = TEXT("LevelSequenceEditor");
+    }
+    else if (ClassName == TEXT("MovieSceneBindingExtensions") || ClassName == TEXT("SequencerToolsFunctionLibrary"))
+    {
+        PluginName = TEXT("SequencerScripting");
+        ModuleName = ClassName == TEXT("MovieSceneBindingExtensions") ? TEXT("SequencerScripting") : TEXT("SequencerScriptingEditor");
+    }
+    else if (ClassName.Contains(TEXT("Rig")))
+    {
+        PluginName = TEXT("ControlRig");
+        ModuleName = TEXT("ControlRigEditor");
+    }
+    else if (ClassName.StartsWith(TEXT("Sequencer")))
+    {
+        // Outliner 对象及其基类来自引擎 Sequencer / SequencerCore 模块。
+        ModuleName = TEXT("Sequencer");
+    }
+    if (PluginName)
+    {
+        const auto Plugin = IPluginManager::Get().FindPlugin(PluginName);
+        if (!Plugin.IsValid() || !Plugin->IsEnabled()) return nullptr;
+    }
+    if (ModuleName) FModuleManager::Get().LoadModulePtr<IModuleInterface>(ModuleName);
     return FNexusAssetUtils::FindClassWithUPrefix(ClassName);
 }
 
@@ -333,7 +357,7 @@ static bool NexusAnimationScriptCall(const FString& Domain,const FString& Tool,c
         // 引擎 Setter 可能因控件类型不匹配而直接返回，需要先校验类型并选择正确的反射函数。
         if (!FNexusAnimationAdvancedTools::ValidateRigControl)
         {
-            Error = TEXT("This action requires the NexusLinkControlRig integration to validate the named control");
+            Error = TEXT("This action requires the ControlRig engine plugin to validate the named control");
             return false;
         }
         if (!Args.IsValid() || !Args->HasTypedField<EJson::String>(TEXT("control_name")))

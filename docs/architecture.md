@@ -43,7 +43,7 @@ graph TB
 四端端口与开关层数见 [usage-guide §1](./usage-guide.md)。Capability 清单以 `SearchCapabilities` / [tool-reference.zh.md](./tool-reference.zh.md) 为准，勿在本文手写总数。
 ## MCP 服务器生命周期
 
-启停由 `FNexusMcpActivation`（`NexusMcpActivation.h/.cpp`）统一解析，是唯一的「期望状态」判定入口，优先级为 **控制台会话覆盖 > 启动参数 `-EnableNexusMcp` > `UNexusLinkSettings::bEnableMcpServer`（仅可信角色）> 默认关闭**；端口与 LAN 绑定走同一优先级（`ResolveListenConfig()`）。「可信角色」= `GIsEditor && !IsRunningCommandlet()`：编辑器二进制以 `-game`/`-server` 启动的子进程、cook/commandlet 进程不读 Preferences，必须显式给启动参数或控制台，避免继承勾选各自抢起一份 MCP。控制台命令 **`NexusLink.Mcp on|off|status|restart|panel`** 会话级生效，不写盘（`panel` 见下「游戏内调试面板」）；`off` 用三态覆盖稳定压制，不会被后续任意 Preferences 改动重新拉起。`FNexusLinkModule::ApplyDesiredMcpState()` 是唯一调用 `TryStartMcpServer`/`StopMcpServer` 的应用点（启动时、Preferences 勾选变化、控制台命令均经它），并把结果回写 `UNexusLinkSettings::McpRuntimeStatus`（Transient 只读，供面板展示实际状态与来源，避免只看勾选框误判）。cooked Game/DS 额外支持 **`-NexusMcpPort=`** / **`-NexusWsPort=`** / **`-NexusAllowLan`** 覆盖默认端口与 LAN 绑定。插件拆两个模块：`NexusLink`（**`Type: Runtime`**，可进 cooked Game/DS）承载 Server / Dispatcher / Registry / 3 个元工具 / Runtime cap；`NexusLinkEditor`（**`Type: Editor`**，仅编辑器二进制加载）承载 Editor cap 与设置面板 / 状态栏 UI。`REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 由 **`NEXUSLINK_WITH_SERVER`**（`!UE_BUILD_SHIPPING`）门控——Shipping 编译期整体剔除服务器与注册表。平台门控双写 `PlatformAllowList`（UE5）+ `WhitelistPlatforms`（UE4.2x）。设置面板 / 状态栏仅编辑器模块加载时注册；MCP 监听在 Development/DebugGame 的独立 Game/DS 与 editor-hosted `-server` 均可启动。未启用时不创建 `FNexusMcpServer`。
+启停由 `FNexusMcpActivation`（`NexusMcpActivation.h/.cpp`）统一解析，是唯一的「期望状态」判定入口，优先级为 **控制台会话覆盖 > 启动参数 `-EnableNexusMcp` > `UNexusLinkSettings::bEnableMcpServer`（仅可信角色）> 默认关闭**；端口与 LAN 绑定走同一优先级（`ResolveListenConfig()`）。「可信角色」= `GIsEditor && !IsRunningCommandlet()`：编辑器二进制以 `-game`/`-server` 启动的子进程、cook/commandlet 进程不读 Preferences，必须显式给启动参数或控制台，避免继承勾选各自抢起一份 MCP。控制台命令 **`NexusLink.Mcp on|off|status|restart|panel`** 会话级生效，不写盘（`panel` 见下「游戏内调试面板」）；`off` 用三态覆盖稳定压制，不会被后续任意 Preferences 改动重新拉起。`FNexusLinkModule::ApplyDesiredMcpState()` 是唯一调用 `TryStartMcpServer`/`StopMcpServer` 的应用点（启动时、Preferences 勾选变化、控制台命令均经它），并把结果回写 `UNexusLinkSettings::McpRuntimeStatus`（Transient 只读，供面板展示实际状态与来源，避免只看勾选框误判）。cooked Game/DS 额外支持 **`-NexusMcpPort=`** / **`-NexusWsPort=`** / **`-NexusAllowLan`** 覆盖默认端口与 LAN 绑定。插件包含两个基础模块及按需加载的引擎集成模块。`NexusLink`（**`Type: Runtime`**，可进 cooked Game/DS）承载 Server / Dispatcher / Registry / 3 个元工具 / Runtime cap；`NexusLinkEditor`（**`Type: Editor`**，仅编辑器二进制加载）承载 Editor cap 与设置面板 / 状态栏 UI。`REGISTER_MCP_TOOL` / `REGISTER_MCP_CAPABILITY` 由 **`NEXUSLINK_WITH_SERVER`**（`!UE_BUILD_SHIPPING`）门控——Shipping 编译期整体剔除服务器与注册表。平台门控双写 `PlatformAllowList`（UE5）+ `WhitelistPlatforms`（UE4.2x）。设置面板 / 状态栏仅编辑器模块加载时注册；MCP 监听在 Development/DebugGame 的独立 Game/DS 与 editor-hosted `-server` 均可启动。未启用时不创建 `FNexusMcpServer`。
 
 **Capability 可见性**：完整 Editor 宿主暴露全部已启用 cap。cooked Game/DS（Development/DebugGame）仅暴露 `NexusLink` 模块的 Runtime cap（`FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`），`NexusLinkEditor` 的 Editor cap 不参与编译，也就不会注册；Shipping 不含服务器，无 cap 暴露。
 
@@ -86,7 +86,7 @@ REGISTER_MCP_CAPABILITY(FNexusSearchAssetCapability);
 ```
 
 宏展开后利用 C++ 静态初始化，在模块加载期自动向全局注册表注册实例。新增 Capability 只需：
-1. 按 CapabilitySpec §2.1.0 **选模块**（PIE/Game 活对象、不保存到磁盘 → `NexusLink` Runtime 模块；磁盘资产 / 编辑器 API / 保存到磁盘 → `NexusLinkEditor` 模块）
+1. 按 CapabilitySpec §2.1.0 **选模块**。调用可选引擎 SDK 时选择对应的 Runtime 或 Editor 集成模块。基础引擎 API 中，PIE/Game 活对象使用 `NexusLink`，磁盘资产、编辑器 API 及保存操作使用 `NexusLinkEditor`。
 2. 在对应模块 `Source/<模块>/Private/Capabilities/` 下的域目录新建 .h/.cpp
 3. 按 CapabilitySpec §2.1.1 选基类（`manage_*` + `operations[]` → `FNexusActionCapability`，禁止 override `Execute`；其余见该表；基类范围随第 1 步选定的模块收窄）并实现对应钩子
 4. 文件底部添加 `REGISTER_MCP_CAPABILITY(ClassName)`
@@ -95,7 +95,7 @@ REGISTER_MCP_CAPABILITY(FNexusSearchAssetCapability);
 
 ### 域分类目录
 
-`NexusLink` / `NexusLinkEditor` 的 `Private/Capabilities/` 沿用同一套域分类（分组锚点不含模块名）。可选插件 Capability 见 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt)。
+所有模块共用 `Private/Capabilities/` 域分类。NexusLink 在启动时根据宿主启用的引擎插件选择集成模块，这些模块在 `NexusLink.uplugin` 中使用 `LoadingPhase: None`。第三方插件能力由 [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) 提供。
 
 ```mermaid
 flowchart LR

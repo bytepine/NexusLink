@@ -22,14 +22,13 @@ from schema_extract import extract_object_chain_after  # noqa: E402
 from schema_catalog import load_capability_schemas, schema_top_prop_names  # noqa: E402
 
 PLUGIN_ROOT = _SCRIPTS_DIR.parent
-# 双模块拆分：Runtime 系 cap 在 NexusLink，其余在 NexusLinkEditor
-NEXUSLINK_CAP_ROOT = PLUGIN_ROOT / "Source" / "NexusLink" / "Private" / "Capabilities"
-NEXUSLINKEDITOR_CAP_ROOT = PLUGIN_ROOT / "Source" / "NexusLinkEditor" / "Private" / "Capabilities"
-OPTIONAL_CAP_ROOTS = sorted(PLUGIN_ROOT.glob("OptionalPlugins/*/Source/*/Private/Capabilities"))
-DEFAULT_CAP_ROOTS = [NEXUSLINK_CAP_ROOT, NEXUSLINKEDITOR_CAP_ROOT, *OPTIONAL_CAP_ROOTS]
+DEFAULT_CAP_ROOTS = sorted({
+    PLUGIN_ROOT / "Source/NexusLink/Private/Capabilities",
+    PLUGIN_ROOT / "Source/NexusLinkEditor/Private/Capabilities",
+    *PLUGIN_ROOT.glob("Source/*/Private/Capabilities"),
+})
 
-# §2.1.0 选模块判定：基类即模块。Runtime 系基类必须落在 Source/NexusLink/，其余落在
-# Source/NexusLinkEditor/（Resources/CapabilitySpec.md §2.1.0 / .cursor/rules/nexuslink-capability.mdc）。
+# §2.1.0 根据基类核对 Runtime / Editor 模块归属。
 RUNTIME_BASE_CLASSES = {"FNexusRuntimeCapability", "FNexusRuntimeMultiSectionCapability"}
 EDITOR_BASE_CLASSES = {"FNexusCapability", "FNexusActionCapability", "FNexusMultiSectionCapability"}
 RE_CLASS_BASE = re.compile(
@@ -300,7 +299,7 @@ def audit_module_placement(cap_root: Path, expect_runtime: bool) -> list[Violati
             # 基类本身不是已知的 5 个基类之一（如某 cap 继承自另一具体 cap），跳过判定
             continue
         if is_runtime_base != expect_runtime:
-            want = "Source/NexusLink/" if is_runtime_base else "Source/NexusLinkEditor/"
+            want = "Runtime 模块" if is_runtime_base else "Editor 模块"
             errs.append(
                 Violation(
                     path,
@@ -318,7 +317,7 @@ def main(argv: list[str] | None = None) -> int:
         "--cap-root",
         type=Path,
         default=None,
-        help="单个 Capabilities 根目录（默认扫描 NexusLink + NexusLinkEditor 两个模块根）",
+        help="单个 Capabilities 根目录（默认扫描所有模块）",
     )
     args = parser.parse_args(argv)
 
@@ -338,9 +337,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # §2.1.0 模块归属：单根扫描（--cap-root 手动指定）时不知道该模块的期望基类族，跳过
     if not args.cap_root:
-        errors.extend(audit_module_placement(NEXUSLINK_CAP_ROOT, expect_runtime=True))
-        errors.extend(audit_module_placement(NEXUSLINKEDITOR_CAP_ROOT, expect_runtime=False))
-        for cap_root in OPTIONAL_CAP_ROOTS:
+        for cap_root in DEFAULT_CAP_ROOTS:
             errors.extend(audit_module_placement(cap_root, expect_runtime=not cap_root.parents[1].name.endswith("Editor")))
 
     for e in errors:

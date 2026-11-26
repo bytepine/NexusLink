@@ -204,7 +204,7 @@ For Blueprint Lua binding or runtime Lua debugging, install [NexusLinkExt](https
 
 HotReloadRuntimeLua requires UnLua 2.x. EvalRuntimeLua and DofileRuntimeLua are disabled by default; manage their access in NexusLink dangerous-capability settings.
 
-The plugin has NexusLink (**Type: Runtime**) and NexusLinkEditor (**Type: Editor**, loaded only in editor binaries) modules. **MCP runs in Editor/PIE, editor-hosted -server, and Development/DebugGame standalone Game/DS**. Shipping excludes the server at compile time.
+The core modules are `NexusLink` (Runtime) and `NexusLinkEditor` (Editor). Engine plugins enabled in the project can also load their Runtime or Editor integrations. MCP runs in Editor/PIE, editor-hosted `-server`, and Development/DebugGame standalone Game/DS. Shipping excludes the server at compile time.
 
 Shipping module startup/shutdown install no MCP log capture, console commands, or initialization callbacks; they do not read/write authentication tokens, normalize token settings, or enumerate adapters. Extensions do not read instruction files either. Enable arguments cannot start MCP in Shipping.
 
@@ -286,7 +286,7 @@ Preferences dangerous-access mode itself stays unchanged. A panel checkbox is a 
 <a id="241-独立-game--ds-mcp-debug-清单"></a>
 ### 2.4.1 Standalone Game / DS debugging checklist
 
-Development/DebugGame standalone Game loads only NexusLink Runtime. Its catalog has **no Editor capabilities** such as ControlPie, GetEditorContext, or SearchAsset. Use these Runtime-registered capabilities:
+Development/DebugGame standalone Game loads `NexusLink` and the Runtime integrations enabled for the target. `ControlPie`, `GetEditorContext`, and `SearchAsset` are editor tools. The following Runtime tools are available for diagnostics.
 
 Dedicated Servers also support runtime logs, Actors, animation, AI, and GAS, but have no viewport or UMG. They cannot use panel, viewport screenshots, or Widget tools; check status with NexusLink.Mcp status.
 
@@ -626,7 +626,9 @@ CallCapability.Calls[] with at least two entries defers automatic compilation/sa
 
 ### GAS / Niagara and other capabilities are missing
 
-These tools come from separate extensions that are disabled by default. Install the desired extension directories next to NexusLink under the project Plugins directory, enable the extensions in the plugin window, and rebuild. Each extension declares its required engine plugins. SearchCapabilities lists the tools registered in the current session.
+Enable the engine plugin you need, such as `GameplayAbilities` or `Niagara`, under **Edit → Plugins**. Restart the editor and use `SearchCapabilities` to find its tools. NexusLink checks which plugins the host actually enabled. The engine version and build target determine which tools are available.
+
+When upgrading from a release with separate integrations, remove their entries (such as `NexusLinkNiagara`) from the `.uproject` and their old directories from the project's `Plugins/` folder before installing the new `NexusLink/` directory. Keep your engine plugin settings and any third-party `NexusLinkExt` installation. If an engine plugin was enabled only through an old integration, enable that engine plugin in the project to keep its tools.
 
 ### ExecPython reports Python plugin module not loaded
 

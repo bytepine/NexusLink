@@ -9,6 +9,7 @@
 ## 版本与启用
 
 - Sequencer / Control Rig 使用引擎 MovieScene、Sequencer、ControlRig 与相关编辑器脚本 API。高级功能按实际接口裁剪，无需 AnimationAssistantToolset 或 SequencerAnimMixerToolset。
+- 查询当前打开的 Sequence 需要 `LevelSequenceEditor`。绑定轨道的脚本操作和 FBX 导入导出需要 `SequencerScripting`。请在宿主项目中启用所需插件并重启编辑器。
 - AnimMixer 动作要求 UE 5.8+，并在宿主显式启用引擎领域插件 `MovieSceneAnimMixer` 后重新编译、重启。它提供 Mixer 轨道、层与过渡的数据模型；NexusLink 不通过 Toolset 派发该动作。未启用时，动作发现返回 `bSupported=false`，并列出 `PluginEnabled:MovieSceneAnimMixer` 前提。
 - Niagara 使用 Niagara / NiagaraEditor 数据、图及 Stack API，无需 NiagaraToolsets。
 - Game Features 需启用 GameFeatures；其能力使用引擎子系统及异步完成回调，无需 GameFeaturesToolset。
@@ -25,7 +26,7 @@ FBX 导出要求序列具有非空且上下界有效的播放范围，UE 5.9 起
 - 绑定、轨道和分段：Bindings、SequenceTracks、BindingTracks、Sections、SectionProperties、SectionRange，以及新增/删除和范围配置。
 - 通道与关键帧：ChannelNames、Keys、ChannelDefault；Float / Bool / Integer / String 关键帧写入、删除、默认值和烘焙。
 - Control Rig：Rig/控件发现与值读写、变换、关键帧、轨道及当前引擎支持的烘焙和层操作。
-  按名称读取或修改单个控件时，需要同时启用 `NexusLinkControlRig` 扩展。扩展不可用时，动作发现返回 `bSupported=false` 及前提 `PluginEnabled:NexusLinkControlRig`。
+  按名称读取或修改单个控件需要项目启用 `ControlRig`。对应集成不可用时，动作发现返回 `bSupported=false` 及前提 `PluginEnabled:ControlRig`。
 - Sequencer 扩展：条件、Outliner、绑定转换、FBX/动画导入导出、序列文件夹及 AnimMixer；要求底层 API 存在，必要时先打开目标 Sequence 并建立明确选择。
 
 动作只执行 NexusLink 预定义实现，不接受外部工具类名或任意 Python 路径。动画读写使用 Backend=Independent；既有 Result.CompatibilityResult / Result.OfficialResult 只作为历史数据容器，具体字段按输出 Schema 读取。

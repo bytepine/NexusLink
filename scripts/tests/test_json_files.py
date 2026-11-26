@@ -42,15 +42,10 @@ def test_uplugin_filters_do_not_duplicate_renamed_fields():
             assert not (current in entry and legacy in entry), (entry["Name"], current, legacy)
 
 
-def test_uplugin_editor_dependencies_remain_editor_only_on_ue4():
+def test_uplugin_respects_host_editor_scripting_plugins():
     plugins = {entry["Name"]: entry for entry in _load("NexusLink.uplugin")["Plugins"]}
     for name in ("EditorScriptingUtilities", "SequencerScripting"):
-        assert plugins[name]["WhitelistTargets"] == ["Editor"], name
-
-
-def test_uplugin_allows_missing_editor_scripting_utilities():
-    plugins = {entry["Name"]: entry for entry in _load("NexusLink.uplugin")["Plugins"]}
-    assert plugins["EditorScriptingUtilities"]["Optional"] is True
+        assert not plugins.get(name, {}).get("Enabled", False), name
 
 
 def test_uplugin_websocket_dependency_excludes_shipping_on_ue4():

@@ -8,11 +8,11 @@
 
 [Documentation index](docs/README.en.md) · [Project home](README.en.md)
 
-Capabilities for the engine itself and engine-bundled domain plugins belong in `NexusLink` / `NexusLinkEditor`. Only third-party plugin capabilities belong in `NexusLinkExt` / `NexusLinkExtEditor`. Optional enablement does not make an engine plugin third-party.
+Core engine capabilities belong in `NexusLink` and `NexusLinkEditor`. Code that calls an optional engine plugin SDK belongs in the corresponding integration module within this plugin. `NexusLinkExt` and `NexusLinkExtEditor` provide third-party integrations.
 
 This guide is for plugin maintainers and Capability authors. For installation and all four connection routes, see [the usage guide](docs/usage-guide.en.md); also see [architecture](docs/architecture.en.md) and [the proxy session contract](docs/proxy-session.en.md).
 
-Optional engine extensions live in OptionalPlugins/. Development hosts discover them through AdditionalPluginDirectories. Release archives install extensions beside NexusLink/. Validate startup and DLL imports with only the main plugin enabled, then enable extensions and verify tool registration and calls.
+Declare integration modules in `NexusLink.uplugin` with `LoadingPhase: None`. NexusLink loads them according to the engine plugins enabled in the host. Limit SDK dependencies to the integration module. Verify tool registration using the same precompiled editor plugin with the engine plugin enabled and disabled. Package a Game target with the dependency disabled.
 
 ## Documentation languages
 
@@ -32,7 +32,7 @@ Before extending editor operations, check [independent interface scope](docs/edi
 
 **Route B — Capability** (the usual route)
 
-1. **Select the module first using [CapabilitySpec](Resources/CapabilitySpec.en.md) §2.1.0.** Third-party plugin capabilities, currently UnLua, belong in [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) under §2.1.2. Within this plugin, live PIE/Game objects without disk saving belong in Runtime `NexusLink`; disk assets, editor APIs, and disk saving belong in `NexusLinkEditor`. Then **select the base class** under §2.1.1: `Manage*` + `Operations[]` uses `FNexusActionCapability`, whose subclasses must not implement `Execute`; `Sections[]` uses MultiSection; PIE/Game runtime capabilities including `GetOutputLog` / `ExecCommand` / `CaptureViewport` use `FNexusRuntimeCapability`; otherwise use `FNexusCapability`. Create `Source/<module>/Private/Capabilities/<category>/NexusXxxCapability.h/.cpp`, with class name `FNexusXxxCapability`. CapabilitySpec §6 and §8.3 define naming: tool IDs/fields use PascalCase and variable names express their roles.
+1. **Select the module first using [CapabilitySpec](Resources/CapabilitySpec.en.md) §2.1.0.** Third-party plugin capabilities, currently UnLua, belong in [NexusLinkExt](https://github.com/bytepine/NexusLinkExt) under §2.1.2. For an optional engine SDK, use its Runtime or Editor integration module. For core engine APIs, live PIE/Game objects belong in `NexusLink`, while disk assets, editor APIs, and saving belong in `NexusLinkEditor`. Then **select the base class** under §2.1.1: `Manage*` + `Operations[]` uses `FNexusActionCapability`, whose subclasses must not implement `Execute`; `Sections[]` uses MultiSection; PIE/Game runtime capabilities including `GetOutputLog` / `ExecCommand` / `CaptureViewport` use `FNexusRuntimeCapability`; otherwise use `FNexusCapability`. Create `Source/<module>/Private/Capabilities/<category>/NexusXxxCapability.h/.cpp`, with class name `FNexusXxxCapability`. CapabilitySpec §6 and §8.3 define naming: tool IDs/fields use PascalCase and variable names express their roles.
 2. Implement the base-class hooks: Action uses `BuildDefinition` + `RegisterActions` + `PrepareTarget`; ordinary capabilities use `BuildDefinition` + `Execute`. Asset get/manage capabilities must fill `Out.SearchAssetTypes`. End the `.cpp` with `REGISTER_MCP_CAPABILITY(...)`.
 3. Follow CapabilitySpec naming, four-part descriptions, and self-checks.
 4. Invoke the Capability through `CallCapability`, or expose it as an individual MCP Tool in MultiTool mode.
