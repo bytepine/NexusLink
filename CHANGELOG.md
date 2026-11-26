@@ -11,12 +11,14 @@
 
 ### Added
 
+- `SearchCapabilities` 支持组合 `CapabilityName` 与 `Action` 查询单个动作。蓝图、Widget 蓝图和运行时 GAS 分别按 44、21、13 个动作列出字段，独立编辑器工具复用 `GetProjectToolsets` 的动作契约。其余可枚举动作标记共享字段范围，省略 `Action` 保留原有发现方式。
 - UE 5.5 及以上的 GameplayEffect 支持读取和添加 `MultiplyCompound`、`AddFinal` 修改器。`AddModifier` 的 `ModifierOp` 参数列出当前引擎支持的操作，保留 `Add`、`Multiply`、`Divide`、`Override` 四个名称。
 
 ### Changed
 
 - 普通蓝图、Widget 蓝图和动画蓝图共用图表摘要实现。`GetAssetBlueprint` 直接使用当前页变量和函数的源数据，按名称读取图时只收集一次图列表。GameplayAbility 的实例化策略和网络执行策略通过 UE 枚举反射读写。
 - Texture、SoundWave、Font、CommonButtonStyle 和 CommonTextStyle 的 `SetProperty` 共用属性路径校验和写入结果处理。成功时返回 `PropertyPath`，旧值和实际新值的文本非空时分别返回 `OldValue`、`NewValue`。
+- 两种模式的 MCP 握手和代理连接提示已精简。领域参数可按需发现。握手提示在复现或验证前先开启观测。GAS 激活工具提示先在权威端开始捕获，单凭本地受理时结论仍为未确认。
 
 ### Fixed
 

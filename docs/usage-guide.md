@@ -390,7 +390,9 @@ Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可�
 - **SearchMode**（默认）：`tools/list` 仅 3 个元工具；先 `SearchCapabilities` 再 `CallCapability`。日常与长会话推荐。
 - **MultiTool**：各已启用 Capability 为独立 Tool；仅当客户端必须一次枚举全 Tool 时使用。对比见 [architecture §暴露模式](./architecture.md#暴露模式toolslistmode)。
 
-读资产：`SearchAsset`（`AssetType` + `PathFilter`）→ 用返回的 `assets[].path` 与 `RecommendedGet` / `RecommendedManage`。参数约定与 Breaking 键以 [`InitializeInstructions.SearchMode.md`](../Resources/InitializeInstructions.SearchMode.md) 与 [`CapabilitySpec.md`](../Resources/CapabilitySpec.md) 为准。
+读资产时用 `SearchAsset` 指定 `AssetType` 和 `PathFilter`，再使用返回的 `Assets[].Path` 和 `RecommendedGet` / `RecommendedManage`。握手只给出跨工具的调用规则。领域参数和前置条件由 `SearchCapabilities` 精确查询返回，MultiTool 则从所选工具的描述和 `inputSchema` 读取。
+
+已知动作时，用 `SearchCapabilities(CapabilityName="ManageAssetBlueprint", Action="DuplicateNodes")` 查询该动作的入参。`Action` 须与枚举值大小写一致。返回的 `Capability.Action` 确认动作名，`Capability.inputSchema` 保留调用所需的层级。本例的 `AssetPath` 在外层，`Action`、`GraphName` 和 `NodeIds` 在 `Operations[]` 内。`Capability.ParameterScope` 为 `ActionSpecific` 时按该动作列出字段，为 `Shared` 时保留多个动作共用的字段全集。另看 `Capability.ActionHint` 中的条件要求。省略 `Action` 可获取原有能力详情。
 
 动画蓝图含有重名图表时，先用 `GetEditorGraph(AssetPath)` 列出图表。将嵌套图的相对 `GraphName` 或任一图的完整 `GraphPath` 传给 `GetAssetAnimBlueprint` 或 `ManageAssetAnimBlueprint` 的 `GraphName`。根图与嵌套图重名时，用根图的完整路径选择根图。
 
@@ -404,7 +406,7 @@ Token 从设置面板 **MCP 身份验证 Token** 旁的「复制」取得。可�
 2. 编辑副本的项目定制节：填写默认 `PathFilter` 前缀
 3. 插件升级后 diff 插件内 `AIRules.mdc`，将通用段合并进项目副本
 
-勿在 AIRules 中重复 Capability 路由表（以 `InitializeInstructions.SearchMode.md` 为准）。
+项目规则只需补充调用流程和项目约束，工具清单以当前宿主为准。
 
 ### 2.10 危险 Capability 与脚本执行
 

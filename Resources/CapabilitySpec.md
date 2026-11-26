@@ -120,12 +120,15 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 | `Out.Name` | 必填 | PascalCase，全局唯一，遵循 §6 `{Verb}{Scope}{Target}{Aspect?}` 命名 |
 | `Out.Description` | 必填 | 四段式；建议 ≤100 字符（注册期不硬拦） |
 | `Out.InputSchema` | 必填 | `FNexusSchema::Object().Prop(...).Required({...}).Build()` |
+| `Out.ActionFields` | 可选 | 按动作枚举的精确名称声明 `FNexusActionFields`，供 `SearchCapabilities(CapabilityName, Action)` 使用 |
 | `Out.Tags` | 必填 | 至少含 1 个访问标签（`readonly`/`Write`）+ 1 个分类标签 |
 | `Out.ExtraSearchKeywords` | 可选 | 口语词/同义词；禁重复 name token；注册期自动剥离 |
 | `Out.RelatedCapabilities` | 可选 | cap name 列表；有强关联兄弟 cap（get/manage 成对）时填 |
 | `Out.SearchAssetTypes` | 可选 | **资产 get/manage cap 必填**：与 `SearchAsset` 返回的 `AssetType` 对齐（如 `{"Blueprint"}`）；注册期写入路由索引，供 `RecommendedGet`/`RecommendedManage` |
 | `Out.Prerequisites` | 可选 | 枚举值（见下表）；需要特定运行环境时填 |
 | `Out.WhenToUse` | 可选 | ≤40 字符；同前缀 cap ≥3 个、description 难以区分时填 |
+
+`Required` 和 `Optional` 使用 `InputSchema` 中与 `Action` 同层的字段名。若动作在 `Operations[]` 中，只填写操作项字段，查询会保留 `AssetPath` 等外层参数。查询自动保留 `Action` 和既有必填项。以动作处理器为准区分必填和可选，互斥或条件必填项用 `Hint` 说明，对外返回 `Capability.ActionHint`。已有独立编辑器工具契约时，复用 `GetProjectToolsets` 使用的动作 schema。只有共享 schema 的动作返回 `ParameterScope=Shared`，供客户端识别跨动作字段。
 
 **Multi-section cap 特别说明：**
 继承 `FNexusMultiSectionCapability` 时，`Out.InputSchema` 调用 `BuildSchemaWithSections()` 代替直接构建，sections 枚举字段由基类自动注入。`BuildCapabilitySchema()` 继续声明除 sections 之外的所有入参。
@@ -231,7 +234,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 - [ ] **Keywords**：ExtraSearchKeywords 均为口语词/同义词，无 name 已有词
 - [ ] **关联**：RelatedCapabilities 列出了强关联的兄弟 cap（get/manage 通常成对）
 - [ ] **SearchAssetTypes**：资产 `GetAsset*` / `ManageAsset*` 已声明对应 `AssetType`（与 `SearchAsset` 返回值对齐）；非资产 cap 留空
-- [ ] **命名**：`Out.Name` 符合 §6 决策树；非 pattern cap 已登记 InitializeInstructions 例外表
+- [ ] **命名**按 §6 决策树，非标准名称登记在 §6.4。
 - [ ] 运行时（PIE/Game/DS）能力继承 `FNexusRuntimeCapability` / `FNexusRuntimeMultiSectionCapability`（资产/编辑器能力保持默认基类）
 
 > 注册期 `FNexusCapabilityRegistry::Register()` 仅硬校验命名动词（§6）；Description 长度与 §4 格式/重叠/关键词条数由规范自检 / `scripts/audit_capability_naming.py` CI 门禁负责，避免 Dev 构建启动时 ensure 闪退。
@@ -254,14 +257,14 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 5. 编译后观察 Output Log，无 ensureMsgf 警告
 6. 过提交前自检清单（§4）
 7. 同步更新 `CHANGELOG.md` `[Unreleased]`
-8. 同步 [`InitializeInstructions.SearchMode.md`](InitializeInstructions.SearchMode.md) / [`InitializeInstructions.MultiTool.md`](InitializeInstructions.MultiTool.md)（见 §6.6）
+8. 在能力定义中维护领域参数、前置条件和关联工具（见 §6.6）。
 ```
 
 ---
 
 ## 6. Capability 命名规范
 
-> AI 路由与注册期校验的权威来源；完整例外表见 [`InitializeInstructions.SearchMode.md`](InitializeInstructions.SearchMode.md)。
+> 注册期按本节校验命名。当前宿主支持的名称及参数由工具发现提供。
 
 ### 6.1 全局格式
 
@@ -291,7 +294,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 
 ### 6.4 例外登记表（非 Asset/Runtime pattern）
 
-须在 Instructions「例外」段与下表 **全版本行 1:1**；门控 cap（GAS / StateTree / MVVM 等）只写 Instructions「插件门控」，不写入全版本 type / 例外列表：
+本表记录命名例外和插件门控示例。实际可用能力取决于宿主、引擎版本和已启用的插件。
 
 | 分类 | Capability |
 |------|------------|
@@ -322,7 +325,7 @@ NexusLink 插件拆成两个模块：`NexusLink`（`Type: Runtime`，可进 cook
 - 兄弟：`get`↔`manage`（资产）、`get`↔`Set`（property）、`get`↔`interact`（命令）。
 - **禁止**指向未注册名；源码侧 `audit_capability_naming.py` 在 CI / `run_e2e` 前校验（按全量源码，含 `#if WITH_*` 文件）。
 - **运行期**：`FilterVisibleRelated` 再剥离当前宿主未注册 / 不可见 / 已禁用的名（`SearchCapabilities` related、`AttachMetaHints`、MultiTool `[see:]`）。
-- 变更 cap 名或路由：§6 登记表 + **SearchMode + MultiTool** + `scripts/build_tool_reference.py`（中英 `tool-reference` 同时重生）+ CHANGELOG。
+- 变更能力名或路由时，同步 §6 登记表和 CHANGELOG，并用 `scripts/build_tool_reference.py` 重新生成中英工具参考。只有跨工具的调用规则变化时才更新两种模式的握手模板。
 
 ---
 

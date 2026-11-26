@@ -8,7 +8,7 @@ alwaysApply: false
 [English](AIRules.mdc) | 中文
 
 > **与 MCP 握手指令的分工**
-> - **InitializeInstructions**（UE 握手）：能力路由表、元工具约束、读写命名。
+> - **InitializeInstructions**（UE 握手）提供当前模式的调用入口和通用读写约束。
 > - **本规则**（IDE 侧）：强制先发现工具 → 查路径 → 读写；禁止猜测能力名/路径；填写项目级 `PathFilter` 前缀。
 >
 > 来源：`Plugins/NexusLink/Resources/AIRules.mdc`；升级插件后，将通用段变更合并到工程副本。
@@ -124,10 +124,10 @@ NexusLink 自身不直接链接或调用官方 Toolset/ToolsetCore/ToolsetRegist
 
 ### Knot / 其他 IDE
 
-1. 将 §1–§4 粘贴为工程规则（补充 InitializeInstructions，不重复路由表）。
+1. 将 §1–§4 粘贴为工程规则，补充握手中的通用约束。
 2. 填写 §5 项目信息。
 
 ### 维护
 
 - 插件升级后：对比 `Resources/AIRules.mdc` 与工程副本，合并通用更新（含 §3 参数契约）。
-- 能力路由变更：以 UE `InitializeInstructions.*.md` 为准；本规则仅覆盖流程与禁止事项。
+- 从当前宿主的工具发现结果读取能力名、参数和前置条件。

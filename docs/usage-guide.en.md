@@ -394,7 +394,9 @@ If ports advance automatically, use the editor title bar/settings value.
 - **SearchMode**, default: tools/list returns three meta-tools; SearchCapabilities precedes CallCapability. Recommended for daily use and long conversations.
 - **MultiTool:** every enabled capability is an independent Tool. Use only when the client must enumerate all Tools at once. See [exposure modes](architecture.en.md#exposure-modes-toolslistmode).
 
-Read assets through SearchAsset with AssetType + PathFilter, then use returned assets[].path and RecommendedGet / RecommendedManage. [InitializeInstructions.SearchMode](../Resources/InitializeInstructions.SearchMode.md) and [CapabilitySpec](../Resources/CapabilitySpec.en.md) define arguments and breaking key changes.
+Find assets with `SearchAsset` using `AssetType` and `PathFilter`, then use `Assets[].Path` and `RecommendedGet` / `RecommendedManage`. The handshake gives rules that apply across tools. For domain parameters and prerequisites, look up the exact name through `SearchCapabilities` or read the selected MultiTool description and `inputSchema`.
+
+If you know the action, use `SearchCapabilities(CapabilityName="ManageAssetBlueprint", Action="DuplicateNodes")` to look up its inputs. The action name is case-sensitive. The result confirms the name in `Capability.Action` and preserves the call structure in `Capability.inputSchema`. In this example, `AssetPath` is at the top level and `Action`, `GraphName` and `NodeIds` belong in `Operations[]`. A `Capability.ParameterScope` of `ActionSpecific` lists fields for the selected action. `Shared` keeps the union of fields across actions. Check `Capability.ActionHint` for conditional requirements. Omit `Action` for the usual capability details.
 
 When an Animation Blueprint contains graphs with the same name, list them with `GetEditorGraph(AssetPath)`. Pass the nested graph’s relative `GraphName` or any graph’s full `GraphPath` as the `GraphName` argument to `GetAssetAnimBlueprint` or `ManageAssetAnimBlueprint`. When a root graph shares its name with a nested graph, use the full path to select the root.
 
@@ -409,7 +411,7 @@ Plugin [AIRules.mdc](../Resources/AIRules.mdc) is **not injected through MCP**. 
 2. Fill default PathFilter prefixes in the copy's project-specific section.
 3. After plugin upgrades, diff AIRules.mdc and merge generic sections into your copy.
 
-Do not duplicate the Capability routing table in AIRules; InitializeInstructions.SearchMode.md is authoritative.
+Use project rules for workflows and project constraints. The current host supplies the tool catalog.
 
 <a id="210-危险-capability-与脚本执行"></a>
 ### 2.10 Dangerous capabilities and scripts

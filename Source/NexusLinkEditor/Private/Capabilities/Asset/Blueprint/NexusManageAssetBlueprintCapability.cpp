@@ -112,7 +112,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("RepNotifyFunction"), FNexusSchema::Str(TEXT("RepNotify: existing owned function with no inputs/outputs; create with AddFunction first")))
 		.Prop(TEXT("bCallInEditor"), FNexusSchema::Bool(TEXT("SetFunctionCallInEditor: expose an owned parameterless function as an editor button")))
 		.Prop(TEXT("GraphName"),       FNexusSchema::Str(TEXT("Owned graph name, full or relative object path; required for AddFunctionParameter/RemoveFunctionParameter, not FunctionName")))
-		.Prop(TEXT("VariableName"),    FNexusSchema::Str(TEXT("Variable name (AddVariable/PromotePin; auto if omitted)")))
+		.Prop(TEXT("VariableName"),    FNexusSchema::Str(TEXT("Variable name. Required for AddVariable. PromotePin generates a name if omitted.")))
 		.Prop(TEXT("VariableType"),    FNexusSchema::Str(TEXT("Basic, object, ClassReference<BaseClass> or BlueprintType struct; T[], Array<T>, Set<T>, Map<K,V> (no nested containers)")))
 		.Prop(TEXT("NewVariableName"), FNexusSchema::Str(TEXT("New member name (RenameVariable); leaf Blueprint only, preserves GUID and references; descendants/RepNotify are rejected")))
 		.Prop(TEXT("ParentClass"), FNexusSchema::Str(TEXT("Reparent: new native class name or Blueprint/generated class path; normal, Widget, Anim and GameplayAbility Blueprints")))
@@ -151,7 +151,7 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("PropertyPath"),    FNexusSchema::Str(TEXT("Property path, dot notation e.g. RelativeLocation.X")))
 		.Prop(TEXT("Value"),           FNexusSchema::Str(TEXT("Unreal import text; omitted struct fields preserve their previous values. UE4 arrays: empty string clears, () may create a default element; prefer ClearArray/SetArray")))
 		.Prop(TEXT("Values"), FNexusSchema::ArrayOf(TEXT("SetArray: typed JSON elements; [] clears. Optional ComponentName selects an owned component template"), ArrayValueSchema))
-		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous scalar value (SetDefaults only)")))
+		.Prop(TEXT("ExpectedValue"), FNexusSchema::Str(TEXT("Expected previous property value in Unreal import text for SetDefaults, SetComponentProperty, SetArray or ClearArray.")))
 		.Required({ TEXT("Action") })
 		.Build();
 	Out.InputSchema = FNexusSchema::Object()
@@ -162,6 +162,64 @@ void FNexusManageAssetBlueprintCapability::BuildDefinition(FNexusCapabilityDefin
 		.Prop(TEXT("Operations"), FNexusSchema::ArrayOf(TEXT("Batch ops (at least one)"), OpSchema.ToSharedRef()))
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
+	Out.ActionFields = {
+		{TEXT("AddVariable"), {{TEXT("VariableName"), TEXT("VariableType")}, {TEXT("DefaultValue"), TEXT("Category"), TEXT("bIsPublic")}, {}}},
+		{TEXT("RemoveVariable"), {{TEXT("VariableName")}, {}, {}}},
+		{TEXT("RenameVariable"), {{TEXT("VariableName"), TEXT("NewVariableName")}, {}, {}}},
+		{TEXT("RenameLocalVariable"), {{TEXT("FunctionName"), TEXT("VariableName"), TEXT("NewVariableName")}, {}, {}}},
+		{TEXT("ChangeVariableType"), {{TEXT("VariableName"), TEXT("VariableType")}, {TEXT("bAllowPotentialDataLoss")},
+			TEXT("Preview the change on a leaf Blueprint first. A type change requires explicit bAllowPotentialDataLoss=true.")}},
+		{TEXT("SetVariableMetadata"), {{TEXT("VariableName"), TEXT("ToolTip")}, {}, {}}},
+		{TEXT("SetVariableReplication"), {{TEXT("VariableName"), TEXT("Replication")}, {TEXT("RepNotifyFunction")},
+			TEXT("RepNotify requires an existing owned non-pure, non-RPC function with no inputs or outputs.")}},
+		{TEXT("SetFunctionCallInEditor"), {{TEXT("FunctionName"), TEXT("bCallInEditor")}, {}, {}}},
+		{TEXT("Reparent"), {{TEXT("ParentClass")}, {TEXT("bAllowPotentialDataLoss")},
+			TEXT("Preview first. Leaving the old parent hierarchy requires explicit bAllowPotentialDataLoss=true.")}},
+		{TEXT("RemapMemberReferences"), {{TEXT("OldMemberName"), TEXT("NewMemberName")}, {TEXT("bValidateOnly")}, {}}},
+		{TEXT("AddFunction"), {{TEXT("FunctionName")}, {}, {}}},
+		{TEXT("RemoveFunction"), {{TEXT("FunctionName")}, {}, {}}},
+		{TEXT("AddMacro"), {{TEXT("FunctionName")}, {}, {}}},
+		{TEXT("AddTimeline"), {{TEXT("FunctionName")}, {}, {}}},
+		{TEXT("AddDispatcher"), {{TEXT("VariableName")}, {}, {}}},
+		{TEXT("AddLocalVariable"), {{TEXT("FunctionName"), TEXT("VariableName")}, {TEXT("VariableType")},
+			TEXT("VariableType defaults to bool.")}},
+		{TEXT("AddInterface"), {{TEXT("InterfaceName")}, {}, {}}},
+		{TEXT("RemoveInterface"), {{TEXT("InterfaceName")}, {}, {}}},
+		{TEXT("AddNode"), {{TEXT("GraphName"), TEXT("NodeClass")}, {TEXT("PosX"), TEXT("PosY"), TEXT("FunctionName"), TEXT("FunctionClass"), TEXT("VariableName"), TEXT("CustomEventName")},
+			TEXT("K2Node_CallFunction and K2Node_Event require FunctionName. K2Node_VariableGet/Set require VariableName. K2Node_CustomEvent requires CustomEventName on an event graph.")}},
+		{TEXT("RemoveNode"), {{TEXT("GraphName"), TEXT("NodeId")}, {}, {}}},
+		{TEXT("SetNode"), {{TEXT("GraphName"), TEXT("NodeId")}, {TEXT("PosX"), TEXT("PosY"), TEXT("Comment"), TEXT("PinName"), TEXT("PinDefaultValue"), TEXT("CustomEventName")},
+			TEXT("Supply PinName and PinDefaultValue together. CustomEventName renames a custom event.")}},
+		{TEXT("PromotePin"), {{TEXT("GraphName"), TEXT("NodeId"), TEXT("PinName")}, {TEXT("VariableName"), TEXT("bIsLocal"), TEXT("PosX"), TEXT("PosY")}, {}}},
+		{TEXT("SplitPin"), {{TEXT("GraphName"), TEXT("NodeId"), TEXT("PinName")}, {},
+			TEXT("Select an unconnected, unsplit struct pin.")}},
+		{TEXT("RecombinePin"), {{TEXT("GraphName"), TEXT("NodeId"), TEXT("PinName")}, {},
+			TEXT("Select a split struct pin or one of its children. All child pins must be unconnected.")}},
+		{TEXT("DuplicateNodes"), {{TEXT("GraphName"), TEXT("NodeIds")}, {TEXT("OffsetX"), TEXT("OffsetY")},
+			TEXT("Pass 1-64 unique NodeIds from this graph. Supported nodes are CallFunction, VariableGet, VariableSet, Knot and Comment. Only internal links are copied.")}},
+		{TEXT("Connect"), {{TEXT("GraphName"), TEXT("SourceNodeId"), TEXT("SourcePinName"), TEXT("TargetNodeId"), TEXT("TargetPinName")}, {}, {}}},
+		{TEXT("Disconnect"), {{TEXT("GraphName"), TEXT("SourceNodeId"), TEXT("SourcePinName"), TEXT("TargetNodeId"), TEXT("TargetPinName")}, {}, {}}},
+		{TEXT("DisconnectAll"), {{TEXT("GraphName"), TEXT("SourceNodeId"), TEXT("SourcePinName")}, {}, {}}},
+		{TEXT("AddComponent"), {{TEXT("ComponentClass"), TEXT("ComponentName")}, {TEXT("AttachTo")}, {}}},
+		{TEXT("RemoveComponent"), {{TEXT("ComponentName")}, {}, {}}},
+		{TEXT("SetComponentProperty"), {{TEXT("ComponentName"), TEXT("PropertyPath"), TEXT("Value")}, {TEXT("ExpectedValue")}, {}}},
+		{TEXT("ResetComponentPropertyToDefault"), {{TEXT("ComponentName"), TEXT("PropertyPath")}, {TEXT("Baseline")}, {}}},
+		{TEXT("CopyComponent"), {{TEXT("SourceAssetPath"), TEXT("SourceComponentName")}, {TEXT("ComponentName"), TEXT("AttachTo")}, {}}},
+		{TEXT("ReattachComponent"), {{TEXT("ComponentName"), TEXT("AttachTo")}, {}, {}}},
+		{TEXT("SetDefaults"), {{TEXT("PropertyPath"), TEXT("Value")}, {TEXT("ExpectedValue")}, {}}},
+		{TEXT("SetArray"), {{TEXT("PropertyPath"), TEXT("Values")}, {TEXT("ComponentName"), TEXT("ExpectedValue")}, {}}},
+		{TEXT("ClearArray"), {{TEXT("PropertyPath")}, {TEXT("ComponentName"), TEXT("ExpectedValue")}, {}}},
+		{TEXT("ArrangeNodes"), {{TEXT("GraphName")}, {},
+			TEXT("Supports up to 500 nodes.")}},
+		{TEXT("WriteGraphDSL"), {{TEXT("GraphName"), TEXT("Code")}, {},
+			TEXT("Append 1-500 compatible nodes from GetAssetBlueprint GraphDSL.")}},
+		{TEXT("WriteGraphPlan"), {{TEXT("GraphName"), TEXT("GraphNodes"), TEXT("GraphLinks")}, {},
+			TEXT("Use 1-64 nodes with unique Id and NodeClass (K2Node_CallFunction with FunctionName, or K2Node_VariableGet/Set with VariableName). Give 0-128 links with From, FromPin, To and ToPin.")}},
+		{TEXT("AddFunctionParameter"), {{TEXT("GraphName"), TEXT("ParameterName"), TEXT("VariableType")}, {TEXT("bInput")}, {}}},
+		{TEXT("RemoveFunctionParameter"), {{TEXT("GraphName"), TEXT("ParameterName")}, {TEXT("bInput")}, {}}},
+		{TEXT("SetVariableCategory"), {{TEXT("VariableName"), TEXT("Category")}, {}, {}}},
+		{TEXT("SetVariableEditable"), {{TEXT("VariableName"), TEXT("bEditable")}, {}, {}}},
+	};
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Blueprint };
 	Out.ExtraSearchKeywords = {
 		TEXT("variable"), TEXT("rename"), TEXT("reparent"), TEXT("parent"), TEXT("Node"), TEXT("Component"), TEXT("wire"), TEXT("Connect"),

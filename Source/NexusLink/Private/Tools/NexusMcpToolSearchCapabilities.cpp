@@ -230,16 +230,17 @@ void FNexusMcpToolSearchCapabilities::BuildDefinition(FNexusMcpToolDefinition& O
 	TSharedPtr<FJsonObject> NameProp = MakeShared<FJsonObject>();
 	NameProp->SetStringField(TEXT("type"), TEXT("string"));
 	NameProp->SetStringField(TEXT("description"),
-		TEXT("Exact capability name (e.g. GetAssetBlueprint). Returns full parameter list when provided."));
+		TEXT("Exact capability name. Add Action for a single action's input schema."));
+
+	auto ActionProp = MakeShared<FJsonObject>();
+	ActionProp->SetStringField(TEXT("type"), TEXT("string"));
+	ActionProp->SetStringField(TEXT("description"), TEXT("Exact action name. Requires CapabilityName; omit for the full parameter list."));
 
 	TSharedPtr<FJsonObject> Props = MakeShared<FJsonObject>();
 	Props->SetObjectField(TEXT("Query"),          QueryProp);
 	Props->SetObjectField(TEXT("CapabilityName"), NameProp);
+	Props->SetObjectField(TEXT("Action"), ActionProp);
 	Schema->SetObjectField(TEXT("properties"), Props);
-
-	TArray<TSharedPtr<FJsonValue>> Required;
-	Required.Add(MakeShared<FJsonValueString>(TEXT("Query")));
-	Schema->SetArrayField(TEXT("required"), Required);
 
 	Out.InputSchema = Schema;
 	Out.Tags = { FNexusMcpTags::Readonly, FNexusMcpTags::Editor };
@@ -265,15 +266,39 @@ FNexusMcpToolResult FNexusMcpToolSearchCapabilities::Execute(const TSharedPtr<FJ
 		return Result;
 	}
 
-	// ── CapabilityName 精确查询：直接返回完整参数列表 ──────────────────────────
 	const FString CapabilityName = Parsed.Str(TEXT("CapabilityName"));
+	const bool bActionRequested = Arguments && Arguments->HasField(TEXT("Action"));
+	if (bActionRequested && CapabilityName.IsEmpty())
+	{
+		Output->SetStringField(TEXT("ErrorKind"), TEXT("InvalidAction"));
+		Output->SetStringField(TEXT("Error"), TEXT("Pass CapabilityName and Action together. Use Query alone to discover a capability."));
+		Result.StructuredContent = Output;
+		return Result;
+	}
 	if (!CapabilityName.IsEmpty())
 	{
 		const FCapRecord* Record = nullptr;
 		const ENexusCapabilityLookupStatus Status = FNexusCapabilityIndexUtils::ResolveByName(CapabilityName, Settings, Record);
 		if (Status == ENexusCapabilityLookupStatus::Enabled)
 		{
-			EmitCapabilityDetailFromRecord(*Record, Output);
+			if (bActionRequested)
+			{
+				FString Action;
+				if (!Arguments->HasTypedField<EJson::String>(TEXT("Action"))
+					|| !Arguments->TryGetStringField(TEXT("Action"), Action) || Action.TrimStartAndEnd().IsEmpty())
+				{
+					Output->SetStringField(TEXT("ErrorKind"), TEXT("InvalidAction"));
+					Output->SetStringField(TEXT("Error"), TEXT("Action must be a nonempty string."));
+				}
+				else
+				{
+					FNexusCapabilityIndexUtils::DescribeAction(Record->Def, Action.TrimStartAndEnd(), Output);
+				}
+			}
+			else
+			{
+				EmitCapabilityDetailFromRecord(*Record, Output);
+			}
 			Result.StructuredContent = Output;
 			return Result;
 		}

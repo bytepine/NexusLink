@@ -15,6 +15,9 @@ This document lists all MCP tools and capabilities exposed by NexusLink with det
 > Example (single): `CallCapability(Capability="ListRuntimeActors", Arguments={"ClassFilter":"BP_Enemy"})`
 
 > **`SearchCapabilities` failure kinds** (check `ErrorKind`; do not rely on a single `Error` string)
+> - `InvalidAction` requires a nonempty string `Action` paired with `CapabilityName`.
+> - `ActionNotSupported` means the capability has no enumerated action. Omit `Action` for its full parameters.
+> - `UnknownAction` returns `AvailableActions` with the accepted, case-sensitive names.
 > - `NotFound`: capability name not in registry
 > - `disabled`: exact `CapabilityName` / cap-name `Query` hit a cap disabled in settings
 > - `DisabledOnly`: fuzzy `Query` matched only **disabled** caps (see `DisabledCapabilities[]`)
@@ -85,7 +88,7 @@ Execute a capability (after SearchAsset / get_asset_*). On failure check ErrorKi
 
 ### `SearchCapabilities`
 
-**Primary entry.** Query a reachable UE instance for Blueprint, Widget, material, and asset capabilities. Use `CapabilityName=<exact>` when known, or pass 1–2 keywords in `Query`. Up to two matches include `Parameters[]` with declared numeric bounds. Check `ErrorKind` on failure.
+**Primary entry.** Query a reachable UE instance for Blueprint, Widget, material, and asset capabilities. Use `CapabilityName=<exact>` when known, optionally with a case-sensitive `Action` to retrieve `Capability.inputSchema` and `Capability.ParameterScope` (`ActionSpecific` or `Shared`). Otherwise pass 1–2 keywords in `Query`. Up to two matches include `Parameters[]` with declared numeric bounds. Check `ErrorKind` on failure.
 
 ---
 
@@ -3864,7 +3867,7 @@ Read runtime UMG fields by WidgetPath or WidgetName+OwnerClass, including Widget
 
 ### `InteractRuntimeActorAbilitySystem`
 
-Command ASC. Try existing abilities, capture activation/commit/failure events; grant/apply/attributes.
+Grant abilities, apply effects or set attributes. To verify activation, run StartActivationCapture on the authority before the attempt. bRequestAccepted reports local acceptance only.
 
 **Prerequisites**: `PIE`
 
@@ -3873,7 +3876,7 @@ Command ASC. Try existing abilities, capture activation/commit/failure events; g
 | Parameter | Type | Required | Description |
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | Write operation enum: `ActivateAbility` / `CancelAbility` / `ApplyEffect` / `RemoveEffect` / `SetAttribute` / `GiveAbility` / `ClearAbility` / `ExecuteCue` / `AddLooseTag` / `RemoveLooseTag` / `TryActivateGrantedAbility` / `StartActivationCapture` / `StopActivationCapture` |
-| `ActorName` | `string` |  | Actor name (optional; first ASC Pawn/Actor if omitted) |
+| `ActorName` | `string` |  | Actor with an ASC. Required for TryActivateGrantedAbility, StartActivationCapture and StopActivationCapture. Other actions default to the first actor with an ASC. |
 | `AbilityPath` | `string` |  | GameplayAbility asset path |
 | `SpecHandle` | `string` |  | Granted ability handle; exclusive with AbilityPath for TryActivateGrantedAbility |
 | `CaptureId` | `string` |  | Capture to stop; bound to ActorName |

@@ -128,12 +128,15 @@ Set these fields in BuildDefinition as appropriate:
 | Out.Name | Required | PascalCase, globally unique, following §6 {Verb}{Scope}{Target}{Aspect?} |
 | Out.Description | Required | Four-part format, preferably ≤100 characters; not hard-blocked during registration |
 | Out.InputSchema | Required | FNexusSchema::Object().Prop(...).Required({...}).Build() |
+| `Out.ActionFields` | Optional | Map exact action enum names to `FNexusActionFields` for `SearchCapabilities(CapabilityName, Action)` |
 | Out.Tags | Required | At least one access tag (readonly/Write) and one category |
 | Out.ExtraSearchKeywords | Optional | Colloquialisms/synonyms; no duplicate name tokens, stripped at registration |
 | Out.RelatedCapabilities | Optional | Capability names; fill for strongly related siblings such as get/manage pairs |
 | Out.SearchAssetTypes | Optional | **Required for asset get/manage**: match SearchAsset AssetType, e.g. {"Blueprint"}. Registration builds the RecommendedGet/RecommendedManage routing index |
 | Out.Prerequisites | Optional | Enum values below; fill when a specific runtime environment is required |
 | Out.WhenToUse | Optional | ≤40 characters; useful with ≥3 same-prefix capabilities difficult to distinguish by description |
+
+Use `Required` and `Optional` for `InputSchema` field names at the same level as `Action`. For `Operations[]`, list the operation's fields. The lookup preserves outer inputs such as `AssetPath`, the `Action` selector and existing required fields. Follow the handler's requirements and describe mutually exclusive or conditionally required inputs in `Hint`, exposed as `Capability.ActionHint`. Standalone editor tools reuse the action schemas used by `GetProjectToolsets`. Actions with only a shared schema return `ParameterScope=Shared` so clients can identify fields used by other actions.
 
 **Multi-section capabilities:**
 FNexusMultiSectionCapability subclasses set Out.InputSchema = BuildSchemaWithSections() rather than constructing it directly; the base injects the sections enum. BuildCapabilitySchema() declares all other inputs.
@@ -246,7 +249,7 @@ Before committing or PR review, verify every added/changed capability:
 - [ ] **Keywords:** ExtraSearchKeywords contains colloquialisms/synonyms without name tokens.
 - [ ] **Relations:** RelatedCapabilities lists strongly related siblings, usually get/manage pairs.
 - [ ] **SearchAssetTypes:** asset GetAsset*/ManageAsset* declare matching SearchAsset AssetType; nonasset capabilities leave it empty.
-- [ ] **Naming:** Out.Name follows §6 decision rules; nonpattern names appear in InitializeInstructions exceptions.
+- [ ] **Naming** follows §6. Record exceptions in §6.4.
 - [ ] Runtime PIE/Game/DS capabilities inherit FNexusRuntimeCapability / FNexusRuntimeMultiSectionCapability; asset/editor capabilities keep default bases.
 
 > Registration FNexusCapabilityRegistry::Register() hard-validates only naming verbs (§6). Description length and §4 format/overlap/keyword counts rely on checklist and scripts/audit_capability_naming.py CI, avoiding startup ensure crashes in Dev builds.
@@ -270,7 +273,7 @@ Before committing or PR review, verify every added/changed capability:
 5. Compile and inspect Output Log for no ensureMsgf warnings.
 6. Pass the pre-submission checklist (§4).
 7. Update CHANGELOG.md [Unreleased] in sync.
-8. Update [InitializeInstructions.SearchMode.md](InitializeInstructions.SearchMode.md) / [InitializeInstructions.MultiTool.md](InitializeInstructions.MultiTool.md), see §6.6.
+8. Maintain domain parameters, prerequisites and related tools in the capability definition (see §6.6).
 ```
 
 ---
@@ -278,7 +281,7 @@ Before committing or PR review, verify every added/changed capability:
 <a id="6-capability-命名规范"></a>
 ## 6. Capability naming
 
-> Authoritative for AI routing/registration checks; the full exception table is in [InitializeInstructions.SearchMode.md](InitializeInstructions.SearchMode.md).
+> Registration checks names against these rules. Tool discovery reports the names and parameters available on the current host.
 
 <a id="61-全局格式"></a>
 ### 6.1 Global format
@@ -311,7 +314,7 @@ Before committing or PR review, verify every added/changed capability:
 <a id="64-例外登记表非-assetruntime-pattern"></a>
 ### 6.4 Exception register outside Asset/Runtime patterns
 
-The Instructions exceptions section must match this table's **all-version rows 1:1**. Gated GAS/StateTree/MVVM/etc. capabilities appear only in Instructions plugin gates, not all-version type/exception lists:
+This table records naming exceptions and examples of plugin gates. Availability depends on the host, engine version and enabled plugins.
 
 | Category | Capability |
 |------|------------|
@@ -344,7 +347,7 @@ The Instructions exceptions section must match this table's **all-version rows 1
 - Siblings: get↔manage for assets, get↔Set for properties, get↔interact for commands.
 - **Never** reference unregistered names. Source audit_capability_naming.py checks before CI/run_e2e against all source, including #if WITH_* files.
 - **Runtime:** FilterVisibleRelated removes names unregistered/invisible/disabled in the host from SearchCapabilities related, AttachMetaHints, and MultiTool [see:].
-- Name/routing changes update §6 register, **SearchMode + MultiTool**, scripts/build_tool_reference.py regenerating both tool-reference languages, and CHANGELOG.
+- When names or routing change, update the §6 register and CHANGELOG and regenerate both tool references with `scripts/build_tool_reference.py`. Update the two handshake templates when a rule applies across tools.
 
 ---
 

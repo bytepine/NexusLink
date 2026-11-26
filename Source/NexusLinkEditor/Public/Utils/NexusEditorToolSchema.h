@@ -3,6 +3,7 @@
 #include "NexusCapability.h"
 #include "NexusMcpTool.h"
 #include "NexusMcpSchemaBuilder.h"
+#include "Utils/NexusEditorActionSchema.h"
 #include "Utils/NexusEditorControlServices.h"
 #include "Dom/JsonValue.h"
 
@@ -95,6 +96,7 @@ struct FNexusEditorToolSchema final
     static void ConfigureIndependent(FNexusCapabilityDefinition& Out, bool bWrite, const FString& Domain)
     {
         Configure(Out, bWrite);
+        Out.DescribeAction = &FNexusEditorActionSchema::Describe;
         if (Domain == TEXT("NexusPCG")) Out.Prerequisites.Add(TEXT("PluginEnabled:PCG"));
         else if (Domain == TEXT("NexusNiagara")) Out.Prerequisites.Add(TEXT("PluginEnabled:Niagara"));
     }

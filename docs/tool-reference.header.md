@@ -15,6 +15,9 @@ This document lists all MCP tools and capabilities exposed by NexusLink with det
 > Example (single): `CallCapability(Capability="ListRuntimeActors", Arguments={"ClassFilter":"BP_Enemy"})`
 
 > **`SearchCapabilities` failure kinds** (check `ErrorKind`; do not rely on a single `Error` string)
+> - `InvalidAction` requires a nonempty string `Action` paired with `CapabilityName`.
+> - `ActionNotSupported` means the capability has no enumerated action. Omit `Action` for its full parameters.
+> - `UnknownAction` returns `AvailableActions` with the accepted, case-sensitive names.
 > - `NotFound`: capability name not in registry
 > - `disabled`: exact `CapabilityName` / cap-name `Query` hit a cap disabled in settings
 > - `DisabledOnly`: fuzzy `Query` matched only **disabled** caps (see `DisabledCapabilities[]`)

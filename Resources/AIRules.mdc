@@ -8,7 +8,7 @@ alwaysApply: false
 English | [中文](AIRules.zh.mdc)
 
 > **Division of labor with MCP handshake instructions**
-> - **InitializeInstructions** (UE handshake): capability routing table, meta-tool constraints, read/write naming.
+> - **InitializeInstructions** (UE handshake) describes how to call tools in this mode and handle reads and writes.
 > - **This Rule** (IDE-side): enforce discover tools → find paths → read/write; forbid guessing cap names/paths; fill project-level `PathFilter` prefixes.
 >
 > Source: `Plugins/NexusLink/Resources/AIRules.mdc` — diff generic sections into your project copy after plugin upgrades.
@@ -124,10 +124,10 @@ Navigation: `GetNavigationPoint` projects a point; `GetNavigationPath` queries e
 
 ### Knot / other IDEs
 
-1. Paste §1–§4 as project rules (complements InitializeInstructions; does not duplicate the routing table)
+1. Copy §1–§4 into the project rules to complement the handshake.
 2. Fill §5 project info
 
 ### Maintenance
 
 - After plugin upgrade: diff `Resources/AIRules.mdc` vs project copy; merge generic updates (including §3 parameter contract)
-- Capability routing changes: follow UE `InitializeInstructions.*.md`; this rule covers flow and prohibitions only
+- Read capability names, parameters and prerequisites from the current host’s discovery results.

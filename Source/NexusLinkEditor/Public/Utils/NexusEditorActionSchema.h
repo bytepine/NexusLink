@@ -7,4 +7,5 @@
 struct NEXUSLINKEDITOR_API FNexusEditorActionSchema final
 {
 	static TArray<TSharedPtr<FJsonValue>> List(const FString& Capability, const FString& Action);
+	static void Describe(const FString& Capability, const FString& Action, FJsonObject& Detail);
 };

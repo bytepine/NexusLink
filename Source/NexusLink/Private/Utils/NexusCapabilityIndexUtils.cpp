@@ -191,6 +191,104 @@ TArray<TSharedPtr<FJsonValue>> FNexusCapabilityIndexUtils::ExtractParameters(
 	return Params;
 }
 
+static TSharedPtr<FJsonObject> FindSchemaObject(const TSharedPtr<FJsonObject>& Parent, const TCHAR* Name)
+{
+	const TSharedPtr<FJsonObject>* Child = nullptr;
+	return Parent && Parent->TryGetObjectField(Name, Child) ? *Child : nullptr;
+}
+
+void FNexusCapabilityIndexUtils::DescribeAction(const FNexusCapabilityDefinition& Def, const FString& RequestedAction,
+                                                TSharedPtr<FJsonObject>& Output)
+{
+	const auto RootProperties = FindSchemaObject(Def.InputSchema, TEXT("properties"));
+	const auto Operations = FindSchemaObject(RootProperties, TEXT("Operations"));
+	const auto Items = FindSchemaObject(Operations, TEXT("items"));
+	const bool bNested = !FindSchemaObject(RootProperties, TEXT("Action")) && Items.IsValid();
+	const auto Owner = bNested ? Items : Def.InputSchema;
+	const auto Properties = FindSchemaObject(Owner, TEXT("properties"));
+	const auto Selector = FindSchemaObject(Properties, TEXT("Action"));
+	const TArray<TSharedPtr<FJsonValue>>* Choices = nullptr;
+	if (!Selector || !Selector->TryGetArrayField(TEXT("enum"), Choices) || Choices->Num() == 0)
+	{
+		Output->SetStringField(TEXT("ErrorKind"), TEXT("ActionNotSupported"));
+		Output->SetStringField(TEXT("Error"), TEXT("This capability has no enumerated Action. Omit Action to inspect its parameters."));
+		return;
+	}
+
+	const auto* Match = Choices->FindByPredicate([&RequestedAction](const TSharedPtr<FJsonValue>& Choice)
+	{
+		return Choice->Type == EJson::String && Choice->AsString().Equals(RequestedAction, ESearchCase::CaseSensitive);
+	});
+	if (!Match)
+	{
+		Output->SetStringField(TEXT("ErrorKind"), TEXT("UnknownAction"));
+		Output->SetStringField(TEXT("Error"), TEXT("Use one of the action names in AvailableActions."));
+		Output->SetArrayField(TEXT("AvailableActions"), *Choices);
+		return;
+	}
+
+	const FString Action = (*Match)->AsString();
+	const FNexusActionFields* Fields = Def.ActionFields.Find(Action);
+	const auto IsMissing = [&Properties](const FString& Name) { return !Properties->HasField(Name); };
+	if (Fields && (Fields->Required.ContainsByPredicate(IsMissing) || Fields->Optional.ContainsByPredicate(IsMissing)))
+		Fields = nullptr;
+	TSharedPtr<FJsonObject> Detail = MakeShared<FJsonObject>();
+	Detail->SetStringField(TEXT("name"), Def.Name);
+	Detail->SetStringField(TEXT("description"), Def.Description);
+	Detail->SetStringField(TEXT("Action"), Action);
+	Detail->SetStringField(TEXT("ParameterScope"), Fields ? TEXT("ActionSpecific") : TEXT("Shared"));
+	AttachMetaHints(Detail, Def, false);
+	if (Fields && !Fields->Hint.IsEmpty()) Detail->SetStringField(TEXT("ActionHint"), Fields->Hint);
+
+	// 仅复制要改写的层级。注册表仍供完整发现、校验及其他动作共用。
+	auto SelectedAction = MakeShared<FJsonObject>(*Selector);
+	SelectedAction->SetArrayField(TEXT("enum"), {*Match});
+	FString DefaultAction;
+	if (SelectedAction->TryGetStringField(TEXT("default"), DefaultAction) && !DefaultAction.Equals(Action, ESearchCase::CaseSensitive))
+		SelectedAction->RemoveField(TEXT("default"));
+	TSet<FString> Required;
+	CollectRequiredNames(Owner, Required);
+	Required.Add(TEXT("Action"));
+	if (Fields)
+	{
+		for (const FString& Name : Fields->Required) Required.Add(Name);
+	}
+	auto SelectedProperties = MakeShared<FJsonObject>();
+	TArray<TSharedPtr<FJsonValue>> RequiredArray;
+	for (const auto& Pair : Properties->Values)
+	{
+		const FString Name(*Pair.Key);
+		if (Required.Contains(Name)) RequiredArray.Add(MakeShared<FJsonValueString>(Name));
+		else if (Fields && !Fields->Optional.Contains(Name))
+		{
+			// 保留框架注入的顶层保存、编译与危险操作确认参数。
+			const bool bInjected = !bNested && ((Def.bInjectSaveToDisk && Name == TEXT("bSaveToDisk"))
+				|| (Def.bInjectCompile && Name == TEXT("bCompile"))
+				|| (Def.HasTag(FNexusMcpTags::Dangerous) && Name == TEXT("Reason")));
+			if (!bInjected) continue;
+		}
+		SelectedProperties->SetField(Name, Pair.Value);
+	}
+	SelectedProperties->SetObjectField(TEXT("Action"), SelectedAction);
+	auto Schema = MakeShared<FJsonObject>(*Owner);
+	Schema->SetObjectField(TEXT("properties"), SelectedProperties);
+	Schema->SetArrayField(TEXT("required"), RequiredArray);
+	if (bNested)
+	{
+		auto SelectedOperations = MakeShared<FJsonObject>(*Operations);
+		SelectedOperations->SetObjectField(TEXT("items"), Schema);
+		auto SelectedRootProperties = MakeShared<FJsonObject>(*RootProperties);
+		SelectedRootProperties->SetObjectField(TEXT("Operations"), SelectedOperations);
+		Schema = MakeShared<FJsonObject>(*Def.InputSchema);
+		Schema->SetObjectField(TEXT("properties"), SelectedRootProperties);
+	}
+	Detail->SetObjectField(TEXT("inputSchema"), Schema);
+	if (Def.DescribeAction) Def.DescribeAction(Def.Name, Action, *Detail);
+	if (Detail->GetStringField(TEXT("ParameterScope")) == TEXT("Shared"))
+		Detail->SetStringField(TEXT("ActionHint"), TEXT("Includes shared fields. Some optional fields apply to other actions."));
+	Output->SetObjectField(TEXT("Capability"), Detail);
+}
+
 int32 FNexusCapabilityIndexUtils::ScoreToken(const FString& Token, const TArray<FString>& Keywords)
 {
 	int32 Best = 0;
@@ -289,9 +387,9 @@ TArray<FString> FNexusCapabilityIndexUtils::FilterVisibleRelated(
 }
 
 void FNexusCapabilityIndexUtils::AttachMetaHints(TSharedPtr<FJsonObject>& Entry,
-                                                  const FNexusCapabilityDefinition& Def)
+                                                  const FNexusCapabilityDefinition& Def, bool bIncludeOutputSchema)
 {
-    if (Def.OutputSchema.IsValid()) Entry->SetObjectField(TEXT("outputSchema"), Def.OutputSchema);
+    if (bIncludeOutputSchema && Def.OutputSchema.IsValid()) Entry->SetObjectField(TEXT("outputSchema"), Def.OutputSchema);
     if (Def.ExecutionInfo) Entry->SetObjectField(TEXT("Execution"), Def.ExecutionInfo());
 
 	const TArray<FString> Related = FilterVisibleRelated(Def.RelatedCapabilities, UNexusLinkSettings::Get());

@@ -150,7 +150,7 @@
     "GetRuntimeSlateWidget": "按十六进制地址检查原生 SWidget（来自 Widget Reflector）；含 layout。",
     "GetRuntimeWidgetProperty": "按 WidgetPath 或 WidgetName+OwnerClass 读取运行时 UMG 字段，支持 WidgetComponent 控件树及布局。",
     "GetTrace": "读已停录的 .utrace：同时间窗完整帧统计（含中位数）、CPU 计时（含总条目数/截断）、Bookmark。",
-    "InteractRuntimeActorAbilitySystem": "操作运行时 ASC；支持仅激活已有技能及开始/停止事件捕获；旧 ActivateAbility 仍先授予。",
+    "InteractRuntimeActorAbilitySystem": "授予技能、施加效果或设置属性。验证激活结果时，先在权威端执行 StartActivationCapture，再尝试激活。bRequestAccepted 仅表示本地受理。",
     "InteractRuntimeActorAI": "发起 AIController MoveTo 或 Stop；可设置投影、Filter、部分路径与接受半径，用 GetRuntimeActorAI 确认结果。",
     "InteractRuntimeActorAnimation": "控制运行时动画。play/stop/JumpToSection/SetAnimClass/SetAnimVariable。无稳定 Slot API。",
     "InteractRuntimeActorAudio": "运行时播放声音。Action=PlaySound；可选附着 Actor。",
@@ -223,7 +223,7 @@
     "RenameAsset": "移动或重命名资产。自动生成重定向器。",
     "SaveAsset": "将资产包持久化到磁盘。先标记 Dirty 再保存。",
     "SearchAsset": "查找资产路径。必须先调；指定 AssetType+PathFilter。返回 assets 与 RecommendedGet/Manage。",
-    "SearchCapabilities": "**首要入口**。向可访问的 UE 实例查询蓝图、Widget、材质和资产相关能力。已知名称时用 `CapabilityName=<精确名>`，否则用 `Query` 传 1–2 个关键词。匹配不超过两项时返回 `Parameters[]`，包含已声明的数值上下限。失败时查看 `ErrorKind`。",
+    "SearchCapabilities": "**首要入口**。向可访问的 UE 实例查询蓝图、Widget、材质和资产相关能力。已知名称时用 `CapabilityName=<精确名>`，可加区分大小写的 `Action` 获取 `Capability.inputSchema` 和 `Capability.ParameterScope`（`ActionSpecific` 或 `Shared`）。否则用 `Query` 传 1–2 个关键词。匹配不超过两项时返回 `Parameters[]`，包含已声明的数值上下限。失败时查看 `ErrorKind`。",
     "SearchConsoleVariables": "搜索控制台变量名。子串匹配；只读。",
     "SetLogCaptureFilter": "配置写入缓冲的日志分类。空=全部；Warning/Error 始终捕获。影响 GetOutputLog。",
     "SetRuntimeActorProperty": "批量修改运行时 Actor 可编辑字段。updates[] 每项一结果。",
@@ -441,6 +441,10 @@
     "GetProjectToolsets": "发现 NexusLink 自有 Capability 分组、输入/输出 Schema 和动作级支持状态；不读取外部 Registry，不提供任意执行。"
   },
   "param_text": {
+    "Widget name. Add may generate one. AddTrack only needs it for a widget-bound track.": "控件名。Add 可自动生成名称。AddTrack 仅在轨道绑定控件时需要此字段。",
+    "Variable name. Required for AddVariable. PromotePin generates a name if omitted.": "变量名。AddVariable 必填，PromotePin 省略时自动生成名称。",
+    "Expected previous property value in Unreal import text for SetDefaults, SetComponentProperty, SetArray or ClearArray.": "SetDefaults、SetComponentProperty、SetArray 或 ClearArray 预期的属性旧值，使用 Unreal 导入文本格式。",
+    "Actor with an ASC. Required for TryActivateGrantedAbility, StartActivationCapture and StopActivationCapture. Other actions default to the first actor with an ASC.": "带能力系统组件（ASC）的 Actor。TryActivateGrantedAbility、StartActivationCapture 和 StopActivationCapture 必填。其他动作默认使用首个带 ASC 的 Actor。",
     "Asset discovered via SearchAsset": "SearchAsset 返回的资产路径",
     "Relative graph path returned by GetEditorGraph; required except graph listing/Open": "GetEditorGraph 返回的相对图路径；列图与 Open 以外的操作必填",
     "Node GUID from this graph snapshot; Get filter or FocusNode target": "当前图快照返回的节点 GUID；用于读取筛选或 FocusNode 目标",

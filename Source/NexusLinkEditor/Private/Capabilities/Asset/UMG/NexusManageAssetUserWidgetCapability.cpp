@@ -52,7 +52,7 @@ void FNexusManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefi
 			  , TEXT("Move"), TEXT("Wrap"), TEXT("ReplaceWithTemplate"), TEXT("ReplaceWithChild"), TEXT("SetNamedSlotContent"), TEXT("Rename"), TEXT("SetVariable"), TEXT("BindEvent"), TEXT("AddUIComponent"), TEXT("RemoveUIComponent"), TEXT("MoveUIComponent")
 			  }))
 		.Prop(TEXT("WidgetClass"),  FNexusSchema::Str(TEXT("Widget class short name or generated class path (Add/Wrap/ReplaceWithTemplate/SetNamedSlotContent)")))
-		.Prop(TEXT("WidgetName"),   FNexusSchema::Str(TEXT("Widget name; required for remove/set_*/animation track")))
+		.Prop(TEXT("WidgetName"),   FNexusSchema::Str(TEXT("Widget name. Add may generate one. AddTrack only needs it for a widget-bound track.")))
 		.Prop(TEXT("ParentWidget"), FNexusSchema::Str(TEXT("Parent panel (Add/Move), or named-slot host (SetNamedSlotContent; omit for inherited blueprint slots)")))
 		.Prop(TEXT("ChildIndex"), FNexusSchema::Int(TEXT("Destination child index for Move; -1 appends"), -1, -1))
 		.Prop(TEXT("SlotName"), FNexusSchema::Str(TEXT("Empty named slot receiving a new WidgetName/WidgetClass (SetNamedSlotContent)")))
@@ -91,6 +91,39 @@ void FNexusManageAssetUserWidgetCapability::BuildDefinition(FNexusCapabilityDefi
 		.Required({ TEXT("AssetPath"), TEXT("Operations") })
 		.Build();
 	}();
+	Out.ActionFields = {
+		{TEXT("Add"), {{TEXT("WidgetClass")}, {TEXT("WidgetName"), TEXT("ParentWidget")},
+			TEXT("ParentWidget is required when the root is occupied. Structural verification also requires a unique WidgetName.")}},
+		{TEXT("Remove"), {{TEXT("WidgetName")}, {}, {}}},
+		{TEXT("SetSlot"), {{TEXT("WidgetName")},
+			{TEXT("AnchorMinX"), TEXT("AnchorMinY"), TEXT("AnchorMaxX"), TEXT("AnchorMaxY"),
+			 TEXT("AlignmentX"), TEXT("AlignmentY"), TEXT("OffsetLeft"), TEXT("OffsetTop"), TEXT("OffsetRight"), TEXT("OffsetBottom")},
+			TEXT("Canvas children only. Supply all four anchors together, both alignments together, or individual offsets.")}},
+		{TEXT("SetProperty"), {{TEXT("WidgetName"), TEXT("PropertyPath"), TEXT("Value")}, {TEXT("ExpectedValue")}, {}}},
+		{TEXT("AddAnimation"), {{TEXT("AnimationName")}, {}, {}}},
+		{TEXT("RemoveAnimation"), {{TEXT("AnimationName")}, {}, {}}},
+		{TEXT("AddTrack"), {{TEXT("AnimationName")}, {TEXT("TrackName"), TEXT("WidgetName"), TEXT("PropertyPath")},
+			TEXT("Pass WidgetName to bind the track. PropertyPath applies only to a bound track.")}},
+		{TEXT("AddKey"), {{TEXT("AnimationName"), TEXT("Time"), TEXT("KeyValue")}, {TEXT("TrackName")},
+			TEXT("Omitting TrackName selects the first float track.")}},
+		{TEXT("RemoveTrack"), {{TEXT("AnimationName"), TEXT("TrackName")}, {}, {}}},
+		{TEXT("RemoveKey"), {{TEXT("AnimationName"), TEXT("Time")}, {TEXT("TrackName")},
+			TEXT("Omitting TrackName selects the first float track.")}},
+		{TEXT("Move"), {{TEXT("WidgetName"), TEXT("ParentWidget")}, {TEXT("ChildIndex")}, {}}},
+		{TEXT("Wrap"), {{TEXT("WidgetName"), TEXT("WidgetClass")}, {}, TEXT("WidgetClass must be a concrete panel.")}},
+		{TEXT("ReplaceWithTemplate"), {{TEXT("WidgetName"), TEXT("WidgetClass")}, {}, {}}},
+		{TEXT("ReplaceWithChild"), {{TEXT("WidgetName")}, {}, TEXT("The panel must have exactly one child.")}},
+		{TEXT("SetNamedSlotContent"), {{TEXT("WidgetName"), TEXT("WidgetClass"), TEXT("SlotName")}, {TEXT("ParentWidget")},
+			TEXT("Use a new WidgetName and an empty slot. Omit ParentWidget for an inherited blueprint slot.")}},
+		{TEXT("Rename"), {{TEXT("WidgetName"), TEXT("NewWidgetName")}, {}, {}}},
+		{TEXT("SetVariable"), {{TEXT("WidgetName"), TEXT("bIsVariable")}, {}, {}}},
+		{TEXT("BindEvent"), {{TEXT("WidgetName"), TEXT("EventName")}, {},
+			TEXT("Expose the widget variable and compile before binding a BlueprintAssignable event in the EventGraph.")}},
+		{TEXT("AddUIComponent"), {{TEXT("WidgetName"), TEXT("ComponentClass")}, {}, {}}},
+		{TEXT("RemoveUIComponent"), {{TEXT("WidgetName"), TEXT("ComponentClass")}, {}, {}}},
+		{TEXT("MoveUIComponent"), {{TEXT("WidgetName"), TEXT("ComponentClass"), TEXT("RelativeComponentClass")}, {TEXT("bMoveAfter")},
+			TEXT("The relative component must already exist on the same widget.")}},
+	};
 	Out.Tags = {FNexusMcpTags::Write, FNexusMcpTags::Widget };
 	Out.ExtraSearchKeywords = {
 		TEXT("wbp"), TEXT("umg"), TEXT("Children"), TEXT("UI"), TEXT("slot"), TEXT("Animation"), TEXT("Key")

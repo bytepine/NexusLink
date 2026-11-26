@@ -80,6 +80,14 @@ struct FCapabilityResult
 	}
 };
 
+/** 单个动作使用的字段，名称相对于 Action 所在的对象。字段类型和约束取自 InputSchema。 */
+struct FNexusActionFields
+{
+	TArray<FString> Required;
+	TArray<FString> Optional;
+	FString Hint;
+};
+
 /**
  * Capability 元数据定义 —— Capability 与 Tool 已完全解耦，所有元信息在自身上。
  *
@@ -101,6 +109,9 @@ struct FNexusCapabilityDefinition
 
 	/** 输入参数 JSON Schema：`{type:"object", properties:{...}, required?:[...]}`。 */
 	TSharedPtr<FJsonObject> InputSchema;
+	TMap<FString, FNexusActionFields> ActionFields;
+	/** 复用依赖引擎版本或插件的动作契约，仅在精确查询该动作时调用。 */
+	void (*DescribeAction)(const FString& Capability, const FString& Action, FJsonObject& Detail) = nullptr;
 	/** 可选的最终输出契约；旧能力不声明时保持原行为。 */
 	TSharedPtr<FJsonObject> OutputSchema;
 	bool bAutoTransaction = true;

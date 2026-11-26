@@ -38,6 +38,10 @@ public:
 	 */
 	static TArray<TSharedPtr<FJsonValue>> ExtractParameters(const TSharedPtr<FJsonObject>& InputSchema);
 
+	/** 精确动作发现：保留调用结构和原字段约束，仅筛选已声明了动作契约的字段。 */
+	static void DescribeAction(const FNexusCapabilityDefinition& Def, const FString& RequestedAction,
+	                           TSharedPtr<FJsonObject>& Output);
+
 	/**
 	 * 单 token 在 keywords 集合中的最佳匹配分：
 	 *   - 完全相等：10；前缀匹配：5；子串匹配（len≥3）：2；无命中：0。
@@ -58,7 +62,8 @@ public:
 	                                    int32& OutMatchedTokens);
 
 	/** 将 RelatedCapabilities/Prerequisites/WhenToUse 附加到已有 JsonObject。Related 仅保留当前宿主已注册且已启用的名。 */
-	static void AttachMetaHints(TSharedPtr<FJsonObject>& Entry, const FNexusCapabilityDefinition& Def);
+	static void AttachMetaHints(TSharedPtr<FJsonObject>& Entry, const FNexusCapabilityDefinition& Def,
+	                            bool bIncludeOutputSchema = true);
 
 	/**
 	 * 过滤 RelatedCapabilities：仅保留已注册、当前宿主可见、设置中已启用的名。

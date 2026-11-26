@@ -15,6 +15,9 @@
 > 示例（单条）：`CallCapability(Capability="ListRuntimeActors", Arguments={"ClassFilter":"BP_Enemy"})`
 
 > **`SearchCapabilities` 失败类型**（检查 `ErrorKind`；不要只看一条 `Error` 字符串）
+> - `InvalidAction` 表示 `Action` 须为非空字符串，并与 `CapabilityName` 一起传入。
+> - `ActionNotSupported` 表示能力没有动作枚举，省略 `Action` 可查完整参数。
+> - `UnknownAction` 会在 `AvailableActions` 列出可用名称，区分大小写。
 > - `NotFound`：Capability 名不在注册表
 > - `disabled`：精确 `CapabilityName` / cap 名 `Query` 命中设置中已禁用的 cap
 > - `DisabledOnly`：模糊 `Query` 只匹配到**已禁用**的 cap（见 `DisabledCapabilities[]`）

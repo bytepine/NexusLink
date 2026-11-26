@@ -11,12 +11,14 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `SearchCapabilities` accepts `CapabilityName` and `Action` to describe one operation. Blueprint, Widget Blueprint and runtime GAS expose field sets for 44, 21 and 13 actions respectively. Standalone editor tools reuse the action contracts from `GetProjectToolsets`. Other enumerated actions identify shared fields, and omitting `Action` preserves existing discovery.
 - On UE 5.5 and later, GameplayEffect tools read and add `MultiplyCompound` and `AddFinal` modifiers. The `ModifierOp` parameter for `AddModifier` lists the operations supported by the current engine and retains the names `Add`, `Multiply`, `Divide`, and `Override`.
 
 ### Changed
 
 - Blueprints, Widget Blueprints, and Animation Blueprints share the graph summary implementation. `GetAssetBlueprint` uses the source data for variables and functions on the requested page and collects the graph list once per named graph lookup. GameplayAbility reads and writes its instancing and network execution policies through UE enum reflection.
 - `SetProperty` shares property-path validation and result handling across Texture, SoundWave, Font, CommonButtonStyle, and CommonTextStyle. Successful writes return `PropertyPath` and include `OldValue` and `NewValue` when the previous and actual new values respectively have nonempty text representations.
+- Both MCP modes send shorter handshake and proxy connection instructions with on-demand parameter discovery. The handshake reminds clients to start observation before reproducing a problem or checking an outcome. The GAS activation tool calls for authority-side capture before the attempt and identifies local acceptance as unconfirmed.
 
 ### Fixed
 

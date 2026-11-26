@@ -66,6 +66,12 @@ static TSharedPtr<FJsonObject> NexusFlatActionInput(const FCapRecord& Record, co
 	Schema->SetArrayField(TEXT("required"), Required); return Schema;
 }
 
+static bool NexusUsesNestedActionParameters(const FString& Capability)
+{
+	return Capability == TEXT("GetEditorAnimation") || Capability == TEXT("ControlEditorAnimation")
+		|| Capability == TEXT("ControlEditorNiagara");
+}
+
 TArray<TSharedPtr<FJsonValue>> FNexusEditorActionSchema::List(const FString& Capability, const FString& Action)
 {
 	TArray<TSharedPtr<FJsonValue>> Rows;
@@ -121,10 +127,42 @@ TArray<TSharedPtr<FJsonValue>> FNexusEditorActionSchema::List(const FString& Cap
             if (!bSupported && Domain == TEXT("NexusAnimation.Mixer")) Row->SetStringField(TEXT("Reason"), TEXT("Enable MovieSceneAnimMixer and use an engine exposing the requested Mixer scripting API (UE 5.8+). No Toolset plugin is required."));
             if (bRequiresRigControlValidation && !FNexusAnimationAdvancedTools::ValidateRigControl) Row->SetStringField(TEXT("Reason"), TEXT("Enable NexusLinkControlRig to validate the named Control Rig control"));
 			// 扁平入口返回客户端参数；透传入口返回 Parameters 内部契约。
-			if (!bAnimation && !(bWrite && Domain == TEXT("NexusNiagara"))) Row->SetObjectField(TEXT("InputSchema"), NexusFlatActionInput(*Record, Pair.Key));
+			if (!NexusUsesNestedActionParameters(Name)) Row->SetObjectField(TEXT("InputSchema"), NexusFlatActionInput(*Record, Pair.Key));
 			else if (Parameters) Row->SetObjectField(TEXT("InputSchema"), Parameters);
 			Rows.Add(MakeShared<FJsonValueObject>(Row));
 		}
 	}
 	return Rows;
+}
+
+void FNexusEditorActionSchema::Describe(const FString& Capability, const FString& Action, FJsonObject& Detail)
+{
+	if (Capability.IsEmpty() || Action.IsEmpty()) return;
+	const auto Rows = List(Capability, Action);
+	if (Rows.Num() != 1) return;
+	const auto Row = Rows[0]->AsObject();
+	for (const TCHAR* Key : {TEXT("bSupported"), TEXT("MinimumVersion"), TEXT("Reason"), TEXT("Prerequisites"), TEXT("Backend"), TEXT("ToolsetName"), TEXT("ToolName")})
+	{
+		if (const auto* Value = Row->Values.Find(Key)) Detail.SetField(Key, *Value);
+	}
+
+	const TSharedPtr<FJsonObject>* ActionSchema = nullptr;
+	if (!Row->TryGetObjectField(TEXT("InputSchema"), ActionSchema)) return;
+	if (!NexusUsesNestedActionParameters(Capability))
+	{
+		Detail.SetObjectField(TEXT("inputSchema"), *ActionSchema);
+		return;
+	}
+
+	const auto Properties = Detail.GetObjectField(TEXT("inputSchema"))->GetObjectField(TEXT("properties"));
+	const auto Parameters = MakeShared<FJsonObject>();
+	Parameters->Values = (*ActionSchema)->Values;
+	FString Description;
+	if (!Parameters->HasField(TEXT("description"))
+		&& Properties->GetObjectField(TEXT("Parameters"))->TryGetStringField(TEXT("description"), Description))
+	{
+		Parameters->SetStringField(TEXT("description"), Description);
+	}
+	Properties->SetObjectField(TEXT("Parameters"), Parameters);
+	Detail.SetStringField(TEXT("ParameterScope"), TEXT("ActionSpecific"));
 }

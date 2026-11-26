@@ -15,6 +15,9 @@
 > 示例（单条）：`CallCapability(Capability="ListRuntimeActors", Arguments={"ClassFilter":"BP_Enemy"})`
 
 > **`SearchCapabilities` 失败类型**（检查 `ErrorKind`；不要只看一条 `Error` 字符串）
+> - `InvalidAction` 表示 `Action` 须为非空字符串，并与 `CapabilityName` 一起传入。
+> - `ActionNotSupported` 表示能力没有动作枚举，省略 `Action` 可查完整参数。
+> - `UnknownAction` 会在 `AvailableActions` 列出可用名称，区分大小写。
 > - `NotFound`：Capability 名不在注册表
 > - `disabled`：精确 `CapabilityName` / cap 名 `Query` 命中设置中已禁用的 cap
 > - `DisabledOnly`：模糊 `Query` 只匹配到**已禁用**的 cap（见 `DisabledCapabilities[]`）
@@ -85,7 +88,7 @@
 
 ### `SearchCapabilities`
 
-**首要入口**。向可访问的 UE 实例查询蓝图、Widget、材质和资产相关能力。已知名称时用 `CapabilityName=<精确名>`，否则用 `Query` 传 1–2 个关键词。匹配不超过两项时返回 `Parameters[]`，包含已声明的数值上下限。失败时查看 `ErrorKind`。
+**首要入口**。向可访问的 UE 实例查询蓝图、Widget、材质和资产相关能力。已知名称时用 `CapabilityName=<精确名>`，可加区分大小写的 `Action` 获取 `Capability.inputSchema` 和 `Capability.ParameterScope`（`ActionSpecific` 或 `Shared`）。否则用 `Query` 传 1–2 个关键词。匹配不超过两项时返回 `Parameters[]`，包含已声明的数值上下限。失败时查看 `ErrorKind`。
 
 ---
 
@@ -3898,7 +3901,7 @@
 
 ### `InteractRuntimeActorAbilitySystem`
 
-操作运行时 ASC；支持仅激活已有技能及开始/停止事件捕获；旧 ActivateAbility 仍先授予。
+授予技能、施加效果或设置属性。验证激活结果时，先在权威端执行 StartActivationCapture，再尝试激活。bRequestAccepted 仅表示本地受理。
 
 **前置条件**: `PIE`
 
@@ -3907,7 +3910,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | `Action` | `string (enum)` | ★ | 写操作 枚举: `ActivateAbility` / `CancelAbility` / `ApplyEffect` / `RemoveEffect` / `SetAttribute` / `GiveAbility` / `ClearAbility` / `ExecuteCue` / `AddLooseTag` / `RemoveLooseTag` / `TryActivateGrantedAbility` / `StartActivationCapture` / `StopActivationCapture` |
-| `ActorName` | `string` |  | 运行时 Actor 名（PIE 世界 `GetName()`） |
+| `ActorName` | `string` |  | 带能力系统组件（ASC）的 Actor。TryActivateGrantedAbility、StartActivationCapture 和 StopActivationCapture 必填。其他动作默认使用首个带 ASC 的 Actor。 |
 | `AbilityPath` | `string` |  | GameplayAbility 资产路径 |
 | `SpecHandle` | `string` |  | 已授予技能句柄；TryActivateGrantedAbility 中与 AbilityPath 互斥 |
 | `CaptureId` | `string` |  | 要停止的采集，绑定 ActorName |

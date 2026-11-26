@@ -26,13 +26,13 @@
 void FNexusInteractRuntimeActorAbilitySystemCapability::BuildDefinition(FNexusCapabilityDefinition& Out) const
 {
 	Out.Name = TEXT("InteractRuntimeActorAbilitySystem");
-	Out.Description = TEXT("Command ASC. Try existing abilities, capture activation/commit/failure events; grant/apply/attributes.");
+	Out.Description = TEXT("Grant abilities, apply effects or set attributes. To verify activation, run StartActivationCapture on the authority before the attempt. bRequestAccepted reports local acceptance only.");
 	Out.InputSchema = FNexusSchema::Object()
 		.Prop(TEXT("Action"),        FNexusSchema::Enum(TEXT("Write operation"),
 			{ TEXT("ActivateAbility"), TEXT("CancelAbility"), TEXT("ApplyEffect"), TEXT("RemoveEffect"), TEXT("SetAttribute"),
 			  TEXT("GiveAbility"), TEXT("ClearAbility"), TEXT("ExecuteCue"), TEXT("AddLooseTag"), TEXT("RemoveLooseTag"),
 			  TEXT("TryActivateGrantedAbility"), TEXT("StartActivationCapture"), TEXT("StopActivationCapture") }))
-		.Prop(TEXT("ActorName"),     FNexusSchema::Str(TEXT("Actor name (optional; first ASC Pawn/Actor if omitted)")))
+		.Prop(TEXT("ActorName"),     FNexusSchema::Str(TEXT("Actor with an ASC. Required for TryActivateGrantedAbility, StartActivationCapture and StopActivationCapture. Other actions default to the first actor with an ASC.")))
 		.Prop(TEXT("AbilityPath"),   FNexusSchema::Str(TEXT("GameplayAbility asset path")))
 		.Prop(TEXT("SpecHandle"), FNexusSchema::Str(TEXT("Granted ability handle; exclusive with AbilityPath for TryActivateGrantedAbility")))
 		.Prop(TEXT("CaptureId"), FNexusSchema::Str(TEXT("Capture to stop; bound to ActorName")))
@@ -43,6 +43,22 @@ void FNexusInteractRuntimeActorAbilitySystemCapability::BuildDefinition(FNexusCa
 		.Prop(TEXT("Tag"),           FNexusSchema::Str(TEXT("GameplayTag（ExecuteCue / loose tag）")))
 		.Required({ TEXT("Action") })
 		.Build();
+	Out.ActionFields = {
+		{TEXT("ActivateAbility"), {{TEXT("AbilityPath")}, {TEXT("ActorName"), TEXT("Level")}, TEXT("Grants the ability before activation.")}},
+		{TEXT("CancelAbility"), {{TEXT("AbilityPath")}, {TEXT("ActorName")}, {}}},
+		{TEXT("ApplyEffect"), {{TEXT("EffectPath")}, {TEXT("ActorName"), TEXT("Level")}, {}}},
+		{TEXT("RemoveEffect"), {{TEXT("EffectPath")}, {TEXT("ActorName")}, {}}},
+		{TEXT("SetAttribute"), {{TEXT("AttributeName")}, {TEXT("ActorName"), TEXT("Value")}, TEXT("Omitting Value sets the base value to zero.")}},
+		{TEXT("GiveAbility"), {{TEXT("AbilityPath")}, {TEXT("ActorName"), TEXT("Level")}, {}}},
+		{TEXT("ClearAbility"), {{TEXT("AbilityPath")}, {TEXT("ActorName")}, {}}},
+		{TEXT("ExecuteCue"), {{TEXT("Tag")}, {TEXT("ActorName")}, {}}},
+		{TEXT("AddLooseTag"), {{TEXT("Tag")}, {TEXT("ActorName")}, {}}},
+		{TEXT("RemoveLooseTag"), {{TEXT("Tag")}, {TEXT("ActorName")}, {}}},
+		{TEXT("TryActivateGrantedAbility"), {{TEXT("ActorName")}, {TEXT("SpecHandle"), TEXT("AbilityPath")},
+			TEXT("Pass exactly one of SpecHandle or AbilityPath for an already granted ability.")}},
+		{TEXT("StartActivationCapture"), {{TEXT("ActorName")}, {}, {}}},
+		{TEXT("StopActivationCapture"), {{TEXT("ActorName"), TEXT("CaptureId")}, {}, TEXT("Read the captured events before stopping.")}},
+	};
 	Out.Tags = { FNexusMcpTags::Write, FNexusMcpTags::Runtime, FNexusMcpTags::Gas };
 	Out.ExtraSearchKeywords = { TEXT("gas"), TEXT("asc"), TEXT("ability"), TEXT("effect"), TEXT("Attribute"), TEXT("activation"), TEXT("failure"), TEXT("prediction"), TEXT("capture") };
 	Out.RelatedCapabilities = { TEXT("GetRuntimeActorAbilitySystem"), TEXT("GetGameplayTags") };
