@@ -35,6 +35,7 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 - Fix reparenting preflight for specialized GameplayAbility Blueprints so it accepts valid derived parents.
 - NexusLink can load when EditorScriptingUtilities is absent. On UE 4, LOD editing, convex collision generation, and mesh actor merging call that engine plugin only when available.
 - Structured and schema-backed results include a matching JSON text block after compaction and validation. Both tool-list modes guide clients to request just the sections, properties and filtered pages needed for a task.
+- Fix a compile error when constructing the empty HTTP `/stream` notification response. The response still returns `202 Accepted` with an empty body.
 
 ## [2.3.7] - 2026-11-19
 

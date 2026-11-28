@@ -474,7 +474,7 @@ void FNexusMcpServer::RegisterRoutes()
 				auto Reader = TJsonReaderFactory<>::Create(JsonBody);
 				if (FJsonSerializer::Deserialize(Reader, Parsed) && Parsed.IsValid() && !Parsed->HasField(TEXT("id")))
 				{
-					auto Response = FHttpServerResponse::Create(TEXT(""), TEXT("application/json"));
+					auto Response = FHttpServerResponse::Create(FString(), TEXT("application/json"));
 					Response->Code = EHttpServerResponseCodes::Accepted;
 					Complete(MoveTemp(Response));
 				}
